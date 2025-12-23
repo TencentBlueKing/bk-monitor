@@ -19,8 +19,7 @@ from rest_framework.exceptions import ValidationError
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
-from monitor_web.models import CustomTSField, CustomTSTable
-from monitor_web.scene_view import mock_data
+from monitor_web.models import CustomTSTable
 
 logger = logging.getLogger("monitor_web")
 
@@ -52,72 +51,67 @@ class GetCustomTsMetricGroups(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
         time_series_group_id = serializers.IntegerField(label=_("自定义指标 ID"))
-        is_mock = serializers.BooleanField(label=_("是否为 mock"), default=False)
 
     def perform_request(self, params: dict) -> dict[str, list]:
-        if params["is_mock"]:
-            return mock_data.CUSTOM_TS_METRIC_GROUPS
-        table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
-            pk=params["time_series_group_id"],
-            bk_tenant_id=get_request_tenant_id(),
-        )
+        # 从 metadata 获取指标分组列表
+        metadata_result = api.metadata.query_time_series_scope(group_id=params["time_series_group_id"])
 
-        fields = table.get_and_sync_fields()
-        metrics = [field for field in fields if field.type == CustomTSField.MetricType.METRIC]
+        # 转换数据结构
+        metric_groups = []
+        for scope_data in metadata_result:
+            scope_id = scope_data.get("scope_id")
+            scope_name = scope_data.get("scope_name", "")
+            metric_list = scope_data.get("metric_list", [])
+            dimension_config = scope_data.get("dimension_config", {})
 
-        # 维度描述
-        hidden_dimensions = set()
-        dimension_descriptions = {}
-        # 公共维度
-        common_dimensions = []
-        for field in fields:
-            # 如果不是维度，则跳过
-            if field.type != CustomTSField.MetricType.DIMENSION:
-                continue
+            # 构建指标列表
+            metrics = []
+            for metric_data in metric_list:
+                field_config = metric_data.get("field_config", {})
+                # 如果指标隐藏或禁用，则不展示
+                if field_config.get("hidden", False) or field_config.get("disabled", False):
+                    continue
 
-            dimension_descriptions[field.name] = field.description
+                # 构建维度列表
+                dimensions = []
+                for dimension_name in metric_data.get("tag_list", []):
+                    dim_config = dimension_config.get(dimension_name, {})
+                    # 如果维度隐藏，则不展示
+                    if dim_config.get("hidden", False):
+                        continue
+                    dimensions.append({"name": dimension_name, "alias": dim_config.get("alias", dimension_name)})
 
-            # 如果维度隐藏，则不展示
-            if field.config.get("hidden", False):
-                hidden_dimensions.add(field.name)
-                continue
-
-            # 如果维度公共，则添加到公共维度
-            if field.config.get("common", False):
-                common_dimensions.append({"name": field.name, "alias": field.description})
-
-        # 指标分组
-        metric_groups = defaultdict(list)
-        for metric in metrics:
-            # 如果指标隐藏，则不展示
-            if metric.disabled or metric.config.get("hidden", False):
-                continue
-
-            labels = metric.config.get("label", [])
-
-            # 如果 label 为空，则使用未分组
-            if not labels:
-                labels = [str(_("未分组"))]
-
-            # 分组
-            for group in labels:
-                metric_groups[group].append(
+                metrics.append(
                     {
-                        "metric_name": metric.name,
-                        "alias": metric.description,
-                        "dimensions": [
-                            {"name": dimension, "alias": dimension_descriptions.get(dimension, dimension)}
-                            for dimension in metric.config.get("dimensions", [])
-                            if dimension not in hidden_dimensions
-                        ],
+                        "field_id": metric_data.get("field_id"),
+                        "metric_name": metric_data.get("metric_name", ""),
+                        "alias": field_config.get("alias", ""),
+                        "dimensions": dimensions,
                     }
                 )
 
-        return {
-            "common_dimensions": common_dimensions,
-            "metric_groups": [{"name": group, "metrics": metric_groups[group]} for group in metric_groups],
-        }
+            # 构建公共维度列表
+            common_dimensions = []
+            for dimension_name, dim_config in dimension_config.items():
+                # 如果维度隐藏，则不展示
+                if dim_config.get("hidden", False):
+                    continue
+                # 如果维度公共，则添加到公共维度
+                if dim_config.get("common", False):
+                    common_dimensions.append({"name": dimension_name, "alias": dim_config.get("alias", dimension_name)})
+
+            metric_groups.append(
+                {
+                    "scope_id": scope_id,
+                    "name": scope_name,
+                    "metrics": metrics,
+                    "common_dimensions": common_dimensions,
+                }
+            )
+        # 对分组进行排序：default 在最前面，其他分组按字典顺序排序
+        metric_groups.sort(key=lambda g: (g.get("name") != "default", g.get("name", "")))
+
+        return {"metric_groups": metric_groups}
 
 
 class GetCustomTsDimensionValues(Resource):
@@ -263,10 +257,11 @@ class GetCustomTsGraphConfig(Resource):
 
     @classmethod
     def time_or_no_compare(
-        cls, table: CustomTSTable, metrics: list[CustomTSField], params: dict, dimension_names: dict[str, str]
+        cls, table: CustomTSTable, metrics: list[dict], params: dict, dimension_names: dict[str, str]
     ) -> list[dict]:
         """
         时间对比或无对比
+        metrics: 从 metadata 获取的指标列表，格式为 [{"name": "metric_name", "alias": "别名", "dimensions": [...], "aggregate_method": "AVG"}]
         """
         # 查询拆图维度组合
         split_dimensions = [x["field"] for x in params.get("group_by", []) if x["split"]]
@@ -304,10 +299,10 @@ class GetCustomTsGraphConfig(Resource):
 
             panels = []
             for metric in metric_list:
-                all_metric_dimensions = set(metric.config.get("dimensions", []))
+                all_metric_dimensions = set(metric.get("dimensions", []))
                 query_config = {
                     "metrics": [
-                        {"field": metric.name, "method": metric.config.get("aggregate_method") or "AVG", "alias": "a"}
+                        {"field": metric["name"], "method": metric.get("aggregate_method") or "AVG", "alias": "a"}
                     ],
                     "interval": "$interval",
                     "table": table.table_id,
@@ -333,15 +328,15 @@ class GetCustomTsGraphConfig(Resource):
                 }
                 panels.append(
                     {
-                        "title": metric.description or metric.name,
-                        "sub_title": f"custom:{table.data_label.split(',')[0]}:{metric.name}",
+                        "title": metric.get("alias") or metric["name"],
+                        "sub_title": f"custom:{table.data_label.split(',')[0]}:{metric['name']}",
                         "targets": [
                             {
                                 "expression": "a",
                                 "alias": "",
                                 "query_configs": [query_config],
                                 "function": function,
-                                "metric": {"name": metric.name, "alias": metric.description},
+                                "metric": {"name": metric["name"], "alias": metric.get("alias", "")},
                             }
                         ],
                     }
@@ -352,10 +347,11 @@ class GetCustomTsGraphConfig(Resource):
 
     @classmethod
     def metric_compare(
-        cls, table: CustomTSTable, metrics: list[CustomTSField], params: dict, dimension_names: dict[str, str]
+        cls, table: CustomTSTable, metrics: list[dict], params: dict, dimension_names: dict[str, str]
     ) -> list[dict]:
         """
         指标对比
+        metrics: 从 metadata 获取的指标列表，格式为 [{"name": "metric_name", "alias": "别名", "dimensions": [...], "aggregate_method": "AVG"}]
         """
         # 查询全维度组合
         all_dimensions = [d["field"] for d in params.get("group_by", [])]
@@ -363,7 +359,7 @@ class GetCustomTsGraphConfig(Resource):
 
         # 按照拆图维度分组
         split_dimensions = {d["field"] for d in params.get("group_by", []) if d["split"]}
-        series_groups: dict[tuple[tuple[str, str]], dict[tuple[str, str], list[CustomTSField]]] = defaultdict(dict)
+        series_groups: dict[tuple[tuple[str, str]], dict[tuple[str, str], list[dict]]] = defaultdict(dict)
         for series_tuple, metric_list in series_metrics.items():
             # 计算拆图维度
             group_series = tuple((k, v) for k, v in series_tuple if k in split_dimensions)
@@ -397,8 +393,8 @@ class GetCustomTsGraphConfig(Resource):
                     query_config = {
                         "metrics": [
                             {
-                                "field": metric.name,
-                                "method": metric.config.get("aggregate_method") or "AVG",
+                                "field": metric["name"],
+                                "method": metric.get("aggregate_method") or "AVG",
                                 "alias": "a",
                             }
                         ],
@@ -421,7 +417,7 @@ class GetCustomTsGraphConfig(Resource):
                             "common_filter": {
                                 f"{condition['key']}__{condition['method']}": condition["value"]
                                 for condition in params.get("common_conditions", [])
-                                if condition["key"] in metric.config.get("dimensions", [])
+                                if condition["key"] in metric.get("dimensions", [])
                             },
                         },
                     }
@@ -430,7 +426,7 @@ class GetCustomTsGraphConfig(Resource):
                             "expression": "a",
                             "alias": "",
                             "query_configs": [query_config],
-                            "metric": {"name": metric.name, "alias": metric.description},
+                            "metric": {"name": metric["name"], "alias": metric.get("alias", "")},
                         }
                     )
                 # 计算图表标题
@@ -448,17 +444,19 @@ class GetCustomTsGraphConfig(Resource):
 
     @classmethod
     def query_metric_series(
-        cls, table: CustomTSTable, metrics: list[CustomTSField], dimensions: list[str], params: dict
-    ) -> dict[tuple[tuple[str, str]], list[CustomTSField]]:
+        cls, table: CustomTSTable, metrics: list[dict], dimensions: list[str], params: dict
+    ) -> dict[tuple[tuple[str, str]], list[dict]]:
         """
         查询指标系列
+        metrics: 从 metadata 获取的指标列表
+        返回：{((维度key, 维度value),): [指标]}
         """
         # 如果维度为空，则返回所有指标
         if not dimensions:
             return {(): metrics}
 
-        # 指标字典
-        metrics_dict = {x.name: x for x in metrics}
+        # 指标字典，使用指标名作为 key
+        metrics_dict = {x["name"]: x for x in metrics}
 
         # 转换条件格式为 unify_query.query_series 所需的格式
         conditions = {"field_list": [], "condition_list": []}
@@ -481,8 +479,9 @@ class GetCustomTsGraphConfig(Resource):
         # 根据metrics的维度与待查询维度的交集，确定查询的维度
         dimensions_to_metrics = defaultdict(list)
         for metric in metrics:
-            metric_dimensions = tuple(d for d in dimensions if d in metric.config.get("dimensions", []))
-            dimensions_to_metrics[metric_dimensions].append(metric.name)
+            # 从 metadata 的指标中获取维度
+            metric_dimensions = tuple(d for d in dimensions if d in metric.get("dimensions", []))
+            dimensions_to_metrics[metric_dimensions].append(metric["name"])
 
         series_metrics = defaultdict(set)
         for dimension_tuple, metric_list in dimensions_to_metrics.items():
@@ -519,22 +518,60 @@ class GetCustomTsGraphConfig(Resource):
             pk=params["time_series_group_id"],
             bk_tenant_id=get_request_tenant_id(),
         )
-        metrics = CustomTSField.objects.filter(
-            time_series_group_id=params["time_series_group_id"],
-            type=CustomTSField.MetricType.METRIC,
-            name__in=params["metrics"],
-        )
 
+        # 从 metadata 获取指标分组列表
+        metadata_result = api.metadata.query_time_series_scope(group_id=params["time_series_group_id"])
+
+        # 构建指标字典和维度字典
+        metrics_list = []
         dimension_names: dict[str, str] = {}
-        for dimension in CustomTSField.objects.filter(
-            type=CustomTSField.MetricType.DIMENSION, time_series_group_id=params["time_series_group_id"]
-        ):
-            dimension_names[dimension.name] = dimension.description
+
+        # 构建请求的指标集合
+        requested_metrics = set(params["metrics"])
+
+        for scope_data in metadata_result:
+            metric_list = scope_data.get("metric_list", [])
+            dimension_config = scope_data.get("dimension_config", {})
+
+            # 收集维度名称
+            for dimension_name, dim_config in dimension_config.items():
+                if not dim_config.get("hidden", False):
+                    dimension_names[dimension_name] = dim_config.get("alias", dimension_name)
+
+            # 收集指标信息
+            for metric_data in metric_list:
+                metric_name = metric_data.get("metric_name", "")
+                field_config = metric_data.get("field_config", {})
+
+                # 只处理请求的指标
+                if metric_name not in requested_metrics:
+                    continue
+
+                # 如果指标隐藏或禁用，则跳过
+                if field_config.get("hidden", False) or field_config.get("disabled", False):
+                    continue
+
+                # 收集指标的维度（排除隐藏的维度）
+                dimensions = [
+                    dimension_name
+                    for dimension_name in metric_data.get("tag_list", [])
+                    if not dimension_config.get(dimension_name, {}).get("hidden", False)
+                ]
+
+                metrics_list.append(
+                    {
+                        "name": metric_name,
+                        "alias": field_config.get("alias", ""),
+                        "dimensions": dimensions,
+                        "aggregate_method": field_config.get("aggregate_method", "AVG"),
+                    }
+                )
+
         compare_config = params.get("compare", {})
         if not compare_config or compare_config.get("type") == "time":
-            groups = self.time_or_no_compare(table, metrics, params, dimension_names)
+            groups = self.time_or_no_compare(table, metrics_list, params, dimension_names)
         elif compare_config.get("type") == "metric":
-            groups = self.metric_compare(table, metrics, params, dimension_names)
+            groups = self.metric_compare(table, metrics_list, params, dimension_names)
         else:
             raise ValueError(f"Invalid compare config type: {compare_config.get('type')}")
 
