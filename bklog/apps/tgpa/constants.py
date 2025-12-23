@@ -131,6 +131,15 @@ TGPA_TASK_ETL_FIELDS = [
         "is_delete": False,
     },
     {
+        "field_name": "model",
+        "field_type": "string",
+        "is_dimension": True,
+        "is_analyzed": False,
+        "is_time": False,
+        "description": "model",
+        "is_delete": False,
+    },
+    {
         "field_name": "cos_file_name",
         "field_type": "string",
         "is_dimension": True,
