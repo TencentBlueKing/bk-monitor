@@ -2338,11 +2338,14 @@ class TimeSeriesMetric(models.Model):
 
         # 批量查找已存在的指标
         field_ids = [m.get("field_id") for m in metrics_data if m.get("field_id")]
-        existing_metrics_map = (
-            {metric.field_id: metric for metric in cls.objects.filter(field_id__in=field_ids, group_id=group_id)}
-            if field_ids
-            else {}
-        )
+        existing_metrics_map = {
+            metric.field_id: metric for metric in cls.objects.filter(field_id__in=field_ids, group_id=group_id)
+        }
+
+        existing_disabled_metrics_map = {
+            (metric.field_name, metric.field_scope): metric
+            for metric in cls.objects.filter(group_id=group_id, scope_id=cls.DISABLE_SCOPE_ID)
+        }
 
         # 分离需要创建和更新的指标
         metrics_to_create = []
@@ -2353,34 +2356,24 @@ class TimeSeriesMetric(models.Model):
             field_id = metric_data_copy.get("field_id")
             metric = existing_metrics_map.get(field_id) if field_id else None
 
-            if metric is None:
-                # 检查是否有禁用的指标需要重启
-                field_name = metric_data_copy.get("field_name")
-                disabled_metric = cls.objects.filter(
-                    group_id=group_id,
-                    field_name=field_name,
-                    scope_id=cls.DISABLE_SCOPE_ID,
-                    field_config__disabled=True,
-                ).first()
-
-                if disabled_metric:
-                    # 重启禁用的指标
-                    metrics_to_update.append(
-                        (
-                            disabled_metric,
-                            {
-                                "field_config": {**(disabled_metric.field_config or {}), "disabled": False},
-                                "scope_id": metric_data_copy.get("scope_id"),
-                                "tag_list": metric_data_copy.get("tag_list"),
-                            },
-                        )
-                    )
-                else:
-                    # 准备创建
-                    metrics_to_create.append(metric_data_copy)
-            else:
-                # 准备更新
+            # 如果指标存在，准备更新
+            if metric is not None:
                 metrics_to_update.append((metric, metric_data_copy))
+                continue
+
+            # 检查是否有禁用的指标需要重启
+            field_name = metric_data_copy.get("field_name")
+            field_scope = metric_data_copy.get("field_scope", cls.DEFAULT_DATA_SCOPE_NAME)
+            disabled_metric = existing_disabled_metrics_map.get((field_name, field_scope))
+
+            # 如果有禁用的指标
+            if disabled_metric:
+                metric_data_copy["field_config"].update({"disabled": False})
+                metrics_to_update.append((disabled_metric, metric_data_copy))
+                continue
+
+            # 准备创建新指标
+            metrics_to_create.append(metric_data_copy)
 
         scopes_dict = {scope.id: scope for scope in TimeSeriesScope.objects.filter(group_id=group_id)}
         scopes_dict[TimeSeriesMetric.DISABLE_SCOPE_ID] = None
