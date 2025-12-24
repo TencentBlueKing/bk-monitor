@@ -18,6 +18,17 @@ const { $t } = useLocale();
 
 const isSuccess = computed(() => props.aiQueryResult?.parseResult === 'SUCCESS');
 const isFailed = computed(() => props.aiQueryResult?.parseResult && props.aiQueryResult?.parseResult !== 'SUCCESS');
+const showResultText = computed(() => {
+  if (isSuccess.value) {
+    return props.aiQueryResult.queryString;
+  }
+
+  if (props.aiQueryResult.queryString) {
+    return `${props.aiQueryResult.queryString}, ${props.aiQueryResult.explain}`;
+  }
+
+  return props.aiQueryResult.explain;
+})
 
 /**
  * 关闭解析结果提示
@@ -54,7 +65,7 @@ const handleClose = () => {
       >
         <i class="bklog-icon bklog-circle-alert-filled ai-parse-icon" />
         <span class="ai-parse-failed-label">{{ $t('解析失败') }}:</span>
-        <span class="ai-parse-failed-reason">{{ aiQueryResult.explain }}</span>
+        <span class="ai-parse-failed-reason">{{ showResultText }}</span>
       </span>
     </div>
     <i
@@ -69,7 +80,7 @@ const handleClose = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 32px;
+  min-height: 32px;
   padding: 0 16px;
   font-size: 12px;
   line-height: 32px;
@@ -107,6 +118,7 @@ const handleClose = () => {
       flex: 1;
       overflow: hidden;
       min-width: 0;
+      line-height: 20px;
 
       .ai-parse-icon {
         margin-right: 8px;
@@ -125,13 +137,14 @@ const handleClose = () => {
       .ai-parse-success-label {
         color: #299e56;
         margin-right: 4px;
+        min-width: fit-content;
       }
 
       .ai-parse-success-text {
         color: #299e56;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        // overflow: hidden;
+        // text-overflow: ellipsis;
+        // white-space: nowrap;
       }
     }
   }
@@ -145,13 +158,14 @@ const handleClose = () => {
       .ai-parse-failed-label {
         color: #e71818;
         margin-right: 4px;
+        min-width: fit-content;
       }
 
       .ai-parse-failed-reason {
         color: #313238;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        // overflow: hidden;
+        // text-overflow: ellipsis;
+        // white-space: nowrap;
       }
     }
   }

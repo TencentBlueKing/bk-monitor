@@ -184,14 +184,14 @@ export default defineComponent({
       emit('filter-change', []);
     };
 
-    const getHoverContent = () => {
-      return (
-        <div class='ai-parsed-text-content'>
-          <span>{props.aiQueryResult.queryString}</span>
-          <span onClick={handleEdit}>{t('前往编辑')}</span>
-        </div>
-      );
-    };
+    // const getHoverContent = () => {
+    //   return (
+    //     <div class='ai-parsed-text-content'>
+    //       <span>{props.aiQueryResult.queryString}</span>
+    //       <span onClick={handleEdit}>{t('前往编辑')}</span>
+    //     </div>
+    //   );
+    // };
 
     // 手动设置焦点，避免 autofocus 警告
     onMounted(() => {
@@ -258,7 +258,7 @@ export default defineComponent({
                   }}
                 />
               </div>
-              {props.aiQueryResult.queryString ? (
+              {/* {props.aiQueryResult.queryString ? (
                 <BklogPopover
                   ref={parsedTextRef}
                   class='ai-parsed-text'
@@ -293,7 +293,7 @@ export default defineComponent({
                 >
                   <span class='ai-parsed-text-icon bklog-icon bklog-eye'></span>
                 </BklogPopover>
-              ) : null}
+              ) : null} */}
               <div class='ai-mode-toggle-btn'>
                 <img
                   src={aiBluekingSvg}
