@@ -382,7 +382,6 @@ export default defineComponent({
       destroyTippyInstances();
 
       const targets = document.querySelectorAll('.fields-table-box .t-table__body .word-breaker-edit');
-      console.log('targets', targets);
       if (!targets.length) {
         return;
       }
@@ -454,7 +453,6 @@ export default defineComponent({
     watch(
       () => props.loading,
       (val: boolean) => {
-        console.log('loading changed:', val);
         if (!val) {
           setTimeout(() => {
             initMenuPop();
@@ -1229,7 +1227,7 @@ export default defineComponent({
           bordered={true}
           skeletonConfig={{
             columns: 6,
-            rows: 4,
+            rows: 2,
             widths: ['2%', '24%', '24%', ' 24%', '22%', '4%'],
           }}
           columns={columns.value}

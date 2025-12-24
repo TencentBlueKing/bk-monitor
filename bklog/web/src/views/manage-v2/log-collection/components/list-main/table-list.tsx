@@ -299,7 +299,7 @@ export default defineComponent({
           maxTableHeight.value = HEIGHT_CONSTANTS.MIN_TABLE_HEIGHT;
           return;
         }
-        const totalListHeight = listLen * HEIGHT_CONSTANTS.COLUMNS_HEIGHT + 10;
+        const totalListHeight = listLen * HEIGHT_CONSTANTS.COLUMNS_HEIGHT + 36;
 
         // 如果分页数据总高度超过最大高度，使用最大高度（启用滚动）
         // 否则根据实际数据行数计算高度（避免空白区域）
@@ -503,14 +503,15 @@ export default defineComponent({
         title: t('标签'),
         colKey: 'tags',
         showTips: false,
-        cell: (h, { row }: { row: ITableRowData }) => ((row.tags || []).length > 0 ? (
-          <TagMore
-            tags={row.tags}
-            title={t('标签')}
-          />
-        ) : (
-          '--'
-        )),
+        cell: (h, { row }: { row: ITableRowData }) =>
+          (row.tags || []).length > 0 ? (
+            <TagMore
+              tags={row.tags}
+              title={t('标签')}
+            />
+          ) : (
+            '--'
+          ),
         width: 200,
       },
       {

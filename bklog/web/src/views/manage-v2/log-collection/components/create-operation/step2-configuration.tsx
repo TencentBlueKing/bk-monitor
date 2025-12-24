@@ -617,13 +617,7 @@ export default defineComponent({
     };
 
     const initConfig = (data: IFormData) => {
-      const {
-        configs,
-        collector_scenario_id,
-        params,
-        target_node_type: type,
-        target_nodes: nodes,
-      } = data;
+      const { configs, collector_scenario_id, params, target_node_type: type, target_nodes: nodes } = data;
       /**
        * 初始化采集目标
        */
@@ -662,7 +656,9 @@ export default defineComponent({
         initConfig(res.data);
         // 更新 store 中的当前采集配置
         store.commit('collect/setCurCollect', res.data);
-        isConfigChange.value = false;
+        setTimeout(() => {
+          isConfigChange.value = false;
+        }, 2000);
       } catch (err) {
         console.log('获取采集配置详情失败:', err);
       } finally {
@@ -1345,7 +1341,11 @@ export default defineComponent({
           bcs_cluster_id,
         );
       }
-      console.log(requestData, 'requestData');
+      if (requestData.params.conditions.type === 'none') {
+        requestData.params.conditions = {
+          type: 'none',
+        };
+      }
       $http
         .request(requestUrl, {
           params: urlParams,
@@ -1374,8 +1374,6 @@ export default defineComponent({
      * 保存配置
      */
     const handleSubmitSave = () => {
-      console.log(formData.value.params.conditions, 'baocun-----');
-      // return;
       if (!showClusterListKeys.includes(props.scenarioId)) {
         isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
       }
