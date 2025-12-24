@@ -106,7 +106,6 @@ class BKFaraGrayMixin:
         # 从 serving_config 中获取控制参数
         serving_config = validated_request_data.get("serving_config", {})
         grey_to_bkfara = serving_config.get("grey_to_bkfara", False)
-        service_name = serving_config.get("service_name", "default")
 
         if grey_to_bkfara:
             base_url = "http://bk-incident-aiops-service-aiops-serving-kpi:8000"
@@ -116,15 +115,6 @@ class BKFaraGrayMixin:
             action = self.action
 
         request_url = base_url.rstrip("/") + "/" + action.lstrip("/")
-
-        # Todo: debug打印灰度参数和实际请求的URL
-        import logging
-
-        logger = logging.getLogger("detect")
-        logger.info(
-            f"[BKFaraGray] grey_to_bkfara={grey_to_bkfara}, service_name={service_name}, "
-            f"base_url={base_url}, action={action}, request_url={request_url}"
-        )
 
         return request_url
 
