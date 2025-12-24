@@ -1053,7 +1053,7 @@ class DataLink(models.Model):
         option = ResultTableOption.objects.filter(
             table_id=table_id, bk_tenant_id=self.bk_tenant_id, name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST
         ).first()
-        if option and option.value == "true":
+        if option and option.value == "false":
             result_table_fields = ResultTableField.objects.filter(
                 table_id=table_id, bk_tenant_id=self.bk_tenant_id, is_disabled=False
             )
