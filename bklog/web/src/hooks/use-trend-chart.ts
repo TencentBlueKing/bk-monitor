@@ -36,6 +36,7 @@ import { useRoute, useRouter } from 'vue-router/composables';
 
 import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
 import chartOption, { getSeriesData } from './trend-chart-options';
+import { formatTimeZoneString } from '@/global/utils/time';
 
 export type TrandChartOption = {
   target: Ref<HTMLDivElement | null>;
@@ -60,6 +61,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return (store.state.indexFieldInfo.custom_config?.grade_options?.settings ?? [])
       .filter(setting => setting.enable);
   });
+
+  const timezone = computed(() => store.state.userMeta.time_zone);
 
   /**
    * 匹配规则是否为值匹配
@@ -431,13 +434,13 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     // 格式化tooltip
     options.tooltip.formatter = (params) => {
       // 获取开始时间
-      const timeStart = dayjs(params[0].value[0]).format('MM-DD HH:mm:ss');
+      const timeStart = formatTimeZoneString(params[0].value[0], timezone.value, 'MM-DD HH:mm:ssZZ');
 
       // 计算结束时间：起始时间 + runningInterval
       const startTimestamp = params[0].value[0]; // 时间戳
       const intervalSeconds = getIntervalValue(runningInterval);
       const endTimestamp = startTimestamp + intervalSeconds * 1000; // 转换为毫秒
-      const timeEnd = dayjs(endTimestamp).format('MM-DD HH:mm:ss');
+      const timeEnd = formatTimeZoneString(endTimestamp, timezone.value, 'MM-DD HH:mm:ssZZ');
 
       // 多 series 展示
       const seriesHtml = params

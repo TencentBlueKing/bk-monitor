@@ -66,6 +66,7 @@ class SdkInitDependResource(APIResource):
 
     class RequestSerializer(serializers.Serializer):
         dependency_data = serializers.ListField(child=DependencyDataSerializer())
+        serving_config = serializers.DictField(default=dict())
 
     action = "/api/aiops/init_depend/"
     method = "POST"
@@ -99,13 +100,32 @@ class KpiSdkResource(SdkResource):
     base_url = "http://bk-aiops-serving-kpi:8000"
 
 
-class KpiPredictResource(KpiSdkResource, SdkPredictResource):
+class BKFaraGrayMixin:
+    def get_request_url(self, validated_request_data):
+        """根据灰度参数动态选择服务地址和 action 路径"""
+        # 从 serving_config 中获取控制参数
+        serving_config = validated_request_data.get("serving_config", {})
+        grey_to_bkfara = serving_config.get("grey_to_bkfara", False)
+
+        if grey_to_bkfara:
+            base_url = "http://bk-incident-aiops-service-aiops-serving-kpi:8000"
+            action = self.action.replace("/api/aiops/", "/aiops/serving/")
+        else:
+            base_url = "http://bk-aiops-serving-kpi:8000"
+            action = self.action
+
+        request_url = base_url.rstrip("/") + "/" + action.lstrip("/")
+
+        return request_url
+
+
+class KpiPredictResource(BKFaraGrayMixin, KpiSdkResource, SdkPredictResource):
     """异常检测SDK执行时序预测逻辑."""
 
     pass
 
 
-class KpiInitDependResource(KpiSdkResource, SdkInitDependResource):
+class KpiInitDependResource(BKFaraGrayMixin, KpiSdkResource, SdkInitDependResource):
     """异常检测SDK初始化历史依赖."""
 
     pass
