@@ -112,7 +112,7 @@ export default defineComponent({
      * 获取列表数据
      */
     const getListData = () => {
-      getIndexGroupList(data => {
+      getIndexGroupList((data: {list: IListItemData[], total: number}) => {
         listData.value = data.list;
         total.value = data.total;
         initActionPop();

@@ -267,7 +267,10 @@ export default defineComponent({
           if (cleaningMode.value === 'bk_log_delimiter') {
             delimiter.value = etl_params.separator;
           }
+          return;
         }
+        formData.value.etl_params.retain_original_text = true;
+        formData.value.etl_params.enable_retain_content = true;
       } catch (error) {
         console.log(error);
       }
@@ -368,7 +371,12 @@ export default defineComponent({
       const urlParams = {};
       isDebugLoading.value = !isRefresh;
       isValueRefresh.value = isRefresh;
-      formData.value.etl_fields = [];
+      /**
+       * 非刷新场景下才清空表格数据
+       */
+      if (!isRefresh) {
+        formData.value.etl_fields = [];
+      }
       // 先置空防止接口失败显示旧数据
       formData.value.etl_params.metadata_fields = [];
       if (props.isTempField) {
@@ -398,7 +406,7 @@ export default defineComponent({
           /**
            * 当只刷新值的时候，只更新对应字段的值
            */
-          if (type === 'refresh') {
+          if (isRefresh) {
             formData.value.etl_fields = fields.map(item => {
               const info = list.find(ele => ele.field_name === item.field_name);
               return {
@@ -911,7 +919,7 @@ export default defineComponent({
           <bk-radio-group
             class='form-box'
             value={formData.value.etl_params.enable_retain_content}
-            on-change={val => {
+            on-change={(val: boolean) => {
               formData.value.etl_params.enable_retain_content = val;
             }}
           >
@@ -931,7 +939,7 @@ export default defineComponent({
               size='large'
               theme='primary'
               value={enableMetaData.value}
-              on-change={val => {
+              on-change={(val: boolean) => {
                 enableMetaData.value = val;
               }}
             />
@@ -1049,17 +1057,19 @@ export default defineComponent({
         formData.value.etl_fields = list;
       }
       const { etl_params, etl_fields } = formData.value;
-      /**
-       * 编辑/创建清洗
-       */
-      const url = isUpdate.value ? 'collect/fieldCollection' : 'clean/updateCleanStash';
       const { storage_cluster_id, allocation_min_days, storage_replies, es_shards, table_id, retention } =
         curCollect.value;
+      /**
+       * 编辑/创建清洗
+       * 未完成的情况下，调用创建清洗配置接口 （storage_cluster_id = -1 或者为空，都代表未完成）
+       */
+      const isNeedCreate = isUpdate.value && !!storage_cluster_id;
+      const url = isNeedCreate ? 'collect/fieldCollection' : 'clean/updateCleanStash';
       const data = {
         bk_biz_id: bkBizId.value,
         etl_params,
       };
-      const requestData = isUpdate.value
+      const requestData = isNeedCreate
         ? {
             ...data,
             fields: etl_fields,
@@ -1086,7 +1096,7 @@ export default defineComponent({
         .then(res => {
           loading.value = false;
           if (res?.result) {
-            const data = isUpdate.value ? { ...formData.value, ...curCollect.value } : formData.value;
+            const data = isNeedCreate ? { ...formData.value, ...curCollect.value } : formData.value;
             emit('next', data);
           }
         })

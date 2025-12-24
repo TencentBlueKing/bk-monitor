@@ -100,7 +100,7 @@ export default defineComponent({
         ],
       },
     ];
-    const handleChoose = data => {
+    const handleChoose = (data: {name: string, value: string, icon: string}) => {
       emit('handle', 'choose', data);
     };
     return () => (

@@ -64,7 +64,7 @@ export default defineComponent({
     /**
      * 点击防抖定时器
      */
-    const clickTimer = ref<NodeJS.Timeout | null>(null);
+    const clickTimer = ref(null);
 
     const popoverOptions = {
       arrow: false,

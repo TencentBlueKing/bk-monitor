@@ -288,3 +288,127 @@ export interface ILabelSelectorArrayItem extends Record<string, unknown> {
 type logicOpType = 'and' | 'or';
 
 export type btnType = 'match' | 'none' | 'separator';
+
+/**
+ * ========= ES索引选择对话框相关类型 =========
+ */
+
+/**
+ * 时间字段类型
+ * - date: 日期类型
+ * - long: 长整型（时间戳）
+ */
+export type TimeFieldType = 'date' | 'long';
+
+/**
+ * 时间精度单位
+ * - second: 秒
+ * - millisecond: 毫秒
+ * - microsecond: 微秒
+ */
+export type TimeFieldUnit = 'second' | 'millisecond' | 'microsecond';
+
+/**
+ * 时间字段信息接口
+ * 用于描述 ES 索引中的时间相关字段
+ */
+export interface ITimeField {
+  /** 字段名称 */
+  field_name: string;
+  /** 字段类型 */
+  field_type: TimeFieldType;
+  [key: string]: unknown;
+}
+
+/**
+ * 时间索引配置接口
+ * 用于描述索引的时间字段配置信息
+ */
+export interface ITimeIndex {
+  /** 时间字段名称 */
+  time_field: string;
+  /** 时间字段类型 */
+  time_field_type: TimeFieldType;
+  /** 时间精度单位（仅当 time_field_type 为 'long' 时必填） */
+  time_field_unit?: TimeFieldUnit;
+}
+
+/**
+ * ES索引项接口
+ * 用于描述一个 ES 索引的基本信息
+ */
+export interface IEsIndexItem {
+  /** 结果表ID（索引名称） */
+  result_table_id: string;
+  [key: string]: unknown;
+}
+
+/**
+ * ES索引配置数据接口
+ * 用于描述 ES 索引选择对话框的配置数据
+ */
+export interface IEsIndexConfigData {
+  /** 存储集群ID */
+  storage_cluster_id: number | string;
+  /** 索引列表 */
+  indexes: IEsIndexItem[];
+  [key: string]: unknown;
+}
+
+/**
+ * ES索引选择表单数据接口
+ * 用于描述 ES 索引选择对话框的表单数据
+ */
+export interface IEsSelectFormData {
+  /** 结果表ID（索引名称，支持通配符 *） */
+  resultTableId: string;
+  /** 时间字段名称 */
+  time_field?: string;
+  /** 时间字段类型 */
+  time_field_type?: TimeFieldType;
+  /** 时间精度单位（仅当 time_field_type 为 'long' 时必填） */
+  time_field_unit?: TimeFieldUnit;
+}
+
+/**
+ * ES索引表格数据项接口
+ * 用于描述表格中显示的索引信息
+ */
+export interface IEsIndexTableDataItem {
+  /** 结果表ID */
+  result_table_id: string;
+  [key: string]: unknown;
+}
+
+/**
+ * 时间单位选项接口
+ * 用于描述时间精度单位选择器的选项
+ */
+export interface ITimeUnitOption {
+  /** 显示名称 */
+  name: string;
+  /** 单位ID */
+  id: TimeFieldUnit;
+}
+
+/**
+ * ES索引适配请求数据接口
+ * 用于描述调用适配接口时的请求数据结构
+ */
+export interface IEsIndexAdaptRequest {
+  scenario_id: string;
+  bk_biz_id: number | string;
+  storage_cluster_id: number | string;
+  /** 已有索引列表，使用新的时间字段配置 */
+  basic_indices: Array<{
+    index: string;
+    time_field: string;
+    time_field_type: TimeFieldType;
+  }>;
+  /** 新增的索引 */
+  append_index: {
+    index: string;
+    time_field: string;
+    time_field_type: TimeFieldType;
+  };
+}

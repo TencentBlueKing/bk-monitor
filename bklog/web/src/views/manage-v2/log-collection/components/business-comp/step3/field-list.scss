@@ -162,6 +162,7 @@
     }
     .fields-tag-column {
       background: #fafbfd;
+      padding: 0 !important;
     }
     .fields-analyzed-column {
       background: #fafbfd;
@@ -233,7 +234,7 @@
       display: inline-block;
       border-radius: 2px;
       font-size: 12px;
-      padding: 2px 6px;
+      padding: 0 6px;
     }
     .source-built {
       background: #f0f1f5;
@@ -286,11 +287,11 @@
       width: 100%;
       height: 100%;
       min-height: 32px;
-      line-height: 46px;
+      line-height: 42px;
     }
     .bg-gray {
       background: #FAFBFD;
-      line-height: 46px;
+      line-height: 42px;
     }
     .disabled-work {
       display: block;

@@ -33,93 +33,21 @@ import { useOperation } from '../../../../hook/useOperation';
 import InfoTips from '../../../common-comp/info-tips';
 import TableComponent from '../../../common-comp/table-component';
 import $http from '@/api';
+import type {
+  TimeFieldType,
+  TimeFieldUnit,
+  ITimeField,
+  ITimeIndex,
+  IEsIndexItem,
+  IEsIndexConfigData,
+  IEsSelectFormData,
+  IEsIndexTableDataItem,
+  ITimeUnitOption,
+  IEsIndexAdaptRequest,
+  IApiResponse,
+} from '../../../../type';
 
 import './es-select-dialog.scss';
-
-/**
- * 时间字段类型
- */
-type TimeFieldType = 'date' | 'long';
-
-/**
- * 时间精度单位
- */
-type TimeFieldUnit = 'second' | 'millisecond' | 'microsecond';
-
-/**
- * 时间字段信息接口
- */
-interface ITimeField {
-  /** 字段名称 */
-  field_name: string;
-  /** 字段类型 */
-  field_type: TimeFieldType;
-}
-
-/**
- * 时间索引配置接口
- */
-interface ITimeIndex {
-  /** 时间字段名称 */
-  time_field: string;
-  /** 时间字段类型 */
-  time_field_type: TimeFieldType;
-  /** 时间精度单位（仅当 time_field_type 为 'long' 时必填） */
-  time_field_unit?: TimeFieldUnit;
-}
-
-/**
- * 索引项接口
- */
-interface IIndexItem {
-  /** 结果表ID */
-  result_table_id: string;
-  [key: string]: unknown;
-}
-
-/**
- * 配置数据接口
- */
-interface IConfigData {
-  /** 存储集群ID */
-  storage_cluster_id: number | string;
-  /** 索引列表 */
-  indexes: IIndexItem[];
-  [key: string]: unknown;
-}
-
-/**
- * 表单数据接口
- */
-interface IFormData {
-  /** 结果表ID（索引名称，支持通配符 *） */
-  resultTableId: string;
-  /** 时间字段名称 */
-  time_field?: string;
-  /** 时间字段类型 */
-  time_field_type?: TimeFieldType;
-  /** 时间精度单位（仅当 time_field_type 为 'long' 时必填） */
-  time_field_unit?: TimeFieldUnit;
-}
-
-/**
- * 表格数据项接口
- */
-interface ITableDataItem {
-  /** 结果表ID */
-  result_table_id: string;
-  [key: string]: unknown;
-}
-
-/**
- * 时间单位选项接口
- */
-interface ITimeUnitOption {
-  /** 显示名称 */
-  name: string;
-  /** 单位ID */
-  id: TimeFieldUnit;
-}
 
 /**
  * ES索引选择对话框组件
@@ -135,7 +63,7 @@ export default defineComponent({
     },
     /** 配置数据，包含存储集群ID和已有索引列表 */
     configData: {
-      type: Object as PropType<IConfigData>,
+      type: Object as PropType<IEsIndexConfigData>,
       default: () => ({}),
     },
     /** 场景ID */
@@ -160,7 +88,7 @@ export default defineComponent({
     /**
      * 表格数据：匹配到的索引列表
      */
-    const tableData = ref<ITableDataItem[]>([]);
+    const tableData = ref<IEsIndexTableDataItem[]>([]);
     /**
      * 确认按钮加载状态
      */
@@ -172,7 +100,7 @@ export default defineComponent({
     /**
      * 匹配到的索引ID列表（与 tableData 相同，保留用于兼容）
      */
-    const matchedTableIds = ref<ITableDataItem[]>([]);
+    const matchedTableIds = ref<IEsIndexTableDataItem[]>([]);
     /**
      * 时间字段列表（仅包含 date 和 long 类型的字段）
      */
@@ -188,7 +116,7 @@ export default defineComponent({
     /**
      * 表单数据
      */
-    const formData = ref<IFormData>({
+    const formData = ref<IEsSelectFormData>({
       resultTableId: '',
       time_field_type: undefined,
     });
@@ -261,21 +189,22 @@ export default defineComponent({
     /**
      * 获取索引列表
      * 根据输入的结果表ID（支持通配符）查询匹配的索引列表
-     * @returns {Promise<ITableDataItem[]>} 匹配到的索引列表
+     * @returns {Promise<IEsIndexTableDataItem[]>} 匹配到的索引列表
      */
-    const fetchList = async (): Promise<ITableDataItem[]> => {
+    const fetchList = async (): Promise<IEsIndexTableDataItem[]> => {
       try {
-        const res = await $http.request('/resultTables/list', {
+        const res = (await $http.request('/resultTables/list', {
           query: {
             scenario_id: props.scenarioId,
             bk_biz_id: bkBizId.value,
             storage_cluster_id: props.configData.storage_cluster_id,
             result_table_id: formData.value.resultTableId,
           },
-        });
+        })) as IApiResponse<IEsIndexTableDataItem[]>;
+
         return res.data || [];
       } catch (e) {
-        console.log('获取索引列表失败:', e);
+        console.error('获取索引列表失败:', e);
         return [];
       }
     };
@@ -286,7 +215,7 @@ export default defineComponent({
      * @returns {Promise<ITimeField[]>} 时间字段列表
      */
     const fetchInfo = async (): Promise<ITimeField[]> => {
-      if (!formData.value.resultTableId) {
+      if (!formData.value.resultTableId?.trim()) {
         return [];
       }
 
@@ -303,13 +232,24 @@ export default defineComponent({
           },
         };
 
-        const result = await handleMultipleSelected(param, false, res => {
+        const result = await handleMultipleSelected(param, false, (res) => {
           /**
            * 筛选出时间相关字段（date 和 long 类型）
+           * 并进行类型校验，确保字段结构正确
            */
-          const fields = (res.data?.fields || []).filter(
-            (item: ITimeField) => item.field_type === 'date' || item.field_type === 'long',
-          );
+          const responseData = res.data as { fields?: ITimeField[] } | undefined;
+          const fields = (responseData?.fields || [])
+            .filter((item: ITimeField) => {
+              return (
+                item?.field_name
+                && item?.field_type
+                && (item.field_type === 'date' || item.field_type === 'long')
+              );
+            })
+            .map((item: ITimeField) => ({
+              field_name: item.field_name,
+              field_type: item.field_type as TimeFieldType,
+            }));
 
           /**
            * 如果已有索引配置，且找到对应的时间字段，则回填表单数据（禁止更改字段名）
@@ -328,9 +268,10 @@ export default defineComponent({
           return fields;
         });
 
-        return result || [];
+        // 类型转换：将 IFieldInfo[] 转换为 ITimeField[]
+        return (result as ITimeField[]) || [];
       } catch (e) {
-        console.log('获取字段列表失败:', e);
+        console.error('获取字段列表失败:', e);
         return [];
       } finally {
         basicLoading.value = false;
@@ -341,36 +282,34 @@ export default defineComponent({
      * 处理搜索操作
      * 验证表单后，并行获取索引列表和字段列表
      */
-    const handleSearch = () => {
+    const handleSearch = async (): Promise<void> => {
       if (!formRef.value) {
         return;
       }
 
-      formRef.value
-        .validate()
-        .then(async () => {
-          searchLoading.value = true;
-          tableLoading.value = true;
+      try {
+        await formRef.value.validate();
+        searchLoading.value = true;
+        tableLoading.value = true;
 
-          try {
-            /**
-             * 并行获取索引列表和字段列表
-             */
-            const [idRes, fieldRes] = await Promise.all([fetchList(), fetchInfo()]);
+        try {
+          /**
+           * 并行获取索引列表和字段列表
+           */
+          const [idRes, fieldRes] = await Promise.all([fetchList(), fetchInfo()]);
 
-            matchedTableIds.value = idRes;
-            tableData.value = idRes;
-            timeFields.value = fieldRes;
-          } catch (e) {
-            console.log('搜索失败:', e);
-          } finally {
-            searchLoading.value = false;
-            tableLoading.value = false;
-          }
-        })
-        .catch(err => {
-          console.log('表单验证失败:', err);
-        });
+          matchedTableIds.value = idRes;
+          tableData.value = idRes;
+          timeFields.value = fieldRes;
+        } catch (e) {
+          console.log('搜索失败:', e);
+        } finally {
+          searchLoading.value = false;
+          tableLoading.value = false;
+        }
+      } catch (err) {
+        console.log('表单验证失败:', err);
+      }
     };
 
     /**
@@ -378,7 +317,11 @@ export default defineComponent({
      * 当用户选择时间字段时，自动设置对应的字段类型
      * @param {string} fieldName - 选中的字段名称
      */
-    const handleSelectedTimeField = (fieldName: string) => {
+    const handleSelectedTimeField = (fieldName: string): void => {
+      if (!fieldName) {
+        return;
+      }
+
       const selectedField = timeFields.value.find(item => item.field_name === fieldName);
       if (selectedField) {
         formData.value = {
@@ -386,7 +329,7 @@ export default defineComponent({
           time_field: fieldName,
           time_field_type: selectedField.field_type,
           /**
-           * 如果是 long 类型，需要重置时间精度单位
+           * 如果是 long 类型，保留原有的时间精度单位；如果是 date 类型，清空时间精度单位
            */
           time_field_unit: selectedField.field_type === 'long' ? formData.value.time_field_unit : undefined,
         };
@@ -395,8 +338,18 @@ export default defineComponent({
 
     /**
      * 关闭对话框
+     * 重置表单数据和相关状态
      */
-    const handleCancel = () => {
+    const handleCancel = (): void => {
+      // 重置表单数据
+      formData.value = {
+        resultTableId: '',
+        time_field_type: undefined,
+      };
+      // 清空表格数据和时间字段列表
+      tableData.value = [];
+      timeFields.value = [];
+      matchedTableIds.value = [];
       emit('cancel', false);
     };
 
@@ -404,7 +357,7 @@ export default defineComponent({
      * 处理确认操作
      * 调用适配接口，将新索引添加到现有索引集合中，并触发选中事件
      */
-    const handleConfirm = async () => {
+    const handleConfirm = async (): Promise<void> => {
       if (!formRef.value) {
         return;
       }
@@ -415,7 +368,18 @@ export default defineComponent({
          */
         await formRef.value.validate();
       } catch (e) {
-        console.log('表单验证失败:', e);
+        console.warn('表单验证失败:', e);
+        return;
+      }
+
+      // 类型校验：确保必要字段存在
+      if (!formData.value.time_field || !formData.value.time_field_type) {
+        return;
+      }
+
+      // 如果是 long 类型，必须提供时间精度单位
+      if (formData.value.time_field_type === 'long' && !formData.value.time_field_unit) {
+        return;
       }
 
       try {
@@ -424,17 +388,17 @@ export default defineComponent({
         /**
          * 构建适配请求数据
          */
-        const data = {
+        const data: IEsIndexAdaptRequest = {
           scenario_id: props.scenarioId,
           bk_biz_id: bkBizId.value,
           storage_cluster_id: props.configData.storage_cluster_id,
           /**
            * 已有索引列表，使用新的时间字段配置
            */
-          basic_indices: (props.configData.indexes || []).map((item: IIndexItem) => ({
+          basic_indices: (props.configData.indexes || []).map((item: IEsIndexItem) => ({
             index: item.result_table_id,
-            time_field: formData.value.time_field,
-            time_field_type: formData.value.time_field_type,
+            time_field: formData.value.time_field || '',
+            time_field_type: formData.value.time_field_type || 'date',
           })),
           /**
            * 新增的索引
@@ -462,13 +426,11 @@ export default defineComponent({
         /**
          * 触发时间索引配置事件
          */
-        if (formData.value.time_field && formData.value.time_field_type) {
-          emit('timeIndex', {
-            time_field: formData.value.time_field,
-            time_field_type: formData.value.time_field_type,
-            time_field_unit: formData.value.time_field_unit,
-          });
-        }
+        emit('timeIndex', {
+          time_field: formData.value.time_field,
+          time_field_type: formData.value.time_field_type,
+          time_field_unit: formData.value.time_field_unit,
+        });
 
         /**
          * 关闭对话框
@@ -504,24 +466,25 @@ export default defineComponent({
         >
           <bk-form-item
             label={t('索引')}
-            property={'resultTableId'}
-            required={true}
+            property='resultTableId'
+            required
           >
             <bk-input
               class='input-box'
               placeholder='log_search_*'
               value={formData.value.resultTableId}
-              on-input={val => {
+              on-input={(val: string) => {
                 formData.value.resultTableId = val;
               }}
             />
             <bk-button
-              disabled={!formData.value.resultTableId}
+              disabled={!formData.value.resultTableId?.trim()}
+              loading={searchLoading.value}
               on-click={handleSearch}
             >
               {t('搜索')}
             </bk-button>
-            <InfoTips tips={t('支持“ * ”匹配，不支持其他特殊符号')} />
+            <InfoTips tips={t('支持" * "匹配，不支持其他特殊符号')} />
           </bk-form-item>
 
           <bk-form-item class='table-item-box mt-12'>
@@ -532,7 +495,7 @@ export default defineComponent({
               </div>
             )}
             <TableComponent
-              key={props.isShowDialog}
+              key={String(props.isShowDialog)}
               height={320}
               loading={tableLoading.value}
               data={tableData.value}
@@ -552,14 +515,15 @@ export default defineComponent({
           </bk-form-item>
           <bk-form-item
             label={t('时间字段')}
-            property={'time_field'}
-            required={true}
+            property='time_field'
+            required
           >
             <bk-select
               clearable={false}
               loading={basicLoading.value}
               value={formData.value.time_field}
               searchable
+              disabled={timeFields.value.length === 0}
               on-selected={handleSelectedTimeField}
             >
               {(timeFields.value || []).map(item => (
@@ -581,7 +545,7 @@ export default defineComponent({
                 clearable={false}
                 value={formData.value.time_field_unit}
                 searchable
-                on-selected={val => {
+                on-selected={(val: TimeFieldUnit) => {
                   formData.value.time_field_unit = val;
                 }}
               >

@@ -571,6 +571,31 @@ export default defineComponent({
     );
 
     /**
+     * 监听配置变化（特别是 scopeSelectShow）
+     * 当配置范围显示状态变化时，重新初始化 Tippy
+     * 这确保了在删除配置项后，tippy 能正确绑定到更新后的 DOM 元素
+     */
+    watch(
+      () => props.config?.noQuestParams?.scopeSelectShow,
+      () => {
+        // 非节点模式下，等待 DOM 更新后重新初始化 Tippy
+        if (!props.isNode) {
+          nextTick(() => {
+            if (isShowAddScopeButton() && rootRef.value) {
+              initActionPop();
+            } else if (tippyInstance) {
+              // 如果按钮不显示了，销毁 tippy 实例
+              tippyInstance.hide();
+              tippyInstance.destroy();
+              tippyInstance = null;
+            }
+          });
+        }
+      },
+      { deep: true },
+    );
+
+    /**
      * 删除配置参数项
      * 根据不同的范围类型，重置对应的配置值，并更新显示状态
      * @param scope - 范围类型
