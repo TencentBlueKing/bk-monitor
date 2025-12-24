@@ -37,12 +37,18 @@ class BaseTarget(abc.ABC):
 
         从告警事件的 tags 中提取维度键值对。
 
-        # TODO 发现在部分场景下，event.dimensions 拥有更多维度，需要确认原因，并构造出最完整的维度集。
-
         :return: 维度键值对字典
         :rtype: dict[str, int | str]
         """
-        return {tag["key"]: tag["value"] for tag in self._alert.event.tags}
+        dimensions: dict[str, int | str] = {tag["key"]: tag["value"] for tag in self._alert.event.tags}
+
+        # dimensions 有一些额外的关联信息，也需要补充进来。
+        for d in self._alert.dimensions:
+            if d["key"].startswith("tag."):
+                # 忽略已经存在于 tags 中的维度。
+                continue
+            dimensions[d["key"]] = d["value"]
+        return dimensions
 
     def _get_dimension_value(self, possible_keys: list[str], default: Any = None) -> Any:
         """获取可能存在的维度值
