@@ -108,6 +108,18 @@ class TGPATaskHandler:
         return result_list
 
     @staticmethod
+    def get_task_count(bk_biz_id):
+        """
+        获取任务总数
+        """
+        params = {
+            "cc_id": bk_biz_id,
+            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+        }
+        result = TGPATaskApi.query_single_user_log_task_v2(params)
+        return result["count"]
+
+    @staticmethod
     def get_task_list(params, need_format=False):
         """
         获取任务列表

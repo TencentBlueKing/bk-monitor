@@ -25,6 +25,14 @@ from rest_framework import serializers
 from apps.tgpa.constants import TGPA_REPORT_ORDER_FIELDS
 
 
+class GetCountInfoSerializer(serializers.Serializer):
+    """
+    获取客户端日志数量信息
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+
+
 class CreateTGPATaskSerializer(serializers.Serializer):
     """
     创建客户端日志捞取任务
@@ -137,3 +145,11 @@ class GetFileStatusSerializer(serializers.Serializer):
     """
 
     file_name_list = serializers.ListField(label=_("文件名列表"), child=serializers.CharField())
+
+
+class RetrieveSyncRecordSerializer(serializers.Serializer):
+    """
+    获取同步记录详情
+    """
+
+    record_id = serializers.IntegerField(label=_("同步记录ID"))

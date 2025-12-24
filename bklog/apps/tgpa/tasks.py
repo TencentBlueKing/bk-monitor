@@ -145,6 +145,28 @@ def clear_expired_files():
     logger.info("Successfully cleared expired client log files")
 
 
+# def fetch_and_process_tgpa_reports():
+#     """
+#     定时任务，拉取客户端上报文件列表，处理文件
+#     """
+#     multi_execute_func = MultiExecuteFunc()
+#     report_list = TGPAReportHandler.iter_report_list(
+#         bk_biz_id=bk_biz_id,
+#         openid_list=params.get("openid_list"),
+#         file_name_list=params.get("file_name_list"),
+#         start_time=params.get("start_time"),
+#         end_time=params.get("end_time"),
+#     )
+#     for report in report_list:
+#         handler = TGPAReportHandler(bk_biz_id=bk_biz_id, report_info=report)
+#         multi_execute_func.append(
+#             result_key="",
+#             func=handler.download_and_process_file,
+#             params={"record_id": report["id"]},
+#         )
+#     multi_execute_func.run()
+
+
 @app.task(ignore_result=True, queue="tgpa_task")
 def process_single_report(report_info: dict, record_id: int):
     """

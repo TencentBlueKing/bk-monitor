@@ -71,6 +71,38 @@ class TGPAReportHandler:
         """
         file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields)
         file_handler.download_and_process_file(self.file_name)
+        # logger.info("Begin to process report file, file_name: %s", self.file_name)
+        #
+        # # 创建或获取处理记录
+        # report_obj, created = TGPAReport.objects.get_or_create(
+        #     file_name=self.file_name,
+        #     defaults={
+        #         "bk_biz_id": self.bk_biz_id,
+        #         "record_id": record_id,
+        #         "openid": self.report_info.get("openid"),
+        #         "process_status": TGPATaskProcessStatusEnum.PENDING.value,
+        #     },
+        # )
+        #
+        # # 如果记录已存在且已成功处理，跳过
+        # if not created and report_obj.process_status == TGPATaskProcessStatusEnum.SUCCESS.value:
+        #     logger.info("Report file already processed, file_name: %s", self.file_name)
+        #     return
+        #
+        # report_obj.process_status = TGPATaskProcessStatusEnum.RUNNING.value
+        # report_obj.processed_at = timezone.now()
+        # report_obj.save(update_fields=["process_status", "processed_at"])
+        # try:
+        #     file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields)
+        #     file_handler.download_and_process_file(self.file_name)
+        #     report_obj.process_status = TGPATaskProcessStatusEnum.SUCCESS.value
+        #     report_obj.save(update_fields=["process_status"])
+        #     logger.info("Successfully processed report file, file_name: %s", self.file_name)
+        # except Exception as e:
+        #     logger.exception("Failed to process report file, file_name %s", self.file_name)
+        #     report_obj.process_status = TGPATaskProcessStatusEnum.FAILED.value
+        #     report_obj.error_message = str(e)
+        #     report_obj.save(update_fields=["process_status", "error_message"])
 
     @classmethod
     def _get_feature_config(cls):
@@ -109,6 +141,15 @@ class TGPAReportHandler:
             where_conditions.append(f"({' OR '.join(file_name_conditions)})")
 
         return " AND ".join(where_conditions)
+
+    @classmethod
+    def get_report_count(cls, bk_biz_id):
+        """
+        获取客户端日志上报文件数量
+        """
+        query_sql = f"SELECT COUNT(*) as total FROM {cls._get_result_table_id()} WHERE cc_id={bk_biz_id}"
+        result = BkDataQueryApi.query({"sql": query_sql})
+        return result["list"][0].get("total", 0)
 
     @classmethod
     def get_report_list(cls, params):

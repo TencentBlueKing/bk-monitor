@@ -26,11 +26,11 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum
 from apps.iam.handlers.drf import ViewBusinessPermission, BusinessActionPermission
-from apps.tgpa.constants import FEATURE_TOGGLE_TGPA_TASK
+from apps.tgpa.constants import FEATURE_TOGGLE_TGPA_TASK, TGPAReportSyncStatusEnum
 from apps.tgpa.handlers.base import TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
-from apps.tgpa.models import TGPAReportSyncRecord
+from apps.tgpa.models import TGPAReportSyncRecord, TGPAReport
 from apps.tgpa.serializers import (
     CreateTGPATaskSerializer,
     GetTGPATaskListSerializer,
@@ -41,9 +41,28 @@ from apps.tgpa.serializers import (
     GetOpenidListSerializer,
     GetFileNameListSerializer,
     GetFileStatusSerializer,
+    RetrieveSyncRecordSerializer,
+    GetCountInfoSerializer,
 )
 from apps.tgpa.tasks import process_single_report
 from bkm_search_module.constants import list_route
+
+
+class TGPAViewSet(APIViewSet):
+    """客户端日志"""
+
+    @list_route(methods=["GET"], url_path="count")
+    def get_count_info(self, request, *args, **kwargs):
+        """
+        获取日志拉取任务列表
+        """
+        params = self.params_valid(GetCountInfoSerializer)
+        return Response(
+            {
+                "task": TGPATaskHandler.get_task_count(params["bk_biz_id"]),
+                "report": TGPAReportHandler.get_report_count(params["bk_biz_id"]),
+            }
+        )
 
 
 class TGPATaskViewSet(APIViewSet):
@@ -169,3 +188,30 @@ class TGPAReportViewSet(APIViewSet):
         """
         params = self.params_valid(GetFileStatusSerializer)
         return Response(TGPAReportHandler.get_file_status(params["file_name_list"]))
+
+    @list_route(methods=["GET"], url_path="sync_record")
+    def retrieve_sync_record(self, request, *args, **kwargs):
+        """
+        获取同步记录信息
+        """
+        params = self.params_valid(RetrieveSyncRecordSerializer)
+        record_obj = TGPAReportSyncRecord.objects.filter(id=params["record_id"]).get()
+        status_set = {report.process_status for report in TGPAReport.objects.filter(record_id=params["record_id"])}
+        if TGPAReportSyncStatusEnum.PENDING.value in status_set:
+            record_obj.status = TGPAReportSyncStatusEnum.RUNNING.value
+        elif TGPAReportSyncStatusEnum.RUNNING.value in status_set:
+            record_obj.status = TGPAReportSyncStatusEnum.RUNNING.value
+        elif TGPAReportSyncStatusEnum.FAILED.value in status_set:
+            record_obj.status = TGPAReportSyncStatusEnum.FAILED.value
+        else:
+            record_obj.status = TGPAReportSyncStatusEnum.SUCCESS.value
+        record_obj.save()
+
+        return Response(
+            {
+                "id": record_obj.id,
+                "status": record_obj.status,
+                "openid_list": record_obj.openid_list,
+                "file_name_list": record_obj.file_name_list,
+            }
+        )
