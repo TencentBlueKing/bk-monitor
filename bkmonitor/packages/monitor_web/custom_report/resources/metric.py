@@ -1180,6 +1180,7 @@ class GetCustomTimeSeriesLatestDataByFields(Resource):
             return {}, None
 
         now_timestamp = int(time.time())
+        # unify query 已不支持该接口，推荐使用 query/ts/info/series 接口
         data = api.unify_query.query_data_by_table(
             table_id=table_id,
             keys=fields_list,
