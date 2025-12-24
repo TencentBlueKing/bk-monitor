@@ -71,7 +71,7 @@ export const fetchListAlertFeedback = (id: string, bizId: number) => {
  * @returns {Promise<AlertHostTargetItem[]>} 告警 id 获取关联主机对象列表
  */
 export const getHostTargetList = async (alertId: string) => {
-  const hostTarget = <T>(..._args): Promise<T> => {
+  const alertHostTarget = <T>(..._args): Promise<T> => {
     return Promise.resolve([
       {
         bk_host_id: 110494,
@@ -82,7 +82,9 @@ export const getHostTargetList = async (alertId: string) => {
       },
     ] as T);
   }; // 占位
-  const data = await hostTarget<AlertHostTargetItem[]>({ alert_id: alertId }).catch(() => [] as AlertHostTargetItem[]);
+  const data = await alertHostTarget<AlertHostTargetItem[]>({ alert_id: alertId }).catch(
+    () => [] as AlertHostTargetItem[]
+  );
   return data;
 };
 

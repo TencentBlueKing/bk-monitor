@@ -38,8 +38,8 @@ import {
 import { get } from '@vueuse/core';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import { DEFAULT_TIME_RANGE } from '../../../../../components/time-range/utils';
-import ExploreChart from '../../../../trace-explore/components/explore-chart/explore-chart';
+import { DEFAULT_TIME_RANGE } from '../../../../../../components/time-range/utils';
+import AlertBaseChart from '../alarm-chart/alert-base-chart';
 
 export default defineComponent({
   name: 'AlarmLazyChart',
@@ -203,7 +203,7 @@ export default defineComponent({
         ref='chartContainerRef'
         class='alarm-lazy-chart'
       >
-        {this.$slots?.customBaseChart?.(renderContext) || <ExploreChart {...renderContext} />}
+        {this.$slots?.customBaseChart?.(renderContext) || <AlertBaseChart {...renderContext} />}
       </div>
     );
   },

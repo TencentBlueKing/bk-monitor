@@ -36,26 +36,42 @@ import { arraysEqual } from 'monitor-common/utils/equal';
 import { COLOR_LIST_BAR } from 'monitor-ui/chart-plugins/constants/charts';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../../../components/time-range/utils';
-import { useChartTooltips } from '../../../../../trace-explore/components/explore-chart/use-chart-tooltips';
-import { type AlertK8sEchartSeriesItem, SpecialSeriesColorMap } from '../../../../typings';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../../../../components/time-range/utils';
+import { useAlertChartTooltips } from './use-alert-chart-tooltips';
 
 import type {
+  EchartSeriesItem,
   FormatterFunc,
   SeriesItem,
-  ValueFormatter,
-} from '../../../../../trace-explore/components/explore-chart/types';
+} from '../../../../../../trace-explore/components/explore-chart/types';
 import type { IDataQuery } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
-import type VueEcharts from 'vue-echarts';
 
-export const useK8sEcharts = (
+/** 图表交互状态配置 */
+export interface AlertChartInteractionState {
+  /** 所有联动图表中存在有一个图表触发 hover 是否展示所有联动图表的 tooltip(默认 false) */
+  hoverAllTooltips?: MaybeRef<boolean>;
+  /** 当前鼠标是否 hover 在图表区域 */
+  isMouseOver: MaybeRef<boolean>;
+}
+
+/**
+ * @function useAlertEcharts 告警图表 ECharts Hook
+ * @description 用于管理告警指标图表的数据获取、配置生成和交互状态
+ * @param panel - 图表面板配置，包含 targets、options 等图表配置信息
+ * @param chartRef - 图表 DOM 元素引用，用于 tooltip 定位
+ * @param $api - API 模块对象，用于调用后端接口获取图表数据
+ * @param params - 请求参数，会与 target.data 合并后发送请求
+ * @param formatterSeriesData - 数据格式化函数，用于处理接口返回的原始数据
+ * @param interactionState - 图表交互状态配置，控制 tooltip 联动等行为
+ */
+export const useAlertEcharts = (
   panel: MaybeRef<PanelModel>,
   chartRef: Ref<HTMLElement>,
-  chartInstance: Ref<InstanceType<typeof VueEcharts>>,
   $api: Record<string, () => Promise<any>>,
   params: MaybeRef<Record<string, any>>,
-  formatterSeriesData = res => res
+  formatterSeriesData = res => res,
+  interactionState?: AlertChartInteractionState
 ) => {
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
@@ -78,181 +94,6 @@ export const useK8sEcharts = (
     }, []);
   });
   const series = shallowRef([]);
-
-  /**
-   * @method isSpecialSeries 判断是否是特殊 series
-   * @param {string} name series name
-   * @returns {boolean} 是否是特殊 series
-   */
-  const isSpecialSeries = (name: string) => {
-    return ['request', 'limit', 'capacity'].includes(name);
-  };
-
-  /**
-   * @method handleSeriesName 获取 series 展示的 name
-   * @description 由于接口返回的 series 数据中name是不准确的，所以需要对其进行额外的处理
-   * @param {IDataQuery} item panel 查询配置项 target
-   * @param set 原始 series 配置
-   * @returns {string} 处理后的 series name
-   */
-  const handleSeriesName = (item: IDataQuery, set) => {
-    const { dimensions = {}, dimensions_translation: dimensionsTranslation = {} } = set;
-    if (!item.alias)
-      return Object.values({
-        ...dimensions,
-        ...dimensionsTranslation,
-      }).join('|');
-    const aliasFix = Object.values(dimensions).join('|');
-    if (!aliasFix.length) return item.alias;
-    return `${item.alias}-${aliasFix}`;
-  };
-
-  /**
-   * @method handleGetMinPrecision 获取数据的最小精度
-   * @param {number[]} data 数据数组
-   * @param {ValueFormatter} formatter 数值格式化函数
-   * @param {string} unit 单位
-   * @returns {number} 最小精度
-   */
-  const handleGetMinPrecision = (data: number[], formatter: ValueFormatter, unit: string) => {
-    if (!data || data.length === 0) {
-      return 0;
-    }
-    data.sort((a, b) => a - b);
-    const len = data.length;
-    if (data[0] === data[len - 1]) {
-      if (['none', ''].includes(unit) && !data[0].toString().includes('.')) return 0;
-      const setList = String(data[0]).split('.');
-      return !setList || setList.length < 2 ? 2 : setList[1].length;
-    }
-    let precision = 0;
-    let sampling = [];
-    const middle = Math.ceil(len / 2);
-    sampling.push(data[0]);
-    sampling.push(data[Math.ceil(middle / 2)]);
-    sampling.push(data[middle]);
-    sampling.push(data[middle + Math.floor((len - middle) / 2)]);
-    sampling.push(data[len - 1]);
-    sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
-    while (precision < 5) {
-      const samp = sampling.reduce((pre, cur) => {
-        pre[Number(formatter(cur, precision).text)] = 1;
-        return pre;
-      }, {});
-      if (Object.keys(samp).length >= sampling.length) {
-        return precision;
-      }
-      precision += 1;
-    }
-    return precision;
-  };
-
-  /**
-   * @method _createMarkPoint 为 series 创建 markPoint
-   * @param {AlertK8sEchartSeriesItem[]} seriesData 数据数组
-   * @param {any[]} xAxis x 轴数据
-   * @returns {AlertK8sEchartSeriesItem[]} 处理后的 series 数据
-   */
-  const makeMarkPointForSeries = (seriesData: AlertK8sEchartSeriesItem[], xAxis): AlertK8sEchartSeriesItem[] => {
-    if (!seriesData?.length) return seriesData;
-    let limitFirstY = 0;
-    let requestFirstY = 0;
-    let capacityFirstY = 0;
-    seriesData = seriesData.map(item => {
-      const isSpecial = isSpecialSeries(item.alias);
-      let color = item.lineStyle?.color;
-      let markPoint = {};
-      const xData = xAxis?.[item?.xAxisIndex] ?? [];
-      if (isSpecial) {
-        const isLimit = item.name === 'limit';
-        const isCapacity = item.name === 'capacity';
-        const colorMap = SpecialSeriesColorMap[item.name];
-        color = colorMap.color;
-        const labelColor = colorMap.labelColor;
-        const itemColor = colorMap.itemColor;
-        const firstIndex = item.data?.findIndex(item => item.value);
-        const firstValue = item.data?.[firstIndex];
-        const firstValueX = xData?.data?.[firstIndex] || 0;
-        const firstValueY = firstValue?.value || 0;
-        if (isLimit) {
-          limitFirstY = firstValueY;
-        } else if (item.name === 'capacity') {
-          capacityFirstY = firstValueY;
-        } else {
-          requestFirstY = firstValueY;
-        }
-        markPoint = {
-          symbol: 'rect',
-          symbolSize: [isLimit ? 30 : isCapacity ? 52 : 46, 16],
-          symbolOffset: ['50%', 0],
-          label: {
-            show: true,
-            color: labelColor,
-            formatter: () => item.name,
-          },
-          itemStyle: {
-            color: itemColor,
-          },
-          data: [
-            {
-              coord: [firstValueX?.toString?.(), firstValueY],
-            },
-          ],
-          emphasis: {
-            disabled: true,
-          },
-        };
-      }
-      return {
-        ...item,
-        color: isSpecial ? color : undefined,
-        lineStyle: {
-          ...(item.lineStyle ?? {}),
-          type: isSpecial ? 'dashed' : 'solid',
-          dashOffset: '4',
-          color,
-          width: 1.5,
-        },
-        areaStyle: isSpecial
-          ? undefined
-          : {
-              opacity: 0.2,
-              color,
-            },
-        markPoint,
-      };
-    });
-
-    // 判断limit 与request是否重叠
-    let min = 0;
-    let max = 0;
-    for (const item of seriesData) {
-      const maxMinValues = item?.raw_data?.maxMinValues;
-      const minValue = Number(maxMinValues.min);
-      const maxValue = Number(maxMinValues.max);
-      if (minValue < min) {
-        min = minValue;
-      }
-      if (maxValue > max) {
-        max = maxValue;
-      }
-    }
-    const height = get(chartInstance)?.$el.clientHeight ?? 198;
-    const limitEqualRequest =
-      Math.abs(limitFirstY - requestFirstY) / (max - min) < 16 / (height - 26) ||
-      Math.abs(capacityFirstY - requestFirstY) / (max - min) < 16 / (height - 26);
-    const capacityEqualRequest = Math.abs(limitFirstY - capacityFirstY) / (max - min) < 16 / (height - 26);
-    seriesData = seriesData.map(item => {
-      if ((limitEqualRequest && item.name === 'request') || (capacityEqualRequest && item.name === 'capacity')) {
-        return {
-          ...item,
-          markPoint: {},
-        };
-      }
-      return item;
-    });
-    return seriesData;
-  };
 
   const getEchartOptions = async () => {
     const startDate = Date.now();
@@ -281,29 +122,14 @@ export const useK8sEcharts = (
               metricList.value.push(metric);
             }
           }
-          targets.value.push({ ...target, data: query_config ?? target.data });
+          targets.value.push({ ...target, data: query_config });
           return series?.length
-            ? series
-                .filter(item => ['extra_info', '_result_'].includes(item.alias))
-                .map(item => {
-                  let seriesName = handleSeriesName(target, item);
-                  if (['limit', 'request', 'capacity'].includes(target?.data?.query_configs?.[0]?.alias)) {
-                    seriesName = target?.data?.query_configs?.[0]?.alias;
-                  }
-                  seriesName = seriesName.replace(/\|/g, ':');
-                  return {
-                    ...item,
-                    alias: seriesName ?? (target.alias || item.alias),
-                    type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
-                    stack: target.data?.stack || item.stack,
-                    unit: item.unit || (get(panel)?.options as { unit?: string })?.unit,
-                  };
-                })
-                .toSorted((a, b) => {
-                  const aName = (a as { alias?: string }).alias ?? '';
-                  const bName = (b as { alias?: string }).alias ?? '';
-                  return bName.localeCompare?.(aName) ?? 0;
-                })
+            ? series.map(item => ({
+                ...item,
+                alias: target.alias || item.alias,
+                type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
+                stack: target.data?.stack || item.stack,
+              }))
             : [];
         })
         .catch(() => []);
@@ -313,6 +139,7 @@ export const useK8sEcharts = (
     });
     const seriesList = [];
     for (const item of resList) {
+      // @ts-expect-error
       Array.isArray(item?.value) && item.value.length && seriesList.push(...item.value);
     }
     duration.value = Date.now() - startDate;
@@ -324,9 +151,9 @@ export const useK8sEcharts = (
     const yAxis = createYAxis(seriesData);
 
     const options = createOptions(xAxis, yAxis, seriesData);
-    const { tooltipsOptions } = useChartTooltips(chartRef, {
-      isMouseOver: true,
-      hoverAllTooltips: false,
+    const { tooltipsOptions } = useAlertChartTooltips(chartRef, {
+      isMouseOver: interactionState?.isMouseOver ?? true,
+      hoverAllTooltips: interactionState?.hoverAllTooltips ?? false,
       options,
     });
     return {
@@ -334,35 +161,20 @@ export const useK8sEcharts = (
       tooltip: tooltipsOptions.value,
     };
   };
-
   const createSeries = (series: SeriesItem[]) => {
     const xAllData = new Set<number>();
     let xAxisIndex = -1;
     const xAxis = [];
-    let seriesData: AlertK8sEchartSeriesItem[] = [];
+    const seriesData: EchartSeriesItem[] = [];
     let preXData = [];
     for (const data of series) {
       const list = [];
       const xData = [];
-      const maxMinValues = {
-        max: 0,
-        min: 0,
-      };
       for (const point of data.datapoints) {
-        const value = point[0];
-        maxMinValues.max = Math.max(+maxMinValues.max, value);
-        maxMinValues.min = Math.min(+maxMinValues.min, value);
         xData.push(point[1]);
         xAllData.add(point[1]);
         list.push({
-          itemStyle: {
-            borderWidth: 6,
-            enabled: true,
-            opacity: 1,
-            shadowBlur: 0,
-          },
-          symbolSize: 6,
-          value: value,
+          value: point[0],
         });
       }
       const isEqual = preXData.length && arraysEqual(preXData, xData);
@@ -371,21 +183,6 @@ export const useK8sEcharts = (
         xAxisIndex += 1;
       }
       const unitFormatter = getValueFormat(data.unit);
-      // 获取y轴上可设置的最小的精确度
-      const precision = handleGetMinPrecision(
-        list
-          ?.filter?.(set => {
-            const typedSet = set as { value: number | undefined };
-            return typedSet && typeof typedSet.value === 'number';
-          })
-          .map(set => {
-            const typedSet = set as { value: number | undefined };
-            return typedSet.value;
-          }) ?? [],
-        unitFormatter,
-        data.unit
-      );
-
       seriesData.push({
         ...data,
         name: data.alias || data.target || '',
@@ -394,6 +191,7 @@ export const useK8sEcharts = (
         type: data.type,
         stack: data.stack,
         unit: data.unit,
+        // @ts-expect-error
         connectNulls: false,
         sampling: 'none',
         showAllSymbol: 'auto',
@@ -407,8 +205,6 @@ export const useK8sEcharts = (
         raw_data: {
           ...data,
           datapoints: undefined,
-          precision,
-          maxMinValues,
           unitFormatter,
         },
         z: 3,
@@ -418,7 +214,6 @@ export const useK8sEcharts = (
       }
       preXData = [...xData];
     }
-    seriesData = makeMarkPointForSeries(seriesData, xAxis);
     return {
       xData: Array.from(xAllData).sort(),
       seriesData,
@@ -490,7 +285,7 @@ export const useK8sEcharts = (
       },
     ];
   };
-  const createYAxis = (yData: AlertK8sEchartSeriesItem[]) => {
+  const createYAxis = (yData: EchartSeriesItem[]) => {
     let hasBarChart = false;
     const unitSet = Array.from(
       new Set<string>(

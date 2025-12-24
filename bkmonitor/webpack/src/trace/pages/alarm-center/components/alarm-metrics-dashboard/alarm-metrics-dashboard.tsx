@@ -32,7 +32,7 @@ import { getVariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import ChartCollapse from '../../../trace-explore/components/explore-chart/chart-collapse';
-import AlarmLazyChart from './components/alarm-lazy-chart';
+import AlarmLazyChart from './components/alarm-lazy-chart/alarm-lazy-chart';
 
 import './alarm-metrics-dashboard.scss';
 
@@ -178,6 +178,7 @@ export default defineComponent({
             {this.panels.map(panel => (
               <AlarmLazyChart
                 key={panel.id}
+                class='alarm-metrics-dashboard-chart'
                 formatterData={this.formatterData}
                 panel={panel}
                 params={this.params}

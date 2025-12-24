@@ -32,10 +32,6 @@
         grid-template-columns: repeat(var(--dashboard-grid-col), 1fr);
         gap: 12px;
         padding-top: 12px;
-
-        .explore-chart {
-          height: 250px;
-        }
       }
     }
 
