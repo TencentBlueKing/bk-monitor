@@ -54,7 +54,9 @@ class GetCustomTsMetricGroups(Resource):
 
     def perform_request(self, params: dict) -> dict[str, list]:
         # 从 metadata 获取指标分组列表
-        metadata_result = api.metadata.query_time_series_scope(group_id=params["time_series_group_id"])
+        metadata_result = api.metadata.query_time_series_scope(
+            group_id=params["time_series_group_id"], include_metrics=True
+        )
 
         # 转换数据结构
         metric_groups = []
@@ -520,7 +522,9 @@ class GetCustomTsGraphConfig(Resource):
         )
 
         # 从 metadata 获取指标分组列表
-        metadata_result = api.metadata.query_time_series_scope(group_id=params["time_series_group_id"])
+        metadata_result = api.metadata.query_time_series_scope(
+            group_id=params["time_series_group_id"], include_metrics=True
+        )
 
         # 构建指标字典和维度字典
         metrics_list = []
