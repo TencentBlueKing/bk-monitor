@@ -586,6 +586,65 @@ class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
             child=serializers.IntegerField(), required=False, label="指标分组ID列表", allow_empty=True
         )
         scope_name = serializers.CharField(required=False, label="指标分组名称")
+        include_metrics = serializers.BooleanField(required=False, default=False, label="是否返回指标数据")
+
+
+class QueryTimeSeriesMetricResource(MetaDataAPIGWResource):
+    """
+    查询自定义时序指标列表
+    """
+
+    action = "/app/metadata/query_time_series_metric/"
+    method = "POST"
+    backend_cache_type = CacheType.METADATA
+
+    class RequestSerializer(serializers.Serializer):
+        class QueryTimeSeriesMetricConditionSerializer(serializers.Serializer):
+            """搜索条件序列化器"""
+
+            key = serializers.ChoiceField(
+                choices=[
+                    "name",
+                    "field_config_alias",
+                    "field_config_unit",
+                    "field_config_aggregate_method",
+                    "field_config_hidden",
+                    "field_config_disabled",
+                    "scope_id",
+                    "field_id",
+                ],
+                required=True,
+                label="搜索字段",
+            )
+            values = serializers.ListField(
+                child=serializers.CharField(),
+                required=True,
+                label="搜索值列表（多个值用OR连接）",
+                min_length=1,
+            )
+            search_type = serializers.ChoiceField(
+                choices=["regex", "fuzzy", "exact"],
+                required=False,
+                default="fuzzy",
+                label="搜索类型：regex-正则表达式，fuzzy-模糊搜索，exact-精确匹配（仅对name字段有效，其他字段默认为exact）",
+            )
+
+        bk_tenant_id = TenantIdField(label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+        page = serializers.IntegerField(default=1, required=False, label="页数", min_value=1)
+        page_size = serializers.IntegerField(default=10, required=False, label="页长", min_value=1, max_value=1000)
+        conditions = serializers.ListField(
+            child=QueryTimeSeriesMetricConditionSerializer(),
+            required=False,
+            label="搜索条件列表，同一字段的多个值用OR，不同字段之间用AND",
+            allow_empty=True,
+        )
+        order_by = serializers.ChoiceField(
+            choices=["name", "update_time", "-name", "-update_time"],
+            required=False,
+            default="-update_time",
+            label="排序字段：name-按名称升序，update_time-按更新时间升序，-name-按名称降序，-update_time-按更新时间降序",
+        )
 
 
 class QueryTagValuesResource(MetaDataAPIGWResource):

@@ -777,6 +777,15 @@ class TimeSeriesGroup(CustomGroupBase):
         if metric_group_dimensions:
             custom_group.metric_group_dimensions = metric_group_dimensions
             custom_group.save()
+        else:
+            # 如果不存在 metric_group_dimensions，则创建默认的 scope 记录
+            TimeSeriesScope.objects.create(
+                group_id=custom_group.time_series_group_id,
+                scope_name=TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME,
+                dimension_config={},
+                auto_rules=[],
+                create_from=TimeSeriesScope.CREATE_FROM_DEFAULT,
+            )
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def modify_time_series_group(
@@ -1277,6 +1286,7 @@ class TimeSeriesScope(models.Model):
 
         # 构建 scope_id 到 scope_name 的映射（用于已有指标）
         scope_id_to_name = {scope.id: scope.scope_name for scope in all_scopes}
+        scope_id_to_name[TimeSeriesMetric.DISABLE_SCOPE_ID] = None
 
         existing_metric_scope_map = {
             (metric["field_name"], metric["field_scope"]): scope_id_to_name.get(metric["scope_id"])
@@ -1296,6 +1306,7 @@ class TimeSeriesScope(models.Model):
             tag_list = metric_info.get("tag_value_list") or metric_info.get("tag_list") or {}
 
             scope_name = existing_metric_scope_map.get((field_name, field_scope))
+            # 对 scope_id 为 DISABLE_SCOPE_ID 的记录（disabled 指标），需要通过 _determine_scope_name_for_new_metric 找到 scope_name
             if not scope_name:
                 scope_name, create_from_default = cls._determine_scope_name_for_new_metric(
                     field_name,
@@ -1747,6 +1758,7 @@ class TimeSeriesMetric(models.Model):
     TARGET_DIMENSION_NAME = "target"
 
     DEFAULT_DATA_SCOPE_NAME = "default"  # 默认分组
+    DISABLE_SCOPE_ID = 0  # 禁用分组的 id，实际上不存在该分组记录
 
     ORM_FIELD_NAMES = (
         "table_id",
@@ -1958,6 +1970,12 @@ class TimeSeriesMetric(models.Model):
                 is_need_update = True
                 obj.tag_list = tag_list
 
+            # 如果指标从 disabled 状态恢复，需要更新 scope_id 和清空 field_config
+            if obj.scope_id == cls.DISABLE_SCOPE_ID:
+                is_need_update = True
+                obj.scope_id = metric_info.get("scope_id")
+                obj.field_config = {}
+
             if is_need_update:
                 records.append(obj)
 
@@ -1967,7 +1985,9 @@ class TimeSeriesMetric(models.Model):
         logger.info("white list disabled metric: %s, group_id: %s", json.dumps(white_list_disabled_metric), group_id)
 
         # 批量更新指定的字段
-        cls.objects.bulk_update(records, ["last_modify_time", "tag_list"], batch_size=BULK_UPDATE_BATCH_SIZE)
+        cls.objects.bulk_update(
+            records, ["last_modify_time", "tag_list", "scope_id", "field_config"], batch_size=BULK_UPDATE_BATCH_SIZE
+        )
         return need_push_router
 
     @classmethod
@@ -2318,11 +2338,14 @@ class TimeSeriesMetric(models.Model):
 
         # 批量查找已存在的指标
         field_ids = [m.get("field_id") for m in metrics_data if m.get("field_id")]
-        existing_metrics_map = (
-            {metric.field_id: metric for metric in cls.objects.filter(field_id__in=field_ids, group_id=group_id)}
-            if field_ids
-            else {}
-        )
+        existing_metrics_map = {
+            metric.field_id: metric for metric in cls.objects.filter(field_id__in=field_ids, group_id=group_id)
+        }
+
+        existing_disabled_metrics_map = {
+            (metric.field_name, metric.field_scope): metric
+            for metric in cls.objects.filter(group_id=group_id, scope_id=cls.DISABLE_SCOPE_ID)
+        }
 
         # 分离需要创建和更新的指标
         metrics_to_create = []
@@ -2333,14 +2356,27 @@ class TimeSeriesMetric(models.Model):
             field_id = metric_data_copy.get("field_id")
             metric = existing_metrics_map.get(field_id) if field_id else None
 
-            if metric is None:
-                # 准备创建
-                metrics_to_create.append(metric_data_copy)
-            else:
-                # 准备更新
+            # 如果指标存在，准备更新
+            if metric is not None:
                 metrics_to_update.append((metric, metric_data_copy))
+                continue
+
+            # 检查是否有禁用的指标需要重启
+            field_name = metric_data_copy.get("field_name")
+            field_scope = metric_data_copy.get("field_scope", cls.DEFAULT_DATA_SCOPE_NAME)
+            disabled_metric = existing_disabled_metrics_map.get((field_name, field_scope))
+
+            # 如果有禁用的指标
+            if disabled_metric:
+                metric_data_copy["field_config"].update({"disabled": False})
+                metrics_to_update.append((disabled_metric, metric_data_copy))
+                continue
+
+            # 准备创建新指标
+            metrics_to_create.append(metric_data_copy)
 
         scopes_dict = {scope.id: scope for scope in TimeSeriesScope.objects.filter(group_id=group_id)}
+        scopes_dict[TimeSeriesMetric.DISABLE_SCOPE_ID] = None
 
         # 批量创建新指标
         if metrics_to_create:
@@ -2394,7 +2430,7 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def _batch_update_metrics(cls, metrics_to_update, scopes_dict):
-        updatable_fields = ["field_config", "label", "tag_list"]
+        updatable_fields = ["field_config", "label", "tag_list", "scope_id", "last_modify_time"]
         records_to_update = []
         scope_moves = defaultdict(list)
 
@@ -2403,10 +2439,19 @@ class TimeSeriesMetric(models.Model):
             original_tag_list = metric.tag_list or []
             original_scope_id = metric.scope_id
 
-            # 统一更新字段值（无论scope是否变化）
+            # 统一更新字段值 updatable_fields
             for field in updatable_fields:
-                if field in validated_request_data:
-                    setattr(metric, field, validated_request_data[field])
+                setattr(metric, field, validated_request_data.get(field, getattr(metric, field)))
+
+            # 更新最后修改时间
+            metric.last_modify_time = tz_now()
+
+            # 如果 field_config 中 disabled 为 true，将 scope_id 置为 DISABLE_SCOPE_ID, 并跳过维度配置更新
+            field_config = validated_request_data.get("field_config") or metric.field_config or {}
+            if field_config.get("disabled", False):
+                metric.scope_id = cls.DISABLE_SCOPE_ID
+                records_to_update.append(metric)
+                continue
 
             records_to_update.append(metric)
 
@@ -2417,11 +2462,16 @@ class TimeSeriesMetric(models.Model):
 
             # 检测是否需要记录移动的指标
             scope_changed = new_scope and original_scope_id != new_scope.id
+            source_scope = scopes_dict.get(original_scope_id)
+
+            # 如果 scope 是 data 类型，不允许修改 scope_id
+            if scope_changed and source_scope.create_from == TimeSeriesScope.CREATE_FROM_DATA:
+                raise ValueError(f"数据自动创建的指标分组不允许修改，请确认后重试。分组ID: {original_scope_id}")
+
             tag_list_changed = set(original_tag_list) != set(metric.tag_list or [])
 
             # 如果 scope 发生变化或者 tag_list 发生变化，记录需要移动的指标
             if scope_changed or tag_list_changed:
-                source_scope = scopes_dict.get(original_scope_id)
                 scope_moves[(source_scope, new_scope)].append(metric)
 
         # 批量更新所有指标的字段

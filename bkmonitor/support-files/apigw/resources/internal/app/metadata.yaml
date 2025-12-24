@@ -669,6 +669,26 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query time series group
+  /app/metadata/query_time_series_metric/:
+    post:
+      operationId: metadata_query_time_series_metric
+      description: 查询自定义时序指标列表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v3/meta/query_time_series_metric/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query time series metric
   /app/metadata/create_or_update_time_series_metric/:
     post:
       operationId: metadata_create_or_update_time_series_metric
