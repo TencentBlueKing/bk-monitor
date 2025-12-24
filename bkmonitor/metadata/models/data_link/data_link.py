@@ -181,6 +181,7 @@ class DataLink(models.Model):
         BK_STANDARD_TIME_SERIES: BK_STANDARD_TRANSFORMER_FORMAT,
     }
 
+    bk_data_id = models.IntegerField(verbose_name="数据源ID", default=0)
     data_link_name = models.CharField(max_length=255, verbose_name="链路名称", primary_key=True)
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
     namespace = models.CharField(
