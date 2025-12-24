@@ -137,7 +137,6 @@ export default defineComponent({
       loading,
       k8sDashboardLoading,
       dashboards,
-      timeRange,
       canLinkTok8s,
       dataZoomTimeRange,
       viewerTimeRange,

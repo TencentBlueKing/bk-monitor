@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, toRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, toRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
+import dayjs from 'dayjs';
 import { storeToRefs } from 'pinia';
 
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
@@ -47,7 +48,10 @@ export default defineComponent({
     const { bizId, interval, timeRange } = storeToRefs(useAlarmCenterDetailStore());
     const { currentTarget, targetList, loading } = useAlertHost(toRef(props, 'alertId'));
     const { hostDashboards, loading: sceneViewLoading } = useHostSceneView(bizId);
-
+    /** 图表执行 dataZoom 框线缩放后的时间范围 */
+    const dataZoomTimeRange = shallowRef(null);
+    /** 当前图表视图的时间范围 */
+    const viewerTimeRange = computed(() => get(dataZoomTimeRange) ?? get(timeRange));
     /** 图表请求参数变量 */
     const viewOptions = computed(() => {
       const target = {
@@ -64,6 +68,19 @@ export default defineComponent({
         ...target,
       };
     });
+
+    /** 格式化图表数据 */
+    const formatterData = (data: any) => {
+      return {
+        ...data,
+        series: data.series.map(item => {
+          return {
+            ...item,
+            alias: item?.dimensions?.device_name || item.target,
+          };
+        }),
+      };
+    };
 
     /**
      * @description 跳转主机检索页面
@@ -82,22 +99,46 @@ export default defineComponent({
     };
 
     /**
+     * @description 数据时间间隔 值改变后回调
+     * @param {[number, number]} e
+     */
+    const handleDataZoomTimeRangeChange = (e?: [number, number]) => {
+      if (!e?.[0] || !e?.[1]) {
+        dataZoomTimeRange.value = null;
+        return;
+      }
+      const startTime = dayjs.tz(e?.[0]).format('YYYY-MM-DD HH:mm:ss');
+      const endTime = dayjs.tz(e?.[1]).format('YYYY-MM-DD HH:mm:ss');
+      dataZoomTimeRange.value = startTime && endTime ? [startTime, endTime] : null;
+    };
+
+    /**
      * @description 创建骨架屏 dom 元素
      */
     const createSkeletonDom = () => {
       return <div class='alarm-detail-panel-host-skeleton-dom skeleton-element' />;
     };
 
+    watch(
+      () => get(currentTarget),
+      () => {
+        handleDataZoomTimeRangeChange();
+      }
+    );
+
     return {
       currentTarget,
       sceneViewLoading,
       hostDashboards,
       targetList,
-      timeRange,
+      dataZoomTimeRange,
+      viewerTimeRange,
       loading,
       viewOptions,
-      handleToPerformance,
       createSkeletonDom,
+      formatterData,
+      handleToPerformance,
+      handleDataZoomTimeRangeChange,
     };
   },
   render() {
@@ -134,9 +175,13 @@ export default defineComponent({
         <div class='panel-host-chart-wrap'>
           <AlarmDashboardGroup
             dashboards={this.hostDashboards}
+            formatterData={this.formatterData}
             loading={this.sceneViewLoading}
-            timeRange={this.timeRange}
+            showRestore={this.dataZoomTimeRange}
+            timeRange={this.viewerTimeRange}
             viewOptions={this.viewOptions}
+            onDataZoomChange={this.handleDataZoomTimeRangeChange}
+            onRestore={this.handleDataZoomTimeRangeChange}
           />
         </div>
       </div>

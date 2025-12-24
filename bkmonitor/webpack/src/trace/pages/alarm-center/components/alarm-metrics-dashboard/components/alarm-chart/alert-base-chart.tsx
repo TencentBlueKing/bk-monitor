@@ -23,30 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, inject, toRef, useTemplateRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, toRef, useTemplateRef, watch } from 'vue';
 import { getCurrentInstance } from 'vue';
 import { shallowRef } from 'vue';
 
-import { get } from '@vueuse/core';
 import VueEcharts from 'vue-echarts';
 import { useI18n } from 'vue-i18n';
 
-import ChartSkeleton from '../../../../../../../components/skeleton/chart-skeleton';
-import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
-import ChartTitle from '../../../../../../../plugins/components/chart-title';
-import CommonLegend from '../../../../../../../plugins/components/common-legend';
-import { commOpenUrl, getMetricId } from '../../../../../../../plugins/utls/menu';
-import { useChartLegend } from '../../../../../../trace-explore/components/explore-chart/use-chart-legend';
-import { useChartTitleEvent } from '../../../../../../trace-explore/components/explore-chart/use-chart-title-event';
-import { useK8sEcharts } from './hooks/use-k8s-echarts';
+import ChartSkeleton from '../../../../../../components/skeleton/chart-skeleton';
+import ChartTitle from '../../../../../../plugins/components/chart-title';
+import CommonLegend from '../../../../../../plugins/components/common-legend';
+import { useChartLegend } from '../../../../../trace-explore/components/explore-chart/use-chart-legend';
+import { useChartTitleEvent } from '../../../../../trace-explore/components/explore-chart/use-chart-title-event';
+import { useAlertEcharts } from './hooks/use-alert-echart';
 
-import type { IDataQuery, IMenuItem } from '../../../../../../../plugins/typings';
-import type { DataZoomEvent } from '../../../../../../trace-explore/components/explore-chart/types';
+import type { DataZoomEvent } from '../../../../../trace-explore/components/explore-chart/types';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import './k8s-custom-chart.scss';
+import './alert-base-chart.scss';
 export default defineComponent({
-  name: 'K8sCustomChart',
+  name: 'AlertBaseChart',
   props: {
     /** 面板数据配置 */
     panel: {
@@ -88,11 +84,9 @@ export default defineComponent({
     const chartMainRef = useTemplateRef<HTMLElement>('chartMain');
     const mouseIn = shallowRef(false);
     const panel = computed(() => props.panel);
-    const panelTitle = computed(() => panel.value?.title);
     const params = computed(() => props.params);
-    const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
 
-    const { options, loading, metricList, targets, series, duration, chartId } = useK8sEcharts(
+    const { options, loading, metricList, targets, series, duration, chartId } = useAlertEcharts(
       panel,
       chartMainRef,
       instance.appContext.config.globalProperties.$api,
@@ -106,7 +100,7 @@ export default defineComponent({
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
       targets,
-      panelTitle,
+      panel.value.title,
       series,
       chartRef
     );
@@ -134,67 +128,8 @@ export default defineComponent({
       }
       emit('dataZoomChange', [startTime, endTime]);
     };
-
     const handleMouseInChange = (v: boolean) => {
       mouseIn.value = v;
-    };
-
-    /**
-     * @method handleRelateAlert 代理菜单点击事件
-     * @description 由于本处的 相关告警 跳转逻辑比较特殊，需要特殊处理，其他类型任然使用原逻辑
-     * @param targets 图表 targets 配置
-     * @param timeRange 时间范围
-     */
-    const handleRelateAlert = (targets: IDataQuery[], timeRange: string[]) => {
-      const metricIdMap: any = {};
-      const promqlSet = new Set<string>();
-      for (const target of targets) {
-        if (target.data?.query_configs?.length) {
-          for (const item of target.data.query_configs) {
-            if (item.promql) {
-              promqlSet.add(JSON.stringify(item.promql));
-            } else {
-              const metricId = getMetricId(
-                item.data_source_label,
-                item.data_type_label,
-                item.metrics?.[0]?.field,
-                item.table,
-                item.index_set_id
-              );
-              if (metricId) {
-                metricIdMap[metricId] = 'true';
-              }
-            }
-          }
-        }
-      }
-      let queryString = '';
-      for (const metricId of Object.keys(metricIdMap)) {
-        queryString += `${queryString.length ? ' OR ' : ''}指标ID : ${metricId}`;
-      }
-      let promqlString = '';
-      for (const promql of promqlSet) {
-        promqlString = `promql=${promql}`;
-      }
-      queryString = promqlString ? promqlString : `queryString=${queryString}`;
-      queryString.length &&
-        window.open(commOpenUrl(`#/event-center?${queryString}&from=${timeRange[0]}&to=${timeRange[1]}`));
-    };
-
-    /**
-     * @method handleMenuClickProxy 代理菜单点击事件
-     * @description 由于本处的 相关告警 跳转逻辑比较特殊，需要特殊处理，其他类型任然使用原逻辑
-     * @param item 菜单项
-     */
-    const handleMenuClickProxy = (item: IMenuItem) => {
-      switch (item.id) {
-        case 'relate-alert':
-          handleRelateAlert(get(targets), get(timeRange));
-          return;
-        default:
-          handleMenuClick(item);
-          return;
-      }
     };
 
     watch(
@@ -228,7 +163,7 @@ export default defineComponent({
       metricList,
       legendData,
       handleAlarmClick,
-      handleMenuClickProxy,
+      handleMenuClick,
       handleMetricClick,
       handleSelectLegend,
       handleDataZoom,
@@ -240,7 +175,7 @@ export default defineComponent({
     return (
       <div
         ref='chart'
-        class='k8s-custom-chart'
+        class='alert-base-chart'
       >
         {this.panel && this.showTitle && (
           <ChartTitle
@@ -255,9 +190,9 @@ export default defineComponent({
             title={this.panel.title}
             onAlarmClick={this.handleAlarmClick}
             onAllMetricClick={this.handleMetricClick}
-            onMenuClick={this.handleMenuClickProxy}
+            onMenuClick={this.handleMenuClick}
             onMetricClick={this.handleMetricClick}
-            onSelectChild={({ child }) => this.handleMenuClickProxy(child)}
+            onSelectChild={({ child }) => this.handleMenuClick(child)}
           />
         )}
         {this.loading ? (
@@ -266,7 +201,7 @@ export default defineComponent({
           <>
             <div
               ref='chartMain'
-              class='k8s-custom-chart-container'
+              class='alert-base-chart-container'
               onMouseout={() => this.handleMouseInChange(false)}
               onMouseover={() => this.handleMouseInChange(true)}
             >

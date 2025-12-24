@@ -69,6 +69,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 对接口请求返回数据进行处理 */
+    formatterData: {
+      type: Function as PropType<(val) => any>,
+      default: res => res,
+    },
     /** 是否展示复位按钮 */
     showRestore: {
       type: Boolean,
@@ -135,6 +140,7 @@ export default defineComponent({
                 key={dashboard.id}
                 dashboardId={this.dashboardId}
                 dashboardTitle={dashboard?.title}
+                formatterData={this.formatterData}
                 gridCol={this.gridCol}
                 panelModels={dashboard?.panels}
                 showRestore={this.showRestore}
