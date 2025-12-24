@@ -18,7 +18,6 @@ from django.db import models, transaction
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
-from metadata.models import ResultTableField, ResultTableOption
 from metadata.models.data_link import utils
 from metadata.models.data_link.constants import (
     BASEREPORT_DATABUS_FORMAT,
@@ -1044,6 +1043,8 @@ class DataLink(models.Model):
         """
         生成采集插件时序数据链路配置 -- bk_standard & bk_exporter
         """
+        from metadata.models import ResultTableField, ResultTableOption
+
         bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
 
