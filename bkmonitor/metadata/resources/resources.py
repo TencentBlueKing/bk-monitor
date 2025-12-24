@@ -1611,14 +1611,16 @@ class QueryTimeSeriesMetricResource(Resource):
                     q_obj = Q(field_name=value)
 
             # field_config相关字段
-            elif key in ("field_config_alias", "field_config_unit", "field_config_aggregate_method"):
-                field_key = key.replace("field_config_", "")
-                lookup = "icontains" if key == "field_config_alias" else "iexact"
-                q_obj = Q(**{f"field_config__{field_key}__{lookup}": value})
+            elif key == "field_config_alias":
+                q_obj = Q(field_config__alias__icontains=value)
+            elif key == "field_config_unit":
+                q_obj = Q(field_config__unit__iexact=value)
+            elif key == "field_config_aggregate_method":
+                q_obj = Q(field_config__aggregate_method__iexact=value)
             elif key in ("field_config_hidden", "field_config_disabled"):
                 # 查询 True 时只匹配明确为 True 的记录，查询 False 时匹配所有不为 True 的记录（包括空值、不存在或为 False）
                 field_key = key.replace("field_config_", "")
-                if value.lower() == "true":
+                if value.lower() in ("true", "1"):
                     q_obj = Q(**{f"field_config__{field_key}": True})
                 else:
                     # 匹配 field_config 为空字典、键不存在、或值不为 True 的情况
@@ -1627,8 +1629,10 @@ class QueryTimeSeriesMetricResource(Resource):
                     )
 
             # 整数字段
-            elif key in ("scope_id", "field_id"):
-                q_obj = Q(**{key: int(value)})
+            elif key == "scope_id":
+                q_obj = Q(scope_id=int(value))
+            elif key == "field_id":
+                q_obj = Q(field_id=int(value))
 
             if q_obj:
                 condition_query = q_obj if condition_query is None else condition_query | q_obj
@@ -1746,7 +1750,7 @@ class QueryTimeSeriesScopeResource(Resource):
         scope_ids = [scope["id"] for scope in scopes]
 
         metrics_by_scope = defaultdict(list)
-        # 只有在需要返回指标数据时才查询
+
         if include_metrics:
             # 使用 values() 批量查询 metrics，避免 ORM 对象转换
             all_metrics = (
@@ -1790,7 +1794,9 @@ class QueryTimeSeriesScopeResource(Resource):
                 "auto_rules": scope["auto_rules"],
                 "metric_list": metrics_by_scope.get((scope["group_id"], scope["id"]), []),
                 "create_from": scope["create_from"],
-                "metric_count": len(metrics_by_scope.get((scope["group_id"], scope["id"]), [])),
+                "metric_count": models.TimeSeriesMetric.objects.filter(
+                    group_id=scope["group_id"], scope_id=scope["id"]
+                ).count(),
             }
             for scope in scopes
         ]
