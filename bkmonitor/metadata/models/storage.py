@@ -258,7 +258,14 @@ class ClusterInfo(models.Model):
         """
 
         # 1. 获取所有候选集群
-        clusters = cls.objects.filter(bk_tenant_id=bk_tenant_id, cluster_type=cluster_type)
+        clusters = cls.objects.filter(bk_tenant_id=bk_tenant_id, cluster_type=cluster_type).only(
+            "cluster_id",
+            "cluster_name",
+            "cluster_type",
+            "labels",
+            "create_time",
+            "is_default_cluster",
+        )
 
         if not clusters.exists():
             raise ValueError(f"未找到任何 {cluster_type} 类型的集群，租户={bk_tenant_id}")
