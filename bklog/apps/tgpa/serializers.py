@@ -103,3 +103,37 @@ class SyncReportSerializer(serializers.Serializer):
         if not attrs.get("openid_list") and not attrs.get("file_name_list"):
             raise serializers.ValidationError(_("openid_list 和 file_name_list 不能同时为空"))
         return attrs
+
+
+class GetOpenidListSerializer(serializers.Serializer):
+    """
+    获取openid列表
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    keyword = serializers.CharField(label=_("关键字"), required=False, allow_null=True, allow_blank=True)
+    start_time = serializers.IntegerField(label=_("开始时间"), required=False, allow_null=True)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=False, allow_null=True)
+    page = serializers.IntegerField(label=_("页码"), default=1)
+    pagesize = serializers.IntegerField(label=_("分页大小"), default=10)
+
+
+class GetFileNameListSerializer(serializers.Serializer):
+    """
+    获取文件名列表
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    keyword = serializers.CharField(label=_("关键字"), required=False, allow_null=True, allow_blank=True)
+    start_time = serializers.IntegerField(label=_("开始时间"), required=False, allow_null=True)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=False, allow_null=True)
+    page = serializers.IntegerField(label=_("页码"), default=1)
+    pagesize = serializers.IntegerField(label=_("分页大小"), default=10)
+
+
+class GetFileStatusSerializer(serializers.Serializer):
+    """
+    获取文件状态
+    """
+
+    file_name_list = serializers.ListField(label=_("文件名列表"), child=serializers.CharField())

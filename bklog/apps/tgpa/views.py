@@ -38,6 +38,9 @@ from apps.tgpa.serializers import (
     GetIndexSetIdSerializer,
     GetReportListSerializer,
     SyncReportSerializer,
+    GetOpenidListSerializer,
+    GetFileNameListSerializer,
+    GetFileStatusSerializer,
 )
 from apps.tgpa.tasks import process_single_report
 from bkm_search_module.constants import list_route
@@ -142,3 +145,27 @@ class TGPAReportViewSet(APIViewSet):
             process_single_report.delay(report_info, sync_record_obj.id)
 
         return Response({"record_id": sync_record_obj.id})
+
+    @list_route(methods=["GET"], url_path="openid_list")
+    def get_openid_list(self, request, *args, **kwargs):
+        """
+        获取openid列表
+        """
+        params = self.params_valid(GetOpenidListSerializer)
+        return Response(TGPAReportHandler.get_openid_list(params))
+
+    @list_route(methods=["GET"], url_path="file_name_list")
+    def get_file_name_list(self, request, *args, **kwargs):
+        """
+        获取文件名列表
+        """
+        params = self.params_valid(GetFileNameListSerializer)
+        return Response(TGPAReportHandler.get_file_name_list(params))
+
+    @list_route(methods=["POST"], url_path="file_status")
+    def get_file_status(self, request, *args, **kwargs):
+        """
+        获取文件处理状态
+        """
+        params = self.params_valid(GetFileStatusSerializer)
+        return Response(TGPAReportHandler.get_file_status(params["file_name_list"]))

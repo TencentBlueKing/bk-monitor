@@ -31,8 +31,10 @@ from apps.tgpa.constants import (
     FEATURE_TOGGLE_TGPA_TASK,
     TGPA_BASE_DIR,
     TGPA_REPORT_LIST_BATCH_SIZE,
+    TGPAReportSyncStatusEnum,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler
+from apps.tgpa.models import TGPAReport
 from apps.utils.thread import MultiExecuteFunc
 
 
@@ -71,6 +73,17 @@ class TGPAReportHandler:
         file_handler.download_and_process_file(self.file_name)
 
     @classmethod
+    def _get_feature_config(cls):
+        """获取 TGPA 功能配置"""
+        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+        return feature_toggle.feature_config
+
+    @classmethod
+    def _get_result_table_id(cls):
+        """获取结果表ID"""
+        return cls._get_feature_config().get("tgpa_report_result_table_id")
+
+    @classmethod
     def _build_where_clause(
         cls, bk_biz_id, keyword=None, openid_list=None, file_name_list=None, start_time=None, end_time=None
     ):
@@ -103,8 +116,7 @@ class TGPAReportHandler:
         获取客户端日志上报文件列表
         """
         # 获取配置
-        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
-        feature_config = feature_toggle.feature_config
+        feature_config = cls._get_feature_config()
         result_table_id = feature_config.get("tgpa_report_result_table_id")
         download_url_prefix = feature_config.get("download_url_prefix", "")
 
@@ -151,8 +163,11 @@ class TGPAReportHandler:
             total = count_result["list"][0].get("total", 0)
 
         data = list_result.get("list", [])
+        reports = TGPAReport.objects.filter(file_name__in=[item["file_name"] for item in data])
+        status_map = {report.file_name: report.process_status for report in reports}
         for item in data:
             item["download_url"] = f"{download_url_prefix}{item.get('file_name', '')}"
+            item["status"] = status_map.get(item["file_name"], TGPAReportSyncStatusEnum.PENDING.value)
 
         return {"total": total, "list": data}
 
@@ -162,9 +177,7 @@ class TGPAReportHandler:
         使用迭代器模式获取客户端日志上报文件列表
         """
         # 获取配置
-        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
-        feature_config = feature_toggle.feature_config
-        result_table_id = feature_config.get("tgpa_report_result_table_id")
+        result_table_id = cls._get_result_table_id()
         batch_size = TGPA_REPORT_LIST_BATCH_SIZE
 
         # 构建WHERE子句
@@ -196,3 +209,54 @@ class TGPAReportHandler:
                 break
 
             offset += batch_size
+
+    @classmethod
+    def get_openid_list(cls, params):
+        """
+        获取openid列表
+        """
+        result_table_id = cls._get_result_table_id()
+
+        limit = params["pagesize"]
+        offset = (params["page"] - 1) * limit
+
+        query_sql = (
+            f"SELECT DISTINCT openid "
+            f"FROM {result_table_id} "
+            f"WHERE cc_id={params['bk_biz_id']} "
+            f"LIMIT {limit} OFFSET {offset}"
+        )
+
+        result = BkDataQueryApi.query({"sql": query_sql})
+        return [item["openid"] for item in result.get("list", [])]
+
+    @classmethod
+    def get_file_name_list(cls, params):
+        """
+        获取文件名列表
+        """
+        result_table_id = cls._get_result_table_id()
+
+        limit = params["pagesize"]
+        offset = (params["page"] - 1) * limit
+
+        query_sql = (
+            f"SELECT file_name FROM {result_table_id} WHERE cc_id={params['bk_biz_id']} LIMIT {limit} OFFSET {offset}"
+        )
+
+        result = BkDataQueryApi.query({"sql": query_sql})
+        return [item["file_name"] for item in result.get("list", [])]
+
+    @classmethod
+    def get_file_status(cls, file_name_list):
+        """
+        获取文件状态
+        """
+        reports = TGPAReport.objects.filter(file_name__in=file_name_list)
+        status_map = {report.file_name: report.process_status for report in reports}
+        result = []
+        for file_name in file_name_list:
+            result.append(
+                {"file_name": file_name, "status": status_map.get(file_name, TGPAReportSyncStatusEnum.PENDING.value)}
+            )
+        return result
