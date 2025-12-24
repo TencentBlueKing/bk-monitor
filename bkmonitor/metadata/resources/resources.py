@@ -1602,6 +1602,7 @@ class QueryTimeSeriesScopeResource(Resource):
                 "auto_rules": scope["auto_rules"],
                 "metric_list": metrics_by_scope.get((scope["group_id"], scope["id"]), []),
                 "create_from": scope["create_from"],
+                "metric_count": len(metrics_by_scope.get((scope["group_id"], scope["id"]), [])),
             }
             for scope in scopes
         ]
