@@ -74,8 +74,13 @@ class AlertDetailResource(BaseAlertDetailResource):
 
 
 class AlertEventBaseResource(Resource, abc.ABC):
+    """告警事件基础资源类。
+
+    为告警关联事件查询提供通用的查询构建逻辑。
+    """
+
     @classmethod
-    def get_q(cls, target: BaseTarget) -> QueryConfigBuilder:
+    def _get_q(cls, target: BaseTarget) -> QueryConfigBuilder:
         using: tuple[str, str] = (DataTypeLabel.EVENT, DataSourceLabel.CUSTOM)
         if cls.is_apm_target(target):
             using = (DataTypeLabel.EVENT, DataSourceLabel.BK_APM)
@@ -84,12 +89,20 @@ class AlertEventBaseResource(Resource, abc.ABC):
 
     @classmethod
     def is_apm_target(cls, target: BaseTarget) -> bool:
+        """判断是否为 APM 目标"""
         return target.TARGET_TYPE == APMTargetType.SERVICE
 
     @classmethod
     def build_host_query(
         cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder
     ) -> QueryConfigBuilder | None:
+        """构建主机事件查询。
+
+        :param alert: 告警文档对象
+        :param target: 目标对象
+        :param q: 查询构建器
+        :return: 查询配置，如果无关联主机则返回 None
+        """
         related_targets: list[str] = [
             f"{host['bk_cloud_id']}:{host['bk_target_ip']}" for host in target.list_related_host_targets()
         ]
@@ -102,6 +115,13 @@ class AlertEventBaseResource(Resource, abc.ABC):
     def build_k8s_query(
         cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder
     ) -> QueryConfigBuilder | None:
+        """
+        构建 K8S 事件查询。
+        :param alert: 告警文档对象
+        :param target: 目标对象
+        :param q: 查询构建器
+        :return: 构建好的查询配置，如果无关联 K8S 资源则返回 None
+        """
         related_targets: list[dict[str, Any]] = target.list_related_k8s_targets().get("target_list", [])
         if not related_targets:
             return None
@@ -136,17 +156,41 @@ class AlertEventBaseResource(Resource, abc.ABC):
     def build_apm_query(
         cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder
     ) -> QueryConfigBuilder | None:
+        """构建 APM 事件查询。
+
+        :param alert: 告警文档对象
+        :param target: 目标对象
+        :param q: 查询构建器
+        :return: 构建好的查询配置
+        """
         return q.table("builtin")
 
     @classmethod
     def build_generic_query(
         cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder
     ) -> QueryConfigBuilder | None:
+        """构建通用事件查询。
+
         # TODO：事件类告警直接使用结果表 + 策略过滤条件 + 触发告警维度条件进行关联。
+
+        :param alert: 告警文档对象
+        :param target: 目标对象
+        :param q: 查询构建器
+        :return: 构建好的查询配置
+        """
         return None
 
     @classmethod
     def build_queryset(cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder) -> UnifyQuerySet:
+        """构建统一查询集。
+
+        根据目标类型选择合适的查询构建函数组合查询条件。
+
+        :param alert: 告警文档对象
+        :param target: 目标对象
+        :param q: 查询构建器
+        :return: 统一查询集
+        """
         build_query_funcs: list[
             Callable[[AlertDocument, BaseTarget, QueryConfigBuilder], QueryConfigBuilder | None]
         ] = [cls.build_k8s_query, cls.build_host_query, cls.build_generic_query]
@@ -220,7 +264,7 @@ class AlertEventsResource(AlertEventBaseResource):
         alert_id: str = validated_request_data["alert_id"]
         alert: AlertDocument = AlertDocument.get(alert_id)
         target: BaseTarget = get_target_instance(alert)
-        q: QueryConfigBuilder = self.get_q(target)
+        q: QueryConfigBuilder = self._get_q(target)
         if validated_request_data.get("sources"):
             q: QueryConfigBuilder = q.conditions(q_to_conditions(Q(source=validated_request_data["sources"])))
 

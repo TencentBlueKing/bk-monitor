@@ -8,9 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import abc
 from functools import cached_property
 from typing import Any
-import abc
 
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.strategy.dispatch import EntitySet
@@ -33,7 +33,15 @@ class BaseTarget(abc.ABC):
 
     @cached_property
     def dimensions(self) -> dict[str, int | str]:
+        """获取告警的所有维度信息。
+
+        从告警事件的 tags 中提取维度键值对。
+
         # TODO 发现在部分场景下，event.dimensions 拥有更多维度，需要确认原因，并构造出最完整的维度集。
+
+        :return: 维度键值对字典
+        :rtype: dict[str, int | str]
+        """
         return {tag["key"]: tag["value"] for tag in self._alert.event.tags}
 
     def _get_dimension_value(self, possible_keys: list[str], default: Any = None) -> Any:
@@ -49,14 +57,25 @@ class BaseTarget(abc.ABC):
 
     @abc.abstractmethod
     def _get_k8s_resource_type(self) -> str:
+        """获取 K8S 资源类型。
+
+        :return: K8S 资源类型
+        """
         raise NotImplementedError
 
     @abc.abstractmethod
     def _list_related_k8s_targets(self) -> list[dict[str, Any]]:
+        """获取关联的 K8S 目标列表。
+
+        :return: 关联 K8S 目标信息列表
+        """
         raise NotImplementedError
 
     def list_related_k8s_targets(self) -> dict[str, str | list]:
-        """获取关联 K8S 目标信息"""
+        """获取关联 K8S 目标信息。
+
+        :return: 包含资源类型和目标列表的字典
+        """
         resource_type: str = self._get_k8s_resource_type()
         target_list: list[dict[str, Any]] = self._list_related_k8s_targets()
         for target in target_list:
@@ -70,7 +89,7 @@ class BaseTarget(abc.ABC):
         ip: str | None = self._get_dimension_value(["ip", "bk_target_ip"])
         bk_cloud_id: int = self._get_dimension_value(["bk_cloud_id"], 0)
         bk_host_id: int | None = self._get_dimension_value(["bk_host_id", "host_id"])
-        if not ip or bk_cloud_id is None or bk_host_id is None:
+        if not ip or bk_host_id is None:
             return []
 
         target: dict[str, Any] = {
@@ -94,7 +113,10 @@ class BaseTarget(abc.ABC):
 
 
 class DefaultTarget(BaseTarget):
-    """默认目标对象"""
+    """默认目标对象。
+
+    当告警目标类型为空或未知时使用的默认实现。
+    """
 
     TARGET_TYPE = EventTargetType.EMPTY
 
@@ -273,7 +295,11 @@ _TARGET_TYPE_MAP: dict[str, type[BaseTarget]] = {
 
 
 def get_target_instance(alert: AlertDocument) -> BaseTarget:
-    """获取目标对象实例"""
+    """获取目标对象实例。
+
+    :param alert: 告警对象
+    :return: 目标对象实例
+    """
     target_type: str | None = alert.event.target_type
     target_cls: type[BaseTarget] = _TARGET_TYPE_MAP.get(target_type, DefaultTarget)
     return target_cls(alert)
