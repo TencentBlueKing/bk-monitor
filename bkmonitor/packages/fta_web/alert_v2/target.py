@@ -85,7 +85,10 @@ class BaseTarget(abc.ABC):
         return {"resource_type": resource_type, "target_list": target_list}
 
     def list_related_host_targets(self) -> list[dict[str, Any]]:
-        """获取关联主机目标信息"""
+        """获取关联主机目标信息。
+
+        :return: 主机目标信息列表
+        """
         ip: str | None = self._get_dimension_value(["ip", "bk_target_ip"])
         bk_cloud_id: int = self._get_dimension_value(["bk_cloud_id"], 0)
         bk_host_id: int | None = self._get_dimension_value(["bk_host_id", "host_id"])
@@ -103,12 +106,18 @@ class BaseTarget(abc.ABC):
 
     @abc.abstractmethod
     def list_related_apm_targets(self) -> list[dict[str, Any]]:
-        """获取关联 APM 目标信息"""
+        """获取关联 APM 目标信息。
+
+        :return: APM 目标信息列表
+        """
         raise NotImplementedError
 
     @abc.abstractmethod
     def list_related_log_targets(self) -> list[dict[str, Any]]:
-        """获取关联日志目标信息"""
+        """获取关联日志目标信息。
+
+        :return: 日志目标信息列表
+        """
         raise NotImplementedError
 
 
@@ -134,7 +143,14 @@ class DefaultTarget(BaseTarget):
 
 
 class BaseK8STarget(BaseTarget):
-    """K8S 目标对象基类"""
+    """K8S 目标对象基类。
+
+    为所有 Kubernetes 相关的目标对象提供通用实现，例如根据 ``TARGET_TYPE`` 解析 K8S 资源类型，以及基于告警维度构造目标信息。
+
+    子类通常只需设置 :attr:`TARGET_TYPE` 并复用本类实现的通用方法，例如
+    :meth:`_get_k8s_resource_type` 和 :meth:`_list_related_k8s_targets`，即可完成针对
+    Pod、Workload 等不同 K8S 实体的告警目标建模。
+    """
 
     def _get_k8s_resource_type(self) -> str:
         return K8S_RESOURCE_TYPE[self.TARGET_TYPE]

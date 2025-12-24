@@ -206,6 +206,13 @@ class AlertEventBaseResource(Resource, abc.ABC):
 
     @classmethod
     def build_query_params(cls, alert: AlertDocument, target: BaseTarget, queryset: UnifyQuerySet) -> dict[str, Any]:
+        """构建事件类接口查询参数。
+
+        :param alert: 告警文档对象
+        :param target: 目标对象
+        :param queryset: 目标对象
+        :return: 接口查询参数
+        """
         query_params: dict[str, Any] = {
             "bk_biz_id": alert.event.bk_biz_id,
             "query_configs": [],
@@ -279,7 +286,7 @@ class AlertEventsResource(AlertEventBaseResource):
         result: dict[str, Any] = EventLogsResource().request(query_params)
         if result.get("query_config") and result["query_config"].get("query_configs"):
             # 事件检索仅支持单数据源查询，取第一个用于前端跳转。
-            result["query_config"]["query_configs"] = query_params["query_configs"][0]
+            result["query_config"]["query_configs"] = result["query_config"]["query_configs"][0]
         return result
 
 
