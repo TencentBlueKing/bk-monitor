@@ -245,7 +245,7 @@ class CustomTSTable(OperateRecordModelBase):
 
     @cached_property
     def query_time_series_scope(self) -> list[dict[str, Any]]:
-        return api.metadata.query_time_series_scope(group_id=self.time_series_group_id)
+        return api.metadata.query_time_series_scope(group_id=self.time_series_group_id, include_metrics=True)
 
 
 class CustomTSItem(models.Model):
