@@ -12,6 +12,7 @@ import hashlib
 import json
 import logging
 import re
+from typing import Any
 
 from django.conf import settings
 from jinja2.sandbox import SandboxedEnvironment as Environment
@@ -91,7 +92,7 @@ def parse_and_get_rt_biz_id(table_id: str) -> int:
         return settings.DEFAULT_BKDATA_BIZ_ID
 
 
-def compose_config(tpl: str, render_params: dict, err_msg_prefix: str | None = "compose config") -> dict:
+def compose_config(tpl: str, render_params: dict, err_msg_prefix: str | None = "compose config") -> dict[str, Any]:
     """渲染配置模板"""
     content = Environment().from_string(tpl).render(**render_params)
     try:
