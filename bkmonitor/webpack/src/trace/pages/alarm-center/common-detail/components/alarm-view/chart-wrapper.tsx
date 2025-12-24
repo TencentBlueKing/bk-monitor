@@ -26,14 +26,16 @@
 import { type PropType, computed, defineComponent, provide, shallowRef } from 'vue';
 
 import dayjs from 'dayjs';
-import { transformDataKey } from 'monitor-common/utils';
+import { transformDataKey, typeTools } from 'monitor-common/utils';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { useI18n } from 'vue-i18n';
 
+import AiopsCharts from './echarts/aiops-charts';
 import MonitorCharts from './echarts/monitor-charts';
 
 import type { AlarmDetail } from '@/pages/alarm-center/typings';
 import type { LegendOptions } from '@/plugins/typings';
+import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import './chart-wrapper.scss';
 
@@ -63,6 +65,41 @@ export default defineComponent({
         return sourceTypeLabels.some(item => sourceLabel === item.sourceLabel && typeLabel === item.typeLabel);
       }
       return false;
+    });
+
+    const displayDetectionRulesConfig = item => {
+      const { config } = item;
+      if (item.type === 'IntelligentDetect' && !config.anomaly_detect_direct) config.anomaly_detect_direct = 'all';
+      const isArray = typeTools.isArray(config);
+      if (isArray) return item;
+      Object.keys(config).forEach(key => {
+        const value = config[key];
+        if (value === null) config[key] = '';
+      });
+      return item;
+    };
+
+    const detectionConfig = computed<IDetectionConfig>(() => {
+      const strategy = props.detail.extra_info?.strategy;
+      const algorithms = strategy?.items?.[0]?.algorithms;
+      if (!algorithms?.length) return null;
+      const result = {
+        unit: algorithms[0].unit_prefix,
+        unitType: strategy.items?.[0]?.query_configs?.[0]?.unit || '',
+        unitList: [],
+        connector: strategy.detects?.[0]?.connector,
+        data: algorithms.map(({ unit_prefix, ...item }) => displayDetectionRulesConfig(item)),
+        query_configs: strategy?.items?.[0]?.query_configs,
+      };
+      return result;
+    });
+
+    /** 是否含有智能检测算法 */
+    const hasAIOpsDetection = computed(() => {
+      return (
+        detectionConfig.value?.data?.some?.(item => item.type === 'IntelligentDetect') &&
+        detectionConfig.value?.query_configs?.[0]?.intelligent_detect?.result_table_id
+      );
     });
 
     const showRestore = shallowRef(false);
@@ -294,13 +331,13 @@ export default defineComponent({
       //   return <IntelligenceScene params={props.detail} />;
       // }
       // /** 智能检测算法图表 */
-      // if (hasAIOpsDetection.value)
-      //   return (
-      //     <AiopsChartEvent
-      //       detail={props.detail}
-      //       detectionConfig={detectionConfig.value}
-      //     />
-      //   );
+      if (hasAIOpsDetection.value)
+        return (
+          <AiopsCharts
+            detail={props.detail}
+            detectionConfig={detectionConfig.value}
+          />
+        );
       // /** 时序预测图表 */
       // if (hasTimeSeriesForecasting.value)
       //   return (
