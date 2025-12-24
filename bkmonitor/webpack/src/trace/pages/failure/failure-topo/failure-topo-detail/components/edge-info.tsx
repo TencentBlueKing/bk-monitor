@@ -29,9 +29,9 @@ import { type PropType, type Ref, computed, defineComponent, inject } from 'vue'
 import { OverflowTitle } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import { checkIsRoot } from '../../../utils';
 import { NODE_TYPE_ICON } from '../../node-type-svg';
-import { getApmServiceType } from '../../utils';
-import { canJumpByType, handleToLink } from '../../utils';
+import { canJumpByType, getApmServiceType, handleToLink } from '../../utils';
 import MetricView from './metric-view';
 
 import type { IncidentDetailData, ITopoNode } from '../../types';
@@ -102,7 +102,7 @@ export default defineComponent({
               </span>
             </OverflowTitle>
             <span style={{ color: '#eaebf0' }}>{')'}</span>
-            {(node?.entity.is_root || node.is_feedback_root) && (
+            {(checkIsRoot(node?.entity) || node.is_feedback_root) && (
               <span class={['node-root-icon', node.is_feedback_root ? 'node-root-feedback-icon' : false]}>
                 {t('根因')}
               </span>

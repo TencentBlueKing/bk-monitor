@@ -55,7 +55,7 @@ import SetMealAdd from '../../../store/modules/set-meal-add';
 import StatusTag from '../components/status-tag';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
 import { useIncidentInject } from '../utils';
-import { replaceSpecialCondition } from '../utils';
+import { checkIsRoot, replaceSpecialCondition } from '../utils';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
 import ChatGroup from './chat-group/chat-group';
@@ -397,7 +397,8 @@ export default defineComponent({
         },
         cell: (_, { row: data }) => {
           const { entity } = data;
-          const isRoot = entity?.is_root || data.is_feedback_root;
+          const isRoot = checkIsRoot(entity);
+          const showRoot = isRoot || data.is_feedback_root;
           return (
             <div
               class='name-column'
@@ -408,8 +409,8 @@ export default defineComponent({
                 extCls: 'alarm-detail-table-tooltip',
               }}
             >
-              <span class={`name-info ${isRoot ? 'name-info-root' : ''}`}>{data.alert_name}</span>
-              {isRoot && <span class={`${entity.is_root ? 'root-cause' : 'root-feed'}`}>{t('根因')}</span>}
+              <span class={`name-info ${showRoot ? 'name-info-root' : ''}`}>{data.alert_name}</span>
+              {showRoot && <span class={`${isRoot ? 'root-cause' : 'root-feed'}`}>{t('根因')}</span>}
             </div>
           );
         },
