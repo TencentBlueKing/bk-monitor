@@ -145,7 +145,6 @@ const mountedVueInstance = () => {
           },
           created() {
             if (!space && this.$route.name !== 'share') {
-              console.log('--main.js un-authorized route.query', this.$route.query);
               this.$router.push({
                 path: '/un-authorized',
                 query: {

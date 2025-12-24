@@ -97,8 +97,6 @@ export default defineComponent({
       api: () => 'API无权限，请联系管理员申请',
     };
 
-    console.log('un-authorized route.query', route.query);
-
     const getExceptionText = () => {
       const type = route.query.type as keyof typeof exceptionMap;
       return exceptionMap[type as keyof typeof exceptionMap]?.() ?? '无权限，请联系管理员';
