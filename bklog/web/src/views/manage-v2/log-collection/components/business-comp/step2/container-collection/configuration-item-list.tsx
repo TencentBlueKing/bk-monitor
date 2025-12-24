@@ -29,7 +29,6 @@ import { defineComponent, computed, type PropType, ref, type ComponentPublicInst
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
-// import InfoTips from '../../../common-comp/info-tips';
 import LineRuleConfig from '../line-rule-config';
 import LogFilter from '../log-filter';
 import LogPathConfig from '../log-path-config';

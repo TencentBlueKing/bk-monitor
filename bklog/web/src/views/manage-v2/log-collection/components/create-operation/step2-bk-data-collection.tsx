@@ -267,7 +267,7 @@ export default defineComponent({
         ref={baseInfoRef}
         data={configData.value}
         typeKey='bk-data'
-        on-change={data => {
+        on-change={(data) => {
           configData.value = { ...configData.value, ...data };
         }}
       />
@@ -291,7 +291,7 @@ export default defineComponent({
                 disabled={props.isEdit}
                 loading={clusterLoading.value}
                 value={configData.value.storage_cluster_id}
-                on-selected={val => {
+                on-selected={(val) => {
                   configData.value.storage_cluster_id = val;
                 }}
               >
@@ -398,7 +398,7 @@ export default defineComponent({
               display-tag
               multiple
               searchable
-              on-selected={value => {
+              on-selected={(value) => {
                 configData.value.target_fields = value;
               }}
             >
@@ -424,7 +424,7 @@ export default defineComponent({
               addType='select'
               selectList={targetFieldSelectList.value}
               value={configData.value.sort_fields}
-              on-change={value => {
+              on-change={(value) => {
                 configData.value.sort_fields = value;
               }}
             />
@@ -629,14 +629,6 @@ export default defineComponent({
           };
         }
         const res = await $http.request(url, paramsData);
-        // const res = props.isEdit
-        //   ? await $http.request('/indexSet/update', {
-        //       params: {
-        //         index_set_id: route.params.collectorId,
-        //       },
-        //       data: params,
-        //     })
-        //   : await $http.request('/indexSet/create', { data: params });
 
         if (res?.result) {
           showMessage(props.isEdit ? t('设置成功') : t('创建成功'), 'success');
@@ -694,14 +686,13 @@ export default defineComponent({
         }
 
         // 并发请求所有结果表的字段信息
-        const requests = resultTableIds.map(id =>
-          $http.request('/resultTables/info', {
-            params: { result_table_id: id },
-            query: {
-              scenario_id: props.scenarioId,
-              bk_biz_id: bkBizId.value,
-            },
-          }),
+        const requests = resultTableIds.map(id => $http.request('/resultTables/info', {
+          params: { result_table_id: id },
+          query: {
+            scenario_id: props.scenarioId,
+            bk_biz_id: bkBizId.value,
+          },
+        }),
         );
 
         const results = (await Promise.all(requests)) as IFieldQueryResult[];

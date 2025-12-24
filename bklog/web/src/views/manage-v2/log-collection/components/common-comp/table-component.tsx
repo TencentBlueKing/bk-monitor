@@ -120,6 +120,10 @@ export default defineComponent({
       type: Array as PropType<Array<{ id: string; label: string; disabled?: boolean }>>,
       default: () => [],
     },
+    rowHeight: {
+      type: Number,
+      default: 32,
+    },
   },
   emits: ['sort-change', 'page-change', 'filter-change', 'empty-click', 'cell-click'],
   setup(props, { emit }) {
@@ -501,7 +505,7 @@ export default defineComponent({
               pagination={props.pagination}
               row-key='key'
               height={props.height}
-              rowHeight={32}
+              rowHeight={props.rowHeight}
               scroll={{ type: 'lazy', bufferSize: 10 }}
               on-sort-change={sortChange}
               on-filter-change={handleFilterChange}

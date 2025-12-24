@@ -273,14 +273,27 @@ export const useCollectList = () => {
     // 记录当前操作对象，供目标页回显/继续编辑使用
     store.commit('collect/setCurCollect', row);
 
+    const finalQuery = {
+      ...query,
+      spaceUid: String(store.state.spaceUid),
+      backRoute: backRoute ?? undefined,
+    };
+
+    // 检索操作在新标签页打开
+    if (operateType === 'search') {
+      const resolved = router.resolve({
+        name: targetRoute,
+        params,
+        query: finalQuery,
+      });
+      window.open(resolved.href, '_blank');
+      return;
+    }
+
     router.push({
       name: targetRoute,
       params,
-      query: {
-        ...query,
-        spaceUid: String(store.state.spaceUid),
-        backRoute: backRoute ?? undefined,
-      },
+      query: finalQuery,
     });
   };
 
