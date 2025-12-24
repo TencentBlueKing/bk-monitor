@@ -1901,12 +1901,12 @@ class RedisStorage(models.Model, StorageResultTable):
                     bk_biz_id=bk_biz_id,
                     data_type=data_type,
                 )
-                cluster_id = default_cluster.cluster_id
+                storage_cluster_id = default_cluster.cluster_id
                 logger.info(
                     "create_table: table_id->[%s] matched cluster->[%s] (id=%s) with bk_biz_id->[%s], data_type->[%s]",
                     table_id,
                     default_cluster.cluster_name,
-                    cluster_id,
+                    storage_cluster_id,
                     bk_biz_id,
                     data_type,
                 )
@@ -5470,12 +5470,12 @@ class ArgusStorage(models.Model, StorageResultTable):
                     bk_biz_id=bk_biz_id,
                     data_type=data_type,
                 )
-                cluster_id = default_cluster.cluster_id
+                storage_cluster_id = default_cluster.cluster_id
                 logger.info(
                     "create_table: table_id->[%s] matched cluster->[%s] (id=%s) with bk_biz_id->[%s], data_type->[%s]",
                     table_id,
                     default_cluster.cluster_name,
-                    cluster_id,
+                    storage_cluster_id,
                     bk_biz_id,
                     data_type,
                 )
@@ -5716,12 +5716,12 @@ class DorisStorage(models.Model, StorageResultTable):
                     bk_biz_id=bk_biz_id,
                     data_type=data_type,
                 )
-                cluster_id = default_cluster.cluster_id
+                storage_cluster_id = default_cluster.cluster_id
                 logger.info(
                     "create_table: table_id->[%s] matched cluster->[%s] (id=%s) with bk_biz_id->[%s], data_type->[%s]",
                     table_id,
                     default_cluster.cluster_name,
-                    cluster_id,
+                    storage_cluster_id,
                     bk_biz_id,
                     data_type,
                 )
