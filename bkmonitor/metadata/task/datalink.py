@@ -111,12 +111,16 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
             data_link_name=data_link_name,
             namespace="bklog",
             data_link_strategy=DataLink.BK_LOG,
+            bk_data_id=ds.bk_data_id,
         )
     else:
         # 获取链路
         datalink = DataLink.objects.get(
             bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name, namespace="bklog"
         )
+        if getattr(datalink, "bk_data_id", 0) != ds.bk_data_id:
+            datalink.bk_data_id = ds.bk_data_id
+            datalink.save(update_fields=["bk_data_id"])
     datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
 
     # 清理多余的存储链路
@@ -198,10 +202,14 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
             data_link_name=data_link_name,
             namespace="bklog",
             data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
+            bk_data_id=ds.bk_data_id,
         )
     else:
         datalink = DataLink.objects.get(bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name)
         data_link_name = bkbase_rt.data_link_name
+        if getattr(datalink, "bk_data_id", 0) != ds.bk_data_id:
+            datalink.bk_data_id = ds.bk_data_id
+            datalink.save(update_fields=["bk_data_id"])
 
     # 创建/更新链路配置
     datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)

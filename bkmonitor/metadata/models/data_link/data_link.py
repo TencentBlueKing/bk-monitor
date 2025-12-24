@@ -259,15 +259,16 @@ class DataLink(models.Model):
 
         config_list = []
         with transaction.atomic():
-            es_table_ins, _ = ResultTableConfig.objects.get_or_create(
+            es_table_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=self.data_link_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
+                defaults={"table_id": table_id},
             )
 
-            es_storage_ins, _ = ESStorageBindingConfig.objects.get_or_create(
+            es_storage_ins, _ = ESStorageBindingConfig.objects.update_or_create(
                 name=self.data_link_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
@@ -275,6 +276,7 @@ class DataLink(models.Model):
                 data_link_name=self.data_link_name,
                 es_cluster_name=es_storage.storage_cluster.cluster_name,
                 timezone=es_storage.time_zone,  # 时区,默认0时区
+                defaults={"table_id": table_id},
             )
 
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
@@ -284,13 +286,14 @@ class DataLink(models.Model):
                 bk_tenant_id=self.bk_tenant_id, table_id=table_id, name=ResultTableOption.OPTION_ES_DOCUMENT_ID
             ).get_value()
 
-            databus_ins, _ = DataBusConfig.objects.get_or_create(
+            databus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=self.data_link_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
                 data_id_name=bkbase_data_name,
+                defaults={"bk_data_id": data_source.bk_data_id},
             )
 
             es_rt_config = es_table_ins.compose_config(fields=fields)
@@ -359,12 +362,13 @@ class DataLink(models.Model):
             clean_rules = [clean_rule.model_dump() for clean_rule in datalink_option.clean_rules]
 
             # 创建结果表配置
-            result_table, _ = ResultTableConfig.objects.get_or_create(
+            result_table, _ = ResultTableConfig.objects.update_or_create(
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 namespace=self.namespace,
                 data_link_name=self.data_link_name,
                 name=self.data_link_name,
+                defaults={"table_id": table_id},
             )
 
             # 创建存储绑定配置
@@ -383,6 +387,7 @@ class DataLink(models.Model):
                     defaults={
                         "es_cluster_name": es_storage.storage_cluster.cluster_name,
                         "timezone": es_storage.time_zone,
+                        "table_id": table_id,
                     },
                 )
 
@@ -409,12 +414,13 @@ class DataLink(models.Model):
             # 创建 Doris 存储绑定配置
             if doris_storage and datalink_option.doris_storage_config:
                 storage_option = datalink_option.doris_storage_config
-                binding, _ = DorisStorageBindingConfig.objects.get_or_create(
+                binding, _ = DorisStorageBindingConfig.objects.update_or_create(
                     bk_tenant_id=self.bk_tenant_id,
                     bk_biz_id=bk_biz_id,
                     namespace=self.namespace,
                     data_link_name=self.data_link_name,
                     name=self.data_link_name,
+                    defaults={"table_id": table_id},
                 )
                 bingding_configs.append(
                     binding.compose_config(
@@ -439,13 +445,14 @@ class DataLink(models.Model):
                 raise ValueError("至少需要一个存储绑定配置")
 
             # 创建数据总线配置
-            databus, _ = DataBusConfig.objects.get_or_create(
+            databus, _ = DataBusConfig.objects.update_or_create(
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 namespace=self.namespace,
                 data_link_name=self.data_link_name,
                 name=self.data_link_name,
                 data_id_name=bkbase_data_name,
+                defaults={"bk_data_id": data_source.bk_data_id},
             )
 
             # 组装配置
@@ -497,21 +504,23 @@ class DataLink(models.Model):
         }
 
         with transaction.atomic():
-            vm_table_id_ins, _ = ResultTableConfig.objects.get_or_create(
+            vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={"table_id": table_id},
             )
 
-            vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
+            vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 vm_cluster_name=storage_cluster_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={"table_id": table_id},
             )
 
             sink_item = {
@@ -522,13 +531,14 @@ class DataLink(models.Model):
             if settings.ENABLE_MULTI_TENANT_MODE:
                 sink_item["tenant"] = self.bk_tenant_id
 
-            data_bus_ins, _ = DataBusConfig.objects.get_or_create(
+            data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=self.data_link_name,
                 data_id_name=self.data_link_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={"bk_data_id": data_source.bk_data_id},
             )
 
         return [
@@ -579,6 +589,9 @@ class DataLink(models.Model):
                 else:
                     usage_vmrt_name = usage
                 usage_cmdb_level_vmrt_name = f"{usage_vmrt_name}_cmdb"
+                # 关联监控平台结果表ID（monitor table_id），用于配置与元数据关联
+                usage_monitor_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{source}.{usage}"
+                usage_monitor_cmdb_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{source}.{usage}_cmdb"
                 logger.info(
                     "compose_basereport_configs: try to create rt and storage for usage->[%s],name->[%s]",
                     usage,
@@ -586,37 +599,41 @@ class DataLink(models.Model):
                 )
 
                 # 创建VM ResultTable配置
-                vm_table_id_ins, _ = ResultTableConfig.objects.get_or_create(
+                vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
                     name=usage_vmrt_name,
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=self.bk_tenant_id,
+                    defaults={"table_id": usage_monitor_table_id},
                 )
-                vm_table_id_ins_cmdb, _ = ResultTableConfig.objects.get_or_create(
+                vm_table_id_ins_cmdb, _ = ResultTableConfig.objects.update_or_create(
                     name=usage_cmdb_level_vmrt_name,
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=self.bk_tenant_id,
+                    defaults={"table_id": usage_monitor_cmdb_table_id},
                 )
 
                 # 创建VM Storage绑定配置
-                vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
+                vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
                     name=usage_vmrt_name,
                     vm_cluster_name=storage_cluster_name,
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=self.bk_tenant_id,
+                    defaults={"table_id": usage_monitor_table_id},
                 )
-                vm_storage_ins_cmdb, _ = VMStorageBindingConfig.objects.get_or_create(
+                vm_storage_ins_cmdb, _ = VMStorageBindingConfig.objects.update_or_create(
                     name=usage_cmdb_level_vmrt_name,
                     vm_cluster_name=storage_cluster_name,
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=self.bk_tenant_id,
+                    defaults={"table_id": usage_monitor_cmdb_table_id},
                 )
 
                 # 添加配置到列表
@@ -671,13 +688,14 @@ class DataLink(models.Model):
             )
 
             # 创建DataBusConfig
-            data_bus_ins, _ = DataBusConfig.objects.get_or_create(
+            data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=self.data_link_name,
                 data_id_name=self.data_link_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={"bk_data_id": data_source.bk_data_id},
             )
 
         logger.info(
@@ -744,15 +762,16 @@ class DataLink(models.Model):
         config_list = []
 
         with transaction.atomic():
-            es_table_ins, _ = ResultTableConfig.objects.get_or_create(
+            es_table_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=component_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
+                defaults={"table_id": table_id},
             )
 
-            es_storage_ins, _ = ESStorageBindingConfig.objects.get_or_create(
+            es_storage_ins, _ = ESStorageBindingConfig.objects.update_or_create(
                 name=component_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
@@ -760,6 +779,7 @@ class DataLink(models.Model):
                 data_link_name=self.data_link_name,
                 es_cluster_name=storage_cluster_name,
                 timezone=timezone,  # 时区,默认0时区
+                defaults={"table_id": table_id},
             )
 
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
@@ -769,13 +789,14 @@ class DataLink(models.Model):
                 ResultTableOption.objects.get(table_id=table_id, name="es_unique_field_list").value
             )
 
-            databus_ins, _ = DataBusConfig.objects.get_or_create(
+            databus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=component_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
                 data_id_name=component_name,
+                defaults={"bk_data_id": data_source.bk_data_id},
             )
 
             es_rt_config = es_table_ins.compose_config(fields=fields)
@@ -826,20 +847,22 @@ class DataLink(models.Model):
 
         with transaction.atomic():
             # 渲染所需的资源配置
-            vm_table_id_ins, _ = ResultTableConfig.objects.get_or_create(
+            vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={"table_id": table_id},
             )
-            vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
+            vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 vm_cluster_name=storage_cluster_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={"table_id": table_id},
             )
 
         configs = [
@@ -945,13 +968,14 @@ class DataLink(models.Model):
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
             )
-            data_bus_ins, _ = DataBusConfig.objects.get_or_create(
+            data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 data_id_name=bkbase_raw_data_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={"bk_data_id": data_source.bk_data_id},
             )
 
         vm_conditional_sink_config = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
@@ -997,20 +1021,22 @@ class DataLink(models.Model):
         )
         with transaction.atomic():
             # 渲染所需的资源配置
-            vm_table_id_ins, _ = ResultTableConfig.objects.get_or_create(
+            vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={"table_id": table_id},
             )
-            vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
+            vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 vm_cluster_name=storage_cluster_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={"table_id": table_id},
             )
             sinks = [
                 {
@@ -1022,13 +1048,14 @@ class DataLink(models.Model):
             if settings.ENABLE_MULTI_TENANT_MODE:
                 sinks[0]["tenant"] = self.bk_tenant_id
 
-            data_bus_ins, _ = DataBusConfig.objects.get_or_create(
+            data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 data_id_name=bkbase_data_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={"bk_data_id": data_source.bk_data_id},
             )
 
         configs = [
@@ -1049,20 +1076,22 @@ class DataLink(models.Model):
 
         with transaction.atomic():
             # 渲染所需的资源配置
-            vm_table_id_ins, _ = ResultTableConfig.objects.get_or_create(
+            vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={"table_id": table_id},
             )
-            vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
+            vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 vm_cluster_name=storage_cluster_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={"table_id": table_id},
             )
             sink_item = {
                 "kind": DataLinkKind.VMSTORAGEBINDING.value,
@@ -1075,13 +1104,14 @@ class DataLink(models.Model):
             sinks = [sink_item]
 
             # TODO: 非自动发现情况下,需要传递指标/维度白名单至VMStorageBinding中
-            data_bus_ins, _ = DataBusConfig.objects.get_or_create(
+            data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 data_id_name=bkbase_data_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
+                defaults={"bk_data_id": data_source.bk_data_id},
             )
 
         transform_format = self.DATABUS_TRANSFORMER_FORMAT.get(self.data_link_strategy)

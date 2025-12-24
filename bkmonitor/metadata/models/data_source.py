@@ -364,8 +364,12 @@ class DataSource(models.Model):
             bkbase_data_name = utils.compose_bkdata_data_id_name(self.data_name)
 
         logger.info("register_to_bkbase: bkbase_data_name: %s", bkbase_data_name)
-        data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
-            name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id, bk_tenant_id=self.bk_tenant_id
+        data_id_config_ins, _ = DataIdConfig.objects.update_or_create(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=namespace,
+            name=bkbase_data_name,
+            bk_biz_id=bk_biz_id,
+            defaults={"bk_data_id": self.bk_data_id},
         )
         data_id_config = data_id_config_ins.compose_predefined_config(data_source=self)
         api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=self.bk_tenant_id)
@@ -615,7 +619,9 @@ class DataSource(models.Model):
 
                 # 如果需要走V4链路，则需要确保Kafka集群已经注册到bkbase平台
                 if not mq_cluster.registered_to_bkbase:
-                    raise ValueError(f"kafka cluster {mq_cluster.cluster_name} is not registered to bkbase, please contact administrator to register")
+                    raise ValueError(
+                        f"kafka cluster {mq_cluster.cluster_name} is not registered to bkbase, please contact administrator to register"
+                    )
 
                 # 根据清洗类型判断是否是系统基础数据
                 if etl_config in SYSTEM_BASE_DATA_ETL_CONFIGS:
