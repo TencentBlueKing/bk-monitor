@@ -15,6 +15,7 @@ from kernel_api.resource.log_search import (
     SearchLogResource,
     SearchIndexSetContextResource,
     FieldAnalyzeResource,
+    SearchLogClusteringPatternResource,
 )
 
 
@@ -29,4 +30,5 @@ class LogSearchViewSet(ResourceViewSet):
         ResourceRoute("POST", SearchLogResource, endpoint="search_log"),
         ResourceRoute("POST", FieldAnalyzeResource, endpoint="field_analyze"),
         ResourceRoute("POST", SearchIndexSetContextResource, endpoint="search_index_set_context"),
+        ResourceRoute("POST", SearchLogClusteringPatternResource, endpoint="search_log_clustering_pattern"),
     ]
