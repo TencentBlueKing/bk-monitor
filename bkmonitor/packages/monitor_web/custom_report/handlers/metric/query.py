@@ -212,9 +212,12 @@ class ScopeQueryConverter(BaseQueryConverter):
         return scope_objs
 
     def query_time_series_scope(
-        self, scope_ids: list[int] | None = None, scope_name: str | None = None
+        self, scope_ids: list[int] | None = None, scope_name: str | None = None, include_metrics: bool = True
     ) -> list[ScopeQueryResponseDTO]:
-        request_param: dict[str, Any] = {"group_id": self.time_series_group_id}
+        request_param: dict[str, Any] = {
+            "group_id": self.time_series_group_id,
+            "include_metrics": include_metrics,
+        }
         if scope_ids is not None:
             request_param["scope_ids"] = scope_ids
         if scope_name:
