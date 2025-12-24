@@ -454,8 +454,8 @@ export default defineComponent({
               key={ind}
               class='tips-item'
             >
-              {`${tips.title}：` }
-              { tips.isUserAccount ? <bk-user-display-name user-id={tips.value}></bk-user-display-name> : tips.value }
+              {`${tips.title}：`}
+              {tips.isUserAccount ? <bk-user-display-name user-id={tips.value}></bk-user-display-name> : tips.value}
             </div>
           ))}
         </div>
