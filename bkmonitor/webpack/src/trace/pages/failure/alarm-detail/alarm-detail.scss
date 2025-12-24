@@ -7,6 +7,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 }
 
 .alarm-detail-loading {
+  height: 100%;
 
   .bk-loading-indicator,
   .bk-loading-mask {
@@ -38,13 +39,16 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 }
 
 .alarm-detail {
-  // min-height: 400px;
-  height: calc(100vh - 200px);
+  height: 100%;
   padding: 20px 16px;
   background: white;
 
   .aiops-correlation-metrics {
     margin-bottom: 12px;
+
+    &:last-child{
+      margin-bottom: 0;
+    }
   }
 
   .alarm-detail-table {
@@ -57,10 +61,8 @@ $statusColors: #ea3635 #ff9c00 #699df4;
     .tag-column {
       display: flex;
       overflow: hidden;
-      // width: 50px;
     }
 
-    // .tag-column,
     .tag-column-wrap {
       display: flex;
       width: 100%;
@@ -257,7 +259,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
         align-items: center;
         justify-content: center;
         color: #fff;
-        background-color: #F59500;
+        background-color: #f59500;
         border-radius: 7px;
         transition: all 0.2s ease;
         cursor: pointer;
@@ -277,7 +279,6 @@ $statusColors: #ea3635 #ff9c00 #699df4;
         }
       }
     }
-
   }
 }
 
