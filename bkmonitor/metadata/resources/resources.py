@@ -1523,7 +1523,7 @@ class QueryTimeSeriesScopeResource(Resource):
             child=serializers.IntegerField(), required=False, label="指标分组ID列表", allow_empty=True
         )
         scope_name = serializers.CharField(required=False, label="指标分组名称")
-        include_metrics = serializers.BooleanField(required=False, default=True, label="是否返回指标数据")
+        include_metrics = serializers.BooleanField(required=False, default=False, label="是否返回指标数据")
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
