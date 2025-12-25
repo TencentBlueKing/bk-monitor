@@ -29,6 +29,7 @@ class CircuitBreakingModule(Enum):
 
     ACCESS_DATA = "access.data"
     ALERT_BUILDER = "alert.builder"
+    ALERT_MANAGER = "alert.manager"
     ACTION = "action"
 
     @classmethod
@@ -582,4 +583,8 @@ clear(module=module)
 clear()
 """
 
-print(example_usage)
+
+def usage():
+    print(example_usage)
+    for _m in CircuitBreakingModule.get_all_values():
+        print(f'module = "{_m}"')
