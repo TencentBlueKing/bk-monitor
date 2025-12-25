@@ -53,7 +53,6 @@ from monitor_web.custom_report.serializers.metric import (
     CustomTSScopeResponseSerializer,
 )
 from monitor_web.models.custom_report import (
-    CustomTSGroupingRule,
     CustomTSTable,
 )
 from monitor_web.custom_report.handlers.metric.query import (
@@ -988,7 +987,7 @@ class DeleteGroupingRule(Resource):
         )
 
 
-# 破坏性变更
+# 破坏性变更，计划移除
 class UpdateGroupingRuleOrder(Resource):
     """
     更新自定义指标分组规则排序
@@ -1000,47 +999,7 @@ class UpdateGroupingRuleOrder(Resource):
         group_names = serializers.ListField(required=True, label=_("分组规则名称列表"))
 
     def perform_request(self, params: dict):
-        # 获取自定义时序表
-        table = CustomTSTable.objects.get(
-            time_series_group_id=params["time_series_group_id"],
-            bk_biz_id=params["bk_biz_id"],
-        )
-        if not table:
-            raise ValidationError(
-                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
-            )
-
-        # 获取分组规则
-        group_rules = CustomTSGroupingRule.objects.filter(
-            time_series_group_id=params["time_series_group_id"],
-        ).order_by("index")
-
-        exists_group_rules = {group_rule.name: group_rule for group_rule in group_rules}
-
-        # 去除不存在的分组
-        group_names = [group_name for group_name in params["group_names"] if group_name in exists_group_rules]
-
-        # 未出现的分组
-        no_order_group_rules = [group_rule.name for group_rule in group_rules if group_rule.name not in group_names]
-
-        index = 0
-
-        # 更新分组规则排序
-        for group_name in group_names:
-            exists_group_rules[group_name].index = index
-            index += 1
-
-        # 未出现的分组，排序为最后
-        for group_name in no_order_group_rules:
-            exists_group_rules[group_name].index = index
-            index += 1
-
-        # 批量更新分组规则排序
-        CustomTSGroupingRule.objects.bulk_update(
-            list(exists_group_rules.values()),
-            fields=["index"],
-            batch_size=200,
-        )
+        return
 
 
 class ImportCustomTimeSeriesFields(Resource):
@@ -1255,7 +1214,7 @@ class ModifyCustomTimeSeriesDesc(Resource):
         return ts_table
 
 
-# 等前端自定义指标适配 APM 时处理
+# 等前端自定义指标适配 APM 时处理，计划移除
 class ModifyCustomTsGroupingRuleList(Resource):
     """
     修改全量自定义指标分组规则列表
@@ -1277,40 +1236,6 @@ class ModifyCustomTsGroupingRuleList(Resource):
         group_list = serializers.ListField(label="分组列表", child=CustomTSGroupingRuleSerializer(), default=[])
 
     def perform_request(self, validated_request_data):
-        # 校验分组名称唯一
-        group_names = {}
-        for group in validated_request_data["group_list"]:
-            if group_names.get(group["name"]):
-                raise CustomValidationLabelError(msg=_("自定义指标分组名{}不可重复").format(group["name"]))
-            group_names[group["name"]] = group
-
-        # 清除残余分组记录
-        grouping_rules = CustomTSGroupingRule.objects.filter(
-            time_series_group_id=validated_request_data["time_series_group_id"]
-        )
-        grouping_rules.exclude(name__in=list(group_names.keys())).delete()
-
-        # 更新已存在的分组
-        for grouping_rule in grouping_rules:
-            should_save = False
-            new_grouping_rule = group_names.pop(grouping_rule.name, {})
-            if grouping_rule.manual_list != new_grouping_rule.get("manual_list", []):
-                grouping_rule.manual_list = new_grouping_rule.get("manual_list", [])
-                should_save = True
-            if grouping_rule.auto_rules != new_grouping_rule.get("auto_rules", []):
-                grouping_rule.auto_rules = new_grouping_rule.get("auto_rules", [])
-                should_save = True
-
-            if should_save:
-                grouping_rule.save()
-        # 创建不存在的分组
-        CustomTSGroupingRule.objects.bulk_create(
-            [
-                CustomTSGroupingRule(time_series_group_id=validated_request_data["time_series_group_id"], **grouping)
-                for _, grouping in group_names.items()
-            ],
-            batch_size=200,
-        )
         return resource.custom_report.custom_ts_grouping_rule_list(
             time_series_group_id=validated_request_data["time_series_group_id"]
         )
