@@ -35,6 +35,7 @@ import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
 import AlarmEventChart from '../plugins/alarm-event-chart/alarm-event-chart';
 import ApdexChart from '../plugins/apdex-chart/apdex-chart';
+import ApmCustomGraphV2 from '../plugins/apm-custom-graph-v2/apm-custom-graph-v2';
 import ApmCustomGraph from '../plugins/apm-custom-graph/apm-custom-graph';
 import ApmHeatmap from '../plugins/apm-heatmap/apm-heatmap';
 import ApmRelationGraph from '../plugins/apm-relation-graph/apm-relation-graph';
@@ -101,6 +102,7 @@ interface IChartWrapperProps {
   isSingleChart?: boolean;
   needCheck?: boolean;
   panel: PanelModel;
+  timeSeriesGroupId: number;
 }
 
 @Component({
@@ -123,6 +125,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   @Prop({ type: Array, default: null }) customMenuList: ChartTitleMenuType[];
   // 是否为单图模式
   @Prop({ default: false, type: Boolean }) isSingleChart: boolean;
+  // 应用分组id
+  @Prop({ default: -1, type: Number }) timeSeriesGroupId: number;
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -548,8 +552,10 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'relation-graph':
       case 'apm-relation-graph':
         return <ApmRelationGraph panel={this.panel} />;
+      // case 'apm-service-caller-callee':
+      //   return <ApmServiceCallerCallee panel={this.panel} />;
       case 'apm-service-caller-callee':
-        return <ApmServiceCallerCallee panel={this.panel} />;
+        return <ApmCustomGraphV2 timeSeriesGroupId={this.timeSeriesGroupId} />
       case 'alarm-event-chart':
         return <AlarmEventChart panel={this.panel} />;
       case 'apm_heatmap':
@@ -605,6 +611,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
+        
       case 'k8s_custom_graph':
         return (
           <K8sCustomGraph
