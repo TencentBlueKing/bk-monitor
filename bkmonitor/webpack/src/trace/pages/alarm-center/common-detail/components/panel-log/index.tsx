@@ -103,6 +103,13 @@ export default defineComponent({
       const data = await getIndexSetList();
       relatedBkBizId.value = data?.relatedBkBizId || -1;
       indexSetList.value = data?.relatedIndexSetList || [];
+      // indexSetList.value = data;
+      // selectIndexSet.value = data?.[0]?.index_set_id || '';
+      // where.value = (data?.[0]?.addition || []).map(item => ({
+      //   key: item.field,
+      //   method: item.operator,
+      //   value: item.value,
+      // }));
       selectIndexSet.value = indexSetList.value[0]?.index_set_id || '';
       selectLoading.value = false;
       tableRefreshKey.value = random(6);
@@ -130,18 +137,21 @@ export default defineComponent({
         size: params.size,
         start_time: props.detail?.begin_time,
         end_time: props.detail.latest_time,
-        addition: where.value.map(item => ({
-          field: item.key,
-          operator: item.method,
-          value: item.value,
-        })),
+        addition:
+          filterMode.value === EMode.ui
+            ? where.value.map(item => ({
+                field: item.key,
+                operator: item.method,
+                value: item.value,
+              }))
+            : [],
         begin: params.offset,
         ip_chooser: {},
         host_scopes: {},
         interval: 'auto',
         search_mode: filterMode.value === EMode.ui ? 'ui' : 'sql',
         sort_list: [...(params?.sortList || []), ...defaultSortList.value],
-        keyword: keyword.value,
+        keyword: filterMode.value !== EMode.ui ? keyword.value : '',
       })
         .then(res => {
           return res;
@@ -265,6 +275,12 @@ export default defineComponent({
      */
     function handleChangeIndexSet(indexSetId: number | string) {
       selectIndexSet.value = indexSetId;
+      const item = indexSetList.value.find(item => item.index_set_id === indexSetId);
+      where.value = (item?.addition || []).map(item => ({
+        key: item.field,
+        method: item.operator,
+        value: item.value,
+      }));
       tableRefreshKey.value = random(8);
     }
 

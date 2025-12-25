@@ -704,30 +704,30 @@ export const ALERT_FILTER_FIELDS: IFilterField[] = [
       },
     ],
   },
-  {
-    name: 'bk_topo_node',
-    alias: 'cmdb模块',
-    type: EFieldType.keyword,
-    isEnableOptions: true,
-    methods: [
-      {
-        alias: '=',
-        value: 'eq',
-      },
-      {
-        alias: '!=',
-        value: 'neq',
-      },
-      {
-        alias: '包含',
-        value: 'include',
-      },
-      {
-        alias: '不包含',
-        value: 'exclude',
-      },
-    ],
-  },
+  // {
+  //   name: 'bk_topo_node',
+  //   alias: 'cmdb模块',
+  //   type: EFieldType.keyword,
+  //   isEnableOptions: true,
+  //   methods: [
+  //     {
+  //       alias: '=',
+  //       value: 'eq',
+  //     },
+  //     {
+  //       alias: '!=',
+  //       value: 'neq',
+  //     },
+  //     {
+  //       alias: '包含',
+  //       value: 'include',
+  //     },
+  //     {
+  //       alias: '不包含',
+  //       value: 'exclude',
+  //     },
+  //   ],
+  // },
   {
     name: 'action_id',
     alias: '处理记录ID',

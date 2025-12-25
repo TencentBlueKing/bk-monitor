@@ -43,23 +43,13 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const getData = async (params: { limit: number; offset: number; sort: string[]; where: unknown[] }) => {
+    const getData = async (params: { limit: number; offset: number; sort: string[]; sources: string[] }) => {
       const res = await alertEvents({
-        // query_configs: [
-        //   {
-        //     data_source_label: 'apm',
-        //     data_type_label: 'event',
-        //     table: 'builtin',
-        //     query_string: '',
-        //     where: params.where,
-        //     group_by: ['type'],
-        //     filter_dict: {},
-        //   },
-        // ],
         alert_id: props.detail.id,
         limit: params.limit,
         offset: params.offset,
-        sort: params.sort,
+        // sort: params.sort,
+        sources: params.sources,
       }).catch(() => {
         return {
           list: [],
@@ -72,6 +62,29 @@ export default defineComponent({
           key: random(8),
         })),
         total: res?.total || 0,
+      };
+    };
+
+    const getDataCount = async (_params?: { sources: string[] }) => {
+      return {
+        total: 6,
+        list: [
+          {
+            value: 'HOST',
+            alias: '主机',
+            total: 1,
+          },
+          {
+            value: 'BKCI',
+            alias: '蓝盾',
+            total: 2,
+          },
+          {
+            value: 'BCS',
+            alias: '容器',
+            total: 3,
+          },
+        ],
       };
     };
 
@@ -93,6 +106,7 @@ export default defineComponent({
     return {
       getData,
       handleGoEvent,
+      getDataCount,
     };
   },
   render() {
@@ -101,6 +115,7 @@ export default defineComponent({
         {this.detail?.id ? (
           <EventTable
             key={this.detail.id}
+            getDataCount={this.getDataCount}
             getTableData={this.getData}
             onGoEvent={this.handleGoEvent}
           />

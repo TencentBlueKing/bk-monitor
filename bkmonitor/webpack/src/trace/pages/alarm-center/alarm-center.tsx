@@ -203,6 +203,14 @@ export default defineComponent({
       return `alarm_${alarmStore.alarmType}`;
     });
 
+    watch(
+      () => favoriteType.value,
+      () => {
+        defaultFavoriteId.value = null;
+        currentFavorite.value = null;
+      }
+    );
+
     const updateIsCollapsed = (v: boolean) => {
       isCollapsed.value = v;
     };

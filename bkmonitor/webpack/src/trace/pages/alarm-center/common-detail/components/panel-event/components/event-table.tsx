@@ -65,8 +65,21 @@ export default defineComponent({
   props: {
     getTableData: {
       type: Function as PropType<
-        (params: { limit: number; offset: number; sort: string[]; where: unknown[] }) => Promise<{
+        (params: { limit: number; offset: number; sort: string[]; sources: string[] }) => Promise<{
           data: unknown[];
+          total: number;
+        }>
+      >,
+      default: () => null,
+    },
+    getDataCount: {
+      type: Function as PropType<
+        (params?: { sources: string[] }) => Promise<{
+          list: {
+            alias: string;
+            total: number;
+            value: string;
+          }[];
           total: number;
         }>
       >,
@@ -84,7 +97,7 @@ export default defineComponent({
         colKey: tableColumnKey.TIME,
         title: window.i18n.t('时间'),
         width: 150,
-        sorter: true,
+        // sorter: true,
         ellipsis: false,
         cell: (_h, { row }) => {
           return (
@@ -279,6 +292,12 @@ export default defineComponent({
         count: 0,
         icon: SourceIconMap[SourceTypeEnum.HOST],
       },
+      {
+        label: window.i18n.t('业务上报'),
+        value: SourceTypeEnum.DEFAULT,
+        count: 0,
+        icon: SourceIconMap[SourceTypeEnum.DEFAULT],
+      },
     ]);
     const isEnd = shallowRef(false);
     const observer = shallowRef<IntersectionObserver>();
@@ -307,16 +326,7 @@ export default defineComponent({
       const res = await props.getTableData({
         offset: tableData.offset,
         limit: tableData.limit,
-        where: sourceType.value.length
-          ? [
-              {
-                key: 'source',
-                method: 'eq',
-                condition: 'and',
-                value: sourceType.value,
-              },
-            ]
-          : [],
+        sources: sourceType.value,
         sort: sort.value ? [`${sort.value.descending ? '-' : ''}${sort.value.sortBy}`] : [],
       });
       tableData.data = [...tableData.data, ...res.data];
@@ -373,6 +383,23 @@ export default defineComponent({
 
     onMounted(() => {
       init();
+      props
+        .getDataCount({
+          sources: sourceTypeOptions.value.map(item => item.value).filter(item => item !== SourceTypeEnum.ALL),
+        })
+        .then(res => {
+          const result = [];
+          for (const option of sourceTypeOptions.value) {
+            if (option.value === SourceTypeEnum.ALL) {
+              option.count = res.total;
+            } else {
+              const item = res.list.find(i => i.value === option.value);
+              option.count = item?.total || 0;
+            }
+            result.push(option);
+          }
+          sourceTypeOptions.value = result;
+        });
     });
     onBeforeUnmount(() => {
       observer.value?.disconnect();
@@ -412,6 +439,7 @@ export default defineComponent({
             <span class='source-item'>
               {allItem.icon ? <span class={`source-icon icon-monitor ${allItem.icon}`} /> : undefined}
               <span>{allItem.label}</span>
+              <span>&nbsp;({allItem.count})</span>
             </span>
           </Checkbox>
           <Checkbox.Group
@@ -431,6 +459,7 @@ export default defineComponent({
                       <span class='source-item'>
                         {item.icon ? <span class={`source-icon icon-monitor ${item.icon}`} /> : undefined}
                         <span>{item.label}</span>
+                        <span>&nbsp;({item.count})</span>
                       </span>
                     </Checkbox>
                   ));
@@ -464,6 +493,7 @@ export default defineComponent({
             expandedRowKeys={this.expandedRowKeys}
             expandIcon={false}
             expandOnRowClick={true}
+            horizontalScrollAffixedBottom={true}
             needCustomScroll={false}
             resizable={true}
             rowKey={'key'}
