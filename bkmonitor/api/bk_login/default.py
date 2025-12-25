@@ -281,8 +281,12 @@ class GetUserInfo(BkUserApiResource):
             params = {"bk_username": validated_request_data["id"]}
             return super().perform_request(params)
 
-        # 组件 API 模式：直接使用原参数
-        return super().perform_request(validated_request_data)
+        result = GetAllUserResource().perform_request(
+            {"lookup_field": "username", "exact_lookups": validated_request_data["id"]}
+        )
+        if not result["results"]:
+            raise ValueError(f"用户 {validated_request_data['id']} 不存在")
+        return result["results"][0]
 
 
 class BatchLookupVirtualUserResource(BkUserApiResource):

@@ -37,6 +37,7 @@ import UserReport from './user-report';
 import http from '@/api';
 
 import './index.scss';
+import useUtils from '@/hooks/use-utils';
 
 // tab类型常量定义
 const TAB_TYPES = {

@@ -53,6 +53,7 @@ class BaseAlertProcessor:
             )
             dedupe_md5_list.extend(md5_list)
 
+        # 这里不能用 mget 进行优化，因为告警按 strategy_id 分组路由到不同的 redis 集群
         alert_data = [ALERT_DEDUPE_CONTENT_KEY.client.get(cache_key) for cache_key in cache_keys]
 
         alerts = []
@@ -61,11 +62,11 @@ class BaseAlertProcessor:
         for index, alert in enumerate(alert_data):
             if not alert:
                 continue
-            dedupe_md5 = dedupe_md5_list[index]
             try:
                 alert = json.loads(alert)
                 alerts.append(Alert(alert))
             except Exception as e:
+                dedupe_md5 = cache_keys[index]
                 logger.warning("dedupe_md5(%s) loads alert failed: %s, origin data: %s", dedupe_md5, e, alert)
         return alerts
 
