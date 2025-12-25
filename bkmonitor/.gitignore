@@ -16,6 +16,7 @@ __pycache__/
 *.so
 
 .codebuddy
+.docs
 
 # Distribution / packaging
 .Python

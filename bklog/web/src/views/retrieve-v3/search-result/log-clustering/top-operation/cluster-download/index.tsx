@@ -137,9 +137,20 @@ export default defineComponent({
           let value = item[key];
 
           // 特殊处理某些字段的值格式
-          if (key === 'owners' || key === 'group' || key === 'remark') {
+          if (key === 'owners' || key === 'group') {
             if (Array.isArray(value)) {
               value = value.join(';');
+            } else {
+              value = value || '';
+            }
+          } else if (key === 'remark') {
+            if (Array.isArray(value)) {
+              // 将 remark 对象数组转换为可读的字符串格式
+              value = value
+                .map((remark: { create_time: string; username: string; remark: string }) => {
+                  return `[${formatDate(remark.create_time)}] ${remark.username}: ${remark.remark}`;
+                })
+                .join('\n');
             } else {
               value = value || '';
             }
@@ -154,7 +165,9 @@ export default defineComponent({
 
       // 组合CSV内容
       const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
-      return csvContent;
+
+      // 添加UTF-8 BOM以解决中文乱码问题
+      return `\uFEFF${csvContent}`;
     };
 
     const handleDownload = async () => {
