@@ -109,6 +109,10 @@ export default class Service extends tsc<object> {
     return `${label}：${value}`;
   }
 
+  get timeSeriesGroupId() {
+    return this.appList.find(item => item.app_name === this.appName)?.time_series_group_id || -1;
+  }
+
   @Provide('linkSelfClick')
   linkSelfClick() {
     this.handleUpdateAppName(this.tabId);
@@ -311,6 +315,7 @@ export default class Service extends tsc<object> {
             isShowSplitPanel={false}
             sceneId={'apm_service'}
             sceneType={'overview'}
+            timeSeriesGroupId={this.timeSeriesGroupId}
             tab2SceneType
             onSceneTypeChange={this.handleSceneTypeChange}
             onTabChange={this.handleUpdateAppName}

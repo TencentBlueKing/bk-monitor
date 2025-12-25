@@ -23,20 +23,34 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
+import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
 
-import { type getSceneView, getCustomTsMetricGroups } from '../service';
-import HeaderBox from './components/header-box/index';
-import MetricsSelect from './components/metrics-select/index';
+import {
+  createOrUpdateGroupingRule,
+  customTimeSeriesDetail,
+  customTimeSeriesList,
+  customTsGroupingRuleList,
+  getCustomTimeSeriesLatestDataByFields,
+  getCustomTsDimensionValues,
+  getCustomTsFields,
+  getCustomTsGraphConfig,
+  getCustomTsMetricGroups,
+  getSceneView,
+  modifyCustomTsFields,
+} from '../service';
+// import HeaderBox from './components/header-box/index';
+// import MetricsSelect from './components/metrics-select/index';
 import PageHeadr from './components/page-header/index';
-import PanelChartView from './components/panel-chart-view';
-import ViewColumn from './components/view-column/index';
+// import PanelChartView from './components/panel-chart-view';
+// import ViewColumn from './components/view-column/index';
+import ViewMain from './components/view-main';
 import ViewTab from './components/view-tab/index';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
+import type { RequestHandlerMap } from './type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './index.scss';
@@ -46,14 +60,14 @@ type GetSceneViewParams = Parameters<typeof getSceneView>[0];
 @Component
 export default class NewMetricView extends tsc<object> {
   currentView = 'default';
-  dimenstionParams: null | GetSceneViewParams = null;
+  dimenstionParams: GetSceneViewParams | null = null;
   showStatisticalValue = false;
   isCustomTsMetricGroupsLoading = true;
   viewColumn = 2;
-  state = {
-    showStatisticalValue: false,
-    viewColumn: 2,
-  };
+  // state = {
+  //   showStatisticalValue: false,
+  //   viewColumn: 2,
+  // };
   cacheTimeRange = [];
   @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
   @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
@@ -61,7 +75,19 @@ export default class NewMetricView extends tsc<object> {
   @ProvideReactive('showRestore') showRestore = false;
   @ProvideReactive('containerScrollTop') containerScrollTop = 0;
   @ProvideReactive('refreshInterval') refreshInterval = -1;
-  @Ref('panelChartView') panelChartView!: PanelChartView;
+  @Provide('requestHandlerMap') requestHandlerMap: RequestHandlerMap = {
+    getCustomTsMetricGroups,
+    customTimeSeriesList,
+    customTimeSeriesDetail, // 详情页面暂未使用过
+    getCustomTsFields, // 详情页面暂未使用
+    modifyCustomTsFields,
+    createOrUpdateGroupingRule, // 详情页面暂未使用
+    customTsGroupingRuleList, // 详情页面暂未使用
+    getCustomTimeSeriesLatestDataByFields, // 详情页面暂未使用
+    getCustomTsDimensionValues,
+    getCustomTsGraphConfig,
+    getSceneView,
+  };
 
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
@@ -106,6 +132,7 @@ export default class NewMetricView extends tsc<object> {
     }
   }
 
+  @ProvideReactive('timeSeriesGroupId')
   get timeSeriesGroupId() {
     return Number(this.$route.params.id);
   }
@@ -130,7 +157,7 @@ export default class NewMetricView extends tsc<object> {
   get graphConfigParams() {
     return {
       limit: {
-        function: 'top', // top/bottom
+        function: 'top' as const, // top/bottom
         limit: 50, // 0不限制
       },
       view_column: 2,
@@ -142,45 +169,50 @@ export default class NewMetricView extends tsc<object> {
     };
   }
 
-  @Watch('state', { deep: true })
-  stateChange() {
-    this.$router.replace({
-      query: {
-        ...this.$route.query,
-        ...(this.state as Record<string, any>),
-        key: `${Date.now()}`, // query 相同时 router.replace 会报错
-      },
-    });
-  }
+  // @Watch('state', { deep: true })
+  // stateChange() {
+  //   this.$router.replace({
+  //     query: {
+  //       ...this.$route.query,
+  //       ...(this.state as Record<string, any>),
+  //       key: `${Date.now()}`, // query 相同时 router.replace 会报错
+  //     },
+  //   });
+  // }
 
-  @Watch('timeSeriesGroupId', { immediate: true })
+  @Watch('timeSeriesGroupId')
   timeSeriesGroupIdChange() {
-    this.getCustomTsMetricGroups();
+    this.currentTimeSeriesGroupId = this.timeSeriesGroupId;
+    this.isCustomTsMetricGroupsLoading = true;
   }
 
-  async getCustomTsMetricGroups() {
-    const needParseUrl = Boolean(this.$route.query.viewPayload);
-    this.isCustomTsMetricGroupsLoading = true;
-    try {
-      const result = await getCustomTsMetricGroups({
-        time_series_group_id: this.timeSeriesGroupId,
-        // is_mock: true,
-      });
-      customEscalationViewStore.updateMetricGroupList(result.metric_groups);
-      if (!needParseUrl) {
-        const metricGroup = result.metric_groups;
-        const defaultSelectedData = {
-          groupName: metricGroup[0]?.name || '',
-          metricsName: [metricGroup[0]?.metrics[0]?.metric_name || ''],
-        };
-        customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(
-          metricGroup.length > 0 && metricGroup[0].metrics.length > 0 ? [defaultSelectedData] : []
-        );
-      }
-    } finally {
-      this.isCustomTsMetricGroupsLoading = false;
-    }
+  async handleSuccess() {
+    this.isCustomTsMetricGroupsLoading = false;
   }
+
+  // async getCustomTsMetricGroups() {
+  //   const needParseUrl = Boolean(this.$route.query.viewPayload);
+  //   this.isCustomTsMetricGroupsLoading = true;
+  //   try {
+  //     const result = await getCustomTsMetricGroups({
+  //       time_series_group_id: this.timeSeriesGroupId,
+  //       // is_mock: true,
+  //     });
+  //     customEscalationViewStore.updateMetricGroupList(result.metric_groups);
+  //     if (!needParseUrl) {
+  //       const metricGroup = result.metric_groups;
+  //       const defaultSelectedData = {
+  //         groupName: metricGroup[0]?.name || '',
+  //         metricsName: [metricGroup[0]?.metrics[0]?.metric_name || ''],
+  //       };
+  //       customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(
+  //         metricGroup.length > 0 && metricGroup[0].metrics.length > 0 ? [defaultSelectedData] : []
+  //       );
+  //     }
+  //   } finally {
+  //     this.isCustomTsMetricGroupsLoading = false;
+  //   }
+  // }
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
     customEscalationViewStore.updateTimeRange(timeRange);
@@ -205,10 +237,10 @@ export default class NewMetricView extends tsc<object> {
   created() {
     const routerQuery = this.$route.query as Record<string, string>;
     this.currentView = routerQuery.viewTab || 'default';
-    this.state = {
-      viewColumn: Number.parseInt(routerQuery.viewColumn, 10) || 2,
-      showStatisticalValue: routerQuery.showStatisticalValue === 'true',
-    };
+    // this.state = {
+    //   viewColumn: Number.parseInt(routerQuery.viewColumn, 10) || 2,
+    //   showStatisticalValue: routerQuery.showStatisticalValue === 'true',
+    // };
   }
 
   beforeDestroy() {
@@ -238,43 +270,50 @@ export default class NewMetricView extends tsc<object> {
               v-model={this.currentView}
               graphConfigPayload={this.graphConfigParams}
               onPayloadChange={this.handleDimensionParamsChange}
-            >
-              <bk-resize-layout
-                style='height: calc(100vh - 140px - var(--notice-alert-height))'
-                collapsible={true}
-                initial-divide={220}
-                max={550}
-                min={200}
-              >
-                <template slot='aside'>
-                  <MetricsSelect onReset={this.handleMetricsSelectReset} />
-                </template>
-                <template slot='main'>
-                  <HeaderBox
-                    key={this.currentView}
-                    dimenstionParams={this.dimenstionParams}
-                    onChange={this.handleDimensionParamsChange}
-                  >
-                    <template slot='actionExtend'>
-                      <bk-checkbox v-model={this.state.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
-                      <ViewColumn
-                        style='margin-left: 32px;'
-                        v-model={this.state.viewColumn}
-                      />
-                    </template>
-                  </HeaderBox>
-                  <div class='metric-view-dashboard-container'>
-                    <PanelChartView
-                      ref='panelChartView'
-                      config={this.graphConfigParams as any}
-                      showStatisticalValue={this.state.showStatisticalValue}
-                      viewColumn={this.state.viewColumn}
-                    />
-                  </div>
-                </template>
-              </bk-resize-layout>
-            </ViewTab>
+            />
           )}
+          <ViewMain
+            config={this.graphConfigParams}
+            currentView={this.currentView}
+            dimenstionParams={this.dimenstionParams}
+            onCustomTsMetricGroups={this.handleSuccess}
+            onDimensionParamsChange={this.handleDimensionParamsChange}
+            onResetMetricsSelect={this.handleMetricsSelectReset}
+          />
+          {/* <bk-resize-layout
+              style='height: calc(100vh - 140px - var(--notice-alert-height))'
+              collapsible={true}
+              initial-divide={220}
+              max={550}
+              min={200}
+            >
+              <template slot='aside'>
+                <MetricsSelect onReset={this.handleMetricsSelectReset} />
+              </template>
+              <template slot='main'>
+                <HeaderBox
+                  key={this.currentView}
+                  dimenstionParams={this.dimenstionParams}
+                  onChange={this.handleDimensionParamsChange}
+                >
+                  <template slot='actionExtend'>
+                    <bk-checkbox v-model={this.state.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
+                    <ViewColumn
+                      style='margin-left: 32px;'
+                      v-model={this.state.viewColumn}
+                    />
+                  </template>
+                </HeaderBox>
+                <div class='metric-view-dashboard-container'>
+                  <PanelChartView
+                    ref='panelChartView'
+                    config={this.graphConfigParams as any}
+                    showStatisticalValue={this.state.showStatisticalValue}
+                    viewColumn={this.state.viewColumn}
+                  />
+                </div>
+              </template>
+            </bk-resize-layout> */}
         </div>
       </div>
     );

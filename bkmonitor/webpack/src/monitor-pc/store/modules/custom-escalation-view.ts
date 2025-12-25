@@ -89,33 +89,6 @@ class CustomEscalationViewStore extends VuexModule {
     return result;
   }
 
-  // get currentSelectedMetricList() {
-  //   // const metricKeyMap = makeMap(this.currentSelectedMetricNameList);
-  //   const metricKeyMap = {};
-  //   for (const item of this.currentSelectedGroupAndMetricNameList) {
-  //     for (const metric of item.metricsName) {
-  //       metricKeyMap[metric] = true;
-  //     }
-  //   }
-  //   const result: (TCustomTsMetricGroups['metric_groups'][number]['metrics'][0] & { scope_name: string })[] = [];
-  //   const repeatMap: Record<string, boolean> = {};
-  //   for (const groupItem of this.metricGroupList) {
-  //     for (const metricsItem of groupItem.metrics) {
-  //       if (repeatMap[metricsItem.metric_name]) {
-  //         break;
-  //       }
-  //       if (metricKeyMap[metricsItem.metric_name]) {
-  //         repeatMap[metricsItem.metric_name] = true;
-  //         result.push({
-  //           ...metricsItem,
-  //           scope_name: groupItem.name,
-  //         });
-  //       }
-  //     }
-  //   }
-  //   return result;
-  // }
-
   get dimensionAliasNameMap() {
     return this.currentSelectedMetricList.reduce<Record<string, string>>((result, groupItem) => {
       for (const dimensionItem of groupItem.dimensions) {

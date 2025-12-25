@@ -1,0 +1,79 @@
+/* stylelint-disable declaration-no-important */
+.bk-monitor-new-metric-view-view-tab {
+  display: flex;
+  align-items: center;
+  height: 42px;
+  padding: 0 12px;
+  padding-right: 16px;
+  overflow: hidden;
+  background: #fff;
+
+  .bk-tab {
+    flex: 1 1 auto;
+    overflow: hidden;
+
+    .bk-tab-header {
+      background-image: none !important;
+    }
+
+    .bk-tab-section {
+      display: none;
+    }
+
+    .bk-tab-label-item {
+      position: relative;
+
+      &:hover,
+      .is-active {
+        .icon-monitor {
+          opacity: 1;
+        }
+      }
+
+      .bk-tab-label {
+        display: inline-flex;
+        align-items: center;
+        height: 40px;
+      }
+    }
+
+    .bk-tab-scroll-controller {
+      border-bottom: none !important;
+    }
+
+    .is-active {
+      .remove-btn {
+        color: #ea3636;
+      }
+    }
+
+    .drag-flag {
+      margin-right: 4px;
+      font-size: 10px;
+      color: #979ba5;
+    }
+
+    .remove-btn {
+      padding-left: 4px;
+      font-size: 10px;
+      color: #979ba5;
+      cursor: pointer;
+      transition: all 0.15s;
+
+      &:hover {
+        color: #ea3636;
+      }
+    }
+
+    .icon-monitor {
+      font-size: 12px;
+      opacity: 0;
+    }
+  }
+
+  .extend-action {
+    display: flex;
+    padding-left: 8px;
+    margin-left: auto;
+  }
+}

@@ -139,6 +139,7 @@ interface ICommonPageProps {
   sceneType: SceneType;
   // tab切换是否转换为overview
   tab2SceneType?: boolean;
+  timeSeriesGroupId: number;
   // 标题
   title?: string;
   // 表格搜索条件需要保留的字段
@@ -183,6 +184,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   @Prop({ default: '', type: String }) readonly backToOverviewKey: string; // 详情返回操作
   // tab切换是否转换为overview
   @Prop({ default: false, type: Boolean }) readonly tab2SceneType: boolean;
+  // 应用分组id
+  @Prop({ default: -1, type: Number }) readonly timeSeriesGroupId: number;
   // 切换tab时候表格的保留搜索条件的key值
   @Prop({ default: () => [], type: Array }) readonly toggleTabSearchFilterKeys: string[];
   // 默认汇聚方法
@@ -2071,6 +2074,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                       needOverviewBtn={!!this.sceneData?.list?.length}
                       panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
                       singleChartNoPadding={this.isSingleChartNoPadding}
+                      timeSeriesGroupId={this.timeSeriesGroupId}
                       // onLinkTo={this.handleUpdateCurrentData}
                       onBackToOverview={this.handleBackToOverview}
                       onLintToDetail={this.handleLinkToDetail}

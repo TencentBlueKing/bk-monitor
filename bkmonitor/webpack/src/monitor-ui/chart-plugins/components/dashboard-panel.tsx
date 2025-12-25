@@ -62,6 +62,7 @@ interface IDashboardPanelProps {
   // 视图集合
   panels: IPanelModel[];
   singleChartNoPadding?: boolean;
+  timeSeriesGroupId: number;
 }
 @Component
 export default class DashboardPanel extends tsc<IDashboardPanelProps, IDashboardPanelEvents> {
@@ -86,6 +87,8 @@ export default class DashboardPanel extends tsc<IDashboardPanelProps, IDashboard
   // 返回概览 或者 详情页面
   @Prop({ type: String }) backToType: SceneType;
   @Prop({ default: '' }) dashboardId: string;
+  // 应用分组id
+  @Prop({ default: -1 }) timeSeriesGroupId: number;
   /** 自定义高度计算 */
   @Prop({ default: null }) customHeightFn: ((a: any) => number) | null;
   // 视图布局位置信息
@@ -582,6 +585,7 @@ export default class DashboardPanel extends tsc<IDashboardPanelProps, IDashboard
                 <ChartWrapper
                   isSingleChart={this.isSingleChart}
                   panel={this.singleChartPanel}
+                  timeSeriesGroupId={this.timeSeriesGroupId}
                 />
               </div>
             </div>

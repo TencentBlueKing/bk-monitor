@@ -81,9 +81,11 @@ interface ICustomTsMetricGroups {
         alias: string;
         name: string;
       }[];
+      field_id: number;
       metric_name: string;
     }[];
     name: string;
+    scope_id: number;
   }[];
 }
 
@@ -97,7 +99,7 @@ export const getCustomTsMetricGroups = SceneViewApi.getCustomTsMetricGroups<
 
 export const getCustomTsDimensionValues = SceneViewApi.getCustomTsDimensionValues<
   {
-    bk_biz_id: number;
+    bk_biz_id?: number;
     dimension: string;
     end_time: number;
     metrics: { name: string; scope_name: string }[];
@@ -112,14 +114,14 @@ export const getCustomTsDimensionValues = SceneViewApi.getCustomTsDimensionValue
 
 export const getCustomTsGraphConfig = SceneViewApi.getCustomTsGraphConfig<
   {
-    bk_biz_id: number;
-    end_time: number;
+    bk_biz_id?: number;
+    end_time?: number;
     limit: {
       function: string;
       limit: number;
     };
     metrics: { name: string; scope_name: string }[];
-    start_time: number;
+    start_time?: number;
     time_series_group_id: number;
     view_column?: number;
   },
@@ -130,12 +132,12 @@ export const getSceneView = SceneViewApi.getSceneView<{
   common_conditions: {
     alias: string;
     key: string;
-    method: string;
+    method: 'eq' | 'exclude' | 'include' | 'neq' | 'nreg' | 'reg';
     value: string[];
   }[];
   compare: {
     offset: string[];
-    type: string;
+    type: '' | 'metric' | 'time';
   };
   group_by: {
     field: string;

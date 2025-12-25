@@ -23,5 +23,50 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export * from './custom_report';
-export * from './scene_view';
+
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import CycleInput from '@/components/cycle-input/cycle-input';
+
+import './index.scss';
+
+interface IProps {
+  showLabel?: boolean;
+  value?: number | string;
+  onChange?: (val: number | string) => void;
+}
+
+@Component
+export default class IntervalCreator extends tsc<IProps> {
+  /* 是否展示左侧标签 */
+  @Prop({ default: true }) showLabel: boolean;
+  @Prop({ default: 60 }) value: number | string;
+  interval: number | string = 'auto';
+
+  @Watch('value', { immediate: true })
+  handleValueChange(val: number | string) {
+    this.interval = val;
+  }
+
+  @Emit('change')
+  handleIntervalChange(val) {
+    this.interval = val;
+    return val;
+  }
+
+  render() {
+    return (
+      <div class='new-metric-view-interval'>
+        {this.showLabel && <div class='interval-label'>{this.$slots?.label || this.$t('汇聚周期')}</div>}
+        <CycleInput
+          class='form-interval'
+          v-model={this.interval}
+          hasExpanded={true}
+          needAuto={false}
+          onChange={(v: number) => this.handleIntervalChange(v)}
+        />
+      </div>
+    );
+  }
+}
