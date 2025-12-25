@@ -28,9 +28,10 @@ class Command(BaseCommand):
         bk_biz_id = options.get("bk_biz_id")
         data_type = options.get("data_type")
 
-        # 参数校验
+        # 当两个参数都为空时,输出提示
         if not bk_biz_id and not data_type:
-            raise CommandError("至少需要提供 --bk_biz_id 或 --data_type 参数之一")
+            self.stdout.write(self.style.WARNING("未指定业务ID和数据类型,将查询兜底集群"))
+            self.stdout.write("")
 
         try:
             cluster = models.ClusterInfo.get_matched_cluster(

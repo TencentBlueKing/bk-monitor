@@ -195,10 +195,9 @@ class ClusterInfo(models.Model):
         - bk_biz_ids: 业务ID列表，空列表表示不限制业务（匹配所有）
         - data_types: 数据类型列表，支持：
           * time_series: 时序数据
-          * custom: 自定义指标和自定义事件
+          * metric: 指标
           * event: 事件数据
           * log: 日志数据
-          * alert: 关联告警
           * trace: Trace数据
           空列表表示不限制数据类型（匹配所有）
         
@@ -239,7 +238,7 @@ class ClusterInfo(models.Model):
            - 同优先级按创建时间倒序
         4. 如果都不匹配，回退到 is_default_cluster=True
 
-        Args:
+        params:
             bk_tenant_id: 租户ID（必填）
             cluster_type: 集群类型（必填）
             bk_biz_id: 业务ID
@@ -250,7 +249,7 @@ class ClusterInfo(models.Model):
                 - alert: 关联告警
                 - trace: Trace数据
 
-        Returns:
+        return:
             匹配的 ClusterInfo 对象
 
         Raises:

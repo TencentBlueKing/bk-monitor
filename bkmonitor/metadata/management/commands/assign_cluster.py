@@ -142,7 +142,7 @@ class Command(BaseCommand):
         """
         # 初始化当前标签
         if not current_labels:
-            current_labels = dict()
+            current_labels = {}
 
         current_biz_ids = current_labels.get("bk_biz_ids", [])
         current_data_types = current_labels.get("data_types", [])
@@ -151,7 +151,7 @@ class Command(BaseCommand):
         new_biz_ids = biz_id_list if biz_id_list is not None else current_biz_ids
         new_data_types = data_type_list if data_type_list is not None else current_data_types
 
-        return dict(
-            bk_biz_ids=new_biz_ids,
-            data_types=new_data_types,
-        )
+        return {
+            "bk_biz_ids": new_biz_ids,
+            "data_types": new_data_types,
+        }

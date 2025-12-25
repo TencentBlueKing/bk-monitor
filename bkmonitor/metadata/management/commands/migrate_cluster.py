@@ -88,7 +88,7 @@ class Command(BaseCommand):
         try:
             with transaction.atomic():
                 # 复制源集群的 labels 到目标集群
-                src_cluster.labels.copy() if src_cluster.labels else {}
+                dst_cluster.labels = src_cluster.labels.copy() if src_cluster.labels else {}
                 dst_cluster.save()
 
                 # 清空源集群的 labels

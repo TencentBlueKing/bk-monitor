@@ -230,7 +230,7 @@ class ResultTable(models.Model):
         - metric: APM指标数据
         - event: 事件数据
 
-        Args:
+        params:
             table_id: 结果表ID，如：
                 - log: bklog_index_set_*, space_*_bklog.*
                 - time_series: {biz_id}_bkmonitor_time_series_*
@@ -238,14 +238,14 @@ class ResultTable(models.Model):
                 - metric: {biz_id}_bkapm_metric_*
                 - event: {biz_id}_bkmonitor_event_*
 
-        Returns:
+        return:
             data_type 字符串，如果无法识别则返回 None
         """
         if not table_id:
             return None
 
-        # log: bklog_index_set_* 或 space_*_bklog.*
-        if table_id.startswith("bklog_index_set_") or "_bklog." in table_id:
+        # log: 包含bklog
+        if "bklog" in table_id:
             return "log"
 
         # time_series: {biz_id}_bkmonitor_time_series_*
