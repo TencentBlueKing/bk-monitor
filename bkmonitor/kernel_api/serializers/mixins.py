@@ -26,18 +26,28 @@ class TimeSpanValidationPassThroughSerializer(serializers.Serializer):
 
     def to_internal_value(self, data: dict[str, Any]) -> dict[str, Any]:
         """
-        先执行常规序列化（包括字段验证和默认值应用），然后验证时间跨度
+        先执行常规序列化（包括字段验证和默认值应用），然后合并未定义的字段，最后验证时间跨度
         """
         # 先调用父类方法，执行常规的字段验证和默认值应用
         validated_data = super().to_internal_value(data)
 
-        # 然后验证时间跨度
-        start_time = validated_data.get("start_time")
-        end_time = validated_data.get("end_time")
+        # 如果子类定义了字段，validated_data 只包含验证过的字段
+        # 如果子类没有定义字段，validated_data 为空字典
+        # 需要将原始数据中未被验证的字段也合并进去（透传未定义的字段）
+        # 但优先使用已验证的字段值（可能经过类型转换和默认值处理）
+        final_data = dict(data)  # 先保留所有原始数据
+        final_data.update(validated_data)  # 用验证后的数据覆盖（保留类型转换和默认值）
+
+        # 验证时间跨度（如果存在时间字段）
+        start_time = final_data.get("start_time")
+        end_time = final_data.get("end_time")
 
         if start_time is not None and end_time is not None:
             try:
-                time_span = int(end_time) - int(start_time)
+                # 转换为整数进行时间跨度验证（不修改原始字段值，因为子类可能定义为 CharField）
+                start_time_int = int(start_time)
+                end_time_int = int(end_time)
+                time_span = end_time_int - start_time_int
                 if time_span > self.max_time_span_seconds:
                     raise serializers.ValidationError(
                         {
@@ -47,6 +57,10 @@ class TimeSpanValidationPassThroughSerializer(serializers.Serializer):
             except serializers.ValidationError:
                 raise
             except (TypeError, ValueError):
-                raise serializers.ValidationError({"time_span": "start_time and end_time must be valid integers."})
+                raise serializers.ValidationError(
+                    {
+                        "time_span": "start_time and end_time must be valid integers (or string representations of integers)."
+                    }
+                )
 
-        return validated_data
+        return final_data
