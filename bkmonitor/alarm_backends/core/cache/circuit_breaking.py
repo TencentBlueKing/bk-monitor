@@ -358,12 +358,38 @@ class CircuitBreakingCacheManager(CacheManager):
     @classmethod
     def clear(
         cls,
-        module: str,
+        module: str | None = None,
     ) -> bool:
         """
         清空现有配置
+
+        :param module: 模块名称，如果为None则清空所有模块的配置
+        :return: 是否清空成功
         """
-        return cls.set_config(module, [])
+        if module is None:
+            # 清空所有模块的配置
+            success = True
+            cleared_count = 0
+            for module_name in CircuitBreakingModule.get_all_values():
+                if cls.set_config(module_name, []):
+                    cleared_count += 1
+                else:
+                    success = False
+                    logger.error(f"[circuit breaking] Failed to clear config for module {module_name}")
+
+            if success:
+                logger.info(
+                    f"[circuit breaking] Successfully cleared all circuit breaking configs ({cleared_count} modules)"
+                )
+            else:
+                logger.warning(
+                    f"[circuit breaking] Partially cleared circuit breaking configs ({cleared_count} modules)"
+                )
+
+            return success
+        else:
+            # 清空指定模块的配置
+            return cls.set_config(module, [])
 
 
 # ==================== 预设快捷设置便捷函数 ====================
@@ -468,10 +494,13 @@ def set_plugin_type_circuit_breaking(
 
 
 def clear(
-    module: str,
+    module: str | None = None,
 ) -> bool:
     """
     清空现有配置
+
+    :param module: 模块名称，如果为None则清空所有模块的配置
+    :return: 是否清空成功
     """
     return CircuitBreakingCacheManager.clear(module)
 
@@ -546,8 +575,11 @@ set_strategy_source_circuit_breaking(module=module, strategy_sources=["bk_monito
 set_bk_biz_id_circuit_breaking(module="action", bk_biz_ids=["100"])
 set_plugin_type_circuit_breaking(module="action", plugin_types=MESSAGE_QUEUE_PLUGIN_TYPES)
 
-# 示例7: 清空所有规则
+# 示例7: 清空指定模块的所有规则
 clear(module=module)
+
+# 示例8: 清空所有模块的所有规则
+clear()
 """
 
 print(example_usage)
