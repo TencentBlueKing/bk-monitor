@@ -41,7 +41,6 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException, PreCheckSortFieldException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
-from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import (
     LogIndexSet,
     LogIndexSetData,
@@ -187,7 +186,7 @@ class UnifyQueryHandler:
         self.result_merge_base_dict = self.init_result_merge_base_dict(self.base_dict)
 
         if self.index_set_ids:
-            time_field_info = SearchHandler.init_time_field(self.index_set_ids[0])
+            time_field_info = self.init_time_field(self.index_set_ids[0])
             if time_field_info:
                 self.time_field = time_field_info[0]
 
@@ -607,7 +606,7 @@ class UnifyQueryHandler:
                 query_dict["field_name"] = self.agg_field
             else:
                 # 时间字段 & 类型 & 单位
-                time_field, time_field_type, time_field_unit = SearchHandler.init_time_field(index_info["index_set_id"])
+                time_field, time_field_type, time_field_unit = self.init_time_field(index_info["index_set_id"])
                 query_dict["field_name"] = time_field
 
             query_list.append(query_dict)

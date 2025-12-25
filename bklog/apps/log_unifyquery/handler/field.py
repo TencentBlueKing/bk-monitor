@@ -107,7 +107,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         """
         topk_group_values = [group[0] for group in self.get_topk_list()]
         search_dict = copy.deepcopy(self.result_merge_base_dict)
-        for query in search_dict["query_list"]:
+        for index, query in enumerate(search_dict["query_list"]):
             query["time_aggregation"] = {"function": "count_over_time", "window": search_dict["step"]}
             query["function"] = [
                 {"method": "sum", "dimensions": [self.search_params["agg_field"]]},
@@ -121,8 +121,11 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
             query["conditions"]["field_list"].append(
                 {"field_name": self.search_params["agg_field"], "value": topk_group_values, "op": "eq"}
             )
+            time_field, time_field_type, time_field_unit = self.init_time_field(
+                self.index_info_list[index]["index_set_id"]
+            )
             query["conditions"]["field_list"].append(
-                {"field_name": "dtEventTimeStamp", "value": [search_dict["end_time"]], "op": "lte"}
+                {"field_name": time_field, "value": [search_dict["end_time"]], "op": "lte"}
             )
         search_dict.update({"metric_merge": f"topk({vargs}, a)"})
         data = self.query_ts(search_dict)
