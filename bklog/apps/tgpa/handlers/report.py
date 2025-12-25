@@ -116,29 +116,28 @@ class TGPAReportHandler:
         return cls._get_feature_config().get("tgpa_report_result_table_id")
 
     @classmethod
-    def _build_where_clause(
-        cls, bk_biz_id, keyword=None, openid_list=None, file_name_list=None, start_time=None, end_time=None
-    ):
+    def _build_where_clause(cls, bk_biz_id, keyword=None, keyword_fields=None, start_time=None, end_time=None):
         """
-        构建SQL WHERE子句
+        构建SQL WHERE子句（基础条件）
+
+        :param bk_biz_id: 业务ID
+        :param keyword: 搜索关键词
+        :param keyword_fields: keyword需要搜索的字段列表，默认为TGPA_REPORT_FILTER_FIELDS中的所有字段
+        :param start_time: 开始时间
+        :param end_time: 结束时间
         """
         where_conditions = [f"cc_id={bk_biz_id}"]
 
         if keyword:
-            # 转义特殊字符，防止SQL注入
             escaped_keyword = keyword.replace("\\", "\\\\").replace("'", "''").replace("%", "\\%").replace("_", "\\_")
-            keyword_conditions = [f"{field} like '%{escaped_keyword}%'" for field in TGPA_REPORT_FILTER_FIELDS]
+            # 如果未指定字段，则使用默认的所有过滤字段
+            fields = keyword_fields if keyword_fields else TGPA_REPORT_FILTER_FIELDS
+            keyword_conditions = [f"{field} like '%{escaped_keyword}%'" for field in fields]
             where_conditions.append(f"({' OR '.join(keyword_conditions)})")
         if start_time:
             where_conditions.append(f"dtEventTimeStamp >= '{start_time}'")
         if end_time:
             where_conditions.append(f"dtEventTimeStamp < '{end_time}'")
-        if openid_list:
-            openid_conditions = [f"openid='{openid}'" for openid in openid_list]
-            where_conditions.append(f"({' OR '.join(openid_conditions)})")
-        if file_name_list:
-            file_name_conditions = [f"file_name='{file_name}'" for file_name in file_name_list]
-            where_conditions.append(f"({' OR '.join(file_name_conditions)})")
 
         return " AND ".join(where_conditions)
 
@@ -221,14 +220,22 @@ class TGPAReportHandler:
         result_table_id = cls._get_result_table_id()
         batch_size = TGPA_REPORT_LIST_BATCH_SIZE
 
-        # 构建WHERE子句
-        where_clause = cls._build_where_clause(
-            bk_biz_id=bk_biz_id,
-            openid_list=openid_list,
-            file_name_list=file_name_list,
-            start_time=start_time,
-            end_time=end_time,
-        )
+        # 构建基础WHERE子句
+        where_conditions = [cls._build_where_clause(bk_biz_id=bk_biz_id, start_time=start_time, end_time=end_time)]
+
+        # 添加特殊的OR条件（openid_list 和 file_name_list 之间使用 OR 关系）
+        or_conditions = []
+        if openid_list:
+            openid_conditions = [f"openid='{openid}'" for openid in openid_list]
+            or_conditions.append(f"({' OR '.join(openid_conditions)})")
+        if file_name_list:
+            file_name_conditions = [f"file_name='{file_name}'" for file_name in file_name_list]
+            or_conditions.append(f"({' OR '.join(file_name_conditions)})")
+
+        if or_conditions:
+            where_conditions.append(f"({' OR '.join(or_conditions)})")
+
+        where_clause = " AND ".join(where_conditions)
 
         # 分批查询数据，这里排序和时间范围过滤统一使用dtEventTimeStamp（report_time并不是按照数据插入时间的顺序单调递增的）
         offset = 0
@@ -257,16 +264,13 @@ class TGPAReportHandler:
         获取openid列表
         """
         result_table_id = cls._get_result_table_id()
-
         limit = params["pagesize"]
         offset = (params["page"] - 1) * limit
-
-        query_sql = (
-            f"SELECT DISTINCT openid "
-            f"FROM {result_table_id} "
-            f"WHERE cc_id={params['bk_biz_id']} "
-            f"LIMIT {limit} OFFSET {offset}"
+        where_clause = cls._build_where_clause(
+            bk_biz_id=params["bk_biz_id"], keyword=params.get("keyword"), keyword_fields=["openid"]
         )
+
+        query_sql = f"SELECT DISTINCT openid FROM {result_table_id} WHERE {where_clause} LIMIT {limit} OFFSET {offset}"
 
         result = BkDataQueryApi.query({"sql": query_sql})
         return [item["openid"] for item in result.get("list", [])]
@@ -277,13 +281,13 @@ class TGPAReportHandler:
         获取文件名列表
         """
         result_table_id = cls._get_result_table_id()
-
         limit = params["pagesize"]
         offset = (params["page"] - 1) * limit
-
-        query_sql = (
-            f"SELECT file_name FROM {result_table_id} WHERE cc_id={params['bk_biz_id']} LIMIT {limit} OFFSET {offset}"
+        where_clause = cls._build_where_clause(
+            bk_biz_id=params["bk_biz_id"], keyword=params.get("keyword"), keyword_fields=["file_name"]
         )
+
+        query_sql = f"SELECT file_name FROM {result_table_id} WHERE {where_clause} LIMIT {limit} OFFSET {offset}"
 
         result = BkDataQueryApi.query({"sql": query_sql})
         return [item["file_name"] for item in result.get("list", [])]

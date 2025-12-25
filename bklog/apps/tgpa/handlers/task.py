@@ -115,6 +115,8 @@ class TGPATaskHandler:
         params = {
             "cc_id": bk_biz_id,
             "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "offset": 0,
+            "limit": 1,
         }
         result = TGPATaskApi.query_single_user_log_task_v2(params)
         return result["count"]
