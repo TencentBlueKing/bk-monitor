@@ -1180,4 +1180,12 @@ export default {
   '本功能为灰度业务，请联系管理员开通':
     'This feature is currently in a phased rollout phase. Please contact the administrator to activate it.',
   任务未完成: 'Task not completed',
+  '日志上传中...': 'Log uploading...',
+  '预计等待2-3分钟': 'Expected wait time: 2-3 minutes',
+  日志上传成功: 'Log upload successful',
+  去首页查询: 'Go to the homepage to check',
+  日志上传失败: 'Log upload failed',
+  请上传日志后检索: 'Please upload the log and then search',
+  正在上传中无法操作: 'Cannot operate while uploading',
+  '已上传成功，请直接检索': 'Uploaded successfully, please search directly',
 };

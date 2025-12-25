@@ -24,13 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onMounted, watch } from 'vue';
+import { defineComponent, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 
 import { t } from '@/hooks/use-locale';
 import http from '@/api';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import useStore from '@/hooks/use-store';
+import useRouter from '@/hooks/use-router';
 import ReportTable from './report-table';
+import BatchUpload from './batch-upload';
+import UploadResult from './upload-result';
+import { FileUploadStatus, UploadStatus, UserReportItem, FileStatusItem } from './types';
 
 import './index.scss';
 
@@ -38,6 +42,8 @@ export default defineComponent({
   name: 'UserReport',
   components: {
     ReportTable,
+    BatchUpload,
+    UploadResult,
   },
   props: {
     isAllowedDownload: {
@@ -59,10 +65,18 @@ export default defineComponent({
   emits: ['update-total'],
   setup(props, { emit }) {
     const store = useStore();
+    const router = useRouter();
 
     const searchKeyword = ref('');
     const isLoading = ref(false);
-    const tableData = ref({
+    const showBatchUpload = ref(false);
+    const showUploadResult = ref(false);
+    const uploadStatus = ref<UploadStatus>(UploadStatus.RUNNING);
+    const uploadData = ref<{ file_name_list: string[]; openid_list: string[] } | null>(null);
+    const tableData = ref<{
+      list: UserReportItem[];
+      total: number;
+    }>({
       list: [],
       total: 0,
     });
@@ -78,6 +92,188 @@ export default defineComponent({
       order_field: '',
       order_type: '',
     });
+
+    // 文件状态轮询相关状态（30秒轮询）
+    const fileStatusTimer = ref(null);
+    const shouldPollFileStatus = ref(false);
+    const isComponentDestroyed = ref(false);
+
+    // 同步任务轮询相关状态（10秒轮询）
+    const syncTaskTimer = ref(null);
+    const currentRecordId = ref<string>('');
+
+    // 获取同步记录状态的方法
+    const getSyncRecord = async (recordId: string): Promise<{ status: string } | null> => {
+      try {
+        const params = {
+          query: {
+            record_id: recordId,
+          },
+        };
+
+        const response = await http.request('collect/getSyncRecord', params);
+        return response.data;
+      } catch (error) {
+        console.error('获取同步记录状态失败:', error);
+        return null;
+      }
+    };
+
+    // 获取文件状态的方法
+    const getFileStatus = async (fileNameList: string[]): Promise<FileStatusItem[]> => {
+      try {
+        const params = {
+          data: {
+            file_name_list: fileNameList,
+          },
+        };
+
+        const response = await http.request('collect/getFileStatus', params);
+        return response.data;
+      } catch (error) {
+        console.error('获取文件状态失败:', error);
+        return [];
+      }
+    };
+
+    // 启动文件状态轮询（30秒）
+    const startFileStatusPolling = (immediate = false) => {
+      stopFileStatusPolling();
+
+      // 如果需要立即执行一次
+      if (immediate) {
+        pollFileStatus();
+      } else {
+        // 否则按正常间隔轮询
+        fileStatusTimer.value = setTimeout(() => {
+          if (shouldPollFileStatus.value && !isComponentDestroyed.value) {
+            pollFileStatus();
+          }
+        }, 30000); // 30秒轮询一次
+      }
+    };
+
+    // 停止文件状态轮询
+    const stopFileStatusPolling = () => {
+      if (fileStatusTimer.value) {
+        clearTimeout(fileStatusTimer.value);
+        fileStatusTimer.value = null;
+      }
+    };
+
+    // 停止同步任务轮询
+    const stopSyncTaskPolling = () => {
+      if (syncTaskTimer.value) {
+        clearTimeout(syncTaskTimer.value);
+        syncTaskTimer.value = null;
+      }
+      currentRecordId.value = '';
+    };
+
+    // 启动同步任务轮询（10秒）
+    const startSyncTaskPolling = (recordId: string) => {
+      stopSyncTaskPolling();
+      currentRecordId.value = recordId;
+
+      const pollSyncTask = async () => {
+        if (isComponentDestroyed.value || !currentRecordId.value) {
+          return;
+        }
+
+        try {
+          const syncRecord = await getSyncRecord(currentRecordId.value);
+
+          if (syncRecord) {
+            const { status } = syncRecord;
+
+            if (status === UploadStatus.RUNNING) {
+              // 继续轮询
+              syncTaskTimer.value = setTimeout(pollSyncTask, 10000);
+              return;
+            }
+
+            // 成功或失败，更新状态
+            uploadStatus.value = status as UploadStatus;
+          } else {
+            // 获取同步记录失败，标记为失败
+            uploadStatus.value = UploadStatus.FAILED;
+          }
+        } catch (error) {
+          console.error('轮询同步状态失败:', error);
+          uploadStatus.value = UploadStatus.FAILED;
+        }
+
+        // 统一处理轮询结束后的逻辑
+        stopSyncTaskPolling();
+        startFileStatusPolling(true);
+      };
+
+      // 立即执行第一次轮询
+      pollSyncTask();
+    };
+
+    // 判断是否需要轮询文件状态
+    const checkShouldPollFileStatus = (dataList: UserReportItem[] | FileStatusItem[]) => {
+      if (isComponentDestroyed.value) {
+        return;
+      }
+
+      shouldPollFileStatus.value = false;
+
+      // 检查是否有未完成的任务
+      if (Array.isArray(dataList)) {
+        dataList.forEach((item) => {
+          if (item.status && item.status !== FileUploadStatus.SUCCESS) {
+            shouldPollFileStatus.value = true;
+          }
+        });
+      }
+
+      // 如果需要轮询，启动轮询
+      if (shouldPollFileStatus.value) {
+        startFileStatusPolling();
+      } else {
+        stopFileStatusPolling();
+      }
+    };
+
+    // 轮询获取文件状态
+    const pollFileStatus = async () => {
+      if (isComponentDestroyed.value) return;
+
+      const list = tableData.value.list;
+      if (!list || list.length === 0) return;
+
+      // 提取所有文件名
+      const fileNames = list.map((item: UserReportItem) => item.file_name).filter((fileName: string) => fileName);
+
+      if (fileNames.length === 0) return;
+
+      try {
+        const statusData = await getFileStatus(fileNames);
+
+        // 创建状态映射并更新列表
+        const statusMap = new Map<string, FileUploadStatus>();
+        if (Array.isArray(statusData)) {
+          statusData.forEach((item: FileStatusItem) => {
+            statusMap.set(item.file_name, item.status);
+          });
+        }
+
+        // 更新列表中的状态
+        tableData.value.list = list.map((item: UserReportItem) => ({
+          ...item,
+          status: statusMap.get(item.file_name),
+        }));
+
+        // 检查是否需要继续轮询
+        checkShouldPollFileStatus(statusData);
+      } catch (error) {
+        console.warn('轮询获取文件状态失败:', error);
+        // 轮询失败时停止轮询
+        stopFileStatusPolling();
+      }
+    };
 
     // 获取用户上报数据
     const fetchUserReportData = async () => {
@@ -97,13 +293,18 @@ export default defineComponent({
         };
 
         const response = await http.request('collect/getUserReportList', params);
+        const originalList: UserReportItem[] = response.data.list || [];
+
         tableData.value = {
-          list: response.data.list || [],
+          list: originalList,
           total: response.data.total || 0,
         };
 
         // 通知父组件更新 tab 中的 count
         emit('update-total', tableData.value.total);
+
+        // 获取列表数据后，检查是否需要轮询
+        checkShouldPollFileStatus(originalList);
       } catch (error) {
         console.error('获取用户上报数据失败:', error);
       } finally {
@@ -161,6 +362,104 @@ export default defineComponent({
       window.open(sdkDocUrl, '_blank');
     };
 
+    // 批量上传按钮点击事件
+    const handleBatchUpload = () => {
+      showBatchUpload.value = true;
+    };
+
+    // 批量上传确认事件
+    const handleBatchUploadConfirm = (data: { file_name_list: string[]; openid_list: string[] }) => {
+      handleUpload({
+        ...data,
+      });
+    };
+
+    // 更新表格中匹配项的状态为PENDING
+    const updateItemsStatus = (fileNameList: string[], openidList: string[]) => {
+      const fileNameSet = new Set(fileNameList);
+      const openidSet = new Set(openidList);
+
+      tableData.value.list = tableData.value.list.map((item: UserReportItem) => {
+        if (fileNameSet.has(item.file_name) || openidSet.has(item.openid)) {
+          return { ...item, status: FileUploadStatus.RUNNING };
+        }
+        return item;
+      });
+    };
+
+    // 上传事件
+    const handleUpload = async (data: { file_name_list: string[]; openid_list: string[] }) => {
+      // 保存上传数据，用于重试
+      uploadData.value = data;
+      // 显示上传结果弹窗
+      showUploadResult.value = true;
+      uploadStatus.value = UploadStatus.RUNNING;
+
+      // 更新表格中匹配项的状态为RUNNING
+      updateItemsStatus(data.file_name_list, data.openid_list);
+
+      try {
+        const params = {
+          data: {
+            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+            file_name_list: data.file_name_list,
+            openid_list: data.openid_list,
+          },
+        };
+
+        const response = await http.request('collect/syncUserReport', params);
+
+        // 获取record_id并开始轮询同步状态
+        if (response.data && response.data.record_id) {
+          stopFileStatusPolling();
+          startSyncTaskPolling(response.data.record_id);
+        } else {
+          // 没有返回record_id，标记为失败
+          uploadStatus.value = UploadStatus.FAILED;
+          stopSyncTaskPolling();
+        }
+      } catch (error) {
+        console.error('上传失败:', error);
+        // 上传失败
+        uploadStatus.value = UploadStatus.FAILED;
+        stopSyncTaskPolling();
+      }
+    };
+
+    // 关闭上传结果弹窗
+    const handleUploadResultClose = () => {
+      showUploadResult.value = false;
+
+      // 如果还在上传中，停止轮询并刷新列表
+      if ((uploadStatus.value = UploadStatus.RUNNING)) {
+        stopSyncTaskPolling();
+        startFileStatusPolling(true);
+      }
+    };
+
+    // 重试上传
+    const handleUploadRetry = () => {
+      if (uploadData.value) {
+        handleUpload(uploadData.value);
+      }
+    };
+
+    // 去首页查询
+    const handleGoSearch = () => {
+      // 跳转到检索页面
+      router.push({
+        name: 'retrieve',
+        params: {
+          indexId: props.indexSetId,
+        },
+      });
+    };
+
+    // 返回列表
+    const handleBackList = () => {
+      showUploadResult.value = false;
+    };
+
     // 监听搜索关键词变化，如果为空则自动搜索
     watch(
       () => searchKeyword.value,
@@ -183,6 +482,15 @@ export default defineComponent({
       fetchUserReportData();
     });
 
+    onBeforeUnmount(() => {
+      // 标记组件已销毁
+      isComponentDestroyed.value = true;
+      // 清理文件状态轮询定时器
+      stopFileStatusPolling();
+      // 清理同步任务轮询定时器
+      stopSyncTaskPolling();
+    });
+
     return () => (
       <div class='user-report'>
         {/* Alert 提示 */}
@@ -195,11 +503,18 @@ export default defineComponent({
         </span>
 
         {/* 操作区域 */}
-        {/* <div
-          class='operating-area'
-        >
-          <bk-button onClick={handleCleanConfig}>{t('清洗配置')}</bk-button>
+        <div class='operating-area'>
           <div>
+            <bk-button
+              theme='primary'
+              on-click={handleBatchUpload}
+              disabled={isLoading.value}
+            >
+              {t('批量上传')}
+            </bk-button>
+            {/* <bk-button onClick={handleCleanConfig}>{t('清洗配置')}</bk-button> */}
+          </div>
+          {/* <div>
             <bk-input
               value={searchKeyword.value}
               placeholder={t('搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人')}
@@ -209,8 +524,8 @@ export default defineComponent({
               onRight-icon-click={handleSearchIconClick}
               onClear={handleClearSearch}
             ></bk-input>
-          </div>
-        </div> */}
+          </div> */}
+        </div>
 
         {/* 表格区域 */}
         <ReportTable
@@ -225,6 +540,24 @@ export default defineComponent({
           on-page-limit-change={handlePageLimitChange}
           on-search={handleSearch}
           on-sort-change={handleSortChange}
+          on-upload={handleUpload}
+        />
+
+        {/* 批量上传弹窗 */}
+        <BatchUpload
+          show={showBatchUpload.value}
+          on-cancel={(val: boolean) => (showBatchUpload.value = val)}
+          on-confirm={handleBatchUploadConfirm}
+        />
+
+        {/* 上传结果弹窗 */}
+        <UploadResult
+          show={showUploadResult.value}
+          status={uploadStatus.value}
+          on-close={handleUploadResultClose}
+          on-retry={handleUploadRetry}
+          on-go-search={handleGoSearch}
+          on-back-list={handleBackList}
         />
       </div>
     );

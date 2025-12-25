@@ -111,6 +111,29 @@ export default defineComponent({
       }
     };
 
+    // 获取tab数量
+    const getTgpaCount = async () => {
+      try {
+        const params = {
+          query: {
+            bk_biz_id: store.state.bkBizId,
+          },
+        };
+
+        const response = await http.request('collect/getTgpaCount', params);
+        if (response.data) {
+          if (response.data.task !== undefined) {
+            updateTabCount(TAB_TYPES.COLLECT, response.data.task);
+          }
+          if (response.data.report !== undefined) {
+            updateTabCount(TAB_TYPES.REPORT, response.data.report);
+          }
+        }
+      } catch (error) {
+        console.warn('获取tab数量失败:', error);
+      }
+    };
+
     // 检查是否为灰度业务
     const checkGrayReleaseAccess = () => {
       const bizId = store.state.bkBizId;
@@ -200,6 +223,9 @@ export default defineComponent({
       // 获取索引集ID
       getIndexSetId();
 
+      // 获取tab数量
+      getTgpaCount();
+
       // 检查权限(新建采集、下载文件)
       checkAllowed();
     });
@@ -254,19 +280,11 @@ export default defineComponent({
       }
     };
 
-    // 处理采集下发 total 更新
-    const handleCollectionTotalUpdate = (total: number) => {
-      const collectTab = tabs.value.find(tab => tab.title === TAB_TYPES.COLLECT);
-      if (collectTab) {
-        collectTab.count = total;
-      }
-    };
-
-    // 处理用户上报 total 更新
-    const handleUserReportTotalUpdate = (total: number) => {
-      const reportTab = tabs.value.find(tab => tab.title === TAB_TYPES.REPORT);
-      if (reportTab) {
-        reportTab.count = total;
+    // 更新tab数量
+    const updateTabCount = (tabType: TabType, count: number) => {
+      const tab = tabs.value.find(tab => tab.title === tabType);
+      if (tab) {
+        tab.count = count;
       }
     };
 
@@ -310,7 +328,7 @@ export default defineComponent({
                 isAllowedCreate={isAllowedCreate.value}
                 isAllowedDownload={isAllowedDownload.value}
                 paginationConfig={paginationConfig.value}
-                onUpdate-total={handleCollectionTotalUpdate}
+                onUpdate-total={(total: number) => updateTabCount(TAB_TYPES.COLLECT, total)}
               />
             )}
             {activeTab.value === TAB_TYPES.REPORT && (
@@ -318,7 +336,7 @@ export default defineComponent({
                 isAllowedDownload={isAllowedDownload.value}
                 indexSetId={indexSetId.value}
                 paginationConfig={paginationConfig.value}
-                onUpdate-total={handleUserReportTotalUpdate}
+                onUpdate-total={(total: number) => updateTabCount(TAB_TYPES.REPORT, total)}
               />
             )}
           </div>

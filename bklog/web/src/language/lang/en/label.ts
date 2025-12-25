@@ -947,4 +947,6 @@ export default {
   系统版本: 'System version',
   SDK版本: 'SDK version',
   系统类型: 'System type',
+  上传状态: 'Upload status',
+  未上传: 'Not uploaded',
 };

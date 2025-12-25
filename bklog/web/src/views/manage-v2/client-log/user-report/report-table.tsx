@@ -34,6 +34,7 @@ import * as authorityMap from '../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
 import { useTableSetting } from '../hooks/use-table-setting';
 import { useSearchTask } from '../hooks/use-search-task';
+import { FileUploadStatus, UserReportItem } from './types';
 
 import './report-table.scss';
 
@@ -44,7 +45,7 @@ export default defineComponent({
   },
   props: {
     data: {
-      type: Array,
+      type: Array as () => UserReportItem[],
       default: () => [],
     },
     keyword: {
@@ -75,7 +76,7 @@ export default defineComponent({
       }),
     },
   },
-  emits: ['page-change', 'page-limit-change', 'search', 'sort-change'],
+  emits: ['page-change', 'page-limit-change', 'search', 'sort-change', 'upload'],
   setup(props, { emit }) {
     const store = useStore();
 
@@ -96,6 +97,7 @@ export default defineComponent({
       { id: 'file_path', label: t('文件路径') },
       { id: 'file_size', label: t('文件大小') },
       { id: 'md5', label: t('文件MD5') },
+      { id: 'status', label: t('上传状态') },
       { id: 'report_time', label: t('文件上传时间') },
       { id: 'xid', label: t('设备ID') },
       { id: 'extend_info', label: t('扩展信息') },
@@ -107,16 +109,7 @@ export default defineComponent({
     ];
 
     // 默认显示的字段ID
-    const defaultSelectedIds = [
-      'openid',
-      'file_name',
-      'file_path',
-      'file_size',
-      'md5',
-      'report_time',
-      'xid',
-      'extend_info',
-    ];
+    const defaultSelectedIds = ['openid', 'file_name', 'file_path', 'file_size', 'md5', 'status', 'report_time', 'xid'];
 
     // 使用表格设置 hook
     const { columnSetting, checkFields, handleSettingChange } = useTableSetting({
@@ -199,6 +192,37 @@ export default defineComponent({
           {row.md5}
         </div>
       ),
+    };
+
+    // 上传状态插槽
+    const statusSlot = {
+      default: ({ row }: { row: UserReportItem }) => {
+        const getStatusText = () => {
+          if (row.status === FileUploadStatus.RUNNING) return t('上传中');
+          if (row.status === FileUploadStatus.SUCCESS) return t('完成');
+          if (row.status === FileUploadStatus.FAILED) return t('失败');
+          return t('未上传');
+        };
+
+        return (
+          <div
+            class='status-container'
+            key={row.status}
+          >
+            {row.status === FileUploadStatus.RUNNING ? (
+              <bk-spin
+                size='mini'
+                class='status-spin'
+              ></bk-spin>
+            ) : (
+              <div class='status-dot-wrapper'>
+                <span class={`status-dot ${row.status}`}></span>
+              </div>
+            )}
+            <span>{getStatusText()}</span>
+          </div>
+        );
+      },
     };
 
     // 设备ID插槽
@@ -286,7 +310,7 @@ export default defineComponent({
     };
 
     // 检索任务 - 直接传入查询条件
-    const handleSearchTask = (row: any) => {
+    const handleSearchTask = (row: UserReportItem) => {
       const conditions = [
         {
           field: 'openid',
@@ -338,16 +362,59 @@ export default defineComponent({
       });
     };
 
+    // 上传文件
+    const handleUpload = (row: UserReportItem) => {
+      emit('upload', {
+        file_name_list: row.file_name ? [row.file_name] : [],
+        openid_list: row.openid ? [row.openid] : [],
+      });
+    };
+
+    // 获取上传按钮提示文本
+    const getUploadTooltipText = (status: FileUploadStatus) => {
+      switch (status) {
+        case FileUploadStatus.RUNNING:
+          return t('正在上传中无法操作');
+        case FileUploadStatus.SUCCESS:
+          return t('已上传成功，请直接检索');
+        default:
+          return '';
+      }
+    };
+
     const operateSlot = {
-      default: ({ row }: any) => (
+      default: ({ row }: { row: UserReportItem }) => (
         <div class='log-table-operate'>
-          <span class='king-button'>
+          <span
+            class='king-button'
+            v-bk-tooltips={{
+              content: t('请上传日志后检索'),
+              disabled: row.status === FileUploadStatus.SUCCESS,
+            }}
+          >
             <bk-button
               text
               theme='primary'
               on-click={() => handleSearchTask(row)}
+              disabled={row.status !== FileUploadStatus.SUCCESS}
             >
               {t('检索')}
+            </bk-button>
+          </span>
+          <span
+            class='king-button'
+            v-bk-tooltips={{
+              content: getUploadTooltipText(row.status),
+              disabled: row.status !== FileUploadStatus.RUNNING && row.status !== FileUploadStatus.SUCCESS,
+            }}
+          >
+            <bk-button
+              text
+              theme='primary'
+              on-click={() => handleUpload(row)}
+              disabled={row.status !== FileUploadStatus.FAILED && row.status !== FileUploadStatus.PENDING}
+            >
+              {t('上传')}
             </bk-button>
           </span>
           <span class='king-button'>
@@ -437,7 +504,7 @@ export default defineComponent({
               label={t('文件大小')}
               prop='file_size'
               sortable='custom'
-              formatter={row => formatFileSize(row.file_size)}
+              formatter={(row: UserReportItem) => formatFileSize(row.file_size)}
             />
           )}
           {checkFields('md5') && (
@@ -448,6 +515,16 @@ export default defineComponent({
               label={t('文件MD5')}
               prop='md5'
               scopedSlots={md5Slot}
+            />
+          )}
+          {checkFields('status') && (
+            <bk-table-column
+              key='status'
+              class-name='filter-column'
+              width='100'
+              label={t('上传状态')}
+              prop='status'
+              scopedSlots={statusSlot}
             />
           )}
           {checkFields('report_time') && (
