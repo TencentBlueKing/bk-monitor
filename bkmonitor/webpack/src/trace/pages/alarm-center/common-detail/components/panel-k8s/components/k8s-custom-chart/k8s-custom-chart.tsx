@@ -36,8 +36,8 @@ import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/u
 import ChartTitle from '../../../../../../../plugins/components/chart-title';
 import CommonLegend from '../../../../../../../plugins/components/common-legend';
 import { commOpenUrl, getMetricId } from '../../../../../../../plugins/utls/menu';
-import { useChartLegend } from '../../../../../../trace-explore/components/explore-chart/use-chart-legend';
 import { useChartTitleEvent } from '../../../../../../trace-explore/components/explore-chart/use-chart-title-event';
+import { useAlertChartLegend } from '../../../../../components/alarm-metrics-dashboard/components/alarm-chart/hooks/use-alert-chart-legend';
 import { useK8sEcharts } from './hooks/use-k8s-echarts';
 
 import type { IDataQuery, IMenuItem } from '../../../../../../../plugins/typings';
@@ -110,7 +110,7 @@ export default defineComponent({
       series,
       chartRef
     );
-    const { legendData, handleSelectLegend } = useChartLegend(options, chartId);
+    const { legendData, handleSelectLegend } = useAlertChartLegend(options, chartId);
     const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
       chartInstance.value.dispatchAction({
         type: 'restore',

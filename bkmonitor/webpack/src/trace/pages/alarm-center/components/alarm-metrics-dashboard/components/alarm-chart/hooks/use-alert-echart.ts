@@ -37,6 +37,7 @@ import { COLOR_LIST_BAR } from 'monitor-ui/chart-plugins/constants/charts';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../../../../components/time-range/utils';
+import { handleGetMinPrecision } from '../utils';
 import { useAlertChartTooltips } from './use-alert-chart-tooltips';
 
 import type {
@@ -122,13 +123,14 @@ export const useAlertEcharts = (
               metricList.value.push(metric);
             }
           }
-          targets.value.push({ ...target, data: query_config });
+          targets.value.push({ ...target, data: query_config ?? target.data });
           return series?.length
             ? series.map(item => ({
                 ...item,
                 alias: target.alias || item.alias,
                 type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
                 stack: target.data?.stack || item.stack,
+                unit: item.unit || (get(panel)?.options as { unit?: string })?.unit,
               }))
             : [];
         })
@@ -183,6 +185,20 @@ export const useAlertEcharts = (
         xAxisIndex += 1;
       }
       const unitFormatter = getValueFormat(data.unit);
+      // 获取y轴上可设置的最小的精确度
+      const precision = handleGetMinPrecision(
+        list
+          ?.filter?.(set => {
+            const typedSet = set as { value: number | undefined };
+            return typedSet && typeof typedSet.value === 'number';
+          })
+          .map(set => {
+            const typedSet = set as { value: number | undefined };
+            return typedSet.value;
+          }) ?? [],
+        unitFormatter,
+        data.unit
+      );
       seriesData.push({
         ...data,
         name: data.alias || data.target || '',
@@ -204,6 +220,7 @@ export const useAlertEcharts = (
         },
         raw_data: {
           ...data,
+          precision,
           datapoints: undefined,
           unitFormatter,
         },

@@ -68,8 +68,26 @@ export default defineComponent({
         ...target,
       };
     });
+    /**
+     * @description: 获取跳转url
+     * @param {string} hash hash值
+     * @param {number} bizId 业务ID
+     * @return {*}
+     */
+    const commOpenUrl = (hash: string, bizId?: number) => {
+      let url = '';
+      if (process.env.NODE_ENV === 'development') {
+        url = `${process.env.proxyUrl}?bizId=${bizId || window.cc_biz_id}${hash}`;
+      } else {
+        url = location.href.replace(location.hash, hash);
+      }
+      return url;
+    };
 
-    /** 格式化图表数据 */
+    /**
+     * @description: 格式化图表数据
+     * @param {any} data 图表接口返回的series数据
+     */
     const formatterData = (data: any) => {
       return {
         ...data,
@@ -92,10 +110,11 @@ export default defineComponent({
       const bkHostId = target?.bk_host_id ?? 0;
       // 跳转至容器监控时的详情Id
       const detailId = bkHostId ? bkHostId : `${ip}-${cloudId}`;
+      const url = commOpenUrl(`#/performance/detail/${detailId}`, get(bizId));
       // TODO : 待确认 跳转至主机监控时的路径参数
       // 模块级别 ?filter-bk_inst_id=190&filter-bk_obj_id=module
       // 主机级别 ?filter-bk_target_ip=10.0.7.4&filter-bk_target_cloud_id=0&filter-bk_host_id=8
-      window.open(`${location.origin}${location.pathname}?bizId=${bizId.value}#/performance/detail/${detailId}`);
+      window.open(url);
     };
 
     /**

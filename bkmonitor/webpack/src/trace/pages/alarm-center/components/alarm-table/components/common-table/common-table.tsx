@@ -199,25 +199,12 @@ export default defineComponent({
       return parsedSorts;
     });
 
-    watch(
-      () => props.defaultActiveRowKeys,
-      val => {
-        activeRowKeys.value = val;
-      }
-    );
-
-    onMounted(() => {
-      setTimeout(() => {
-        initEllipsisListeners();
-      }, 300);
-    });
-
     /**
      * @description 表格排序变化后回调
      * @param {TableSort} sort
-     *
+     * @returns {void}
      */
-    function handleSortChange(sortEvent: TableSort) {
+    const handleSortChange = (sortEvent: TableSort) => {
       if (Array.isArray(sortEvent)) {
         // 处理数组形式的排序
         const sortStrings = sortEvent
@@ -232,15 +219,16 @@ export default defineComponent({
         sort = `${sortEvent.descending ? '-' : ''}${sortEvent.sortBy}`;
       }
       emit('sortChange', sort);
-    }
+    };
 
     /**
      * @description 表格当前页码变化时的回调
-     *
+     * @param {number} page 当前页码
+     * @returns {void}
      */
-    function handleCurrentPageChange(page: number) {
+    const handleCurrentPageChange = (page: number) => {
       emit('currentPageChange', page);
-    }
+    };
 
     /**
      * @description 选中行发生变化时触发
@@ -248,43 +236,46 @@ export default defineComponent({
      * @param options.type uncheck: 当前行操作为「取消行选中」; check: 当前行操作为「行选中」
      * @param options.currentRowKey 当前操作行的 rowKey 值
      * @param options.currentRowData 当前操作行的 行数据
+     * @returns {void}
      */
-    function handleSelectChange(selectedRowKeys: (number | string)[], options: SelectOptions<unknown>) {
+    const handleSelectChange = (selectedRowKeys: (number | string)[], options: SelectOptions<unknown>) => {
       emit('selectChange', selectedRowKeys, options);
-    }
+    };
 
     /**
      * @description 表格每页条数变化时的回调
-     *
+     * @param {number} size 每页条数
+     * @returns {void}
      */
-    function handlePageSizeChange(size: number) {
+    const handlePageSizeChange = (size: number) => {
       emit('pageSizeChange', size);
-    }
+    };
 
     /**
      * @description 表格列展示配置变化时的回调
-     *
+     * @param {CheckboxGroupValue} displayColFields 可展示的列字段
+     * @returns {void}
      */
-    function handleDisplayColFieldsChange(displayColFields: CheckboxGroupValue) {
+    const handleDisplayColFieldsChange = (displayColFields: CheckboxGroupValue) => {
       emit('displayColFieldsChange', displayColFields as string[]);
-    }
+    };
 
     /**
      * @description 表格最后一行渲染方法(默认填充一个 div 占位)
-     *
+     * @returns {SlotReturnValue} 表格最后一行dom内容
      */
-    function tableLastFullRowRender(): SlotReturnValue {
+    const tableLastFullRowRender = (): SlotReturnValue => {
       if (!props.lastFullRow) {
         return (<div />) as unknown as SlotReturnValue;
       }
       return props.lastFullRow();
-    }
+    };
 
     /**
      * @description 表格空数据渲染方法
-     *
+     * @returns {SlotReturnValue} 表格空数据dom内容
      */
-    function tableEmptyRender(): SlotReturnValue {
+    const tableEmptyRender = (): SlotReturnValue => {
       if (typeof props.empty === 'function') {
         return props.empty();
       }
@@ -296,7 +287,20 @@ export default defineComponent({
           type={props.empty?.type || 'search-empty'}
         />
       ) as unknown as SlotReturnValue;
-    }
+    };
+
+    watch(
+      () => props.defaultActiveRowKeys,
+      val => {
+        activeRowKeys.value = val;
+      }
+    );
+
+    onMounted(() => {
+      setTimeout(() => {
+        initEllipsisListeners();
+      }, 300);
+    });
 
     return {
       tableColumns,

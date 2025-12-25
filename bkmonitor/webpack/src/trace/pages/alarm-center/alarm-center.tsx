@@ -216,6 +216,7 @@ export default defineComponent({
     };
     /** 快捷筛选 */
     const handleFilterValueChange = (filterValue: CommonCondition[]) => {
+      handleCurrentPageChange(1);
       alarmStore.quickFilterValue = filterValue;
     };
     /** 告警分析添加条件 */
@@ -241,6 +242,7 @@ export default defineComponent({
     };
     /** UI条件变化 */
     const handleConditionChange = (condition: CommonCondition[]) => {
+      handleCurrentPageChange(1);
       alarmStore.conditions = condition;
     };
     /** 查询语句变化 */
@@ -249,6 +251,7 @@ export default defineComponent({
     };
     /** 查询模式变化 */
     const handleFilterModeChange = (mode: EMode) => {
+      handleCurrentPageChange(1);
       alarmStore.filterMode = mode;
     };
     const handleResidentConditionChange = (condition: CommonCondition[]) => {
@@ -256,10 +259,12 @@ export default defineComponent({
     };
     /** 查询 */
     const handleQuery = () => {
+      handleCurrentPageChange(1);
       alarmStore.refreshImmediate += 1;
     };
     /** 业务变化 */
     const handleBizIdsChange = (bizIds: (number | string)[]) => {
+      handleCurrentPageChange(1);
       alarmStore.bizIds = bizIds as number[];
     };
 
@@ -481,6 +486,7 @@ export default defineComponent({
     const handleFavoriteChange = data => {
       console.log(data);
       currentFavorite.value = data || null;
+      handleCurrentPageChange(1);
       if (data) {
         const favoriteConfig = data?.config;
         alarmStore.timezone = favoriteConfig?.componentData?.timezone || getDefaultTimezone();

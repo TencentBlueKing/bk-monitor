@@ -41,7 +41,7 @@ export type IUsePopoverTools = ReturnType<typeof usePopover>;
 export type IUseTippyInstance = ReturnType<typeof useTippy> & { instanceKey?: string };
 
 /**
- * @method usePopover 单例 popover hooks
+ * @function usePopover 单例 popover hooks
  * @description Popover 管理钩子（单例）
  * @param {number} options.showDelay 显示延迟（默认 300 毫秒）
  * @param {TippyOptions} options.tippyOptions tippy 默认配置项（配置项可参考：https://vue-tippy.netlify.app/props）
@@ -141,7 +141,6 @@ export function usePopover(options: IUsePopoverOptions = { showDelay: 300, tippy
 
   /**
    * @description: 清除popover延时打开定时器
-   *
    */
   function clearPopoverTimer() {
     popoverDelayTimer && clearTimeout(popoverDelayTimer);

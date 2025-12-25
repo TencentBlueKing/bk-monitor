@@ -38,13 +38,10 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFor
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../../../../../components/time-range/utils';
 import { useChartTooltips } from '../../../../../../../trace-explore/components/explore-chart/use-chart-tooltips';
+import { handleGetMinPrecision } from '../../../../../../components/alarm-metrics-dashboard/components/alarm-chart/utils';
 import { type AlertK8sEchartSeriesItem, SpecialSeriesColorMap } from '../../../../../../typings';
 
-import type {
-  FormatterFunc,
-  SeriesItem,
-  ValueFormatter,
-} from '../../../../../../../trace-explore/components/explore-chart/types';
+import type { FormatterFunc, SeriesItem } from '../../../../../../../trace-explore/components/explore-chart/types';
 import type { AlertChartInteractionState } from '../../../../../../components/alarm-metrics-dashboard/components/alarm-chart/hooks/use-alert-echart';
 import type { IDataQuery } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -115,46 +112,6 @@ export const useK8sEcharts = (
     const aliasFix = Object.values(dimensions).join('|');
     if (!aliasFix.length) return item.alias;
     return `${item.alias}-${aliasFix}`;
-  };
-
-  /**
-   * @method handleGetMinPrecision 获取数据的最小精度
-   * @param {number[]} data 数据数组
-   * @param {ValueFormatter} formatter 数值格式化函数
-   * @param {string} unit 单位
-   * @returns {number} 最小精度
-   */
-  const handleGetMinPrecision = (data: number[], formatter: ValueFormatter, unit: string) => {
-    if (!data || data.length === 0) {
-      return 0;
-    }
-    data.sort((a, b) => a - b);
-    const len = data.length;
-    if (data[0] === data[len - 1]) {
-      if (['none', ''].includes(unit) && !data[0].toString().includes('.')) return 0;
-      const setList = String(data[0]).split('.');
-      return !setList || setList.length < 2 ? 2 : setList[1].length;
-    }
-    let precision = 0;
-    let sampling = [];
-    const middle = Math.ceil(len / 2);
-    sampling.push(data[0]);
-    sampling.push(data[Math.ceil(middle / 2)]);
-    sampling.push(data[middle]);
-    sampling.push(data[middle + Math.floor((len - middle) / 2)]);
-    sampling.push(data[len - 1]);
-    sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
-    while (precision < 5) {
-      const samp = sampling.reduce((pre, cur) => {
-        pre[Number(formatter(cur, precision).text)] = 1;
-        return pre;
-      }, {});
-      if (Object.keys(samp).length >= sampling.length) {
-        return precision;
-      }
-      precision += 1;
-    }
-    return precision;
   };
 
   /**
