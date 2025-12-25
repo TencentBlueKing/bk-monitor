@@ -25,6 +25,7 @@ from alarm_backends.service.fta_action.tasks.noise_reduce import (
     NoiseReduceRecordProcessor,
 )
 from alarm_backends.service.fta_action.utils import PushActionProcessor, need_poll
+from alarm_backends.core.circuit_breaking.manager import ActionCircuitBreakingManager
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.action.serializers import ActionPluginSlz
 from bkmonitor.documents import AlertDocument, AlertLog
@@ -851,6 +852,62 @@ class CreateActionProcessor:
                 )
                 retry_times += 1
 
+    def _check_circuit_breaking_for_message_queue(self):
+        """
+        检查 message_queue 类型动作的熔断规则
+        :return: tuple(valid_alert_ids, circuit_breaking_alert_ids)
+        """
+        circuit_breaking_manager = ActionCircuitBreakingManager()
+
+        if not circuit_breaking_manager:
+            # 如果熔断管理器不可用，返回所有告警ID
+            return self.alert_ids, []
+
+        valid_alert_ids = []
+        circuit_breaking_alert_ids = []
+
+        for alert in self.alerts:
+            # 构建每个告警的熔断检查上下文信息
+            context = {
+                "strategy_id": self.strategy_id or alert.strategy_id or 0,
+                "bk_biz_id": alert.event.bk_biz_id,
+                "plugin_type": "message_queue",
+            }
+
+            # 获取数据源标签和类型标签
+            data_source_label = ""
+            data_type_label = ""
+
+            # 优先从策略配置中获取
+            if self.strategy and self.strategy.get("items"):
+                first_item = self.strategy["items"][0]
+                if first_item.get("query_configs"):
+                    first_query_config = first_item["query_configs"][0]
+                    data_source_label = first_query_config.get("data_source_label", "")
+                    data_type_label = first_query_config.get("data_type_label", "")
+
+            if data_source_label:
+                context["data_source_label"] = data_source_label
+            if data_type_label:
+                context["data_type_label"] = data_type_label
+
+            logger.info(
+                f"[circuit breaking] [message_queue] checking alert({alert.id}) for create action dimensions: {context}"
+            )
+            # 检查当前告警是否命中熔断规则
+            is_circuit_breaking = circuit_breaking_manager.is_circuit_breaking(**context)
+
+            if is_circuit_breaking:
+                circuit_breaking_alert_ids.append(alert.id)
+                logger.info(
+                    f"[circuit breaking] [message_queue] skip create action for strategy({context['strategy_id']}) "
+                    f"alert({alert.id}): circuit breaking"
+                )
+            else:
+                valid_alert_ids.append(alert.id)
+
+        return valid_alert_ids, circuit_breaking_alert_ids
+
     def create_message_queue_action(self, new_actions: list):
         """
         创建推送k队列的处理记录
@@ -871,16 +928,37 @@ class CreateActionProcessor:
             )
             return
 
+        # 检查熔断规则（创建阶段）
+        valid_alert_ids, circuit_breaking_alert_ids = self._check_circuit_breaking_for_message_queue()
+
+        # 如果所有告警都被熔断，直接返回
+        if not valid_alert_ids:
+            logger.info(
+                f"[circuit breaking] all alerts({self.alert_ids}) are circuit breaking, "
+                f"skip creating message queue action"
+            )
+            return
+
+        # 如果部分告警被熔断，只为未熔断的告警创建 message_queue 动作
+        if circuit_breaking_alert_ids:
+            logger.info(
+                f"[circuit breaking] partial alerts({circuit_breaking_alert_ids}) are circuit breaking, "
+                f"creating message queue action for valid alerts({valid_alert_ids})"
+            )
+
+        # 创建动作实例 - 只为未熔断的告警创建 message_queue action
         action_instance = ActionInstance.objects.create(
-            alerts=self.alert_ids,
+            alerts=valid_alert_ids,  # 只使用未熔断的告警ID
             signal=self.signal,
-            strategy_id=0,
+            strategy_id=self.strategy_id or 0,
             alert_level=self.severity,
             bk_biz_id=self.alerts[0].event.bk_biz_id,
             dimensions=self.dimensions or [],
             action_plugin={"plugin_type": ActionPluginType.MESSAGE_QUEUE},
         )
-        PushActionProcessor.push_action_to_execute_queue(action_instance, self.alerts)
+        # 只为未熔断的告警推送到执行队列
+        valid_alerts = [alert for alert in self.alerts if alert.id in valid_alert_ids]
+        PushActionProcessor.push_action_to_execute_queue(action_instance, valid_alerts)
         new_actions.append(action_instance.id)
 
     def do_create_action(
