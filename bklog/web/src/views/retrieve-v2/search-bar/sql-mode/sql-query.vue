@@ -35,7 +35,8 @@ const placeholderText = computed(() => {
   if (isFocused.value) {
     return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，${shortcutKey} + ENTER ${t('AI 搜索')}`;
   }
-  return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}， ${t('Tab 切换为 AI 模式')}`;
+  // return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}， ${t('Tab 切换为 AI 模式')}`;
+  return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}`;
 });
 
 const refSqlQueryOption = ref(null);
@@ -239,7 +240,7 @@ const createEditorInstance = () => {
     onFocusChange: (state, isFocusing) => {
       // 更新 focus 状态，用于动态显示 placeholder
       isFocused.value = isFocusing;
-      
+
       if (isFocusing) {
         if (!(getTippyInstance()?.state?.isShown ?? false)) {
           delayShowInstance(refEditorParent.value);

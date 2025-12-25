@@ -203,7 +203,7 @@
         </bk-table-column>
         <!-- 操作时间 -->
         <bk-table-column
-          width="150"
+          width="240"
           :label="$t('操作时间')"
           align="center"
           header-align="center"
@@ -292,6 +292,7 @@
 <script>
   import { formatDate, blobDownload } from '@/common/util';
   import { mapGetters } from 'vuex';
+  import useUtils from '@/hooks/use-utils';
 
   import { axiosInstance } from '@/api';
 
@@ -510,8 +511,10 @@
        * @param { Boolean } isPolling 该次请求是否是轮询
        */
       setExportListData(data, isPolling) {
+        const { formatResponseListTimeZoneString } = useUtils();
+        const formattedData = formatResponseListTimeZoneString(data || [], {}, ['export_created_at', 'created_at', 'updated_at']);
         if (isPolling) {
-          data.forEach(item => {
+          formattedData.forEach(item => {
             this.exportList.forEach(row => {
               if (row.id === item.id) {
                 Object.assign(row, { ...item });
@@ -519,7 +522,7 @@
             });
           });
         } else {
-          this.exportList = data;
+          this.exportList = formattedData;
           this.startStatusPolling();
         }
       },

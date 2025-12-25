@@ -177,7 +177,7 @@ COLLECTORS_LIST = {
                 "yaml_config": "",
                 "tags": [],
                 "is_nanos": False,
-                "enable_v4": False
+                "enable_v4": False,
             }
         ],
     },
@@ -191,17 +191,30 @@ class TestCollectorViewSetAPI(TestCase):
     测试 CollectorViewSet中的接口
     """
 
-    @patch("apps.api.TransferApi.get_result_table_storage", lambda _: CLUSTER_INFOS)
+    @patch("apps.api.TransferApi.get_result_table_storage")
     @patch("apps.log_databus.views.collector_views.CollectorViewSet.get_permissions", lambda _: [])
     @patch("apps.utils.cache.caches_one_hour", lambda _: FAKE_CACHE)
     @patch.object(collector_views.CollectorViewSet, "get_permissions", lambda _: [])
     @patch.object(permission.Permission, "batch_is_allowed", lambda _, actions, resources: BATCH_IS_ALLOWED)
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     @FakeRedis("apps.utils.cache.cache")
-    def test_list_collector(self):
+    def test_list_collector(self, mock_get_result_table_storage):
         """
         测试 api.v1.databus.collectors
         """
+
+        # 定义带条件的返回逻辑：判断参数中的 result_table_list 是否是目标值
+        def mock_get_cluster_info(params):
+            result_table_str = params.get("result_table_list", "")
+
+            if result_table_str == "2_bklog.test3333":
+                return CLUSTER_INFOS
+            else:
+                return {}
+
+        # 把自定义的条件函数赋值给模拟对象的 side_effect
+        mock_get_result_table_storage.side_effect = mock_get_cluster_info
+
         # 测试数据库添加一条CollectorConfig数据
         self.maxDiff = 500000
         CollectorConfig.objects.create(
