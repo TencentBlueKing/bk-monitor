@@ -92,7 +92,7 @@ export default defineComponent({
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
       targets,
-      panel.value.title,
+      panel.value?.title,
       series,
       chartRef
     );
