@@ -236,4 +236,7 @@ export default {
   相关性指标: 'Relevance indicators',
   收敛的告警: 'Converged alarms',
   告警流转记录: 'Alarm flow record',
+  致命告警产生: 'Fatal alarm generated',
+  告警触发阶段: 'Alarm trigger stage',
+  致命告警时段: 'Fatal alarm time period',
 };

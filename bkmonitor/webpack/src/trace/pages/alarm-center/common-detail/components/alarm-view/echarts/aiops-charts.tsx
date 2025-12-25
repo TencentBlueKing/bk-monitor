@@ -194,7 +194,7 @@ export default defineComponent({
             alias: '',
             datasource: 'time_series',
             data_type: 'time_series',
-            api: 'alert.alertGraphQuery',
+            api: 'alert_v2.alertGraphQuery',
           },
         ],
       };

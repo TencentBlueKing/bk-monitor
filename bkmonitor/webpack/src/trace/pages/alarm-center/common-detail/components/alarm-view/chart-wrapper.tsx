@@ -27,15 +27,17 @@ import { type PropType, computed, defineComponent, provide, shallowRef } from 'v
 
 import dayjs from 'dayjs';
 import { transformDataKey, typeTools } from 'monitor-common/utils';
+import { type IDetectionConfig, MetricType } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { useI18n } from 'vue-i18n';
 
 import AiopsCharts from './echarts/aiops-charts';
+import IntelligenceScene from './echarts/intelligence-scene';
 import MonitorCharts from './echarts/monitor-charts';
+import TimeSeriesForecastingChart from './echarts/time-series-forecasting-chart';
 
 import type { AlarmDetail } from '@/pages/alarm-center/typings';
 import type { LegendOptions } from '@/plugins/typings';
-import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import './chart-wrapper.scss';
 
@@ -49,6 +51,11 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+
+    /* 是否为主机智能场景检测视图 */
+    const isHostAnomalyDetection = computed(() => {
+      return props.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0].type === MetricType.HostAnomalyDetection;
+    });
 
     const getShowSourceLogData = computed(() => {
       const sourceTypeLabels = [
@@ -87,7 +94,7 @@ export default defineComponent({
         unit: algorithms[0].unit_prefix,
         unitType: strategy.items?.[0]?.query_configs?.[0]?.unit || '',
         unitList: [],
-        connector: strategy.detects?.[0]?.connector,
+        connector: strategy.detects?.[0]?.connector as 'and' | 'or',
         data: algorithms.map(({ unit_prefix, ...item }) => displayDetectionRulesConfig(item)),
         query_configs: strategy?.items?.[0]?.query_configs,
       };
@@ -100,6 +107,11 @@ export default defineComponent({
         detectionConfig.value?.data?.some?.(item => item.type === 'IntelligentDetect') &&
         detectionConfig.value?.query_configs?.[0]?.intelligent_detect?.result_table_id
       );
+    });
+
+    /** 是否含有时序预测算法 */
+    const hasTimeSeriesForecasting = computed(() => {
+      return detectionConfig.value?.data?.some?.(item => item.type === 'TimeSeriesForecasting');
     });
 
     const showRestore = shallowRef(false);
@@ -327,9 +339,9 @@ export default defineComponent({
 
     // 事件及日志来源告警视图
     const getSeriesViewComponent = () => {
-      // if (isHostAnomalyDetection.value) {
-      //   return <IntelligenceScene params={props.detail} />;
-      // }
+      if (isHostAnomalyDetection.value) {
+        return <IntelligenceScene detail={props.detail} />;
+      }
       // /** 智能检测算法图表 */
       if (hasAIOpsDetection.value)
         return (
@@ -339,13 +351,13 @@ export default defineComponent({
           />
         );
       // /** 时序预测图表 */
-      // if (hasTimeSeriesForecasting.value)
-      //   return (
-      //     <TimeSeriesForecastingChart
-      //       detail={props.detail}
-      //       detectionConfig={detectionConfig.value}
-      //     />
-      //   );
+      if (hasTimeSeriesForecasting.value)
+        return (
+          <TimeSeriesForecastingChart
+            detail={props.detail}
+            detectionConfig={detectionConfig.value}
+          />
+        );
       // if (hasOutlierDetection.value) return <OutlierDetectionChart detail={props.detail} />;
       return (
         <div class='series-view-container'>
