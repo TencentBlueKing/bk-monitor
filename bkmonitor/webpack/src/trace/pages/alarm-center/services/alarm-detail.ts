@@ -27,6 +27,7 @@
 import {
   actionDetail,
   alertDetail,
+  alertHostTarget,
   alertK8sMetricList,
   alertK8sScenarioList,
   alertK8sTarget,
@@ -71,17 +72,6 @@ export const fetchListAlertFeedback = (id: string, bizId: number) => {
  * @returns {Promise<AlertHostTargetItem[]>} 告警 id 获取关联主机对象列表
  */
 export const getHostTargetList = async (alertId: string) => {
-  const alertHostTarget = <T>(..._args): Promise<T> => {
-    return Promise.resolve([
-      {
-        bk_host_id: 110494,
-        bk_target_ip: '9.134.11.186',
-        bk_cloud_id: 0,
-        display_name: '公共集群40933 / node / 9.134.11.186',
-        bk_host_name: 'VM-11-186-centos',
-      },
-    ] as T);
-  }; // 占位
   const data = await alertHostTarget<AlertHostTargetItem[]>({ alert_id: alertId }).catch(
     () => [] as AlertHostTargetItem[]
   );
