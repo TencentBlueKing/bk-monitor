@@ -48,14 +48,19 @@ export interface ScenarioRenderer {
   transformColumns: (columns: TableColumnItem[]) => TableColumnItem[];
 }
 
-export function useScenarioRenderer(
+/**
+ * @function useScenarioRenderer 表格场景工厂渲染器 hook
+ * @description 用于渲染告警中心不同场景的表格
+ * @param {ActionScenario['context'] & AlertScenario['context'] & IncidentScenario['context']} context 场景上下文
+ * @returns {ScenarioRenderer} 当前激活的场景渲染器相关属性
+ */
+export const useScenarioRenderer = (
   context: ActionScenario['context'] & AlertScenario['context'] & IncidentScenario['context']
-): ScenarioRenderer {
+): ScenarioRenderer => {
   const alarmStore = useAlarmCenterStore();
-  // 用 Map 缓存场景实例，避免重复创建
+  /** 场景渲染器实例缓存映射，由于是无状态类，所以用 Map 缓存场景实例，避免重复创建节省资源 */
   let scenarioInstanceMap = new Map<string, BaseScenario>();
-
-  // 场景映射表
+  /** 场景渲染器类映射 */
   const scenarioMap: Record<
     string,
     new (ctx: ActionScenario['context'] & AlertScenario['context'] & IncidentScenario['context']) => BaseScenario
@@ -64,8 +69,7 @@ export function useScenarioRenderer(
     [INCIDENT_STORAGE_KEY]: IncidentScenario,
     [ACTION_STORAGE_KEY]: ActionScenario,
   };
-
-  // 当前场景实例
+  /** 当前激活的场景渲染器实例 */
   const currentScenario = computed<BaseScenario>(() => {
     const storageKey = alarmStore.alarmService.storageKey;
     // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -75,14 +79,18 @@ export function useScenarioRenderer(
     }
     return scenarioInstanceMap.get(storageKey);
   });
-
+  /** 当前场景表格空状态时显示的dom内容配置 */
   const tableEmpty = computed<TableEmpty>(() => currentScenario.value.getEmptyConfig());
+  /** 当前场景私有类名 */
   const tableScenarioClassName = computed(() => currentScenario.value.privateClassName || '');
 
   /**
-   * @description 转换列配置
+   * @method transformColumns 转换列配置
+   * @description 将基础列配置转换为场景渲染所需结构列配置
+   * @param {TableColumnItem[]} columns 基础列配置
+   * @returns {TableColumnItem[]} 场景渲染所需结构列配置
    */
-  function transformColumns(columns: TableColumnItem[]) {
+  const transformColumns = (columns: TableColumnItem[]) => {
     const isAlert = currentScenario.value.name === ALERT_STORAGE_KEY;
     const targetColumns = [];
 
@@ -103,7 +111,7 @@ export function useScenarioRenderer(
       targetColumns.push(targetColumn);
     }
     return targetColumns;
-  }
+  };
 
   watch(
     () => currentScenario.value,
@@ -130,4 +138,4 @@ export function useScenarioRenderer(
     tableScenarioClassName,
     transformColumns,
   };
-}
+};

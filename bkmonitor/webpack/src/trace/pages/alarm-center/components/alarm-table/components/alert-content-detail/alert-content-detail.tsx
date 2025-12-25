@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import { Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -52,23 +52,31 @@ export default defineComponent({
 
     /**
      * @description: 切换编辑状态
+     * @param {Boolean} editStatus 数据含义是否处于编辑状态
      */
-    function toggleEditMode(editStatus: boolean) {
+    const toggleEditMode = (editStatus: boolean) => {
       let value = '';
       if (editStatus) {
         value = props.alertContentDetail?.name || '';
       }
       inputValue.value = value;
       isEdit.value = editStatus;
-    }
+    };
 
     /**
      * @description: 保存指标数据含义
      */
-    function handleSave() {
+    const handleSave = () => {
       console.log('指标数据含义保存逻辑-----------------');
       toggleEditMode(false);
-    }
+    };
+
+    watch(
+      () => props.alertContentDetail,
+      () => {
+        toggleEditMode(false);
+      }
+    );
 
     return {
       t,

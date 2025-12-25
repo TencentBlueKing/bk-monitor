@@ -57,9 +57,14 @@ export default defineComponent({
       );
     });
 
-    function showNameSlice(showName: string) {
+    /**
+     * @description: 判断并截取视图中显示的值，当值过长时(大于20个字符)截取拼接 ... 进行展示
+     * @param {string} showName 需要截取的值
+     * @returns {string} 最终视图中展示的值
+     */
+    const showNameSlice = (showName: string) => {
       return showName.length > 20 ? `${showName.slice(0, 20)}...` : showName;
-    }
+    };
 
     return {
       tipContent,
