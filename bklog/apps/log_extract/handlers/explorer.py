@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import re
 import time
@@ -51,7 +51,7 @@ from bkm_ipchooser.tools import topo_tool
 from bkm_space.utils import bk_biz_id_to_space_uid
 
 
-class ExplorerHandler(object):
+class ExplorerHandler:
     def __init__(self):
         self.request_user = get_request_username()
         self.external_user = get_request_external_username()
@@ -94,7 +94,7 @@ class ExplorerHandler(object):
                 bk_biz_id=bk_biz_id,
                 operator=operator,
                 account=self.get_account(bk_os_type),
-                task_name="[BKLOG] File Search By {}".format(self.request_user),
+                task_name=f"[BKLOG] File Search By {self.request_user}",
             )
         except ApiResultError as e:
             if e.code == JOB_API_PERMISSION_CODE:
@@ -133,7 +133,7 @@ class ExplorerHandler(object):
                 if time.time() - start_time > constants.FILE_SEARCH_TIMEOUT:
                     raise exceptions.ExplorerFilesTimeout
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception("[explorer] FileSearchService failed: {}".format(str(e)))
+            logger.exception(f"[explorer] FileSearchService failed: {str(e)}")
             raise exceptions.PipelineApiFailed(exceptions.PipelineApiFailed.MESSAGE.format(message=str(e)))
         return query_result
 
@@ -187,7 +187,7 @@ class ExplorerHandler(object):
                     )
                     exists_record.add(file_type_and_name)
                 except Exception as e:  # pylint: disable=broad-except
-                    logger.error("[list_files] parse output error, output=> {}, e=>{}".format(file_meta_data, e))
+                    logger.error(f"[list_files] parse output error, output=> {file_meta_data}, e=>{e}")
         return res
 
     @staticmethod
@@ -784,7 +784,7 @@ class ExplorerHandler(object):
         if not search_params["file_type"]:
             search_params.clear()
         if not search_params:
-            logger.error("用户{}访问目录{}失败".format(self.request_user, request_dir))
+            logger.error(f"用户{self.request_user}访问目录{request_dir}失败")
             raise exceptions.ExplorerDirFailed(exceptions.ExplorerDirFailed.MESSAGE.format(request_dir=request_dir))
 
         return search_params
@@ -870,7 +870,7 @@ def batch_request(func, params, get_data=lambda x: x["info"], get_count=lambda x
     result = func(params=first_param, raw=True)
 
     if not result["result"]:
-        logger.error("[batch_request] {api} count request error, result: {result}".format(api=func.path, result=result))
+        logger.error(f"[batch_request] {func.path} count request error, result: {result}")
         return []
 
     count = get_count(result)

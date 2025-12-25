@@ -225,10 +225,18 @@ class BasicAlgorithmsCollection(Algorithms):
     # op is Or or And
     expr_op = "and"
 
-    def __init__(self, config, unit=""):
+    def __init__(self, config, unit="", extra_config=None):
+        """
+        初始化算法集合
+
+        :param config: 算法配置（config 字段）
+        :param unit: 单位前缀
+        :param extra_config: 额外的控制参数（如 grey_to_bkfara, service_name 等）
+        """
         self.config = config or dict()
+        self.extra_config = extra_config or dict()
         self.validated_config = None
-        self.validate_config(config)
+        self.validate_config(self.config)
         self.unit = unit
         self.detectors = list(self.gen_expr())
         for detector in self.detectors:

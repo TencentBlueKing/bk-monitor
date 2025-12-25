@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import json
 from urllib import parse
@@ -35,11 +35,15 @@ from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
 from common.decorators import timezone_exempt, track_site_visit
 from common.log import logger
+from constants.alert import AlertRedirectType
 from constants.common import DEFAULT_TENANT_ID
 from core.errors.api import BKAPIError
 from monitor.models import GlobalConfig
 from monitor_adapter.home.alert_redirect import (
+    generate_apm_rpc_url,
+    generate_apm_trace_url,
     generate_data_retrieval_url,
+    generate_event_explore_url,
     generate_log_search_url,
 )
 from monitor_web.iam.resources import CallbackResource
@@ -79,15 +83,24 @@ def event_center_proxy(request):
     if not (collect_id and bk_biz_id):
         return HttpResponseNotFound(_("无效的告警事件链接"))
 
-    if proxy_type == "query" and not request.is_mobile():
-        data_retrieval_url = generate_data_retrieval_url(bk_biz_id, collect_id)
-        if data_retrieval_url:
-            return redirect(data_retrieval_url)
-
-    if proxy_type == "log_search" and not request.is_mobile():
-        log_search_url = generate_log_search_url(bk_biz_id, collect_id)
-        if log_search_url:
-            return redirect(log_search_url)
+    if not request.is_mobile():
+        generate_url_func_map = {
+            # 指标检索
+            AlertRedirectType.QUERY.value: generate_data_retrieval_url,
+            # 日志检索
+            AlertRedirectType.LOG_SEARCH.value: generate_log_search_url,
+            # 调用分析
+            AlertRedirectType.APM_RPC.value: generate_apm_rpc_url,
+            # Tracing 检索
+            AlertRedirectType.APM_TRACE.value: generate_apm_trace_url,
+            # 事件检索
+            AlertRedirectType.EVENT_EXPLORE.value: generate_event_explore_url,
+        }
+        # 根据跳转类型获取对应的 URL 生成函数，生成跳转链接并返回重定向响应
+        if (generate_url_func := generate_url_func_map.get(proxy_type)) and (
+            explore_url := generate_url_func(bk_biz_id, collect_id)
+        ):
+            return redirect(explore_url)
 
     redirect_url = rio_url if request.is_mobile() else pc_url
     if batch_action:
@@ -258,13 +271,13 @@ def dispatch_external_proxy(request):
         return view_func(fake_request, **kwargs)
 
     except Resolver404:
-        logger.warning("dispatch_plugin_query: resolve view func 404 for: {}".format(url))
+        logger.warning(f"dispatch_plugin_query: resolve view func 404 for: {url}")
         return JsonResponse(
-            {"result": False, "message": "dispatch_plugin_query: resolve view func 404 for: {}".format(url)}, status=404
+            {"result": False, "message": f"dispatch_plugin_query: resolve view func 404 for: {url}"}, status=404
         )
 
     except Exception as e:
-        logger.exception("dispatch_plugin_query: exception for {}".format(e))
+        logger.exception(f"dispatch_plugin_query: exception for {e}")
         raise e
 
 

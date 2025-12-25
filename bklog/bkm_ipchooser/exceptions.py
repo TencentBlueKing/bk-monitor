@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 class IpChooserBaseException(Exception):
     pass
 
@@ -8,4 +7,8 @@ class SerValidationError(IpChooserBaseException):
 
 
 class TopoNotExistsError(IpChooserBaseException):
+    pass
+
+
+class BeyondTheSelectionRangeError(IpChooserBaseException):
     pass

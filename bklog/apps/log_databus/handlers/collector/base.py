@@ -725,21 +725,90 @@ class CollectorHandler:
     @caches_one_hour(key=CACHE_KEY_CLUSTER_INFO, need_deconstruction_name="result_table_list", need_md5=True)
     def bulk_cluster_infos(result_table_list: list):
         """
-        bulk_cluster_infos
+        批量获取集群信息，单个失败不影响其他，将单个失败的 result_table 进行重试
+        如果分片请求失败，则拆解为单个 result_table 重试
         @param result_table_list:
         @return:
         """
-        multi_execute_func = MultiExecuteFunc()
-        table_chunk = array_chunk(result_table_list, BULK_CLUSTER_INFOS_LIMIT)
-        for item in table_chunk:
-            rt = ",".join(item)
-            multi_execute_func.append(
-                rt, TransferApi.get_result_table_storage, {"result_table_list": rt, "storage_type": "elasticsearch"}
-            )
-        result = multi_execute_func.run()
+
+        def get_cluster_info(result_table_str: str):
+            """
+            获取集群信息（支持批量查询）
+            """
+            try:
+                return TransferApi.get_result_table_storage(
+                    params={"result_table_list": result_table_str, "storage_type": "elasticsearch"}
+                )
+            except Exception as e:
+                logger.warning(f"获取集群信息失败(result_tables={result_table_str}): {e}", exc_info=True)
+                return {}
+
         cluster_infos = {}
-        for _, cluster_info in result.items():  # noqa
-            cluster_infos.update(cluster_info)
+
+        if not result_table_list:
+            return cluster_infos
+
+        unique_tables = list(dict.fromkeys(result_table_list))
+
+        # 按分片批量获取
+        chunk_multi_execute_func = MultiExecuteFunc()
+        unique_table_chunks: list[list[str]] = array_chunk(unique_tables, BULK_CLUSTER_INFOS_LIMIT)
+
+        # 记录每个 chunk_str 对应的 table_chunk
+        table_chunk_dict: dict[str, list[str]] = {}
+
+        for table_chunk in unique_table_chunks:
+            chunk_str = ",".join(table_chunk)
+            table_chunk_dict[chunk_str] = table_chunk
+            chunk_multi_execute_func.append(chunk_str, get_cluster_info, chunk_str)
+
+        chunk_response = chunk_multi_execute_func.run()
+
+        # 记录需要重试的 table_id
+        retry_tables = []
+
+        # 处理分片结果
+        for chunk_str, response in chunk_response.items():
+            table_chunk = table_chunk_dict.get(chunk_str, [])
+
+            if response and isinstance(response, dict):
+                cluster_infos.update(response)
+
+                # 检查分片结果是否包含该分片中所有表的集群信息
+                for table_id in table_chunk:
+                    if table_id not in response:
+                        # 如果分片结果中缺少某个表的集群信息, 则该表获取失败, 进行重试
+                        retry_tables.append(table_id)
+            else:
+                # 分片获取失败, 记录该分片中的所有 table_id 进行重试
+                retry_tables.extend(table_chunk)
+
+        # 对获取集群信息失败的 table_id 进行重试
+        if retry_tables:
+            logger.warning(
+                f"The chunk query result is incomplete, "
+                f"querying {len(retry_tables)} result tables individually: {retry_tables}"
+            )
+
+            single_multi_execute_func = MultiExecuteFunc()
+
+            for table_id in retry_tables:
+                single_multi_execute_func.append(table_id, get_cluster_info, table_id)
+
+            single_response = single_multi_execute_func.run()
+
+            # 处理单独查询结果
+            for table_id, response in single_response.items():
+                if response and isinstance(response, dict) and response.get(table_id):
+                    # 单个重试成功
+                    cluster_infos[table_id] = response[table_id]
+
+        # 确保所有 result_table 都有集群信息, 否则设置为默认值
+        for table_id in result_table_list:
+            cluster_infos.setdefault(
+                table_id, {"cluster_config": {"cluster_id": -1, "cluster_name": ""}, "storage_config": {"retention": 0}}
+            )
+
         return cluster_infos
 
     @classmethod
@@ -764,8 +833,9 @@ class CollectorHandler:
                 {"cluster_config": {"cluster_id": -1, "cluster_name": ""}, "storage_config": {"retention": 0}},
             )
             _data["storage_cluster_id"] = cluster_info["cluster_config"]["cluster_id"]
-            _data["storage_cluster_name"] = cluster_info["cluster_config"].get("display_name") or\
-                                            cluster_info["cluster_config"]["cluster_name"]
+            _data["storage_cluster_name"] = (
+                cluster_info["cluster_config"].get("display_name") or cluster_info["cluster_config"]["cluster_name"]
+            )
             _data["retention"] = cluster_info["storage_config"]["retention"]
             # table_id
             if _data.get("table_id"):

@@ -27,7 +27,7 @@ class AlertV2ViewSet(_BaseAlertViewSet):
 
     resource_routes = [
         ResourceRoute("GET", resource.alert_v2.alert_detail, endpoint="alert/detail"),
-        ResourceRoute("GET", resource.alert_v2.alert_events, endpoint="alert/events"),
+        ResourceRoute("POST", resource.alert_v2.alert_events, endpoint="alert/events"),
         ResourceRoute("GET", resource.alert_v2.alert_k8s_scenario_list, endpoint="alert/k8s_scenario_list"),
         ResourceRoute("GET", resource.alert_v2.alert_k8s_metric_list, endpoint="alert/k8s_metric_list"),
         ResourceRoute("GET", resource.alert_v2.alert_k8s_target, endpoint="alert/k8s_target"),

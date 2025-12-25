@@ -18,16 +18,22 @@ ONE_DAY_SECONDS = 86400
 
 class TimeSpanValidationPassThroughSerializer(serializers.Serializer):
     """
-    透传序列化器，只验证时间跨度是否超过1天，其他参数全部透传。
+    透传序列化器，先进行常规字段验证和默认值应用，然后验证时间跨度是否超过1天。
     用于 AI MCP 请求，避免 LLM 上下文超限。
     """
 
     max_time_span_seconds = ONE_DAY_SECONDS
 
     def to_internal_value(self, data: dict[str, Any]) -> dict[str, Any]:
-        """透传所有数据，只验证时间跨度"""
-        start_time = data.get("start_time")
-        end_time = data.get("end_time")
+        """
+        先执行常规序列化（包括字段验证和默认值应用），然后验证时间跨度
+        """
+        # 先调用父类方法，执行常规的字段验证和默认值应用
+        validated_data = super().to_internal_value(data)
+
+        # 然后验证时间跨度
+        start_time = validated_data.get("start_time")
+        end_time = validated_data.get("end_time")
 
         if start_time is not None and end_time is not None:
             try:
@@ -43,4 +49,4 @@ class TimeSpanValidationPassThroughSerializer(serializers.Serializer):
             except (TypeError, ValueError):
                 raise serializers.ValidationError({"time_span": "start_time and end_time must be valid integers."})
 
-        return data
+        return validated_data

@@ -256,3 +256,34 @@ class FieldAnalyzeResource(Resource):
         }
 
         return api.unify_query.query_reference(**query_params)
+
+
+class SearchLogClusteringPatternResource(Resource):
+    """
+    日志查询服务 -- 日志聚类模式查询
+    """
+
+    class RequestSerializer(TimeSpanValidationPassThroughSerializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        index_set_id = serializers.CharField(required=True, label="索引集ID")
+        keyword = serializers.CharField(required=False, default="*", label="搜索关键字")
+        start_time = serializers.CharField(required=True, label="开始时间")
+        end_time = serializers.CharField(required=True, label="结束时间")
+        begin = serializers.IntegerField(required=False, default=0, label="偏移数")
+        size = serializers.IntegerField(required=False, default=10, label="返回条数")
+        pattern_level = serializers.ChoiceField(
+            required=True,
+            choices=["01", "03", "05", "07", "09"],
+            label="敏感度：01 03 05 07 09",
+        )
+        show_new_pattern = serializers.BooleanField(required=True, label="只显示新类")
+
+    def perform_request(self, validated_request_data):
+        index_set_id = validated_request_data.get("index_set_id")
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        logger.info(
+            "SearchPatternResource: try to search pattern, index_set_id->[%s], bk_biz_id->[%s]", index_set_id, bk_biz_id
+        )
+
+        result = api.log_search.search_pattern(**validated_request_data)
+        return result

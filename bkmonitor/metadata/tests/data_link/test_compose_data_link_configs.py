@@ -60,7 +60,7 @@ def test_compose_data_id_config(create_or_delete_records):
     expected_config = (
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor","labels":{'
         '"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test","bizId":2,'
-        '"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
+        '"description":"bkm_data_link_test","maintainers":["admin"],"eventType":"metric"}}'
     )
 
     data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
@@ -70,36 +70,41 @@ def test_compose_data_id_config(create_or_delete_records):
     assert json.dumps(content) == expected_config
 
     # 单租户模式 + preferCluster
+    # preferCluster 字段受开关控制，测试该能力时需要显式开启
+    settings.ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME = True
     expected_config = (
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},'
         '"spec":{"alias":"bkm_data_link_test","bizId":2,"description":"bkm_data_link_test","maintainers":["admin"],'
         '"preferCluster":{"kind":"KafkaChannel","namespace":"bkmonitor","name":"my_preferred_cluster"},'
-        '"event_type":"metric"}}'
+        '"eventType":"metric"}}'
     )
     content = data_id_config_ins.compose_config(prefer_kafka_cluster_name="my_preferred_cluster")
     assert json.dumps(content) == expected_config
+    settings.ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME = False
 
     # 多租户模式
     settings.ENABLE_MULTI_TENANT_MODE = True
     expected_config = (
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor",'
         '"tenant":"system","labels":{"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test",'
-        '"bizId":111,"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
+        '"bizId":111,"description":"bkm_data_link_test","maintainers":["admin"],"eventType":"metric"}}'
     )
 
     content = data_id_config_ins.compose_config()
     assert json.dumps(content) == expected_config
 
     # 多租户模式 + preferCluster
+    settings.ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME = True
     expected_config = (
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor","tenant":"system",'
         '"labels":{"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test","bizId":111,'
         '"description":"bkm_data_link_test","maintainers":["admin"],'
         '"preferCluster":{"kind":"KafkaChannel","tenant":"system","namespace":"bkmonitor","name":"my_preferred_cluster"},'
-        '"event_type":"metric"}}'
+        '"eventType":"metric"}}'
     )
     content = data_id_config_ins.compose_config(prefer_kafka_cluster_name="my_preferred_cluster")
     assert json.dumps(content) == expected_config
+    settings.ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME = False
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -208,8 +213,8 @@ def test_compose_log_result_table_config(create_or_delete_records):
         bk_biz_id=1,
         bk_tenant_id="system",
         data_link_name="base_1_agent_event",
+        data_type="log",
     )
-
     fields = [
         {"field_name": "dimensions", "field_alias": "", "field_type": "object", "is_dimension": True, "field_index": 0},
         {"field_name": "event", "field_alias": "", "field_type": "object", "is_dimension": True, "field_index": 1},

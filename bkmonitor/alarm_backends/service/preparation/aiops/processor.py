@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,16 +7,17 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Set, Tuple
 
 from django.conf import settings
 
 from alarm_backends.core.cache import key
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.control.strategy import Strategy
+from alarm_backends.core.control.mixins.detect import EXTRA_CONFIG_KEYS
 from alarm_backends.core.lock.service_lock import (
     check_lock_updated,
     refresh_service_lock,
@@ -50,7 +50,7 @@ INIT_DEPEND_MAPPINGS = {
 
 class TsDependPreparationProcess(BasePreparationProcess):
     def __init__(self, *args, **kwargs) -> None:
-        super(TsDependPreparationProcess, self).__init__()
+        super().__init__()
         self.prepare_key = key.SERVICE_LOCK_PREPARATION
 
     def process(self, strategy_id: int, update_time: int = None, force: bool = False) -> None:
@@ -74,13 +74,13 @@ class TsDependPreparationProcess(BasePreparationProcess):
                     )
 
     def refresh_strategy_depend_data(
-        self, strategy: Strategy, processed_dimensions: Set, update_time: int = None
+        self, strategy: Strategy, processed_dimensions: set, update_time: int = None
     ) -> None:
         """根据同步信息，从Cache中获取策略的配置，并调用SDK初始化历史依赖数据.
 
         :param strategy: 策略
         """
-        logger.info("Start to init depend data for intelligent strategy({})".format(strategy.id))
+        logger.info(f"Start to init depend data for intelligent strategy({strategy.id})")
         item: Item = strategy.items[0]
 
         for algorithm in item.algorithms:
@@ -90,13 +90,17 @@ class TsDependPreparationProcess(BasePreparationProcess):
 
             init_depend_api_func = INIT_DEPEND_MAPPINGS.get(algorithm_type)
             if not init_depend_api_func:
-                logger.warning("Not supported init depend data for '{}' type algorithm".format(algorithm_type))
+                logger.warning(f"Not supported init depend data for '{algorithm_type}' type algorithm")
                 continue
+
+            # 提取控制参数（排除 type, config, unit_prefix, level 等算法配置字段）
+            extra_config = {k: v for k, v in algorithm.get("config", {}).items() if k in EXTRA_CONFIG_KEYS}
+            logger.info(f"Strategy({strategy.id}) extra_config: {extra_config}")
 
             start_time, end_time = self.generate_depend_time_range(item)
 
             self.init_depend_data(
-                strategy, init_depend_api_func, start_time, end_time, processed_dimensions, update_time
+                strategy, init_depend_api_func, start_time, end_time, processed_dimensions, update_time, extra_config
             )
 
             # 如果初始化完历史依赖后发现当前时间过长，则再添补刷新过程中的时间范围（如果超过12小时）
@@ -105,10 +109,16 @@ class TsDependPreparationProcess(BasePreparationProcess):
                 raise Exception(f"Init strategy({strategy.id}) depend data too long")
             if latest_end_time - end_time >= 3600:
                 self.init_depend_data(
-                    strategy, init_depend_api_func, latest_end_time, end_time, processed_dimensions, update_time
+                    strategy,
+                    init_depend_api_func,
+                    latest_end_time,
+                    end_time,
+                    processed_dimensions,
+                    update_time,
+                    extra_config,
                 )
 
-    def generate_depend_time_range(self, item: Item) -> Tuple[int, int]:
+    def generate_depend_time_range(self, item: Item) -> tuple[int, int]:
         """根据配置生成历史依赖的开始时间和结束时间."""
         ts_depend = item.algorithms[0].get("ts_depend", "50h")
         ts_depend_offset = parse_time_compare_abbreviation(ts_depend)
@@ -122,8 +132,9 @@ class TsDependPreparationProcess(BasePreparationProcess):
         init_depend_api_func: callable,
         start_time: int,
         end_time: int,
-        processed_dimensions: Set,
+        processed_dimensions: set,
         update_time: int = None,
+        extra_config: dict = None,
     ) -> None:
         item: Item = strategy.items[0]
 
@@ -145,9 +156,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
 
             step_start_time = max(step_end_time - minute_step * 60, start_time)
             logger.info(
-                "Start to init depend data for intelligent strategy({}) with time range({} - {})".format(
-                    strategy.id, timestamp2datetime(step_start_time), timestamp2datetime(step_end_time)
-                )
+                f"Start to init depend data for intelligent strategy({strategy.id}) with time range({timestamp2datetime(step_start_time)} - {timestamp2datetime(step_end_time)})"
             )
 
             # 如果预加载数据包含当前时间段，则直接使用预加载数据
@@ -176,6 +185,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
                         init_depend_api_func=init_depend_api_func,
                         strategy_records=item_records,
                         processed_dimensions=processed_dimensions,
+                        extra_config=extra_config,
                     )
                 )
                 if start_time < step_end_time:
@@ -205,10 +215,12 @@ class TsDependPreparationProcess(BasePreparationProcess):
         self,
         strategy: Strategy,
         init_depend_api_func: callable,
-        strategy_records: List[Dict],
-        processed_dimensions: Set,
+        strategy_records: list[dict],
+        processed_dimensions: set,
+        extra_config: dict = None,
     ) -> None:
         item: Item = strategy.items[0]
+        extra_config = extra_config or {}
 
         depend_data_by_dimensions = {}
         is_structure = "agg_dimension" in item.query_configs[0]
@@ -255,12 +267,26 @@ class TsDependPreparationProcess(BasePreparationProcess):
                 )
 
                 if len(init_data) >= DEPEND_DATA_MAX_INIT_COUNT:
-                    tasks.append(executor.submit(init_depend_api_func, dependency_data=init_data))
+                    # 将 extra_config 中的控制参数放入 serving_config 传递给 API
+                    serving_config = {
+                        "grey_to_bkfara": extra_config.get("grey_to_bkfara", False),
+                        "service_name": extra_config.get("service_name", "default"),
+                    }
+                    tasks.append(
+                        executor.submit(init_depend_api_func, dependency_data=init_data, serving_config=serving_config)
+                    )
                     init_data = []
 
                 processed_dimensions.add(dimensions_key)
 
             if len(init_data) > 0:
-                tasks.append(executor.submit(init_depend_api_func, dependency_data=init_data))
+                # 将 extra_config 中的控制参数放入 serving_config 传递给 API
+                serving_config = {
+                    "grey_to_bkfara": extra_config.get("grey_to_bkfara", False),
+                    "service_name": extra_config.get("service_name", "default"),
+                }
+                tasks.append(
+                    executor.submit(init_depend_api_func, dependency_data=init_data, serving_config=serving_config)
+                )
 
         as_completed(tasks)

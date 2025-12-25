@@ -8,18 +8,27 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import abc
+from typing import Any
+from collections.abc import Callable
+
+from django.db.models import Q
 from rest_framework import serializers
 
 from api.cmdb.define import Host
-from apm_web.handlers.host_handler import HostHandler
-from apm_web.strategy.dispatch.entity import EntitySet
+from bkmonitor.data_source import q_to_conditions
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.documents import AlertDocument
-from constants.alert import APMTargetType, K8STargetType, K8S_RESOURCE_TYPE, EventTargetType
+from constants.alert import APMTargetType, K8STargetType
+from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import Resource, resource, api
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
+from fta_web.alert_v2.target import BaseTarget, get_target_instance
+from monitor_web.data_explorer.event.constants import EventSource
 from monitor_web.data_explorer.event.resources import EventLogsResource
+from apm_web.event.resources import EventLogsResource as APMEventLogsResource
 
-from metadata import models
+from monitor_web.data_explorer.event.utils import get_cluster_table_map
 
 
 class AlertDetailResource(BaseAlertDetailResource):
@@ -64,7 +73,163 @@ class AlertDetailResource(BaseAlertDetailResource):
         return data
 
 
-class AlertEventsResource(Resource):
+class AlertEventBaseResource(Resource, abc.ABC):
+    """告警事件基础资源类。
+
+    为告警关联事件查询提供通用的查询构建逻辑。
+    """
+
+    @classmethod
+    def _get_q(cls, target: BaseTarget) -> QueryConfigBuilder:
+        using: tuple[str, str] = (DataTypeLabel.EVENT, DataSourceLabel.CUSTOM)
+        if cls.is_apm_target(target):
+            using = (DataTypeLabel.EVENT, DataSourceLabel.BK_APM)
+
+        return QueryConfigBuilder(using).time_field("time")
+
+    @classmethod
+    def is_apm_target(cls, target: BaseTarget) -> bool:
+        """判断是否为 APM 目标"""
+        return target.TARGET_TYPE == APMTargetType.SERVICE
+
+    @classmethod
+    def build_host_query(
+        cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder
+    ) -> QueryConfigBuilder | None:
+        """构建主机事件查询。
+
+        :param alert: 告警文档对象
+        :param target: 目标对象
+        :param q: 查询构建器
+        :return: 查询配置，如果无关联主机则返回 None
+        """
+        related_targets: list[str] = [
+            f"{host['bk_cloud_id']}:{host['bk_target_ip']}" for host in target.list_related_host_targets()
+        ]
+        if not related_targets:
+            return None
+
+        return q.table("gse_system_event").conditions(q_to_conditions(Q(target=related_targets)))
+
+    @classmethod
+    def build_k8s_query(
+        cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder
+    ) -> QueryConfigBuilder | None:
+        """
+        构建 K8S 事件查询。
+        :param alert: 告警文档对象
+        :param target: 目标对象
+        :param q: 查询构建器
+        :return: 构建好的查询配置，如果无关联 K8S 资源则返回 None
+        """
+        related_targets: list[dict[str, Any]] = target.list_related_k8s_targets().get("target_list", [])
+        if not related_targets:
+            return None
+
+        # 非服务类告警只有一个 k8s 目标，服务类告警直接复用服务关联事件检索，不走此逻辑。
+        related_k8s_target: dict[str, Any] = related_targets[0]
+
+        bcs_cluster_id: str = related_k8s_target.get("bcs_cluster_id", "")
+        if not bcs_cluster_id:
+            # 没有集群 ID，无法查询事件
+            return None
+
+        table: str = get_cluster_table_map((bcs_cluster_id,)).get(bcs_cluster_id, "")
+        if not table:
+            return None
+
+        filter_q: Q = Q()
+        workload: str | None = related_k8s_target.pop("workload", "")
+        if workload and target.TARGET_TYPE == K8STargetType.WORKLOAD:
+            # 工作负载类型，按 kind 和 name 查询
+            kind, name = workload.split(":")
+            filter_q &= Q(kind=kind, name=name)
+            if related_k8s_target.get("namespace"):
+                filter_q &= Q(namespace=related_k8s_target["namespace"])
+        else:
+            # 其他类型（Pod、Node、Service等），按资源类型字段查询。
+            filter_q &= Q(**{key: value for key, value in related_k8s_target.items()})
+
+        return q.table(table).conditions(q_to_conditions(filter_q))
+
+    @classmethod
+    def build_apm_query(
+        cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder
+    ) -> QueryConfigBuilder | None:
+        """构建 APM 事件查询。
+
+        :param alert: 告警文档对象
+        :param target: 目标对象
+        :param q: 查询构建器
+        :return: 构建好的查询配置
+        """
+        return q.table("builtin")
+
+    @classmethod
+    def build_generic_query(
+        cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder
+    ) -> QueryConfigBuilder | None:
+        """构建通用事件查询。
+
+        # TODO：事件类告警直接使用结果表 + 策略过滤条件 + 触发告警维度条件进行关联。
+
+        :param alert: 告警文档对象
+        :param target: 目标对象
+        :param q: 查询构建器
+        :return: 构建好的查询配置
+        """
+        return None
+
+    @classmethod
+    def build_queryset(cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder) -> UnifyQuerySet:
+        """构建统一查询集。
+
+        根据目标类型选择合适的查询构建函数组合查询条件。
+
+        :param alert: 告警文档对象
+        :param target: 目标对象
+        :param q: 查询构建器
+        :return: 统一查询集
+        """
+        build_query_funcs: list[
+            Callable[[AlertDocument, BaseTarget, QueryConfigBuilder], QueryConfigBuilder | None]
+        ] = [cls.build_k8s_query, cls.build_host_query, cls.build_generic_query]
+        if cls.is_apm_target(target):
+            build_query_funcs = [cls.build_apm_query]
+
+        queryset: UnifyQuerySet = UnifyQuerySet().scope(bk_biz_id=alert.event.bk_biz_id).start_time(0).end_time(0)
+        for build_query_func in build_query_funcs:
+            built_q: QueryConfigBuilder | None = build_query_func(alert, target, q)
+            if built_q is not None:
+                queryset = queryset.add_query(built_q)
+        return queryset
+
+    @classmethod
+    def build_query_params(cls, alert: AlertDocument, target: BaseTarget, queryset: UnifyQuerySet) -> dict[str, Any]:
+        """构建事件类接口查询参数。
+
+        :param alert: 告警文档对象
+        :param target: 目标对象
+        :param queryset: 目标对象
+        :return: 接口查询参数
+        """
+        query_params: dict[str, Any] = {
+            "bk_biz_id": alert.event.bk_biz_id,
+            "query_configs": [],
+            "start_time": alert.first_anomaly_time - 20 * 60,
+            "end_time": alert.end_time if alert.end_time else alert.first_anomaly_time + 24 * 60 * 60,
+        }
+        if cls.is_apm_target(target):
+            # 补充 app_name & service_name 信息。
+            query_params.update(target.list_related_apm_targets()[0])
+
+        for query_config in queryset.config.get("query_configs", []):
+            query_params["query_configs"].append(query_config)
+
+        return query_params
+
+
+class AlertEventsResource(AlertEventBaseResource):
     """
     告警关联事件资源类
 
@@ -79,6 +244,12 @@ class AlertEventsResource(Resource):
         """请求参数序列化器"""
 
         alert_id = serializers.CharField(label="告警 id", help_text="要查询的告警ID")
+        # 不传 / 为空代表全部
+        sources = serializers.ListSerializer(
+            child=serializers.ChoiceField(label="事件来源", choices=EventSource.choices()),
+            required=False,
+            default=[],
+        )
         limit = serializers.IntegerField(label="数量限制", required=False, default=10, help_text="返回事件的最大数量")
         offset = serializers.IntegerField(label="偏移量", required=False, default=0, help_text="分页偏移量")
 
@@ -97,182 +268,26 @@ class AlertEventsResource(Resource):
         Raises:
             ValueError: 当告警目标类型不支持时抛出异常
         """
-        alert_id = validated_request_data["alert_id"]
-        # 根据告警ID获取告警文档对象
-        alert = AlertDocument.get(alert_id)
-        target_type = alert.event.target_type
+        alert_id: str = validated_request_data["alert_id"]
+        alert: AlertDocument = AlertDocument.get(alert_id)
+        target: BaseTarget = get_target_instance(alert)
+        q: QueryConfigBuilder = self._get_q(target)
+        if validated_request_data.get("sources"):
+            q: QueryConfigBuilder = q.conditions(q_to_conditions(Q(source=validated_request_data["sources"])))
 
-        # 设置事件查询的时间范围
-        self.time_range_params = {
-            # 告警开始前五分钟，扩大查询范围以获取相关事件
-            "start_time": alert.first_anomaly_time - 5 * 60,
-            # 告警结束时间，如果未结束则取告警开始后24小时
-            "end_time": alert.end_time if alert.end_time else alert.first_anomaly_time + 24 * 60 * 60,
-        }
+        queryset: UnifyQuerySet = self.build_queryset(alert, target, q)
+        query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
+        query_params["limit"] = validated_request_data["limit"]
+        query_params["offset"] = validated_request_data["offset"]
 
-        if target_type == EventTargetType.HOST:
-            # 主机对象告警，查询主机相关事件
-            return self.query_events_by_host(validated_request_data, alert, target_type)
-        elif target_type.startswith("K8S"):
-            # 容器对象告警，target_type示例: K8S:Pod, K8S:Node等
-            return self.query_events_by_k8s_target(validated_request_data, alert, target_type)
+        if self.is_apm_target(target):
+            return APMEventLogsResource().request(query_params)
 
-        # 不支持的告警目标类型
-        raise ValueError(f"unsupported alert target type: {target_type}")
-
-    def query_events_by_host(self, validated_request_data, alert, target_type):
-        """
-        根据主机告警对象获取主机关联的事件
-
-        查询GSE系统事件表，获取指定主机在告警时间范围内的相关事件
-
-        Args:
-            validated_request_data: 验证后的请求参数
-            alert: AlertDocument
-            target_type: 目标类型（host）
-
-        Returns:
-            dict: 主机事件查询结果
-        """
-        # GSE系统事件表ID
-        host_event_table_id = "gse_system_event"
-
-        # 构建事件查询参数
-        query_params = {
-            "query_configs": [
-                {
-                    "data_source_label": "custom",  # 自定义数据源
-                    "data_type_label": "event",  # 事件类型数据
-                    "table": host_event_table_id,  # 查询表名
-                    "query_string": "",  # 查询字符串（空表示查询所有）
-                    "where": [
-                        {
-                            "condition": "and",
-                            "key": "target",
-                            "method": "eq",
-                            # 目标主机格式: bk_cloud_id:ip
-                            "value": [f"{alert.event.bk_cloud_id}:{alert.event.ip}"],
-                        }
-                    ],
-                    "group_by": ["type"],  # 按事件类型分组
-                    "filter_dict": {},  # 额外过滤条件
-                }
-            ],
-            "bk_biz_id": alert.event.bk_biz_id,  # 业务ID
-            "limit": validated_request_data["limit"],  # 限制返回数量
-            "offset": validated_request_data["offset"],  # 分页偏移
-            "sort": [],  # 排序规则
-        }
-
-        # 添加时间范围参数
-        query_params.update(self.time_range_params)
-
-        # 调用事件日志资源进行查询
-        return EventLogsResource()(query_params)
-
-    def query_events_by_k8s_target(self, validated_request_data, alert, target_type, target=None):
-        """
-        根据K8S容器告警对象获取容器关联的事件
-
-        查询BCS事件表，获取指定K8S资源在告警时间范围内的相关事件
-
-        Args:
-            validated_request_data: 验证后的请求参数
-            alert: AlertDocument
-            target_type: K8S目标类型（K8S-POD、K8S_NODE、K8S-WORKLOAD、K8S-SERVICE）
-            target: 目标对象（可选）
-
-        Returns:
-            dict: K8S事件查询结果，如果无法获取集群信息则返回空列表
-        """
-        # 空事件结果
-        empty_events = {"list": []}
-
-        # 如果未提供目标对象，从告警中获取
-        if target is None:
-            target_list = AlertK8sTargetResource.k8s_target_list(alert)["target_list"]
-            if target_list:
-                target = target_list[0]
-
-        # 获取BCS集群ID
-        bcs_cluster_id = target.get("bcs_cluster_id", "")
-        if not bcs_cluster_id:
-            # 没有集群ID，无法查询事件
-            return empty_events
-
-        # 获取BCS事件表ID
-        table_id = self._get_bcs_event_table_id(bcs_cluster_id)
-
-        # 根据不同的目标类型构建查询条件
-        # 工作负载类型，需要按kind和name查询
-        where = []
-        workload = target.pop("workload", "")
-        if workload and target_type == K8STargetType.WORKLOAD:
-            kind, name = workload.split(":")
-            where += [
-                {"condition": "and", "key": "kind", "method": "eq", "value": [kind]},
-                {"condition": "and", "key": "name", "method": "eq", "value": [name]},
-            ]
-        else:
-            # 其他类型（Pod、Node、Service等），按资源类型字段查询
-            where += [
-                {"condition": "and", "key": key, "method": "eq", "value": [value]} for key, value in target.items()
-            ]
-
-        # 构建K8S事件查询参数
-        query_params = {
-            "query_configs": [
-                {
-                    "data_source_label": "custom",  # 自定义数据源
-                    "data_type_label": "event",  # 事件类型数据
-                    "table": table_id,  # BCS事件表ID
-                    "query_string": "",  # 查询字符串
-                    "where": where,  # 查询条件
-                    "group_by": ["type"],  # 按事件类型分组
-                    "filter_dict": {},  # 额外过滤条件
-                }
-            ],
-            "bk_biz_id": alert.event.bk_biz_id,  # 业务ID
-            "limit": validated_request_data["limit"],  # 限制返回数量
-            "offset": validated_request_data["offset"],  # 分页偏移
-            "sort": [],  # 排序规则
-        }
-
-        # 添加时间范围参数
-        query_params.update(self.time_range_params)
-
-        # 调用事件日志资源进行查询
-        return EventLogsResource()(query_params)
-
-    def _get_bcs_event_table_id(self, bcs_cluster_id):
-        """
-        根据BCS集群ID获取对应的事件表ID
-
-        通过集群信息查找对应的K8S事件数据源，并获取结果表ID
-
-        Args:
-            bcs_cluster_id: BCS集群ID
-
-        Returns:
-            str: 事件表ID，如果未找到则返回空字符串
-        """
-        # 查询BCS集群信息，只获取必要字段以提高性能
-        cluster = (
-            models.BCSClusterInfo.objects.filter(
-                cluster_id=bcs_cluster_id,
-            )
-            .only("cluster_id", "K8sEventDataID")
-            .first()
-        )
-
-        result_table_id = ""
-        if cluster:
-            # 根据K8S事件数据ID查找对应的结果表
-            data_source_result = models.DataSourceResultTable.objects.filter(bk_data_id=cluster.K8sEventDataID).first()
-            if data_source_result:
-                result_table_id = data_source_result.table_id
-
-        return result_table_id
+        result: dict[str, Any] = EventLogsResource().request(query_params)
+        if result.get("query_config") and result["query_config"].get("query_configs"):
+            # 事件检索仅支持单数据源查询，取第一个用于前端跳转。
+            result["query_config"]["query_configs"] = result["query_config"]["query_configs"][0]
+        return result
 
 
 class AlertK8sScenarioListResource(Resource):
@@ -375,115 +390,6 @@ class AlertK8sTargetResource(Resource):
 
         alert_id = serializers.CharField(label="告警 id", help_text="要查询的告警ID")
 
-    @classmethod
-    def k8s_target_list(cls, alert):
-        """
-        从告警对象中提取K8S目标信息
-
-        解析告警的标签信息，构建K8S资源目标对象
-
-        Args:
-            alert: 告警文档对象
-
-        Returns:
-            dict: 包含资源类型和目标列表的字典
-                {
-                    "resource_type": "pod",  # 资源类型
-                    "target_list": [         # 目标对象列表
-                        {
-                            "pod": "xxx",
-                            "bcs_cluster_id": "xxx",
-                            "namespace": "xxx",
-                            "workload": "Deployment:xxx"
-                        }
-                    ]
-                }
-        """
-        # 从告警事件标签中提取维度信息
-        alert_dimensions = {tag["key"]: tag["value"] for tag in alert.event.tags}
-
-        # 如果存在工作负载信息，组合成workload字段
-        if "workload_kind" in alert_dimensions and "workload_name" in alert_dimensions:
-            alert_dimensions["workload"] = f"{alert_dimensions['workload_kind']}:{alert_dimensions['workload_name']}"
-
-        # 获取目标类型和对应的资源字段名
-        target_type = alert.event.target_type
-        resource_type = K8S_RESOURCE_TYPE[target_type]
-
-        # 构建目标信息结构
-        target_info = {"resource_type": resource_type, "target_list": []}
-
-        # 构建单个目标对象
-        target = {
-            resource_type: alert.event.target,  # 资源名称
-            "bcs_cluster_id": alert_dimensions.get("bcs_cluster_id", ""),  # 集群ID
-        }
-
-        # 补充资源限定范围
-        if "namespace" in alert_dimensions:
-            target["namespace"] = alert_dimensions["namespace"]
-        if "workload_kind" in alert_dimensions and "workload_name" in alert_dimensions:
-            target["workload"] = f"{alert_dimensions['workload_kind']}:{alert_dimensions['workload_name']}"
-
-        # 将目标对象添加到列表中
-        target_info["target_list"].append(target)
-        return target_info
-
-    @classmethod
-    def apm_target_list(cls, alert: AlertDocument) -> dict:
-        """
-        获取 APM 服务关联的容器负载目标信息
-
-        注：APM 场景下资源类型都为 workload。
-
-        :param alert: 告警文档对象
-        :type alert: AlertDocument
-        :return: 包含资源类型和目标对象列表的字典
-        :rtype: dict
-
-        返回示例:
-
-            {
-                "resource_type": "workload",
-                "target_list": [
-                    {
-                        "workload": "Deployment:xxx",
-                        "bcs_cluster_id": "xxx",
-                        "namespace": "xxx"
-                    }
-                ]
-            }
-        """
-        # 构建目标信息结构，APM 场景下资源类型固定为 workload
-        target_info: dict = {"resource_type": K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD], "target_list": []}
-
-        app_name, service_name = APMTargetType.parse_target(alert.event.target)
-
-        # 获取 APM 服务关联的容器负载，构建目标对象资源列表
-        entity_set: EntitySet = EntitySet(
-            bk_biz_id=alert.event.bk_biz_id,
-            app_name=app_name,
-            service_names=[service_name],
-        )
-        for workload in entity_set.get_workloads(service_name):
-            bcs_cluster_id: str = workload.get("bcs_cluster_id", "")
-            namespace: str = workload.get("namespace", "")
-            workload_kind: str = workload.get("kind", "")
-            workload_name: str = workload.get("name", "")
-
-            if not all([bcs_cluster_id, namespace, workload_kind, workload_name]):
-                continue
-
-            target_info["target_list"].append(
-                {
-                    "workload": f"{workload_kind}:{workload_name}",
-                    "bcs_cluster_id": bcs_cluster_id,
-                    "namespace": namespace,
-                }
-            )
-
-        return target_info
-
     def perform_request(self, validated_request_data):
         """
         执行K8S目标对象查询请求
@@ -499,24 +405,8 @@ class AlertK8sTargetResource(Resource):
         alert_id: str = validated_request_data["alert_id"]
         # 根据告警ID获取告警文档对象
         alert: AlertDocument = AlertDocument.get(alert_id)
-        target_type: str = alert.event.target_type
-
-        # 检查是否为支持的K8S目标类型
-        if target_type in [
-            K8STargetType.POD,
-            K8STargetType.WORKLOAD,
-            K8STargetType.NODE,
-            K8STargetType.SERVICE,
-        ]:
-            target_list = self.k8s_target_list(alert)
-            return target_list
-
-        # 检查是否为 APM 目标类型
-        if target_type == APMTargetType.SERVICE:
-            return self.apm_target_list(alert)
-
-        # 不支持的类型返回空字典
-        return {}
+        target: BaseTarget = get_target_instance(alert)
+        return target.list_related_k8s_targets()
 
 
 class AlertHostTargetResource(Resource):
@@ -547,110 +437,21 @@ class AlertHostTargetResource(Resource):
         alert_id: str = validated_request_data["alert_id"]
         # 根据告警ID获取告警文档对象
         alert: AlertDocument = AlertDocument.get(alert_id)
-        target_type: str = alert.event.target_type
 
-        # 检查是否为主机目标类型
-        if target_type == EventTargetType.HOST:
-            try:
-                target_list = self.host_target_list(alert)
-            except AttributeError:
-                target_list = []
-            return target_list
-
-        # 检查是否为 APM 目标类型
-        if target_type == APMTargetType.SERVICE:
-            return self.apm_host_target_list(alert)
-
-        # 不支持的类型返回空列表
-        return []
+        target: BaseTarget = get_target_instance(alert)
+        return self.process_target_list(alert, target.list_related_host_targets())
 
     @classmethod
-    def host_target_list(cls, alert):
-        """
-        从告警对象中提取主机目标信息
-
-        解析告警的标签信息，构建主机目标对象
-
-        Args:
-            alert: 告警文档对象
-
-        Returns:
-            dict: 包含主机IP和云区域ID的字典
-        """
-        target_info = {
-            "bk_host_id": alert.event.bk_host_id,
-            "bk_target_ip": alert.event.ip,
-            "bk_cloud_id": alert.event.bk_cloud_id,
-            "display_name": alert.event.ip,
-            "bk_host_name": "",
-        }
-        hosts = api.cmdb.get_host_by_id(bk_biz_id=alert.event.bk_biz_id, bk_host_ids=[alert.event.bk_host_id])
-        if not hosts:
-            return [target_info]
-
-        return cls.flat_host_info(hosts, alert)
-
-    @classmethod
-    def apm_host_target_list(cls, alert: AlertDocument) -> list[dict[str, str | int]]:
-        """
-        获取 APM 服务关联的主机目标信息
-
-        :param alert: 告警文档对象
-        :type alert: AlertDocument
-        :return: 扁平化后的主机信息列表
-        :rtype: list[dict[str, str | int]]
-
-        返回示例:
-            [
-                {
-                    "bk_host_id": 123,
-                    "bk_target_ip": "127.0.0.1",
-                    "bk_cloud_id": 123,
-                    "display_name": "xxx / k8s-node / 127.0.0.1",
-                    "bk_host_name": "xxx"
-                }
-            ]
-        """
-        app_name, service_name = APMTargetType.parse_target(alert.event.target)
-
-        # 调用 HostHandler 获取 APM 应用关联的主机列表
-        host_list: list[dict] = HostHandler.list_application_hosts(
-            bk_biz_id=alert.event.bk_biz_id,
-            app_name=app_name,
-            service_name=service_name,
-        )
-
-        # 若无关联的主机，则返回空列表
-        if not host_list:
-            return []
-
-        # 提取主机 id 列表，将字符串格式的主机 id 转换为整数
-        target_hosts: list[dict[str, str | int]] = []
-        bk_host_ids: list[int] = []
-        for host in host_list:
-            bk_host_id: str | None = host.get("bk_host_id")
-            if not bk_host_id or not str(bk_host_id).isdigit():
-                continue
-            target_hosts.append(
-                {
-                    "bk_host_id": int(bk_host_id),
-                    "bk_target_ip": host["bk_host_innerip"],
-                    "bk_cloud_id": int(host["bk_cloud_id"]),
-                    "display_name": host["bk_host_innerip"],
-                    "bk_host_name": "",
-                }
-            )
-            bk_host_ids.append(int(bk_host_id))
-
-        # 若无有效的主机 id，则返回空列表
+    def process_target_list(cls, alert: AlertDocument, target_list: list[dict[str, Any]]):
+        # 经过 Target 清洗后一定有 bk_host_id。
+        bk_host_ids: list[int] = [target["bk_host_id"] for target in target_list]
         if not bk_host_ids:
             return []
 
         # 调用 CMDB API 获取主机详细信息
         hosts: list[Host] = api.cmdb.get_host_by_id(bk_biz_id=alert.event.bk_biz_id, bk_host_ids=bk_host_ids)
         if not hosts:
-            return target_hosts
-
+            return target_list
         return cls.flat_host_info(hosts, alert)
 
     @classmethod

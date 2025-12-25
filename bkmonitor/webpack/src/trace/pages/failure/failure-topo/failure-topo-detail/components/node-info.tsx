@@ -30,10 +30,10 @@ import { Message, OverflowTitle } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 
+import { checkIsRoot } from '../../../utils';
 import AggregatedEdgesList from '../../components/aggregated-edges-list';
 import { NODE_TYPE_ICON } from '../../node-type-svg';
-import { getApmServiceType, truncateText } from '../../utils';
-import { canJumpByType, handleToLink, typeToLinkHandle } from '../../utils';
+import { canJumpByType, getApmServiceType, handleToLink, truncateText, typeToLinkHandle } from '../../utils';
 import MetricView from './metric-view';
 
 import type { ActiveTab, IEdge, IncidentDetailData, ITopoNode } from '../../types';
@@ -181,8 +181,9 @@ export default defineComponent({
 
     /** 渲染节点信息 */
     const renderNodeInfo = (node: ITopoNode) => {
-      const isShowRootText = node.is_feedback_root || node?.entity?.is_root;
-      const bgColor = node?.entity?.is_root ? '#EA3636' : '#FF9C01';
+      const isRoot = checkIsRoot(node?.entity);
+      const isShowRootText = node.is_feedback_root || isRoot;
+      const bgColor = isRoot ? '#EA3636' : '#FF9C01';
       return (
         <div class='node-info'>
           <div class='node-info-header'>
@@ -321,7 +322,7 @@ export default defineComponent({
                 >
                   <OverflowTitle
                     class='except-text'
-                    popoverOptions={{ maxWidth: 360 }}
+                    popoverOptions={{ maxWidth: 360, placement: 'top', extCls: 'except-text_popover' }}
                     type='tips'
                   >
                     <span>{node.entity.rca_trace_info.abnormal_message}</span>

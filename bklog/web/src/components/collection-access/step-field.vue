@@ -394,9 +394,9 @@
                   <span v-bk-tooltips="$t('你可以自行指定日志展示时间，勾选前请提前清洗日志时间')">{{
                     $t('指定字段为日志时间')
                   }}</span>
-                  <!-- <span style="color: red; font-size: 12px;">
-                    (纳秒时间格式异常，修复中，暂不可用)
-                  </span> -->
+                  <span style=" font-size: 12px;color: #000;">
+                    (切换时间为纳秒，历史数据将无法查询，请谨慎切换)
+                  </span>
                 </bk-radio>
               </bk-radio-group>
             </div>

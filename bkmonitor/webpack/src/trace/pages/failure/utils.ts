@@ -119,3 +119,10 @@ const getTraceQueryParams = (data: ITraceAnalysis, type: 'spanDetail' | 'traceDe
     incident_query: encodeURIComponent(JSON.stringify(incidentQuery)),
   };
 };
+
+// 检查是否展示根因节点
+export const checkIsRoot = (entity: any) => {
+  if (!entity?.component_type) return false;
+
+  return entity.is_root && entity.component_type === 'primary';
+};
