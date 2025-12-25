@@ -1503,8 +1503,6 @@ APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split('
 
 # 是否启用新版的数据链路，默认开启
 ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == "true"
-# 是否启用事件组V4数据链路，默认关闭
-ENABLE_V4_EVENT_GROUP_DATA_LINK = os.getenv("ENABLE_V4_EVENT_GROUP_DATA_LINK", "false").lower() == "true"
 # 插件数据是否启用接入V4链路，默认开启
 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "true").lower() == "true"
 # 是否启用influxdb，默认关闭

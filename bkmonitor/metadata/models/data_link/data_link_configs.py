@@ -206,7 +206,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
                         "name": "{{prefer_kafka_cluster_name}}"
                     },
                     {% endif %}
-                    "event_type": "{{event_type}}"
+                    "eventType": "{{event_type}}"
                 }
             }
             """
