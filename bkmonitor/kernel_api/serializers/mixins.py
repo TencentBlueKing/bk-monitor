@@ -24,6 +24,28 @@ class TimeSpanValidationPassThroughSerializer(serializers.Serializer):
 
     max_time_span_seconds = ONE_DAY_SECONDS
 
+    @staticmethod
+    def _convert_timestamp_to_seconds(timestamp: int) -> float:
+        """
+        将时间戳统一转换为秒级
+        支持秒级（10位）、毫秒级（13位）、纳秒级（19位）时间戳
+
+        Args:
+            timestamp: 时间戳（可能是秒、毫秒或纳秒）
+
+        Returns:
+            转换为秒级的时间戳
+        """
+        # 纳秒级：>= 1e18 (19位数字)，除以1e9转换为秒
+        if timestamp >= 1e18:
+            return timestamp / 1e9
+        # 毫秒级：>= 1e12 (13位数字)，除以1000转换为秒
+        elif timestamp >= 1e12:
+            return timestamp / 1000
+        # 秒级：直接返回
+        else:
+            return float(timestamp)
+
     def to_internal_value(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         先执行常规序列化（包括字段验证和默认值应用），然后合并未定义的字段，最后验证时间跨度
@@ -47,7 +69,12 @@ class TimeSpanValidationPassThroughSerializer(serializers.Serializer):
                 # 转换为整数进行时间跨度验证（不修改原始字段值，因为子类可能定义为 CharField）
                 start_time_int = int(start_time)
                 end_time_int = int(end_time)
-                time_span = end_time_int - start_time_int
+
+                # 统一转换为秒级时间戳（支持秒、毫秒、纳秒）
+                start_time_seconds = self._convert_timestamp_to_seconds(start_time_int)
+                end_time_seconds = self._convert_timestamp_to_seconds(end_time_int)
+
+                time_span = end_time_seconds - start_time_seconds
                 if time_span > self.max_time_span_seconds:
                     raise serializers.ValidationError(
                         {
