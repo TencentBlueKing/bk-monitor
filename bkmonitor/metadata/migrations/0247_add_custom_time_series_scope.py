@@ -73,20 +73,31 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
     # 收集所有配置信息到统一的数据结构
     scope_info = defaultdict(lambda: {"is_default": False, "dim_configs": {}})
 
-    # 收集维度字段的配置信息
+    # 收集所有需要查询的维度名称
+    dim_field_dict = {dim_field.name: dim_field for dim_field in dimension_fields}
+    all_needed_dimension_names = set(dim_field_dict.keys()) | {
+        dim for field in metric_fields for dim in field.config.get("dimensions", [])
+    }
+
+    rt_fields_dict = {
+        item["field_name"]: item["description"]
+        for item in ResultTableField.objects.filter(
+            table_id=table_id, field_name__in=all_needed_dimension_names, bk_tenant_id=bk_tenant_id
+        ).values("field_name", "description")
+    }
+
+    # 收集所有维度的配置信息
     dim_configs = {}
-    for dim_field in dimension_fields:
-        config = {k: v for k, v in dim_field.config.items() if k in ["common", "hidden"]}
+    for dim_name in all_needed_dimension_names:
+        config = {}
+        # 如果维度在 dim_field_dict 中，提取其配置
+        if dim_name in dim_field_dict:
+            config = {k: v for k, v in dim_field_dict[dim_name].config.items() if k in ["common", "hidden"]}
+        # 添加 alias
+        if description := rt_fields_dict.get(dim_name):
+            config["alias"] = description
 
-        # 从 ResultTableField 获取别名
-        rt_field = ResultTableField.objects.filter(
-            table_id=table_id, field_name=dim_field.name, bk_tenant_id=bk_tenant_id
-        ).first()
-        if rt_field and rt_field.description:
-            config["alias"] = rt_field.description
-
-        if config:
-            dim_configs[dim_field.name] = config
+        dim_configs[dim_name] = config
 
     # 收集 scope 信息和维度使用情况
     for field in metric_fields:
