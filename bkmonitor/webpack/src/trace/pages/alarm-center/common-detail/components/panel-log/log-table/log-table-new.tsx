@@ -37,7 +37,6 @@ import {
 
 import { type TableSort, type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { debounce } from 'lodash';
-import EmptyStatus from 'trace/components/empty-status/empty-status';
 import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';
 
@@ -311,11 +310,7 @@ export default defineComponent({
             tableLayout='fixed'
             onExpandChange={this.handleExpandChange}
             onSortChange={this.handleSortChange}
-          >
-            {{
-              empty: () => <EmptyStatus type={'empty'} />,
-            }}
-          </PrimaryTable>
+          />
         ) : (
           <LogException />
         )}
