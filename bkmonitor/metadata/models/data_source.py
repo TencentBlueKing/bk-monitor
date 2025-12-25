@@ -608,7 +608,7 @@ class DataSource(models.Model):
                 is_base = False
 
                 # 如果需要走V4链路，则需要确保Kafka集群已经注册到bkbase平台
-                if not mq_cluster.registered_to_bkbase:
+                if not mq_cluster.registered_to_bkbase and settings.ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME:
                     raise ValueError(
                         f"kafka cluster {mq_cluster.cluster_name} is not registered to bkbase, please contact administrator to register"
                     )
