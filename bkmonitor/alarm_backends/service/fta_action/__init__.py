@@ -258,55 +258,48 @@ class BaseActionProcessor:
 
         # 更新动作状态为熔断
         self.is_finished = True
-        self.action.status = ActionStatus.BLOCKED
-        self.action.end_time = datetime.now(tz=timezone.utc)
-        self.action.ex_data = {
-            "message": "套餐执行被熔断",
-            "circuit_breaking": True,
-        }
-        self.action.save(update_fields=["status", "end_time", "ex_data"])
+        self.update_action_status(
+            to_status=ActionStatus.BLOCKED,
+            end_time=datetime.now(tz=timezone.utc),
+            need_poll=False,
+            ex_data={
+                "message": "套餐执行被熔断",
+                "circuit_breaking": True,
+            },
+        )
 
-        # 记录告警流水
+        # 记录 action 执行日志
+        self.insert_action_log(
+            step_name=_("套餐执行熔断"),
+            action_log=_("执行被熔断: 套餐执行被熔断"),
+            level=ActionLogLevel.INFO,
+        )
+
+        # 插入熔断告警流水记录
         try:
-            self._create_circuit_breaking_alert_log()
+            action_name = self.action_config.get("name", "")
+            plugin_type = self.action.action_plugin.get("plugin_type", "")
+            circuit_breaking_description = json.dumps(
+                {
+                    "action_id": self.action.id,
+                    "action_name": action_name,
+                    "plugin_type": plugin_type,
+                    "content": f"处理套餐{action_name}执行被熔断",
+                },
+                ensure_ascii=False,
+            )
+
+            self.action.insert_alert_log(description=circuit_breaking_description)
+
+            logger.info(
+                f"[circuit breaking] [{plugin_type}] created alert log for circuit breaking: "
+                f"action({self.action.id}) strategy({self.action.strategy_id})"
+            )
         except Exception as e:
             logger.exception(
                 f"[circuit breaking] [{plugin_type}] create circuit breaking alert log failed: "
                 f"action({self.action.id}) strategy({self.action.strategy_id}): {e}"
             )
-
-    def _create_circuit_breaking_alert_log(self):
-        """
-        创建熔断告警流水记录
-        """
-        if not self.action.alerts:
-            return
-
-        action_name = self.action_config.get("name", "")
-        plugin_type = self.action.action_plugin.get("plugin_type", "")
-        description = {
-            "action_id": self.action.id,
-            "action_name": action_name,
-            "plugin_type": plugin_type,
-            "content": f"处理套餐{action_name}执行被熔断",
-        }
-
-        current_timestamp = int(time.time())
-        action_log = dict(
-            op_type=AlertLog.OpType.ACTION,
-            alert_id=self.action.alerts,
-            description=json.dumps(description, ensure_ascii=False),
-            time=current_timestamp,
-            create_time=current_timestamp,
-            event_id=f"{current_timestamp}{self.action.id}",
-        )
-
-        AlertLog.bulk_create([AlertLog(**action_log)])
-
-        logger.info(
-            f"[circuit breaking] [{plugin_type}] created alert log for circuit breaking: "
-            f"action({self.action.id}) strategy({self.action.strategy_id})"
-        )
 
     def wait_callback(self, callback_func, kwargs=None, delta_seconds=0):
         """
