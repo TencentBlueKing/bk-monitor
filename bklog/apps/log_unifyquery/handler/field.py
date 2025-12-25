@@ -122,7 +122,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
                 {"field_name": self.search_params["agg_field"], "value": topk_group_values, "op": "eq"}
             )
             query["conditions"]["field_list"].append(
-                {"field_name": "time", "value": [search_dict["end_time"]], "op": "lte"}
+                {"field_name": "dtEventTimeStamp", "value": [search_dict["end_time"]], "op": "lte"}
             )
         search_dict.update({"metric_merge": f"topk({vargs}, a)"})
         data = self.query_ts(search_dict)
