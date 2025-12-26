@@ -119,7 +119,6 @@ class DashboardPermission(BasePermission):
                 except ValueError:
                     # 资源id无效
                     logger.warning(f"Invalid folder resource ID format: {resource_id}")
-                    pass
             return None, None
 
         # Dashboard 格式: "{org_id}|{uid}" 或 "{uid}"
@@ -294,7 +293,7 @@ class DashboardPermission(BasePermission):
         cls, request, view, org_name: str, force_check: bool = False
     ) -> tuple[bool, GrafanaRole, dict[str, GrafanaPermission]]:
         """
-        仪表盘权限校验, 如果有
+        检查用户的仪表盘权限
         """
         # 内部用户权限处理
         if getattr(request, "skip_check", False) or request.user.is_superuser:
