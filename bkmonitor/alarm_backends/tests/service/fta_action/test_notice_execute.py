@@ -19,11 +19,10 @@ from unittest.mock import MagicMock, patch
 
 import fakeredis
 from unittest import mock
-import pytest
 import pytz
 from django.conf import settings
 from django.db import IntegrityError
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase
 from django.utils.translation import gettext as _
 from elasticsearch_dsl import AttrDict
 
@@ -102,14 +101,13 @@ from constants.action import (
     NoticeWay,
     NotifyStep,
     UserGroupType,
+    VoiceNoticeMode,
 )
 from constants.aiops import DIMENSION_DRILL
 from constants.alert import EventSeverity, EventStatus
 from constants.data_source import KubernetesResultTableLabel
 from core.errors.alarm_backends import EmptyAssigneeError
 from packages.fta_web.action.resources import AlertDocument
-
-pytestmark = pytest.mark.django_db
 
 
 def register_builtin_plugins():
@@ -648,8 +646,8 @@ def converge_actions(instances, action_type=ConvergeType.ACTION, is_enabled=True
         print(f"${instance.id} converge status ", cp.status)
 
 
-class TestActionProcessor(TransactionTestCase):
-    databases = {"monitor_api", "default"}
+class TestActionProcessor(TestCase):
+    databases = {"monitor_api", "default", "backend_alert"}
 
     def setUp(self):
         CONVERGE_LIST_KEY.client.flushall()
@@ -4419,9 +4417,325 @@ class TestActionProcessor(TransactionTestCase):
         mget_alert_patch.stop()
         get_alert_patch.stop()
 
+    def test_voice_parallel_notice_with_voice_notice_group(self):
+        """
+        测试当通知方式为 Voice 且 voice_notice_mode 为 PARALLEL 时，
+        通过 create_actions 创建动作，验证：
+        1. 并行模式下 is_parent_action=False，不会创建子action
+        2. voice_notice_group 包含正确的用户组信息
+        3. notice_receiver 是所有用户的扁平列表
+        """
+        duty_arranges = [
+            {
+                "users": [
+                    {"id": "admin", "display_name": "admin", "logo": "", "type": "user"},
+                    {"id": "operator", "display_name": "主机负责人", "logo": "", "type": "group"},
+                ],
+            },
+            {
+                "users": [{"id": "lisa", "display_name": "管理员", "logo": "", "type": "user"}],
+            },
+        ]
+        group = UserGroup.objects.create(**self.user_group_data)
+        group.need_duty = False
+        group.save()
+        for duty in duty_arranges:
+            duty.update({"user_group_id": group.id})
+            DutyArrange.objects.create(**duty)
+
+        notice_action_config = {
+            "execute_config": {
+                "template_detail": {
+                    "interval_notify_mode": "standard",
+                    "notify_interval": 7200,
+                    "template": notice_template(),
+                    "voice_notice": VoiceNoticeMode.PARALLEL,
+                }
+            },
+            "id": 55555,
+            "plugin_id": 1,
+            "plugin_type": "notice",
+            "is_enabled": True,
+            "bk_biz_id": 2,
+            "name": "test_notice",
+        }
+        strategy_dict = {
+            "id": 1,
+            "type": "monitor",
+            "bk_biz_id": 2,
+            "scenario": "os",
+            "name": "测试新策略",
+            "labels": [],
+            "is_enabled": True,
+            "items": [],
+            "detects": [],
+            "notice": {
+                "id": 1,
+                "config_id": 55555,
+                "user_groups": [group.id],
+                "signal": ["abnormal", "recovered"],
+                "options": {
+                    "converge_config": {
+                        "is_enabled": True,
+                        "converge_func": "collect",
+                        "timedelta": 60,
+                        "count": 1,
+                        "condition": [
+                            {"dimension": "strategy_id", "value": ["self"]},
+                            {"dimension": "dimensions", "value": ["self"]},
+                            {"dimension": "alert_level", "value": ["self"]},
+                            {"dimension": "signal", "value": ["self"]},
+                            {"dimension": "bk_biz_id", "value": ["self"]},
+                            {"dimension": "notice_receiver", "value": ["self"]},
+                            {"dimension": "notice_way", "value": ["self"]},
+                            {"dimension": "notice_info", "value": ["self"]},
+                        ],
+                        "need_biz_converge": True,
+                        "sub_converge_config": {
+                            "timedelta": 60,
+                            "count": 2,
+                            "condition": [
+                                {"dimension": "bk_biz_id", "value": ["self"]},
+                                {"dimension": "notice_receiver", "value": ["self"]},
+                                {"dimension": "notice_way", "value": ["self"]},
+                                {"dimension": "alert_level", "value": ["self"]},
+                                {"dimension": "signal", "value": ["self"]},
+                            ],
+                            "converge_func": "collect_alarm",
+                        },
+                    },
+                    "start_time": "00:00:00",
+                    "end_time": "23:59:59",
+                },
+                "config": notice_action_config["execute_config"]["template_detail"],
+            },
+            "actions": [],
+        }
+        self.alert_info["extra_info"].update(strategy=strategy_dict)
+        self.alert_info["id"] = "voice_parallel_test"
+
+        alert = AlertDocument(**self.alert_info)
+
+        with (
+            patch("bkmonitor.documents.AlertDocument.mget", MagicMock(return_value=[alert])),
+            patch("bkmonitor.documents.AlertDocument.get", MagicMock(return_value=alert)),
+            patch(
+                "alarm_backends.core.cache.action_config.ActionConfigCacheManager.get_action_config_by_id",
+                MagicMock(return_value=notice_action_config),
+            ),
+        ):
+            create_actions(1, "abnormal", alerts=[alert])
+
+            # 并行模式下，is_parent_action=False，不会有 parent action
+            self.assertEqual(
+                ActionInstance.objects.filter(is_parent_action=True, action_config_id=55555).count(),
+                0,
+                "并行语音模式下不应创建 parent action",
+            )
+
+            # 验证创建了1个语音通知 action（is_parent_action=False）
+            voice_actions = ActionInstance.objects.filter(is_parent_action=False, action_config_id=55555)
+            self.assertEqual(voice_actions.count(), 1, "并行模式下应只创建1个语音通知 action")
+
+            voice_action = voice_actions.first()
+            self.assertEqual(voice_action.inputs.get("voice_notice_mode"), VoiceNoticeMode.PARALLEL)
+            self.assertEqual(voice_action.inputs.get("notice_way"), NoticeWay.VOICE)
+
+            # 验证 voice_notice_group 存在且格式正确
+            voice_notice_group = voice_action.inputs.get("voice_notice_group", [])
+            self.assertIsInstance(voice_notice_group, list, "voice_notice_group 应为列表")
+            self.assertGreater(len(voice_notice_group), 0, "voice_notice_group 不能为空")
+
+            # 验证每个组都是用户列表
+            for user_group in voice_notice_group:
+                self.assertIsInstance(user_group, list, "每个用户组应为列表")
+                self.assertGreater(len(user_group), 0, "用户组不能为空")
+
+            # 验证 notice_receiver 是所有用户的扁平列表
+            notice_receiver = voice_action.inputs.get("notice_receiver", [])
+            self.assertIsInstance(notice_receiver, list, "notice_receiver 应为列表")
+
+            # 验证 notice_receiver 包含所有用户
+            all_users_from_groups = set()
+            for user_group in voice_notice_group:
+                all_users_from_groups.update(user_group)
+            self.assertEqual(
+                set(notice_receiver),
+                all_users_from_groups,
+                "notice_receiver 应包含 voice_notice_group 中的所有用户",
+            )
+
+            self.set_notice_cache()
+
+            # 测试执行语音通知
+            processor = NoticeActionProcessor(action_id=voice_action.id)
+            # 验证 processor 获取到了正确的 voice_notice_mode
+            self.assertEqual(processor.voice_notice_mode, VoiceNoticeMode.PARALLEL)
+            # 验证 voice_notice_group 正确传递
+            self.assertEqual(processor.voice_notice_group, voice_notice_group)
+            processor.execute()
+
+            # 验证执行后的状态
+            voice_action.refresh_from_db()
+            self.assertIn(
+                voice_action.status,
+                [ActionStatus.SUCCESS, ActionStatus.FAILURE],
+                f"Action {voice_action.id} status should be SUCCESS or FAILURE, got {voice_action.status}",
+            )
+
+    def test_voice_parallel_convergence(self):
+        """
+        测试语音通知并行模式下的收敛逻辑：
+        1. 相同用户组在2分钟内相同维度告警只通知一次
+        2. 第二次相同维度告警的语音通知应被收敛
+        """
+        # 创建两个告警组
+        duty_arranges = [
+            {
+                "users": [
+                    {"id": "admin", "display_name": "admin", "logo": "", "type": "user"},
+                    {"id": "operator", "display_name": "operator", "logo": "", "type": "user"},
+                ],
+            },
+            {
+                "users": [{"id": "lisa", "display_name": "lisa", "logo": "", "type": "user"}],
+            },
+        ]
+        group = UserGroup.objects.create(**self.user_group_data)
+        group.need_duty = False
+        group.save()
+        for duty in duty_arranges:
+            duty.update({"user_group_id": group.id})
+            DutyArrange.objects.create(**duty)
+
+        notice_action_config = {
+            "execute_config": {
+                "template_detail": {
+                    "interval_notify_mode": "standard",
+                    "notify_interval": 7200,
+                    "template": notice_template(),
+                    "voice_notice": VoiceNoticeMode.PARALLEL,
+                }
+            },
+            "id": 55556,
+            "plugin_id": 1,
+            "plugin_type": "notice",
+            "is_enabled": True,
+            "bk_biz_id": 2,
+            "name": "test_convergence",
+        }
+
+        strategy_dict = {
+            "id": 1,
+            "type": "monitor",
+            "bk_biz_id": 2,
+            "scenario": "os",
+            "name": "测试收敛策略",
+            "labels": [],
+            "is_enabled": True,
+            "items": [],
+            "detects": [],
+            "notice": {
+                "id": 1,
+                "config_id": 55556,
+                "user_groups": [group.id],
+                "signal": ["abnormal"],
+                "options": {
+                    "start_time": "00:00:00",
+                    "end_time": "23:59:59",
+                },
+                "config": notice_action_config["execute_config"]["template_detail"],
+            },
+            "actions": [],
+        }
+
+        # 创建第一个告警
+        alert_info_1 = copy.deepcopy(self.alert_info)
+        alert_info_1["extra_info"].update(strategy=strategy_dict)
+        alert_info_1["id"] = "convergence_test_1"
+        alert_info_1["dedupe_md5"] = "convergence_md5_1"
+        alert_1 = AlertDocument(**alert_info_1)
+
+        with (
+            patch("bkmonitor.documents.AlertDocument.mget", MagicMock(return_value=[alert_1])),
+            patch("bkmonitor.documents.AlertDocument.get", MagicMock(return_value=alert_1)),
+            patch(
+                "alarm_backends.core.cache.action_config.ActionConfigCacheManager.get_action_config_by_id",
+                MagicMock(return_value=notice_action_config),
+            ),
+        ):
+            # 第一次创建actions
+            create_actions(1, "abnormal", alerts=[alert_1])
+
+            # 并行模式下只创建1个 action
+            first_wave_actions = []
+            action_instances = ActionInstance.objects.filter(is_parent_action=False, action_config_id=55556)
+
+            for action in action_instances:
+                if action.inputs.get("notice_way") == NoticeWay.VOICE:
+                    first_wave_actions.append(action)
+
+            self.assertEqual(len(first_wave_actions), 1, "并行模式下应只创建1个语音通知 action")
+
+            first_action = first_wave_actions[0]
+            voice_notice_group = first_action.inputs.get("voice_notice_group", [])
+            self.assertGreater(len(voice_notice_group), 0, "voice_notice_group 不能为空")
+
+            self.set_notice_cache()
+
+            # 执行第一波通知
+            processor = NoticeActionProcessor(action_id=first_action.id)
+            processor.execute()
+
+            # 刷新状态
+            first_action.refresh_from_db()
+
+            # 验证第一波成功发送
+            self.assertEqual(first_action.status, ActionStatus.SUCCESS, "第一波应该成功")
+
+            # 创建第二个相同维度的告警（2分钟内）
+            alert_info_2 = copy.deepcopy(alert_info_1)
+            alert_info_2["id"] = "convergence_test_2"
+            alert_2 = AlertDocument(**alert_info_2)
+
+            # 第二次创建actions（相同维度）
+            create_actions(1, "abnormal", alerts=[alert_2])
+
+            second_wave_actions = []
+
+            action_instances = ActionInstance.objects.filter(is_parent_action=False, action_config_id=55556).exclude(
+                id=first_action.id
+            )
+            for action in action_instances:
+                if action.inputs.get("notice_way") == NoticeWay.VOICE:
+                    second_wave_actions.append(action)
+
+            self.assertEqual(len(second_wave_actions), 1, "第二波也应创建1个语音通知 action")
+
+            second_action = second_wave_actions[0]
+
+            # 执行第二波通知
+            processor = NoticeActionProcessor(action_id=second_action.id)
+            processor.execute()
+
+            # 刷新状态
+            second_action.refresh_from_db()
+
+            # 验证第二波被收敛（失败，failure_type为SYSTEM_ABORT）
+            self.assertEqual(
+                second_action.status,
+                ActionStatus.FAILURE,
+                "第二波应该被收敛（失败）",
+            )
+            self.assertEqual(
+                second_action.failure_type,
+                FailureType.SYSTEM_ABORT,
+                "第二波失败类型应为 SYSTEM_ABORT",
+            )
+
 
 class TestNoiseReduce(TestCase):
-    databases = {"monitor_api", "default"}
+    databases = {"default", "monitor_api", "backend_alert"}
 
     def setUp(self):
         redis = fakeredis.FakeRedis(decode_responses=True)
