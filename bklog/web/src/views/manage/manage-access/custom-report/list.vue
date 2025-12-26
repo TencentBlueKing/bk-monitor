@@ -354,6 +354,7 @@
   import IndexSetLabelSelect from '@/components/index-set-label-select';
   import collectedItemsMixin from '@/mixins/collected-items-mixin';
   import { mapGetters } from 'vuex';
+  import useUtils from '@/hooks/use-utils';
   import { formatBytes, requestStorageUsage } from '../util';
   import * as authorityMap from '../../../../common/authority-map';
 
@@ -542,18 +543,18 @@
           .then(async res => {
             const { data } = res;
             if (data?.list) {
+              const { formatResponseListTimeZoneString } = useUtils();
               const resList = data.list;
               const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
               const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
-              const newCollectList = resList.map(item => ({
-                ...item,
-                is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
-              }));
-              this.collectList.splice(0, this.collectList.length, ...newCollectList);
+
+              const formattedList = formatResponseListTimeZoneString(resList, (item) => ({ is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false, }));
+              this.collectList.splice(0, this.collectList.length, ...formattedList);
               this.pagination.count = data.total;
             }
           })
-          .catch(() => {
+          .catch((err) => {
+            console.warn(err);
             this.emptyType = '500';
           })
           .finally(() => {

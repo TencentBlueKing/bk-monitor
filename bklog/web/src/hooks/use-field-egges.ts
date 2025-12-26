@@ -60,7 +60,7 @@ export default () => {
     }
 
     if (
-      taskPool.some(task => {
+      taskPool.some((task) => {
         return task.fields[0] === field && task.query_value === value && task.pending;
       })
     ) {
@@ -88,15 +88,15 @@ export default () => {
 
       const addition = value
         ? [
-            {
-              field: field.field_name,
-              operator: 'contains',
-              value: getConditionValue(),
-            },
-          ].map(val => {
-            const instance = new ConditionOperator(val);
-            return instance.getRequestParam();
-          })
+          {
+            field: field.field_name,
+            operator: 'contains',
+            value: getConditionValue(),
+          },
+        ].map((val) => {
+          const instance = new ConditionOperator(val);
+          return instance.getRequestParam();
+        })
         : [];
 
       const taskArgs = {
@@ -118,13 +118,13 @@ export default () => {
       taskPool.push(taskArgs);
       store
         .dispatch('requestIndexSetValueList', taskArgs)
-        .then(resp => {
+        .then((resp) => {
           if (taskArgs.pending) {
             store.commit('updateIndexFieldEggsItems', resp.data?.aggs_items ?? {});
             callback?.(resp);
           }
         })
-        .catch(err => {
+        .catch((err) => {
           if (err.code === 'ERR_CANCELED') {
             console.log('取消请求');
           }

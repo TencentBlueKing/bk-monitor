@@ -84,8 +84,13 @@ def run_action(action_type, action_info):
         # 如果带了执行函数，则执行执行函数，没有的话，直接做执行操作
         func_name = action_info.get("function", "execute")
         func = getattr(processor, func_name)
+        # 执行前检查
+        if not processor.can_func_call():
+            logger.info(
+                f"[run_action_worker] action({action_info['id']}) action_type({action_type}) can't call({func_name}) end"
+            )
+            return
         # call func
-        # logger.info("$%s Action callback: module name %s function %s", action_info["id"], action_type, func_name)
         logger.info(f"[run_action_worker] action({action_info['id']}) action_type({action_type}) call({func_name})")
         func(**action_info.get("kwargs", {}))
     except ActionAlreadyFinishedError as error:

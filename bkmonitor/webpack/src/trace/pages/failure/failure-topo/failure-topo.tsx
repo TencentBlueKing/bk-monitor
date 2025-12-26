@@ -59,7 +59,7 @@ import { useRouter } from 'vue-router';
 
 import ExceptionComp from '../../../components/exception';
 import ResourceGraph from '../resource-graph/resource-graph';
-import { useIncidentInject } from '../utils';
+import { checkIsRoot, useIncidentInject } from '../utils';
 import LegendPopoverContent from './components/legend-popover-content';
 import ElkjsUtils from './elkjs-utils';
 import FailureTopoDetail from './failure-topo-detail/failure-topo-detail';
@@ -210,14 +210,15 @@ export default defineComponent({
         afterDraw(cfg, group) {
           const nodeAttrs = getNodeAttrs(cfg as ITopoNode);
           const { entity, alert_all_recorved, is_feedback_root } = cfg as ITopoNode;
-          if (entity.is_root || is_feedback_root) {
+          const isRoot = checkIsRoot(entity);
+          if (isRoot || is_feedback_root) {
             group.addShape('circle', {
               attrs: {
                 lineDash: [3],
                 lineWidth: 1, // 描边宽度
                 cursor: 'pointer', // 手势类型
                 r: 25, // 圆半径
-                stroke: entity.is_root ? '#F55555' : '#FF9C01',
+                stroke: isRoot ? '#F55555' : '#FF9C01',
               },
               name: 'topo-node-root-border',
             });
@@ -230,7 +231,7 @@ export default defineComponent({
                 height: 16,
                 radius: 8,
                 stroke: '#3A3B3D',
-                fill: entity.is_root ? '#F55555' : '#FF9C01',
+                fill: isRoot ? '#F55555' : '#FF9C01',
               },
               name: 'topo-node-rect',
             });
@@ -280,17 +281,18 @@ export default defineComponent({
         draw(cfg, group) {
           const { entity, aggregated_nodes, anomaly_count, is_feedback_root } = cfg as ITopoNode;
           const nodeAttrs: any = getNodeAttrs(cfg as ITopoNode);
-          const isRoot = entity.is_root || entity.is_feedback_root;
+          const isRoot = checkIsRoot(entity);
+          const showRoot = isRoot || entity.is_feedback_root;
           const isAggregated = aggregated_nodes.length > 0;
           const nodeShapeWrap = group.addShape('rect', {
             zIndex: 10,
             attrs: {
-              x: isRoot ? -25 : -20,
-              y: isRoot ? -28 : -22,
+              x: showRoot ? -25 : -20,
+              y: showRoot ? -28 : -22,
               lineWidth: 1, // 描边宽度
               cursor: 'pointer', // 手势类型
-              width: isRoot ? 50 : 40, // 根因有外边框整体宽度为50
-              height: isRoot ? 82 : isAggregated ? 63 : 67, // 根因展示根因提示加节点类型加节点名称 聚合节点展示聚合提示加类型 普通节点展示名字与类型
+              width: showRoot ? 50 : 40, // 根因有外边框整体宽度为50
+              height: showRoot ? 82 : isAggregated ? 63 : 67, // 根因展示根因提示加节点类型加节点名称 聚合节点展示聚合提示加类型 普通节点展示名字与类型
             },
             draggable: true,
             name: 'topo-node-shape-wrap',
@@ -302,7 +304,7 @@ export default defineComponent({
               cursor: 'pointer', // 手势类型
               r: 20, // 圆半径
               ...nodeAttrs.groupAttrs,
-              fill: isRoot ? '#F55555' : nodeAttrs.groupAttrs.fill,
+              fill: showRoot ? '#F55555' : nodeAttrs.groupAttrs.fill,
             },
             draggable: true,
             name: 'topo-node-shape',
@@ -396,7 +398,7 @@ export default defineComponent({
                 cursor: 'cursor',
                 textBaseline: 'middle',
                 text:
-                  entity.is_root || is_feedback_root
+                  isRoot || is_feedback_root
                     ? truncateText(t('根因'), 28, 11, 'PingFangSC-Medium')
                     : aggregated_nodes.length + 1,
                 fontSize: 11,
@@ -410,7 +412,7 @@ export default defineComponent({
             zIndex: 11,
             attrs: {
               x: 0,
-              y: aggregated_nodes?.length || entity.is_root || is_feedback_root ? 36 : 28,
+              y: aggregated_nodes?.length || isRoot || is_feedback_root ? 36 : 28,
               textAlign: 'center',
               textBaseline: 'middle',
               cursor: 'cursor',
@@ -425,7 +427,7 @@ export default defineComponent({
               zIndex: 11,
               attrs: {
                 x: 0,
-                y: entity.is_root || is_feedback_root ? 48 : 40,
+                y: isRoot || is_feedback_root ? 48 : 40,
                 textAlign: 'center',
                 textBaseline: 'middle',
                 cursor: 'cursor',
@@ -1861,7 +1863,7 @@ export default defineComponent({
     /** 处理节点详情info tooltip内部结构 */
     const handleNodeInfoTooltip = (model: ITopoNode) => {
       let nodeDetailTips = [];
-      const isShowRootText = model.is_feedback_root || model?.entity?.is_root;
+      const isShowRootText = model.is_feedback_root || checkIsRoot(model?.entity);
       // 节点名称
       nodeDetailTips.push({ label: t('名称'), value: model.entity.entity_name });
       // 节点告警信息

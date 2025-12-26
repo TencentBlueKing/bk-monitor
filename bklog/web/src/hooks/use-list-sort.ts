@@ -26,9 +26,16 @@
  */
 
 import { computed, ref } from 'vue';
-export default (list: any[], matchKeys: string[] = []) => {
+
+/**
+ * 使用文本匹配和完全匹配进行排序
+ * @param list 列表
+ * @param matchKeys 文本匹配的 key 列表
+ * @param hiddenMatchKeys 隐藏匹配的 key 列表
+ * @returns 排序后的列表
+ */
+export default (list: any[], matchKeys: string[] = [], hiddenMatchKeys: string[] = []) => {
   const sortList = ref<any[]>(list);
-  // const matchKeyList = ref<string[]>(matchKeys);
   const searchText = ref<string>('');
 
   const updateList = (list: any[]) => {
@@ -100,6 +107,59 @@ export default (list: any[], matchKeys: string[] = []) => {
     }
 
     return -1;
+  };
+
+  /**
+   * 完全匹配函数，支持忽略前置负号
+   * @param value 待匹配的值（可以是字符串或数字）
+   * @param searchText 搜索文本
+   * @returns 是否完全匹配（忽略前置负号）
+   */
+  const fullMatch = (value: any, searchText: string): boolean => {
+    if (value === undefined || value === null || value === '') {
+      return false;
+    }
+
+    // 将值转换为字符串
+    const valueStr = String(value);
+    // 移除前置负号
+    const normalizedValue = valueStr.replace(/^-/, '');
+    const normalizedSearch = searchText.replace(/^-/, '');
+
+    // 完全匹配（忽略大小写和前置负号）
+    return normalizedValue.toLowerCase() === normalizedSearch.toLowerCase();
+  };
+
+  /**
+   * 检查 hiddenMatchKeys 是否匹配
+   * @param item 列表项
+   * @param searchText 搜索文本
+   * @param hiddenMatchKeys 隐藏匹配的 key 列表（不作为展示字段，但参与过滤）
+   * @returns 是否匹配
+   */
+  const checkHiddenMatch = (item: any, searchText: string, hiddenMatchKeys: string[]): boolean => {
+    if (!searchText || hiddenMatchKeys.length === 0) {
+      return false;
+    }
+
+    // string[] 类型：直接匹配
+    if (typeof item === 'string') {
+      return fullMatch(item, searchText);
+    }
+
+    // object[] 类型：根据 hiddenMatchKeys 匹配
+    if (typeof item === 'object' && item !== null) {
+      for (let i = 0; i < hiddenMatchKeys.length; i++) {
+        const key = hiddenMatchKeys[i];
+        const value = item[key];
+
+        if (fullMatch(value, searchText)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   };
 
   /**
@@ -186,11 +246,22 @@ export default (list: any[], matchKeys: string[] = []) => {
 
     for (let i = 0; i < list.length; i++) {
       const item = list[i];
-      const { score } = matchItem(item, search, matchKeys);
 
-      // 只保留匹配的项目
-      if (score > 0) {
-        itemsWithScore.push({ item, score });
+      // 先检查 matchKeys 是否匹配
+      const { score: matchScore } = matchItem(item, search, matchKeys);
+
+      if (matchScore > 0) {
+        // matchKeys 匹配：使用 matchKeys 的分数（优先级更高）
+        itemsWithScore.push({ item, score: matchScore });
+      } else {
+        // matchKeys 不匹配时，检查 hiddenMatchKeys
+        const isHiddenMatch = checkHiddenMatch(item, search, hiddenMatchKeys);
+
+        if (isHiddenMatch) {
+          // hiddenMatchKeys 匹配：给予最低优先级分数（低于所有其他匹配方式）
+          itemsWithScore.push({ item, score: 1000 });
+        }
+        // 如果 matchKeys 和 hiddenMatchKeys 都不匹配，则不包含在结果中
       }
     }
 

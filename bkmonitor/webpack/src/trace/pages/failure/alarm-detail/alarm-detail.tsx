@@ -55,7 +55,7 @@ import SetMealAdd from '../../../store/modules/set-meal-add';
 import StatusTag from '../components/status-tag';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
 import { useIncidentInject } from '../utils';
-import { replaceSpecialCondition } from '../utils';
+import { checkIsRoot, replaceSpecialCondition } from '../utils';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
 import ChatGroup from './chat-group/chat-group';
@@ -357,21 +357,30 @@ export default defineComponent({
         disabled: true,
         cell: (_, { row: data }) => {
           return (
-            <div
-              class='name-column'
-              v-bk-tooltips={{
-                content: data.id,
-                delay: 200,
-                boundary: 'window',
-                extCls: 'alarm-detail-table-tooltip',
-              }}
-            >
+            <div class='id-column-wrapper'>
               <span
                 class={`event-status status-${data.severity} id-column`}
+                v-bk-tooltips={{
+                  content: data.id,
+                  delay: 200,
+                  boundary: 'window',
+                  extCls: 'alarm-detail-table-tooltip',
+                }}
                 onClick={() => handleShowDetail(data)}
               >
                 {data.id}
               </span>
+              {data.is_current_primary && (
+                <span
+                  class='new-badge'
+                  v-bk-tooltips={{
+                    content: t('最新一次分析中使用的告警'),
+                    delay: 200,
+                    boundary: 'window',
+                    extCls: 'alarm-detail-table-tooltip',
+                  }}
+                ></span>
+              )}
             </div>
           );
         },
@@ -388,7 +397,8 @@ export default defineComponent({
         },
         cell: (_, { row: data }) => {
           const { entity } = data;
-          const isRoot = entity?.is_root || data.is_feedback_root;
+          const isRoot = checkIsRoot(entity);
+          const showRoot = isRoot || data.is_feedback_root;
           return (
             <div
               class='name-column'
@@ -399,8 +409,8 @@ export default defineComponent({
                 extCls: 'alarm-detail-table-tooltip',
               }}
             >
-              <span class={`name-info ${isRoot ? 'name-info-root' : ''}`}>{data.alert_name}</span>
-              {isRoot && <span class={`${entity.is_root ? 'root-cause' : 'root-feed'}`}>{t('根因')}</span>}
+              <span class={`name-info ${showRoot ? 'name-info-root' : ''}`}>{data.alert_name}</span>
+              {showRoot && <span class={`${isRoot ? 'root-cause' : 'root-feed'}`}>{t('根因')}</span>}
             </div>
           );
         },
@@ -985,8 +995,7 @@ export default defineComponent({
                         .filter(item => !this.disableKey.includes(item.colKey))
                         .map(item => item.colKey),
                     }}
-                    // autoResize={true}
-                    // bordered={true}
+                    scroll={{ type: 'virtual' }}
                     columns={this.columns}
                     data={item.alerts}
                     maxHeight={alertData.length > 1 ? 616 : this.alarmDetailHeight - 100}

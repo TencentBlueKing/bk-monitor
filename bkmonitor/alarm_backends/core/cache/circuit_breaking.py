@@ -16,6 +16,7 @@ from typing import Any
 
 from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cache.key import PUBLIC_KEY_PREFIX
+from constants.action import ActionPluginType
 
 logger = logging.getLogger("circuit_breaking")
 
@@ -322,14 +323,73 @@ class CircuitBreakingCacheManager(CacheManager):
         return success
 
     @classmethod
-    def clear(
+    def set_plugin_type_circuit_breaking(
         cls,
         module: str,
+        plugin_types: list[str],
+        method: str = "eq",
+        condition: str = "and",
+        description: str | None = None,
+    ) -> bool:
+        """
+        快捷设置基于plugin_type的熔断规则（主要用于action模块）
+
+        :param module: 模块名称，如 "action"
+        :param plugin_types: 套餐类型列表，如 ["notice", "webhook", "itsm"]
+        :param method: 匹配方法，默认 "eq"
+        :param condition: 条件逻辑，默认 "and"
+        :param description: 规则描述
+        :return: 是否设置成功
+        """
+        if not plugin_types:
+            logger.warning("[circuit breaking] plugin_types cannot be empty")
+            return False
+
+        rule = {"key": "plugin_type", "method": method, "value": plugin_types, "condition": condition}
+
+        if description:
+            rule["description"] = description
+        else:
+            rule["description"] = f"创建时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+        logger.info(f"[circuit breaking] Setting plugin_type circuit breaking for module {module}: {plugin_types}")
+        return cls.add_rule(module, rule)
+
+    @classmethod
+    def clear(
+        cls,
+        module: str | None = None,
     ) -> bool:
         """
         清空现有配置
+
+        :param module: 模块名称，如果为None则清空所有模块的配置
+        :return: 是否清空成功
         """
-        return cls.set_config(module, [])
+        if module is None:
+            # 清空所有模块的配置
+            success = True
+            cleared_count = 0
+            for module_name in CircuitBreakingModule.get_all_values():
+                if cls.set_config(module_name, []):
+                    cleared_count += 1
+                else:
+                    success = False
+                    logger.error(f"[circuit breaking] Failed to clear config for module {module_name}")
+
+            if success:
+                logger.info(
+                    f"[circuit breaking] Successfully cleared all circuit breaking configs ({cleared_count} modules)"
+                )
+            else:
+                logger.warning(
+                    f"[circuit breaking] Partially cleared circuit breaking configs ({cleared_count} modules)"
+                )
+
+            return success
+        else:
+            # 清空指定模块的配置
+            return cls.set_config(module, [])
 
 
 # ==================== 预设快捷设置便捷函数 ====================
@@ -411,71 +471,48 @@ def set_strategy_circuit_breaking(
     return CircuitBreakingCacheManager.set_strategy_circuit_breaking(module, strategy_ids, description)
 
 
-def clear(
+def set_plugin_type_circuit_breaking(
     module: str,
+    plugin_types: list[str],
+    method: str = "eq",
+    condition: str = "and",
+    description: str | None = None,
+) -> bool:
+    """
+    快捷设置基于plugin_type的熔断规则（便捷函数，主要用于action模块）
+
+    :param module: 模块名称，如 "action"
+    :param plugin_types: 套餐类型列表，如 ["notice", "webhook", "itsm"]
+    :param method: 匹配方法，默认 "eq"
+    :param condition: 条件逻辑，默认 "and"
+    :param description: 规则描述
+    :return: 是否设置成功
+    """
+    return CircuitBreakingCacheManager.set_plugin_type_circuit_breaking(
+        module, plugin_types, method, condition, description
+    )
+
+
+def clear(
+    module: str | None = None,
 ) -> bool:
     """
     清空现有配置
+
+    :param module: 模块名称，如果为None则清空所有模块的配置
+    :return: 是否清空成功
     """
     return CircuitBreakingCacheManager.clear(module)
 
 
-# 预定义的熔断规则示例
-EXAMPLE_ACCESS_DATA_RULES = [
-    {"key": "strategy_id", "method": "eq", "value": ["1", "2"], "condition": "or"},
-    {"key": "bk_biz_id", "method": "eq", "value": ["1", "2"], "condition": "or"},
-    {"key": "strategy_source", "method": "eq", "value": ["bk_log_search:log"], "condition": "or"},
-    {"key": "data_source_label", "method": "eq", "value": ["bk_monitor", "bk_log_search"], "condition": "or"},
-    {"key": "data_type_label", "method": "eq", "value": ["time_series", "log"], "condition": "or"},
-]
+# 通知套餐
+NOTICE_PLUGIN_TYPES = [ActionPluginType.NOTICE, ActionPluginType.COLLECT]
 
-# 更多配置示例 - 基于 constants.data_source 标准定义
-EXAMPLE_DATA_SOURCE_RULES = [
-    # 基于数据源标签的熔断 - 使用标准 DataSourceLabel 常量
-    {
-        "key": "data_source_label",
-        "method": "eq",
-        "value": ["bk_log_search", "custom", "bk_data"],  # DataSourceLabel.BK_LOG_SEARCH, CUSTOM, BK_DATA
-        "condition": "or",
-    },
-    # 基于数据类型标签的熔断 - 使用标准 DataTypeLabel 常量
-    {
-        "key": "data_type_label",
-        "method": "in",
-        "value": ["log", "event", "alert"],  # DataTypeLabel.LOG, EVENT, ALERT
-        "condition": "and",
-    },
-    # 组合条件：特定业务的监控采集数据
-    {"key": "bk_biz_id", "method": "eq", "value": ["100"], "condition": "and"},
-    {
-        "key": "data_source_label",
-        "method": "eq",
-        "value": ["bk_monitor"],  # DataSourceLabel.BK_MONITOR_COLLECTOR
-        "condition": "and",
-    },
-]
+# 消息队列推送套餐
+MESSAGE_QUEUE_PLUGIN_TYPES = [ActionPluginType.MESSAGE_QUEUE]
 
-
-# 所有支持的数据源标签 - 基于 constants.data_source.DataSourceLabel
-SUPPORTED_DATA_SOURCE_LABELS = [
-    "bk_monitor",  # DataSourceLabel.BK_MONITOR_COLLECTOR - 监控采集指标
-    "bk_data",  # DataSourceLabel.BK_DATA - 计算平台指标
-    "custom",  # DataSourceLabel.CUSTOM - 自定义指标
-    "bk_log_search",  # DataSourceLabel.BK_LOG_SEARCH - 日志平台指标
-    "bk_fta",  # DataSourceLabel.BK_FTA - 关联告警
-    "bk_apm",  # DataSourceLabel.BK_APM - Trace明细指标
-    "prometheus",  # DataSourceLabel.PROMETHEUS - Prometheus
-    "dashboard",  # DataSourceLabel.DASHBOARD - DASHBOARD
-]
-
-# 所有支持的数据类型标签 - 基于 constants.data_source.DataTypeLabel
-SUPPORTED_DATA_TYPE_LABELS = [
-    "time_series",  # DataTypeLabel.TIME_SERIES - 时序数据
-    "event",  # DataTypeLabel.EVENT - 事件数据
-    "log",  # DataTypeLabel.LOG - 日志数据
-    "alert",  # DataTypeLabel.ALERT - 关联告警
-    "trace",  # DataTypeLabel.TRACE - Trace数据
-]
+# webhook套餐
+WEBHOOK_PLUGIN_TYPES = [ActionPluginType.WEBHOOK]
 
 # 常见的数据源组合 - 基于 constants.data_source.DATA_CATEGORY
 COMMON_DATA_SOURCE_COMBINATIONS = [
@@ -502,6 +539,7 @@ COMMON_DATA_SOURCE_COMBINATIONS = [
 example_usage = """预设快捷设置函数的使用示例:
 module = "access.data"
 module = "alert.builder"
+module = "action"
 
 # 示例1: 设置基于strategy_source的熔断
 set_strategy_source_circuit_breaking(
@@ -515,34 +553,33 @@ set_bk_biz_id_circuit_breaking(
     bk_biz_ids=["100", "200"],
 )
 
-# 示例3: 设置基于数据源标签的熔断
-set_data_source_circuit_breaking(
-    module=module,
-    data_source_labels=["bk_log_search"],
-    data_type_labels=["time_series"],
-)
-
-# 示例4: 设置策略熔断规则
+# 示例3: 设置策略熔断规则
 set_strategy_circuit_breaking(
     module=module,
     strategy_ids=[12345, 67890],
     description="测试策略熔断",
 )
 
-# 示例5: 组合熔断规则（AND关系）
-# 熔断业务100下的策略123
-set_bk_biz_id_circuit_breaking(module=module, bk_biz_ids=["100"])
-set_strategy_circuit_breaking(module=module, strategy_ids=[123])
+# 示例4: 设置基于通知的熔断（用于action模块）
+set_plugin_type_circuit_breaking(
+    module="action",
+    plugin_types=NOTICE_PLUGIN_TYPES,
+    description="熔断通知套餐",
+)
 
-# 熔断业务100下的bk_monitor:time_series
+# 示例5: 熔断业务100下的bk_monitor:time_series
 set_bk_biz_id_circuit_breaking(module=module, bk_biz_ids=["100"])
 set_strategy_source_circuit_breaking(module=module, strategy_sources=["bk_monitor:time_series"])
 
-# 示例6: 清空所有规则
+# 示例6: action模块组合熔断 - 熔断业务100下的消息队列推送
+set_bk_biz_id_circuit_breaking(module="action", bk_biz_ids=["100"])
+set_plugin_type_circuit_breaking(module="action", plugin_types=MESSAGE_QUEUE_PLUGIN_TYPES)
+
+# 示例7: 清空指定模块的所有规则
 clear(module=module)
 
-# 注意：现在默认condition为"and"，多个规则之间是AND关系
-# 如果需要OR关系，可以显式指定condition="or"
+# 示例8: 清空所有模块的所有规则
+clear()
 """
 
 print(example_usage)
