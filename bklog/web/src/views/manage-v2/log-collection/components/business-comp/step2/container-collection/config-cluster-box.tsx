@@ -268,7 +268,7 @@ export default defineComponent({
       }
 
       // 检查必要条件：元素存在且按钮应该显示
-      if (!rootRef.value || !isShowAddScopeButton()) {
+      if (!rootRef.value || !isShowAddScopeButton.value) {
         return;
       }
 
@@ -295,7 +295,7 @@ export default defineComponent({
      * 获取配置范围的显示状态
      * @returns 配置范围显示状态对象
      */
-    const getScopeSelectShow = (): Partial<Record<ScopeType, boolean>> => {
+    const getScopeSelectShow = computed(() => {
       const config = props.config as IContainerConfigItem;
       return (
         config.noQuestParams?.scopeSelectShow || {
@@ -306,7 +306,7 @@ export default defineComponent({
           annotation: true,
         }
       );
-    };
+    });
 
     /**
      * 获取 BCS 集群列表
@@ -454,15 +454,14 @@ export default defineComponent({
      * 节点环境下不显示，其他环境下检查是否有可添加的范围
      * @returns 是否显示添加按钮
      */
-    const isShowAddScopeButton = (): boolean => {
+    const isShowAddScopeButton = computed((): boolean => {
       // 节点环境下不显示添加范围按钮
       if (props.isNode) {
         return false;
       }
-
       // 检查是否有可添加的范围（scopeSelectShow 中为 true 的项）
-      return Object.values(getScopeSelectShow()).some(Boolean);
-    };
+      return Object.values(getScopeSelectShow.value).some(Boolean);
+    });
 
     /**
      * 获取要显示的命名空间选择列表
@@ -523,7 +522,7 @@ export default defineComponent({
           // 非节点模式下，等待 DOM 更新后初始化 Tippy
           if (!props.isNode) {
             nextTick(() => {
-              if (isShowAddScopeButton() && rootRef.value) {
+              if (isShowAddScopeButton.value && rootRef.value) {
                 initActionPop();
               }
             });
@@ -562,37 +561,12 @@ export default defineComponent({
         // 等待 DOM 更新后再初始化（如果按钮显示的话）
         if (!props.isNode) {
           nextTick(() => {
-            if (isShowAddScopeButton() && rootRef.value) {
+            if (isShowAddScopeButton.value && rootRef.value) {
               initActionPop();
             }
           });
         }
       },
-    );
-
-    /**
-     * 监听配置变化（特别是 scopeSelectShow）
-     * 当配置范围显示状态变化时，重新初始化 Tippy
-     * 这确保了在删除配置项后，tippy 能正确绑定到更新后的 DOM 元素
-     */
-    watch(
-      () => props.config?.noQuestParams?.scopeSelectShow,
-      () => {
-        // 非节点模式下，等待 DOM 更新后重新初始化 Tippy
-        if (!props.isNode) {
-          nextTick(() => {
-            if (isShowAddScopeButton() && rootRef.value) {
-              initActionPop();
-            } else if (tippyInstance) {
-              // 如果按钮不显示了，销毁 tippy 实例
-              tippyInstance.hide();
-              tippyInstance.destroy();
-              tippyInstance = null;
-            }
-          });
-        }
-      },
-      { deep: true },
     );
 
     /**
@@ -643,7 +617,6 @@ export default defineComponent({
       if (scope !== 'label' || !props.isNode) {
         config.noQuestParams.scopeSelectShow[scope] = true;
       }
-
       emit('change', config);
     };
 
@@ -680,7 +653,7 @@ export default defineComponent({
      */
     onMounted(() => {
       nextTick(() => {
-        if (!props.isNode && isShowAddScopeButton() && rootRef.value) {
+        if (!props.isNode && isShowAddScopeButton.value && rootRef.value) {
           initActionPop();
         }
       });
@@ -773,25 +746,23 @@ export default defineComponent({
       // 确保 container 对象存在
       ensureContainerConfig(config);
       return (
-        <div>
-          <div class='config-item hover-light'>
-            <div class='config-item-title flex-ac'>
-              <span>{t('按工作负载选择')}</span>
-              <span
-                class='bk-icon icon-delete'
-                on-Click={() => handleDeleteConfigParamsItem('load')}
-              />
-            </div>
-            <WorkloadSelection
-              bcsClusterId={props.bcsClusterId}
-              conItem={config}
-              container={config.container}
-              on-update={val => {
-                config.container = val;
-                emit('change', config);
-              }}
+        <div class='config-item hover-light'>
+          <div class='config-item-title flex-ac'>
+            <span>{t('按工作负载选择')}</span>
+            <span
+              class='bk-icon icon-delete'
+              on-Click={() => handleDeleteConfigParamsItem('load')}
             />
           </div>
+          <WorkloadSelection
+            bcsClusterId={props.bcsClusterId}
+            conItem={config}
+            container={config.container}
+            on-update={val => {
+              config.container = val;
+              emit('change', config);
+            }}
+          />
         </div>
       );
     };
@@ -805,51 +776,49 @@ export default defineComponent({
       // 确保 container 对象存在
       ensureContainerConfig(config);
       return (
-        <div>
-          <div class='config-item hover-light'>
-            <div class='config-item-title flex-ac'>
-              <span>{t('直接指定{n}', { n: 'Container' })}</span>
-              <span
-                class='bk-icon icon-delete'
-                on-Click={() => handleDeleteConfigParamsItem('containerName')}
-              />
-            </div>
-            <div class='operator-box'>
-              <bk-select
-                class='operate-select'
-                clearable={false}
-                placeholder=' '
-                popoverWidth={100}
-                value={config.noQuestParams.containerExclude}
-                on-change={val => {
-                  config.noQuestParams.containerExclude = val;
-                  emit('change', config);
-                }}
-              >
-                {operatorSelectList.value.map(oItem => (
-                  <bk-option
-                    id={oItem.id}
-                    key={oItem.id}
-                    name={oItem.name}
-                  />
-                ))}
-              </bk-select>
-              <bk-tag-input
-                extCls='container-input'
-                value={(config.container.container_name || '').split(',').filter(Boolean)}
-                allowCreate
-                freePaste
-                hasDeleteIcon
-                on-Blur={(inputStr: string, list: string[]) => handleContainerNameBlur(inputStr, list)}
-                on-change={(val: string[]) => {
-                  ensureContainerConfig(config);
-                  if (config.container) {
-                    config.container.container_name = val.join(',');
-                  }
-                  emit('change', config);
-                }}
-              />
-            </div>
+        <div class='config-item hover-light'>
+          <div class='config-item-title flex-ac'>
+            <span>{t('直接指定{n}', { n: 'Container' })}</span>
+            <span
+              class='bk-icon icon-delete'
+              on-Click={() => handleDeleteConfigParamsItem('containerName')}
+            />
+          </div>
+          <div class='operator-box'>
+            <bk-select
+              class='operate-select'
+              clearable={false}
+              placeholder=' '
+              popoverWidth={100}
+              value={config.noQuestParams.containerExclude}
+              on-change={val => {
+                config.noQuestParams.containerExclude = val;
+                emit('change', config);
+              }}
+            >
+              {operatorSelectList.value.map(oItem => (
+                <bk-option
+                  id={oItem.id}
+                  key={oItem.id}
+                  name={oItem.name}
+                />
+              ))}
+            </bk-select>
+            <bk-tag-input
+              extCls='container-input'
+              value={(config.container.container_name || '').split(',').filter(Boolean)}
+              allowCreate
+              freePaste
+              hasDeleteIcon
+              on-Blur={(inputStr: string, list: string[]) => handleContainerNameBlur(inputStr, list)}
+              on-change={(val: string[]) => {
+                ensureContainerConfig(config);
+                if (config.container) {
+                  config.container.container_name = val.join(',');
+                }
+                emit('change', config);
+              }}
+            />
           </div>
         </div>
       );
@@ -888,66 +857,67 @@ export default defineComponent({
           </span>
         </div>
 
-        {/* 命名空间配置项 */}
-        {isShowScopeItem('namespace') && renderNamespaceItem()}
+        <div class='config-params-box'>
+          {/* 命名空间配置项 */}
+          {isShowScopeItem('namespace') && renderNamespaceItem()}
 
-        {/* 标签配置项 */}
-        {isShowScopeItem('label') && (
-          <ConfigLogSetEditItem
-            bcsClusterId={props.bcsClusterId}
-            clusterList={props.clusterList}
-            config={props.config as any}
-            editType='label_selector'
-            isNode={props.isNode}
-            on-change={config => {
-              emit('change', { ...props.config, ...config });
-            }}
-            on-delete-config-params-item={type => handleDeleteConfigParamsItem(type as ScopeType)}
-          />
-        )}
-
-        {/* 注释配置项 */}
-        {isShowScopeItem('annotation') && (
-          <ConfigLogSetEditItem
-            bcsClusterId={props.bcsClusterId}
-            clusterList={props.clusterList}
-            config={props.config as IContainerConfigItem}
-            editType='annotation_selector'
-            isNode={props.isNode}
-            on-change={config => {
-              emit('change', { ...props.config, ...config });
-            }}
-            on-delete-config-params-item={type => handleDeleteConfigParamsItem(type as ScopeType)}
-          />
-        )}
-
-        {/* 工作负载配置项 */}
-        {isShowScopeItem('load') && renderWorkloadItem()}
-
-        {/* 容器名称配置项 */}
-        {isShowScopeItem('containerName') && renderContainerNameItem()}
-        {/* 添加范围 */}
-        {isShowAddScopeButton() && (
-          <div
-            class='add-btn-box'
-            v-bk-tooltips={{ ...chooseClusterTips.value, disabled: !!props.bcsClusterId }}
-          >
-            <div
-              ref={rootRef}
-              class={{
-                'add-btns': true,
-                hover: isHover.value,
-                'is-disabled': !props.bcsClusterId,
+          {/* 标签配置项 */}
+          {isShowScopeItem('label') && (
+            <ConfigLogSetEditItem
+              bcsClusterId={props.bcsClusterId}
+              clusterList={props.clusterList}
+              config={props.config as any}
+              editType='label_selector'
+              isNode={props.isNode}
+              on-change={config => {
+                emit('change', { ...props.config, ...config });
               }}
-            >
-              <i class='bk-icon icon-plus-line icons' />
-              {t('添加范围')}
-            </div>
+              on-delete-config-params-item={type => handleDeleteConfigParamsItem(type as ScopeType)}
+            />
+          )}
+
+          {/* 注释配置项 */}
+          {isShowScopeItem('annotation') && (
+            <ConfigLogSetEditItem
+              bcsClusterId={props.bcsClusterId}
+              clusterList={props.clusterList}
+              config={props.config as IContainerConfigItem}
+              editType='annotation_selector'
+              isNode={props.isNode}
+              on-change={config => {
+                emit('change', { ...props.config, ...config });
+              }}
+              on-delete-config-params-item={type => handleDeleteConfigParamsItem(type as ScopeType)}
+            />
+          )}
+
+          {/* 工作负载配置项 */}
+          {isShowScopeItem('load') && renderWorkloadItem()}
+
+          {/* 容器名称配置项 */}
+          {isShowScopeItem('containerName') && renderContainerNameItem()}
+        </div>
+        {/* 添加范围 */}
+        <div
+          class='add-btn-box'
+          style={{ display: isShowAddScopeButton.value ? 'block' : 'none' }}
+          v-bk-tooltips={{ ...chooseClusterTips.value, disabled: !!props.bcsClusterId }}
+        >
+          <div
+            ref={rootRef}
+            class={{
+              'add-btns': true,
+              hover: isHover.value,
+              'is-disabled': !props.bcsClusterId,
+            }}
+          >
+            <i class='bk-icon icon-plus-line icons' />
+            {t('添加范围')}
           </div>
-        )}
+        </div>
         <ConfigViewDialog
           isShowDialog={isShowConfigView.value}
-          viewQueryParams={viewQueryParams.value as any}
+          viewQueryParams={viewQueryParams.value}
           on-cancel={() => {
             isShowConfigView.value = false;
           }}
@@ -955,7 +925,7 @@ export default defineComponent({
         <div style='display: none'>
           <div ref={menuPanelRef}>
             <ul class='menu-popover-dropdown-list'>
-              {Object.entries(getScopeSelectShow()).map(
+              {Object.entries(getScopeSelectShow.value).map(
                 ([scopeStr, isShowScope]) =>
                   isShowScope && (
                     <li

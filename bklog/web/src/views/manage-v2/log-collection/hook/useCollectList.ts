@@ -279,22 +279,13 @@ export const useCollectList = () => {
       backRoute: backRoute ?? undefined,
     };
 
-    // 检索操作在新标签页打开
-    if (operateType === 'search') {
-      const resolved = router.resolve({
-        name: targetRoute,
-        params,
-        query: finalQuery,
-      });
-      window.open(resolved.href, '_blank');
-      return;
-    }
-
-    router.push({
+    // 操作在新标签页打开
+    const resolved = router.resolve({
       name: targetRoute,
       params,
       query: finalQuery,
     });
+    window.open(resolved.href, '_blank');
   };
 
   const operateHandler = (
