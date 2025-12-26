@@ -34,6 +34,7 @@ import { useI18n } from 'vue-i18n';
 import AiopsCharts from './echarts/aiops-charts';
 import IntelligenceScene from './echarts/intelligence-scene';
 import MonitorCharts from './echarts/monitor-charts';
+import OutlierDetectionChart from './echarts/outlier-detection-chart';
 import TimeSeriesForecastingChart from './echarts/time-series-forecasting-chart';
 
 import type { AlarmDetail } from '@/pages/alarm-center/typings';
@@ -107,6 +108,11 @@ export default defineComponent({
         detectionConfig.value?.data?.some?.(item => item.type === 'IntelligentDetect') &&
         detectionConfig.value?.query_configs?.[0]?.intelligent_detect?.result_table_id
       );
+    });
+
+    /** 是否含有离群检测算法 */
+    const hasOutlierDetection = computed(() => {
+      return detectionConfig.value?.data?.some?.(item => item.type === 'AbnormalCluster');
     });
 
     /** 是否含有时序预测算法 */
@@ -358,7 +364,7 @@ export default defineComponent({
             detectionConfig={detectionConfig.value}
           />
         );
-      // if (hasOutlierDetection.value) return <OutlierDetectionChart detail={props.detail} />;
+      if (hasOutlierDetection.value) return <OutlierDetectionChart detail={props.detail} />;
       return (
         <div class='series-view-container'>
           <MonitorCharts

@@ -24,38 +24,31 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onMounted, provide, shallowRef } from 'vue';
-
-import { handleThreshold } from 'monitor-ui/chart-plugins/utils';
+import { type PropType, defineComponent, onMounted } from 'vue';
+import { shallowRef } from 'vue';
 
 import { createAutoTimeRange } from './aiops-charts';
 import MonitorCharts from './monitor-charts';
+import { DEFAULT_TIME_RANGE } from '@/components/time-range/utils';
 import { PanelModel } from '@/plugins/typings';
 
 import type { AlarmDetail } from '@/pages/alarm-center/typings';
-import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
-import './time-series-forecasting-chart.scss';
+import './outlier-detection-chart.scss';
 
 export default defineComponent({
-  name: 'TimeSeriesForecastingChart',
+  name: 'OutlierDetectionChart',
   props: {
     detail: {
       type: Object as PropType<AlarmDetail>,
       default: () => ({}),
     },
-    detectionConfig: {
-      type: Object as PropType<IDetectionConfig>,
-      default: () => ({}),
-    },
   },
   setup(props) {
     const panel = shallowRef(null);
-
-    const timeRange = shallowRef([]);
-    provide('timeRange', timeRange);
     const showRestore = shallowRef(false);
-    const cacheTimeRange = shallowRef([]);
+    const timeRange = shallowRef(DEFAULT_TIME_RANGE);
+    const cacheTimeRange = shallowRef(DEFAULT_TIME_RANGE);
     const handleDataZoomChange = (value: any[]) => {
       if (JSON.stringify(timeRange.value) !== JSON.stringify(value)) {
         cacheTimeRange.value = JSON.parse(JSON.stringify(timeRange.value));
@@ -70,31 +63,16 @@ export default defineComponent({
       showRestore.value = false;
     };
 
-    /** 时序预测的预测时长 单位：秒 */
-    const duration = computed(() => {
-      return (
-        props.detectionConfig?.data?.find(item => item.type === 'TimeSeriesForecasting')?.config?.duration ||
-        24 * 60 * 60
-      );
-    });
-
     onMounted(() => {
       initPanel();
     });
 
     const initPanel = async () => {
-      const thresholdOptions = await handleThreshold(props.detectionConfig);
-
       const { startTime, endTime } = createAutoTimeRange(
         props.detail.begin_time,
         props.detail.end_time,
         props.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval
       );
-
-      const forecastTimeRange: [number, number] = [
-        props.detail.latest_time,
-        props.detail.latest_time + props.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval,
-      ];
       timeRange.value = [startTime, endTime];
       const panelSrcData = props.detail.graph_panel;
       const { id, title, subTitle, targets } = panelSrcData;
@@ -102,23 +80,12 @@ export default defineComponent({
         id,
         title,
         subTitle,
-        type: 'time-series-forecast',
-        options: {
-          time_series_forecast: {
-            need_hover_style: false,
-            duration: duration.value,
-            ...thresholdOptions,
-          },
-        },
-        targets: targets.map((item, index) => ({
+        type: 'time-series-outlier',
+        options: {},
+        targets: targets.map(item => ({
           ...item,
           alias: '',
-          options: {
-            time_series_forecast: {
-              forecast_time_range: index ? forecastTimeRange : undefined,
-              no_result: !!index,
-            },
-          },
+          options: {},
           data: {
             ...item.data,
             id: props.detail.id,
@@ -129,7 +96,6 @@ export default defineComponent({
       };
       panel.value = new PanelModel(panelData);
     };
-
     return {
       panel,
       showRestore,
@@ -139,13 +105,15 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='time-series-forecasting-chart'>
-        <MonitorCharts
-          panel={this.panel}
-          showRestore={this.showRestore}
-          onDataZoomChange={this.handleDataZoomChange}
-          onRestore={this.handleRestore}
-        />
+      <div class='outlier-detection-chart'>
+        {this.panel && (
+          <MonitorCharts
+            panel={this.panel}
+            showRestore={this.showRestore}
+            onDataZoomChange={this.handleDataZoomChange}
+            onRestore={this.handleRestore}
+          />
+        )}
       </div>
     );
   },
