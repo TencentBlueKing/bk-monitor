@@ -117,9 +117,6 @@ class ActionProcessor(BaseActionProcessor):
             # 执行入口，需要发送自愈通知
             self.set_start_to_execute()
 
-            if not self.backend_config:
-                self.set_finished(ActionStatus.FAILURE, message="unknown execute function")
-
         self.execute_notify()
 
     def execute_notify(self):

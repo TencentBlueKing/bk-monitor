@@ -152,3 +152,13 @@ class AlertManagerCircuitBreakingManager(BaseCircuitBreakingManager):
         if self.matcher is None:
             self.config = CircuitBreakingCacheManager.get_config("alert.builder")
             self.matcher = gen_circuit_breaking_matcher(self.config)
+
+
+class ActionCircuitBreakingManager(BaseCircuitBreakingManager):
+    """
+    Action 模块熔断管理器
+    用于 FTA Action 模块的熔断控制
+    plugin_type: config 支持基于处理套餐类型的细化熔
+    """
+
+    module = "action"

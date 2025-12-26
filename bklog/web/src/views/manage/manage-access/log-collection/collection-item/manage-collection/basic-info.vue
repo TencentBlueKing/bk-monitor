@@ -447,7 +447,7 @@
           ];
           this.createAndTimeData = createAndTimeData.map(item => {
             if (item.key === 'created_at' || item.key === 'updated_at') {
-              item.value = utcFormatDate(collectorData[item.key]);
+              item.value = utcFormatDate(collectorData[item.key], true);
             } else {
               item.value = collectorData[item.key];
             }

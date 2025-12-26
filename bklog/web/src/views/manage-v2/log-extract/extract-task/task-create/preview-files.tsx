@@ -195,7 +195,7 @@ export default defineComponent({
       file_path: downloadFiles,
     }: any) => {
       timeRange.value = timeRangeVal;
-      timeValue.value = [formatDate(new Date(startTime)), formatDate(new Date(endTime))];
+      timeValue.value = [formatDate(new Date(startTime), false), formatDate(new Date(endTime), false)];
       isSearchChild.value = isSearchChildVal;
       const findIpList = findPreviewIpListValue(previewIpList, ipList);
       previewIp.value = findIpList.map(item => getIpListID(item));

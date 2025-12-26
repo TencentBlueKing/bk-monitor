@@ -553,6 +553,7 @@ class ActionDisplayStatus:
     FAILURE = "failure"
     SKIPPED = "skipped"
     SHIELD = "shield"
+    BLOCKED = "blocked"
 
 
 class ActionStatus:
@@ -574,15 +575,16 @@ class ActionStatus:
     AUTHORIZED = "authorized"
     UNAUTHORIZED = "unauthorized"
     CHECKING = "checking"
+    BLOCKED = "blocked"
 
     # 执行中的状态
     PROCEED_STATUS = [RECEIVED, WAITING, CONVERGING, SLEEP, CONVERGED, RUNNING]
 
-    END_STATUS = [SUCCESS, PARTIAL_SUCCESS, FAILURE, PARTIAL_FAILURE, SKIPPED, SHIELD]
+    END_STATUS = [SUCCESS, PARTIAL_SUCCESS, FAILURE, PARTIAL_FAILURE, SKIPPED, SHIELD, BLOCKED]
 
     CAN_EXECUTE_STATUS = [RECEIVED, CONVERGED, RUNNING, RETRYING]
 
-    IGNORE_STATUS = {RUNNING, SLEEP, SKIPPED, SHIELD}
+    IGNORE_STATUS = {RUNNING, SLEEP, SKIPPED, SHIELD, BLOCKED}
 
     CAN_SYNC_STATUS = [
         WAITING,
@@ -596,6 +598,7 @@ class ActionStatus:
         FAILURE,
         SKIPPED,
         SHIELD,
+        BLOCKED,
     ]
     COLLECT_SYNC_STATUS = [WAITING, RUNNING, SUCCESS, PARTIAL_SUCCESS, FAILURE, SKIPPED]
 
@@ -611,6 +614,7 @@ ACTION_DISPLAY_STATUS_CHOICES = (
     (ActionDisplayStatus.PARTIAL_FAILURE, _lazy("部分失败")),  # 部分失败
     (ActionDisplayStatus.SKIPPED, _lazy("已收敛")),  # 已收敛
     (ActionDisplayStatus.SHIELD, _lazy("已屏蔽")),
+    (ActionDisplayStatus.BLOCKED, _lazy("已熔断")),
 )
 
 ACTION_DISPLAY_STATUS_DICT = {status: desc for (status, desc) in ACTION_DISPLAY_STATUS_CHOICES}
@@ -630,6 +634,7 @@ ACTION_STATUS_CHOICES = (
     (ActionStatus.PARTIAL_FAILURE, _lazy("部分失败")),  # 子任务有部分不成功
     (ActionStatus.SKIPPED, _lazy("跳过")),  # 处理跳过
     (ActionStatus.SHIELD, _lazy("已屏蔽")),
+    (ActionStatus.BLOCKED, _lazy("已熔断")),
 )
 
 ACTION_STATUS_DICT = {status: desc for (status, desc) in ACTION_STATUS_CHOICES}
@@ -645,6 +650,7 @@ ACTION_END_STATUS = [
     ActionStatus.UNAUTHORIZED,
     ActionStatus.CHECKING,
     ActionStatus.SHIELD,
+    ActionStatus.BLOCKED,
 ]
 
 
