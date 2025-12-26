@@ -23,7 +23,7 @@ from alarm_backends.core.i18n import i18n
 from alarm_backends.service.converge.converge_manger import ConvergeManager
 from alarm_backends.service.fta_action import BaseActionProcessor
 from bkmonitor.models.fta import ActionInstance, ConvergeInstance
-from bkmonitor.utils.send import Sender
+from bkmonitor.utils.send import Sender, BlockedError
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.action import ActionSignal, ActionStatus, ConvergeType, FailureType
 from core.drf_resource.exceptions import CustomException
@@ -178,7 +178,25 @@ class ActionProcessor(BaseActionProcessor):
             context=self.context,
         )
 
-        notice_result = sender.send(collect_info["notice_way"], receiver)[receiver[0]]
+        # 熔断判定
+        is_circuit_breaking = self.check_circuit_breaking_for_notice()
+        if is_circuit_breaking:
+            setattr(sender, "blocked", True)
+
+        try:
+            notice_result = sender.send(collect_info["notice_way"], receiver)[receiver[0]]
+        except BlockedError as blocked_error:
+            # 处理熔断异常
+            logger.info(
+                f"[circuit breaking] collect action({self.action.id}) strategy({self.action.strategy_id}) "
+                f"blocked: {blocked_error.message}"
+            )
+            notice_result = {
+                "result": False,
+                "failure_type": FailureType.BLOCKED,
+                "message": blocked_error.message,
+                "retry_params": blocked_error.retry_params,
+            }
 
         parent_actions = {action.parent_action_id for action in self.related_actions}
         # 更新当前汇总的发送内容
@@ -188,8 +206,29 @@ class ActionProcessor(BaseActionProcessor):
             "related_actions": [action.id for action in self.related_actions],
             "related_parent_actions": parent_actions,
         }
-        # 记录发送状态
-        self.action.status = ActionStatus.SUCCESS if notice_result["result"] else ActionStatus.FAILURE
+
+        # 根据通知结果设置状态和扩展数据
+        if notice_result["result"]:
+            # 发送成功
+            self.action.status = ActionStatus.SUCCESS
+            self.action.ex_data = {"message": notice_result["message"]}
+        else:
+            # 发送失败或被熔断
+            failure_type = notice_result.get("failure_type", FailureType.EXECUTE_ERROR)
+            if failure_type == FailureType.BLOCKED:
+                # 熔断状态
+                self.action.status = ActionStatus.BLOCKED
+                self.action.failure_type = FailureType.BLOCKED
+                self.action.ex_data = {
+                    "message": notice_result["message"],
+                    "retry_params": notice_result.get("retry_params", []),
+                }
+            else:
+                # 普通失败
+                self.action.status = ActionStatus.FAILURE
+                self.action.failure_type = failure_type
+                self.action.ex_data = {"message": notice_result["message"]}
+
         related_alerts = []
         for action in self.related_actions:
             related_alerts.extend(action.alerts)
@@ -197,12 +236,12 @@ class ActionProcessor(BaseActionProcessor):
         self.action.alerts = list(set(related_alerts))
         # 更新负责人（接收人）
         self.action.assignee = receiver
-        # 更新异常信息
-        self.action.ex_data = {"message": notice_result["message"]}
         # 更新结束时间
         self.action.end_time = datetime.now(tz=timezone.utc)
         # 保存指定的字段
-        self.action.save(update_fields=["alerts", "assignee", "ex_data", "end_time", "status", "outputs"])
+        self.action.save(
+            update_fields=["alerts", "assignee", "ex_data", "end_time", "status", "outputs", "failure_type"]
+        )
 
         # 更新当前执行任务的内容
         self.related_actions.update(real_status=self.action.status)
@@ -228,3 +267,9 @@ class ActionProcessor(BaseActionProcessor):
         converge_label_info.pop("strategy_id", None)
         biz_lock_key = FTA_SUB_CONVERGE_DIMENSION_LOCK_KEY.get_key(**converge_label_info)
         FTA_SUB_CONVERGE_DIMENSION_LOCK_KEY.client.delete(biz_lock_key)
+
+    def replay_blocked_collect_notice(self):
+        """
+        重新发送被熔断的汇总通知
+        """
+        return self.action.replay_blocked_notice()

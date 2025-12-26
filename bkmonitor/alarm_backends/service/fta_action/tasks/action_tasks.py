@@ -328,45 +328,88 @@ def sync_actions_sharding_task(action_ids):
 def sync_updated_parent_actions(updated_parent_actions, alert_docs, current_sync_time):
     """
     同步需要更新的主任务状态
+
+    根据子任务的执行状态，更新对应主任务的状态。主要处理以下场景：
+    1. 所有子任务都失败 -> 主任务状态设为 FAILURE
+    2. 部分子任务失败 -> 主任务状态设为 PARTIAL_FAILURE
+    3. 所有子任务成功 -> 主任务保持原状态（通常已是 SUCCESS）
+
+    :param updated_parent_actions: 需要更新的主任务映射 {parent_action_id: generate_uuid}
+    :param alert_docs: 告警文档映射，用于ES同步
+    :param current_sync_time: 当前同步时间戳
     """
+    # 如果没有需要更新的主任务，直接返回
     if not updated_parent_actions:
         return
-    failed_actions = []
-    partial_failed_actions = []
+
+    # 初始化状态分类列表
+    failed_actions = []  # 完全失败的主任务ID列表
+    partial_failed_actions = []  # 部分失败的主任务ID列表
+
+    # 查询所有相关的子任务状态信息
+    # 通过 generate_uuid 和 parent_action_id 双重过滤确保数据准确性
     all_sub_actions = ActionInstance.objects.filter(
         generate_uuid__in=list(updated_parent_actions.values()),
         parent_action_id__in=list(updated_parent_actions.keys()),
     ).values("status", "id", "real_status", "parent_action_id")
+
+    # 按主任务ID分组收集子任务状态
+    # 结构: {parent_action_id: [status1, status2, ...]}
     sub_action_status = defaultdict(list)
     for sub_action in all_sub_actions:
+        # 优先使用 real_status，如果为空则使用 status
         action_status = sub_action["real_status"] or sub_action["status"]
         sub_action_status[sub_action["parent_action_id"]].append(action_status)
+
+    # 准备ES文档列表，用于批量更新
     action_documents = []
-    for parent_action_id, sub_action_status in sub_action_status.items():
-        priority_status = set(sub_action_status) - ActionStatus.IGNORE_STATUS
-        # 一般成功状态下，是不需要更新的，因为主任务一般是成功状态
+
+    # 遍历每个主任务，根据其子任务状态决定主任务的最终状态
+    for parent_action_id, sub_statuses in sub_action_status.items():
+        # 过滤掉忽略状态（如 RUNNING, SLEEP, SKIPPED, SHIELD 等）
+        # 只关注需要处理的状态，避免被中间状态干扰判断
+        priority_status = set(sub_statuses) - ActionStatus.IGNORE_STATUS
+
+        # 状态判断逻辑：
+        # 1. 如果所有有效子任务都是失败状态
         if priority_status == {ActionStatus.FAILURE}:
-            # 子任务完全失败，默认为失败
+            # 子任务完全失败，主任务标记为失败
             failed_actions.append(parent_action_id)
+        # 2. 如果子任务中包含失败状态（但不全是失败）
         elif ActionStatus.FAILURE in priority_status:
-            # 存在有失败情况下（夹杂着其他状态）
+            # 存在失败情况下（夹杂着其他状态），主任务标记为部分失败
             partial_failed_actions.append(parent_action_id)
+        # 3. 其他情况（如全部成功）不需要更新，主任务保持原状态
+
+    # 合并所有需要更新状态的主任务ID
     updated_actions = failed_actions + partial_failed_actions
+
+    # 批量处理需要更新的主任务实例
     for instance in ActionInstance.objects.filter(id__in=updated_actions):
         try:
+            # 获取对应的告警文档，用于ES同步
             alert_doc = alert_docs.get(instance.alerts[0]) if instance.alerts else None
-            # 同步的时候直接在ES同步的时候更新, 不再进行mysql的更新
+
+            # 根据分类结果更新主任务状态
+            # 注意：这里只更新内存中的实例状态，不直接写入MySQL
+            # 实际的状态更新会在ES同步时完成，避免重复数据库操作
             if instance.id in failed_actions:
                 instance.status = ActionStatus.FAILURE
             if instance.id in partial_failed_actions:
                 instance.status = ActionStatus.PARTIAL_FAILURE
+
+            # 将更新后的实例转换为ES文档格式，准备批量同步
             action_documents.append(to_document(instance, current_sync_time, alerts=[alert_doc] if alert_doc else None))
         except BaseException as error:  # NOCC:broad-except(设计如此:)
+            # 记录单个实例处理失败的情况，但不影响其他实例的处理
             logger.exception(
                 "sync action error: %s , action_info %s",
                 error,
                 "{}{}".format(instance.id, instance.action_config.get("name", "")),
             )
+
+    # 批量将更新后的主任务文档同步到ES
+    # 使用 INDEX 操作确保文档被正确创建或更新
     ActionInstanceDocument.bulk_create(action_documents, action=BulkActionType.INDEX)
 
 
