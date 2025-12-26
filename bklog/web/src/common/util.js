@@ -1116,7 +1116,13 @@ export const flatObjTypeFiledKeys = (currentObject = {}, newFlatObj, previousKey
 
 export const TABLE_LOG_FIELDS_SORT_REGULAR = /^[_]{1,2}|[_]{1,2}/g;
 
-export const utcFormatDate = (val) => {
+/**
+ * 格式化时间戳为日期时间格式
+ * @param {Number} val 时间戳
+ * @param {Boolean} formatTimezone 是否格式化时区
+ * @returns {String} 日期时间格式
+ */
+export const utcFormatDate = (val, formatTimezone = false) => {
   const date = new Date(val);
 
   if (isNaN(date.getTime())) {
@@ -1124,7 +1130,7 @@ export const utcFormatDate = (val) => {
     return val;
   }
 
-  return formatDate(date.getTime(), true);
+  return formatDate(date.getTime(), formatTimezone);
 };
 
 // 首次加载设置表格默认宽度自适应
