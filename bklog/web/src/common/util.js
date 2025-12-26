@@ -445,7 +445,7 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
  * @param {Number | String | Date} val
  * @return {String}
  */
-export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
+export function formatDate(val, isTimzone = false, formatMilliseconds = false) {
   try {
     const date = new Date(val);
     if (isNaN(date.getTime())) {
@@ -1124,7 +1124,7 @@ export const utcFormatDate = (val) => {
     return val;
   }
 
-  return formatDate(date.getTime());
+  return formatDate(date.getTime(), true);
 };
 
 // 首次加载设置表格默认宽度自适应
