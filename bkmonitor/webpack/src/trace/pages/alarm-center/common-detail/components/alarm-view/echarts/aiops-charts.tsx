@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onMounted, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, provide, shallowRef } from 'vue';
 
 import dayjs from 'dayjs';
 import { random } from 'monitor-common/utils/utils';
@@ -83,6 +83,22 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     const timeRange = shallowRef([]);
+    provide('timeRange', timeRange);
+    const showRestore = shallowRef(false);
+    const cacheTimeRange = shallowRef([]);
+    const handleDataZoomChange = (value: any[]) => {
+      if (JSON.stringify(timeRange.value) !== JSON.stringify(value)) {
+        cacheTimeRange.value = JSON.parse(JSON.stringify(timeRange.value));
+        timeRange.value = value;
+        showRestore.value = true;
+      }
+    };
+
+    const handleRestore = () => {
+      const cacheTime = JSON.parse(JSON.stringify(cacheTimeRange.value));
+      timeRange.value = cacheTime;
+      showRestore.value = false;
+    };
 
     const panel = shallowRef(null);
     const dashboardId = random(10);
@@ -203,12 +219,20 @@ export default defineComponent({
 
     return {
       panel,
+      showRestore,
+      handleDataZoomChange,
+      handleRestore,
     };
   },
   render() {
     return (
       <div class='aiops-charts'>
-        <MonitorCharts panel={this.panel} />
+        <MonitorCharts
+          panel={this.panel}
+          showRestore={this.showRestore}
+          onDataZoomChange={this.handleDataZoomChange}
+          onRestore={this.handleRestore}
+        />
       </div>
     );
   },

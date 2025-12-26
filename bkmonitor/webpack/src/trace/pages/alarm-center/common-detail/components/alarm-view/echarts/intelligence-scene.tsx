@@ -48,14 +48,14 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const showRestore = shallowRef(false);
-    const timeRange = shallowRef(DEFAULT_TIME_RANGE);
-    const cacheTimeRange = shallowRef(DEFAULT_TIME_RANGE);
     const loading = shallowRef(false);
     const dashboardId = random(10);
     const panels = shallowRef<PanelModel[]>([]);
     const viewOptions = shallowRef({});
 
+    const showRestore = shallowRef(false);
+    const timeRange = shallowRef(DEFAULT_TIME_RANGE);
+    const cacheTimeRange = shallowRef(DEFAULT_TIME_RANGE);
     const handleDataZoomChange = (value: any[]) => {
       if (JSON.stringify(timeRange.value) !== JSON.stringify(value)) {
         cacheTimeRange.value = JSON.parse(JSON.stringify(timeRange.value));
