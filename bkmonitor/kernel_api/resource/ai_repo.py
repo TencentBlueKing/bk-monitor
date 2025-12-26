@@ -52,7 +52,7 @@ class DownloadRepoFileResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         key = serializers.CharField(required=True, label="文件路径")
-        expires = serializers.IntegerField(required=False, label="过期时间", default=60)
+        expires = serializers.IntegerField(required=False, label="过期时间(秒)", default=60)
 
     def perform_request(self, validated_request_data):
         key = validated_request_data["key"]
