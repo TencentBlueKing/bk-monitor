@@ -335,6 +335,7 @@ class AlertEventTotalResource(AlertEventBaseResource):
         :param query_params: 基础查询参数，包含业务 ID、时间范围、查询配置等
         :param target: 目标对象，用于判断是否为 APM 目标
         :return: 包含总数和分组统计的响应数据
+        :raises ValueError: 当任何事件来源查询失败时抛出异常
         """
         event_total_resource_cls: type = APMEventTotalResource if self.is_apm_target(target) else EventTotalResource
 
@@ -347,8 +348,9 @@ class AlertEventTotalResource(AlertEventBaseResource):
                     existing_where.extend(source_condition)
                     query_config["where"] = existing_where
                 count: int = event_total_resource_cls().request(source_query_params).get("total", 0)
-            except Exception:  # pylint: disable=broad-except
-                count = 0
+            except Exception as e:  # pylint: disable=broad-except
+                raise ValueError(f"事件来源【{source}】查询失败: {str(e)}")
+
             return {
                 "value": source,
                 "alias": self.SOURCE_ALIAS_MAPPING.get(source, source),
