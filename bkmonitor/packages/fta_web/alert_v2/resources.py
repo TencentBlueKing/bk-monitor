@@ -9,8 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
+import copy
 from typing import Any
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 from django.db.models import Q
 from rest_framework import serializers
@@ -19,14 +20,18 @@ from api.cmdb.define import Host
 from bkmonitor.data_source import q_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.documents import AlertDocument
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.alert import APMTargetType, K8STargetType
 from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import Resource, resource, api
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
 from fta_web.alert_v2.target import BaseTarget, get_target_instance
 from monitor_web.data_explorer.event.constants import EventSource
-from monitor_web.data_explorer.event.resources import EventLogsResource
-from apm_web.event.resources import EventLogsResource as APMEventLogsResource
+from monitor_web.data_explorer.event.resources import EventLogsResource, EventTotalResource
+from apm_web.event.resources import (
+    EventLogsResource as APMEventLogsResource,
+    EventTotalResource as APMEventTotalResource,
+)
 
 from monitor_web.data_explorer.event.utils import get_cluster_table_map
 
@@ -288,6 +293,82 @@ class AlertEventsResource(AlertEventBaseResource):
             # 事件检索仅支持单数据源查询，取第一个用于前端跳转。
             result["query_config"]["query_configs"] = result["query_config"]["query_configs"][0]
         return result
+
+
+class AlertEventTotalResource(AlertEventBaseResource):
+    """告警关联事件总数统计资源类。
+
+    根据告警 ID 统计关联事件的总数，并按事件来源（主机、容器、蓝盾、业务上报）分组统计。
+    """
+
+    # 事件来源的本地别名映射，用于覆盖 EventSource 的默认映射，将 BCS 翻译为更友好的 "容器"，而不是保持原始的 "BCS"
+    SOURCE_ALIAS_MAPPING: dict[str, str] = {
+        EventSource.HOST.value: "主机",
+        EventSource.BCS.value: "容器",
+        EventSource.BKCI.value: "蓝盾",
+        EventSource.DEFAULT.value: "业务上报",
+    }
+
+    class RequestSerializer(serializers.Serializer):
+        """请求参数序列化器"""
+
+        alert_id = serializers.CharField(label="告警 id", help_text="要查询的告警 ID")
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        """执行告警关联事件总数统计请求
+
+        :param validated_request_data: 验证后的请求参数
+        :return: 包含总数和分组统计的响应数据
+        """
+        alert: AlertDocument = AlertDocument.get(validated_request_data["alert_id"])
+        target: BaseTarget = get_target_instance(alert)
+        q: QueryConfigBuilder = self._get_q(target)
+        queryset: UnifyQuerySet = self.build_queryset(alert, target, q)
+        query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
+        return self._count_all_sources(query_params, target)
+
+    def _count_all_sources(self, query_params: dict[str, Any], target: BaseTarget) -> dict[str, Any]:
+        """统计所有事件来源的总数。
+
+        使用多线程并发查询所有事件来源（主机、容器、蓝盾、业务上报）的事件数量
+
+        :param query_params: 基础查询参数，包含业务 ID、时间范围、查询配置等
+        :param target: 目标对象，用于判断是否为 APM 目标
+        :return: 包含总数和分组统计的响应数据
+        """
+        event_total_resource_cls: type = APMEventTotalResource if self.is_apm_target(target) else EventTotalResource
+
+        def _count_single_source(source: str) -> dict[str, Any]:
+            try:
+                source_query_params: dict[str, Any] = copy.deepcopy(query_params)
+                source_condition: list = q_to_conditions(Q(source=source))
+                for query_config in source_query_params.get("query_configs", []):
+                    existing_where: list = query_config.get("where") or []
+                    existing_where.extend(source_condition)
+                    query_config["where"] = existing_where
+                count: int = event_total_resource_cls().request(source_query_params).get("total", 0)
+            except Exception:  # pylint: disable=broad-except
+                count = 0
+            return {
+                "value": source,
+                "alias": self.SOURCE_ALIAS_MAPPING.get(source, source),
+                "total": count,
+            }
+
+        sources: list[str] = [source for source, _ in EventSource.choices()]
+        pool = ThreadPool(min(len(sources), 8))
+        source_counts_iter: Iterable[dict[str, Any]] = pool.imap_unordered(
+            lambda source: _count_single_source(source), sources
+        )
+        pool.close()
+
+        source_counts: list[dict[str, Any]] = []
+        total_count: int = 0
+        for source_count in source_counts_iter:
+            source_counts.append(source_count)
+            total_count += source_count["total"]
+
+        return {"total": total_count, "list": source_counts}
 
 
 class AlertK8sScenarioListResource(Resource):
