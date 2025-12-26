@@ -26,7 +26,7 @@ from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.fta_action import ActionAlreadyFinishedError
 from alarm_backends.service.fta_action.common import BaseActionProcessor
 from bkmonitor.models import ActionInstance
-from bkmonitor.utils.send import Sender
+from bkmonitor.utils.send import Sender, BlockedError
 from constants.action import (
     ActionSignal,
     ActionStatus,
@@ -228,13 +228,33 @@ class ActionProcessor(BaseActionProcessor):
             title_template_path=title_template_path,
             content_template_path=content_template_path,
         )
+        # 熔断判定
+        is_circuit_breaking = self.check_circuit_breaking_for_notice()
+        if is_circuit_breaking:
+            setattr(notify_sender, "blocked", True)
 
         need_send, collect_action_id = self.need_send_notice(self.notice_way)
         if need_send:
-            notice_results = notify_sender.send(
-                self.notice_way,
-                notice_receivers=self.notice_receivers,
-            )
+            try:
+                notice_results = notify_sender.send(
+                    self.notice_way,
+                    notice_receivers=self.notice_receivers,
+                )
+            except BlockedError as blocked_error:
+                # 处理熔断异常，保存 retry_params 用于后续重放
+                logger.info(
+                    f"[circuit breaking] notice action({self.action.id}) strategy({self.action.strategy_id}) "
+                    f"blocked: {blocked_error.message}"
+                )
+                notice_results = {
+                    receiver: {
+                        "result": False,
+                        "failure_type": FailureType.BLOCKED,
+                        "message": blocked_error.message,
+                        "retry_params": blocked_error.retry_params,
+                    }
+                    for receiver in self.notice_receivers
+                }
         else:
             notice_results = {
                 ",".join(self.notice_receivers): {
@@ -309,7 +329,11 @@ class ActionProcessor(BaseActionProcessor):
 
         # 更新被熔断的 actions
         if blocked_actions:
-            # 构建通知 API 调用参数
+            # 收集所有被熔断的 retry_params
+            retry_params_list = []
+            for receiver, notice_result in notice_results.items():
+                if notice_result.get("failure_type") == FailureType.BLOCKED and "retry_params" in notice_result:
+                    retry_params_list.extend(notice_result["retry_params"])
 
             ActionInstance.objects.filter(id__in=blocked_actions).update(
                 **{
@@ -318,7 +342,7 @@ class ActionProcessor(BaseActionProcessor):
                     "end_time": datetime.now(tz=timezone.utc),
                     "ex_data": {
                         "message": blocked_message,
-                        "notify_api_params": {},
+                        "retry_params": retry_params_list,
                     },
                     "outputs": notify_content_outputs,
                 }
@@ -328,7 +352,7 @@ class ActionProcessor(BaseActionProcessor):
         """
         重新发送被熔断的通知
         """
-        pass
+        return self.action.replay_blocked_notice()
 
     def need_send_notice(self, notice_way):
         """
