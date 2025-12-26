@@ -559,6 +559,10 @@ export class AlarmDetail {
       if (item.name === ALARM_CENTER_PANEL_TAB_MAP.PROCESS) {
         return this.category === 'host_process' && this.dimensions?.some(item => item.key === 'tags.display_name');
       }
+      /* 容器 */
+      if (item.name === ALARM_CENTER_PANEL_TAB_MAP.CONTAINER) {
+        return /^(APM|K8S)-\w+$/.test(this.target_type);
+      }
       return true;
     });
   }
