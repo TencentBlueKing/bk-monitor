@@ -1,0 +1,72 @@
+.action-detail-content {
+  .alarm-table {
+    margin-top: 34px;
+
+    .alarm-table-title {
+      margin-bottom: 8px;
+      line-height: 22px;
+      height: 22px;
+
+      .title {
+        margin-right: 8px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #313238;
+      }
+
+      .msg {
+        font-size: 12px;
+        color: #4d4f56;
+      }
+
+      .table-title-link {
+        margin-left: 3px;
+        font-size: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+
+    .alarm-name-col,
+    .alarm-level-col {
+      height: 16px;
+      padding-left: 4px;
+      line-height: 16px;
+      border-left: 3px solid #699df4;
+    }
+
+    .alarm-content-col {
+      display: flex;
+      align-items: center;
+
+      .prefix-icon {
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        margin-right: 4px;
+        font-size: 14px;
+        color: #8e9bb3;
+        background-color: #f0f2f7;
+      }
+
+      .description-click {
+        text-decoration: underline;
+        text-underline-offset: 4px;
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+
+      .ellipsis {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+  }
+}

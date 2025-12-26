@@ -25,6 +25,8 @@
  * IN THE SOFTWARE.
  */
 
+import { random } from 'monitor-common/utils';
+
 import { CP_METHOD_LIST, METHOD_LIST } from '../../../constant/constant';
 
 import type { AggCondition } from './query-config';
@@ -93,6 +95,8 @@ export class MetricDetailV2 {
   readonly metric_field_name: string;
   /** 指标ID */
   readonly metric_id: string;
+  /** 指标DOM ID 用于dom id 设置*/
+  readonly metricDomId: string;
   /** 指标名称 */
   readonly name: string;
   /** PromQL指标 */
@@ -134,6 +138,7 @@ export class MetricDetailV2 {
         item => (needBizId || item.id !== 'bk_biz_id') && (item.is_dimension || item.is_dimension === undefined)
       );
     }
+    this.metricDomId = data?.metricDomId || random(8, 'abcdefghijklmnopqrstuvwxyz');
   }
   /** 是否支持PromQL */
   get allowSource() {

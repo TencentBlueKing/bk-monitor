@@ -112,6 +112,7 @@ export default {
   修改后重试: 'Retry after modification',
   设为默认: 'Set as default',
   取消默认: 'Remove default',
+  取消选择: 'Cancel Selection',
 
   // 规范：平台特性 术语
   新建节点: 'New Probe',
@@ -516,4 +517,7 @@ export default {
   添加告警策略: 'Add Alert Policy',
   更多地址: 'More',
   维度聚合: 'Group by',
+  上一个: 'Previous',
+  下一个: 'Next',
+  分析详情: 'Analysis Details',
 };

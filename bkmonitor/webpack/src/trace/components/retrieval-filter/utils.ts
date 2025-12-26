@@ -27,7 +27,7 @@
 import type { ShallowRef } from 'vue';
 
 import { formatDuration } from './duration-input-utils';
-import { type IFilterItem, type IWhereItem, ECondition, EMethod } from './typing';
+import { type IFilterItem, type INormalWhere, type IWhereItem, ECondition, EMethod } from './typing';
 
 export const fieldTypeMap = {
   all: {
@@ -77,6 +77,24 @@ export const fieldTypeMap = {
     icon: 'icon-monitor icon-Others',
     color: '#B59D8D',
     bgColor: '#EBE0D9',
+  },
+  duration: {
+    name: window.i18n.t('数字'),
+    icon: 'icon-monitor icon-number1',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
+  input: {
+    name: window.i18n.t('字符串'),
+    icon: 'icon-monitor icon-Str',
+    color: '#6498B3',
+    bgColor: '#D9E5EB',
+  },
+  object: {
+    name: window.i18n.t('对象'),
+    icon: 'icon-monitor icon-Object',
+    color: 'rgb(232, 234, 240)',
+    bgColor: 'rgb(151, 155, 165)',
   },
 };
 
@@ -133,6 +151,7 @@ export function getTitleAndSubtitle(str) {
 export function isNumeric(str) {
   return /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/.test(str);
 }
+
 /**
  * @description 合并where条件 （不相同的条件往后添加）
  * @param source
@@ -165,7 +184,6 @@ export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
   result = [...source, ...localTarget];
   return result;
 }
-
 export function onClickOutside(element, callback, { once = false } = {}) {
   const handler = (event: MouseEvent) => {
     let isInside = false;
@@ -200,9 +218,20 @@ export const traceWhereFormatter = (where: IWhereItem[]) => {
     value: item.value,
     condition: ECondition.and,
     options: item?.options || {},
-  })) as IWhereItem[];
+  })) as INormalWhere[];
 };
-export const equalWhere = (source: IWhereItem[], target: IWhereItem[]) => {
+export const traceWhereChangeFormatter = (where: INormalWhere[]) => {
+  const traceWhere = where
+    .filter(item => !!item)
+    .map(item => ({
+      key: item.key,
+      operator: item.method,
+      value: item.value,
+      options: item?.options || undefined,
+    }));
+  return traceWhere;
+};
+export const equalWhere = (source: INormalWhere[], target: INormalWhere[]) => {
   let result = true;
   let index = -1;
   if (target.length !== source.length) {
@@ -267,7 +296,9 @@ export function getTopDocument(node = document) {
   return currentRoot === document ? document : currentRoot;
 }
 export function triggerShallowRef<T>(shallowRef: ShallowRef<T>) {
-  shallowRef.value = structuredClone(shallowRef.value);
+  if (typeof shallowRef.value === 'object') {
+    shallowRef.value = JSON.parse(JSON.stringify(shallowRef.value));
+  }
 }
 
 /* 通配符字段key */
