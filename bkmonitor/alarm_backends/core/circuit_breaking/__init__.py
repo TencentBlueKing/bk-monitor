@@ -20,7 +20,7 @@ specific language governing permissions and limitations under the License.
 	
 	-  熔断后续对应 nodata 检测需要同样阻断
 
-2. alert.builder(doing)
+2. alert.builder(done)
     - run_alert_builder 执行过程中, 正常创建告警, 在创建告警后进行熔断判定, 命中后告警状态设置为被流控, 并不再后续处理。
     - 熔断解决： celery_composite,  celery_composite 队列堵塞,  action 模块
     - 优点: 所有熔断日志均能记录到 es 中, 支持回溯
@@ -38,13 +38,15 @@ specific language governing permissions and limitations under the License.
     
     - alert.manager 模块同步应用熔断规则, 规则模块尝试从alert.manager获取, 如果未配置, 则复用alert.builder中的熔断规则
 
-3. action(todo)
-	create_actions: action创建时熔断
-	1. 根据 action 配置中对应的告警策略(业务, 数据来源,  策略 id), 进行熔断, 并记录告警日志流水
-	2. 根据 action 配置的 plugin_type 进行熔断(notice 不再此处)
-	3. 创建通知 action 时, 基于通知方式, 进行熔断, 并记录告警日志流水
-
-4. action.execute 支持熔断+回放(todo)
+3. action(doing)
+    - 背景: 后台异常可能出现的情况:
+        1. 告警风暴: 产生大量误告(告警中包含正常告警和误告警)
+        2. 告警状态维护异常: 告警创建后立即被关闭,随后又有新告警产生(告警均为正常告警,告警频繁创建后产生告警处理(action)风暴)
+    - 针对[1]熔断方案:
+        - action 执行阶段进行熔断, 其中告警通知除熔断外,记录通知参数到 db. 支持后续重放通知
+    - 针对[2]熔断方案:
+        - message_queue: action 创建阶段进行熔断, 避免 action 风暴
+        - 其余 plugin_type: 执行阶段熔断，记录告警流水
 
 
 ### 基于熔断主体生成熔断维度

@@ -40,6 +40,7 @@ import CollectionSlider from './collection-slider';
 import http from '@/api';
 
 import './index.scss';
+import useUtils from '@/hooks/use-utils';
 
 // tab类型常量定义
 const TAB_TYPES = {
@@ -280,6 +281,8 @@ export default defineComponent({
       }
     };
 
+    const { formatResponseListTimeZoneString } = useUtils();
+
     // 处理列表数据，添加租户信息
     const processListWithTenantInfo = async (list: any[]) => {
       if (list.length === 0) {
@@ -288,7 +291,7 @@ export default defineComponent({
       // 为每项添加 tenant_info 字段，并收集所有的 created_by
       const tenantUserIds = [];
 
-      const listWithTenantInfo = list.map((item) => {
+      const listWithTenantInfo = formatResponseListTimeZoneString(list, (item) => {
         let tenantInfo = {
           login_name: '',
           full_name: '',
@@ -300,7 +303,6 @@ export default defineComponent({
           userDisplayMap.set(item.created_by, tenantInfo);
         }
         const newItem = {
-          ...item,
           tenant_info: tenantInfo,
         };
 

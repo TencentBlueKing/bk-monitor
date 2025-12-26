@@ -1907,8 +1907,8 @@ class LogBuiltInFieldTypeEnum:
 
     @classmethod
     def get_choices(cls):
-        return [key.lower() for key in LOG_BUILT_IN_FIELD_LIST]
+        return LOG_BUILT_IN_FIELD_LIST
 
     @classmethod
     def get_choices_list_dict(cls):
-        return [{"id": key.lower(), "name": key.lower()} for key in LOG_BUILT_IN_FIELD_LIST if key]
+        return [{"id": key, "name": key} for key in LOG_BUILT_IN_FIELD_LIST if key]
