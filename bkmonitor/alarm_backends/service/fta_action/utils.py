@@ -76,7 +76,7 @@ class PushActionProcessor:
                 # 有父任务的事件，先需要创建对应的子任务
                 sub_actions = action_instance.create_sub_actions()
                 logger.info(
-                    "[create actions]alert(%s) create sub notice actions %s for parent action(%s), exclude_notice_ways(%s)",
+                    "[create sub actions]alert(%s) create sub notice actions %s for parent action(%s), exclude_notice_ways(%s)",
                     alerts[0].id,
                     len(sub_actions),
                     action_instance.id,
