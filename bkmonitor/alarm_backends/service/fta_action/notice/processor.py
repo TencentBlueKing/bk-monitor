@@ -88,7 +88,12 @@ class ActionProcessor(BaseActionProcessor):
             client = FTA_NOTICE_COLLECT_KEY.client
             data: dict[bytes, bytes] = client.hgetall(collect_key)
             if not data and self.action.is_parent_action is False:
-                logger.info("$%s have already finished, no data found in collect_key(%s)", self.action.id, collect_key)
+                logger.info(
+                    "[ignore notice]action(%s) alert(%s) have already finished, no data found in collect_key(%s)",
+                    self.action.id,
+                    self.action.alerts,
+                    collect_key,
+                )
                 raise ActionAlreadyFinishedError(_("当前告警通知已经汇总发送"))
             data: dict[str, str] = {
                 (key.decode() if isinstance(key, bytes) else key): (
@@ -100,7 +105,11 @@ class ActionProcessor(BaseActionProcessor):
             self.notify_actions = list(data.values())
             if str(self.action.id) not in self.notify_actions:
                 # 如果当前的处理记录不在获取的缓存中，忽略发送
-                logger.info("$%s maybe have finished by other actions", self.action.id)
+                logger.info(
+                    "[ignore notice]action(%s) alert(%s) maybe have finished by other actions",
+                    self.action.id,
+                    self.action.alerts,
+                )
                 raise ActionAlreadyFinishedError("当前告警通知已经汇总发送")
 
             self.is_collect_notice = True
@@ -108,7 +117,13 @@ class ActionProcessor(BaseActionProcessor):
             # 针对获取到的用户信息进行清除
             for receiver in self.notice_receivers:
                 client.hdel(collect_key, receiver)
-        logger.info("send notice[%s]: %s by action %s", collect_key, self.notify_actions, self.action.id)
+        logger.info(
+            "[send notice]alert(%s) collect_key(%s): %s by action %s",
+            self.action.alerts,
+            collect_key,
+            self.notify_actions,
+            self.action.id,
+        )
         return data
 
     def execute(self):
@@ -247,18 +262,29 @@ class ActionProcessor(BaseActionProcessor):
         failed_actions = []
         failed_message = _("发送失败")
         failure_type = FailureType.EXECUTE_ERROR
+
+        blocked_actions = []
+        blocked_message = _("通知被熔断")
+
         for receiver, notice_result in notice_results.items():
             related_action = self.receiver_action_mapping.get(receiver)
             if not related_action:
                 continue
+
             if notice_result["result"]:
                 succeed_actions.append(related_action)
                 succeed_message = notice_result.get("message") or succeed_message
             else:
-                failed_actions.append(related_action)
-                failed_message = notice_result.get("message") or failed_message
-                failure_type = notice_result.get("failure_type") or failure_type
+                result_failure_type = notice_result.get("failure_type") or failure_type
+                if result_failure_type == FailureType.BLOCKED:
+                    blocked_actions.append(related_action)
+                    blocked_message = notice_result.get("message") or blocked_message
+                else:
+                    failed_actions.append(related_action)
+                    failed_message = notice_result.get("message") or failed_message
+                    failure_type = result_failure_type
 
+        # 更新成功的 actions
         if succeed_actions:
             ActionInstance.objects.filter(id__in=succeed_actions).update(
                 **{
@@ -269,6 +295,7 @@ class ActionProcessor(BaseActionProcessor):
                 }
             )
 
+        # 更新失败的 actions
         if failed_actions:
             ActionInstance.objects.filter(id__in=failed_actions).update(
                 **{
@@ -279,6 +306,29 @@ class ActionProcessor(BaseActionProcessor):
                     "outputs": notify_content_outputs,
                 }
             )
+
+        # 更新被熔断的 actions
+        if blocked_actions:
+            # 构建通知 API 调用参数
+
+            ActionInstance.objects.filter(id__in=blocked_actions).update(
+                **{
+                    "status": ActionStatus.BLOCKED,
+                    "failure_type": FailureType.BLOCKED,
+                    "end_time": datetime.now(tz=timezone.utc),
+                    "ex_data": {
+                        "message": blocked_message,
+                        "notify_api_params": {},
+                    },
+                    "outputs": notify_content_outputs,
+                }
+            )
+
+    def replay_blocked_notice(self):
+        """
+        重新发送被熔断的通知
+        """
+        pass
 
     def need_send_notice(self, notice_way):
         """

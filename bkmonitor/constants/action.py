@@ -100,6 +100,8 @@ class FailureType:
     CALLBACK_ERROR = "callback_failure"
     USER_ABORT = "user_abort"
     SYSTEM_ABORT = "system_abort"
+    BLOCKED = "blocked"
+    BLOCKED = "blocked"
 
 
 FAILURE_TYPE_CHOICES = (
@@ -584,7 +586,7 @@ class ActionStatus:
 
     CAN_EXECUTE_STATUS = [RECEIVED, CONVERGED, RUNNING, RETRYING]
 
-    IGNORE_STATUS = {RUNNING, SLEEP, SKIPPED, SHIELD, BLOCKED}
+    IGNORE_STATUS = {RUNNING, SLEEP, SKIPPED, SHIELD}
 
     CAN_SYNC_STATUS = [
         WAITING,
