@@ -39,6 +39,7 @@ export const getTmpData = request('GET', 'fta/alert/v2/alert/get_tmp_data/');
 export const getFourMetricsData = request('GET', 'fta/alert/v2/alert/get_four_metrics_data/');
 export const alertDetail = request('GET', 'fta/alert/v2/alert/detail/');
 export const alertEvents = request('POST', 'fta/alert/v2/alert/events/');
+export const alertEventTotal = request('GET', 'fta/alert/v2/alert/event_total/');
 export const alertK8sScenarioList = request('GET', 'fta/alert/v2/alert/k8s_scenario_list/');
 export const alertK8sMetricList = request('GET', 'fta/alert/v2/alert/k8s_metric_list/');
 export const alertK8sTarget = request('GET', 'fta/alert/v2/alert/k8s_target/');
@@ -86,6 +87,7 @@ export default {
   getFourMetricsData,
   alertDetail,
   alertEvents,
+  alertEventTotal,
   alertK8sScenarioList,
   alertK8sMetricList,
   alertK8sTarget,
