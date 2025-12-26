@@ -51,6 +51,7 @@ import { type MonitorEchartOptions, echarts } from 'monitor-ui/monitor-echarts/t
 import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
 
+import { checkIsRoot } from '../../../pages/failure/utils';
 import ChartTitle from '../../components/chart-title';
 import CommonLegend from '../../components/common-legend';
 import { useChartInfoInject } from '../../hooks/chart';
@@ -215,7 +216,7 @@ export default defineComponent({
       return chartInfo?.is_feedback_root;
     });
     const isRoot = computed(() => {
-      return chartInfo?.entity?.is_root;
+      return checkIsRoot(chartInfo?.entity);
     });
     // 销毁时的逻辑处理
     onUnmounted(() => {

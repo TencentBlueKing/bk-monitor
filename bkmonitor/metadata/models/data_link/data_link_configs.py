@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from django.conf import settings
 from django.db import models
@@ -206,7 +206,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
                         "name": "{{prefer_kafka_cluster_name}}"
                     },
                     {% endif %}
-                    "event_type": "{{event_type}}"
+                    "eventType": "{{event_type}}"
                 }
             }
             """
@@ -409,9 +409,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
-    def compose_config(
-        self,
-    ) -> dict:
+    def compose_config(self, whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None) -> dict[str, Any]:
         """
         组装VM存储配置，与结果表相关联
         """
@@ -436,6 +434,9 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                         "namespace": "{{namespace}}"
                     },
                     "maintainers": {{maintainers}},
+                    {% if whitelist_config %}
+                    "filter": {{whitelist_config}},
+                    {% endif %}
                     "storage": {
                         "kind": "VmStorage",
                         "name": "{{vm_name}}",
@@ -449,6 +450,19 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
 
+        # 白名单配置
+        whitelist_config: str | None = None
+        if whitelist and whitelist.get("metrics"):
+            metrics = whitelist["metrics"]
+            tags = whitelist.get("tags") or []
+            whitelist_config = json.dumps(
+                {
+                    "kind": "Whitelist",
+                    "metrics": metrics,
+                    "tags": tags,
+                }
+            )
+
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
@@ -456,6 +470,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             "rt_name": self.name,
             "vm_name": self.vm_cluster_name,
             "maintainers": json.dumps(maintainer),
+            "whitelist_config": whitelist_config,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
