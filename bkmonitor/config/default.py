@@ -1677,6 +1677,9 @@ if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
     BKREPO_PROJECT = os.getenv("BKAPP_BKREPO_PROJECT") or os.environ["BKREPO_PROJECT"]
     BKREPO_BUCKET = os.getenv("BKAPP_BKREPO_BUCKET") or os.environ["BKREPO_BUCKET"]
 
+    AI_BKREPO_BUCKET = os.getenv("BKAPP_AI_BKREPO_BUCKET")
+    AI_BKREPO_PROJECT = os.getenv("BKAPP_AI_BKREPO_PROJECT")
+
     DEFAULT_FILE_STORAGE = "bkstorages.backends.bkrepo.BKRepoStorage"
 
 # 告警图表渲染模式
