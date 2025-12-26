@@ -32,7 +32,7 @@ class ListRepoDirResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        key_prefix = serializers.CharField(required=True, label="路径")
+        key_prefix = serializers.CharField(required=False, label="路径", default="/")
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -59,6 +59,6 @@ class DownloadRepoFileResource(Resource):
         expires = validated_request_data["expires"]
         bk_biz_id = validated_request_data["bk_biz_id"]
         logger.info("DownloadRepoFileResource: try to download repo file, bk_biz_id->[%s], key->[%s]", bk_biz_id, key)
-        download_url = client.generate_presigned_url(key=key, expires=expires)
+        download_url = client.generate_presigned_url(key=key, expires_in=expires)
 
         return download_url
