@@ -374,14 +374,14 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
       return (
         <div>
           <bk-user-display-name user-id={item.update_user} />
-          {this.$t(' 于 {0} 更新', [dayjs.tz(item.update_time).format('YYYY-MM-DD HH:mm:ss')])},
+          {this.$t(' 于 {0} 更新', [dayjs.tz(item.update_time).format('YYYY-MM-DD HH:mm:ssZZ')])},
         </div>
       );
     }
     return (
       <div>
         <bk-user-display-name user-id={item.create_user} />,
-        {this.$t(' 于 {0} 创建', [dayjs.tz(item.create_time).format('YYYY-MM-DD HH:mm:ss')])}
+        {this.$t(' 于 {0} 创建', [dayjs.tz(item.create_time).format('YYYY-MM-DD HH:mm:ssZZ')])}
       </div>
     );
   }

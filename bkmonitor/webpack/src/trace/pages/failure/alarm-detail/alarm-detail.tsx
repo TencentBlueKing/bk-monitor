@@ -38,15 +38,15 @@ import {
 } from 'vue';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
-import { Exception, Loading, Message, Popover } from 'bkui-vue';
+import { Loading, Message, Popover } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
-import dayjs from 'dayjs';
 import {
   feedbackIncidentRoot,
   incidentAlertList,
   incidentRecordOperation,
   incidentValidateQueryString,
 } from 'monitor-api/modules/incident';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { random } from 'monitor-common/utils/utils.js';
 import { useI18n } from 'vue-i18n';
 
@@ -200,8 +200,8 @@ export default defineComponent({
     const formatterTime = (time: number | string): string => {
       if (!time) return '--';
       if (typeof time !== 'number') return time;
-      if (time.toString().length < 13) return dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ss');
-      return dayjs(time).format('YYYY-MM-DD HH:mm:ss');
+      if (time.toString().length < 13) return formatWithTimezone(time * 1000) as string;
+      return formatWithTimezone(time) as string;
     };
     const handleQuickShield = v => {
       setDialogData(v);
@@ -863,7 +863,7 @@ export default defineComponent({
 
     watch(
       () => bkzIds.value,
-      (newVal, oldVal) => {
+      (newVal, _oldVal) => {
         // 当 bkzIds 有值并发生变化，且searchValidate为true时，重新请求数据
         if (newVal && newVal.length > 0 && props.searchValidate) {
           handleGetTable();

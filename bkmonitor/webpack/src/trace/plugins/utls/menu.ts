@@ -112,9 +112,9 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
         value: (set.value || []).join(','),
       })) || [],
 
-    start_time: start_time ? dayjs.tz(start_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
+    start_time: start_time ? dayjs.tz(start_time).format('YYYY-MM-DD HH:mm:ssZZ') : undefined,
 
-    end_time: end_time ? dayjs.tz(end_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
+    end_time: end_time ? dayjs.tz(end_time).format('YYYY-MM-DD HH:mm:ssZZ') : undefined,
     time_range,
   };
   queryStr = Object.keys(queryObj).reduce((str, key, i) => {
@@ -284,7 +284,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
   //  原始数据表格数据
   tableTdArr = data[0].datapoints.map(set => [
     {
-      value: dayjs.tz(set[1]).format('YYYY-MM-DD HH:mm:ss'),
+      value: dayjs.tz(set[1]).format('YYYY-MM-DD HH:mm:ssZZ'),
       originValue: set[1],
     },
   ]);
@@ -303,7 +303,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
     max: null,
     min: null,
   }));
-  tableThArr.forEach((th, index) => {
+  tableThArr.forEach((_th, index) => {
     if (index > 0) {
       const map: any = maxMinMap[index];
       map.min = tableTdArr[0][index].value;

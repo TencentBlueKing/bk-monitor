@@ -241,7 +241,7 @@
                     <bk-user-display-name :user-id="scope.row.create_user" />
                   </div>
                   <div class="col-create">
-                    {{ scope.row.create_time }}
+                    {{ formatWithTimezone(scope.row.create_time) }}
                   </div>
                 </div>
               </template>
@@ -258,7 +258,7 @@
                     <bk-user-display-name :user-id="scope.row.update_user" />
                   </div>
                   <div class="col-create">
-                    {{ scope.row.update_time }}
+                    {{ formatWithTimezone(scope.row.update_time) }}
                   </div>
                 </div>
               </template>
@@ -440,6 +440,7 @@ import {
 } from 'monitor-api/modules/model';
 import { saveAndReleasePlugin } from 'monitor-api/modules/plugin';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { debounce } from 'throttle-debounce';
 import { createNamespacedHelpers } from 'vuex';
 
@@ -653,6 +654,9 @@ export default {
   },
   methods: {
     ...mapMutations([SET_PLUGIN_DATA, SET_PLUGIN_ID, SET_PLUGIN_CONFIG]),
+    formatWithTimezone(time) {
+      return formatWithTimezone(time);
+    },
     async handleShowMeticr() {
       if (this.tablePopover.data.status === 'normal' && !this.tablePopover.data.is_official) {
         this.$router.push({
@@ -1239,7 +1243,7 @@ export default {
 }
 
 .plugin-table-skeleton {
-  padding: 16px 16px 0 16px;
+  padding: 16px 16px 0;
 }
 
 .popover-tag {
@@ -1264,7 +1268,7 @@ export default {
 
     &:hover {
       color: #3a84ff;
-      background: rgba(234, 243, 255, 0.7);
+      background: rgb(234 243 255 / 70%);
     }
 
     span {
@@ -1301,10 +1305,7 @@ export default {
 
           &-file {
             position: absolute;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            left: 0;
+            inset: 0;
             display: block;
             cursor: pointer;
             opacity: 0;
@@ -1321,7 +1322,7 @@ export default {
       background: #fff;
       border-radius: 2px;
 
-      @include border-1px();
+      @include border-1px;
 
       .tab-list {
         display: flex;
@@ -1410,7 +1411,7 @@ export default {
           }
 
           label {
-            margin: 0px;
+            margin: 0;
           }
         }
 
@@ -1447,10 +1448,10 @@ export default {
 
           &-desc {
             display: flex;
+
             // flex: 1 1 auto;
             flex: 1;
-            flex-direction: column;
-            flex-wrap: nowrap;
+            flex-flow: column nowrap;
             align-items: flex-start;
             justify-content: space-between;
             width: 0;
@@ -1473,7 +1474,8 @@ export default {
               width: 100%;
               font-weight: bold;
               color: #3a84ff;
-              //justify-content: center;
+
+              // justify-content: center;
 
               @extend %desc-category;
 
@@ -1542,11 +1544,11 @@ export default {
           }
         }
 
-        &:after {
+        &::after {
           width: 0;
         }
 
-        &:before {
+        &::before {
           height: 0;
         }
 

@@ -37,9 +37,9 @@ import {
 } from 'vue';
 
 import { Checkbox, Loading, Message, Popover, ResizeLayout, Switcher, Tab } from 'bkui-vue';
-import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { typeTools } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -503,7 +503,7 @@ export default defineComponent({
     };
     // 获取两个数组差异元素
     const getArrDifference = (arr1: string[], arr2: string[]) => {
-      return arr1.concat(arr2).filter((v, i, arr) => {
+      return arr1.concat(arr2).filter((v, _i, arr) => {
         return arr.indexOf(v) === arr.lastIndexOf(v);
       });
     };
@@ -888,7 +888,7 @@ export default defineComponent({
         >
           <div class='message-item'>
             <span>{this.t('产生时间')}</span>
-            <span>{dayjs.tz(traceInfo?.product_time / 1e3).format('YYYY-MM-DD HH:mm:ss')}</span>
+            <span>{formatWithTimezone(traceInfo?.product_time / 1e3) as string}</span>
           </div>
           <div class='message-item'>
             <span>{this.t('总耗时')}</span>

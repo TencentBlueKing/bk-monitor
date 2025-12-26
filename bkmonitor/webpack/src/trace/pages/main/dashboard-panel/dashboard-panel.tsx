@@ -69,11 +69,11 @@ export default defineComponent({
     // const startTimeMinusOneHour = dayjs
     //   .tz(startTime.value || undefined)
     //   .subtract(1, 'hour')
-    //   .format('YYYY-MM-DD HH:mm:ss');
+    //   .format('YYYY-MM-DD HH:mm:ssZZ');
     // const endTimeMinusOneHour = dayjs
     //   .tz(endTime.value || undefined)
     //   .add(1, 'hour')
-    //   .format('YYYY-MM-DD HH:mm:ss');
+    //   .format('YYYY-MM-DD HH:mm:ssZZ');
     // 时间范围
     // const timeRange = ref([startTimeMinusOneHour, endTimeMinusOneHour]);
     // 对比类型

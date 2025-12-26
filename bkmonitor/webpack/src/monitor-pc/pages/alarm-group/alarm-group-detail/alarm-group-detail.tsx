@@ -36,6 +36,7 @@ import {
 import { listDutyRule, retrieveUserGroup } from 'monitor-api/modules/model';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { getBkchatGroup, previewUserGroupPlan } from 'monitor-api/modules/user_groups';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { random } from 'monitor-common/utils/utils';
 
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
@@ -180,9 +181,9 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
   get historyList() {
     return [
       { label: this.$t('创建人'), value: this.detailData.createUser || '--' },
-      { label: this.$t('创建时间'), value: this.detailData.createTime || '--' },
+      { label: this.$t('创建时间'), value: formatWithTimezone(this.detailData.createTime) || '--' },
       { label: this.$t('最近更新人'), value: this.detailData.updateUser || '--' },
-      { label: this.$t('修改时间'), value: this.detailData.updateTime || '--' },
+      { label: this.$t('修改时间'), value: formatWithTimezone(this.detailData.updateTime) || '--' },
     ];
   }
 

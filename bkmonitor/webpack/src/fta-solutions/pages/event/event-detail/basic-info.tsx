@@ -270,45 +270,48 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       cancelText: this.$t('关闭'),
       extCls: 'event-relation-dialog',
       title: this.$t('关联日志'),
-      subHeader: h(
-        'div',
-        { class: 'json-view-content' },
-        [
-          h('i', {
-            class: 'icon-monitor icon-mc-copy',
-            directives: [
-              {
-                name: 'bk-tooltips',
-                value: this.$t('复制'),
-                arg: 'distance',
-                modifiers: { '5': true },
-              },
-            ],
-            on: {
-              click: () => this.handleCopy(relationInfo),
+      subHeader: h('div', { class: 'json-view-content' }, [
+        h('i', {
+          class: 'icon-monitor icon-mc-copy',
+          directives: [
+            {
+              name: 'bk-tooltips',
+              value: this.$t('复制'),
+              arg: 'distance',
+              modifiers: { '5': true },
             },
-          }),
-          h(VueJsonPretty, {
-            props: {
-              collapsedOnClickBrackets: false,
-              data: relationInfo,
-              deep: 5,
-              showIcon: true,
+          ],
+          on: {
+            click: () => this.handleCopy(relationInfo),
+          },
+        }),
+        h(VueJsonPretty, {
+          props: {
+            collapsedOnClickBrackets: false,
+            data: relationInfo,
+            deep: 5,
+            showIcon: true,
+          },
+          scopedSlots: {
+            nodeValue: ({ node, defaultValue }) => {
+              // value是url时 增加跳转功能
+              if (node.content?.startsWith('http')) {
+                return (
+                  <a
+                    class='vjs-value vjs-value-string'
+                    href={xssFilter(node.content)}
+                    rel='noopener noreferrer'
+                    target='_blank'
+                  >
+                    "{xssFilter(node.content)}"
+                  </a>
+                );
+              }
+              return defaultValue;
             },
-            scopedSlots: {
-              nodeValue: ({node, defaultValue}) => {
-                // value是url时 增加跳转功能
-                if (node.content?.startsWith('http')) {
-                  return (
-                    <a class='vjs-value vjs-value-string' href={xssFilter(node.content)} target='_blank' rel='noopener noreferrer'>"{xssFilter(node.content)}"</a>
-                  );
-                }
-                return defaultValue;
-              },
-            }
-          }),
-        ]
-      ),
+          },
+        }),
+      ]),
     });
   }
 

@@ -643,7 +643,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                   filter-multiple
                 />
                 <bk-table-column
-                  formatter={row => dayjs(row.update_time).format('YYYY-MM-DD HH:mm:ss')}
+                  formatter={row => dayjs(row.update_time).format('YYYY-MM-DD HH:mm:ssZZ')}
                   label={this.$t('变更时间')}
                   prop='update_time'
                   sortable

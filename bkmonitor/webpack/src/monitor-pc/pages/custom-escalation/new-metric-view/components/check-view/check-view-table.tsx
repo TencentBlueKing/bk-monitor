@@ -176,7 +176,7 @@ export default class CheckViewTable extends tsc<object, object> {
       this.timeData = [];
       const timeList = series[0]?.datapoints || [];
       this.timeData = timeList.map(item => ({
-        time: dayjs(item[1]).format('YYYY-MM-DD HH:mm:ss'),
+        time: dayjs(item[1]).format('YYYY-MM-DD HH:mm:ssZZ'),
         date: item[1],
         rowKey: item[1],
       }));
@@ -312,18 +312,18 @@ export default class CheckViewTable extends tsc<object, object> {
     );
   }
 
-  renderCol(h: CreateElement, { row, col }: { col: IColumnItem; row: IDataItem }): JSX.Element {
+  renderCol(_h: CreateElement, { row, col }: { col: IColumnItem; row: IDataItem }): JSX.Element {
     return <span>{this.renderValue(row, col.colKey, row.unit)}</span>;
   }
 
-  renderFluctuationCol(h: CreateElement, { row, col }: { col: IColumnItem; row: IDataItem }): JSX.Element {
+  renderFluctuationCol(_h: CreateElement, { row, col }: { col: IColumnItem; row: IDataItem }): JSX.Element {
     const data = row[col.colKey];
     const isFix = data !== '--' && data !== 0 && data !== undefined;
     const color = data >= 0 ? '#3AB669' : '#E91414';
     return <span style={{ color: isFix ? color : '#313238' }}>{isFix ? `${data.toFixed(2)}%` : '--'}</span>;
   }
 
-  renderColorHead(h: CreateElement, { col }: { col: IColumnItem }): JSX.Element {
+  renderColorHead(_h: CreateElement, { col }: { col: IColumnItem }): JSX.Element {
     return (
       <span
         class={[
@@ -415,7 +415,7 @@ export default class CheckViewTable extends tsc<object, object> {
     });
   }
 
-  renderFooter(h: CreateElement, { col, row }: { col: IColumnItem; row: IDataItem }): JSX.Element {
+  renderFooter(_h: CreateElement, { col, row }: { col: IColumnItem; row: IDataItem }): JSX.Element {
     return (
       <span class='num-cell'>
         {row[col.colKey]}

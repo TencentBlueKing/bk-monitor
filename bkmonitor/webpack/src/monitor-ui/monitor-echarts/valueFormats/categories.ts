@@ -197,7 +197,7 @@ export default (): ValueFormatCategory[] => [
   {
     name: 'Date & Time',
     formats: [
-      { name: 'YYYY-MM-DD HH:mm:ss', id: 'dateTimeAsIso', fn: dateTimeAsIso },
+      { name: 'YYYY-MM-DD HH:mm:ssZZ', id: 'dateTimeAsIso', fn: dateTimeAsIso },
       { name: 'MM/DD/YYYY h:mm:ss a', id: 'dateTimeAsUS', fn: dateTimeAsUS },
       { name: 'From Now', id: 'dateTimeFromNow', fn: dateTimeFromNow },
     ],

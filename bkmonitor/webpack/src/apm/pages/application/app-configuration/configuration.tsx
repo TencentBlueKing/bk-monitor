@@ -27,6 +27,7 @@ import { Component, Prop, Provide, ProvideReactive, Ref } from 'vue-property-dec
 import { Component as tsc } from 'vue-tsx-support';
 
 import { applicationInfoByAppName, listEsClusterGroups, metaConfigInfo } from 'monitor-api/modules/apm_meta';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 
 import ConfigurationNav from '../../../components/configuration-nav/configuration-nav';
@@ -202,7 +203,12 @@ export default class ApplicationConfiguration extends tsc<undefined> {
       } = this.appInfo;
       // this.routeList[1].name = `${this.$t('应用')}：${appName}`;
       // this.routeList[1].query['filter-app_name'] = appName;
-      this.recordData = { createUser, createTime, updateTime, updateUser };
+      this.recordData = {
+        createUser,
+        createTime: formatWithTimezone(createTime) as string,
+        updateTime: formatWithTimezone(updateTime) as string,
+        updateUser,
+      };
       this.getPluginDesc(res.plugin_id || '');
       this.loading = false;
       this.firstLoad = false;

@@ -26,6 +26,8 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
+
 import './alert-histogram.scss';
 
 const classMap = {
@@ -133,7 +135,7 @@ export default class AlertHistogram extends tsc<IProps> {
       }
       return num;
     };
-    return `${year}-${numStr(month)}-${numStr(date)} ${numStr(h)}:${numStr(m)}`;
+    return formatWithTimezone(`${year}-${numStr(month)}-${numStr(date)} ${numStr(h)}:${numStr(m)}`);
   }
   /**
    * @description hover
@@ -172,8 +174,9 @@ export default class AlertHistogram extends tsc<IProps> {
   render() {
     return (
       <div class='alert-histogram-component'>
-        {this.localValue.map(item => (
+        {this.localValue.map((item, index) => (
           <div
+            key={index}
             class={['histogram-item', classMap[item.level]]}
             onMouseenter={e => this.handleMouseenter(e, item)}
             onMouseleave={() => this.handleMouseleave()}

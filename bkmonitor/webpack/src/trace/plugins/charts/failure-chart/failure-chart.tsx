@@ -343,7 +343,7 @@ export default defineComponent({
         },
         (props.options || {}) as any,
         {
-          arrayMerge: (destinationArray, sourceArray) => sourceArray,
+          arrayMerge: (_destinationArray, sourceArray) => sourceArray,
         }
       );
     });
@@ -657,7 +657,7 @@ export default defineComponent({
         }, 320);
       }
     };
-    const handleSetTooltip = params => {
+    const _handleSetTooltip = params => {
       if (!showTitleTool.value) return undefined;
       if (!params || params.length < 1 || params.every(item => item.value[1] === null)) {
         if (props.chartType === 'line') {
@@ -672,7 +672,7 @@ export default defineComponent({
         }
         return;
       }
-      const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+      const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ssZZ');
       const data = params
         .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
         .sort((a, b) => Math.abs(a.value - +curValue.value.yAxis) - Math.abs(b.value - +curValue.value.yAxis));
@@ -962,7 +962,7 @@ export default defineComponent({
           scatterTips.value.data.target.label = `${chartOptions.series[0].name}: ${
             scatterData._value || scatterData.metric_value || '--'
           }`;
-          scatterTips.value.data.time = dayjs.tz(e.data.value[0]).format('YYYY-MM-DD HH:mm:ss');
+          scatterTips.value.data.time = dayjs.tz(e.data.value[0]).format('YYYY-MM-DD HH:mm:ssZZ');
           scatterTips.value.top = -9999;
           scatterTips.value.show = true;
           nextTick(() => {

@@ -220,7 +220,7 @@ export default defineComponent({
       type: 5,
       hour: 0.5,
       run_time: dayjs().format('HH:mm:ss'),
-      only_once_run_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+      only_once_run_time: dayjs().format('YYYY-MM-DD HH:mm:ssZZ'),
       week_list: [],
       day_list: [],
     });
@@ -395,16 +395,16 @@ export default defineComponent({
                     !item.subscribers.every(email => String(email.id).toLowerCase().match(emailRegex)) ||
                     !item.subscribers.length)
             )?.channel_name;
-            // @ts-ignore
+            // @ts-expect-error
             if (targetChannel) targetFormItemEle.querySelector(`#${targetChannel}-input`)?.focus();
             else {
               // 如果订阅人未选择任何类型，应该把焦点定位在 订阅人 一栏
-              // @ts-ignore
+              // @ts-expect-error
               document.querySelector('#subscriptor-item')?.focus?.();
             }
           } else {
             // 这里去匹配除 订阅人 栏之外的输入框。并使之自动聚焦
-            // @ts-ignore
+            // @ts-expect-error
             targetFormItemEle.querySelector('input.bk-input--text,.bk-date-picker-editor')?.focus();
           }
           return Promise.reject(error);
@@ -500,9 +500,9 @@ export default defineComponent({
           break;
       }
       formData.timerange = [
-        formData.start_time ? dayjs.unix(formData.start_time).format('YYYY-MM-DD HH:mm:ss') : null,
+        formData.start_time ? dayjs.unix(formData.start_time).format('YYYY-MM-DD HH:mm:ssZZ') : null,
         // 服务端返回 null 时代表永久，前端用 空串 或 null 可以代表永久。
-        formData.end_time ? dayjs.unix(formData.end_time).format('YYYY-MM-DD HH:mm:ss') : null,
+        formData.end_time ? dayjs.unix(formData.end_time).format('YYYY-MM-DD HH:mm:ssZZ') : null,
       ];
       // 给 任务有效期 添加数据
       const [start, end] = formData.timerange;
@@ -558,9 +558,9 @@ export default defineComponent({
         const rangeObj = getTimeRangeObj(dataRange.value);
         if (rangeObj) {
           const unit = String(rangeObj.time_level || 'minutes').at(0);
-          // @ts-ignore
+          // @ts-expect-error
           query.start_time = `now-${rangeObj.number || 15}${unit}`;
-          // @ts-ignore
+          // @ts-expect-error
           query.end_time = 'now';
         }
         const qs = new URLSearchParams(query as any).toString();
@@ -663,7 +663,7 @@ export default defineComponent({
           formData.start_time = null;
           formData.end_time = null;
           // 点击 仅一次 时刷新一次时间。
-          if (isNotChooseOnlyOnce) frequency.only_once_run_time = dayjs().format('YYYY-MM-DD HH:mm:ss');
+          if (isNotChooseOnlyOnce) frequency.only_once_run_time = dayjs().format('YYYY-MM-DD HH:mm:ssZZ');
         } else {
           // 把丢掉的 start_time 和 end_time 补回去
           // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -1330,7 +1330,7 @@ export default defineComponent({
                               this.customHourInput = '';
                               this.refOfFrequencyHour.hidePopover();
                             }}
-                            // @ts-ignore 只允许输入正整数
+                            // @ts-expect-error 只允许输入正整数
                             oninput="value=value.replace(/^(0+)|[^\d]+/g,'')"
                           />
                         </div>
@@ -1388,7 +1388,7 @@ export default defineComponent({
                     >
                       {Array(31)
                         .fill('')
-                        .map((item, index) => {
+                        .map((_item, index) => {
                           return (
                             <Select.Option
                               id={index + 1}

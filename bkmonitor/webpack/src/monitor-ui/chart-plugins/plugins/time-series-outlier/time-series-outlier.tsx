@@ -450,7 +450,7 @@ export default class TimeSeriesOutlier extends LineChart {
     const tartletBoundary = series.find(item => item.metric_field === 'bounds');
     if (tartletBoundary) {
       const data = sensitivityRangeList.reduce(
-        (pre, item, index) => ({
+        (pre, _item, index) => ({
           ...pre,
           [`${UPPER_STR}${index}`]: [],
           [`${LOWER_STR}${index}`]: [],
@@ -543,7 +543,7 @@ export default class TimeSeriesOutlier extends LineChart {
     }
     let liHtmlList = [];
     const ulStyle = '';
-    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ssZZ');
     if (params[0]?.data?.tooltips) {
       liHtmlList.push(params[0].data.tooltips);
     } else {
@@ -622,7 +622,7 @@ export default class TimeSeriesOutlier extends LineChart {
   }
   handleSensitivityRangeChange(sensitivity: ISensitivityRangeItem) {
     const copyOptions = { ...this.options };
-    const index = this.selectSensitivity.findIndex(item => item === sensitivity.id);
+    const index = this.selectSensitivity.indexOf(sensitivity.id);
     if (index > -1) {
       this.selectSensitivity.splice(index, 1);
       copyOptions.series = this.handleSetOnlyOneMarkArea(

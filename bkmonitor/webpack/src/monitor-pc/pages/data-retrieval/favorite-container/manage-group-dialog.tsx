@@ -221,7 +221,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
     if (status) {
       this.selectFavoriteList.push(row.id);
     } else {
-      const index = this.selectFavoriteList.findIndex(item => item === row.id);
+      const index = this.selectFavoriteList.indexOf(row.id);
       this.selectFavoriteList.splice(index, 1);
     }
   }
@@ -399,7 +399,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
   }
   /** 获取展示时间 */
   getShowTime(timeStr: string) {
-    return dayjs.tz(timeStr).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs.tz(timeStr).format('YYYY-MM-DD HH:mm:ssZZ');
   }
   /** 删除收藏 */
   handleDeleteFavorite(row) {
@@ -414,7 +414,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
           if (index >= 0) this[listName].splice(index, 1);
         }
         // 当前选中选择删除
-        const index = this.selectFavoriteList.findIndex(item => item === row.id);
+        const index = this.selectFavoriteList.indexOf(row.id);
         if (index >= 0) this.selectFavoriteList.splice(index, 1);
         destroyFavorite(row.id, { type: this.favoriteSearchType }).catch(err => console.warn(err));
       },

@@ -302,19 +302,19 @@ export const useExploreColumnConfig = ({
           renderType: ExploreTableColumnTypeEnum.TIME,
           colKey: 'time',
           title: t('时间'),
-          width: 160,
+          width: 200,
         },
         start_time: {
           renderType: ExploreTableColumnTypeEnum.TIME,
           colKey: 'start_time',
           title: t('开始时间'),
-          width: 180,
+          minWidth: 230,
         },
         end_time: {
           renderType: ExploreTableColumnTypeEnum.TIME,
           colKey: 'end_time',
           title: t('结束时间'),
-          width: 180,
+          minWidth: 230,
         },
         elapsed_time: {
           renderType: ExploreTableColumnTypeEnum.DURATION,

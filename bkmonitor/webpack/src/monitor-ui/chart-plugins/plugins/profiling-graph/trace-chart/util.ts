@@ -56,7 +56,7 @@ export const setTraceTooltip = ($el: Element, appName = '') => {
     enterable: true, // 可以让鼠标进入tooltip
     formatter: (params: any) => {
       let liHtmlList = [];
-      const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+      const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ssZZ');
       const traceData = params[0].data?.traceData ?? [];
 
       liHtmlList = traceData.map(item => {

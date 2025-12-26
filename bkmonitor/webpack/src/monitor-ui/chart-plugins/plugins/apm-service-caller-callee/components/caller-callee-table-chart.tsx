@@ -599,7 +599,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
                     <span class='tag-symbol'>{this.handleOperate(item.method)}</span>
                     {item?.value &&
                       (item.key === 'time'
-                        ? (item.value || []).map(val => dayjs.tz(Number(val) * 1000).format('YYYY-MM-DD HH:mm:ss'))
+                        ? (item.value || []).map(val => dayjs.tz(Number(val) * 1000).format('YYYY-MM-DD HH:mm:ssZZ'))
                         : (item?.value || []).map(item => (item === '' ? this.$t('- 空 -') : item)).join('、'))}
                   </bk-tag>
                 ))}

@@ -277,8 +277,8 @@ export class LineChart
     if (!val) {
       const { startTime, endTime } = handleTimeRange(this.timeRange);
       this.getPanelData(
-        dayjs(startTime * 1000).format('YYYY-MM-DD HH:mm:ss'),
-        dayjs(endTime * 1000).format('YYYY-MM-DD HH:mm:ss')
+        dayjs(startTime * 1000).format('YYYY-MM-DD HH:mm:ssZZ'),
+        dayjs(endTime * 1000).format('YYYY-MM-DD HH:mm:ssZZ')
       );
     } else {
       this.getPanelData(val[0], val[1]);

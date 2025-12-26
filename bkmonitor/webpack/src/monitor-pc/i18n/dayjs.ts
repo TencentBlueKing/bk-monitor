@@ -75,7 +75,7 @@ export const isValidTimeZone = (timeZone: string) => {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone });
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 };
