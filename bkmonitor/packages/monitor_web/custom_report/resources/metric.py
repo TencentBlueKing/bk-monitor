@@ -635,7 +635,7 @@ class ModifyCustomTsFields(Resource):
             field_id = serializers.IntegerField(label=_("字段 ID"), required=False)
             name = serializers.CharField(required=True, label=_("字段名"))
             type = serializers.CharField(required=True, label=_("字段类型"))
-            description = serializers.CharField(required=False, label=_("字段描述"), allow_blank=True)
+            alias = serializers.CharField(required=False, label=_("字段别名"), allow_blank=True)
             disabled = serializers.BooleanField(required=False, label=_("是否禁用"))
 
             # 维度属性
@@ -944,10 +944,18 @@ class CreateOrUpdateGroupingRule(Resource):
     """
 
     class RequestSerializer(CustomTSGroupingRuleSerializer):
+        class MetricSerializer(serializers.Serializer):
+            field_id = serializers.IntegerField(label=_("指标 ID"))
+            metric_name = serializers.CharField(label=_("指标名称"))
+
         bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
         time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
+        metric_list = serializers.ListField(label=_("指标列表"), child=MetricSerializer(), required=False)
+        is_mock = serializers.BooleanField(label=_("是否为 mock 数据"), default=False)
 
     def perform_request(self, params: dict):
+        if params["is_mock"]:
+            return mock_data.CUSTOM_TS_GROUPING_RULE_DETAIL
         # 获取自定义时序表
         table = CustomTSTable.objects.get(
             bk_biz_id=params["bk_biz_id"], time_series_group_id=params["time_series_group_id"]
