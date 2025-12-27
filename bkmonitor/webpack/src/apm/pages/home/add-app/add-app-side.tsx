@@ -55,7 +55,7 @@ export default class AddApplication extends tsc<IProps, IEvent> {
   }
 
   handleMoreClick() {
-    window.open('', '_blank');
+    window.open('https://iwiki.woa.com/p/4013775484', '_blank');
   }
 
   render() {
