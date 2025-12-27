@@ -97,6 +97,11 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
     return customEscalationViewStore.currentSelectedGroupAndMetricNameList;
   }
 
+  // 默认分组名称。其他地方也有使用默认分组，但英文翻译与此处不同
+  get defaultGroupNameMap() {
+    return window.i18n.locale === 'zhCN' ? '默认分组' : 'Default';
+  }
+
   @Watch('searchKey', { immediate: true })
   searchKeyChange() {
     this.handleSearch();
@@ -345,7 +350,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
               v-bk-overflow-tips
               onClick={() => this.handleGroupToggleExpand(groupItem.name)}
             >
-              {groupItem.name}
+              {groupItem.name === 'default' ? this.defaultGroupNameMap : groupItem.name}
             </div>
             <div class='metric-demension-count'>
               <div>{groupItem.metrics.length}</div>
