@@ -139,13 +139,27 @@ export default ({
   };
 
   /**
+   * 获取业务ID
+   * @returns bk_biz_id
+   */
+  const getBkBizId = () => {
+    if (urlArgs.bizId) {
+      return urlArgs.bizId;
+    }
+
+    return store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
+  };
+
+  /**
    * 空间列表请求参数
    */
   const getSpaceRequestData = () => {
     const SPACE_UID = getSpaceUid();
+    const BK_BIZ_ID = getBkBizId();
     return {
       query: {
         space_uid: SPACE_UID,
+        bk_biz_id: BK_BIZ_ID,
         has_permission: SPACE_UID ? undefined : 1,
         page: 1,
         page_size: 1,
