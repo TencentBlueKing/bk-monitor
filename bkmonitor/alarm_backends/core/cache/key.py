@@ -396,9 +396,7 @@ CHECK_RESULT_CACHE_KEY = register_key_with_config(
         "(score: 数据时间戳(int), name：正常->'timestamp|value' 异常: 'timestamp|{ANOMALY_LABEL}')",
         "key_type": "sorted_set",
         # 这里的key_tpl修改后，需要同步修改LAST_CHECKPOINTS_CACHE_KEY的field_tpl
-        "key_tpl": "{prefix}.detect.result.{{strategy_id}}.{{item_id}}.{{dimensions_md5}}.{{level}}".format(
-            prefix=KEY_PREFIX
-        ),
+        "key_tpl": f"{KEY_PREFIX}.detect.result.{{strategy_id}}.{{item_id}}.{{dimensions_md5}}.{{level}}",
         "ttl": int(settings.CHECK_RESULT_TTL_HOURS) * CONST_ONE_HOUR,
         "backend": "service",
     }
@@ -500,6 +498,16 @@ SERVICE_LOCK_PREPARATION = register_key_with_config(
         "key_type": "string",
         "key_tpl": "preparation.lock.{strategy_id}",
         "ttl": CONST_ONE_HOUR * 12,
+        "backend": "service",
+    }
+)
+
+SERVICE_LOCK_INCIDENT_ALERT = register_key_with_config(
+    {
+        "label": "[incident]拉取待处理告警",
+        "key_type": "string",
+        "key_tpl": "incident.lock.alert",
+        "ttl": CONST_MINUTES,
         "backend": "service",
     }
 )
@@ -916,6 +924,26 @@ NOISE_REDUCE_OPERATE_LOCK_KEY = register_key_with_config(
         "key_type": "string",
         "key_tpl": "access.noise_reduce.operate.lock.{strategy_id}.{noise_dimension_hash}",
         "ttl": settings.NOISE_REDUCE_TIMEDELTA * CONST_MINUTES,
+        "backend": "service",
+    }
+)
+
+ALERT_DENOISE_BIZ_QUEUE = register_key_with_config(
+    {
+        "label": "[action]业务{bk_biz_id}降噪告警列表",
+        "key_type": "list",
+        "key_tpl": "action.denoise.alerts.{bk_biz_id}",
+        "ttl": CONST_ONE_HOUR,
+        "backend": "service",
+    }
+)
+
+ALERT_DENOISE_BIZ_LOCK_KEY = register_key_with_config(
+    {
+        "label": "[action]业务{bk_biz_id}降噪执行锁",
+        "key_type": "string",
+        "key_tpl": "action.denoise.lock.{bk_biz_id}",
+        "ttl": CONST_MINUTES * 10,
         "backend": "service",
     }
 )
