@@ -89,11 +89,11 @@ class QueryServicesDetailResource(Resource):
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],
             "name": validated_data["service_name"],
-            "create_time": self.time_to_str(sorted([self.str_to_time(i["created_at"]) for i in services])[0]),
+            "create_time": int(sorted([self.str_to_time(i["created_at"]) for i in services])[0].timestamp()),
             "last_check_time": self.time_to_str(
                 sorted([self.str_to_time(i["last_check_time"]) for i in services], reverse=True)[0]
             ),
-            "last_report_time": self.timestamp_to_time(last_report_time) if last_report_time else None,
+            "last_report_time": int(last_report_time) // 1000 if last_report_time else None,
             "data_types": self.to_data_types(services),
         }
 

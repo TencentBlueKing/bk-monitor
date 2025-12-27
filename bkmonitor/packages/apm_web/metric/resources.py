@@ -1746,8 +1746,8 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
 
     def compare_time(self, times: list):
         times.sort()
-        max_length = len(times)
-        return self.format_time(times[0]), self.format_time(times[max_length - 1])
+        # 将毫秒时间戳转换为秒级时间戳
+        return int(times[0]) // 1000, int(times[-1]) // 1000
 
     def has_events(self, events):
         for event in events:
