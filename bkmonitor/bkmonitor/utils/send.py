@@ -811,3 +811,114 @@ class ChannelBkchatSender(BaseSender):
         notice_params = {"notice_group_id_list": notice_receivers, "msg_type": "mini", "msg_param": msg_param}
         api_result = api.bkchat.send_notice_group_msg(**notice_params)
         return self.handle_api_result(api_result, notice_receivers)
+
+
+class IncidentSender(Sender):
+    """
+    故障通知发送器
+    继承自Sender，用于发送故障相关的通知
+    与告警通知的主要区别在于：故障数据中alarm可能是字典类型而非对象
+    """
+
+    def send_mail(self, notice_receivers, action_plugin=ActionPluginType.NOTICE):
+        """
+        发送邮件通知（覆盖父类方法以支持字典类型的alarm）
+        :return: {
+            "user1": {"result": true, "message": "OK"},
+            "user2": {"result": false, "message": "发送失败"}
+        }
+        :rtype: dict
+        """
+        params = {
+            "title": self.title,
+            "content": self.content,
+            "is_content_base64": True,
+        }
+
+        # external_email: 邮件订阅支持直接外部邮件发送
+        if self.context.get("external_email"):
+            params["receiver"] = ",".join(notice_receivers)
+            params.pop("receiver__username", None)
+        else:
+            params["receiver__username"] = ",".join(notice_receivers)
+            params.pop("receiver", None)
+
+        # 添加附件参数 - 兼容字典和对象两种alarm类型
+        if self.context.get("attachments"):
+            params["attachments"] = self.context.get("attachments")
+        elif self.context.get("alarm") and action_plugin == ActionPluginType.NOTICE:
+            alarm = self.context["alarm"]
+            if isinstance(alarm, dict):
+                params["attachments"] = alarm.get("attachments")
+            else:
+                params["attachments"] = getattr(alarm, "attachments", None)
+
+        logger.info("send.mail({}): \ntitle: {}".format(",".join(notice_receivers), self.title))
+
+        api_result = api.cmsi.send_mail(bk_tenant_id=self.bk_tenant_id, **params)
+        return self.handle_api_result(api_result, notice_receivers)
+
+    def send_wxwork_bot(self, notice_receivers, action_plugin=ActionPluginType.NOTICE):
+        """
+        发送企业微信群通知（覆盖父类方法以支持字典类型的alarm）
+        """
+
+        def finish_send_wxork_bot(msg, ret):
+            notice_result = {}
+            for notice_receiver in notice_receivers:
+                notice_result[notice_receiver] = {"message": msg, "result": ret}
+            return notice_result
+
+        message = _("发送成功")
+        logger.info(
+            "send.wxwork_group({}): \ncontent: {} \n action_plugin {}".format(
+                ",".join(notice_receivers), self.content, action_plugin
+            )
+        )
+
+        result = True
+        alarm = self.context.get("alarm", None)
+
+        if not settings.WXWORK_BOT_WEBHOOK_URL:
+            return finish_send_wxork_bot(_("未配置蓝鲸监控群机器人回调地址，请联系管理员"), False)
+
+        if not notice_receivers:
+            return finish_send_wxork_bot(_("未配置企业微信群id，请联系管理员"), False)
+
+        try:
+            send_func: Callable[..., dict[str, Any]] = (
+                self.send_wxwork_layouts if self._is_wxwork_layouts_enabled else self.send_wxwork_content
+            )
+            response = send_func(self.msg_type, self.content, notice_receivers, self.mentioned_users)
+            if response["errcode"] != 0:
+                result = False
+                message = response["errmsg"]
+        except Exception as e:
+            result = False
+            message = str(e)
+            logger.exception(f"send.wxwork_group failed, {e}")
+
+        if action_plugin == ActionPluginType.NOTICE and settings.WXWORK_BOT_SEND_IMAGE:
+            # 只有告警通知才发送图片，执行不做图片发送
+            try:
+                # 兼容字典和对象两种alarm类型
+                if isinstance(alarm, dict):
+                    image = alarm.get("chart_image")
+                else:
+                    image = alarm.chart_image if alarm else None
+
+                if image:
+                    response = self.send_wxwork_image(image, notice_receivers)
+                    if response["errcode"] != 0:
+                        logger.error("send.wxwork_group image failed, {}".format(response["errmsg"]))
+                else:
+                    logger.info(
+                        "ignore sending chart image to chat_id({}) for action({})".format(
+                            "|".join(notice_receivers),
+                            self.context["action"].id if self.context.get("action") else "NULL",
+                        )
+                    )
+            except Exception as e:
+                logger.exception(f"send.wxwork_group image failed, {e}")
+
+        return finish_send_wxork_bot(message, result)
