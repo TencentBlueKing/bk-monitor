@@ -1,8 +1,11 @@
 import time
+import logging
 from datetime import datetime
 from collections import defaultdict
 from django.db import transaction
 from django.apps import apps
+
+logger = logging.getLogger("metadata")
 
 
 def clear_test_data():
@@ -150,7 +153,7 @@ def create_mock_data(num_groups=10, metrics_per_group=10, dimensions_per_group=2
     ResultTableField.objects.bulk_create(rt_fields, batch_size=500)
 
     elapsed = time.time() - start_time
-    print(f"数据创建完成，耗时: {elapsed:.2f}s")
+    logger.info(f"[数据创建] 数据创建完成，耗时: {elapsed:.2f}s")
 
     return num_groups, len(fields)
 
@@ -247,9 +250,11 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
     if scopes_to_create:
         TimeSeriesScope.objects.bulk_create(scopes_to_create, batch_size=500)
         stats["scopes_created"] += len(scopes_to_create)
+        logger.info(f"[Scope创建] Group {group_id}: 创建了 {len(scopes_to_create)} 个 Scope")
     if scopes_to_update:
         TimeSeriesScope.objects.bulk_update(scopes_to_update, ["dimension_config"], batch_size=500)
         stats["scopes_updated"] += len(scopes_to_update)
+        logger.info(f"[Scope更新] Group {group_id}: 更新了 {len(scopes_to_update)} 个 Scope")
 
     return {
         scope.scope_name: scope.id
@@ -311,11 +316,13 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
     if metrics_to_create:
         TimeSeriesMetric.objects.bulk_create(metrics_to_create, batch_size=500)
         stats["metrics_created"] += len(metrics_to_create)
+        logger.info(f"[Metric创建] Group {group_id}: 创建了 {len(metrics_to_create)} 个 Metric")
     if metrics_to_update:
         TimeSeriesMetric.objects.bulk_update(
             metrics_to_update, ["scope_id", "field_config", "create_time"], batch_size=500
         )
         stats["metrics_updated"] += len(metrics_to_update)
+        logger.info(f"[Metric更新] Group {group_id}: 更新了 {len(metrics_to_update)} 个 Metric")
 
 
 def run_migration_test():
@@ -340,7 +347,7 @@ def run_migration_test():
     )
     stats["total_groups"] = ts_tables.count()
 
-    print(f"找到 {stats['total_groups']} 个 CustomTSTable")
+    logger.info(f"[测试迁移开始] 找到 {stats['total_groups']} 个 CustomTSTable")
 
     # 提前一次性获取所有 CustomTSField 到内存中
     all_custom_fields = list(CustomTSField.objects.filter(time_series_group_id__gte=1000000).order_by("id"))
@@ -348,7 +355,7 @@ def run_migration_test():
     for field in all_custom_fields:
         fields_by_group[field.time_series_group_id].append(field)
 
-    print(f"已加载 {len(all_custom_fields)} 个 CustomTSField 到内存")
+    logger.info(f"[数据加载] 已加载 {len(all_custom_fields)} 个 CustomTSField 到内存")
 
     for ts_table in ts_tables:
         bk_tenant_id = ts_table["bk_tenant_id"]
@@ -359,12 +366,17 @@ def run_migration_test():
             # 从内存中获取字段
             custom_fields = fields_by_group.get(group_id, [])
             if not custom_fields:
+                logger.warning(f"[跳过] Group {group_id} (table_id={table_id}): 没有找到字段数据")
                 stats["skipped_groups"] += 1
                 continue
 
             metric_fields = [f for f in custom_fields if f.type == CustomTSField.MetricType.METRIC]
             dimension_fields = [f for f in custom_fields if f.type == CustomTSField.MetricType.DIMENSION]
 
+            logger.info(
+                f"[处理中] Group {group_id} (table_id={table_id}): "
+                f"指标数={len(metric_fields)}, 维度数={len(dimension_fields)}"
+            )
             stats["processed_groups"] += 1
 
             # 迁移 Scope 和 Metric
@@ -373,19 +385,22 @@ def run_migration_test():
             )
             migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, stats)
 
+            logger.info(f"[成功] Group {group_id} 迁移完成")
+
         except Exception as e:
-            print(f"✗ Group {group_id} 失败: {str(e)}")
+            logger.error(f"[失败] Group {group_id} (table_id={table_id}) 迁移失败: {str(e)}", exc_info=True)
             stats["skipped_groups"] += 1
 
     elapsed = time.time() - start_time
 
-    print(
+    summary = (
         f"组: {stats['processed_groups']}/{stats['total_groups']} "
         f"(跳过: {stats['skipped_groups']})\n"
         f"Scope: 新建 {stats['scopes_created']}, 更新 {stats['scopes_updated']}\n"
         f"Metric: 新建 {stats['metrics_created']}, 更新 {stats['metrics_updated']}\n"
         f"耗时: {elapsed:.2f}s"
     )
+    logger.info(f"[测试迁移完成] {summary}")
 
 
 clear_test_data()
