@@ -166,7 +166,6 @@ def get_scope_name(field, default_scope):
 def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields, table_id, stats):
     """迁移 Scope 数据"""
     TimeSeriesScope = apps.get_model("metadata", "TimeSeriesScope")
-    TimeSeriesMetric = apps.get_model("metadata", "TimeSeriesMetric")
     ResultTableField = apps.get_model("metadata", "ResultTableField")
 
     # 收集所有配置信息到统一的数据结构
@@ -200,9 +199,9 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
 
     # 收集 scope 信息和维度使用情况
     for field in metric_fields:
-        scope_name = get_scope_name(field, TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
+        scope_name = get_scope_name(field, "default")
 
-        scope_info[scope_name]["is_default"] = scope_name == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
+        scope_info[scope_name]["is_default"] = scope_name == "default"
 
         # 获取该指标使用的维度列表，并将维度配置合并进来
         for dim_name in field.config.get("dimensions", []):
@@ -240,9 +239,7 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
                     scope_name=scope_name,
                     dimension_config=scope_dim_config,
                     auto_rules=[],
-                    create_from=TimeSeriesScope.CREATE_FROM_DEFAULT
-                    if info["is_default"]
-                    else TimeSeriesScope.CREATE_FROM_USER,
+                    create_from="default" if info["is_default"] else "user",
                 )
             )
 
@@ -266,6 +263,9 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
     """迁移 Metric 数据"""
     TimeSeriesMetric = apps.get_model("metadata", "TimeSeriesMetric")
 
+    # 定义指标配置字段列表
+    METRIC_CONFIG_FIELDS = ["alias", "unit", "hidden", "aggregate_method", "function", "interval", "disabled"]
+
     # 批量查询所有已存在的指标到内存中
     existing_metrics = {
         (metric.field_scope, metric.field_name): metric for metric in TimeSeriesMetric.objects.filter(group_id=group_id)
@@ -276,7 +276,7 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
     metrics_to_update = []
 
     for field in metric_fields:
-        scope_name = get_scope_name(field, TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
+        scope_name = get_scope_name(field, "default")
         tag_list = field.config.get("dimensions", [])
 
         # 构建字段配置
@@ -284,7 +284,7 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
         if field.description:
             field_config["alias"] = field.description
 
-        for key in TimeSeriesMetric.MetricConfigFields:
+        for key in METRIC_CONFIG_FIELDS:
             if key in field.config:
                 field_config[key] = field.config[key]
 
