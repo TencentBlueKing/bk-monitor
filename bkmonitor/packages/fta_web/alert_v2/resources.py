@@ -329,25 +329,19 @@ class AlertEventTotalResource(AlertEventBaseResource):
             APMEventTotalResource if self.is_apm_target(target) else EventTotalResource
         )
 
-        # 获取事件来源的中文别名映射
-        source_label_mapping: dict[str, str] = EventSource.label_mapping()
-
         # 在线程外构建基础查询，避免在每个线程中重复构建
         base_q: QueryConfigBuilder = self._get_q(target)
 
         def _get_total_info_by_source(source: str) -> dict[str, Any]:
-            try:
-                # 在线程内基于 base_q 添加 source 条件，然后构建查询参数并发起请求
-                q_with_source: QueryConfigBuilder = base_q.conditions(q_to_conditions(Q(source=source)))
-                queryset: UnifyQuerySet = self.build_queryset(alert, target, q_with_source)
-                query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
-                count: int = event_total_resource_cls().request(query_params).get("total", 0)
-            except Exception as e:  # pylint: disable=broad-except
-                raise ValueError(f"事件来源【{source}】查询失败: {str(e)}")
+            # 在线程内基于 base_q 添加 source 条件，然后构建查询参数并发起请求
+            q_with_source: QueryConfigBuilder = base_q.conditions(q_to_conditions(Q(source=source)))
+            queryset: UnifyQuerySet = self.build_queryset(alert, target, q_with_source)
+            query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
+            count: int = event_total_resource_cls().request(query_params).get("total", 0)
 
             return {
                 "value": source,
-                "alias": source_label_mapping.get(source, source),
+                "alias": EventSource.from_value(source).label,
                 "total": count,
             }
 
