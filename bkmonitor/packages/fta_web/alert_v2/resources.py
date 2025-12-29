@@ -320,10 +320,9 @@ class AlertEventTotalResource(AlertEventBaseResource):
 
         使用多线程并发查询所有事件来源（主机、容器、蓝盾、业务上报）的事件数量
 
-        :param query_params: 基础查询参数，包含业务 ID、时间范围、查询配置等
-        :param target: 目标对象，用于判断是否为 APM 目标
+        :param alert: 告警文档对象
+        :param target: 目标对象
         :return: 包含总数和分组统计的响应数据
-        :raises ValueError: 当任何事件来源查询失败时抛出异常
         """
         event_total_resource_cls: type[EventTotalResource] = (
             APMEventTotalResource if self.is_apm_target(target) else EventTotalResource
