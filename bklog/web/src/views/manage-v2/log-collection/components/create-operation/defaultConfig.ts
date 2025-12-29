@@ -25,13 +25,13 @@ export const HOST_COLLECTION_CONFIG = {
     ],
     conditions: {
       type: 'none', // 过滤方式类型 match separator
-      match_type: 'include', // 过滤方式 可选字段 include, exclude
-      match_content: '',
-      separator: '|',
-      separator_filters: [
-        // 分隔符过滤条件
-        { fieldindex: '', word: '', op: '=', logic_op: 'and' },
-      ],
+      // match_type: 'include', // 过滤方式 可选字段 include, exclude
+      // match_content: '',
+      // separator: '|',
+      // separator_filters: [
+      //   // 分隔符过滤条件
+      //   { fieldindex: '', word: '', op: '=', logic_op: 'and' },
+      // ],
     },
   },
 };
@@ -113,13 +113,13 @@ export const CONTAINER_COLLECTION_CONFIG = {
         exclude_files: [{ value: '' }], // 日志路径黑名单
         conditions: {
           type: 'none', // 过滤方式类型 none match separator
-          match_type: 'include', // 过滤方式 可选字段 include, exclude
-          match_content: '',
-          separator: '|',
-          separator_filters: [
-            // 分隔符过滤条件
-            { fieldindex: '', word: '', op: '=', logic_op: 'and' },
-          ],
+          // match_type: 'include', // 过滤方式 可选字段 include, exclude
+          // match_content: '',
+          // separator: '|',
+          // separator_filters: [
+          //   // 分隔符过滤条件
+          //   { fieldindex: '', word: '', op: '=', logic_op: 'and' },
+          // ],
         },
         multiline_pattern: '', // 行首正则, char
         multiline_max_lines: '50', // 最多匹配行数, int

@@ -278,7 +278,15 @@ export const useCollectList = () => {
       spaceUid: String(store.state.spaceUid),
       backRoute: backRoute ?? undefined,
     };
-
+    // 新增还是仔当前页打开
+    if (operateType === 'add') {
+      router.push({
+        name: targetRoute,
+        params,
+        query: finalQuery,
+      });
+      return;
+    }
     // 操作在新标签页打开
     const resolved = router.resolve({
       name: targetRoute,
