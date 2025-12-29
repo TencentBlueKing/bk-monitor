@@ -29,15 +29,20 @@ def migrate_custom_ts_field_to_time_series(apps, schema_editor):
 
     print(f"找到 {stats['total_groups']} 个 CustomTSTable")
 
+    # 提前一次性获取所有 CustomTSField 到内存中
+    all_custom_fields = list(CustomTSField.objects.all().order_by("id"))
+    fields_by_group = defaultdict(list)
+    for field in all_custom_fields:
+        fields_by_group[field.time_series_group_id].append(field)
+
     for ts_table in ts_tables:
         bk_tenant_id = ts_table["bk_tenant_id"]
         group_id = ts_table["time_series_group_id"]
         table_id = ts_table["table_id"]
 
         try:
-            # 获取并分离字段
-            custom_fields = CustomTSField.objects.filter(time_series_group_id=group_id).order_by("id")
-            if not custom_fields.exists():
+            custom_fields = fields_by_group.get(group_id, [])
+            if not custom_fields:
                 stats["skipped_groups"] += 1
                 continue
 
