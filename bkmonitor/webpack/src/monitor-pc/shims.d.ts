@@ -153,6 +153,7 @@ declare global {
     uin: string;
     uptimecheck_output_fields: string[];
     user_name: string;
+    user_time_zone: string;
     userInfo: { isSuperuser: boolean };
     username: string;
     Vue?: any;

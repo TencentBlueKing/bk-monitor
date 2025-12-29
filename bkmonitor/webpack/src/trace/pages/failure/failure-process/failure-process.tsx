@@ -27,8 +27,8 @@ import { type Ref, computed, defineComponent, inject, nextTick, onMounted, ref, 
 
 import { Exception, Input, Loading, Popover, Tree } from 'bkui-vue';
 import { CogShape } from 'bkui-vue/lib/icon';
-import dayjs from 'dayjs';
 import { incidentOperationTypes } from 'monitor-api/modules/incident';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { useI18n } from 'vue-i18n';
 
 import { useIncidentInject } from '../utils';
@@ -47,7 +47,7 @@ export default defineComponent({
     },
   },
   emits: ['chooseOperation', 'changeTab'],
-  setup(props, { emit }) {
+  setup(_props, { emit }) {
     const { t } = useI18n();
     const failureProcessListRef = ref<HTMLDivElement>();
     const renderStep = () => {};
@@ -73,8 +73,8 @@ export default defineComponent({
     const formatterTime = (time: number | string): string => {
       if (!time) return '--';
       if (typeof time !== 'number') return time;
-      if (time.toString().length < 13) return dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ss');
-      return dayjs(time).format('YYYY-MM-DD HH:mm:ss');
+      if (time.toString().length < 13) return formatWithTimezone(time * 1000) as string;
+      return formatWithTimezone(time) as string;
     };
     const handleHide = () => {
       hidePopover.value = true;
