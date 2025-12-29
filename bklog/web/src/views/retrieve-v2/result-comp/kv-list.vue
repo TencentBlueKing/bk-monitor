@@ -27,71 +27,78 @@
 <template>
   <div class="kv-list-wrapper">
     <div class="kv-content">
-      <div
-        v-for="(field, index) in renderList"
-        class="log-item"
-        :key="index"
-      >
+      <template v-if="renderList.length > 0">
         <div
-          class="field-label"
+          v-for="(field, index) in renderList"
+          class="log-item"
+          :key="index"
         >
-          <span
-            v-if="hiddenFieldsSet.has(field)"
-            class="field-eye-icon bklog-icon bklog-eye-slash"
-            v-bk-tooltips="{ content: $t('隐藏') }"
-            @click="
-              e => {
-                e.stopPropagation();
-                handleShowOrHiddenItem(true, field);
-              }
-            "
-          ></span>
-          <span
-            v-else
-            class="field-eye-icon bklog-icon bklog-eye"
-            v-bk-tooltips="{ content: $t('展示') }"
-            @click="
-              e => {
-                e.stopPropagation();
-                handleShowOrHiddenItem(false, field);
-              }
-            "
-          ></span>
-          <span
-            :style="{
-              backgroundColor: getFieldIconColor(field.field_type),
-              color: getFieldIconTextColor(field.field_type),
-            }"
-            class="field-type-icon mr5"
-            v-bk-tooltips="fieldTypePopover(field.field_name)"
-            :class="getFieldIcon(field.field_name)"
-          ></span>
-          <span class="field-text">{{ getFieldName(field) }}</span>
-        </div>
-        <div class="field-value">
-          <!-- <template v-if="isJsonFormat(formatterStr(data, field.field_name))">
+          <div class="field-label">
+            <span
+              v-if="hiddenFieldsSet.has(field)"
+              class="field-eye-icon bklog-icon bklog-eye-slash"
+              v-bk-tooltips="{ content: $t('隐藏') }"
+              @click="
+                e => {
+                  e.stopPropagation();
+                  handleShowOrHiddenItem(true, field);
+                }
+              "
+            ></span>
+            <span
+              v-else
+              class="field-eye-icon bklog-icon bklog-eye"
+              v-bk-tooltips="{ content: $t('展示') }"
+              @click="
+                e => {
+                  e.stopPropagation();
+                  handleShowOrHiddenItem(false, field);
+                }
+              "
+            ></span>
+            <span
+              :style="{
+                backgroundColor: getFieldIconColor(field.field_type),
+                color: getFieldIconTextColor(field.field_type),
+              }"
+              class="field-type-icon mr5"
+              v-bk-tooltips="fieldTypePopover(field.field_name)"
+              :class="getFieldIcon(field.field_name)"
+            ></span>
+            <span class="field-text">{{ getFieldName(field) }}</span>
+          </div>
+          <div class="field-value">
+            <span
+              v-if="getRelationMonitorField(field.field_name)"
+              class="relation-monitor-btn"
+              @click="handleViewMonitor(field.field_name)"
+            >
+              <span>{{ getRelationMonitorField(field.field_name) }}</span>
+              <i class="bklog-icon bklog-jump"></i>
+            </span>
             <JsonFormatter
               :fields="getFieldItem(field.field_name)"
-              :json-value="formatterStr(data, field.field_name)"
+              :json-value="listData"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
-          </template> -->
-
-          <span
-            v-if="getRelationMonitorField(field.field_name)"
-            class="relation-monitor-btn"
-            @click="handleViewMonitor(field.field_name)"
-          >
-            <span>{{ getRelationMonitorField(field.field_name) }}</span>
-            <i class="bklog-icon bklog-jump"></i>
-          </span>
-          <JsonFormatter
-            :fields="getFieldItem(field.field_name)"
-            :json-value="listData"
-            @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
-          ></JsonFormatter>
+          </div>
         </div>
-      </div>
+        <div
+          v-if="hasMoreData"
+          class="load-more-btn"
+          @click="handleLoadMore"
+        >
+          <span class='bklog-icon bklog-more'></span>
+          <span>{{ $t('点击加载更多') }}</span>
+        </div>
+      </template>
+      <bk-exception
+        v-else
+        class="exception-wrap-item"
+        type="search-empty"
+      >
+        {{ $t('暂无数据') }}
+      </bk-exception>
     </div>
   </div>
 </template>
@@ -143,6 +150,10 @@
         type: Object,
         default: () => {},
       },
+      searchKeyword: {
+        type: String,
+        default: '',
+      },
     },
     data() {
       return {
@@ -168,6 +179,7 @@
           'is not': '!=',
         },
         renderList: [],
+        renderCount: 50,
       };
     },
     computed: {
@@ -187,7 +199,7 @@
         return this.$store.state.bkBizId;
       },
       showFieldList() {
-        return this.totalFields.filter(item => {
+        let list = this.totalFields.filter(item => {
           if (this.isAllowEmptyField) {
             return this.kvShowFieldsList.includes(item.field_name);
           }
@@ -197,6 +209,14 @@
             !['--', '{}', '[]'].includes(this.formatterStr(this.data, item.field_name))
           );
         });
+
+        // 根据搜索关键字过滤（不区分大小写）
+        if (this.searchKeyword) {
+          const keyword = this.searchKeyword.toLowerCase();
+          list = list.filter(item => item.field_name.toLowerCase().includes(keyword));
+        }
+
+        return list;
       },
       fieldKeyMap() {
         return this.totalFields
@@ -218,28 +238,30 @@
         // 当前是否有bk_host_id字段且有值
         return !!this.data?.bk_host_id;
       },
+      hasMoreData() {
+        return this.renderCount < this.showFieldList.length;
+      },
     },
     watch: {
       isAllowEmptyField() {
-        this.onMountedRender();
+        this.resetRenderList();
+      },
+      searchKeyword() {
+        this.resetRenderList();
       },
     },
     mounted() {
-      this.onMountedRender();
+      this.resetRenderList();
     },
     methods: {
-      onMountedRender() {
-        const size = 40;
-        let startIndex = 0;
-        this.renderList = [];
-        const setRenderList = () => {
-          if (startIndex < this.showFieldList.length) {
-            this.renderList.push(...this.showFieldList.slice(startIndex, startIndex + size));
-            startIndex = startIndex + size;
-            setTimeout(setRenderList);
-          }
-        };
-        setRenderList();
+      resetRenderList() {
+        this.renderCount = 50;
+        this.renderList = this.showFieldList.slice(0, this.renderCount);
+      },
+      handleLoadMore() {
+        if (!this.hasMoreData) return;
+        this.renderCount += 50;
+        this.renderList = this.showFieldList.slice(0, this.renderCount);
       },
       isJsonFormat(content) {
         return this.formatJson && /^\[|\{/.test(content);
@@ -413,6 +435,8 @@
 <style lang="scss" scoped>
   /* stylelint-disable no-descending-specificity */
   .kv-list-wrapper {
+    max-height: 50vh;
+    overflow-y: auto;
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
 
@@ -516,6 +540,27 @@
 
       .bklog-jump {
         font-size: 14px;
+      }
+    }
+
+    .load-more-btn {
+      display: flex;
+      align-items: center;
+      color: #3a84ff;
+      margin-top: 8px;
+      margin-left: 4px;
+      cursor: pointer;
+
+      .bklog-more,
+      .bklog-log-loading {
+        margin-right: 4px;
+        font-size: 14px;
+        color: #3a84ff;
+      }
+
+      .bklog-more {
+        font-size: 18px;
+        transform: rotate(90deg);
       }
     }
   }
