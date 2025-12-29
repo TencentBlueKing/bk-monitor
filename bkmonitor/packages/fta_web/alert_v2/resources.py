@@ -578,6 +578,8 @@ class AlertTracesResource(Resource):
         """请求参数序列化器"""
 
         alert_id = serializers.CharField(label="告警 id", help_text="要查询的告警 ID")
+        limit = serializers.IntegerField(label="数量限制", required=False, default=10, help_text="返回调用链的最大数量")
+        offset = serializers.IntegerField(label="偏移量", required=False, default=0, help_text="分页偏移量")
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         """执行告警关联调用链查询请求。
