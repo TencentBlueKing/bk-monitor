@@ -198,14 +198,26 @@
       bkBizId() {
         return this.$store.state.bkBizId;
       },
+      // 缓存映射：kvShowFieldsList 转为 Set
+      kvShowFieldsSet() {
+        return new Set(this.kvShowFieldsList);
+      },
+      // 缓存映射：field_name -> field item
+      fieldItemMapByName() {
+        const map = {};
+        for (const item of this.fieldList) {
+          map[item.field_name] = item;
+        }
+        return map;
+      },
       showFieldList() {
         let list = this.totalFields.filter(item => {
           if (this.isAllowEmptyField) {
-            return this.kvShowFieldsList.includes(item.field_name);
+            return this.kvShowFieldsSet.has(item.field_name);
           }
 
           return (
-            this.kvShowFieldsList.includes(item.field_name) &&
+            this.kvShowFieldsSet.has(item.field_name) &&
             !['--', '{}', '[]'].includes(this.formatterStr(this.data, item.field_name))
           );
         });
@@ -220,7 +232,7 @@
       },
       fieldKeyMap() {
         return this.totalFields
-          .filter(item => this.kvShowFieldsList.includes(item.field_name))
+          .filter(item => this.kvShowFieldsSet.has(item.field_name))
           .map(el => el.field_name);
       },
 
@@ -273,18 +285,15 @@
         const rowData = this.listData;
         return this.tableRowDeepView(rowData, field, fieldType) ?? '--';
       },
-      getFieldType(field) {
-        const target = this.fieldList.find(item => item.field_name === field);
-        return target ? target.field_type : '';
+      getFieldType(fieldName) {
+        return this.fieldItemMapByName[fieldName]?.field_type || '';
       },
-      getFieldIcon(field) {
-        const fieldType = this.getFieldType(field);
+      getFieldIcon(fieldName) {
+        const fieldType = this.getFieldType(fieldName);
         return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
       },
-      fieldTypePopover(field) {
-        const target = this.fieldList.find(item => item.field_name === field);
-        const fieldType = target ? target.field_type : '';
-
+      fieldTypePopover(fieldName) {
+        const fieldType = this.getFieldType(fieldName);
         return {
           content: this.fieldTypeMap[fieldType]?.name,
           disabled: !this.fieldTypeMap[fieldType],
@@ -406,7 +415,7 @@
         return false;
       },
       getFieldItem(fieldName) {
-        return this.fieldList.find(item => item.field_name === fieldName);
+        return this.fieldItemMapByName[fieldName];
       },
       getFieldName(field) {
         return getFieldNameByField(field, this.$store);
