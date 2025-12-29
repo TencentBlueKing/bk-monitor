@@ -247,11 +247,9 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
     if scopes_to_create:
         TimeSeriesScope.objects.bulk_create(scopes_to_create, batch_size=500)
         stats["scopes_created"] += len(scopes_to_create)
-        logger.info(f"[Scope创建] Group {group_id}: 创建了 {len(scopes_to_create)} 个 Scope")
     if scopes_to_update:
         TimeSeriesScope.objects.bulk_update(scopes_to_update, ["dimension_config"], batch_size=500)
         stats["scopes_updated"] += len(scopes_to_update)
-        logger.info(f"[Scope更新] Group {group_id}: 更新了 {len(scopes_to_update)} 个 Scope")
 
     return {
         scope.scope_name: scope.id
@@ -316,13 +314,11 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
     if metrics_to_create:
         TimeSeriesMetric.objects.bulk_create(metrics_to_create, batch_size=500)
         stats["metrics_created"] += len(metrics_to_create)
-        logger.info(f"[Metric创建] Group {group_id}: 创建了 {len(metrics_to_create)} 个 Metric")
     if metrics_to_update:
         TimeSeriesMetric.objects.bulk_update(
             metrics_to_update, ["scope_id", "field_config", "create_time"], batch_size=500
         )
         stats["metrics_updated"] += len(metrics_to_update)
-        logger.info(f"[Metric更新] Group {group_id}: 更新了 {len(metrics_to_update)} 个 Metric")
 
 
 def run_migration_test():
@@ -373,10 +369,7 @@ def run_migration_test():
             metric_fields = [f for f in custom_fields if f.type == CustomTSField.MetricType.METRIC]
             dimension_fields = [f for f in custom_fields if f.type == CustomTSField.MetricType.DIMENSION]
 
-            logger.info(
-                f"[处理中] Group {group_id} (table_id={table_id}): "
-                f"指标数={len(metric_fields)}, 维度数={len(dimension_fields)}"
-            )
+            logger.info(f"[处理中] Group {group_id} (table_id={table_id}) ")
             stats["processed_groups"] += 1
 
             # 迁移 Scope 和 Metric
