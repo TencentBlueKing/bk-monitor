@@ -448,7 +448,7 @@ requires-dist = [
     { name = "bk-crypto-python-sdk", specifier = "==2.0.1" },
     { name = "bk-iam", specifier = "==2.0.3" },
     { name = "bk-notice-sdk", specifier = "==1.4.2" },
-    { name = "bkstorages", specifier = "==1.1.1" },
+    { name = "bkstorages", specifier = "==2.0.3" },
     { name = "blueapps", specifier = "==4.16rc1" },
     { name = "celery", specifier = "==5.4.0" },
     { name = "celery-redbeat", specifier = "==2.2.0" },
@@ -579,17 +579,18 @@ sdist = { url = "https://files.pythonhosted.org/packages/f9/64/0dc8465f1d54e4b86
 
 [[package]]
 name = "bkstorages"
-version = "1.1.1"
+version = "2.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "boto3" },
     { name = "curlify" },
+    { name = "django" },
     { name = "requests" },
     { name = "six" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/58/5f/4dd0e1b4ea50c110267e71b59ae4c651748fff56db53166cb37f8823c6ac/bkstorages-1.1.1.tar.gz", hash = "sha256:427be600ba8131874d4fefc68c94356e4dea220bf6099ec765d47c2f2292555b", size = 21257, upload-time = "2024-05-16T03:00:32.361Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/22/36/fe51abb8d67a4b43a943acdde2ed5b18c71d5816ecc795e3d5c358a27aa6/bkstorages-2.0.3.tar.gz", hash = "sha256:849d404ffd998318dfd873f229aaba51db1bffe878006f9d834f5f1b85f16061", size = 19978, upload-time = "2025-12-23T07:49:08.038Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/60/005b96fdd972de2365d39dba4e35b995e00174ef42195b87279e810e018f/bkstorages-1.1.1-py3-none-any.whl", hash = "sha256:a9010dd14b5a7a9acc3cd7e7cf704915a46ab5b1ddd2d81682eb008004dca006", size = 22497, upload-time = "2024-05-16T03:00:30.137Z" },
+    { url = "https://files.pythonhosted.org/packages/74/57/050268c652fa14e4db47fb845d16804cc5912ccaf8c66199ffeb5f7f4474/bkstorages-2.0.3-py3-none-any.whl", hash = "sha256:27ce52d7fe7df83ca9a0dda0ca722efc6aab0561a66bf769844965815e50725b", size = 22228, upload-time = "2025-12-23T07:59:08.367Z" },
 ]
 
 [[package]]

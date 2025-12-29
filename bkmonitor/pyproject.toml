@@ -14,7 +14,7 @@ dependencies = [
     "bk-crypto-python-sdk==2.0.1",
     "bk-iam==2.0.3",
     "bk-notice-sdk==1.4.2",
-    "bkstorages==1.1.1",
+    "bkstorages==2.0.3",
     "blueapps==4.16rc1",
     "celery==5.4.0",
     "celery-redbeat==2.2.0",
@@ -163,8 +163,8 @@ python_files = ["test_*.py", "tests.py"]
 log_level = "ERROR"
 filterwarnings = [
     "error",
+    "ignore::django.utils.deprecation.RemovedInDjango51Warning",
     "ignore::DeprecationWarning",
-    "ignore::django.utils.deprecation.RemovedInDjango41Warning",
     "ignore::ImportWarning",
     "ignore::ResourceWarning"
 ]

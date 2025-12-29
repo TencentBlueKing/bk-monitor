@@ -20,11 +20,10 @@ from urllib.parse import urljoin
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 from bkcrypto.utils.convertors import Base64Convertor
+from bkmonitor.utils.i18n import TranslateDict
 from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
 from django.utils.translation import gettext_lazy as _
-
-from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
 from .tools.elasticsearch import get_es7_settings
@@ -173,6 +172,8 @@ LANGUAGE_COOKIE_NAME = "blueking_language"
 USE_TZ = True
 TIME_ZONE = "Asia/Shanghai"
 TIMEZONE_SESSION_KEY = "blueking_timezone"
+# Django 4.0+ 默认使用 zoneinfo，但项目仍使用 pytz，需要设置此选项以继续使用 pytz
+USE_DEPRECATED_PYTZ = True
 
 # 平台地址配置
 BK_PAAS_HOST = BK_URL = os.getenv("BK_PAAS_HOST") or os.getenv("BK_PAAS_PUBLIC_URL") or os.getenv("BK_PAAS2_URL") or ""
@@ -256,8 +257,16 @@ USE_DISK_FILTER = True
 # method字段由SaaS在图形展示、策略配置的sql中作为where字段条件使用，
 # 无 method 字段则为后台磁盘事件型告警进行过滤使用
 DISK_FILTER_CONDITION_LIST_V1 = [
-    {"method": "not like", "sql_statement": "%dev\\/loop%", "file_system_regex": r"/?dev/loop.*"},
-    {"method": "not like", "sql_statement": "%dev\\/sr%", "file_system_regex": r"/?dev/sr.*"},
+    {
+        "method": "not like",
+        "sql_statement": "%dev\\/loop%",
+        "file_system_regex": r"/?dev/loop.*",
+    },
+    {
+        "method": "not like",
+        "sql_statement": "%dev\\/sr%",
+        "file_system_regex": r"/?dev/sr.*",
+    },
     {"method": "not like", "sql_statement": "%.iso", "file_system_regex": r".*?\.iso$"},
 ]
 
@@ -647,7 +656,12 @@ BCS_STORAGE_PAGE_SIZE = os.getenv("BKAPP_BCS_STORAGE_PAGE_SIZE", 5000)
 BCS_SYNC_SYNC_CONCURRENCY = os.getenv("BKAPP_BCS_SYNC_SYNC_CONCURRENCY", 20)
 
 # 所有bcs指标都将基于该信息进行label复制
-BCS_METRICS_LABEL_PREFIX = {"*": "kubernetes", "node_": "kubernetes", "container_": "kubernetes", "kube_": "kubernetes"}
+BCS_METRICS_LABEL_PREFIX = {
+    "*": "kubernetes",
+    "node_": "kubernetes",
+    "container_": "kubernetes",
+    "kube_": "kubernetes",
+}
 
 # 容器化共存适配，添加API访问子路径
 API_SUB_PATH = os.getenv("BKAPP_API_SUB_PATH", os.getenv("API_SUB_PATH", ""))
@@ -754,7 +768,13 @@ if os.getenv("ENABLE_TABLE_VISIT_COUNT", "false").lower() == "true":
     BACKEND_MYSQL_PASSWORD,
 ) = get_backend_mysql_settings()
 # SaaS DB配置
-SAAS_MYSQL_NAME, SAAS_MYSQL_HOST, SAAS_MYSQL_PORT, SAAS_MYSQL_USER, SAAS_MYSQL_PASSWORD = get_saas_mysql_settings()
+(
+    SAAS_MYSQL_NAME,
+    SAAS_MYSQL_HOST,
+    SAAS_MYSQL_PORT,
+    SAAS_MYSQL_USER,
+    SAAS_MYSQL_PASSWORD,
+) = get_saas_mysql_settings()
 # 后台DB扩展配置
 (
     BACKEND_ALERT_MYSQL_NAME,
@@ -899,7 +919,10 @@ LOG_LEVEL_MAP = {
 }
 
 warnings.filterwarnings(
-    "ignore", r"DateTimeField .* received a naive datetime", RuntimeWarning, r"django\.db\.models\.fields"
+    "ignore",
+    r"DateTimeField .* received a naive datetime",
+    RuntimeWarning,
+    r"django\.db\.models\.fields",
 )
 
 #
@@ -1119,7 +1142,10 @@ HEADER_FOOTER_CONFIG = {
                     "text": "技术支持",
                     "link": "https://wpa1.qq.com/KziXGWJs?_type=wpa&qidian=true",
                 },
-                {"text": "社区论坛", "link": "https://bk.tencent.com/s-mart/community/"},
+                {
+                    "text": "社区论坛",
+                    "link": "https://bk.tencent.com/s-mart/community/",
+                },
                 {"text": "产品官网", "link": "https://bk.tencent.com/index/"},
             ],
             "en": [
@@ -1225,7 +1251,8 @@ BKCI_APP_SECRET = os.getenv("BKCI_APP_SECRET")
 BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PAAS_HOST.rstrip("/")))
 ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}/#/event-center/action-detail/{{action_id}}"
 EVENT_CENTER_URL = urljoin(
-    BK_MONITOR_HOST, "?bizId={bk_biz_id}#/event-center?queryString=action_id%20%3A%20{collect_id}"
+    BK_MONITOR_HOST,
+    "?bizId={bk_biz_id}#/event-center?queryString=action_id%20%3A%20{collect_id}",
 )
 MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 
@@ -1680,6 +1707,16 @@ if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
     AI_BKREPO_BUCKET = os.getenv("BKAPP_AI_BKREPO_BUCKET")
     AI_BKREPO_PROJECT = os.getenv("BKAPP_AI_BKREPO_PROJECT")
 
+    # Django 4.2+ 使用 STORAGES 配置替代 DEFAULT_FILE_STORAGE 和 STATICFILES_STORAGE
+    STORAGES = {
+        "default": {
+            "BACKEND": "bkstorages.backends.bkrepo.BKRepoStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    # 保留旧配置以兼容性（Django 4.2 会发出弃用警告）
     DEFAULT_FILE_STORAGE = "bkstorages.backends.bkrepo.BKRepoStorage"
 
 # 告警图表渲染模式

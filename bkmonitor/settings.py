@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import os
 import sys
@@ -25,7 +25,7 @@ except ImportError:
 
 # settings加载顺序 config.default -> blueapps.patch -> config.{env} -> config.role.{role}
 
-patch_module = ['json', 'shutil', 'furl', 're']
+patch_module = ["json", "shutil", "furl", "re"]
 patch_target = {_module: None for _module in patch_module}
 
 # patch backend celery beat only
@@ -60,7 +60,7 @@ for key, value in list(os.environ.items()):
     if upper_key.startswith(SETTING_ENV_PREFIX):
         settings_key = upper_key.replace(SETTING_ENV_PREFIX, "")
         locals()[settings_key] = value
-        print('[Django Settings] Set config from env: {} = "{}"'.format(settings_key, value))
+        print(f'[Django Settings] Set config from env: {settings_key} = "{value}"')
 
 
 # 多人开发时，无法共享的本地配置可以放到新建的 local_settings.py 文件中
@@ -70,3 +70,23 @@ if RUN_MODE == "DEVELOP":  # noqa
         from local_settings import *  # noqa
     except ImportError:
         pass
+
+# Django 4.2+ 不再官方支持 Mysql 5.7，但目前 Django 仅是对 5.7 做了软性的不兼容改动，
+# 在没有使用 8.0 特异的功能时，对 5.7 版本的使用无影响，为兼容存量的 Mysql 5.7 DB 做此 Patch
+try:
+    from django.db.backends.mysql.features import DatabaseFeatures
+    from django.utils.functional import cached_property
+
+    class PatchFeatures:
+        """Patched Django Features"""
+
+        @cached_property
+        def minimum_database_version(self):
+            if self.connection.mysql_is_mariadb:  # type: ignore[attr-defined] # noqa
+                return 10, 4
+            return 5, 7
+
+    DatabaseFeatures.minimum_database_version = PatchFeatures.minimum_database_version  # noqa
+except ImportError:
+    # 如果导入失败，可能是 Django 版本不支持或配置未加载，忽略错误
+    pass
