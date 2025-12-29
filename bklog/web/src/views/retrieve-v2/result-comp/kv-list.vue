@@ -29,9 +29,9 @@
     <div class="kv-content">
       <template v-if="renderList.length > 0">
         <div
-          v-for="(field, index) in renderList"
+          v-for="field in renderList"
           class="log-item"
-          :key="index"
+          :key="field.field_name"
         >
           <div class="field-label">
             <span
