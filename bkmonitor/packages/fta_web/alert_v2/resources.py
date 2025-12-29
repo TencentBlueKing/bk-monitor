@@ -566,3 +566,47 @@ class AlertHostTargetResource(Resource):
                 flat_target["display_name"] = f"{topo} / {target['bk_target_ip']}"
                 target_list.append(flat_target)
         return target_list
+
+
+class AlertTracesResource(Resource):
+    """告警关联调用链资源类。
+
+    根据告警 ID 获取关联的调用链信息，包括 Trace 查询配置和调用链列表。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        """请求参数序列化器"""
+
+        alert_id = serializers.CharField(label="告警 id", help_text="要查询的告警 ID")
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        """执行告警关联调用链查询请求。
+
+        :param validated_request_data: 验证后的请求参数
+        :return: 包含查询配置和调用链列表的响应数据
+        """
+        # TODO: 实现真实的调用链查询逻辑
+        # 当前返回 mock 数据用于前端联调
+        return {
+            "query_config": {
+                "app_name": "tilapia",
+                "sceneMode": "span",
+                "where": [
+                    {
+                        "key": "resource.service.name",
+                        "operator": "equal",
+                        "value": ["example.greeter"],
+                    }
+                ],
+            },
+            "list": [
+                {
+                    "app_name": "tilapia",
+                    "trace_id": "84608839c9c45c074d5b0edf96d3ed0f",
+                    "root_service": "example.greeter",
+                    "root_span_name": "trpc.example.greeter.http/timeout",
+                    "root_service_span_name": "/timeout",
+                    "error_msg": "http client transport RoundTrip timeout: Get http://trpc-otlp-oteam-demo-service:8080/timeout: context deadline exceeded, cost:2.000525304s",
+                }
+            ],
+        }
