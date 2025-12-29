@@ -28,6 +28,7 @@ import { type PropType, defineComponent, inject, ref, watch } from 'vue';
 import { Button, Loading, Sideslider } from 'bkui-vue';
 import { retrieveDutyRule } from 'monitor-api/modules/model';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -98,9 +99,9 @@ export default defineComponent({
           rules.value = transformRulesDetail(detailData.value.duty_arranges, res.category);
           historyList.value = [
             { label: t('创建人'), value: res.create_user || '--' },
-            { label: t('创建时间'), value: res.create_time || '--' },
+            { label: t('创建时间'), value: formatWithTimezone(res.create_time) || '--' },
             { label: t('最近更新人'), value: res.update_user || '--' },
-            { label: t('修改时间'), value: res.update_time || '--' },
+            { label: t('修改时间'), value: formatWithTimezone(res.update_time) || '--' },
           ];
           getPreviewData();
         })
@@ -291,8 +292,8 @@ export default defineComponent({
                   hasColon={true}
                   label={this.t('生效时间')}
                 >
-                  <span class='detail-text'>{`${this.detailData?.effective_time} - ${
-                    this.detailData?.end_time || this.t('永久')
+                  <span class='detail-text'>{`${formatWithTimezone(this.detailData?.effective_time)} - ${
+                    formatWithTimezone(this.detailData?.end_time) || this.t('永久')
                   }`}</span>
                 </FormItem>
                 <FormItem

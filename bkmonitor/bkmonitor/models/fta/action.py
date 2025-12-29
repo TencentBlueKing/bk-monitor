@@ -194,7 +194,6 @@ class ActionPlugin(AbstractRecordModel):
         "itsm_v4_api_url": settings.BK_ITSM_V4_API_URL.rstrip("/"),
         "itsm_v4_system_id": settings.BK_ITSM_V4_SYSTEM_ID,
         "incident_saas_site_url": settings.BK_INCIDENT_SAAS_HOST.rstrip("/"),  # 故障分析SaaS URL
-
     }
 
     @staticmethod
@@ -631,6 +630,44 @@ class ActionInstance(AbstractRecordModel):
             queryset = queryset.filter(update_time__gte=end_time)
 
         return queryset.values("action_config_id").annotate(dcount=models.Count("action_config_id")).order_by("dcount")
+
+    def replay_blocked_notice(self):
+        """
+        重新发送被熔断的通知
+
+        :return: 重放结果列表，每个元素包含 success 和 error 信息
+        """
+        retry_params_list = self.ex_data.get("retry_params", [])
+        if not retry_params_list:
+            logger.warning(f"[replay blocked notice] action({self.id}) no retry_params found")
+            return []
+
+        results = []
+        for retry_param in retry_params_list:
+            api_module_path = retry_param["api_module"]
+            resource_name = retry_param["resource"]
+            try:
+                args = retry_param.get("args", ())
+                kwargs = retry_param.get("kwargs", {})
+
+                # 统一使用 import_module + getattr 处理所有 API 调用
+                api_module = import_module(api_module_path)
+                func = getattr(api_module, resource_name)
+                ret = func(*args, **kwargs)
+
+                logger.info(
+                    f"[replay blocked notice] action({self.id}) strategy({self.strategy_id}) "
+                    f"replay success: {api_module_path}.{resource_name}, result: {ret}"
+                )
+                results.append({"success": True, "result": ret, "api": f"{api_module_path}.{resource_name}"})
+            except Exception as e:
+                logger.exception(
+                    f"[replay blocked notice] action({self.id}) strategy({self.strategy_id}) "
+                    f"replay failed: {api_module_path}.{resource_name}, error: {e}"
+                )
+                results.append({"success": False, "error": str(e), "api": f"{api_module_path}.{resource_name}"})
+
+        return results
 
 
 class ActionInstanceLog(models.Model):
