@@ -291,7 +291,7 @@ class Migration(migrations.Migration):
                 (
                     "create_from",
                     models.CharField(
-                        choices=[("data", "数据自动创建"), ("user", "用户手动创建")],
+                        choices=[("data", "数据自动创建"), ("user", "用户手动创建"), ("default", "默认分组")],
                         db_index=True,
                         default="data",
                         max_length=10,
