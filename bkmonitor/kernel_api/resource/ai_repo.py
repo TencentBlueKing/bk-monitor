@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import os
 from bkstorages.backends.bkrepo import BKGenericRepoClient
 from core.drf_resource import Resource
 from rest_framework import serializers
@@ -16,13 +17,15 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-client = BKGenericRepoClient(
-    bucket=settings.AI_BKREPO_BUCKET,
-    project=settings.AI_BKREPO_PROJECT,
-    username=settings.BKREPO_USERNAME,
-    password=settings.BKREPO_PASSWORD,
-    endpoint_url=settings.BKREPO_ENDPOINT_URL,
-)
+# 是否启用制品库能力
+if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
+    client = BKGenericRepoClient(
+        bucket=settings.AI_BKREPO_BUCKET,
+        project=settings.AI_BKREPO_PROJECT,
+        username=settings.BKREPO_USERNAME,
+        password=settings.BKREPO_PASSWORD,
+        endpoint_url=settings.BKREPO_ENDPOINT_URL,
+    )
 
 
 class ListRepoDirResource(Resource):
