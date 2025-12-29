@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
-import copy
 from typing import Any
 from collections.abc import Callable, Iterable
 
@@ -301,14 +300,6 @@ class AlertEventTotalResource(AlertEventBaseResource):
     根据告警 ID 统计关联事件的总数，并按事件来源（主机、容器、蓝盾、业务上报）分组统计。
     """
 
-    # 事件来源的本地别名映射，用于覆盖 EventSource 的默认映射，将 BCS 翻译为更友好的 "容器"，而不是保持原始的 "BCS"
-    SOURCE_ALIAS_MAPPING: dict[str, str] = {
-        EventSource.HOST.value: "主机",
-        EventSource.BCS.value: "容器",
-        EventSource.BKCI.value: "蓝盾",
-        EventSource.DEFAULT.value: "业务上报",
-    }
-
     class RequestSerializer(serializers.Serializer):
         """请求参数序列化器"""
 
@@ -322,12 +313,9 @@ class AlertEventTotalResource(AlertEventBaseResource):
         """
         alert: AlertDocument = AlertDocument.get(validated_request_data["alert_id"])
         target: BaseTarget = get_target_instance(alert)
-        q: QueryConfigBuilder = self._get_q(target)
-        queryset: UnifyQuerySet = self.build_queryset(alert, target, q)
-        query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
-        return self._count_all_sources(query_params, target)
+        return self._count_all_sources(alert, target)
 
-    def _count_all_sources(self, query_params: dict[str, Any], target: BaseTarget) -> dict[str, Any]:
+    def _count_all_sources(self, alert: AlertDocument, target: BaseTarget) -> dict[str, Any]:
         """统计所有事件来源的总数。
 
         使用多线程并发查询所有事件来源（主机、容器、蓝盾、业务上报）的事件数量
@@ -337,40 +325,46 @@ class AlertEventTotalResource(AlertEventBaseResource):
         :return: 包含总数和分组统计的响应数据
         :raises ValueError: 当任何事件来源查询失败时抛出异常
         """
-        event_total_resource_cls: type = APMEventTotalResource if self.is_apm_target(target) else EventTotalResource
+        event_total_resource_cls: type[EventTotalResource] = (
+            APMEventTotalResource if self.is_apm_target(target) else EventTotalResource
+        )
 
-        def _count_single_source(source: str) -> dict[str, Any]:
+        # 获取事件来源的中文别名映射
+        source_label_mapping: dict[str, str] = EventSource.label_mapping()
+
+        # 在线程外构建基础查询，避免在每个线程中重复构建
+        base_q: QueryConfigBuilder = self._get_q(target)
+
+        def _get_total_info_by_source(source: str) -> dict[str, Any]:
             try:
-                source_query_params: dict[str, Any] = copy.deepcopy(query_params)
-                source_condition: list = q_to_conditions(Q(source=source))
-                for query_config in source_query_params.get("query_configs", []):
-                    existing_where: list = query_config.get("where") or []
-                    existing_where.extend(source_condition)
-                    query_config["where"] = existing_where
-                count: int = event_total_resource_cls().request(source_query_params).get("total", 0)
+                # 在线程内基于 base_q 添加 source 条件，然后构建查询参数并发起请求
+                q_with_source: QueryConfigBuilder = base_q.conditions(q_to_conditions(Q(source=source)))
+                queryset: UnifyQuerySet = self.build_queryset(alert, target, q_with_source)
+                query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
+                count: int = event_total_resource_cls().request(query_params).get("total", 0)
             except Exception as e:  # pylint: disable=broad-except
                 raise ValueError(f"事件来源【{source}】查询失败: {str(e)}")
 
             return {
                 "value": source,
-                "alias": self.SOURCE_ALIAS_MAPPING.get(source, source),
+                "alias": source_label_mapping.get(source, source),
                 "total": count,
             }
 
         sources: list[str] = [source for source, _ in EventSource.choices()]
         pool = ThreadPool(min(len(sources), 8))
         source_counts_iter: Iterable[dict[str, Any]] = pool.imap_unordered(
-            lambda source: _count_single_source(source), sources
+            lambda source: _get_total_info_by_source(source), sources
         )
         pool.close()
 
-        source_counts: list[dict[str, Any]] = []
-        total_count: int = 0
+        total_infos: list[dict[str, Any]] = []
+        total: int = 0
         for source_count in source_counts_iter:
-            source_counts.append(source_count)
-            total_count += source_count["total"]
+            total_infos.append(source_count)
+            total += source_count["total"]
 
-        return {"total": total_count, "list": source_counts}
+        return {"total": total, "list": total_infos}
 
 
 class AlertK8sScenarioListResource(Resource):
