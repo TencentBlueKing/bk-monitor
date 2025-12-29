@@ -42,6 +42,7 @@ import {
   COLLECT_METHOD_LIST,
   getLabelSelectorArray,
   getContainerNameList,
+  formatExcludeFiles,
 } from '../../utils'; // 工具函数
 
 import BaseInfo from '../business-comp/step2/base-info';
@@ -132,10 +133,10 @@ export default defineComponent({
 
     const baseConditions = {
       type: 'none',
-      match_type: 'include',
-      match_content: '',
-      separator: '|',
-      separator_filters: [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }],
+      // match_type: 'include',
+      // match_content: '',
+      // separator: '|',
+      // separator_filters: [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }],
     };
     /**
      * 行首正则是否为空
@@ -577,7 +578,6 @@ export default defineComponent({
       // 转换路径和排除文件格式
       const paths = transformStringArrayToInputValue(params.paths);
       const excludeFiles = transformStringArrayToInputValue(params.exclude_files);
-
       formData.value = {
         ...formData.value,
         ...detailData,
@@ -587,6 +587,8 @@ export default defineComponent({
           exclude_files: excludeFiles,
         },
         index_set_name: collector_config_name,
+        extra_labels:
+          detailData.extra_labels.length === 0 ? [{ key: '', value: '', operator: '=' }] : detailData.extra_labels,
       };
       /**
        * 克隆的时候数据处理
@@ -1029,6 +1031,7 @@ export default defineComponent({
                   clusterList={clusterList.value}
                   collectorType={collectorType.value}
                   data={formData.value.configs}
+                  scenarioId={props.scenarioId}
                   logType={logType.value}
                   on-change={(data: IContainerConfigItem[]) => {
                     isConfigChange.value = true;
@@ -1247,7 +1250,7 @@ export default defineComponent({
           container,
           params: {
             ...params,
-            exclude_files: params.exclude_files.map(item => item.value),
+            exclude_files: formatExcludeFiles(params.exclude_files),
             paths: extractPaths(params),
           },
           collector_type,
@@ -1341,11 +1344,6 @@ export default defineComponent({
           bcs_cluster_id,
         );
       }
-      if (requestData.params.conditions.type === 'none') {
-        requestData.params.conditions = {
-          type: 'none',
-        };
-      }
       $http
         .request(requestUrl, {
           params: urlParams,
@@ -1402,13 +1400,14 @@ export default defineComponent({
       if (showClusterListKeys.includes(props.scenarioId)) {
         isConfigError = configurationItemListRef.value.validate();
       }
-      loadingSave.value = true;
       /**
        * 是否为容器采集并且配置项校验通过
        */
+      console.log('formData.value', formData.value);
       baseInfoRef.value
         .validate()
         .then(() => {
+          loadingSave.value = true;
           /**
            * 判断用户是否有修改行为，如果没有则直接跳转到下一步
            */

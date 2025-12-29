@@ -152,6 +152,8 @@ export default defineComponent({
       return String.fromCharCode(asciiCode + index);
     };
 
+    const isFileType = computed(() => props.scenarioId === 'container_file');
+
     /**
      * 处理配置项数据变更
      * @param item - 更新后的配置项数据
@@ -207,10 +209,10 @@ export default defineComponent({
           exclude_files: [], // 类型定义中是 string[]，但实际使用时需要转换为 { value: string }[]
           conditions: {
             type: 'none' as const,
-            match_type: 'include',
-            match_content: '',
-            separator: '|',
-            separator_filters: [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }],
+            // match_type: 'include',
+            // match_content: '',
+            // separator: '|',
+            // separator_filters: [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }],
           },
           multiline_pattern: '',
           multiline_max_lines: '50',
@@ -314,7 +316,6 @@ export default defineComponent({
       if (logFilterRefs.value.length <= ind) {
         logFilterRefs.value.length = ind + 1;
       }
-
       return (
         <div class='item-box'>
           {/* 配置项头部：显示字母标识和删除按钮 */}
@@ -359,59 +360,63 @@ export default defineComponent({
               </div>
             )}
             {/* 日志路径配置 */}
-            <div class='item-content-child small-width'>
-              <LogPathConfig
-                ref={(el: any) => {
-                  logPathRefs.value[ind] = el;
-                }}
-                excludeFiles={
-                  (item.params?.exclude_files || []).map((file: string | { value: string }) =>
-                    typeof file === 'string' ? { value: file } : file,
-                  ) as { value: string }[]
-                }
-                paths={
-                  (item.params?.paths || []).map((path: { value?: string }) => ({
-                    value: path.value || '',
-                  })) as { value: string }[]
-                }
-                on-update={(key: string, val: any) => {
-                  // 如果更新的是 exclude_files，需要转换为 string[] 格式存储
-                  const updatedParams = { ...item.params };
-                  if (key === 'exclude_files' && Array.isArray(val)) {
-                    updatedParams[key] = val.map((item: { value: string }) => item.value);
-                  } else {
-                    updatedParams[key] = val;
+            {isFileType.value && (
+              <div class='item-content-child small-width'>
+                <LogPathConfig
+                  ref={(el: any) => {
+                    logPathRefs.value[ind] = el;
+                  }}
+                  excludeFiles={
+                    (item.params?.exclude_files || []).map((file: string | { value: string }) =>
+                      typeof file === 'string' ? { value: file } : file,
+                    ) as { value: string }[]
                   }
-                  const updatedItem = {
-                    ...item,
-                    params: updatedParams,
-                  };
-                  handleDataChange(updatedItem, ind);
-                }}
-              />
-            </div>
+                  paths={
+                    (item.params?.paths || []).map((path: { value?: string }) => ({
+                      value: path.value || '',
+                    })) as { value: string }[]
+                  }
+                  on-update={(key: string, val: any) => {
+                    // 如果更新的是 exclude_files，需要转换为 string[] 格式存储
+                    const updatedParams = { ...item.params };
+                    if (key === 'exclude_files' && Array.isArray(val)) {
+                      updatedParams[key] = val.map((item: { value: string }) => item.value);
+                    } else {
+                      updatedParams[key] = val;
+                    }
+                    const updatedItem = {
+                      ...item,
+                      params: updatedParams,
+                    };
+                    handleDataChange(updatedItem, ind);
+                  }}
+                />
+              </div>
+            )}
             {/* 字符集选择 */}
-            <div class='item-content-child small-width'>
-              <div class='item-content-title'>{t('字符集')}</div>
-              <bk-select
-                class='encoding-select'
-                clearable={false}
-                value={item.data_encoding}
-                searchable
-                on-selected={(val: string) => {
-                  const updatedItem = { ...item, data_encoding: val };
-                  handleDataChange(updatedItem, ind);
-                }}
-              >
-                {(globalsData.value?.data_encoding || []).map((option: { id: string; name: string }) => (
-                  <bk-option
-                    id={option.id}
-                    key={option.id}
-                    name={option.name}
-                  />
-                ))}
-              </bk-select>
-            </div>
+            {isFileType.value && (
+              <div class='item-content-child small-width'>
+                <div class='item-content-title'>{t('字符集')}</div>
+                <bk-select
+                  class='encoding-select'
+                  clearable={false}
+                  value={item.data_encoding}
+                  searchable
+                  on-selected={(val: string) => {
+                    const updatedItem = { ...item, data_encoding: val };
+                    handleDataChange(updatedItem, ind);
+                  }}
+                >
+                  {(globalsData.value?.data_encoding || []).map((option: { id: string; name: string }) => (
+                    <bk-option
+                      id={option.id}
+                      key={option.id}
+                      name={option.name}
+                    />
+                  ))}
+                </bk-select>
+              </div>
+            )}
             {/* 日志过滤配置 */}
             <div class='item-content-child'>
               <div class='item-content-title'>{t('日志过滤')}</div>

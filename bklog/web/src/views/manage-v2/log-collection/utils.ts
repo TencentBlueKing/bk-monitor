@@ -422,3 +422,34 @@ export const getContainerNameList = (containerName = '') => {
   if (splitList.length === 1 && splitList[0] === '') return [];
   return splitList;
 };
+
+/**
+ * 处理exclude_files，完成格式转换+空值过滤
+ * @param {Array} excludeFiles 原始exclude_files值（对象数组/字符串数组）
+ * @returns {Array<string>} 标准化后的非空字符串数组
+ */
+export const formatExcludeFiles = excludeFiles => {
+  // 1. 容错处理：非数组/空数组直接返回空数组
+  if (!Array.isArray(excludeFiles) || excludeFiles.length === 0) {
+    return [];
+  }
+
+  let resultArr = [];
+  // 2. 遍历数组，区分「对象项」和「字符串项」
+  excludeFiles.forEach(item => {
+    // 情况A：元素是对象，且包含value属性 → 提取value
+    if (typeof item === 'object' && item !== null && 'value' in item) {
+      const val = item.value;
+      // 过滤空值：仅保留非空的字符串
+      if (val && typeof val === 'string') {
+        resultArr.push(val);
+      }
+    }
+    // 情况B：元素是字符串 → 直接保留（已符合格式）
+    else if (typeof item === 'string') {
+      resultArr.push(item);
+    }
+  });
+
+  return resultArr;
+};

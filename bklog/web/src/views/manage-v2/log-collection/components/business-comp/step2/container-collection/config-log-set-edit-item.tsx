@@ -214,10 +214,12 @@ export default defineComponent({
             <span>
               {t(isLabelEdit.value ? '按标签选择{n}' : '按注解选择{n}', { n: props.isNode ? 'Node' : 'Container' })}
             </span>
-            <span
-              class='bk-icon icon-delete'
-              on-Click={handleDeleteConfigParamsItem}
-            />
+            {!props.isNode && (
+              <span
+                class='bk-icon icon-delete'
+                on-Click={handleDeleteConfigParamsItem}
+              />
+            )}
           </div>
           <div class='select-label-box'>
             <div
