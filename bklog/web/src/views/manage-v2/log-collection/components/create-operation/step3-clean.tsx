@@ -31,12 +31,13 @@ import useStore from '@/hooks/use-store';
 import { useRoute } from 'vue-router/composables';
 import { useOperation } from '../../hook/useOperation';
 import { showMessage } from '../../utils';
+import { deepClone } from '@/common/util';
 import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import InfoTips from '../common-comp/info-tips';
 import $http from '@/api';
 
-import type { ISelectItem } from '../../utils';
+import type { ISelectItem } from '../../type';
 
 import './step3-clean.scss';
 
@@ -258,6 +259,7 @@ export default defineComponent({
           const logReportingTime = !timeField; // 如果存在is_time为true的字段，则log_reporting_time为false
           const fieldName = timeField?.field_name || '';
           cleaningMode.value = clean_type;
+          enableMetaData.value = etl_params.path_regexp;
           formData.value = {
             ...formData.value,
             ...res.data,
@@ -271,6 +273,7 @@ export default defineComponent({
         }
         formData.value.etl_params.retain_original_text = true;
         formData.value.etl_params.enable_retain_content = true;
+        cacheTemplateData.value = deepClone(formData.value);
       } catch (error) {
         console.log(error);
       }
@@ -642,6 +645,7 @@ export default defineComponent({
     /** 选择清洗模式 */
     const handleChangeCleaningMode = (mode: string) => {
       cleaningMode.value = mode.value;
+      formData.value.etl_config = cleaningMode.value;
     };
 
     // 对时间格式做校验逻辑
@@ -1145,7 +1149,9 @@ export default defineComponent({
           <bk-button
             class='mr-8'
             on-click={() => {
-              formData.value = { ...cacheTemplateData.value };
+              formData.value = deepClone(cacheTemplateData.value);
+              cleaningMode.value = cacheTemplateData.value.etl_config;
+              enableMetaData.value = cacheTemplateData.value.etl_params.path_regexp;
             }}
           >
             {t('重置')}
