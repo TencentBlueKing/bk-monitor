@@ -31,6 +31,7 @@ import http from '@/api';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import useStore from '@/hooks/use-store';
 import useRouter from '@/hooks/use-router';
+import useUtils from '@/hooks/use-utils';
 import ReportTable from './report-table';
 import BatchUpload from './batch-upload';
 import UploadResult from './upload-result';
@@ -101,6 +102,9 @@ export default defineComponent({
     // 同步任务轮询相关状态（10秒轮询）
     const syncTaskTimer = ref(null);
     const currentRecordId = ref<string>('');
+
+    // 上传请求版本号，用于忽略过期请求的响应
+    let uploadRequestId = 0;
 
     // 获取同步记录状态的方法
     const getSyncRecord = async (recordId: string): Promise<{ status: string } | null> => {
@@ -184,7 +188,11 @@ export default defineComponent({
           const syncRecord = await getSyncRecord(currentRecordId.value);
 
           if (syncRecord) {
-            const { status } = syncRecord;
+            let { status } = syncRecord;
+
+            if (status === FileUploadStatus.PENDING) {
+              status = UploadStatus.RUNNING; // PENDING 状态表示任务在排队等待处理 也算正在处理中
+            }
 
             if (status === UploadStatus.RUNNING) {
               // 继续轮询
@@ -202,6 +210,13 @@ export default defineComponent({
           console.error('轮询同步状态失败:', error);
           uploadStatus.value = UploadStatus.FAILED;
         }
+
+        // 更新表格中匹配项的状态
+        updateItemsStatus(
+          uploadData.value.file_name_list,
+          uploadData.value.openid_list,
+          uploadStatus.value as unknown as FileUploadStatus,
+        );
 
         // 统一处理轮询结束后的逻辑
         stopSyncTaskPolling();
@@ -252,28 +267,30 @@ export default defineComponent({
       try {
         const statusData = await getFileStatus(fileNames);
 
-        // 创建状态映射并更新列表
-        const statusMap = new Map<string, FileUploadStatus>();
-        if (Array.isArray(statusData)) {
+        if (Array.isArray(statusData) && statusData.length > 0) {
+          // 创建状态映射并更新列表
+          const statusMap = new Map<string, FileUploadStatus>();
           statusData.forEach((item: FileStatusItem) => {
             statusMap.set(item.file_name, item.status);
           });
+
+          // 更新列表中的状态
+          tableData.value.list = list.map((item: UserReportItem) => {
+            const newStatus = statusMap.get(item.file_name);
+            return newStatus !== undefined ? { ...item, status: newStatus } : item;
+          });
+
+          // 检查是否需要继续轮询
+          checkShouldPollFileStatus(statusData);
         }
-
-        // 更新列表中的状态
-        tableData.value.list = list.map((item: UserReportItem) => ({
-          ...item,
-          status: statusMap.get(item.file_name),
-        }));
-
-        // 检查是否需要继续轮询
-        checkShouldPollFileStatus(statusData);
       } catch (error) {
         console.warn('轮询获取文件状态失败:', error);
         // 轮询失败时停止轮询
         stopFileStatusPolling();
       }
     };
+
+    const { formatResponseListTimeZoneString } = useUtils();
 
     // 获取用户上报数据
     const fetchUserReportData = async () => {
@@ -295,8 +312,11 @@ export default defineComponent({
         const response = await http.request('collect/getUserReportList', params);
         const originalList: UserReportItem[] = response.data.list || [];
 
+        // 格式化响应数据中的时间字段
+        const formattedList = formatResponseListTimeZoneString(originalList, {}, ['report_time']);
+
         tableData.value = {
-          list: originalList,
+          list: formattedList,
           total: response.data.total || 0,
         };
 
@@ -304,7 +324,7 @@ export default defineComponent({
         emit('update-total', tableData.value.total);
 
         // 获取列表数据后，检查是否需要轮询
-        checkShouldPollFileStatus(originalList);
+        checkShouldPollFileStatus(formattedList);
       } catch (error) {
         console.error('获取用户上报数据失败:', error);
       } finally {
@@ -374,14 +394,14 @@ export default defineComponent({
       });
     };
 
-    // 更新表格中匹配项的状态为PENDING
-    const updateItemsStatus = (fileNameList: string[], openidList: string[]) => {
+    // 更新表格中匹配项的状态
+    const updateItemsStatus = (fileNameList: string[], openidList: string[], status: FileUploadStatus) => {
       const fileNameSet = new Set(fileNameList);
       const openidSet = new Set(openidList);
 
       tableData.value.list = tableData.value.list.map((item: UserReportItem) => {
         if (fileNameSet.has(item.file_name) || openidSet.has(item.openid)) {
-          return { ...item, status: FileUploadStatus.RUNNING };
+          return { ...item, status };
         }
         return item;
       });
@@ -389,29 +409,45 @@ export default defineComponent({
 
     // 上传事件
     const handleUpload = async (data: { file_name_list: string[]; openid_list: string[] }) => {
+      // 生成新的请求ID
+      uploadRequestId += 1;
+      const currentRequestId = uploadRequestId;
+
       // 保存上传数据，用于重试
       uploadData.value = data;
       // 显示上传结果弹窗
       showUploadResult.value = true;
       uploadStatus.value = UploadStatus.RUNNING;
+      stopFileStatusPolling();
 
       // 更新表格中匹配项的状态为RUNNING
-      updateItemsStatus(data.file_name_list, data.openid_list);
+      updateItemsStatus(data.file_name_list, data.openid_list, FileUploadStatus.RUNNING);
 
       try {
+        const requestData: any = {
+          // bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+        };
+
+        if (data.file_name_list && data.file_name_list.length > 0) {
+          requestData.file_name_list = data.file_name_list;
+        }
+        if (data.openid_list && data.openid_list.length > 0) {
+          requestData.openid_list = data.openid_list;
+        }
+
         const params = {
-          data: {
-            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-            file_name_list: data.file_name_list,
-            openid_list: data.openid_list,
-          },
+          data: requestData,
         };
 
         const response = await http.request('collect/syncUserReport', params);
 
+        // 检查是否是最新的请求，如果不是则忽略响应
+        if (currentRequestId !== uploadRequestId) {
+          return;
+        }
+
         // 获取record_id并开始轮询同步状态
         if (response.data && response.data.record_id) {
-          stopFileStatusPolling();
           startSyncTaskPolling(response.data.record_id);
         } else {
           // 没有返回record_id，标记为失败
@@ -419,6 +455,11 @@ export default defineComponent({
           stopSyncTaskPolling();
         }
       } catch (error) {
+        // 检查是否是最新的请求，如果不是则忽略
+        if (currentRequestId !== uploadRequestId) {
+          return;
+        }
+
         console.error('上传失败:', error);
         // 上传失败
         uploadStatus.value = UploadStatus.FAILED;
@@ -430,11 +471,10 @@ export default defineComponent({
     const handleUploadResultClose = () => {
       showUploadResult.value = false;
 
-      // 如果还在上传中，停止轮询并刷新列表
-      if ((uploadStatus.value = UploadStatus.RUNNING)) {
-        stopSyncTaskPolling();
-        startFileStatusPolling(true);
-      }
+      uploadRequestId += 1;
+
+      stopSyncTaskPolling();
+      startFileStatusPolling();
     };
 
     // 重试上传

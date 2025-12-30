@@ -141,7 +141,7 @@ export default defineComponent({
         case UploadStatus.FAILED:
           return renderFailed();
         default:
-          return null;
+          return renderRunning();
       }
     };
 

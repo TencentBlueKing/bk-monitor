@@ -94,10 +94,12 @@ export default defineComponent({
             },
           };
           const response = await http.request(apiMethod, params);
-          const newData = (response.data || []).map((item: any) => ({
-            id: item,
-            name: item,
-          }));
+          const newData = (response.data || [])
+            .filter((item: any) => item !== '')
+            .map((item: any) => ({
+              id: item,
+              name: item,
+            }));
 
           if (isLoadMore) {
             options.value.push(...newData);

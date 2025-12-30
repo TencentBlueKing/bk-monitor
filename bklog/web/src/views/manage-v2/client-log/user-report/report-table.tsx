@@ -366,7 +366,7 @@ export default defineComponent({
     const handleUpload = (row: UserReportItem) => {
       emit('upload', {
         file_name_list: row.file_name ? [row.file_name] : [],
-        openid_list: row.openid ? [row.openid] : [],
+        openid_list: [],
       });
     };
 
@@ -531,7 +531,7 @@ export default defineComponent({
             <bk-table-column
               key='report_time'
               class-name='filter-column'
-              width='160'
+              width='240'
               label={t('文件上传时间')}
               prop='report_time'
             />
