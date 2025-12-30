@@ -30,8 +30,8 @@ import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
 import { AiQueryResult } from '../types';
 import BklogPopover from '@/components/bklog-popover';
 import EditInput from '@/global/edit-input';
+import AiParseResultBanner from '@/views/retrieve-v2/search-bar/components/ai-parse-result-banner';
 
-import AiParseResultBanner from '@/views/retrieve-v2/search-bar/components/ai-parse-result-banner.vue';
 import './index.scss';
 
 type AiModeStatus = 'default' | 'inputting' | 'searching';
@@ -259,40 +259,7 @@ export default defineComponent({
                 />
               </div>
               {props.aiQueryResult.queryString ? (
-                <BklogPopover
-                  ref={parsedTextRef}
-                  class='ai-parsed-text'
-                  trigger='hover'
-                  content={getHoverContent}
-                  options={
-                    {
-                      appendTo: document.body,
-                      theme: 'bklog-basic-light',
-                      arrow: false,
-                      placement: 'bottom-start',
-                      maxWidth: containerWidth.value,
-                      offset: [0, 4],
-
-                      popperOptions: {
-                        modifiers: [
-                          {
-                            name: 'offset',
-                            options: {
-                              offset: ({ reference }) => {
-                                // 获取 containerRef 的位置
-                                const containerRect = containerRef.value.getBoundingClientRect();
-                                const offsetY = containerRect.bottom - reference.y + 4 - reference.height;
-                                return [reference.x, offsetY];
-                              },
-                            },
-                          },
-                        ],
-                      },
-                    } as any
-                  }
-                >
-                  <span class='ai-parsed-text-icon bklog-icon bklog-eye'></span>
-                </BklogPopover>
+                <span class='bklog-icon bklog-qingkong'></span>
               ) : null}
               <div class='ai-mode-toggle-btn'>
                 <img

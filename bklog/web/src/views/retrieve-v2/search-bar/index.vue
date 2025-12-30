@@ -29,7 +29,7 @@ import RequestPool from '@/store/request-pool';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import CommonFilterSelect from './components/common-filter-select.vue';
-import AiParseResultBanner from './components/ai-parse-result-banner.vue';
+import AiParseResultBanner from './components/ai-parse-result-banner';
 import SqlQuery from './sql-mode/sql-query';
 import UiInput from './ui-mode/ui-input';
 import { withoutValueConditionList } from './utils/const.common';
@@ -877,7 +877,9 @@ defineExpose({
         class="ai-progress-bar"
       ></div>
     </div>
-    <AiParseResultBanner :ai-query-result="aiQueryResult" style="border-top: 1px solid #DCDEE5;" />
+    <template v-if="searchMode === 'sql'">
+      <AiParseResultBanner :ai-query-result="aiQueryResult" style="border-top: 1px solid #DCDEE5;" />
+    </template>
     <template v-if="isFilterSecFocused">
       <CommonFilterSelect />
     </template>

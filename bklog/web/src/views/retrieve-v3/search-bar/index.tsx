@@ -38,10 +38,18 @@ import V3AiMode from './ai-mode/index';
 import { bkMessage } from 'bk-magic-vue';
 
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import { AiQueryResult, AiQueryContent, ParseResult } from './types';
+import { AiQueryResult, AiQueryContent } from './types';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 
 import './index.scss';
+
+const DEFAULT_AI_QUERY_RESULT: AiQueryResult = {
+  startTime: '',
+  endTime: '',
+  queryString: '',
+  parseResult: undefined,
+  explain: '',
+};
 
 export default defineComponent({
   name: 'V3Searchbar',
@@ -55,13 +63,7 @@ export default defineComponent({
 
     const isAiLoading = ref(false);
     const searchMode = ref<'normal' | 'ai'>('normal');
-    const aiQueryResult = ref<AiQueryResult>({
-      startTime: '',
-      endTime: '',
-      queryString: '',
-      parseResult: undefined,
-      explain: undefined,
-    });
+    const aiQueryResult = ref<AiQueryResult>(DEFAULT_AI_QUERY_RESULT);
 
     const aiFilterList = computed<string[]>(() =>
       (store.state.aiMode.filterList ?? []).filter(f => !/^\s*\*?\s*$/.test(f)),

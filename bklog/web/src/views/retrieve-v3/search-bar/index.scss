@@ -15,6 +15,10 @@
 
   }
 
+  &.is-ai-mode {
+    box-shadow: none;
+  }
+
   .bklog-ai-edit-btn {
     font-size: 12px;
     color: #313238;

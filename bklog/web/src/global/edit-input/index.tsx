@@ -44,6 +44,10 @@ export default defineComponent({
       type: Number,
       default: 200,
     },
+    maxHeight: {
+      type: Number,
+      default: 200,
+    },
   },
   setup(props, { emit }) {
     const isEditMode = ref(false);
@@ -82,9 +86,11 @@ export default defineComponent({
           textareaRef.value.style.height = 'auto';
           const scrollHeight = textareaRef.value.scrollHeight;
           const minHeight = Math.max(rect.height, 22);
-          const newHeight = Math.max(scrollHeight + padding, minHeight);
-          textareaRef.value.style.height = `${scrollHeight}px`;
-          editContainerRef.value.style.height = `${newHeight}px`;
+          const calculatedHeight = Math.max(scrollHeight + padding, minHeight);
+          // 应用 maxHeight 限制
+          const finalHeight = Math.min(calculatedHeight, props.maxHeight);
+          textareaRef.value.style.height = `${Math.min(scrollHeight, props.maxHeight - padding)}px`;
+          editContainerRef.value.style.height = `${finalHeight}px`;
 
           textareaRef.value.focus();
           textareaRef.value.select();
@@ -225,9 +231,11 @@ export default defineComponent({
                   const scrollHeight = target.scrollHeight;
                   const padding = 8; // 上下各 4px padding
                   const minHeight = 22;
-                  const newHeight = Math.max(scrollHeight + padding, minHeight);
-                  target.style.height = `${scrollHeight}px`;
-                  editContainerRef.value.style.height = `${newHeight}px`;
+                  const calculatedHeight = Math.max(scrollHeight + padding, minHeight);
+                  // 应用 maxHeight 限制
+                  const finalHeight = Math.min(calculatedHeight, props.maxHeight);
+                  target.style.height = `${Math.min(scrollHeight, props.maxHeight - padding)}px`;
+                  editContainerRef.value.style.height = `${finalHeight}px`;
                 }
               }}
               onKeydown={handleKeyDown}
