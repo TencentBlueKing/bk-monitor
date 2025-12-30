@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import inspect
 import json
 import logging
 import time
@@ -653,6 +654,8 @@ class ActionInstance(AbstractRecordModel):
                 # 统一使用 import_module + getattr 处理所有 API 调用
                 api_module = import_module(api_module_path)
                 func = getattr(api_module, resource_name)
+                if inspect.isclass(func):
+                    func = func()
                 ret = func(*args, **kwargs)
 
                 logger.info(
