@@ -561,6 +561,21 @@ class AlertHostTargetResource(Resource):
         return target_list
 
 
+class AlertLogRelationListResource(Resource):
+    """告警关联日志资源类。"""
+
+    class RequestSerializer(serializers.Serializer):
+        """请求参数序列化器"""
+
+        alert_id = serializers.CharField(label="告警 id", help_text="要查询的告警ID")
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
+        alert_id: str = validated_request_data["alert_id"]
+        alert: AlertDocument = AlertDocument.get(alert_id)
+        target: BaseTarget = get_target_instance(alert)
+        return target.list_related_log_targets()
+
+
 class AlertTracesResource(Resource):
     """告警关联调用链资源类。
 

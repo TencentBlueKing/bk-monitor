@@ -14,6 +14,7 @@ from typing import Any
 
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.strategy.dispatch import EntitySet
+from apm_web.log.resources import log_relation_list
 from bkmonitor.documents import AlertDocument
 from constants.alert import K8S_RESOURCE_TYPE, K8STargetType, APMTargetType, EventTargetType
 
@@ -285,7 +286,22 @@ class APMServiceTarget(BaseTarget):
         return target_hosts
 
     def list_related_log_targets(self) -> list[dict[str, Any]]:
-        return []
+        apm_target_list: list[dict[str, Any]] = self.list_related_apm_targets()
+        if not apm_target_list:
+            return []
+
+        apm_target: dict[str, Any] = apm_target_list[0]
+        start_time: int = self._alert.first_anomaly_time - 20 * 60
+        end_time: int = self._alert.end_time if self._alert.end_time else self._alert.first_anomaly_time + 60 * 60
+        return list(
+            log_relation_list(
+                bk_biz_id=self._alert.event.bk_biz_id,
+                app_name=apm_target["app_name"],
+                service_name=apm_target["service_name"],
+                start_time=start_time,
+                end_time=end_time,
+            )
+        )
 
 
 class HostTarget(DefaultTarget):
