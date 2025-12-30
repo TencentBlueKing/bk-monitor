@@ -387,15 +387,12 @@ class AlertEventTSResource(AlertEventBaseResource):
         target: BaseTarget = get_target_instance(alert)
 
         interval: int = validated_request_data["interval"]
-        q: QueryConfigBuilder = self._get_q(target).interval(interval)
+        q: QueryConfigBuilder = self._get_q(target).interval(interval).metric(field="_index", method="SUM", alias="a")
 
         queryset: UnifyQuerySet = self.build_queryset(alert, target, q)
         query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
-
-        # 添加 expression 参数
         query_params["expression"] = "a"
 
-        # 根据目标类型选择对应的事件时序资源类
         event_ts_resource_cls: type[EventTimeSeriesResource] = (
             APMEventTimeSeriesResource if self.is_apm_target(target) else EventTimeSeriesResource
         )
