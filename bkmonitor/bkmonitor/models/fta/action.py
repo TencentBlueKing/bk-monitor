@@ -387,7 +387,7 @@ class ActionInstance(AbstractRecordModel):
                 if voice_notice_mode == VoiceNoticeMode.SERIAL:
                     # 串行通知，将通知人员列表的列表 合并为一个通知人员列表 为单个列表(并去重)创建子任务
                     # [["user1", "user2"], ["user3", "user2"]] -> [["user1", "user2", "user3"]]
-                    combined = [user for sublist in notice_receivers for user in sublist]
+                    combined = [user for sublist in notice_receivers if isinstance(sublist, list) for user in sublist]
                     notice_receivers = [list(dict.fromkeys(combined))]
 
             for notice_receiver in notice_receivers:
