@@ -24,7 +24,6 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_token
-from config.domains import DATAQUERY_APIGATEWAY_ROOT
 
 
 class _BkDataQueryApi:
@@ -38,7 +37,7 @@ class _BkDataQueryApi:
         return (
             f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v3/queryengine/{new_path}"
             if self.use_apigw
-            else f"{DATAQUERY_APIGATEWAY_ROOT}{old_path}"
+            else f"http://bk-data.apigw.o.woa.com/prod/v3/queryengine/bklog/{old_path}"
         )
 
     def __init__(self):

@@ -32,7 +32,6 @@ from apps.tgpa.constants import (
     TGPA_BASE_DIR,
     TGPA_REPORT_LIST_BATCH_SIZE,
     TGPAReportSyncStatusEnum,
-    TGPATaskProcessStatusEnum,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.tgpa.models import TGPAReport, TGPAReportSyncRecord
@@ -290,11 +289,11 @@ class TGPAReportHandler:
         status_list = TGPAReport.objects.filter(record_id=record_id).values_list("process_status", flat=True).distinct()
         status_set = set(status_list)
 
-        if TGPATaskProcessStatusEnum.PENDING.value in status_set:
+        if TGPAReportSyncStatusEnum.PENDING.value in status_set:
             record_obj.status = TGPAReportSyncStatusEnum.RUNNING.value
-        elif TGPATaskProcessStatusEnum.RUNNING.value in status_set:
+        elif TGPAReportSyncStatusEnum.RUNNING.value in status_set:
             record_obj.status = TGPAReportSyncStatusEnum.RUNNING.value
-        elif TGPATaskProcessStatusEnum.FAILED.value in status_set:
+        elif TGPAReportSyncStatusEnum.FAILED.value in status_set:
             record_obj.status = TGPAReportSyncStatusEnum.FAILED.value
         else:
             record_obj.status = TGPAReportSyncStatusEnum.SUCCESS.value

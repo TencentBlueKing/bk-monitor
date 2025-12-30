@@ -392,6 +392,7 @@ class LogIndexSet(SoftDeleteModel):
     doris_table_id = models.CharField(_("doris表名"), max_length=128, null=True, default=None)
 
     query_alias_settings = models.JSONField(_("查询别名配置"), null=True, blank=True)
+    is_group = models.BooleanField(_("是否分组"), default=False)
 
     def get_name(self):
         return self.index_set_name
@@ -694,6 +695,7 @@ class LogIndexSetData(SoftDeleteModel):
     storage_cluster_id = models.IntegerField(_("存储集群ID"), default=None, null=True, blank=True)
     time_field_type = models.CharField(_("时间字段类型"), max_length=32, default=None, null=True)
     time_field_unit = models.CharField(_("时间字段单位"), max_length=32, default=None, null=True)
+    type = models.CharField(_("索引类型"), max_length=32, default="result_table")
 
     def list_operate(self):
         return format_html(_('<a href="../logindexset/?index_set_id=%s">索引集</a>&nbsp;&nbsp;') % self.index_set_id)
