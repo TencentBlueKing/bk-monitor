@@ -151,20 +151,17 @@ class QueryServicesDetailResource(Resource):
     @classmethod
     def convert_to_sidebar(cls, data):
         """将返回转换为侧边栏的格式 用于图表配置右侧信息处展示"""
-        text_mapping = {
-            "name": _("服务名称"),
-            "create_time": _("创建时间"),
-            "last_report_time": _("最近上报时间"),
+        field_mapping = {
+            "name": {"text": _("服务名称"), "type": "string"},
+            "create_time": {"text": _("创建时间"), "type": "time"},
+            "last_report_time": {"text": _("最近上报时间"), "type": "time"},
         }
-        res = []
 
-        for k, v in data.items():
-            if k not in text_mapping:
-                continue
-
-            res.append({"name": text_mapping[k], "type": "string", "value": v})
-
-        return res
+        return [
+            {"name": field_mapping[k]["text"], "type": field_mapping[k]["type"], "value": v}
+            for k, v in data.items()
+            if k in field_mapping
+        ]
 
 
 class ListApplicationServicesResource(Resource):

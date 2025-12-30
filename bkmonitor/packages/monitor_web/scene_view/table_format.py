@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 from abc import ABC
-from typing import List
 
 import arrow
 from arrow.parser import ParserError
@@ -134,14 +133,14 @@ class StringTableFormat(TableFormat):
     column_type = "string"
 
     def __init__(self, *args, show_over_flow_tool_tip=True, **kwargs):
-        super(StringTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.show_over_flow_tool_tip = show_over_flow_tool_tip
 
     def format(self, row: dict) -> str:
         return row[self.id]
 
     def column(self):
-        res = super(StringTableFormat, self).column()
+        res = super().column()
         return {**res, "showOverflowTooltip": self.show_over_flow_tool_tip}
 
 
@@ -151,7 +150,7 @@ class StringLabelTableFormat(StringTableFormat):
     column_type = "string"
 
     def __init__(self, *args, label_getter, icon_getter=None, **kwargs):
-        super(StringLabelTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.label_getter = label_getter
         self.icon_getter = icon_getter
 
@@ -178,7 +177,7 @@ class TimestampTableFormat(TableFormat):
     column_type = "timestamp"
 
     def __init__(self, *args, digits=1000000, **kwargs):
-        super(TimestampTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.digits = digits
 
     def format(self, row: dict) -> str:
@@ -192,13 +191,34 @@ class TimestampTableFormat(TableFormat):
                 return ""
 
 
+class TimeTableFormat(TableFormat):
+    """时间戳列格式类。
+
+    直接返回时间戳（秒级）
+    """
+
+    column_type = "time"
+
+    def format(self, row: dict) -> int:
+        """格式化时间戳数据。
+
+        :param row: 行数据字典
+        :return: 时间戳（秒级），如果数据无效则返回 0
+        """
+        content = row.get(self.id)
+        try:
+            return int(content)
+        except (TypeError, ValueError):
+            return 0
+
+
 class LinkTableFormat(TableFormat):
     column_type = "link"
 
     def __init__(
         self, url_format: str = "", target: str = "self", event_key="", icon_get=lambda x: "", *args, **kwargs
     ):
-        super(LinkTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.url_format = url_format
         self.target = target
         self.event_key = event_key
@@ -237,11 +257,11 @@ class ServiceComponentAdaptLinkFormat(LinkTableFormat):
 
 class SyncTimeLinkTableFormat(LinkTableFormat):
     def __init__(self, *args, sync_time=True, **kwargs):
-        super(SyncTimeLinkTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sync_time = sync_time
 
     def format(self, row):
-        data = super(SyncTimeLinkTableFormat, self).format(row)
+        data = super().format(row)
         return {**data, "syncTime": self.sync_time}
 
 
@@ -258,7 +278,7 @@ class AliasMappingTableFormat(TableFormat):
     column_type = "alias_string"
 
     def __init__(self, mappings, *args, **kwargs):
-        super(AliasMappingTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.mappings = mappings
 
     def format(self, row: dict) -> dict:
@@ -272,12 +292,12 @@ class AliasMappingTableFormat(TableFormat):
 class LinkListTableFormat(TableFormat):
     column_type = "link_list"
 
-    def __init__(self, links: List[LinkTableFormat], link_handler=None, *args, **kwargs):
+    def __init__(self, links: list[LinkTableFormat], link_handler=None, *args, **kwargs):
         """
         @param links: 链接项
         @param link_handler: 决定是否展示链接项
         """
-        super(LinkListTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.links = links
         self.link_handler = link_handler
 
@@ -296,7 +316,7 @@ class ProgressTableFormat(TableFormat):
     column_type = "progress"
 
     def __init__(self, *args, clear_if_not_sorted=False, color_getter=None, **kwargs):
-        super(ProgressTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.clear_if_not_sorted = clear_if_not_sorted
         self.color_getter = color_getter
 
@@ -339,7 +359,7 @@ class CustomProgressTableFormat(TableFormat):
         *args,
         **kwargs,
     ):
-        super(CustomProgressTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.color_getter = color_getter
         self.label_calculator = label_calculator
         self.max_if_overview = max_if_overview
@@ -380,7 +400,7 @@ class CustomStringTableFormat(TableFormat):
     column_type = "string"
 
     def __init__(self, formatter, *args, **kwargs):
-        super(CustomStringTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.formatter = formatter
 
     def format(self, row):
@@ -391,7 +411,7 @@ class NumberTableFormat(TableFormat):
     column_type = "number"
 
     def __init__(self, unit: str = "short", decimal=5, *args, **kwargs):
-        super(NumberTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.unit = unit
         self.decimal = decimal
 
@@ -411,11 +431,11 @@ class ColorNumberTableFormat(NumberTableFormat):
     """变色数字列"""
 
     def __init__(self, color_handler, *args, **kwargs):
-        super(ColorNumberTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.color_handler = color_handler
 
     def format(self, row):
-        res = super(ColorNumberTableFormat, self).format(row)
+        res = super().format(row)
         color = self.color_handler(res)
         if color:
             return {**res, "color": color}
@@ -427,7 +447,7 @@ class StatusTableFormat(TableFormat):
     column_type = "status"
 
     def __init__(self, status_map_cls, show_tips=lambda x: False, *args, **kwargs):
-        super(StatusTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.status_map_cls = status_map_cls
         self.show_tips = show_tips
 
@@ -476,7 +496,7 @@ class DataPointsTableFormat(TableFormat):
     column_type = "datapoints"
 
     def __init__(self, unit: str = None, *args, **kwargs):
-        super(DataPointsTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.unit = unit
 
     def format(self, row: dict) -> any:
@@ -489,7 +509,7 @@ class CollectTableFormat(TableFormat):
     collect_map = {True: _lazy("已收藏"), False: _lazy("未收藏")}
 
     def __init__(self, api: str = "", params_get=lambda item: {}, *args, **kwargs):
-        super(CollectTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.api = api
         self.params = params_get
 
@@ -509,7 +529,7 @@ class CollectTableFormat(TableFormat):
 
 class DictSearchColumnTableFormat(TableFormat):
     def __init__(self, column_type, get_filter_value, *args, **kwargs):
-        super(DictSearchColumnTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.column_type = column_type
         self.get_filter_value = get_filter_value
 
@@ -526,12 +546,12 @@ class OverviewDataTableFormat(StringTableFormat):
     column_type = "link"
 
     def __init__(self, *args, title, max_width=None, **kwargs):
-        super(OverviewDataTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.title = title
         self.max_width = max_width
 
     def column(self):
-        data = super(OverviewDataTableFormat, self).column()
+        data = super().column()
         return {**data, "max_width": self.max_width}
 
     def format(self, row: dict):
@@ -541,7 +561,7 @@ class OverviewDataTableFormat(StringTableFormat):
             "icon": "",
             "target": "null_event",
             "url": "",
-            "value": super(OverviewDataTableFormat, self).format(row),
+            "value": super().format(row),
         }
 
 
@@ -553,7 +573,7 @@ class StackLinkTableFormat(TableFormat):
     def __init__(
         self, url_format: str = "", target: str = "self", event_key="", icon_get=lambda x: "", *args, **kwargs
     ):
-        super(StackLinkTableFormat, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.url_format = url_format
         self.target = target
         self.event_key = event_key
