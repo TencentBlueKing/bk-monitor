@@ -24,13 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, onUnmounted, ref, watch, nextTick, type PropType } from 'vue';
-import { sql } from '@codemirror/lang-sql';
-import { EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
-
+import { computed, defineComponent, ref, watch, nextTick, type PropType } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import { copyMessage } from '@/common/util';
+import useElementEvent from '@/hooks/use-element-event';
 
 import './ai-parse-result-banner.scss';
 
@@ -55,14 +52,9 @@ export default defineComponent({
   setup(props) {
     const { $t } = useLocale();
 
-    const showFullStatement = ref(false);
     const isExpanded = ref(false);
     const textRef = ref<HTMLElement | null>(null);
     const hasOverflow = ref(false);
-    const editorValidRef = ref<HTMLElement | null>(null);
-    const editorInvalidRef = ref<HTMLElement | null>(null);
-    let validEditorView: EditorView | null = null;
-    let invalidEditorView: EditorView | null = null;
 
     const isSuccess = computed(() => props.aiQueryResult?.parseResult === 'SUCCESS');
     const isPartialSuccess = computed(() => props.aiQueryResult?.parseResult === 'PARTIAL_SUCCESS');
@@ -137,102 +129,14 @@ export default defineComponent({
       }
     };
 
-    // 创建只读的 CodeMirror 编辑器
-    const createReadOnlyEditor = (container: HTMLElement, content: string) => {
-      const state = EditorState.create({
-        doc: content,
-        extensions: [
-          sql(),
-          EditorView.editable.of(false), // 设置为只读
-          EditorView.lineWrapping, // 自动换行
-          EditorView.theme({
-            '&': {
-              fontSize: '12px',
-              backgroundColor: 'transparent',
-            },
-            '.cm-scroller': {
-              overflow: 'auto',
-            },
-            '.cm-content': {
-              padding: '0',
-            },
-            '.cm-line': {
-              padding: '0',
-            },
-          }),
-        ],
-      });
-
-      return new EditorView({
-        state,
-        parent: container,
-      });
-    };
-
-    // 初始化编辑器
-    const initEditors = () => {
-      nextTick(() => {
-        if (showFullStatement.value && isPartialSuccess.value) {
-          if (editorValidRef.value && props.aiQueryResult?.queryString) {
-            validEditorView = createReadOnlyEditor(editorValidRef.value, props.aiQueryResult.queryString);
-          }
-          if (editorInvalidRef.value && props.aiQueryResult?.explain) {
-            invalidEditorView = createReadOnlyEditor(editorInvalidRef.value, props.aiQueryResult.explain);
-          }
-        } else if (showFullStatement.value && editorValidRef.value) {
-          const content = props.aiQueryResult?.queryString || props.aiQueryResult?.explain || '';
-          validEditorView = createReadOnlyEditor(editorValidRef.value, content);
-        }
-      });
-    };
-
-    // 清理编辑器
-    const destroyEditors = () => {
-      if (validEditorView) {
-        validEditorView.destroy();
-        validEditorView = null;
-      }
-      if (invalidEditorView) {
-        invalidEditorView.destroy();
-        invalidEditorView = null;
-      }
-    };
-
-    watch(showFullStatement, (newVal) => {
-      if (newVal) {
-        destroyEditors();
-        initEditors();
-      } else {
-        destroyEditors();
-      }
-    });
-
     watch(() => [props.aiQueryResult?.explain, props.aiQueryResult?.queryString], () => {
       nextTick(checkOverflow);
     }, {
       immediate: true,
     });
 
-    onMounted(() => {
-      nextTick(checkOverflow);
-      // 监听窗口大小变化
-      window.addEventListener('resize', checkOverflow);
-    });
-
-    onUnmounted(() => {
-      window.removeEventListener('resize', checkOverflow);
-      destroyEditors();
-    });
-
-    /**
-     * 关闭解析结果提示
-     */
-    const handleClose = () => {
-      if (props.aiQueryResult) {
-        (props.aiQueryResult as AiQueryResult).parseResult = undefined;
-        (props.aiQueryResult as AiQueryResult).explain = undefined;
-      }
-    };
+    const { addElementEvent } = useElementEvent();
+    addElementEvent(document, 'resize', checkOverflow);
 
     /**
      * 复制语句到剪贴板
@@ -284,7 +188,7 @@ export default defineComponent({
         return [
           <span>
             <span>{$t('识别出部分语句')}</span>
-            <span>{props.aiQueryResult.queryString}</span>
+            <span>{getSementKeywordElements(props.aiQueryResult.queryString)}</span>
           </span>,
           <span>
             <span>{$t('和部分无效内容')}</span>
@@ -324,6 +228,252 @@ export default defineComponent({
       </div>;
     }
 
+    /**
+     * 高亮渲染关键词
+     * @param keyword 关键词
+     * @returns 高亮渲染后的关键词
+     */
+    const getSementKeywordElements = (keyword: string) => {
+      if (!keyword) return keyword;
+
+      interface Match {
+        type: 'keyword' | 'key' | 'value' | 'bracket';
+        value: string;
+        index: number;
+        length: number;
+      }
+
+      const text = keyword;
+      const matches: Match[] = [];
+
+      // 1. 先匹配关键字（AND NOT 必须在 AND 之前，避免误匹配）
+      const keywordPatterns = [
+        /\b(AND\s+NOT)\b/gi,  // AND NOT
+        /\b(AND|OR)\b/gi,      // AND 或 OR
+      ];
+
+      keywordPatterns.forEach((pattern) => {
+        let match;
+        pattern.lastIndex = 0;
+        while ((match = pattern.exec(text)) !== null) {
+          matches.push({
+            type: 'keyword',
+            value: match[0],
+            index: match.index,
+            length: match[0].length,
+          });
+        }
+      });
+
+      // 2. 匹配括号
+      const bracketPattern = /([(){}[\]])/g;
+      let match;
+      bracketPattern.lastIndex = 0;
+      while ((match = bracketPattern.exec(text)) !== null) {
+        matches.push({
+          type: 'bracket',
+          value: match[0],
+          index: match.index,
+          length: match[0].length,
+        });
+      }
+
+      // 3. 匹配 key: value 模式
+      // 先找到所有 key: 的位置，然后确定对应的 value 范围
+      const keyColonPattern = /(\S+?):/g;
+      const keyColonMatches: Array<{ key: string; colonIndex: number }> = [];
+
+      keyColonPattern.lastIndex = 0;
+      while ((match = keyColonPattern.exec(text)) !== null) {
+        const key = match[1];
+        const colonIndex = match.index + key.length;
+
+        // 检查 key 是否与已匹配的关键字重叠
+        const isKeyOverlapped = matches.some(
+          m => m.index < colonIndex && m.index + m.length > match.index
+        );
+
+        if (!isKeyOverlapped) {
+          keyColonMatches.push({ key, colonIndex });
+        }
+      }
+
+      // 处理每个 key:value 对
+      keyColonMatches.forEach(({ key, colonIndex }, idx) => {
+        const keyStart = colonIndex - key.length;
+
+        // 添加 key
+        matches.push({
+          type: 'key',
+          value: key,
+          index: keyStart,
+          length: key.length,
+        });
+
+        // 查找 value：从冒号后开始
+        let valueStart = colonIndex + 1;
+        // 跳过冒号后的空格
+        while (valueStart < text.length && /\s/.test(text[valueStart])) {
+          valueStart++;
+        }
+
+        if (valueStart >= text.length) return;
+
+        // 确定 value 的结束位置
+        let valueEnd = valueStart;
+
+        // 检查是否是带引号的值（支持双引号和单引号）
+        const quoteChar = text[valueStart];
+        if (quoteChar === '"' || quoteChar === "'") {
+          const endQuoteIndex = text.indexOf(quoteChar, valueStart + 1);
+          if (endQuoteIndex !== -1) {
+            // 包含引号在内的完整 value
+            valueEnd = endQuoteIndex + 1;
+            const value = text.substring(valueStart, valueEnd); // 包含引号
+            matches.push({
+              type: 'value',
+              value: value,
+              index: valueStart,
+              length: value.length,
+            });
+          }
+        } else {
+          // 普通值：找到值的结束位置
+          // 结束条件：遇到关键字、括号、或下一个 key:
+          const nextKeyColon = idx < keyColonMatches.length - 1
+            ? keyColonMatches[idx + 1].colonIndex - keyColonMatches[idx + 1].key.length
+            : text.length;
+
+          valueEnd = valueStart;
+          while (valueEnd < nextKeyColon && valueEnd < text.length) {
+            const remaining = text.substring(valueEnd);
+
+            // 检查是否遇到关键字（前面有空格或开头）
+            const keywordMatch = remaining.match(/^\s*\b(AND\s+NOT|AND|OR)\b/i);
+            if (keywordMatch) {
+              break;
+            }
+
+            // 检查是否遇到括号
+            if (/^[(){}[\]]/.test(remaining)) {
+              break;
+            }
+
+            valueEnd++;
+          }
+
+          // 去除尾部空格
+          while (valueEnd > valueStart && /\s/.test(text[valueEnd - 1])) {
+            valueEnd--;
+          }
+
+          if (valueEnd > valueStart) {
+            const value = text.substring(valueStart, valueEnd);
+            matches.push({
+              type: 'value',
+              value: value,
+              index: valueStart,
+              length: value.length,
+            });
+          }
+        }
+      });
+
+      // 4. 处理重叠：优先保留更长的匹配（AND NOT 优先于 AND）
+      const filteredMatches: Match[] = [];
+      for (const current of matches) {
+        let shouldAdd = true;
+        let removeIndices: number[] = [];
+
+        for (let j = 0; j < filteredMatches.length; j++) {
+          const existing = filteredMatches[j];
+
+          // 检查是否重叠
+          const overlaps =
+            (current.index >= existing.index && current.index < existing.index + existing.length) ||
+            (existing.index >= current.index && existing.index < current.index + current.length);
+
+          if (overlaps) {
+            // 如果当前是 AND NOT，且已存在的是 AND，则替换
+            if (
+              current.type === 'keyword' &&
+              current.value.toUpperCase().includes('AND NOT') &&
+              existing.type === 'keyword' &&
+              existing.value.toUpperCase() === 'AND'
+            ) {
+              removeIndices.push(j);
+            } else {
+              shouldAdd = false;
+            }
+          }
+        }
+
+        // 移除需要替换的项
+        removeIndices.sort((a, b) => b - a).forEach(idx => filteredMatches.splice(idx, 1));
+
+        if (shouldAdd) {
+          filteredMatches.push(current);
+        }
+      }
+
+      // 5. 按位置排序
+      filteredMatches.sort((a, b) => a.index - b.index);
+
+      // 6. 构建 token 列表并转换为 JSX
+      const elements: JSX.Element[] = [];
+      let lastIndex = 0;
+
+      filteredMatches.forEach((match, idx) => {
+        // 添加匹配前的普通文本
+        if (match.index > lastIndex) {
+          const textBefore = text.substring(lastIndex, match.index);
+          if (textBefore) {
+            elements.push(<span key={`text-${idx}`}>{textBefore}</span>);
+          }
+        }
+
+        // 添加高亮的 token
+        let style: { color?: string } = {};
+        let className = '';
+
+        switch (match.type) {
+          case 'keyword':
+            className = 'syntax-keyword';
+            style.color = '#7C619E';
+            break;
+          case 'key':
+            className = 'syntax-key';
+            style.color = '#BE8125';
+            break;
+          case 'bracket':
+            className = 'syntax-bracket';
+            style.color = '#BE8125';
+            break;
+          case 'value':
+            className = 'syntax-value';
+            style.color = '#67A48D';
+            break;
+        }
+
+        elements.push(
+          <span key={`${match.type}-${idx}`} class={className} style={style}>
+            {match.value}
+          </span>
+        );
+
+        lastIndex = match.index + match.length;
+      });
+
+      // 添加剩余的文本
+      if (lastIndex < text.length) {
+        elements.push(
+          <span key="text-end">{text.substring(lastIndex)}</span>
+        );
+      }
+
+      return elements.length > 0 ? elements : keyword;
+    }
+
     return () => {
       if (!props.aiQueryResult?.parseResult) {
         return null;
@@ -354,7 +504,7 @@ export default defineComponent({
                 ref={textRef}
                 class={['ai-parse-success-text', { 'is-expanded': isExpanded.value }]}
               >
-                {props.aiQueryResult.queryString}
+                {getSementKeywordElements(props.aiQueryResult.queryString)}
               </span>]
             )}
             {(isFailed.value || isPartialSuccess.value) && (

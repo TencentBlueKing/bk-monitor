@@ -306,6 +306,7 @@ export default defineComponent({
                 value={item}
                 showDelete={true}
                 maxWidth={320}
+                resize='both'
                 on-change={(newValue: string) => {
                   handleFilterChange(item, newValue);
                 }}

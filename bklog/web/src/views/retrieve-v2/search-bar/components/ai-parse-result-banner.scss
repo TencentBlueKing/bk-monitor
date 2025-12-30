@@ -12,11 +12,23 @@
   &.is-success {
     border: 1px solid var(--Success-4, #A1E3BA);
     background: var(--Success-7, #EBFAF0);
+
+    .ai-parse-label-left {
+      .bklog-icon {
+        color: #299e56;
+      }
+    }
   }
 
   &.is-failed {
     border: 1px solid var(--Danger-4, #F8B4B4);
     background: var(--Danger-7, #FFF0F0);
+
+    .ai-parse-label-left {
+      .bklog-icon {
+        color: #e71818;
+      }
+    }
   }
 
   &.is-expanded {

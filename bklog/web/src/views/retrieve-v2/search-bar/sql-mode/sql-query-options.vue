@@ -581,20 +581,6 @@ const fieldNameShow = (item) => {
   return getQualifiedFieldName(item, totalFields.value);
 };
 
-/**
- * @description 点击 AI 助手
- */
-const handleAiAssistantClick = () => {
-  emits('text-to-query', props.value);
-};
-
-/**
- * @description 点击直接检索
- */
-const handleDirectRetrieve = () => {
-  emits('retrieve', props.value);
-};
-
 defineExpose({
   beforeShowndFn,
   beforeHideFn,

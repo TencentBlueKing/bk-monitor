@@ -48,6 +48,13 @@ export default defineComponent({
       type: Number,
       default: 200,
     },
+    resize: {
+      type: String,
+      default: 'none',
+      validator: (value: string) => {
+        return ['none', 'vertical', 'horizontal', 'both', 'inherit'].includes(value);
+      },
+    },
   },
   setup(props, { emit }) {
     const isEditMode = ref(false);
@@ -220,7 +227,9 @@ export default defineComponent({
           >
             <textarea
               ref={textareaRef}
-              class="edit-input-textarea"
+              class='edit-input-textarea'
+              data-resize={props.resize}
+              style={{ "--resize": props.resize }}
               value={editValue.value}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
