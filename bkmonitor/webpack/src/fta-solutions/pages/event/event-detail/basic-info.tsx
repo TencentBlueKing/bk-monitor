@@ -34,7 +34,7 @@ import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/c
  */
 import VueJsonPretty from 'vue-json-pretty';
 
-import { toBcsDetail, toPerformanceDetail } from '../../../common/go-link';
+import { toBcsDetail, toCollectDetail, toPerformanceDetail } from '../../../common/go-link';
 import EventDetail from '../../../store/modules/event-detail';
 import { getOperatorDisabled } from '../utils';
 
@@ -57,7 +57,14 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
   cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
-  ipMap = ['bk_target_ip', 'ip', 'bk_host_id', 'tags.bcs_cluster_id'];
+  ipMap = [
+    'bk_target_ip',
+    'ip',
+    'bk_host_id',
+    'tags.bcs_cluster_id',
+    'tags.bk_collect_config_id', // 采集配置ID
+    'bk_collect_config_id', // 采集配置ID
+  ];
   operateDesc = null;
   showReason = false;
   get bizList() {
@@ -180,6 +187,10 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       /** 跳转到主机监控 */
       case 'bk_host_id':
         toPerformanceDetail(basicInfo.bk_biz_id, item.value);
+        break;
+      case 'bk_collect_config_id':
+      case 'tags.bk_collect_config_id':
+        toCollectDetail(basicInfo.bk_biz_id, item.value);
         break;
 
       default: {
