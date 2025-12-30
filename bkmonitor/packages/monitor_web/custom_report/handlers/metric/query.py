@@ -16,7 +16,7 @@ from django.utils.translation import gettext_lazy as _
 from core.drf_resource import api
 
 from monitor_web.custom_report.handlers.metric.base import VALUE_UNSET, BaseUnsetDTO
-from monitor_web.custom_report.constants import ScopeCreateFrom, DEFAULT_FIELD_SCOPE
+from monitor_web.custom_report.constants import ScopeCreateFrom, DEFAULT_FIELD_SCOPE, UNGROUP_SCOPE_NAME
 
 
 class BaseQueryConverter:
@@ -235,6 +235,17 @@ class ScopeQueryConverter(BaseQueryConverter):
         }
         scope_list: list[dict[str, Any]] = api.metadata.create_or_update_time_series_scope(**request_params)
         return [ScopeCUResponseDTO.from_response_dict(scope_dict) for scope_dict in scope_list]
+
+    def get_default_scope_obj(self, include_metrics=True) -> ScopeQueryResponseDTO:
+        scope_objs = self.query_time_series_scope(scope_name=UNGROUP_SCOPE_NAME, include_metrics=include_metrics)
+        default_scope_obj: ScopeQueryResponseDTO | None = None
+        for scope_obj in scope_objs:
+            if scope_obj.name == UNGROUP_SCOPE_NAME:
+                default_scope_obj = scope_obj
+                break
+        if not default_scope_obj:
+            raise Exception(_("数据异常，默认分组不存在，请联系管理员处理"))
+        return default_scope_obj
 
 
 @dataclass

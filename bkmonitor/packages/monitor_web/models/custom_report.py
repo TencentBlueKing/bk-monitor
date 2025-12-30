@@ -180,9 +180,6 @@ class CustomTSTable(OperateRecordModelBase):
                     "type": CustomTSMetricType.DIMENSION,
                     "aggregate_method": "",
                 }
-
-        for scope_dict in self.query_time_series_scope:
-            scope_name: str = scope_dict["scope_name"]
             for metric_dict in scope_dict["metric_list"]:
                 metric_name: str = metric_dict["metric_name"]
                 metric_config: dict[str, Any] = metric_dict.get("field_config", {})
