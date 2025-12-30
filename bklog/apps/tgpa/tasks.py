@@ -26,13 +26,19 @@ from django.utils import timezone
 
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.tgpa.constants import TGPA_TASK_EXE_CODE_SUCCESS, TGPATaskProcessStatusEnum, FEATURE_TOGGLE_TGPA_TASK
+from apps.tgpa.constants import (
+    TGPA_TASK_EXE_CODE_SUCCESS,
+    TGPATaskProcessStatusEnum,
+    FEATURE_TOGGLE_TGPA_TASK,
+    TGPAReportSyncStatusEnum,
+)
 from apps.tgpa.handlers.base import TGPAFileHandler, TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
-from apps.tgpa.models import TGPATask, TGPAReport
-from apps.utils.lock import share_lock
+from apps.tgpa.models import TGPATask, TGPAReport, TGPAReportSyncRecord
+from apps.utils.lock import share_lock, RedisLock
 from apps.utils.log import logger
+from apps.utils.thread import MultiExecuteFunc
 
 
 @periodic_task(run_every=crontab(minute="*/1"), queue="tgpa_task")
@@ -146,40 +152,82 @@ def clear_expired_files():
 
 
 @app.task(ignore_result=True, queue="tgpa_task")
+def fetch_and_process_tgpa_reports(record_id: int, params: dict):
+    """
+    拉取客户端上报文件列表，处理文件
+    """
+    logger.info("Begin to sync tgpa reports, record_id: %s", record_id)
+    record_obj = TGPAReportSyncRecord.objects.get(id=record_id)
+    record_obj.status = TGPAReportSyncStatusEnum.RUNNING.value
+    record_obj.save(update_fields=["status"])
+    try:
+        multi_execute_func = MultiExecuteFunc()
+        report_list = TGPAReportHandler.iter_report_list(
+            bk_biz_id=params["bk_biz_id"],
+            openid_list=params.get("openid_list"),
+            file_name_list=params.get("file_name_list"),
+            start_time=params.get("start_time"),
+            end_time=params.get("end_time"),
+        )
+        for report in report_list:
+            multi_execute_func.append(
+                result_key=report["file_name"],
+                func=process_single_report,
+                params={"report_info": report, "record_id": record_id},
+                multi_func_params=True,
+            )
+        multi_execute_func.run(return_exception=True)
+        TGPAReportHandler.update_process_status(record_id=record_id)
+        logger.info("Successfully synced tgpa reports, record_id: %s", record_id)
+    except Exception as e:
+        record_obj.status = TGPAReportSyncStatusEnum.FAILED.value
+        record_obj.error_message = str(e)
+        record_obj.save(update_fields=["status", "error_message"])
+        logger.exception("Failed to sync tgpa reports, record_id %s", record_id)
+
+
+@app.task(ignore_result=True, queue="tgpa_task")
 def process_single_report(report_info: dict, record_id: int):
     """
-    异步处理单个客户端上报文件
+    处理单个客户端上报文件
     """
     file_name = report_info["file_name"]
     bk_biz_id = report_info["bk_biz_id"]
     logger.info("Begin to process report file, file_name: %s", file_name)
 
-    # 创建或获取处理记录
-    report_record, created = TGPAReport.objects.get_or_create(
-        file_name=file_name,
-        defaults={
-            "bk_biz_id": bk_biz_id,
-            "record_id": record_id,
-            "openid": report_info.get("openid"),
-            "process_status": TGPATaskProcessStatusEnum.PENDING.value,
-        },
-    )
-
-    # 如果记录已存在且已成功处理，跳过
-    if not created and report_record.process_status == TGPATaskProcessStatusEnum.SUCCESS.value:
-        logger.info("Report file already processed, file_name: %s", file_name)
+    # 避免并发处理同一文件
+    lock_key = f"tgpa_report_lock_{file_name}"
+    lock = RedisLock(lock_key, ttl=600)  # 锁超时时间10分钟
+    if not lock.acquire(_wait=0.1):
+        logger.warning("Failed to acquire lock for file_name: %s", file_name)
         return
 
-    report_record.process_status = TGPATaskProcessStatusEnum.RUNNING.value
-    report_record.processed_at = timezone.now()
-    report_record.save(update_fields=["process_status", "processed_at"])
     try:
-        TGPAReportHandler(bk_biz_id=bk_biz_id, report_info=report_info).download_and_process_file()
-        report_record.process_status = TGPATaskProcessStatusEnum.SUCCESS.value
-        report_record.save(update_fields=["process_status"])
-        logger.info("Successfully processed report file, file_name: %s", file_name)
-    except Exception as e:
-        logger.exception("Failed to process report file, file_name %s", file_name)
-        report_record.process_status = TGPATaskProcessStatusEnum.FAILED.value
-        report_record.error_message = str(e)
-        report_record.save(update_fields=["process_status", "error_message"])
+        if TGPAReport.objects.filter(
+            file_name=file_name,
+            process_status=TGPATaskProcessStatusEnum.SUCCESS.value,
+        ).exists():
+            logger.info("Report file already processed successfully, skip. file_name: %s", file_name)
+            return
+
+        report_obj = TGPAReport.objects.create(
+            file_name=file_name,
+            bk_biz_id=bk_biz_id,
+            record_id=record_id,
+            openid=report_info.get("openid"),
+            process_status=TGPATaskProcessStatusEnum.RUNNING.value,
+            processed_at=timezone.now(),
+        )
+
+        try:
+            TGPAReportHandler(bk_biz_id=bk_biz_id, report_info=report_info).download_and_process_file()
+            report_obj.process_status = TGPATaskProcessStatusEnum.SUCCESS.value
+            report_obj.save(update_fields=["process_status"])
+            logger.info("Successfully processed report file, file_name: %s", file_name)
+        except Exception as e:
+            logger.exception("Failed to process report file, file_name %s", file_name)
+            report_obj.process_status = TGPATaskProcessStatusEnum.FAILED.value
+            report_obj.error_message = str(e)
+            report_obj.save(update_fields=["process_status", "error_message"])
+    finally:
+        lock.release()

@@ -227,8 +227,10 @@ CELERY_IMPORTS = (
     "apps.log_clustering.tasks.sync_pattern",
     "apps.log_clustering.tasks.subscription",
     "apps.log_extract.tasks.extract",
-    "apps.tgpa.tasks",
 )
+
+if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":
+    CELERY_IMPORTS += ("apps.tgpa.tasks",)
 
 # bk crypto sdk配置
 BKPAAS_BK_CRYPTO_KEY = os.getenv("BKPAAS_BK_CRYPTO_KEY")

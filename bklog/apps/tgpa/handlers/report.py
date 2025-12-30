@@ -31,8 +31,10 @@ from apps.tgpa.constants import (
     FEATURE_TOGGLE_TGPA_TASK,
     TGPA_BASE_DIR,
     TGPA_REPORT_LIST_BATCH_SIZE,
+    TGPAReportSyncStatusEnum,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler
+from apps.tgpa.models import TGPAReport, TGPAReportSyncRecord
 from apps.utils.thread import MultiExecuteFunc
 
 
@@ -71,31 +73,49 @@ class TGPAReportHandler:
         file_handler.download_and_process_file(self.file_name)
 
     @classmethod
-    def _build_where_clause(
-        cls, bk_biz_id, keyword=None, openid_list=None, file_name_list=None, start_time=None, end_time=None
-    ):
+    def _get_feature_config(cls):
+        """获取 TGPA 功能配置"""
+        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+        return feature_toggle.feature_config
+
+    @classmethod
+    def _get_result_table_id(cls):
+        """获取结果表ID"""
+        return cls._get_feature_config().get("tgpa_report_result_table_id")
+
+    @classmethod
+    def _build_where_clause(cls, bk_biz_id, keyword=None, keyword_fields=None, start_time=None, end_time=None):
         """
-        构建SQL WHERE子句
+        构建SQL WHERE子句（基础条件）
+
+        :param bk_biz_id: 业务ID
+        :param keyword: 搜索关键词
+        :param keyword_fields: keyword需要搜索的字段列表，默认为TGPA_REPORT_FILTER_FIELDS中的所有字段
+        :param start_time: 开始时间
+        :param end_time: 结束时间
         """
         where_conditions = [f"cc_id={bk_biz_id}"]
 
         if keyword:
-            # 转义特殊字符，防止SQL注入
             escaped_keyword = keyword.replace("\\", "\\\\").replace("'", "''").replace("%", "\\%").replace("_", "\\_")
-            keyword_conditions = [f"{field} like '%{escaped_keyword}%'" for field in TGPA_REPORT_FILTER_FIELDS]
+            fields = keyword_fields if keyword_fields else TGPA_REPORT_FILTER_FIELDS
+            keyword_conditions = [f"{field} LIKE '%{escaped_keyword}%' ESCAPE '\\'" for field in fields]
             where_conditions.append(f"({' OR '.join(keyword_conditions)})")
         if start_time:
             where_conditions.append(f"dtEventTimeStamp >= '{start_time}'")
         if end_time:
             where_conditions.append(f"dtEventTimeStamp < '{end_time}'")
-        if openid_list:
-            openid_conditions = [f"openid='{openid}'" for openid in openid_list]
-            where_conditions.append(f"({' OR '.join(openid_conditions)})")
-        if file_name_list:
-            file_name_conditions = [f"file_name='{file_name}'" for file_name in file_name_list]
-            where_conditions.append(f"({' OR '.join(file_name_conditions)})")
 
         return " AND ".join(where_conditions)
+
+    @classmethod
+    def get_report_count(cls, bk_biz_id):
+        """
+        获取客户端日志上报文件数量
+        """
+        query_sql = f"SELECT COUNT(*) as total FROM {cls._get_result_table_id()} WHERE cc_id={bk_biz_id}"
+        result = BkDataQueryApi.query({"sql": query_sql})
+        return result["list"][0].get("total", 0)
 
     @classmethod
     def get_report_list(cls, params):
@@ -103,8 +123,7 @@ class TGPAReportHandler:
         获取客户端日志上报文件列表
         """
         # 获取配置
-        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
-        feature_config = feature_toggle.feature_config
+        feature_config = cls._get_feature_config()
         result_table_id = feature_config.get("tgpa_report_result_table_id")
         download_url_prefix = feature_config.get("download_url_prefix", "")
 
@@ -151,8 +170,10 @@ class TGPAReportHandler:
             total = count_result["list"][0].get("total", 0)
 
         data = list_result.get("list", [])
+        status_map = cls.get_file_status_map(file_name_list=[item["file_name"] for item in data])
         for item in data:
             item["download_url"] = f"{download_url_prefix}{item.get('file_name', '')}"
+            item["status"] = status_map.get(item["file_name"], TGPAReportSyncStatusEnum.PENDING.value)
 
         return {"total": total, "list": data}
 
@@ -162,19 +183,25 @@ class TGPAReportHandler:
         使用迭代器模式获取客户端日志上报文件列表
         """
         # 获取配置
-        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
-        feature_config = feature_toggle.feature_config
-        result_table_id = feature_config.get("tgpa_report_result_table_id")
+        result_table_id = cls._get_result_table_id()
         batch_size = TGPA_REPORT_LIST_BATCH_SIZE
 
-        # 构建WHERE子句
-        where_clause = cls._build_where_clause(
-            bk_biz_id=bk_biz_id,
-            openid_list=openid_list,
-            file_name_list=file_name_list,
-            start_time=start_time,
-            end_time=end_time,
-        )
+        # 构建基础WHERE子句
+        where_conditions = [cls._build_where_clause(bk_biz_id=bk_biz_id, start_time=start_time, end_time=end_time)]
+
+        # 添加特殊的OR条件（openid_list 和 file_name_list 之间使用 OR 关系）
+        or_conditions = []
+        if openid_list:
+            openid_conditions = [f"openid='{openid}'" for openid in openid_list]
+            or_conditions.append(f"({' OR '.join(openid_conditions)})")
+        if file_name_list:
+            file_name_conditions = [f"file_name='{file_name}'" for file_name in file_name_list]
+            or_conditions.append(f"({' OR '.join(file_name_conditions)})")
+
+        if or_conditions:
+            where_conditions.append(f"({' OR '.join(or_conditions)})")
+
+        where_clause = " AND ".join(where_conditions)
 
         # 分批查询数据，这里排序和时间范围过滤统一使用dtEventTimeStamp（report_time并不是按照数据插入时间的顺序单调递增的）
         offset = 0
@@ -196,3 +223,78 @@ class TGPAReportHandler:
                 break
 
             offset += batch_size
+
+    @classmethod
+    def get_openid_list(cls, params):
+        """
+        获取openid列表
+        """
+        result_table_id = cls._get_result_table_id()
+        limit = params["pagesize"]
+        offset = (params["page"] - 1) * limit
+        where_clause = cls._build_where_clause(
+            bk_biz_id=params["bk_biz_id"], keyword=params.get("keyword"), keyword_fields=["openid"]
+        )
+
+        query_sql = f"SELECT DISTINCT openid FROM {result_table_id} WHERE {where_clause} LIMIT {limit} OFFSET {offset}"
+
+        result = BkDataQueryApi.query({"sql": query_sql})
+        return [item["openid"] for item in result.get("list", [])]
+
+    @classmethod
+    def get_file_name_list(cls, params):
+        """
+        获取文件名列表
+        """
+        result_table_id = cls._get_result_table_id()
+        limit = params["pagesize"]
+        offset = (params["page"] - 1) * limit
+        where_clause = cls._build_where_clause(
+            bk_biz_id=params["bk_biz_id"], keyword=params.get("keyword"), keyword_fields=["file_name"]
+        )
+
+        query_sql = f"SELECT file_name FROM {result_table_id} WHERE {where_clause} LIMIT {limit} OFFSET {offset}"
+
+        result = BkDataQueryApi.query({"sql": query_sql})
+        return [item["file_name"] for item in result.get("list", [])]
+
+    @classmethod
+    def get_file_status_map(cls, file_name_list) -> dict:
+        reports = TGPAReport.objects.filter(file_name__in=file_name_list)
+        status_map = {}
+        for report in reports:
+            if report.file_name not in status_map:
+                status_map[report.file_name] = report.process_status
+
+        return status_map
+
+    @classmethod
+    def get_file_status(cls, file_name_list):
+        """
+        获取文件处理状态
+        """
+        status_map = cls.get_file_status_map(file_name_list)
+        return [
+            {"file_name": file_name, "status": status_map.get(file_name, TGPAReportSyncStatusEnum.PENDING.value)}
+            for file_name in file_name_list
+        ]
+
+    @classmethod
+    def update_process_status(cls, record_id):
+        """
+        更新文件处理状态
+        """
+        record_obj = TGPAReportSyncRecord.objects.get(id=record_id)
+        status_list = TGPAReport.objects.filter(record_id=record_id).values_list("process_status", flat=True).distinct()
+        status_set = set(status_list)
+
+        if TGPAReportSyncStatusEnum.PENDING.value in status_set:
+            record_obj.status = TGPAReportSyncStatusEnum.RUNNING.value
+        elif TGPAReportSyncStatusEnum.RUNNING.value in status_set:
+            record_obj.status = TGPAReportSyncStatusEnum.RUNNING.value
+        elif TGPAReportSyncStatusEnum.FAILED.value in status_set:
+            record_obj.status = TGPAReportSyncStatusEnum.FAILED.value
+        else:
+            record_obj.status = TGPAReportSyncStatusEnum.SUCCESS.value
+
+        record_obj.save(update_fields=["status"])

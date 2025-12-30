@@ -23,13 +23,14 @@ from django.conf.urls import include
 from django.urls import re_path
 from rest_framework import routers
 
-from apps.tgpa.views import TGPATaskViewSet, TGPAReportViewSet
+from apps.tgpa.views import TGPATaskViewSet, TGPAReportViewSet, TGPAViewSet
 
 
 router = routers.DefaultRouter(trailing_slash=True)
 
+router.register(r"", TGPAViewSet, basename="tgpa")
 router.register(r"task", TGPATaskViewSet, basename="task")
-router.register("report", TGPAReportViewSet, basename="report")
+router.register(r"report", TGPAReportViewSet, basename="report")
 
 urlpatterns = [
     re_path(r"^tgpa/", include(router.urls)),
