@@ -532,18 +532,6 @@ class DataAPI:
                 api_auth_params[key] = value
         session.headers.update({"X-Bkapi-Authorization": get_request_api_headers(api_auth_params)})
 
-        if "tgpa-task-apigateway" in self.url or "queryengine/bklog/" in self.url:
-            import os
-
-            authorization = json.loads(session.headers["X-Bkapi-Authorization"])
-            authorization.update(
-                {
-                    "bk_app_code": os.getenv("APP_ID_STAG"),
-                    "bk_app_secret": os.getenv("APP_TOKEN_STAG"),
-                }
-            )
-            session.headers.update({"X-Bkapi-Authorization": json.dumps(authorization)})
-
         if self.header_keys:
             headers = {key: params.get(key) for key in self.header_keys if key in params}
             for key in self.header_keys:
