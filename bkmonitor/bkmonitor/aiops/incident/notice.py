@@ -18,6 +18,8 @@ from django.utils.translation import gettext as _
 from bkmonitor.documents.incident import IncidentDocument
 from bkmonitor.utils.send import IncidentSender
 from constants.action import NoticeWay
+from bkm_space.api import SpaceApi
+from constants.incident import IncidentStatus, IncidentLevel
 
 logger = logging.getLogger("incident.notice")
 
@@ -40,15 +42,14 @@ class IncidentNoticeHelper:
         :param is_update: 是否为更新通知
         :return: 通知上下文字典
         """
-        from bkmonitor.models import BizInfo
-        from constants.incident import IncidentStatus, IncidentLevel
 
         # 获取业务名称
         try:
-            biz_info = BizInfo.objects.get(bk_biz_id=incident.bk_biz_id)
-            business_name = biz_info.bk_biz_name
-        except Exception:
+            space = SpaceApi.get_space_detail(bk_biz_id=int(incident.bk_biz_id))
+            business_name = space.space_name
+        except Exception as e:
             business_name = str(incident.bk_biz_id)
+            logger.warning(f"获取业务名称失败: {e}")
 
         # 计算故障持续时间
         duration = cls._format_duration(incident.create_time, incident.end_time)
@@ -97,7 +98,7 @@ class IncidentNoticeHelper:
         return context
 
     @classmethod
-    def _format_duration(cls, create_time: int, end_time: int | None = None) -> str:
+    def _format_duration(cls, create_time: int, end_time: int = None) -> str:
         """
         格式化故障持续时间
 
@@ -163,9 +164,8 @@ class IncidentNoticeHelper:
         :return: 故障详情URL
         """
         # 构建故障详情页面URL
-        # 格式: {SITE_URL}/trace/?bizId={bk_biz_id}#/failure/{incident_id}
         site_url = settings.SITE_URL.rstrip("/")
-        return f"{site_url}/trace/?bizId={incident.bk_biz_id}#/failure/{incident.incident_id}"
+        return f"{site_url}/?bizId={incident.bk_biz_id}#/trace/incident/detail/{incident.id}"
 
     @classmethod
     def send_incident_notice(
