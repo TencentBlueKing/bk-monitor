@@ -98,9 +98,8 @@ class TGPAReportHandler:
 
         if keyword:
             escaped_keyword = keyword.replace("\\", "\\\\").replace("'", "''").replace("%", "\\%").replace("_", "\\_")
-            # 如果未指定字段，则使用默认的所有过滤字段
             fields = keyword_fields if keyword_fields else TGPA_REPORT_FILTER_FIELDS
-            keyword_conditions = [f"{field} like '%{escaped_keyword}%'" for field in fields]
+            keyword_conditions = [f"{field} LIKE '%{escaped_keyword}%' ESCAPE '\\'" for field in fields]
             where_conditions.append(f"({' OR '.join(keyword_conditions)})")
         if start_time:
             where_conditions.append(f"dtEventTimeStamp >= '{start_time}'")
