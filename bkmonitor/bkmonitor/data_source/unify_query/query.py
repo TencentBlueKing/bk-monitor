@@ -202,6 +202,7 @@ class UnifyQuery:
             (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
             (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
             (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
         ]:
             records = first_ds.process_unify_query_log(records)
         return records
@@ -214,7 +215,8 @@ class UnifyQuery:
                 meta_field: record.pop(meta_field, "")
                 for meta_field in ["__data_label", "__doc_id", "__index", "__result_table", "__parse_failure"]
             }
-            record["_meta"]["_time_"] = int(record.pop("_time", 0))
+            # 可能是字符串或事件戳（各种时间单位都有可能），这里仅将内置时间字段移动到 _meta 下，无需统一时间格式。
+            record["_meta"]["_time_"] = record.pop("_time", 0)
             records.append(record)
         return records
 
