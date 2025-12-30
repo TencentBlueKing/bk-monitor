@@ -402,6 +402,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
         ("AIDEV_KNOWLEDGE_BASE_IDS", slz.ListField(label="aidev的知识库ID", default=[])),
         ("AIDEV_AGENT_AI_GENERATING_KEYWORD", slz.CharField(label="AIAgent内容生成关键字", default="生成中")),
+        ("AIDEV_AGENT_MCP_REQUEST_AGENT_CODE", slz.CharField(label="AIAgent请求Agent的代码", default="bkmonitor-mcp")),
         ("AIDEV_AGENT_ENABLE_LANGFUSE", slz.BooleanField(label="是否开启langfuse上报", default=False)),
         ("ENABLE_AI_RENAME", slz.BooleanField(label="是否开启AI RENAME", default=False)),
         (
