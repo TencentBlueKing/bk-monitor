@@ -1497,225 +1497,6 @@ class CustomTimeSeriesDataSource(TimeSeriesDataSource):
         super().__init__(*args, **kwargs)
 
 
-class LogSearchTimeSeriesDataSource(TimeSeriesDataSource):
-    """
-    日志时序型数据源
-    """
-
-    data_source_label = DataSourceLabel.BK_LOG_SEARCH
-    data_type_label = DataTypeLabel.TIME_SERIES
-
-    DEFAULT_TIME_FIELD = "dtEventTimeStamp"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # 条件方法替换
-        condition_mapping = {
-            "eq": "is one of",
-            "neq": "is not one of",
-        }
-        for condition in self.where:
-            if condition["method"] in condition_mapping:
-                condition["_origin_method"] = condition["method"]
-                condition["method"] = condition_mapping[condition["method"]]
-
-    def query_data(
-        self,
-        start_time: int = None,
-        end_time: int = None,
-        *args,
-        **kwargs,
-    ) -> list:
-        # 日志查询中limit仅能限制返回的原始日志数量，因此固定为1
-        if "limit" in kwargs:
-            kwargs.pop("limit")
-
-        return super().query_data(start_time, end_time, limit=None, *args, **kwargs)
-
-    def query_dimensions(
-        self,
-        dimension_field: str,
-        start_time: int = None,
-        end_time: int = None,
-        limit: int = None,
-        *args,
-        **kwargs,
-    ) -> list:
-        # 日志查询中limit仅能限制返回的原始日志数量，因此固定为1
-        if "limit" in kwargs:
-            kwargs.pop("limit")
-
-        if isinstance(dimension_field, list):
-            assert len(dimension_field) > 0, _("维度查询参数，维度字段是必须的")
-            dimension_field = dimension_field[0]
-
-        return super().query_dimensions(dimension_field, start_time, end_time, *args, **kwargs)[:limit]
-
-    def query_log(
-        self,
-        start_time: int = None,
-        end_time: int = None,
-        limit: int | None = None,
-        offset: int | None = None,
-        *args,
-        **kwargs,
-    ) -> tuple[list, int]:
-        q = self._get_queryset(
-            bk_tenant_id=self.bk_tenant_id,
-            query_string=self.query_string,
-            table=self.table,
-            index_set_id=self.index_set_id,
-            agg_condition=self.where,
-            where=self.filter_dict,
-            time_field=self.time_field,
-            start_time=start_time,
-            end_time=end_time,
-            limit=limit,
-            offset=offset,
-        )
-
-        data = q.original_data
-        total = data["hits"]["total"]
-        if isinstance(total, dict):
-            total = total["value"]
-
-        result = [record["_source"] for record in data["hits"]["hits"][:limit]]
-        return result, total
-
-
-class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
-    """
-    日志关键字数据源
-    """
-
-    data_source_label = DataSourceLabel.BK_LOG_SEARCH
-    data_type_label = DataTypeLabel.LOG
-
-    DEFAULT_TIME_FIELD = "dtEventTimeStamp"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.metrics = self.metrics or [{"field": "_index", "method": "COUNT"}]
-
-    @property
-    def metric_display(self):
-        time_display = _("{}秒").format(self.interval)
-        if self.interval > 60:
-            time_display = _("{}分钟").format(self.interval // 60)
-        return _("{}内匹配到关键字次数").format(time_display)
-
-    def to_unify_query_config(self) -> list[dict]:
-        """
-        生成日志查询相关的统一查询配置
-        """
-        base_query: dict[str, Any] = {
-            "driver": "influxdb",
-            "data_source": "bklog",
-            "table_id": self.table,
-            "reference_name": "",
-            "field_name": "",
-            "time_field": self.time_field or self.DEFAULT_TIME_FIELD,
-            "dimensions": [],
-            "conditions": {"field_list": [], "condition_list": []},
-            "function": [],
-            "time_aggregation": {},
-            "keep_columns": [],
-            "offset": "",
-            "offset_forward": False,
-        }
-
-        query_list: list[dict[str, Any]] = []
-
-        for metric in self.metrics:
-            query: dict[str, Any] = copy.deepcopy(base_query)
-            method: str = metric.get("method", "").lower()
-
-            # 判断是否有聚合方法
-            has_method = method and method != AGG_METHOD_REAL_TIME
-
-            if has_method:
-                # 有聚合方法的场景（query_reference 或 query_data）
-                query["field_name"] = metric["field"]
-                query["reference_name"] = (metric.get("alias") or metric["field"]).lower()
-
-                # 设置维度（关键：根据 group_by 决定是 query_reference 还是 query_data）
-                query["dimensions"] = self.group_by
-
-                # 处理聚合方法
-                func_method: str = method
-
-                # 处理分位数方法
-                if method in CpAggMethods:
-                    cp_agg_method = CpAggMethods[method]
-                    func_method = cp_agg_method.method
-                    query["time_aggregation"]["position"] = cp_agg_method.position
-                    query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
-
-                # 关键判断：如果有 group_by 说明是聚合查询
-                if self.group_by and method == "count":
-                    # 聚合查询场景下外层要 sum 进行聚合
-                    func_method = "sum"
-
-                query["time_aggregation"].update({"function": f"{method}_over_time", "window": f"{self.interval}s"})
-
-                # 添加聚合函数
-                function: dict[str, Any] = {
-                    "method": func_method,
-                    "dimensions": self.group_by,
-                }
-
-                # 处理分位数方法的 vargs_list
-                if method in CpAggMethods:
-                    function["vargs_list"] = CpAggMethods[method].vargs_list
-
-                query["function"].append(function)
-
-                # 解析额外的函数参数
-                if self.group_by and self.functions:
-                    time_aggregation, functions = _parse_function_params(self.functions, self.group_by)
-                    query["function"].extend(functions)
-                    if time_aggregation:
-                        query["time_aggregation"].update(time_aggregation)
-            else:
-                # 无聚合方法的场景（原始日志查询 query_raw）
-                query["field_name"] = ""
-                query["reference_name"] = metric.get("alias") or "a"
-                query["dimensions"] = []
-
-            query_list.append(query)
-
-        if not query_list:
-            # 如果没有query_list，返回默认配置（原始日志查询）
-            query: dict[str, Any] = copy.deepcopy(base_query)
-            query["reference_name"] = getattr(self, "reference_name", "a") or "a"
-            query_list.append(query)
-
-        return query_list
-
-    def _fetch_white_list(self) -> list[str | int]:
-        """获取日志UnifyQuery查询业务白名单"""
-        return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
-
-    def switch_unify_query(self, bk_biz_id):
-        return False
-        # 如果使用了查询函数或者需要特殊处理，则使用统一查询
-        if getattr(self, "functions", []):
-            return True
-
-        # 如果数据源在UnifyQueryDataSources列表中，则使用统一查询
-        if (self.data_source_label, self.data_type_label) in UnifyQueryDataSources:
-            return True
-
-        # 如果 white_list 非空且不包含 0，则使用灰度；否则就是全量（white_list 为 [] 或 [0] 时全量）
-        white_list: list[str | int] = self._fetch_white_list()
-        grayscale = bool(white_list) and 0 not in white_list and "0" not in white_list
-        if grayscale:
-            return bk_biz_id in white_list or str(bk_biz_id) in white_list
-        # 不灰度就是全量(灰度列表为空或包含0业务)
-        return True
-
-
 class BaseBkMonitorLogDataSource(DataSource, ABC):
     RESERVED_FIELDS: list[str] = ["_after_key_"]
     INNER_DIMENSIONS: list[str] = []
@@ -1732,6 +1513,8 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         "reg": "req",
         "nreg": "nreq",
         "neq": "ne",
+        "is one of": "eq",
+        "is not one of": "ne",
         "exists": "existed",
         "nexists": "nexisted",
         "include": "contains",
@@ -1771,6 +1554,7 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         group_by: list[str] = None,
         order_by: list[str] = None,
         time_field: str = None,
+        index_set_id: int = None,
         topo_nodes: dict[str, list] = None,
         select: list[str] = None,
         distinct: str | None = None,
@@ -1787,6 +1571,7 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         self.nested_paths = nested_paths
         self.group_by = group_by or []
         self.time_field = time_field or self.DEFAULT_TIME_FIELD
+        self.index_set_id = index_set_id
         self.order_by = order_by or [f"{self.time_field} desc"]
         self.select = select or self.DEFAULT_SELECT
         self.distinct = distinct
@@ -1930,6 +1715,10 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         判断是否需要补全dimensions前缀
         """
         return field not in self.INNER_DIMENSIONS and not field.startswith("dimensions")
+
+    @classmethod
+    def _get_datasource(cls) -> str:
+        return "bkapm"
 
     def _get_metrics(self):
         """
@@ -2100,6 +1889,12 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
             result.append(new_record)
         return result
 
+    @staticmethod
+    def _remove_dimension_prefix(dimension_field: str) -> str:
+        if "." in dimension_field:
+            dimension_field = dimension_field.split(".")[-1]
+        return dimension_field
+
     def _add_builtin_dimensions(self, group_by: list[str]):
         for builtin_dimension in self.EXTRA_AGG_DIMENSIONS:
             if builtin_dimension not in group_by:
@@ -2157,6 +1952,7 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
                 where=self._get_filter_dict(bk_obj_id, bk_inst_ids),
                 limit=self.handle_limit(limit),
                 time_field=self.time_field,
+                index_set_id=self.index_set_id,
                 start_time=start_time,
                 end_time=end_time,
                 query_string=self.query_string,
@@ -2198,6 +1994,7 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
             where=self._get_filter_dict(),
             limit=limit,
             time_field=self.time_field,
+            index_set_id=self.index_set_id,
             start_time=start_time,
             end_time=end_time,
             query_string=self.query_string,
@@ -2208,8 +2005,7 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
 
         records = self._remove_dimensions_prefix(q.raw_data)
         records = self._filter_by_advance_method(records)
-        if "." in dimension_field:
-            dimension_field = dimension_field.split(".")[-1]
+        dimension_field: str = self._remove_dimension_prefix(dimension_field)
         return [record[dimension_field] for record in records][:limit]
 
     def query_log(
@@ -2225,6 +2021,7 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
             offset=offset,
             order_by=self.order_by,
             time_field=self.time_field,
+            index_set_id=self.index_set_id,
             distinct=self.distinct,
             start_time=start_time,
             end_time=end_time,
@@ -2241,6 +2038,185 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
 
         result = [record["_source"] for record in data["hits"]["hits"][:limit]]
         return result, total
+
+
+class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
+    """
+    日志时序型数据源
+    """
+
+    data_source_label = DataSourceLabel.BK_LOG_SEARCH
+    data_type_label = DataTypeLabel.TIME_SERIES
+
+    DEFAULT_TIME_FIELD = "dtEventTimeStamp"
+
+    EXTRA_DISTINCT_FIELD = None
+    EXTRA_AGG_DIMENSIONS = []
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # 条件方法替换
+        condition_mapping = {
+            "eq": "is one of",
+            "neq": "is not one of",
+        }
+        for condition in self.where:
+            if condition["method"] in condition_mapping:
+                condition["_origin_method"] = condition["method"]
+                condition["method"] = condition_mapping[condition["method"]]
+
+    def _fetch_black_list(self) -> list[str | int]:
+        return []
+
+    @classmethod
+    def _fetch_white_list(cls) -> list[str | int]:
+        return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
+
+    def switch_unify_query(self, bk_biz_id: int):
+        # 如果数据源在 UnifyQueryDataSources 列表中，则使用 unify-query 查询
+        if (self.data_source_label, self.data_type_label) in UnifyQueryDataSources:
+            return True
+
+        # 白名单机制，只要业务在白名单中，就使用 unify-query 查询。
+        white_list: list[str | int] = self._fetch_white_list()
+        if bk_biz_id in white_list or str(bk_biz_id) in white_list:
+            return True
+        return False
+
+    @classmethod
+    def _get_datasource(cls) -> str:
+        return "bklog"
+
+    def _get_unify_query_table(self) -> str:
+        """获取 unify-query 查询表名
+        存在 __dist 聚类字段时，查询表名后缀为 _clustered，参考：
+        https://github.com/TencentBlueKing/bk-monitor/blob/master/bklog/apps/log_esquery/serializers.py#L114-L125
+        """
+        suffix: str = ""
+        for cond in self._get_conditions().get("field_list", []):
+            field_name: str = cond.get("field_name", "")
+            if field_name.startswith("__dist"):
+                suffix = "_clustered"
+                pass
+
+        if "__dist_05" in (self.query_string or ""):
+            suffix = "_clustered"
+        return f"bklog_index_set_{self.index_set_id}{suffix}"
+
+    @classmethod
+    def init_by_query_config(cls, query_config: dict, *args, bk_biz_id: int, name="", **kwargs):
+        """
+        根据查询配置实例化
+        """
+        # 过滤空维度
+        agg_dimension = [dimension for dimension in query_config.get("agg_dimension", []) if dimension]
+        agg_method = query_config.get("agg_method", "COUNT")
+
+        # 指标设置
+        metrics = []
+        if query_config.get("metric_field"):
+            alias = query_config.get("alias") or query_config["metric_field"]
+            metrics.append({"field": query_config["metric_field"], "method": agg_method, "alias": alias})
+        else:
+            alias = query_config.get("alias") or "alias"
+            metrics.append({"field": "_index", "method": "COUNT", "alias": alias})
+
+        time_field = query_config.get("time_field")
+        index_set_id = query_config.get("index_set_id")
+
+        return cls(
+            bk_tenant_id=kwargs.get("bk_tenant_id") or bk_biz_id_to_bk_tenant_id(bk_biz_id),
+            name=name,
+            table=query_config.get("result_table_id", ""),
+            metrics=metrics,
+            interval=query_config.get("agg_interval", 60),
+            group_by=agg_dimension,
+            where=query_config.get("agg_condition", []),
+            time_field=time_field,
+            index_set_id=index_set_id,
+            query_string=query_config.get("query_string", ""),
+            bk_biz_id=bk_biz_id,
+            functions=query_config.get("functions", {}),
+            data_label=query_config.get("data_label", ""),
+        )
+
+    def process_unify_query_data(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return records
+
+    def process_unify_query_log(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        for record in records:
+            record.pop("_meta", None)
+        return records
+
+    def is_dimensions_field(self, field: str) -> bool:
+        """日志检索维度都是完整的，不需要补全"""
+        return False
+
+    @staticmethod
+    def _remove_dimensions_prefix(data: list, bk_obj_id=None) -> list:
+        return data
+
+    @staticmethod
+    def _remove_dimension_prefix(dimension_field: str) -> str:
+        return dimension_field
+
+    def _add_dimension_prefix(self, filter_dict: dict) -> dict:
+        return filter_dict
+
+    def query_data(
+        self,
+        start_time: int = None,
+        end_time: int = None,
+        *args,
+        **kwargs,
+    ) -> list:
+        # 日志查询中limit仅能限制返回的原始日志数量，因此固定为1
+        if "limit" in kwargs:
+            kwargs.pop("limit")
+
+        return super().query_data(start_time, end_time, limit=None, *args, **kwargs)
+
+    def query_dimensions(
+        self,
+        dimension_field: str,
+        start_time: int = None,
+        end_time: int = None,
+        limit: int = None,
+        *args,
+        **kwargs,
+    ) -> list:
+        # 日志查询中limit仅能限制返回的原始日志数量，因此固定为1
+        if "limit" in kwargs:
+            kwargs.pop("limit")
+
+        if isinstance(dimension_field, list):
+            assert len(dimension_field) > 0, _("维度查询参数，维度字段是必须的")
+            dimension_field = dimension_field[0]
+
+        return super().query_dimensions(dimension_field, start_time, end_time, *args, **kwargs)[:limit]
+
+
+class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
+    """
+    日志关键字数据源
+    """
+
+    data_source_label = DataSourceLabel.BK_LOG_SEARCH
+    data_type_label = DataTypeLabel.LOG
+
+    DEFAULT_TIME_FIELD = "dtEventTimeStamp"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.metrics = self.metrics or [{"field": "_index", "method": "COUNT"}]
+
+    @property
+    def metric_display(self):
+        time_display = _("{}秒").format(self.interval)
+        if self.interval > 60:
+            time_display = _("{}分钟").format(self.interval // 60)
+        return _("{}内匹配到关键字次数").format(time_display)
 
 
 class BkMonitorLogDataSource(BaseBkMonitorLogDataSource):
