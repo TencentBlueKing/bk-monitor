@@ -39,7 +39,6 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFor
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 import { useChartTooltips } from '@/pages/trace-explore/components/explore-chart/use-chart-tooltips';
 
-import type { FormatterOptions } from './monitor-charts';
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from '@/pages/trace-explore/components/explore-chart/types';
 import type { IDataQuery } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -48,7 +47,7 @@ export const useMonitorEcharts = (
   chartRef: Ref<HTMLElement>,
   $api: Record<string, () => Promise<any>>,
   params: MaybeRef<Record<string, any>>,
-  formatterOptions: FormatterOptions
+  formatterSeriesData = res => res
 ) => {
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
@@ -81,20 +80,21 @@ export const useMonitorEcharts = (
     const [startTime, endTime] = handleTransformToTimestamp(get(timeRange) || DEFAULT_TIME_RANGE);
 
     const promiseList = get(panel)?.targets?.map?.(target => {
-      const resultParams = {
-        ...target.data,
-        ...get(params),
-        start_time: startTime,
-        end_time: endTime,
-      };
-
       return $api[target.apiModule]
-        [target.apiFunc](formatterOptions.params?.(resultParams) || resultParams, {
-          cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
-          needMessage: false,
-        })
+        [target.apiFunc](
+          {
+            ...target.data,
+            start_time: startTime,
+            end_time: endTime,
+            ...get(params),
+          },
+          {
+            cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
+            needMessage: false,
+          }
+        )
         .then(res => {
-          const { series, metrics, query_config } = formatterOptions.seriesData?.(res) || res;
+          const { series, metrics, query_config } = formatterSeriesData(res);
           for (const metric of metrics) {
             if (!metricList.value.some(item => item.metric_id === metric.metric_id)) {
               metricList.value.push(metric);
@@ -117,6 +117,7 @@ export const useMonitorEcharts = (
     });
     const seriesList = [];
     for (const item of resList) {
+      // @ts-expect-error
       Array.isArray(item?.value) && item.value.length && seriesList.push(...item.value);
     }
     duration.value = Date.now() - startDate;
@@ -167,6 +168,7 @@ export const useMonitorEcharts = (
         type: data.type,
         stack: data.stack,
         unit: data.unit,
+        // @ts-expect-error
         connectNulls: false,
         sampling: 'none',
         showAllSymbol: 'auto',
