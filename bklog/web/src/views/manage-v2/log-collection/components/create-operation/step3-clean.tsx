@@ -269,6 +269,7 @@ export default defineComponent({
           if (cleaningMode.value === 'bk_log_delimiter') {
             delimiter.value = etl_params.separator;
           }
+          cacheTemplateData.value = deepClone(formData.value);
           return;
         }
         formData.value.etl_params.retain_original_text = true;
