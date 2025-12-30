@@ -43,10 +43,12 @@ import './index.scss';
 
 type GetSceneViewParams = Parameters<typeof getSceneView>[0];
 
+const ASIDE_WIDTH_SETTING_KEY = 'ASIDE_WIDTH_SETTING_KEY';
+
 @Component
 export default class NewMetricView extends tsc<object> {
   currentView = 'default';
-  dimenstionParams: null | GetSceneViewParams = null;
+  dimenstionParams: GetSceneViewParams | null = null;
   showStatisticalValue = false;
   isCustomTsMetricGroupsLoading = true;
   viewColumn = 2;
@@ -55,6 +57,7 @@ export default class NewMetricView extends tsc<object> {
     viewColumn: 2,
   };
   cacheTimeRange = [];
+  asideWidth = 220; // 侧边栏初始化宽度
   @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
   @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
@@ -155,6 +158,7 @@ export default class NewMetricView extends tsc<object> {
 
   @Watch('timeSeriesGroupId', { immediate: true })
   timeSeriesGroupIdChange() {
+    this.asideWidth = Number(localStorage.getItem(ASIDE_WIDTH_SETTING_KEY) || 220);
     this.getCustomTsMetricGroups();
   }
 
@@ -202,6 +206,10 @@ export default class NewMetricView extends tsc<object> {
     this.refreshInterval = value;
   }
 
+  handleResetAsideWidth(width: number) {
+    localStorage.setItem(ASIDE_WIDTH_SETTING_KEY, String(width));
+  }
+
   created() {
     const routerQuery = this.$route.query as Record<string, string>;
     this.currentView = routerQuery.viewTab || 'default';
@@ -209,6 +217,8 @@ export default class NewMetricView extends tsc<object> {
       viewColumn: Number.parseInt(routerQuery.viewColumn, 10) || 2,
       showStatisticalValue: routerQuery.showStatisticalValue === 'true',
     };
+    const asideWidth = localStorage.getItem(ASIDE_WIDTH_SETTING_KEY);
+    this.asideWidth = Number(asideWidth || 220);
   }
 
   beforeDestroy() {
@@ -242,9 +252,10 @@ export default class NewMetricView extends tsc<object> {
               <bk-resize-layout
                 style='height: calc(100vh - 140px - var(--notice-alert-height))'
                 collapsible={true}
-                initial-divide={220}
+                initial-divide={this.asideWidth}
                 max={550}
                 min={200}
+                on-after-resize={this.handleResetAsideWidth}
               >
                 <template slot='aside'>
                   <MetricsSelect onReset={this.handleMetricsSelectReset} />
