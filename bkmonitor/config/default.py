@@ -724,7 +724,6 @@ DOUBLE_CHECK_SUM_STRATEGY_IDS = os.environ.get("DOUBLE_CHECK_SUM_STRATEGY_IDS", 
 # BCS 集群配置来源标签
 BCS_CLUSTER_BK_ENV_LABEL = os.environ.get("BCS_CLUSTER_BK_ENV_LABEL", "")
 
-ALARM_DISABLE_STRATEGY_RULES = []
 OPTZ_FAKE_EVENT_BIZ_IDS = []
 
 # access模块数据拉取延迟时间
@@ -1504,14 +1503,16 @@ APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split('
 
 # 是否启用新版的数据链路，默认开启
 ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == "true"
-# 是否启用事件组V4数据链路，默认关闭
-ENABLE_V4_EVENT_GROUP_DATA_LINK = os.getenv("ENABLE_V4_EVENT_GROUP_DATA_LINK", "false").lower() == "true"
 # 插件数据是否启用接入V4链路，默认开启
 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "true").lower() == "true"
 # 是否启用influxdb，默认关闭
 ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
 # 是否开启空间内置数据链路初始化
 ENABLE_SPACE_BUILTIN_DATA_LINK = os.getenv("ENABLE_SPACE_BUILTIN_DATA_LINK", "false").lower() == "true"
+# 是否开启dataid注册时能够指定集群名称，默认关闭
+ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME = (
+    os.getenv("ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME", "false").lower() == "true"
+)
 
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
@@ -1675,6 +1676,9 @@ if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
     BKREPO_PASSWORD = os.getenv("BKAPP_BKREPO_PASSWORD") or os.environ["BKREPO_PASSWORD"]
     BKREPO_PROJECT = os.getenv("BKAPP_BKREPO_PROJECT") or os.environ["BKREPO_PROJECT"]
     BKREPO_BUCKET = os.getenv("BKAPP_BKREPO_BUCKET") or os.environ["BKREPO_BUCKET"]
+
+    AI_BKREPO_BUCKET = os.getenv("BKAPP_AI_BKREPO_BUCKET")
+    AI_BKREPO_PROJECT = os.getenv("BKAPP_AI_BKREPO_PROJECT")
 
     DEFAULT_FILE_STORAGE = "bkstorages.backends.bkrepo.BKRepoStorage"
 

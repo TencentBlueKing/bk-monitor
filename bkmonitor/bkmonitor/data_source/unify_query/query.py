@@ -214,22 +214,7 @@ class UnifyQuery:
                 meta_field: record.pop(meta_field, "")
                 for meta_field in ["__data_label", "__doc_id", "__index", "__result_table", "__parse_failure"]
             }
-            time_value = record.pop("_time", 0)
-            try:
-                time_value = int(time_value)
-                if len(str(time_value)) > 10:
-                    time_value = time_value // 1000
-            except (TypeError, ValueError):
-                pass
-
-            # 将时间字段序列化
-            try:
-                _time = arrow.get(time_value)
-            except Exception as e:
-                logger.error(f"parse time error: {time_value}")
-                logger.exception(e)
-                _time = arrow.now()
-            record["_meta"]["_time_"] = int(_time.timestamp)
+            record["_meta"]["_time_"] = int(record.pop("_time", 0))
             records.append(record)
         return records
 

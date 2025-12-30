@@ -375,7 +375,7 @@ export default class MonitorEcharts extends Vue {
       },
       this.options || {},
       {
-        arrayMerge: (destinationArray, sourceArray) => sourceArray,
+        arrayMerge: (_destinationArray, sourceArray) => sourceArray,
       }
     );
   }
@@ -631,7 +631,7 @@ export default class MonitorEcharts extends Vue {
         });
       return;
     }
-    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ssZZ');
     const data = params
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
@@ -711,7 +711,7 @@ export default class MonitorEcharts extends Vue {
           this.annotation = {
             x: setPixel[0] + 10 + 220 > chartWidth ? setPixel[0] - 10 - 220 : setPixel[0] + 10,
             y: setPixel[1] + 5,
-            title: dayjs.tz(this.curValue.xAxis).format('YYYY-MM-DD HH:mm:ss'),
+            title: dayjs.tz(this.curValue.xAxis).format('YYYY-MM-DD HH:mm:ssZZ'),
             name: this.curValue.name,
             color: this.curValue.color,
             show: true,
@@ -978,14 +978,11 @@ export default class MonitorEcharts extends Vue {
 
   .echart-content {
     position: absolute;
-    top: 36px;
-    right: 1px;
-    bottom: 1px;
-    left: 1px;
+    inset: 36px 1px 1px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0);
+    background: rgb(255 255 255 / 0%);
   }
 }
 </style>

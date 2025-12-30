@@ -67,6 +67,7 @@ import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
+import { formatTimeZoneString } from '@/global/utils/time';
 if (pinyin.isSupported() && patcher56L.shouldPatch(pinyin.genToken)) {
   pinyin.patchDict(patcher56L);
 }
@@ -190,6 +191,10 @@ const stateTpl = {
   localSort: false,
   spaceUidMap: new Map(),
   bizIdMap: new Map(),
+  aiMode: {
+    active: false,
+    filterList: [],
+  },
 };
 
 const store = new Vuex.Store({
@@ -304,6 +309,12 @@ const store = new Vuex.Store({
       const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
       const searchParams = searchMode === 'sql' ? { keyword, addition: [] } : { addition: getters.originAddition, keyword: '*' };
 
+      if (state.aiMode.active) {
+        searchParams.keyword = [...state.aiMode.filterList, searchParams.keyword]
+          .filter(f => !/^\s*\*?\s*$/.test(f))
+          .join(' AND ');
+      }
+
       if (searchParams.keyword.replace(/\s*/, '') === '') {
         searchParams.keyword = '*';
       }
@@ -375,6 +386,12 @@ const store = new Vuex.Store({
       for (const [key, value] of Object.entries(data)) {
         state[key] = value;
       }
+    },
+
+    updateAiMode(state, payload) {
+      Object.keys(payload).forEach((key) => {
+        set(state.aiMode, key, payload[key]);
+      });
     },
 
     updateStorage(state, payload) {
@@ -1481,6 +1498,7 @@ const store = new Vuex.Store({
         start_time: formatDate(startTime),
         end_time: formatDate(endTime),
         size: payload?.size ?? 100,
+        bk_biz_id: state.bkBizId,
       };
 
       if (state.indexItem.isUnionIndex) {
@@ -1524,6 +1542,8 @@ const store = new Vuex.Store({
           const results = (resp.data || []).map((item) => {
             item.favorites?.forEach((sub) => {
               sub.full_name = `${item.group_name}/${sub.name}`;
+              sub.created_at = formatTimeZoneString(sub.created_at, state.userMeta.time_zone);
+              sub.updated_at = formatTimeZoneString(sub.updated_at, state.userMeta.time_zone);
             });
             return item;
           });
@@ -1541,7 +1561,12 @@ const store = new Vuex.Store({
     setQueryCondition({ state, dispatch }, payload) {
       const newQueryList = Array.isArray(payload) ? payload : [payload];
       const isLink = newQueryList[0]?.isLink;
-      const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+      let searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+
+      if (state.aiMode.active) {
+        searchMode = 'sql';
+      }
+
       const depth = Number(payload.depth ?? '0');
       const isNestedField = payload?.isNestedField ?? 'false';
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
@@ -1673,11 +1698,7 @@ const store = new Vuex.Store({
               operator,
               value,
             });
-            if (targetField?.is_virtual_obj_node) {
-              newSearchValue = Object.assign({ field: '*', value }, { operator: mapOperator });
-            } else {
-              newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
-            }
+            newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
           }
           if (searchMode === 'sql') {
             if (targetField?.is_virtual_obj_node) {
@@ -1693,6 +1714,19 @@ const store = new Vuex.Store({
           return !isExist || isNewSearchPage ? newSearchValue : null;
         })
         .filter(Boolean);
+
+      if (state.aiMode.active) {
+        const newSearchKeywords = filterQueryList.filter(item => !state.aiMode.filterList.includes(item));
+        if (newSearchKeywords.length) {
+          state.aiMode.filterList.push(...newSearchKeywords);
+        }
+
+        if (from === 'origin') {
+          dispatch('requestIndexSetQuery');
+        }
+
+        return Promise.resolve([filterQueryList, searchMode, isNewSearchPage]);
+      }
 
       // list内的所有条件均相同时不进行添加条件处理
       if (!filterQueryList.length) return Promise.resolve([filterQueryList, searchMode, isNewSearchPage]);

@@ -335,8 +335,8 @@ export default class GroupDialog extends tsc<IProps> {
           name:
             localLanguage === 'en'
               ? newItem.replace(/^全文检索(\(\d\))?$/, (_item, p1) => {
-                  return `${this.$t('全文检索')}${p1 ? p1 : ''}`;
-                })
+                return `${this.$t('全文检索')}${p1 ? p1 : ''}`;
+              })
               : newItem,
           chName: newItem,
         })); // 初始化表单字段
@@ -562,7 +562,7 @@ export default class GroupDialog extends tsc<IProps> {
           id_list: this.deleteTableIDList,
         },
       });
-    } catch {}
+    } catch { }
   }
 
   async batchUpdateFavorite() {
@@ -591,7 +591,7 @@ export default class GroupDialog extends tsc<IProps> {
           params,
         },
       });
-    } catch {}
+    } catch { }
   }
   /** 所属组和变更人分组操作 */
   sourceFilterMethod(value, row, column) {
@@ -1035,7 +1035,7 @@ export default class GroupDialog extends tsc<IProps> {
                     class='overflow-tips'
                     v-bk-overflow-tips
                   >
-                    {utcFormatDate(row.updated_at)}
+                    {utcFormatDate(row.updated_at, true)}
                   </span>,
                 ],
               }}

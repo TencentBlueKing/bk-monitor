@@ -51,7 +51,7 @@ export const useChartTooltips = (
     }
     let liHtmlList = [];
     const ulStyle = '';
-    const pointTime = dayjs.tz(+params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs.tz(+params[0].axisValue).format('YYYY-MM-DD HH:mm:ssZZ');
     liHtmlList = params.map(item => {
       const markColor = 'color: #fafbfd;';
       if (item.value === null) return '';

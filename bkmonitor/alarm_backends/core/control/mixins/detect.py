@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,9 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from collections import OrderedDict, defaultdict
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING
 
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
@@ -24,23 +24,32 @@ from constants.data_source import DataTypeLabel
 
 logger = logging.getLogger("core.control")
 
+# 算法额外控制参数白名单
+# 这些参数会从算法配置中提取并传递给算法实例
+# 用于控制算法行为（如灰度开关、服务名称等）
+EXTRA_CONFIG_KEYS = [
+    "grey_to_bkfara",  # 灰度开关：是否使用新的 BKFara 服务
+    "service_name",  # 服务名称：用于指定特定服务
+    # 后续可在此添加更多控制参数
+]
+
 if TYPE_CHECKING:
     from alarm_backends.service.detect.strategy import BasicAlgorithmsCollection  # noqa
 
 
-def load_detector_cls(_type) -> Type["BasicAlgorithmsCollection"]:
+def load_detector_cls(_type) -> type["BasicAlgorithmsCollection"]:
     algorithms_target = camel_to_underscore(_type)
     package_name = "alarm_backends.service.detect"
-    cls_target = "{}.strategy.{}.{}".format(package_name, algorithms_target, _type)
+    cls_target = f"{package_name}.strategy.{algorithms_target}.{_type}"
     try:
         cls = import_string(cls_target)
     except ImportError:
-        logger.error("detector load error: {}".format(cls_target))
+        logger.error(f"detector load error: {cls_target}")
         cls = None
     return cls
 
 
-class DetectMixin(object):
+class DetectMixin:
     def detect(self, data_points):
         if not data_points:
             return []
@@ -63,8 +72,14 @@ class DetectMixin(object):
             for detect_config in algorithm_group[level]:
                 algorithm_type = detect_config["type"]
                 algorithm_unit = detect_config.get("unit_prefix", "")
+                algorithm_config = detect_config.get("config", {})
                 detector_cls = load_detector_cls(algorithm_type)
-                detector = detector_cls(detect_config["config"], algorithm_unit)
+
+                # 使用白名单方式提取控制参数
+                # 只提取 EXTRA_CONFIG_KEYS 中定义的参数
+                extra_config = {k: algorithm_config[k] for k in EXTRA_CONFIG_KEYS if k in algorithm_config}
+
+                detector = detector_cls(algorithm_config, algorithm_unit, extra_config=extra_config)
 
                 # 判断算法是否需要查询历史数据
                 if hasattr(detector, "history_point_fetcher"):
@@ -120,9 +135,7 @@ class DetectMixin(object):
                     if ap:
                         ap.anomaly_message = prefix + ap.anomaly_message + suffix
                         logger.info(
-                            "[detect] strategy({}) item({}) level[{}] 发现异常点: {}".format(
-                                ap.data_point.item.strategy.id, ap.data_point.item.id, level, ap.__dict__
-                            )
+                            f"[detect] strategy({ap.data_point.item.strategy.id}) item({ap.data_point.item.id}) level[{level}] 发现异常点: {ap.__dict__}"
                         )
                         anomaly_records.append(ap)
 
@@ -172,9 +185,9 @@ class DetectMixin(object):
                 redis_pipeline = check_result.CHECK_RESULT
 
             if d.record_id in anomaly_record_ids:
-                name = "{}|{}".format(timestamp, ANOMALY_LABEL)
+                name = f"{timestamp}|{ANOMALY_LABEL}"
             else:
-                name = "{}|{}".format(timestamp, str(d.value))
+                name = f"{timestamp}|{str(d.value)}"
 
             try:
                 # 1. 缓存数据(检测结果缓存) type:SortedSet
@@ -187,7 +200,7 @@ class DetectMixin(object):
                     last_checkpoints[dimensions_md5] = timestamp
 
             except Exception as e:
-                msg = "set check result cache error:%s" % e
+                msg = f"set check result cache error:{e}"
                 logger.exception(msg)
 
         if redis_pipeline:

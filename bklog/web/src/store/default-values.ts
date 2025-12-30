@@ -259,6 +259,7 @@ export const IndexItem = {
   items: [],
   catchUnionBeginList: [],
   selectIsUnionSearch: urlArgs.unionList?.length ?? false,
+  pid: Array.isArray((urlArgs as any).pid) ? (urlArgs as any).pid : (urlArgs as any).pid ? [(urlArgs as any).pid] : [],
   chart_params: {
     activeGraphCategory: 'table',
     chartActiveType: 'table',

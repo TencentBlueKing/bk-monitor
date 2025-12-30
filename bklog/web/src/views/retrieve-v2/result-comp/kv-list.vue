@@ -87,7 +87,7 @@
           </span>
           <JsonFormatter
             :fields="getFieldItem(field.field_name)"
-            :json-value="formatterStr(data, field.field_name)"
+            :json-value="listData"
             @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
           ></JsonFormatter>
         </div>

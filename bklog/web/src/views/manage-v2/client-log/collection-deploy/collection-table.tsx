@@ -24,23 +24,25 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
 
-import { clearTableFilter, getDefaultSettingSelectFiled, setDefaultSettingSelectFiled } from '@/common/util';
+import { clearTableFilter, downFile } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
-import * as authorityMap from '../../../../../common/authority-map';
+import * as authorityMap from '../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '@/store/store.type';
-import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../../constant';
+import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../constant';
 import { TaskStatus, TaskScene } from './types';
+import { useTableSetting } from '../hooks/use-table-setting';
+import { useSearchTask } from '../hooks/use-search-task';
 import http from '@/api';
 
-import './index.scss';
+import './collection-table.scss';
 
 export default defineComponent({
-  name: 'LogTable',
+  name: 'CollectionTable',
   components: {
     EmptyStatus,
   },
@@ -61,6 +63,17 @@ export default defineComponent({
       type: Array,
       default: () => [],
     },
+    indexSetId: {
+      type: String,
+      default: '',
+    },
+    paginationConfig: {
+      type: Object,
+      default: () => ({
+        limit: 10,
+        limitList: [10, 20, 50, 100],
+      }),
+    },
   },
   emits: ['clear-keyword', 'clone-task', 'view-task'],
   setup(props, { emit }) {
@@ -69,19 +82,19 @@ export default defineComponent({
     const pagination = ref({
       current: 1,
       count: props.total,
-      limit: 10,
-      limitList: [10, 20, 50, 100],
+      limit: props.paginationConfig.limit,
+      limitList: props.paginationConfig.limitList,
     });
 
     const createdBys = ref([]); // 创建人
     const logTableRef = ref(null); // 表格引用
-    const settingCacheKey = 'clientLog'; // 设置缓存键
     const tableDataSort = ref({
       id: '',
       order: '',
     });
 
-    const settingFields = ref([
+    // 表格字段配置
+    const tableFields = [
       { id: 'task_id', label: t('任务 ID') },
       { id: 'task_name', label: t('任务名称'), disabled: true },
       { id: 'openid', label: 'openid', disabled: true },
@@ -93,11 +106,30 @@ export default defineComponent({
       { id: 'frequency', label: t('触发频率') },
       { id: 'platform', label: t('客户端类型') },
       { id: 'max_file_num', label: t('最大文件个数') },
-    ]);
+    ];
 
-    const columnSetting = ref({
-      fields: settingFields.value,
-      selectedFields: settingFields.value.slice(0, 8),
+    // 默认显示的字段ID
+    const defaultSelectedIds = [
+      'task_id',
+      'task_name',
+      'openid',
+      'status_name',
+      'scene_name',
+      'created_by',
+      'created_at',
+      'log_path',
+    ];
+
+    // 使用表格设置 hook
+    const { columnSetting, checkFields, handleSettingChange } = useTableSetting({
+      cacheKey: 'clientLog',
+      fields: tableFields,
+      defaultSelectedIds,
+    });
+
+    // 使用检索任务 Hook
+    const { searchTask } = useSearchTask({
+      indexSetId: props.indexSetId,
     });
 
     // 任务状态选项
@@ -350,7 +382,7 @@ export default defineComponent({
           const response = await http.request('collect/getDownloadLink', params);
           const downloadUrl = response.data.url;
           if (downloadUrl) {
-            window.open(downloadUrl);
+            downFile(downloadUrl);
           }
         } catch (error) {
           console.warn('获取下载链接失败:', error);
@@ -370,45 +402,17 @@ export default defineComponent({
       }
     };
 
-    // 检查字段显示
-    const checkFields = (field: string) => {
-      return columnSetting.value.selectedFields.some(item => item.id === field);
+    // 检索任务 - 直接传入查询条件
+    const handleSearchTask = (row: any) => {
+      const conditions = [
+        {
+          field: 'task_name',
+          operator: 'is',
+          value: row.task_name,
+        },
+      ];
+      searchTask(conditions);
     };
-
-    // 设置变化处理
-    const handleSettingChange = ({ fields }) => {
-      columnSetting.value.selectedFields.splice(0, columnSetting.value.selectedFields.length, ...fields);
-      setDefaultSettingSelectFiled(settingCacheKey, fields);
-    };
-
-    // 计算limit
-    const calculateLimitList = () => {
-      const fixedHeight = 368; // 需要减去的固定高度
-      const rowHeight = 43; // 行固定高度
-
-      // 获取浏览器高度
-      const clientHeight = document.documentElement.offsetHeight;
-
-      // 计算可以显示的行数
-      const rows = Math.ceil((clientHeight - fixedHeight) / rowHeight);
-      // 根据可显示行数设置合适的limit
-      if (rows < 10) {
-        pagination.value.limit = 10;
-      } else if (rows < 20) {
-        pagination.value.limit = 20;
-      } else if (rows < 50) {
-        pagination.value.limit = 50;
-      } else {
-        pagination.value.limit = 100;
-      }
-    };
-
-    calculateLimitList();
-
-    onMounted(() => {
-      const { selectedFields } = columnSetting.value;
-      columnSetting.value.selectedFields = getDefaultSettingSelectFiled(settingCacheKey, selectedFields);
-    });
 
     // 任务名称插槽
     const nameSlot = {
@@ -513,6 +517,22 @@ export default defineComponent({
     const operateSlot = {
       default: ({ row }: any) => (
         <div class='log-table-operate'>
+          <span
+            class='king-button'
+            v-bk-tooltips={{
+              content: t('任务未完成'),
+              disabled: row.status === TaskStatus.COMPLETED,
+            }}
+          >
+            <bk-button
+              text
+              theme='primary'
+              disabled={row.status !== TaskStatus.COMPLETED}
+              on-click={() => handleSearchTask(row)}
+            >
+              {t('检索')}
+            </bk-button>
+          </span>
           <bk-button
             class='king-button'
             text
@@ -521,24 +541,31 @@ export default defineComponent({
           >
             {t('克隆')}
           </bk-button>
-          <bk-button
-            class={[
-              'king-button',
-              {
-                'disabled-download': !props.isAllowedDownload || row.status !== TaskStatus.COMPLETED,
-              },
-            ]}
-            text
-            theme='primary'
+          <span
+            class='king-button'
             v-bk-tooltips={{
               content: t('暂无下载链接，请在任务完成后点击下载'),
               disabled: row.status === TaskStatus.COMPLETED,
             }}
-            v-cursor={{ active: row.status === TaskStatus.COMPLETED && !props.isAllowedDownload }}
-            on-click={() => downloadFile(row.id, row.status)}
           >
-            {t('下载文件')}
-          </bk-button>
+            <bk-button
+              disabled={row.status !== TaskStatus.COMPLETED}
+              text
+              class={[
+                {
+                  'disabled-download': !props.isAllowedDownload,
+                },
+              ]}
+              disable
+              theme='primary'
+              v-cursor={{
+                active: row.status === TaskStatus.COMPLETED && !props.isAllowedDownload,
+              }}
+              on-click={() => downloadFile(row.id, row.status)}
+            >
+              {t('下载文件')}
+            </bk-button>
+          </span>
         </div>
       ),
     };
@@ -636,7 +663,7 @@ export default defineComponent({
             <bk-table-column
               key='created_at'
               class-name='filter-column overflow-hidden-text'
-              width='160'
+              width='240'
               label={t('创建时间')}
               prop='created_at'
               sortable
@@ -683,6 +710,7 @@ export default defineComponent({
           <bk-table-column
             label={t('操作')}
             width='150'
+            fixed='right'
             scopedSlots={operateSlot}
           />
           <bk-table-column

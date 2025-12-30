@@ -22,7 +22,23 @@ const handleHeightChange = (height) => {
 };
 
 const { t } = useLocale();
-const placeholderText = ` / ${t('快速定位到搜索')}，log:error AND"name=bklog"`;
+
+// 检测操作系统，决定显示 CMD 还是 Ctrl
+const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent);
+const shortcutKey = isMac ? 'CMD' : 'Ctrl';
+
+// 输入框是否被 focus
+const isFocused = ref(false);
+
+// 动态 placeholder 文本
+const placeholderText = computed(() => {
+  if (isFocused.value) {
+    return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，${shortcutKey} + ENTER ${t('AI 搜索')}`;
+  }
+  // return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}， ${t('Tab 切换为 AI 模式')}`;
+  return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}`;
+});
+
 const refSqlQueryOption = ref(null);
 const refEditorParent = ref(null);
 const editorFocusPosition = ref(null);
@@ -222,6 +238,9 @@ const createEditorInstance = () => {
       return false;
     },
     onFocusChange: (state, isFocusing) => {
+      // 更新 focus 状态，用于动态显示 placeholder
+      isFocused.value = isFocusing;
+
       if (isFocusing) {
         if (!(getTippyInstance()?.state?.isShown ?? false)) {
           delayShowInstance(refEditorParent.value);
