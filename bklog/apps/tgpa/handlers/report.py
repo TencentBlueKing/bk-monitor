@@ -72,38 +72,6 @@ class TGPAReportHandler:
         """
         file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields)
         file_handler.download_and_process_file(self.file_name)
-        # logger.info("Begin to process report file, file_name: %s", self.file_name)
-        #
-        # # 创建或获取处理记录
-        # report_obj, created = TGPAReport.objects.get_or_create(
-        #     file_name=self.file_name,
-        #     defaults={
-        #         "bk_biz_id": self.bk_biz_id,
-        #         "record_id": record_id,
-        #         "openid": self.report_info.get("openid"),
-        #         "process_status": TGPATaskProcessStatusEnum.PENDING.value,
-        #     },
-        # )
-        #
-        # # 如果记录已存在且已成功处理，跳过
-        # if not created and report_obj.process_status == TGPATaskProcessStatusEnum.SUCCESS.value:
-        #     logger.info("Report file already processed, file_name: %s", self.file_name)
-        #     return
-        #
-        # report_obj.process_status = TGPATaskProcessStatusEnum.RUNNING.value
-        # report_obj.processed_at = timezone.now()
-        # report_obj.save(update_fields=["process_status", "processed_at"])
-        # try:
-        #     file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields)
-        #     file_handler.download_and_process_file(self.file_name)
-        #     report_obj.process_status = TGPATaskProcessStatusEnum.SUCCESS.value
-        #     report_obj.save(update_fields=["process_status"])
-        #     logger.info("Successfully processed report file, file_name: %s", self.file_name)
-        # except Exception as e:
-        #     logger.exception("Failed to process report file, file_name %s", self.file_name)
-        #     report_obj.process_status = TGPATaskProcessStatusEnum.FAILED.value
-        #     report_obj.error_message = str(e)
-        #     report_obj.save(update_fields=["process_status", "error_message"])
 
     @classmethod
     def _get_feature_config(cls):
@@ -204,8 +172,7 @@ class TGPAReportHandler:
             total = count_result["list"][0].get("total", 0)
 
         data = list_result.get("list", [])
-        reports = TGPAReport.objects.filter(file_name__in=[item["file_name"] for item in data])
-        status_map = {report.file_name: report.process_status for report in reports}
+        status_map = cls.get_file_status_map(file_name_list=[item["file_name"] for item in data])
         for item in data:
             item["download_url"] = f"{download_url_prefix}{item.get('file_name', '')}"
             item["status"] = status_map.get(item["file_name"], TGPAReportSyncStatusEnum.PENDING.value)
@@ -294,17 +261,21 @@ class TGPAReportHandler:
         return [item["file_name"] for item in result.get("list", [])]
 
     @classmethod
-    def get_file_status(cls, file_name_list):
-        """
-        获取文件处理状态
-        """
+    def get_file_status_map(cls, file_name_list) -> dict:
         reports = TGPAReport.objects.filter(file_name__in=file_name_list)
-
         status_map = {}
         for report in reports:
             if report.file_name not in status_map:
                 status_map[report.file_name] = report.process_status
 
+        return status_map
+
+    @classmethod
+    def get_file_status(cls, file_name_list):
+        """
+        获取文件处理状态
+        """
+        status_map = cls.get_file_status_map(file_name_list)
         return [
             {"file_name": file_name, "status": status_map.get(file_name, TGPAReportSyncStatusEnum.PENDING.value)}
             for file_name in file_name_list
