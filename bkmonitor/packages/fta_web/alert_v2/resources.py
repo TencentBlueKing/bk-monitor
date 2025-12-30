@@ -26,10 +26,11 @@ from core.drf_resource import Resource, resource, api
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
 from fta_web.alert_v2.target import BaseTarget, get_target_instance
 from monitor_web.data_explorer.event.constants import EventSource
-from monitor_web.data_explorer.event.resources import EventLogsResource, EventTotalResource
+from monitor_web.data_explorer.event.resources import EventLogsResource, EventTotalResource, EventTimeSeriesResource
 from apm_web.event.resources import (
     EventLogsResource as APMEventLogsResource,
     EventTotalResource as APMEventTotalResource,
+    EventTimeSeriesResource as APMEventTimeSeriesResource,
 )
 
 from monitor_web.data_explorer.event.utils import get_cluster_table_map
@@ -358,6 +359,47 @@ class AlertEventTotalResource(AlertEventBaseResource):
             total += source_count["total"]
 
         return {"total": total, "list": total_infos}
+
+
+class AlertEventTSResource(AlertEventBaseResource):
+    """告警关联事件时序数据资源类。
+
+    根据告警 ID 获取关联事件的时序数据，用于展示事件趋势图表。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        """请求参数序列化器"""
+
+        alert_id = serializers.CharField(label="告警 ID", help_text="要查询的告警 ID")
+        interval = serializers.IntegerField(
+            label="时间间隔", required=False, default=300, help_text="时序数据的时间间隔（秒）"
+        )
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        """执行告警关联事件时序数据查询请求。
+
+        根据告警 ID 和时间间隔参数，查询关联事件的时序数据。
+
+        :param validated_request_data: 验证后的请求参数
+        :return: 包含时序数据和查询配置的响应数据
+        """
+        alert: AlertDocument = AlertDocument.get(validated_request_data["alert_id"])
+        target: BaseTarget = get_target_instance(alert)
+
+        interval: int = validated_request_data["interval"]
+        q: QueryConfigBuilder = self._get_q(target).interval(interval)
+
+        queryset: UnifyQuerySet = self.build_queryset(alert, target, q)
+        query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
+
+        # 添加 expression 参数
+        query_params["expression"] = "a"
+
+        # 根据目标类型选择对应的事件时序资源类
+        event_ts_resource_cls: type[EventTimeSeriesResource] = (
+            APMEventTimeSeriesResource if self.is_apm_target(target) else EventTimeSeriesResource
+        )
+        return event_ts_resource_cls().request(query_params)
 
 
 class AlertK8sScenarioListResource(Resource):
