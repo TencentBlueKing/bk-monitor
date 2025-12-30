@@ -53,8 +53,21 @@ class IncidentNoticeHelper:
             business_name = str(incident.bk_biz_id)
             logger.warning(f"获取业务名称失败: {e}")
 
+        # 属性状态变化（提前获取，用于后续逻辑判断）
+        incident_key = kwargs.get("incident_key")
+        from_value = kwargs.get("from_value") or "null"
+        to_value = kwargs.get("to_value") or "null"
+        incident_key_alias = kwargs.get("incident_key_alias") or incident_key
+
         # 计算故障持续时间
-        duration_info = cls._format_duration(incident.begin_time, incident.end_time)
+        # 对于观察通知，计算观察时长（当前时间到end_time的差值）
+        # 对于其他通知，使用正常的持续时间计算
+        observe_duration_info = None
+        if operation_type == IncidentOperationType.OBSERVE and incident.end_time:
+            # 观察通知：计算已观察时长（当前时间 - end_time，因为end_time在观察状态下表示观察开始时间）
+            observe_duration_info = cls._format_observe_duration(incident.end_time)
+        end_time_for_duration = incident.end_time if incident.end_time else None
+        duration_info = cls._format_duration(incident.begin_time, end_time_for_duration)
 
         # 获取告警统计信息
         alert_stats = cls._get_alert_stats(incident)
@@ -63,7 +76,14 @@ class IncidentNoticeHelper:
         incident_reason = cls._get_incident_reason(incident)
 
         # 获取故障状态
-        status = IncidentStatus(incident.status).alias if incident.status else _("未知")
+        # 如果是状态更新通知，优先使用新状态值
+        if operation_type == IncidentOperationType.UPDATE and incident_key == "status" and to_value:
+            try:
+                status = IncidentStatus(to_value).alias
+            except (ValueError, AttributeError):
+                status = IncidentStatus(incident.status).alias if incident.status else _("未知")
+        else:
+            status = IncidentStatus(incident.status).alias if incident.status else _("未知")
 
         # 获取故障级别
         level = IncidentLevel(incident.level).alias if incident.level else _("未知")
@@ -76,12 +96,6 @@ class IncidentNoticeHelper:
 
         # 通知时间
         notify_time = datetime.fromtimestamp(int(time.time())).strftime("%Y-%m-%d %H:%M:%S")
-
-        # 属性状态变化
-        incident_key = kwargs.get("incident_key")
-        from_value = kwargs.get("from_value") or "null"
-        to_value = kwargs.get("to_value") or "null"
-        incident_key_alias = kwargs.get("incident_key_alias") or incident_key
 
         # 故障合并信息
         link_incident_name = kwargs.get("link_incident_name")
@@ -100,7 +114,7 @@ class IncidentNoticeHelper:
             }
             subtitle_map = {
                 IncidentOperationType.CREATE: f"【{duration_info['duration_range'][0]}】发生【{incident.incident_name}】",
-                IncidentOperationType.OBSERVE: f"故障当前状态 观察中，已持续【{duration_info['duration_msg']}】",
+                IncidentOperationType.OBSERVE: f"故障当前状态 观察中，已观察【{observe_duration_info['duration_msg']}】",
                 IncidentOperationType.RECOVER: f"【{incident.incident_name}】故障已恢复",
                 IncidentOperationType.UPDATE: f"【{incident_key_alias}】原始值：{from_value} → 最新值：{to_value}"
                 if incident_key
@@ -134,6 +148,51 @@ class IncidentNoticeHelper:
         }
 
         return context
+
+    @classmethod
+    def _format_observe_duration(cls, observe_start_time: int) -> dict:
+        """
+        格式化观察时长（从观察开始时间到当前时间）
+
+        :param observe_start_time: 观察开始时间戳
+        :return: 格式化的观察时长字典
+        """
+        if not observe_start_time:
+            return {"duration_msg": _("未知"), "duration_range": ["", ""], "duration_range_msg": ""}
+
+        current_time = int(time.time())
+        duration_seconds = current_time - observe_start_time
+
+        # 将时间戳转换为本地时区的格式化字符串
+        tz_name = timezone.get_current_timezone().zone
+        observe_start_str = arrow.get(observe_start_time).to(tz_name).strftime("%Y-%m-%d %H:%M:%S")
+        current_time_str = arrow.get(current_time).to(tz_name).strftime("%Y-%m-%d %H:%M:%S")
+
+        if duration_seconds < 60:
+            duration_msg = _("{}秒").format(duration_seconds)
+        elif duration_seconds < 3600:
+            minutes = duration_seconds // 60
+            duration_msg = _("{}分钟").format(minutes)
+        elif duration_seconds < 86400:
+            hours = duration_seconds // 3600
+            minutes = (duration_seconds % 3600) // 60
+            if minutes > 0:
+                duration_msg = _("{}小时{}分钟").format(hours, minutes)
+            else:
+                duration_msg = _("{}小时").format(hours)
+        else:
+            days = duration_seconds // 86400
+            hours = (duration_seconds % 86400) // 3600
+            if hours > 0:
+                duration_msg = _("{}天{}小时").format(days, hours)
+            else:
+                duration_msg = _("{}天").format(days)
+
+        return {
+            "duration_msg": duration_msg,
+            "duration_range": [observe_start_str, current_time_str],
+            "duration_range_msg": f"({observe_start_str} 至 {current_time_str})",
+        }
 
     @classmethod
     def _format_duration(cls, begin_time: int, end_time: int = None) -> dict:

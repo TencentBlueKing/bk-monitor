@@ -88,6 +88,10 @@ class IncidentOperationClass(CustomEnum):
         return incident_operation_class_map[self.value]
 
 
+# 内部操作类型列表，查询时不展示
+_INTERNAL_OPERATION_TYPES = ["send_message"]
+
+
 class IncidentOperationType(CustomEnum):
     """故障操作类型"""
 
@@ -112,6 +116,8 @@ class IncidentOperationType(CustomEnum):
     ALERT_HANDLE = "alert_handle"
     ALERT_CLOSE = "alert_close"
     ALERT_DISPATCH = "alert_dispatch"
+    # 内部操作类型，用于记录通知发送流水，不在故障流转记录查询中展示
+    SEND_MESSAGE = "send_message"
 
     @property
     def alias(self):
@@ -137,6 +143,7 @@ class IncidentOperationType(CustomEnum):
             "alert_handle": _lazy("告警处理"),
             "alert_close": _lazy("告警关闭"),
             "alert_dispatch": _lazy("告警分派"),
+            "send_message": _lazy("发送通知"),
         }
         return incident_operation_type_map[self.value]
 
@@ -155,10 +162,16 @@ class IncidentOperationType(CustomEnum):
             "alert_invalid",
             "alert_notice",
             "alert_convergence",
+            "send_message",
         ]:
             return IncidentOperationClass.SYSTEM
         else:
             return IncidentOperationClass.USER
+
+    @property
+    def is_internal(self) -> bool:
+        """是否为内部操作类型，内部操作类型不在故障流转记录查询中展示"""
+        return self.value in _INTERNAL_OPERATION_TYPES
 
 
 class IncidentSyncType(CustomEnum):
