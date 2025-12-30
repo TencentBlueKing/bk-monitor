@@ -56,7 +56,7 @@ import InfoTips from '../common-comp/info-tips'; // 信息提示组件
 import InputAddGroup from '../common-comp/input-add-group'; // 输入框组组件
 import AppendLogTags from '../business-comp/step2/container-collection/append-log-tags'; // 附加日志标签组件
 import ConfigurationItemList from '../business-comp/step2/container-collection/configuration-item-list'; // 配置项组件
-import { HOST_COLLECTION_CONFIG, CONTAINER_COLLECTION_CONFIG } from './defaultConfig'; // 默认配置
+import { HOST_COLLECTION_CONFIG, initContainerConfig } from './defaultConfig'; // 默认配置
 import IndexConfigImportDialog from '../business-comp/step2/index-config-import-dialog';
 import $http from '@/api'; // API请求封装
 
@@ -286,7 +286,7 @@ export default defineComponent({
       if (props.scenarioId === 'container_file') {
         formData.value = {
           ...formData.value,
-          ...CONTAINER_COLLECTION_CONFIG,
+          ...initContainerConfig(),
         };
       }
       /**
@@ -295,7 +295,7 @@ export default defineComponent({
       if (props.scenarioId === 'container_stdout') {
         formData.value = {
           ...formData.value,
-          ...CONTAINER_COLLECTION_CONFIG,
+          ...initContainerConfig('std_log_config'),
         };
       }
       /**
@@ -578,6 +578,7 @@ export default defineComponent({
       // 转换路径和排除文件格式
       const paths = transformStringArrayToInputValue(params.paths);
       const excludeFiles = transformStringArrayToInputValue(params.exclude_files);
+      isBlacklist.value = excludeFiles.length > 0;
       formData.value = {
         ...formData.value,
         ...detailData,
@@ -620,6 +621,7 @@ export default defineComponent({
 
     const initConfig = (data: IFormData) => {
       const { configs, collector_scenario_id, params, target_node_type: type, target_nodes: nodes } = data;
+      logType.value = collector_scenario_id;
       /**
        * 初始化采集目标
        */
@@ -1217,7 +1219,9 @@ export default defineComponent({
      * @returns
      */
     const handleHostLogRequestData = (requestData, extraLabels, dataEncoding) => {
+      const { params } = requestData;
       requestData.params.extra_labels = isEmptyExtraLabels(extraLabels) ? [] : extraLabels;
+      requestData.params.exclude_files = formatExcludeFiles(params.exclude_files);
       requestData.data_encoding = dataEncoding;
       return requestData;
     };
@@ -1407,7 +1411,6 @@ export default defineComponent({
       baseInfoRef.value
         .validate()
         .then(() => {
-          loadingSave.value = true;
           /**
            * 判断用户是否有修改行为，如果没有则直接跳转到下一步
            */

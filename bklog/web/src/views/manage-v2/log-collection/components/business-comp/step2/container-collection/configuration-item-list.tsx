@@ -173,8 +173,9 @@ export default defineComponent({
      * 这些字段在实际业务逻辑中使用，使用类型断言来兼容类型系统
      */
     const createDefaultConfigItem = (): IContainerConfigItem => {
+      const collectorType = props.data[0]?.collector_type || 'container_log_config';
       return {
-        collector_type: 'container_log_config',
+        collector_type: collectorType,
         namespaces: [],
         // noQuestParams 和 containerNameList 不在类型定义中，但实际业务中需要使用
         noQuestParams: {
