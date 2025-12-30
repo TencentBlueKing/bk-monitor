@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import abc
 from typing import Any
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 from django.db.models import Q
 from rest_framework import serializers
@@ -19,14 +19,18 @@ from api.cmdb.define import Host
 from bkmonitor.data_source import q_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.documents import AlertDocument
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.alert import APMTargetType, K8STargetType
 from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import Resource, resource, api
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
 from fta_web.alert_v2.target import BaseTarget, get_target_instance
 from monitor_web.data_explorer.event.constants import EventSource
-from monitor_web.data_explorer.event.resources import EventLogsResource
-from apm_web.event.resources import EventLogsResource as APMEventLogsResource
+from monitor_web.data_explorer.event.resources import EventLogsResource, EventTotalResource
+from apm_web.event.resources import (
+    EventLogsResource as APMEventLogsResource,
+    EventTotalResource as APMEventTotalResource,
+)
 
 from monitor_web.data_explorer.event.utils import get_cluster_table_map
 
@@ -290,6 +294,72 @@ class AlertEventsResource(AlertEventBaseResource):
         return result
 
 
+class AlertEventTotalResource(AlertEventBaseResource):
+    """告警关联事件总数统计资源类。
+
+    根据告警 ID 统计关联事件的总数，并按事件来源（主机、容器、蓝盾、业务上报）分组统计。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        """请求参数序列化器"""
+
+        alert_id = serializers.CharField(label="告警 id", help_text="要查询的告警 ID")
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        """执行告警关联事件总数统计请求
+
+        :param validated_request_data: 验证后的请求参数
+        :return: 包含总数和分组统计的响应数据
+        """
+        alert: AlertDocument = AlertDocument.get(validated_request_data["alert_id"])
+        target: BaseTarget = get_target_instance(alert)
+        return self._count_all_sources(alert, target)
+
+    def _count_all_sources(self, alert: AlertDocument, target: BaseTarget) -> dict[str, Any]:
+        """统计所有事件来源的总数。
+
+        使用多线程并发查询所有事件来源（主机、容器、蓝盾、业务上报）的事件数量
+
+        :param alert: 告警文档对象
+        :param target: 目标对象
+        :return: 包含总数和分组统计的响应数据
+        """
+        event_total_resource_cls: type[EventTotalResource] = (
+            APMEventTotalResource if self.is_apm_target(target) else EventTotalResource
+        )
+
+        # 在线程外构建基础查询，避免在每个线程中重复构建
+        base_q: QueryConfigBuilder = self._get_q(target)
+
+        def _get_total_info_by_source(source: str) -> dict[str, Any]:
+            # 在线程内基于 base_q 添加 source 条件，然后构建查询参数并发起请求
+            q_with_source: QueryConfigBuilder = base_q.conditions(q_to_conditions(Q(source=source)))
+            queryset: UnifyQuerySet = self.build_queryset(alert, target, q_with_source)
+            query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
+            count: int = event_total_resource_cls().request(query_params).get("total", 0)
+
+            return {
+                "value": source,
+                "alias": EventSource.from_value(source).label,
+                "total": count,
+            }
+
+        sources: list[str] = [source for source, _ in EventSource.choices()]
+        pool = ThreadPool(min(len(sources), 8))
+        source_counts_iter: Iterable[dict[str, Any]] = pool.imap_unordered(
+            lambda source: _get_total_info_by_source(source), sources
+        )
+        pool.close()
+
+        total_infos: list[dict[str, Any]] = []
+        total: int = 0
+        for source_count in source_counts_iter:
+            total_infos.append(source_count)
+            total += source_count["total"]
+
+        return {"total": total, "list": total_infos}
+
+
 class AlertK8sScenarioListResource(Resource):
     """
     K8S容器场景列表资源类
@@ -489,3 +559,49 @@ class AlertHostTargetResource(Resource):
                 flat_target["display_name"] = f"{topo} / {target['bk_target_ip']}"
                 target_list.append(flat_target)
         return target_list
+
+
+class AlertTracesResource(Resource):
+    """告警关联调用链资源类。
+
+    根据告警 ID 获取关联的调用链信息，包括 Trace 查询配置和调用链列表。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        """请求参数序列化器"""
+
+        alert_id = serializers.CharField(label="告警 id", help_text="要查询的告警 ID")
+        limit = serializers.IntegerField(label="数量限制", required=False, default=10, help_text="返回调用链的最大数量")
+        offset = serializers.IntegerField(label="偏移量", required=False, default=0, help_text="分页偏移量")
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        """执行告警关联调用链查询请求。
+
+        :param validated_request_data: 验证后的请求参数
+        :return: 包含查询配置和调用链列表的响应数据
+        """
+        # TODO: 实现真实的调用链查询逻辑
+        # 当前返回 mock 数据用于前端联调
+        return {
+            "query_config": {
+                "app_name": "tilapia",
+                "sceneMode": "span",
+                "where": [
+                    {
+                        "key": "resource.service.name",
+                        "operator": "equal",
+                        "value": ["example.greeter"],
+                    }
+                ],
+            },
+            "list": [
+                {
+                    "app_name": "tilapia",
+                    "trace_id": "84608839c9c45c074d5b0edf96d3ed0f",
+                    "root_service": "example.greeter",
+                    "root_span_name": "trpc.example.greeter.http/timeout",
+                    "root_service_span_name": "/timeout",
+                    "error_msg": "http client transport RoundTrip timeout: Get http://trpc-otlp-oteam-demo-service:8080/timeout: context deadline exceeded, cost:2.000525304s",
+                }
+            ],
+        }

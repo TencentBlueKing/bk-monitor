@@ -100,6 +100,7 @@ class FailureType:
     CALLBACK_ERROR = "callback_failure"
     USER_ABORT = "user_abort"
     SYSTEM_ABORT = "system_abort"
+    BLOCKED = "blocked"
 
 
 FAILURE_TYPE_CHOICES = (
@@ -110,6 +111,8 @@ FAILURE_TYPE_CHOICES = (
     (FailureType.CREATE_ERROR, _lazy("任务创建失败")),
     (FailureType.CALLBACK_ERROR, _lazy("任务回调失败")),
     (FailureType.USER_ABORT, _lazy("用户终止流程")),
+    (FailureType.SYSTEM_ABORT, _lazy("系统终止流程")),
+    (FailureType.BLOCKED, _lazy("被熔断")),
 )
 
 HIDDEN_CONVERGE_FUNCTION_CHOICES = [(function, desc) for function, desc in HIDDEN_CONVERGE_FUNCTION.items()]
@@ -584,7 +587,7 @@ class ActionStatus:
 
     CAN_EXECUTE_STATUS = [RECEIVED, CONVERGED, RUNNING, RETRYING]
 
-    IGNORE_STATUS = {RUNNING, SLEEP, SKIPPED, SHIELD, BLOCKED}
+    IGNORE_STATUS = {RUNNING, SLEEP, SKIPPED, SHIELD}
 
     CAN_SYNC_STATUS = [
         WAITING,
@@ -867,3 +870,9 @@ class ActionNoticeType:
     NORMAL = "normal"
     UNSHILEDED = "unshielded"
     UPGRADE = "upgrade"
+
+
+# 告警组语音通知模式
+class VoiceNoticeMode:
+    SERIAL = "serial"
+    PARALLEL = "parallel"

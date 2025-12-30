@@ -933,12 +933,12 @@ export const parseTableRowData = (
     }
 
     if (fieldType === 'date' && /^\d+$/.test(formatData)) {
-      formatValue = formatDate(Number(formatData)) || data || emptyCharacter;
+      formatValue = formatDate(Number(formatData), false) || data || emptyCharacter;
     }
 
     // 处理纳秒精度的UTC时间格式
     if (fieldType === 'date_nanos') {
-      formatValue = formatDateNanos(formatData) || emptyCharacter;
+      formatValue = formatDateNanos(formatData, false) || emptyCharacter;
     }
 
     if (isMark) {
