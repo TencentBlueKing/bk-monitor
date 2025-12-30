@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, type PropType } from 'vue';
+import { defineComponent, ref, type PropType, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -84,6 +84,14 @@ export default defineComponent({
     expose({
       validate,
     });
+
+    watch(
+      () => props.excludeFiles,
+      (val: { value: string }[]) => {
+        isBlacklist.value = val.length > 0 && val.some(item => item.value.trim() !== '');
+      },
+      { immediate: true },
+    );
 
     return () => (
       <div class='log-path-config-main'>
