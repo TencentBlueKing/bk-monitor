@@ -141,7 +141,9 @@ class IncidentOperationManager:
     def _record_notice_without_trigger(
         cls, incident_id: int, operate_time: int, receivers: list[str]
     ) -> IncidentOperationDocument:
-        """记录故障通知（不触发通知发送）
+        """记录通知发送流水（不触发通知发送，仅记录）
+
+        使用 SEND_MESSAGE 类型，该类型为内部操作类型，不在故障流转记录查询中展示
 
         :param incident_id: 故障ID
         :param operate_time: 流转生成时间
@@ -154,7 +156,7 @@ class IncidentOperationManager:
                 IncidentOperationDocument(
                     incident_id=incident_id,
                     operator=operator,
-                    operation_type=IncidentOperationType.NOTICE.value,
+                    operation_type=IncidentOperationType.SEND_MESSAGE.value,
                     create_time=operate_time,
                     extra_info={"receivers": receivers},
                 )
@@ -272,9 +274,9 @@ class IncidentOperationManager:
         origin_created_at = merge_info.get("origin_created_at")
         target_created_at = merge_info.get("target_created_at")
 
-        if not all([origin_incident_id, target_incident_id]):
+        if not all([origin_incident_id, target_incident_id]) or origin_incident_id == target_incident_id:
             logger.warning(
-                f"Missing required merge info: origin_incident_id={origin_incident_id}, target_incident_id={target_incident_id}"
+                f"Invalid merge info: origin_incident_id={origin_incident_id}, target_incident_id={target_incident_id}"
             )
             return False
 
