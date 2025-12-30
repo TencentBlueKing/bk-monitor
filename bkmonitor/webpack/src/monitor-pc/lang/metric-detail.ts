@@ -88,7 +88,6 @@ export default {
   是否常用: 'Mark as Frequently Used?',
   暂无自定义分组: 'No Custom Groups Yet',
   常用维度: 'Frequently Used Dimensions',
-  添加至分组: 'Add to Group',
   编辑分组: 'Edit Group',
   '已有规则，请先预览': 'Existing rules. Please preview first.',
   '匹配规则已变更，请重新预览。': 'Matching rules have been updated. Please re-preview.',

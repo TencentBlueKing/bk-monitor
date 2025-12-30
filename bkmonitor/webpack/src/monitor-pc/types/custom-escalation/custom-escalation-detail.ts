@@ -27,8 +27,8 @@
 export interface IDetailData {
   access_token: string;
   auto_discover?: boolean;
-  bk_biz_id?: string;
-  bk_data_id: string;
+  bk_biz_id?: number;
+  bk_data_id: number;
   bk_event_group_id?: string;
   data_label?: string;
   desc?: string;
@@ -36,13 +36,13 @@ export interface IDetailData {
   is_platform?: boolean;
   is_readonly?: boolean;
   last_time?: number | string;
-  metric_json?: any[];
+  // metric_json?: any[];
   name: string;
   protocol?: string;
   scenario: string;
   scenario_display: string[];
   table_id?: string;
-  time_series_group_id?: string;
+  time_series_group_id?: number;
 }
 
 export interface IEditParams {
