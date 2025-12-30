@@ -237,6 +237,7 @@ GrayUnifyQueryDataSources = [
     (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
     (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
+    (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
 ]
 
 # V3链路版本
