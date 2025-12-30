@@ -20,10 +20,11 @@ from urllib.parse import urljoin
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 from bkcrypto.utils.convertors import Base64Convertor
-from bkmonitor.utils.i18n import TranslateDict
 from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
 from django.utils.translation import gettext_lazy as _
+
+from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
 from .tools.elasticsearch import get_es7_settings
@@ -1708,6 +1709,7 @@ if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
     AI_BKREPO_PROJECT = os.getenv("BKAPP_AI_BKREPO_PROJECT")
 
     # Django 4.2+ 使用 STORAGES 配置替代 DEFAULT_FILE_STORAGE 和 STATICFILES_STORAGE
+    # 注意：Django 4.2+ 中 STORAGES 和 DEFAULT_FILE_STORAGE 是互斥的，不能同时配置
     STORAGES = {
         "default": {
             "BACKEND": "bkstorages.backends.bkrepo.BKRepoStorage",
@@ -1716,8 +1718,6 @@ if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
         },
     }
-    # 保留旧配置以兼容性（Django 4.2 会发出弃用警告）
-    DEFAULT_FILE_STORAGE = "bkstorages.backends.bkrepo.BKRepoStorage"
 
 # 告警图表渲染模式
 ALARM_GRAPH_RENDER_MODE = os.getenv("BKAPP_ALARM_GRAPH_RENDER_MODE", "image_exporter")
