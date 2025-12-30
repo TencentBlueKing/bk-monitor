@@ -434,7 +434,7 @@ export const formatExcludeFiles = excludeFiles => {
     return [];
   }
 
-  let resultArr = [];
+  const resultArr = [];
   // 2. 遍历数组，区分「对象项」和「字符串项」
   excludeFiles.forEach(item => {
     // 情况A：元素是对象，且包含value属性 → 提取value
