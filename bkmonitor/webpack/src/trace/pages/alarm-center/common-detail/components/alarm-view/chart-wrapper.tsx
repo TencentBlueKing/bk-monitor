@@ -42,6 +42,23 @@ import type { LegendOptions } from '@/plugins/typings';
 
 import './chart-wrapper.scss';
 
+/** 算法类型常量 */
+const ALGORITHM_TYPES = {
+  INTELLIGENT_DETECT: 'IntelligentDetect',
+  ABNORMAL_CLUSTER: 'AbnormalCluster',
+  TIME_SERIES_FORECASTING: 'TimeSeriesForecasting',
+} as const;
+
+/** 图表颜色常量 */
+const CHART_COLORS = {
+  ANOMALY: '#E71818',
+  FATAL_ALARM: '#e64545',
+  TRIGGER_PHASE: '#DCDEE5',
+  FATAL_PERIOD: '#F8B4B4',
+  TRIGGER_PHASE_BG: 'rgba(155, 168, 194, 0.12)',
+  FATAL_PERIOD_BG: 'rgba(234, 54, 54, 0.12)',
+} as const;
+
 export default defineComponent({
   name: 'ChartWrapper',
   props: {
@@ -52,40 +69,14 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    /** 图表划选后的时间范围 */
+    const dataZoomTimeRange = shallowRef(null);
+    provide('timeRange', dataZoomTimeRange);
 
-    /* 是否为主机智能场景检测视图 */
+    /** 是否为主机智能场景检测视图 */
     const isHostAnomalyDetection = computed(() => {
       return props.detail?.extra_info?.strategy?.items?.[0]?.algorithms?.[0].type === MetricType.HostAnomalyDetection;
     });
-
-    const getShowSourceLogData = computed(() => {
-      const sourceTypeLabels = [
-        { sourceLabel: 'bk_log_search', typeLabel: 'time_series' },
-        { sourceLabel: 'custom', typeLabel: 'event' },
-        { sourceLabel: 'bk_monitor', typeLabel: 'event' },
-        { sourceLabel: 'bk_log_search', typeLabel: 'log' },
-        { sourceLabel: 'bk_monitor', typeLabel: 'log' },
-      ];
-      if (props.detail.extra_info?.strategy) {
-        const { strategy } = props.detail.extra_info;
-        const sourceLabel = strategy.items?.[0]?.query_configs?.[0]?.data_source_label;
-        const typeLabel = strategy.items?.[0]?.query_configs?.[0]?.data_type_label;
-        return sourceTypeLabels.some(item => sourceLabel === item.sourceLabel && typeLabel === item.typeLabel);
-      }
-      return false;
-    });
-
-    const displayDetectionRulesConfig = item => {
-      const { config } = item;
-      if (item.type === 'IntelligentDetect' && !config.anomaly_detect_direct) config.anomaly_detect_direct = 'all';
-      const isArray = typeTools.isArray(config);
-      if (isArray) return item;
-      Object.keys(config).forEach(key => {
-        const value = config[key];
-        if (value === null) config[key] = '';
-      });
-      return item;
-    };
 
     const detectionConfig = computed<IDetectionConfig>(() => {
       const strategy = props.detail.extra_info?.strategy;
@@ -93,6 +84,7 @@ export default defineComponent({
       if (!algorithms?.length) return null;
       const result = {
         unit: algorithms[0].unit_prefix,
+        // @ts-expect-error
         unitType: strategy.items?.[0]?.query_configs?.[0]?.unit || '',
         unitList: [],
         connector: strategy.detects?.[0]?.connector as 'and' | 'or',
@@ -103,26 +95,17 @@ export default defineComponent({
     });
 
     /** 是否含有智能检测算法 */
-    const hasAIOpsDetection = computed(() => {
-      return (
-        detectionConfig.value?.data?.some?.(item => item.type === 'IntelligentDetect') &&
+    const hasAIOpsDetection = computed(
+      () =>
+        hasAlgorithmType(ALGORITHM_TYPES.INTELLIGENT_DETECT) &&
         detectionConfig.value?.query_configs?.[0]?.intelligent_detect?.result_table_id
-      );
-    });
+    );
 
     /** 是否含有离群检测算法 */
-    const hasOutlierDetection = computed(() => {
-      return detectionConfig.value?.data?.some?.(item => item.type === 'AbnormalCluster');
-    });
+    const hasOutlierDetection = computed(() => hasAlgorithmType(ALGORITHM_TYPES.ABNORMAL_CLUSTER));
 
     /** 是否含有时序预测算法 */
-    const hasTimeSeriesForecasting = computed(() => {
-      return detectionConfig.value?.data?.some?.(item => item.type === 'TimeSeriesForecasting');
-    });
-
-    const showRestore = shallowRef(false);
-    const dataZoomTimeRange = shallowRef(null);
-    provide('timeRange', dataZoomTimeRange);
+    const hasTimeSeriesForecasting = computed(() => hasAlgorithmType(ALGORITHM_TYPES.TIME_SERIES_FORECASTING));
 
     const monitorChartPanel = computed(() => {
       const { graph_panel } = props.detail;
@@ -159,39 +142,6 @@ export default defineComponent({
       });
     });
 
-    const handleBuildLegend = (name, compareData = {}) => {
-      if (!name) return name;
-      let alias = name;
-      Object.keys(compareData).forEach(key => {
-        const val = compareData[key] || {};
-        if (key === 'time_offset') {
-          if (val && alias.match(/\$time_offset/g)) {
-            const timeMatch = val.match(/(-?\d+)(\w+)/);
-            const hasMatch = timeMatch && timeMatch.length > 2;
-            alias = alias.replace(
-              /\$time_offset/g,
-              hasMatch
-                ? dayjs.tz().add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
-                : val.replace('current', t('当前'))
-            );
-          }
-        } else if (typeof val === 'object') {
-          Object.keys(val)
-            .sort((a, b) => b.length - a.length)
-            .forEach(valKey => {
-              const variate = `$${key}_${valKey}`;
-              alias = alias.replace(new RegExp(`\\${variate}`, 'g'), val[valKey]);
-            });
-        } else {
-          alias = alias.replace(`$${key}`, val);
-        }
-      });
-      while (/\|\s*\|/g.test(alias)) {
-        alias = alias.replace(/\|\s*\|/g, '|');
-      }
-      return alias.replace(/\|$/g, '');
-    };
-
     const legendOptions = computed<LegendOptions>(() => ({
       disabledLegendClick: [t('异常'), t('致命告警产生'), t('告警触发阶段'), t('致命告警时段')],
       legendIconMap: {
@@ -202,18 +152,93 @@ export default defineComponent({
       },
     }));
 
-    /** 格式化数据 */
+    /**
+     * @description 检查是否包含指定类型的算法
+     * @param {string} type 算法类型
+     * @returns 是否包含该类型算法
+     */
+    const hasAlgorithmType = (type: string) => detectionConfig.value?.data?.some?.(item => item.type === type);
+
+    /**
+     * @description 处理检测规则配置，对配置项进行标准化处理
+     * @param item 检测算法配置项
+     * @returns 处理后的配置项
+     */
+    const displayDetectionRulesConfig = item => {
+      const { config } = item;
+      if (item.type === ALGORITHM_TYPES.INTELLIGENT_DETECT && !config.anomaly_detect_direct) {
+        config.anomaly_detect_direct = 'all';
+      }
+      if (typeTools.isArray(config)) return item;
+
+      for (const key of Object.keys(config)) {
+        if (config[key] === null) config[key] = '';
+      }
+      return item;
+    };
+
+    /**
+     * @description 格式化系列别名
+     * @param {string} name 原始系列名称(可能存在占位变量，如：$time_offset)
+     * @param {Record<string, any>} compareData 替换数据源
+     * @returns 格式化后的系列名称
+     */
+    const formatSeriesAlias = (name: string, compareData: Record<string, any> = {}) => {
+      if (!name) return name;
+      let alias = name;
+
+      for (const [key, val] of Object.entries(compareData)) {
+        if (!val) continue;
+
+        if (key === 'time_offset' && alias.includes('$time_offset')) {
+          const timeMatch = val.match(/(-?\d+)(\w+)/);
+          const replacement =
+            timeMatch?.length > 2
+              ? dayjs.tz().add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
+              : val.replace('current', t('当前'));
+          alias = alias.replaceAll('$time_offset', replacement);
+        } else if (typeof val === 'object') {
+          for (const valKey of Object.keys(val).sort((a, b) => b.length - a.length)) {
+            alias = alias.replaceAll(`$${key}_${valKey}`, val[valKey]);
+          }
+        } else {
+          alias = alias.replaceAll(`$${key}`, val);
+        }
+      }
+
+      return alias.replace(/(\|\s*)+\|/g, '|').replace(/\|$/g, '');
+    };
+
+    /**
+     * @description 格式化图表数据，添加异常点、告警标记等辅助系列
+     * @param data - 原始图表数据
+     * @returns 包含异常标记、告警阶段等辅助系列的完整图表数据
+     */
     const formatterData = data => {
       const { graph_panel } = props.detail;
       const [{ alias }] = graph_panel.targets;
 
       const series = data.series.map(s => ({
         ...s,
-        alias: handleBuildLegend(alias, { ...s, tag: s.dimensions }) || s.alias,
+        alias: formatSeriesAlias(alias, { ...s, tag: s.dimensions }) || s.alias,
       }));
 
       const datapoints = series[0]?.datapoints;
       const max = datapoints?.reduce((prev, cur) => Math.max(prev, cur[0]), 0);
+      const emptyDatapoints = datapoints?.map(item => [null, item[1]]) || [];
+      const beginTimeStr = String(props.detail.begin_time * 1000);
+      const firstAnomalyTimeStr = String(props.detail.first_anomaly_time * 1000);
+      const endTimeStr = String(
+        props.detail.end_time ? props.detail.end_time * 1000 : datapoints[datapoints.length - 1][1]
+      );
+
+      /** 创建标记区域配置 */
+      const createMarkArea = (startTime: string, endTime: string, color: string) => ({
+        silent: true,
+        itemStyle: { color },
+        data: [[{ xAxis: startTime }, { xAxis: endTime }]],
+      });
+
       return {
         ...data,
         series: [
@@ -221,31 +246,21 @@ export default defineComponent({
           {
             type: 'scatter',
             datapoints: datapoints.map(item => {
-              const value = props.detail?.anomaly_timestamps.includes(Number(String(item[1]).slice(0, -3)))
-                ? item[0]
-                : null;
-              return [value, item[1]];
+              const isAnomaly = props.detail.anomaly_timestamps.includes(Number(String(item[1]).slice(0, -3)));
+              return [isAnomaly ? item[0] : null, item[1]];
             }),
             alias: t('异常'),
             symbolSize: 5,
-            color: '#E71818',
-            itemStyle: {
-              color: '#E71818',
-            },
-            tooltip: {
-              show: false,
-            },
+            color: CHART_COLORS.ANOMALY,
+            itemStyle: { color: CHART_COLORS.ANOMALY },
+            tooltip: { show: false },
           },
           {
             type: 'line',
             alias: t('致命告警产生'),
-            tooltip: {
-              show: false,
-            },
-            color: '#e64545',
-            lineStyle: {
-              opacity: 0,
-            },
+            tooltip: { show: false },
+            color: CHART_COLORS.FATAL_ALARM,
+            lineStyle: { opacity: 0 },
             yAxisIndex: 1,
             markPoint: {
               symbol: 'circle',
@@ -254,101 +269,59 @@ export default defineComponent({
                 show: true,
                 position: 'top',
                 formatter: '\ue606',
-                color: '#e64545',
+                color: CHART_COLORS.FATAL_ALARM,
                 fontSize: 18,
                 fontFamily: 'icon-monitor',
               },
-              data: [
-                {
-                  coord: [String(props.detail.begin_time * 1000), max === 0 ? 1 : max],
-                },
-              ],
+              data: [{ coord: [beginTimeStr, max === 0 ? 1 : max] }],
             },
             datapoints,
           },
           {
             type: 'line',
             alias: t('告警触发阶段'),
-            tooltip: {
-              show: false,
-            },
-            datapoints: datapoints.map(item => [null, item[1]]) || [],
-            color: '#DCDEE5',
-            markArea: {
-              silent: true,
-              itemStyle: {
-                color: 'rgba(155, 168, 194, 0.12)',
-              },
-              data: [
-                [
-                  {
-                    xAxis: String(props.detail?.first_anomaly_time * 1000),
-                  },
-                  {
-                    xAxis: String(props.detail?.begin_time * 1000),
-                  },
-                ],
-              ],
-            },
+            tooltip: { show: false },
+            datapoints: emptyDatapoints,
+            color: CHART_COLORS.TRIGGER_PHASE,
+            markArea: createMarkArea(firstAnomalyTimeStr, beginTimeStr, CHART_COLORS.TRIGGER_PHASE_BG),
           },
           {
             type: 'line',
             alias: t('致命告警时段'),
-            tooltip: {
-              show: false,
-            },
-            datapoints: datapoints.map(item => [null, item[1]]) || [],
-            color: '#F8B4B4',
-            markArea: {
-              silent: true,
-              itemStyle: {
-                color: 'rgba(234, 54, 54, 0.12)',
-              },
-              data: [
-                [
-                  {
-                    xAxis: String(props.detail?.begin_time * 1000),
-                  },
-                  {
-                    xAxis: String(
-                      props.detail?.end_time ? props.detail?.end_time * 1000 : datapoints[datapoints.length - 1][1]
-                    ),
-                  },
-                ],
-              ],
-            },
+            tooltip: { show: false },
+            datapoints: emptyDatapoints,
+            color: CHART_COLORS.FATAL_PERIOD,
+            markArea: createMarkArea(beginTimeStr, endTimeStr, CHART_COLORS.FATAL_PERIOD_BG),
             z: 1,
           },
         ],
       };
     };
 
-    /** 格式化请求参数 */
-    const formatterParams = params => {
-      /** 没有框选不进行时间范围过滤 */
-      if (!dataZoomTimeRange.value) {
-        delete params.start_time;
-        delete params.end_time;
-      }
-      return params;
-    };
-
-    const handleDataZoomChange = (val: any[]) => {
+    /**
+     * @description 处理图表框选缩放事件
+     * @param {[number, number]} val - 框选的时间范围
+     */
+    const handleDataZoomChange = (val: [number, number]) => {
       dataZoomTimeRange.value = val;
-      showRestore.value = true;
     };
 
+    /**
+     * @description 处理图表复位按钮点击回调事件
+     */
     const handleRestore = () => {
-      showRestore.value = false;
       dataZoomTimeRange.value = null;
     };
 
-    // 事件及日志来源告警视图
+    /**
+     * @description 根据告警类型获取对应的图表组件
+     * @returns 对应的图表组件 JSX
+     */
     const getSeriesViewComponent = () => {
       if (isHostAnomalyDetection.value) {
         return <IntelligenceScene detail={props.detail} />;
       }
-      // /** 智能检测算法图表 */
+      // 智能检测算法图表
       if (hasAIOpsDetection.value)
         return (
           <AiopsCharts
@@ -356,7 +329,7 @@ export default defineComponent({
             detectionConfig={detectionConfig.value}
           />
         );
-      // /** 时序预测图表 */
+      // 时序预测图表
       if (hasTimeSeriesForecasting.value)
         return (
           <TimeSeriesForecastingChart
@@ -368,13 +341,18 @@ export default defineComponent({
       return (
         <div class='series-view-container'>
           <MonitorCharts
-            formatterOptions={{
-              seriesData: formatterData,
-              params: formatterParams,
-            }}
+            params={
+              !dataZoomTimeRange.value
+                ? {
+                    start_time: undefined,
+                    end_time: undefined,
+                  }
+                : {}
+            }
+            formatterData={formatterData}
             legendOptions={legendOptions.value}
             panel={monitorChartPanel.value}
-            showRestore={showRestore.value}
+            showRestore={dataZoomTimeRange.value}
             onDataZoomChange={handleDataZoomChange}
             onRestore={handleRestore}
           />
@@ -384,7 +362,6 @@ export default defineComponent({
 
     return {
       monitorChartPanel,
-      getShowSourceLogData,
       getSeriesViewComponent,
     };
   },

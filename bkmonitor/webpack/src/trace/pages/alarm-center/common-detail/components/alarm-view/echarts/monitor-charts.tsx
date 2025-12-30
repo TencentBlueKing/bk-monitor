@@ -41,11 +41,6 @@ import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './monitor-charts.scss';
 
-export interface FormatterOptions {
-  params?: (params: any) => any;
-  seriesData?: (data: any) => any;
-}
-
 export default defineComponent({
   name: 'MonitorCharts',
   props: {
@@ -59,11 +54,11 @@ export default defineComponent({
     },
     legendOptions: {
       type: Object as PropType<LegendOptions>,
-      default: () => ({}),
-    },
-    formatterOptions: {
-      type: Object as PropType<FormatterOptions>,
       default: () => ({ disabledLegendClick: [], legendIconMap: {} }),
+    },
+    formatterData: {
+      type: Function as PropType<(val) => any>,
+      default: res => res,
     },
     params: {
       type: Object as PropType<Record<string, any>>,
@@ -87,7 +82,7 @@ export default defineComponent({
       chartRef,
       instance.appContext.config.globalProperties.$api,
       params,
-      props.formatterOptions
+      props.formatterData
     );
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
