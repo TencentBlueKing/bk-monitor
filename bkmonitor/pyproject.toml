@@ -21,7 +21,7 @@ dependencies = [
     "confluent-kafka==2.4.0",
     "dill==0.3.7",
     "django==4.2.27",
-    "django-celery-beat==2.8.1",
+    "django-celery-beat==2.5.0",
     "django-celery-results==2.6.0",
     "django-cors-headers==4.9.0",
     "django-db-connection-pool==1.2.5",
