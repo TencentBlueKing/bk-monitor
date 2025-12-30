@@ -1456,6 +1456,9 @@ MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}
 
+# 默认MCP APP_CODE
+AIDEV_AGENT_MCP_REQUEST_AGENT_CODE = "bkmonitor-mcp"
+
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True
 
