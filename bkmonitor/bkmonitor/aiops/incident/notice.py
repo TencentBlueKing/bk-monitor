@@ -164,7 +164,7 @@ class IncidentNoticeHelper:
         :return: 故障详情URL
         """
         # 构建故障详情页面URL
-        site_url = settings.SITE_URL.rstrip("/")
+        site_url = settings.BK_MONITOR_HOST.rstrip("/")
         return f"{site_url}/?bizId={incident.bk_biz_id}#/trace/incident/detail/{incident.id}"
 
     @classmethod
