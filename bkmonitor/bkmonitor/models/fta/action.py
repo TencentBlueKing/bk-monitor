@@ -669,12 +669,45 @@ class ActionInstance(AbstractRecordModel):
                 args = retry_param.get("args", ())
                 kwargs = retry_param.get("kwargs", {})
 
-                # 统一使用 import_module + getattr 处理所有 API 调用
-                api_module = import_module(api_module_path)
-                func = getattr(api_module, resource_name)
-                if inspect.isclass(func):
-                    func = func()
-                ret = func(*args, **kwargs)
+                # 核心逻辑：动态导入模块，获取类或方法，然后调用
+                ret = None
+
+                # 方式1：尝试将 api_module_path 作为完整模块路径导入
+                # 例如：api_module_path="api.cmsi.default", resource_name="SendVoice"
+                try:
+                    api_module = import_module(api_module_path)
+                    resource = getattr(api_module, resource_name, None)
+                    if resource is not None:
+                        # 如果是类，实例化后调用；如果是函数，直接调用
+                        if inspect.isclass(resource):
+                            ret = resource()(*args, **kwargs)
+                        else:
+                            ret = resource(*args, **kwargs)
+                except ImportError:
+                    # 导入失败，尝试方式2
+                    pass
+
+                # 方式2：如果方式1失败，尝试将最后一个点号后的部分作为类名
+                # 例如：api_module_path="bkmonitor.utils.send.Sender", resource_name="send_wxwork_layouts"
+                if ret is None and "." in api_module_path:
+                    try:
+                        module_path, class_name = api_module_path.rsplit(".", 1)
+                        api_module = import_module(module_path)
+                        api_class = getattr(api_module, class_name, None)
+                        if api_class and inspect.isclass(api_class):
+                            func = getattr(api_class, resource_name, None)
+                            if func is not None:
+                                # 尝试直接通过类调用（类方法/静态方法）
+                                try:
+                                    ret = func(*args, **kwargs)
+                                except TypeError:
+                                    # 如果是实例方法，需要先实例化
+                                    ret = getattr(api_class(), resource_name)(*args, **kwargs)
+                    except (ImportError, AttributeError, TypeError):
+                        pass
+
+                if ret is None:
+                    raise ImportError(f"Cannot import module or class: {api_module_path}")
 
                 logger.info(
                     f"[replay blocked notice] action({self.id}) strategy({self.strategy_id}) "
