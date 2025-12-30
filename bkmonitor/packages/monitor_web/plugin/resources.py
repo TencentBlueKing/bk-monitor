@@ -865,11 +865,10 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
         # 避免节点管理存在，数据库不存在时报错
         if self.current_version:
             # 判断插件id是否在table_id，不在的话，抛错提示
-            tables = PluginDataAccessor(self.current_version, operator=operator).tables_info
+            tables = PluginDataAccessor(self.current_version, operator=operator).contrast_rt()[1]
             # 避免插件id大写引起的问题
             if self.create_params["plugin_id"].lower() not in list(tables.keys())[0]:
                 raise ExportImportError({"msg": "导入插件id与table_id不一致"})
-
         if self.create_params["logo"]:
             self.create_params["logo"] = ",".join(["data:image/png;base64", self.create_params["logo"].decode("utf8")])
         self.create_params["signature"] = self.create_params["signature"].decode("utf8")
