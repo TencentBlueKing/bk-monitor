@@ -26,11 +26,11 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum
 from apps.iam.handlers.drf import ViewBusinessPermission, BusinessActionPermission
-from apps.tgpa.constants import FEATURE_TOGGLE_TGPA_TASK, TGPAReportSyncStatusEnum
+from apps.tgpa.constants import FEATURE_TOGGLE_TGPA_TASK
 from apps.tgpa.handlers.base import TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
-from apps.tgpa.models import TGPAReportSyncRecord, TGPAReport
+from apps.tgpa.models import TGPAReportSyncRecord
 from apps.tgpa.serializers import (
     CreateTGPATaskSerializer,
     GetTGPATaskListSerializer,
@@ -44,7 +44,7 @@ from apps.tgpa.serializers import (
     RetrieveSyncRecordSerializer,
     GetCountInfoSerializer,
 )
-from apps.tgpa.tasks import process_single_report
+from apps.tgpa.tasks import fetch_and_process_tgpa_reports
 from bkm_search_module.constants import list_route
 
 
@@ -142,26 +142,16 @@ class TGPAReportViewSet(APIViewSet):
         """
         params = self.params_valid(SyncReportSerializer)
         bk_biz_id = params["bk_biz_id"]
-
         if not FeatureToggleObject.switch(FEATURE_TOGGLE_TGPA_TASK, bk_biz_id):
             return Response({"record_id": None})
 
-        report_list = TGPAReportHandler.iter_report_list(
-            bk_biz_id=bk_biz_id,
-            openid_list=params.get("openid_list"),
-            file_name_list=params.get("file_name_list"),
-            start_time=params.get("start_time"),
-            end_time=params.get("end_time"),
-        )
         sync_record_obj = TGPAReportSyncRecord.objects.create(
             bk_biz_id=bk_biz_id,
             openid_list=params.get("openid_list"),
             file_name_list=params.get("file_name_list"),
             created_by=request.user.username,
         )
-
-        for report_info in report_list:
-            process_single_report.delay(report_info, sync_record_obj.id)
+        fetch_and_process_tgpa_reports.delay(sync_record_obj.id, params)
 
         return Response({"record_id": sync_record_obj.id})
 
@@ -195,23 +185,9 @@ class TGPAReportViewSet(APIViewSet):
         获取同步记录信息
         """
         params = self.params_valid(RetrieveSyncRecordSerializer)
-        record_obj = TGPAReportSyncRecord.objects.filter(id=params["record_id"]).get()
-        status_set = {report.process_status for report in TGPAReport.objects.filter(record_id=params["record_id"])}
-        if TGPAReportSyncStatusEnum.PENDING.value in status_set:
-            record_obj.status = TGPAReportSyncStatusEnum.RUNNING.value
-        elif TGPAReportSyncStatusEnum.RUNNING.value in status_set:
-            record_obj.status = TGPAReportSyncStatusEnum.RUNNING.value
-        elif TGPAReportSyncStatusEnum.FAILED.value in status_set:
-            record_obj.status = TGPAReportSyncStatusEnum.FAILED.value
-        else:
-            record_obj.status = TGPAReportSyncStatusEnum.SUCCESS.value
-        record_obj.save()
-
-        return Response(
-            {
-                "id": record_obj.id,
-                "status": record_obj.status,
-                "openid_list": record_obj.openid_list,
-                "file_name_list": record_obj.file_name_list,
-            }
+        record_info = (
+            TGPAReportSyncRecord.objects.filter(id=params["record_id"])
+            .values("id", "status", "openid_list", "file_name_list")
+            .get()
         )
+        return Response(record_info)

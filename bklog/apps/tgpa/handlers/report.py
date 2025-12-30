@@ -32,9 +32,10 @@ from apps.tgpa.constants import (
     TGPA_BASE_DIR,
     TGPA_REPORT_LIST_BATCH_SIZE,
     TGPAReportSyncStatusEnum,
+    TGPATaskProcessStatusEnum,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler
-from apps.tgpa.models import TGPAReport
+from apps.tgpa.models import TGPAReport, TGPAReportSyncRecord
 from apps.utils.thread import MultiExecuteFunc
 
 
@@ -295,13 +296,36 @@ class TGPAReportHandler:
     @classmethod
     def get_file_status(cls, file_name_list):
         """
-        获取文件状态
+        获取文件处理状态
         """
         reports = TGPAReport.objects.filter(file_name__in=file_name_list)
-        status_map = {report.file_name: report.process_status for report in reports}
-        result = []
-        for file_name in file_name_list:
-            result.append(
-                {"file_name": file_name, "status": status_map.get(file_name, TGPAReportSyncStatusEnum.PENDING.value)}
-            )
-        return result
+
+        status_map = {}
+        for report in reports:
+            if report.file_name not in status_map:
+                status_map[report.file_name] = report.process_status
+
+        return [
+            {"file_name": file_name, "status": status_map.get(file_name, TGPAReportSyncStatusEnum.PENDING.value)}
+            for file_name in file_name_list
+        ]
+
+    @classmethod
+    def update_process_status(cls, record_id):
+        """
+        更新文件处理状态
+        """
+        record_obj = TGPAReportSyncRecord.objects.get(id=record_id)
+        status_list = TGPAReport.objects.filter(record_id=record_id).values_list("process_status", flat=True).distinct()
+        status_set = set(status_list)
+
+        if TGPATaskProcessStatusEnum.PENDING.value in status_set:
+            record_obj.status = TGPAReportSyncStatusEnum.RUNNING.value
+        elif TGPATaskProcessStatusEnum.RUNNING.value in status_set:
+            record_obj.status = TGPAReportSyncStatusEnum.RUNNING.value
+        elif TGPATaskProcessStatusEnum.FAILED.value in status_set:
+            record_obj.status = TGPAReportSyncStatusEnum.FAILED.value
+        else:
+            record_obj.status = TGPAReportSyncStatusEnum.SUCCESS.value
+
+        record_obj.save(update_fields=["status"])
