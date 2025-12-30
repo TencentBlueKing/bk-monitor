@@ -275,7 +275,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       return '--';
     }
     if (item.type === 'date') {
-      return dayjs(Number(item.value)).format('YYYY-MM-DD HH:mm:ss');
+      return dayjs(Number(item.value)).format('YYYY-MM-DD HH:mm:ssZZ');
     }
     return value;
   }

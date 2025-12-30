@@ -445,7 +445,7 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
  * @param {Number | String | Date} val
  * @return {String}
  */
-export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
+export function formatDate(val, isTimzone = false, formatMilliseconds = false) {
   try {
     const date = new Date(val);
     if (isNaN(date.getTime())) {
@@ -495,10 +495,10 @@ export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
 /**
  * 将ISO 8601格式 2024-04-09T13:02:11.502064896Z 转换成 普通日期格式 2024-04-09 13:02:11.502064896
  */
-export function formatDateNanos(val) {
+export function formatDateNanos(val, isTimzone = true) {
   const strVal = `${val}`;
   if (/^\d+$/.test(strVal)) {
-    return formatDate(Number(val), true, `${val}`.length > 10);
+    return formatDate(Number(val), isTimzone, `${val}`.length > 10);
   }
 
   if (/null|undefined/.test(strVal) || strVal === '') {
@@ -519,9 +519,10 @@ export function formatDateNanos(val) {
     nanoseconds = digitsOnly.length > 3 ? digitsOnly.slice(3) : '';
   }
 
-  // 使用dayjs解析字符串到毫秒 包含时区处理
-  const dateTimeToMilliseconds = dayjs(val).tz(window.timezone)
-    .format('YYYY-MM-DD HH:mm:ss.SSS');
+  // 使用dayjs解析字符串到毫秒 包含时区处理 根据 isTimzone 决定是否进行时区转换
+  const dateTimeToMilliseconds = isTimzone
+    ? dayjs(val).tz(window.timezone).format('YYYY-MM-DD HH:mm:ss.SSS')
+    : dayjs(val).format('YYYY-MM-DD HH:mm:ss.SSS');
   // 获取微秒并且判断是否是000，也就是纳秒部分的最后三位
   const nanosecondsNum = nanoseconds ? parseInt(nanoseconds, 10) : 0;
   const microseconds = nanosecondsNum % 1000;
@@ -932,12 +933,12 @@ export const parseTableRowData = (
     }
 
     if (fieldType === 'date' && /^\d+$/.test(formatData)) {
-      formatValue = formatDate(Number(formatData)) || data || emptyCharacter;
+      formatValue = formatDate(Number(formatData), false) || data || emptyCharacter;
     }
 
     // 处理纳秒精度的UTC时间格式
     if (fieldType === 'date_nanos') {
-      formatValue = formatDateNanos(formatData) || emptyCharacter;
+      formatValue = formatDateNanos(formatData, false) || emptyCharacter;
     }
 
     if (isMark) {
@@ -1116,7 +1117,13 @@ export const flatObjTypeFiledKeys = (currentObject = {}, newFlatObj, previousKey
 
 export const TABLE_LOG_FIELDS_SORT_REGULAR = /^[_]{1,2}|[_]{1,2}/g;
 
-export const utcFormatDate = (val) => {
+/**
+ * 格式化时间戳为日期时间格式
+ * @param {Number} val 时间戳
+ * @param {Boolean} formatTimezone 是否格式化时区
+ * @returns {String} 日期时间格式
+ */
+export const utcFormatDate = (val, formatTimezone = false) => {
   const date = new Date(val);
 
   if (isNaN(date.getTime())) {
@@ -1124,7 +1131,7 @@ export const utcFormatDate = (val) => {
     return val;
   }
 
-  return formatDate(date.getTime());
+  return formatDate(date.getTime(), formatTimezone);
 };
 
 // 首次加载设置表格默认宽度自适应

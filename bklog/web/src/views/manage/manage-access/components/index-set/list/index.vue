@@ -149,6 +149,7 @@
         </template>
       </bk-table-column>
       <bk-table-column
+        width="190"
         :label="$t('创建时间')"
         :render-header="$renderHeader"
       >

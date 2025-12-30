@@ -38,15 +38,15 @@ import {
 } from 'vue';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
-import { Exception, Loading, Message, Popover } from 'bkui-vue';
+import { Loading, Message, Popover } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
-import dayjs from 'dayjs';
 import {
   feedbackIncidentRoot,
   incidentAlertList,
   incidentRecordOperation,
   incidentValidateQueryString,
 } from 'monitor-api/modules/incident';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { random } from 'monitor-common/utils/utils.js';
 import { useI18n } from 'vue-i18n';
 
@@ -190,7 +190,6 @@ export default defineComponent({
     const enableCreateChatGroup = deepRef(window.enable_create_chat_group || false);
     const alertIdsData = deepRef(props.alertIdsObject);
     const alarmDetailRef = deepRef(null);
-    const alarmDetailHeight = deepRef(0);
     if (enableCreateChatGroup.value) {
       tableToolList.value.push({
         id: 'chat',
@@ -201,8 +200,8 @@ export default defineComponent({
     const formatterTime = (time: number | string): string => {
       if (!time) return '--';
       if (typeof time !== 'number') return time;
-      if (time.toString().length < 13) return dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ss');
-      return dayjs(time).format('YYYY-MM-DD HH:mm:ss');
+      if (time.toString().length < 13) return formatWithTimezone(time * 1000) as string;
+      return formatWithTimezone(time) as string;
     };
     const handleQuickShield = v => {
       setDialogData(v);
@@ -798,16 +797,30 @@ export default defineComponent({
           // 异常状态赋值
           exceptionData.value.isError = true;
           exceptionData.value.errorMsg = err.message || '';
-        });
+        })
       // const data = await incidentAlertList(Object.assign(params, props.filterSearch));
 
       // const list = alertData.value.find(item => item.alerts.length > 0);
       // collapseId.value = list ? list.id : '';n
     };
-    onMounted(() => {
-      if (alarmDetailRef.value) {
-        alarmDetailHeight.value = alarmDetailRef.value.offsetHeight;
+
+    // 表格最大高度
+    const tableMaxHeight = computed(() => {
+      if (!alarmDetailRef.value) return 0;
+
+      if (alertData.value.length > 1) {
+        const total = alertData.value.filter(f => f.alerts.length > 0).length;
+        // 273px: 固定的静态高度，150px: 每个折叠项的最小高度
+        const staticHeight = 273;
+        const itemHeight = 162;
+        return `calc(100vh - ${staticHeight}px - ${(total - 1) * itemHeight}px)`;
+      } else {
+        // 外层父容器高度
+        return alarmDetailRef.value.offsetHeight - 100;
       }
+    });
+
+    onMounted(() => {
       document.body.addEventListener('click', handleHideMoreOperate);
     });
     onUnmounted(() => {
@@ -850,7 +863,7 @@ export default defineComponent({
 
     watch(
       () => bkzIds.value,
-      (newVal, oldVal) => {
+      (newVal, _oldVal) => {
         // 当 bkzIds 有值并发生变化，且searchValidate为true时，重新请求数据
         if (newVal && newVal.length > 0 && props.searchValidate) {
           handleGetTable();
@@ -898,7 +911,7 @@ export default defineComponent({
       refresh,
       disableKey,
       alarmDetailRef,
-      alarmDetailHeight,
+      tableMaxHeight,
     };
   },
   render() {
@@ -995,10 +1008,10 @@ export default defineComponent({
                         .filter(item => !this.disableKey.includes(item.colKey))
                         .map(item => item.colKey),
                     }}
-                    scroll={{ type: 'virtual' }}
                     columns={this.columns}
                     data={item.alerts}
-                    maxHeight={alertData.length > 1 ? 616 : this.alarmDetailHeight - 100}
+                    maxHeight={this.tableMaxHeight}
+                    scroll={{ type: 'virtual' }}
                     tooltip-config={{ showAll: false }}
                     onRowMouseenter={this.handleEnter}
                     onRowMouseleave={() => {

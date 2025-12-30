@@ -76,7 +76,7 @@ export default defineComponent({
       labels: [],
       enabled: true,
       effective: {
-        startTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+        startTime: dayjs().format('YYYY-MM-DD HH:mm:ssZZ'),
         endTime: '',
       },
     });
@@ -109,7 +109,7 @@ export default defineComponent({
     /** 禁止选择今天以前的日期 */
     function disabledDateFn(v) {
       const time = new Date(v).getTime();
-      const curTime = new Date().getTime() - 24 * 60 * 60 * 1000;
+      const curTime = Date.now() - 24 * 60 * 60 * 1000;
       return time < curTime;
     }
 
@@ -149,8 +149,8 @@ export default defineComponent({
     function resetEffectiveStartTime() {
       if (id.value) {
         // 编辑状态下 且 生效结束时间大于此时此刻（永久）， 将生效起始时间修改为此时此刻
-        if (!formData.effective.endTime || new Date(formData.effective.endTime).getTime() > new Date().getTime()) {
-          formData.effective.startTime = dayjs().format('YYYY-MM-DD HH:mm:ss');
+        if (!formData.effective.endTime || new Date(formData.effective.endTime).getTime() > Date.now()) {
+          formData.effective.startTime = dayjs().format('YYYY-MM-DD HH:mm:ssZZ');
         }
       }
     }
@@ -362,7 +362,7 @@ export default defineComponent({
                 user.value.length && orderIndex.push(user.orderIndex);
               } else {
                 value.forEach(user => {
-                  user.value.forEach((item, ind) => {
+                  user.value.forEach((_item, ind) => {
                     // 自动分组，需要把每个人员的索引加上orderIndex再存入
                     orderIndex.push(user.orderIndex + ind);
                   });

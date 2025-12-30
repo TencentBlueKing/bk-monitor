@@ -79,7 +79,7 @@
           min-width="10"
         >
           <template #default="{ row }">
-            {{ utcFormatDate(row.created_at) }}
+            {{ utcFormatDate(row.created_at, true) }}
           </template>
         </bk-table-column>
         <bk-table-column

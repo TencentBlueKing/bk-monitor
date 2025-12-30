@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import inspect
 import json
 import logging
 import time
@@ -40,6 +41,7 @@ from constants.action import (
     ConvergeType,
     NoticeWay,
     UserGroupType,
+    VoiceNoticeMode,
 )
 from constants.alert import EVENT_SEVERITY, EventSeverity
 from core.errors.api import BKAPIError
@@ -194,7 +196,6 @@ class ActionPlugin(AbstractRecordModel):
         "itsm_v4_api_url": settings.BK_ITSM_V4_API_URL.rstrip("/"),
         "itsm_v4_system_id": settings.BK_ITSM_V4_SYSTEM_ID,
         "incident_saas_site_url": settings.BK_INCIDENT_SAAS_HOST.rstrip("/"),  # 故障分析SaaS URL
-
     }
 
     @staticmethod
@@ -381,6 +382,15 @@ class ActionInstance(AbstractRecordModel):
             if notice_way in exclude_notice_ways:
                 # 当前的通知方式被排除，不创建对应的具体通知
                 continue
+            if notice_way == NoticeWay.VOICE:
+                # 判断通知模式
+                voice_notice_mode = self.inputs.get("voice_notice_mode", VoiceNoticeMode.PARALLEL)
+                if voice_notice_mode == VoiceNoticeMode.SERIAL:
+                    # 串行通知，将通知人员列表的列表 合并为一个通知人员列表 为单个列表(并去重)创建子任务
+                    # [["user1", "user2"], ["user3", "user2"]] -> [["user1", "user2", "user3"]]
+                    combined = [user for sublist in notice_receivers if isinstance(sublist, list) for user in sublist]
+                    notice_receivers = [list(dict.fromkeys(combined))]
+
             for notice_receiver in notice_receivers:
                 if not notice_receiver:
                     continue
@@ -631,6 +641,46 @@ class ActionInstance(AbstractRecordModel):
             queryset = queryset.filter(update_time__gte=end_time)
 
         return queryset.values("action_config_id").annotate(dcount=models.Count("action_config_id")).order_by("dcount")
+
+    def replay_blocked_notice(self):
+        """
+        重新发送被熔断的通知
+
+        :return: 重放结果列表，每个元素包含 success 和 error 信息
+        """
+        retry_params_list = self.ex_data.get("retry_params", [])
+        if not retry_params_list:
+            logger.warning(f"[replay blocked notice] action({self.id}) no retry_params found")
+            return []
+
+        results = []
+        for retry_param in retry_params_list:
+            api_module_path = retry_param["api_module"]
+            resource_name = retry_param["resource"]
+            try:
+                args = retry_param.get("args", ())
+                kwargs = retry_param.get("kwargs", {})
+
+                # 统一使用 import_module + getattr 处理所有 API 调用
+                api_module = import_module(api_module_path)
+                func = getattr(api_module, resource_name)
+                if inspect.isclass(func):
+                    func = func()
+                ret = func(*args, **kwargs)
+
+                logger.info(
+                    f"[replay blocked notice] action({self.id}) strategy({self.strategy_id}) "
+                    f"replay success: {api_module_path}.{resource_name}, result: {ret}"
+                )
+                results.append({"success": True, "result": ret, "api": f"{api_module_path}.{resource_name}"})
+            except Exception as e:
+                logger.exception(
+                    f"[replay blocked notice] action({self.id}) strategy({self.strategy_id}) "
+                    f"replay failed: {api_module_path}.{resource_name}, error: {e}"
+                )
+                results.append({"success": False, "error": str(e), "api": f"{api_module_path}.{resource_name}"})
+
+        return results
 
 
 class ActionInstanceLog(models.Model):
