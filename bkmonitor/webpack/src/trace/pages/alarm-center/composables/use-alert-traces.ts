@@ -24,11 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, shallowRef, watchEffect } from 'vue';
+import { type MaybeRef, reactive, shallowRef, watchEffect } from 'vue';
 
 import { get } from '@vueuse/core';
+import { alertTraces } from 'monitor-api/modules/alert_v2';
 
-import { type ALertTracesData } from '../typings';
+import { ExploreTableLoadingEnum } from '@/pages/trace-explore/components/trace-explore-table/typing';
+
+import type { ALertTracesData } from '../typings';
 
 /**
  * @function useAlertTraces 调用链数据 hook
@@ -40,8 +43,23 @@ export const useAlertTraces = (alertId: MaybeRef<string>) => {
   const traceList = shallowRef([]);
   /** 调用链查询配置 */
   const traceQueryConfig = shallowRef({});
-  /** 数据请求加载状态 */
-  const loading = shallowRef(false);
+  /** table loading 配置 */
+  const tableLoading = reactive({
+    /** table body部分 骨架屏 loading */
+    [ExploreTableLoadingEnum.BODY_SKELETON]: false,
+    /** table header部分 骨架屏 loading */
+    [ExploreTableLoadingEnum.HEADER_SKELETON]: false,
+    /** 表格触底加载更多 loading  */
+    [ExploreTableLoadingEnum.SCROLL]: false,
+  });
+
+  const pagination = reactive({
+    offset: 0,
+    limit: 30,
+  });
+
+  /** 判断当前数据是否需要触底加载更多 */
+  const tableHasMoreData = shallowRef(true);
 
   /**
    * @method getTraceList 请求接口
@@ -49,51 +67,34 @@ export const useAlertTraces = (alertId: MaybeRef<string>) => {
    */
   const getTraceList = async () => {
     if (!get(alertId)) return;
-    loading.value = true;
-    const data = await generationTraceMockData<ALertTracesData>(get(alertId));
-    traceList.value = data.list;
+    if (pagination.offset === 0) {
+      tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = true;
+    } else {
+      tableLoading[ExploreTableLoadingEnum.SCROLL] = true;
+    }
+    const data = await alertTraces<ALertTracesData>({
+      alert_id: get(alertId),
+      offset: pagination.offset,
+      limit: pagination.limit,
+    });
+    if (pagination.offset === 0) {
+      traceList.value = data.list;
+      tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = false;
+    } else {
+      traceList.value = [...traceList.value, ...data.list];
+      tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
+    }
     traceQueryConfig.value = data.query_config;
-    loading.value = false;
+    tableHasMoreData.value = data.list?.length >= pagination.limit;
   };
+
   watchEffect(getTraceList);
 
   return {
     traceList,
     traceQueryConfig,
-    loading,
+    tableLoading,
+    pagination,
+    tableHasMoreData,
   };
-};
-
-const mockData: ALertTracesData = {
-  query_config: {
-    app_name: 'bkop',
-    sceneMode: 'span',
-    where: [
-      {
-        key: 'resource.service.name',
-        operator: 'equal',
-        value: ['example.greeter'],
-      },
-    ],
-  },
-  list: [
-    {
-      app_name: 'bkop',
-      trace_id: '84608839c9c45c074d5b0edf96d3ed0f',
-      root_service: 'example.greeter',
-      root_span_name: 'trpc.example.greeter.http/timeout',
-      root_service_span_name: '/timeout',
-      error_msg:
-        'http client transport RoundTrip timeout: Get http://trpc-otlp-oteam-demo-service:8080/timeout: context deadline exceeded, cost:2.000525304s',
-    },
-  ],
-};
-
-/** 生成调用链 mock 数据 */
-const generationTraceMockData = <T extends ALertTracesData>(alertId: string): Promise<T> | T => {
-  return new Promise(res => {
-    setTimeout(() => {
-      res(mockData as T);
-    }, 600);
-  });
 };
