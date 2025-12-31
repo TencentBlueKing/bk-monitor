@@ -1529,7 +1529,7 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         "is one of": "eq",
         "is not one of": "ne",
         "contains match phrase": "contains",
-        "not not contains match phrase": "ncontains",
+        "not contains match phrase": "ncontains",
         "=": "eq",
         "!=": "ne",
         "is": "eq",
