@@ -61,7 +61,8 @@ class OriginEventProcessor(BaseEventProcessor):
                 domain=EventDomain.from_value(domain).label, source=EventSource.from_value(source).label
             )
 
-            # 事件字段统一转为整数
+            # 时间字段统一转为整数
+            _meta["_time_"] = int(_meta.get("_time_", 0))
             origin_event["time"] = int(origin_event.get("time", 0))
 
             event = self.process_display_field(origin_event)
