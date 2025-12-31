@@ -87,6 +87,7 @@ interface ICustomTsMetricGroups {
   }[];
 }
 
+// 请求路径 'rest/v2/scene_view/get_custom_ts_metric_groups/'
 export const getCustomTsMetricGroups = SceneViewApi.getCustomTsMetricGroups<
   {
     bk_biz_id?: number;
@@ -95,6 +96,7 @@ export const getCustomTsMetricGroups = SceneViewApi.getCustomTsMetricGroups<
   ICustomTsMetricGroups
 >;
 
+// 请求路径 'rest/v2/scene_view/get_custom_ts_dimension_values/'
 export const getCustomTsDimensionValues = SceneViewApi.getCustomTsDimensionValues<
   {
     bk_biz_id: number;
@@ -110,6 +112,7 @@ export const getCustomTsDimensionValues = SceneViewApi.getCustomTsDimensionValue
   }[]
 >;
 
+// 请求路径 'rest/v2/scene_view/get_custom_ts_graph_config/'
 export const getCustomTsGraphConfig = SceneViewApi.getCustomTsGraphConfig<
   {
     bk_biz_id: number;
