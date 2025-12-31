@@ -492,7 +492,7 @@ export default defineComponent({
         alarmStore.timezone = favoriteConfig?.componentData?.timezone || getDefaultTimezone();
         alarmStore.timeRange = favoriteConfig?.componentData?.timeRange || [];
         alarmStore.refreshInterval = favoriteConfig?.componentData?.refreshInterval || -1;
-        alarmStore.queryString = favoriteConfig?.queryParams?.queryString || '';
+        alarmStore.queryString = favoriteConfig?.queryParams?.query_string || '';
         alarmStore.conditions = favoriteConfig?.componentData?.conditions || [];
         alarmStore.residentCondition = favoriteConfig?.componentData?.residentCondition || [];
         alarmStore.quickFilterValue = favoriteConfig?.componentData?.quickFilterValue || [];

@@ -464,6 +464,7 @@ export default defineComponent({
             fields={this.retrievalFields}
             filterMode={this.filterMode}
             getValueFn={this.getFieldsOptionValuesProxy}
+            isShowClear={true}
             queryString={this.keyword}
             where={this.where}
             zIndex={4000}

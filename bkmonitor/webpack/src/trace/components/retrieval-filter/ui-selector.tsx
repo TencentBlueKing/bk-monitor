@@ -35,7 +35,7 @@ import AutoWidthInput from './auto-width-input';
 import KvTag from './kv-tag';
 import { type IFilterItem, ECondition, EFieldType, EMethod, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
 import UiSelectorOptions from './ui-selector-options';
-import { getDurationDisplay, triggerShallowRef } from './utils';
+import { getDurationDisplay, isElementVisibleAndUnobstructed, triggerShallowRef } from './utils';
 
 import './ui-selector.scss';
 export default defineComponent({
@@ -178,7 +178,8 @@ export default defineComponent({
         event.key === '/' &&
         !inputValue.value &&
         !showSelector.value &&
-        !['BK-WEWEB', 'INPUT'].includes(event.target?.tagName)
+        !['BK-WEWEB', 'INPUT'].includes(event.target?.tagName) &&
+        isElementVisibleAndUnobstructed(elRef.value)
       ) {
         event.preventDefault();
         handleClickComponent();

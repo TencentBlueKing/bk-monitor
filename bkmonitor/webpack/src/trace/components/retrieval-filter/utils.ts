@@ -295,6 +295,31 @@ export function getTopDocument(node = document) {
   // 返回最终的顶层 document
   return currentRoot === document ? document : currentRoot;
 }
+/**
+ * 判断元素是否在视口中可见且无遮挡
+ * @param {HTMLElement} element - 要检查的元素
+ * @returns {boolean} - 元素是否可见
+ */
+export function isElementVisibleAndUnobstructed(element) {
+  if (!element) return false;
+  // 获取元素的位置信息
+  const rect = element.getBoundingClientRect();
+  // 检查元素是否在视口中
+  const isInViewport =
+    rect.top >= 0 &&
+    rect.left >= 0 &&
+    rect.bottom <= (window.innerHeight || getTopDocument().documentElement.clientHeight) &&
+    rect.right <= (window.innerWidth || getTopDocument().documentElement.clientWidth);
+
+  if (!isInViewport) return false;
+  // 检查元素是否被其他元素遮挡
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const elementAtCenter = (element?.getRootNode?.() || document).elementFromPoint(centerX, centerY);
+  // 检查中心点是否属于当前元素或其子元素
+  return element.contains(elementAtCenter);
+}
+
 export function triggerShallowRef<T>(shallowRef: ShallowRef<T>) {
   if (typeof shallowRef.value === 'object') {
     shallowRef.value = JSON.parse(JSON.stringify(shallowRef.value));

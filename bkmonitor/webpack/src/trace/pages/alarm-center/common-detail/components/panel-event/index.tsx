@@ -25,7 +25,7 @@
  */
 import { type PropType, defineComponent } from 'vue';
 
-import { alertEvents } from 'monitor-api/modules/alert_v2';
+import { alertEvents, alertEventTotal } from 'monitor-api/modules/alert_v2';
 import { random } from 'monitor-common/utils/utils';
 
 import EventTable from './components/event-table';
@@ -66,26 +66,15 @@ export default defineComponent({
     };
 
     const getDataCount = async (_params?: { sources: string[] }) => {
-      return {
-        total: 6,
-        list: [
-          {
-            value: 'HOST',
-            alias: '主机',
-            total: 1,
-          },
-          {
-            value: 'BKCI',
-            alias: '蓝盾',
-            total: 2,
-          },
-          {
-            value: 'BCS',
-            alias: '容器',
-            total: 3,
-          },
-        ],
-      };
+      const data = await alertEventTotal({
+        alert_id: props.detail.id,
+      }).catch(() => {
+        return {
+          total: 0,
+          list: [],
+        };
+      });
+      return data;
     };
 
     const handleGoEvent = () => {

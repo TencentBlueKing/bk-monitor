@@ -129,7 +129,9 @@ export default defineComponent({
               const statusData = data?.[key]?.[subKey] || {};
               temp[subKey] = {
                 label: statusData?.status_display || '',
-                tip: statusData?.status_tips?.[0] || '',
+                tip: Array.isArray(statusData?.status_tips)
+                  ? statusData?.status_tips?.[0] || ''
+                  : statusData?.status_tips || '',
               };
             }
 
