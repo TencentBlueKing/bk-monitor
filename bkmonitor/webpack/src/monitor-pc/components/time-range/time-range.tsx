@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import DatePicker from '@blueking/date-picker/vue2';
 
-import { isValidTimeZone, updateTimezone } from '../../i18n/dayjs';
+import { getDefaultTimezone, isValidTimeZone, updateTimezone } from '../../i18n/dayjs';
 import { DEFAULT_TIME_RANGE } from './utils';
 
 import type { Dayjs } from 'dayjs';
@@ -56,7 +56,7 @@ type TimeRangeDisplayType = 'normal' | 'simplicity';
 export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) value: TimeRangeType; // 组件回显值
   @Prop({ default: 'simplicity', type: String }) type: TimeRangeDisplayType; // 组件回显值
-  @Prop({ default: window.timezone, type: String }) timezone: TimeRangeDisplayType; // 组件回显值
+  @Prop({ default: getDefaultTimezone(), type: String }) timezone: TimeRangeDisplayType; // 组件回显值
   @Prop({ default: true, type: Boolean }) needTimezone: boolean; // 是否显示时区选择
   @Prop({ default: () => [], type: Array }) commonUseList: DateValue[]; // 常用列表
 
@@ -70,6 +70,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
     return timezone;
   }
   render() {
+    console.info('timezone', this.timezone);
     return (
       <div style='display: inline-flex'>
         <DatePicker

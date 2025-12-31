@@ -565,7 +565,7 @@ export default class MonitorEcharts extends Vue {
     }, {});
     return Object.entries(data).map(([time, columnData]) => {
       return {
-        date: dayjs.tz(Number(time)).format('YYYY-MM-DD HH:mm:ss'),
+        date: dayjs.tz(Number(time)).format('YYYY-MM-DD HH:mm:ssZZ'),
         ...columnData,
       };
     });
@@ -971,7 +971,7 @@ export default class MonitorEcharts extends Vue {
         });
       return;
     }
-    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ssZZ');
     const data = params
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
@@ -1078,7 +1078,7 @@ export default class MonitorEcharts extends Vue {
           this.annotation = {
             x: setPixel[0] + fineTuning + 220 > chartWidth ? setPixel[0] - fineTuning - 220 : setPixel[0] + fineTuning,
             y: setPixel[1] + 5,
-            title: dayjs.tz(this.curValue.xAxis).format('YYYY-MM-DD HH:mm:ss'),
+            title: dayjs.tz(this.curValue.xAxis).format('YYYY-MM-DD HH:mm:ssZZ'),
             name: this.curValue.name,
             color: this.curValue.color,
             show: true,
@@ -1396,7 +1396,7 @@ export default class MonitorEcharts extends Vue {
         this.scatterTips.data.target.label = `${chartOptions.series[0].name}: ${
           scatterData._value || scatterData.metric_value || '--'
         }`;
-        this.scatterTips.data.time = dayjs.tz(e.data.value[0]).format('YYYY-MM-DD HH:mm:ss');
+        this.scatterTips.data.time = dayjs.tz(e.data.value[0]).format('YYYY-MM-DD HH:mm:ssZZ');
         this.scatterTips.top = -9999;
         this.scatterTips.show = true;
         this.$nextTick(() => {
@@ -1586,19 +1586,16 @@ export default class MonitorEcharts extends Vue {
 
   .echart-content {
     position: absolute;
-    top: 36px;
-    right: 1px;
-    bottom: 1px;
-    left: 1px;
+    inset: 36px 1px 1px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0);
+    background: rgb(255 255 255 / 0%);
   }
 
   .scatter-tips {
     position: absolute;
-    padding: 10px 6px 6px 6px;
+    padding: 10px 6px 6px;
     background: #000;
     border-radius: 2px;
     opacity: 0.8;
@@ -1606,7 +1603,7 @@ export default class MonitorEcharts extends Vue {
     .time {
       margin-bottom: 4px;
       font-size: 12px;
-      font-weight: Bold;
+      font-weight: bold;
       color: #fff;
     }
 
@@ -1720,6 +1717,7 @@ export default class MonitorEcharts extends Vue {
       align-items: center;
       width: 100%;
       height: 54px;
+
       // justify-content: space-between;
       font-weight: bold;
 

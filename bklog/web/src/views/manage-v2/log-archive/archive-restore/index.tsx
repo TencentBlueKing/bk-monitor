@@ -418,7 +418,7 @@ export default defineComponent({
             />
             <bk-table-column
               label={t('时间范围')}
-              min-width='240'
+              width='360'
               renderHeader={renderHeader}
               scopedSlots={{ default: (props: any) => `${props.row.start_time} - ${props.row.end_time}` }}
             />
@@ -430,7 +430,7 @@ export default defineComponent({
             />
             <bk-table-column
               label={t('过期时间')}
-              min-width='120'
+              width='190'
               renderHeader={renderHeader}
               scopedSlots={{ default: (props: any) => props.row.expired_time }}
             />

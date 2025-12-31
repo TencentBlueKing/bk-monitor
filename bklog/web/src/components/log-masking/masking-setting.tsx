@@ -32,7 +32,6 @@ import { Alert, Button, Input, Table, TableColumn, Tag, Switcher, TableSettingCo
 
 import $http from '../../api';
 import * as authorityMap from '../../common/authority-map';
-import { utcFormatDate } from '../../common/util';
 import i18n from '../../language/i18n';
 import EmptyStatus from '../empty-status/index.vue';
 import MaskingAddRule from './masking-add-rule';

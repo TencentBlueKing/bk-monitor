@@ -29,6 +29,7 @@ import * as tsx from 'vue-tsx-support';
 
 import { destroyActionConfig, listActionConfig, partialUpdateActionConfig } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { isZh } from 'monitor-pc/common/constant';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import DeleteSubtitle from 'monitor-pc/pages/strategy-config/strategy-config-common/delete-subtitle';
@@ -308,11 +309,11 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
     const enableScopedSlots = {
       default: ({ row }) => (
         <bk-switcher
-          v-authority={{ active: !this.isAuth(Number.parseInt(row.bk_biz_id)).authority }}
+          v-authority={{ active: !this.isAuth(Number.parseInt(row.bk_biz_id, 10)).authority }}
           preCheck={() =>
-            this.isAuth(Number.parseInt(row.bk_biz_id)).authority
+            this.isAuth(Number.parseInt(row.bk_biz_id, 10)).authority
               ? this.handleSwichChange(row)
-              : this.handleShowAuthorityDetail(this.isAuth(Number.parseInt(row.bk_biz_id)).authorityType)
+              : this.handleShowAuthorityDetail(this.isAuth(Number.parseInt(row.bk_biz_id, 10)).authorityType)
           }
           size='small'
           theme='primary'
@@ -326,28 +327,28 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
           {/* <bk-button text theme="primary">{this.$t('关联策略')} </bk-button> */}
           <bk-button
             class='mr-10'
-            v-authority={{ active: !this.isAuth(Number.parseInt(row.bk_biz_id)).authority }}
+            v-authority={{ active: !this.isAuth(Number.parseInt(row.bk_biz_id, 10)).authority }}
             disabled={!row.edit_allowed}
             theme='primary'
             text
             onClick={() =>
-              this.isAuth(Number.parseInt(row.bk_biz_id)).authority
+              this.isAuth(Number.parseInt(row.bk_biz_id, 10)).authority
                 ? this.$router.push({ path: `/set-meal-edit/${row.id}` })
-                : this.handleShowAuthorityDetail(this.isAuth(Number.parseInt(row.bk_biz_id)).authorityType)
+                : this.handleShowAuthorityDetail(this.isAuth(Number.parseInt(row.bk_biz_id, 10)).authorityType)
             }
           >
             {this.$t('button-编辑')}
           </bk-button>
           <bk-button
             class='mr-10'
-            v-authority={{ active: !this.isAuth(Number.parseInt(row.bk_biz_id)).authority }}
+            v-authority={{ active: !this.isAuth(Number.parseInt(row.bk_biz_id, 10)).authority }}
             disabled={!row.delete_allowed}
             theme='primary'
             text
             onClick={() =>
-              this.isAuth(Number.parseInt(row.bk_biz_id)).authority
+              this.isAuth(Number.parseInt(row.bk_biz_id, 10)).authority
                 ? this.handleDeleteRow(row)
-                : this.handleShowAuthorityDetail(this.isAuth(Number.parseInt(row.bk_biz_id)).authorityType)
+                : this.handleShowAuthorityDetail(this.isAuth(Number.parseInt(row.bk_biz_id, 10)).authorityType)
             }
           >
             {this.$t('删除')}
@@ -360,8 +361,8 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
                   {
                     id: 'clone',
                     name: window.i18n.t('克隆'),
-                    authority: this.isAuth(Number.parseInt(row.bk_biz_id)).authority,
-                    authorityDetail: this.isAuth(Number.parseInt(row.bk_biz_id)).authorityType,
+                    authority: this.isAuth(Number.parseInt(row.bk_biz_id, 10)).authority,
+                    authorityDetail: this.isAuth(Number.parseInt(row.bk_biz_id, 10)).authorityType,
                   },
                 ],
               } as any
@@ -472,9 +473,11 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
               />
               <bk-table-column
                 width='180'
+                scopedSlots={{
+                  default: ({ row }) => <span>{formatWithTimezone(row.update_time)}</span>,
+                }}
                 align='left'
                 label={this.$t('最近更新时间')}
-                prop='update_time'
               />
               <bk-table-column
                 width='150'

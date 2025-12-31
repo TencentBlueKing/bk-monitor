@@ -43,7 +43,7 @@ def is_match_api_token(request, bk_tenant_id: str, app_code: str) -> bool:
     校验API鉴权
     """
     # 如果没有biz_id，直接放行
-    if not getattr(request, "biz_id"):
+    if not getattr(request, "biz_id") and not app_code == settings.AIDEV_AGENT_MCP_REQUEST_AGENT_CODE:
         return True
 
     global APP_CODE_TOKENS
@@ -220,11 +220,17 @@ class AuthenticationMiddleware(MiddlewareMixin):
         return request.META.get("HTTP_X_BKAPI_FROM") == "apigw" and request.META.get(BkJWTClient.JWT_KEY_NAME)
 
     @staticmethod
-    def use_mcp_auth(request):
+    def use_mcp_auth(request, app_code):
         """
         是否是MCP请求
+        1. 请求头中包含X-BK-REQUEST-SOURCE,且为对应MCP的配置头
+        2. app_code为对应MCP的应用
+        TODO：待APIGW支持透传后,需要更改为APIGW透传
         """
-        return request.META.get("HTTP_X_BK_REQUEST_SOURCE") == settings.AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE
+        return (
+            request.META.get("HTTP_X_BK_REQUEST_SOURCE") == settings.AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE
+            or app_code == settings.AIDEV_AGENT_MCP_REQUEST_AGENT_CODE
+        )
 
     @staticmethod
     def use_api_token_auth(request):
@@ -466,7 +472,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             bk_tenant_id = DEFAULT_TENANT_ID
 
         # MCP权限校验（在用户认证完成后）
-        if self.use_mcp_auth(request):
+        if self.use_mcp_auth(request, app_code):
             request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
             logger.info("=" * 80)
             logger.info("MCPAuthentication: Handling MCP authentication")

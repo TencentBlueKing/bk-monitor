@@ -307,7 +307,7 @@ class ExportPackageResource(Resource):
         if settings.USE_CEPH:
             local_tar_file_path = os.path.join(self.package_path, filename)
             tar_file_fd = open(local_tar_file_path, "rb")
-            tar_file_path = local_tar_file_path.replace(settings.MEDIA_ROOT, "")
+            tar_file_path = local_tar_file_path.replace(settings.MEDIA_ROOT, "").lstrip("/")
             default_storage.save(tar_file_path, tar_file_fd)
             download_path, download_name = default_storage.url(tar_file_path).rsplit("/", 1)
             tar_file_fd.close()

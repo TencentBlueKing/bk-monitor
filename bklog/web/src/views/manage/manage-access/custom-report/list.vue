@@ -163,6 +163,7 @@
             </template>
           </bk-table-column>
           <bk-table-column
+            width="190"
             :label="$t('创建记录')"
             :render-header="$renderHeader"
             prop="created_at"
@@ -174,7 +175,7 @@
             </template>
           </bk-table-column>
           <bk-table-column
-            width="239"
+            width="190"
             :label="$t('更新记录')"
             :render-header="$renderHeader"
             prop="updated_at"

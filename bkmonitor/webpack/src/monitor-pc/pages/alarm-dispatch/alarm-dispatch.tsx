@@ -37,6 +37,7 @@ import {
   partialUpdateAssignGroup,
 } from 'monitor-api/modules/model';
 import { Debounce, random } from 'monitor-common/utils';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { deepClone } from 'monitor-common/utils/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
@@ -265,7 +266,7 @@ export default class AlarmDispatch extends tsc<object> {
             isExpan: true,
             ruleData: [],
             editAllowed: !!item?.edit_allowed,
-            updateTime: dayjs(item.update_time).format('YYYY-MM-DD HH:mm:ss'),
+            updateTime: dayjs.tz(item.update_time).format('YYYY-MM-DD HH:mm:ssZZ'),
             updateUser: item.update_user,
           })
       ) || [];
@@ -511,7 +512,7 @@ export default class AlarmDispatch extends tsc<object> {
           this.formData.priority = 10000;
         } else if (Number(value) === 0) {
           this.formData.priority = 1;
-        } else if (Number.parseFloat(value) === Number.parseInt(value)) {
+        } else if (Number.parseFloat(value) === Number.parseInt(value, 10)) {
           this.formData.priority = Number(value);
         } else {
           (this.$refs.priorityInput as any).curValue = Math.round(Number(value));
@@ -711,7 +712,7 @@ export default class AlarmDispatch extends tsc<object> {
                             <bk-user-display-name user-id={item.updateUser} />
                           </span>
                           <span class='separator' />
-                          <span class='update-time'>{item.updateTime}</span>
+                          <span class='update-time'>{formatWithTimezone(item.updateTime)}</span>
                         </div>
                         <div
                           class={['edit-btn-wrap', { 'edit-btn-disabled': !item.editAllowed }]}

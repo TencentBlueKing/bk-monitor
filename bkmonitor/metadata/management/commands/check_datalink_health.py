@@ -20,10 +20,13 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--bk_tenant_id", type=str, required=True, help="租户ID")
-        parser.add_argument("--scene", type=str, required=True, help="场景(uptimecheck/custom_metric/host/k8s)")
+        parser.add_argument(
+            "--scene", type=str, required=True, help="场景(uptimecheck/custom_metric/host/k8s/apm/custom_event/log)"
+        )
         parser.add_argument("--bk_biz_id", type=int, required=True, help="业务ID")
         parser.add_argument("--bk_data_id", type=int, required=False, help="数据ID（当场景为custom_metric时需要）")
         parser.add_argument("--bcs_cluster_id", type=str, required=False, help="BCS集群ID（当场景为k8s时需要）")
+        parser.add_argument("--app_name", type=str, required=False, help="应用名称（当场景为apm时需要）")
 
     def handle(self, *args, **options):
         """处理命令"""
@@ -32,6 +35,7 @@ class Command(BaseCommand):
         bk_biz_id = options["bk_biz_id"]
         bk_data_id = options.get("bk_data_id")
         bcs_cluster_id = options.get("bcs_cluster_id")
+        app_name = options.get("app_name")
 
         msg = health_check.check_datalink_health(
             bk_tenant_id=bk_tenant_id,
@@ -39,6 +43,7 @@ class Command(BaseCommand):
             bk_biz_id=bk_biz_id,
             bk_data_id=bk_data_id,
             bcs_cluster_id=bcs_cluster_id,
+            app_name=app_name,
         )
 
         self.stdout.write(msg)

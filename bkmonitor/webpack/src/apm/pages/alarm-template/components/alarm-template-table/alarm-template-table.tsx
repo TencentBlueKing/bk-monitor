@@ -28,6 +28,7 @@ import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
@@ -737,7 +738,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
           class='update-time'
           v-bk-overflow-tips
         >
-          <span>{row?.update_time || '--'}</span>
+          <span>{formatWithTimezone(row?.update_time) || '--'}</span>
         </div>
       </div>
     );

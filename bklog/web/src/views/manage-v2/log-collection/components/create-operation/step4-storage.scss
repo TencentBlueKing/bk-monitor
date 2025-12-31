@@ -1,0 +1,80 @@
+.operation-step4-storage {
+  width: 100%;
+  height: 100%;
+  .cluster-box {
+    width: 100%;
+    .cluster-title {
+      background: #eaebf0;
+      color: #313238;
+      padding-left: 8px;
+      border: 1px solid #dcdee5;
+      .title {
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .title-tips {
+        color: #e38b02;
+        font-size: 12px;
+        margin-left: 12px;
+        .tips-icon {
+          font-size: 14px;
+          margin-right: 5px;
+        }
+      }
+
+      .icon-cluster {
+        color: #4d4f56;
+        font-size: 14px;
+        margin-right: 8px;
+        &.expand {
+          transform: rotate(90deg);
+        }
+      }
+    }
+    .cluster-content {
+      border: 1px solid #dcdee5;
+      margin-bottom: 17px;
+      font-size: 12px;
+    }
+  }
+  .storage-box {
+    width: 45%;
+    min-width: 680px;
+    .storage-input {
+      width: 84%;
+    }
+    .form-box {
+      width: 25%;
+      .group-text {
+        font-size: 14px;
+        margin-right: 8px;
+        &.expand {
+          transform: rotate(90deg);
+        }
+      }
+    }
+  }
+  .storage-box {
+    width: 45%;
+    min-width: 680px;
+    .storage-input {
+      width: 84%;
+      .group-prepend {
+        border-color: #dcdee5;
+      }
+    }
+    .form-box {
+      width: 25%;
+    }
+    .min-width {
+      min-width: 130px;
+      width: 30%;
+      .group-text {
+        padding: 0 8px;
+        line-height: 30px;
+        background: #fafbfd;
+        color: #4d4f56;
+      }
+    }
+  }
+}

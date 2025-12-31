@@ -1,0 +1,66 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .title { font-size: 20px; font-weight: bold; color: #2c3e50; margin-bottom: 10px; }
+        .content { background-color: #ffffff; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px; }
+        .field { margin-bottom: 15px; }
+        .field-label { font-weight: bold; color: #555; display: inline-block; width: 120px; }
+        .field-value { color: #333; }
+        .footer { margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999; }
+        .link { color: #3498db; text-decoration: none; }
+        .link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">{{ title }}</div>
+        </div>
+        <div class="content">
+            <div class="field">
+                <span class="field-label">故障名称：</span>
+                <span class="field-value">【{{ level }}】{{ incident_name }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">通知时间：</span>
+                <span class="field-value">{{ notify_time }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">影响业务：</span>
+                <span class="field-value">{{ business_name }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">故障根因：</span>
+                <span class="field-value">{{ incident_reason }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">故障状态：</span>
+                <span class="field-value">{{ status }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">故障持续时间：</span>
+                <span class="field-value">{{ duration }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">故障内告警数：</span>
+                <span class="field-value">{{ number }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">故障负责人：</span>
+                <span class="field-value">{{ assignees }}</span>
+            </div>
+            <div class="field">
+                <span class="field-label">详情：</span>
+                <a href="{{ url }}" class="link">点击查看故障详情</a>
+            </div>
+        </div>
+        <div class="footer">
+            此邮件由蓝鲸监控平台自动发送，请勿直接回复。
+        </div>
+    </div>
+</body>
+</html>

@@ -571,8 +571,15 @@ class CollectorHandler:
             from apps.log_databus.handlers.etl import EtlHandler
 
             etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
+            # 优先使用collector_config的table_id，如果存在则提取表名部分
+            if self.data.table_id:
+                # table_id格式为: prefix.table_name，需要提取表名部分
+                table_id_name = self.data.table_id.split(".")[-1]
+            else:
+                # 如果table_id不存在，则使用collector_config_name_en作为后备
+                table_id_name = self.data.collector_config_name_en
             etl_params = {
-                "table_id": self.data.collector_config_name_en,
+                "table_id": table_id_name,
                 "storage_cluster_id": storage_cluster_id,
                 "retention": retention,
                 "es_shards": es_shards,

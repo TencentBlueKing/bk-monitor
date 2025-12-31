@@ -207,14 +207,14 @@ export default class CompareMiniChart extends MiniTimeSeries {
           return `
         <div class="left-compare-type" style="background: ${timeTitle === compareTitleText ? '#7B29FF' : '#FFB848'};"></div>
         <div>
-          <div>${timeTitle}：${dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss')}</div>
+          <div>${timeTitle}：${dayjs.tz(time).format('YYYY-MM-DD HH:mm:ssZZ')}</div>
           <div>${this.valueTitle}：${valueText.text}${valueText.suffix}</div>
         </div>`;
         }
         if (this.isMouseOver) {
           const valueText = getValueFormat(this.unit)(params[0].value[1] || 0, this.unitDecimal);
           return `<div>
-          <div>${dayjs.tz(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss')}</div>
+          <div>${dayjs.tz(params[0].value[0]).format('YYYY-MM-DD HH:mm:ssZZ')}</div>
           <div>${this.valueTitle}：${valueText.text}${valueText.suffix}</div>
         </div>`;
         }

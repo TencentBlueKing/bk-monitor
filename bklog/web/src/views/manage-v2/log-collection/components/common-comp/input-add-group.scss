@@ -1,0 +1,24 @@
+.input-add-group-main {
+    width: 100%;
+    margin-top: 8px;
+    .input-add-group-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+        .icons {
+            color: #979BA5;
+            font-size: 18px;
+            margin-left: 8px;
+            cursor: pointer;
+            &.disabled {
+                cursor: not-allowed;
+                color: #c4c6cc;
+            }
+        }
+        .input-error {
+            .bk-form-input {
+                border-color: #ea3636;
+            }
+        }
+    }
+}

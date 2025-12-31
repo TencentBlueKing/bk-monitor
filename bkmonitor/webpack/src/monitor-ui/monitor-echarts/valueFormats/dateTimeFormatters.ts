@@ -112,7 +112,7 @@ export function toClockSeconds(size: number, decimals: DecimalCount): FormattedV
 }
 
 export function toDateTimeValueFormatter(pattern: string, todayPattern?: string): ValueFormatter {
-  return (value: number, decimals: DecimalCount, scaledDecimals: DecimalCount, timeZone?): FormattedValue => {
+  return (value: number, _decimals: DecimalCount, _scaledDecimalss: DecimalCount, timeZone?): FormattedValue => {
     const isUtc = timeZone === 'utc';
     const time = isUtc ? dayjs.utc(value) : dayjs.tz(value);
     if (todayPattern) {
@@ -389,13 +389,13 @@ export function trySubstract(value1: DecimalCount, value2: DecimalCount): Decima
   return undefined;
 }
 
-export const dateTimeAsIso = toDateTimeValueFormatter('YYYY-MM-DD HH:mm:ss', 'HH:mm:ss');
+export const dateTimeAsIso = toDateTimeValueFormatter('YYYY-MM-DD HH:mm:ssZZ', 'HH:mm:ss');
 export const dateTimeAsUS = toDateTimeValueFormatter('MM/DD/YYYY h:mm:ss a', 'h:mm:ss a');
 
 export function dateTimeFromNow(
   value: number,
-  decimals: DecimalCount,
-  scaledDecimals: DecimalCount,
+  _decimals: DecimalCount,
+  _scaledDecimals: DecimalCount,
   timeZone?
 ): FormattedValue {
   const isUtc = timeZone === 'utc';

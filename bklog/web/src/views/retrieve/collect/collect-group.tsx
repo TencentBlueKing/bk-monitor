@@ -83,7 +83,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
         content: `<div style="font-size: 12px;">
                   <p>${this.$t('创建人')}: <bk-user-display-name user-id=${item.created_by || '--'} /></p>
                   <p>${this.$t('修改人')}: <bk-user-display-name user-id=${item.updated_by || '--'} /></p>
-                  <p>${this.$t('更新时间')}: ${utcFormatDate(item.updated_at)}</p>
+                  <p>${this.$t('更新时间')}: ${utcFormatDate(item.updated_at, true)}</p>
                 </div>`,
         arrow: true,
         placement: 'top',

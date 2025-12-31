@@ -42,10 +42,21 @@ except Exception:
 logger = logging.getLogger("fta_action.run")
 
 
+class BlockedError(Exception):
+    def __init__(self, message, retry_params):
+        self.message = message
+        if not isinstance(retry_params, list):
+            self.retry_params = [retry_params]
+        else:
+            self.retry_params = retry_params
+
+
 class BaseSender:
     """
     通知发送器
     """
+
+    blocked = False
 
     LengthLimit = {
         "sms": 140,
@@ -369,10 +380,27 @@ class Sender(BaseSender):
             and (not settings.WECOM_ROBOT_BIZ_WHITE_LIST or self.bk_biz_id in settings.WECOM_ROBOT_BIZ_WHITE_LIST)
         ):
             logger.info(
-                "send.webot_app({}): \ntitle: {}\ncontent: {} \naction_plugin {}".format(
+                "[blocked]"
+                if self.blocked
+                else ""
+                + "send.webot_app({}): \ntitle: {}\ncontent: {} \naction_plugin {}".format(
                     ",".join(notice_receivers), self.title, self.content, action_plugin
                 )
             )
+            if self.blocked:
+                retry_params = {
+                    "api_module": "api.cmsi.default",
+                    "resource": "SendWecomAPP",
+                    "args": (),
+                    "kwargs": dict(
+                        bk_tenant_id=self.bk_tenant_id,
+                        receiver=notice_receivers,
+                        sender=sender_name,
+                        content=self.content,
+                        type=self.msg_type,
+                    ),
+                }
+                raise BlockedError("weixin 通知被熔断", retry_params)
             # 复用企业微信机器人的配置
             # 如果启用了并且是te环境，可以使用
             # 用白名单控制
@@ -387,10 +415,27 @@ class Sender(BaseSender):
             )
         else:
             logger.info(
-                "send.weixin({}): \ntitle: {}\ncontent: {} \naction_plugin {}".format(
+                "[blocked]"
+                if self.blocked
+                else ""
+                + "send.weixin({}): \ntitle: {}\ncontent: {} \naction_plugin {}".format(
                     ",".join(notice_receivers), self.title, self.content, action_plugin
                 )
             )
+            if self.blocked:
+                retry_params = {
+                    "api_module": "api.cmsi.default",
+                    "resource": "SendWeixin",
+                    "args": (),
+                    "kwargs": dict(
+                        bk_tenant_id=self.bk_tenant_id,
+                        receiver__username=",".join(notice_receivers),
+                        heading=self.title,
+                        message=self.content,
+                        is_message_base64=True,
+                    ),
+                }
+                raise BlockedError("weixin 通知被熔断", retry_params)
             api_result = api.cmsi.send_weixin(
                 bk_tenant_id=self.bk_tenant_id,
                 receiver__username=",".join(notice_receivers),
@@ -431,8 +476,20 @@ class Sender(BaseSender):
         elif self.context.get("alarm") and action_plugin == ActionPluginType.NOTICE:
             params["attachments"] = self.context["alarm"].attachments
 
-        logger.info("send.mail({}): \ntitle: {}".format(",".join(notice_receivers), self.title))
+        logger.info(
+            "[blocked]"
+            if self.blocked
+            else "" + "send.mail({}): \ntitle: {}".format(",".join(notice_receivers), self.title)
+        )
 
+        if self.blocked:
+            retry_params = {
+                "api_module": "api.cmsi.default",
+                "resource": "SendMail",
+                "args": (),
+                "kwargs": dict(bk_tenant_id=self.bk_tenant_id, **params),
+            }
+            raise BlockedError("mail 通知被熔断", retry_params)
         api_result = api.cmsi.send_mail(bk_tenant_id=self.bk_tenant_id, **params)
         return self.handle_api_result(api_result, notice_receivers)
 
@@ -446,11 +503,27 @@ class Sender(BaseSender):
         :rtype: dict
         """
         logger.info(
-            "send.sms({}): \ncontent: {} \naction_plugin {}".format(
+            "[blocked]"
+            if self.blocked
+            else ""
+            + "send.sms({}): \ncontent: {} \naction_plugin {}".format(
                 ",".join(notice_receivers), self.content, action_plugin
             )
         )
         self.content = self.get_notice_content(NoticeWay.SMS, self.content)
+        if self.blocked:
+            retry_params = {
+                "api_module": "api.cmsi.default",
+                "resource": "SendSms",
+                "args": (),
+                "kwargs": dict(
+                    bk_tenant_id=self.bk_tenant_id,
+                    receiver__username=",".join(notice_receivers),
+                    content=self.content,
+                    is_content_base64=True,
+                ),
+            }
+            raise BlockedError("sms 通知被熔断", retry_params)
         api_result = api.cmsi.send_sms(
             bk_tenant_id=self.bk_tenant_id,
             receiver__username=",".join(notice_receivers),
@@ -473,7 +546,22 @@ class Sender(BaseSender):
         message = _("发送成功")
         notice_receivers = ",".join(notice_receivers)
 
-        logger.info(f"send.voice({notice_receivers}): \ncontent: {self.content}, \n action_plugin {action_plugin}")
+        logger.info(
+            "[blocked]"
+            if self.blocked
+            else "" + f"send.voice({notice_receivers}): \ncontent: {self.content}, \n action_plugin {action_plugin}"
+        )
+
+        if self.blocked:
+            retry_params = {
+                "api_module": "api.cmsi.default",
+                "resource": "SendVoice",
+                "args": (),
+                "kwargs": dict(
+                    bk_tenant_id=self.bk_tenant_id, receiver__username=notice_receivers, auto_read_message=self.content
+                ),
+            }
+            raise BlockedError("voice 通知被熔断", retry_params)
 
         try:
             msg_result = api.cmsi.send_voice(
@@ -612,7 +700,10 @@ class Sender(BaseSender):
 
         message = _("发送成功")
         logger.info(
-            "send.wxwork_group({}): \ncontent: {} \n action_plugin {}".format(
+            "[blocked]"
+            if self.blocked
+            else ""
+            + "send.wxwork_group({}): \ncontent: {} \n action_plugin {}".format(
                 ",".join(notice_receivers), self.content, action_plugin
             )
         )
@@ -626,10 +717,18 @@ class Sender(BaseSender):
         if not notice_receivers:
             return finish_send_wxork_bot(_("未配置企业微信群id，请联系管理员"), False)
 
+        send_func: Callable[..., dict[str, Any]] = (
+            self.send_wxwork_layouts if self._is_wxwork_layouts_enabled else self.send_wxwork_content
+        )
+        if self.blocked:
+            retry_params = {
+                "api_module": "bkmonitor.utils.send.Sender",
+                "resource": send_func.__name__,
+                "args": (self.msg_type, self.content, notice_receivers, self.mentioned_users),
+                "kwargs": dict(),
+            }
+            raise BlockedError("wxwork_group 通知被熔断", retry_params)
         try:
-            send_func: Callable[..., dict[str, Any]] = (
-                self.send_wxwork_layouts if self._is_wxwork_layouts_enabled else self.send_wxwork_content
-            )
             response = send_func(self.msg_type, self.content, notice_receivers, self.mentioned_users)
             if response["errcode"] != 0:
                 result = False
@@ -639,8 +738,8 @@ class Sender(BaseSender):
             message = str(e)
             logger.exception(f"send.wxwork_group failed, {e}")
 
-        if action_plugin == ActionPluginType.NOTICE and settings.WXWORK_BOT_SEND_IMAGE:
-            # 只有告警通知才发送图片，执行不做图片发送
+        if action_plugin == ActionPluginType.NOTICE and settings.WXWORK_BOT_SEND_IMAGE and not self.blocked:
+            # 只有告警通知才发送图片，执行不做图片发送(熔断通知，图片不补发)
             try:
                 image = alarm.chart_image if alarm else None
                 if image:
@@ -684,12 +783,23 @@ class Sender(BaseSender):
         :rtype: dict
         """
         logger.info(
-            "send.{}({}): \ntitle: {}\ncontent: {}".format(
+            "[blocked]"
+            if self.blocked
+            else ""
+            + "send.{}({}): \ntitle: {}\ncontent: {}".format(
                 notice_way, ",".join(notice_receivers), self.title, self.content
             )
         )
         if notice_way == "wecom_robot":
             if self._is_wxwork_layouts_enabled:
+                if self.blocked:
+                    retry_params = {
+                        "api_module": "bkmonitor.utils.send.Sender",
+                        "resource": "send_wxwork_layouts",
+                        "args": (self.msg_type, self.content, notice_receivers),
+                        "kwargs": dict(sender=sender),
+                    }
+                    raise BlockedError("wxwork_group 通知被熔断", retry_params)
                 response = self.send_wxwork_layouts(self.msg_type, self.content, notice_receivers, sender=sender)
                 return {
                     # 适配 send_default 的返回格式。
@@ -704,7 +814,14 @@ class Sender(BaseSender):
         )
         if sender:
             msg_data.update({"sender": sender})
-
+        if self.blocked:
+            retry_params = {
+                "api_module": "api.cmsi.default",
+                "resource": "SendMsg",
+                "args": (),
+                "kwargs": dict(bk_tenant_id=self.bk_tenant_id, **msg_data),
+            }
+            raise BlockedError(f"{notice_way} 通知被熔断", retry_params)
         api_result = api.cmsi.send_msg(bk_tenant_id=self.bk_tenant_id, **msg_data)
         return self.handle_api_result(api_result, notice_receivers)
 
@@ -811,3 +928,114 @@ class ChannelBkchatSender(BaseSender):
         notice_params = {"notice_group_id_list": notice_receivers, "msg_type": "mini", "msg_param": msg_param}
         api_result = api.bkchat.send_notice_group_msg(**notice_params)
         return self.handle_api_result(api_result, notice_receivers)
+
+
+class IncidentSender(Sender):
+    """
+    故障通知发送器
+    继承自Sender，用于发送故障相关的通知
+    与告警通知的主要区别在于：故障数据中alarm可能是字典类型而非对象
+    """
+
+    def send_mail(self, notice_receivers, action_plugin=ActionPluginType.NOTICE):
+        """
+        发送邮件通知（覆盖父类方法以支持字典类型的alarm）
+        :return: {
+            "user1": {"result": true, "message": "OK"},
+            "user2": {"result": false, "message": "发送失败"}
+        }
+        :rtype: dict
+        """
+        params = {
+            "title": self.title,
+            "content": self.content,
+            "is_content_base64": True,
+        }
+
+        # external_email: 邮件订阅支持直接外部邮件发送
+        if self.context.get("external_email"):
+            params["receiver"] = ",".join(notice_receivers)
+            params.pop("receiver__username", None)
+        else:
+            params["receiver__username"] = ",".join(notice_receivers)
+            params.pop("receiver", None)
+
+        # 添加附件参数 - 兼容字典和对象两种alarm类型
+        if self.context.get("attachments"):
+            params["attachments"] = self.context.get("attachments")
+        elif self.context.get("alarm") and action_plugin == ActionPluginType.NOTICE:
+            alarm = self.context["alarm"]
+            if isinstance(alarm, dict):
+                params["attachments"] = alarm.get("attachments")
+            else:
+                params["attachments"] = getattr(alarm, "attachments", None)
+
+        logger.info("send.mail({}): \ntitle: {}".format(",".join(notice_receivers), self.title))
+
+        api_result = api.cmsi.send_mail(bk_tenant_id=self.bk_tenant_id, **params)
+        return self.handle_api_result(api_result, notice_receivers)
+
+    def send_wxwork_bot(self, notice_receivers, action_plugin=ActionPluginType.NOTICE):
+        """
+        发送企业微信群通知（覆盖父类方法以支持字典类型的alarm）
+        """
+
+        def finish_send_wxork_bot(msg, ret):
+            notice_result = {}
+            for notice_receiver in notice_receivers:
+                notice_result[notice_receiver] = {"message": msg, "result": ret}
+            return notice_result
+
+        message = _("发送成功")
+        logger.info(
+            "send.wxwork_group({}): \ncontent: {} \n action_plugin {}".format(
+                ",".join(notice_receivers), self.content, action_plugin
+            )
+        )
+
+        result = True
+        alarm = self.context.get("alarm", None)
+
+        if not settings.WXWORK_BOT_WEBHOOK_URL:
+            return finish_send_wxork_bot(_("未配置蓝鲸监控群机器人回调地址，请联系管理员"), False)
+
+        if not notice_receivers:
+            return finish_send_wxork_bot(_("未配置企业微信群id，请联系管理员"), False)
+
+        try:
+            send_func: Callable[..., dict[str, Any]] = (
+                self.send_wxwork_layouts if self._is_wxwork_layouts_enabled else self.send_wxwork_content
+            )
+            response = send_func(self.msg_type, self.content, notice_receivers, self.mentioned_users)
+            if response["errcode"] != 0:
+                result = False
+                message = response["errmsg"]
+        except Exception as e:
+            result = False
+            message = str(e)
+            logger.exception(f"send.wxwork_group failed, {e}")
+
+        if action_plugin == ActionPluginType.NOTICE and settings.WXWORK_BOT_SEND_IMAGE:
+            # 只有告警通知才发送图片，执行不做图片发送
+            try:
+                # 兼容字典和对象两种alarm类型
+                if isinstance(alarm, dict):
+                    image = alarm.get("chart_image")
+                else:
+                    image = alarm.chart_image if alarm else None
+
+                if image:
+                    response = self.send_wxwork_image(image, notice_receivers)
+                    if response["errcode"] != 0:
+                        logger.error("send.wxwork_group image failed, {}".format(response["errmsg"]))
+                else:
+                    logger.info(
+                        "ignore sending chart image to chat_id({}) for action({})".format(
+                            "|".join(notice_receivers),
+                            self.context["action"].id if self.context.get("action") else "NULL",
+                        )
+                    )
+            except Exception as e:
+                logger.exception(f"send.wxwork_group image failed, {e}")
+
+        return finish_send_wxork_bot(message, result)

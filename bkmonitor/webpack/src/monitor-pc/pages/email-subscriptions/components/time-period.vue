@@ -263,7 +263,7 @@ export default class TimePeriod extends Vue {
     if ([2, 3, 4].includes(this.typeValue)) value.runTime = `${type === 'time' ? v : this.dayTime}`;
     switch (this.typeValue) {
       case 1: // 仅一次
-        value.runTime = dayjs.tz(type === 'datetime' ? v : this.onceTime).format('YYYY-MM-DD HH:mm:ss');
+        value.runTime = dayjs.tz(type === 'datetime' ? v : this.onceTime).format('YYYY-MM-DD HH:mm:ssZZ');
         break;
       case 2: // 按天
         // value.runTime = this.dayTime
@@ -299,6 +299,7 @@ export default class TimePeriod extends Vue {
   .time-select {
     display: flex;
     align-items: center;
+
     // width: 300px;
     margin-top: 10px;
 

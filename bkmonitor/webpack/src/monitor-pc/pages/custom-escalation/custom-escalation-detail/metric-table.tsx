@@ -294,7 +294,7 @@ export default class IndicatorTable extends tsc<any, any> {
   getShowTime(timeStr: number) {
     if (!timeStr) return '-';
     const timestamp = new Date(timeStr * 1000);
-    return dayjs.tz(timestamp).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs.tz(timestamp).format('YYYY-MM-DD HH:mm:ssZZ');
   }
 
   showMetricDetail(props) {
@@ -449,7 +449,7 @@ export default class IndicatorTable extends tsc<any, any> {
         <bk-table
           v-bkloading={{ isLoading: this.table.loading }}
           empty-text={this.$t('无数据')}
-          on-header-dragend={(newWidth, oldWidth, col) => {
+          on-header-dragend={(newWidth, _oldWidth, col) => {
             if (col.property === 'group') {
               this.groupWidth = newWidth;
             }

@@ -487,7 +487,7 @@
         return this.exportStatusList[status];
       },
       getFormatDate(time) {
-        return formatDate(new Date(time).getTime());
+        return formatDate(new Date(time).getTime(), true);
       },
       handleRetrieve($row) {
         const { spaceUid } = this.$store.state;

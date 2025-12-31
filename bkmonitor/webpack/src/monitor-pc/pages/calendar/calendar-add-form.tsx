@@ -446,7 +446,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
       repeatType: freq,
       repeatNum: interval,
       repeatDays: every,
-      endDate: until ? dayjs.tz(until * 1000).format('YYYY-MM-DD HH:mm:ss') : '',
+      endDate: until ? dayjs.tz(until * 1000).format('YYYY-MM-DD HH:mm:ssZZ') : '',
       endDateNoRepeat: !until,
     };
     if (!freq) {

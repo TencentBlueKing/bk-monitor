@@ -27,8 +27,8 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import dayjs from 'dayjs';
 import { checkAllowedByActionIds } from 'monitor-api/modules/iam';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { random } from 'monitor-common/utils/utils';
 import authorityStore from 'monitor-pc/store/modules/authority';
 import { transformLogUrlQuery } from 'monitor-pc/utils';
@@ -407,7 +407,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: false,
           checked: false,
           props: {
-            minWidth: 150,
+            minWidth: 180,
             formatter: (row: IEventItem) => this.formatterTime(row.create_time),
             sortable: 'custom',
           },
@@ -429,7 +429,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: false,
           checked: false,
           props: {
-            minWidth: 150,
+            minWidth: 180,
             formatter: (row: IEventItem) => this.formatterTime(row.end_time),
             sortable: 'custom',
           },
@@ -440,7 +440,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: false,
           checked: false,
           props: {
-            minWidth: 150,
+            minWidth: 180,
             formatter: (row: IEventItem) => this.formatterTime(row.latest_time),
             sortable: 'custom',
           },
@@ -451,7 +451,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           disabled: false,
           checked: false,
           props: {
-            minWidth: 150,
+            minWidth: 180,
             formatter: (row: IEventItem) => this.formatterTime(row.first_anomaly_time),
             sortable: 'custom',
           },
@@ -986,8 +986,8 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   formatterTime(time: number | string): string {
     if (!time) return '--';
     if (typeof time !== 'number') return time;
-    if (time.toString().length < 13) return dayjs.tz(time * 1000).format('YYYY-MM-DD HH:mm:ss');
-    return dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss');
+    if (time.toString().length < 13) return formatWithTimezone(time * 1000) as string;
+    return formatWithTimezone(time) as string;
   }
 
   handleDescEnter(e: MouseEvent, dimensions, description) {

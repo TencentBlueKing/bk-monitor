@@ -27,6 +27,7 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
@@ -144,6 +145,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       label: this.$t('创建时间'),
       sortable: true,
       width: 180,
+      formatter: this.timeColRenderer,
     },
     update_user: {
       id: 'update_user',
@@ -156,6 +158,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       label: this.$t('更新时间'),
       sortable: true,
       width: 180,
+      formatter: this.timeColRenderer,
     },
     relation_config_count: {
       id: 'relation_config_count',
@@ -298,7 +301,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
         this.handlePopoverHide();
       },
     });
-    // @ts-ignore
+    // @ts-expect-error
     instance.deleteConfirmConfig = {
       id: row.id,
       templateName: row.name,
@@ -509,6 +512,9 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   userColRenderer(row, column) {
     const colKey = column.columnKey;
     return <bk-user-display-name user-id={row[colKey]} />;
+  }
+  timeColRenderer(row, column) {
+    return <span>{formatWithTimezone(row[column.columnKey])}</span>;
   }
   /**
    * @description: 表格 操作 列渲染

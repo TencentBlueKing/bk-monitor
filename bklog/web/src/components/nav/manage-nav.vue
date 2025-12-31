@@ -229,7 +229,7 @@
 <style lang="scss" scoped>
   .sub-nav-container {
     position: fixed;
-    top: 51px;
+    top: 52px;
     z-index: 9;
     display: flex;
     align-items: center;

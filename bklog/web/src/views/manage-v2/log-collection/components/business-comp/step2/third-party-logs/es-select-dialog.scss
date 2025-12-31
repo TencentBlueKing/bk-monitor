@@ -1,0 +1,28 @@
+.es-select-dialog {
+    .mr-8 {
+        margin-right: 8px;
+    }
+    .mt-12 {
+        margin-top: 12px;
+    }
+    .input-box {
+        width: 84.5%;
+        display: inline-block;
+        margin-right: 20px;
+    }
+    .table-item-box {
+        position: relative;
+    }
+    .result-tips {
+        color: #2CAF5E;
+        position: absolute;
+        top: 8px;
+        font-size: 12px;   
+        right: 14px;
+        z-index: 1;
+        .icon-check-circle-shape {
+            margin-right: 4px;
+            font-size: 14px;
+        }
+    }
+}

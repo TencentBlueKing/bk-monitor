@@ -1,0 +1,203 @@
+.new-table-component-box {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  .table-set {
+    position: absolute;
+    right: 8px;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 37px;
+    width: 30px;
+    line-height: 37px;
+    .column-config-trigger {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      color:#979ba5;
+      font-size: 14px;
+      padding: 4px 8px;
+      border-radius: 2px;
+      transition: all 0.2s;
+      .bk-icon {
+        font-size: 14px;
+      }
+    }
+  }
+  .filter-empty {
+    width: calc(100% - 10px);
+    position: absolute;
+    top: 80px;
+    z-index: 3;
+    height: 400px;
+    background:#fff;
+  }
+  .new-table-component-main {
+    width: 100%;
+    height: 100%;
+    font-family: "PingFang SC","Microsoft Yahei",monospace;
+    .table-skeleton-box {
+      background: #fff;
+      width: 100%;
+      height: calc(100% - 40px);
+      position: absolute;
+      top: 40px;
+      left: 0px;
+      z-index: 6;
+    }
+    .table-empty-content {
+      width: 100%;
+      height: 100%;
+      background: #fff;
+    }
+    .sort-icon {
+      display: inline-block;
+      color: #c4c6cc;
+      font-size: 10px;
+      height: 11px;
+      line-height: 10px;
+    }
+    .filter-icon {
+      color: #acadb7;
+      transition: color 0.2s;
+      font-size: 13px;
+      &.is-filtered {
+        color: #3a84ff;
+      }
+    }
+    .t-table__sort-icon--active {
+      .sort-icon {
+        color: #3a84ff;
+      }
+    }
+    td {
+      font-size: 12px;
+      padding: 4px 10px 4px 12px;
+    }
+    .t-table__header th {
+      background-color: #f5f7fa !important;
+      padding: 8px 10px 6px 12px;
+    }
+    .t-table__content {
+      border: none;
+    }
+    .t-table__header .t-table__th-cell-inner {
+      font-size: 12px;
+      color: #313238;
+    }
+    .t-table__body {
+      td {
+        font-size: 12px;
+        color: #4D4F56;
+        padding: 8px 8px 8px 10px;
+      }
+    }
+    .t-table__filter-pop .t-table__list-filter-input--sticky .t-table__filter-pop-content .t-table__filter-pop-content-inner .t-radio-group {
+      padding: 0;
+    }
+    .t-table__first-full-row {
+      display: none;
+    }
+    .t-table__cell--fixed-left-last::after {
+      border-right: 2px solid rgba(163, 160, 160, 0.12);
+    }
+    .t-table__cell--fixed-right-first::after {
+      border-left: 2px solid rgba(163, 160, 160, 0.12);
+    }
+    // 隐藏过滤弹窗中的 radio 按钮，并添加选中样式
+    .custom-filter-popup {
+      .t-table__filter-pop-content {
+        .t-radio {
+          padding: 1px 10px;
+          .t-radio__input {
+            display: none !important;
+          }
+          &:hover {
+            background-color: #e1ecff;
+            .t-radio__label {
+              color: #3a84ff;
+            }
+          }
+          .t-radio__label {
+            font-size: 12px;
+            color: #63656e;
+            margin-left: 0 !important;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 2px;
+            
+          }
+          // 选中状态样式
+          &.t-is-checked {
+            background-color: #e1ecff;
+            font-weight: 500;
+            .t-radio__label {
+              color: #3a84ff;
+            }
+          }
+        }
+      }
+    }
+    .t-table__pagination {
+      display: flex;
+      .t-pagination__total {
+        width: 100px;
+        flex: none;
+      }
+      .t-input--focused {
+        box-shadow: none;
+      }
+      .t-pagination__select {
+        flex: 1;
+        margin-left: 10px;
+        .t-input {
+          border: none;
+          background: #f6f6f7;
+          &:focus {
+            box-shadow: none;
+          }
+        }
+        .t-input__inner {
+          font-size: 13px;
+          color: #63656e;
+        }
+      }
+      .t-pagination__number {
+        border: none;
+        color: #4D4F56;
+        font-size: 12px;
+      }
+      .t-pagination__number.t-is-current {
+        background-color: #E1ECFF !important;
+        border-radius: 2px !important;
+        color: #3a84ff;
+        font-weight: 600;
+      }
+    }
+}
+}
+// 针对 TTable 组件超出内容显示的 tooltip
+.t-tooltip__content,
+.t-popup__content {
+  font-size: 12px !important;
+  .link {
+    color: #fff !important;
+  }
+}
+.t-select__dropdown.t-popup {
+  .t-select__list {
+    padding: 8px 0;
+  }
+  .t-select-option {
+    font-size: 13px;
+    color: #63656e;
+    padding: 6px 16px;
+    border-radius: 0;
+    &.t-is-selected {
+      background-color: #eaf3ff;
+      color:#3a84ff;
+    }
+  }
+}

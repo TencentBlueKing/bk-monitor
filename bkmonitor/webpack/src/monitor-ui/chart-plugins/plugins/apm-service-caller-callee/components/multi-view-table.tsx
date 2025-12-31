@@ -833,7 +833,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             scopedSlots={{
               default: a => {
                 if (item.value === 'code') return this.renderCodeColumn(item, a.row);
-                const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ss') : '--';
+                const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ssZZ') : '--';
                 const txt = item.value === 'time' && !a.row?.isTotal ? timeTxt : a.row[item.value];
                 return (
                   <span

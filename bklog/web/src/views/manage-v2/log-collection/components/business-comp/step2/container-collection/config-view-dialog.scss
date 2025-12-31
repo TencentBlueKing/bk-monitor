@@ -1,0 +1,36 @@
+.config-view-dialog-main {
+    width: 100%;
+    font-size: 12px;
+    .view-container {
+        border: 1px solid #dcdee5;
+        border-radius: 2px;
+        box-sizing: border-box;
+        margin-bottom: 12px;
+        max-height: 264px;
+        .view-title {
+            background: #f0f1f5;
+            border-bottom: 1px solid #dcdee5;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 12px;
+            .match {
+                color: #63656e;
+                font-weight: 700;
+            }
+        }
+        .number {
+            color: #3a84ff;
+            font-weight: 700;
+        }
+        .view-target {
+            border-top: none;
+            max-height: 232px;
+            overflow-y: auto;
+            .title-overflow {
+                margin: 8px 16px;
+                width: calc(100% - 32px);
+            }
+        }
+    }
+}

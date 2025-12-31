@@ -25,6 +25,7 @@ class IncidentStatus(CustomEnum):
     RECOVERING = "recovering"
     RECOVERED = "recovered"
     CLOSED = "closed"
+    MERGED = "merged"
 
     @property
     def alias(self) -> str:
@@ -33,6 +34,7 @@ class IncidentStatus(CustomEnum):
             "recovered": _lazy("已恢复"),
             "recovering": _lazy("观察中"),
             "closed": _lazy("已解决"),
+            "merged": _lazy("已合并"),
         }
         return incident_status_map[self.value]
 
@@ -43,6 +45,7 @@ class IncidentStatus(CustomEnum):
             "recovered": 2,
             "recovering": 1,
             "closed": 3,
+            "merged": 4,
         }
         return incident_status_order_map[self.value]
 

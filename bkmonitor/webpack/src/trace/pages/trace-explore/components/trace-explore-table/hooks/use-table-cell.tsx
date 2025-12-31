@@ -143,7 +143,7 @@ export function useTableCell(rowKeyField: MaybeRef<string>) {
   }
 
   /**
-   * @description ExploreTableColumnTypeEnum.ELAPSED_TIME 日期时间列渲染方法 (将 时间戳 转换为 YYYY-MM-DD HH:mm:ss)
+   * @description ExploreTableColumnTypeEnum.ELAPSED_TIME 日期时间列渲染方法 (将 时间戳 转换为 YYYY-MM-DD HH:mm:ssZZ)
    * @param {ExploreTableColumn} column 当前列配置项
    *
    */

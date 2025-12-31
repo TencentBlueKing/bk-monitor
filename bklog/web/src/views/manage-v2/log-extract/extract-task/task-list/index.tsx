@@ -436,7 +436,7 @@ export default defineComponent({
           {/* 创建时间列 */}
           <bk-table-column
             label={t('创建时间')}
-            min-width='120'
+            width='190'
             prop='created_at'
             renderHeader={renderHeader}
           />

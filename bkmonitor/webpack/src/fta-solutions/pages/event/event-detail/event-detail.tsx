@@ -175,7 +175,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     this.scrollInit();
     this.logRetrieval.isMounted = true;
   }
-  beforeRouteLeave(to, from, next) {
+  beforeRouteLeave(_to, _from, next) {
     next(() => {
       destroyTimezone();
     });
@@ -248,7 +248,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       page: 1,
       page_size: 100,
       alert_ids: [this.id],
-      status: ['failure', 'success', 'partial_failure'],
+      status: ['failure', 'success', 'partial_failure', 'blocked'],
       ordering: ['-create_time'],
       conditions: [{ key: 'parent_action_id', value: [0], method: 'eq' }], // 处理状态数据写死条件
     };
@@ -435,7 +435,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       const traceIdSet = new Set();
       if (data.series?.length) {
         for (const item of data.series) {
-          const idIndex = item.columns.findIndex(c => c === 'bk_trace_id');
+          const idIndex = item.columns.indexOf('bk_trace_id');
           for (const d of item.data_points) {
             if (d[idIndex]) {
               traceIdSet.add(d[idIndex]);

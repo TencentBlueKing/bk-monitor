@@ -931,7 +931,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   /** 下载图片 */
   handleDownloadImage() {
     if (!(this as any).graph) return;
-    const name = `${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`;
+    const name = `${dayjs.tz().format('YYYY-MM-DD HH:mm:ssZZ')}`;
     (this as any).graph.downloadFullImage(name, 'image/png', {
       backgroundColor: '#fff',
       padding: 30,

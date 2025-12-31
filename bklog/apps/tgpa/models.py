@@ -22,10 +22,14 @@ the project delivered to anyone in the future.
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apps.tgpa.constants import TGPATaskProcessStatusEnum
+from apps.tgpa.constants import TGPATaskProcessStatusEnum, TGPAReportSyncStatusEnum
 
 
 class TGPATask(models.Model):
+    """
+    客户端日志捞取任务
+    """
+
     task_id = models.IntegerField(_("后台任务id"), unique=True, db_index=True)
     bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
     log_path = models.TextField(_("日志路径"), null=True, blank=True)
@@ -38,3 +42,41 @@ class TGPATask(models.Model):
     class Meta:
         verbose_name = _("TGPA任务")
         verbose_name_plural = _("TGPA任务")
+
+
+class TGPAReportSyncRecord(models.Model):
+    """
+    客户端上报同步记录
+    """
+
+    bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
+    openid_list = models.JSONField(_("openid列表"), null=True)
+    file_name_list = models.JSONField(_("文件名列表"), null=True)
+    status = models.CharField(_("状态"), max_length=64, default=TGPAReportSyncStatusEnum.PENDING.value)
+    error_message = models.TextField(_("错误信息"), null=True, blank=True)
+    created_at = models.DateTimeField(_("创建时间"), auto_now_add=True, db_index=True)
+    created_by = models.CharField(_("创建者"), max_length=32, default="")
+
+    class Meta:
+        verbose_name = _("客户端上报同步记录")
+        verbose_name_plural = _("客户端上报同步记录")
+
+
+class TGPAReport(models.Model):
+    """
+    客户端上报文件处理记录
+    """
+
+    bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
+    file_name = models.CharField(_("文件名"), max_length=512)
+    openid = models.CharField(_("openid"), max_length=128, null=True, blank=True)
+    processed_at = models.DateTimeField(_("处理时间"), null=True)
+    process_status = models.CharField(_("处理状态"), max_length=64, default=TGPAReportSyncStatusEnum.PENDING.value)
+    error_message = models.TextField(_("错误信息"), null=True, blank=True)
+    record_id = models.IntegerField(_("同步记录id"), db_index=True)
+
+    class Meta:
+        verbose_name = _("客户端上报")
+        verbose_name_plural = _("客户端上报")
+        ordering = ("-processed_at",)
+        unique_together = ("file_name", "record_id")

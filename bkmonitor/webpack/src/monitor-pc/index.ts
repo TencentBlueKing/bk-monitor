@@ -43,6 +43,7 @@ import { assignWindowField } from 'monitor-common/utils/assign-window';
 
 import './common/global-login';
 import { userDisplayNameConfigure } from './common/user-display-name';
+import { updateTimezone } from './i18n/dayjs';
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
@@ -92,13 +93,17 @@ if (hasRouteHash) {
         context_type: 'basic',
       })
       .then(data => {
-        appLoadingNode && (appLoadingNode.style.display = 'none');
+        if (appLoadingNode) {
+          appLoadingNode.style.display = 'none';
+        }
         assignWindowField(data);
         mergeSpaceList(window.space_list);
         window.user_name = window.uin;
         window.username = window.uin;
         window.user_name = window.uin;
         window.cc_biz_id = +window.bk_biz_id;
+        console.info('data.USER_TIME_ZONE', data.USER_TIME_ZONE);
+        updateTimezone(data.USER_TIME_ZONE);
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
         const bizId = setGlobalBizId();
         if (bizId === false) return;

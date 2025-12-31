@@ -1072,7 +1072,7 @@ export default defineComponent({
     const downloadAsImage = () => {
       if (!graph) return;
       const { trace_id: traceID } = traceData.value;
-      const name = `${traceID}_${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`;
+      const name = `${traceID}_${dayjs.tz().format('YYYY-MM-DD HH:mm:ssZZ')}`;
       graph.downloadFullImage(name, 'image/png', {
         backgroundColor: '#fff',
         padding: 30,

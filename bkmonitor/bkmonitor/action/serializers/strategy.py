@@ -695,7 +695,7 @@ class UserGroupSlz(serializers.ModelSerializer):
         active_rules = DutyRule.objects.filter(
             enabled=True,
             effective_time__lte=now,
-        ).filter(Q(end_time__gte=now) | Q(end_time__isnull=True) | Q(end_time__isnull=""))
+        ).filter(Q(end_time__gte=now) | Q(end_time__isnull=True) | Q(end_time=""))
 
         # 关联查询对应的 DutyArrange
         active_arranges = DutyArrange.objects.filter(
