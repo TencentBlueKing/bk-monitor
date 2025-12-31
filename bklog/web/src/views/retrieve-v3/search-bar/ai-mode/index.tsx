@@ -149,10 +149,10 @@ export default defineComponent({
       emit('text-to-query', currentInput.value);
     };
 
-    const handleEdit = () => {
-      (parsedTextRef.value as any)?.hide?.();
-      emit('edit-sql');
-    };
+    // const handleEdit = () => {
+    //   (parsedTextRef.value as any)?.hide?.();
+    //   emit('edit-sql');
+    // };
 
     const handleRemoveFilter = (item: string) => {
       const newFilterList = [...props.filterList];
@@ -184,13 +184,12 @@ export default defineComponent({
       emit('filter-change', []);
     };
 
-    const getHoverContent = () => {
-      return (
-        <div class='ai-parsed-text-content'>
-          <span>{props.aiQueryResult.queryString}</span>
-          <span onClick={handleEdit}>{t('前往编辑')}</span>
-        </div>
-      );
+    const handleClearInputText = () => {
+      inputValue.value = '';
+      currentInput.value = '';
+      status.value = 'default';
+      adjustTextareaHeight();
+      emit('text-to-query', currentInput.value);
     };
 
     // 手动设置焦点，避免 autofocus 警告
@@ -258,8 +257,11 @@ export default defineComponent({
                   }}
                 />
               </div>
-              {props.aiQueryResult.queryString ? (
-                <span class='bklog-icon bklog-qingkong'></span>
+              {currentInput.value.length > 0 ? (
+                <span
+                  class='bklog-icon bklog-qingkong'
+                  onClick={handleClearInputText}
+                ></span>
               ) : null}
               <div class='ai-mode-toggle-btn'>
                 <img
