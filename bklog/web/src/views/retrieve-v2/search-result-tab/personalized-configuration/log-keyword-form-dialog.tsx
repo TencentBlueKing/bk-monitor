@@ -28,22 +28,25 @@ import { computed, defineComponent, ref, watch } from 'vue';
 import { t } from '@/hooks/use-locale';
 import { bkColorPicker } from 'bk-magic-vue';
 import { FormData, MatchType, ActionType, RelatedResource } from './types';
-import { uniqueId } from 'lodash-es';
 import useStore from '@/hooks/use-store';
+import JumpLinkEditor from './jump-link-editor';
 
 import './log-keyword-form-dialog.scss';
 
-// 默认表单数据
-const getDefaultFormData = (): FormData => ({
-  taskId: '',
+// 组件内部使用的表单数据类型（包含 originalText）
+type LocalFormData = FormData & { originalText: string };
+
+// 默认表单数据（包含originalText用于表单验证）
+const getDefaultFormData = (): LocalFormData => ({
   taskName: '',
   creator: '',
   matchType: MatchType.FIELD,
   selectField: '',
   regex: '',
+  originalText: '', // 仅用于正则测试，不提交后端
   actionType: ActionType.MARK,
   tagName: '',
-  color: '',
+  color: '#FF4500',
   jumpLink: '',
   relatedResource: RelatedResource.HOST,
   relatedConfig: {
@@ -56,6 +59,7 @@ export default defineComponent({
   name: 'LogKeywordFormDialog',
   components: {
     bkColorPicker,
+    JumpLinkEditor,
   },
   props: {
     visible: {
@@ -78,6 +82,11 @@ export default defineComponent({
     const formRef = ref(null);
     const localFormData = ref(getDefaultFormData());
     const labelWidth = ref(store.state.isEnLanguage ? 130 : 70);
+
+    // 正则测试相关状态
+    const regexTestResult = ref(''); // 测试匹配结果
+    const hasTestedRegex = ref(false); // 是否已进行正则测试
+    const showTestResult = ref(false); // 是否显示测试结果区域
 
     // 匹配类型选项
     const matchTypeOptions = [
@@ -107,6 +116,31 @@ export default defineComponent({
       trigger: 'blur',
     };
 
+    // tagName 校验函数
+    const validateTagName = (value: string): boolean => {
+      // 去除首尾空格
+      const trimmedValue = value?.trim() || '';
+
+      // 如果是标记动作，tagName 为必填
+      if (localFormData.value.actionType === ActionType.MARK && !trimmedValue) {
+        return false;
+      }
+
+      // 如果有值，则进行格式校验
+      if (trimmedValue) {
+        // 检查长度（最多8个字符）
+        if (trimmedValue.length > 8) {
+          return false;
+        }
+
+        // 检查字符格式（只允许字母、数字、下划线）
+        const regex = /^[a-zA-Z0-9_]+$/;
+        return regex.test(trimmedValue);
+      }
+
+      return true;
+    };
+
     // 表单验证规则
     const formRules = computed(() => {
       return {
@@ -115,9 +149,15 @@ export default defineComponent({
         selectField: [basicRules],
         regex: [basicRules],
         actionType: [basicRules],
+        originalText: [basicRules],
         tagName: [
           {
             required: localFormData.value.actionType === ActionType.MARK,
+            trigger: 'blur',
+          },
+          {
+            validator: validateTagName,
+            message: t('tag名称不得超出8个字母、数字、_'),
             trigger: 'blur',
           },
         ],
@@ -144,6 +184,7 @@ export default defineComponent({
     const handleDialogValueChange = (value: boolean) => {
       if (!value) {
         handleReset();
+        handleClearError();
         handleCancel();
       }
     };
@@ -155,39 +196,29 @@ export default defineComponent({
 
     // 根据匹配类型和执行动作组装表单数据
     const assembleFormData = (): FormData => {
-      // 创建默认表单数据结构
-      const defaultData = getDefaultFormData();
-
-      // 根据操作类型决定 taskId
-      if (props.type === 'create') {
-        defaultData.taskId = uniqueId();
-      } else if (props.type === 'edit') {
-        defaultData.taskId = localFormData.value.taskId;
-      }
+      // 使用解构排除originalText字段
+      const { originalText, ...defaultData } = getDefaultFormData();
+      const { bk_tenant_id: bkTenantId, username } = store.state.userMeta;
 
       // 基础字段始终赋值
-      defaultData.taskName = localFormData.value.taskName;
-      defaultData.creator = store.state.userMeta?.username;
+      defaultData.taskName = localFormData.value.taskName.trim();
+      defaultData.creator = bkTenantId ?? username;
       defaultData.matchType = localFormData.value.matchType;
       defaultData.actionType = localFormData.value.actionType;
-      defaultData.tagName = localFormData.value.tagName;
+      defaultData.tagName = localFormData.value.tagName.trim();
 
       // 根据匹配类型赋值相应字段
       if (localFormData.value.matchType === MatchType.FIELD) {
         defaultData.selectField = localFormData.value.selectField;
-        // regex 保持默认空值
       } else if (localFormData.value.matchType === MatchType.REGEX) {
-        defaultData.regex = localFormData.value.regex;
-        // selectField 保持默认空值
+        defaultData.regex = localFormData.value.regex.trim();
       }
 
       // 根据执行动作赋值相应字段
       if (localFormData.value.actionType === ActionType.MARK) {
         defaultData.color = localFormData.value.color;
-        // jumpLink 和 relatedConfig 保持默认值
       } else if (localFormData.value.actionType === ActionType.JUMP) {
-        defaultData.jumpLink = localFormData.value.jumpLink;
-        // color 和 relatedConfig 保持默认值
+        defaultData.jumpLink = localFormData.value.jumpLink.trim();
       } else if (localFormData.value.actionType === ActionType.RELATED) {
         defaultData.relatedResource = localFormData.value.relatedResource;
         defaultData.relatedConfig = {
@@ -219,20 +250,74 @@ export default defineComponent({
     // 重置表单
     const handleReset = () => {
       localFormData.value = getDefaultFormData();
+      // 重置正则测试相关状态
+      regexTestResult.value = '';
+      hasTestedRegex.value = false;
+      showTestResult.value = false;
     };
+
+    // 正则表达式测试匹配
+    const handleTestRegex = () => {
+      const { originalText, regex } = localFormData.value;
+
+      if (!originalText.trim() || !regex.trim()) {
+        regexTestResult.value = '请先输入原文和正则表达式';
+        showTestResult.value = true; // 显示结果区域
+        return;
+      }
+
+      showTestResult.value = true; // 显示结果区域
+
+      try {
+        const regexObj = new RegExp(regex, 'g');
+        const matches = originalText.match(regexObj);
+
+        if (matches && matches.length > 0) {
+          regexTestResult.value = `${t('匹配成功！找到 {0} 个匹配项：', [matches.length])}\n${matches.map((match, index) => `${index + 1}. ${match}`).join('\n')}`;
+        } else {
+          regexTestResult.value = t('未找到匹配项');
+        }
+
+        hasTestedRegex.value = true;
+      } catch (error) {
+        regexTestResult.value = `${t('正则表达式语法错误：')}${error.message}`;
+        hasTestedRegex.value = false;
+      }
+    };
+
+    // 判断确认按钮是否应该禁用
+    const isConfirmDisabled = computed(() => {
+      return localFormData.value.matchType === MatchType.REGEX && !hasTestedRegex.value;
+    });
 
     // 监听匹配类型和执行动作变化，变化时清除错误提示
     watch(
-      () => localFormData.value.matchType,
+      () => [localFormData.value.matchType, localFormData.value.actionType],
       () => {
         handleClearError();
       },
     );
 
+    // 监听匹配类型变化，重置正则测试状态
     watch(
-      () => localFormData.value.actionType,
+      () => localFormData.value.matchType,
+      (newMatchType) => {
+        if (newMatchType !== MatchType.REGEX) {
+          showTestResult.value = false;
+          regexTestResult.value = '';
+          hasTestedRegex.value = false;
+        }
+      },
+    );
+
+    // 监听原文和正则表达式变化，重置测试状态
+    watch(
+      () => [localFormData.value.originalText, localFormData.value.regex],
       () => {
-        handleClearError();
+        if (localFormData.value.matchType === MatchType.REGEX) {
+          hasTestedRegex.value = false;
+          regexTestResult.value = '';
+        }
       },
     );
 
@@ -240,7 +325,7 @@ export default defineComponent({
       () => props.formData,
       (newFormData: FormData) => {
         if (newFormData) {
-          localFormData.value = { ...newFormData };
+          localFormData.value = { ...newFormData, originalText: '' };
         } else {
           localFormData.value = getDefaultFormData();
         }
@@ -260,13 +345,34 @@ export default defineComponent({
       <bk-dialog
         value={props.visible}
         on-value-change={handleDialogValueChange}
-        on-confirm={handleConfirm}
         mask-close={false}
         auto-close={false}
         title={t('日志关键字')}
         header-position='left'
         width='532'
         ext-cls='log-keyword-setting-dialog'
+        transfer
+        scopedSlots={{
+          footer: () => (
+            <div class='dialog-footer'>
+              <span
+                v-bk-tooltips={{
+                  content: t('正则表达式未测试匹配'),
+                  disabled: !isConfirmDisabled.value,
+                }}
+              >
+                <bk-button
+                  theme='primary'
+                  disabled={isConfirmDisabled.value}
+                  on-click={handleConfirm}
+                >
+                  {t('确认')}
+                </bk-button>
+              </span>
+              <bk-button on-click={handleCancel}>{t('取消')}</bk-button>
+            </div>
+          ),
+        }}
       >
         <bk-form
           ref={formRef}
@@ -325,23 +431,58 @@ export default defineComponent({
             </bk-form-item>
           )}
           {localFormData.value.matchType === MatchType.REGEX && (
-            <bk-form-item
-              label={t('正则表达式')}
-              required
-              property='regex'
-            >
-              <bk-input
-                value={localFormData.value.regex}
-                on-change={(value: string) => (localFormData.value.regex = value)}
-                type='textarea'
-                input-style={{ height: '118px' }}
-              />
-            </bk-form-item>
+            <div class='mt22'>
+              <bk-form-item
+                label={t('原文')}
+                required
+                property='originalText'
+              >
+                <bk-input
+                  value={localFormData.value.originalText}
+                  on-change={(value: string) => (localFormData.value.originalText = value)}
+                  type='textarea'
+                  input-style={{ height: '80px' }}
+                />
+              </bk-form-item>
+              <bk-form-item
+                label={t('正则表达式')}
+                required
+                property='regex'
+              >
+                <bk-input
+                  value={localFormData.value.regex}
+                  on-change={(value: string) => (localFormData.value.regex = value)}
+                  type='textarea'
+                  input-style={{ height: '80px' }}
+                />
+              </bk-form-item>
+              <bk-form-item>
+                <bk-button
+                  theme='primary'
+                  outline
+                  on-click={handleTestRegex}
+                >
+                  {t('测试匹配')}
+                </bk-button>
+              </bk-form-item>
+              {showTestResult.value && (
+                <bk-form-item label={t('匹配结果')}>
+                  <bk-input
+                    value={regexTestResult.value}
+                    type='textarea'
+                    input-style={{ height: '80px' }}
+                    readonly
+                    placeholder={t('点击"测试匹配"按钮查看结果')}
+                  />
+                </bk-form-item>
+              )}
+            </div>
           )}
           <bk-form-item
             label={t('执行动作')}
             required
             property='actionType'
+            class='mt22'
           >
             <bk-radio-group
               value={localFormData.value.actionType}
@@ -403,9 +544,10 @@ export default defineComponent({
               required
               property='jumpLink'
             >
-              <bk-input
+              <JumpLinkEditor
                 value={localFormData.value.jumpLink}
                 on-change={(value: string) => (localFormData.value.jumpLink = value)}
+                placeholder={t('请输入跳转链接，支持 {变量名} 格式')}
               />
             </bk-form-item>
           )}

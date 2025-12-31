@@ -927,4 +927,5 @@ export default {
   请选择应用实例: 'Please select an application instance',
   请选择服务实例: 'Please select a service instance',
   tag名称: 'Tag Name',
+  原文: 'Original',
 };

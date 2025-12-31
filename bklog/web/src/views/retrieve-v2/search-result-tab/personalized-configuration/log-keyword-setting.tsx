@@ -48,23 +48,26 @@ export default defineComponent({
     const dialogVisible = ref(false); // Dialog 显示状态
     const formData = ref<FormData | null>(null); // 表单数据
     const dialogType = ref<'create' | 'edit' | 'view'>('create'); // 对话框类型
+    const editIndex = ref<number>(-1); // 编辑的索引
 
     // 打开新建对话框
     const handleNewClick = () => {
       formData.value = null;
       dialogType.value = 'create';
+      editIndex.value = -1;
       dialogVisible.value = true;
     };
 
     // 打开编辑对话框
-    const handleEditClick = (row: FormData) => {
+    const handleEditClick = (row: FormData, index: number) => {
       formData.value = { ...row }; // 设置要编辑的数据
       dialogType.value = 'edit'; // 设置为编辑模式
+      editIndex.value = index; // 记录编辑的索引
       dialogVisible.value = true; // 打开对话框
     };
 
     // 删除确认
-    const handleDelete = (row: any) => {
+    const handleDelete = (row: any, index: number) => {
       bkInfoBox({
         type: 'warning',
         subTitle: t('当前任务名称为{n}，确认要删除？', { n: row.taskName }),
@@ -73,8 +76,9 @@ export default defineComponent({
             // 1. 获取现有的配置数据
             const existingSettings = store.state.indexFieldInfo.custom_config?.personalization?.settings || [];
 
-            // 2. 过滤掉要删除的配置项
-            const updatedSettings = existingSettings.filter(item => item.taskId !== row.taskId);
+            // 2. 根据索引删除配置项
+            const updatedSettings = [...existingSettings];
+            updatedSettings.splice(index, 1);
 
             // 3. 调用API进行全量保存
             const resp = await http.request('retrieve/setIndexSetCustomConfig', {
@@ -124,8 +128,9 @@ export default defineComponent({
           // 新建：添加到数组末尾
           updatedSettings = [...existingSettings, data];
         } else if (dialogType.value === 'edit') {
-          // 编辑：替换对应的配置项
-          updatedSettings = existingSettings.map(item => (item.taskId === data.taskId ? data : item));
+          // 编辑：根据索引替换对应的配置项
+          updatedSettings = [...existingSettings];
+          updatedSettings[editIndex.value] = data;
         }
 
         // 3. 调用API进行全量保存
@@ -160,6 +165,7 @@ export default defineComponent({
         console.error('保存配置失败:', error);
       } finally {
         dialogVisible.value = false;
+        editIndex.value = -1; // 重置编辑索引
       }
     };
 
@@ -216,20 +222,20 @@ export default defineComponent({
 
     // 操作项插槽
     const operateSlot = {
-      default: ({ row }) => (
+      default: ({ row, $index }) => (
         <div>
           <bk-button
             text
             theme='primary'
             class='mr16'
-            on-click={() => handleEditClick(row)}
+            on-click={() => handleEditClick(row, $index)}
           >
             {t('编辑')}
           </bk-button>
           <bk-button
             text
             theme='primary'
-            on-click={() => handleDelete(row)}
+            on-click={() => handleDelete(row, $index)}
           >
             {t('删除')}
           </bk-button>

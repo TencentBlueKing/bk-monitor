@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch } from 'vue';
+import { defineComponent, nextTick, ref, watch } from 'vue';
 
 import { t } from '@/hooks/use-locale';
 import { TabType } from './types';
@@ -80,22 +80,32 @@ export default defineComponent({
       activeTab.value = title;
     };
 
-    // 监听tab切换
+    // 监听侧滑弹窗打开状态
     watch(
-      activeTab,
-      (title: TabType) => {
-        if (title === TabType.LOG_LEVEL) {
+      () => props.isShow,
+      async (isShow) => {
+        if (isShow) {
+          await nextTick();
           // 更新分级配置
           const cfg = store.state.indexFieldInfo.custom_config?.grade_options ?? {};
           refGradeOption.value?.updateOptions?.(cfg);
-        } else if (title === TabType.LOG_KEYWORD) {
-          tableData.value = keywordConfigs.value;
-        } else {
-          tableData.value = metricConfigs.value;
         }
       },
-      { immediate: true },
     );
+
+    // 监听tab切换
+    watch(activeTab, async (title: TabType) => {
+      if (title === TabType.LOG_LEVEL) {
+        // 更新分级配置
+        const cfg = store.state.indexFieldInfo.custom_config?.grade_options ?? {};
+        await nextTick();
+        refGradeOption.value?.updateOptions?.(cfg);
+      } else if (title === TabType.LOG_KEYWORD) {
+        tableData.value = keywordConfigs.value;
+      } else {
+        tableData.value = metricConfigs.value;
+      }
+    });
 
     // 取消操作/关闭侧滑弹窗
     const handleCancel = () => {

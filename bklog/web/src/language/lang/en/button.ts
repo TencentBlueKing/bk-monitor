@@ -224,4 +224,5 @@ export default {
   批量编辑变量别名: 'Batch edit variable alias mappings',
   查看全部: 'View All',
   刷新收藏: 'Refresh Favorites',
+  测试匹配: 'Test Match',
 };

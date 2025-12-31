@@ -1,9 +1,15 @@
 .log-keyword-setting-dialog {
-    .bk-form {
-        .bk-label {
-            text-align: left;
-        }
+    .bk-dialog{
+        top: 98px;
+    }
 
+    .dialog-footer {
+        .bk-button:first-child {
+            margin-right: 8px;
+        }
+    }
+
+    .bk-form {
         .bk-form-radio {
             margin-right: 24px;
         }
