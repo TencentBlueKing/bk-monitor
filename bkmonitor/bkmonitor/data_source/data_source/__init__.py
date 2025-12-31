@@ -1513,8 +1513,6 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         "reg": "req",
         "nreg": "nreq",
         "neq": "ne",
-        "is one of": "eq",
-        "is not one of": "ne",
         "exists": "existed",
         "nexists": "nexisted",
         "include": "contains",
@@ -1525,8 +1523,22 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         "lte": "lte",
         "wildcard": "wildcard",
         "nwildcard": "nwildcard",
+        # 日志数据源操作符映射
+        # 背景：监控日志两个平台的操作符不一致，导致跳转告警场景存入了很多特殊操作符。
+        # all contains match phrase & all not contains match phrase 表示全匹配，比较特殊，手动迁移到 contains & ncontains
+        "is one of": "eq",
+        "is not one of": "ne",
+        "contains match phrase": "contains",
+        "not not contains match phrase": "ncontains",
+        "=": "eq",
+        "!=": "ne",
+        "is": "eq",
+        "is not": "ne",
+        ">": "gt",
+        ">=": "gte",
+        "<": "lt",
+        "<=": "lte",
     }
-
     # 分位数聚合方法映射关系：监控 -> UnifyQuery
     PERCENTILES_AGG_TRANSLATE: dict[float, str] = {
         CpAggMethods["cp50"].vargs_list[0]: "50.0",
