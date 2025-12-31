@@ -146,12 +146,12 @@ export default defineComponent({
      * 处理 Tab 键切换模式
      * @param e 键盘事件
      */
-    const handleTabKeyPress = (e: KeyboardEvent) => {
+    const handleTabKeyPress = (e: KeyboardEvent, isMouseClick = false) => {
       if (isAiLoading.value) {
         return;
       }
       // 检查是否按下了 Tab 键（排除 Shift+Tab）
-      if ((e.key === 'Tab' || e.keyCode === 9) && !e.shiftKey) {
+      if (isMouseClick || ((e.key === 'Tab' || e.keyCode === 9) && !e.shiftKey)) {
         // 阻止默认的 Tab 行为
         e.preventDefault();
         e.stopPropagation();
@@ -269,9 +269,9 @@ export default defineComponent({
      * @param e 鼠标事件
      */
     const handleAiSpanClick = (e: MouseEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      e.stopImmediatePropagation();
+      // e.stopPropagation();
+      // e.preventDefault();
+      // e.stopImmediatePropagation();
 
       // 打点：点击AI编辑按钮打开对话框
       RetrieveHelper.reportLog(
@@ -283,32 +283,33 @@ export default defineComponent({
         store.state,
       );
 
-      const rect = searchBarRef.value?.getRect();
-      const left = rect?.left;
-      const top = rect?.top + rect?.height + 4;
-      const width = rect?.width;
+      handleTabKeyPress(e as any, true);
+      // const rect = searchBarRef.value?.getRect();
+      // const left = rect?.left;
+      // const top = rect?.top + rect?.height + 4;
+      // const width = rect?.width;
 
-      RetrieveHelper.aiAssitantHelper.showAiAssitant(
-        {
-          defaultLeft: left,
-          defaultTop: top,
-          defaultWidth: width,
-          defaultHeight: 560,
-          draggable: false,
-          defaultChatInputPosition: 'bottom',
-          showCompressionIcon: false,
-          showNewChatIcon: false,
-          showMoreIcon: false,
-          maxWidth: '100%',
-          title: t('AI编辑'),
-        },
-        {
-          index_set_id: store.state.indexItem.ids[0],
-          description: '',
-          domain: window.location.origin,
-          fields: fieldsJsonValue.value,
-        },
-      );
+      // RetrieveHelper.aiAssitantHelper.showAiAssitant(
+      //   {
+      //     defaultLeft: left,
+      //     defaultTop: top,
+      //     defaultWidth: width,
+      //     defaultHeight: 560,
+      //     draggable: false,
+      //     defaultChatInputPosition: 'bottom',
+      //     showCompressionIcon: false,
+      //     showNewChatIcon: false,
+      //     showMoreIcon: false,
+      //     maxWidth: '100%',
+      //     title: t('AI编辑'),
+      //   },
+      //   {
+      //     index_set_id: store.state.indexItem.ids[0],
+      //     description: '',
+      //     domain: window.location.origin,
+      //     fields: fieldsJsonValue.value,
+      //   },
+      // );
     };
 
     /**
@@ -440,6 +441,14 @@ export default defineComponent({
     };
 
     /**
+     * 切换到普通模式
+     * @param e 鼠标事件
+     */
+    const handleModeChange = (e: MouseEvent) => {
+      handleTabKeyPress(e as any, true);
+    };
+
+    /**
      * 渲染搜索栏
      * @returns
      */
@@ -453,6 +462,7 @@ export default defineComponent({
               ai-query-result={aiQueryResult.value}
               filter-list={aiFilterList.value}
               on-height-change={handleHeightChange}
+              on-mode-change={handleModeChange}
               on-text-to-query={(value: string) => {
                 handleTextToQuery(value, 'ai_mode');
               }}

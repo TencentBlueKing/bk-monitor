@@ -38,7 +38,7 @@ type AiModeStatus = 'default' | 'inputting' | 'searching';
 
 export default defineComponent({
   name: 'V3AiMode',
-  emits: ['height-change', 'text-to-query', 'edit-sql', 'filter-change'],
+  emits: ['height-change', 'text-to-query', 'edit-sql', 'filter-change', 'mode-change'],
   props: {
     isAiLoading: {
       type: Boolean,
@@ -184,6 +184,13 @@ export default defineComponent({
       emit('filter-change', []);
     };
 
+    /**
+     * 切换到普通模式
+     */
+    const handleChangeAIMode = (e: MouseEvent) => {
+      emit('mode-change', e);
+    };
+
     const handleClearInputText = () => {
       inputValue.value = '';
       currentInput.value = '';
@@ -263,7 +270,7 @@ export default defineComponent({
                   onClick={handleClearInputText}
                 ></span>
               ) : null}
-              <div class='ai-mode-toggle-btn'>
+              <div class='ai-mode-toggle-btn' onClick={handleChangeAIMode}>
                 <img
                   src={aiBluekingSvg}
                   alt='AI模式'

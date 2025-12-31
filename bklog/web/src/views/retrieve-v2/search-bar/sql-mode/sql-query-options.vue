@@ -843,8 +843,8 @@ watch(activeIndex, () => {
       display: flex;
       flex-direction: column;
       width: 100%;
-      min-height: 200px;
-      max-height: 500px;
+      min-height: 100px;
+      max-height: 400px;
 
       /* 顶部工具栏样式 */
       .sql-query-header {

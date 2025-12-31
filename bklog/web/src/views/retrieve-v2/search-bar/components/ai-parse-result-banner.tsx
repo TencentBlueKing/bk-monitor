@@ -210,12 +210,15 @@ export default defineComponent({
         return null;
       }
 
+      const expandIcon = isExpanded.value ? 'bklog-collapse-small' : 'bklog-expand-small';
+
       return <div class={['ai-parse-actions', { 'is-expanded': isExpanded.value }]}>
         {hasOverflow.value && (
           <span
             class='ai-parse-action-btn'
             onClick={toggleExpanded}
           >
+            <i class={['bklog-icon', expandIcon]}></i>
             {isExpanded.value ? $t('收起') : $t('完整语句')}
           </span>
         )}
@@ -223,7 +226,8 @@ export default defineComponent({
           class='ai-parse-action-btn'
           onClick={handleCopy}
         >
-          {$t('复制语句')}
+          <i class='bklog-icon bklog-data-copy'></i>
+          {$t('复制')}
         </span>
       </div>;
     }
