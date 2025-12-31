@@ -43,7 +43,7 @@ import type { INavItem } from '../../pages/monitor-k8s/typings';
 import type { TranslateResult } from 'vue-i18n';
 
 import './temporary-share.scss';
-// const MomentFormater = 'YYYY-MM-DD HH:mm:ss';
+// const MomentFormater = 'YYYY-MM-DD HH:mm:ssZZ';
 
 export interface ITemporaryShareProps {
   customData?: Record<string, any>;

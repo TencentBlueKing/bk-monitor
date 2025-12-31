@@ -26,6 +26,7 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 
 import EventDetail from '../../../store/modules/event-detail';
@@ -324,7 +325,9 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
         <span class='item-title-icon'>
           <i class={['icon-monitor', item.logIcon]} />
         </span>
-        <span class='item-title-date'>{item.expand ? item.time : item.expandTime}</span>
+        <span class='item-title-date'>
+          {item.expand ? formatWithTimezone(item.time) : formatWithTimezone(item.expandTime)}
+        </span>
       </div>
     );
   }

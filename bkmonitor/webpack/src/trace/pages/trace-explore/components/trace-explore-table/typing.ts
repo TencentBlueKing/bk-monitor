@@ -43,7 +43,7 @@ export enum ExploreTableColumnTypeEnum {
   TAGS = 'tags',
   /** 纯文本  */
   TEXT = 'text',
-  /** 日期列 (将 时间戳 转换为 YYYY-MM-DD HH:mm:ss) */
+  /** 日期列 (将 时间戳 转换为 YYYY-MM-DD HH:mm:ssZZ) */
   TIME = 'time',
   /** 用户名展示标签列(已兼容多租户逻辑) */
   USER_TAGS = 'user-tags',

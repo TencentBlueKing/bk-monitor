@@ -35,7 +35,6 @@ from metadata.models.space.constants import (
     LOG_EVENT_ETL_CONFIGS,
     SPACE_UID_HYPHEN,
     SYSTEM_BASE_DATA_ETL_CONFIGS,
-    EtlConfigs,
     SpaceTypes,
 )
 from metadata.utils import consul_tools, hash_util
@@ -604,18 +603,15 @@ class DataSource(models.Model):
             from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
 
             # 开启V4链路后，特定etl_config的data_id均从计算平台获取
-            enabled_custom_event_v4 = (
-                etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value and settings.ENABLE_V4_EVENT_GROUP_DATA_LINK
-            )
-            if (
-                settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
-            ) or enabled_custom_event_v4:
+            if settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
                 logger.info(f"apply for data id from bkdata,type_label->{type_label},etl_config->{etl_config}")
                 is_base = False
 
                 # 如果需要走V4链路，则需要确保Kafka集群已经注册到bkbase平台
-                if not mq_cluster.registered_to_bkbase:
-                    raise ValueError(f"kafka cluster {mq_cluster.cluster_name} is not registered to bkbase, please contact administrator to register")
+                if not mq_cluster.registered_to_bkbase and settings.ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME:
+                    raise ValueError(
+                        f"kafka cluster {mq_cluster.cluster_name} is not registered to bkbase, please contact administrator to register"
+                    )
 
                 # 根据清洗类型判断是否是系统基础数据
                 if etl_config in SYSTEM_BASE_DATA_ETL_CONFIGS:

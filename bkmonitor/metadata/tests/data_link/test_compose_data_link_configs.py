@@ -60,7 +60,7 @@ def test_compose_data_id_config(create_or_delete_records):
     expected_config = (
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor","labels":{'
         '"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test","bizId":2,'
-        '"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
+        '"description":"bkm_data_link_test","maintainers":["admin"],"eventType":"metric"}}'
     )
 
     data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
@@ -76,7 +76,7 @@ def test_compose_data_id_config(create_or_delete_records):
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},'
         '"spec":{"alias":"bkm_data_link_test","bizId":2,"description":"bkm_data_link_test","maintainers":["admin"],'
         '"preferCluster":{"kind":"KafkaChannel","namespace":"bkmonitor","name":"my_preferred_cluster"},'
-        '"event_type":"metric"}}'
+        '"eventType":"metric"}}'
     )
     content = data_id_config_ins.compose_config(prefer_kafka_cluster_name="my_preferred_cluster")
     assert json.dumps(content) == expected_config
@@ -87,7 +87,7 @@ def test_compose_data_id_config(create_or_delete_records):
     expected_config = (
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor",'
         '"tenant":"system","labels":{"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test",'
-        '"bizId":111,"description":"bkm_data_link_test","maintainers":["admin"],"event_type":"metric"}}'
+        '"bizId":111,"description":"bkm_data_link_test","maintainers":["admin"],"eventType":"metric"}}'
     )
 
     content = data_id_config_ins.compose_config()
@@ -100,7 +100,7 @@ def test_compose_data_id_config(create_or_delete_records):
         '"labels":{"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test","bizId":111,'
         '"description":"bkm_data_link_test","maintainers":["admin"],'
         '"preferCluster":{"kind":"KafkaChannel","tenant":"system","namespace":"bkmonitor","name":"my_preferred_cluster"},'
-        '"event_type":"metric"}}'
+        '"eventType":"metric"}}'
     )
     content = data_id_config_ins.compose_config(prefer_kafka_cluster_name="my_preferred_cluster")
     assert json.dumps(content) == expected_config
