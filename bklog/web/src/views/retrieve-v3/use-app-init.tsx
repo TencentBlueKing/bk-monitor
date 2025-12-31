@@ -378,7 +378,7 @@ export default () => {
 
         // 如果经过上述逻辑，缓存中没有索引信息，则默认取第一个有数据的索引
         if (!indexSetIdList.value.length) {
-          const defIndexItem = flatIndexSetList.value.find(
+          const defIndexItem =            flatIndexSetList.value.find(
             item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
           ) ?? flatIndexSetList.value[0];
           const defaultId = [defIndexItem?.index_set_id];
@@ -390,12 +390,15 @@ export default () => {
           }
         }
 
-        const indexId = store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
+        const indexId =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
           ? store.state.indexItem.ids[0]
           : undefined;
-        const unionList = store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
+        const unionList =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
 
-        if (emptyIndexSetList.length === 0) {
+        // 修复：当 URL 中的 indexId 无效时，已经在上面选择了默认索引
+        // 这里应该判断当前是否有有效的索引ID，而不是判断 emptyIndexSetList
+        // emptyIndexSetList 只记录了无效的ID，不应该阻止默认索引的字段请求
+        if (indexSetIdList.value.length > 0) {
           RetrieveHelper.setSearchingValue(true);
 
           const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
@@ -418,35 +421,42 @@ export default () => {
 
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
-          store.dispatch('requestIndexSetFieldInfo').then((resp) => {
-            RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-            RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
+          store
+            .dispatch('requestIndexSetFieldInfo')
+            .then((resp) => {
+              RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+              RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
 
-            if (
-              route.query.tab === 'origin'
-              || route.query.tab === undefined
-              || route.query.tab === null
-              || route.query.tab === ''
-            ) {
-              if (resp?.data?.fields?.length) {
-                store.dispatch('requestIndexSetQuery').then(() => {
+              if (
+                route.query.tab === 'origin'
+                || route.query.tab === undefined
+                || route.query.tab === null
+                || route.query.tab === ''
+              ) {
+                if (resp?.data?.fields?.length) {
+                  store.dispatch('requestIndexSetQuery').then(() => {
+                    RetrieveHelper.setSearchingValue(false);
+                  });
+                }
+
+                if (!resp?.data?.fields?.length) {
+                  store.commit('updateIndexSetQueryResult', {
+                    is_error: true,
+                    exception_msg: 'index-set-field-not-found',
+                  });
                   RetrieveHelper.setSearchingValue(false);
-                });
+                }
+
+                return;
               }
 
-              if (!resp?.data?.fields?.length) {
-                store.commit('updateIndexSetQueryResult', {
-                  is_error: true,
-                  exception_msg: 'index-set-field-not-found',
-                });
-                RetrieveHelper.setSearchingValue(false);
-              }
-
-              return;
-            }
-
-            RetrieveHelper.setSearchingValue(false);
-          });
+              RetrieveHelper.setSearchingValue(false);
+            })
+            .catch((err) => {
+              // 请求失败时也要关闭 loading 状态，避免页面一直处于加载中
+              console.error('requestIndexSetFieldInfo failed:', err);
+              RetrieveHelper.setSearchingValue(false);
+            });
         }
 
         if (!indexSetIdList.value.length) {
