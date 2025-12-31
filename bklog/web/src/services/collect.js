@@ -306,6 +306,48 @@ const getCollectorStatus = {
   method: 'post',
 };
 
+// 客户端日志-用户上报列表
+const getUserReportList = {
+  url: '/tgpa/report/',
+  method: 'get',
+};
+
+// 客户端日志-本地上报
+const syncUserReport = {
+  url: '/tgpa/report/sync/',
+  method: 'post',
+};
+
+// 客户端日志-获取文件名列表
+const getFileNameList = {
+  url: '/tgpa/report/file_name_list/',
+  method: 'get',
+};
+
+// 客户端日志-获取openid列表
+const getOpenidList = {
+  url: '/tgpa/report/openid_list/',
+  method: 'get',
+};
+
+// 客户端日志-获取上报状态
+const getFileStatus = {
+  url: '/tgpa/report/file_status/',
+  method: 'post',
+};
+
+// 客户端日志-获取同步用户上报文件的状态
+const getSyncRecord = {
+  url: '/tgpa/report/sync_record/',
+  method: 'get',
+};
+
+// 客户端日志-获取tab数量
+const getTgpaCount = {
+  url: '/tgpa/count/',
+  method: 'get',
+};
+
 export {
   getStorage,
   globals,
@@ -358,4 +400,11 @@ export {
   delIndexGroup,
   collectorFieldEnums,
   getCollectorStatus,
+  getUserReportList,
+  syncUserReport,
+  getFileNameList,
+  getOpenidList,
+  getFileStatus,
+  getSyncRecord,
+  getTgpaCount,
 };

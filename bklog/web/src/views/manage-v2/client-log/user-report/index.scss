@@ -1,0 +1,17 @@
+.user-report {
+  .alert-info {
+    margin-bottom: 16px;
+    cursor: pointer;
+  }
+
+  .operating-area {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+
+    .bk-input-text{
+          width: 480px;
+      }
+  }
+}
