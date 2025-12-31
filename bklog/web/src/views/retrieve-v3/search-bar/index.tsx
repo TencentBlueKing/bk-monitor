@@ -430,6 +430,15 @@ export default defineComponent({
       setRouteParamsByKeywordAndAddition();
     };
 
+    const handleCloseAiParsedText = () => {
+      console.log('handleCloseAiParsedText');
+      aiQueryResult.value.queryString = '';
+      aiQueryResult.value.parseResult = undefined;
+      aiQueryResult.value.explain = undefined;
+      aiQueryResult.value.startTime = undefined;
+      aiQueryResult.value.endTime = undefined;
+    };
+
     /**
      * 渲染搜索栏
      * @returns
@@ -459,6 +468,7 @@ export default defineComponent({
           class='v3-search-bar-root'
           ref={searchBarRef}
           on-height-change={handleHeightChange}
+          on-close-ai-parsed-text={handleCloseAiParsedText}
           on-text-to-query={(value: string) => {
             // 根据当前模式确定触发来源
             const triggerSource = `${currentSearchMode.value}_mode` as 'ui_mode' | 'sql_mode';

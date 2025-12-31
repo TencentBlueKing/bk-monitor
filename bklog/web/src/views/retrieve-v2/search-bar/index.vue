@@ -70,7 +70,14 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['refresh', 'height-change', 'search', 'mode-change', 'text-to-query']);
+const emit = defineEmits([
+  'refresh',
+  'height-change',
+  'search',
+  'mode-change',
+  'text-to-query',
+  'close-ai-parsed-text',
+]);
 const store = useStore();
 const { $t } = useLocale();
 const queryTypeList = ref([$t('UI 模式'), $t('语句模式')]);
@@ -301,7 +308,7 @@ const handleBtnQueryClick = () => {
             sqlQueryValue.value,
           );
         });
-
+        emit('close-ai-parsed-text');
         return;
       }
 
@@ -334,12 +341,15 @@ const handleSqlRetrieve = (value) => {
         setRouteParams();
         RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
       });
+
+      emit('close-ai-parsed-text');
       return;
     }
 
     requestIndexSetList();
     setRouteParams();
     RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
+    emit('close-ai-parsed-text');
     return;
   }
 };
