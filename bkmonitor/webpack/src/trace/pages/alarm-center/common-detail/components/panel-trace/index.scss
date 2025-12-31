@@ -25,6 +25,10 @@
         }
       }
 
+      .explore-table {
+        max-height: 370px;
+      }
+
       /* stylelint-disable-next-line selector-class-pattern */
       .t-table__last-full-row {
         display: none;

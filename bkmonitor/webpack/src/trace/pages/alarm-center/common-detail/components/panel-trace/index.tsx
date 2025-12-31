@@ -25,8 +25,9 @@
  */
 import { type PropType, defineComponent, toRef } from 'vue';
 
+import deepmerge from 'deepmerge';
+
 import TraceExploreTable from '../../../../trace-explore/components/trace-explore-table/trace-explore-table';
-import { ExploreTableLoadingEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
 import { useAlertTraces } from '../../../composables/use-alert-traces';
 import { ALERT_TRACE_FIELD_CONFIGS } from './constants';
 
@@ -41,7 +42,9 @@ export default defineComponent({
     alertId: String as PropType<string>,
   },
   setup(props) {
-    const { traceList, traceQueryConfig, loading } = useAlertTraces(toRef(props, 'alertId'));
+    const { traceList, traceQueryConfig, tableLoading, pagination, tableHasMoreData } = useAlertTraces(
+      toRef(props, 'alertId')
+    );
 
     const displayFields = [
       'trace_id',
@@ -51,18 +54,48 @@ export default defineComponent({
       'root_service_span_name',
       'error_msg',
     ];
-    return { displayFields, traceList, traceQueryConfig, loading };
+
+    const handleSliderShow = (openMode: '' | 'span' | 'trace', activeId: string) => {
+      const query = deepmerge(traceQueryConfig.value, {
+        where: [
+          {
+            key: openMode === 'span' ? 'span_id' : 'trace_id',
+            operator: 'equal',
+            value: [activeId],
+          },
+        ],
+      });
+      const newQuery = Object.entries(query).reduce((prev, [key, value]) => {
+        if (typeof value === 'object') {
+          prev[key] = decodeURIComponent(JSON.stringify(value));
+        } else {
+          prev[key] = value;
+        }
+        return prev;
+      }, {});
+      window.open(`#/trace/home/?${new URLSearchParams(newQuery).toString()}`);
+    };
+
+    const handleScrollToEnd = () => {
+      pagination.offset += pagination.limit;
+    };
+
+    return {
+      displayFields,
+      traceList,
+      traceQueryConfig,
+      pagination,
+      tableLoading,
+      tableHasMoreData,
+      handleSliderShow,
+      handleScrollToEnd,
+    };
   },
   render() {
     return (
       <div class='alarm-center-detail-panel-trace'>
         <TraceExploreTable
           class='panel-trace-table'
-          tableLoading={{
-            [ExploreTableLoadingEnum.BODY_SKELETON]: this.loading,
-            [ExploreTableLoadingEnum.HEADER_SKELETON]: false,
-            [ExploreTableLoadingEnum.SCROLL]: false,
-          }}
           appName={'tilapia'}
           canSortFieldTypes={[]}
           displayFields={this.displayFields}
@@ -73,6 +106,10 @@ export default defineComponent({
           scrollContainerSelector='.alarm-center-detail-box'
           sourceFieldConfigs={ALERT_TRACE_FIELD_CONFIGS as unknown as IDimensionField[]}
           tableData={this.traceList}
+          tableHasScrollLoading={this.tableHasMoreData}
+          tableLoading={this.tableLoading}
+          onScrollToEnd={this.handleScrollToEnd}
+          onSliderShow={this.handleSliderShow}
         />
       </div>
     );
