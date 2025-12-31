@@ -37,7 +37,7 @@ import UserReport from './user-report';
 import http from '@/api';
 
 import './index.scss';
-import useUtils from '@/hooks/use-utils';
+// import useUtils from '@/hooks/use-utils';
 
 // tab类型常量定义
 const TAB_TYPES = {
@@ -134,6 +134,24 @@ export default defineComponent({
         console.warn('获取tab数量失败:', error);
       }
     };
+
+    // 获取索引集ID
+    // const getIndexSetId = async () => {
+    //   try {
+    //     const params = {
+    //       query: {
+    //         bk_biz_id: store.state.bkBizId,
+    //       },
+    //     };
+
+    //     const response = await http.request('collect/getTaskIndexSetId', params);
+    //     if (response.data && response.data.index_set_id) {
+    //       indexSetId.value = String(response.data.index_set_id);
+    //     }
+    //   } catch (error) {
+    //     console.warn('获取索引集ID失败:', error);
+    //   }
+    // };
 
     // 检查是否为灰度业务
     const checkGrayReleaseAccess = () => {

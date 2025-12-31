@@ -222,6 +222,7 @@ class NotifyActionConfigSlz(PollModeConfig):
         label="语音通知模式",
         required=False,
         default=VoiceNoticeMode.PARALLEL,
+        choices=[(VoiceNoticeMode.PARALLEL, "PARALLEL"), (VoiceNoticeMode.SERIAL, "SERIAL")],
     )
 
 

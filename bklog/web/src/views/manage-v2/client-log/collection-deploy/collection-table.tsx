@@ -78,6 +78,7 @@ export default defineComponent({
   emits: ['clear-keyword', 'clone-task', 'view-task'],
   setup(props, { emit }) {
     const store = useStore();
+    // const router = useRouter();
 
     const pagination = ref({
       current: 1,
