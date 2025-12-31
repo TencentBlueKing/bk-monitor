@@ -107,7 +107,7 @@ class HostCollectorHandler(CollectorHandler):
 
     @transaction.atomic
     def stop(self, **kwargs):
-        super().stop()
+        super().stop(**kwargs)
         if self.data.subscription_id:
             return self._run_subscription_task("STOP")
         return True
@@ -1357,14 +1357,7 @@ class HostCollectorHandler(CollectorHandler):
         )
 
         collectors = [model_to_dict(c) for c in collectors]
-        collectors = self.add_cluster_info(collectors)
-
-        index_sets = {
-            index_set.index_set_id: index_set
-            for index_set in LogIndexSet.objects.filter(
-                index_set_id__in=[collector["index_set_id"] for collector in collectors]
-            )
-        }
+        collectors, _, index_set_obj_dict = self.add_cluster_info(collectors)
 
         collect_status = {
             status["collector_id"]: status
@@ -1379,8 +1372,8 @@ class HostCollectorHandler(CollectorHandler):
                 "collector_config_name": collector["collector_config_name"],
                 "collector_scenario_id": collector["collector_scenario_id"],
                 "index_set_id": collector["index_set_id"],
-                "index_set_name": index_sets[collector["index_set_id"]].index_set_name,
-                "index_set_scenario_id": index_sets[collector["index_set_id"]].scenario_id,
+                "index_set_name": index_set_obj_dict[collector["index_set_id"]].index_set_name,
+                "index_set_scenario_id": index_set_obj_dict[collector["index_set_id"]].scenario_id,
                 "retention": collector["retention"],
                 "status": collect_status.get(collector["collector_config_id"], {}).get("status", CollectStatus.UNKNOWN),
                 "status_name": collect_status.get(collector["collector_config_id"], {}).get(
@@ -1389,5 +1382,5 @@ class HostCollectorHandler(CollectorHandler):
                 "description": collector["description"],
             }
             for collector in collectors
-            if collector["index_set_id"] in index_sets
+            if collector["index_set_id"] in index_set_obj_dict
         ]

@@ -453,10 +453,12 @@ class CollectorHandler:
         self.data.is_active = False
         self.data.save()
 
-        # 停止采集项
+        # 停止索引集
         if self.data.index_set_id:
-            index_set_handler = IndexSetHandler(self.data.index_set_id)
-            index_set_handler.stop()
+            only_stop_collector = kwargs.get("only_stop_collector", False)
+            if not only_stop_collector:
+                index_set_handler = IndexSetHandler(self.data.index_set_id)
+                index_set_handler.stop()
 
         self._pre_stop()
 
@@ -827,6 +829,11 @@ class CollectorHandler:
             cluster_infos = {}
 
         time_zone = get_local_param("time_zone")
+
+        index_set_ids = list(set([item.get("index_set_id") for item in data if item.get("index_set_id", None)]))
+        index_set_objs = LogIndexSet.origin_objects.filter(index_set_id__in=index_set_ids)
+        index_set_obj_dict = {obj.index_set_id: obj for obj in index_set_objs}
+
         for _data in data:
             cluster_info = cluster_infos.get(
                 _data["table_id"],
@@ -861,23 +868,25 @@ class CollectorHandler:
             )
 
             # 是否可以检索
-            if _data["is_active"] and _data["index_set_id"]:
-                _data["is_search"] = (
-                    not LogIndexSetData.objects.filter(index_set_id=_data["index_set_id"])
-                    .exclude(apply_status="normal")
-                    .exists()
-                )
+            if _data.get("index_set_id", None):
+                index_set_obj = index_set_obj_dict.get(_data["index_set_id"])
+
+                if index_set_obj and index_set_obj.is_active:
+                    _data["is_search"] = (
+                        not LogIndexSetData.objects.filter(index_set_id=_data["index_set_id"])
+                        .exclude(apply_status="normal")
+                        .exists()
+                    )
+                else:
+                    _data["is_search"] = False
             else:
                 _data["is_search"] = False
 
-        return data
+        return data, index_set_objs, index_set_obj_dict
 
     @classmethod
-    def add_tags_info(cls, data):
+    def add_tags_info(cls, data, index_set_objs):
         """添加标签信息"""
-        index_set_ids = [data_info.get("index_set_id") for data_info in data if data_info.get("index_set_id")]
-        index_set_objs = LogIndexSet.origin_objects.filter(index_set_id__in=index_set_ids)
-
         tag_ids_mapping = dict()
         tag_ids_all = list()
 
