@@ -106,8 +106,8 @@ class HostCollectorHandler(CollectorHandler):
             )
 
     @transaction.atomic
-    def stop(self, **kwargs):
-        super().stop(**kwargs)
+    def stop(self, is_stop_index_set=True, **kwargs):
+        super().stop(is_stop_index_set=is_stop_index_set)
         if self.data.subscription_id:
             return self._run_subscription_task("STOP")
         return True
@@ -1357,7 +1357,11 @@ class HostCollectorHandler(CollectorHandler):
         )
 
         collectors = [model_to_dict(c) for c in collectors]
-        collectors, _, index_set_obj_dict = self.add_cluster_info(collectors)
+
+        result = self.add_cluster_info(collectors)
+
+        collectors = result.get("data", [])
+        index_set_obj_dict = result.get("index_set_obj_dict", [])
 
         collect_status = {
             status["collector_id"]: status

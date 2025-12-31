@@ -77,6 +77,7 @@ from apps.log_databus.serializers import (
     TaskDetailSerializer,
     TaskStatusSerializer,
     ValidateContainerCollectorYamlSerializer,
+    CollectorStopSerializer,
 )
 from apps.log_search.constants import (
     BKDATA_OPEN,
@@ -334,8 +335,10 @@ class CollectorViewSet(ModelViewSet):
             request.GET["bk_biz_id"] = space_uid_to_bk_biz_id(request.GET["space_uid"])
 
         response = super().list(request, *args, **kwargs)
-        response.data["list"], index_set_objs, _ = CollectorHandler.add_cluster_info(response.data["list"])
-        response.data["list"] = CollectorHandler.add_tags_info(response.data["list"], index_set_objs)
+
+        result = CollectorHandler.add_cluster_info(response.data["list"])
+
+        response.data["list"] = CollectorHandler.add_tags_info(result.get("data", []), result.get("index_set_objs", []))
 
         return response
 
@@ -1190,6 +1193,10 @@ class CollectorViewSet(ModelViewSet):
         @apiGroup 10_Collector
         @apiDescription 停止采集项
         @apiParam {Int} collector_config_id 采集项 ID
+        @apiParamExample {json} 请求样例:
+        {
+            "is_stop_index_set": True
+        }
         @apiSuccessExample {json} 成功返回:
         {
             "message": "",
@@ -1198,25 +1205,12 @@ class CollectorViewSet(ModelViewSet):
             "result": true
         }
         """
-        return Response(CollectorHandler.get_instance(collector_config_id).stop())
-
-    @detail_route(methods=["POST"], url_path="stop/collector")
-    def stop_collector(self, request, collector_config_id=None):
-        """
-        @api {post} /databus/collectors/$collector_config_id/stop/collector/ 24_采集项-只停止采集项，不停止索引集
-        @apiName stop_collector
-        @apiGroup 10_Collector
-        @apiDescription 只停止采集项，不停止索引集
-        @apiParam {Int} collector_config_id 采集项 ID
-        @apiSuccessExample {json} 成功返回:
-        {
-            "message": "",
-            "code": 0,
-            "data": "",
-            "result": true
-        }
-        """
-        return Response(CollectorHandler.get_instance(collector_config_id).stop(only_stop_collector=True))
+        data = self.params_valid(CollectorStopSerializer)
+        return Response(
+            CollectorHandler.get_instance(collector_config_id).stop(
+                is_stop_index_set=data.get("is_stop_index_set", True)
+            )
+        )
 
     @detail_route(methods=["POST"])
     def etl_preview(self, request, collector_config_id=None):
@@ -1934,8 +1928,11 @@ class CollectorViewSet(ModelViewSet):
             request.GET["bk_biz_id"] = space_uid_to_bk_biz_id(request.GET["space_uid"])
 
         response = super().list(request, *args, **kwargs)
-        response.data, index_set_objs, _ = CollectorHandler.add_cluster_info(response.data)
-        response.data = CollectorHandler.add_tags_info(response.data, index_set_objs)
+
+        result = CollectorHandler.add_cluster_info(response.data)
+
+        response.data = CollectorHandler.add_tags_info(result.get("data", []), result.get("index_set_objs", []))
+
         return response
 
     @detail_route(methods=["POST"], url_path="close_clean")
