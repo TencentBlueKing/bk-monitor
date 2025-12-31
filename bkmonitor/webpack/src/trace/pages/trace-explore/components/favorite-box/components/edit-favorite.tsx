@@ -244,7 +244,11 @@ export default defineComponent({
             </Form.FormItem>
           )}
           <Form.FormItem label={t('查询语句')}>
-            <RenderFavoriteQuery data={props.data} />
+            <RenderFavoriteQuery data={props.data}>
+              {{
+                renderFavoriteQuery: context.slots?.renderFavoriteQuery,
+              }}
+            </RenderFavoriteQuery>
           </Form.FormItem>
         </Form>
       </Dialog>

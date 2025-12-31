@@ -6,7 +6,7 @@
   .panel-tab {
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 2;
     background: #fff;
     box-shadow: 0 0 12px 0 rgb(0 0 0 / 7.84%);
     opacity: 1;
@@ -25,7 +25,7 @@
       & > .bk-tab {
         position: sticky;
         top: 51px;
-        z-index: 1;
+        z-index: 2;
         background: #fff;
         opacity: 1;
       }

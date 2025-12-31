@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, inject } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
@@ -77,8 +77,10 @@ export default defineComponent({
       type: Object as PropType<IFavoriteGroup['favorites'][number]>,
     },
   },
-  setup(props) {
+  setup(props, context) {
     const favoriteType = useFavoriteType();
+    const renderFavoriteQuery =
+      inject<(data: IFavoriteGroup['favorites'][number]) => JSX.Element>('renderFavoriteQuery');
     const { t } = useI18n();
 
     const renderMetric = () => {
@@ -187,10 +189,18 @@ export default defineComponent({
 
     return () => (
       <div class='favorite-box-favorite-info-query'>
-        {renderEvent()}
-        {renderMetric()}
-        {renderTrace()}
-        {renderAlarm()}
+        {renderFavoriteQuery ? (
+          renderFavoriteQuery(props.data)
+        ) : context.slots?.renderFavoriteQuery ? (
+          context.slots.renderFavoriteQuery(props.data)
+        ) : (
+          <>
+            {renderEvent()}
+            {renderMetric()}
+            {renderTrace()}
+            {renderAlarm()}
+          </>
+        )}
       </div>
     );
   },
