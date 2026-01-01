@@ -107,7 +107,7 @@ export default defineComponent({
     },
   },
 
-  emits: ['next', 'prev', 'cancel'],
+  emits: ['next', 'prev', 'cancel', 'detail'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
@@ -658,6 +658,7 @@ export default defineComponent({
         // 初始化基础表单数据
         initializeBaseFormData(res.data);
         initConfig(res.data);
+        emit('detail', res.data);
         // 更新 store 中的当前采集配置
         store.commit('collect/setCurCollect', res.data);
         setTimeout(() => {

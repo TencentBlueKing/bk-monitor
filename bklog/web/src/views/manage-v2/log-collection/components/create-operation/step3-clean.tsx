@@ -138,7 +138,7 @@ export default defineComponent({
         name: t('自定义'),
       },
     ];
-    const cleaningMode = ref('bk_log_json');
+    const cleaningMode = ref('bk_log_text');
     const enableMetaData = ref(false);
     const loading = ref(false);
     const logOriginalLoading = ref(false);
@@ -223,6 +223,8 @@ export default defineComponent({
 
     const showDebugPathRegexBtn = computed(() => formData.value.etl_params.path_regexp && pathExample.value);
 
+    const isClean = computed(() => cleaningMode.value !== 'bk_log_text');
+
     onMounted(() => {
       setDetail();
       getTemplate();
@@ -259,6 +261,7 @@ export default defineComponent({
           const logReportingTime = !timeField; // 如果存在is_time为true的字段，则log_reporting_time为false
           const fieldName = timeField?.field_name || '';
           cleaningMode.value = clean_type;
+          console.log(clean_type, 'clean_type====');
           enableMetaData.value = etl_params.path_regexp;
           formData.value = {
             ...formData.value,
@@ -412,7 +415,11 @@ export default defineComponent({
            */
           if (isRefresh) {
             formData.value.etl_fields = fields.map(item => {
-              const info = list.find(ele => ele.field_name === item.field_name);
+              let info = {};
+              info = list.find(ele => ele.field_name === item.field_name);
+              if (cleaningMode.value === 'bk_log_delimiter') {
+                info = list.find(ele => ele.field_index === item.field_index);
+              }
               return {
                 ...item,
                 value: info.value,
@@ -793,49 +800,68 @@ export default defineComponent({
           </div>
         </div>
         <div class='label-form-box'>
-          <span class='label-title no-require'>{t('清洗模式')}</span>
-          <div class='form-box'>
-            <div class='example-box'>
-              {/* 应用模版 */}
-              {renderTemplateSelect()}
-              <span class='form-link'>
-                <i class='bklog-icon bklog-help link-icon' />
-                {t('说明文档')}
-              </span>
-            </div>
-            <div class='bk-button-group'>
-              {cleaningModeList.map(mode => (
-                <bk-button
-                  key={mode.value}
-                  class={{ 'is-selected': mode.value === cleaningMode.value }}
-                  on-click={() => handleChangeCleaningMode(mode)}
-                >
-                  {mode.label}
-                </bk-button>
-              ))}
-            </div>
-            {renderCleaningMode()}
-          </div>
-        </div>
-        <div class='label-form-box'>
-          <span class='label-title no-require'>{t('字段列表')}</span>
-          <div class='form-box'>
-            <FieldList
-              ref={fieldListRef}
-              builtInFieldsList={builtInFieldsList.value}
-              data={formData.value.etl_fields || []}
-              extractMethod={cleaningMode.value}
-              loading={isDebugLoading.value || basicLoading.value}
-              refresh={isValueRefresh.value}
-              originalTextTokenizeOnChars={defaultParticipleStr.value}
-              selectEtlConfig={cleaningMode.value}
-              on-change={data => {
-                formData.value.etl_fields = data;
+          <span class='label-title no-require'>{t('开启清洗')}</span>
+          <div class='form-box mt-5'>
+            <bk-switcher
+              size='large'
+              theme='primary'
+              value={isClean.value}
+              on-change={(val: boolean) => {
+                const type = val ? 'bk_log_json' : 'bk_log_text';
+                cleaningMode.value = type;
+                formData.value.etl_config = type;
               }}
-              on-refresh={() => debugHandler('refresh')}
             />
           </div>
         </div>
+        {isClean.value && (
+          <div class='label-form-box'>
+            <span class='label-title no-require'>{t('清洗模式')}</span>
+            <div class='form-box'>
+              <div class='example-box'>
+                {/* 应用模版 */}
+                {renderTemplateSelect()}
+                <span class='form-link'>
+                  <i class='bklog-icon bklog-help link-icon' />
+                  {t('说明文档')}
+                </span>
+              </div>
+              <div class='bk-button-group'>
+                {cleaningModeList.map(mode => (
+                  <bk-button
+                    key={mode.value}
+                    class={{ 'is-selected': mode.value === cleaningMode.value }}
+                    on-click={() => handleChangeCleaningMode(mode)}
+                  >
+                    {mode.label}
+                  </bk-button>
+                ))}
+              </div>
+              {renderCleaningMode()}
+            </div>
+          </div>
+        )}
+        {isClean.value && (
+          <div class='label-form-box'>
+            <span class='label-title no-require'>{t('字段列表')}</span>
+            <div class='form-box'>
+              <FieldList
+                ref={fieldListRef}
+                builtInFieldsList={builtInFieldsList.value}
+                data={formData.value.etl_fields || []}
+                extractMethod={cleaningMode.value}
+                loading={isDebugLoading.value || basicLoading.value}
+                refresh={isValueRefresh.value}
+                originalTextTokenizeOnChars={defaultParticipleStr.value}
+                selectEtlConfig={cleaningMode.value}
+                on-change={data => {
+                  formData.value.etl_fields = data;
+                }}
+                on-refresh={() => debugHandler('refresh')}
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
     /** 高级设置 */
@@ -1064,6 +1090,11 @@ export default defineComponent({
       const { etl_params, etl_fields } = formData.value;
       const { storage_cluster_id, allocation_min_days, storage_replies, es_shards, table_id, retention } =
         curCollect.value;
+
+      if (isClean.value && etl_fields.length === 0) {
+        showMessage(t('请完成相关的清洗配置'), 'error');
+        loading.value = false;
+      }
       /**
        * 编辑/创建清洗
        * 未完成的情况下，调用创建清洗配置接口 （storage_cluster_id = -1 或者为空，都代表未完成）
