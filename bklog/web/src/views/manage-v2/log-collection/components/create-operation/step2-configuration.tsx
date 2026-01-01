@@ -105,6 +105,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    configData: {
+      type: Object,
+      default: () => ({}),
+    },
   },
 
   emits: ['next', 'prev', 'cancel', 'detail'],
@@ -212,7 +216,11 @@ export default defineComponent({
     /**
      * 是否为编辑
      */
-    const isUpdate = computed(() => route.name === 'collectEdit' && props.isEdit);
+    const isUpdate = computed(
+      () =>
+        (route.name === 'collectEdit' && props.isEdit) ||
+        (route.name === 'collectAdd' && !!formData.value?.collector_config_id),
+    );
     /**
      * 是否为采集主机日志
      */
@@ -443,6 +451,11 @@ export default defineComponent({
        */
       if (props.isEdit || props.isClone) {
         setDetail();
+      } else {
+        formData.value = {
+          ...formData.value,
+          ...props.configData,
+        };
       }
     });
     /**
@@ -1320,10 +1333,9 @@ export default defineComponent({
       const urlParams = {};
       let requestUrl = 'collect/addCollection';
       if (isUpdate.value) {
-        urlParams.collector_config_id = route.params.collectorId;
+        urlParams.collector_config_id = route.params.collectorId || formData.value?.collector_config_id;
         requestUrl = 'collect/updateCollection';
       }
-
       let requestData = { ...baseParam, params: newParams };
 
       // 当为 winevent 时，过滤空值和空对象
@@ -1408,7 +1420,7 @@ export default defineComponent({
       /**
        * 是否为容器采集并且配置项校验通过
        */
-      console.log('formData.value', formData.value);
+      // console.log('formData.value', formData.value);
       baseInfoRef.value
         .validate()
         .then(() => {

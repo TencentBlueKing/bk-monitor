@@ -1157,7 +1157,7 @@ export default defineComponent({
           <bk-button
             class='mr-8'
             on-click={() => {
-              emit('prev');
+              emit('prev', props.configData);
             }}
           >
             {t('上一步')}
@@ -1181,7 +1181,6 @@ export default defineComponent({
           <bk-button
             class='mr-8'
             on-click={() => {
-              console.log(cacheTemplateData.value);
               formData.value = deepClone(cacheTemplateData.value);
               cleaningMode.value = cacheTemplateData.value.etl_config;
               enableMetaData.value = cacheTemplateData.value.etl_params.path_regexp;

@@ -275,7 +275,8 @@ export default defineComponent({
     });
 
     return () => {
-      const Component = currentStep.value.find(item => item.icon === step.value)?.components;
+      const currentStepInfo = currentStep.value.find(item => item.icon === step.value);
+      const Component = currentStepInfo?.components;
       return (
         <div
           ref={mainRef}
@@ -350,7 +351,6 @@ export default defineComponent({
             }}
             on-detail={data => {
               dataConfig.value = data;
-              console.log(data, 'edit');
               currentCollectorId.value = data.collector_config_id;
             }}
           />
