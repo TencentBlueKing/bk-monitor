@@ -373,6 +373,15 @@ export const operatorMappingObj = {
   regex: window.mainComponent.$t('正则匹配'),
   nregex: window.mainComponent.$t('正则不匹配'),
 };
+/**
+ * 可见范围单选列表
+ */
+
+export const visibleScopeSelectList = [
+  { id: 'current_biz', name: window.mainComponent.$t('当前空间可见') },
+  { id: 'multi_biz', name: window.mainComponent.$t('多空间选择') },
+  { id: 'all_biz', name: window.mainComponent.$t('全平台') },
+];
 
 /**
  * 格式化字节大小为可读字符串。
