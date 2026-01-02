@@ -98,6 +98,9 @@ const MaskingList = () =>
   import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/log-clean/clean-masking/list');
 const ClientLogView = { name: 'ClientLogView', template: '<router-view></router-view>' };
 
+const v2CleanTempCreate = () =>
+  import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/create-clean');
+
 // 管理模块路由配置生成函数
 const getManageRoutes = () => [
   {
@@ -642,6 +645,31 @@ const getManageRoutes = () => [
               navId: 'clean-templates',
             },
             component: cleanTempCreate,
+          },
+
+          // 新建模板
+          {
+            path: 'v2-create',
+            name: 'clean-template-create',
+            meta: {
+              title: '日志清洗',
+              needBack: true,
+              backName: 'log-clean-templates',
+              navId: 'clean-templates',
+            },
+            component: v2CleanTempCreate,
+          },
+          // 编辑模板
+          {
+            path: 'v2-edit/:templateId',
+            name: 'clean-template-edit',
+            meta: {
+              title: '日志清洗',
+              needBack: true,
+              backName: 'log-clean-templates',
+              navId: 'clean-templates',
+            },
+            component: v2CleanTempCreate,
           },
         ],
       },
