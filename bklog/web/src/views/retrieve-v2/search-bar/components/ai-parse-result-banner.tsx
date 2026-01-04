@@ -97,10 +97,10 @@ export default defineComponent({
 
       if (isPartialSuccess.value) {
         // 部分成功：复制有效语句和无效内容
-        const validPart = props.aiQueryResult?.queryString || '';
-        const invalidPart = props.aiQueryResult?.explain || '';
+        const validPart = `${$t('识别出部分语句')}: ${props.aiQueryResult.queryString}`;
+        const invalidPart = `${$t('部分无效内容')}: ${props.aiQueryResult?.explain || ''}`;
         content = validPart
-          ? `${validPart}\n\n${$t('无效内容')}:\n${invalidPart}`
+          ? `${validPart}\n ${invalidPart}`
           : invalidPart;
       } else if (isSuccess.value) {
         // 成功：复制查询语句

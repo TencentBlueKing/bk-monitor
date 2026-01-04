@@ -46,9 +46,9 @@ import './index.scss';
 const DEFAULT_AI_QUERY_RESULT: AiQueryResult = {
   startTime: '',
   endTime: '',
-  queryString: '',
-  parseResult: undefined,
-  explain: '',
+  queryString: 'log:error',
+  parseResult: 'PARTIAL_SUCCESS',
+  explain: 'failed reason',
 };
 
 export default defineComponent({
