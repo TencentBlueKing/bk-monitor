@@ -125,19 +125,6 @@
         color: #ea3636;
       }
     }
-    &.terminated {
-      background: #979ba5;
-      .status-icon {
-        left: 1px;
-      }
-      .status-icon-box {
-        background: #fff;
-      }
-      .status-icon {
-        font-size: 38px;
-        color: rgba(151, 155, 165, 0.4);
-      }
-    }
     @keyframes spin {
         from {
             transform: rotate(0deg);

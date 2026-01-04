@@ -1,5 +1,7 @@
 .config-view-dialog-main {
     width: 100%;
+    max-height: calc(70vh - 180px);
+    overflow-y: auto;
     font-size: 12px;
     .view-container {
         border: 1px solid #dcdee5;
