@@ -1141,7 +1141,7 @@ export default defineComponent({
       if (!selection) {
         return;
       }
-
+      isConfigChange.value = true;
       updateFormDataWithSelection(selection);
       isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
     };
