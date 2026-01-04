@@ -1,0 +1,22 @@
+.alarm-center-detail-panel-alarm-log {
+  .panel-log-header {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    .icon-fenxiang {
+      font-size: 12px;
+    }
+    .select-loading {
+      height: 30px;
+      display: flex;
+    }
+  }
+  .panel-log-filter {
+    margin: 0 12px 8px 12px;
+    .vue3_retrieval-filter__component {
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+      box-shadow: none;
+    }
+  }
+}

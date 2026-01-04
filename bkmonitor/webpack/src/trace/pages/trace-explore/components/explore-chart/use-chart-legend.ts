@@ -24,11 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { type ShallowRef, shallowRef, watch } from 'vue';
+import { type MaybeRef, type ShallowRef, shallowRef, watch } from 'vue';
 
-import type { ILegendItem, LegendActionType, ValueFormatter } from './types';
+import { get } from '@vueuse/core';
 
-export const useChartLegend = (options: ShallowRef<any, any>) => {
+import type { ValueFormatter } from './types';
+import type { ILegendItem, LegendActionType, LegendOptions } from '@/plugins/typings';
+
+export const useChartLegend = (
+  options: ShallowRef<any, any>,
+  chartId: ShallowRef<string, string>,
+  legendOptions?: MaybeRef<LegendOptions>
+) => {
   const legendData = shallowRef([]);
   const seriesList = shallowRef([]);
 
@@ -84,6 +91,7 @@ export const useChartLegend = (options: ShallowRef<any, any>) => {
     }
     legendData.value = legendDataTemp;
   }
+
   function handleGetMinPrecision(data: number[], formatter: ValueFormatter, unit: string) {
     if (!data || data.length === 0) {
       return 0;
@@ -118,18 +126,22 @@ export const useChartLegend = (options: ShallowRef<any, any>) => {
   }
 
   function handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
+    const disabledLegendClick = legendOptions ? get(legendOptions).disabledLegendClick : [];
+    if (disabledLegendClick.includes(item.name)) return;
     if (legendData.value.length < 2) {
       return;
     }
     const setSeriesFilter = () => {
-      // const copyOptions = { ...options.value };
       const showNames = [];
       for (const l of legendData.value) {
         l.show && showNames.push(l.name);
       }
       options.value = {
         ...options.value,
-        series: seriesList.value?.filter(s => showNames.includes(s.name)),
+        series: seriesList.value.map(series => ({
+          ...series,
+          data: showNames.includes(series.name) ? series.data : [],
+        })),
       };
     };
     if (actionType === 'shift-click') {
@@ -137,7 +149,7 @@ export const useChartLegend = (options: ShallowRef<any, any>) => {
         if (l.name === item.name) {
           return {
             ...l,
-            show: !l.show,
+            show: disabledLegendClick.includes(l.name) || !l.show,
           };
         }
         return l;
@@ -146,23 +158,22 @@ export const useChartLegend = (options: ShallowRef<any, any>) => {
     } else if (actionType === 'click') {
       const hasOtherShow = legendData.value
         .filter(item => !item.hidden)
-        .some(set => set.name !== item.name && set.show);
+        .some(set => set.name !== item.name && set.show && !disabledLegendClick.includes(set.name));
       legendData.value = legendData.value.map(l => {
         return {
           ...l,
-          show: l.name === item.name || !hasOtherShow,
+          show: disabledLegendClick.includes(l.name) || l.name === item.name || !hasOtherShow,
         };
       });
       setSeriesFilter();
     }
   }
 
-  const { stop } = watch(
-    () => options.value,
-    v => {
-      if (v?.series) {
-        getLegendData(v.series);
-        stop();
+  watch(
+    () => chartId.value,
+    () => {
+      if (options.value?.series) {
+        getLegendData(options.value.series);
       }
     },
     {

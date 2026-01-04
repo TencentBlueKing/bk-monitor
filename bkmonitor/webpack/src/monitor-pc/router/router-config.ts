@@ -158,7 +158,7 @@ export const getRouteConfig = () => {
     {
       id: 'event',
       name: '告警事件',
-      route: 'event-center',
+      route: 'alarm-center',
       canStore: true,
     },
     {

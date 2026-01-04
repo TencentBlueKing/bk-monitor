@@ -23,6 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
+
 export interface DataPoint {
   [index: number]: number;
 }
@@ -35,13 +38,13 @@ export interface DataZoomBatchItem {
   startValue: number;
   type: string; // "datazoom"
 }
-
 export interface DataZoomEvent {
   batch: Array<DataZoomBatchItem>;
   type: string; // "datazoom"
 }
 
 export type DecimalCount = null | number | undefined;
+
 export interface EchartSeriesItem {
   data: number[];
   name: string;
@@ -76,29 +79,11 @@ export interface ILegendItem {
   totalSource?: number;
   value?: number | string;
 }
-export interface ILegendItem {
-  alias?: string;
-  avg?: number | string;
-  avgSource?: number;
-  borderColor?: string;
-  color: string;
-  hidden?: boolean;
-  max?: number | string;
-  maxSource?: number;
-  metricField?: string;
-  min?: number | string;
-  minSource?: number;
-  name: string;
-  show: boolean;
-  total?: number | string;
-  totalSource?: number;
-  value?: number | string;
-}
 export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
 
 export type Series = SeriesItem[];
 
-export interface SeriesItem {
+export interface SeriesItem extends MonitorEchartOptions {
   alias?: string;
   datapoints: Array<number>; // 数组包含多个数据点，每个数据点是一个含有两个数值的元组
   dimensions?: Record<string, any>; // 也可以用更具体的类型替代 `any`，根据实际数据结构
