@@ -599,7 +599,7 @@ class CreateActionProcessor:
         alert: AlertDocument = self.alerts[0]
         if alert.is_no_data() and self.signal in [ActionSignal.RECOVERED, ActionSignal.CLOSED]:
             # 无数据告警恢复和关闭的时候， 只推送消息队列，不发送通知
-            return []
+            return new_actions
 
         if not actions:
             # 策略配置的notice 和 action 未命中当前的signal
