@@ -23,30 +23,45 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
 
-import { useRoute } from 'vue-router/composables';
-const RetrieveV3 = () => import(/* webpackChunkName: 'logRetrieve-v3' */ '@/views/retrieve-v3/index');
-const RetrieveV1 = () => import(/* webpackChunkName: 'logRetrieve-v1' */ '@/views/retrieve/container');
+/* eslint-disable no-unused-vars */
 
-export default defineComponent({
-  name: 'RetrieveHub',
-  components: {
-    'retrieve-v1': RetrieveV1,
-    'retrieve-v3': RetrieveV3,
-  },
-  setup() {
-    const route = useRoute();
-    const version = localStorage.getItem('retrieve_version') ?? 'v3';
+// 文件上传状态枚举
+export enum FileUploadStatus {
+  PENDING = 'pending',
+  RUNNING = 'running',
+  SUCCESS = 'success',
+  FAILED = 'failed',
+}
 
-    return () => {
-      if (route.name === 'retrieve') {
-        if (version === 'v1') {
-          return <retrieve-v1></retrieve-v1>;
-        }
-      }
+// 上传操作状态枚举（用于上传结果弹窗）
+export enum UploadStatus {
+  RUNNING = 'running',
+  SUCCESS = 'success',
+  FAILED = 'failed',
+}
 
-      return <retrieve-v3></retrieve-v3>;
-    };
-  },
-});
+// 用户上报数据项类型
+export interface UserReportItem {
+  openid: string;
+  file_name: string;
+  file_path: string;
+  file_size: string;
+  md5: string;
+  status: FileUploadStatus;
+  report_time: string;
+  xid: string;
+  extend_info: string;
+  manufacturer: string;
+  model: string;
+  os_version: string;
+  os_sdk: string;
+  os_type: string;
+  download_url: string;
+}
+
+// 文件状态查询项类型
+export interface FileStatusItem {
+  file_name: string;
+  status: FileUploadStatus;
+}

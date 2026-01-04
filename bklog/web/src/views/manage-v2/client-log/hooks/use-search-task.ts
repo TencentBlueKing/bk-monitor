@@ -23,30 +23,56 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
 
-import { useRoute } from 'vue-router/composables';
-const RetrieveV3 = () => import(/* webpackChunkName: 'logRetrieve-v3' */ '@/views/retrieve-v3/index');
-const RetrieveV1 = () => import(/* webpackChunkName: 'logRetrieve-v1' */ '@/views/retrieve/container');
+import { updateLastSelectedIndexId } from '@/common/util';
+import { BK_LOG_STORAGE } from '@/store/store.type';
+import useStore from '@/hooks/use-store';
+import useRouter from '@/hooks/use-router';
 
-export default defineComponent({
-  name: 'RetrieveHub',
-  components: {
-    'retrieve-v1': RetrieveV1,
-    'retrieve-v3': RetrieveV3,
-  },
-  setup() {
-    const route = useRoute();
-    const version = localStorage.getItem('retrieve_version') ?? 'v3';
+export interface SearchCondition {
+  field: string;
+  operator: string;
+  value: any;
+}
 
-    return () => {
-      if (route.name === 'retrieve') {
-        if (version === 'v1') {
-          return <retrieve-v1></retrieve-v1>;
-        }
-      }
+interface UseSearchTaskOptions {
+  indexSetId: string;
+}
 
-      return <retrieve-v3></retrieve-v3>;
-    };
-  },
-});
+/**
+ * 检索任务 Hook
+ * 用于统一处理表格中的检索跳转逻辑
+ */
+export const useSearchTask = ({ indexSetId }: UseSearchTaskOptions) => {
+  const store = useStore();
+  const router = useRouter();
+
+  /**
+   * 执行检索任务
+   * @param conditions 查询条件数组
+   */
+  const searchTask = (conditions: SearchCondition[]) => {
+    // 更新最后选择的索引集ID
+    updateLastSelectedIndexId(store.state.spaceUid, indexSetId);
+
+    // 设置搜索类型为UI模式
+    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
+
+    // 跳转到检索页面
+    router.push({
+      name: 'retrieve',
+      params: {
+        indexId: indexSetId,
+      },
+      query: {
+        spaceUid: store.state.spaceUid,
+        search_mode: 'ui',
+        addition: JSON.stringify(conditions),
+      },
+    });
+  };
+
+  return {
+    searchTask,
+  };
+};
