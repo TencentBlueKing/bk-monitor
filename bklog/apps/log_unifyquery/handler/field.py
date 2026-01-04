@@ -114,8 +114,6 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
             if not topk_group_values:
                 continue
             if len(query["conditions"]["field_list"]) > 0:
-                query["conditions"]["condition_list"].extend(["and"] * 2)
-            else:
                 query["conditions"]["condition_list"].extend(["and"])
             query["conditions"]["field_list"].append(
                 {"field_name": self.search_params["agg_field"], "value": topk_group_values, "op": "eq"}
