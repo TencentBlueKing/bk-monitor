@@ -42,7 +42,7 @@ class BaseTarget(abc.ABC):
     TARGET_TYPE = ""
 
     # 通过 unifyquery 接口关联日志索引集的最大数量
-    _LOG_RELATION_BY_UNIFY_QUERY: int = 5
+    _MAX_LOG_RELATION_NUM: int = 5
 
     def __init__(self, alert: AlertDocument):
         self._alert: AlertDocument = alert
@@ -99,7 +99,7 @@ class BaseTarget(abc.ABC):
         else:
             end_time: int = int(time.time())
 
-        end_time: int = min(end_time, start_time + max_duration - left_shift)
+        end_time: int = min(end_time, start_time + max_duration)
 
         return start_time, end_time
 
@@ -118,7 +118,7 @@ class BaseTarget(abc.ABC):
             for n in r.nodes:
                 source_info: dict[str, Any] = n.source_info.to_source_info()
                 bk_data_id: str | None = source_info.get("bk_data_id")
-                if bk_data_id and bk_data_id not in data_ids and len(data_ids) <= cls._LOG_RELATION_BY_UNIFY_QUERY:
+                if bk_data_id and bk_data_id not in data_ids and len(data_ids) < cls._MAX_LOG_RELATION_NUM:
                     data_ids.add(bk_data_id)
 
         log_targets: list[dict[str, Any]] = []
