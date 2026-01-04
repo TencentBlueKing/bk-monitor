@@ -7,6 +7,7 @@ export const exportAlert = request('POST', 'fta/alert/alert/export/');
 export const alertDateHistogram = request('POST', 'fta/alert/alert/date_histogram/');
 export const listAlertTags = request('POST', 'fta/alert/alert/tags/');
 export const alertDetail = request('GET', 'fta/alert/alert/detail/');
+export const editDataMeaning = request('POST', 'fta/alert/alert/edit_data_meaning/');
 export const getExperience = request('GET', 'fta/alert/alert/get_experience/');
 export const saveExperience = request('POST', 'fta/alert/alert/save_experience/');
 export const deleteExperience = request('POST', 'fta/alert/alert/delete_experience/');
@@ -82,4 +83,5 @@ export default {
   getFourMetricsData,
   quickAlertShield,
   quickAlertAck,
+  editDataMeaning,
 };
