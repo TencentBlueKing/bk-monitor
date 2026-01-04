@@ -755,13 +755,17 @@ class CreateActionProcessor:
                     continue
 
                 # 如果是 notice action，且分派未命中，且 user_groups 为空，则跳过创建
+                # 但如果 assign_mode 包含 BY_RULE，需要创建 notice action 以便告警分派逻辑能够执行
                 if action_plugin["plugin_type"] == ActionPluginType.NOTICE:
                     user_groups = self.notice.get("user_groups", [])
-                    if not user_groups and not assignee_manager.is_matched:
-                        # 分派未命中且通知组为空，不创建 notice action
+                    assign_mode = self.notice.get("options", {}).get("assign_mode", [])
+                    has_by_rule = AssignMode.BY_RULE in assign_mode if assign_mode else False
+
+                    if not user_groups and not has_by_rule and not assignee_manager.is_matched:
+                        # 通知组为空、未配置分派模式且分派未命中时，不创建 notice action
                         logger.info(
                             "[create actions]skip notice action for alert(%s) strategy(%s) signal(%s) "
-                            "because user_groups is empty and assign rule not matched",
+                            "because user_groups is empty, assign_mode is not BY_RULE and assign rule not matched",
                             alert.id,
                             self.strategy_id,
                             self.signal,
