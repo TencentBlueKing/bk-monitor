@@ -20,7 +20,7 @@ from typing import Any
 
 from django.conf import settings
 from django.db.models import Q
-from django.db.models.sql import AND, OR
+from django.db.models.sql.where import AND, OR
 from django.utils import timezone, tree
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
