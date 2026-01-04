@@ -757,27 +757,19 @@ class CreateActionProcessor:
                     continue
 
                 # 如果是 notice action，且 user_groups 为空，则检查是否需要跳过创建
-                # 如果未配置 BY_RULE，或者配置了 BY_RULE 但分派未命中，则跳过创建
+                # assignee_manager.is_matched 只有在配置了 BY_RULE 且分派命中时才为 True
+                # 如果未配置 BY_RULE，is_matched 为 False；如果配置了 BY_RULE 但未命中，is_matched 也为 False
+                # 因此只需要检查 is_matched 即可
                 if action_plugin["plugin_type"] == ActionPluginType.NOTICE:
                     user_groups = self.notice.get("user_groups", [])
-                    assign_mode = self.notice.get("options", {}).get("assign_mode", [])
-                    has_by_rule = AssignMode.BY_RULE in assign_mode if assign_mode else False
-
-                    if not user_groups and (not has_by_rule or not assignee_manager.is_matched):
-                        # 通知组为空时：
-                        # 1. 未配置分派模式，跳过创建
-                        # 2. 配置了分派模式但分派未命中，跳过创建（分派流程已完成，无需继续）
-                        reason = (
-                            "user_groups is empty and assign_mode is not BY_RULE"
-                            if not has_by_rule
-                            else "user_groups is empty and assign rule not matched"
-                        )
+                    if not user_groups and not assignee_manager.is_matched:
+                        # 通知组为空且分派未命中（包括未配置 BY_RULE 或配置了但未命中），跳过创建 notice action
                         logger.info(
-                            "[create actions]skip notice action for alert(%s) strategy(%s) signal(%s) because %s",
+                            "[create actions]skip notice action for alert(%s) strategy(%s) signal(%s) "
+                            "because user_groups is empty and assign rule not matched",
                             alert.id,
                             self.strategy_id,
                             self.signal,
-                            reason,
                         )
                         continue
 
