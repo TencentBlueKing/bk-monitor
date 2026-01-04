@@ -28,6 +28,7 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { transferCountSeries, transferLatestMsg } from 'monitor-api/modules/datalink';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { copyText } from 'monitor-common/utils/utils';
 
 import MonacoEditor from '../../../../components/editors/monaco-editor.vue';
@@ -206,6 +207,9 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
               />
               <bk-table-column
                 width='250'
+                scopedSlots={{
+                  default: ({ row }) => <span>{formatWithTimezone(row.time)}</span>,
+                }}
                 label={this.$t('采集时间')}
                 prop='time'
               />
@@ -214,6 +218,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
                 scopedSlots={{
                   default: ({ row }) => [
                     <bk-button
+                      key='copy'
                       class='mr8'
                       text
                       onClick={() => this.handleCopy(row.message)}
@@ -221,6 +226,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
                       {this.$t('复制')}
                     </bk-button>,
                     <bk-button
+                      key='view'
                       text
                       onClick={() => this.handleViewData(row)}
                     >

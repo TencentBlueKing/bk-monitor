@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from typing import Any
 
 from alarm_backends.core.cache.circuit_breaking import CircuitBreakingCacheManager
 from alarm_backends.core.circuit_breaking.matcher import gen_circuit_breaking_matcher
@@ -102,7 +103,7 @@ class BaseCircuitBreakingManager:
             )
             return False
 
-    def is_strategy_only_circuit_breaking(self, strategy_id: int, labels: list = None) -> bool:
+    def is_strategy_only_circuit_breaking(self, strategy_id: int, labels: list | None = None) -> bool:
         """
         检查策略是否熔断（只检查策略ID维度）
         用于在processor中判断策略级别的熔断
@@ -112,7 +113,7 @@ class BaseCircuitBreakingManager:
         """
         try:
             # 只检查策略ID维度的熔断
-            dimensions = {"strategy_id": str(strategy_id)}
+            dimensions: dict[str, Any] = {"strategy_id": str(strategy_id)}
             if labels is not None:
                 dimensions["labels"] = labels
             return self.is_cb(dimensions)

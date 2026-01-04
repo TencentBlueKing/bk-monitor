@@ -253,6 +253,101 @@ const getTaskIndexSetId = {
   method: 'get',
 };
 
+/**
+ * 新版采集列表接口
+ */
+const newCollectList = {
+  url: '/databus/log_access/collector/',
+  method: 'post',
+};
+/**
+ * 获取左侧索引集列表
+ */
+const getIndexGroupList = {
+  url: '/index_group/',
+  method: 'get',
+};
+
+/**
+ * 新增左侧索引集
+ */
+const addIndexGroup = {
+  url: '/index_group/',
+  method: 'post',
+};
+/**
+ * 更新左侧索引集
+ */
+const updateIndexGroup = {
+  url: '/index_group/:index_set_id/',
+  method: 'put',
+};
+
+/**
+ * 删除左侧索引集
+ */
+const delIndexGroup = {
+  url: '/index_group/:index_set_id/',
+  method: 'delete',
+};
+
+/**
+ * 获取采集列表过滤相关枚举值
+ */
+const collectorFieldEnums = {
+  url: '/databus/log_access/collector_field_enums/',
+  method: 'get',
+};
+/**
+ * 获取采集列表状态接口
+ */
+const getCollectorStatus = {
+  url: '/databus/log_access/collector_status/',
+  method: 'post',
+};
+
+// 客户端日志-用户上报列表
+const getUserReportList = {
+  url: '/tgpa/report/',
+  method: 'get',
+};
+
+// 客户端日志-本地上报
+const syncUserReport = {
+  url: '/tgpa/report/sync/',
+  method: 'post',
+};
+
+// 客户端日志-获取文件名列表
+const getFileNameList = {
+  url: '/tgpa/report/file_name_list/',
+  method: 'get',
+};
+
+// 客户端日志-获取openid列表
+const getOpenidList = {
+  url: '/tgpa/report/openid_list/',
+  method: 'get',
+};
+
+// 客户端日志-获取上报状态
+const getFileStatus = {
+  url: '/tgpa/report/file_status/',
+  method: 'post',
+};
+
+// 客户端日志-获取同步用户上报文件的状态
+const getSyncRecord = {
+  url: '/tgpa/report/sync_record/',
+  method: 'get',
+};
+
+// 客户端日志-获取tab数量
+const getTgpaCount = {
+  url: '/tgpa/count/',
+  method: 'get',
+};
+
 export {
   getStorage,
   globals,
@@ -297,4 +392,19 @@ export {
   createCollectionTask,
   getDownloadLink,
   getTaskIndexSetId,
+  /** 新版采集管理 */
+  newCollectList,
+  getIndexGroupList,
+  addIndexGroup,
+  updateIndexGroup,
+  delIndexGroup,
+  collectorFieldEnums,
+  getCollectorStatus,
+  getUserReportList,
+  syncUserReport,
+  getFileNameList,
+  getOpenidList,
+  getFileStatus,
+  getSyncRecord,
+  getTgpaCount,
 };

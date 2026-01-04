@@ -192,10 +192,12 @@ class BaseActionProcessor:
 
         return can_continue
 
-    def _check_circuit_breaking(self, plugin_type=None):
+    def _check_circuit_breaking(self, plugin_type=None, skip_notice_check=True):
         """
-        检查是否命中熔断规则（执行阶段）
+        检查是否命中熔断规则
 
+        :param plugin_type: 插件类型，默认使用 action 的插件类型
+        :param skip_notice_check: 是否跳过通知类型检查，默认 True（执行阶段），False（通知阶段）
         :return: True 表示命中熔断规则，False 表示未命中
         """
         plugin_type = plugin_type or self.action.action_plugin.get("plugin_type")
@@ -204,9 +206,45 @@ class BaseActionProcessor:
         if plugin_type == ActionPluginType.MESSAGE_QUEUE:
             return False
 
-        # 通知在后续消息发送阶段进行熔断判断
-        if plugin_type in NOTICE_PLUGIN_TYPES:
+        # 通知在后续消息发送阶段进行熔断判断（仅在执行阶段跳过）
+        if skip_notice_check and plugin_type in NOTICE_PLUGIN_TYPES:
             return False
+
+        # 执行熔断检查
+        try:
+            is_circuit_breaking = self._do_circuit_breaking_check(plugin_type)
+
+            if is_circuit_breaking:
+                # 执行阶段熔断处理
+                try:
+                    self._handle_execution_circuit_breaking(plugin_type)
+                    logger.info(
+                        f"[circuit breaking] [{plugin_type}] action({self.action.id}) strategy({self.action.strategy_id}) "
+                        f"execution circuit breaking"
+                    )
+                except Exception as e:
+                    logger.exception(
+                        f"[circuit breaking] [{plugin_type}] handle execution circuit breaking failed for "
+                        f"action({self.action.id}) strategy({self.action.strategy_id}): {e}"
+                    )
+                return True
+
+            return False
+        except Exception as e:
+            logger.exception(
+                f"[circuit breaking] [{plugin_type}] circuit breaking check failed for "
+                f"action({self.action.id}) strategy({self.action.strategy_id}): {e}"
+            )
+            return False
+
+    def _do_circuit_breaking_check(self, plugin_type=None):
+        """
+        执行纯粹的熔断检查逻辑（不包含执行阶段处理）
+
+        :param plugin_type: 插件类型，默认使用 action 的插件类型
+        :return: True 表示命中熔断规则，False 表示未命中
+        """
+        plugin_type = plugin_type or self.action.action_plugin.get("plugin_type")
 
         # 创建熔断管理器实例
         circuit_breaking_manager = ActionCircuitBreakingManager()
@@ -220,6 +258,7 @@ class BaseActionProcessor:
             "bk_biz_id": self.action.bk_biz_id,
             "plugin_type": plugin_type,
         }
+
         data_source_label = ""
         data_type_label = ""
         # 从策略配置中获取数据源信息
@@ -229,25 +268,38 @@ class BaseActionProcessor:
             data_type_label = query_config.get("data_type_label", "")
         context["data_source_label"] = data_source_label
         context["data_type_label"] = data_type_label
-        # 检查是否命中熔断规则
-        is_circuit_breaking = circuit_breaking_manager.is_circuit_breaking(**context)
 
-        if is_circuit_breaking:
-            # 执行阶段熔断处理
-            try:
-                self._handle_execution_circuit_breaking(plugin_type)
+        # 检查是否命中熔断规则
+        return circuit_breaking_manager.is_circuit_breaking(**context)
+
+    def check_circuit_breaking_for_notice(self):
+        """
+        检查是否命中熔断规则（通知阶段）
+
+        :return: True 表示命中熔断规则，False 表示未命中
+        """
+        plugin_type = self.action.action_plugin.get("plugin_type")
+
+        # message_queue 类型在创建阶段已经检查过熔断，这里跳过
+        if plugin_type == ActionPluginType.MESSAGE_QUEUE:
+            return False
+
+        try:
+            is_circuit_breaking = self._do_circuit_breaking_check(plugin_type)
+
+            if is_circuit_breaking:
                 logger.info(
                     f"[circuit breaking] [{plugin_type}] action({self.action.id}) strategy({self.action.strategy_id}) "
-                    f"execution circuit breaking"
+                    f"notice circuit breaking"
                 )
-            except Exception as e:
-                logger.exception(
-                    f"[circuit breaking] [{plugin_type}] handle execution circuit breaking failed for "
-                    f"action({self.action.id}) strategy({self.action.strategy_id}): {e}"
-                )
-            return True
 
-        return False
+            return is_circuit_breaking
+        except Exception as e:
+            logger.exception(
+                f"[circuit breaking] [{plugin_type}] circuit breaking check failed for "
+                f"action({self.action.id}) strategy({self.action.strategy_id}): {e}"
+            )
+            return False
 
     def _handle_execution_circuit_breaking(self, plugin_type: str):
         """
@@ -279,18 +331,7 @@ class BaseActionProcessor:
         try:
             action_name = self.action_config.get("name", "")
             plugin_type = self.action.action_plugin.get("plugin_type", "")
-            circuit_breaking_description = json.dumps(
-                {
-                    "action_id": self.action.id,
-                    "action_name": action_name,
-                    "plugin_type": plugin_type,
-                    "content": f"处理套餐{action_name}执行被熔断",
-                },
-                ensure_ascii=False,
-            )
-
-            self.action.insert_alert_log(description=circuit_breaking_description)
-
+            self.action.insert_alert_log(description=f"处理套餐{action_name}执行被熔断")
             logger.info(
                 f"[circuit breaking] [{plugin_type}] created alert log for circuit breaking: "
                 f"action({self.action.id}) strategy({self.action.strategy_id})"

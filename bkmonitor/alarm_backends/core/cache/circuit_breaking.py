@@ -12,7 +12,7 @@ import json
 import logging
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cache.key import PUBLIC_KEY_PREFIX
@@ -29,6 +29,7 @@ class CircuitBreakingModule(Enum):
 
     ACCESS_DATA = "access.data"
     ALERT_BUILDER = "alert.builder"
+    ALERT_MANAGER = "alert.manager"
     ACTION = "action"
 
     @classmethod
@@ -73,7 +74,7 @@ class CircuitBreakingCacheManager(CacheManager):
         try:
             config_data = cls.cache.get(cache_key)
             if config_data:
-                return json.loads(config_data)
+                return json.loads(cast(str, config_data))
             return []
         except Exception as e:
             logger.error(f"[circuit breaking] Failed to get circuit breaking config for module {module}: {e}")
@@ -582,4 +583,8 @@ clear(module=module)
 clear()
 """
 
-print(example_usage)
+
+def usage():
+    print(example_usage)
+    for _m in CircuitBreakingModule.get_all_values():
+        print(f'module = "{_m}"')
