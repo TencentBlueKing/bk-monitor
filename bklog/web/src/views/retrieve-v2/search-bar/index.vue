@@ -29,6 +29,7 @@ import RequestPool from '@/store/request-pool';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import CommonFilterSelect from './components/common-filter-select.vue';
+import AiParseResultBanner from './components/ai-parse-result-banner';
 import SqlQuery from './sql-mode/sql-query';
 import UiInput from './ui-mode/ui-input';
 import { withoutValueConditionList } from './utils/const.common';
@@ -63,9 +64,20 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  aiQueryResult: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
-const emit = defineEmits(['refresh', 'height-change', 'search', 'mode-change', 'text-to-query']);
+const emit = defineEmits([
+  'refresh',
+  'height-change',
+  'search',
+  'mode-change',
+  'text-to-query',
+  'close-ai-parsed-text',
+]);
 const store = useStore();
 const { $t } = useLocale();
 const queryTypeList = ref([$t('UI 模式'), $t('语句模式')]);
@@ -85,7 +97,6 @@ const inspectResponse = ref({
 const uiQueryValue = ref([]);
 const sqlQueryValue = ref('');
 const activeFavorite = ref({});
-const refPopTraget = ref(null);
 const localModeActiveIndex = ref(0);
 
 const inspectPopInstance = new PopInstanceUtil({
@@ -297,7 +308,7 @@ const handleBtnQueryClick = () => {
             sqlQueryValue.value,
           );
         });
-
+        emit('close-ai-parsed-text');
         return;
       }
 
@@ -330,12 +341,15 @@ const handleSqlRetrieve = (value) => {
         setRouteParams();
         RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
       });
+
+      emit('close-ai-parsed-text');
       return;
     }
 
     requestIndexSetList();
     setRouteParams();
     RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
+    emit('close-ai-parsed-text');
     return;
   }
 };
@@ -702,6 +716,7 @@ defineExpose({
   getValue: () => (searchMode.value === 'ui' ? uiQueryValue.value : sqlQueryValue.value),
   getRect,
 });
+
 </script>
 <template>
   <div
@@ -872,6 +887,9 @@ defineExpose({
         class="ai-progress-bar"
       ></div>
     </div>
+    <template v-if="searchMode === 'sql'">
+      <AiParseResultBanner :ai-query-result="aiQueryResult" :show-border="true" style="margin: 4px 0;" />
+    </template>
     <template v-if="isFilterSecFocused">
       <CommonFilterSelect />
     </template>
