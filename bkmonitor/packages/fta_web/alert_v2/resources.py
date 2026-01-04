@@ -26,10 +26,16 @@ from core.drf_resource import Resource, resource, api
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
 from fta_web.alert_v2.target import BaseTarget, get_target_instance
 from monitor_web.data_explorer.event.constants import EventSource
-from monitor_web.data_explorer.event.resources import EventLogsResource, EventTotalResource, EventTimeSeriesResource
+from monitor_web.data_explorer.event.resources import (
+    EventLogsResource,
+    EventTotalResource,
+    EventTagDetailResource,
+    EventTimeSeriesResource,
+)
 from apm_web.event.resources import (
     EventLogsResource as APMEventLogsResource,
     EventTotalResource as APMEventTotalResource,
+    EventTagDetailResource as APMEventTagDetailResource,
     EventTimeSeriesResource as APMEventTimeSeriesResource,
 )
 
@@ -409,6 +415,54 @@ class AlertEventTSResource(AlertEventBaseResource):
             APMEventTimeSeriesResource if self.is_apm_target(target) else EventTimeSeriesResource
         )
         return event_ts_resource_cls().request(query_params)
+
+
+class AlertEventTagDetailResource(AlertEventBaseResource):
+    """告警关联事件气泡详情资源类"""
+
+    class RequestSerializer(serializers.Serializer):
+        """请求参数序列化器"""
+
+        alert_id = serializers.CharField(label="告警 ID", help_text="要查询的告警 ID")
+        sources = serializers.ListSerializer(
+            child=serializers.ChoiceField(label="事件来源", choices=EventSource.choices()),
+            required=False,
+            default=[],
+            help_text="事件来源过滤，不传或为空表示查询所有来源",
+        )
+        interval = serializers.IntegerField(label="汇聚周期", required=False, default=60, help_text="汇聚周期（秒）")
+        start_time = serializers.IntegerField(label="开始时间", help_text="查询的开始时间戳")
+        limit = serializers.IntegerField(label="数量限制", required=False, default=5, help_text="返回事件的最大数量")
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        """执行告警关联事件气泡详情查询请求。
+
+        :param validated_request_data: 验证后的请求参数
+        :return: 包含事件详情和查询配置的响应数据
+        """
+        alert: AlertDocument = AlertDocument.get(validated_request_data["alert_id"])
+        target: BaseTarget = get_target_instance(alert)
+
+        interval: int = validated_request_data["interval"]
+        q: QueryConfigBuilder = self._get_q(target).interval(interval).metric(field="_index", method="SUM", alias="a")
+        # 添加 sources 过滤条件
+        if validated_request_data.get("sources"):
+            q: QueryConfigBuilder = q.conditions(q_to_conditions(Q(source=validated_request_data["sources"])))
+
+        queryset: UnifyQuerySet = self.build_queryset(alert, target, q)
+        query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
+
+        # 添加 EventTagDetailResource 类所需的参数
+        query_params["expression"] = "a"
+        query_params["start_time"] = validated_request_data["start_time"]
+        query_params["end_time"] = validated_request_data["start_time"] + interval
+        query_params["interval"] = interval
+        query_params["limit"] = validated_request_data["limit"]
+
+        event_tag_detail_resource_cls: type = (
+            APMEventTagDetailResource if self.is_apm_target(target) else EventTagDetailResource
+        )
+        return event_tag_detail_resource_cls().request(query_params)
 
 
 class AlertK8sScenarioListResource(Resource):
