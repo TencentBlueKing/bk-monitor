@@ -77,7 +77,7 @@ const selectedChoiceIndex = ref(0);
 const inputPlaceholder = computed(() => {
   if (inputValueLength.value === 0) {
     // return `${t('请输入检索内容')}, / ${t('唤起')} ...`;
-    return `${t('请输入检索内容')}, / ${t('唤起')}，${t('Tab 切换为 AI 模式')}`;
+    return ` / ${t('唤起')}，${t('请输入检索内容')}（${t('Tab 可切换为 AI 模式')}）`;
   }
 
   return '';
