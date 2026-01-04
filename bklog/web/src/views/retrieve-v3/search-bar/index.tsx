@@ -497,10 +497,10 @@ export default defineComponent({
                     >
                       <img
                         src={aiBluekingSvg}
-                        alt='AI 编辑'
+                        alt='AI 模式'
                         style={{ width: '18px', height: '18px' }}
                       />
-                      {t('AI 编辑')}
+                      {t('AI 模式')}
                       <span style={shortcutKeyStyle}>
                         <i class='bklog-icon bklog-key-tab'></i>
                       </span>

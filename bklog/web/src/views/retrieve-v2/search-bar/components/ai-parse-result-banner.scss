@@ -75,7 +75,7 @@
   justify-content: space-between;
   min-width: 0;
   height: 28px;
-  margin-right: 8px;
+  // margin-right: 8px;
 
   .ai-parse-label-left {
     display: flex;
@@ -132,7 +132,6 @@
   flex: 1;
   min-width: 0;
   height: 26px;
-  padding: 0 8px;
   // background: #fff;
   border-radius: 2px;
   overflow: hidden;
@@ -142,6 +141,7 @@
   box-sizing: border-box;
 
   &.is-expanded {
+    padding: 0 8px;
     width: 100%;
     padding: 8px;
     white-space: normal;
@@ -175,13 +175,13 @@
 
       >span:first-child {
         flex-shrink: 0;
-        padding: 0 8px;
+        padding: 0 8px 0 0;
         margin-right: 0;
         white-space: nowrap;
       }
 
       >span:last-child {
-        flex: 1;
+        // flex: 1;
         min-width: 0;
         padding: 0 8px;
         background: #fff;
@@ -211,7 +211,7 @@
       }
 
       >span:last-child {
-        flex: 1;
+        // flex: 1;
         min-width: 0;
         padding: 0 8px;
         background: #fff;
@@ -298,6 +298,7 @@
         >span:first-child {
           background-color: #fff;
           font-weight: 700;
+          padding-left: 0;
         }
 
         >span:last-child {
