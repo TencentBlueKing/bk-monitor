@@ -69,60 +69,11 @@ export default defineComponent({
       if (isPartialSuccess.value && !isExpanded.value) {
         // 部分成功时，需要检测两个子 span 的内容是否溢出
         const container = textRef.value;
-        const firstSpan = container.querySelector('span:first-child') as HTMLElement;
-        const lastSpan = container.querySelector('span:last-child') as HTMLElement;
+        const firstSpan = container.childNodes[0]?.childNodes[1] as HTMLElement;
+        const lastSpan = container.childNodes[1]?.childNodes[1] as HTMLElement;
 
-        if (firstSpan && lastSpan) {
-          // 检测第一个 span 的实际内容宽度（包括所有子元素）
-          const firstSpanContent = firstSpan.querySelector('span:last-child') as HTMLElement;
-          const lastSpanContent = lastSpan.querySelector('span:last-child') as HTMLElement;
-
-          // 计算第一个 span 的实际内容宽度
-          let firstActualWidth = 0;
-          if (firstSpanContent) {
-            // 临时移除 overflow 限制来测量真实宽度
-            const originalOverflow = firstSpanContent.style.overflow;
-            const originalWhiteSpace = firstSpanContent.style.whiteSpace;
-            firstSpanContent.style.overflow = 'visible';
-            firstSpanContent.style.whiteSpace = 'nowrap';
-            firstActualWidth = firstSpanContent.scrollWidth;
-            firstSpanContent.style.overflow = originalOverflow;
-            firstSpanContent.style.whiteSpace = originalWhiteSpace;
-          } else {
-            firstActualWidth = firstSpan.scrollWidth;
-          }
-
-          // 计算第二个 span 的实际内容宽度
-          let lastActualWidth = 0;
-          if (lastSpanContent) {
-            const originalOverflow = lastSpanContent.style.overflow;
-            const originalWhiteSpace = lastSpanContent.style.whiteSpace;
-            lastSpanContent.style.overflow = 'visible';
-            lastSpanContent.style.whiteSpace = 'nowrap';
-            lastActualWidth = lastSpanContent.scrollWidth;
-            lastSpanContent.style.overflow = originalOverflow;
-            lastSpanContent.style.whiteSpace = originalWhiteSpace;
-          } else {
-            lastActualWidth = lastSpan.scrollWidth;
-          }
-
-          // 检测两个 span 的可用宽度
-          const firstAvailableWidth = firstSpan.clientWidth;
-          const lastAvailableWidth = lastSpan.clientWidth;
-
-          // 检测整个容器的内容是否溢出
-          const containerActualWidth = container.scrollWidth;
-          const containerAvailableWidth = container.clientWidth;
-
-          // 如果任一 span 的内容溢出，或者整个容器溢出，则认为有溢出
-          hasOverflow.value =
-            firstActualWidth > firstAvailableWidth ||
-            lastActualWidth > lastAvailableWidth ||
-            containerActualWidth > containerAvailableWidth;
-        } else {
-          // 降级方案：检测整个容器
-          hasOverflow.value = container.scrollWidth > container.clientWidth;
-        }
+        hasOverflow.value = firstSpan.scrollWidth > firstSpan.clientWidth
+          || lastSpan.scrollWidth > lastSpan.clientWidth;
       } else {
         // 非部分成功情况，直接检测容器
         hasOverflow.value = textRef.value.scrollWidth > textRef.value.clientWidth;
@@ -191,7 +142,7 @@ export default defineComponent({
             <span>{getSementKeywordElements(props.aiQueryResult.queryString)}</span>
           </span>,
           <span>
-            <span>{$t('和部分无效内容')}</span>
+            <span>{isExpanded.value ? $t('部分无效内容') : $t('和部分无效内容')}</span>
             <span>{props.aiQueryResult.explain}</span>
           </span>,
         ];
@@ -284,28 +235,28 @@ export default defineComponent({
 
       // 3. 匹配 key: value 模式
       // 先找到所有 key: 的位置，然后确定对应的 value 范围
-      const keyColonPattern = /(\S+?):/g;
-      const keyColonMatches: Array<{ key: string; colonIndex: number }> = [];
+      // 匹配非空白字符序列（至少包含一个字母或下划线），后跟冒号
+      const keyColonPattern = /([a-zA-Z_][\w.]*):/g;
+      const keyColonMatches: Array<{ key: string; colonIndex: number; keyStart: number }> = [];
 
       keyColonPattern.lastIndex = 0;
       while ((match = keyColonPattern.exec(text)) !== null) {
         const key = match[1];
-        const colonIndex = match.index + key.length;
+        const keyStart = match.index;
+        const colonIndex = keyStart + key.length;
 
-        // 检查 key 是否与已匹配的关键字重叠
+        // 检查 key 是否与已匹配的关键字重叠（排除括号，因为 key 可以在括号内）
         const isKeyOverlapped = matches.some(
-          m => m.index < colonIndex && m.index + m.length > match.index
+          m => m.type === 'keyword' && m.index < colonIndex && m.index + m.length > keyStart
         );
 
         if (!isKeyOverlapped) {
-          keyColonMatches.push({ key, colonIndex });
+          keyColonMatches.push({ key, colonIndex, keyStart });
         }
       }
 
       // 处理每个 key:value 对
-      keyColonMatches.forEach(({ key, colonIndex }, idx) => {
-        const keyStart = colonIndex - key.length;
-
+      keyColonMatches.forEach(({ key, colonIndex, keyStart }, idx) => {
         // 添加 key
         matches.push({
           type: 'key',
@@ -345,21 +296,24 @@ export default defineComponent({
           // 普通值：找到值的结束位置
           // 结束条件：遇到关键字、括号、或下一个 key:
           const nextKeyColon = idx < keyColonMatches.length - 1
-            ? keyColonMatches[idx + 1].colonIndex - keyColonMatches[idx + 1].key.length
+            ? keyColonMatches[idx + 1].keyStart
             : text.length;
 
           valueEnd = valueStart;
           while (valueEnd < nextKeyColon && valueEnd < text.length) {
-            const remaining = text.substring(valueEnd);
+            const char = text[valueEnd];
 
             // 检查是否遇到关键字（前面有空格或开头）
-            const keywordMatch = remaining.match(/^\s*\b(AND\s+NOT|AND|OR)\b/i);
-            if (keywordMatch) {
-              break;
+            if (/\s/.test(char)) {
+              const remaining = text.substring(valueEnd);
+              const keywordMatch = remaining.match(/^\s+\b(AND\s+NOT|AND|OR)\b/i);
+              if (keywordMatch) {
+                break;
+              }
             }
 
-            // 检查是否遇到括号
-            if (/^[(){}[\]]/.test(remaining)) {
+            // 检查是否遇到括号（但不在引号内）
+            if (/[(){}[\]]/.test(char)) {
               break;
             }
 
@@ -384,6 +338,7 @@ export default defineComponent({
       });
 
       // 4. 处理重叠：优先保留更长的匹配（AND NOT 优先于 AND）
+      // key、value、bracket 可以相邻但不重叠，只有真正的字符重叠才需要处理
       const filteredMatches: Match[] = [];
       for (const current of matches) {
         let shouldAdd = true;
@@ -392,10 +347,9 @@ export default defineComponent({
         for (let j = 0; j < filteredMatches.length; j++) {
           const existing = filteredMatches[j];
 
-          // 检查是否重叠
+          // 检查是否真正重叠（有字符重叠，不仅仅是相邻）
           const overlaps =
-            (current.index >= existing.index && current.index < existing.index + existing.length) ||
-            (existing.index >= current.index && existing.index < current.index + current.length);
+            (current.index < existing.index + existing.length && current.index + current.length > existing.index);
 
           if (overlaps) {
             // 如果当前是 AND NOT，且已存在的是 AND，则替换
@@ -406,8 +360,16 @@ export default defineComponent({
               existing.value.toUpperCase() === 'AND'
             ) {
               removeIndices.push(j);
-            } else {
+            }
+            // 同类型重叠，保留第一个（不应该有同类型重叠，但以防万一）
+            else if (current.type === existing.type) {
               shouldAdd = false;
+              break;
+            }
+            // 不同类型重叠：key/value/bracket 不应该重叠，如果重叠了可能是解析错误，保留第一个
+            else {
+              shouldAdd = false;
+              break;
             }
           }
         }

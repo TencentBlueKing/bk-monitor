@@ -888,7 +888,7 @@ defineExpose({
       ></div>
     </div>
     <template v-if="searchMode === 'sql'">
-      <AiParseResultBanner :ai-query-result="aiQueryResult" style="border-top: 1px solid #DCDEE5;" />
+      <AiParseResultBanner :ai-query-result="aiQueryResult" :show-border="true" style="margin: 4px 0;" />
     </template>
     <template v-if="isFilterSecFocused">
       <CommonFilterSelect />

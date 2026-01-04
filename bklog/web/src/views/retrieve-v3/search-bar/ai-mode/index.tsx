@@ -251,7 +251,7 @@ export default defineComponent({
                   tabindex={1}
                   class='ai-input'
                   value={currentInput.value}
-                  placeholder={t('输入查询内容，"帮我查询近 3 天的错误日志"，Tab 切换为普通模式')}
+                  placeholder={t('输入查询内容，“帮我查询最近 3 天的错误日志”（Tab 可切回普通模式）')}
                   onInput={handleInput}
                   onFocus={handleFocus}
                   onBlur={handleBlur}
@@ -273,7 +273,7 @@ export default defineComponent({
               <div class='ai-mode-toggle-btn' onClick={handleChangeAIMode}>
                 <img
                   src={aiBluekingSvg}
-                  alt='AI模式'
+                  alt='AI 模式'
                   style={{ width: '18px', height: '18px' }}
                 />
                 <span class='ai-mode-text'>{t('AI 模式')}</span>
