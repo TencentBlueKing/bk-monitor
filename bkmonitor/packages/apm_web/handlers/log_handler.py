@@ -243,19 +243,24 @@ class ServiceLogHandler:
         if not datasource_infos:
             return []
 
-        # 这里直接从 metadata 查询，是为了解决跨业务关联的场景
-        # data_id -> table_id -> index_set_id
-        # 这里待 metadata 有相关接口后，需要改为走 api 形式查询，去掉模块之间的依赖
-        from metadata import models
-
-        table_id_list = list(
-            models.DataSourceResultTable.objects.filter(bk_data_id__in=data_ids).values_list("table_id", flat=True)
-        )
-
         res = []
+        table_id_list = cls.list_tables_by_data_ids(list(data_ids))
         full_indexes = get_biz_index_sets_with_cache(bk_biz_id=bk_biz_id)  # 这里也会返回业务下关联项目的索引集
         for index in full_indexes:
             indices = index.get("indices") or []
             if indices and len(indices) == 1 and indices[0].get("result_table_id") in table_id_list:
                 res.append({"index_set_id": index["index_set_id"], "addition": []})
         return res
+
+    @classmethod
+    def list_tables_by_data_ids(cls, data_ids: list[int | str]) -> list[str]:
+        """通过 data_id 列表获取对应的 result_table_id 列表"""
+
+        # 这里直接从 metadata 查询，是为了解决跨业务关联的场景
+        # data_id -> table_id -> index_set_id
+        # 这里待 metadata 有相关接口后，需要改为走 api 形式查询，去掉模块之间的依赖
+        from metadata import models
+
+        return list(
+            models.DataSourceResultTable.objects.filter(bk_data_id__in=data_ids).values_list("table_id", flat=True)
+        )
