@@ -886,11 +886,14 @@ class CollectorHandler:
             else:
                 _data["is_search"] = False
 
-        return {"data": data, "index_set_objs": index_set_objs, "index_set_obj_dict": index_set_obj_dict}
+        return data
 
     @classmethod
-    def add_tags_info(cls, data, index_set_objs):
+    def add_tags_info(cls, data):
         """添加标签信息"""
+        index_set_ids = [data_info.get("index_set_id") for data_info in data if data_info.get("index_set_id")]
+        index_set_objs = LogIndexSet.origin_objects.filter(index_set_id__in=index_set_ids)
+
         tag_ids_mapping = dict()
         tag_ids_all = list()
 

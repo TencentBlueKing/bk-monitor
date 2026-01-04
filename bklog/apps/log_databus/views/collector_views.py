@@ -335,10 +335,8 @@ class CollectorViewSet(ModelViewSet):
             request.GET["bk_biz_id"] = space_uid_to_bk_biz_id(request.GET["space_uid"])
 
         response = super().list(request, *args, **kwargs)
-
-        result = CollectorHandler.add_cluster_info(response.data["list"])
-
-        response.data["list"] = CollectorHandler.add_tags_info(result.get("data", []), result.get("index_set_objs", []))
+        response.data["list"] = CollectorHandler.add_cluster_info(response.data["list"])
+        response.data["list"] = CollectorHandler.add_tags_info(response.data["list"])
 
         return response
 
@@ -1928,11 +1926,8 @@ class CollectorViewSet(ModelViewSet):
             request.GET["bk_biz_id"] = space_uid_to_bk_biz_id(request.GET["space_uid"])
 
         response = super().list(request, *args, **kwargs)
-
-        result = CollectorHandler.add_cluster_info(response.data)
-
-        response.data = CollectorHandler.add_tags_info(result.get("data", []), result.get("index_set_objs", []))
-
+        response.data = CollectorHandler.add_cluster_info(response.data)
+        response.data = CollectorHandler.add_tags_info(response.data)
         return response
 
     @detail_route(methods=["POST"], url_path="close_clean")
