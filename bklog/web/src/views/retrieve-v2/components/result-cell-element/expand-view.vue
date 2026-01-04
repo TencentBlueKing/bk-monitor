@@ -42,6 +42,19 @@
         </span>
       </div>
       <div class="tab-right">
+        <bk-input
+          v-show="activeExpandView === 'kv'"
+          v-model="searchKeyword"
+          ext-cls="search-input"
+          clearable
+          :placeholder="$t('搜索字段')"
+          :right-icon="'bk-icon icon-search'"
+          @enter="handleSearch"
+          @right-icon-click="handleSearch"
+          @clear="handleClearSearch"
+          @input="handleInputChange"
+          >
+        </bk-input>
         <span
           class="bklog-icon bklog-data-copy"
           v-bk-tooltips="{ content: $t('复制') }"
@@ -60,6 +73,7 @@
         :list-data="listData"
         :total-fields="totalFields"
         :visible-fields="visibleFields"
+        :search-keyword="activeSearchKeyword"
         @value-click="
           (type, content, isLink, field, depth) => $emit('value-click', type, content, isLink, field, depth)
         "
@@ -111,6 +125,8 @@
     data() {
       return {
         activeExpandView: 'kv',
+        searchKeyword: '',
+        activeSearchKeyword: '',
       };
     },
     computed: {
@@ -147,6 +163,19 @@
     methods: {
       handleCopy() {
         copyMessage(JSON.stringify(this.jsonShowData));
+      },
+      handleSearch() {
+        this.activeSearchKeyword = this.searchKeyword.trim();
+      },
+      handleClearSearch() {
+        this.searchKeyword = '';
+        this.activeSearchKeyword = '';
+      },
+      handleInputChange(value) {
+        // 当输入框内容被手动删空时，重置搜索
+        if (!value || !value.trim()) {
+          this.activeSearchKeyword = '';
+        }
       },
     },
   };
@@ -216,6 +245,27 @@
         right: 20px;
         display: flex;
         align-items: center;
+
+        .search-input {
+            margin-right: 10px;
+
+            :deep(.bk-form-input) {
+              width: 200px;
+              height: 22px;
+              background: #F5F7FA;
+              padding: 0;
+              border: none;
+              border-bottom: 1px solid #c4c6cc;
+
+              &:focus {
+                background: #F5F7FA !important;
+              }
+            }
+
+            :deep(.right-icon) {
+              right: 0px !important;
+            }
+          }
 
         .bklog-icon {
           font-size: 16px;

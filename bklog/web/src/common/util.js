@@ -519,10 +519,9 @@ export function formatDateNanos(val, isTimzone = true) {
     nanoseconds = digitsOnly.length > 3 ? digitsOnly.slice(3) : '';
   }
 
-  // 使用dayjs解析字符串到毫秒 包含时区处理 根据 isTimzone 决定是否进行时区转换
-  const dateTimeToMilliseconds = isTimzone
-    ? dayjs(val).tz(window.timezone).format('YYYY-MM-DD HH:mm:ss.SSS')
-    : dayjs(val).format('YYYY-MM-DD HH:mm:ss.SSS');
+  // 使用dayjs解析字符串到毫秒 包含时区处理
+  const dateTimeToMilliseconds = dayjs(val).tz(window.timezone)
+    .format('YYYY-MM-DD HH:mm:ss.SSS');
   // 获取微秒并且判断是否是000，也就是纳秒部分的最后三位
   const nanosecondsNum = nanoseconds ? parseInt(nanoseconds, 10) : 0;
   const microseconds = nanosecondsNum % 1000;
