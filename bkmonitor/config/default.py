@@ -1763,8 +1763,15 @@ ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH = False
 # V4链路分业务系统事件初始化配置
 SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS = int(os.getenv("SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS", 1))
 SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS = int(os.getenv("SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS", 0))
-
+# 时序预测远程访问地址
 AIOPS_SERVER_TF_URL = os.getenv("BKAPP_AIOPS_SERVER_TF_URL", "http://bk-aiops-serving-tf:8000")
+# 智能异常检测远程访问地址
 AIOPS_SERVER_KPI_URL = os.getenv("BKAPP_AIOPS_SERVER_KPI_URL", "http://bk-aiops-serving-kpi:8000")
+# 离群检测远程访问地址
+AIOPS_SERVER_ACD_URL = os.getenv("BKAPP_AIOPS_SERVER_ACD_URL", "http://bk-aiops-serving-acd:8000")
+# SDK执行预测逻辑接口
+AIOPS_PREDICT_SDK = os.getenv("BKAPP_AIOPS_PREDICT_SDK", "/aiops/serving/default/")
+# SDK初始化历史依赖接口
 AIOPS_INIT_DEPEND_SDK = os.getenv("BKAPP_AIOPS_INIT_DEPEND_SDK", "/aiops/serving/init_depend/")
+# SDK执行分组预测逻辑接口
 AIOPS_GROUP_PREDICT_SDK = os.getenv("BKAPP_AIOPS_GROUP_PREDICT_SDK", "/aiops/serving/group_predict/")

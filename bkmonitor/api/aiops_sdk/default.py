@@ -36,7 +36,7 @@ class SdkPredictResource(APIResource):
         extra_data = serializers.DictField(default=dict())
         serving_config = serializers.DictField(default=dict())
 
-    action = "/aiops/serving/default/"
+    action = settings.AIOPS_PREDICT_SDK
     method = "POST"
 
 
