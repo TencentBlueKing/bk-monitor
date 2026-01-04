@@ -59,7 +59,7 @@ def process_service_relation(bk_biz_id, app_name, service_name, indexes_mapping,
             )
         if index_info:
             if overwrite_method:
-                index_info["addition"] = overwrite_method()
+                index_info["addition"] = overwrite_method(overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME)
 
             result.append(index_info)
     return result
@@ -82,7 +82,7 @@ def process_span_host(bk_biz_id, app_name, span_id, span_detail, indexes_mapping
             # 默认查询: 机器 IP
             index_info["addition"] = item.get("addition", [])
             if overwrite_method:
-                index_info["addition"] = overwrite_method()
+                index_info["addition"] = overwrite_method(overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME)
         result.append(index_info)
     return result
 
@@ -139,7 +139,7 @@ def process_metric_relations(
             if index_info:
                 index_info["addition"] = r["addition"]
                 if overwrite_method:
-                    index_info["addition"] = overwrite_method()
+                    index_info["addition"] = overwrite_method(overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME)
                 result.append(index_info)
     return result
 
@@ -168,9 +168,7 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
             info = {"span_id": span_id}
             if span_detail and span_detail.get("trace_id"):
                 info["trace_id"] = span_detail["trace_id"]
-            overwrite_method = functools.partial(
-                overwrite_with_span_addition, info=info, overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME
-            )
+            overwrite_method = functools.partial(overwrite_with_span_addition, info=info)
 
         # 并行执行所有任务
         index_set_ids = set()
