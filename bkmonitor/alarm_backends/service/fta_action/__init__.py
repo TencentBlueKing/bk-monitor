@@ -192,11 +192,11 @@ class BaseActionProcessor:
         """
         plugin_type = self.plugin_key
         # 检查是否命中熔断规则
-        logger.info(
+        logger.debug(
             f"[circuit breaking] [{plugin_type}] begin action({self.action.id}) strategy({self.action.strategy_id})"
         )
         can_continue = not self._check_circuit_breaking()
-        logger.info(
+        logger.debug(
             f"[circuit breaking] [{plugin_type}] end action({self.action.id}) strategy({self.action.strategy_id})"
         )
 
