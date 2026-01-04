@@ -24,8 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, onMounted } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, provide } from 'vue';
 import { shallowRef } from 'vue';
+
+import { get } from '@vueuse/core';
+import dayjs from 'dayjs';
 
 import { createAutoTimeRange } from './aiops-charts';
 import MonitorCharts from './monitor-charts';
@@ -45,28 +48,33 @@ export default defineComponent({
     },
   },
   setup(props) {
+    /** 图表配置对象 */
     const panel = shallowRef(null);
-    const showRestore = shallowRef(false);
+    /** 初始时间范围 */
     const timeRange = shallowRef(DEFAULT_TIME_RANGE);
-    const cacheTimeRange = shallowRef(DEFAULT_TIME_RANGE);
-    const handleDataZoomChange = (value: any[]) => {
-      if (JSON.stringify(timeRange.value) !== JSON.stringify(value)) {
-        cacheTimeRange.value = JSON.parse(JSON.stringify(timeRange.value));
-        timeRange.value = value;
-        showRestore.value = true;
+    /** 图表执行 dataZoom 框线缩放后的时间范围 */
+    const dataZoomTimeRange = shallowRef(null);
+    /** 当前图表视图的时间范围 */
+    const viewerTimeRange = computed(() => get(dataZoomTimeRange) ?? get(timeRange));
+    provide('timeRange', viewerTimeRange);
+
+    /**
+     * @description 数据时间间隔 值改变后回调
+     * @param {[number, number]} e
+     */
+    const handleDataZoomTimeRangeChange = (e?: [number, number]) => {
+      if (!e?.[0] || !e?.[1]) {
+        dataZoomTimeRange.value = null;
+        return;
       }
+      const startTime = dayjs.tz(e?.[0]).format('YYYY-MM-DD HH:mm:ss');
+      const endTime = dayjs.tz(e?.[1]).format('YYYY-MM-DD HH:mm:ss');
+      dataZoomTimeRange.value = startTime && endTime ? [startTime, endTime] : null;
     };
 
-    const handleRestore = () => {
-      const cacheTime = JSON.parse(JSON.stringify(cacheTimeRange.value));
-      timeRange.value = cacheTime;
-      showRestore.value = false;
-    };
-
-    onMounted(() => {
-      initPanel();
-    });
-
+    /**
+     * @description 初始化图表配置对象
+     */
     const initPanel = async () => {
       const { startTime, endTime } = createAutoTimeRange(
         props.detail.begin_time,
@@ -96,11 +104,15 @@ export default defineComponent({
       };
       panel.value = new PanelModel(panelData);
     };
+
+    onMounted(() => {
+      initPanel();
+    });
+
     return {
       panel,
-      showRestore,
-      handleDataZoomChange,
-      handleRestore,
+      dataZoomTimeRange,
+      handleDataZoomTimeRangeChange,
     };
   },
   render() {
@@ -109,9 +121,9 @@ export default defineComponent({
         {this.panel && (
           <MonitorCharts
             panel={this.panel}
-            showRestore={this.showRestore}
-            onDataZoomChange={this.handleDataZoomChange}
-            onRestore={this.handleRestore}
+            showRestore={this.dataZoomTimeRange}
+            onDataZoomChange={this.handleDataZoomTimeRangeChange}
+            onRestore={this.handleDataZoomTimeRangeChange}
           />
         )}
       </div>

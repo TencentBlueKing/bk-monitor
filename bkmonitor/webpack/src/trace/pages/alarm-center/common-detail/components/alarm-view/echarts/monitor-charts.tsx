@@ -28,7 +28,7 @@ import { type PropType, computed, defineComponent, getCurrentInstance, useTempla
 
 import VueEcharts from 'vue-echarts';
 
-import { useMonitorEcharts } from './use-monitor-echarts';
+import { useMonitorEcharts } from '../hooks/use-monitor-echarts';
 import ChartSkeleton from '@/components/skeleton/chart-skeleton';
 import { useChartLegend } from '@/pages/trace-explore/components/explore-chart/use-chart-legend';
 import { useChartTitleEvent } from '@/pages/trace-explore/components/explore-chart/use-chart-title-event';
@@ -160,6 +160,7 @@ export default defineComponent({
     };
   },
   render() {
+    console.log('================ this.options ================', this.options);
     return (
       <div
         ref='chart'

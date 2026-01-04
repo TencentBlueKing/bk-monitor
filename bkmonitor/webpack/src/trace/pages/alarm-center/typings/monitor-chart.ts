@@ -1,9 +1,8 @@
-export * from './alarm-info';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -24,13 +23,29 @@ export * from './alarm-info';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export * from './constants';
-export * from './detail';
-export * from './dialog';
-export * from './monitor-chart';
-export * from './panel-host';
-export * from './panel-k8s';
-export * from './panel-trace';
-export * from './services';
-export * from './shield';
-export * from './table';
+
+import type { SeriesItem } from '@/pages/trace-explore/components/explore-chart/types';
+
+/** 时间范围标记接口 */
+export interface IMarkTimeRange {
+  borderColor?: string;
+  borderType?: 'dashed' | 'dotted' | 'solid';
+  color?: string;
+  from: number;
+  shadowColor?: string;
+  to: number;
+}
+
+/** 阈值配置接口 */
+export interface IThreshold {
+  condition?: string;
+  method?: string;
+  name?: string;
+  yAxis: number;
+}
+
+export interface MonitorSeriesItem extends SeriesItem {
+  markPoints?: [number, number][];
+  markTimeRange?: IMarkTimeRange[];
+  thresholds?: IThreshold[];
+}

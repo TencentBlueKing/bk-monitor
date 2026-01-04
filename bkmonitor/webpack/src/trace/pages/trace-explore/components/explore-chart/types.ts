@@ -47,6 +47,9 @@ export type DecimalCount = null | number | undefined;
 
 export interface EchartSeriesItem {
   data: number[];
+  markArea?: IMarkAreaConfig;
+  markLine?: IMarkLineConfig;
+  markPoint?: IMarkPointConfig;
   name: string;
   raw_data: SeriesItem;
   stack?: string;
@@ -55,12 +58,15 @@ export interface EchartSeriesItem {
   xAxisIndex?: number;
   yAxisIndex?: number;
 }
+
 export interface FormattedValue {
   prefix?: string;
   suffix?: string;
   text: string;
 }
+
 export type FormatterFunc = ((v: string) => string) | string;
+
 export interface ILegendItem {
   alias?: string;
   avg?: number | string;
@@ -79,13 +85,106 @@ export interface ILegendItem {
   totalSource?: number;
   value?: number | string;
 }
+
+/** markArea 配置 */
+export interface IMarkAreaConfig {
+  data?: IMarkAreaDataItem[][];
+  opacity?: number;
+  show?: boolean;
+  silent?: boolean;
+  z?: number;
+  itemStyle?: {
+    borderWidth?: number;
+    color?: string;
+  };
+  label?: {
+    show?: boolean;
+  };
+}
+/** markArea 数据项 */
+export interface IMarkAreaDataItem {
+  name?: string;
+  xAxis?: number | string;
+  y?: string;
+  yAxis?: number | string;
+  itemStyle?: {
+    borderColor?: string;
+    borderType?: string;
+    borderWidth?: number;
+    color?: string;
+    shadowBlur?: number;
+    shadowColor?: string;
+  };
+}
+/** markLine 配置 */
+export interface IMarkLineConfig {
+  data?: IMarkLineDataItem[];
+  symbol?: string[];
+  emphasis?: {
+    label?: {
+      formatter?: (v: any) => string;
+      show?: boolean;
+    };
+  };
+  label?: {
+    position?: string;
+    show?: boolean;
+  };
+  lineStyle?: {
+    color?: string;
+    distance?: number;
+    type?: string;
+    width?: number;
+  };
+}
+/** markLine 数据项 */
+export interface IMarkLineDataItem {
+  name?: string;
+  xAxis?: number | string;
+  yAxis?: number | string;
+  label?: {
+    formatter?: () => string;
+    show?: boolean;
+  };
+}
+
+/** markPoint 配置 */
+export interface IMarkPointConfig {
+  data?: IMarkPointDataItem[];
+  symbol?: string;
+  symbolSize?: number;
+  z?: number;
+  itemStyle?: {
+    color?: string;
+  };
+  label?: {
+    show?: boolean;
+  };
+}
+
+/** markPoint 数据项 */
+export interface IMarkPointDataItem {
+  name?: string;
+  symbol?: string;
+  symbolSize?: number;
+  xAxis?: number | string;
+  yAxis?: number | string;
+  itemStyle?: {
+    borderColor?: string;
+    borderWidth?: number;
+    color?: string;
+    opacity?: number;
+    shadowBlur?: number;
+  };
+}
+
 export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
 
 export type Series = SeriesItem[];
 
 export interface SeriesItem extends MonitorEchartOptions {
   alias?: string;
-  datapoints: Array<number>; // 数组包含多个数据点，每个数据点是一个含有两个数值的元组
+  datapoints: [number, number][]; // 数组包含多个数据点，每个数据点是一个含有两个数值的元组
   dimensions?: Record<string, any>; // 也可以用更具体的类型替代 `any`，根据实际数据结构
   dimensions_translation?: Record<string, any>; // 同样可以用更具体的类型替代 `any`
   metric_field?: string;

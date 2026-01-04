@@ -243,57 +243,57 @@ export default defineComponent({
         ...data,
         series: [
           ...series,
-          {
-            type: 'scatter',
-            datapoints: datapoints.map(item => {
-              const isAnomaly = props.detail.anomaly_timestamps.includes(Number(String(item[1]).slice(0, -3)));
-              return [isAnomaly ? item[0] : null, item[1]];
-            }),
-            alias: t('异常'),
-            symbolSize: 5,
-            color: CHART_COLORS.ANOMALY,
-            itemStyle: { color: CHART_COLORS.ANOMALY },
-            tooltip: { show: false },
-          },
-          {
-            type: 'line',
-            alias: t('致命告警产生'),
-            tooltip: { show: false },
-            color: CHART_COLORS.FATAL_ALARM,
-            lineStyle: { opacity: 0 },
-            yAxisIndex: 1,
-            markPoint: {
-              symbol: 'circle',
-              symbolSize: 0,
-              label: {
-                show: true,
-                position: 'top',
-                formatter: '\ue606',
-                color: CHART_COLORS.FATAL_ALARM,
-                fontSize: 18,
-                fontFamily: 'icon-monitor',
-              },
-              data: [{ coord: [beginTimeStr, max === 0 ? 1 : max] }],
-            },
-            datapoints,
-          },
-          {
-            type: 'line',
-            alias: t('告警触发阶段'),
-            tooltip: { show: false },
-            datapoints: emptyDatapoints,
-            color: CHART_COLORS.TRIGGER_PHASE,
-            markArea: createMarkArea(firstAnomalyTimeStr, beginTimeStr, CHART_COLORS.TRIGGER_PHASE_BG),
-          },
-          {
-            type: 'line',
-            alias: t('致命告警时段'),
-            tooltip: { show: false },
-            datapoints: emptyDatapoints,
-            color: CHART_COLORS.FATAL_PERIOD,
-            markArea: createMarkArea(beginTimeStr, endTimeStr, CHART_COLORS.FATAL_PERIOD_BG),
-            z: 1,
-          },
+          // {
+          //   type: 'scatter',
+          //   datapoints: datapoints.map(item => {
+          //     const isAnomaly = props.detail.anomaly_timestamps.includes(Number(String(item[1]).slice(0, -3)));
+          //     return [isAnomaly ? item[0] : null, item[1]];
+          //   }),
+          //   alias: t('异常'),
+          //   symbolSize: 5,
+          //   color: CHART_COLORS.ANOMALY,
+          //   itemStyle: { color: CHART_COLORS.ANOMALY },
+          //   tooltip: { show: false },
+          // },
+          // {
+          //   type: 'line',
+          //   alias: t('致命告警产生'),
+          //   tooltip: { show: false },
+          //   color: CHART_COLORS.FATAL_ALARM,
+          //   lineStyle: { opacity: 0 },
+          //   yAxisIndex: 1,
+          //   markPoint: {
+          //     symbol: 'circle',
+          //     symbolSize: 0,
+          //     label: {
+          //       show: true,
+          //       position: 'top',
+          //       formatter: '\ue606',
+          //       color: CHART_COLORS.FATAL_ALARM,
+          //       fontSize: 18,
+          //       fontFamily: 'icon-monitor',
+          //     },
+          //     data: [{ coord: [beginTimeStr, max === 0 ? 1 : max] }],
+          //   },
+          //   datapoints,
+          // },
+          // {
+          //   type: 'line',
+          //   alias: t('告警触发阶段'),
+          //   tooltip: { show: false },
+          //   datapoints: emptyDatapoints,
+          //   color: CHART_COLORS.TRIGGER_PHASE,
+          //   markArea: createMarkArea(firstAnomalyTimeStr, beginTimeStr, CHART_COLORS.TRIGGER_PHASE_BG),
+          // },
+          // {
+          //   type: 'line',
+          //   alias: t('致命告警时段'),
+          //   tooltip: { show: false },
+          //   datapoints: emptyDatapoints,
+          //   color: CHART_COLORS.FATAL_PERIOD,
+          //   markArea: createMarkArea(beginTimeStr, endTimeStr, CHART_COLORS.FATAL_PERIOD_BG),
+          //   z: 1,
+          // },
         ],
       };
     };
@@ -318,26 +318,36 @@ export default defineComponent({
      * @returns 对应的图表组件 JSX
      */
     const getSeriesViewComponent = () => {
+      // 主机智能场景检测
       if (isHostAnomalyDetection.value) {
+        console.log('主机智能场景检测');
         return <IntelligenceScene detail={props.detail} />;
       }
       // 智能检测算法图表
-      if (hasAIOpsDetection.value)
+      if (hasAIOpsDetection.value) {
+        console.log('智能检测算法图表');
         return (
           <AiopsCharts
             detail={props.detail}
             detectionConfig={detectionConfig.value}
           />
         );
+      }
       // 时序预测图表
-      if (hasTimeSeriesForecasting.value)
+      if (hasTimeSeriesForecasting.value) {
+        console.log('时序预测图表');
         return (
           <TimeSeriesForecastingChart
             detail={props.detail}
             detectionConfig={detectionConfig.value}
           />
         );
-      if (hasOutlierDetection.value) return <OutlierDetectionChart detail={props.detail} />;
+      }
+      if (hasOutlierDetection.value) {
+        console.log('离群检测算法');
+        return <OutlierDetectionChart detail={props.detail} />;
+      }
+      console.log('dddddddddddddd');
       return (
         <div class='series-view-container'>
           <MonitorCharts
