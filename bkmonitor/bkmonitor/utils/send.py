@@ -73,11 +73,14 @@ class BaseSender:
         if self.blocked:
             raise BlockedError(f"{notice_type} 通知被熔断", retry_params)
 
-    def _get_log_prefix(self) -> str:
+    @property
+    def _blocked_notice_log_prefix(self) -> str:
         """
-        获取日志前缀（如果被熔断则返回 "[blocked]"）
+        获取通知被熔断时的日志前缀
 
-        :return: 日志前缀字符串
+        当通知发送被熔断时，返回 "[blocked]" 前缀用于日志标记；否则返回空字符串。
+
+        :return: 日志前缀字符串，被熔断时返回 "[blocked]"，否则返回 ""
         """
         return "[blocked]" if self.blocked else ""
 
@@ -399,7 +402,7 @@ class Sender(BaseSender):
             and (not settings.WECOM_ROBOT_BIZ_WHITE_LIST or self.bk_biz_id in settings.WECOM_ROBOT_BIZ_WHITE_LIST)
         ):
             logger.info(
-                f"{self._get_log_prefix()}send.webot_app({','.join(notice_receivers)}): "
+                f"{self._blocked_notice_log_prefix}send.webot_app({','.join(notice_receivers)}): "
                 f"\ntitle: {self.title}\ncontent: {self.content} \naction_plugin {action_plugin}"
             )
             retry_params = {
@@ -429,7 +432,7 @@ class Sender(BaseSender):
             )
         else:
             logger.info(
-                f"{self._get_log_prefix()}send.weixin({','.join(notice_receivers)}): "
+                f"{self._blocked_notice_log_prefix}send.weixin({','.join(notice_receivers)}): "
                 f"\ntitle: {self.title}\ncontent: {self.content} \naction_plugin {action_plugin}"
             )
             retry_params = {
@@ -485,9 +488,7 @@ class Sender(BaseSender):
         elif self.context.get("alarm") and action_plugin == ActionPluginType.NOTICE:
             params["attachments"] = self.context["alarm"].attachments
 
-        logger.info(
-            f"{self._get_log_prefix()}send.mail({','.join(notice_receivers)}): \ntitle: {self.title}"
-        )
+        logger.info(f"{self._blocked_notice_log_prefix}send.mail({','.join(notice_receivers)}): \ntitle: {self.title}")
 
         retry_params = {
             "api_module": "api.cmsi.default",
@@ -509,7 +510,7 @@ class Sender(BaseSender):
         :rtype: dict
         """
         logger.info(
-            f"{self._get_log_prefix()}send.sms({','.join(notice_receivers)}): "
+            f"{self._blocked_notice_log_prefix}send.sms({','.join(notice_receivers)}): "
             f"\ncontent: {self.content} \naction_plugin {action_plugin}"
         )
         self.content = self.get_notice_content(NoticeWay.SMS, self.content)
@@ -548,7 +549,7 @@ class Sender(BaseSender):
         notice_receivers = ",".join(notice_receivers)
 
         logger.info(
-            f"{self._get_log_prefix()}send.voice({notice_receivers}): "
+            f"{self._blocked_notice_log_prefix}send.voice({notice_receivers}): "
             f"\ncontent: {self.content}, \n action_plugin {action_plugin}"
         )
 
@@ -699,7 +700,7 @@ class Sender(BaseSender):
 
         message = _("发送成功")
         logger.info(
-            f"{self._get_log_prefix()}send.wxwork_group({','.join(notice_receivers)}): "
+            f"{self._blocked_notice_log_prefix}send.wxwork_group({','.join(notice_receivers)}): "
             f"\ncontent: {self.content} \n action_plugin {action_plugin}"
         )
 
@@ -777,7 +778,7 @@ class Sender(BaseSender):
         :rtype: dict
         """
         logger.info(
-            f"{self._get_log_prefix()}send.{notice_way}({','.join(notice_receivers)}): "
+            f"{self._blocked_notice_log_prefix}send.{notice_way}({','.join(notice_receivers)}): "
             f"\ntitle: {self.title}\ncontent: {self.content}"
         )
         if notice_way == "wecom_robot":
