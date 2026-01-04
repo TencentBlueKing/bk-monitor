@@ -1766,3 +1766,5 @@ SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS = int(os.getenv("SYSTEM_EVENT_DEFAULT_ES_
 
 AIOPS_SERVER_TF_URL = os.getenv("BKAPP_AIOPS_SERVER_TF_URL", "http://bk-aiops-serving-tf:8000")
 AIOPS_SERVER_KPI_URL = os.getenv("BKAPP_AIOPS_SERVER_KPI_URL", "http://bk-aiops-serving-kpi:8000")
+AIOPS_INIT_DEPEND_SDK = os.getenv("BKAPP_AIOPS_INIT_DEPEND_SDK", "/aiops/serving/init_depend/")
+AIOPS_GROUP_PREDICT_SDK = os.getenv("BKAPP_AIOPS_GROUP_PREDICT_SDK", "/aiops/serving/group_predict/")
