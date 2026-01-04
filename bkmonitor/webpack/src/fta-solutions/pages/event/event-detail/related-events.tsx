@@ -269,7 +269,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         disabled: false,
         props: {
           minWidth: 130,
-          formatter: (row: IEventItem) => dayjs.tz(row.anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
+          formatter: (row: IEventItem) => dayjs.tz(row.anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ssZZ'),
         },
       },
       {
@@ -510,7 +510,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
       {
         children: [
           { title: this.$t('事件ID'), content: `${child.event_id}` },
-          { title: this.$t('异常时间'), content: dayjs.tz(child.anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss') },
+          { title: this.$t('异常时间'), content: dayjs.tz(child.anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ssZZ') },
         ],
       },
       {
@@ -556,7 +556,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
       },
       {
         children: [
-          { title: this.$t('事件时间'), content: dayjs.tz(child.time * 1000).format('YYYY-MM-DD HH:mm:ss') },
+          { title: this.$t('事件时间'), content: dayjs.tz(child.time * 1000).format('YYYY-MM-DD HH:mm:ssZZ') },
           {
             title: <span>{this.$t('维度')}</span>,
             content: child.tags?.length ? (
@@ -654,7 +654,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
       default: props => this.getChildSlotsComponent(props.row),
     };
 
-    const handleRowClick = (row, event) => {
+    const handleRowClick = (_row, event) => {
       const path = getEventPaths(event);
       const expandDom = path.find(item => item.className.includes('bk-table-row'));
       expandDom.firstChild.querySelector('.bk-table-expand-icon').click();

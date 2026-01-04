@@ -25,7 +25,7 @@ from apps.utils import ChoicesEnum
 
 
 TGPA_BASE_DIR = "/tmp/log-search/tgpa"
-TASK_LIST_BATCH_SIZE = 200
+TASK_LIST_BATCH_SIZE = 500
 TGPA_TASK_EXE_CODE_SUCCESS = "0"  # 文件上传成功状态码
 FEATURE_TOGGLE_TGPA_TASK = "tgpa_task"
 
@@ -130,12 +130,30 @@ TGPA_TASK_ETL_FIELDS = [
         "description": "os_version",
         "is_delete": False,
     },
+    {
+        "field_name": "model",
+        "field_type": "string",
+        "is_dimension": True,
+        "is_analyzed": False,
+        "is_time": False,
+        "description": "model",
+        "is_delete": False,
+    },
+    {
+        "field_name": "cos_file_name",
+        "field_type": "string",
+        "is_dimension": True,
+        "is_analyzed": False,
+        "is_time": False,
+        "description": "cos_file_name",
+        "is_delete": False,
+    },
 ]
 
 TGPA_TASK_SORT_FIELDS = ["dtEventTimeStamp", "lineno"]
 TGPA_TASK_TARGET_FIELDS = ["task_id", "file"]
 
-CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "file", "lineno"]
+CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "file", "lineno", "cos_file_name"]
 LOG_FILE_EXPIRE_DAYS = 3
 
 
@@ -211,3 +229,40 @@ class TGPATaskProcessStatusEnum(ChoicesEnum):
         (SUCCESS, _("成功")),
         (FAILED, _("失败")),
     )
+
+
+class TGPAReportSyncStatusEnum(ChoicesEnum):
+    """客户端日志上报同步状态"""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+    _choices_labels = (
+        (PENDING, _("未上传")),
+        (RUNNING, _("上传中")),
+        (SUCCESS, _("上传成功")),
+        (FAILED, _("上传失败")),
+    )
+
+
+TGPA_REPORT_SELECT_FIELDS = [
+    "openid",
+    "file_name",
+    "real_name as file_path",
+    "file_size",
+    "md5",
+    "report_time",
+    "xid",
+    "extend_info",
+    "manufacturer",
+    "model",
+    "os_version",
+    "os_sdk",
+    "os_type",
+    "cc_id as bk_biz_id",
+]
+TGPA_REPORT_FILTER_FIELDS = ["openid", "file_name", "real_name", "extend_info", "manufacturer", "model", "os_version"]
+TGPA_REPORT_ORDER_FIELDS = ["file_size"]
+TGPA_REPORT_LIST_BATCH_SIZE = 500  # 客户端日志上报列表批量查询大小

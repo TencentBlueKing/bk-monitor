@@ -5,7 +5,10 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 .alarm-detail-table {
   --td-bg-color-secondarycontainer: #fafbfd;
 }
+
 .alarm-detail-loading {
+  height: 100%;
+
   .bk-loading-indicator,
   .bk-loading-mask {
     z-index: 50 !important;
@@ -36,13 +39,16 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 }
 
 .alarm-detail {
-  // min-height: 400px;
-  height: calc(100vh - 200px);
+  height: 100%;
   padding: 20px 16px;
   background: white;
 
   .aiops-correlation-metrics {
     margin-bottom: 12px;
+
+    &:last-child{
+      margin-bottom: 0;
+    }
   }
 
   .alarm-detail-table {
@@ -55,9 +61,8 @@ $statusColors: #ea3635 #ff9c00 #699df4;
     .tag-column {
       display: flex;
       overflow: hidden;
-      // width: 50px;
     }
-    // .tag-column,
+
     .tag-column-wrap {
       display: flex;
       width: 100%;
@@ -77,14 +82,6 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       white-space: nowrap;
       background: #f0f1f5;
       border-radius: 2px;
-    }
-
-    .id-column {
-      display: inline-block;
-      width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
     }
 
     .time-column {
@@ -238,6 +235,46 @@ $statusColors: #ea3635 #ff9c00 #699df4;
             content: '';
             background-color: nth($statusColors, $i);
             transform: translateY(-50%);
+          }
+        }
+      }
+    }
+
+    .id-column-wrapper {
+      display: flex;
+      align-items: center;
+
+      .id-column {
+        display: inline-block;
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .new-badge {
+        min-width: 14px;
+        height: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        background-color: #f59500;
+        border-radius: 7px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        font-size: 9px;
+        margin-left: 2px;
+
+        &::after {
+          content: 'N';
+        }
+
+        &:hover {
+          padding: 0 6px;
+
+          &::after {
+            content: 'New';
           }
         }
       }

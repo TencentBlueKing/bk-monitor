@@ -36,6 +36,7 @@ import {
 } from 'vue';
 
 import dayjs from 'dayjs';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
@@ -182,7 +183,7 @@ export default defineComponent({
 
     const getTooltipFormatter = (params: any) => {
       if (!params?.length) return '';
-      const time = dayjs.tz(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss');
+      const time = formatWithTimezone(params[0].value[0]) as string;
       let html = `<div style='color:rgb(241, 243, 250);font-weight:700;line-height:1;margin-bottom:6px;'>${time}</div>`;
 
       for (const item of params) {

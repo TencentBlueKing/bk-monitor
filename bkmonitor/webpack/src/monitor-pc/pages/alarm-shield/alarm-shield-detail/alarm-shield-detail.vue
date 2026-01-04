@@ -215,6 +215,7 @@
 import { shieldSnapshot } from 'monitor-api/modules/alert_events';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { frontendShieldDetail } from 'monitor-api/modules/shield';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { transformDataKey } from 'monitor-common/utils/utils';
 import { mapMutations } from 'vuex';
 
@@ -320,9 +321,9 @@ export default {
     historyList() {
       return [
         { label: this.$t('创建人'), value: this.detailData.createUser || '--' },
-        { label: this.$t('创建时间'), value: this.detailData.createTime || '--' },
+        { label: this.$t('创建时间'), value: formatWithTimezone(this.detailData.createTime) || '--' },
         { label: this.$t('最近更新人'), value: this.detailData.updateUser || '--' },
-        { label: this.$t('修改时间'), value: this.detailData.updateTime || '--' },
+        { label: this.$t('修改时间'), value: formatWithTimezone(this.detailData.updateTime) || '--' },
       ];
     },
   },

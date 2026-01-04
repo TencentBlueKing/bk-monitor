@@ -2172,17 +2172,21 @@ class ESStorage(models.Model, StorageResultTable):
         )
         if new_record.need_create_index:  # 如果需要,则创建索引
             logger.info(
-                "create_table: table_id->[%s] under bk_tenant_id->[%s] need_create_index", table_id, bk_tenant_id
+                "create_table: table_id->[%s] under bk_tenant_id->[%s] need_create_index,is_sync_db->[%s]",
+                table_id,
+                bk_tenant_id,
+                is_sync_db,
             )
             try:
-                new_record.create_index_and_aliases()
+                new_record.create_es_index(is_sync_db)
             except Exception as e:  # pylint: disable=broad-except
                 logger.error(
-                    "create_table: table_id->[%s] under bk_tenant_id->[%s] create_index_and_aliases failed,error->[%s]",
+                    "create_table: table_id->[%s] under bk_tenant_id->[%s] create_es_index failed,error->[%s]",
                     table_id,
                     bk_tenant_id,
                     e,
                 )
+                raise e
 
         # 针对单个结果表推送数据很快，不用异步处理
         try:

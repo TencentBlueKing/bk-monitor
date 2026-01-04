@@ -52,10 +52,8 @@ export default defineComponent({
       type: String,
       default: 'create',
     },
-    onHandleCancelSlider: { type: Function, default: () => {} },
-    onHandleUpdatedTable: { type: Function, default: () => {} },
   },
-  emits: ['handleCancelSlider', 'handleUpdatedTable'],
+  emits: ['cancel-slider', 'updated-table'],
   setup(props, { emit }) {
     const store = useStore();
 
@@ -139,7 +137,7 @@ export default defineComponent({
         Message({ theme: 'success', message: t('保存成功'), delay: 1500 });
 
         // 通知父组件刷新列表
-        emit('handleUpdatedTable');
+        emit('updated-table');
       } catch (error) {
         // 捕获异常并输出
         console.warn('提交失败:', error);
@@ -184,7 +182,7 @@ export default defineComponent({
     // 取消操作/关闭侧滑弹窗
     const handleCancel = () => {
       if (props.operateType === 'view') {
-        emit('handleCancelSlider');
+        emit('cancel-slider');
         return;
       }
       InfoBox({
@@ -192,7 +190,7 @@ export default defineComponent({
         subTitle: t('离开将会导致未保存信息丢失'),
         okText: t('离开'),
         cancelText: t('取消'),
-        confirmFn: () => emit('handleCancelSlider'),
+        confirmFn: () => emit('cancel-slider'),
       });
     };
 
