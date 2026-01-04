@@ -1223,6 +1223,7 @@ export default defineComponent({
       if (isClean.value && etl_fields.length === 0) {
         showMessage(t('请完成相关的清洗配置'), 'error');
         loading.value = false;
+        return;
       }
       callback?.();
     };

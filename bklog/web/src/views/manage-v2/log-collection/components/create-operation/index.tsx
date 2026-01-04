@@ -65,10 +65,6 @@ export default defineComponent({
         value: ['PREPARE', 'RUNNING', 'UNKNOWN'],
         text: t('采集下发中...'),
       },
-      terminated: {
-        value: ['TERMINATED'],
-        text: t('采集已停用'),
-      },
     };
 
     const stepDesc = [
@@ -137,7 +133,7 @@ export default defineComponent({
     });
 
     const isShowStatusBtn = computed(() => {
-      return isEdit.value || (isNeedIssue.value && step.value !== 1 && !!currentCollectorId.value);
+      return isNeedIssue.value && step.value !== 1 && !!currentCollectorId.value;
     });
 
     const containerWidth = ref(0);
@@ -153,7 +149,7 @@ export default defineComponent({
       if (route.query.step) {
         step.value = Number(route.query.step);
       }
-      if (isEdit.value || (step.value !== 1 && isEdit && collectId.value)) {
+      if (step.value !== 1 && isEdit && collectId.value) {
         getCollectStatus(Number(collectId.value));
       }
       if (mainRef.value) {
@@ -213,6 +209,7 @@ export default defineComponent({
      * 获取采集状态
      */
     const getCollectStatus = (id: number) => {
+      console.log('getCollectStatus-----');
       $http
         .request('collect/getCollectStatus', {
           query: {
@@ -303,7 +300,6 @@ export default defineComponent({
               {currentStatus.value.status === 'success' && (
                 <i class='bklog-icon bklog-circle-correct-filled status-icon' />
               )}
-              {currentStatus.value.status === 'terminated' && <i class='bklog-icon bklog-shanchu status-icon' />}
               {currentStatus.value.status === 'failed' && <i class='bklog-icon bklog-shanchu status-icon' />}
               <span class='status-txt'>{currentStatus.value.text}</span>
             </div>
