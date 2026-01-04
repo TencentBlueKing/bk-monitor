@@ -445,7 +445,7 @@ class CollectorHandler:
         raise NotImplementedError
 
     @transaction.atomic
-    def stop(self, **kwargs):
+    def stop(self, is_stop_index_set=True, **kwargs):
         """
         停止采集配置
         :return: task_id
@@ -453,10 +453,11 @@ class CollectorHandler:
         self.data.is_active = False
         self.data.save()
 
-        # 停止采集项
+        # 停止索引集
         if self.data.index_set_id:
-            index_set_handler = IndexSetHandler(self.data.index_set_id)
-            index_set_handler.stop()
+            if is_stop_index_set:
+                index_set_handler = IndexSetHandler(self.data.index_set_id)
+                index_set_handler.stop()
 
         self._pre_stop()
 
@@ -834,6 +835,20 @@ class CollectorHandler:
             cluster_infos = {}
 
         time_zone = get_local_param("time_zone")
+
+        index_set_ids = list(set([item.get("index_set_id") for item in data if item.get("index_set_id", None)]))
+        index_set_objs = LogIndexSet.origin_objects.filter(index_set_id__in=index_set_ids)
+        index_set_obj_dict = {obj.index_set_id: obj for obj in index_set_objs}
+
+        abnormal_index_set_ids = set(
+            LogIndexSetData.objects.filter(
+                index_set_id__in=index_set_ids,
+            )
+            .exclude(apply_status="normal")
+            .values_list("index_set_id", flat=True)
+            .distinct()
+        )
+
         for _data in data:
             cluster_info = cluster_infos.get(
                 _data["table_id"],
@@ -868,12 +883,13 @@ class CollectorHandler:
             )
 
             # 是否可以检索
-            if _data["is_active"] and _data["index_set_id"]:
-                _data["is_search"] = (
-                    not LogIndexSetData.objects.filter(index_set_id=_data["index_set_id"])
-                    .exclude(apply_status="normal")
-                    .exists()
-                )
+            if _data.get("index_set_id"):
+                index_set_obj = index_set_obj_dict.get(_data["index_set_id"])
+
+                if index_set_obj and index_set_obj.is_active:
+                    _data["is_search"] = _data["index_set_id"] not in abnormal_index_set_ids
+                else:
+                    _data["is_search"] = False
             else:
                 _data["is_search"] = False
 
