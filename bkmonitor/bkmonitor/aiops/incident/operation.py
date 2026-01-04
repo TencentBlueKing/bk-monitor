@@ -59,7 +59,7 @@ class IncidentOperationManager:
         )
 
         # 根据操作类型决定是否发送通知
-        notice_enabled = getattr(settings, "INCIDENT_NOTICE_ENABLED", False)
+        notice_enabled = getattr(settings, "ENABLE_BK_INCIDENT_NOTICE", False)
         if notice_enabled:
             if operation_type in cls.NOTICE_TRIGGER_OPERATIONS:
                 cls._send_incident_notice(incident_id, operation_type, **kwargs)
@@ -74,8 +74,8 @@ class IncidentOperationManager:
         """
         try:
             # 获取配置的通知接收人
-            chat_ids = getattr(settings, "INCIDENT_NOTICE_CHAT_IDS", [])
-            user_ids = getattr(settings, "INCIDENT_NOTICE_USER_IDS", [])
+            chat_ids = getattr(settings, "BK_INCIDENT_BUILTIN_CONFIG", {}).get("builtin_chat_ids", [])
+            user_ids = getattr(settings, "BK_INCIDENT_BUILTIN_CONFIG", {}).get("builtin_user_ids", [])
 
             if not chat_ids and not user_ids:
                 logger.debug(f"No receivers configured for incident {incident_id}, skip sending notice")
