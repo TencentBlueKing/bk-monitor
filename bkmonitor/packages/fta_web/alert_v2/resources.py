@@ -362,10 +362,7 @@ class AlertEventTotalResource(AlertEventBaseResource):
 
 
 class AlertEventTSResource(AlertEventBaseResource):
-    """告警关联事件时序数据资源类。
-
-    根据告警 ID 获取关联事件的时序数据，用于展示事件趋势图表。
-    """
+    """告警关联事件时序数据资源类"""
 
     class RequestSerializer(serializers.Serializer):
         """请求参数序列化器"""
@@ -385,8 +382,6 @@ class AlertEventTSResource(AlertEventBaseResource):
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         """执行告警关联事件时序数据查询请求。
-
-        根据告警 ID 和时间间隔参数，查询关联事件的时序数据。
 
         :param validated_request_data: 验证后的请求参数
         :return: 包含时序数据和查询配置的响应数据
