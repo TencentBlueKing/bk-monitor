@@ -876,7 +876,7 @@ class CollectorHandler:
             )
 
             # 是否可以检索
-            if _data.get("index_set_id", None):
+            if _data.get("index_set_id"):
                 index_set_obj = index_set_obj_dict.get(_data["index_set_id"])
 
                 if index_set_obj and index_set_obj.is_active:
