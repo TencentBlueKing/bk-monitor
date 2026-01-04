@@ -344,6 +344,7 @@ export default class ManualGroup extends tsc<any> {
             class='search-append-main'
           >
             <div
+              v-bk-tooltips={this.$t('大小写敏感')}
               class={['search-item-main', { 'is-active': this.isCaseSensitiveSearch }]}
               onClick={() => {
                 this.isCaseSensitiveSearch = !this.isCaseSensitiveSearch;
@@ -353,6 +354,7 @@ export default class ManualGroup extends tsc<any> {
               <i class='icon-monitor icon-daxiaoxie' />
             </div>
             <div
+              v-bk-tooltips={this.$t('精确搜索')}
               class={['search-item-main', { 'is-active': this.isExactSearch }]}
               onClick={() => {
                 this.isExactSearch = !this.isExactSearch;
@@ -362,6 +364,7 @@ export default class ManualGroup extends tsc<any> {
               <i class='icon-monitor icon-ab' />
             </div>
             <div
+              v-bk-tooltips={this.$t('正则匹配')}
               class={['search-item-main', { 'is-active': this.isRegexSearch }]}
               onClick={() => {
                 this.isRegexSearch = !this.isRegexSearch;

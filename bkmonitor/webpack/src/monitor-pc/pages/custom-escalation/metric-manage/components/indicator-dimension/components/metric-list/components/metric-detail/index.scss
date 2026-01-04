@@ -376,6 +376,32 @@ $border-color: #d9d9d9;
 
       .dimension-content {
         width: 100%;
+
+        .bk-select-angle {
+          display: none;
+        }
+
+        .bk-select {
+          border: none;
+
+          .bk-select-tag,
+          .bk-select-overflow-tag {
+            background: #eaebf0;
+          }
+
+          &.is-focus {
+            border: 1px solid #3a84ff;
+
+            .bk-select-tag-container {
+              background: #fff;
+
+              .bk-select-tag,
+              .bk-select-overflow-tag {
+                background: #f0f1f5;
+              }
+            }
+          }
+        }
       }
     }
 

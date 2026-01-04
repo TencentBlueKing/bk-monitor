@@ -93,8 +93,6 @@ export default class MetricDetail extends tsc<IProps, any> {
   resizeObserver = null;
   /** 表格头部高度 */
   rectHeight = 32;
-  /** 是否点击回车键 */
-  isAliasInputClickEnter = false;
 
   /** 获取去重后的维度选择列表 */
   get dimensionSelectList() {
@@ -210,26 +208,18 @@ export default class MetricDetail extends tsc<IProps, any> {
    * @param metricInfo 指标信息
    */
   async handleEditAlias(metricInfo: IMetricItem) {
-    if (this.isAliasInputClickEnter) {
-      return;
-    }
-
     this.canEditName = false;
     if (this.copyAlias === metricInfo.config.alias) {
       this.copyAlias = '';
       return;
     }
-    const currentDescription = this.copyAlias; // 防止编辑时点击其他input后触发blur 导致copyDescription变化赋值错误
-    await this.updateCustomFields('alias', currentDescription, metricInfo);
+    const currentDescription = this.copyAlias;
     metricInfo.config.alias = currentDescription;
+    await this.updateCustomFields('alias', currentDescription, metricInfo);
   }
 
-  handleEnterEditAlias(metricInfo: IMetricItem) {
-    this.isAliasInputClickEnter = true;
-    this.$nextTick(() => {
-      this.isAliasInputClickEnter = false;
-      this.handleEditAlias(metricInfo);
-    });
+  handleEnterEditAlias() {
+    this.descriptionInput.blur();
   }
 
   /**
@@ -478,7 +468,7 @@ export default class MetricDetail extends tsc<IProps, any> {
                   ref='descriptionInput'
                   v-model={this.copyAlias}
                   onBlur={() => this.handleEditAlias(this.metricData)}
-                  onEnter={() => this.handleEnterEditAlias(this.metricData)}
+                  onEnter={this.handleEnterEditAlias}
                 />
               )}
             </div>
