@@ -290,7 +290,11 @@ class BaseK8STarget(BaseTarget):
         addition: list[dict[str, Any]] = []
         if "namespace" in related_k8s_target:
             addition.append(
-                {"field": "__ext.io_kubernetes_namespace", "operator": "=", "value": [related_k8s_target["namespace"]]}
+                {
+                    "operator": "=",
+                    "field": "__ext.io_kubernetes_pod_namespace",
+                    "value": [related_k8s_target["namespace"]],
+                }
             )
 
         # 使用 Pod 更精确地过滤日志
