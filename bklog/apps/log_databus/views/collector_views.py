@@ -77,6 +77,7 @@ from apps.log_databus.serializers import (
     TaskDetailSerializer,
     TaskStatusSerializer,
     ValidateContainerCollectorYamlSerializer,
+    CollectorStopSerializer,
 )
 from apps.log_search.constants import (
     BKDATA_OPEN,
@@ -1189,7 +1190,11 @@ class CollectorViewSet(ModelViewSet):
         @apiName stop_collector
         @apiGroup 10_Collector
         @apiDescription 停止采集项
-        @apiParam {Int} collector_config_id 采集项ID
+        @apiParam {Int} collector_config_id 采集项 ID
+        @apiParamExample {json} 请求样例:
+        {
+            "is_stop_index_set": True
+        }
         @apiSuccessExample {json} 成功返回:
         {
             "message": "",
@@ -1198,7 +1203,12 @@ class CollectorViewSet(ModelViewSet):
             "result": true
         }
         """
-        return Response(CollectorHandler.get_instance(collector_config_id).stop())
+        data = self.params_valid(CollectorStopSerializer)
+        return Response(
+            CollectorHandler.get_instance(collector_config_id).stop(
+                is_stop_index_set=data.get("is_stop_index_set", True)
+            )
+        )
 
     @detail_route(methods=["POST"])
     def etl_preview(self, request, collector_config_id=None):

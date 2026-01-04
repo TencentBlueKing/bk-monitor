@@ -803,6 +803,10 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
     )
 
 
+class CollectorStopSerializer(serializers.Serializer):
+    is_stop_index_set = serializers.BooleanField(label=_("是否停止索引集"), required=False, default=True)
+
+
 class CollectorEtlSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=False)
     etl_config = serializers.CharField(label=_("清洗类型"), required=True)
