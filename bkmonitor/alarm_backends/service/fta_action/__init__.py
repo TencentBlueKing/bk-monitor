@@ -331,18 +331,7 @@ class BaseActionProcessor:
         try:
             action_name = self.action_config.get("name", "")
             plugin_type = self.action.action_plugin.get("plugin_type", "")
-            circuit_breaking_description = json.dumps(
-                {
-                    "action_id": self.action.id,
-                    "action_name": action_name,
-                    "plugin_type": plugin_type,
-                    "content": f"处理套餐{action_name}执行被熔断",
-                },
-                ensure_ascii=False,
-            )
-
-            self.action.insert_alert_log(description=circuit_breaking_description)
-
+            self.action.insert_alert_log(description=f"处理套餐{action_name}执行被熔断")
             logger.info(
                 f"[circuit breaking] [{plugin_type}] created alert log for circuit breaking: "
                 f"action({self.action.id}) strategy({self.action.strategy_id})"
