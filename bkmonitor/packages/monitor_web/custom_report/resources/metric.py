@@ -51,6 +51,7 @@ from monitor_web.custom_report.serializers.metric import (
     DimensionConfigResponseSerializer,
     MetricConfigResponseSerializer,
     CustomTSScopeResponseSerializer,
+    BaseCustomTSTableSerializer,
 )
 from monitor_web.models.custom_report import (
     CustomTSTable,
@@ -123,6 +124,21 @@ def count_rt_bound_strategies(table_ids, data_source_label, data_type_label, bk_
             table_id_strategy_mapping[query_config["result_table_id"]].add(query_config["strategy_id"])
 
     return {key: len(value) for key, value in table_id_strategy_mapping.items()}
+
+
+class CustomTSScopeMixin:
+    def get_query_scope_filters(self, params: dict) -> dict:
+        """
+        :param params: 请求参数
+        :return: 过滤条件字典，将作为 **kwargs 传递给 query_time_series_scope
+        """
+        return {}
+
+    def get_default_scope_name(self, params: dict):
+        """
+        :return: 默认分组名
+        """
+        return UNGROUP_SCOPE_NAME
 
 
 class ProxyHostInfo(Resource):
@@ -367,7 +383,7 @@ class ModifyCustomTimeSeries(Resource):
     注: esb 开放接口，需要维持入参出参一致性
     """
 
-    class RequestSerializer(BaseCustomTSSerializer):
+    class RequestSerializer(BaseCustomTSTableSerializer):
         name = serializers.CharField(label=_("名称"), required=False, max_length=128)
         is_platform = serializers.BooleanField(required=False, label=_("平台级"))
         data_label = serializers.CharField(label=_("数据标签"), required=False)
@@ -515,7 +531,7 @@ class DeleteCustomTimeSeries(Resource):
     注: esb 开放接口，需要维持入参出参一致性
     """
 
-    class RequestSerializer(BaseCustomTSSerializer):
+    class RequestSerializer(BaseCustomTSTableSerializer):
         pass
 
     def perform_request(self, params: dict):
@@ -642,7 +658,7 @@ class CustomTimeSeriesDetail(Resource):
         return data
 
 
-class GetCustomTsFields(Resource):
+class GetCustomTsFields(CustomTSScopeMixin, Resource):
     """
     获取自定义指标字段
     """
@@ -671,10 +687,15 @@ class GetCustomTsFields(Resource):
         dimensions = serializers.ListField(label=_("维度列表"), child=DimensionSerializer())
         metrics = serializers.ListField(label=_("指标列表"), child=MetricSerializer())
 
+    def get_movable(self, metric_obj: ScopeQueryMetricResponseDTO, params: dict) -> bool:
+        return metric_obj.field_scope == DEFAULT_FIELD_SCOPE
+
     def perform_request(self, params: dict):
         time_series_group_id: int = params["time_series_group_id"]
         converter = ScopeQueryConverter(time_series_group_id)
-        scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope()
+        scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope(
+            **self.get_query_scope_filters(params)
+        )
         scope_objs = converter.filter_disabled_metric(scope_objs)
 
         dimensions: list[dict[str, Any]] = []
@@ -684,7 +705,7 @@ class GetCustomTsFields(Resource):
                 metric_dict: dict[str, Any] = {
                     "scope": {"id": scope_obj.id, "name": scope_obj.name},
                     "type": CustomTSMetricType.METRIC,
-                    "movable": metric_obj.field_scope == DEFAULT_FIELD_SCOPE,
+                    "movable": self.get_movable(metric_obj, params),
                 }
                 metric_dict.update(asdict(metric_obj))
                 metrics.append(metric_dict)
@@ -700,7 +721,7 @@ class GetCustomTsFields(Resource):
         return {"dimensions": dimensions, "metrics": metrics}
 
 
-class ModifyCustomTsFields(Resource):
+class ModifyCustomTsFields(CustomTSScopeMixin, Resource):
     """
     修改自定义指标字段
     """
@@ -772,6 +793,7 @@ class ModifyCustomTsFields(Resource):
                     {
                         "config": ModifyMetricConfig(**field_dict["config"]),
                         "id": field_dict["id"],
+                        "field_scope": self.get_default_scope_name(params),  # 仅创建时起作用
                     }
                 )
                 if field_dict.get("name"):
@@ -868,7 +890,7 @@ class AddCustomMetricResource(Resource):
         )
 
 
-class CustomTsGroupingRuleList(Resource):
+class CustomTsGroupingRuleList(CustomTSScopeMixin, Resource):
     """
     获取自定义指标分组规则列表
     """
@@ -883,14 +905,16 @@ class CustomTsGroupingRuleList(Resource):
 
     def perform_request(self, params: dict):
         converter = ScopeQueryConverter(params["time_series_group_id"])
-        scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope()
+        scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope(
+            **self.get_query_scope_filters(params)
+        )
         scope_objs = converter.filter_disabled_metric(scope_objs)
         result: list[dict[str, Any]] = [asdict(scope_obj) for scope_obj in scope_objs]
         result.sort(key=lambda x: (x["name"] != UNGROUP_SCOPE_NAME, x["name"].lower()))
         return result
 
 
-class CreateOrUpdateGroupingRule(Resource):
+class CreateOrUpdateGroupingRule(CustomTSScopeMixin, Resource):
     """
     更新自定义指标分组规则
     """
@@ -900,6 +924,15 @@ class CreateOrUpdateGroupingRule(Resource):
 
     class ResponseSerializer(CustomTSScopeResponseSerializer):
         pass
+
+    def _merge_scope_ids(self, params: dict, scope_id: int) -> dict:
+        """合并 scope_ids 参数，避免冲突"""
+        query_filters = self.get_query_scope_filters(params)
+        scope_ids = query_filters.get("scope_ids", [])
+        if scope_id not in scope_ids:
+            scope_ids.append(scope_id)
+        query_filters["scope_ids"] = scope_ids
+        return query_filters
 
     def perform_request(self, params: dict):
         scope_request_obj = ScopeCURequestDTO(
@@ -912,9 +945,12 @@ class CreateOrUpdateGroupingRule(Resource):
         scope_cu_obj = scope_converter.create_or_update_time_series_scope([scope_request_obj])[0]
 
         # 找出默认分组
-        default_scope_obj = scope_converter.get_default_scope_obj(include_metrics=False)
+        default_scope_obj = scope_converter.get_default_scope_obj(
+            default_scope_name=self.get_default_scope_name(params), include_metrics=False
+        )
 
-        scope_obj = scope_converter.query_time_series_scope(scope_ids=[scope_cu_obj.id])[0]
+        # 查询分组信息
+        scope_obj = scope_converter.query_time_series_scope(**self._merge_scope_ids(params, scope_cu_obj.id))[0]
 
         origin_metric_ids: set[int] = {metric_obj.id for metric_obj in scope_obj.metric_list}
         update_metric_ids: set[int] = {metric_dict["id"] for metric_dict in params["metric_list"]}
@@ -929,12 +965,12 @@ class CreateOrUpdateGroupingRule(Resource):
         field_modify_service.apply_change()
 
         updated_scope_obj: ScopeQueryResponseDTO = scope_converter.filter_disabled_metric(
-            scope_converter.query_time_series_scope(scope_ids=[scope_obj.id])
+            scope_converter.query_time_series_scope(**self._merge_scope_ids(params, scope_obj.id))
         )[0]
         return asdict(updated_scope_obj)
 
 
-class PreviewGroupingRule(Resource):
+class PreviewGroupingRule(CustomTSScopeMixin, Resource):
     """
     预览自定义指标分组
     """
@@ -946,7 +982,9 @@ class PreviewGroupingRule(Resource):
         # 预编译正则表达式
         rule_compile_map: dict[str, re.Pattern] = {rule: re.compile(rule) for rule in params["auto_rules"]}
         converter = ScopeQueryConverter(params["time_series_group_id"])
-        default_scope_obj = converter.get_default_scope_obj(include_metrics=True)
+        default_scope_obj = converter.get_default_scope_obj(
+            default_scope_name=self.get_default_scope_name(params), include_metrics=True
+        )
         default_scope_obj = converter.filter_disabled_metric([default_scope_obj])[0]
         auto_metrics: dict[str, list[str]] = defaultdict(list)
         for metric_obj in default_scope_obj.metric_list:
@@ -995,7 +1033,7 @@ class UpdateGroupingRuleOrder(Resource):
         return
 
 
-class ImportCustomTimeSeriesFields(Resource):
+class ImportCustomTimeSeriesFields(CustomTSScopeMixin, Resource):
     """
     导入自定义时序字段信息
     """
@@ -1003,10 +1041,13 @@ class ImportCustomTimeSeriesFields(Resource):
     class RequestSerializer(BaseCustomTSSerializer):
         scopes = serializers.ListField(label=_("分组列表"), child=ImportExportScopeSerializer())
 
+    def is_default_field_scope(self, field_scope: str, params: dict) -> bool:
+        return field_scope == DEFAULT_FIELD_SCOPE
+
     def perform_request(self, params: dict[str, Any]):
         time_series_group_id: int = params["time_series_group_id"]
         converter = ScopeQueryConverter(time_series_group_id=time_series_group_id)
-        origin_scopes = converter.query_time_series_scope()
+        origin_scopes = converter.query_time_series_scope(**self.get_query_scope_filters(params))
 
         # 构建已有数据的数据结构
         scope_name_id_map: dict[str, int] = {}
@@ -1048,7 +1089,7 @@ class ImportCustomTimeSeriesFields(Resource):
                 metric_obj = metric_obj_map.get(map_key)
                 modify_scope_id = scope_id
                 # 如果 field_scope 不是 default 的话不支持新建
-                if field_scope != DEFAULT_FIELD_SCOPE:
+                if not self.is_default_field_scope(field_scope, params):
                     if not metric_obj:
                         continue
                     modify_scope_id = metric_scope_id_map[map_key]
@@ -1074,7 +1115,7 @@ class ImportCustomTimeSeriesFields(Resource):
         field_modify_service.apply_change()
 
 
-class ExportCustomTimeSeriesFields(Resource):
+class ExportCustomTimeSeriesFields(CustomTSScopeMixin, Resource):
     """
     导出自定义时序字段信息
     """
@@ -1089,7 +1130,7 @@ class ExportCustomTimeSeriesFields(Resource):
         time_series_group_id: int = params["time_series_group_id"]
         # 获取自定义时序表
         converter = ScopeQueryConverter(time_series_group_id=time_series_group_id)
-        scope_objs = converter.query_time_series_scope()
+        scope_objs = converter.query_time_series_scope(**self.get_query_scope_filters(params))
         converter.filter_disabled_metric(scope_objs)
         return {
             "scopes": [asdict(scope_obj) for scope_obj in scope_objs],
