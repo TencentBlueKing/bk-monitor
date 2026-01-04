@@ -8,5 +8,29 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from .event import *  # noqa
-from .metric import *  # noqa
+from django.utils.translation import gettext_lazy as _
+
+# 自定义指标的配置
+UNGROUP_SCOPE_NAME = "default"  # 未分组名称
+DEFAULT_FIELD_SCOPE = "default"
+
+
+class CustomTSMetricType:
+    METRIC = "metric"
+    DIMENSION = "dimension"
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(cls.METRIC, _("指标")), (cls.DIMENSION, _("维度"))]
+
+
+class ScopeCreateFrom:
+    """指标组创建来源."""
+
+    DATA = "data"
+    USER = "user"
+    DEFAULT = "default"
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(cls.DATA, _("自动创建")), (cls.USER, _("手动创建")), (cls.DEFAULT, _("默认分组"))]
