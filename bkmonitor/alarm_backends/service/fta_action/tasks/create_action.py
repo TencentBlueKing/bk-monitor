@@ -408,7 +408,8 @@ class CreateActionProcessor:
 
         if self.notice.get("config_id"):
             # 检查通知组是否为空，如果为空则跳过创建 notice action
-            # 但如果 assign_mode 包含 BY_RULE，需要创建 notice action 以便告警分派逻辑能够执行
+            # 但如果 assign_mode 包含 BY_RULE，先添加到 actions 列表
+            # 后续在 do_create_actions() 中会根据分派结果决定是否实际创建（如果分派未命中则跳过）
             user_groups = self.notice.get("user_groups", [])
             assign_mode = self.notice.get("options", {}).get("assign_mode", [])
             has_by_rule = AssignMode.BY_RULE in assign_mode if assign_mode else False
@@ -422,7 +423,8 @@ class CreateActionProcessor:
                 )
             else:
                 # 增加通知操作，并进行降噪处理
-                # 如果配置了 BY_RULE，即使 user_groups 为空，也需要创建 notice action 以便告警分派逻辑能够执行
+                # 如果配置了 BY_RULE，先添加到 actions 列表，后续在 do_create_actions() 中会检查分派是否命中
+                # 如果分派未命中，则跳过创建 notice action
                 actions.append(self.notice)
                 if self.notice_type != ActionNoticeType.UPGRADE:
                     # 升级的通知不做降噪处理
@@ -754,21 +756,28 @@ class CreateActionProcessor:
 
                     continue
 
-                # 如果是 notice action，且分派未命中，且 user_groups 为空，则跳过创建
-                # 但如果 assign_mode 包含 BY_RULE，需要创建 notice action 以便告警分派逻辑能够执行
+                # 如果是 notice action，且 user_groups 为空，则检查是否需要跳过创建
+                # 如果未配置 BY_RULE，或者配置了 BY_RULE 但分派未命中，则跳过创建
                 if action_plugin["plugin_type"] == ActionPluginType.NOTICE:
                     user_groups = self.notice.get("user_groups", [])
                     assign_mode = self.notice.get("options", {}).get("assign_mode", [])
                     has_by_rule = AssignMode.BY_RULE in assign_mode if assign_mode else False
 
-                    if not user_groups and not has_by_rule and not assignee_manager.is_matched:
-                        # 通知组为空、未配置分派模式且分派未命中时，不创建 notice action
+                    if not user_groups and (not has_by_rule or not assignee_manager.is_matched):
+                        # 通知组为空时：
+                        # 1. 未配置分派模式，跳过创建
+                        # 2. 配置了分派模式但分派未命中，跳过创建（分派流程已完成，无需继续）
+                        reason = (
+                            "user_groups is empty and assign_mode is not BY_RULE"
+                            if not has_by_rule
+                            else "user_groups is empty and assign rule not matched"
+                        )
                         logger.info(
-                            "[create actions]skip notice action for alert(%s) strategy(%s) signal(%s) "
-                            "because user_groups is empty, assign_mode is not BY_RULE and assign rule not matched",
+                            "[create actions]skip notice action for alert(%s) strategy(%s) signal(%s) because %s",
                             alert.id,
                             self.strategy_id,
                             self.signal,
+                            reason,
                         )
                         continue
 
