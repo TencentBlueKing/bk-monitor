@@ -1428,6 +1428,9 @@ MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}
 
+# 默认MCP APP_CODE
+AIDEV_AGENT_MCP_REQUEST_AGENT_CODE = "bkmonitor-mcp"
+
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True
 
@@ -1454,6 +1457,9 @@ FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200
 
 # 自定义指标过期时间
 TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
+
+# 是否使用 is_active 字段来过滤时序指标（开启时使用 is_active=True，关闭时使用过期时间过滤）
+ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE = False
 
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):

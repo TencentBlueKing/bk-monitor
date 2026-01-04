@@ -1172,8 +1172,8 @@ export default {
   '可切换原始日志，查看该日志的上下文': 'You can switch to the original log to view the context of the log',
   '搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人':
     'Task ID, Name, OpenID, Create Method, Status, Stage, Creator',
-  'Alert 文案占位，用于说明如果用 SDK 上报。':
-    'The alert text placeholder is used to explain how to report using the SDK.',
+  '使用本功能，需要在您的项目中集成并初始化相应的软件开发工具包（SDK），点击查看。':
+    'To use this feature, you need to integrate and initialize the corresponding Software Development Kit (SDK) in your project. Click to view.',
   '暂无下载链接，请在任务完成后点击下载':
     'No download link available. Please click download after completing the task.',
   灰度业务: 'Gray scale business',
@@ -1253,4 +1253,12 @@ export default {
   集群说明: 'Cluster Description',
   副本数量: 'Replica Count',
   集群备注: 'Cluster Remarks',
+  '日志上传中...': 'Log uploading...',
+  '预计等待2-3分钟': 'Expected wait time: 2-3 minutes',
+  日志上传成功: 'Log upload successful',
+  去首页查询: 'Go to the homepage to check',
+  日志上传失败: 'Log upload failed',
+  请上传日志后检索: 'Please upload the log and then search',
+  正在上传中无法操作: 'Cannot operate while uploading',
+  '已上传成功，请直接检索': 'Uploaded successfully, please search directly',
 };
