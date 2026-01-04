@@ -13,7 +13,7 @@ import time
 from typing import Any
 
 from django.conf import settings
-
+from constants.incident import IncidentStatus
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.incident import IncidentOperationDocument
 from bkmonitor.utils.request import get_request_username
@@ -226,7 +226,7 @@ class IncidentOperationManager:
 
     @classmethod
     def record_update_incident(
-        cls, incident_id: int, operate_time: int, incident_key: str, from_value: Any, to_value: Any
+        cls, incident_id: int, operate_time: int, incident_key: str, from_value: Any, to_value: Any, **kwargs
     ) -> IncidentOperationDocument:
         """记录故障修改属性
         文案: 故障属性{incident_key}: 从{from_value}被修改为{to_value}
@@ -238,6 +238,10 @@ class IncidentOperationManager:
         :param to_value: 属性修改后的值
         :return: 故障流转记录
         """
+        if incident_key == "status" and to_value == IncidentStatus.MERGED.value:
+            merge_info = kwargs.get("merge_info")
+            return cls.record_merge_incident(operate_time, merge_info=merge_info)
+
         enum_class = INCIDENT_ATTRIBUTE_VALUE_ENUMS.get(incident_key)
         return cls.record_operation(
             incident_id,
@@ -250,20 +254,65 @@ class IncidentOperationManager:
         )
 
     @classmethod
-    def record_merge_incident(
-        cls, incident_id: int, operate_time: int, merged_incident_name: str
-    ) -> IncidentOperationDocument:
+    def record_merge_incident(cls, operate_time: int, merge_info: dict = None):
         """记录故障合并
-        文案: 故障{merged_incident_name}被合并入当前故障
+        文案:
+        - MERGE_TO: 故障被合并到{target_incident_name}
+        - MERGE: 故障{origin_incident_name}被合并入当前故障
 
-        :param incident_id: 故障ID
         :param operate_time: 流转生成时间
-        :param merged_incident_name: 被合并的故障名称
+        :param merge_info: 故障合并的信息
+            "origin_incident_id": 被合并的故障id,
+            "origin_incident_name": 被合并的故障name
+            "origin_created_at": 被合并的故障create_time
+            "target_incident_id": 合并到的目标故障id,
+            "target_incident_name": 合并到的目标故障name
+            "target_created_at": 合并到的目标故障create_time
         :return: 故障流转记录
         """
-        return cls.record_operation(
-            incident_id, IncidentOperationType.MERGE, operate_time, merged_incident_name=merged_incident_name
+        merge_info = merge_info if isinstance(merge_info, dict) else {}
+        origin_incident_id = merge_info.get("origin_incident_id")
+        target_incident_id = merge_info.get("target_incident_id")
+        origin_incident_name = merge_info.get("origin_incident_name", "")
+        target_incident_name = merge_info.get("target_incident_name", "")
+        origin_created_at = merge_info.get("origin_created_at")
+        target_created_at = merge_info.get("target_created_at")
+
+        if not all([origin_incident_id, target_incident_id]):
+            logger.warning(
+                f"Missing required merge info: origin_incident_id={origin_incident_id}, target_incident_id={target_incident_id}"
+            )
+            return False
+
+        origin_incident_id = int(origin_incident_id)
+        target_incident_id = int(target_incident_id)
+
+        # 构建故障文档ID，用于链接跳转
+        # IncidentDocument的id格式为: {create_time}{incident_id}
+        origin_incident_doc_id = f"{origin_created_at}{origin_incident_id}" if origin_created_at else None
+        target_incident_doc_id = f"{target_created_at}{target_incident_id}" if target_created_at else None
+
+        # 给被合并故障，记录 incident_merge_to 记录
+        cls.record_operation(
+            origin_incident_id,
+            IncidentOperationType.MERGE_TO,
+            operate_time,
+            link_incident_name=target_incident_name,
+            link_incident_id=target_incident_id,
+            link_incident_doc_id=target_incident_doc_id,
         )
+
+        # 给合并目标故障，记录 incident_merge 记录
+        cls.record_operation(
+            target_incident_id,
+            IncidentOperationType.MERGE,
+            operate_time,
+            link_incident_name=origin_incident_name,
+            link_incident_id=origin_incident_id,
+            link_incident_doc_id=origin_incident_doc_id,
+        )
+
+        return True
 
     @classmethod
     def record_incident_alert_trigger(
