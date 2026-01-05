@@ -278,7 +278,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
 
   /** 获取搜索结果 */
   getSearchList() {
-    this.fetchEventStream(`${location.origin}/rest/v2/overview/search/?query=${encodeURIComponent(this.searchValue)}`);
+    this.fetchEventStream(`${location.origin}${window.site_url}rest/v2/overview/search/?query=${encodeURIComponent(this.searchValue)}`);
   }
   /* 显示弹出层 */
   handleMousedown() {
