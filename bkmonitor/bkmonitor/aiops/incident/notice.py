@@ -17,11 +17,14 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.incident import IncidentDocument
 from bkmonitor.utils.send import IncidentSender
 from constants.action import NoticeWay
+from constants.alert import EventStatus
 from bkm_space.api import SpaceApi
 from constants.incident import IncidentStatus, IncidentLevel, IncidentOperationType
+from core.errors.alert import AlertNotFoundError
 
 logger = logging.getLogger("incident.notice")
 
@@ -52,6 +55,9 @@ class IncidentNoticeHelper:
 
         # 计算故障持续时间
         duration_info = cls._format_duration(incident.begin_time, incident.end_time)
+
+        # 获取告警统计信息
+        alert_stats = cls._get_alert_stats(incident)
 
         # 获取故障根因
         incident_reason = cls._get_incident_reason(incident)
@@ -114,13 +120,13 @@ class IncidentNoticeHelper:
             "subtitle": subtitle,
             "incident_name": incident.incident_name or _("未命名故障"),
             "level": level,
-            "begin_time": incident.begin_time,
+            "begin_time": duration_info["duration_range"][0],
             "notify_time": notify_time,
             "business_name": business_name,
             "incident_reason": incident_reason,
             "status": status,
             "duration": f"{duration_info['duration_msg']}{duration_info['duration_range_msg']}",
-            "number": incident.alert_count or 0,
+            "number": alert_stats,
             "assignees": assignees,
             "url": url,
             "bk_biz_id": incident.bk_biz_id,
@@ -173,6 +179,47 @@ class IncidentNoticeHelper:
             "duration_range": [begin_time_str, end_time_str],
             "duration_range_msg": f"({begin_time_str} 至 {end_time_str})",
         }
+
+    @classmethod
+    def _get_alert_stats(cls, incident: IncidentDocument) -> str:
+        """
+        获取告警统计信息
+
+        :param incident: 故障文档对象
+        :return: 格式化的告警统计字符串，如"共100条告警（未恢复10条）"
+        """
+        if not incident.snapshot or not incident.snapshot.content:
+            total_count = incident.alert_count or 0
+            return f"共{total_count}条告警"
+
+        # 获取快照中的所有告警信息
+        incident_alerts = incident.snapshot.content.incident_alerts
+        total_count = len(incident_alerts)
+        abnormal_count = 0
+
+        # 统计未恢复的告警数量
+        for item in incident_alerts:
+            # 优先使用 incident_alerts 中的 alert_status 字段
+            if "alert_status" in item and item["alert_status"]:
+                if item["alert_status"] == EventStatus.ABNORMAL:
+                    abnormal_count += 1
+            else:
+                # 如果没有 alert_status 字段，则查询 AlertDocument
+                try:
+                    alert_doc = AlertDocument.get(item["id"])
+                    if alert_doc.status == EventStatus.ABNORMAL:
+                        abnormal_count += 1
+                except AlertNotFoundError:
+                    logger.warning(f"Alert document not found: {item['id']}, skip counting")
+                    continue
+                except Exception as e:
+                    logger.error(f"Failed to get alert document {item['id']}: {e}")
+                    continue
+
+        if abnormal_count > 0:
+            return f"共{total_count}条告警（未恢复{abnormal_count}条）"
+        else:
+            return f"共{total_count}条告警"
 
     @classmethod
     def _get_incident_reason(cls, incident: IncidentDocument) -> str:
