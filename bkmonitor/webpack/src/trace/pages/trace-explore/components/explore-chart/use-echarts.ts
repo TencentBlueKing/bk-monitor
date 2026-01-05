@@ -43,12 +43,18 @@ import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
 import type { IDataQuery } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
+export interface CustomOptions {
+  formatterData?: (formatter: any) => any;
+  options?: (options: any) => any;
+  series?: (series: EchartSeriesItem[]) => EchartSeriesItem[];
+}
+
 export const useEcharts = (
   panel: MaybeRef<PanelModel>,
   chartRef: Ref<HTMLElement>,
   $api: Record<string, () => Promise<any>>,
   params: MaybeRef<Record<string, any>>,
-  formatterSeriesData = res => res
+  customOptions: CustomOptions
 ) => {
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
@@ -83,9 +89,9 @@ export const useEcharts = (
         [target.apiFunc](
           {
             ...target.data,
-            ...get(params),
             start_time: startTime,
             end_time: endTime,
+            ...get(params),
           },
           {
             cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
@@ -93,7 +99,7 @@ export const useEcharts = (
           }
         )
         .then(res => {
-          const { series, metrics, query_config } = formatterSeriesData(res);
+          const { series, metrics, query_config } = customOptions.formatterData?.(res) ?? res;
           for (const metric of metrics) {
             if (!metricList.value.some(item => item.metric_id === metric.metric_id)) {
               metricList.value.push(metric);
@@ -160,7 +166,6 @@ export const useEcharts = (
       }
       const unitFormatter = getValueFormat(data.unit);
       seriesData.push({
-        ...data,
         name: data.alias || data.target || '',
         data: list,
         xAxisIndex: xAxisIndex,
@@ -183,6 +188,7 @@ export const useEcharts = (
           unitFormatter,
         },
         z: 3,
+        ...data,
       });
       if (!isEqual) {
         xAxis.push(...createXAxis(xData, { show: xAxisIndex === 0 }));
@@ -191,7 +197,7 @@ export const useEcharts = (
     }
     return {
       xData: Array.from(xAllData).sort(),
-      seriesData,
+      seriesData: customOptions.series?.(seriesData) ?? seriesData,
       xAxis,
     };
   };
@@ -276,10 +282,6 @@ export const useEcharts = (
       const yValueFormatter = getValueFormat(unit);
       return {
         type: 'value',
-        // boundaryGap: true,
-        // alignTicks: true,
-        // nameGap: 0,
-        // nameLocation: 'center',
         axisLine: {
           show: false,
           lineStyle: {
@@ -319,7 +321,7 @@ export const useEcharts = (
     });
   };
   const createOptions = (xAxis, yAxis, series) => {
-    return {
+    const options = {
       useUTC: false,
       animation: false,
       animationThreshold: 2000,
@@ -399,6 +401,7 @@ export const useEcharts = (
         };
       }),
     };
+    return customOptions.options?.(options) ?? options;
   };
   watch(
     [timeRange, refreshImmediate, panel, params],

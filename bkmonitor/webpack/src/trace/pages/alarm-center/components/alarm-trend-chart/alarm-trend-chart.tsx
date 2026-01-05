@@ -120,6 +120,7 @@ export default defineComponent({
     provide('refreshImmediate', refreshImmediate);
 
     const params = computed(() => {
+      // biome-ignore lint/correctness/noUnusedVariables: <explanation>
       const { start_time, end_time, ...otherParmas } = store.commonFilterParams;
       return {
         ...otherParmas,
@@ -179,7 +180,7 @@ export default defineComponent({
             default: () => (
               <div class='alarm-trend-chart-container'>
                 <ExploreChart
-                  formatterData={this.formatterData}
+                  customOptions={{ formatterData: this.formatterData }}
                   panel={this.panel}
                   params={this.params}
                   showTitle={false}
