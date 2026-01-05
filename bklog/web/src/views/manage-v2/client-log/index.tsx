@@ -24,23 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { defineComponent, onMounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
-// import { useRouter } from 'vue-router/composables';
-import { BK_LOG_STORAGE } from '@/store/store.type';
+import useRouter from '@/hooks/use-router';
 import { t } from '@/hooks/use-locale';
 import * as authorityMap from '../../../common/authority-map';
-import { tenantManager, UserInfoLoadedEventData } from '@/views/retrieve-core/tenant-manager';
-import { TaskStatus } from './components/log-table/types';
 
-import LogTable from './components/log-table';
-import CollectionSlider from './collection-slider';
+import CollectionDeploy from './collection-deploy';
+import UserReport from './user-report';
 
 import http from '@/api';
 
 import './index.scss';
-import useUtils from '@/hooks/use-utils';
+// import useUtils from '@/hooks/use-utils';
 
 // tab类型常量定义
 const TAB_TYPES = {
@@ -53,14 +50,26 @@ type TabType = (typeof TAB_TYPES)[keyof typeof TAB_TYPES];
 export default defineComponent({
   name: 'ClientLog',
   components: {
-    LogTable,
-    CollectionSlider,
+    CollectionDeploy,
+    UserReport,
   },
   setup() {
     const store = useStore();
-    // const router = useRouter();
+    const router = useRouter();
 
-    const userDisplayMap = new Map(); // 用于创建人 到租户信息的映射
+    // 从路由查询参数获取初始 tab 值
+    const getInitialTab = (): TabType => {
+      const tabQuery = router.currentRoute.query.tab;
+
+      if (tabQuery === 'collect') {
+        return TAB_TYPES.COLLECT;
+      }
+      if (tabQuery === 'report') {
+        return TAB_TYPES.REPORT;
+      }
+      // 默认值
+      return TAB_TYPES.COLLECT;
+    };
 
     const tabs = ref([
       // tab配置
@@ -68,31 +77,22 @@ export default defineComponent({
         title: TAB_TYPES.COLLECT,
         count: 0,
       },
-      // 暂时隐藏 用户上报
-      // {
-      //   title: TAB_TYPES.REPORT,
-      //   count: 0,
-      // },
+      {
+        title: TAB_TYPES.REPORT,
+        count: 0,
+      },
     ]);
-    const activeTab = ref<TabType>(TAB_TYPES.COLLECT); // 激活的tab
-    const showSlider = ref(false); // 新建采集侧边栏打开状态
-    const tableData = ref({
-      total: 0,
-      list: [],
-    });
-    const isLoading = ref(false); // 加载状态
-    const logData = ref(null); // 日志数据
-    const searchKeyword = ref(''); // 搜索关键词
-    const operateType = ref('create'); // 操作类型： create、clone、view
+    const activeTab = ref<TabType>(getInitialTab()); // 激活的tab
     const isAllowedCreate = ref(false); // 是否允许创建
     const isAllowedDownload = ref(false); // 是否允许下载
     const isGrayRelease = ref(false); // 是否为灰度业务
     const indexSetId = ref<string>(''); // 索引集ID
 
-    // 轮询相关状态
-    const timer = ref(null); // 轮询定时器
-    const isShouldPollTask = ref(false); // 是否需要轮询任务
-    const isComponentDestroyed = ref(false); // 组件是否已销毁
+    // 分页配置
+    const paginationConfig = ref({
+      limit: 10,
+      limitList: [10, 20, 50, 100],
+    });
 
     // 获取索引集ID
     const getIndexSetId = async () => {
@@ -111,6 +111,47 @@ export default defineComponent({
         console.warn('获取索引集ID失败:', error);
       }
     };
+
+    // 获取tab数量
+    const getTgpaCount = async () => {
+      try {
+        const params = {
+          query: {
+            bk_biz_id: store.state.bkBizId,
+          },
+        };
+
+        const response = await http.request('collect/getTgpaCount', params);
+        if (response.data) {
+          if (response.data.task !== undefined) {
+            updateTabCount(TAB_TYPES.COLLECT, response.data.task);
+          }
+          if (response.data.report !== undefined) {
+            updateTabCount(TAB_TYPES.REPORT, response.data.report);
+          }
+        }
+      } catch (error) {
+        console.warn('获取tab数量失败:', error);
+      }
+    };
+
+    // 获取索引集ID
+    // const getIndexSetId = async () => {
+    //   try {
+    //     const params = {
+    //       query: {
+    //         bk_biz_id: store.state.bkBizId,
+    //       },
+    //     };
+
+    //     const response = await http.request('collect/getTaskIndexSetId', params);
+    //     if (response.data && response.data.index_set_id) {
+    //       indexSetId.value = String(response.data.index_set_id);
+    //     }
+    //   } catch (error) {
+    //     console.warn('获取索引集ID失败:', error);
+    //   }
+    // };
 
     // 检查是否为灰度业务
     const checkGrayReleaseAccess = () => {
@@ -145,193 +186,50 @@ export default defineComponent({
       isGrayRelease.value = !hasAccess;
     };
 
-    // 启动轮询
-    const startPolling = () => {
-      stopPolling();
-      timer.value = setTimeout(() => {
-        if (isShouldPollTask.value) {
-          pollTaskStatus();
-        }
-      }, 30000); // 30秒轮询一次
-    };
+    // 计算分页大小
+    const calculatePaginationLimit = () => {
+      const fixedHeight = 368; // 需要减去的固定高度
+      const rowHeight = 43; // 行固定高度
 
-    // 停止轮询
-    const stopPolling = () => {
-      if (timer.value) {
-        clearTimeout(timer.value);
-        timer.value = null;
-      }
-    };
+      // 获取浏览器高度
+      const clientHeight = document.documentElement.offsetHeight;
 
-    // 判断是否需要轮询
-    const checkShouldPoll = (taskList: any[]) => {
-      // 如果组件已销毁，不进行轮询判断
-      if (isComponentDestroyed.value) {
-        return;
-      }
+      // 计算可以显示的行数
+      const rows = Math.ceil((clientHeight - fixedHeight) / rowHeight);
 
-      isShouldPollTask.value = false;
-
-      // 遍历新任务列表，检查轮询需求并更新现有任务状态
-      taskList.forEach((newTask) => {
-        // 检查是否有未完成的任务
-        if (newTask.status !== TaskStatus.COMPLETED) {
-          isShouldPollTask.value = true;
-        }
-
-        // 更新现有任务列表中对应任务的状态
-        tableData.value.list.forEach((existingTask) => {
-          if (existingTask.id === newTask.id) {
-            existingTask.status = newTask.status;
-            existingTask.status_name = newTask.status_name;
-          }
-        });
-      });
-
-      // 如果需要轮询，启动轮询
-      if (isShouldPollTask.value) {
-        startPolling();
+      // 根据可显示行数设置合适的limit
+      if (rows < 10) {
+        paginationConfig.value.limit = 10;
+      } else if (rows < 20) {
+        paginationConfig.value.limit = 20;
+      } else if (rows < 50) {
+        paginationConfig.value.limit = 50;
       } else {
-        stopPolling();
+        paginationConfig.value.limit = 100;
       }
     };
+
+    // 立即计算分页大小
+    calculatePaginationLimit();
 
     // tab点击事件
     const handleTabClick = (title: TabType) => {
       activeTab.value = title;
-    };
 
-    // 设置侧边栏打开状态
-    const setSidebarOpen = (open: boolean) => {
-      showSlider.value = open;
-    };
+      // 更新路由查询参数
+      const currentQuery = { ...router.currentRoute.query };
 
-    // 新建采集成功后回调
-    const handleUpdatedTable = () => {
-      showSlider.value = false;
-      requestData();
-    };
-
-    // 关闭侧边栏
-    const handleCancelSlider = () => {
-      showSlider.value = false;
-      logData.value = null;
-      operateType.value = 'create';
-    };
-
-    // 处理搜索事件
-    const handleSearch = (keyword: string) => {
-      searchKeyword.value = keyword;
-    };
-
-    // 处理输入框内容改变事件
-    const handleInputChange = (value: string) => {
-      if (value === '') {
-        searchKeyword.value = '';
+      // 根据 tab 类型设置查询参数
+      if (title === TAB_TYPES.COLLECT) {
+        currentQuery.tab = 'collect';
+      } else if (title === TAB_TYPES.REPORT) {
+        currentQuery.tab = 'report';
       }
-    };
 
-    // 轮询获取任务状态
-    const pollTaskStatus = async () => {
-      try {
-        const params = {
-          query: {
-            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-          },
-        };
-
-        const response = await http.request('collect/getTaskLogList', params);
-        if (activeTab.value === TAB_TYPES.COLLECT) {
-          if (response.data.list.length > 0) {
-            checkShouldPoll(response.data.list);
-          }
-        }
-      } catch (error) {
-        console.warn('轮询获取任务状态失败:', error);
-        // 轮询失败时停止轮询
-        stopPolling();
-      }
-    };
-
-    // 获取列表数据
-    const requestData = async () => {
-      try {
-        const params = {
-          query: {
-            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-          },
-        };
-
-        isLoading.value = true;
-
-        const response = await http.request('collect/getTaskLogList', params);
-        if (activeTab.value === TAB_TYPES.COLLECT) {
-          const listWithTenantInfo = await processListWithTenantInfo(response.data.list);
-          tableData.value = response.data;
-          tableData.value.list = listWithTenantInfo;
-          tabs.value[0].count = response.data.total;
-
-          // 检查是否需要轮询
-          checkShouldPoll(listWithTenantInfo);
-        }
-      } catch (error) {
-        console.warn('获取采集下发列表失败:', error);
-      } finally {
-        isLoading.value = false;
-      }
-    };
-
-    const { formatResponseListTimeZoneString } = useUtils();
-
-    // 处理列表数据，添加租户信息
-    const processListWithTenantInfo = async (list: any[]) => {
-      if (list.length === 0) {
-        return list;
-      }
-      // 为每项添加 tenant_info 字段，并收集所有的 created_by
-      const tenantUserIds = [];
-
-      const listWithTenantInfo = formatResponseListTimeZoneString(list, (item) => {
-        let tenantInfo = {
-          login_name: '',
-          full_name: '',
-          display_name: '',
-        };
-        if (userDisplayMap.get(item.created_by)) {
-          tenantInfo = userDisplayMap.get(item.created_by);
-        } else {
-          userDisplayMap.set(item.created_by, tenantInfo);
-        }
-        const newItem = {
-          tenant_info: tenantInfo,
-        };
-
-        // 收集 created_by 用于批量查询用户信息
-        tenantUserIds.push(item.created_by);
-
-        return newItem;
-      });
-
-      // 批量获取用户信息
-      tenantManager.batchGetUserDisplayInfo(tenantUserIds);
-      return listWithTenantInfo;
-    };
-
-    // 处理用户信息更新事件
-    const handleUserInfoUpdate = (data: UserInfoLoadedEventData) => {
-      const userInfo = data.userInfo;
-
-      // 直接根据映射关系更新对应的列表项对象
-      userInfo.forEach((userInfo, userId) => {
-        const targetItem = userDisplayMap.get(userId);
-        if (targetItem && userInfo) {
-          // 修改映射中的对象
-          Object.assign(targetItem, {
-            login_name: userInfo.login_name || '',
-            full_name: userInfo.full_name || '',
-            display_name: userInfo.display_name || '',
-          });
-        }
+      // 更新路由
+      router.replace({
+        ...router.currentRoute,
+        query: currentQuery,
       });
     };
 
@@ -344,14 +242,11 @@ export default defineComponent({
       // 获取索引集ID
       getIndexSetId();
 
-      // 检查创建权限
-      checkCreateAuth();
+      // 获取tab数量
+      getTgpaCount();
 
-      // 获取数据
-      fetchDataByTabType(activeTab.value);
-
-      // 监听事件
-      tenantManager.on('userInfoUpdated', handleUserInfoUpdate);
+      // 检查权限(新建采集、下载文件)
+      checkAllowed();
     });
 
     watch(
@@ -365,42 +260,8 @@ export default defineComponent({
       { immediate: true },
     );
 
-    onBeforeUnmount(() => {
-      // 标记组件已销毁
-      isComponentDestroyed.value = true;
-
-      // 清理事件监听
-      tenantManager.off('userInfoUpdated', handleUserInfoUpdate);
-
-      // 清理轮询定时器
-      stopPolling();
-    });
-
-    // 清除搜索关键词
-    const handleClearKeyword = () => {
-      searchKeyword.value = '';
-    };
-
-    // 任务操作
-    const handleOperateTask = (task: any, type: string) => {
-      logData.value = task;
-      operateType.value = type;
-      setSidebarOpen(true);
-    };
-
-    // 清洗配置
-    // const handleCleanConfig = () => {
-    //   router.push({
-    //     name: 'clean-config',
-    //     query: {
-    //       spaceUid: store.state.spaceUid,
-    //       backRoute: 'tgpa-task',
-    //     },
-    //   });
-    // };
-
     // 检查创建权限
-    const checkCreateAuth = async () => {
+    const checkAllowed = async () => {
       try {
         const params = {
           data: {
@@ -438,43 +299,13 @@ export default defineComponent({
       }
     };
 
-    // 新建采集
-    const handleCreateTask = async () => {
-      if (isAllowedCreate.value) {
-        setSidebarOpen(true);
-      } else {
-        const paramData = {
-          action_ids: [authorityMap.CREATE_CLIENT_COLLECTION_AUTH],
-          resources: [
-            {
-              type: 'space',
-              id: store.state.spaceUid,
-            },
-          ],
-        };
-        const res = await store.dispatch('getApplyData', paramData);
-        store.commit('updateState', { authDialogData: res.data });
+    // 更新tab数量
+    const updateTabCount = (tabType: TabType, count: number) => {
+      const tab = tabs.value.find(tab => tab.title === tabType);
+      if (tab) {
+        tab.count = count;
       }
     };
-
-    // 根据tab类型获取数据
-    const fetchDataByTabType = (tabType: TabType) => {
-      if (tabType === TAB_TYPES.COLLECT) {
-        requestData();
-      }
-      if (tabType === TAB_TYPES.REPORT) {
-        // 暂无用户上报接口
-        isLoading.value = true;
-        tableData.value = {
-          total: 0,
-          list: [],
-        };
-        isLoading.value = false;
-      }
-    };
-
-    // 监听activeTab变化
-    watch(activeTab, fetchDataByTabType);
 
     return () => {
       // 如果是灰度业务，显示提醒
@@ -509,82 +340,25 @@ export default defineComponent({
             ))}
           </div>
           <div class='client-log-container'>
-            {/* 按钮、搜索、alter提示区域 */}
-            {activeTab.value === TAB_TYPES.COLLECT ? (
-              <div class='deploy-header'>
-                {/* 采集下发 */}
-                <div>
-                  <bk-button
-                    theme='primary'
-                    v-cursor={{ active: !isAllowedCreate.value }}
-                    onClick={handleCreateTask}
-                    disabled={isLoading.value}
-                  >
-                    {t('新建采集')}
-                  </bk-button>
-                  {/* <bk-button
-                  disabled={isLoading.value}
-                  onClick={handleCleanConfig}
-                >
-                  {t('清洗配置')}
-                </bk-button> */}
-                </div>
-                <div>
-                  <bk-input
-                    placeholder={t('搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人')}
-                    value={searchKeyword.value}
-                    clearable
-                    right-icon={'bk-icon icon-search'}
-                    onEnter={handleSearch}
-                    on-right-icon-click={handleSearch}
-                    onClear={handleClearKeyword}
-                    onChange={handleInputChange}
-                  ></bk-input>
-                </div>
-              </div>
-            ) : (
-              <div>
-                {/* 用户上报 */}
-                <bk-alert
-                  class='alert-info'
-                  type='info'
-                  title={t('Alert 文案占位，用于说明如果用 SDK 上报。')}
-                ></bk-alert>
-                <div class='operating-area'>
-                  {/* <bk-button onClick={handleCleanConfig}>{t('清洗配置')}</bk-button> */}
-                  <div>
-                    <bk-input
-                      placeholder={t('搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人')}
-                      clearable
-                      right-icon={'bk-icon icon-search'}
-                    ></bk-input>
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* 表格内容区域 */}
-            <section>
-              <LogTable
-                total={tableData.value.total}
-                isAllowedDownload={isAllowedDownload.value}
-                data={tableData.value.list}
+            {/* 内容区域 */}
+            {activeTab.value === TAB_TYPES.COLLECT && (
+              <CollectionDeploy
                 indexSetId={indexSetId.value}
-                v-bkloading={{ isLoading: isLoading.value }}
-                keyword={searchKeyword.value}
-                on-clear-keyword={handleClearKeyword}
-                on-clone-task={task => handleOperateTask(task, 'clone')}
-                on-view-task={task => handleOperateTask(task, 'view')}
+                isAllowedCreate={isAllowedCreate.value}
+                isAllowedDownload={isAllowedDownload.value}
+                paginationConfig={paginationConfig.value}
+                onUpdate-total={(total: number) => updateTabCount(TAB_TYPES.COLLECT, total)}
               />
-            </section>
+            )}
+            {activeTab.value === TAB_TYPES.REPORT && (
+              <UserReport
+                isAllowedDownload={isAllowedDownload.value}
+                indexSetId={indexSetId.value}
+                paginationConfig={paginationConfig.value}
+                onUpdate-total={(total: number) => updateTabCount(TAB_TYPES.REPORT, total)}
+              />
+            )}
           </div>
-          {/* 新建采集侧边栏 */}
-          <CollectionSlider
-            showSlider={showSlider.value}
-            logData={logData.value}
-            operateType={operateType.value}
-            onHandleCancelSlider={handleCancelSlider}
-            onHandleUpdatedTable={handleUpdatedTable}
-          />
         </div>
       );
     };

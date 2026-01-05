@@ -1458,6 +1458,9 @@ FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200
 # 自定义指标过期时间
 TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
 
+# 是否使用 is_active 字段来过滤时序指标（开启时使用 is_active=True，关闭时使用过期时间过滤）
+ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE = False
+
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
     os.environ["BK_API_URL_TMPL"] = f"{BK_COMPONENT_API_URL}/api/{{api_name}}"

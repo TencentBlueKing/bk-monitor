@@ -28,7 +28,7 @@ import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
-import FavoriteManageDialog from '../../../../retrieve-v2/collect/favorite-manage-dialog.vue';
+import FavoriteManageDialog from '@/views/retrieve-v2/collect/favorite-manage-dialog.vue';
 
 import './collect-head.scss';
 
