@@ -425,7 +425,7 @@ export default defineComponent({
 
       try {
         const requestData: any = {
-          // bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+          bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
         };
 
         if (data.file_name_list && data.file_name_list.length > 0) {
