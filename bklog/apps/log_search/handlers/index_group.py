@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 
 from django.db import transaction
 from django.db.models import Count
+from pypinyin import lazy_pinyin
 
 from apps.iam import Permission, ResourceEnum
 from apps.log_search.constants import IndexSetDataType
@@ -52,10 +53,8 @@ class IndexGroupHandler(APIModel):
         """
         获取索引组列表
         """
-        index_groups = (
-            LogIndexSet.objects.filter(is_group=True, space_uid=params["space_uid"])
-            .values("index_set_id", "index_set_name")
-            .order_by("created_at")
+        index_groups = LogIndexSet.objects.filter(is_group=True, space_uid=params["space_uid"]).values(
+            "index_set_id", "index_set_name"
         )
         # 补充索引数量字段
         index_set_ids = [x["index_set_id"] for x in index_groups]
@@ -69,7 +68,10 @@ class IndexGroupHandler(APIModel):
             x["index_count"] = index_counts_dict.get(x["index_set_id"], 0)
             x["deletable"] = True  # TODO: 先给前端一个字段，后续需要判断索引组是否可以删除
 
-        return list(index_groups)
+        # 按名称的拼音首字母a-z排序，中文使用拼音首字母
+        result = list(index_groups)
+        result.sort(key=lambda x: lazy_pinyin(x["index_set_name"].lower()))
+        return result
 
     @staticmethod
     def create_index_group(params: dict) -> LogIndexSet:
