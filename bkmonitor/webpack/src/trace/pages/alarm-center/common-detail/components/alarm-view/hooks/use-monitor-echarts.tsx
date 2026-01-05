@@ -176,31 +176,20 @@ export const useMonitorEcharts = (
       data: markTimeRange.map(item => [
         {
           xAxis: String(item.from),
-          y: 'max',
           itemStyle: {
             color: item.color || '#FFF5EC',
-            borderWidth: 1,
-            borderColor: item.borderColor || '#FFE9D5',
-            shadowColor: item.shadowColor || '#FFF5EC',
-            borderType: item.borderType || 'solid',
-            shadowBlur: 0,
+            borderWidth: 0,
           },
         },
         {
           xAxis: item.to || 'max',
-          y: '0%',
           itemStyle: {
             color: item.color || '#FFF5EC',
-            borderWidth: 1,
-            borderColor: item.borderColor || '#FFE9D5',
-            shadowColor: item.shadowColor || '#FFF5EC',
-            borderType: item.borderType || 'solid',
-            shadowBlur: 0,
+            borderWidth: 0,
           },
         },
       ]),
-      opacity: 0.1,
-      z: 10,
+      z: 1,
     };
   };
 

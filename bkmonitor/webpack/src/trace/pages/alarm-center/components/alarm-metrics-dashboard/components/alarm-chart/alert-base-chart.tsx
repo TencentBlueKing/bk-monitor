@@ -33,8 +33,8 @@ import { useI18n } from 'vue-i18n';
 import ChartSkeleton from '../../../../../../components/skeleton/chart-skeleton';
 import ChartTitle from '../../../../../../plugins/components/chart-title';
 import CommonLegend from '../../../../../../plugins/components/common-legend';
+import { useChartLegend } from '../../../../../trace-explore/components/explore-chart/use-chart-legend';
 import { useChartTitleEvent } from '../../../../../trace-explore/components/explore-chart/use-chart-title-event';
-import { useAlertChartLegend } from './hooks/use-alert-chart-legend';
 import { useAlertEcharts } from './hooks/use-alert-echart';
 
 import type { DataZoomEvent } from '../../../../../trace-explore/components/explore-chart/types';
@@ -104,7 +104,7 @@ export default defineComponent({
       series,
       chartRef
     );
-    const { legendData, handleSelectLegend } = useAlertChartLegend(options, chartId);
+    const { legendData, handleSelectLegend } = useChartLegend(options, chartId);
     const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
       chartInstance.value.dispatchAction({
         type: 'restore',

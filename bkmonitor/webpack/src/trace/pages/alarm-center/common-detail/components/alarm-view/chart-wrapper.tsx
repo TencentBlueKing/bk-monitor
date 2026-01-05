@@ -294,6 +294,14 @@ export default defineComponent({
           },
           {
             type: 'line',
+            alias: t('致命告警产生'),
+            tooltip: { show: false },
+            datapoints: emptyDatapoints,
+            color: CHART_COLORS.FATAL_ALARM,
+            lineStyle: { opacity: 0 },
+          },
+          {
+            type: 'line',
             alias: t('告警触发阶段'),
             tooltip: { show: false },
             datapoints: emptyDatapoints,
