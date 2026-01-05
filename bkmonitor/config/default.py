@@ -1264,7 +1264,7 @@ ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lowe
 # 是否打开故障通知
 ENABLE_BK_INCIDENT_NOTICE = os.getenv("ENABLE_BK_INCIDENT_NOTICE", "false").lower() == "true"
 # 内置故障通知配置(动态变量)
-BK_INCIDENT_BUILTIN_CONFIG = []
+BK_INCIDENT_BUILTIN_CONFIG = {}
 
 # IAM
 BK_IAM_SYSTEM_ID = "bk_monitorv3"
