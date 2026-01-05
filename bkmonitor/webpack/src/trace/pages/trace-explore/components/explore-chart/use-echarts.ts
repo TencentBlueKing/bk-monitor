@@ -38,6 +38,13 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFor
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { useChartTooltips } from './use-chart-tooltips';
+import {
+  handleGetMinPrecision,
+  handleSetMarkPoints,
+  handleSetMarkTimeRange,
+  handleSetThresholdArea,
+  handleSetThresholdLine,
+} from './utils';
 
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
 import type { IDataQuery } from '@/plugins/typings';
@@ -83,7 +90,7 @@ export const useEcharts = (
     loading.value = true;
     metricList.value = [];
     targets.value = [];
-    const [startTime, endTime] = handleTransformToTimestamp(get(timeRange));
+    const [startTime, endTime] = handleTransformToTimestamp(get(timeRange) || DEFAULT_TIME_RANGE);
     const promiseList = get(panel)?.targets?.map?.(target => {
       return $api[target.apiModule]
         [target.apiFunc](
@@ -112,6 +119,7 @@ export const useEcharts = (
                 alias: target.alias || item.alias,
                 type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
                 stack: target.data?.stack || item.stack,
+                unit: item.unit || (get(panel)?.options as { unit?: string })?.unit,
               }))
             : [];
         })
@@ -122,6 +130,7 @@ export const useEcharts = (
     });
     const seriesList = [];
     for (const item of resList) {
+      // @ts-expect-error
       Array.isArray(item?.value) && item.value.length && seriesList.push(...item.value);
     }
     duration.value = Date.now() - startDate;
@@ -165,13 +174,29 @@ export const useEcharts = (
         xAxisIndex += 1;
       }
       const unitFormatter = getValueFormat(data.unit);
-      seriesData.push({
+      // 获取y轴上可设置的最小的精确度
+      const precision = handleGetMinPrecision(
+        list
+          ?.filter?.(set => {
+            const typedSet = set as { value: number | undefined };
+            return typedSet && typeof typedSet.value === 'number';
+          })
+          .map(set => {
+            const typedSet = set as { value: number | undefined };
+            return typedSet.value;
+          }) ?? [],
+        unitFormatter,
+        data.unit
+      );
+      // 构建基础 series 配置
+      const seriesItem: EchartSeriesItem = {
         name: data.alias || data.target || '',
         data: list,
         xAxisIndex: xAxisIndex,
         type: data.type,
         stack: data.stack,
         unit: data.unit,
+        // @ts-expect-error
         connectNulls: false,
         sampling: 'none',
         showAllSymbol: 'auto',
@@ -184,12 +209,37 @@ export const useEcharts = (
         },
         raw_data: {
           ...data,
+          precision,
           datapoints: undefined,
           unitFormatter,
         },
-        z: 3,
+        z: data.z || 3,
         ...data,
-      });
+      };
+
+      // 处理 markPoints（告警点）
+      if (data.markPoints?.length && data.datapoints?.length) {
+        seriesItem.markPoint = handleSetMarkPoints(data.markPoints, data.datapoints);
+      }
+
+      // 处理 markTimeRange（时间范围标记区域）
+      if (data.markTimeRange?.length) {
+        seriesItem.markArea = handleSetMarkTimeRange(data.markTimeRange);
+      }
+
+      // 处理 thresholds（阈值线和阈值区域）
+      if (data.thresholds?.length) {
+        seriesItem.markLine = handleSetThresholdLine(data.thresholds);
+        const thresholdArea = handleSetThresholdArea(data.thresholds);
+        if (thresholdArea) {
+          seriesItem.markArea = seriesItem.markArea
+            ? { ...seriesItem.markArea, data: [...(seriesItem.markArea.data || []), ...thresholdArea.data] }
+            : thresholdArea;
+        }
+      }
+
+      seriesData.push(seriesItem);
+
       if (!isEqual) {
         xAxis.push(...createXAxis(xData, { show: xAxisIndex === 0 }));
       }

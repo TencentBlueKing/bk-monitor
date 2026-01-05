@@ -28,6 +28,7 @@ import { type PropType, computed, defineComponent, provide, shallowRef } from 'v
 import dayjs from 'dayjs';
 import { transformDataKey, typeTools } from 'monitor-common/utils';
 import { type IDetectionConfig, MetricType } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants/charts';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { useI18n } from 'vue-i18n';
 
@@ -374,6 +375,14 @@ export default defineComponent({
       return (
         <div class='series-view-container'>
           <MonitorCharts
+            customOptions={{
+              formatterData,
+              options: options => {
+                options.color = COLOR_LIST;
+                options.grid.top = 24;
+                return options;
+              },
+            }}
             params={
               !dataZoomTimeRange.value
                 ? {
@@ -382,7 +391,6 @@ export default defineComponent({
                   }
                 : {}
             }
-            formatterData={formatterData}
             legendOptions={legendOptions.value}
             panel={monitorChartPanel.value}
             showRestore={dataZoomTimeRange.value}

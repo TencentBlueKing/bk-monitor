@@ -127,6 +127,9 @@ export interface IMarkLineConfig {
     };
   };
   label?: {
+    backgroundColor?: string;
+    color?: string;
+    fontSize?: number;
     position?: string;
     show?: boolean;
   };
@@ -178,6 +181,24 @@ export interface IMarkPointDataItem {
   };
 }
 
+/** 时间范围标记接口 */
+export interface IMarkTimeRange {
+  borderColor?: string;
+  borderType?: 'dashed' | 'dotted' | 'solid';
+  color?: string;
+  from: number;
+  shadowColor?: string;
+  to: number;
+}
+
+/** 阈值配置接口 */
+export interface IThreshold {
+  condition?: string;
+  method?: string;
+  name?: string;
+  yAxis: number;
+}
+
 export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
 
 export type Series = SeriesItem[];
@@ -187,11 +208,15 @@ export interface SeriesItem extends MonitorEchartOptions {
   datapoints: [number, number][]; // 数组包含多个数据点，每个数据点是一个含有两个数值的元组
   dimensions?: Record<string, any>; // 也可以用更具体的类型替代 `any`，根据实际数据结构
   dimensions_translation?: Record<string, any>; // 同样可以用更具体的类型替代 `any`
+  markPoints?: [number, number][]; // 告警点数据 [value, timestamp][]
+  markTimeRange?: IMarkTimeRange[]; // 时间范围标记
   metric_field?: string;
   stack?: string;
   target?: string;
+  thresholds?: IThreshold[]; // 阈值配置
   type?: string;
   unit?: string;
+  z?: number;
 }
 
 export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';

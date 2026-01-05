@@ -24,9 +24,5 @@
  * IN THE SOFTWARE.
  */
 
-// 从 types.ts 重新导出类型，保持向后兼容
-export type {
-  IMarkTimeRange,
-  IThreshold,
-  SeriesItem as MonitorSeriesItem,
-} from '@/pages/trace-explore/components/explore-chart/types';
+export * from './bind-series-mark-config';
+export * from './formatter';

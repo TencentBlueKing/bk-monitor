@@ -28,7 +28,7 @@ import { type PropType, computed, defineComponent, getCurrentInstance, useTempla
 
 import VueEcharts from 'vue-echarts';
 
-import { useMonitorEcharts } from '../hooks/use-monitor-echarts';
+import { type CustomOptions, useEcharts } from '../../../../../trace-explore/components/explore-chart/use-echarts';
 import ChartSkeleton from '@/components/skeleton/chart-skeleton';
 import { useChartLegend } from '@/pages/trace-explore/components/explore-chart/use-chart-legend';
 import { useChartTitleEvent } from '@/pages/trace-explore/components/explore-chart/use-chart-title-event';
@@ -56,12 +56,12 @@ export default defineComponent({
       type: Object as PropType<LegendOptions>,
       default: () => ({ disabledLegendClick: [], legendIconMap: {} }),
     },
-    formatterData: {
-      type: Function as PropType<(val) => any>,
-      default: res => res,
-    },
     params: {
       type: Object as PropType<Record<string, any>>,
+      default: () => ({}),
+    },
+    customOptions: {
+      type: Object as PropType<CustomOptions>,
       default: () => ({}),
     },
     showRestore: {
@@ -77,12 +77,12 @@ export default defineComponent({
     const panel = computed(() => props.panel);
     const params = computed(() => props.params);
 
-    const { options, loading, metricList, targets, series, duration, chartId } = useMonitorEcharts(
+    const { options, loading, metricList, targets, series, duration, chartId } = useEcharts(
       panel,
       chartRef,
       instance.appContext.config.globalProperties.$api,
       params,
-      props.formatterData
+      props.customOptions
     );
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,

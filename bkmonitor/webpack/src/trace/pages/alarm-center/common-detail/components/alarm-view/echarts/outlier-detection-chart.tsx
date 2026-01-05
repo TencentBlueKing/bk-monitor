@@ -29,6 +29,7 @@ import { shallowRef } from 'vue';
 
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
+import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants/charts';
 
 import { createAutoTimeRange } from './aiops-charts';
 import MonitorCharts from './monitor-charts';
@@ -120,6 +121,12 @@ export default defineComponent({
       <div class='outlier-detection-chart'>
         {this.panel && (
           <MonitorCharts
+            customOptions={{
+              options: options => {
+                options.color = COLOR_LIST;
+                return options;
+              },
+            }}
             panel={this.panel}
             showRestore={this.dataZoomTimeRange}
             onDataZoomChange={this.handleDataZoomTimeRangeChange}

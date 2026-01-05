@@ -24,9 +24,44 @@
  * IN THE SOFTWARE.
  */
 
-// 从 types.ts 重新导出类型，保持向后兼容
-export type {
-  IMarkTimeRange,
-  IThreshold,
-  SeriesItem as MonitorSeriesItem,
-} from '@/pages/trace-explore/components/explore-chart/types';
+import type { ValueFormatter } from '../types';
+
+/**
+ * @method handleGetMinPrecision 获取数据的最小精度
+ * @param {number[]} data 数据数组
+ * @param {ValueFormatter} formatter 数值格式化函数
+ * @param {string} unit 单位
+ * @returns {number} 最小精度
+ */
+export const handleGetMinPrecision = (data: number[], formatter: ValueFormatter, unit: string) => {
+  if (!data || data.length === 0) {
+    return 0;
+  }
+  data.sort((a, b) => a - b);
+  const len = data.length;
+  if (data[0] === data[len - 1]) {
+    if (['none', ''].includes(unit) && !data[0].toString().includes('.')) return 0;
+    const setList = String(data[0]).split('.');
+    return !setList || setList.length < 2 ? 2 : setList[1].length;
+  }
+  let precision = 0;
+  let sampling = [];
+  const middle = Math.ceil(len / 2);
+  sampling.push(data[0]);
+  sampling.push(data[Math.ceil(middle / 2)]);
+  sampling.push(data[middle]);
+  sampling.push(data[middle + Math.floor((len - middle) / 2)]);
+  sampling.push(data[len - 1]);
+  sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
+  while (precision < 5) {
+    const samp = sampling.reduce((pre, cur) => {
+      pre[Number(formatter(cur, precision).text)] = 1;
+      return pre;
+    }, {});
+    if (Object.keys(samp).length >= sampling.length) {
+      return precision;
+    }
+    precision += 1;
+  }
+  return precision;
+};
