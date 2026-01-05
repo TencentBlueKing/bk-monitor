@@ -1284,8 +1284,7 @@ class CollectorViewSet(ModelViewSet):
         }
         """
         data = self.params_valid(CollectorEtlTimeSerializer)
-        etl_handler = EtlHandler.get_instance(collector_config_id)
-        return Response(etl_handler.etl_time(**data))
+        return Response(EtlHandler.etl_time(**data))
 
     @detail_route(methods=["POST"])
     def update_or_create_clean_config(self, request, collector_config_id=None):
