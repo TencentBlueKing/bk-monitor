@@ -163,3 +163,30 @@ class ActionCircuitBreakingManager(BaseCircuitBreakingManager):
     """
 
     module = "action"
+
+    @classmethod
+    def clean_cb_dimension(
+        cls, strategy_id=None, bk_biz_id=None, data_source_label=None, data_type_label=None, plugin_type=None, **kwargs
+    ) -> dict:
+        """
+        清理Action模块的熔断维度
+        :param strategy_id: 策略ID
+        :param bk_biz_id: 业务ID
+        :param data_source_label: 数据源标签
+        :param data_type_label: 数据类型标签
+        :param plugin_type: 插件类型（Action模块特有）
+        :param kwargs: 其他参数
+        :return: 清理后的维度数据
+        """
+        # 先调用父类方法处理基础字段
+        dimension = super().clean_cb_dimension(
+            strategy_id=strategy_id,
+            bk_biz_id=bk_biz_id,
+            data_source_label=data_source_label,
+            data_type_label=data_type_label,
+            **kwargs,
+        )
+        # 添加 plugin_type 处理（Action模块特有）
+        if plugin_type is not None:
+            dimension["plugin_type"] = str(plugin_type)
+        return dimension

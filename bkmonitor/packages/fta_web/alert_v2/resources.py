@@ -26,10 +26,11 @@ from core.drf_resource import Resource, resource, api
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
 from fta_web.alert_v2.target import BaseTarget, get_target_instance
 from monitor_web.data_explorer.event.constants import EventSource
-from monitor_web.data_explorer.event.resources import EventLogsResource, EventTotalResource
+from monitor_web.data_explorer.event.resources import EventLogsResource, EventTotalResource, EventTimeSeriesResource
 from apm_web.event.resources import (
     EventLogsResource as APMEventLogsResource,
     EventTotalResource as APMEventTotalResource,
+    EventTimeSeriesResource as APMEventTimeSeriesResource,
 )
 
 from monitor_web.data_explorer.event.utils import get_cluster_table_map
@@ -358,6 +359,56 @@ class AlertEventTotalResource(AlertEventBaseResource):
             total += source_count["total"]
 
         return {"total": total, "list": total_infos}
+
+
+class AlertEventTSResource(AlertEventBaseResource):
+    """告警关联事件时序数据资源类"""
+
+    class RequestSerializer(serializers.Serializer):
+        """请求参数序列化器"""
+
+        alert_id = serializers.CharField(label="告警 ID", help_text="要查询的告警 ID")
+        sources = serializers.ListSerializer(
+            child=serializers.ChoiceField(label="事件来源", choices=EventSource.choices()),
+            required=False,
+            default=[],
+            help_text="事件来源过滤，不传或为空表示查询所有来源",
+        )
+        interval = serializers.IntegerField(
+            label="时间间隔", required=False, default=300, help_text="时序数据的时间间隔（秒）"
+        )
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        """执行告警关联事件时序数据查询请求。
+
+        :param validated_request_data: 验证后的请求参数
+        :return: 包含时序数据和查询配置的响应数据
+        """
+        alert: AlertDocument = AlertDocument.get(validated_request_data["alert_id"])
+        target: BaseTarget = get_target_instance(alert)
+
+        interval: int = validated_request_data["interval"]
+        q: QueryConfigBuilder = self._get_q(target).interval(interval).metric(field="_index", method="SUM", alias="a")
+        # 添加 sources 过滤条件
+        if validated_request_data.get("sources"):
+            q: QueryConfigBuilder = q.conditions(q_to_conditions(Q(source=validated_request_data["sources"])))
+
+        queryset: UnifyQuerySet = self.build_queryset(alert, target, q)
+        query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
+        query_params["expression"] = "a"
+
+        # 如果传入了自定义时间范围，则覆盖默认的时间范围
+        if validated_request_data.get("start_time") is not None:
+            query_params["start_time"] = validated_request_data["start_time"]
+        if validated_request_data.get("end_time") is not None:
+            query_params["end_time"] = validated_request_data["end_time"]
+
+        event_ts_resource_cls: type[EventTimeSeriesResource] = (
+            APMEventTimeSeriesResource if self.is_apm_target(target) else EventTimeSeriesResource
+        )
+        return event_ts_resource_cls().request(query_params)
 
 
 class AlertK8sScenarioListResource(Resource):

@@ -504,6 +504,7 @@
                     "need_poll": true,
                     "notify_interval": 7200,
                     "interval_notify_mode": "standard",
+                    "voice_notice": "parallel",
                     "template": [
                         {
                             "signal": "abnormal",

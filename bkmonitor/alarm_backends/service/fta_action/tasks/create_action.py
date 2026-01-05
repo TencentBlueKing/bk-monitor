@@ -34,6 +34,7 @@ from bkmonitor.models import ActionInstance, ActionPlugin
 from bkmonitor.utils import extended_json
 from bkmonitor.utils.common_utils import count_md5
 from constants.action import (
+    AssignMode,
     DEFAULT_NOTICE_ACTION,
     ActionNoticeType,
     ActionPluginType,
@@ -403,16 +404,33 @@ class CreateActionProcessor:
         else:
             # 没有策略的，按默认规则发送通知
             self.notice = copy.deepcopy(DEFAULT_NOTICE_ACTION)
-            actions = [self.notice]
+            actions = []
 
         if self.notice.get("config_id"):
-            # 增加通知操作，并进行降噪处理
-            actions.append(self.notice)
-            if self.notice_type != ActionNoticeType.UPGRADE:
-                # 升级的通知不做降噪处理
-                self.noise_reduce_result = NoiseReduceRecordProcessor(
-                    self.notice, self.signal, self.strategy_id, self.alerts[0], self.generate_uuid
-                ).process()
+            # 检查通知组是否为空，如果为空则跳过创建 notice action
+            # 但如果 assign_mode 包含 BY_RULE，先添加到 actions 列表
+            # 后续在 do_create_actions() 中会根据分派结果决定是否实际创建（如果分派未命中则跳过）
+            user_groups = self.notice.get("user_groups", [])
+            assign_mode = self.notice.get("options", {}).get("assign_mode", [])
+            has_by_rule = AssignMode.BY_RULE in assign_mode if assign_mode else False
+
+            if not user_groups and not has_by_rule:
+                # 通知组为空且未配置分派模式时，不创建 notice action，仅保留 message_queue action
+                logger.info(
+                    "[create actions]skip notice action for strategy(%s) signal(%s) because user_groups is empty and assign_mode is not BY_RULE",
+                    self.strategy_id,
+                    self.signal,
+                )
+            else:
+                # 增加通知操作，并进行降噪处理
+                # 如果配置了 BY_RULE，先添加到 actions 列表，后续在 do_create_actions() 中会检查分派是否命中
+                # 如果分派未命中，则跳过创建 notice action
+                actions.append(self.notice)
+                if self.notice_type != ActionNoticeType.UPGRADE:
+                    # 升级的通知不做降噪处理
+                    self.noise_reduce_result = NoiseReduceRecordProcessor(
+                        self.notice, self.signal, self.strategy_id, self.alerts[0], self.generate_uuid
+                    ).process()
 
         if self.relation_id:
             # 指定了关联关系，默认用指定的关联关系
@@ -581,7 +599,7 @@ class CreateActionProcessor:
         alert: AlertDocument = self.alerts[0]
         if alert.is_no_data() and self.signal in [ActionSignal.RECOVERED, ActionSignal.CLOSED]:
             # 无数据告警恢复和关闭的时候， 只推送消息队列，不发送通知
-            return []
+            return new_actions
 
         if not actions:
             # 策略配置的notice 和 action 未命中当前的signal
@@ -737,6 +755,24 @@ class CreateActionProcessor:
                     )
 
                     continue
+
+                # 如果是 notice action，且 user_groups 为空，则检查是否需要跳过创建
+                # assignee_manager.is_matched 只有在配置了 BY_RULE 且分派命中时才为 True
+                # 如果未配置 BY_RULE，is_matched 为 False；如果配置了 BY_RULE 但未命中，is_matched 也为 False
+                # 因此只需要检查 is_matched 即可
+                if action_plugin["plugin_type"] == ActionPluginType.NOTICE:
+                    user_groups = self.notice.get("user_groups", [])
+                    if not user_groups and not assignee_manager.is_matched:
+                        # 通知组为空且分派未命中（包括未配置 BY_RULE 或配置了但未命中），跳过创建 notice action
+                        logger.info(
+                            "[create actions]skip notice action for alert(%s) strategy(%s) signal(%s) "
+                            "because user_groups is empty and assign rule not matched",
+                            alert.id,
+                            self.strategy_id,
+                            self.signal,
+                        )
+                        continue
+
                 action_instances.append(
                     self.do_create_action(
                         action_config,
