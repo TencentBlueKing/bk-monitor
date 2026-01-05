@@ -226,74 +226,89 @@ export default defineComponent({
       const datapoints = series[0]?.datapoints;
       const max = datapoints?.reduce((prev, cur) => Math.max(prev, cur[0]), 0);
       const emptyDatapoints = datapoints?.map(item => [null, item[1]]) || [];
-      const beginTimeStr = String(props.detail.begin_time * 1000);
+      const beginTime = props.detail.begin_time * 1000;
+      const beginTimeStr = String(beginTime);
       const firstAnomalyTimeStr = String(props.detail.first_anomaly_time * 1000);
       const endTimeStr = String(
         props.detail.end_time ? props.detail.end_time * 1000 : datapoints[datapoints.length - 1][1]
       );
 
-      /** 创建标记区域配置 */
-      const createMarkArea = (startTime: string, endTime: string, color: string) => ({
-        silent: true,
-        itemStyle: { color },
-        data: [[{ xAxis: startTime }, { xAxis: endTime }]],
-      });
+      // 为主要系列添加 markPoints 和 markTimeRange，利用 use-monitor-echarts 的处理逻辑
+      if (series.length > 0) {
+        const mainSeries = series[0];
+        mainSeries.markPoints = [
+          // 异常点
+          ...datapoints
+            .filter(item => props.detail.anomaly_timestamps.includes(Number(String(item[1]).slice(0, -3))))
+            .map(item => ({
+              value: item[1],
+              xAxis: String(item[1]),
+              yAxis: item[0],
+              symbol: 'circle',
+              symbolSize: 5,
+              itemStyle: { color: CHART_COLORS.ANOMALY },
+            })),
+          // 致命告警产生点
+          {
+            value: beginTime,
+            xAxis: beginTimeStr,
+            yAxis: max === 0 ? 1 : max,
+            symbol: 'circle',
+            symbolSize: 0,
+            label: {
+              show: true,
+              position: 'top',
+              formatter: '\ue606',
+              color: CHART_COLORS.FATAL_ALARM,
+              fontSize: 18,
+              fontFamily: 'icon-monitor',
+            },
+          },
+        ];
+        mainSeries.markTimeRange = [
+          {
+            from: firstAnomalyTimeStr,
+            to: beginTimeStr,
+            color: CHART_COLORS.TRIGGER_PHASE_BG,
+          },
+          {
+            from: beginTimeStr,
+            to: endTimeStr,
+            color: CHART_COLORS.FATAL_PERIOD_BG,
+          },
+        ];
+      }
 
       return {
         ...data,
         series: [
           ...series,
-          // {
-          //   type: 'scatter',
-          //   datapoints: datapoints.map(item => {
-          //     const isAnomaly = props.detail.anomaly_timestamps.includes(Number(String(item[1]).slice(0, -3)));
-          //     return [isAnomaly ? item[0] : null, item[1]];
-          //   }),
-          //   alias: t('异常'),
-          //   symbolSize: 5,
-          //   color: CHART_COLORS.ANOMALY,
-          //   itemStyle: { color: CHART_COLORS.ANOMALY },
-          //   tooltip: { show: false },
-          // },
-          // {
-          //   type: 'line',
-          //   alias: t('致命告警产生'),
-          //   tooltip: { show: false },
-          //   color: CHART_COLORS.FATAL_ALARM,
-          //   lineStyle: { opacity: 0 },
-          //   yAxisIndex: 1,
-          //   markPoint: {
-          //     symbol: 'circle',
-          //     symbolSize: 0,
-          //     label: {
-          //       show: true,
-          //       position: 'top',
-          //       formatter: '\ue606',
-          //       color: CHART_COLORS.FATAL_ALARM,
-          //       fontSize: 18,
-          //       fontFamily: 'icon-monitor',
-          //     },
-          //     data: [{ coord: [beginTimeStr, max === 0 ? 1 : max] }],
-          //   },
-          //   datapoints,
-          // },
-          // {
-          //   type: 'line',
-          //   alias: t('告警触发阶段'),
-          //   tooltip: { show: false },
-          //   datapoints: emptyDatapoints,
-          //   color: CHART_COLORS.TRIGGER_PHASE,
-          //   markArea: createMarkArea(firstAnomalyTimeStr, beginTimeStr, CHART_COLORS.TRIGGER_PHASE_BG),
-          // },
-          // {
-          //   type: 'line',
-          //   alias: t('致命告警时段'),
-          //   tooltip: { show: false },
-          //   datapoints: emptyDatapoints,
-          //   color: CHART_COLORS.FATAL_PERIOD,
-          //   markArea: createMarkArea(beginTimeStr, endTimeStr, CHART_COLORS.FATAL_PERIOD_BG),
-          //   z: 1,
-          // },
+          // 辅助系列用于图例（透明线条）
+          {
+            type: 'line',
+            alias: t('异常'),
+            tooltip: { show: false },
+            datapoints: emptyDatapoints,
+            color: CHART_COLORS.ANOMALY,
+            lineStyle: { opacity: 0 },
+          },
+          {
+            type: 'line',
+            alias: t('告警触发阶段'),
+            tooltip: { show: false },
+            datapoints: emptyDatapoints,
+            color: CHART_COLORS.TRIGGER_PHASE,
+            lineStyle: { opacity: 0 },
+          },
+          {
+            type: 'line',
+            alias: t('致命告警时段'),
+            tooltip: { show: false },
+            datapoints: emptyDatapoints,
+            color: CHART_COLORS.FATAL_PERIOD,
+            lineStyle: { opacity: 0 },
+            z: 1,
+          },
         ],
       };
     };

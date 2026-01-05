@@ -204,6 +204,44 @@ export const useMonitorEcharts = (
     };
   };
 
+  /**
+   * @description 处理 markPoints，返回 markPoint 数据数组
+   * @param markPoints markPoints 数组
+   * @param point 数据点 [value, timestamp]
+   */
+  const handleSetMarkPoints = (markPoints: any[], point: [number, number]) => {
+    const [value, timestamp] = point;
+    const result: { xAxis: string; yAxis: number }[] = [];
+    const filteredMarkPoints = markPoints?.filter(
+      (mp: any) => mp[1] === timestamp || mp === timestamp || mp?.value === timestamp
+    );
+    if (filteredMarkPoints?.length) {
+      for (const mp of filteredMarkPoints) {
+        if (typeof mp === 'object' && mp !== null && !Array.isArray(mp)) {
+          // 如果 markPoint 是对象格式，使用默认值合并自定义属性
+          result.push({
+            xAxis: String(timestamp),
+            yAxis: value,
+            ...(mp as any),
+          });
+        } else if (Array.isArray(mp) && mp.length >= 2) {
+          // 如果是数组格式 [yAxis, xAxis]，使用数组中的值
+          result.push({
+            xAxis: String(mp[1]),
+            yAxis: mp[0],
+          });
+        } else {
+          // 如果是值格式，使用默认 yAxis
+          result.push({
+            xAxis: String(timestamp),
+            yAxis: value,
+          });
+        }
+      }
+    }
+    return result;
+  };
+
   const getEchartOptions = async () => {
     const startDate = Date.now();
     loading.value = true;
@@ -286,18 +324,10 @@ export const useMonitorEcharts = (
 
       for (const point of data.datapoints) {
         const [value, timestamp] = point;
-        xData.push(timestamp);
-        xAllData.add(timestamp);
-
-        // 检查是否为告警点
-        const isMarkPoint = data.markPoints?.some?.((mp: any) => mp[1] === timestamp);
-        if (isMarkPoint) {
-          // 收集告警点坐标
-          markPointData.push({
-            xAxis: String(timestamp),
-            yAxis: value,
-          });
-        }
+        xData.push(point[1]);
+        xAllData.add(point[1]);
+        // 处理 markPoints
+        markPointData.push(...handleSetMarkPoints(data?.markPoints, point));
 
         list.push({ value });
       }
@@ -345,9 +375,6 @@ export const useMonitorEcharts = (
           z: 10,
           label: {
             show: false,
-          },
-          itemStyle: {
-            color: '#ea3636',
           },
           data: markPointData,
         };
