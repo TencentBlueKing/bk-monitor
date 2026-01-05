@@ -302,7 +302,7 @@ export default defineComponent({
             headerAffixedTop={this.headerAffixedTop}
             horizontalScrollAffixedBottom={this.headerAffixedTop}
             hover={true}
-            needCustomScroll={false}
+            // needCustomScroll={false}
             resizable={true}
             rowKey={'__id__'}
             size={'small'}

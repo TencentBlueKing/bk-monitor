@@ -33,7 +33,6 @@ import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing
 import { useI18n } from 'vue-i18n';
 
 import RetrievalFilter from '../../../../../components/retrieval-filter/retrieval-filter';
-import { useAlarmLog } from '../../../composables/use-alarm-log';
 import IndexSetSelector from './index-set-selector/index-set-selector';
 import LogTableNew from './log-table/log-table-new';
 
@@ -48,6 +47,8 @@ export const updateUserFiledTableConfig = request(
   'POST' as any,
   'apm_log_forward/bklog/api/v1/search/index_set/user_custom_config/'
 );
+
+import { alertLogRelationList } from 'monitor-api/modules/alert_v2';
 
 import { useLogFilter } from './log-table/hooks/use-log-filter';
 import TableFieldSetting from './log-table/table-field-setting';
@@ -72,7 +73,6 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const { getIndexSetList } = useAlarmLog(props.detail);
     const { getFieldsOptionValuesProxy, setParams: setLogFilterParams } = useLogFilter();
     const selectLoading = shallowRef(false);
     /** 索引集列表 */
@@ -100,20 +100,27 @@ export default defineComponent({
 
     async function init() {
       selectLoading.value = true;
-      const data = await getIndexSetList();
-      relatedBkBizId.value = data?.relatedBkBizId || -1;
-      indexSetList.value = data?.relatedIndexSetList || [];
-      // indexSetList.value = data;
-      // selectIndexSet.value = data?.[0]?.index_set_id || '';
-      // where.value = (data?.[0]?.addition || []).map(item => ({
-      //   key: item.field,
-      //   method: item.operator,
-      //   value: item.value,
-      // }));
+      const data = await alertLogRelationList({
+        alert_id: props.detail.id,
+      });
+      indexSetList.value = data;
+      selectIndexSet.value = data?.[0]?.index_set_id || '';
+      where.value = (data?.[0]?.addition || []).map(item => ({
+        key: item.field,
+        method: item.operator,
+        value: item.value,
+      }));
       selectIndexSet.value = indexSetList.value[0]?.index_set_id || '';
       selectLoading.value = false;
       tableRefreshKey.value = random(6);
     }
+
+    const timeParams = () => {
+      return {
+        start_time: props.detail?.begin_time * 1000,
+        end_time: props.detail.end_time ? props.detail.end_time * 1000 : Date.now(),
+      };
+    };
 
     /**
      * 获取日志列表
@@ -126,17 +133,10 @@ export default defineComponent({
         sortList: [],
       }
     ) {
-      // const data = await updateTableData({
-      //   index_set_id: selectIndexSet.value,
-      //   keyword: keyword.value,
-      //   limit: params.limit,
-      //   offset: params.offset,
-      // });
       const data = await getLogIndexSetSearch(selectIndexSet.value, {
         bk_biz_id: props.detail?.bk_biz_id || window.bk_biz_id,
         size: params.size,
-        start_time: props.detail?.begin_time,
-        end_time: props.detail.latest_time,
+        ...timeParams(),
         addition:
           filterMode.value === EMode.ui
             ? where.value.map(item => ({
@@ -167,15 +167,13 @@ export default defineComponent({
       }
       const data = await getLogFieldsData(selectIndexSet.value, {
         is_realtime: 'True',
-        start_time: props.detail?.begin_time,
-        end_time: props.detail.latest_time,
+        ...timeParams(),
       })
         .then(res => res)
         .catch(() => null);
       setLogFilterParams({
         index_set_id: selectIndexSet.value,
-        start_time: props.detail?.begin_time,
-        end_time: props.detail.latest_time,
+        ...timeParams(),
       });
       fieldsData.value = data;
       defaultSortList.value = data?.default_sort_list || [];
@@ -255,11 +253,11 @@ export default defineComponent({
       updateUserFiledTableConfig({
         index_set_config: {
           displayFields: val,
-          fieldsWidth: {},
-          filterAddition: [],
-          filterSetting: [],
-          fixedFilterAddition: false,
-          sortList: [],
+          // fieldsWidth: {},
+          // filterAddition: [],
+          // filterSetting: [],
+          // fixedFilterAddition: false,
+          // sortList: [],
         },
         index_set_id: String(selectIndexSet.value),
         index_set_type: 'single',
@@ -276,11 +274,13 @@ export default defineComponent({
     function handleChangeIndexSet(indexSetId: number | string) {
       selectIndexSet.value = indexSetId;
       const item = indexSetList.value.find(item => item.index_set_id === indexSetId);
+      filterMode.value = EMode.ui;
       where.value = (item?.addition || []).map(item => ({
         key: item.field,
         method: item.operator,
         value: item.value,
       }));
+      fieldsData.value = null;
       tableRefreshKey.value = random(8);
     }
 
@@ -315,6 +315,8 @@ export default defineComponent({
       filterMode.value = mode;
       if (mode === EMode.ui) {
         keyword.value = '';
+      } else {
+        where.value = [];
       }
       handleSearch();
     }
@@ -325,7 +327,6 @@ export default defineComponent({
     };
 
     const handleClickMenu = (opt: TClickMenuOpt) => {
-      console.log(opt);
       const preUrl = `${window.bk_log_search_url}#/retrieve/${selectIndexSet.value}?bizId=${props.detail?.bk_biz_id || (relatedBkBizId.value === -1 ? window.cc_biz_id : relatedBkBizId.value)}`;
       if (opt.type === EClickMenuType.Copy) {
         copyText(opt.value, msg => {
@@ -393,6 +394,7 @@ export default defineComponent({
         window.open(url, '_blank');
         return;
       }
+      filterMode.value = EMode.ui;
       where.value = [...where.value, whereItem];
       tableRefreshKey.value = random(8);
     };
