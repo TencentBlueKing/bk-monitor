@@ -196,7 +196,7 @@ def sync_all_bkbase_cluster_info():
     # 遍历所有存储类型配置
     for tenant in api.bk_login.list_tenant():
         for config in BKBASE_V4_KIND_STORAGE_CONFIGS:
-            clusters = api.bkdata.list_data_bus_raw_data(
+            clusters = api.bkdata.list_data_link(
                 bk_tenant_id=tenant["id"], namespace=config["namespace"], kind=config["kind"]
             )
             sync_bkbase_cluster_info(
