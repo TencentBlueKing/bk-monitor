@@ -294,6 +294,7 @@ class IncidentOperationManager:
             link_incident_name=target_incident_name,
             link_incident_id=target_incident_id,
             link_incident_doc_id=target_incident_doc_id,
+            action={"type": "link", "target": "incident", "params": ["link_incident_doc_id"]},
         )
 
         # 给合并目标故障，记录 incident_merge 记录
@@ -304,6 +305,7 @@ class IncidentOperationManager:
             link_incident_name=origin_incident_name,
             link_incident_id=origin_incident_id,
             link_incident_doc_id=origin_incident_doc_id,
+            action={"type": "link", "target": "incident", "params": ["link_incident_doc_id"]},
         )
 
         return True

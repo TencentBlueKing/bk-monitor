@@ -78,29 +78,40 @@ class IncidentNoticeHelper:
         incident_key_alias = kwargs.get("incident_key_alias") or incident_key
 
         # 故障合并信息
-        link_incident_name = (kwargs.get("link_incident_name"),)
+        link_incident_name = kwargs.get("link_incident_name")
 
         # 默认标题
+        subtitle = ""
         if not title:
             # 根据操作类型确定通知标题
             title_map = {
+                IncidentOperationType.CREATE: "故障生成",
+                IncidentOperationType.OBSERVE: "故障通知",
+                IncidentOperationType.RECOVER: "故障恢复",
+                IncidentOperationType.UPDATE: "故障更新",
+                IncidentOperationType.MERGE: "故障合并",
+                IncidentOperationType.MERGE_TO: "故障合并",
+            }
+            subtitle_map = {
                 IncidentOperationType.CREATE: f"【{duration_info['duration_range'][0]}】发生【{incident.incident_name}】",
                 IncidentOperationType.OBSERVE: f"故障当前状态 观察中，已持续【{duration_info['duration_msg']}】",
                 IncidentOperationType.RECOVER: f"【{incident.incident_name}】故障已恢复",
                 IncidentOperationType.UPDATE: f"【{incident_key_alias}】原始值：{from_value} → 最新值：{to_value}"
                 if incident_key
                 else "故障状态更新",
-                IncidentOperationType.MERGE: f"故障【{link_incident_name}】并入当前故障"
+                IncidentOperationType.MERGE: f"故障【{link_incident_name}】合并入当前故障"
                 if link_incident_name
                 else "故障合并",
-                IncidentOperationType.MERGE_TO: f"当前故障合并入故障【{link_incident_name}】"
+                IncidentOperationType.MERGE_TO: f"当前故障合并到【{link_incident_name}】"
                 if link_incident_name
                 else "故障合并",
             }
             title = title_map.get(operation_type, "故障通知")
+            subtitle = subtitle_map.get(operation_type, "")
 
         context = {
             "title": title,
+            "subtitle": subtitle,
             "incident_name": incident.incident_name or _("未命名故障"),
             "level": level,
             "begin_time": incident.begin_time,
