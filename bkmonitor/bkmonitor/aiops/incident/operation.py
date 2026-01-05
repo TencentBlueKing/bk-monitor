@@ -104,22 +104,14 @@ class IncidentOperationManager:
             # 延迟导入避免循环依赖
             from bkmonitor.aiops.incident.notice import IncidentNoticeHelper
 
-            # 根据操作类型确定通知标题
-            title_map = {
-                IncidentOperationType.CREATE: "故障生成通知",
-                IncidentOperationType.OBSERVE: "故障观察中通知",
-                IncidentOperationType.RECOVER: "故障恢复通知",
-                IncidentOperationType.UPDATE: "故障更新通知",
-            }
-            title = title_map.get(operation_type, "故障通知")
-
             # 发送通知（支持多种方式）
             all_results = IncidentNoticeHelper.send_incident_notice(
                 incident=incident_document,
                 chat_ids=chat_ids,
                 user_ids=user_ids,
-                title=title,
-                is_update=(operation_type != IncidentOperationType.CREATE),
+                title=None,
+                operation_type=operation_type,
+                **kwargs,
             )
 
             # 记录通知操作
@@ -229,7 +221,7 @@ class IncidentOperationManager:
     @classmethod
     def record_update_incident(
         cls, incident_id: int, operate_time: int, incident_key: str, from_value: Any, to_value: Any, **kwargs
-    ) -> IncidentOperationDocument:
+    ):
         """记录故障修改属性
         文案: 故障属性{incident_key}: 从{from_value}被修改为{to_value}
 
