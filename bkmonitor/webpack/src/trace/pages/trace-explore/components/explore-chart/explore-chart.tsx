@@ -36,7 +36,7 @@ import ChartTitle from '../../../../plugins/components/chart-title';
 import CommonLegend from '../../../../plugins/components/common-legend';
 import { useChartLegend } from './use-chart-legend';
 import { useChartTitleEvent } from './use-chart-title-event';
-import { useEcharts } from './use-echarts';
+import { type CustomOptions, useEcharts } from './use-echarts';
 
 import type { DataZoomEvent } from './types';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -53,12 +53,12 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
-    formatterData: {
-      type: Function as PropType<(val) => any>,
-      default: res => res,
-    },
     params: {
       type: Object as PropType<Record<string, any>>,
+      default: () => ({}),
+    },
+    customOptions: {
+      type: Object as PropType<CustomOptions>,
       default: () => ({}),
     },
   },
@@ -77,7 +77,7 @@ export default defineComponent({
       chartRef,
       instance.appContext.config.globalProperties.$api,
       params,
-      props.formatterData
+      props.customOptions
     );
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
