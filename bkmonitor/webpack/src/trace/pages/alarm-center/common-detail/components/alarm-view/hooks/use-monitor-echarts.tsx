@@ -84,6 +84,9 @@ export const useMonitorEcharts = (
       label: {
         show: true,
         position: 'insideStartTop',
+        color: '#EA3636',
+        fontSize: 12,
+        backgroundColor: 'transparent',
       },
       lineStyle: {
         color: '#FD9C9C',
@@ -94,7 +97,7 @@ export const useMonitorEcharts = (
       emphasis: {
         label: {
           show: true,
-          formatter: (v: any) => `${v.name || ''}: ${v.value}`,
+          formatter: (v: any) => `${v.name || ''}(${v.value})`,
         },
       },
       data: thresholds.map(item => ({
