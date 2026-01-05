@@ -34,6 +34,8 @@ class IncidentOperationManager:
         IncidentOperationType.OBSERVE,
         IncidentOperationType.RECOVER,
         IncidentOperationType.UPDATE,
+        IncidentOperationType.MERGE,
+        IncidentOperationType.MERGE_TO,
     ]
 
     @classmethod
