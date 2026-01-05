@@ -65,6 +65,25 @@ class LogQueryResource(ApiAuthResource):
 
         def validate(self, attrs):
             attrs["filter_dict"] = self.to_str(attrs["filter_dict"])
+            # 过滤掉无效的 where 条件
+            validated_where = []
+            for condition in attrs.get("where", []):
+                if not isinstance(condition, dict):
+                    continue
+                value = condition.get("value")
+                # 过滤掉 value 为 None、空列表或只包含 None 的列表
+                if value is None:
+                    continue
+                if isinstance(value, list):
+                    # 移除列表中的 None，如果移除后列表为空则跳过该条件
+                    filtered_value = [v for v in value if v is not None]
+                    if not filtered_value:
+                        continue
+                    condition["value"] = filtered_value
+                validated_where.append(condition)
+
+            attrs["where"] = validated_where
+
             return attrs
 
     @staticmethod
