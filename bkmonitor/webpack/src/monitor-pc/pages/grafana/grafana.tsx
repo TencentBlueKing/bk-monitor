@@ -100,7 +100,7 @@ export default class MyComponent extends tsc<object> {
       const url = new URL(grafanaUrl);
       this.iframeRef?.contentWindow.postMessage(
         {
-          route: `${url.pathname.replace('/grafana', '')}${url.search || ''}`,
+          route: `${url.pathname.replace(`${window.site_url}/grafana`.replace(/\/\//g, '/'), '')}${url.search || ''}`,
           // search: url.search,
         },
         '*'
