@@ -140,7 +140,6 @@ export const useEcharts = (
     }
     const { xAxis, seriesData } = createSeries(seriesList);
     const yAxis = createYAxis(seriesData);
-
     const options = createOptions(xAxis, yAxis, seriesData);
     const { tooltipsOptions } = useChartTooltips(chartRef, {
       isMouseOver: true,

@@ -30,13 +30,15 @@ import VueEcharts from 'vue-echarts';
 
 import { type CustomOptions, useEcharts } from '../../../../../trace-explore/components/explore-chart/use-echarts';
 import ChartSkeleton from '@/components/skeleton/chart-skeleton';
-import { useChartLegend } from '@/pages/trace-explore/components/explore-chart/use-chart-legend';
+import {
+  type LegendCustomOptions,
+  useChartLegend,
+} from '@/pages/trace-explore/components/explore-chart/use-chart-legend';
 import { useChartTitleEvent } from '@/pages/trace-explore/components/explore-chart/use-chart-title-event';
 import ChartTitle from '@/plugins/components/chart-title';
 import CommonLegend from '@/plugins/components/common-legend';
 
 import type { DataZoomEvent } from '@/pages/trace-explore/components/explore-chart/types';
-import type { LegendOptions } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './monitor-charts.scss';
@@ -52,9 +54,9 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
-    legendOptions: {
-      type: Object as PropType<LegendOptions>,
-      default: () => ({ disabledLegendClick: [], legendIconMap: {} }),
+    customLegendOptions: {
+      type: Object as PropType<LegendCustomOptions>,
+      default: () => ({}),
     },
     params: {
       type: Object as PropType<Record<string, any>>,
@@ -91,7 +93,7 @@ export default defineComponent({
       series,
       chartRef
     );
-    const { legendData, handleSelectLegend } = useChartLegend(options, chartId, props.legendOptions);
+    const { legendData, handleSelectLegend } = useChartLegend(options, chartId, props.customLegendOptions);
     const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
       const xAxisData = echartOptions.xAxis[0]?.data;
       if (!xAxisData.length || xAxisData.length <= 2) return;
@@ -192,7 +194,7 @@ export default defineComponent({
             <div class='echart-container'>
               <VueEcharts
                 ref='echart'
-                group={this.panel.dashboardId}
+                group={this.panel?.dashboardId}
                 option={this.options}
                 autoresize
                 onDatazoom={e => this.handleDataZoom(e, this.options)}
@@ -210,7 +212,6 @@ export default defineComponent({
 
             <CommonLegend
               legendData={this.legendData}
-              legendOptions={this.legendOptions}
               onSelectLegend={this.handleSelectLegend}
             />
           </>
