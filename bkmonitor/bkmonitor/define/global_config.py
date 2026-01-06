@@ -559,6 +559,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
         ("APM_TRPC_APPS", slz.DictField(label=_("APM TRPC 应用标记"), default={})),
+        ("APM_APP_STORAGE_ROUTES", slz.ListField(label=_("APM 应用存储路由"), default=[])),
         (
             "APM_RESOURCE_FILTER_METRICS_ENABLED_APPS",
             slz.DictField(label=_("APM metrics维度补充功能应用白名单"), default={}),

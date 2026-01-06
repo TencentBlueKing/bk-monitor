@@ -151,11 +151,36 @@ const mountedVueInstance = () => {
                   type: 'space',
                   spaceUid: spaceUid ?? store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
                   bkBizId: bkBizId ?? store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+                  indexId: urlArgs.index_id,
                   from: urlArgs.from,
                 },
               });
 
               return;
+            }
+
+            if (
+              ['/retrieve', '/'].includes(this.$route.path)
+              && (this.$route.query.spaceUid !== spaceUid || this.$route.query.bizId !== bkBizId)
+            ) {
+              this.$router.push({
+                name: 'retrieve',
+                params: {
+                  indexId: urlArgs.index_id,
+                },
+                query: {
+                  ...(this.$route.query ?? {}),
+                  spaceUid: spaceUid ?? store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+                  bizId: bkBizId ?? store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+                  start_time: urlArgs.start_time ?? this.$store.state.indexItem.start_time,
+                  end_time: urlArgs.end_time ?? this.$store.state.indexItem.end_time,
+                  timezone: urlArgs.timezone ?? this.$store.state.indexItem.time_zone,
+                  format: urlArgs.format ?? this.$store.state.indexItem.format,
+                  interval: urlArgs.interval ?? this.$store.state.indexItem.interval,
+                  search_mode: urlArgs.search_mode ?? this.$store.state.indexItem.search_mode,
+                  from: urlArgs.from,
+                },
+              });
             }
           },
           mounted() {
