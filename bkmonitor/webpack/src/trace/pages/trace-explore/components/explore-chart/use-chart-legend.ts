@@ -138,10 +138,26 @@ export const useChartLegend = (
       }
       options.value = {
         ...options.value,
-        series: seriesList.value.map(series => ({
-          ...series,
-          data: showNames.includes(series.name) ? series.data : [],
-        })),
+        series: seriesList.value.map(series => {
+          const isShow = showNames.includes(series.name);
+          const diff = isShow
+            ? {
+                data: series.data,
+                markPoint: series.markPoint,
+                markLine: series.markLine,
+                markArea: series.markArea,
+              }
+            : {
+                data: [],
+                markPoint: {},
+                markLine: {},
+                markArea: {},
+              };
+          return {
+            ...series,
+            ...diff,
+          };
+        }),
       };
     };
     if (actionType === 'shift-click') {

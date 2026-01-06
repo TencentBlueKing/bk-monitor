@@ -28,7 +28,7 @@ import { type PropType, computed, defineComponent, getCurrentInstance, useTempla
 
 import VueEcharts from 'vue-echarts';
 
-import { useMonitorEcharts } from './use-monitor-echarts';
+import { type CustomOptions, useEcharts } from '../../../../../trace-explore/components/explore-chart/use-echarts';
 import ChartSkeleton from '@/components/skeleton/chart-skeleton';
 import { useChartLegend } from '@/pages/trace-explore/components/explore-chart/use-chart-legend';
 import { useChartTitleEvent } from '@/pages/trace-explore/components/explore-chart/use-chart-title-event';
@@ -40,11 +40,6 @@ import type { LegendOptions } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './monitor-charts.scss';
-
-export interface FormatterOptions {
-  params?: (params: any) => any;
-  seriesData?: (data: any) => any;
-}
 
 export default defineComponent({
   name: 'MonitorCharts',
@@ -59,14 +54,14 @@ export default defineComponent({
     },
     legendOptions: {
       type: Object as PropType<LegendOptions>,
-      default: () => ({}),
-    },
-    formatterOptions: {
-      type: Object as PropType<FormatterOptions>,
       default: () => ({ disabledLegendClick: [], legendIconMap: {} }),
     },
     params: {
       type: Object as PropType<Record<string, any>>,
+      default: () => ({}),
+    },
+    customOptions: {
+      type: Object as PropType<CustomOptions>,
       default: () => ({}),
     },
     showRestore: {
@@ -82,12 +77,12 @@ export default defineComponent({
     const panel = computed(() => props.panel);
     const params = computed(() => props.params);
 
-    const { options, loading, metricList, targets, series, duration, chartId } = useMonitorEcharts(
+    const { options, loading, metricList, targets, series, duration, chartId } = useEcharts(
       panel,
       chartRef,
       instance.appContext.config.globalProperties.$api,
       params,
-      props.formatterOptions
+      props.customOptions
     );
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
@@ -165,6 +160,7 @@ export default defineComponent({
     };
   },
   render() {
+    console.log('================ this.options ================', this.options);
     return (
       <div
         ref='chart'
