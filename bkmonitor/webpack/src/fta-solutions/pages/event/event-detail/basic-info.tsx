@@ -159,7 +159,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   handleToShield() {
     if (!this.basicInfo.shield_id?.[0]) return;
     window.open(
-      `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}/#/trace/alarm-shield/edit/${this.basicInfo.shield_id[0]}`
+      `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}#/trace/alarm-shield/edit/${this.basicInfo.shield_id[0]}`
     );
   }
   /** 不同情况下的跳转逻辑 */

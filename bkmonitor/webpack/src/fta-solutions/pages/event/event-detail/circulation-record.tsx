@@ -221,13 +221,13 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
         if (routerName === 'alarm-shield-detail') {
           return {
             ...item,
-            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/trace/alarm-shield/edit/${params?.shieldId}`,
+            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}#/trace/alarm-shield/edit/${params?.shieldId}`,
           };
         }
         if (routerName === 'alarm-dispatch') {
           return {
             ...item,
-            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/alarm-dispatch?group_id=${params?.groupId}`,
+            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}#/alarm-dispatch?group_id=${params?.groupId}`,
           };
         }
       } else if (item?.url) {
@@ -237,7 +237,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
           if (id) {
             return {
               ...item,
-              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield/edit/${id}`,
+              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}#/trace/alarm-shield/edit/${id}`,
             };
           }
         }

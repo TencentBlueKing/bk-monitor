@@ -784,9 +784,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       name: groupName,
     });
     const routeData = this.$router.resolve(option);
-    const extraParams = option.extraParams ? `&${new URLSearchParams(option.extraParams).toString()}` : '';
-    const baseUrl = `${location.origin}/?${new URLSearchParams(baseParams).toString()}${extraParams}`;
-    window.open(`${baseUrl}${routeData.href}`, '_blank');
+    const url = new URL(location.href.split('#')[0]);
+    url.searchParams.set('bizId', String(item.bk_biz_id));
+    if (option.extraParams) {
+      Object.keys(option.extraParams).forEach(key => url.searchParams.set(key, String(option.extraParams[key])));
+    }
+    window.open(`${url.toString()}${routeData.href}`, '_blank');
   }
   handleCompositionend() {
     this.isComposing = false;
