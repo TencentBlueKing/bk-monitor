@@ -110,6 +110,10 @@ export default defineComponent({
       type: Number,
       default: undefined,
     },
+    stopTypeKey: {
+      type: Boolean,
+      default: true,
+    },
   },
 
   emits: ['change', 'refresh'],
@@ -278,6 +282,9 @@ export default defineComponent({
         .request('collect/stopCollect', {
           params: {
             collector_config_id: props.collectorConfigId,
+          },
+          data: {
+            is_stop_index_set: props.stopTypeKey,
           },
         })
         .then(res => {

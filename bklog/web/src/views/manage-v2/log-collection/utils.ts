@@ -216,10 +216,10 @@ export const MENU_LIST = [
     label: window.$t('删除'),
     key: 'delete',
   },
-  {
-    label: window.$t('一键检测'),
-    key: 'one_key_check',
-  },
+  // {
+  //   label: window.$t('一键检测'),
+  //   key: 'one_key_check',
+  // },
 ];
 
 /**
@@ -399,22 +399,47 @@ export function formatBytes(size) {
   }
   return formatFileSize(size, true);
 }
-
+/**
+ * 表格各操作项是否可以点击
+ * @param row
+ * @param operateType
+ * @returns
+ */
 export const getOperatorCanClick = (row: ICollectListRowData, operateType: CollectOperateType) => {
-  /**
-   * 未完成的情况下，只能进行编辑和清洗
-   */
-  const keys = ['search', 'storage', 'stop', 'clone', 'delete', 'one_key_check'];
-  if (keys.includes(operateType)) {
-    return row.storage_cluster_id !== -1;
+  const status = row.status?.toLowerCase();
+  const isTerminated = status === 'terminated';
+  const isSuccess = status === 'success';
+  const isFailed = status === 'failed';
+  const isCompleted = row.storage_cluster_id !== -1; // 采集项已完成：storage_cluster_id 存在
+
+  switch (operateType) {
+    case 'search':
+      // 检索 - 判定 is_search 字段
+      return !!(row.is_search as boolean);
+    case 'edit':
+      // 编辑 - 采集状态不为"停用"
+      return !isTerminated;
+    case 'clean':
+      // 清洗 - 采集状态不为"停用"
+      return !isTerminated;
+    case 'storage':
+      // 存储设置 - 采集项已完成且采集状态不为"停用"
+      return isCompleted && !isTerminated;
+    case 'clone':
+      // 克隆 - 无限制条件
+      return true;
+    case 'stop':
+      // 停用 - 采集状态为"正常"或"异常"
+      return isSuccess || isFailed;
+    case 'start':
+      // 启用 - 采集状态为"停用"
+      return isTerminated;
+    case 'delete':
+      // 删除 - 采集状态为"停用"
+      return isTerminated;
+    default:
+      return true;
   }
-  /**
-   * 不在运行中的状态才可以删除
-   */
-  if (operateType === 'delete') {
-    return row.status !== 'running';
-  }
-  return true;
 };
 
 export const getLabelSelectorArray = (
@@ -453,9 +478,8 @@ export const formatExcludeFiles = excludeFiles => {
       if (val && typeof val === 'string') {
         resultArr.push(val);
       }
-    }
-    // 情况B：元素是字符串 → 直接保留（已符合格式）
-    else if (typeof item === 'string') {
+    } else if (typeof item === 'string') {
+      // 情况B：元素是字符串 → 直接保留（已符合格式）
       resultArr.push(item);
     }
   });

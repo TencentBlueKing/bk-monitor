@@ -194,6 +194,34 @@ export default defineComponent({
       },
     ];
     /**
+     * 可见字段
+     */
+    const visibleData = computed(() => {
+      return props.data.filter(item => !item.is_delete);
+    });
+    /**
+     * 被隐藏字段
+     */
+    const invisibleData = computed(() => {
+      return props.data.filter(item => item.is_delete);
+    });
+    const showData = computed(() => {
+      return typeKey.value === 'visible' ? visibleData.value : invisibleData.value;
+    });
+
+    /**
+     * 是否显示内置字段
+     */
+    const showTableList = computed(() => {
+      return showBuiltIn.value ? [...showData.value, ...props.builtInFieldsList] : showData.value;
+    });
+
+    const isLogDelimiter = computed(() => props.selectEtlConfig === 'bk_log_delimiter');
+
+    const isLogJson = computed(() => props.selectEtlConfig === 'bk_log_json');
+
+    const isLogRegexp = computed(() => props.selectEtlConfig === 'bk_log_regexp');
+    /**
      * 来源render
      * @param row
      * @returns
@@ -1116,17 +1144,18 @@ export default defineComponent({
       {
         title: t('操作'),
         colKey: 'operation',
-        width: 70,
+        width: 60,
         cell: (h, { row }) => (
           <div class='table-operation'>
-            {!row.is_built_in && (
-              <i
-                class={`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`}
-                v-bk-tooltips={row.is_delete ? t('复原') : t('隐藏')}
-                on-click={() => isDisableOperate(row)}
-              />
-            )}
-            {row.is_add_in && (
+            {isLogDelimiter.value &&
+              !row.is_built_in && (
+                <i
+                  class={`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`}
+                  v-bk-tooltips={row.is_delete ? t('复原') : t('隐藏')}
+                  on-click={() => isDisableOperate(row)}
+                />
+              )}
+            {isLogJson.value && !row.is_built_in && (
               <i
                 class='bklog-icon bklog-log-delete icons del-icon'
                 v-bk-tooltips={t('删除')}
@@ -1137,6 +1166,7 @@ export default defineComponent({
         ),
       },
     ]);
+
     const handleType = (type: string) => {
       typeKey.value = type;
     };
@@ -1153,40 +1183,20 @@ export default defineComponent({
           {t('可见字段')}
           {` (${visibleData.value.length})`}
         </span>
-        <span
-          class={{
-            'tab-item': true,
-            'is-selected': typeKey.value === 'invisible',
-          }}
-          on-Click={() => handleType('invisible')}
-        >
-          {t('被隐藏字段')}
-          {` (${invisibleData.value.length})`}
-        </span>
+        {isLogDelimiter.value && (
+          <span
+            class={{
+              'tab-item': true,
+              'is-selected': typeKey.value === 'invisible',
+            }}
+            on-Click={() => handleType('invisible')}
+          >
+            {t('被隐藏字段')}
+            {` (${invisibleData.value.length})`}
+          </span>
+        )}
       </div>
     );
-    /**
-     * 可见字段
-     */
-    const visibleData = computed(() => {
-      return props.data.filter(item => !item.is_delete);
-    });
-    /**
-     * 被隐藏字段
-     */
-    const invisibleData = computed(() => {
-      return props.data.filter(item => item.is_delete);
-    });
-    const showData = computed(() => {
-      return typeKey.value === 'visible' ? visibleData.value : invisibleData.value;
-    });
-
-    /**
-     * 是否显示内置字段
-     */
-    const showTableList = computed(() => {
-      return showBuiltIn.value ? [...showData.value, ...props.builtInFieldsList] : showData.value;
-    });
 
     const handleShowBuiltIn = () => {
       showBuiltIn.value = !showBuiltIn.value;
@@ -1210,15 +1220,15 @@ export default defineComponent({
       const newList = updateList(props.data, row, item => ({ ...item, is_delete: !item.is_delete }));
       emit('change', newList);
     };
+    const showColumns = computed(() =>
+      isLogRegexp.value ? columns.value.filter(item => item.colKey !== 'operation') : columns.value,
+    );
     /**
      * 字段表格
      * @returns
      */
     const renderTable = () => (
-      <div
-        class='fields-table'
-        // v-bkloading={{ isLoading: props.loading, zIndex: 10 }}
-      >
+      <div class='fields-table'>
         <TableComponent
           class='fields-table-box'
           loading={props.loading}
@@ -1229,7 +1239,7 @@ export default defineComponent({
             rows: 2,
             widths: ['2%', '24%', '24%', ' 24%', '22%', '4%'],
           }}
-          columns={columns.value}
+          columns={showColumns.value}
           slots={{
             'title-slot-name': () => (
               <span class='header-text'>

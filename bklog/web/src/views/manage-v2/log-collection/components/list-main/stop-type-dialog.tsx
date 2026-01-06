@@ -24,11 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
-import { useRoute } from 'vue-router/composables';
 
 import './stop-type-dialog.scss';
 /**
@@ -47,14 +45,25 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    // const store = useStore();
-    // const route = useRoute();
+    const activeKey = ref(true);
+    const typeList = [
+      {
+        label: t('停用索引集'),
+        tips: t('索引集停用后，该索引集将无法检索。'),
+        icon: 'tingyongwenjianjia',
+        key: true,
+      },
+      {
+        label: t('停用采集配置'),
+        tips: t('采集项停用后，在有效期内，您仍可检索历史日志。'),
+        icon: 'tingyongcaijixiang',
+        key: false,
+      },
+    ];
 
     const handleSave = () => {
-      emit('update');
-    };
-    const handleValueChange = (val: boolean) => {
-      emit('cancel', val);
+      emit('update', activeKey.value);
+      handleCancel();
     };
 
     const handleCancel = () => {
@@ -63,6 +72,7 @@ export default defineComponent({
 
     return () => (
       <bk-dialog
+        width={480}
         class='stop-type-dialog'
         header-position='left'
         mask-close={false}
@@ -71,9 +81,29 @@ export default defineComponent({
         value={props.showDialog}
         on-cancel={handleCancel}
         on-confirm={handleSave}
-        on-value-change={handleValueChange}
       >
-        <div class='stop-type-dialog-content'>111</div>
+        <div class='stop-type-dialog-content'>
+          {typeList.map(item => (
+            <div
+              class={{
+                'type-item': true,
+                active: item.key === activeKey.value,
+              }}
+              on-click={() => {
+                activeKey.value = item.key;
+              }}
+            >
+              <div class='item-icon'>
+                <i class={`bklog-icon bklog-${item.icon} method-item-icon`}></i>
+              </div>
+              <div class='item-main'>
+                <p>{item.label}</p>
+                <p class='item-tips'>{item.tips}</p>
+              </div>
+              <i class='bklog-icon bklog-correct icon-correct' />
+            </div>
+          ))}
+        </div>
       </bk-dialog>
     );
   },
