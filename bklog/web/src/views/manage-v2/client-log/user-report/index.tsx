@@ -70,7 +70,6 @@ export default defineComponent({
 
     const searchKeyword = ref('');
     const isLoading = ref(false);
-    const showBatchUpload = ref(false);
     const showUploadResult = ref(false);
     const uploadStatus = ref<UploadStatus>(UploadStatus.RUNNING);
     const uploadData = ref<{ file_name_list: string[]; openid_list: string[] } | null>(null);
@@ -105,6 +104,9 @@ export default defineComponent({
 
     // 上传请求版本号，用于忽略过期请求的响应
     let uploadRequestId = 0;
+
+    // 存放选中的文件名
+    const selectedFileNames = ref<string[]>([]);
 
     // 获取同步记录状态的方法
     const getSyncRecord = async (recordId: string): Promise<{ status: string } | null> => {
@@ -333,8 +335,7 @@ export default defineComponent({
     };
 
     // 搜索处理
-    const handleSearch = (keyword: string) => {
-      searchKeyword.value = keyword;
+    const handleSearch = () => {
       pagination.value.current = 1;
       fetchUserReportData();
     };
@@ -362,20 +363,26 @@ export default defineComponent({
     // const handleCleanConfig = () => {};
 
     // 搜索框回车事件
-    // const handleSearchEnter = (keyword: string) => {
-    //   handleSearch(keyword);
-    // };
+    const handleSearchEnter = (keyword: string) => {
+      searchKeyword.value = keyword;
+    };
 
     // 搜索图标点击事件
-    // const handleSearchIconClick = (keyword: string) => {
-    //   handleSearch(keyword);
-    // };
+    const handleSearchIconClick = (keyword: string) => {
+      searchKeyword.value = keyword;
+    };
 
     // 清空搜索
-    // const handleClearSearch = () => {
-    //   searchKeyword.value = '';
-    //   handleSearch('');
-    // };
+    const handleClearSearch = () => {
+      searchKeyword.value = '';
+    };
+
+    // 处理输入框内容改变事件
+    const handleInputChange = (value: string) => {
+      if (value === '') {
+        searchKeyword.value = '';
+      }
+    };
 
     const handleViewSDKDoc = () => {
       const sdkDocUrl = 'https://iwiki.woa.com/p/4013039938';
@@ -384,14 +391,18 @@ export default defineComponent({
 
     // 批量上传按钮点击事件
     const handleBatchUpload = () => {
-      showBatchUpload.value = true;
+      if (selectedFileNames.value.length > 0) {
+        handleUpload({
+          file_name_list: [...selectedFileNames.value],
+          openid_list: [],
+        });
+        selectedFileNames.value = [];
+      }
     };
 
-    // 批量上传确认事件
-    const handleBatchUploadConfirm = (data: { file_name_list: string[]; openid_list: string[] }) => {
-      handleUpload({
-        ...data,
-      });
+    // 处理表格选中项变化
+    const handleSelectionChange = (fileNames: string[]) => {
+      selectedFileNames.value = fileNames;
     };
 
     // 更新表格中匹配项的状态
@@ -503,10 +514,8 @@ export default defineComponent({
     // 监听搜索关键词变化，如果为空则自动搜索
     watch(
       () => searchKeyword.value,
-      (newVal) => {
-        if (!newVal) {
-          handleSearch('');
-        }
+      () => {
+        handleSearch();
       },
     );
 
@@ -545,26 +554,34 @@ export default defineComponent({
         {/* 操作区域 */}
         <div class='operating-area'>
           <div>
-            <bk-button
-              theme='primary'
-              on-click={handleBatchUpload}
-              disabled={isLoading.value}
+            <span
+              v-bk-tooltips={{
+                content: t('请先勾选任务'),
+                disabled: selectedFileNames.value.length > 0,
+              }}
             >
-              {t('批量上传')}
-            </bk-button>
+              <bk-button
+                theme='primary'
+                on-click={handleBatchUpload}
+                disabled={selectedFileNames.value.length === 0}
+              >
+                {t('批量上传')}
+              </bk-button>
+            </span>
             {/* <bk-button onClick={handleCleanConfig}>{t('清洗配置')}</bk-button> */}
           </div>
-          {/* <div>
+          <div>
             <bk-input
               value={searchKeyword.value}
-              placeholder={t('搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人')}
+              placeholder={t('搜索 openID、文件名称')}
               clearable
               right-icon='bk-icon icon-search'
               onEnter={handleSearchEnter}
               onRight-icon-click={handleSearchIconClick}
               onClear={handleClearSearch}
+              onChange={handleInputChange}
             ></bk-input>
-          </div> */}
+          </div>
         </div>
 
         {/* 表格区域 */}
@@ -581,13 +598,7 @@ export default defineComponent({
           on-search={handleSearch}
           on-sort-change={handleSortChange}
           on-upload={handleUpload}
-        />
-
-        {/* 批量上传弹窗 */}
-        <BatchUpload
-          show={showBatchUpload.value}
-          on-cancel={(val: boolean) => (showBatchUpload.value = val)}
-          on-confirm={handleBatchUploadConfirm}
+          on-selection-change={handleSelectionChange}
         />
 
         {/* 上传结果弹窗 */}
