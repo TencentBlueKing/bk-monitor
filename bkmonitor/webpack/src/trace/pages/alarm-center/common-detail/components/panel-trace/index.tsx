@@ -104,6 +104,7 @@ export default defineComponent({
           enableStatistics={false}
           mode='trace'
           scrollContainerSelector='.alarm-center-detail-box'
+          showHeaderIcon={false}
           sourceFieldConfigs={ALERT_TRACE_FIELD_CONFIGS as unknown as IDimensionField[]}
           tableData={this.traceList}
           tableHasScrollLoading={this.tableHasMoreData}

@@ -9,26 +9,4 @@
   .series-view-container {
     height: 100%;
   }
-
-  .common-legend-item {
-    .icon-danger {
-      margin-right: 3px;
-      color: #e64545;
-    }
-
-    .circle-legend {
-      width: 8px;
-      height: 8px;
-      margin-right: 3px;
-      background-color: var(--legend-color);
-      border-radius: 50%;
-    }
-
-    .rect-legend {
-      width: 8px;
-      height: 8px;
-      margin-right: 3px;
-      background-color: var(--legend-color);
-    }
-  }
 }

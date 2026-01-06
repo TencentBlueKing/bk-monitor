@@ -156,6 +156,11 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    /** 是否显示列头图标 */
+    showHeaderIcon: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: {
     /** 筛选条件改变后触发的回调 */
@@ -576,10 +581,13 @@ export default defineComponent({
             key={title}
             class={`explore-header-col ${chartIconActive}`}
           >
-            <FieldTypeIcon
-              class='col-type-icon'
-              type={fieldType}
-            />
+            {props.showHeaderIcon && (
+              <FieldTypeIcon
+                class='col-type-icon'
+                type={fieldType}
+              />
+            )}
+
             <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
               <span
                 class={`th-label ${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}`}
@@ -744,6 +752,7 @@ export default defineComponent({
           onColumnResizeChange={context => this.$emit('columnResize', context)}
           onSortChange={this.handleSortChange}
         />
+
         <TableSkeleton class={`explore-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
 
         <div style='display: none'>

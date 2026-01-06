@@ -34,7 +34,7 @@ import ChartSkeleton from '../../../../components/skeleton/chart-skeleton';
 // import { useTraceExploreStore } from '@/store/modules/explore';
 import ChartTitle from '../../../../plugins/components/chart-title';
 import CommonLegend from '../../../../plugins/components/common-legend';
-import { useChartLegend } from './use-chart-legend';
+import { type LegendCustomOptions, useChartLegend } from './use-chart-legend';
 import { useChartTitleEvent } from './use-chart-title-event';
 import { type CustomOptions, useEcharts } from './use-echarts';
 
@@ -59,6 +59,10 @@ export default defineComponent({
     },
     customOptions: {
       type: Object as PropType<CustomOptions>,
+      default: () => ({}),
+    },
+    customLegendOptions: {
+      type: Object as PropType<LegendCustomOptions>,
       default: () => ({}),
     },
   },
@@ -86,7 +90,7 @@ export default defineComponent({
       series,
       chartRef
     );
-    const { legendData, handleSelectLegend } = useChartLegend(options, chartId);
+    const { legendData, handleSelectLegend } = useChartLegend(options, chartId, props.customLegendOptions);
     const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
       if (!mouseIn.value) return;
       const xAxisData = echartOptions.xAxis[0]?.data;
