@@ -30,7 +30,7 @@ import { get } from '@vueuse/core';
 import { type TippyContent, type TippyOptions, useTippy } from 'vue-tippy';
 
 import { ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME, ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME } from '../constants';
-import { isEllipsisActiveSingleLine } from '../utils/dom-helper';
+import { isEllipsisActiveSingleLine, isEllipsisActiveLine } from '../utils/dom-helper';
 
 import type { PrimaryTable } from '@blueking/tdesign-ui';
 
@@ -222,12 +222,12 @@ export const useTablePopover = (
  */
 export const useTableEllipsis = (
   delegationRoot: MaybeRef<InstanceType<typeof PrimaryTable>>,
-  options: Omit<UseTablePopoverOptions, 'getContentOptions'>
+  options?: Omit<UseTablePopoverOptions, 'getContentOptions'>
 ) =>
   useTablePopover(delegationRoot, {
     trigger: { selector: options?.trigger?.selector || `.${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}` },
     getContentOptions: triggerDom => {
-      const { isEllipsisActive, content } = isEllipsisActiveSingleLine(triggerDom);
+      const { isEllipsisActive, content } = isEllipsisActiveLine(triggerDom);
       if (!isEllipsisActive) return;
       return { content };
     },
@@ -242,7 +242,7 @@ export const useTableEllipsis = (
  */
 export const useTableHeaderDescription = (
   delegationRoot: MaybeRef<InstanceType<typeof PrimaryTable>>,
-  options: Omit<UseTablePopoverOptions, 'getContentOptions'>
+  options?: Omit<UseTablePopoverOptions, 'getContentOptions'>
 ) =>
   useTablePopover(delegationRoot, {
     trigger: { selector: options?.trigger?.selector || `.${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}` },

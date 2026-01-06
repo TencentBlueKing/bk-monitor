@@ -42,4 +42,11 @@ export interface ILegendItem {
   value?: number | string;
 }
 export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
+export interface LegendOptions {
+  /** 需要禁用点击事件的图例 */
+  disabledLegendClick: string[];
+  /** 图例icon枚举 */
+  legendIconMap: Record<string, string>;
+}
+
 export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';

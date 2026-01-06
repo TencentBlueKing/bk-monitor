@@ -27,13 +27,13 @@
 import { defineComponent, nextTick, onBeforeUnmount, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useEventListener, watchDebounced } from '@vueuse/core';
-import tippy from 'tippy.js';
 import { useI18n } from 'vue-i18n';
+import { useTippy } from 'vue-tippy';
 
 import QsSelectorOptions from './qs-selector-options';
 import { QueryStringEditor } from './query-string-utils';
 import { EQueryStringTokenType, QS_SELECTOR_EMITS, QS_SELECTOR_PROPS } from './typing';
-import { onClickOutside } from './utils';
+import { isElementVisibleAndUnobstructed, onClickOutside } from './utils';
 
 import './qs-selector.scss';
 
@@ -130,14 +130,14 @@ export default defineComponent({
         destroyPopoverInstance();
         return;
       }
-      popoverInstance.value = tippy(event.target as any, {
-        content: selectRef.value,
+      popoverInstance.value = useTippy(event.target as any, {
+        content: () => selectRef.value,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',
         arrow: false,
         appendTo: document.body,
-        zIndex: 998,
+        zIndex: props.zIndex,
         maxWidth: props.qsSelectorOptionsWidth || 1600,
         offset: [0, 5],
         interactive: true,
@@ -247,10 +247,15 @@ export default defineComponent({
       inputValue.value = val.replace(/^\s+|\s+$/g, '');
     }
     function handleKeyDownSlash(event) {
-      if (event.key === '/' && !localValue.value && !['BK-WEWEB', 'INPUT'].includes(event.target?.tagName)) {
+      if (
+        event.key === '/' &&
+        !localValue.value &&
+        !['BK-WEWEB', 'INPUT'].includes(event.target?.tagName) &&
+        isElementVisibleAndUnobstructed(elRef.value)
+      ) {
         handlePopUp(EQueryStringTokenType.key, '');
         setTimeout(() => {
-          queryStringEditor.value.editorEl?.focus?.();
+          (queryStringEditor.value.editorEl as HTMLInputElement)?.focus?.();
         }, 300);
         cleanup?.();
       }
@@ -321,10 +326,11 @@ export default defineComponent({
             class='retrieval-filter__qs-selector-component__popover'
           >
             <QsSelectorOptions
-              favoriteList={this.favoriteList}
+              favoriteList={this.isShowFavorite ? this.favoriteList : []}
               field={this.curTokenField}
               fields={this.fields}
               getValueFn={this.getValueFn}
+              isShowFavorite={this.isShowFavorite}
               queryString={this.localValue}
               search={this.search}
               show={this.showSelector}

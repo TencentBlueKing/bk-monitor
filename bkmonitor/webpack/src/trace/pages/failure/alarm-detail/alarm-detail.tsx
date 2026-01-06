@@ -378,7 +378,7 @@ export default defineComponent({
                     boundary: 'window',
                     extCls: 'alarm-detail-table-tooltip',
                   }}
-                ></span>
+                />
               )}
             </div>
           );
@@ -797,7 +797,7 @@ export default defineComponent({
           // 异常状态赋值
           exceptionData.value.isError = true;
           exceptionData.value.errorMsg = err.message || '';
-        })
+        });
       // const data = await incidentAlertList(Object.assign(params, props.filterSearch));
 
       // const list = alertData.value.find(item => item.alerts.length > 0);
@@ -1011,6 +1011,7 @@ export default defineComponent({
                     columns={this.columns}
                     data={item.alerts}
                     maxHeight={this.tableMaxHeight}
+                    needCustomScroll={false}
                     scroll={{ type: 'virtual' }}
                     tooltip-config={{ showAll: false }}
                     onRowMouseenter={this.handleEnter}
