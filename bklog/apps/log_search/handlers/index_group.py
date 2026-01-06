@@ -55,7 +55,7 @@ class IndexGroupHandler(APIModel):
         index_groups = (
             LogIndexSet.objects.filter(is_group=True, space_uid=params["space_uid"])
             .values("index_set_id", "index_set_name")
-            .order_by("index_set_name")
+            .order_by("created_at")
         )
         # 补充索引数量字段
         index_set_ids = [x["index_set_id"] for x in index_groups]
