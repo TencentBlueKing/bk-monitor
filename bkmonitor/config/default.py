@@ -1238,6 +1238,9 @@ JOB_URL = os.getenv("BK_JOB_SITE_URL") or os.getenv("BK_JOB_HOST", JOB_URL)
 BK_CC_URL = BK_PAAS_HOST.replace("paas", "cmdb")
 BK_CC_URL = os.getenv("BK_CC_SITE_URL") or os.getenv("BK_CC_HOST", BK_CC_URL)
 
+# 用户管理站点 URL（用于个人中心跳转等）
+BK_USER_SITE_URL = os.getenv("BK_USER_SITE_URL", "")
+
 # 新版ITSM
 BK_ITSM_V4_HOST = os.getenv("BK_ITSM_V4_HOST", "")
 BK_ITSM_V4_API_URL = os.getenv("BK_ITSM_V4_API_URL", f"{BK_COMPONENT_API_URL}/api/cw-aitsm/prod")
