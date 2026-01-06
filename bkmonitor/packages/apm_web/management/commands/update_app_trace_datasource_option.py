@@ -34,7 +34,7 @@ class Command(BaseCommand):
             "-retention",
             "--es_retention",
             type=int,
-            help="es 存储周期（过期时间）",
+            help="es 存储周期 / 过期时间（天）",
         )
         parser.add_argument(
             "-replica",
@@ -63,8 +63,8 @@ class Command(BaseCommand):
         for k in ["es_storage_cluster", "es_retention", "es_number_of_replicas", "es_shards", "es_slice_size"]:
             if options[k] is None:
                 continue
-            storage_info[k] = options[k]
             self.stdout.write(f"{k}: {storage_info[k]} -> {options[k]}")
+            storage_info[k] = options[k]
         self.stdout.write(f"will_update_storage_info: {storage_info}")
 
         # 确认是否更新
