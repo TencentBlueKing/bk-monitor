@@ -263,6 +263,6 @@ TGPA_REPORT_SELECT_FIELDS = [
     "os_type",
     "cc_id as bk_biz_id",
 ]
-TGPA_REPORT_FILTER_FIELDS = ["openid", "file_name", "real_name", "extend_info", "manufacturer", "model", "os_version"]
+TGPA_REPORT_FILTER_FIELDS = ["openid", "file_name"]
 TGPA_REPORT_ORDER_FIELDS = ["file_size"]
 TGPA_REPORT_LIST_BATCH_SIZE = 500  # 客户端日志上报列表批量查询大小
