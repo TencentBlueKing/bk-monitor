@@ -639,6 +639,17 @@ export default defineComponent({
     watch(
       () => props.indexSet,
       () => {
+        // 清空过滤条件
+        conditions.value = [];
+        filterValue.value = {
+          log_access_type: '',
+          collector_scenario_id: '',
+          storage_cluster_name: '',
+          status: '',
+          created_by: '',
+          updated_by: '',
+        };
+        searchKey.value = '';
         reloadList();
       },
     );
@@ -1342,7 +1353,8 @@ export default defineComponent({
             }}
             on-cancel={() => {
               showStopTypeDialog.value = false;
-            }} />
+            }}
+          />
         </div>
       </div>
     );
