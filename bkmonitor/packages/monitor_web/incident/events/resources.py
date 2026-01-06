@@ -36,6 +36,9 @@ import copy
 import abc
 import threading
 import re
+import logging
+
+logger = logging.getLogger("incident.events")
 
 
 BCS_TABLE_PATTERN = re.compile(r"^\d+_bkmonitor_event_\d+$")
@@ -383,22 +386,37 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
 
     def execute_queries(self, validated_query_requests: list, base_response: dict) -> dict:
         """
-        执行查询请求
+        执行查询请求（优化版：批量并发执行所有查询）
         """
         events_search_response = base_response
 
         # 不同数据源的数据统一聚合到响应内
         def _aggregation(req_data: dict[str, Any]):
-            resp = event_resources.EventTimeSeriesResource().perform_request(req_data)
-            query_config: dict = resp.get("query_config", {})
-            query_config_list = query_config.get("query_configs", [])
-            table = next(iter(query_config_list), {}).get("table", "")
-            with self._lock:
-                self.format_events_response(resp, events_search_response, table)
+            try:
+                resp = event_resources.EventTimeSeriesResource().perform_request(req_data)
+                query_config: dict = resp.get("query_config", {})
+                query_config_list = query_config.get("query_configs", [])
+                table = next(iter(query_config_list), {}).get("table", "")
+                with self._lock:
+                    self.format_events_response(resp, events_search_response, table)
+            except KeyError as e:
+                # 捕获不支持的数据源类型错误
+                query_configs = req_data.get("query_configs", [])
+                logger.warning(f"Unsupported data source in event query: {e}. Query config: {query_configs}")
+            except Exception as e:
+                # 捕获其他异常，避免影响其他查询
+                logger.exception(f"Failed to execute event query: {e}")
 
-        # 并发执行查询
-        if validated_query_requests:
-            run_threads([InheritParentThread(target=_aggregation, args=(req,)) for req in validated_query_requests])
+        # 优化：批量创建所有线程，然后一次性启动
+        threads = []
+        for req in validated_query_requests:
+            thread = InheritParentThread(target=_aggregation, args=(req,))
+            threads.append(thread)
+
+        # 一次性启动所有线程
+        if threads:
+            run_threads(threads)
+
         return events_search_response
 
     def format_events_response(self, time_series_response: dict, base_response: dict, table: str = None) -> dict:
