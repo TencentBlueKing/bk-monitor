@@ -68,9 +68,19 @@ class IndexGroupHandler(APIModel):
             x["index_count"] = index_counts_dict.get(x["index_set_id"], 0)
             x["deletable"] = True  # TODO: 先给前端一个字段，后续需要判断索引组是否可以删除
 
-        # 按名称的拼音首字母a-z排序，中文使用拼音首字母
+        def sort_key(item):
+            """排序key：首字母a-z，先英文后中文"""
+            name = item["index_set_name"]
+            first_char = name[0] if name else ""
+            # 判断首字符是否为英文字母
+            is_english = first_char.isascii() and first_char.isalpha()
+            # 英文排在前面(0)，中文排在后面(1)
+            # 然后按拼音排序
+            return 0 if is_english else 1, lazy_pinyin(name.lower())
+
+        # 按名称的拼音首字母a-z排序，先英文后中文
         result = list(index_groups)
-        result.sort(key=lambda x: lazy_pinyin(x["index_set_name"].lower()))
+        result.sort(key=sort_key)
         return result
 
     @staticmethod
