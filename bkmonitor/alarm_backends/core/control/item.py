@@ -12,7 +12,7 @@ import logging
 from collections import defaultdict
 
 from django.conf import settings
-from django.db.models.sql import AND, OR
+from django.db.models.sql.where import AND, OR
 from django.utils.functional import cached_property
 
 from alarm_backends.core.control.mixins import CheckMixin, DetectMixin, DoubleCheckMixin

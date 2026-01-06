@@ -9,46 +9,56 @@ specific language governing permissions and limitations under the License.
 """
 
 import datetime
-
 import json
 import time
 
-from kubernetes.dynamic import client as dynamic_client
-from kubernetes.client.rest import ApiException
-from kubernetes.dynamic.resource import ResourceInstance
-from kubernetes.dynamic.exceptions import NotFoundError, ResourceNotFoundError
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
-from django.conf import settings
+from kubernetes.client.rest import ApiException
+from kubernetes.dynamic import client as dynamic_client
+from kubernetes.dynamic.exceptions import NotFoundError, ResourceNotFoundError
+from kubernetes.dynamic.resource import ResourceInstance
 
 from core.drf_resource import api
-from metadata import models, config
+from metadata import config, models
+from metadata.models import (
+    BcsFederalClusterInfo,
+    DataBusConfig,
+    EventGroup,
+    ResultTableConfig,
+    TimeSeriesGroup,
+    VMStorageBindingConfig,
+)
 from metadata.models.bcs.cluster import BCSClusterInfo
+from metadata.models.bcs.resource import PodMonitorInfo, ServiceMonitorInfo
+from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import DataIdCreatedFromSystem
-from metadata.models.data_source import DataSource, DataSourceOption
-from metadata.models.bcs.resource import ServiceMonitorInfo, PodMonitorInfo
-from metadata.models.storage import ClusterInfo, InfluxDBStorage, ESStorage, InfluxDBProxyStorage, DorisStorage
-from metadata.models import BcsFederalClusterInfo, TimeSeriesGroup, EventGroup
-from metadata.models.space.space import SpaceDataSource, Space
-from metadata.models.space.constants import SpaceTypes, SpaceStatus, ENABLE_V4_DATALINK_ETL_CONFIGS
-from metadata.models.storage import StorageClusterRecord
-from metadata.models import ResultTableConfig, VMStorageBindingConfig, DataBusConfig
-from metadata.models.space.constants import EtlConfigs
 from metadata.models.custom_report.subscription_config import CustomReportSubscription
+from metadata.models.data_link.data_link import DataLink
+from metadata.models.data_link.utils import compose_bkdata_data_id_name, compose_bkdata_table_id
+from metadata.models.data_source import DataSource, DataSourceOption
+from metadata.models.influxdb_cluster import InfluxDBClusterInfo, InfluxDBHostInfo
 from metadata.models.result_table import (
-    ResultTable,
-    ResultTableOption,
-    ResultTableField,
-    ResultTableFieldOption,
     DataSourceResultTable,
     LogV4DataLinkOption,
+    ResultTable,
+    ResultTableField,
+    ResultTableFieldOption,
+    ResultTableOption,
 )
-from metadata.models.influxdb_cluster import InfluxDBClusterInfo, InfluxDBHostInfo
+from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS, EtlConfigs, SpaceStatus, SpaceTypes
+from metadata.models.space.space import Space, SpaceDataSource
+from metadata.models.storage import (
+    ClusterInfo,
+    DorisStorage,
+    ESStorage,
+    InfluxDBProxyStorage,
+    InfluxDBStorage,
+    StorageClusterRecord,
+)
 from metadata.models.vm.record import AccessVMRecord
-from metadata.models.data_link.data_link import DataLink
-from metadata.models.bkdata.result_table import BkBaseResultTable
-from metadata.utils import hash_util, consul_tools
-from metadata.models.data_link.utils import compose_bkdata_data_id_name, compose_bkdata_table_id
+from metadata.utils import consul_tools, hash_util
 
 
 def recode_final_result(fun):
@@ -1872,68 +1882,6 @@ class Command(BaseCommand):
                     message = f"[DataSourceResultTable] [bk_data_id={data_id}] "
                     result["issues"].append(f"{message}关联模型检查异常: {str(e)}")
 
-            # 检查 SpaceTypeToResultTableFilterAlias
-            try:
-                from metadata.models.space.space import SpaceTypeToResultTableFilterAlias
-
-                filter_alias_list = []
-                filter_alias_details = {}
-
-                result_tables = ResultTable.objects.filter(
-                    table_id__in=all_table_ids, bk_tenant_id=self.bk_tenant_id
-                ).values_list("table_id", "bk_biz_id_alias")
-
-                for table_id, bk_biz_id_alias in result_tables:
-                    try:
-                        # bk_biz_id_alias 为空，不要检查
-                        if not bk_biz_id_alias:
-                            continue
-                        # 查询该结果表的空间类型过滤别名
-                        filter_alias = SpaceTypeToResultTableFilterAlias.objects.filter(
-                            table_id=table_id, filter_alias=bk_biz_id_alias, space_type=SpaceTypes.BKCC.value
-                        ).first()
-
-                        if filter_alias:
-                            filter_alias_list.append(
-                                {
-                                    "table_id": table_id,
-                                    "space_type": filter_alias.space_type,
-                                    "filter_alias": filter_alias.filter_alias,
-                                    "status": filter_alias.status,
-                                }
-                            )
-
-                            filter_alias_details[table_id] = {
-                                "exists": True,
-                                "filter_alias": filter_alias.filter_alias,
-                                "status": filter_alias.status,
-                            }
-
-                            if not filter_alias.status:
-                                message = f"[SpaceTypeToResultTableFilterAlias] [table_id={table_id},filter_alias={filter_alias.filter_alias}] "
-                                result["issues"].append(f"{message}空间类型过滤别名未启用")
-                        else:
-                            filter_alias_details[table_id] = {"exists": False}
-                            message = f"[SpaceTypeToResultTableFilterAlias] [table_id={table_id},bk_biz_id_alias={bk_biz_id_alias}] "
-                            # 注意：这里应该使用warnings而不是warning
-                            if "warnings" not in result:
-                                result["warnings"] = []
-                            result["warnings"].append(f"{message}空间类型过滤别名不存在")
-
-                    except Exception as e:
-                        message = f"[SpaceTypeToResultTableFilterAlias] [table_id={table_id}] "
-                        result["issues"].append(f"{message}检查异常: {str(e)}")
-
-                space_type_filter_alias = {
-                    "total_count": len(filter_alias_list),
-                    "filter_aliases": filter_alias_list,
-                    "details": filter_alias_details,
-                }
-
-            except Exception as e:
-                message = f"[SpaceTypeToResultTableFilterAlias] [cluster_id={cluster_info.cluster_id}] "
-                result["issues"].append(f"{message}检查异常: {str(e)}")
-
             result["details"] = {
                 "datasource_result_table": datasource_result_table,
                 "result_table_options": result_table_options,
@@ -2588,6 +2536,7 @@ class Command(BaseCommand):
 
         try:
             from django.conf import settings
+
             from metadata.models.space.constants import (
                 SPACE_TO_RESULT_TABLE_KEY,
             )
