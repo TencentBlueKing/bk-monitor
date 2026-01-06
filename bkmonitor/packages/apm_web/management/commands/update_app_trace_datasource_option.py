@@ -43,7 +43,7 @@ class Command(BaseCommand):
             help="es 副本数量",
         )
         parser.add_argument(
-            "-shards",
+            "-shard",
             "--es_shards",
             type=int,
             help="es 索引分片数",
