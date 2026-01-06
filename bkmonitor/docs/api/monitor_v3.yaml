@@ -1827,6 +1827,17 @@
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
+  dest_path: /api/v4/alert/alert/close/
+  is_hidden: true
+  label: 关闭告警
+  label_en: close alert
+  name: close_alert
+  path: /v2/monitor_v3/close_alert/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
   dest_path: /api/v4/action_config/save/
   is_hidden: false
   label: 保存处理套餐

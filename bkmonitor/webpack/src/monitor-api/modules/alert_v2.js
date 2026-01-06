@@ -41,11 +41,13 @@ export const alertDetail = request('GET', 'fta/alert/v2/alert/detail/');
 export const alertEvents = request('POST', 'fta/alert/v2/alert/events/');
 export const alertEventTotal = request('GET', 'fta/alert/v2/alert/event_total/');
 export const alertEventTs = request('POST', 'fta/alert/v2/alert/event_ts/');
+export const alertEventTagDetail = request('POST', 'fta/alert/v2/alert/event_tag_detail/');
 export const alertK8sScenarioList = request('GET', 'fta/alert/v2/alert/k8s_scenario_list/');
 export const alertK8sMetricList = request('GET', 'fta/alert/v2/alert/k8s_metric_list/');
 export const alertK8sTarget = request('GET', 'fta/alert/v2/alert/k8s_target/');
 export const alertHostTarget = request('GET', 'fta/alert/v2/alert/host_target/');
 export const alertTraces = request('POST', 'fta/alert/v2/alert/traces/');
+export const alertLogRelationList = request('GET', 'fta/alert/v2/alert/log_relation_list/');
 export const quickAlertShield = request('GET', 'fta/alert/v2/alert/quick_shield/');
 export const quickAlertAck = request('GET', 'fta/alert/v2/alert/quick_ack/');
 
@@ -91,11 +93,13 @@ export default {
   alertEvents,
   alertEventTotal,
   alertEventTs,
+  alertEventTagDetail,
   alertK8sScenarioList,
   alertK8sMetricList,
   alertK8sTarget,
   alertHostTarget,
   alertTraces,
+  alertLogRelationList,
   quickAlertShield,
   quickAlertAck,
 };

@@ -9,11 +9,24 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
+import copy
+import time
 from functools import cached_property
 from typing import Any
 
 from apm_web.handlers.host_handler import HostHandler
+from apm_web.handlers.log_handler import ServiceLogHandler, get_biz_index_sets_with_cache
 from apm_web.strategy.dispatch import EntitySet
+from apm_web.log.resources import log_relation_list
+from apm_web.topo.handle.relation.define import (
+    SourceSystem,
+    SourceDatasource,
+    SourceK8sNode,
+    Relation,
+    Source,
+    SourceK8sPod,
+)
+from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.documents import AlertDocument
 from constants.alert import K8S_RESOURCE_TYPE, K8STargetType, APMTargetType, EventTargetType
 
@@ -27,6 +40,9 @@ class BaseTarget(abc.ABC):
     """
 
     TARGET_TYPE = ""
+
+    # 通过 unifyquery 接口关联日志索引集的最大数量
+    _MAX_LOG_RELATION_NUM: int = 5
 
     def __init__(self, alert: AlertDocument):
         self._alert: AlertDocument = alert
@@ -61,6 +77,61 @@ class BaseTarget(abc.ABC):
                 return self.dimensions[key]
         return default
 
+    def _get_time_range(
+        self,
+        left_shift: int = -20 * 60,
+        right_shift: int = 20 * 60,
+        max_duration: int = 60 * 60,
+    ) -> tuple[int, int]:
+        """获取关联数据查询时间范围
+        :param left_shift: 起始时间相对于「首次告警事件」的偏移，单位秒，默认 -20 分钟
+        :param right_shift: 结束时间相对于「告警结束时间」的偏移，单位秒，默认 +20 分钟
+        :param max_duration: 最大持续时间，单位秒，默认 1 小时
+        :return: 起始时间和结束时间的元组
+        """
+        # Q: 为什么不直接取首次告警事件到结束时间作为时间范围？
+        # A: 告警可能持续较长时间，取告警持续时间范围会导致查询数据量过大，影响查询性能。
+        # Q：为什么不基于告警结束时间计算时间范围？
+        # A: 例如 Pod 持续 OOM 导致告警，Pod 被系统回收后，无法再查询到相关数据，因此基于首次告警时间计算时间范围更合理。
+        start_time: int = self._alert.first_anomaly_time + left_shift
+        if self._alert.end_time:
+            end_time: int = self._alert.end_time + right_shift
+        else:
+            end_time: int = int(time.time())
+
+        end_time: int = min(end_time, start_time + max_duration)
+
+        return start_time, end_time
+
+    @classmethod
+    def _list_related_log_targets(
+        cls,
+        bk_biz_id: int,
+        relation_qs: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        data_ids: set[str] = set()
+        relations: list[Relation] = RelationQ.query(relation_qs, fill_with_empty=True)
+        for r in relations:
+            if not r:
+                continue
+
+            for n in r.nodes:
+                source_info: dict[str, Any] = n.source_info.to_source_info()
+                bk_data_id: str | None = source_info.get("bk_data_id")
+                if bk_data_id and bk_data_id not in data_ids and len(data_ids) < cls._MAX_LOG_RELATION_NUM:
+                    data_ids.add(bk_data_id)
+
+        log_targets: list[dict[str, Any]] = []
+        tables: list[str] = ServiceLogHandler.list_tables_by_data_ids(list(data_ids))
+        for index_set in get_biz_index_sets_with_cache(bk_biz_id=bk_biz_id):
+            indices: list[dict[str, Any]] = index_set.get("indices") or []
+            if indices and len(indices) == 1 and indices[0].get("result_table_id") in tables:
+                log_target: dict[str, Any] = copy.deepcopy(index_set)
+                log_target["addition"] = []
+                log_targets.append(log_target)
+
+        return log_targets
+
     @abc.abstractmethod
     def _get_k8s_resource_type(self) -> str:
         """获取 K8S 资源类型。
@@ -92,7 +163,6 @@ class BaseTarget(abc.ABC):
 
     def list_related_host_targets(self) -> list[dict[str, Any]]:
         """获取关联主机目标信息。
-
         :return: 主机目标信息列表
         """
         ip: str | None = self._get_dimension_value(["ip", "bk_target_ip"])
@@ -145,6 +215,7 @@ class DefaultTarget(BaseTarget):
         return []
 
     def list_related_log_targets(self) -> list[dict[str, Any]]:
+        # TODO 日志类告警，直接取 query_config 的索引集 ID 作为日志目标，并根据告警维度、策略生成过滤条件（addition）。
         return []
 
 
@@ -176,7 +247,81 @@ class BaseK8STarget(BaseTarget):
         return []
 
     def list_related_log_targets(self) -> list[dict[str, Any]]:
-        return []
+        related_k8s_targets: list[dict[str, Any]] = self.list_related_k8s_targets().get("target_list", [])
+        if not related_k8s_targets:
+            return []
+
+        qs: list[dict[str, Any]] = []
+        start_time, end_time = self._get_time_range()
+        related_k8s_target: dict[str, Any] = related_k8s_targets[0]
+        if not related_k8s_target.get("bcs_cluster_id"):
+            return []
+
+        resource_type: str = self._get_k8s_resource_type()
+        workload: str | None = related_k8s_target.pop("workload", "")
+        is_workload: bool = workload and resource_type == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
+        if is_workload:
+            kind, name = workload.split(":", 1)
+            related_k8s_target[kind.lower()] = name
+            related_k8s_target["name"] = kind.lower()
+        else:
+            related_k8s_target["name"] = resource_type
+
+        paths: list[type[Source]] = [SourceK8sPod]
+        if resource_type == K8S_RESOURCE_TYPE[K8STargetType.NODE]:
+            # 关联关系默认按最短路返回，因此 Node 需要额外关联 Pod，才能找到尽可能准确的日志索引。
+            paths: list[type[Source]] = [SourceK8sPod, SourceK8sNode]
+
+        for path in paths:
+            qs.extend(
+                RelationQ.generate_q(
+                    bk_biz_id=self._alert.event.bk_biz_id,
+                    source_info=related_k8s_target,
+                    target_type=SourceDatasource,
+                    start_time=start_time,
+                    end_time=end_time,
+                    path_resource=[path],
+                )
+            )
+
+        if not qs:
+            return []
+
+        addition: list[dict[str, Any]] = []
+        if "namespace" in related_k8s_target:
+            addition.append(
+                {
+                    "operator": "=",
+                    "field": "__ext.io_kubernetes_pod_namespace",
+                    "value": [related_k8s_target["namespace"]],
+                }
+            )
+
+        # 使用 Pod 更精确地过滤日志
+        # Case1 - 从维度中获取 Pod 名称
+        # Case2 - 如果是 Workload 目标，则使用 contains 方式模糊匹配 Pod 名称
+        pod: str | None = related_k8s_target.get(K8STargetType.POD)
+        if not pod:
+            pod = self._get_dimension_value(["pod", "pod_name"])
+        if pod:
+            addition.append({"field": "__ext.io_kubernetes_pod", "operator": "=", "value": [pod]})
+        elif is_workload:
+            __, name = workload.split(":", 1)
+            addition.append({"field": "__ext.io_kubernetes_pod", "operator": "contains", "value": [name]})
+
+        # 使用 主机 IP 进一步过滤日志
+        if not pod:
+            # 有 Pod 的情况下已经可以精确匹配了，无需增加主机过滤。
+            related_host_targets: list[dict[str, Any]] = self.list_related_host_targets()
+            if related_host_targets:
+                host_target: dict[str, Any] = related_host_targets[0]
+                addition.append({"field": "serverIp", "operator": "=", "value": [host_target["bk_target_ip"]]})
+
+        related_log_targets: list[dict[str, Any]] = []
+        for related_log_target in self._list_related_log_targets(self._alert.event.bk_biz_id, qs):
+            related_log_target.setdefault("addition", []).extend(addition)
+            related_log_targets.append(related_log_target)
+        return related_log_targets
 
 
 class K8SPodTarget(BaseK8STarget):
@@ -285,7 +430,21 @@ class APMServiceTarget(BaseTarget):
         return target_hosts
 
     def list_related_log_targets(self) -> list[dict[str, Any]]:
-        return []
+        apm_target_list: list[dict[str, Any]] = self.list_related_apm_targets()
+        if not apm_target_list:
+            return []
+
+        apm_target: dict[str, Any] = apm_target_list[0]
+        start_time, end_time = self._get_time_range()
+        return list(
+            log_relation_list(
+                bk_biz_id=self._alert.event.bk_biz_id,
+                app_name=apm_target["app_name"],
+                service_name=apm_target["service_name"],
+                start_time=start_time,
+                end_time=end_time,
+            )
+        )
 
 
 class HostTarget(DefaultTarget):
@@ -303,6 +462,33 @@ class HostTarget(DefaultTarget):
                 "bk_host_name": "",
             }
         ]
+
+    def list_related_log_targets(self) -> list[dict[str, Any]]:
+        if not self._alert.event.ip:
+            return []
+
+        start_time, end_time = self._get_time_range()
+        qs: list[dict[str, Any]] = []
+        for path in [SourceK8sPod, SourceK8sNode]:
+            qs.extend(
+                RelationQ.generate_q(
+                    bk_biz_id=self._alert.event.bk_biz_id,
+                    source_info=SourceSystem(
+                        bk_target_ip=self._alert.event.ip,
+                    ),
+                    target_type=SourceDatasource,
+                    start_time=start_time,
+                    end_time=end_time,
+                    path_resource=[path],
+                )
+            )
+
+        related_log_targets: list[dict[str, Any]] = []
+        addition: list[dict[str, Any]] = [{"field": "serverIp", "operator": "=", "value": [self._alert.event.ip]}]
+        for related_log_target in self._list_related_log_targets(self._alert.event.bk_biz_id, qs):
+            related_log_target.setdefault("addition", []).extend(addition)
+            related_log_targets.append(related_log_target)
+        return related_log_targets
 
 
 _TARGET_TYPE_MAP: dict[str, type[BaseTarget]] = {
