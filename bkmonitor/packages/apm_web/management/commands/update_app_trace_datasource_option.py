@@ -56,6 +56,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        # 更新应用的 trace 数据源选项
         app: Application = Application.objects.get(bk_biz_id=options["bk_biz_id"], app_name=options["app_name"])
         storage_info: dict[str, Any] = telemetry_handler_registry(TelemetryDataType.TRACE.value, app=app).storage_info()
         self.stdout.write(f"exists_storage_info: {storage_info}")
@@ -65,10 +66,14 @@ class Command(BaseCommand):
             storage_info[k] = options[k]
             self.stdout.write(f"{k}: {storage_info[k]} -> {options[k]}")
         self.stdout.write(f"will_update_storage_info: {storage_info}")
+
+        # 确认是否更新
         is_update = input("Please confirm to update?(y/n)")
         if is_update.strip().lower() != "y":
             self.stderr.write("Update canceled.")
             return
+
+        # 更新
         SetupResource().request(
             bk_biz_id=options["bk_biz_id"], application_id=app.application_id, trace_datasource_option=storage_info
         )
