@@ -1,0 +1,51 @@
+.alarm-view-panel-dimension-analysis-wrap {
+  .dimension-analysis-table-view {
+    display: flex;
+    min-height: 300px;
+    border-top: 1px solid #DCDEE5;
+
+    .dimension-analysis-left {
+      width: 160px;
+      background: #f3f6fa;
+    }
+
+    .dimension-analysis-right {
+      flex: 1;
+      background: #fff;
+
+      .type-select {
+        display: flex;
+        align-items: center;
+        width: fit-content;
+        height: 32px;
+        padding: 0 4px;
+        margin: 8px;
+        background: #f0f1f5;
+        border-radius: 2px;
+
+        .type-select-item {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          cursor: pointer;
+          border-radius: 2px;
+
+          .icon-monitor {
+            font-size: 12px;
+          }
+
+          &.active {
+            cursor: default;
+            background: #fff;
+
+            .icon-monitor {
+              color: #3a84ff;
+            }
+          }
+        }
+      }
+    }
+  }
+}

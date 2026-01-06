@@ -1,0 +1,22 @@
+.dimension-analysis-dimension-selector {
+  .header-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 7px 8px;
+    line-height: 20px;
+
+    .title {
+      font-size: 12px;
+      color: #313238;
+    }
+  }
+
+  .search-wrap {
+    margin: 0 8px;
+  }
+
+  .dimension-list {
+    margin-top: 8px;
+  }
+}

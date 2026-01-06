@@ -29,7 +29,7 @@ import { Tab } from 'bkui-vue';
 
 import AlarmRecords from './alarm-records';
 import ChartWrapper from './chart-wrapper';
-import DimensionWrapper from './dimension-wrapper';
+import DimensionAnalysis from './dimension-analysis';
 import { ALARM_CENTER_VIEW_TAB_MAP } from '@/pages/alarm-center/utils/constant';
 
 import type { AlarmDetail } from '../../../typings/detail';
@@ -80,7 +80,7 @@ export default defineComponent({
             />
           </Tab>
           <KeepAlive>
-            {this.activeTab === 'dimension' && <DimensionWrapper />}
+            {this.activeTab === 'dimension' && <DimensionAnalysis />}
             {this.activeTab === 'alarm_records' && (
               <AlarmRecords
                 detail={this.detail}
