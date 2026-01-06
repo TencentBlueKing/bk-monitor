@@ -132,7 +132,9 @@ class CreateApplicationResource(Resource):
     def perform_request(self, validated_data):
         datasource_options = validated_data.get("es_storage_config")
         if not datasource_options:
-            datasource_options = ApplicationHelper.get_default_storage_config(validated_data["bk_biz_id"])
+            datasource_options = ApplicationHelper.get_default_storage_config(
+                validated_data["bk_biz_id"], validated_data["app_name"]
+            )
 
         bk_tenant_id = validated_data.get("bk_tenant_id")
         if not bk_tenant_id:

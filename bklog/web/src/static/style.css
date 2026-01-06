@@ -215,6 +215,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-info-fill--2:before {
 	content: "\e14f";
 }
+.bklog-publish-fill:before {
+	content: "\e241";
+}
 .bklog-equal:before {
 	content: "\e13c";
 }
@@ -346,6 +349,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-log-remark:before {
 	content: "\e187";
+}
+.bklog-alert:before {
+	content: "\e235";
 }
 .bklog-back2:before {
 	content: "\e1ec";
@@ -760,4 +766,37 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-group:before {
 	content: "\e233";
+}
+.bklog-caijixiafazhong:before {
+	content: "\e234";
+}
+.bklog-command:before {
+	content: "\e238";
+}
+.bklog-ctrl:before {
+	content: "\e236";
+}
+.bklog-enter-3:before {
+	content: "\e237";
+}
+.bklog-client-log:before {
+	content: "\e239";
+}
+.bklog-import-daoru:before {
+	content: "\e23a";
+}
+.bklog-container:before {
+	content: "\e23b";
+}
+.bklog-node:before {
+	content: "\e23c";
+}
+.bklog-prompt:before {
+	content: "\e23d";
+}
+.bklog-goto-bold:before {
+	content: "\e23f";
+}
+.bklog-key-tab:before {
+	content: "\e240";
 }

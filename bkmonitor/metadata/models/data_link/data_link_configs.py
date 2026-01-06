@@ -10,22 +10,24 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from django.conf import settings
 from django.db import models
 from typing_extensions import deprecated
 
+from bkmonitor.utils.db.fields import SymmetricJsonField
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from core.drf_resource import api
 from metadata.models.data_link import constants, utils
-from metadata.models.data_link.constants import DataLinkKind
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR, DataLinkKind
 from metadata.models.space.constants import LOG_EVENT_ETL_CONFIGS
 
 logger = logging.getLogger("metadata")
 
 if TYPE_CHECKING:
     from metadata.models.data_source import DataSource
+    from metadata.models.storage import ClusterInfo
 
 
 class DataLinkResourceConfigBase(models.Model):
@@ -174,7 +176,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
             err_msg_prefix="compose predefined data_id config",
         )
 
-    def compose_config(self, event_type="metric") -> dict:
+    def compose_config(self, event_type: str = "metric", prefer_kafka_cluster_name: str | None = None) -> dict:
         """
         数据源下发计算平台的资源配置
         """
@@ -194,7 +196,17 @@ class DataIdConfig(DataLinkResourceConfigBase):
                     "bizId": {{monitor_biz_id}},
                     "description": "{{name}}",
                     "maintainers": {{maintainers}},
-                    "event_type": "{{event_type}}"
+                    {% if prefer_kafka_cluster_name %}
+                    "preferCluster": {
+                        "kind": "KafkaChannel",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
+                        "namespace": "{{namespace}}",
+                        "name": "{{prefer_kafka_cluster_name}}"
+                    },
+                    {% endif %}
+                    "eventType": "{{event_type}}"
                 }
             }
             """
@@ -208,13 +220,12 @@ class DataIdConfig(DataLinkResourceConfigBase):
             "event_type": event_type,
         }
 
+        # 如果开启dataid注册时能够指定集群名称，则添加prefer_kafka_cluster_name字段
+        if settings.ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME:
+            render_params["prefer_kafka_cluster_name"] = prefer_kafka_cluster_name
+
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info(
-                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
-                self.bk_tenant_id,
-                self.kind,
-            )
             render_params["tenant"] = self.bk_tenant_id
 
         return utils.compose_config(
@@ -398,9 +409,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
-    def compose_config(
-        self,
-    ) -> dict:
+    def compose_config(self, whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None) -> dict[str, Any]:
         """
         组装VM存储配置，与结果表相关联
         """
@@ -425,6 +434,9 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                         "namespace": "{{namespace}}"
                     },
                     "maintainers": {{maintainers}},
+                    {% if whitelist_config %}
+                    "filter": {{whitelist_config}},
+                    {% endif %}
                     "storage": {
                         "kind": "VmStorage",
                         "name": "{{vm_name}}",
@@ -438,6 +450,19 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
 
+        # 白名单配置
+        whitelist_config: str | None = None
+        if whitelist and whitelist.get("metrics"):
+            metrics = whitelist["metrics"]
+            tags = whitelist.get("tags") or []
+            whitelist_config = json.dumps(
+                {
+                    "kind": "Whitelist",
+                    "metrics": metrics,
+                    "tags": tags,
+                }
+            )
+
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
@@ -445,6 +470,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             "rt_name": self.name,
             "vm_name": self.vm_cluster_name,
             "maintainers": json.dumps(maintainer),
+            "whitelist_config": whitelist_config,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -820,6 +846,189 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             render_params=render_params,
             err_msg_prefix="compose doris storage binding config",
         )
+
+
+class ClusterConfig(models.Model):
+    """
+    集群信息配置
+    """
+
+    # 由于配置原因，namespace实际上与存储类型是绑定的，与实际的使用方无关
+    KIND_TO_NAMESPACES_MAP = {
+        DataLinkKind.ELASTICSEARCH.value: [BKBASE_NAMESPACE_BK_LOG],
+        DataLinkKind.VMSTORAGE.value: [BKBASE_NAMESPACE_BK_MONITOR],
+        DataLinkKind.DORIS.value: [BKBASE_NAMESPACE_BK_LOG],
+        # Kafka集群需要同时注册到bkmonitor和bklog命名空间
+        DataLinkKind.KAFKACHANNEL.value: [BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR],
+    }
+
+    CLUSTER_TYPE_TO_KIND_MAP = {
+        "elasticsearch": DataLinkKind.ELASTICSEARCH.value,
+        "victoria_metrics": DataLinkKind.VMSTORAGE.value,
+        "doris": DataLinkKind.DORIS.value,
+        "kafka": DataLinkKind.KAFKACHANNEL.value,
+    }
+
+    bk_tenant_id = models.CharField(max_length=255, verbose_name="租户ID")
+    namespace = models.CharField(max_length=255, verbose_name="命名空间")
+    name = models.CharField(max_length=255, verbose_name="集群名称")
+    kind = models.CharField(max_length=255, verbose_name="集群类型")
+    origin_config = SymmetricJsonField(verbose_name="原始配置", default=dict)
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    update_time = models.DateTimeField(auto_now=True, verbose_name="最后更新时间")
+
+    class Meta:
+        verbose_name = "集群配置"
+        verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "kind", "name"),)
+
+    @property
+    def component_config(self):
+        """
+        组件完整配置（bkbase侧）
+        """
+        from metadata.models.data_link.service import get_data_link_component_config
+
+        return get_data_link_component_config(
+            bk_tenant_id=self.bk_tenant_id,
+            kind=self.kind,
+            namespace=self.namespace,
+            component_name=self.name,
+        )
+
+    def get_cluster(self) -> "ClusterInfo":
+        """获取集群信息"""
+        from metadata.models.storage import ClusterInfo
+
+        # 将 kind 映射回 cluster_type，需反向映射 CLUSTER_TYPE_TO_KIND_MAP
+        kind_to_cluster_type: dict[str, str] = {v: k for k, v in self.CLUSTER_TYPE_TO_KIND_MAP.items()}
+        cluster_type: str | None = kind_to_cluster_type.get(self.kind)
+        if not cluster_type:
+            raise ValueError(f"不支持的集群类型: {self.kind}")
+        return ClusterInfo.objects.get(
+            bk_tenant_id=self.bk_tenant_id,
+            cluster_type=cluster_type,
+            cluster_name=self.name,
+        )
+
+    def compose_config(self) -> dict[str, Any]:
+        """
+        组装集群配置
+        """
+        cluster = self.get_cluster()
+
+        if self.kind == DataLinkKind.ELASTICSEARCH.value:
+            return self.compose_es_config(cluster)
+        elif self.kind == DataLinkKind.KAFKACHANNEL.value:
+            return self.compose_kafka_config(cluster)
+        else:
+            raise ValueError(f"不支持的集群类型: {self.kind}")
+
+    def compose_kafka_config(self, cluster: "ClusterInfo") -> dict[str, Any]:
+        """组装Kafka集群配置"""
+        config = {
+            "kind": DataLinkKind.KAFKACHANNEL.value,
+            "metadata": {
+                "namespace": self.namespace,
+                "name": cluster.cluster_name,
+                "annotations": {"StreamToId": cluster.gse_stream_to_id},
+            },
+            "spec": {
+                "host": cluster.domain_name,
+                "port": cluster.port,
+                "streamToId": cluster.gse_stream_to_id,
+                "role": "outer",
+            },
+        }
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            config["metadata"]["tenant"] = cluster.bk_tenant_id
+
+        return config
+
+    def compose_es_config(self, cluster: "ClusterInfo") -> dict[str, Any]:
+        """组装ES集群配置
+
+        Args:
+            cluster: 集群信息
+
+        Returns:
+            dict[str, Any]: 集群配置
+        """
+
+        config = {
+            "kind": DataLinkKind.ELASTICSEARCH.value,
+            "metadata": {
+                "namespace": self.namespace,
+                "name": cluster.cluster_name,
+            },
+            "spec": {
+                "host": cluster.domain_name,
+                "port": cluster.port,
+                "user": cluster.username,
+                "password": cluster.password,
+            },
+        }
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            config["metadata"]["tenant"] = cluster.bk_tenant_id
+
+        return config
+
+    @classmethod
+    def sync_cluster_config(cls, cluster: "ClusterInfo") -> None:
+        """
+        同步集群配置
+
+        Note:
+            将集群信息同步到bkbase平台，并更新集群注册状态
+            如果集群类型不在支持的类型中，则不需要进行同步
+
+        Args:
+            cluster: 集群信息
+        """
+        from metadata.models.storage import ClusterInfo
+
+        # NOTE: 目前仅允许将ES集群配置到bkbase平台，VM和Doris集群需要通过bkbase配置，定时任务会自动从bkbase拉取配置
+        if cluster.cluster_type not in [ClusterInfo.TYPE_ES]:
+            return
+
+        # 根据集群类型获取kind和namespace
+        kind = cls.CLUSTER_TYPE_TO_KIND_MAP[cluster.cluster_type]
+        namespaces = cls.KIND_TO_NAMESPACES_MAP[kind]
+
+        # 获取或创建bkbase集群配置记录
+        for namespace in namespaces:
+            cluster_config, _ = ClusterConfig.objects.get_or_create(
+                bk_tenant_id=cluster.bk_tenant_id, namespace=namespace, name=cluster.cluster_name, kind=kind
+            )
+
+            # 组装配置
+            config = cluster_config.compose_config()
+
+            # 注册到bkbase平台
+            try:
+                api.bkdata.apply_data_link(config=[config], bk_tenant_id=cluster.bk_tenant_id)
+            except Exception as e:
+                logger.error(f"sync_cluster_config: apply data link error: {e}")
+                raise e
+
+            # 更新集群注册状态
+            cluster_config.origin_config = config
+            cluster_config.save()
+
+        cluster.registered_to_bkbase = True
+        cluster.save()
+
+    def delete_config(self):
+        """删除数据链路配置"""
+        api.bkdata.delete_data_link(
+            bk_tenant_id=self.bk_tenant_id,
+            kind=DataLinkKind.get_choice_value(self.kind),
+            namespace=self.namespace,
+            name=self.name,
+        )
+        self.delete()
 
 
 @deprecated("已废弃，统一使用DataBusConfig替代")

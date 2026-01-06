@@ -15,6 +15,7 @@ from rest_framework import serializers
 
 from apm_web.handlers.log_handler import ServiceLogHandler, get_biz_index_sets_with_cache
 from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.constants import DEFAULT_APM_LOG_SEARCH_FIELD_NAME
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import Vendor, FIVE_MIN_SECONDS
@@ -58,7 +59,7 @@ def process_service_relation(bk_biz_id, app_name, service_name, indexes_mapping,
             )
         if index_info:
             if overwrite_method:
-                index_info["addition"] = overwrite_method(overwrite_key="log")
+                index_info["addition"] = overwrite_method(overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME)
 
             result.append(index_info)
     return result
@@ -81,7 +82,7 @@ def process_span_host(bk_biz_id, app_name, span_id, span_detail, indexes_mapping
             # 默认查询: 机器 IP
             index_info["addition"] = item.get("addition", [])
             if overwrite_method:
-                index_info["addition"] = overwrite_method(overwrite_key="log")
+                index_info["addition"] = overwrite_method(overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME)
         result.append(index_info)
     return result
 
@@ -138,7 +139,7 @@ def process_metric_relations(
             if index_info:
                 index_info["addition"] = r["addition"]
                 if overwrite_method:
-                    index_info["addition"] = overwrite_method(overwrite_key="log")
+                    index_info["addition"] = overwrite_method(overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME)
                 result.append(index_info)
     return result
 

@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from django.conf import settings
 from django.db import models, transaction
@@ -897,6 +897,9 @@ class DataLink(models.Model):
 
         config_list, conditions = [], []
         for record in federal_records:
+            if not record.fed_builtin_metric_table_id:
+                continue
+
             # 联邦代理集群的RT名
             proxy_k8s_metric_vmrt_name = utils.compose_bkdata_table_id(record.fed_builtin_metric_table_id)
             relabels = [{"name": "bcs_cluster_id", "value": record.fed_cluster_id}]
@@ -1040,8 +1043,27 @@ class DataLink(models.Model):
         """
         生成采集插件时序数据链路配置 -- bk_standard & bk_exporter
         """
+        from metadata.models import ResultTableField, ResultTableOption
+
         bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
+
+        # 白名单配置
+        whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None
+        option = ResultTableOption.objects.filter(
+            table_id=table_id, bk_tenant_id=self.bk_tenant_id, name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST
+        ).first()
+        if option and option.value == "false":
+            result_table_fields = ResultTableField.objects.filter(
+                table_id=table_id, bk_tenant_id=self.bk_tenant_id, is_disabled=False
+            )
+            metrics, tags = [], []
+            for field in result_table_fields:
+                if field.tag == ResultTableField.FIELD_TAG_METRIC:
+                    metrics.append(field.field_name)
+                elif field.tag == ResultTableField.FIELD_TAG_DIMENSION:
+                    tags.append(field.field_name)
+            whitelist = {"metrics": metrics, "tags": tags}
 
         with transaction.atomic():
             # 渲染所需的资源配置
@@ -1084,7 +1106,7 @@ class DataLink(models.Model):
 
         configs = [
             vm_table_id_ins.compose_config(),
-            vm_storage_ins.compose_config(),
+            vm_storage_ins.compose_config(whitelist=whitelist),
             data_bus_ins.compose_config(sinks=sinks, transform_format=transform_format),
         ]
         return configs
@@ -1132,7 +1154,7 @@ class DataLink(models.Model):
         except RetryError as e:
             logger.error("apply_data_link: data_link_name->[%s] retry error->[%s]", self.data_link_name, e.__cause__)
             # 抛出底层错误原因，而非直接RetryError
-            raise e.__cause__
+            raise e.__cause__ if e.__cause__ else e
         except Exception as e:  # pylint: disable=broad-except
             logger.error("apply_data_link: data_link_name->[%s] apply error->[%s]", self.data_link_name, e)
             raise e

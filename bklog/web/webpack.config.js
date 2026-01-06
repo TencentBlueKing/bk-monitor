@@ -33,15 +33,12 @@ const LogWebpackPlugin = require('./webpack/log-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const CliMonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const { createMonitorConfig } = require('./scripts/create-monitor');
-const devProxyUrl = 'http://appdev.bktencent.com:9002';
-const loginHost = 'https://paas-dev.bktencent.com';
+
 const devPort = 8001;
 
 let devConfig = {
   port: devPort,
-  devProxyUrl,
-  loginHost,
-  proxy: {},
+  proxy: [{}],
   cache: null,
 };
 const logPluginConfig = {

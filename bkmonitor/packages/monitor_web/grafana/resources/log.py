@@ -11,16 +11,18 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 from datetime import datetime, timedelta
+from typing import Any
 
 import arrow
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from bkmonitor.data_source import load_data_source
+from bkmonitor.data_source import load_data_source, filter_dict_to_q
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request_tenant_id
-from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.data_source import DataSourceLabel, DataTypeLabel, GrayUnifyQueryDataSources
 from core.drf_resource import resource
 
 logger = logging.getLogger(__name__)
@@ -63,6 +65,25 @@ class LogQueryResource(ApiAuthResource):
 
         def validate(self, attrs):
             attrs["filter_dict"] = self.to_str(attrs["filter_dict"])
+            # 过滤掉无效的 where 条件
+            validated_where = []
+            for condition in attrs.get("where", []):
+                if not isinstance(condition, dict):
+                    continue
+                value = condition.get("value")
+                # 过滤掉 value 为 None、空列表或只包含 None 的列表
+                if value is None:
+                    continue
+                if isinstance(value, list):
+                    # 移除列表中的 None，如果移除后列表为空则跳过该条件
+                    filtered_value = [v for v in value if v is not None]
+                    if not filtered_value:
+                        continue
+                    condition["value"] = filtered_value
+                validated_where.append(condition)
+
+            attrs["where"] = validated_where
+
             return attrs
 
     @staticmethod
@@ -130,7 +151,7 @@ class LogQueryResource(ApiAuthResource):
         params["start_time"] *= 1000
         params["end_time"] *= 1000
 
-        time_field = None
+        time_field: str | None = None
         # 查询日志平台关键字时间字段
         if (params["data_source_label"], params["data_type_label"]) == (
             DataSourceLabel.BK_LOG_SEARCH,
@@ -145,8 +166,9 @@ class LogQueryResource(ApiAuthResource):
             except Exception as e:
                 logger.exception(e)
 
-        data_source_class = load_data_source(params["data_source_label"], params["data_type_label"])
-
+        data_source_key: tuple[str, str] = (params["data_source_label"], params["data_type_label"])
+        data_source_class = load_data_source(*data_source_key)
+        time_field = time_field or data_source_class.DEFAULT_TIME_FIELD
         kwargs = dict(
             bk_tenant_id=get_request_tenant_id(),
             table=params["result_table_id"],
@@ -161,23 +183,49 @@ class LogQueryResource(ApiAuthResource):
             if not params.get("alert_name"):
                 raise ValidationError(_("告警名称不能为空"))
             kwargs["alert_name"] = params["alert_name"]
-        elif (params["data_source_label"], params["data_type_label"]) == (
-            DataSourceLabel.BK_MONITOR_COLLECTOR,
-            DataTypeLabel.ALERT,
-        ):
+        elif data_source_key == (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.ALERT):
             if not params.get("bkmonitor_strategy_id"):
                 raise ValidationError(_("策略ID不能为空"))
             kwargs["bkmonitor_strategy_id"] = params["bkmonitor_strategy_id"]
 
-        data_source = data_source_class(**kwargs)
         limit = 1000 if params["limit"] <= 0 else params["limit"]
-        records, total = data_source.query_log(
-            start_time=params["start_time"], end_time=params["end_time"], limit=limit, offset=params["offset"]
-        )
+        if data_source_key in GrayUnifyQueryDataSources:
+            q: QueryConfigBuilder = (
+                QueryConfigBuilder((data_source_key[1], data_source_key[0]))
+                .table(kwargs["table"])
+                .time_field(kwargs["time_field"] or data_source_class.DEFAULT_TIME_FIELD)
+                .index_set_id(kwargs["index_set_id"])
+                .conditions(kwargs["where"])
+                .filter(filter_dict_to_q(kwargs["filter_dict"]))
+                .query_string(kwargs["query_string"])
+            )
+            queryset: UnifyQuerySet = (
+                UnifyQuerySet()
+                .scope(bk_biz_id=kwargs["bk_biz_id"])
+                .start_time(params["start_time"])
+                .end_time(params["end_time"])
+                .time_agg(False)
+                .time_align(False)
+                .instant()
+            )
+            records: list[dict[str, Any]] = list(queryset.add_query(q).limit(limit).offset(params["offset"]))
+            try:
+                total: int = list(queryset.add_query(q.metric(field="_index", method="COUNT", alias="a")).limit(1))[0][
+                    "_result_"
+                ]
+            except Exception:  # pylint: disable=broad-except
+                total = len(records)
+        else:
+            data_source = data_source_class(**kwargs)
+            records, total = data_source.query_log(
+                start_time=params["start_time"], end_time=params["end_time"], limit=limit, offset=params["offset"]
+            )
 
         result = []
         for record in records:
-            _record = {"time": self.get_time(record, data_source.time_field)}
+            # UnifyQuery 查询结果携带 _meta 字段，需剔除。
+            record.pop("_meta", None)
+            _record: dict[str, Any] = {"time": self.get_time(record, time_field)}
 
             if params["data_source_label"] in (DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM) and params[
                 "data_type_label"
@@ -199,12 +247,12 @@ class LogQueryResource(ApiAuthResource):
                     ]:
                         dimensions.pop(dimension, None)
 
-                event = record.pop("event", {})
-                content = event.get("content", "")
-                count = event.get("count", 1)
+                event: dict[str, Any] = record.pop("event", {})
+                _record["event.count"] = event.get("count", 1)
+                _record["event.content"] = event.get("content", "")
+                _record.update({f"event.extra.{key}": value for key, value in event.get("extra", {}).items()})
+
                 _record.update({f"dimensions.{key}": value for key, value in dimensions.items()})
-                _record["event.content"] = content
-                _record["event.count"] = count
                 _record.update(record)
             elif params["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH and "log" in record:
                 _record["event.content"] = record["log"]

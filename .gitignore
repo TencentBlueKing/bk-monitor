@@ -202,5 +202,11 @@ bkcodeai.json
 
 .cursor/
 
+.codebuddy
+
+.bkwikiairc
+
 ### PreCI ###
 .codecc
+
+.codebuddy/

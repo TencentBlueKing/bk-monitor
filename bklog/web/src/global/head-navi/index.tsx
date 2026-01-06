@@ -39,7 +39,7 @@ import useStore from '@/hooks/use-store';
 import logoImg from '@/images/log-logo.png';
 import platformConfigStore from '@/store/modules/platform-config';
 import { BK_LOG_STORAGE } from '@/store/store.type';
-import { bkDropdownMenu } from 'bk-magic-vue';
+import { bkDropdownMenu, bkMessage } from 'bk-magic-vue';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router/composables';
 
@@ -47,6 +47,8 @@ import { MENU_LISTS } from './complete-menu';
 import LogVersion from './log-version';
 
 import './index.scss';
+import { requestJson } from '@/request';
+import { join } from '../utils/path';
 
 export default defineComponent({
   name: 'HeaderNavTsx',
@@ -94,6 +96,7 @@ export default defineComponent({
     const state = reactive({
       isFirstLoad: true,
       username: '',
+      bk_tenant_id: null,
       usernameRequested: false,
       isShowLanguageDropdown: false,
       isShowGlobalDropdown: false,
@@ -144,6 +147,7 @@ export default defineComponent({
       try {
         const res = store.state.userMeta;
         state.username = res?.username || '';
+        state.bk_tenant_id = res?.bk_tenant_id || null;
         if ((window as any).__aegisInstance && state.username) {
           (window as any).__aegisInstance.setConfig({ uin: state.username });
         }
@@ -249,6 +253,26 @@ export default defineComponent({
             .join('.')
             .replace(`:${location.port}`, ''),
       });
+
+      if (state.bk_tenant_id) {
+        const url = join(
+          (window as any).BK_PAAS_API_HOST,
+          '/api/bk-user-web/prod/api/v3/open-web/tenant/current-user/language/',
+        );
+        requestJson({ url, params: { language: value }, headers: { 'X-Bk-Tenant-Id': state.bk_tenant_id } }).catch(
+          (err) => {
+            bkMessage({
+              message: err.message,
+              theme: 'error',
+            }).finally(() => {
+              location.reload();
+            });
+          },
+        );
+
+        return;
+      }
+
       if (envConfig.value.host) {
         try {
           useJSONP(

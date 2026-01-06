@@ -51,7 +51,6 @@ from metadata.models.space.utils import (
     get_biz_ids_by_space_ids,
     get_related_spaces,
     reformat_table_id,
-    update_filters_with_alias,
 )
 from metadata.utils.db import filter_model_by_in_page, filter_query_set_by_in_page
 from metadata.utils.redis_tools import RedisTools
@@ -816,9 +815,6 @@ class SpaceTableIDRedis:
         _values.update(
             self._compose_related_bkci_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
         )
-
-        # 替换自定义过滤条件别名
-        _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
         return _values
 
     def _compose_bkci_space_table_ids(
@@ -855,9 +851,6 @@ class SpaceTableIDRedis:
         _values.update(self._compose_doris_table_ids(space_type, space_id))
         # APM 真全局数据
         _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
-
-        # 替换自定义过滤条件别名
-        _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
         return _values
 
     def _compose_bksaas_space_table_ids(
@@ -891,8 +884,6 @@ class SpaceTableIDRedis:
         _values.update(self._compose_doris_table_ids(space_type, space_id))
         # APM 真全局数据
         _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
-        # 替换自定义过滤条件别名
-        _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
         return _values
 
     def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
@@ -1517,17 +1508,27 @@ class SpaceTableIDRedis:
             return {}
 
         table_id_ts_group_id = {data["table_id"]: data["time_series_group_id"] for data in _filter_data}
-        # NOTE: 针对自定义时序，过滤掉历史废弃的指标，时间在`TIME_SERIES_METRIC_EXPIRED_SECONDS`的为有效数据
-        # 其它类型直接获取所有指标和维度
-        begin_time = tz_now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
+        # NOTE: 针对自定义时序，过滤掉历史废弃的指标
+        # 如果开启特性开关 ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE，则使用 is_active 字段过滤
+        # 否则使用过期时间过滤（时间在`TIME_SERIES_METRIC_EXPIRED_SECONDS`的为有效数据）
         _filter_group_id_list = list(table_id_ts_group_id.values())
+
+        # 根据特性开关决定使用哪种过滤方式
+        if settings.ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE:
+            # 使用 is_active 字段过滤，只获取活跃的指标
+            other_filter = {"is_active": True}
+        else:
+            # 使用过期时间过滤（原有逻辑）
+            begin_time = tz_now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
+            other_filter = {"last_modify_time__gte": begin_time}
+
         ts_group_fields = filter_model_by_in_page(
             model=models.TimeSeriesMetric,
             field_op="group_id__in",
             filter_data=_filter_group_id_list,
             value_func="values",
             value_field_list=["field_name", "group_id"],
-            other_filter={"last_modify_time__gte": begin_time},
+            other_filter=other_filter,
         )
 
         group_id_field_map = {}

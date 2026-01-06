@@ -112,8 +112,7 @@ class StrategyCacheManager(CacheManager):
         if target["value"]:
             is_invalid_template = True
             for node in target["value"]:
-                result: list[int] = cache_manager.get(bk_tenant_id=bk_tenant_id, id=node["bk_inst_id"])
-                instances = [instance for instance in result if instance]
+                instances: list[int] = cache_manager.get(bk_tenant_id=bk_tenant_id, id=node["bk_inst_id"])
                 if instances:
                     is_invalid_template = False
                 else:
@@ -511,45 +510,15 @@ class StrategyCacheManager(CacheManager):
         )
 
     @classmethod
-    def is_disabled_strategy(cls, strategy: dict) -> bool:
-        """
-        判断策略是否被规则禁用
-        {"strategy_ids":[],"bk_biz_ids":[],"data_source_label":"","data_type_label":""}
-        """
-
-        query_config = strategy["items"][0]["query_configs"][0]
-        data_source_label = query_config["data_source_label"]
-        data_type_label = query_config["data_type_label"]
-
-        for disabled_rule in settings.ALARM_DISABLE_STRATEGY_RULES:
-            # 判断数据源是否被禁用
-            if (
-                disabled_rule.get("data_source_label")
-                and disabled_rule.get("data_type_label")
-                and (data_source_label, data_type_label)
-                != (
-                    disabled_rule["data_source_label"],
-                    disabled_rule["data_type_label"],
-                )
-            ):
-                continue
-            # 判断是否为被禁用业务
-            if disabled_rule.get("bk_biz_id") and strategy["bk_biz_id"] not in disabled_rule["bk_biz_id"]:
-                continue
-            # 判断是否为禁用策略
-            if disabled_rule.get("strategy_ids") and strategy["id"] not in disabled_rule["strategy_ids"]:
-                continue
-            return True
-
-        return False
-
-    @classmethod
     def handle_strategy(cls, strategy: dict, invalid_strategy_dict=None) -> bool:
         """
         策略预处理
         """
         strategy["update_time"] = arrow.get(strategy["update_time"]).timestamp
         strategy["create_time"] = arrow.get(strategy["create_time"]).timestamp
+
+        if not strategy["items"]:
+            return False
 
         for item in strategy["items"]:
             # 补充item的更新时间
@@ -558,13 +527,6 @@ class StrategyCacheManager(CacheManager):
             query_config = item["query_configs"][0]
             data_source_label = query_config["data_source_label"]
             data_type_label = query_config["data_type_label"]
-
-            # 判断策略是否被禁用
-            try:
-                if cls.is_disabled_strategy(strategy):
-                    return False
-            except Exception as e:
-                logger.warning(e)
 
             # 修改监控目标字段为ip的情况
             cls.transform_targets(item)
@@ -611,6 +573,8 @@ class StrategyCacheManager(CacheManager):
                 item["query_md5"] = cls.get_query_md5(strategy["bk_biz_id"], item)
 
             return True
+
+        return True
 
     @classmethod
     def get_strategy_ids(cls):

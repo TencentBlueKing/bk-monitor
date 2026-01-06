@@ -30,8 +30,11 @@ import StaticUtil from './static.util';
 
 import type OptimizedHighlighter from './optimized-highlighter';
 import type RetrieveEvent from './retrieve-events';
+import { EventEmitter } from './event';
+import { reportRouteLog } from '@/store/modules/report-helper.ts';
 
-export default class {
+
+export default class extends EventEmitter<RetrieveEvent> {
   // 滚动条查询条件
   globalScrollSelector: string;
 
@@ -60,9 +63,6 @@ export default class {
   // 趋势图高度
   trendGraphHeight: number;
 
-  // 事件列表
-  events: Map<string, ((..._args) => void)[]>;
-
   // 索引集id列表
   indexSetIdList: string[];
 
@@ -90,24 +90,29 @@ export default class {
 
   isSearching = false;
 
+  // 上报日志
+  reportLog: typeof reportRouteLog;
+
   constructor() {
+    super();
     this.randomTrendGraphClassName = `random-${random(12)}`;
-    this.events = new Map();
     this.logRowsContainerId = `result_container_key_${random(12)}`;
     this.RGBA_LIST = getRGBAColors(0.3);
     this.jsonFormatter = new JsonFormatter();
+    this.reportLog = reportRouteLog;
   }
 
   /**
    * 格式化时间戳
    * @param data 时间戳
    * @param fieldType 字段类型
+   * @param timezoneFormat 是否进行时区格式化，默认为 false
    * @returns 格式化后的时间戳
    */
-  formatDateValue(data: string, fieldType: string) {
+  formatDateValue(data: string, fieldType: string, timezoneFormat = false) {
     const formatFn = {
-      date: formatDate,
-      date_nanos: formatDateNanos,
+      date: (val: number | string | Date) => formatDate(val, timezoneFormat),
+      date_nanos: (val: string | number) => formatDateNanos(val, timezoneFormat),
     };
 
     if (formatFn[fieldType]) {
@@ -129,65 +134,6 @@ export default class {
     return data;
   }
 
-  on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (..._args) => void) {
-    const targetEvents = Array.isArray(fnName) ? fnName : [fnName];
-    for (const event of targetEvents) {
-      if (!this.events.has(event)) {
-        this.events.set(event, [callbackFn]);
-      }
-
-      if (this.events.has(event) && !this.events.get(event)?.includes(callbackFn)) {
-        this.events.get(event)?.push(callbackFn);
-      }
-    }
-
-    return this;
-  }
-
-  /**
-   * 触发指定事件
-   * 功能相当于 event bus
-   * @param eventName
-   * @param args
-   */
-  fire(eventName: RetrieveEvent, ...args) {
-    this.runEvent(eventName, ...args);
-  }
-
-  /**
-   * 移除事件
-   * @param eventName
-   * @param fn
-   */
-  off(eventName: RetrieveEvent, fn?: (..._args) => void) {
-    if (typeof fn === 'function') {
-      const index = this.events.get(eventName)?.indexOf(fn);
-      if (index !== -1) {
-        this.events.get(eventName)?.splice(index, 1);
-      }
-      return;
-    }
-    this.events.delete(eventName);
-  }
-
-  /**
-   * 批量移除事件
-   * @param eventNames
-   * @param fn
-   */
-  batchOff(eventNames: RetrieveEvent[], fn?: (..._args) => void) {
-    for (const eventName of eventNames) {
-      this.off(eventName, fn);
-    }
-  }
-
-  runEvent(event: RetrieveEvent, ...args) {
-    for (const item of this.events.get(event) || []) {
-      if (typeof item === 'function') {
-        item(...args);
-      }
-    }
-  }
 
   getRegExp(reg: RegExp | boolean | number | string, flgs?: string, fullMatch = false, formatRegStr = true): RegExp {
     return StaticUtil.getRegExp(reg, flgs, fullMatch, formatRegStr);

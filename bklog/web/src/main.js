@@ -43,10 +43,7 @@ import { renderHeader, xssFilter } from './common/util';
 import './directives/index';
 import JsonFormatWrapper from './global/json-format-wrapper.vue';
 import methods from './plugins/methods';
-import preload, {
-  getAllSpaceList,
-  getExternalMenuListBySpace,
-} from './preload';
+import preload, { getAllSpaceList, getExternalMenuListBySpace } from './preload';
 import getRouter from './router';
 import store from './store';
 
@@ -105,9 +102,11 @@ const mountedVueInstance = () => {
     const router = getRouter(spaceUid, bkBizId, externalMenu);
     setRouterErrorHandle(router);
 
-    store.dispatch('requestMenuList', spaceUid).catch((e) => {
-      console.error('获取菜单列表失败', e);
-    })
+    store
+      .dispatch('requestMenuList', spaceUid)
+      .catch((e) => {
+        console.error('获取菜单列表失败', e);
+      })
       .finally(() => {
         const menuList = store.state.topMenu ?? [];
         menuList
@@ -145,18 +144,43 @@ const mountedVueInstance = () => {
             App,
           },
           created() {
-            if (!space) {
+            if (!space && this.$route.name !== 'share') {
               this.$router.push({
                 path: '/un-authorized',
                 query: {
                   type: 'space',
                   spaceUid: spaceUid ?? store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
                   bkBizId: bkBizId ?? store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+                  indexId: urlArgs.index_id,
                   from: urlArgs.from,
                 },
               });
 
               return;
+            }
+
+            if (
+              ['/retrieve', '/'].includes(this.$route.path)
+              && (this.$route.query.spaceUid !== spaceUid || this.$route.query.bizId !== bkBizId)
+            ) {
+              this.$router.push({
+                name: 'retrieve',
+                params: {
+                  indexId: urlArgs.index_id,
+                },
+                query: {
+                  ...(this.$route.query ?? {}),
+                  spaceUid: spaceUid ?? store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+                  bizId: bkBizId ?? store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+                  start_time: urlArgs.start_time ?? this.$store.state.indexItem.start_time,
+                  end_time: urlArgs.end_time ?? this.$store.state.indexItem.end_time,
+                  timezone: urlArgs.timezone ?? this.$store.state.indexItem.time_zone,
+                  format: urlArgs.format ?? this.$store.state.indexItem.format,
+                  interval: urlArgs.interval ?? this.$store.state.indexItem.interval,
+                  search_mode: urlArgs.search_mode ?? this.$store.state.indexItem.search_mode,
+                  from: urlArgs.from,
+                },
+              });
             }
           },
           mounted() {
@@ -185,9 +209,7 @@ if (process.env.NODE_ENV === 'development') {
       window[key] = data[key];
     });
     window.FEATURE_TOGGLE = JSON.parse(data.FEATURE_TOGGLE);
-    window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(
-      data.FEATURE_TOGGLE_WHITE_LIST,
-    );
+    window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
     mountedVueInstance();

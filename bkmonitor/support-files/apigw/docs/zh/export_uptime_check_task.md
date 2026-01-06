@@ -7,7 +7,7 @@
 
 | 字段   | 类型   | 必选 | 描述                                                         |
 | ------ | ------ | ---- | ------------------------------------------------------------ |
-| biz_id | int    | 是   | 业务id |
+| bk_biz_id | int    | 是   | 业务id |
 | protocol | str | 否 | 协议类型(TCP、UDP、HTTP)|
 | task_ids | str | 否 | 任务ID，多个任务以逗号分隔 |
 | node_conf_needed | int | 否 | 是否导出任务相关的节点配置信息，0或1,默认为1 |
@@ -16,7 +16,7 @@
 
 ```json
 {
-    "biz_id": 2,
+    "bk_biz_id": 2,
     "task_ids": "60",
     "protocol": "TCP"
 }

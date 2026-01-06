@@ -150,7 +150,7 @@ export const formatTime = (time: number) => {
   let time2 = +time;
   if (Number.isNaN(time2)) return time2;
   time2 = `${time2}`.length === 10 ? time2 * 10 ** 3 : time2;
-  const timeRes = dayjs.tz(time2).format('YYYY-MM-DD HH:mm:ss');
+  const timeRes = dayjs.tz(time2).format('YYYY-MM-DD HH:mm:ssZZ');
   return timeRes;
 };
 

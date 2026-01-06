@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import operator
 from functools import reduce
 from typing import Any
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 
 from django.db.models import Q
 from rest_framework import serializers
@@ -19,9 +19,7 @@ from rest_framework import serializers
 from apm_web.event.handler import EventHandler
 from apm_web.models import Application
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.utils.cache import CacheType, using_cache
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import api
 from monitor_web.data_explorer.event import serializers as event_serializers
 from monitor_web.data_explorer.event.constants import (
     DEFAULT_EVENT_ORIGIN,
@@ -29,12 +27,11 @@ from monitor_web.data_explorer.event.constants import (
     CicdEventName,
     EventCategory,
     EventDomain,
-    EventSource,
-    Operation,
 )
 from monitor_web.data_explorer.event.utils import (
     get_data_labels_map,
     get_q_from_query_config,
+    get_cluster_table_map,
 )
 
 
@@ -92,34 +89,6 @@ DOMAIN_CONF_HANDLER_MAP: dict[str, Callable[[dict[str, Any]], Q]] = {
 }
 
 
-def filter_tables_by_source(
-    bk_biz_id: int,
-    source_cond: dict[str, Any] | None,
-    tables: Iterable[str],
-    data_labels_map: dict[str, str] | None = None,
-) -> set[str]:
-    if source_cond is None:
-        return set(tables)
-
-    filtered_tables: set[str] = set()
-    if data_labels_map is None:
-        data_labels_map = get_data_labels_map(bk_biz_id, tables)
-
-    for table in tables:
-        if table in filtered_tables:
-            continue
-
-        __, source = EVENT_ORIGIN_MAPPING.get(data_labels_map.get(table), DEFAULT_EVENT_ORIGIN)
-        if source_cond["method"] == Operation.EQ["value"]:
-            if source in source_cond.get("value") or []:
-                filtered_tables.add(table)
-        elif source_cond["method"] == Operation.NE["value"]:
-            if source not in source_cond.get("value") or []:
-                filtered_tables.add(table)
-
-    return filtered_tables
-
-
 def filter_by_relation(
     q: QueryConfigBuilder, relation: dict[str, Any], data_labels_map: dict[str, str], table: str | None = None
 ) -> QueryConfigBuilder:
@@ -131,49 +100,11 @@ def filter_by_relation(
     return q
 
 
-# 稳定的元数据，设置一个较长时间的 Redis 缓存，便于共享
-@using_cache(CacheType.APM(60 * 60))
-def get_cluster_table_map(cluster_ids: tuple[str, ...]) -> dict[str, str]:
-    if not cluster_ids:
-        return {}
-
-    cluster_infos: list[dict[str, Any]] = api.metadata.list_bcs_cluster_info(cluster_ids=list(cluster_ids))
-    cluster_to_data_id: dict[str, int] = {
-        cluster_info["cluster_id"]: cluster_info["k8s_event_data_id"] for cluster_info in cluster_infos
-    }
-    # 业务场景不会超过一页，使用 single 接口避免多次请求
-    event_groups: list[dict[str, Any]] = api.metadata.single_query_event_group(
-        bk_data_ids=list(cluster_to_data_id.values())
-    )
-    data_id_table_map: dict[int, str] = {
-        event_group["bk_data_id"]: event_group["table_id"] for event_group in event_groups
-    }
-
-    cluster_table_map: dict[str, str] = {}
-    for cluster_id in cluster_to_data_id:
-        table: str | None = data_id_table_map.get(cluster_to_data_id.get(cluster_id))
-        if table:
-            cluster_table_map[cluster_id] = table
-
-    return cluster_table_map
-
-
 def process_query_config(
     bk_biz_id: int, origin_query_config: dict[str, Any], event_relations: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
-    where: list[dict[str, Any]] = []
-    source_cond: dict[str, Any] | None = None
-    for cond in origin_query_config.get("where") or []:
-        if cond.get("key") == "source":
-            source_cond = cond
-            continue
-        where.append(cond)
-
-    origin_query_config["where"] = where
     filtered_tables: set[str] = {relation["table"] for relation in event_relations}
     data_labels_map: dict[str, str] = get_data_labels_map(bk_biz_id, filtered_tables)
-    if source_cond:
-        filtered_tables = filter_tables_by_source(bk_biz_id, source_cond, filtered_tables, data_labels_map)
 
     base_q: QueryConfigBuilder = get_q_from_query_config(
         {**origin_query_config, "data_type_label": DataTypeLabel.EVENT, "data_source_label": DataSourceLabel.BK_APM}
@@ -186,9 +117,6 @@ def process_query_config(
 
     queryset: UnifyQuerySet = UnifyQuerySet().start_time(0).end_time(0)
     for relation in event_relations:
-        if relation["table"] not in filtered_tables:
-            continue
-
         if relation["table"] == EventCategory.CICD_EVENT.value and not relation["relations"]:
             # CICD 事件必须有关联条件才能查询。
             continue
@@ -240,92 +168,51 @@ class BaseEventRequestSerializer(serializers.Serializer):
 
 class EventTimeSeriesRequestSerializer(event_serializers.EventTimeSeriesRequestSerializer, BaseEventRequestSerializer):
     def validate(self, attrs):
-        attrs = super().validate(attrs)
-
         event_relations: list[dict[str, Any]] = EventHandler.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
         )
         attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
-        return attrs
+        return super().validate(attrs)
 
 
 class EventLogsRequestSerializer(event_serializers.EventLogsRequestSerializer, BaseEventRequestSerializer):
     def validate(self, attrs):
-        attrs = super().validate(attrs)
-
         event_relations: list[dict[str, Any]] = EventHandler.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
         )
         attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
-        return attrs
+        return super().validate(attrs)
 
 
 class EventViewConfigRequestSerializer(event_serializers.EventViewConfigRequestSerializer, BaseEventRequestSerializer):
-    # 不传 / 为空代表全部
-    sources = serializers.ListSerializer(
-        child=serializers.ChoiceField(label="事件来源", choices=EventSource.choices()), required=False, default=[]
-    )
-
-    # 校验层
-    related_sources = serializers.ListSerializer(
-        child=serializers.ChoiceField(label="服务关联事件来源", choices=EventSource.choices()),
-        required=False,
-        default=[],
-    )
-
     def validate(self, attrs):
-        attrs = super().validate(attrs)
-
-        source_cond: dict[str, Any] | None = None
-        if attrs.get("sources"):
-            source_cond = {"method": Operation.EQ["value"], "value": attrs["sources"]}
-
-        bk_biz_id: int = attrs["bk_biz_id"]
-        relations: list[dict[str, Any]] = EventHandler.fetch_relations(
-            bk_biz_id, attrs["app_name"], attrs["service_name"]
-        )
-        filtered_tables: set[str] = {relation["table"] for relation in relations}
-        data_labels_map: dict[str, str] = get_data_labels_map(bk_biz_id, filtered_tables)
-        filtered_tables = filter_tables_by_source(bk_biz_id, source_cond, filtered_tables, data_labels_map)
-
-        related_sources: set[str] = set()
         data_sources: list[dict[str, str]] = []
-        for relation in relations:
+        for relation in EventHandler.fetch_relations(attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]):
             table: str = relation["table"]
-            __, source = EVENT_ORIGIN_MAPPING.get(data_labels_map.get(table), DEFAULT_EVENT_ORIGIN)
-            related_sources.add(source)
-            if table not in filtered_tables:
-                continue
-
             data_sources.append(
                 {"table": table, "data_type_label": DataTypeLabel.EVENT, "data_source_label": DataSourceLabel.BK_APM}
             )
 
         attrs["data_sources"] = data_sources
-        attrs["related_sources"] = list(related_sources)
-        return attrs
+        return super().validate(attrs)
 
 
 class EventTopKRequestSerializer(event_serializers.EventTopKRequestSerializer, BaseEventRequestSerializer):
     def validate(self, attrs):
-        attrs = super().validate(attrs)
-
         event_relations: list[dict[str, Any]] = EventHandler.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
         )
         attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
-        return attrs
+        return super().validate(attrs)
 
 
 class EventTotalRequestSerializer(event_serializers.EventTotalRequestSerializer, BaseEventRequestSerializer):
     def validate(self, attrs):
-        attrs = super().validate(attrs)
-
         event_relations: list[dict[str, Any]] = EventHandler.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
         )
         attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
-        return attrs
+        return super().validate(attrs)
 
 
 class EventTagDetailRequestSerializer(EventTimeSeriesRequestSerializer):
@@ -363,23 +250,19 @@ class EventStatisticsGraphRequestSerializer(
     event_serializers.EventStatisticsGraphRequestSerializer, BaseEventRequestSerializer
 ):
     def validate(self, attrs):
-        attrs = super().validate(attrs)
-
         event_relations: list[dict[str, Any]] = EventHandler.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
         )
         attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
-        return attrs
+        return super().validate(attrs)
 
 
 class EventStatisticsInfoRequestSerializer(
     event_serializers.EventStatisticsInfoRequestSerializer, BaseEventRequestSerializer
 ):
     def validate(self, attrs):
-        attrs = super().validate(attrs)
-
         event_relations: list[dict[str, Any]] = EventHandler.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
         )
         attrs["query_configs"] = process_query_config(attrs["bk_biz_id"], attrs["query_configs"][0], event_relations)
-        return attrs
+        return super().validate(attrs)

@@ -254,37 +254,6 @@ export const generateIframeSrcdoc = (isDev: boolean) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>日志检索</title>
   <base href="${baseHref}">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
-    #app {
-      width: 100%;
-      height: 100%;
-    }
-    .loading-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
-      font-size: 14px;
-      color: #63656e;
-    }
-  </style>
-  <link rel="stylesheet" href="${cssUrl}">
-</head>
-<body>
-  <div id="app">
-    <div class="loading-container">加载中...</div>
-  </div>
   <script>
     // === Location 代理：直接使用父级的 location ===
     // iframe 中的 location 直接代理父级的 location，保证 URL 一致
@@ -484,6 +453,38 @@ export const generateIframeSrcdoc = (isDev: boolean) => {
       setupLocationProxy();
     }
   </script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    #app {
+      width: 100%;
+      height: 100%;
+    }
+    .loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      font-size: 14px;
+      color: #63656e;
+    }
+  </style>
+  <link rel="stylesheet" href="${cssUrl}">
+</head>
+<body>
+  <div id="app">
+    <div class="loading-container">加载中...</div>
+  </div>
+  
 
   <script>
     // 预加载环境变量：从主站点注入到 iframe

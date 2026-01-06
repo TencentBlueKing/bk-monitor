@@ -31,6 +31,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.api import TransferApi
 from apps.exceptions import ApiResultError, ValidationError
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_databus.constants import (
     BKDATA_ES_TYPE_MAP,
     CACHE_KEY_CLUSTER_INFO,
@@ -101,14 +102,33 @@ class EtlStorage:
         """
         raise NotImplementedError(_("功能暂未实现"))
 
+    def etl_preview_v4(self, data, etl_params) -> list:
+        """
+        V4版本字段提取预览，直接调用BkDataDatabusApi.databus_clean_debug方法
+        :param data: 日志原文
+        :param etl_params: 字段提取参数
+        :return: 字段列表 list
+        """
+        raise NotImplementedError(_("V4版本功能暂未实现"))
+
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):
         raise NotImplementedError(_("功能暂未实现"))
 
-    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X"):
+    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X", enable_v4=False):
         """
         配置清洗入库策略，需兼容新增、编辑
         """
         raise NotImplementedError(_("功能暂未实现"))
+
+    def build_log_v4_data_link(self, fields: list, etl_params: dict, built_in_config: dict) -> dict:
+        """
+        构建V4版本的clean_rules配置
+        :param fields: 字段列表
+        :param etl_params: 清洗参数
+        :param built_in_config: 内置配置，包含fields和time_field
+        :return: clean_rules配置字典
+        """
+        raise NotImplementedError(_("V4版本clean_rules构建功能暂未实现"))
 
     @staticmethod
     def get_es_field_type(field):
@@ -116,6 +136,166 @@ class EtlStorage:
         if not es_type:
             es_type = FieldDataTypeEnum.get_es_field_type(field["field_type"], is_analyzed=field["is_analyzed"])
         return BKDATA_ES_TYPE_MAP.get(es_type, "string")
+
+    @staticmethod
+    def _get_output_type(field_type: str) -> str:
+        """
+        将字段类型转换为V4 clean_rules的output_type
+        """
+        type_mapping = {
+            "string": "string",
+            "int": "long",
+            "long": "long",
+            "float": "double",
+            "double": "double",
+            "object": "dict",
+            "bool": "boolean",
+            "boolean": "boolean",
+        }
+        return type_mapping.get(field_type, "string")
+
+    @staticmethod
+    def _convert_v3_to_v4_time_format(v3_time_format: str) -> dict:
+        """
+        将V3时间格式转换为V4 in_place_time_parsing配置
+        :param v3_time_format: V3版本的时间格式字符串
+        :return: V4版本的in_place_time_parsing配置字典
+        """
+        # V3到V4时间格式映射表
+        time_format_mapping = {
+            # 标准日期时间格式
+            "yyyy-MM-dd HH:mm:ss": {"format": "%Y-%m-%d %H:%M:%S", "zone": 0},
+            "yyyy-MM-dd HH:mm:ss,SSS": {"format": "%Y-%m-%d %H:%M:%S,%3f", "zone": 0},
+            "yyyy-MM-dd HH:mm:ss.SSS": {"format": "%Y-%m-%d %H:%M:%S.%3f", "zone": 0},
+            "yyyy-MM-dd HH:mm:ss.SSSSSS": {"format": "%Y-%m-%d %H:%M:%S.%6f", "zone": 0},
+            "yy-MM-dd HH:mm:ss.SSSSSS": {"format": "%y-%m-%d %H:%M:%S.%6f", "zone": 0},
+            "yyyy-MM-ddTHH:mm:ss.SSSSSS": {"format": "%Y-%m-%dT%H:%M:%S.%6f", "zone": 0},
+            "yyyy-MM-dd+HH:mm:ss": {"format": "%Y-%m-%d+%H:%M:%S", "zone": 0},
+            "MM/dd/yyyy HH:mm:ss": {"format": "%m/%d/%Y %H:%M:%S", "zone": 0},
+            "yyyyMMddHHmmss": {"format": "%Y%m%d%H%M%S", "zone": 0},
+            "yyyyMMdd HHmmss": {"format": "%Y%m%d %H%M%S", "zone": 0},
+            "yyyyMMdd HHmmss.SSS": {"format": "%Y%m%d %H%M%S.%3f", "zone": 0},
+            "dd/MMM/yyyy:HH:mm:ss": {"format": "%d/%b/%Y:%H:%M:%S", "zone": 0},
+            "dd/MMM/yyyy:HH:mm:ssZ": {"format": "%d/%b/%Y:%H:%M:%S%:z", "zone": None},
+            "dd/MMM/yyyy:HH:mm:ss Z": {"format": "%d/%b/%Y:%H:%M:%S %:z", "zone": None},
+            "dd/MMM/yyyy:HH:mm:ssZZ": {"format": "%d/%b/%Y:%H:%M:%S%:z", "zone": None},
+            "dd/MMM/yyyy:HH:mm:ss ZZ": {"format": "%d/%b/%Y:%H:%M:%S %:z", "zone": None},
+            "rfc3339": {"format": "%+", "zone": None},
+            "yyyy-MM-ddTHH:mm:ss": {"format": "%Y-%m-%dT%H:%M:%S", "zone": 0},
+            "yyyy-MM-ddTHH:mm:ss.SSS": {"format": "%Y-%m-%dT%H:%M:%S.%3f", "zone": 0},
+            "yyyyMMddTHHmmssZ": {"format": "%Y%m%dT%H%M%S%:z", "zone": None},
+            "yyyyMMddTHHmmss.SSSSSSZ": {"format": "%Y%m%dT%H%M%S.%6f%:z", "zone": None},
+            "yyyy-MM-ddTHH:mm:ss.SSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%3f%:z", "zone": None},
+            "yyyy-MM-ddTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": None},
+            "ISO8601": {"format": "%+", "zone": None},
+            "yyyy-MM-ddTHH:mm:ssZ": {"format": "%Y-%m-%dT%H:%M:%S%:z", "zone": None},
+            "yyyy-MM-ddTHH:mm:ss.SSSSSSZZ": {"format": "%Y-%m-%dT%H:%M:%S.%6f%:z", "zone": None},
+            "yyyy.MM.dd-HH.mm.ss:SSS": {"format": "%Y.%m.%d-%H.%M.%S:%3f", "zone": 0},
+            "date_hour_minute_second": {"format": "%Y-%m-%dT%H:%M:%S", "zone": 0},
+            "date_hour_minute_second_millis": {"format": "%Y-%m-%dT%H:%M:%S.%3f", "zone": 0},
+            "basic_date_time": {"format": "%Y%m%dT%H%M%S.%3f%z", "zone": None},
+            "basic_date_time_no_millis": {"format": "%Y%m%dT%H%M%S%z", "zone": None},
+            "basic_date_time_micros": {"format": "%Y%m%dT%H%M%S.%6f%z", "zone": None},
+            "strict_date_time": {"format": "%Y-%m-%dT%H:%M:%S.%3f%:z", "zone": None},
+            "strict_date_time_no_millis": {"format": "%Y-%m-%dT%H:%M:%S%:z", "zone": None},
+            "strict_date_time_micros": {"format": "%Y-%m-%dT%H:%M:%S.%6f%:z", "zone": None},
+            # Unix时间戳格式
+            "epoch_micros": {"format": "Unix Timestamp", "zone": None},
+            "Unix Time Stamp(milliseconds)": {"format": "Unix Timestamp", "zone": None},
+            "epoch_millis": {"format": "Unix Timestamp", "zone": None},
+            "epoch_second": {"format": "Unix Timestamp", "zone": None},
+        }
+
+        # 获取映射配置
+        format_config = time_format_mapping.get(v3_time_format)
+        if not format_config:
+            # 如果找不到映射，使用默认配置
+            return {
+                "from": {"format": "%Y-%m-%d %H:%M:%S", "zone": 0},
+                "interval_format": None,
+                "to": "millis",
+                "now_if_parse_failed": True,
+            }
+
+        # 构建V4 in_place_time_parsing配置
+        return {
+            "from": {"format": format_config["format"], "zone": format_config["zone"]},
+            "interval_format": None,
+            "to": "millis",
+            "now_if_parse_failed": True,
+        }
+
+    def _build_built_in_fields_v4(self, built_in_config: dict) -> list:
+        """
+        构建V4版本的内置字段规则
+        :param built_in_config: 内置配置，包含fields和time_field
+        :return: 内置字段规则列表
+        """
+        rules = []
+
+        # 处理内置字段
+        built_in_fields = built_in_config.get("fields", [])
+        for field in built_in_fields:
+            field_name = field["field_name"]
+            alias_name = field.get("alias_name", field_name)
+            field_type = field["field_type"]
+
+            # 跳过log、iterationIndex字段，它会在后面单独处理
+            if field_name in ["log", "iterationIndex"]:
+                continue
+
+            rules.append(
+                {
+                    "input_id": "json_data",
+                    "output_id": field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": alias_name,
+                        "alias": field_name,
+                        "desc": field.get("description"),
+                        "input_type": None,
+                        "output_type": self._get_output_type(field_type),
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": None,
+                        "default_value": None,
+                    },
+                }
+            )
+
+        # 处理时间字段
+        time_field = built_in_config.get("time_field")
+        if time_field:
+            time_field_name = time_field["field_name"]
+            time_alias_name = time_field.get("alias_name", time_field_name)
+            time_field_type = time_field["field_type"]
+
+            # 获取V3时间格式并转换为V4格式
+            v3_time_format = time_field.get("option", {}).get("time_format", "yyyy-MM-dd HH:mm:ss")
+            v4_time_parsing = self._convert_v3_to_v4_time_format(v3_time_format)
+
+            rules.append(
+                {
+                    "input_id": "json_data",
+                    "output_id": time_field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": time_alias_name,
+                        "alias": time_field_name,
+                        "desc": time_field.get("description"),
+                        "input_type": None,
+                        "output_type": self._get_output_type(time_field_type),
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": v4_time_parsing,
+                        "default_value": None,
+                    },
+                }
+            )
+
+        return rules
 
     @staticmethod
     def generate_hash_str(
@@ -245,7 +425,7 @@ class EtlStorage:
         META
         """
         # field_list
-        field_list = built_in_config.get("fields", [])
+        field_list = copy.deepcopy(built_in_config.get("fields", []))
         etl_flat = etl_params.get("etl_flat", False)
 
         # 是否保留原文
@@ -353,10 +533,10 @@ class EtlStorage:
             ):
                 raise ValidationError(_(f"ES版本{es_version}不支持 flattened 字段类型"))
 
+            option = field.get("option") or {}
+
             # option, 非时间字段的option里的time_zone和time_format都为"", 不需要入库
-            field_option = {
-                k: v for k, v in field.get("option", {}).items() if k not in ["time_zone", "time_format", "es_format"]
-            }
+            field_option = {k: v for k, v in option.items() if k not in ["time_zone", "time_format", "es_format"]}
             field_option["field_index"] = etl_field_index
             etl_field_index += 1
 
@@ -552,6 +732,18 @@ class EtlStorage:
         # 增加冷热集群配置参数
         params = self._deal_hot_warm_config(allocation_min_days, hot_warm_config, params)
 
+        # 获取结果表是否已经创建，如果创建则选择更新
+        table_id = ""
+        try:
+            table_id = TransferApi.get_result_table({"table_id": params["table_id"]}).get("table_id")
+        except ApiResultError:
+            pass
+
+        if not table_id and FeatureToggleObject.switch("log_v4_data_link", instance.get_bk_biz_id()):
+            if hasattr(instance, "enable_v4"):
+                instance.enable_v4 = True
+                instance.save()
+
         # 获取清洗配置
         collector_scenario = CollectorScenario.get_instance(collector_scenario_id=instance.collector_scenario_id)
         built_in_config = collector_scenario.get_built_in_config(
@@ -560,7 +752,10 @@ class EtlStorage:
             sort_fields=sort_fields,
             target_fields=target_fields,
         )
-        result_table_config = self.get_result_table_config(fields, etl_params, built_in_config, es_version=es_version)
+        enable_v4 = getattr(instance, "enable_v4", False)
+        result_table_config = self.get_result_table_config(
+            fields, etl_params, built_in_config, es_version=es_version, enable_v4=enable_v4
+        )
         is_nanos = False
         for rt_field in result_table_config["field_list"]:
             if rt_field["field_name"] == "dtEventTimeStampNanos":
@@ -586,13 +781,6 @@ class EtlStorage:
         # 时间默认为维度
         if "time_option" in params and "es_doc_values" in params["time_option"]:
             del params["time_option"]["es_doc_values"]
-
-        # 获取结果表是否已经创建，如果创建则选择更新
-        table_id = ""
-        try:
-            table_id = TransferApi.get_result_table({"table_id": params["table_id"]}).get("table_id")
-        except ApiResultError:
-            pass
 
         # 兼容插件与采集项
         if not table_id:
@@ -707,7 +895,10 @@ class EtlStorage:
         collector_config = {"etl_params": result_table_config.get("option", {})}
         if result_table_storage:
             collector_config["storage_cluster_id"] = result_table_storage["cluster_config"]["cluster_id"]
-            collector_config["storage_cluster_name"] = result_table_storage["cluster_config"]["cluster_name"]
+            collector_config["storage_cluster_name"] = (
+                result_table_storage["cluster_config"].get("display_name")
+                or result_table_storage["cluster_config"]["cluster_name"]
+            )
             collector_config["retention"] = result_table_storage["storage_config"].get("retention")
             collector_config["allocation_min_days"] = result_table_storage["storage_config"].get("warm_phase_days")
 

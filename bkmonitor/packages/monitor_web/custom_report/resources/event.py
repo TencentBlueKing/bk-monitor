@@ -14,7 +14,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from bkmonitor.data_source import load_data_source
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import QueryConfigModel
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.serializers import TenantIdField
@@ -213,7 +213,7 @@ class GetCustomEventGroup(Resource):
             .get(pk=event_group_id)
         )
         serializer = CustomEventGroupDetailSerializer(config, context={"request_bk_biz_id": params["bk_biz_id"]})
-        data = dict(serializer.data)
+        data: dict[str, Any] = dict(serializer.data)
         event_info_list = api.metadata.get_event_group.request.refresh(
             event_group_id=event_group_id, need_refresh=need_refresh, event_infos_limit=event_infos_limit
         )
@@ -255,9 +255,13 @@ class GetCustomEventGroup(Resource):
         data["scenario_display"] = label_display_dict.get(data["scenario"], [data["scenario"]])
         data["access_token"] = self.get_token(data["bk_data_id"])
 
-        event_detail = self.query_event_detail(data["table_id"], params["time_range"])
-        for event in data["event_info_list"]:
-            event.update(event_detail[event["custom_event_name"]])
+        event_info_num: int = len(data["event_info_list"])
+        if event_info_num:
+            event_detail = self.query_event_detail(
+                params["bk_biz_id"], data["table_id"], params["time_range"], event_info_num
+            )
+            for event in data["event_info_list"]:
+                event.update(event_detail[event["custom_event_name"]])
         return data
 
     @staticmethod
@@ -266,44 +270,45 @@ class GetCustomEventGroup(Resource):
         return data_id_info["token"]
 
     @staticmethod
-    def query_event_detail(result_table_id, time_range) -> dict[str, dict]:
-        result: dict[str, dict[str, Any]] = defaultdict(
-            lambda: {
-                "event_count": 0,
-                "target_count": 0,
-                "last_change_time": "",
-                "last_event_content": {},
-            }
-        )
+    def query_event_detail(bk_biz_id: int, table: str, time_range: str, limit: int) -> defaultdict[str, dict]:
         start, end = parse_time_range(time_range)
-        data_source = load_data_source(DataSourceLabel.CUSTOM, DataTypeLabel.EVENT)(table=result_table_id)
-        q = data_source._get_queryset(
-            bk_tenant_id=get_request_tenant_id(),
-            metrics=[
-                {"field": "target", "method": "distinct", "alias": "target_count"},
-                {"field": "time", "method": "max", "alias": "last_change_timestamp"},
-            ],
-            table=data_source.table,
-            group_by=["event_name"],
-            where=data_source.filter_dict,
-            time_field=data_source.time_field,
-            start_time=start * 1000,
-            end_time=end * 1000,
-            interval=end - start,
-            time_align=False,
-        ).dsl_group_hits(1)
+        qs: UnifyQuerySet = (
+            UnifyQuerySet()
+            .scope(bk_biz_id)
+            .time_align(False)
+            .start_time(start * 1000)
+            .end_time(end * 1000)
+            .limit(limit)
+        )
+        q: QueryConfigBuilder = QueryConfigBuilder((DataTypeLabel.EVENT, DataSourceLabel.CUSTOM)).table(table)
 
-        for record in q.raw_data:
-            result[record["event_name"]]["event_count"] += record.get("hits_total", 0)
-            result[record["event_name"]]["target_count"] = max(
-                record["target_count"], result[record["event_name"]]["target_count"]
+        result: defaultdict[str, dict[str, Any]] = defaultdict(
+            lambda: {"event_count": 0, "target_count": 0, "last_change_time": "", "last_event_content": {}}
+        )
+
+        # 获取事件名对应的最近一条事件
+        for last_event in qs.add_query(q.distinct("event_name").order_by("-time")):
+            last_event.pop("_meta", None)
+            result[last_event["event_name"]]["last_event_content"] = last_event
+            result[last_event["event_name"]]["last_change_time"] = date_convert(
+                int(int(last_event["time"]) // 1000), "datetime"
             )
-            result[record["event_name"]]["last_change_time"] = date_convert(
-                int(record["last_change_timestamp"] // 1000), "datetime"
-            )
-            hits = record.get("hits", [])
-            if hits:
-                result[record["event_name"]]["last_event_content"] = hits[0]
+
+        # 获取去重目标数量
+        for record in (
+            qs.add_query(q.metric(field="target", method="distinct", alias="a").group_by("event_name"))
+            .time_agg(False)
+            .instant()
+        ):
+            result[record["event_name"]]["target_count"] = record["_result_"]
+
+        # 获取事件总数
+        for record in (
+            qs.add_query(q.metric(field="event_name", method="count", alias="a").group_by("event_name"))
+            .time_agg(False)
+            .instant()
+        ):
+            result[record["event_name"]]["event_count"] = record["_result_"]
 
         return result
 

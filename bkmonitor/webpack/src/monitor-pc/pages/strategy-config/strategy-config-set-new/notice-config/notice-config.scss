@@ -53,6 +53,34 @@
     margin-top: 2px;
   }
 
+  .voice-notice {
+    display: none; // 暂时隐藏，等后端开发完成再放开
+    // display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 11px 0;
+
+    .ai-whale-icon {
+      font-size: 14px;
+    }
+  }
+
+  .voice-notice-label {
+    flex-shrink: 0;
+    margin-right: 12px;
+    font-size: 12px;
+    color: #979ba5;
+  }
+
+  .voice-notice-radio-group {
+    width: auto;
+  }
+
+  .voice-notice-checkbox,
+  .voice-notice-radio {
+    margin-right: 10px;
+  }
+
   .alarm-group-skeleton {
     width: 90px;
     height: 16px;

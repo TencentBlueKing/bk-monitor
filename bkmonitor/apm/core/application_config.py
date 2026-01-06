@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 import json
 import logging
 from collections import defaultdict
@@ -490,11 +491,11 @@ class ApplicationConfig(BkCollectorConfig):
 
         return license_config
 
-    def get_config(self, config_type: str, config: dict):
+    def get_config(self, config_type: str, default_config: dict):
         """
         获取配置
         :param config_type: type 类型
-        :param config: 配置
+        :param default_config: 默认配置
         :return:
         """
 
@@ -506,6 +507,7 @@ class ApplicationConfig(BkCollectorConfig):
 
         value = json.loads(json_value)
 
+        config = copy.deepcopy(default_config)
         config.update(value)
 
         return config

@@ -33,6 +33,7 @@ DEFAULT_TEMPLATE_CONTENT = """{{content.level}}
 
 BkMonitorQuerySchema = Schema(
     {
+        Optional("name", default=""): And(str, lambda p: 255 >= len(p) >= 0),
         Optional("type", default="bk_monitor"): "bk_monitor",
         "data_source": Or(
             DataSourceLabel.BK_MONITOR_COLLECTOR,
@@ -67,7 +68,10 @@ BkMonitorQuerySchema = Schema(
                 Optional("variables", default=lambda: {}): dict,
             }
         ],
-        Optional("target"): {"type": Or("host", "topo", "set_template", "service_template"), "nodes": [str]},
+        Optional("target"): {
+            "type": Or("host", "topo", "set_template", "service_template", "dynamic_group"),
+            "nodes": [str],
+        },
     },
     ignore_extra_keys=True,
 )
@@ -89,7 +93,7 @@ UserSchema = Regex(r"^(user#|group#)?[a-zA-Z0-9-_]+$")
 
 StrategySchema = Schema(
     {
-        "name": str,
+        "name": And(str, lambda p: 128 >= len(p) > 0),
         Optional(
             "version",
             default=MinVersion.STRATEGY,

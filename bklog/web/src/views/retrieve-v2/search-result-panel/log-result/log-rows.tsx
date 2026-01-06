@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue';
 
-import { parseTableRowData, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
+import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
@@ -34,8 +34,8 @@ import { UseSegmentProp } from '@/hooks/use-segment-pop';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 
-import PopInstanceUtil from '../../../../global/pop-instance-util';
-import { BK_LOG_STORAGE } from '../../../../store/store.type';
+import PopInstanceUtil from '@/global/pop-instance-util';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
@@ -89,7 +89,7 @@ export default defineComponent({
     const refLoadMoreElement: Ref<HTMLElement> = ref();
     const refResultRowBox: Ref<HTMLElement> = ref();
     const refSegmentContent: Ref<HTMLElement> = ref();
-    const { handleOperation } = useTextAction(emit, 'origin');
+    const { handleOperation, getObjectValue } = useTextAction(emit, 'origin');
 
     let savedSelection: Range = null;
 
@@ -138,21 +138,23 @@ export default defineComponent({
     const hasMoreList = ref(true);
     let renderList = Object.freeze([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
+    const filteredFieldList = computed(() => store.getters.filteredFieldList);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
-    const visibleFields = computed(() => store.state.visibleFields);
+    const visibleFields = computed(() => store.getters.visibleFields);
     const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
     const tableShowRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
     const isLoading = computed(() => indexSetQueryResult.value.is_loading || indexFieldInfo.value.is_loading);
-    const kvShowFieldsList = computed(() => indexFieldInfo.value?.fields.map(f => f.field_name));
+    const kvShowFieldsList = computed(() => filteredFieldList.value?.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed<any[]>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
+    const limitRow = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES]);
 
     // 检索第一页数据时，loading状态
     const isFirstPageLoading = computed(() => isLoading.value && !isRequesting.value);
@@ -194,6 +196,7 @@ export default defineComponent({
       resetPageState();
       store.dispatch('requestIndexSetQuery', { from: 'auto_refresh' });
     });
+
     const setRenderList = (length?: number) => {
       const arr: Record<string, any>[] = [];
       const endIndex = length ?? tableDataSize.value;
@@ -253,7 +256,7 @@ export default defineComponent({
                 class='bklog-column-wrapper'
                 fields={visibleFields.value}
                 jsonValue={row}
-                limitRow={null}
+                limitRow={limitRow.value}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
               />
             );
@@ -276,7 +279,8 @@ export default defineComponent({
             <JsonFormatter
               class='bklog-column-wrapper'
               fields={field}
-              jsonValue={parseTableRowData(row, field.field_name, field.field_type, false) as any}
+              jsonValue={getRowFieldValue(row, field)}
+              limitRow={limitRow.value}
               onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, { row, field })}
             />
           );
@@ -468,16 +472,16 @@ export default defineComponent({
 
     // 替换原有的handleMenuClick
     const handleMenuClick = (option, isLink, fieldOption?: { row: any; field: any }) => {
-      console.log('handleMenuClick = ', option);
       const timeTypes = ['date', 'date_nanos'];
 
       handleOperation(option.operation, {
         ...option,
         value: timeTypes.includes(fieldOption?.field.field_type ?? null)
-          ? `${fieldOption?.row[fieldOption?.field.field_name]}`.replace(/<\/?mark>/gim, '')
+          ? `${getObjectValue(fieldOption?.row, fieldOption?.field)}`.replace(/<\/?mark>/gim, '')
           : option.value,
         fieldName: option.fieldName,
         operation: option.operation,
+        field: fieldOption?.field,
         isLink,
         depth: option.depth,
         displayFieldNames: option.displayFieldNames,
@@ -491,7 +495,7 @@ export default defineComponent({
       const dataFields: Record<string, any>[] = [];
       const indexSetFields: Record<string, any>[] = [];
       const logFields: Record<string, any>[] = [];
-      for (const item of indexFieldInfo.value.fields) {
+      for (const item of filteredFieldList.value) {
         if (item.field_type === 'date') {
           dataFields.push(item);
         } else if (item.field_name === 'log' || item.field_alias === 'original_text') {
@@ -595,7 +599,7 @@ export default defineComponent({
       if (!(requiredFields.includes(fieldName) && updatedSortList.length)) {
         return updatedSortList;
       }
-      const fields = store.state.indexFieldInfo.fields.map(item => item.field_name);
+      const fields = filteredFieldList.value.map(item => item.field_name);
       const currentSort = updatedSortList.find(([key]) => key === fieldName)[1];
 
       for (const field of requiredFields) {

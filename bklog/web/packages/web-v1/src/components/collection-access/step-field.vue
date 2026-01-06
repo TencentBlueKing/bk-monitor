@@ -394,9 +394,9 @@
                   <span v-bk-tooltips="$t('你可以自行指定日志展示时间，勾选前请提前清洗日志时间')">{{
                     $t('指定字段为日志时间')
                   }}</span>
-                  <span style="color: red; font-size: 12px;">
+                  <!-- <span style="color: red; font-size: 12px;">
                     (纳秒时间格式异常，修复中，暂不可用)
-                  </span>
+                  </span> -->
                 </bk-radio>
               </bk-radio-group>
             </div>
@@ -1241,25 +1241,25 @@ import fieldTable from './field-table';
         });
       },
       formatDateTimeList() {
-        const isNanoTimeFormat = (item) => {
-          // 禁用 date_nanos 类型的格式，它们使用微秒精度，需要特殊处理
-          if (item.es_type === 'date_nanos' || item.es_format === 'strict_date_optional_time_nanos') {
-            return true;
-          }
+        // const isNanoTimeFormat = (item) => {
+        //   // 禁用 date_nanos 类型的格式，它们使用微秒精度，需要特殊处理
+        //   if (item.es_type === 'date_nanos' || item.es_format === 'strict_date_optional_time_nanos') {
+        //     return true;
+        //   }
 
-          // 检查 item.id 或 item.name 是否包含 .SSS 或 ,SSS 格式（毫秒/微秒相关格式）
-          // 匹配模式：.SSS 或 ,SSS，后面可能跟 Z、ZZ 或其他字符
-          const hasMillisecondFormat = /[.,]SSS/.test(item.id) || /[.,]SSS/.test(item.name);
-          if (hasMillisecondFormat) {
-            return true;
-          }
+        //   // 检查 item.id 或 item.name 是否包含 .SSS 或 ,SSS 格式（毫秒/微秒相关格式）
+        //   // 匹配模式：.SSS 或 ,SSS，后面可能跟 Z、ZZ 或其他字符
+        //   const hasMillisecondFormat = /[.,]SSS/.test(item.id) || /[.,]SSS/.test(item.name);
+        //   if (hasMillisecondFormat) {
+        //     return true;
+        //   }
 
-          return false;
-        };
+        //   return false;
+        // };
 
         return this.globalsData.field_date_format.map(item => {
           return Object.assign(item, {
-            disabled: isNanoTimeFormat(item),
+            disabled: false, //isNanoTimeFormat(item),
           });
         });
       }
@@ -1920,7 +1920,7 @@ import fieldTable from './field-table';
           confirmFn: () => {
             const id = this.curCollect.bkdata_data_id;
             const jumpUrl = `${window.BKDATA_URL}/#/data-hub-detail/clean/list/${id}/index`;
-            window.open(jumpUrl, '_blank');
+            window.iframeParent.open(jumpUrl, '_blank');
             this.$emit('change-submit', true);
             // 前往高级清洗刷新页
             this.$emit('change-clean');
@@ -2468,7 +2468,7 @@ import fieldTable from './field-table';
               },
             ],
           });
-          window.open(res.data.apply_url);
+          window.iframeParent.open(res.data.apply_url);
         } catch (err) {
           console.warn(err);
         } finally {
@@ -2476,7 +2476,7 @@ import fieldTable from './field-table';
         }
       },
       handleOpenDocument() {
-        window.open(this.docUrl, '_blank');
+        window.iframeParent.open(this.docUrl, '_blank');
       },
       /** 切换匹配模式 */
       handleSelectConfig(id) {

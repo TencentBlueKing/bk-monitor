@@ -244,6 +244,10 @@ export const IndexFieldInfo = {
   // 重复别名扩展字段
   // 当有多个字段别名一致的时候，自动生成一个单独字段
   alias_field_list: [],
+  has_repeat_alias_field: false,
+  alias_mapping_field: null,
+  is_virtual_alias_field: false,
+  source_field_names: [],
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
@@ -255,6 +259,7 @@ export const IndexItem = {
   items: [],
   catchUnionBeginList: [],
   selectIsUnionSearch: urlArgs.unionList?.length ?? false,
+  pid: Array.isArray((urlArgs as any).pid) ? (urlArgs as any).pid : (urlArgs as any).pid ? [(urlArgs as any).pid] : [],
   chart_params: {
     activeGraphCategory: 'table',
     chartActiveType: 'table',
@@ -399,6 +404,7 @@ export const getStorageOptions = (values?: any) => {
     [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {},
     [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: [],
     [BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]: false,
+    [BK_LOG_STORAGE.RESULT_DISPLAY_LINES]: 3,
     ...storage,
   };
 };

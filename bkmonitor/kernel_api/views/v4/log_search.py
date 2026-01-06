@@ -1,0 +1,34 @@
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
+
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from kernel_api.resource.log_search import (
+    GetIndexSetFieldListResource,
+    GetIndexSetListResource,
+    SearchLogResource,
+    SearchIndexSetContextResource,
+    FieldAnalyzeResource,
+    SearchLogClusteringPatternResource,
+)
+
+
+class LogSearchViewSet(ResourceViewSet):
+    """
+    日志检索服务
+    """
+
+    resource_routes = [
+        ResourceRoute("GET", GetIndexSetListResource, endpoint="get_index_set_list"),
+        ResourceRoute("GET", GetIndexSetFieldListResource, endpoint="get_index_set_field_list"),
+        ResourceRoute("POST", SearchLogResource, endpoint="search_log"),
+        ResourceRoute("POST", FieldAnalyzeResource, endpoint="field_analyze"),
+        ResourceRoute("POST", SearchIndexSetContextResource, endpoint="search_index_set_context"),
+        ResourceRoute("POST", SearchLogClusteringPatternResource, endpoint="search_log_clustering_pattern"),
+    ]

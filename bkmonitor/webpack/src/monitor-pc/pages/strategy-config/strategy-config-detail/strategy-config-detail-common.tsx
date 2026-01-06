@@ -40,6 +40,7 @@ import {
   getTargetDetail,
   strategyLabelList,
 } from 'monitor-api/modules/strategies';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
 
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
@@ -276,7 +277,13 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
         { signal: 'closed', message_tmpl: '', title_tmpl: '' },
         { signal: 'ack', message_tmpl: '', title_tmpl: '' },
       ],
+      voice_notice: 'serial',
     },
+  };
+
+  voiceNoticeText = {
+    serial: this.$t('串行'),
+    parallel: this.$t('并行'),
   };
 
   localExpress = '';
@@ -399,9 +406,9 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   get historyList() {
     return [
       { label: this.$t('创建人'), value: this.detailData.create_user || '--' },
-      { label: this.$t('创建时间'), value: this.detailData.create_time || '--' },
+      { label: this.$t('创建时间'), value: formatWithTimezone(this.detailData.create_time) || '--' },
       { label: this.$t('最近更新人'), value: this.detailData.update_user || '--' },
-      { label: this.$t('修改时间'), value: this.detailData.update_time || '--' },
+      { label: this.$t('修改时间'), value: formatWithTimezone(this.detailData.update_time) || '--' },
     ];
   }
 
@@ -1453,6 +1460,12 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                             ))}
                           </span>
                         </div>
+                        {/* 暂时隐藏，等后端开发完成在放开{this.noticeData?.user_group_list?.length > 1 && !!this.noticeData?.config?.voice_notice ? (
+                          <div class='user-notice-item'>
+                            <span class='groups-title-warp'>{this.$t('语音拨打顺序')}：</span>
+                            {this.voiceNoticeText[this.noticeData.config.voice_notice]}
+                          </div>
+                        ) : undefined} */}
                         <div class='user-notice-item'>
                           <span class='groups-title-warp'>{this.$t('通知升级')}：</span>
                           {this.noticeData?.options?.upgrade_config?.is_enabled ? (

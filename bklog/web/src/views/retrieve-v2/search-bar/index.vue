@@ -1,14 +1,14 @@
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 
+import PopInstanceUtil from '@/global/pop-instance-util';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
-import PopInstanceUtil from '../../../global/pop-instance-util';
 
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-import BookmarkPop from './bookmark-pop';
+import BookmarkPop from './components/bookmark-pop';
 // #else
 // #code const BookmarkPop = () => null;
 // #endif
@@ -16,22 +16,22 @@ import BookmarkPop from './bookmark-pop';
 import { ConditionOperator } from '@/store/condition-operator';
 import { bkMessage } from 'bk-magic-vue';
 
-import $http from '../../../api';
-import { copyMessage } from '../../../common/util';
-import useResizeObserve from '../../../hooks/use-resize-observe';
-import CommonFilterSelect from './common-filter-select.vue';
-import { withoutValueConditionList } from './const.common';
-import SqlQuery from './sql-query';
-import UiInput from './ui-input';
-import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import {
-  getCommonFilterAddition,
-  clearStorageCommonFilterAddition,
-} from '../../../store/helper';
-import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
+import $http from '@/api';
+import { copyMessage } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import {
+  clearStorageCommonFilterAddition,
+  getCommonFilterAddition,
+} from '@/store/helper';
 import RequestPool from '@/store/request-pool';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import CommonFilterSelect from './components/common-filter-select.vue';
+import SqlQuery from './sql-mode/sql-query';
+import UiInput from './ui-mode/ui-input';
+import { withoutValueConditionList } from './utils/const.common';
 
 const props = defineProps({
   // activeFavorite: {
@@ -59,9 +59,13 @@ const props = defineProps({
     type: String,
     default: 'global',
   },
+  isAiLoading: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits(['refresh', 'height-change', 'search', 'mode-change']);
+const emit = defineEmits(['refresh', 'height-change', 'search', 'mode-change', 'text-to-query']);
 const store = useStore();
 const { $t } = useLocale();
 const queryTypeList = ref([$t('UI 模式'), $t('语句模式')]);
@@ -336,18 +340,6 @@ const handleSqlRetrieve = (value) => {
   }
 };
 
-const handleSqlQueryChange = (value) => {
-  if (isGloalUsage.value) {
-    store.commit('updateIndexItemParams', {
-      keyword: value,
-    });
-
-    inspectResponse.value.is_legal = true;
-    setRouteParams();
-    return;
-  }
-};
-
 const handleClearBtnClick = () => {
   if (!isCopyBtnActive.value || isInputLoading.value) {
     return;
@@ -371,6 +363,9 @@ const handleHeightChange = (height) => {
   emit('height-change', height);
 };
 
+/**
+ * 切换查询模式
+ */
 const handleQueryTypeChange = () => {
   const nextType = activeIndex.value === 0 ? 1 : 0;
   const nextMode = SEARCH_MODE_DIC[nextType];
@@ -381,6 +376,7 @@ const handleQueryTypeChange = () => {
     store.commit('updateIndexItemParams', {
       search_mode: nextMode,
     });
+
     if (
       addition.value.length > 0
         || (keyword.value !== '*' && keyword.value !== '')
@@ -628,6 +624,52 @@ const getRect = () => {
   return refRootElement.value?.querySelector('.search-input-section')?.getBoundingClientRect();
 };
 
+const handleUITextToQuery = (value) => {
+  if (addition.value.length > 0 && value.length) {
+    $http
+      .request('retrieve/generateQueryString', {
+        data: {
+          addition: addition.value,
+        },
+      })
+      .then((res) => {
+        if (res.result) {
+          emit('text-to-query', `${res.data?.querystring} AND ${value}`);
+          store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+          store.commit('updateIndexItemParams', {
+            search_mode: 'sql',
+          });
+        } else {
+          bkMessage({
+            theme: 'error',
+            message: $t('UI查询转换语句模式失败'),
+          });
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+        bkMessage({
+          theme: 'error',
+          message: err.message,
+        });
+      });
+
+    return;
+  }
+
+  if (value.length) {
+    emit('text-to-query', value);
+    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+    store.commit('updateIndexItemParams', {
+      search_mode: 'sql',
+    });
+  }
+};
+
+const handleTextToQuery = (value) => {
+  emit('text-to-query', value);
+};
+
 defineExpose({
   setLocalMode: (val) => {
     localModeActiveIndex.value = val;
@@ -667,6 +709,14 @@ defineExpose({
     :class="['search-bar-wrapper']"
   >
     <div
+      v-bkloading="{
+        isLoading: isAiLoading,
+        opacity: 0.2,
+        theme: 'colorful',
+        size: 'mini',
+        title: $t('AI 解析中...'),
+        extCls: 'v3-search-ai-loading',
+      }"
       :class="[
         'search-bar-container',
         {
@@ -695,6 +745,7 @@ defineExpose({
           v-model="uiQueryValue"
           class="search-input-section"
           @change="handleBtnQueryClick"
+          @text-to-query="handleUITextToQuery"
         >
           <template #custom-placeholder="{ isEmptyText }">
             <slot
@@ -708,7 +759,7 @@ defineExpose({
           v-model="sqlQueryValue"
           class="search-input-section"
           @retrieve="handleSqlRetrieve"
-          @change="handleSqlQueryChange"
+          @text-to-query="handleTextToQuery"
         >
           <template #custom-placeholder="{ isEmptyText }">
             <slot
@@ -725,7 +776,6 @@ defineExpose({
           v-if="isShowSearchTools"
           class="search-tool items"
         >
-          <slot name="search-tool" />
           <div
             v-show="!inspectResponse.is_legal"
             style="color: #ea3636"
@@ -804,6 +854,7 @@ defineExpose({
             @refresh="handleRefresh"
             @save-current-active-favorite="saveCurrentActiveFavorite"
           />
+          <slot name="search-tool" />
         </div>
         <div
           class="search-tool search-btn"
@@ -816,6 +867,10 @@ defineExpose({
           />
         </div>
       </div>
+      <div
+        v-if="isAiLoading"
+        class="ai-progress-bar"
+      ></div>
     </div>
     <template v-if="isFilterSecFocused">
       <CommonFilterSelect />
@@ -827,42 +882,59 @@ defineExpose({
   @import "./index.scss";
 </style>
 <style lang="scss">
-  .bklog-sql-input-loading {
-    .bk-loading-wrapper {
-      left: 30px;
+.bklog-sql-input-loading {
+  .bk-loading-wrapper {
+    left: 30px;
+  }
+}
+
+.v3-search-ai-loading {
+  .bk-loading-wrapper {
+    .bk-colorful.bk-size-mini {
+      display: none;
+    }
+
+    .bk-loading-title {
+      margin-top: 0;
+      background-image: linear-gradient(118deg, #235DFA 0%, #E28BED 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
     }
   }
+}
 
-  [data-tippy-root] .tippy-box {
-    &[data-theme*="transparent"] {
-      background-color: transparent;
-      border: none;
-    }
+[data-tippy-root] .tippy-box {
+  &[data-theme*="transparent"] {
+    background-color: transparent;
+    border: none;
   }
+}
 
-  .bklog-search-input-poptool {
+.bklog-search-input-poptool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+
+  .bklog-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
+    width: 28px;
+    height: 28px;
+    margin-right: 4px;
+    color: #4d4f56;
+    cursor: pointer;
+    background: #fafbfd;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px 1px #0000001f;
 
-    .bklog-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
-      margin-right: 4px;
-      color: #4d4f56;
-      cursor: pointer;
-      background: #fafbfd;
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
-      box-shadow: 0 1px 3px 1px #0000001f;
-
-      &:hover {
-        color: #3a84ff;
-      }
+    &:hover {
+      color: #3a84ff;
     }
   }
+}
 </style>

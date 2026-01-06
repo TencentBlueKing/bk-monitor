@@ -23,13 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
 import { applicationInfoByAppName, listEsClusterGroups, metaConfigInfo } from 'monitor-api/modules/apm_meta';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 
 import ConfigurationNav from '../../../components/configuration-nav/configuration-nav';
-import authorityMixinCreate from '../../../mixins/authorityMixin';
+import authorityStore from '../../../store/modules/authority';
 import * as authorityMap from '../../home/authority-map';
 import BasicConfiguration from './basic-configuration';
 import ConfigurationView from './configuration-view';
@@ -42,7 +44,7 @@ import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import './configuration.scss';
 
 @Component
-export default class ApplicationConfiguration extends Mixins(authorityMixinCreate(authorityMap)) {
+export default class ApplicationConfiguration extends tsc<undefined> {
   @Ref() contentRef: HTMLElement;
   @Prop({ type: String, default: '' }) appName: string;
   routeList: INavItem[] = []; // 导航条设置
@@ -121,7 +123,12 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     // { id: 'indicatorDimension', name: window.i18n.tc('指标维度') }
   ];
   clusterList: IClusterItem[] = []; // 存储集群列表
-
+  @ProvideReactive('authority') authority: { [propsName: string]: boolean } = {};
+  // 显示申请权限的详情
+  @Provide('handleShowAuthorityDetail')
+  handleShowAuthorityDetail(actionId: string) {
+    authorityStore.getAuthorityDetail(actionId || this.$route.meta.authority?.map?.MANAGE_AUTH);
+  }
   get rightWidth() {
     const { show, rightWidth } = this.configurationView;
 
@@ -185,7 +192,8 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
         });
       }
       Object.assign(this.appInfo, res);
-      this.authority.MANAGE_AUTH = res?.permission?.manage_apm_application_v2 || false;
+      this.authority.MANAGE_AUTH = res?.permission?.[authorityMap.MANAGE_AUTH] ?? false;
+      this.authority.VIEW_AUTH = res?.permission?.[authorityMap.VIEW_AUTH] ?? false;
       const {
         // app_name: appName,
         create_user: createUser,
@@ -195,7 +203,12 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       } = this.appInfo;
       // this.routeList[1].name = `${this.$t('应用')}：${appName}`;
       // this.routeList[1].query['filter-app_name'] = appName;
-      this.recordData = { createUser, createTime, updateTime, updateUser };
+      this.recordData = {
+        createUser,
+        createTime: formatWithTimezone(createTime) as string,
+        updateTime: formatWithTimezone(updateTime) as string,
+        updateUser,
+      };
       this.getPluginDesc(res.plugin_id || '');
       this.loading = false;
       this.firstLoad = false;

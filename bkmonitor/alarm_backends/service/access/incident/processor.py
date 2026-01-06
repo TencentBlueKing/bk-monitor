@@ -39,7 +39,17 @@ logger = logging.getLogger("access.incident")
 
 
 class BaseAccessIncidentProcess(BaseAccessProcess):
-    pass
+    @staticmethod
+    def generate_version_id() -> str:
+        """生成版本ID，用于标识同一批次的故障和告警更新.
+
+        :return: 版本ID，格式为 {timestamp}_{random_hex}
+        """
+        import uuid
+
+        timestamp = int(time.time())
+        random_hex = uuid.uuid4().hex[:8]
+        return f"{timestamp}_{random_hex}"
 
 
 class AccessIncidentProcess(BaseAccessIncidentProcess):
@@ -124,8 +134,11 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             logger.error(f"[CREATE]Access incident error: {e}", exc_info=True)
             return
 
+        # 生成版本ID
+        version_id = self.generate_version_id()
+
         # 更新告警所属故障
-        self.update_alert_incident_relations(incident_document, snapshot)
+        snapshot_alerts = self.update_alert_incident_relations(incident_document, snapshot, version_id)
 
         # 生成故障快照记录
         try:
@@ -139,6 +152,12 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             self.generate_incident_labels(incident_document, snapshot_model)
             incident_document.generate_handlers(snapshot_model)
             incident_document.generate_assignees(snapshot_model)
+
+            # 设置故障的版本信息
+            if not incident_document.extra_info:
+                incident_document.extra_info = {}
+            incident_document.extra_info["version_id"] = version_id
+
             api.bkdata.update_incident_detail(
                 incident_id=sync_info["incident_id"],
                 assignees=incident_document.assignees,
@@ -146,7 +165,9 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 labels=incident_document.labels,
             )
             IncidentDocument.bulk_create([incident_document], action=BulkActionType.CREATE)
-            logger.info(f"[CREATE]Success to access incident[{sync_info['incident_id']}] as document")
+            logger.info(
+                f"[CREATE]Success to access incident[{sync_info['incident_id']}] as document with version_id: {version_id}"
+            )
         except Exception as e:
             logger.error(f"[CREATE]Access incident as document error: {e}", exc_info=True)
             return
@@ -159,17 +180,23 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 alert_count=len(sync_info["scope"]["alerts"]),
                 assignees=incident_document.assignees,
             )
+            self.generate_alert_operations(
+                snapshot_alerts,
+                incident_status=IncidentStatus(snapshot.status),
+                new_incident_id=sync_info["incident_id"],
+            )
         except Exception as e:
             logger.error(f"[CREATE]Record incident operations error: {e}", exc_info=True)
             return
 
     def update_alert_incident_relations(
-        self, incident_document: IncidentDocument, snapshot: IncidentSnapshotDocument
+        self, incident_document: IncidentDocument, snapshot: IncidentSnapshotDocument, version_id: str = None
     ) -> dict[int, AlertDocument]:
         """更新告警所属故障.
 
         :param incident_document: 故障实例
         :param snapshot: 故障快照
+        :param version_id: 版本ID，用于标识同一批次的更新
         :return: 告警字典，用于复用告警的内容
         """
         snapshot_alerts = {}
@@ -178,10 +205,17 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             try:
                 alert_doc = AlertDocument.get(item["id"])
                 snapshot_alerts[item["id"]] = alert_doc
-                if alert_doc.incident_id == incident_document.id:
+                if alert_doc.incident_id == incident_document.id and not version_id:
                     continue
 
                 alert_doc.incident_id = incident_document.id
+
+                # 设置告警的版本信息
+                if version_id:
+                    if not alert_doc.extra_info:
+                        alert_doc.extra_info = {}
+                    alert_doc.extra_info["incident_version_id"] = version_id
+
                 update_alerts.append(alert_doc)
             except AlertNotFoundError:
                 logger.warning(f"Alert document not found: {item['id']}, skip updating incident relation")
@@ -241,19 +275,32 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         # 生成故障快照记录
         try:
             if snapshot:
+                # 生成版本ID
+                version_id = self.generate_version_id()
+
                 # 更新告警所属故障
-                snapshot_alerts = self.update_alert_incident_relations(incident_document, snapshot)
+                snapshot_alerts = self.update_alert_incident_relations(incident_document, snapshot, version_id)
 
                 IncidentSnapshotDocument.bulk_create([snapshot], action=BulkActionType.CREATE)
 
                 # 补充快照记录并写入ES
-                self.generate_alert_operations(incident_document.snapshot, snapshot_alerts)
+                self.generate_alert_operations(
+                    snapshot_alerts,
+                    incident_status=IncidentStatus(snapshot.status),
+                    last_snapshot=incident_document.snapshot,
+                )
                 incident_document.snapshot = snapshot
                 incident_document.alert_count = len(snapshot.alerts)
                 snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
                 self.generate_incident_labels(incident_document, snapshot_model)
                 incident_document.generate_handlers(snapshot_model)
                 incident_document.generate_assignees(snapshot_model)
+
+                # 设置故障的版本信息
+                if not incident_document.extra_info:
+                    incident_document.extra_info = {}
+                incident_document.extra_info["version_id"] = version_id
+
                 api.bkdata.update_incident_detail(
                     incident_id=sync_info["incident_id"],
                     assignees=incident_document.assignees,
@@ -263,7 +310,9 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 api.bkdata.update_incident_detail(incident_id=sync_info["incident_id"], labels=incident_document.labels)
 
             IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
-            logger.info(f"[UPDATE]Success to access incident[{sync_info['incident_id']}] as document")
+            logger.info(
+                f"[UPDATE]Success to access incident[{sync_info['incident_id']}] as document with version_id: {version_id if snapshot else 'N/A'}"
+            )
         except Exception as e:
             logger.error(f"[UPDATE]Access incident as document error: {e}", exc_info=True)
             return
@@ -313,34 +362,42 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         whole_labels = list(set(labels) | set(incident.labels))
         incident.labels = whole_labels
 
+    @classmethod
     def generate_alert_operations(
-        self, last_snapshot: IncidentSnapshotDocument, snapshot_alerts: dict[int, AlertDocument]
+        cls,
+        snapshot_alerts: dict[int, AlertDocument],
+        incident_status: IncidentStatus,
+        last_snapshot: IncidentSnapshotDocument = None,
+        **kwargs,
     ) -> None:
         """生成故障快照记录的告警操作记录."""
-        last_snapshot_alerts = {
-            item["id"]: item.to_dict() if hasattr(item, "to_dict") else item
-            for item in last_snapshot.content.incident_alerts
-        }
+        last_snapshot_alerts = (
+            {
+                item["id"]: item.to_dict() if hasattr(item, "to_dict") else item
+                for item in last_snapshot.content.incident_alerts
+            }
+            if last_snapshot
+            else {}
+        )
         for alert_doc in snapshot_alerts.values():
-            if alert_doc.id not in last_snapshot_alerts:
+            # 故障生成，创建告警触发记录
+            if incident_status is IncidentStatus.ABNORMAL and alert_doc.id not in last_snapshot_alerts:
                 IncidentOperationManager.record_incident_alert_trigger(
-                    last_snapshot.incident_id,
+                    last_snapshot.incident_id if last_snapshot else kwargs.get("new_incident_id"),
                     int(alert_doc.begin_time),
                     alert_doc.alert_name,
                     alert_doc.id,
                 )
-            elif (
-                alert_doc.id in last_snapshot_alerts
-                and last_snapshot_alerts[alert_doc.id].get("alert_status") != alert_doc.status
-            ):
-                operation = {
+            # 故障恢复，变更告警恢复或关闭记录, 其他情况不需要生成告警记录
+            elif incident_status is IncidentStatus.RECOVERING:
+                _operation = {
                     EventStatus.RECOVERED: IncidentOperationManager.record_incident_alert_recover,
                     EventStatus.CLOSED: IncidentOperationManager.record_incident_alert_invalid,
                 }.get(alert_doc.status)
-                if operation:
-                    operation(
-                        last_snapshot.incident_id,
-                        int(alert_doc.begin_time),
-                        alert_doc.alert_name,
-                        alert_doc.id,
+                if _operation and callable(_operation) and last_snapshot:
+                    _operation(
+                        incident_id=int(last_snapshot.incident_id),
+                        operate_time=int(alert_doc.update_time),
+                        alert_name=str(alert_doc.alert_name),
+                        alert_id=int(alert_doc.id),
                     )

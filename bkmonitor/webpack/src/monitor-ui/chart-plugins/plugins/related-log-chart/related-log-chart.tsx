@@ -355,7 +355,7 @@ class RelatedLogChart extends CommonSimpleChart {
                           padding: [8, 8, 8, 8],
                           transitionDuration: 0,
                           formatter: params => {
-                            const time = dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss');
+                            const time = dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ssZZ');
                             const value = params[0].value[1];
                             return `
                     <div class="time-text">${time}</div>
