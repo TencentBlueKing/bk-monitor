@@ -51,7 +51,7 @@ import type { IDataQuery } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 export interface CustomOptions {
-  formatterData?: (formatter: any) => any;
+  formatterData?: (formatter: any, target: IDataQuery) => any;
   options?: (options: any) => any;
   series?: (series: EchartSeriesItem[]) => EchartSeriesItem[];
 }
@@ -95,10 +95,10 @@ export const useEcharts = (
       return $api[target.apiModule]
         [target.apiFunc](
           {
-            ...target.data,
             start_time: startTime,
             end_time: endTime,
-            ...get(params),
+            ...target.data,
+            ...(get(params) ?? {}),
           },
           {
             cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
@@ -106,7 +106,7 @@ export const useEcharts = (
           }
         )
         .then(res => {
-          const { series, metrics, query_config } = customOptions.formatterData?.(res) ?? res;
+          const { series, metrics, query_config } = customOptions.formatterData?.(res, target) ?? res;
           for (const metric of metrics) {
             if (!metricList.value.some(item => item.metric_id === metric.metric_id)) {
               metricList.value.push(metric);

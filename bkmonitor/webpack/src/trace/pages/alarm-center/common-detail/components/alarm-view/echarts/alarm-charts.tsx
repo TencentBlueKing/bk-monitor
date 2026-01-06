@@ -36,7 +36,7 @@ import MonitorCharts from './monitor-charts';
 import { useChartOperation } from '@/pages/trace-explore/components/explore-chart/use-chart-operation';
 
 import type { AlarmDetail } from '@/pages/alarm-center/typings';
-import type { ILegendItem } from '@/plugins/typings';
+import type { IDataQuery, ILegendItem } from '@/plugins/typings';
 import type { LegendActionType } from 'monitor-ui/chart-plugins/typings/chart-legend';
 
 import './alarm-charts.scss';
@@ -133,6 +133,17 @@ export default defineComponent({
               bk_biz_id: props.detail.bk_biz_id,
               id: props.detail.id,
               ...chartQueryConfig,
+              ...chartParams.value,
+            },
+          },
+          {
+            alias: t('事件'),
+            datasource: 'time_series',
+            dataType: 'time_series',
+            api: 'alert_v2.alertEventTs',
+            data: {
+              bk_biz_id: props.detail.bk_biz_id,
+              alert_id: props.detail.id,
             },
           },
         ],
@@ -140,11 +151,11 @@ export default defineComponent({
     });
 
     /**
-     * @description 格式化图表数据，添加异常点、告警标记等辅助系列
+     * @description 格式化graph_query接口返回数据
      * @param data - 原始图表数据
      * @returns 包含异常标记、告警阶段等辅助系列的完整图表数据
      */
-    const formatterData = data => {
+    const formatterGraphQueryChartData = data => {
       const { graph_panel } = props.detail;
       const [{ alias }] = graph_panel.targets;
 
@@ -278,6 +289,16 @@ export default defineComponent({
     };
 
     /**
+     * @description 格式化图表数据，添加异常点、告警标记等辅助系列
+     * @param data - 原始图表数据
+     * @param {IDataQuery} target - 图表配置
+     */
+    const formatterData = (data, target: IDataQuery) => {
+      if (target.api === 'alert_v2.alertEventTs') return data;
+      return formatterGraphQueryChartData(data);
+    };
+
+    /**
      * 处理series， 事件和日志告警对于告警点的柱状图需要变颜色
      */
     const formatterSeries = series => {
@@ -378,7 +399,6 @@ export default defineComponent({
     return {
       monitorChartPanel,
       showRestore,
-      chartParams,
       handleDataZoomChange,
       handleRestore,
       formatterData,
@@ -406,7 +426,6 @@ export default defineComponent({
           }}
           menuList={['screenshot', 'explore']}
           panel={this.monitorChartPanel}
-          params={this.chartParams}
           showRestore={this.showRestore}
           onDataZoomChange={this.handleDataZoomChange}
           onRestore={this.handleRestore}
