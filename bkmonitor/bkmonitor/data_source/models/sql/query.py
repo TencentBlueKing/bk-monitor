@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from importlib import import_module
 
-from django.db.models.sql import AND
+from django.db.models.sql.where import AND
 
 from bkmonitor.data_source.models.sql.where import WhereNode
 from constants.data_source import DataSourceLabel, DataTypeLabel

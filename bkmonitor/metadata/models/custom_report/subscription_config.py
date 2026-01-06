@@ -175,8 +175,14 @@ class CustomReportSubscription(models.Model):
 
         for r in result:
             max_rate = int(r.get("max_rate", MAX_DATA_ID_THROUGHPUT))
-            if max_rate < 0:
+            # 数据库：
+            # 小于 -1 表示全部限制，-1 是默认值 MAX_DATA_ID_THROUGHPUT，0 表示不限制，大于 0 为实际的 qps
+            # 采集器：
+            # 小于 0 表示全部限制, 0 表示不限制，大于 0 为实际的 qps
+            # 因此这里只需要特殊转换一下 -1 的值，将 -1 转换为 MAX_DATA_ID_THROUGHPUT
+            if max_rate == -1:
                 max_rate = MAX_DATA_ID_THROUGHPUT
+
             max_future_time_offset = int(r.get("max_future_time_offset", MAX_FUTURE_TIME_OFFSET))
             if max_future_time_offset < 0:
                 max_future_time_offset = MAX_FUTURE_TIME_OFFSET
@@ -622,6 +628,14 @@ class LogSubscriptionConfig(models.Model):
 
     @classmethod
     def get_log_config(cls, log_group: "LogGroup") -> dict:
+        # 数据库：
+        # 小于 -1 表示全部限制，-1 是默认值 MAX_DATA_ID_THROUGHPUT，0 表示不限制，大于 0 为实际的 qps
+        # 采集器：
+        # 小于 0 表示全部限制, 0 表示不限制，大于 0 为实际的 qps
+        # 因此这里只需要特殊转换一下 -1 的值，将 -1 转换为 MAX_DATA_ID_THROUGHPUT
+        max_rate = int(log_group.max_rate)
+        if max_rate == -1:
+            max_rate = LOG_REPORT_MAX_QPS
         return {
             "bk_data_token": log_group.get_bk_data_token(),
             "bk_biz_id": log_group.bk_biz_id,
@@ -630,7 +644,7 @@ class LogSubscriptionConfig(models.Model):
             "qps_config": {
                 "name": "rate_limiter/token_bucket",
                 "type": "token_bucket",
-                "qps": log_group.max_rate if log_group.max_rate > 0 else LOG_REPORT_MAX_QPS,
+                "qps": max_rate,
             },
         }
 

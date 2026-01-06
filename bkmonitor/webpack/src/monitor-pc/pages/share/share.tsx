@@ -69,7 +69,7 @@ export default class SharePage extends tsc<object> {
     let url = '';
     // 事件中心
     if (data.name === 'event-center') {
-      url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}/#/event-center/detail/${data.eventId}`;
+      url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/event-center/detail/${data.eventId}`;
     } else if (/^apm_/.test(String(data.query?.sceneId))) {
       // apm 处理
       const route = this.$router.resolve({

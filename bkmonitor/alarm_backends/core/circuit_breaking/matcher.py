@@ -7,7 +7,9 @@
 
 import logging
 from typing import Any
-from django.db.models.sql import AND, OR
+
+from django.db.models.sql.where import AND, OR
+
 from bkmonitor.utils.range import load_condition_instance
 
 logger = logging.getLogger("circuit_breaking.matcher")
