@@ -33,7 +33,6 @@ import useStore from '@/hooks/use-store';
 import useRouter from '@/hooks/use-router';
 import useUtils from '@/hooks/use-utils';
 import ReportTable from './report-table';
-import BatchUpload from './batch-upload';
 import UploadResult from './upload-result';
 import { FileUploadStatus, UploadStatus, UserReportItem, FileStatusItem } from './types';
 
@@ -43,7 +42,6 @@ export default defineComponent({
   name: 'UserReport',
   components: {
     ReportTable,
-    BatchUpload,
     UploadResult,
   },
   props: {
