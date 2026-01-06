@@ -209,7 +209,6 @@ export default defineComponent({
      * 获取采集状态
      */
     const getCollectStatus = (id: number) => {
-      console.log('getCollectStatus-----');
       $http
         .request('collect/getCollectStatus', {
           query: {

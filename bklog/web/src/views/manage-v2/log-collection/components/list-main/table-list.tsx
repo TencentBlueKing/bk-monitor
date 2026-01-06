@@ -45,9 +45,9 @@ import $http from '@/api';
 import { useCollectList } from '../../hook/useCollectList';
 import TagMore from '../common-comp/tag-more';
 import type { IListItemData } from '../../type';
-import EmptyStatus from '@/components/empty-status/index.vue';
-import './table-list.scss';
+import StopTypeDialog from './stop-type-dialog';
 import TableComponent from '../common-comp/table-component';
+import './table-list.scss';
 
 const CancelToken = axios.CancelToken;
 
@@ -183,6 +183,7 @@ export default defineComponent({
 
   setup(props) {
     const { t } = useLocale();
+    const showStopTypeDialog = ref(false);
     const showCollectIssuedSlider = ref(false);
     const currentRow = ref<ITableRowData>({} as ITableRowData);
     /**
@@ -241,6 +242,7 @@ export default defineComponent({
     });
 
     const sortConfig = ref<ISortConfig>({});
+    const stopTypeKey = ref(true);
     /**
      * 获取空状态类型
      * @returns 空状态类型
@@ -355,6 +357,8 @@ export default defineComponent({
      */
     const renderMenu = (row: ITableRowData): IMenuItem[] => {
       const type = row?.log_access_type || 'linux';
+      // status 是异步获取的，可能暂时为空，默认按非 terminated 状态处理
+      const status = row?.status || '';
 
       if (!type) {
         return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
@@ -635,6 +639,17 @@ export default defineComponent({
     watch(
       () => props.indexSet,
       () => {
+        // 清空过滤条件
+        conditions.value = [];
+        filterValue.value = {
+          log_access_type: '',
+          collector_scenario_id: '',
+          storage_cluster_name: '',
+          status: '',
+          created_by: '',
+          updated_by: '',
+        };
+        searchKey.value = '';
         reloadList();
       },
     );
@@ -1054,7 +1069,7 @@ export default defineComponent({
 
       // 停用
       if (key === 'stop') {
-        showCollectIssuedSlider.value = true;
+        showStopTypeDialog.value = true;
         return;
       }
 
@@ -1318,13 +1333,27 @@ export default defineComponent({
             collectorConfigId={
               currentRow.value.collector_config_id ? Number(currentRow.value.collector_config_id) : undefined
             }
+            stopTypeKey={stopTypeKey.value}
             status={currentRow.value.status}
             config={currentRow.value}
             isStopCollection={true}
             on-change={(value: boolean) => {
               showCollectIssuedSlider.value = value;
             }}
-            on-refresh={reloadList}
+            on-refresh={() => {
+              reloadList();
+              showCollectIssuedSlider.value = false;
+            }}
+          />
+          <StopTypeDialog
+            showDialog={showStopTypeDialog.value}
+            on-update={(val: boolean) => {
+              showCollectIssuedSlider.value = true;
+              stopTypeKey.value = val;
+            }}
+            on-cancel={() => {
+              showStopTypeDialog.value = false;
+            }}
           />
         </div>
       </div>
