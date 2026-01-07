@@ -27,7 +27,7 @@ from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_local_username
 from bkmonitor.views import serializers
-from core.drf_resource import CacheResource, api, resource
+from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
 from monitor_web.commons.biz.func_control import CM
@@ -277,7 +277,7 @@ class CreateSpaceResource(Resource):
         return space_info
 
 
-class SpaceIntroduceResource(CacheResource):
+class SpaceIntroduceResource(Resource):
     """
     生成功能接入指引
     """
@@ -466,7 +466,7 @@ class SpaceIntroduceResource(CacheResource):
         ret = func()
         if not ret["is_no_data"] and not ret["is_no_source"]:
             # 该业务对应场景已经在使用中， 持久化该结果
-            cache.set(tag_intro_key, json.dumps(ret), None)
+            cache.set(tag_intro_key, json.dumps(ret), 3600)
         return ret
 
     def perform_request(self, validated_request_data):
