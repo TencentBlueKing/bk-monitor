@@ -24,6 +24,7 @@ from constants.alert import APMTargetType, K8STargetType
 from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import Resource, resource, api
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
+from fta_web.alert.utils import merge_dimensions_into_conditions
 from fta_web.alert_v2.target import BaseTarget, get_target_instance
 from monitor_web.data_explorer.event.constants import EventSource
 from monitor_web.data_explorer.event.resources import (
@@ -182,14 +183,42 @@ class AlertEventBaseResource(Resource, abc.ABC):
     ) -> QueryConfigBuilder | None:
         """构建通用事件查询。
 
-        # TODO：事件类告警直接使用结果表 + 策略过滤条件 + 触发告警维度条件进行关联。
+        事件类告警使用结果表 + 策略过滤条件 + 触发告警维度条件进行关联。
 
         :param alert: 告警文档对象
         :param target: 目标对象
         :param q: 查询构建器
-        :return: 构建好的查询配置
+        :return: 构建好的查询配置，如果不是自定义事件告警则返回 None
         """
-        return None
+        # 获取告警策略数据查询配置
+        try:
+            query_config: dict[str, Any] = alert.strategy["items"][0]["query_configs"][0]
+        except (KeyError, IndexError, TypeError):
+            return None
+
+        if not (
+            query_config.get("data_source_label") == DataSourceLabel.CUSTOM
+            and query_config.get("data_type_label") == DataTypeLabel.EVENT
+        ):
+            return None
+
+        result_table_id: str = query_config.get("result_table_id") or ""
+        if not result_table_id:
+            return None
+
+        q = q.table(result_table_id)
+
+        # 合并策略过滤条件和告警维度过滤条件
+        alert_data: dict[str, Any] = alert.origin_alarm.get("data", {})
+        conditions: list[dict[str, Any]] = merge_dimensions_into_conditions(
+            agg_condition=query_config.get("agg_condition"),
+            dimensions=alert_data.get("dimensions", {}),
+            dimension_fields=alert_data.get("dimension_fields", []),
+        )
+        if conditions:
+            q = q.conditions(conditions)
+
+        return q
 
     @classmethod
     def build_queryset(cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder) -> UnifyQuerySet:
