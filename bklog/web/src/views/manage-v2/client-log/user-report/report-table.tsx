@@ -76,7 +76,7 @@ export default defineComponent({
       }),
     },
   },
-  emits: ['page-change', 'page-limit-change', 'search', 'sort-change', 'upload'],
+  emits: ['page-change', 'page-limit-change', 'search', 'sort-change', 'upload', 'selection-change'],
   setup(props, { emit }) {
     const store = useStore();
 
@@ -362,6 +362,19 @@ export default defineComponent({
       });
     };
 
+    const handleSelectionChange = (selection: UserReportItem[]) => {
+      // 提取所有选中项的 file_name
+      const fileNames = selection.map(item => item.file_name).filter(fileName => fileName); // 过滤掉空值
+
+      // 传递给父组件
+      emit('selection-change', fileNames);
+    };
+
+    // 行是否可选择（与上传按钮的判断逻辑一致）
+    const isRowSelectable = (row: UserReportItem) => {
+      return row.status === FileUploadStatus.FAILED || row.status === FileUploadStatus.PENDING;
+    };
+
     // 上传文件
     const handleUpload = (row: UserReportItem) => {
       emit('upload', {
@@ -457,6 +470,7 @@ export default defineComponent({
           onPage-change={handlePageChange}
           onPage-limit-change={handlePageLimitChange}
           onSort-change={handleSortChange}
+          onSelection-change={handleSelectionChange}
           scopedSlots={{
             empty: () => (
               <div>
@@ -468,6 +482,12 @@ export default defineComponent({
             ),
           }}
         >
+          <bk-table-column
+            type='selection'
+            class-name='filter-column'
+            width='60'
+            selectable={isRowSelectable}
+          />
           <bk-table-column
             key='openid'
             class-name='filter-column'
@@ -531,7 +551,7 @@ export default defineComponent({
             <bk-table-column
               key='report_time'
               class-name='filter-column'
-              width='240'
+              width='190'
               label={t('文件上传时间')}
               prop='report_time'
             />

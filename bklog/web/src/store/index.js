@@ -62,12 +62,13 @@ import {
   urlArgs,
 } from './default-values.ts';
 import globals from './globals.js';
-import { getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper.ts';
+import { formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper.ts';
 import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
 import { formatTimeZoneString } from '@/global/utils/time';
+
 if (pinyin.isSupported() && patcher56L.shouldPatch(pinyin.genToken)) {
   pinyin.patchDict(patcher56L);
 }
@@ -260,7 +261,7 @@ const store = new Vuex.Store({
       const filterAddition = addition
         .filter(item => item.field !== '_ip-select_')
         .map(({ field, operator, value, hidden_values, disabled }) => {
-          const addition = {
+          const target = {
             field,
             operator,
             value,
@@ -268,11 +269,11 @@ const store = new Vuex.Store({
             disabled,
           };
 
-          if (['is true', 'is false'].includes(addition.operator)) {
-            addition.value = [''];
+          if (['is true', 'is false'].includes(target.operator)) {
+            target.value = [''];
           }
 
-          return addition;
+          return target;
         });
 
       // 格式化 addition value
@@ -307,7 +308,9 @@ const store = new Vuex.Store({
       } = state.indexItem;
 
       const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
-      const searchParams = searchMode === 'sql' ? { keyword, addition: [] } : { addition: getters.originAddition, keyword: '*' };
+      const searchParams = searchMode === 'sql'
+        ? { keyword, addition: [] }
+        : { addition: getters.originAddition, keyword: '*' };
 
       if (state.aiMode.active) {
         searchParams.keyword = [...state.aiMode.filterList, searchParams.keyword]
@@ -1282,7 +1285,7 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        addition: [...requestAddition, ...getCommonFilterAdditionWithValues(state)],
+        addition: formatAdditionalFields(state, [...requestAddition, ...getCommonFilterAdditionWithValues(state)]),
         sort_list: dateFieldSortList ?? (state.localSort ? otherPrams.sort_list : getters.custom_sort_list),
       };
 
@@ -1494,7 +1497,7 @@ const store = new Vuex.Store({
       const queryData = {
         keyword: '*',
         fields,
-        addition: payload?.addition ?? [],
+        addition: formatAdditionalFields(state, payload?.addition ?? []),
         start_time: formatDate(startTime),
         end_time: formatDate(endTime),
         size: payload?.size ?? 100,
@@ -1783,7 +1786,10 @@ const store = new Vuex.Store({
               index_set_ids: state.indexItem.ids,
               start_time: startTime,
               end_time: endTime,
-              addition: [...getters.requestAddition, ...getCommonFilterAdditionWithValues(state)],
+              addition: formatAdditionalFields(state, [
+                ...getters.requestAddition,
+                ...getCommonFilterAdditionWithValues(state),
+              ]),
             },
           },
           {

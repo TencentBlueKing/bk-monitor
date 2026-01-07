@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from django.core.exceptions import EmptyResultSet
 from django.db.models.constants import LOOKUP_SEP
-from django.db.models.sql import AND
+from django.db.models.sql.where import AND
 from django.utils import tree
 
 from bkmonitor.data_source.backends.time_series import escape_sql_field_name
@@ -72,7 +72,7 @@ class WhereNode(tree.Node):
         return get_lookup_class(lookup_name)(field_name, value)
 
     def clone(self):
-        clone = self.__class__._new_instance(children=[], connector=self.connector, negated=self.negated)
+        clone = self.__class__(children=[], connector=self.connector, negated=self.negated)
         for child in self.children:
             if hasattr(child, "clone"):
                 clone.children.append(child.clone())
