@@ -2400,7 +2400,12 @@ class TimeSeriesMetric(models.Model):
             metrics_to_create.append(metric_data_copy)
 
         scopes_dict = {scope.id: scope for scope in TimeSeriesScope.objects.filter(group_id=group_id)}
-        scopes_dict[TimeSeriesMetric.DISABLE_SCOPE_ID] = None
+        scopes_dict[TimeSeriesMetric.DISABLE_SCOPE_ID] = TimeSeriesScope(
+            id=TimeSeriesMetric.DISABLE_SCOPE_ID,
+            group_id=-1,
+            scope_name="DISABLE_SCOPE_ID",
+            create_from=TimeSeriesScope.CREATE_FROM_DEFAULT,
+        )
 
         # 批量创建新指标
         if metrics_to_create:
