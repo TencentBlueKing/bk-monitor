@@ -104,8 +104,10 @@ class PatternHandler:
             }
         }
         """
-
-        result = self._multi_query()
+        if self._show_new_pattern:
+            result = self._new_class_multi_query()
+        else:
+            result = self._multi_query()
         pattern_aggs = result.get("pattern_aggs", [])
         year_on_year_result = result.get("year_on_year_result", {})
         new_class = result.get("new_class", set())
@@ -226,8 +228,6 @@ class PatternHandler:
                     "strategy_enabled": strategy_enabled,
                 }
             )
-        if self._show_new_pattern:
-            result = map_if(result, if_func=lambda x: x["is_new_class"])
         result = self._get_remark_and_owner(result)
         return result
 
@@ -250,6 +250,42 @@ class PatternHandler:
                 return result
             result = [pattern for pattern in result if pattern["owners"] and set(self._owners) & set(pattern["owners"])]
         return result
+
+    def _new_class_multi_query(self):
+        new_class_query_result = self._get_new_class()
+        new_class_signature_list = [
+            new_class_tuple[0]
+            for new_class_tuple in new_class_query_result
+            if new_class_tuple and len(new_class_tuple) > 0
+        ]
+
+        if not new_class_signature_list:
+            return {"pattern_aggs": [], "year_on_year_result": {}, "new_class": set()}
+
+        # 添加新类数据指纹查询条件
+        new_class_signature_condition = {
+            "field": self.pattern_aggs_field,
+            "operator": "is one of",
+            "value": new_class_signature_list,
+            "condition": "and",
+        }
+        addition = self._query.get("addition", [])
+        addition.append(new_class_signature_condition)
+        self._query["addition"] = addition
+
+        multi_execute_func = MultiExecuteFunc()
+        multi_execute_func.append(
+            "pattern_aggs",
+            lambda p: self._get_pattern_aggs_result(p["index_set_id"], p["query"]),
+            {"index_set_id": self._index_set_id, "query": self._query},
+        )
+        multi_execute_func.append("year_on_year_result", lambda: self._get_year_on_year_aggs_result())
+
+        multi_result = multi_execute_func.run()
+
+        multi_result["new_class"] = new_class_query_result
+
+        return multi_result
 
     def _multi_query(self):
         multi_execute_func = MultiExecuteFunc()
