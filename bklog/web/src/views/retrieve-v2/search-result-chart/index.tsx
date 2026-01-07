@@ -27,8 +27,8 @@
 import { computed, defineComponent, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { formatNumberWithRegex } from '@/common/util';
-import BklogPopover from '@/components/bklog-popover';
-import GradeOption from '@/components/monitor-echarts/components/grade-option';
+// import BklogPopover from '@/components/bklog-popover';
+// import GradeOption from '@/components/monitor-echarts/components/grade-option';
 import useLocale from '@/hooks/use-locale';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
@@ -63,8 +63,8 @@ export default defineComponent({
     const chartInterval = ref<string>('auto');
 
     const subtitle = ref<string>(''); // 如有副标题可用
-    const refGradePopover = ref();
-    const refGradeOption = ref();
+    // const refGradePopover = ref();
+    // const refGradeOption = ref();
 
     const trendChartCanvas = ref(null);
     const dynamicHeight = ref(130);
@@ -108,36 +108,37 @@ export default defineComponent({
       { immediate: true },
     );
 
-    const tippyOptions = {
-      appendTo: document.body,
-      hideOnClick: false,
-      onShown: () => {
-        // popover 展开时，更新分级配置
-        const cfg = store.state.indexFieldInfo.custom_config?.grade_options ?? {};
-        refGradeOption.value?.updateOptions?.(cfg);
-      },
-    };
+    // 将日志分级展示移入个性化设置侧栏中，暂时注释此处代码
+    // const tippyOptions = {
+    //   appendTo: document.body,
+    //   hideOnClick: false,
+    //   onShown: () => {
+    //     // popover 展开时，更新分级配置
+    //     const cfg = store.state.indexFieldInfo.custom_config?.grade_options ?? {};
+    //     refGradeOption.value?.updateOptions?.(cfg);
+    //   },
+    // };
 
     // popover 隐藏前的拦截逻辑
-    const beforePopoverHide = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default'))
-          && target.closest('.bk-select-dropdown-content.bklog-popover-stop'))
-        || target.classList.contains('bklog-popover-stop')
-      ) {
-        return false;
-      }
-      return true;
-    };
+    // const beforePopoverHide = (e: MouseEvent) => {
+    //   const target = e.target as HTMLElement;
+    //   if (
+    //     ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default'))
+    //       && target.closest('.bk-select-dropdown-content.bklog-popover-stop'))
+    //     || target.classList.contains('bklog-popover-stop')
+    //   ) {
+    //     return false;
+    //   }
+    //   return true;
+    // };
 
     // 分级配置变更回调
-    const handleGradeOptionChange = ({ isSave }) => {
-      refGradePopover.value?.hide();
-      if (isSave) {
-        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-      }
-    };
+    // const handleGradeOptionChange = ({ isSave }) => {
+    //   refGradePopover.value?.hide();
+    //   if (isSave) {
+    //     RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+    //   }
+    // };
 
     // 是否正在加载趋势图数据
     const loading = computed(() => store.state.retrieve.isTrendDataLoading);
@@ -488,7 +489,8 @@ export default defineComponent({
                     />
                   ))}
                 </bk-select>
-                <BklogPopover
+                {/* 将日志分级展示移入个性化设置侧栏中，暂时注释此处代码 */}
+                {/* <BklogPopover
                   ref={refGradePopover}
                   content={() => (
                     <GradeOption
@@ -501,7 +503,7 @@ export default defineComponent({
                   options={tippyOptions as any}
                 >
                   <span class='bklog-icon bklog-shezhi' />
-                </BklogPopover>
+                </BklogPopover> */}
               </div>
             )}
           </div>
