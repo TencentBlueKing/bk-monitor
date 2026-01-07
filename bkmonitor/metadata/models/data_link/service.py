@@ -30,6 +30,7 @@ def apply_data_id_v2(
     namespace: str = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
     is_base: bool = False,
     event_type: str = "metric",
+    prefer_kafka_cluster_name: str | None = None,
 ) -> bool:
     """
     下发 data_id 资源，并记录对应的资源及配置
@@ -53,7 +54,10 @@ def apply_data_id_v2(
     data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
         name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id, bk_tenant_id=bk_tenant_id
     )
-    data_id_config = data_id_config_ins.compose_config(event_type=event_type)
+    data_id_config = data_id_config_ins.compose_config(
+        event_type=event_type,
+        prefer_kafka_cluster_name=prefer_kafka_cluster_name,
+    )
 
     api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=bk_tenant_id)
     logger.info("apply_data_id_v2:apply data_id for data_name: %s success", data_name)

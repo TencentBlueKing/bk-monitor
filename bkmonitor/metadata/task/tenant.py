@@ -4,11 +4,13 @@ from typing import Any
 
 from django.conf import settings
 
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata.models import ClusterInfo
 from metadata.task.bkbase import sync_bkbase_cluster_info
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.sync_space import sync_bkcc_space
+from metadata.task.tasks import create_single_tenant_system_datalink, create_single_tenant_system_proc_datalink
 from metadata.utils.gse import KafkaGseSyncer
 
 logger = logging.getLogger(__name__)
@@ -115,7 +117,7 @@ def _init_bkbase_cluster(bk_tenant_id: str):
     """
     # 遍历所有存储配置
     for storage_config in BKBASE_V4_KIND_STORAGE_CONFIGS:
-        clusters: list[dict[str, Any]] = api.bkdata.list_data_bus_raw_data(
+        clusters: list[dict[str, Any]] = api.bkdata.list_data_link(
             bk_tenant_id=bk_tenant_id, namespace=storage_config["namespace"], kind=storage_config["kind"]
         )
         if clusters:
@@ -166,6 +168,10 @@ def _init_bkbase_cluster(bk_tenant_id: str):
 def init_tenant(bk_tenant_id: str):
     """初始化租户"""
 
+    # 如果未开启多租户模式，则使用默认租户ID
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        bk_tenant_id = DEFAULT_TENANT_ID
+
     # 初始化存储集群
     logger.info(f"start init tenant({bk_tenant_id})")
 
@@ -188,6 +194,10 @@ def init_tenant(bk_tenant_id: str):
     if bk_tenant_id not in settings.INITIALIZED_TENANT_LIST:
         logger.info(f"tenant({bk_tenant_id}) is initialized.")
         settings.INITIALIZED_TENANT_LIST = settings.INITIALIZED_TENANT_LIST + [bk_tenant_id]
-
     else:
         logger.info(f"tenant({bk_tenant_id}) is already initialized")
+
+    # 如果未开启多租户模式，则创建系统数据链路
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        create_single_tenant_system_datalink()
+        create_single_tenant_system_proc_datalink()

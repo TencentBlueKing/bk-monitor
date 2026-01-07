@@ -25,6 +25,7 @@ from alarm_backends.service.fta_action.tasks.noise_reduce import (
     NoiseReduceRecordProcessor,
 )
 from alarm_backends.service.fta_action.utils import PushActionProcessor, need_poll
+from alarm_backends.core.circuit_breaking.manager import ActionCircuitBreakingManager
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.action.serializers import ActionPluginSlz
 from bkmonitor.documents import AlertDocument, AlertLog
@@ -33,12 +34,14 @@ from bkmonitor.models import ActionInstance, ActionPlugin
 from bkmonitor.utils import extended_json
 from bkmonitor.utils.common_utils import count_md5
 from constants.action import (
+    AssignMode,
     DEFAULT_NOTICE_ACTION,
     ActionNoticeType,
     ActionPluginType,
     ActionSignal,
     IntervalNotifyMode,
     UserGroupType,
+    VoiceNoticeMode,
 )
 from constants.alert import EventSeverity, EventStatus, HandleStage
 from core.errors.alarm_backends import LockError
@@ -401,16 +404,33 @@ class CreateActionProcessor:
         else:
             # 没有策略的，按默认规则发送通知
             self.notice = copy.deepcopy(DEFAULT_NOTICE_ACTION)
-            actions = [self.notice]
+            actions = []
 
         if self.notice.get("config_id"):
-            # 增加通知操作，并进行降噪处理
-            actions.append(self.notice)
-            if self.notice_type != ActionNoticeType.UPGRADE:
-                # 升级的通知不做降噪处理
-                self.noise_reduce_result = NoiseReduceRecordProcessor(
-                    self.notice, self.signal, self.strategy_id, self.alerts[0], self.generate_uuid
-                ).process()
+            # 检查通知组是否为空，如果为空则跳过创建 notice action
+            # 但如果 assign_mode 包含 BY_RULE，先添加到 actions 列表
+            # 后续在 do_create_actions() 中会根据分派结果决定是否实际创建（如果分派未命中则跳过）
+            user_groups = self.notice.get("user_groups", [])
+            assign_mode = self.notice.get("options", {}).get("assign_mode", [])
+            has_by_rule = AssignMode.BY_RULE in assign_mode if assign_mode else False
+
+            if not user_groups and not has_by_rule:
+                # 通知组为空且未配置分派模式时，不创建 notice action，仅保留 message_queue action
+                logger.info(
+                    "[create actions]skip notice action for strategy(%s) signal(%s) because user_groups is empty and assign_mode is not BY_RULE",
+                    self.strategy_id,
+                    self.signal,
+                )
+            else:
+                # 增加通知操作，并进行降噪处理
+                # 如果配置了 BY_RULE，先添加到 actions 列表，后续在 do_create_actions() 中会检查分派是否命中
+                # 如果分派未命中，则跳过创建 notice action
+                actions.append(self.notice)
+                if self.notice_type != ActionNoticeType.UPGRADE:
+                    # 升级的通知不做降噪处理
+                    self.noise_reduce_result = NoiseReduceRecordProcessor(
+                        self.notice, self.signal, self.strategy_id, self.alerts[0], self.generate_uuid
+                    ).process()
 
         if self.relation_id:
             # 指定了关联关系，默认用指定的关联关系
@@ -526,11 +546,12 @@ class CreateActionProcessor:
         return assignee_manager
 
     @classmethod
-    def is_action_config_valid(cls, alert, action_config):
+    def is_action_config_valid(cls, alert, action_config, config_id):
         """
         当前处理套餐是否有效
         :param alert:
         :param action_config:
+        :param config_id:
         :return:
         """
         if action_config and action_config["is_enabled"]:
@@ -540,7 +561,7 @@ class CreateActionProcessor:
             op_type=AlertLog.OpType.ACTION,
             alert_id=[alert.id],
             description=_("处理套餐【{}】已经被删除或禁用，系统自动忽略该处理").format(
-                action_config.get("name") or action_config.get("config_id")
+                action_config.get("name") or config_id
             ),
             time=current_timestamp,
             create_time=current_timestamp,
@@ -578,7 +599,7 @@ class CreateActionProcessor:
         alert: AlertDocument = self.alerts[0]
         if alert.is_no_data() and self.signal in [ActionSignal.RECOVERED, ActionSignal.CLOSED]:
             # 无数据告警恢复和关闭的时候， 只推送消息队列，不发送通知
-            return []
+            return new_actions
 
         if not actions:
             # 策略配置的notice 和 action 未命中当前的signal
@@ -697,12 +718,16 @@ class CreateActionProcessor:
 
             for action in actions + itsm_actions:
                 action_config = action_configs.get(str(action["config_id"]))
-                if not self.is_action_config_valid(alert, action_config):
+                if not self.is_action_config_valid(alert, action_config, action["config_id"]):
                     continue
                 action_plugin = action_plugins.get(str(action_config["plugin_id"]))
                 skip_delay = int(action["options"].get("skip_delay", 0))
                 current_time = int(time.time())
-                if ActionSignal.ABNORMAL in action["signal"] and current_time - alert["begin_time"] > skip_delay > 0:
+                # 告警分派中向itsm_actions添加的action不存在signal字段
+                if (
+                    ActionSignal.ABNORMAL in action.get("signal", [])
+                    and current_time - alert["begin_time"] > skip_delay > 0
+                ):
                     # 如果当前时间距离告警开始时间，大于skip_delay，则不处理改套餐
                     description = {
                         "config_id": action["config_id"],
@@ -730,6 +755,24 @@ class CreateActionProcessor:
                     )
 
                     continue
+
+                # 如果是 notice action，且 user_groups 为空，则检查是否需要跳过创建
+                # assignee_manager.is_matched 只有在配置了 BY_RULE 且分派命中时才为 True
+                # 如果未配置 BY_RULE，is_matched 为 False；如果配置了 BY_RULE 但未命中，is_matched 也为 False
+                # 因此只需要检查 is_matched 即可
+                if action_plugin["plugin_type"] == ActionPluginType.NOTICE:
+                    user_groups = self.notice.get("user_groups", [])
+                    if not user_groups and not assignee_manager.is_matched:
+                        # 通知组为空且分派未命中（包括未配置 BY_RULE 或配置了但未命中），跳过创建 notice action
+                        logger.info(
+                            "[create actions]skip notice action for alert(%s) strategy(%s) signal(%s) "
+                            "because user_groups is empty and assign rule not matched",
+                            alert.id,
+                            self.strategy_id,
+                            self.signal,
+                        )
+                        continue
+
                 action_instances.append(
                     self.do_create_action(
                         action_config,
@@ -846,6 +889,62 @@ class CreateActionProcessor:
                 )
                 retry_times += 1
 
+    def _check_circuit_breaking_for_message_queue(self):
+        """
+        检查 message_queue 类型动作的熔断规则
+        :return: tuple(valid_alert_ids, circuit_breaking_alert_ids)
+        """
+        circuit_breaking_manager = ActionCircuitBreakingManager()
+
+        if not circuit_breaking_manager:
+            # 如果熔断管理器不可用，返回所有告警ID
+            return self.alert_ids, []
+
+        valid_alert_ids = []
+        circuit_breaking_alert_ids = []
+
+        for alert in self.alerts:
+            # 构建每个告警的熔断检查上下文信息
+            context = {
+                "strategy_id": self.strategy_id or alert.strategy_id or 0,
+                "bk_biz_id": alert.event.bk_biz_id,
+                "plugin_type": "message_queue",
+            }
+
+            # 获取数据源标签和类型标签
+            data_source_label = ""
+            data_type_label = ""
+
+            # 优先从策略配置中获取
+            if self.strategy and self.strategy.get("items"):
+                first_item = self.strategy["items"][0]
+                if first_item.get("query_configs"):
+                    first_query_config = first_item["query_configs"][0]
+                    data_source_label = first_query_config.get("data_source_label", "")
+                    data_type_label = first_query_config.get("data_type_label", "")
+
+            if data_source_label:
+                context["data_source_label"] = data_source_label
+            if data_type_label:
+                context["data_type_label"] = data_type_label
+
+            logger.info(
+                f"[circuit breaking] [message_queue] checking alert({alert.id}) for create action dimensions: {context}"
+            )
+            # 检查当前告警是否命中熔断规则
+            is_circuit_breaking = circuit_breaking_manager.is_circuit_breaking(**context)
+
+            if is_circuit_breaking:
+                circuit_breaking_alert_ids.append(alert.id)
+                logger.info(
+                    f"[circuit breaking] [message_queue] skip create action for strategy({context['strategy_id']}) "
+                    f"alert({alert.id}): circuit breaking"
+                )
+            else:
+                valid_alert_ids.append(alert.id)
+
+        return valid_alert_ids, circuit_breaking_alert_ids
+
     def create_message_queue_action(self, new_actions: list):
         """
         创建推送k队列的处理记录
@@ -866,16 +965,37 @@ class CreateActionProcessor:
             )
             return
 
+        # 检查熔断规则（创建阶段）
+        valid_alert_ids, circuit_breaking_alert_ids = self._check_circuit_breaking_for_message_queue()
+
+        # 如果所有告警都被熔断，直接返回
+        if not valid_alert_ids:
+            logger.info(
+                f"[circuit breaking] all alerts({self.alert_ids}) are circuit breaking, "
+                f"skip creating message queue action"
+            )
+            return
+
+        # 如果部分告警被熔断，只为未熔断的告警创建 message_queue 动作
+        if circuit_breaking_alert_ids:
+            logger.info(
+                f"[circuit breaking] partial alerts({circuit_breaking_alert_ids}) are circuit breaking, "
+                f"creating message queue action for valid alerts({valid_alert_ids})"
+            )
+
+        # 创建动作实例 - 只为未熔断的告警创建 message_queue action
         action_instance = ActionInstance.objects.create(
-            alerts=self.alert_ids,
+            alerts=valid_alert_ids,  # 只使用未熔断的告警ID
             signal=self.signal,
-            strategy_id=0,
+            strategy_id=self.strategy_id or 0,
             alert_level=self.severity,
             bk_biz_id=self.alerts[0].event.bk_biz_id,
             dimensions=self.dimensions or [],
             action_plugin={"plugin_type": ActionPluginType.MESSAGE_QUEUE},
         )
-        PushActionProcessor.push_action_to_execute_queue(action_instance, self.alerts)
+        # 只为未熔断的告警推送到执行队列
+        valid_alerts = [alert for alert in self.alerts if alert.id in valid_alert_ids]
+        PushActionProcessor.push_action_to_execute_queue(action_instance, valid_alerts)
         new_actions.append(action_instance.id)
 
     def do_create_action(
@@ -942,6 +1062,14 @@ class CreateActionProcessor:
                 follow_notify_info[notice_way] = valid_receivers
             inputs["notify_info"] = notify_info
             inputs["follow_notify_info"] = follow_notify_info
+            # 设置语音通知模式
+            voice_notice = (
+                action_config.get("execute_config", {})
+                .get("template_detail", {})
+                .get("voice_notice", VoiceNoticeMode.PARALLEL)
+            )
+            # 设置语音通知模式(默认为并行)
+            inputs["voice_notice_mode"] = voice_notice
         try:
             # TODO: 如果有更多的处理场景，需要将二次确认的处理提到更前端
             DoubleCheckHandler(alert).handle(inputs)

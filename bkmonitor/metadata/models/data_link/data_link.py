@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from django.conf import settings
 from django.db import models, transaction
@@ -465,6 +465,7 @@ class DataLink(models.Model):
         table_id: str,
         storage_cluster_name: str,
         bk_biz_id: int,
+        prefix: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成系统进程链路配置
@@ -479,7 +480,15 @@ class DataLink(models.Model):
             storage_cluster_name,
         )
 
-        bkbase_vmrt_name = f"base_{bk_biz_id}_{data_link_strategy}"
+        if prefix is None:
+            bkbase_vmrt_prefix = f"base_{bk_biz_id}"
+        else:
+            bkbase_vmrt_prefix = prefix
+
+        if bkbase_vmrt_prefix:
+            bkbase_vmrt_name = f"{bkbase_vmrt_prefix}_{data_link_strategy}"
+        else:
+            bkbase_vmrt_name = data_link_strategy
 
         transform_format_map = {
             DataLink.SYSTEM_PROC_PERF: SYSTEM_PROC_PERF_DATABUS_FORMAT,
@@ -528,7 +537,12 @@ class DataLink(models.Model):
         ]
 
     def compose_basereport_time_series_configs(
-        self, data_source: "DataSource", storage_cluster_name: str, bk_biz_id: int, source: str
+        self,
+        data_source: "DataSource",
+        storage_cluster_name: str,
+        bk_biz_id: int,
+        source: str,
+        prefix: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成基础采集时序链路配置
@@ -548,7 +562,10 @@ class DataLink(models.Model):
         )
 
         # 需要注意超出计算平台meta长度限制问题
-        bkbase_vmrt_prefix = f"base_{bk_biz_id}_{source}"
+        if prefix is None:
+            bkbase_vmrt_prefix = f"base_{bk_biz_id}_{source}"
+        else:
+            bkbase_vmrt_prefix = prefix
 
         config_list = []
         conditions = []
@@ -556,7 +573,10 @@ class DataLink(models.Model):
         with transaction.atomic():
             # 创建11个ResultTableConfig和VMStorageBindingConfig
             for usage in BASEREPORT_USAGES:
-                usage_vmrt_name = f"{bkbase_vmrt_prefix}_{usage}"
+                if bkbase_vmrt_prefix:
+                    usage_vmrt_name = f"{bkbase_vmrt_prefix}_{usage}"
+                else:
+                    usage_vmrt_name = usage
                 usage_cmdb_level_vmrt_name = f"{usage_vmrt_name}_cmdb"
                 logger.info(
                     "compose_basereport_configs: try to create rt and storage for usage->[%s],name->[%s]",
@@ -1023,8 +1043,27 @@ class DataLink(models.Model):
         """
         生成采集插件时序数据链路配置 -- bk_standard & bk_exporter
         """
+        from metadata.models import ResultTableField, ResultTableOption
+
         bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
+
+        # 白名单配置
+        whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None
+        option = ResultTableOption.objects.filter(
+            table_id=table_id, bk_tenant_id=self.bk_tenant_id, name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST
+        ).first()
+        if option and option.value == "false":
+            result_table_fields = ResultTableField.objects.filter(
+                table_id=table_id, bk_tenant_id=self.bk_tenant_id, is_disabled=False
+            )
+            metrics, tags = [], []
+            for field in result_table_fields:
+                if field.tag == ResultTableField.FIELD_TAG_METRIC:
+                    metrics.append(field.field_name)
+                elif field.tag == ResultTableField.FIELD_TAG_DIMENSION:
+                    tags.append(field.field_name)
+            whitelist = {"metrics": metrics, "tags": tags}
 
         with transaction.atomic():
             # 渲染所需的资源配置
@@ -1067,7 +1106,7 @@ class DataLink(models.Model):
 
         configs = [
             vm_table_id_ins.compose_config(),
-            vm_storage_ins.compose_config(),
+            vm_storage_ins.compose_config(whitelist=whitelist),
             data_bus_ins.compose_config(sinks=sinks, transform_format=transform_format),
         ]
         return configs

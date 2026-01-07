@@ -655,8 +655,15 @@ class AlertDetailResource(Resource):
         topo_info = result["extend_info"].get("topo_info", "")
         result["relation_info"] = f"{topo_info} {relation_info}"
         self.add_project_name(result)
-
+        self.add_graph_extra_info(alert, result)
         return result
+
+    @classmethod
+    def add_graph_extra_info(cls, alert, data):
+        """
+        丰富图表额外信息(v2版本接口hook)
+        """
+        return data
 
     @classmethod
     def add_project_name(cls, data):
@@ -1309,10 +1316,25 @@ class AlertGraphQueryResource(ApiAuthResource):
             def validate(self, attrs: dict) -> dict:
                 if attrs["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH and not attrs.get("index_set_id"):
                     raise ValidationError("index_set_id can not be empty.")
-                for condition in attrs["where"]:
-                    if isinstance(condition["value"], list):
-                        if len(condition["value"]) == 1 and None in condition["value"]:
-                            condition["value"].remove(None)
+
+                # 过滤掉无效的 where 条件
+                validated_where = []
+                for condition in attrs.get("where", []):
+                    if not isinstance(condition, dict):
+                        continue
+                    value = condition.get("value")
+                    # 过滤掉 value 为 None、空列表或只包含 None 的列表
+                    if value is None:
+                        continue
+                    if isinstance(value, list):
+                        # 移除列表中的 None，如果移除后列表为空则跳过该条件
+                        filtered_value = [v for v in value if v is not None]
+                        if not filtered_value:
+                            continue
+                        condition["value"] = filtered_value
+                    validated_where.append(condition)
+
+                attrs["where"] = validated_where
                 return attrs
 
         id = serializers.IntegerField(label="事件ID")

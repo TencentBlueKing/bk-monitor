@@ -473,6 +473,7 @@ export default {
   分派成功: 'Dispatched successfully',
 
   取消反馈成功: 'Feedback canceled successfully',
+  最新一次分析中使用的告警: 'Latest Analysis Alerts',
   '当前业务下没有可使用的处理套餐，请前往{0}页面配置':
     'There are no available handling packages under the current business, please go to the {0} page for configuration',
   '按通知次数的指数递增，依次按N，2N，4N，8N,依次类推执行，最大24小时':

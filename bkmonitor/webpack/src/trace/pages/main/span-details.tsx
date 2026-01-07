@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+/** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -169,17 +170,17 @@ export default defineComponent({
           // span 的 end_time 在当前一小时内
           if (Math.abs(diff2) <= 60 * 60 * 1000)
             return [
-              dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
-              dayjs().format('YYYY-MM-DD HH:mm:ss'),
+              dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
+              dayjs().format('YYYY-MM-DD HH:mm:ssZZ'),
             ];
           return [
-            dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
-            dayjs(spanEndTime.value).add(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+            dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
+            dayjs(spanEndTime.value).add(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
           ];
         }
         return [
-          dayjs(spanEndTime.value).subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ss'),
-          dayjs(spanEndTime.value).format('YYYY-MM-DD HH:mm:ss'),
+          dayjs(spanEndTime.value).subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
+          dayjs(spanEndTime.value).format('YYYY-MM-DD HH:mm:ssZZ'),
         ];
       }
       return [];
@@ -336,8 +337,8 @@ export default defineComponent({
           // { label: '日志', content: logs.length ? '有日志' :  '无日志' },
           {
             label: t('开始时间'),
-            content: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
-            title: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
+            content: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ssZZ'),
+            title: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ssZZ'),
           },
           {
             label: t('来源'),
@@ -539,28 +540,25 @@ export default defineComponent({
     }
 
     /** 递归检测符合json格式的字符串并转化 */
-    function handleFormatJson(obj: Record<string, any>) {
+    function handleFormatJson(obj: unknown) {
       try {
-        const newData: Record<string, any> = {};
-        Object.keys(obj).forEach(item => {
-          if (Object.prototype.toString.call(obj[item]) === '[object Object]') {
-            // 对象 遍历属性
-            newData[item] = handleFormatJson(obj[item]);
-          } else if (Object.prototype.toString.call(obj[item]) === '[object Array]') {
-            // 数组对象
-            newData[item] = obj[item].map((arrItme: Record<string, any>) => {
-              if (typeof arrItme === 'string') {
-                return arrItme;
+        const newData: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(JSON.parse(JSON.stringify(obj)))) {
+          if (Object.prototype.toString.call(value) === '[object Object]') {
+            newData[key] = handleFormatJson(value);
+          } else if (Object.prototype.toString.call(value) === '[object Array]') {
+            newData[key] = (value as unknown[]).map(item => {
+              if (!item || typeof item !== 'object') {
+                return item;
               }
-              return handleFormatJson(arrItme);
+              return handleFormatJson(item);
             });
-          } else if (typeof obj[item] === 'string' && isJson(obj[item])) {
-            // 符合json格式的字符串
-            newData[item] = handleFormatJson(JSON.parse(obj[item]));
+          } else if (typeof value === 'string' && isJson(value)) {
+            newData[key] = handleFormatJson(JSON.parse(value));
           } else {
-            newData[item] = obj[item];
+            newData[key] = value;
           }
-        });
+        }
         return newData;
       } catch {
         return obj;

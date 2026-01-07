@@ -56,7 +56,7 @@ const GLOBAL_SETTING_OPTIONS: Record<string, IOption[]> = {
     { value: 'end', name: 'ab...' },
     { value: 'start', name: '...yz' },
   ],
-  /** 结果展示行数 */
+  /** 结果展示 */
   resultDisplayLines: [
     { value: 1, name: window.$t('单行') },
     { value: 3, name: window.$t('三行') },
@@ -113,7 +113,7 @@ export default defineComponent({
     }
     /**
      * @description 修改结果展示行数
-     * @param {1 | 3} value
+     * @param {number} value
      */
     function setResultDisplayLines(value: number) {
       resultDisplayLines.value = value;
@@ -239,11 +239,7 @@ export default defineComponent({
             <div class='setting-item'>
               <div class='item-label'>{$t('结果展示')}</div>
               <div class='item-main'>
-                {checkboxRender(
-                  resultDisplayLines.value,
-                  GLOBAL_SETTING_OPTIONS.resultDisplayLines,
-                  setResultDisplayLines,
-                )}
+                {checkboxRender(resultDisplayLines.value, GLOBAL_SETTING_OPTIONS.resultDisplayLines, setResultDisplayLines)}
               </div>
             </div>
           </div>
@@ -266,12 +262,7 @@ export default defineComponent({
       );
     }
 
-    return {
-      popoverInstance,
-      settingContainerRender,
-      handleSettingPopoverShow,
-      t: $t,
-    };
+    return { popoverInstance, settingContainerRender, handleSettingPopoverShow, t: $t };
   },
   render() {
     const { popoverInstance, settingContainerRender, handleSettingPopoverShow, t } = this;

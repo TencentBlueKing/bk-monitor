@@ -31,6 +31,8 @@ import StaticUtil from './static.util';
 import type OptimizedHighlighter from './optimized-highlighter';
 import type RetrieveEvent from './retrieve-events';
 import { EventEmitter } from './event';
+import { reportRouteLog } from '@/store/modules/report-helper.ts';
+
 
 export default class extends EventEmitter<RetrieveEvent> {
   // 滚动条查询条件
@@ -88,24 +90,29 @@ export default class extends EventEmitter<RetrieveEvent> {
 
   isSearching = false;
 
+  // 上报日志
+  reportLog: typeof reportRouteLog;
+
   constructor() {
     super();
     this.randomTrendGraphClassName = `random-${random(12)}`;
     this.logRowsContainerId = `result_container_key_${random(12)}`;
     this.RGBA_LIST = getRGBAColors(0.3);
     this.jsonFormatter = new JsonFormatter();
+    this.reportLog = reportRouteLog;
   }
 
   /**
    * 格式化时间戳
    * @param data 时间戳
    * @param fieldType 字段类型
+   * @param timezoneFormat 是否进行时区格式化，默认为 false
    * @returns 格式化后的时间戳
    */
-  formatDateValue(data: string, fieldType: string) {
+  formatDateValue(data: string, fieldType: string, timezoneFormat = false) {
     const formatFn = {
-      date: formatDate,
-      date_nanos: formatDateNanos,
+      date: (val: number | string | Date) => formatDate(val, timezoneFormat),
+      date_nanos: (val: string | number) => formatDateNanos(val, timezoneFormat),
     };
 
     if (formatFn[fieldType]) {

@@ -51,6 +51,9 @@ class RedirectDashboardView(ProxyView):
     仪表盘跳转
     """
 
+    # Grafana 内置参数列表
+    BUILTIN_PARAM_NAMES: list[str] = ["from", "to", "viewPanel"]
+
     @method_decorator(escape_exempt)
     def dispatch(self, request, *args, **kwargs):
         org_name = request.GET.get("bizId")
@@ -98,8 +101,10 @@ class RedirectDashboardView(ProxyView):
             return redirect(route_path + f"?orgName={org_name}&bizId={org_name}")
 
         route_path = f"#{route_path}"
-        # 透传仪表盘参数
-        params = {k: v for k, v in request.GET.items() if k.startswith("var-")}
+        # 透传仪表盘参数，包括两部分：
+        # - 自定义变量参数：以 var- 开头。
+        # - 内置参数：BUILTIN_PARAM_NAMES。
+        params = {k: v for k, v in request.GET.items() if k.startswith("var-") or k in self.BUILTIN_PARAM_NAMES}
         params["bizId"] = org_name
         redirect_url = "/?{params}{route_path}"
         return redirect(redirect_url.format(params=urlencode(params), route_path=route_path))
