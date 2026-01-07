@@ -262,15 +262,15 @@ class PatternHandler:
         if not new_class_signature_list:
             return {"pattern_aggs": [], "year_on_year_result": {}, "new_class": set()}
 
-        # 添加新类数据指纹查询条件
-        new_class_signature_condition = {
+        # 添加新类日志数据指纹 ID 列表作为条件查询的参数
+        new_class_signature_query_condition = {
             "field": self.pattern_aggs_field,
             "operator": "is one of",
             "value": new_class_signature_list,
             "condition": "and",
         }
         addition = self._query.get("addition", [])
-        addition.append(new_class_signature_condition)
+        addition.append(new_class_signature_query_condition)
         self._query["addition"] = addition
 
         multi_execute_func = MultiExecuteFunc()
