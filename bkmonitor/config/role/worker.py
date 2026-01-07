@@ -67,6 +67,9 @@ BACKEND_NAME = "BK Monitor Backend"
 MIN_DATA_ACCESS_CHECKPOINT = 30 * 60
 # access 每次往前多拉取1个周期的数据
 NUM_OF_COUNT_FREQ_ACCESS = 1
+# access.data 模块数据拉取最大时间窗口周期数，默认5个周期
+# 用于限制故障恢复后一次性拉取过量数据，防止给下游模块造成压力
+ACCESS_DATA_MAX_WINDOW_PERIODS = 5
 
 # 流控配置
 QOS_DROP_ALARM_THREADHOLD = 3
