@@ -1735,9 +1735,6 @@ if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
         },
     }
 
-# 告警图表渲染模式
-ALARM_GRAPH_RENDER_MODE = os.getenv("BKAPP_ALARM_GRAPH_RENDER_MODE", "image_exporter")
-
 # 首页告警图业务数量限制
 HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT = 5
 # 首页告警图图表数量限制
