@@ -118,6 +118,7 @@
           </template>
         </bk-table-column>
         <bk-table-column
+          width="190"
           :label="$t('更新时间')"
           :render-header="$renderHeader"
         >

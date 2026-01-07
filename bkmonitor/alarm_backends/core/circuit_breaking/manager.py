@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from typing import Any
 
 from alarm_backends.core.cache.circuit_breaking import CircuitBreakingCacheManager
 from alarm_backends.core.circuit_breaking.matcher import gen_circuit_breaking_matcher
@@ -102,7 +103,7 @@ class BaseCircuitBreakingManager:
             )
             return False
 
-    def is_strategy_only_circuit_breaking(self, strategy_id: int, labels: list = None) -> bool:
+    def is_strategy_only_circuit_breaking(self, strategy_id: int, labels: list | None = None) -> bool:
         """
         检查策略是否熔断（只检查策略ID维度）
         用于在processor中判断策略级别的熔断
@@ -112,7 +113,7 @@ class BaseCircuitBreakingManager:
         """
         try:
             # 只检查策略ID维度的熔断
-            dimensions = {"strategy_id": str(strategy_id)}
+            dimensions: dict[str, Any] = {"strategy_id": str(strategy_id)}
             if labels is not None:
                 dimensions["labels"] = labels
             return self.is_cb(dimensions)
@@ -152,3 +153,40 @@ class AlertManagerCircuitBreakingManager(BaseCircuitBreakingManager):
         if self.matcher is None:
             self.config = CircuitBreakingCacheManager.get_config("alert.builder")
             self.matcher = gen_circuit_breaking_matcher(self.config)
+
+
+class ActionCircuitBreakingManager(BaseCircuitBreakingManager):
+    """
+    Action 模块熔断管理器
+    用于 FTA Action 模块的熔断控制
+    plugin_type: config 支持基于处理套餐类型的细化熔
+    """
+
+    module = "action"
+
+    @classmethod
+    def clean_cb_dimension(
+        cls, strategy_id=None, bk_biz_id=None, data_source_label=None, data_type_label=None, plugin_type=None, **kwargs
+    ) -> dict:
+        """
+        清理Action模块的熔断维度
+        :param strategy_id: 策略ID
+        :param bk_biz_id: 业务ID
+        :param data_source_label: 数据源标签
+        :param data_type_label: 数据类型标签
+        :param plugin_type: 插件类型（Action模块特有）
+        :param kwargs: 其他参数
+        :return: 清理后的维度数据
+        """
+        # 先调用父类方法处理基础字段
+        dimension = super().clean_cb_dimension(
+            strategy_id=strategy_id,
+            bk_biz_id=bk_biz_id,
+            data_source_label=data_source_label,
+            data_type_label=data_type_label,
+            **kwargs,
+        )
+        # 添加 plugin_type 处理（Action模块特有）
+        if plugin_type is not None:
+            dimension["plugin_type"] = str(plugin_type)
+        return dimension

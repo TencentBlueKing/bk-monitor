@@ -43,7 +43,7 @@ def is_match_api_token(request, bk_tenant_id: str, app_code: str) -> bool:
     校验API鉴权
     """
     # 如果没有biz_id，直接放行
-    if not getattr(request, "biz_id"):
+    if not getattr(request, "biz_id") and not app_code == settings.AIDEV_AGENT_MCP_REQUEST_AGENT_CODE:
         return True
 
     global APP_CODE_TOKENS
@@ -220,11 +220,23 @@ class AuthenticationMiddleware(MiddlewareMixin):
         return request.META.get("HTTP_X_BKAPI_FROM") == "apigw" and request.META.get(BkJWTClient.JWT_KEY_NAME)
 
     @staticmethod
-    def use_mcp_auth(request):
+    def use_mcp_auth(request, app_code):
         """
         是否是MCP请求
+        通过检查请求头中是否包含 HTTP_X_BKAPI_MCP_SERVER_NAME 来判断
+        兼容旧的判断方式：
+        1. 请求头中包含X-BK-REQUEST-SOURCE,且为对应MCP的配置头
+        2. app_code为对应MCP的应用
         """
-        return request.META.get("HTTP_X_BK_REQUEST_SOURCE") == settings.AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE
+        # 新的判断方式：检查是否包含 MCP Server Name 请求头
+        if request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME"):
+            return True
+
+        # 兼容旧的判断方式
+        return (
+            request.META.get("HTTP_X_BK_REQUEST_SOURCE") == settings.AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE
+            or app_code == settings.AIDEV_AGENT_MCP_REQUEST_AGENT_CODE
+        )
 
     @staticmethod
     def use_api_token_auth(request):
@@ -276,14 +288,29 @@ class AuthenticationMiddleware(MiddlewareMixin):
         # 导入放在这里避免循环依赖
         from bkmonitor.iam.drf import MCPPermission
         from bkmonitor.iam.action import get_action_by_id
+        from constants.mcp import MCP_SERVER_NAME_TO_PERMISSION_ACTION
 
         logger.info("MCPAuthentication: Handling MCP authentication")
 
         # 提取工具名称，检查是否在豁免白名单中
         tool_name = self.extract_tool_name_from_path(request.path)
 
-        # 从请求头中获取权限动作ID
-        permission_action_id = request.META.get("HTTP_X_BKAPI_PERMISSION_ACTION", "")
+        # 获取权限动作ID
+        # 优先从 MCP Server Name 映射中获取，如果没有则从旧的请求头中获取
+        mcp_server_name = request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", "")
+        permission_action_id = ""
+
+        if mcp_server_name:
+            # 从映射表中获取对应的权限动作ID
+            permission_action_id = MCP_SERVER_NAME_TO_PERMISSION_ACTION.get(mcp_server_name, "")
+            logger.info(
+                f"MCPAuthentication: MCP Server Name: {mcp_server_name}, mapped permission_action_id: {permission_action_id}"
+            )
+
+        # 如果没有从 MCP Server Name 获取到，则尝试从旧的请求头中获取
+        if not permission_action_id:
+            permission_action_id = request.META.get("HTTP_X_BKAPI_PERMISSION_ACTION", "")
+            logger.info(f"MCPAuthentication: Using permission_action_id from header: {permission_action_id}")
 
         if tool_name and tool_name in settings.MCP_PERMISSION_EXEMPT_TOOLS:
             logger.info(f"MCPAuthentication: Tool '{tool_name}' is in exempt list, skipping permission check")
@@ -466,7 +493,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             bk_tenant_id = DEFAULT_TENANT_ID
 
         # MCP权限校验（在用户认证完成后）
-        if self.use_mcp_auth(request):
+        if self.use_mcp_auth(request, app_code):
             request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
             logger.info("=" * 80)
             logger.info("MCPAuthentication: Handling MCP authentication")
@@ -485,6 +512,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 "HTTP_X_BK_TENANT_ID",
                 "HTTP_BK_USERNAME",
                 "HTTP_BK_APP_CODE",
+                "HTTP_X_BKAPI_MCP_SERVER_NAME",
+                "HTTP_X_BKAPI_PERMISSION_ACTION",
                 "Content-Type",
             ]
             for header_key in key_headers:

@@ -170,17 +170,17 @@ export default defineComponent({
           // span 的 end_time 在当前一小时内
           if (Math.abs(diff2) <= 60 * 60 * 1000)
             return [
-              dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
-              dayjs().format('YYYY-MM-DD HH:mm:ss'),
+              dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
+              dayjs().format('YYYY-MM-DD HH:mm:ssZZ'),
             ];
           return [
-            dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
-            dayjs(spanEndTime.value).add(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+            dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
+            dayjs(spanEndTime.value).add(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
           ];
         }
         return [
-          dayjs(spanEndTime.value).subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ss'),
-          dayjs(spanEndTime.value).format('YYYY-MM-DD HH:mm:ss'),
+          dayjs(spanEndTime.value).subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
+          dayjs(spanEndTime.value).format('YYYY-MM-DD HH:mm:ssZZ'),
         ];
       }
       return [];
@@ -337,8 +337,8 @@ export default defineComponent({
           // { label: '日志', content: logs.length ? '有日志' :  '无日志' },
           {
             label: t('开始时间'),
-            content: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
-            title: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
+            content: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ssZZ'),
+            title: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ssZZ'),
           },
           {
             label: t('来源'),

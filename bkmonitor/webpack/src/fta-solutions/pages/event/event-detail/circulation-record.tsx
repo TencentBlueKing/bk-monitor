@@ -26,6 +26,7 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 
 import EventDetail from '../../../store/modules/event-detail';
@@ -221,13 +222,13 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
         if (routerName === 'alarm-shield-detail') {
           return {
             ...item,
-            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/trace/alarm-shield/edit/${params?.shieldId}`,
+            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}#/trace/alarm-shield/edit/${params?.shieldId}`,
           };
         }
         if (routerName === 'alarm-dispatch') {
           return {
             ...item,
-            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/alarm-dispatch?group_id=${params?.groupId}`,
+            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}#/alarm-dispatch?group_id=${params?.groupId}`,
           };
         }
       } else if (item?.url) {
@@ -237,7 +238,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
           if (id) {
             return {
               ...item,
-              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield/edit/${id}`,
+              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}#/trace/alarm-shield/edit/${id}`,
             };
           }
         }
@@ -324,7 +325,9 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
         <span class='item-title-icon'>
           <i class={['icon-monitor', item.logIcon]} />
         </span>
-        <span class='item-title-date'>{item.expand ? item.time : item.expandTime}</span>
+        <span class='item-title-date'>
+          {item.expand ? formatWithTimezone(item.time) : formatWithTimezone(item.expandTime)}
+        </span>
       </div>
     );
   }

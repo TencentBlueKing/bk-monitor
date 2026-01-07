@@ -27,14 +27,42 @@ from apps.generic import APIViewSet
 from apps.iam import ActionEnum
 from apps.iam.handlers.drf import ViewBusinessPermission, BusinessActionPermission
 from apps.tgpa.constants import FEATURE_TOGGLE_TGPA_TASK
+from apps.tgpa.handlers.base import TGPACollectorConfigHandler
+from apps.tgpa.handlers.report import TGPAReportHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
+from apps.tgpa.models import TGPAReportSyncRecord
 from apps.tgpa.serializers import (
     CreateTGPATaskSerializer,
     GetTGPATaskListSerializer,
     GetDownloadUrlSerializer,
     GetIndexSetIdSerializer,
+    GetReportListSerializer,
+    SyncReportSerializer,
+    GetOpenidListSerializer,
+    GetFileNameListSerializer,
+    GetFileStatusSerializer,
+    RetrieveSyncRecordSerializer,
+    GetCountInfoSerializer,
 )
+from apps.tgpa.tasks import fetch_and_process_tgpa_reports
 from bkm_search_module.constants import list_route
+
+
+class TGPAViewSet(APIViewSet):
+    """客户端日志"""
+
+    @list_route(methods=["GET"], url_path="count")
+    def get_count_info(self, request, *args, **kwargs):
+        """
+        获取日志拉取任务列表
+        """
+        params = self.params_valid(GetCountInfoSerializer)
+        return Response(
+            {
+                "task": TGPATaskHandler.get_task_count(params["bk_biz_id"]),
+                "report": TGPAReportHandler.get_report_count(params["bk_biz_id"]),
+            }
+        )
 
 
 class TGPATaskViewSet(APIViewSet):
@@ -73,7 +101,8 @@ class TGPATaskViewSet(APIViewSet):
         获取文件下载链接
         """
         params = self.params_valid(GetDownloadUrlSerializer)
-        url = TGPATaskHandler(bk_biz_id=params["bk_biz_id"], inst_id=params["id"]).task_info["download_url"]
+        task_handler = TGPATaskHandler(bk_biz_id=params["bk_biz_id"], inst_id=params["id"])
+        url = task_handler.task_info.get("download_url", "")
         return Response({"url": url})
 
     @list_route(methods=["GET"], url_path="index_set_id")
@@ -87,7 +116,78 @@ class TGPATaskViewSet(APIViewSet):
             "collector_config_id": None,
         }
         if FeatureToggleObject.switch(FEATURE_TOGGLE_TGPA_TASK, params["bk_biz_id"]):
-            collector_config = TGPATaskHandler.get_or_create_collector_config(bk_biz_id=params["bk_biz_id"])
+            collector_config = TGPACollectorConfigHandler.get_or_create_collector_config(bk_biz_id=params["bk_biz_id"])
             res["index_set_id"] = collector_config.index_set_id
             res["collector_config_id"] = collector_config.collector_config_id
         return Response(res)
+
+
+class TGPAReportViewSet(APIViewSet):
+    """客户端日志上报"""
+
+    def get_permissions(self):
+        return [ViewBusinessPermission()]
+
+    def list(self, request, *args, **kwargs):
+        """
+        获取客户端日志上报列表
+        """
+        params = self.params_valid(GetReportListSerializer)
+        return Response(TGPAReportHandler.get_report_list(params))
+
+    @list_route(methods=["POST"], url_path="sync")
+    def sync_report(self, request, *args, **kwargs):
+        """
+        同步客户端日志上报文件
+        """
+        params = self.params_valid(SyncReportSerializer)
+        bk_biz_id = params["bk_biz_id"]
+        if not FeatureToggleObject.switch(FEATURE_TOGGLE_TGPA_TASK, bk_biz_id):
+            return Response({"record_id": None})
+
+        sync_record_obj = TGPAReportSyncRecord.objects.create(
+            bk_biz_id=bk_biz_id,
+            openid_list=params.get("openid_list"),
+            file_name_list=params.get("file_name_list"),
+            created_by=request.user.username,
+        )
+        fetch_and_process_tgpa_reports.delay(sync_record_obj.id, params)
+
+        return Response({"record_id": sync_record_obj.id})
+
+    @list_route(methods=["GET"], url_path="openid_list")
+    def get_openid_list(self, request, *args, **kwargs):
+        """
+        获取openid列表
+        """
+        params = self.params_valid(GetOpenidListSerializer)
+        return Response(TGPAReportHandler.get_openid_list(params))
+
+    @list_route(methods=["GET"], url_path="file_name_list")
+    def get_file_name_list(self, request, *args, **kwargs):
+        """
+        获取文件名列表
+        """
+        params = self.params_valid(GetFileNameListSerializer)
+        return Response(TGPAReportHandler.get_file_name_list(params))
+
+    @list_route(methods=["POST"], url_path="file_status")
+    def get_file_status(self, request, *args, **kwargs):
+        """
+        获取文件处理状态
+        """
+        params = self.params_valid(GetFileStatusSerializer)
+        return Response(TGPAReportHandler.get_file_status(params["file_name_list"]))
+
+    @list_route(methods=["GET"], url_path="sync_record")
+    def retrieve_sync_record(self, request, *args, **kwargs):
+        """
+        获取同步记录信息
+        """
+        params = self.params_valid(RetrieveSyncRecordSerializer)
+        record_info = (
+            TGPAReportSyncRecord.objects.filter(id=params["record_id"])
+            .values("id", "status", "openid_list", "file_name_list")
+            .get()
+        )
+        return Response(record_info)
