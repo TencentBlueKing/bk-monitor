@@ -45,13 +45,64 @@
                 border-right: none;
             }
 
-            .bk-color-picker {
-                border-radius: 0 2px 2px 0;
+            .color-picker-wrapper {
+                position: relative;
+                width: 120px;
+
+                .color-input-underlay {
+                    width: 100%;
+
+                    .bk-form-input {
+                        color: transparent;
+                        background: transparent;
+                        border-radius: 0 2px 2px 0;
+                    }
+                }
+
+                .color-picker-overlay {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    z-index: 1;
+                    width: 100%;
+                    border-color: transparent;
+                    border-radius: 0 2px 2px 0;
+
+                    &.color-picker-active {
+                        border-color: #3a84ff;
+                    }
+                }
             }
         }
 
         .mt22 {
             margin-top: 22px;
+        }
+
+        .jump-link-wrapper {
+            position: relative;
+            width: 100%;
+
+            .jump-link-input-underlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+
+                .bk-form-input {
+                    color: transparent;
+                    background: transparent;
+                }
+            }
+
+            .jump-link-editor-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 1;
+                box-sizing: border-box;
+                width: 100%;
+            }
         }
     }
 }

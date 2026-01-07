@@ -72,8 +72,12 @@ export default defineComponent({
     },
     type: {
       type: String,
-      default: 'create', // create | edit | view
-      validator: (value: string) => ['create', 'edit', 'view'].includes(value),
+      default: 'create', // create | edit
+      validator: (value: string) => ['create', 'edit'].includes(value),
+    },
+    existingConfigs: {
+      type: Array,
+      default: () => [],
     },
   },
   emits: ['confirm', 'cancel'],
@@ -82,6 +86,13 @@ export default defineComponent({
     const formRef = ref(null);
     const localFormData = ref(getDefaultFormData());
     const labelWidth = ref(store.state.isEnLanguage ? 130 : 70);
+    const colorPickerRef = ref(null);
+    const colorInputRef = ref(null);
+    const isColorPickerOpen = ref(false);
+    const jumpLinkInputRef = ref(null);
+
+    // 初始编辑字段引用，用于编辑模式下的重复配置检测
+    const initialEditField = ref('');
 
     // 正则测试相关状态
     const regexTestResult = ref(''); // 测试匹配结果
@@ -250,6 +261,7 @@ export default defineComponent({
     // 重置表单
     const handleReset = () => {
       localFormData.value = getDefaultFormData();
+      initialEditField.value = '';
       // 重置正则测试相关状态
       regexTestResult.value = '';
       hasTestedRegex.value = false;
@@ -285,9 +297,55 @@ export default defineComponent({
       }
     };
 
+    // 检测字段重复配置
+    const isDuplicateField = computed(() => {
+      // 只在字段匹配模式下检测
+      if (localFormData.value.matchType !== MatchType.FIELD) {
+        return false;
+      }
+
+      const currentField = localFormData.value.selectField;
+      if (!currentField) {
+        return false;
+      }
+
+      // 编辑模式下，如果选择的是初始编辑字段，则不视为重复
+      if (props.type === 'edit' && currentField === initialEditField.value) {
+        return false;
+      }
+
+      // 检查是否在已存在的配置中
+      return props.existingConfigs.some(
+        (config: FormData) => config.matchType === MatchType.FIELD && config.selectField === currentField,
+      );
+    });
+
     // 判断确认按钮是否应该禁用
     const isConfirmDisabled = computed(() => {
-      return localFormData.value.matchType === MatchType.REGEX && !hasTestedRegex.value;
+      // 正则匹配未测试时禁用
+      if (localFormData.value.matchType === MatchType.REGEX && !hasTestedRegex.value) {
+        return true;
+      }
+
+      // 字段重复配置时禁用（非编辑模式或编辑模式下选择了其他已存在字段）
+      if (isDuplicateField.value) {
+        return true;
+      }
+
+      return false;
+    });
+
+    // 确认按钮的提示文本
+    const confirmTooltipContent = computed(() => {
+      if (localFormData.value.matchType === MatchType.REGEX && !hasTestedRegex.value) {
+        return t('正则表达式未测试匹配');
+      }
+
+      if (isDuplicateField.value) {
+        return t('该字段已存在个性化设置任务，请勿重复创建');
+      }
+
+      return '';
     });
 
     // 监听匹配类型和执行动作变化，变化时清除错误提示
@@ -326,11 +384,29 @@ export default defineComponent({
       (newFormData: FormData) => {
         if (newFormData) {
           localFormData.value = { ...newFormData, originalText: '' };
+          // 编辑模式下，记录初始字段
+          if (props.type === 'edit' && newFormData.matchType === MatchType.FIELD) {
+            initialEditField.value = newFormData.selectField;
+          }
         } else {
           localFormData.value = getDefaultFormData();
+          initialEditField.value = '';
         }
       },
       { immediate: true },
+    );
+
+    // 监听 color-picker 的 showDropdown 状态
+    watch(
+      () => colorPickerRef.value?.showDropdown,
+      (isOpen) => {
+        isColorPickerOpen.value = isOpen;
+        if (!isOpen) {
+          // 面板关闭时，触发输入框的 focus 和 blur 来触发验证
+          colorInputRef.value?.focus();
+          colorInputRef.value?.blur();
+        }
+      },
     );
 
     // label宽度计算属性
@@ -357,7 +433,7 @@ export default defineComponent({
             <div class='dialog-footer'>
               <span
                 v-bk-tooltips={{
-                  content: t('正则表达式未测试匹配'),
+                  content: confirmTooltipContent.value,
                   disabled: !isConfirmDisabled.value,
                 }}
               >
@@ -517,10 +593,20 @@ export default defineComponent({
               >
                 <div class='color-item'>
                   <div class='prepend-text'>{t('颜色')}</div>
-                  <bk-color-picker
-                    value={localFormData.value.color}
-                    on-change={(value: string) => (localFormData.value.color = value)}
-                  ></bk-color-picker>
+                  <div class='color-picker-wrapper'>
+                    <bk-input
+                      ref={colorInputRef}
+                      value={localFormData.value.color}
+                      class='color-input-underlay'
+                      placeholder={' '}
+                    />
+                    <bk-color-picker
+                      ref={colorPickerRef}
+                      value={localFormData.value.color}
+                      on-change={(value: string) => (localFormData.value.color = value)}
+                      class={['color-picker-overlay', { 'color-picker-active': isColorPickerOpen.value }]}
+                    ></bk-color-picker>
+                  </div>
                 </div>
               </bk-form-item>
             </div>
@@ -544,11 +630,27 @@ export default defineComponent({
               required
               property='jumpLink'
             >
-              <JumpLinkEditor
-                value={localFormData.value.jumpLink}
-                on-change={(value: string) => (localFormData.value.jumpLink = value)}
-                placeholder={t('请输入跳转链接，支持 {变量名} 格式')}
-              />
+              <div class='jump-link-wrapper'>
+                <bk-input
+                  ref={jumpLinkInputRef}
+                  value={localFormData.value.jumpLink}
+                  class='jump-link-input-underlay'
+                  placeholder={' '}
+                />
+                <JumpLinkEditor
+                  value={localFormData.value.jumpLink}
+                  on-change={(value: string) => (localFormData.value.jumpLink = value)}
+                  on-blur={() => {
+                    // JumpLinkEditor失焦时，触发bk-input的聚焦和失焦以触发验证
+                    if (jumpLinkInputRef.value) {
+                      jumpLinkInputRef.value.focus();
+                      jumpLinkInputRef.value.blur();
+                    }
+                  }}
+                  placeholder={t('请输入跳转链接，支持 {变量名} 格式')}
+                  class='jump-link-editor-overlay'
+                />
+              </div>
             </bk-form-item>
           )}
           {localFormData.value.actionType === ActionType.RELATED && (

@@ -47,7 +47,7 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['change'],
+  emits: ['change', 'blur'],
   setup(props, { emit }) {
     const editorRef = ref<HTMLDivElement>();
     let editorView: EditorView | null = null;
@@ -72,6 +72,10 @@ export default defineComponent({
             const newValue = update.state.doc.toString();
             emit('change', newValue);
           }
+          if (update.focusChanged && !update.view.hasFocus) {
+            // 编辑器失去焦点时，触发 blur 事件
+            emit('blur');
+          }
         }),
 
         // 变量语法高亮
@@ -82,9 +86,10 @@ export default defineComponent({
           '&': {
             fontSize: '12px',
             height: '32px',
-            border: '1px solid #C4C6CC',
+            border: '1px solid transparent',
             borderRadius: '2px',
             backgroundColor: '#fff',
+            background: 'transparent',
           },
           '&.cm-focused': {
             outline: 'none',
@@ -105,6 +110,7 @@ export default defineComponent({
           '.cm-placeholder': {
             color: '#C4C6CC',
             fontStyle: 'normal',
+            fontSize: '12px',
           },
         }),
       ];

@@ -47,7 +47,7 @@ export default defineComponent({
 
     const dialogVisible = ref(false); // Dialog 显示状态
     const formData = ref<FormData | null>(null); // 表单数据
-    const dialogType = ref<'create' | 'edit' | 'view'>('create'); // 对话框类型
+    const dialogType = ref<'create' | 'edit'>('create'); // 对话框类型
     const editIndex = ref<number>(-1); // 编辑的索引
 
     // 打开新建对话框
@@ -382,6 +382,7 @@ export default defineComponent({
           visible={dialogVisible.value}
           formData={formData.value}
           type={dialogType.value}
+          existingConfigs={tableData.value}
           on-confirm={handleDialogConfirm}
           on-cancel={() => (dialogVisible.value = false)}
         />

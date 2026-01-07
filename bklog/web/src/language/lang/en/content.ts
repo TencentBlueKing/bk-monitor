@@ -1154,10 +1154,12 @@ export default {
   '可切换原始日志，查看该日志的上下文': 'You can switch to the original log to view the context of the log',
   '当前任务名称为{n}，确认要删除？': 'The current task name is {n}, are you sure you want to delete it?',
   'tag名称不得超出8个字母、数字、_': 'The tag name cannot exceed 8 letters, numbers, and _',
-  '点击"测试匹配"按钮查看结果': 'Click the "Test Match" button to view the results.',
-  请先输入原文和正则表达式: 'Please enter the original text and regular expression first.',
+  '点击"测试匹配"按钮查看结果': 'Click the "Test Match" button to view the results',
+  请先输入原文和正则表达式: 'Please enter the original text and regular expression first',
   未找到匹配项: 'No match found.',
   '匹配成功！找到 {0} 个匹配项：': 'Match successful! {0} matches found:',
   '正则表达式语法错误：': 'Regular expression syntax error:',
   正则表达式未测试匹配: 'The regular expression was not tested for matching',
+  '该字段已存在个性化设置任务，请勿重复创建':
+    'A personalization task already exists for this field; please do not create another one',
 };

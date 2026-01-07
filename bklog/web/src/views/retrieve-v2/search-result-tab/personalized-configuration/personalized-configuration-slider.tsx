@@ -110,6 +110,7 @@ export default defineComponent({
     // 取消操作/关闭侧滑弹窗
     const handleCancel = () => {
       emit('cancel-slider');
+      activeTab.value = TabType.LOG_LEVEL;
     };
 
     // 分级配置变更回调
