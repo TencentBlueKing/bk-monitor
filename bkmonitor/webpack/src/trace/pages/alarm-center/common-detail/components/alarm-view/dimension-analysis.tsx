@@ -86,6 +86,19 @@ export default defineComponent({
                 </div>
               ))}
             </div>
+            <div class='conditions-wrap'>
+              {new Array(10).fill(0).map((_item, index) => (
+                <div
+                  key={index}
+                  class='condition-item'
+                >
+                  dimension0{index}
+                  <span class='method'>等于</span>
+                  value0{index}
+                  <span class='icon-monitor icon-mc-close' />
+                </div>
+              ))}
+            </div>
             <div class='dimension-analysis-data'>
               {this.showTypeActive === TYPE_ENUM.TABLE ? <DimensionAnalysisTable /> : '图标'}
             </div>

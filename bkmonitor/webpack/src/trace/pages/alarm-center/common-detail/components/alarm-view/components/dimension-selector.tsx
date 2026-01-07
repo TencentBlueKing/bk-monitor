@@ -65,8 +65,46 @@ export default defineComponent({
           />
         </div>
         <div class='dimension-list'>
-          <div>dimension01</div>
-          <div>dimension02</div>
+          {new Array(10).fill(0).map((_item, index) => (
+            <div
+              key={index}
+              class='dimension-list-item single-type'
+            >
+              <span class='item-label'>dimension0{index + 1}</span>
+              {index > 5 && (
+                <span
+                  class='suspicious-tag'
+                  v-bk-tooltips={{
+                    content: <div>可疑可疑</div>,
+                    zIndex: 4000,
+                  }}
+                >
+                  <span>{this.t('可疑')}</span>
+                </span>
+              )}
+            </div>
+          ))}
+          {new Array(10).fill(0).map((_item, index) => (
+            <div
+              key={index}
+              class='dimension-list-item multi-type'
+            >
+              <Checkbox>
+                <span>dimension0{index + 1}</span>
+              </Checkbox>
+              {index > 5 && (
+                <span
+                  class='suspicious-tag'
+                  v-bk-tooltips={{
+                    content: <div>可疑可疑</div>,
+                    zIndex: 4000,
+                  }}
+                >
+                  <span>{this.t('可疑')}</span>
+                </span>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     );

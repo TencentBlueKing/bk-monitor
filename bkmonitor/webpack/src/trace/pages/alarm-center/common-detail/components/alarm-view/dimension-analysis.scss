@@ -2,7 +2,7 @@
   .dimension-analysis-table-view {
     display: flex;
     min-height: 300px;
-    border-top: 1px solid #DCDEE5;
+    border-top: 1px solid #dcdee5;
 
     .dimension-analysis-left {
       width: 160px;
@@ -43,6 +43,32 @@
             .icon-monitor {
               color: #3a84ff;
             }
+          }
+        }
+      }
+
+      .conditions-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 8px;
+
+        .condition-item {
+          display: flex;
+          align-items: center;
+          height: 22px;
+          margin: 2px 6px 2px 0;
+          font-size: 12px;
+          color: rgb(99 101 110);
+          background-color: rgb(151 155 165 / 10%);
+
+          .method {
+            margin: 0 4px;
+            color: rgb(255 156 1);
+          }
+
+          .icon-mc-close {
+            font-size: 16px;
+            cursor: pointer;
           }
         }
       }
