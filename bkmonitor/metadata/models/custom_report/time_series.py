@@ -1315,6 +1315,19 @@ class TimeSeriesScope(models.Model):
             scope_name_to_metrics[scope_name].append(metric_info)
             scope_name_to_dimensions[scope_name]["dimensions"].update(tag_list.keys())
 
+        # 检查并补充缺失的默认分组
+        checked_prefixes = set()
+        for scope_name in list(scope_name_to_dimensions.keys()):
+            prefix = cls.get_scope_name_prefix(scope_name)
+            if prefix and prefix not in checked_prefixes:
+                checked_prefixes.add(prefix)
+                default_scope_name = f"{prefix}||{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
+                if default_scope_name not in scope_name_to_dimensions:
+                    scope_name_to_dimensions[default_scope_name] = {
+                        "dimensions": set(),
+                        "create_from_default": True,
+                    }
+
         return scope_name_to_metrics, scope_name_to_dimensions
 
     @classmethod
