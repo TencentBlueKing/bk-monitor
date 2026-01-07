@@ -24,9 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { computed, defineComponent, shallowRef, useTemplateRef } from 'vue';
+
+import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
+import { useI18n } from 'vue-i18n';
+import { useTippy } from 'vue-tippy';
 
 import './dimension-analysis-table.scss';
+
+const tableColumnKey = {
+  operation: 'operation',
+  percentage: 'percentage',
+  currentValue: 'currentValue',
+};
 
 export default defineComponent({
   name: 'DimensionAnalysisTable',
@@ -39,8 +49,124 @@ export default defineComponent({
   emits: {
     change: (_val: any) => true,
   },
-  setup() {},
+  setup() {
+    const { t } = useI18n();
+    const selectorRef = useTemplateRef<HTMLDivElement>('selector');
+    const popoverInstance = shallowRef(null);
+    const destroyPopoverInstance = () => {
+      popoverInstance.value?.hide();
+      popoverInstance.value?.destroy();
+      popoverInstance.value = null;
+    };
+    const showPopover = (event: MouseEvent) => {
+      if (popoverInstance.value) {
+        destroyPopoverInstance();
+        return;
+      }
+      popoverInstance.value = useTippy(event.target as any, {
+        content: () => selectorRef.value,
+        trigger: 'click',
+        placement: 'bottom-start',
+        theme: 'light common-monitor padding-0',
+        arrow: false,
+        appendTo: document.body,
+        zIndex: 4000,
+        maxWidth: 700,
+        offset: [0, 6],
+        interactive: true,
+        onHidden: () => {
+          destroyPopoverInstance();
+        },
+      });
+      popoverInstance.value?.show();
+    };
+    const handleSelectDimension = (_dimension?: string) => {
+      destroyPopoverInstance();
+    };
+    const columns = computed<TdPrimaryTableProps['columns']>(
+      () =>
+        [
+          {
+            colKey: 'colKey',
+            title: 'xxx维度',
+            width: 155,
+            cell: (_h, { _row }) => {
+              return <div>维度值</div>;
+            },
+          },
+          {
+            colKey: tableColumnKey.operation,
+            title: t('操作'),
+            width: '100',
+            cell: (_h, { _row }) => {
+              return (
+                <span
+                  class='operation-btn'
+                  onClick={event => showPopover(event)}
+                >
+                  <span>{t('下钻')}</span>
+                  <span class='icon-monitor icon-mc-triangle-down' />
+                </span>
+              );
+            },
+          },
+          {
+            colKey: tableColumnKey.percentage,
+            title: t('占比'),
+            width: 100,
+            sorter: true,
+            cell: (_h, { _row }) => {
+              return <div>占比</div>;
+            },
+          },
+          {
+            colKey: tableColumnKey.currentValue,
+            title: t('当前值'),
+            width: 100,
+            cell: (_h, { _row }) => {
+              return <div>当前值</div>;
+            },
+          },
+        ] as any
+    );
+
+    return {
+      columns,
+      handleSelectDimension,
+    };
+  },
   render() {
-    return <div class='dimension-analysis-data-table'>表格数据</div>;
+    return (
+      <>
+        <PrimaryTable
+          class='dimension-analysis-data-table'
+          columns={this.columns}
+          data={new Array(10).fill(null).map((_, index) => ({ key: index }))}
+          hover={true}
+          resizable={true}
+          tableLayout='fixed'
+        />
+        <div
+          style={{
+            display: 'none',
+          }}
+        >
+          <div
+            ref='selector'
+            class='dimension-analysis-data-table-popover'
+          >
+            {new Array(10).fill(null).map((_, index) => (
+              <div
+                key={index}
+                class={['selector-item', { active: index === 5 }]}
+                onClick={() => this.handleSelectDimension()}
+              >
+                dimension0{index}
+              </div>
+            ))}
+          </div>
+        </div>
+      </>
+    );
   },
 });
