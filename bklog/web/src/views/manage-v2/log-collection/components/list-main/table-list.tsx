@@ -26,6 +26,8 @@
 
 import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, computed, type PropType } from 'vue';
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import * as authorityMap from '@/common/authority-map';
 import tippy, { type Instance } from 'tippy.js';
 import { tenantManager } from '@/views/retrieve-core/tenant-manager';
 import axios from 'axios';
@@ -39,6 +41,7 @@ import {
   COLLECTOR_SCENARIO_ENUM,
   STATUS_ENUM_FILTER,
 } from '../../utils';
+import { projectManages } from '@/common/util';
 import useResizeObserver from '@/hooks/use-resize-observe';
 import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
 import $http from '@/api';
@@ -79,6 +82,7 @@ interface ITableRowData {
   updated_at?: string;
   environment?: string;
   [key: string]: unknown;
+  log_access_type?: string;
 }
 
 /**
@@ -183,6 +187,7 @@ export default defineComponent({
 
   setup(props) {
     const { t } = useLocale();
+    const store = useStore();
     const showStopTypeDialog = ref(false);
     const showCollectIssuedSlider = ref(false);
     const currentRow = ref<ITableRowData>({} as ITableRowData);
@@ -201,7 +206,7 @@ export default defineComponent({
     const checkInfo = ref('');
 
     // 使用自定义 hook 管理状态
-    const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId } = useCollectList();
+    const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId, isAllowedCreate } = useCollectList();
     const tableList = ref<ITableRowData[]>([]);
     const listLoading = ref(false);
     // 保存原始数据顺序的索引映射（用于恢复排序）
@@ -560,48 +565,56 @@ export default defineComponent({
         colKey: 'operation',
         width: 110,
         fixed: 'right',
-        cell: (h, { row }: { row: ITableRowData }) => (
-          <div class='table-operation'>
-            <span
-              class={{
-                'link mr-6': true,
-                disabled: !getOperatorCanClick(row, 'search'),
-              }}
-              on-click={() => handleEditOperation(row, 'search')}
-            >
-              {t('检索')}
-            </span>
-            <span
-              class={{
-                link: true,
-                disabled: !getOperatorCanClick(row, 'edit'),
-              }}
-              on-click={() => handleEditOperation(row, 'edit')}
-            >
-              {t('编辑')}
-            </span>
-            <span class='bk-icon icon-more more-btn table-more-btn' />
-            <div
-              style={{ display: 'none' }}
-              class='row-menu-popover'
-            >
-              <div class='row-menu-content'>
-                {renderMenu(row).map(item => (
-                  <span
-                    key={item.key}
-                    class={{
-                      'menu-item': true,
-                      disabled: !getOperatorCanClick(row, item.key),
-                    }}
-                    on-Click={() => handleMenuClick(item.key, row)}
-                  >
-                    {item.label}
-                  </span>
-                ))}
+        cell: (h, { row }: { row: ITableRowData }) => {
+          const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
+          const editKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.MANAGE_COLLECTION_AUTH;
+          const searchKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.SEARCH_LOG_AUTH;
+          return (
+            <div class='table-operation'>
+              <span
+                class={{
+                  'link mr-6': true,
+                  disabled: !getOperatorCanClick(row, 'search'),
+                }}
+                v-cursor={{ active: !row.permission?.[searchKey] }}
+                on-click={() => handleEditOperation(row, 'search')}
+              >
+                {t('检索')}
+              </span>
+              <span
+                class={{
+                  link: true,
+                  disabled: !getOperatorCanClick(row, 'edit'),
+                }}
+                v-cursor={{ active: !row.permission?.[editKey] }}
+                on-click={() => handleEditOperation(row, 'edit')}
+              >
+                {t('编辑')}
+              </span>
+              <span class='bk-icon icon-more more-btn table-more-btn' />
+              <div
+                style={{ display: 'none' }}
+                class='row-menu-popover'
+              >
+                <div class='row-menu-content'>
+                  {renderMenu(row).map(item => (
+                    <span
+                      key={item.key}
+                      v-cursor={{ active: !row.permission?.[editKey] }}
+                      class={{
+                        'menu-item': true,
+                        disabled: !getOperatorCanClick(row, item.key),
+                      }}
+                      on-Click={() => handleMenuClick(item.key, row)}
+                    >
+                      {item.label}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        ),
+          );
+        },
       },
     ]);
 
@@ -1239,6 +1252,8 @@ export default defineComponent({
       return hasSearch || hasFilter;
     });
 
+    const collectProject = computed(() => projectManages(store.state.topMenu, 'collection-item'));
+
     /**
      * 处理空状态操作
      * @param type - 操作类型
@@ -1268,6 +1283,8 @@ export default defineComponent({
               icon='plus'
               theme='primary'
               on-Click={handleCreateOperation}
+              v-cursor={{ active: isAllowedCreate }}
+              disabled={!collectProject.value || listLoading.value || isAllowedCreate === null}
             >
               {t('采集项')}
             </bk-button>
