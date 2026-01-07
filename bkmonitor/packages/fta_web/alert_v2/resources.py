@@ -206,7 +206,7 @@ class AlertEventBaseResource(Resource, abc.ABC):
         if not result_table_id:
             return None
 
-        q = q.table(result_table_id)
+        q: QueryConfigBuilder = q.table(result_table_id)
 
         # 合并策略过滤条件和告警维度过滤条件
         alert_data: dict[str, Any] = alert.origin_alarm.get("data", {})
@@ -216,7 +216,7 @@ class AlertEventBaseResource(Resource, abc.ABC):
             dimension_fields=alert_data.get("dimension_fields", []),
         )
         if conditions:
-            q = q.conditions(conditions)
+            q: QueryConfigBuilder = q.conditions(conditions)
 
         return q
 
