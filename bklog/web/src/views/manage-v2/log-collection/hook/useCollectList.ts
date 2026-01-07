@@ -313,6 +313,12 @@ export const useCollectList = () => {
 
     // 1) 前置：不可点击直接返回（例如“未完成/运行中”限制等）
     if (!getOperatorCanClick(row, operateType)) return;
+    /**
+     * 是否为计算平台或者ES
+     */
+    const isBkDataOrEs = ['bkdata', 'es'].includes(typeKey);
+    const editKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.MANAGE_COLLECTION_AUTH;
+    const editId = isBkDataOrEs ? row.index_set_id : row.collector_config_id;
 
     // 2) 按操作类型做权限校验（表驱动），避免大量 if/else
     const guards: Array<{
@@ -336,6 +342,12 @@ export const useCollectList = () => {
         buildApplyData: () => buildIndicesApplyData(authorityMap.SEARCH_LOG_AUTH, row.index_set_id),
       },
       {
+        match: _t => _t === 'edit',
+        isAllowed: () => Boolean(row.permission?.[editKey]),
+        buildApplyData: () =>
+          isBkDataOrEs ? buildIndicesApplyData(editKey, editId) : buildCollectionApplyData(editKey, editId),
+      },
+      {
         // 原逻辑：除 add/view/search 外，统一按“管理权限”兜底
         match: _t => !['add', 'view', 'search'].includes(String(_t)),
         isAllowed: () => Boolean(row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]),
@@ -348,7 +360,6 @@ export const useCollectList = () => {
       if (!guard.isAllowed()) return getOptionApplyData(guard.buildApplyData());
       break;
     }
-
     // 3) 通过权限校验后，交由 leaveCurrentPage 统一处理跳转
     leaveCurrentPage(row, operateType, typeKey, indexSetId);
   };
