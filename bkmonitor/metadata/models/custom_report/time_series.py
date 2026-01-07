@@ -1977,7 +1977,9 @@ class TimeSeriesMetric(models.Model):
             # 更新 is_active 字段：指标在返回列表中，标记为活跃
             if not obj.is_active:
                 logger.info(
-                    "_bulk_update_metrics: set active metrics for group_id->[%s], metric->[%s]", group_id, obj.field_name
+                    "_bulk_update_metrics: set active metrics for group_id->[%s], metric->[%s]",
+                    group_id,
+                    obj.field_name,
                 )
                 is_need_update = True
                 obj.is_active = True
@@ -1992,7 +1994,9 @@ class TimeSeriesMetric(models.Model):
 
         # 批量更新指定的字段
         cls.objects.bulk_update(
-            records, ["last_modify_time", "tag_list", "scope_id", "field_config", "is_active"], batch_size=BULK_UPDATE_BATCH_SIZE
+            records,
+            ["last_modify_time", "tag_list", "scope_id", "field_config", "is_active"],
+            batch_size=BULK_UPDATE_BATCH_SIZE,
         )
         return need_push_router
 
