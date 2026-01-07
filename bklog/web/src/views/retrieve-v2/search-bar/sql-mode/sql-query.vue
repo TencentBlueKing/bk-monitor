@@ -33,7 +33,7 @@ const isFocused = ref(false);
 // 动态 placeholder 文本
 const placeholderText = computed(() => {
   if (isFocused.value) {
-    return `${t('可输入自然语言')}，${shortcutKey} + Enter ${t('触发 AI 搜索')}`;
+    return `${t('可输入自然语言')}，${shortcutKey} + Enter ${t('触发 AI 解析')}`;
   }
   return ` / ${t('唤起')}， ${t('输入检索内容')}（${t('Tab 可切换为 AI 模式')}）`;
   // return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}`;
