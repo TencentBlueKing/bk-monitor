@@ -8,45 +8,69 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from functools import wraps
 from typing import Any
+from collections.abc import Callable
 
 from monitor_web.custom_report.constants import UNGROUP_SCOPE_NAME, DEFAULT_FIELD_SCOPE
 
 
-def remove_scope_prefix(
-    items: list[dict[str, Any]], scope_prefix: str, scope_key: str | None = "scope"
-) -> list[dict[str, Any]]:
-    """
-    去掉 scope.name 中的前缀
+def scope_prefix_handler(
+    input_field: str | list[str] | None = None,
+    output_field: str | list[str] | None = None,
+):
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(self, params: dict[str, Any]) -> Any:
+            scope_prefix = params.get("scope_prefix", "")
+            if not scope_prefix:
+                return func(self, params)
 
-    :param items: 需要处理的数据列表
-    :param scope_prefix: scope 前缀
-    :param scope_key: scope 字段的键名，默认为 "scope"，对于直接包含 name 的情况传 None
-    :return: 去掉前缀后的数据列表
-    """
-    for item in items:
-        if scope_key:
-            # 处理嵌套的 scope.name 结构（如 dimensions, metrics）
-            scope_name = item.get(scope_key, {}).get("name", "")
-            if scope_name.startswith(scope_prefix):
-                item[scope_key]["name"] = scope_name[len(scope_prefix) :]
-        else:
-            # 处理直接的 name 字段（如 scopes 列表）
-            scope_name = item.get("name", "")
-            if scope_name.startswith(scope_prefix):
-                item["name"] = scope_name[len(scope_prefix) :]
-    return items
+            if input_field:
+                _process_paths(params, scope_prefix, input_field, add=True)
+
+            result = func(self, params)
+
+            if result and output_field:
+                _process_paths(result, scope_prefix, output_field, add=False)
+
+            return result
+
+        return wrapper
+
+    return decorator
 
 
-class ScopeNamePrefixMixin:
-    def to_internal_value(self, data: dict[str, Any]) -> dict[str, Any]:
-        validated_data = super().to_internal_value(data)  # type: ignore[misc]
+def _process_paths(data: Any, prefix: str, paths: str | list[str], add: bool):
+    """处理多个路径"""
+    for path in [paths] if isinstance(paths, str) else paths:
+        _process_path(data, prefix, path.split("."), add)
 
-        scope_prefix = validated_data.get("scope_prefix")
-        if scope_prefix and "name" in validated_data:
-            validated_data["name"] = f"{scope_prefix}{validated_data['name']}"
 
-        return validated_data
+def _process_path(data: Any, prefix: str, parts: list[str], add: bool):
+    """处理单个路径"""
+    if not parts or not data:
+        return
+
+    # 处理列表
+    if isinstance(data, list):
+        for item in data:
+            _process_path(item, prefix, parts, add)
+        return
+
+    if not isinstance(data, dict):
+        return
+
+    key = parts[0]
+    if key not in data:
+        return
+
+    # 最后一层：处理字符串值
+    if len(parts) == 1:
+        if isinstance(data[key], str):
+            data[key] = f"{prefix}{data[key]}" if add else data[key].removeprefix(prefix)
+    else:
+        _process_path(data[key], prefix, parts[1:], add)
 
 
 class ScopeQueryFilterMixin:

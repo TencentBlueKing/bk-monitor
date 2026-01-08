@@ -12,8 +12,7 @@ from typing import Any
 
 from apm_web.custom_metric.serializers import BaseRequestSerializer
 from apm_web.custom_metric.utils import (
-    remove_scope_prefix,
-    ScopeNamePrefixMixin,
+    scope_prefix_handler,
     ScopeQueryFilterMixin,
     DefaultScopeNameMixin,
     DefaultFieldScopeMixin,
@@ -39,45 +38,36 @@ class ApmGetCustomTsFields(ScopeQueryFilterMixin, GetCustomTsFields):
     def get_movable(self, metric_obj: ScopeQueryMetricResponseDTO, params: dict) -> bool:
         return metric_obj.field_scope == params["scope_prefix"] + DEFAULT_FIELD_SCOPE
 
+    @scope_prefix_handler(output_field=["dimensions.scope.name", "metrics.scope.name"])
     def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
-        result = super().perform_request(params)
-        scope_prefix = params["scope_prefix"]
-
-        result["dimensions"] = remove_scope_prefix(result.get("dimensions", []), scope_prefix)
-        result["metrics"] = remove_scope_prefix(result.get("metrics", []), scope_prefix)
-
-        return result
+        return super().perform_request(params)
 
 
 class ApmModifyCustomTsFields(DefaultScopeNameMixin, ModifyCustomTsFields):
     class RequestSerializer(BaseRequestSerializer, ModifyCustomTsFields.RequestSerializer):
-        def to_internal_value(self, data):
-            """验证数据并为 scope.name 添加服务名前缀"""
-            validated_data = super().to_internal_value(data)
-            scope_prefix = validated_data.get("scope_prefix")
+        pass
 
-            for field_key in ("update_fields", "delete_fields"):
-                for field in validated_data.get(field_key, []):
-                    if (scope := field.get("scope")) and "name" in scope:
-                        scope["name"] = f"{scope_prefix}{scope['name']}"
-
-            return validated_data
+    @scope_prefix_handler(input_field=["update_fields.scope.name", "delete_fields.scope.name"])
+    def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
+        return super().perform_request(params)
 
 
 class ApmCustomTsGroupingRuleList(ScopeQueryFilterMixin, CustomTsGroupingRuleList):
     class RequestSerializer(BaseRequestSerializer, CustomTsGroupingRuleList.RequestSerializer):
         pass
 
+    @scope_prefix_handler(output_field="name")
     def perform_request(self, params: dict[str, Any]) -> list[dict[str, Any]]:
-        result = super().perform_request(params)
-        scope_prefix = params["scope_prefix"]
-
-        return remove_scope_prefix(result, scope_prefix, scope_key=None)
+        return super().perform_request(params)
 
 
 class ApmCreateOrUpdateGroupingRule(DefaultScopeNameMixin, CreateOrUpdateGroupingRule):
-    class RequestSerializer(ScopeNamePrefixMixin, BaseRequestSerializer, CreateOrUpdateGroupingRule.RequestSerializer):
+    class RequestSerializer(BaseRequestSerializer, CreateOrUpdateGroupingRule.RequestSerializer):
         pass
+
+    @scope_prefix_handler(input_field="name", output_field="name")
+    def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
+        return super().perform_request(params)
 
 
 class ApmPreviewGroupingRule(DefaultScopeNameMixin, PreviewGroupingRule):
@@ -86,23 +76,20 @@ class ApmPreviewGroupingRule(DefaultScopeNameMixin, PreviewGroupingRule):
 
 
 class ApmDeleteGroupingRule(DeleteGroupingRule):
-    class RequestSerializer(ScopeNamePrefixMixin, BaseRequestSerializer, DeleteGroupingRule.RequestSerializer):
+    class RequestSerializer(BaseRequestSerializer, DeleteGroupingRule.RequestSerializer):
         pass
+
+    @scope_prefix_handler(input_field="name")
+    def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
+        return super().perform_request(params)
 
 
 class ApmImportCustomTimeSeriesFields(ScopeQueryFilterMixin, DefaultFieldScopeMixin, ImportCustomTimeSeriesFields):
     class RequestSerializer(BaseRequestSerializer, ImportCustomTimeSeriesFields.RequestSerializer):
         pass
 
+    @scope_prefix_handler(input_field="scopes.name")
     def perform_request(self, params: dict[str, Any]) -> None:
-        """调用父类处理前，为 scope.name 添加前缀"""
-        scope_prefix = params["scope_prefix"]
-
-        # 为所有 scope 的 name 添加前缀
-        for scope in params.get("scopes", []):
-            if "name" in scope:
-                scope["name"] = f"{scope_prefix}{scope['name']}"
-
         return super().perform_request(params)
 
 
@@ -110,10 +97,6 @@ class ApmExportCustomTimeSeriesFields(ScopeQueryFilterMixin, ExportCustomTimeSer
     class RequestSerializer(BaseRequestSerializer, ExportCustomTimeSeriesFields.RequestSerializer):
         pass
 
+    @scope_prefix_handler(output_field="scopes.name")
     def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
-        result = super().perform_request(params)
-        scope_prefix = params["scope_prefix"]
-
-        result["scopes"] = remove_scope_prefix(result.get("scopes", []), scope_prefix, scope_key=None)
-
-        return result
+        return super().perform_request(params)
