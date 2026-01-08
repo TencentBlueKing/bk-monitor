@@ -269,17 +269,19 @@ class PatternHandler:
             "value": new_class_signature_list,
             "condition": "and",
         }
-        addition = self._query.get("addition", [])
-        addition.append(new_class_signature_query_condition)
-        self._query["addition"] = addition
+
+        copy_query = copy.deepcopy(self._query)
+        copy_query.setdefault("addition", []).append(new_class_signature_query_condition)
 
         multi_execute_func = MultiExecuteFunc()
         multi_execute_func.append(
             "pattern_aggs",
             lambda p: self._get_pattern_aggs_result(p["index_set_id"], p["query"]),
-            {"index_set_id": self._index_set_id, "query": self._query},
+            {"index_set_id": self._index_set_id, "query": copy_query},
         )
-        multi_execute_func.append("year_on_year_result", lambda: self._get_year_on_year_aggs_result())
+        multi_execute_func.append(
+            "year_on_year_result", lambda p: self._get_year_on_year_aggs_result(p["query"]), {"query": copy_query}
+        )
 
         multi_result = multi_execute_func.run()
 
@@ -314,12 +316,15 @@ class PatternHandler:
             aggs_group = aggs_group["sub_fields"]
         return aggs_group_reuslt
 
-    def _get_year_on_year_aggs_result(self) -> dict:
+    def _get_year_on_year_aggs_result(self, query=None) -> dict:
         if self._year_on_year_hour == MIN_COUNT:
             return {}
-        new_query = copy.deepcopy(self._query)
+        if query:
+            new_query = copy.deepcopy(query)
+        else:
+            new_query = copy.deepcopy(self._query)
         start_time, end_time = generate_time_range_shift(
-            self._query["start_time"], self._query["end_time"], self._year_on_year_hour * HOUR_MINUTES
+            new_query["start_time"], new_query["end_time"], self._year_on_year_hour * HOUR_MINUTES
         )
         new_query["start_time"] = start_time.strftime("%Y-%m-%d %H:%M:%S")
         new_query["end_time"] = end_time.strftime("%Y-%m-%d %H:%M:%S")
