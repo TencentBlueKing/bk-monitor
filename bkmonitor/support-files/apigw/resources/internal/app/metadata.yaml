@@ -1947,3 +1947,23 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query bcs related data link info
+  /app/metadata/query_datalink_metadata/:
+    get:
+      operationId: metadata_query_datalink_metadata
+      description: 查询链路元信息
+      tags:
+        - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/query_data_link_metadata/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query datalink metadata
