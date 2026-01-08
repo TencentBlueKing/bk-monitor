@@ -302,9 +302,6 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.refresh_data_link.refresh_data_link_status", "*/15 * * * *", "global"),
 ]
 
-# Timeout for image exporter service, default set to 10 seconds
-IMAGE_EXPORTER_TIMEOUT = 10
-
 AES_X_KEY_FIELD = "SAAS_SECRET_KEY"
 
 # gse alarm dataid

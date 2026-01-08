@@ -145,6 +145,7 @@ class EtlStorage:
         type_mapping = {
             "string": "string",
             "int": "long",
+            "integer": "long",
             "long": "long",
             "float": "double",
             "double": "double",
@@ -295,6 +296,125 @@ class EtlStorage:
                 }
             )
 
+        return rules
+
+    def _build_iteration_index_field_v4(self, built_in_config: dict) -> list:
+        """
+        构建V4版本的iterationIndex字段规则（从iter_item提取）
+        :param built_in_config: 内置配置，包含fields
+        :return: iterationIndex字段规则列表
+        """
+        rules = []
+        built_in_fields = built_in_config.get("fields", [])
+        
+        # 查找iterationIndex字段（flat_field为True的字段）
+        for field in built_in_fields:
+            if field.get("field_name") == "iterationIndex" and field.get("flat_field", False):
+                alias_name = field.get("alias_name", "iterationindex")
+                
+                # 优先使用es_type确定output_type
+                # iterationIndex的field_type可能是float，但es_type是integer，需映射为long
+                field_type = field.get("option", {}).get("es_type") or field.get("field_type")
+                output_type = self._get_output_type(field_type)
+                
+                rules.append({
+                    "input_id": "iter_item",
+                    "output_id": "iterationIndex",
+                    "operator": {
+                        "type": "assign",
+                        "key_index": alias_name,
+                        "alias": "iterationIndex",
+                        "desc": field.get("description"),
+                        "input_type": None,
+                        "output_type": output_type,
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": None,
+                        "default_value": None,
+                    },
+                })
+                break
+        
+        return rules
+
+    def _build_extra_json_field_v4(self, etl_params: dict, fields: list) -> list:
+        """
+        构建V4版本的ext_json字段规则
+        :param etl_params: 清洗参数
+        :param fields: 字段列表
+        :return: ext_json字段规则列表
+        """
+        rules = []
+        if etl_params.get("retain_extra_json"):
+            # 1. 创建临时对象，通过 delete 算子排除已定义的字段
+            exclude_keys = []
+            for field in fields:
+                if field.get("is_delete"):
+                    continue
+                # 只有从 separator_node 提取的字段才需要排除
+                source_field = field.get("alias_name") or field["field_name"]
+                exclude_keys.append({"type": "key", "value": source_field})
+
+            temp_output_id = f"__ext_json_temp_{self.separator_node_name}"
+
+            rules.append(
+                {
+                    "input_id": self.separator_node_name,
+                    "output_id": temp_output_id,
+                    "operator": {"type": "delete", "key_index": exclude_keys},
+                }
+            )
+
+            # 2. 将排除后的结果赋值给 __ext_json
+            rules.append(
+                {
+                    "input_id": temp_output_id,
+                    "output_id": "__ext_json",
+                    "operator": {
+                        "type": "assign",
+                        "key_index": None,
+                        "alias": "ext_json",
+                        "desc": None,
+                        "input_type": None,
+                        "output_type": "dict",
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": None,
+                        "default_value": None,
+                    },
+                }
+            )
+        return rules
+
+    def _build_parse_failure_field_v4(self, etl_params: dict) -> list:
+        """
+        构建V4版本的清洗失败标记字段规则
+        :param etl_params: 清洗参数
+        :return: 清洗失败标记字段规则列表
+        """
+        rules = []
+        if etl_params.get("record_parse_failure"):
+            rules.append(
+                {
+                    "input_id": self.separator_node_name,
+                    "output_id": PARSE_FAILURE_FIELD,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": PARSE_FAILURE_FIELD,
+                        "alias": PARSE_FAILURE_FIELD,
+                        "desc": _("清洗失败标记"),
+                        "input_type": None,
+                        "output_type": "boolean",
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": None,
+                        "default_value": None,
+                    },
+                }
+            )
         return rules
 
     @staticmethod

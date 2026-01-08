@@ -664,7 +664,7 @@ export default defineComponent({
             <bk-table-column
               key='created_at'
               class-name='filter-column overflow-hidden-text'
-              width='240'
+              width='190'
               label={t('创建时间')}
               prop='created_at'
               sortable

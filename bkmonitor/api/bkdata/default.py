@@ -1185,6 +1185,25 @@ class GetDataLink(DataAccessAPIResource):
         name = serializers.CharField(label="资源名称")
 
 
+class ListDataLink(UseSaaSAuthInfoMixin, DataAccessAPIResource):
+    """
+    拉取计算平台数据链路列表
+    """
+
+    @property
+    def action(self):
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return "v4/tenants/{bk_tenant_id}/namespaces/{namespace}/{kind}/"
+        return "v4/namespaces/{namespace}/{kind}/"
+
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
+        kind = serializers.CharField(required=True, label="资源类型")
+
+
 class DeleteDataLink(DataAccessAPIResource):
     """删除数据链路"""
 
@@ -1475,25 +1494,6 @@ class TailKafkaData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
         namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
         name = serializers.CharField(required=True, label="数据源名称（计算平台）")
         limit = serializers.IntegerField(required=False, default=10, label="条数")
-
-
-class ListDataBusRawData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
-    """
-    拉取计算平台V4资源列表
-    """
-
-    @property
-    def action(self):
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            return "v4/tenants/{bk_tenant_id}/namespaces/{namespace}/{kind}/"
-        return "v4/namespaces/{namespace}/{kind}/"
-
-    method = "GET"
-
-    class RequestSerializer(CommonRequestSerializer):
-        bk_tenant_id = serializers.CharField(label="租户ID")
-        namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
-        kind = serializers.CharField(required=True, label="资源类型")
 
 
 class DataBusCleanDebug(UseSaaSAuthInfoMixin, DataAccessAPIResource):

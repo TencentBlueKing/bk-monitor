@@ -133,6 +133,8 @@ def get_core_context(request):
         "CE_URL": settings.CE_URL,
         "BKLOGSEARCH_HOST": settings.BKLOGSEARCH_HOST,
         "BK_NODEMAN_HOST": settings.BK_NODEMAN_HOST,
+        # 用户管理站点（用于个人中心跳转等）
+        "BK_USER_SITE_URL": settings.BK_USER_SITE_URL,
         "TAM_ID": settings.TAM_ID,
         # 用于切换中英文用户管理 cookie
         "BK_COMPONENT_API_URL": settings.BK_COMPONENT_API_URL_FRONTEND,

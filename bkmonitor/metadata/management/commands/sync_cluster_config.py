@@ -215,7 +215,7 @@ def refresh_bkbase_cluster_info(bk_tenant_id: str):
     同步bkbase集群信息
     """
     for storage_config in BKBASE_V4_KIND_STORAGE_CONFIGS:
-        clusters: list[dict[str, Any]] = api.bkdata.list_data_bus_raw_data(
+        clusters: list[dict[str, Any]] = api.bkdata.list_data_link(
             bk_tenant_id=bk_tenant_id, namespace=storage_config["namespace"], kind=storage_config["kind"]
         )
 

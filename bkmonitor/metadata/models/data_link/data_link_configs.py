@@ -925,7 +925,47 @@ class ClusterConfig(models.Model):
             raise ValueError(f"不支持的集群类型: {self.kind}")
 
     def compose_kafka_config(self, cluster: "ClusterInfo") -> dict[str, Any]:
-        """组装Kafka集群配置"""
+        """组装Kafka集群配置
+
+        配置示例:
+        {
+            "kind": "KafkaChannel",
+            "metadata": {
+                "tenant": "default",
+                "namespace": "bkmonitor",
+                "name": "kafka_cluster1",
+                "labels": {},
+                "annotations": {
+                    "StreamToId": "1034" // 可能不存在
+                }
+            },
+            "spec": {
+                "host": "kafka.db",
+                "port": 9092,
+                "role": "outer", // inner/outer
+                "streamToId": 1034, // 可能为0或None，可能不存在
+                "v3ChannelId": 1, // 可能为None或不存在
+                "version": "2.4.x", // 可能为None或不存在
+                "auth": { // 可能为None或不存在
+                    "sasl": {"enabled": false, "username": "xxxx", "password": "xxx", "mechanisms": ""}
+                }
+            },
+            "status": {
+                "phase": "Ok",
+                "start_time": "2024-04-24 06:52:51.558663447 UTC",
+                "update_time": "2024-04-24 06:52:52.896714120 UTC",
+                "message": ""
+            }
+        }
+
+        说明: streamToId/v3ChannelId/auth/version可能不存在或为None
+
+        Args:
+            cluster: 集群信息
+
+        Returns:
+            dict[str, Any]: Kafka集群配置
+        """
         config = {
             "kind": DataLinkKind.KAFKACHANNEL.value,
             "metadata": {
@@ -948,6 +988,30 @@ class ClusterConfig(models.Model):
 
     def compose_es_config(self, cluster: "ClusterInfo") -> dict[str, Any]:
         """组装ES集群配置
+
+        配置示例:
+        {
+            "kind": "ElasticSearch",
+            "metadata": {
+                "tenant": "default",
+                "namespace": "bklog",
+                "name": "es_cluster",
+                "labels": {},
+                "annotations": {}
+            },
+            "spec": {
+                "host": "es.db",
+                "port": 9200,
+                "user": "xxxx",
+                "password": "xxx"
+            },
+            "status": {
+                "phase": "Ok",
+                "start_time": "2025-12-11 07:01:48.141601176 UTC",
+                "update_time": "2025-12-11 07:01:50.855429609 UTC",
+                "message": ""
+            }
+        }
 
         Args:
             cluster: 集群信息

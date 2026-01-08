@@ -21,3 +21,27 @@ MCP_REQUESTS_HAS_DATA_FALSE = "false"
 
 # MCP未知值标识
 MCP_REQUESTS_UNKNOWN = "unknown"
+
+# MCP Server Name 到 Permission Action 的映射关系
+# Key: HTTP_X_BKAPI_MCP_SERVER_NAME 的值
+# Value: 对应的权限动作ID
+MCP_SERVER_NAME_TO_PERMISSION_ACTION = {
+    # Streamable HTTP协议 MCP Server
+    "bkmonitorv3-prod-dashboard-edit": "using_dashboard_mcp",
+    "bkmonitorv3-prod-dashboard-query": "using_dashboard_mcp",
+    "bkmonitorv3-prod-log-query": "using_log_mcp",
+    "bkmonitorv3-prod-tracing": "using_apm_mcp",
+    "bkmonitorv3-prod-metadata-query": "using_metadata_mcp",
+    "bkmonitorv3-prod-metrics-query": "using_metrics_mcp",
+    "bkmonitorv3-prod-event-query": "using_log_mcp",
+    "bkmonitorv3-prod-alarm": "using_alarm_mcp",
+    # SSE协议 MCP Server
+    "bkmonitorv3-prod-event": "using_log_mcp",
+    "bkmonitorv3-prod-log": "using_log_mcp",
+    "bkmonitorv3-prod-dashboard-operate": "using_dashboard_mcp",
+    "bkmonitorv3-prod-apm-trace": "using_apm_mcp",
+    "bkmonitorv3-prod-dashboard-ascode": "using_dashboard_mcp",
+    "bkmonitorv3-prod-metadata": "using_metadata_mcp",
+    "bkmonitorv3-prod-alerts": "using_alarm_mcp",
+    "bkmonitorv3-prod-metrics": "using_metrics_mcp",
+}

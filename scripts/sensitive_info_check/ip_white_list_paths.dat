@@ -1,0 +1,10 @@
+# Allowlist file/path patterns for IP check.
+#
+# Lines are treated as grep patterns and will be matched against output lines:
+#   <file>:<line>:<match>
+#
+# Typical usage: ignore generated lock files that may contain dotted version strings
+# which look like IPv4 (e.g. 2.9.21.202).
+
+bkmonitor/uv.lock
+

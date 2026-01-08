@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -143,7 +142,7 @@ class PrettyJSONWidget(widgets.Textarea):
             self.attrs["cols"] = min(max(max(row_lengths) + 2, 40), 120)
         except Exception:  # noqa
             pass
-        return super(PrettyJSONWidget, self).render(name, value, attrs, renderer)
+        return super().render(name, value, attrs, renderer)
 
 
 class GlobalConfigAdmin(admin.ModelAdmin):
@@ -159,25 +158,7 @@ class GlobalConfigAdmin(admin.ModelAdmin):
             q["is_advanced__exact"] = "0"
             request.GET = q
             request.META["QUERY_STRING"] = request.GET.urlencode()
-        return super(GlobalConfigAdmin, self).changelist_view(request, extra_context=extra_context)
-
-
-class HealthzMetricConfigAdmin(admin.ModelAdmin):
-    list_display = ("node_name", "category", "collect_metric", "collect_type", "collect_interval", "metric_alias")
-    search_fields = ("collect_type", "node_name", "category", "metric_alias")
-    list_filter = ("collect_type", "node_name", "category", "metric_alias")
-
-
-class HealthzTopoNodeAdmin(admin.ModelAdmin):
-    list_display = ("node_name",)
-    search_fields = ("node_name",)
-    list_filter = ("node_name",)
-
-
-class HealthzMetricRecordAdmin(admin.ModelAdmin):
-    list_display = ("metric_alias", "server_ip", "last_update")
-    search_fields = ("metric_alias", "server_ip", "last_update")
-    list_filter = ("metric_alias", "server_ip", "last_update")
+        return super().changelist_view(request, extra_context=extra_context)
 
 
 class AlertCollectAdmin(admin.ModelAdmin):
@@ -311,9 +292,6 @@ admin.site.register(models.EventAction, EventActionAdmin)
 admin.site.register(models.Alert, AlertAdmin)
 admin.site.register(models.Shield, ShieldAdmin)
 admin.site.register(models.GlobalConfig, GlobalConfigAdmin)
-admin.site.register(models.HealthzMetricConfig, HealthzMetricConfigAdmin)
-admin.site.register(models.HealthzTopoNode, HealthzTopoNodeAdmin)
-admin.site.register(models.HealthzMetricRecord, HealthzMetricRecordAdmin)
 admin.site.register(models.AlertCollect, AlertCollectAdmin)
 admin.site.register(models.ActionNoticeMapping, ActionNoticeMappingAdmin)
 admin.site.register(models.NoticeTemplate, NoticeTemplateAdmin)

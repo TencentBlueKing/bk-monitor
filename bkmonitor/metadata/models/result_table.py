@@ -593,7 +593,14 @@ class ResultTable(models.Model):
         if self.default_storage == ClusterInfo.TYPE_INFLUXDB:
             # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase v3链路
             # 2. 如果启用了新版数据链路，且etcl_config在启用的列表中，则使用vm存储，
-            is_v4_datalink_etl_config = datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
+            # NOTE:
+            # - ENABLE_V4_DATALINK_ETL_CONFIGS 由全局开关控制（例如 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK 会扩展插件 etl）
+            # - 为避免开关开启后存量 data_id / 结果表在后续 create/modify 时被“回溯”切换链路，这里额外要求
+            #   datasource 必须是 BKDATA 创建（created_from==BKDATA）才允许按 V4/新链路接入。
+            is_v4_datalink_etl_config = (
+                datasource.created_from == DataIdCreatedFromSystem.BKDATA.value
+                and datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
+            )
             if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
                 # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
                 # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行

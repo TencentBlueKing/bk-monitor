@@ -1238,6 +1238,9 @@ JOB_URL = os.getenv("BK_JOB_SITE_URL") or os.getenv("BK_JOB_HOST", JOB_URL)
 BK_CC_URL = BK_PAAS_HOST.replace("paas", "cmdb")
 BK_CC_URL = os.getenv("BK_CC_SITE_URL") or os.getenv("BK_CC_HOST", BK_CC_URL)
 
+# 用户管理站点 URL（用于个人中心跳转等）
+BK_USER_SITE_URL = os.getenv("BK_USER_SITE_URL", "")
+
 # 新版ITSM
 BK_ITSM_V4_HOST = os.getenv("BK_ITSM_V4_HOST", "")
 BK_ITSM_V4_API_URL = os.getenv("BK_ITSM_V4_API_URL", f"{BK_COMPONENT_API_URL}/api/cw-aitsm/prod")
@@ -1728,9 +1731,6 @@ if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
         },
     }
 
-# 告警图表渲染模式
-ALARM_GRAPH_RENDER_MODE = os.getenv("BKAPP_ALARM_GRAPH_RENDER_MODE", "image_exporter")
-
 # 首页告警图业务数量限制
 HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT = 5
 # 首页告警图图表数量限制
@@ -1760,3 +1760,8 @@ ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH = False
 # V4链路分业务系统事件初始化配置
 SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS = int(os.getenv("SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS", 1))
 SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS = int(os.getenv("SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS", 0))
+
+# bkfara apigew地址
+BKFARA_AIOPS_SERVICE_USE_APIGW = bool(str(os.getenv("BKFARA_AIOPS_SERVICE_USE_APIGW", False)).lower() == "true")
+BKFARA_AIOPS_SERVICE_APIGW_HOST = os.getenv("BKFARA_AIOPS_SERVICE_APIGW_HOST", "")
+BKFARA_AIOPS_SERVICE_HOST_PREFIX = os.getenv("BKFARA_AIOPS_SERVICE_HOST_PREFIX", "")

@@ -321,6 +321,12 @@ class NavTools extends DocumentLinkMixin {
    * 退出登录
    * 跳转到paas-host登录页面会自动清除登录cookie
    */
+  handleGoToPersonalCenter() {
+    const base = (window.bk_user_site_url || '').replace(/\/$/, '');
+    if (!base) return;
+    this.hidePopoverSetOrHelp();
+    window.open(`${base}/personal-center`, '_blank');
+  }
   handleQuit() {
     location.href = `${location.origin}/logout`;
   }
@@ -480,6 +486,14 @@ class NavTools extends DocumentLinkMixin {
             <div slot='content'>
               {process.env.APP !== 'external' && (
                 <ul class='monitor-navigation-help'>
+                  {!!window.bk_user_site_url && (
+                    <li
+                      class='nav-item'
+                      onClick={this.handleGoToPersonalCenter}
+                    >
+                      {this.$t('个人中心')}
+                    </li>
+                  )}
                   {/* <li
                     class='nav-item'
                     onClick={() => {

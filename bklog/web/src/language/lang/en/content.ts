@@ -1261,4 +1261,6 @@ export default {
   请上传日志后检索: 'Please upload the log and then search',
   正在上传中无法操作: 'Cannot operate while uploading',
   '已上传成功，请直接检索': 'Uploaded successfully, please search directly',
+  '搜索 openID、文件名称': 'Search by OpenID, file name',
+  请先勾选任务: 'Please check the task first',
 };
