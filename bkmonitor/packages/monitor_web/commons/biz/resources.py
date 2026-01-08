@@ -466,7 +466,7 @@ class SpaceIntroduceResource(Resource):
         ret = func()
         if not ret["is_no_data"] and not ret["is_no_source"]:
             # 该业务对应场景已经在使用中， 持久化该结果
-            cache.set(tag_intro_key, json.dumps(ret), 3600)
+            cache.set(tag_intro_key, json.dumps(ret), None)
         return ret
 
     def perform_request(self, validated_request_data):
