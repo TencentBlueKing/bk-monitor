@@ -244,3 +244,5 @@ ai_agent
 # ai code editor
 CLAUDE.local.md
 .cursorignore
+# spec-kit 规范目录
+.specify/
