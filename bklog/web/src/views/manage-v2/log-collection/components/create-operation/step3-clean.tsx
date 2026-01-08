@@ -71,6 +71,13 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /**
+     * 是否从清洗列表进入
+     */
+    isCleanField: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   emits: ['next', 'prev', 'cancel', 'change-submit'],
@@ -236,10 +243,10 @@ export default defineComponent({
     onMounted(() => {
       console.log(props.isTempField, 'isTempField', isEditTemp.value, route.name);
       // 清洗列表进入
-      // if (this.isCleanField) {
-      //   this.initCleanItem();
-      //   return;
-      // }
+      if (props.isCleanField) {
+        // this.initCleanItem();
+        return;
+      }
       // 清洗模板进入
       if (props.isTempField) {
         cleaningMode.value = 'bk_log_json';
@@ -1245,10 +1252,11 @@ export default defineComponent({
           bk_biz_id: bkBizId.value,
           etl_params,
         };
+        const fieldsList = cleaningMode.value === 'bk_log_text' ? [] : etl_fields;
         const requestData = isNeedCreate
           ? {
               ...data,
-              fields: etl_fields,
+              fields: fieldsList,
               storage_cluster_id,
               allocation_min_days,
               storage_replies,
@@ -1259,7 +1267,7 @@ export default defineComponent({
             }
           : {
               ...data,
-              etl_fields,
+              etl_fields: fieldsList,
               clean_type: cleaningMode.value,
             };
         $http
@@ -1295,7 +1303,7 @@ export default defineComponent({
           }}
         />
         <div class='classify-btns-fixed'>
-          {!props.isTempField && (
+          {!props.isTempField && !props.isCleanField && (
             <bk-button
               class='mr-8'
               on-click={() => {
@@ -1312,7 +1320,7 @@ export default defineComponent({
               loading={loading.value}
               on-click={handleSubmit}
             >
-              {t('下一步')}
+              {props.isCleanField ? t('保存') : t('下一步')}
             </bk-button>
           )}
 
@@ -1327,7 +1335,7 @@ export default defineComponent({
           >
             {props.isTempField ? t('保存模板') : t('另存为模板')}
           </bk-button>
-          {!props.isTempField && (
+          {!props.isTempField && !props.isCleanField && (
             <bk-button
               class='mr-8'
               on-click={() => {

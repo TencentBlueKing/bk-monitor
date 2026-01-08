@@ -125,7 +125,7 @@ export const useCollectList = () => {
     try {
       isTableLoading.value = true;
       const res = (await store.dispatch('getApplyData', paramData)) as IGetApplyDataResponse;
-      store.commit('updateAuthDialogData', res?.data);
+      store.commit('updateState', { authDialogData: res.data });
     } catch (err) {
       console.log(err);
     } finally {

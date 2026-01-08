@@ -99,8 +99,9 @@ const MaskingList = () =>
 const ClientLogView = { name: 'ClientLogView', template: '<router-view></router-view>' };
 
 const v2CleanTempCreate = () =>
-  import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/create-clean');
+  import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/create-temp-clean');
 
+const v2CleanCreate = () => import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/create-clean');
 // 管理模块路由配置生成函数
 const getManageRoutes = () => [
   {
@@ -603,6 +604,30 @@ const getManageRoutes = () => [
             },
             component: cleanCreate,
           },
+          // ------- 新版采集管理重构 - 新建清洗 --------
+          {
+            path: 'v2-create',
+            name: 'clean-create',
+            meta: {
+              title: '日志清洗',
+              needBack: true,
+              backName: 'log-clean-list',
+              navId: 'clean-list',
+            },
+            component: v2CleanCreate,
+          },
+          // 编辑清洗
+          {
+            path: 'v2-edit/:collectorId',
+            name: 'clean-edit',
+            meta: {
+              title: '日志清洗',
+              needBack: true,
+              backName: 'log-clean-list',
+              navId: 'clean-list',
+            },
+            component: v2CleanCreate,
+          },
         ],
       },
       // 日志清洗-清洗模板
@@ -647,7 +672,7 @@ const getManageRoutes = () => [
             component: cleanTempCreate,
           },
 
-          // 新建模板
+          // ------- 新版采集管理重构 - 新建模板 --------
           {
             path: 'v2-create',
             name: 'clean-template-create',

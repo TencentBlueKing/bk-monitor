@@ -31,7 +31,7 @@ import { useRoute, useRouter } from 'vue-router/composables';
 import useStore from '@/hooks/use-store';
 import StepClean from '../log-collection/components/create-operation/step3-clean';
 
-import './create-clean.scss';
+import './create-temp-clean.scss';
 
 export default defineComponent({
   name: 'CreateClean',
@@ -44,7 +44,7 @@ export default defineComponent({
 
     const goList = () => {
       const { backRoute, ...reset } = route.query;
-      const routeName = 'log-clean-list';
+      const routeName = 'log-clean-templates';
       router.push({
         name: routeName,
         query: {
@@ -56,9 +56,9 @@ export default defineComponent({
 
     return () => {
       return (
-        <div class='v2-create-clean-main'>
+        <div class='v2-create-temp-clean-main'>
           <StepClean
-            isCleanField={true}
+            isTempField={true}
             on-change-submit={goList}
             on-cancel={goList}
           />
