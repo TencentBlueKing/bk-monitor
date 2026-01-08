@@ -39,6 +39,7 @@ import ChartTitle from '@/plugins/components/chart-title';
 import CommonLegend from '@/plugins/components/common-legend';
 
 import type { DataZoomEvent } from '@/pages/trace-explore/components/explore-chart/types';
+import type { ChartTitleMenuType } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './monitor-charts.scss';
@@ -53,6 +54,10 @@ export default defineComponent({
     showTitle: {
       type: Boolean,
       default: true,
+    },
+    menuList: {
+      type: Array as PropType<ChartTitleMenuType[]>,
+      default: () => ['more', 'explore', 'area', 'drill-down', 'relate-alert'],
     },
     customLegendOptions: {
       type: Object as PropType<LegendCustomOptions>,
@@ -162,7 +167,6 @@ export default defineComponent({
     };
   },
   render() {
-    console.log('================ this.options ================', this.options);
     return (
       <div
         ref='chart'
@@ -173,7 +177,7 @@ export default defineComponent({
             class='draggable-handle'
             dragging={this.panel.dragging}
             isInstant={this.panel.instant}
-            menuList={['more', 'explore', 'area', 'drill-down', 'relate-alert']}
+            menuList={this.menuList}
             metrics={this.metricList}
             showAddMetric={true}
             showMore={true}

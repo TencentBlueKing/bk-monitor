@@ -62,7 +62,7 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
 
-    const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation(null);
+    const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation([]);
     provide('timeRange', timeRange);
 
     const chartParams = computed(() => {
@@ -72,6 +72,13 @@ export default defineComponent({
             end_time: undefined,
           }
         : {};
+    });
+
+    /**
+     * 是否为事件或日志告警
+     */
+    const isEventOrLogAlarm = computed(() => {
+      return props.detail?.data_type === 'event' || props.detail?.data_type === 'log';
     });
 
     const legendOptions = {
@@ -163,6 +170,28 @@ export default defineComponent({
       // 为主要系列添加 markPoints 和 markTimeRange，利用 use-monitor-echarts 的处理逻辑
       if (series.length > 0) {
         const mainSeries = series[0];
+        /**
+         * 异常告警点时间不在图表x轴上，补充告警点的时间
+         * 事件和日志的告警点y轴设置为1，其他告警y轴设置为0
+         */
+        for (const anomaly of props.detail.anomaly_timestamps) {
+          const index = datapoints.findIndex(item => Number(String(item[1]).slice(0, -3)) >= anomaly);
+          if (index > -1 && Number(String(datapoints[index][1]).slice(0, -3)) !== anomaly) {
+            datapoints.splice(index, 0, [isEventOrLogAlarm.value ? 1 : 0, anomaly * 1000]);
+          }
+        }
+
+        /**
+         * 填充不在图表时间轴上的告警面积分割点
+         */
+        const markAreaPoint = [firstAnomalyTimeStr, beginTimeStr, endTimeStr];
+        for (const point of markAreaPoint) {
+          const index = datapoints.findIndex(item => item[1] >= Number(point));
+          if (index > -1 && datapoints[index][1] !== Number(point)) {
+            datapoints.splice(index, 0, [0, Number(point)]);
+          }
+        }
+
         mainSeries.markPoints = [
           // 异常点
           ...datapoints
@@ -249,6 +278,23 @@ export default defineComponent({
     };
 
     /**
+     * 处理series， 事件和日志告警对于告警点的柱状图需要变颜色
+     */
+    const formatterSeries = series => {
+      /** 事件告警 */
+      if (isEventOrLogAlarm.value && series.length > 0) {
+        for (const ponit of props.detail.anomaly_timestamps) {
+          const index = series[0].datapoints.findIndex(item => Number(String(item[1]).slice(0, -3)) === ponit);
+          series[0].data[index] = {
+            ...series[0].data[index],
+            itemStyle: { color: CHART_COLORS.ANOMALY },
+          };
+        }
+      }
+      return series;
+    };
+
+    /**
      * @description 格式化系列别名
      * @param {string} name 原始系列名称(可能存在占位变量，如：$time_offset)
      * @param {Record<string, any>} compareData 替换数据源
@@ -318,7 +364,6 @@ export default defineComponent({
           };
         });
       }
-
       /** 异常，告警致命产生，告警触发阶段，知名告警时段 图例显隐跟随'当前'图例 */
       const legendIds = ['anomaly', 'fatal_alarm', 'trigger_phase', 'fatal_period'];
       for (const legend of legendDataCopy) {
@@ -337,6 +382,7 @@ export default defineComponent({
       handleDataZoomChange,
       handleRestore,
       formatterData,
+      formatterSeries,
       customLegendData,
       handleSelectLegend,
     };
@@ -356,7 +402,9 @@ export default defineComponent({
               options.grid.top = 24;
               return options;
             },
+            series: this.formatterSeries,
           }}
+          menuList={['screenshot', 'explore']}
           panel={this.monitorChartPanel}
           params={this.chartParams}
           showRestore={this.showRestore}
