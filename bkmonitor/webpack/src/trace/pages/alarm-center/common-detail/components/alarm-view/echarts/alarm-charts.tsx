@@ -24,19 +24,33 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, provide } from 'vue';
+import {
+  type PropType,
+  computed,
+  defineComponent,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  provide,
+  shallowRef,
+  useTemplateRef,
+} from 'vue';
 
+import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 import { transformDataKey } from 'monitor-common/utils';
 import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
+import AlarmChartEventDetail from './alarm-chart-event-detail';
 import MonitorCharts from './monitor-charts';
 import { useChartOperation } from '@/pages/trace-explore/components/explore-chart/use-chart-operation';
+import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
 import type { AlarmDetail } from '@/pages/alarm-center/typings';
-import type { ILegendItem } from '@/plugins/typings';
+import type { IDataQuery, ILegendItem } from '@/plugins/typings';
 import type { LegendActionType } from 'monitor-ui/chart-plugins/typings/chart-legend';
 
 import './alarm-charts.scss';
@@ -61,8 +75,17 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    /** 事件气泡详情组件 */
+    const alertEventChartDetailRef =
+      useTemplateRef<InstanceType<typeof AlarmChartEventDetail>>('alertEventChartDetailRef');
+    /** 事件详情弹窗显示位置 */
+    const eventDetailPopupPosition = shallowRef({ left: 0, top: 0 });
+    /** 散点点击事件的详情数据 */
+    const scatterClickEventData = shallowRef({});
 
-    const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation([]);
+    const { timeRange: defaultTimeRange } = storeToRefs(useAlarmCenterDetailStore());
+
+    const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation(get(defaultTimeRange));
     provide('timeRange', timeRange);
 
     const chartParams = computed(() => {
@@ -133,6 +156,17 @@ export default defineComponent({
               bk_biz_id: props.detail.bk_biz_id,
               id: props.detail.id,
               ...chartQueryConfig,
+              ...chartParams.value,
+            },
+          },
+          {
+            alias: 'alertEventTs',
+            datasource: 'time_series',
+            dataType: 'time_series',
+            api: 'alert_v2.alertEventTs',
+            data: {
+              bk_biz_id: props.detail.bk_biz_id,
+              alert_id: props.detail.id,
             },
           },
         ],
@@ -142,9 +176,11 @@ export default defineComponent({
     /**
      * @description 格式化图表数据，添加异常点、告警标记等辅助系列
      * @param data - 原始图表数据
-     * @returns 包含异常标记、告警阶段等辅助系列的完整图表数据
+     * @param {IDataQuery} target - 图表配置
      */
-    const formatterData = data => {
+    const formatterData = (data, target: IDataQuery) => {
+      // 事件时序接口不需要处理
+      if (target.alias === 'alertEventTs') return data;
       const { graph_panel } = props.detail;
       const [{ alias }] = graph_panel.targets;
 
@@ -278,20 +314,80 @@ export default defineComponent({
     };
 
     /**
-     * 处理series， 事件和日志告警对于告警点的柱状图需要变颜色
+     * @description 将数组值缩放到指定范围
+     * @param inputArray 输入数组
+     * @param minRange 最小范围
+     * @param maxRange 最大范围
      */
-    const formatterSeries = series => {
+    const scaleArrayToRange = (inputArray: number[], minRange = 4, maxRange = 16): number[] => {
+      if (inputArray.length === 0) {
+        return [];
+      }
+      const minInput = Math.min(...inputArray);
+      const maxInput = Math.max(...inputArray);
+      if (minInput === maxInput) {
+        return inputArray.map(value => (value < 1 ? 0 : minRange));
+      }
+      return inputArray.map(value => {
+        if (value < 1) {
+          return 0;
+        }
+        const scaledValue = ((value - minInput) / (maxInput - minInput)) * (maxRange - minRange) + minRange;
+        return Math.max(minRange, Math.min(maxRange, scaledValue));
+      });
+    };
+
+    /**
+     * @description 处理series， 事件和日志告警对于告警点的柱状图需要变颜色
+     */
+    const formatterGraphQueryCurrentSeries = series => {
       /** 事件告警 */
       if (isEventOrLogAlarm.value && series.length > 0) {
         for (const ponit of props.detail.anomaly_timestamps) {
-          const index = series[0].datapoints.findIndex(item => Number(String(item[1]).slice(0, -3)) === ponit);
-          series[0].data[index] = {
-            ...series[0].data[index],
+          const index = series.datapoints.findIndex(item => Number(String(item[1]).slice(0, -3)) === ponit);
+          series.data[index] = {
+            ...series.data[index],
             itemStyle: { color: CHART_COLORS.ANOMALY },
           };
         }
       }
       return series;
+    };
+
+    /**
+     * @description 图表series处理
+     */
+    const formatterSeries = seriesList => {
+      return seriesList
+        .map((series, i) => {
+          if (i === 0) return formatterGraphQueryCurrentSeries(series);
+          if (series.alias !== 'alertEventTs') return series;
+          const datapoints = series.datapoints.filter(item => item[0]);
+          if (!datapoints.length) return undefined;
+          const scaleList = scaleArrayToRange(datapoints.map(item => item[0]));
+          return {
+            ...series,
+            type: 'scatter',
+            name: t('事件'),
+            symbolSize: (_, p) => {
+              const scaledSize = scaleList[p.dataIndex];
+              // 确保散点有足够的点击热区，最小 8px
+              return Math.max(scaledSize || 6, 6);
+            },
+            showSymbol: true, // 确保散点可见
+            z: 10,
+            emphasis: {
+              scale: 1.666,
+            },
+            itemStyle: {
+              shadowBlur: 10,
+              shadowColor: 'rgba(25, 100, 150, 0.5)',
+              shadowOffsetY: 5,
+              color: '#49C4CC',
+            },
+          };
+        })
+        .filter(Boolean);
     };
 
     /**
@@ -375,16 +471,66 @@ export default defineComponent({
       return legendDataCopy;
     };
 
+    /**
+     * @description 处理散点点击事件
+     */
+    const handleScatterClick = params => {
+      // 处理散点点击事件，显示事件详情弹窗
+      if (params.seriesType !== 'scatter') return;
+      const { name, event } = params;
+      const startTime = Number(name);
+      // 计算弹窗位置
+      const { clientX, clientY } = event.event;
+      eventDetailPopupPosition.value = {
+        left: clientX + 12,
+        top: clientY + 12,
+      };
+      // 设置事件项数据
+      scatterClickEventData.value = {
+        alert_id: props.detail?.id,
+        start_time: startTime / 1000,
+      };
+    };
+
+    /**
+     * @description 点击事件详情弹窗外部区域时关闭弹窗
+     * @param event 点击事件
+     */
+    const handleCloseEventDetailPopup = event => {
+      // 弹窗未显示时跳过
+      if (!eventDetailPopupPosition.value.left) return;
+      const target = event.target;
+      const menuEl = alertEventChartDetailRef.value?.$el;
+      // 检测点击目标是否在弹窗内
+      if (menuEl?.contains(target)) return;
+      nextTick(() => {
+        eventDetailPopupPosition.value = {
+          left: 0,
+          top: 0,
+        };
+      });
+    };
+
+    onMounted(() => {
+      document.addEventListener('mousedown', handleCloseEventDetailPopup);
+    });
+
+    onUnmounted(() => {
+      document.removeEventListener('mousedown', handleCloseEventDetailPopup);
+    });
+
     return {
       monitorChartPanel,
       showRestore,
-      chartParams,
       handleDataZoomChange,
       handleRestore,
       formatterData,
       formatterSeries,
       customLegendData,
       handleSelectLegend,
+      handleScatterClick,
+      eventDetailPopupPosition,
+      scatterClickEventData,
     };
   },
   render() {
@@ -406,11 +552,20 @@ export default defineComponent({
           }}
           menuList={['screenshot', 'explore']}
           panel={this.monitorChartPanel}
-          params={this.chartParams}
           showRestore={this.showRestore}
+          onClick={this.handleScatterClick}
           onDataZoomChange={this.handleDataZoomChange}
           onRestore={this.handleRestore}
         />
+
+        {/* 散点点击事件详情弹窗 */}
+        {this.eventDetailPopupPosition?.left > 0 && (
+          <AlarmChartEventDetail
+            ref='alertEventChartDetailRef'
+            eventItem={this.scatterClickEventData}
+            position={this.eventDetailPopupPosition}
+          />
+        )}
       </div>
     );
   },
