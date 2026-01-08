@@ -81,7 +81,7 @@ class TGPATaskViewSet(APIViewSet):
         """
         params = self.params_valid(GetTGPATaskListSerializer)
         params["cc_id"] = params.pop("bk_biz_id")
-        return Response(TGPATaskHandler.get_task_list(params, need_format=True))
+        return Response(TGPATaskHandler.get_task_page(params, need_format=True))
 
     def create(self, request, *args, **kwargs):
         """

@@ -154,6 +154,21 @@ class TGPATaskHandler:
 
         return {"total": count, "list": data}
 
+    @staticmethod
+    def get_task_page(params, need_format=False):
+        """
+        获取任务分页
+        """
+        params["task_type"] = TGPATaskTypeEnum.BUSINESS_LOG_V2.value
+        params["offset"] = (params["page"] - 1) * params["page_size"]
+        params["limit"] = params["page_size"]
+
+        result = TGPATaskApi.query_single_user_log_task_v2(params)
+        return {
+            "total": result["count"],
+            "list": TGPATaskHandler.format_task_list(result["results"]) if need_format else result["results"],
+        }
+
     def download_and_process_file(self):
         """
         下载并处理文件

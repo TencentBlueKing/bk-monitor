@@ -58,6 +58,9 @@ class GetTGPATaskListSerializer(serializers.Serializer):
     """
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    keyword = serializers.CharField(label=_("关键字"), required=False, allow_null=True, allow_blank=True)
+    page = serializers.IntegerField(label=_("页码"), default=1)
+    pagesize = serializers.IntegerField(label=_("分页大小"), default=10)
 
 
 class GetDownloadUrlSerializer(serializers.Serializer):
