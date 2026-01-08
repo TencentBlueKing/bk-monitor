@@ -482,6 +482,11 @@ export default defineComponent({
           on-text-to-query={(value: string) => {
             // 根据当前模式确定触发来源
             const triggerSource = `${currentSearchMode.value}_mode` as 'ui_mode' | 'sql_mode';
+
+            if (triggerSource === 'sql_mode') {
+              store.commit('updateIndexItemParams', { keyword: value });
+            }
+
             handleTextToQuery(value, triggerSource);
           }}
           is-ai-loading={isAiLoading.value}
