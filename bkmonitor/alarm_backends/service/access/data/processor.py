@@ -896,7 +896,7 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 记录最后检测点，避免子任务并发导致checkpoint数据不准确
             checkpoint = Checkpoint(self.strategy_group_key)
             # 使用生成器表达式优化内存，避免创建临时列表
-            last_checkpoint = max(checkpoint.get(), max(r.time for r in self.record_list))
+            last_checkpoint = max(checkpoint.get(), max((r.time for r in self.record_list), default=0))
             if last_checkpoint > 0:
                 # 记录检测点 下次从检测点开始重新检查
                 checkpoint.set(last_checkpoint)
