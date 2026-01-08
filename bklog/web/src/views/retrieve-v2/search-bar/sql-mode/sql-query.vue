@@ -231,7 +231,9 @@ const createEditorInstance = () => {
       return true;
     },
     onCtrlEnter: () => {
-      if ((getTippyInstance()?.state?.isShown ?? false) && modelValue.value.length) {
+      // 如果有内容，直接执行 AI 解析，无论是否有下拉提示
+      if (modelValue.value.length) {
+        handleTextToQuery();
         return true;
       }
 

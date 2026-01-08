@@ -480,8 +480,8 @@ const handleKeydown = (e: {
   const dropdownList = dropdownEl.querySelectorAll('.list-item');
   const hasHover = dropdownEl.querySelector('.list-item.is-hover');
   if (code === 'NumpadEnter' || code === 'Enter') {
+    // Ctrl+Enter 操作已由父组件处理，这里不再处理
     if (e.ctrlKey || e.metaKey) {
-      emits('text-to-query', props.value);
       return;
     }
 
