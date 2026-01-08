@@ -24,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
+import { type PropType, type Ref, computed, ref as deepRef, defineComponent, inject, watch } from 'vue';
 
 import { Message, OverflowTitle } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
@@ -81,14 +81,14 @@ export default defineComponent({
         emit('update:nodeActiveTab', val);
       },
     });
-    const tabPanels = ref([
+    const tabPanels = deepRef([
       { id: 'metric', name: t('指标'), count: 0 },
       { id: 'linkedEdge', name: t('关联边'), count: 0 },
     ]);
-    const nodeInfoWrapRef = ref<HTMLElement | null>(null);
-    const maxHeight = ref<string>('100%');
-    const metricsDataLength = ref<number>(0);
-    const hasMetricDataLoaded = ref(false);
+    const nodeInfoWrapRef = deepRef<HTMLElement | null>(null);
+    const maxHeight = deepRef<string>('100%');
+    const metricsDataLength = deepRef<number>(0);
+    const hasMetricDataLoaded = deepRef(false);
 
     /** 详情侧滑 */
     const goDetailSlider = node => {
