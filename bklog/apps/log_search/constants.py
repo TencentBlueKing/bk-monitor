@@ -1124,7 +1124,7 @@ class FieldDateFormatEnum(ChoicesEnum):
             {
                 "id": "strict_date_time",
                 "name": "YYYY-MM-DDTHH:mm:ss.SSSZ",
-                "description": "2006-01-02T15:04:05.000-0700",
+                "description": "2006-01-02T15:04:05.000-07:00",
                 "es_format": "epoch_millis",
                 "es_type": "date",
             },

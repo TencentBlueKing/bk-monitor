@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.conf import settings
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
@@ -96,6 +97,8 @@ class TfGroupPredictResource(TfSdkResource, SdkGroupPredictResource):
 
 
 class KpiSdkResource(SdkResource):
+    name = "kpi"
+
     # 智能异常检测远程访问地址
     base_url = "http://bk-aiops-serving-kpi:8000"
 
@@ -107,9 +110,16 @@ class BKFaraGrayMixin:
         serving_config = validated_request_data.get("serving_config", {})
         grey_to_bkfara = serving_config.get("grey_to_bkfara", False)
 
+        # 灰度开启
         if grey_to_bkfara:
-            base_url = "http://bk-incident-aiops-service-aiops-serving-kpi:8000"
-            action = self.action.replace("/api/aiops/", "/aiops/serving/")
+            # 不同集群走网关分发
+            if settings.BKFARA_AIOPS_SERVICE_USE_APIGW:
+                base_url = settings.BKFARA_AIOPS_SERVICE_APIGW_HOST
+                action = self.action.replace("/api/aiops/", f"/algorithm/serving/{self.name}/")
+            # 相同集群直接访问service
+            else:
+                base_url = f"http://{settings.BKFARA_AIOPS_SERVICE_HOST_PREFIX}-{self.name}:8000"
+                action = self.action.replace("/api/aiops/", "/aiops/serving/")
         else:
             base_url = "http://bk-aiops-serving-kpi:8000"
             action = self.action
