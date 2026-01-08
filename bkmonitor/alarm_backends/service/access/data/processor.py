@@ -529,34 +529,6 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         self.until_timestamp = until_timestamp
 
-        # 限制数据拉取最大时间窗口，防止故障恢复后一次性拉取过量数据
-        # 当 checkpoint 距离当前时间超过最大时间窗口时，从 checkpoint 开始拉取第一个最大时间窗口的数据
-        # 这样可以逐步补齐历史数据，避免遗漏
-        # 注意：此优化仅对 TIME_SERIES（时序数据）类型生效，日志关键字等其他类型不受影响
-        self.window_limited = False
-        self.original_until_timestamp = None
-        is_time_series = DataTypeLabel.TIME_SERIES in first_item.data_type_labels
-
-        if is_time_series:
-            max_window_periods = getattr(settings, "ACCESS_DATA_MAX_WINDOW_PERIODS", 5)
-            max_window_seconds = max_window_periods * agg_interval
-            actual_window_seconds = self.until_timestamp - self.from_timestamp
-
-            if actual_window_seconds > max_window_seconds:
-                self.original_until_timestamp = self.until_timestamp
-                # 限制 until_timestamp 为 from_timestamp + max_window_seconds
-                self.until_timestamp = self.from_timestamp + max_window_seconds
-                # from_timestamp 保持不变（已经是基于 checkpoint 计算的正确值）
-                self.window_limited = True
-                logger.info(
-                    f"strategy_group_key({self.strategy_group_key}) data pull window limited: "
-                    f"checkpoint={checkpoint}, from_timestamp={self.from_timestamp}, "
-                    f"original_until_timestamp={self.original_until_timestamp}, "
-                    f"limited_from_timestamp={self.from_timestamp}, limited_until_timestamp={self.until_timestamp}, "
-                    f"actual_window={actual_window_seconds}s, max_window={max_window_seconds}s, "
-                    f"max_window_periods={max_window_periods}, data_type=TIME_SERIES"
-                )
-
     def send_batch_data(self, points: list[dict], batch_threshold: int = 50000) -> list[dict]:
         """
         发送分批处理任务，并返回第一批数据
@@ -685,87 +657,85 @@ class AccessDataProcess(BaseAccessDataProcess):
                     "none_point_count": none_point_counts,
                 }
 
-    def _handle_empty_window_checkpoint(self, now_timestamp: int) -> int | None:
+    def _limit_records_by_time_points(self, records: list) -> tuple[list, int | None]:
         """
-        处理空数据窗口的 checkpoint 更新逻辑。
+        限制处理的时间点数量（方案 B）。
 
-        当限制窗口后查询无数据时，通过检测当前时间是否有数据来判断：
-        - 如果 [until, now] 有数据 → 历史窗口真的没数据 → 返回最老数据时间
-        - 如果 [until, now] 也无数据 → 可能延迟入库 → 返回 None
+        限制的是唯一时间点数量，同一时间点的所有序列数据会被完整保留或完整丢弃。
+        这样可以控制推送到下游 detect 模块的数据量，避免故障恢复后一次性处理过量数据。
 
-        方案正确性保证：
-        - 时序数据按时间顺序入库：如果 [from, until] 的数据还没入库，[until, now] 也不可能有数据
-        - 因此 [until, now] 有数据时，可以确定 [from, until] 是真的没数据
+        注意：
+        - 仅对 TIME_SERIES 类型数据生效，日志关键字等其他类型不受影响
+        - 查询逻辑保持不变，仅在处理阶段进行限制
+        - checkpoint 更新为最后处理的时间点，确保逐步补齐历史数据
 
-        :param now_timestamp: 当前时间戳
-        :return: 建议的新 checkpoint 时间，或 None 表示不更新
+        Args:
+            records: 原始数据记录列表
+
+        Returns:
+            tuple: (限制后的记录列表, 最后处理的时间点 或 None（未触发限制）)
         """
-        # 仅在触发窗口限制时执行空数据检测
-        if not getattr(self, "window_limited", False):
-            return None
+        if not records:
+            return records, None
 
-        # 有数据时正常处理，无需额外检测
-        if self.record_list:
-            return None
+        # 检查是否为时序数据类型
+        first_item = self.items[0]
+        is_time_series = DataTypeLabel.TIME_SERIES in first_item.data_type_labels
 
-        # 获取原始的 until_timestamp（限制前的查询结束时间）
-        original_until = getattr(self, "original_until_timestamp", None)
-        if not original_until:
-            return None
+        if not is_time_series:
+            # 非时序数据，不做限制
+            return records, None
 
-        # 查询 [until, original_until] 是否有数据
-        current_window_start = self.until_timestamp
-        current_window_end = original_until
+        max_time_points = settings.ACCESS_DATA_MAX_TIME_POINTS
 
-        # 如果窗口已经相等，无需额外查询
-        if current_window_start >= current_window_end:
-            return None
+        # 提取所有唯一时间点并排序
+        unique_times = sorted(set(r.time for r in records))
 
-        try:
-            first_item = self.items[0]
-            current_points = first_item.query_record(current_window_start, current_window_end)
+        if len(unique_times) <= max_time_points:
+            # 时间点数量未超限，不做限制
+            return records, None
 
-            if current_points:
-                # 当前时间有数据，说明历史窗口真的没数据，可以安全跳过
-                # 找到最老的数据时间作为新的 checkpoint
-                oldest_time = min(p.get("_time_") or p.get("time") for p in current_points)
-                logger.info(
-                    f"strategy_group_key({self.strategy_group_key}) empty window detected: "
-                    f"window [{self.from_timestamp}, {self.until_timestamp}] has no data, "
-                    f"but current window [{current_window_start}, {current_window_end}] has {len(current_points)} points, "
-                    f"advancing checkpoint to {oldest_time}"
-                )
-                return oldest_time
-            else:
-                # 当前时间也无数据，可能是延迟入库，不更新 checkpoint
-                logger.info(
-                    f"strategy_group_key({self.strategy_group_key}) empty window detected: "
-                    f"both window [{self.from_timestamp}, {self.until_timestamp}] and "
-                    f"current window [{current_window_start}, {current_window_end}] have no data, "
-                    f"waiting for data ingestion"
-                )
-                return None
-        except Exception as e:
-            logger.warning(f"strategy_group_key({self.strategy_group_key}) failed to check current window data: {e}")
-            return None
+        # 取前 N 个时间点
+        allowed_times = set(unique_times[:max_time_points])
+        last_time_point = max(allowed_times)
+
+        # 过滤：只保留允许时间点内的所有序列数据
+        limited_records = [r for r in records if r.time in allowed_times]
+
+        logger.info(
+            f"strategy_group_key({self.strategy_group_key}) time points limited: "
+            f"total={len(unique_times)}, processed={max_time_points}, "
+            f"last_time_point={last_time_point}, "
+            f"records: {len(records)} -> {len(limited_records)}"
+        )
+
+        return limited_records, last_time_point
 
     def push(self, records: list = None, output_client=None):
+        # 方案 B：限制处理的时间点数量（在处理阶段限制，不影响查询）
+        # 这样可以控制推送到下游 detect 模块的数据量
+        limited_records, last_time_point = self._limit_records_by_time_points(self.record_list)
+        self.record_list = limited_records
+
         super().push(records=records, output_client=output_client)
 
         checkpoint = Checkpoint(self.strategy_group_key)
         checkpoint_timestamp = checkpoint.get()
 
         if self.record_list:
-            # 有数据：正常更新 checkpoint
-            # 使用生成器表达式优化内存，避免创建临时列表
-            last_checkpoint = max(checkpoint_timestamp, max(r.time for r in self.record_list))
-        else:
-            # 无数据：检查是否需要推进 checkpoint（仅在窗口限制场景）
-            empty_window_checkpoint = self._handle_empty_window_checkpoint(int(time.time()))
-            if empty_window_checkpoint:
-                last_checkpoint = empty_window_checkpoint
+            if last_time_point:
+                # 触发了时间点限制，使用最后处理的时间点作为 checkpoint
+                # 这样下次会从这个时间点继续处理，逐步补齐历史数据
+                last_checkpoint = last_time_point
             else:
-                last_checkpoint = checkpoint_timestamp  # 保持不变
+                # 未触发限制，正常计算 checkpoint
+                # 使用生成器表达式优化内存，避免创建临时列表
+                last_checkpoint = max(checkpoint_timestamp, max(r.time for r in self.record_list))
+        else:
+            # 无数据：保持 checkpoint 不变
+            # 注意：方案 B 不需要空数据检测逻辑，因为查询逻辑保持不变
+            # 如果查询返回空数据，说明确实没有数据，无需特殊处理
+            last_checkpoint = checkpoint_timestamp
 
         if last_checkpoint > 0:
             # 记录检测点 下次从检测点开始重新检查
