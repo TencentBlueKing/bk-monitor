@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-// 从 types.ts 重新导出类型，保持向后兼容
-export type {
-  IMarkTimeRange,
-  IThreshold,
-  SeriesItem as MonitorSeriesItem,
-} from '@/pages/trace-explore/components/explore-chart/types';
+export interface AlertEventTagDetailParams {
+  alert_id?: string;
+  interval?: number;
+  limit?: number;
+  sources?: string[];
+  start_time?: number;
+}

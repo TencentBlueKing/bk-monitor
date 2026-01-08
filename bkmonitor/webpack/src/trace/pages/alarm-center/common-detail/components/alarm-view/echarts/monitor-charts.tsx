@@ -76,7 +76,7 @@ export default defineComponent({
       default: false,
     },
   },
-  emits: ['dataZoomChange', 'durationChange', 'restore'],
+  emits: ['dataZoomChange', 'durationChange', 'restore', 'click'],
   setup(props, { emit }) {
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const instance = getCurrentInstance();
@@ -126,6 +126,13 @@ export default defineComponent({
       emit('restore');
     };
 
+    /**
+     * @description 处理点击事件
+     */
+    const handleClick = params => {
+      emit('click', params);
+    };
+
     watch(
       () => duration.value,
       val => {
@@ -164,6 +171,7 @@ export default defineComponent({
       handleMetricClick,
       handleSelectLegend,
       handleDataZoom,
+      handleClick,
     };
   },
   render() {
@@ -201,6 +209,7 @@ export default defineComponent({
                 group={this.panel?.dashboardId}
                 option={this.options}
                 autoresize
+                onClick={this.handleClick}
                 onDatazoom={e => this.handleDataZoom(e, this.options)}
               />
 

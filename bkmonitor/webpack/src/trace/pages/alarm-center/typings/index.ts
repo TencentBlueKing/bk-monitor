@@ -1,4 +1,3 @@
-export * from './alarm-info';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,10 +23,12 @@ export * from './alarm-info';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+export * from './alarm-chart';
+export * from './alarm-info';
 export * from './constants';
 export * from './detail';
 export * from './dialog';
-export * from './monitor-chart';
 export * from './panel-host';
 export * from './panel-k8s';
 export * from './panel-trace';

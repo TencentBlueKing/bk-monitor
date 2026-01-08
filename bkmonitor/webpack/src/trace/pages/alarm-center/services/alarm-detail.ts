@@ -27,6 +27,7 @@
 import {
   actionDetail,
   alertDetail,
+  alertEventTagDetail,
   alertHostTarget,
   alertK8sMetricList,
   alertK8sScenarioList,
@@ -39,7 +40,12 @@ import { BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 import { type IActionDetail, ActionDetail } from '../typings/action-detail';
 import { AlarmDetail } from '../typings/detail';
 
-import type { AlertHostTargetItem, AlertK8SMetricItem, AlertK8sTargetResult } from '../typings';
+import type {
+  AlertEventTagDetailParams,
+  AlertHostTargetItem,
+  AlertK8SMetricItem,
+  AlertK8sTargetResult,
+} from '../typings';
 import type { IAlarmDetail } from '../typings/detail';
 import type { SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 
@@ -64,6 +70,20 @@ export const fetchActionDetail = (id: string): Promise<ActionDetail | null> => {
 export const fetchListAlertFeedback = (id: string, bizId: number) => {
   return listAlertFeedback({ alert_id: id, bk_biz_id: bizId }).catch(() => []);
 };
+
+// ==============================start 详情-视图-相关接口 start==============================
+/**
+ * @description 获取事件标签详情
+ * @param {string} alertId 告警ID
+ * @returns {Promise<Record<string, any>>} 事件标签详情
+ */
+export const getAlertEventTagDetails = async (params: AlertEventTagDetailParams) => {
+  const data = await alertEventTagDetail({
+    ...params,
+  }).catch(() => ({}));
+  return data;
+};
+// ==============================end 详情-视图-相关接口 end==============================
 
 // ==============================start 详情-主机-相关接口 start==============================
 /**
