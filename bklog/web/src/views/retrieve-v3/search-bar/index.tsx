@@ -328,9 +328,6 @@ export default defineComponent({
           explain = '',
         } = contentObj;
 
-        aiQueryResult.value.parseResult = parseResult;
-        aiQueryResult.value.explain = explain;
-
         const queryParams = { search_mode: 'sql' };
         let needReplace = false;
         if (startTime && endTime) {
@@ -358,6 +355,9 @@ export default defineComponent({
             store.dispatch('requestIndexSetQuery');
           });
         }
+
+        aiQueryResult.value.parseResult = parseResult;
+        aiQueryResult.value.explain = explain;
       } catch (e) {
         console.error(e);
         bkMessage({
