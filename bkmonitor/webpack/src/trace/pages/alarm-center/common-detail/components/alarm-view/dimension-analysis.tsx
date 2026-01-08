@@ -29,6 +29,7 @@ import { defineComponent, shallowRef } from 'vue';
 import DimensionAnalysisTable from './components/dimension-analysis-table';
 import DimensionSelector from './components/dimension-selector';
 import DimensionChart from './dimension-chart';
+import DimensionTreeMapCharts from './echarts/dimension-tree-map-charts';
 
 import './dimension-analysis.scss';
 
@@ -57,12 +58,24 @@ export default defineComponent({
   },
   setup() {
     const showTypeActive = shallowRef(TYPE_ENUM.TABLE);
+    const dimensionList = shallowRef([
+      { id: 'dimension_01', name: '维度1' },
+      { id: 'dimension_02', name: '维度2' },
+      { id: 'dimension_03', name: '维度3' },
+    ]);
+
+    const handleDrillDown = (item: any) => {
+      console.log(item);
+    };
+
     const handleShowTypeChange = (val: string) => {
       showTypeActive.value = val;
     };
 
     return {
       showTypeActive,
+      dimensionList,
+      handleDrillDown,
       handleShowTypeChange,
     };
   },
@@ -100,7 +113,14 @@ export default defineComponent({
               ))}
             </div>
             <div class='dimension-analysis-data'>
-              {this.showTypeActive === TYPE_ENUM.TABLE ? <DimensionAnalysisTable /> : '图标'}
+              {this.showTypeActive === TYPE_ENUM.TABLE ? (
+                <DimensionAnalysisTable />
+              ) : (
+                <DimensionTreeMapCharts
+                  dimensionList={this.dimensionList}
+                  onDrillDown={this.handleDrillDown}
+                />
+              )}
             </div>
           </div>
         </div>

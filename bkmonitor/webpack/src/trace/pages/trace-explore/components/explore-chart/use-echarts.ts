@@ -112,7 +112,11 @@ export const useEcharts = (
               metricList.value.push(metric);
             }
           }
-          targets.value.push({ ...target, data: query_config });
+          const targetCopy = { ...target };
+          if (query_config) {
+            targetCopy.data = query_config;
+          }
+          targets.value.push(targetCopy);
           return series?.length
             ? series.map(item => ({
                 ...item,
