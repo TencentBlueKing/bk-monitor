@@ -1950,7 +1950,7 @@ paths:
   /app/metadata/query_datalink_metadata/:
     get:
       operationId: metadata_query_datalink_metadata
-      description: 查询 bcs 集群相关数据链路信息
+      description: 查询链路元信息
       tags:
         - metadata
       x-bk-apigateway-resource:
