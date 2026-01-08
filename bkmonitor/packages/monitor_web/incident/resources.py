@@ -1450,7 +1450,7 @@ class IncidentResultsResource(IncidentBaseResource):
         if not content:
             return False
         if isinstance(content, dict):
-            return all([sub_content for sub_content in content.values()])
+            return all([sub_content for sub_content in content.values()]) and content.get("is_show", True)
         return True
 
     def perform_request(self, validated_request_data: dict) -> dict:
