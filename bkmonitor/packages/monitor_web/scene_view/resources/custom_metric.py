@@ -20,6 +20,7 @@ from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.models import CustomTSTable
+from monitor_web.scene_view.resources.serializers import CustomMetricBaseRequestSerializer
 
 logger = logging.getLogger("monitor_web")
 
@@ -48,21 +49,27 @@ class GetCustomTsMetricGroups(Resource):
     获取自定义时序指标分组
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
-        time_series_group_id = serializers.IntegerField(label=_("自定义指标 ID"))
+    class RequestSerializer(CustomMetricBaseRequestSerializer):
+        pass
 
     def perform_request(self, params: dict) -> dict[str, list]:
         # 从 metadata 获取指标分组列表
-        metadata_result = api.metadata.query_time_series_scope(
-            group_id=params["time_series_group_id"], include_metrics=True
-        )
+        request_params = {
+            "group_id": params["time_series_group_id"],
+            "include_metrics": True,
+        }
+        if params.get("scope_prefix"):
+            request_params["scope_name"] = params["scope_prefix"]
+        metadata_result = api.metadata.query_time_series_scope(**request_params)
 
         # 转换数据结构
         metric_groups = []
         for scope_data in metadata_result:
             scope_id = scope_data.get("scope_id")
             scope_name = scope_data.get("scope_name", "")
+            # 去除 scope_prefix 前缀
+            if params.get("scope_prefix") and scope_name.startswith(params["scope_prefix"]):
+                scope_name = scope_name[len(params["scope_prefix"]) :]
             metric_list = scope_data.get("metric_list", [])
             dimension_config = scope_data.get("dimension_config", {})
 
@@ -121,13 +128,11 @@ class GetCustomTsDimensionValues(Resource):
     获取自定义时序维度值
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(CustomMetricBaseRequestSerializer):
         class MetricSerializer(serializers.Serializer):
             scope_name = serializers.CharField(label=_("分组名称"), allow_blank=True, default="")
             name = serializers.CharField(label=_("指标名称"))
 
-        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
-        time_series_group_id = serializers.IntegerField(label=_("自定义指标 ID"))
         dimension = serializers.CharField(label=_("维度"))
         start_time = serializers.IntegerField(label=_("开始时间"))
         end_time = serializers.IntegerField(label=_("结束时间"))
@@ -150,18 +155,36 @@ class GetCustomTsDimensionValues(Resource):
         if not params["metrics"]:
             return []
 
-        table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
-            pk=params["time_series_group_id"],
-            bk_tenant_id=get_request_tenant_id(),
-        )
+        # 判断是否为 APM 场景
+        is_apm_scenario = params.get("is_apm_scenario")
 
-        # 如果指标只有一个，则使用精确匹配
-        data_label = table.data_label.split(",")[0]
-        if len(params["metrics"]) == 1:
-            match = f'{{__name__="bkmonitor:{data_label}:{params["metrics"][0]}"}}'
+        if is_apm_scenario:
+            data_label = "APM"
         else:
-            match = f'{{__name__=~"bkmonitor:{data_label}:({"|".join(params["metrics"])})"}}'
+            table = CustomTSTable.objects.get(
+                models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+                pk=params["time_series_group_id"],
+                bk_tenant_id=get_request_tenant_id(),
+            )
+            data_label = table.data_label.split(",")[0]
+
+        # 构建指标名称匹配部分
+        if len(params["metrics"]) == 1:
+            metric_match = f'__name__="bkmonitor:{data_label}:{params["metrics"][0]}"'
+        else:
+            metric_match = f'__name__=~"bkmonitor:{data_label}:({"|".join(params["metrics"])})"'
+
+        # 如果是 APM 场景，添加额外的标签过滤
+        label_filters = []
+        if is_apm_scenario:
+            label_filters.append(f'app_name="{params["apm_app_name"]}"')
+            label_filters.append(f'service_name="{params["apm_service_name"]}"')
+
+        # 组装完整的 PromQL 匹配表达式
+        if label_filters:
+            match = f"{{{metric_match}, {', '.join(label_filters)}}}"
+        else:
+            match = f"{{{metric_match}}}"
 
         request_params = {
             "match": [match],
@@ -180,7 +203,7 @@ class GetCustomTsGraphConfig(Resource):
     获取自定义时序图表配置
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(CustomMetricBaseRequestSerializer):
         class CompareSerializer(serializers.Serializer):
             type = serializers.ChoiceField(label=_("对比模式"), choices=["time", "metric"], required=False)
             offset = serializers.ListField(label=_("时间对比偏移量"), default=list)
@@ -203,8 +226,6 @@ class GetCustomTsGraphConfig(Resource):
             scope_name = serializers.CharField(label=_("分组名称"), allow_blank=True, default="")
             name = serializers.CharField(label=_("指标名称"))
 
-        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
-        time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"))
         metrics = serializers.ListField(label=_("查询的指标"), default=[])
         where = ConditionSerializer(label=_("过滤条件"), many=True, allow_empty=True, default=list)
         group_by = GroupBySerializer(label=_("聚合维度"), many=True, allow_empty=True, default=list)
@@ -259,7 +280,7 @@ class GetCustomTsGraphConfig(Resource):
 
     @classmethod
     def time_or_no_compare(
-        cls, table: CustomTSTable, metrics: list[dict], params: dict, dimension_names: dict[str, str]
+        cls, result_table_id: str, data_label: str, metrics: list[dict], params: dict, dimension_names: dict[str, str]
     ) -> list[dict]:
         """
         时间对比或无对比
@@ -268,7 +289,7 @@ class GetCustomTsGraphConfig(Resource):
         # 查询拆图维度组合
         split_dimensions = [x["field"] for x in params.get("group_by", []) if x["split"]]
         series_metrics = cls.query_metric_series(
-            table=table, metrics=metrics, dimensions=split_dimensions, params=params
+            result_table_id=result_table_id, metrics=metrics, dimensions=split_dimensions, params=params
         )
 
         # 计算限制函数
@@ -302,13 +323,30 @@ class GetCustomTsGraphConfig(Resource):
             panels = []
             for metric in metric_list:
                 all_metric_dimensions = set(metric.get("dimensions", []))
+                # 构建 filter_dict
+                filter_dict = {
+                    # 分组过滤条件
+                    "group_filter": {x[0]: x[1] for x in series_tuple},
+                    # 常用维度过滤
+                    "common_filter": {
+                        f"{condition['key']}__{condition['method']}": condition["value"]
+                        for condition in params.get("common_conditions", [])
+                        if condition["key"] in all_metric_dimensions
+                    },
+                }
+
+                # 如果是 APM 场景，补充 service_name 和 scope_name
+                if params.get("is_apm_scenario"):
+                    filter_dict["app_name"] = params["apm_app_name"]
+                    filter_dict["service_name"] = params["apm_service_name"]
+
                 query_config = {
                     "metrics": [
                         {"field": metric["name"], "method": metric.get("aggregate_method") or "AVG", "alias": "a"}
                     ],
                     "interval": "$interval",
-                    "table": table.table_id,
-                    "data_label": table.data_label.split(",")[0],
+                    "table": result_table_id,
+                    "data_label": data_label.split(",")[0],
                     "data_source_label": DataSourceLabel.CUSTOM,
                     "data_type_label": DataTypeLabel.TIME_SERIES,
                     # 只使用指标的维度
@@ -317,21 +355,12 @@ class GetCustomTsGraphConfig(Resource):
                     "where": params.get("where", []),
                     "functions": functions,
                     # 只使用指标的维度
-                    "filter_dict": {
-                        # 分组过滤条件
-                        "group_filter": {x[0]: x[1] for x in series_tuple},
-                        # 常用维度过滤
-                        "common_filter": {
-                            f"{condition['key']}__{condition['method']}": condition["value"]
-                            for condition in params.get("common_conditions", [])
-                            if condition["key"] in all_metric_dimensions
-                        },
-                    },
+                    "filter_dict": filter_dict,
                 }
                 panels.append(
                     {
                         "title": metric.get("alias") or metric["name"],
-                        "sub_title": f"custom:{table.data_label.split(',')[0]}:{metric['name']}",
+                        "sub_title": f"custom:{data_label.split(',')[0]}:{metric['name']}",
                         "targets": [
                             {
                                 "expression": "a",
@@ -349,7 +378,7 @@ class GetCustomTsGraphConfig(Resource):
 
     @classmethod
     def metric_compare(
-        cls, table: CustomTSTable, metrics: list[dict], params: dict, dimension_names: dict[str, str]
+        cls, result_table_id: str, data_label: str, metrics: list[dict], params: dict, dimension_names: dict[str, str]
     ) -> list[dict]:
         """
         指标对比
@@ -357,7 +386,9 @@ class GetCustomTsGraphConfig(Resource):
         """
         # 查询全维度组合
         all_dimensions = [d["field"] for d in params.get("group_by", [])]
-        series_metrics = cls.query_metric_series(table=table, metrics=metrics, dimensions=all_dimensions, params=params)
+        series_metrics = cls.query_metric_series(
+            result_table_id=result_table_id, metrics=metrics, dimensions=all_dimensions, params=params
+        )
 
         # 按照拆图维度分组
         split_dimensions = {d["field"] for d in params.get("group_by", []) if d["split"]}
@@ -392,6 +423,24 @@ class GetCustomTsGraphConfig(Resource):
 
                 # 一张图里包含多个指标查询
                 for metric in metric_list:
+                    # 构建 filter_dict
+                    filter_dict = {
+                        # 分组过滤条件
+                        "group_filter": {x[0]: x[1] for x in group_series},
+                        "panel_filter": {x[0]: x[1] for x in panel_series},
+                        # 常用维度过滤
+                        "common_filter": {
+                            f"{condition['key']}__{condition['method']}": condition["value"]
+                            for condition in params.get("common_conditions", [])
+                            if condition["key"] in metric.get("dimensions", [])
+                        },
+                    }
+
+                    # 如果是 APM 场景，补充 service_name 和 scope_name
+                    if params.get("is_apm_scenario"):
+                        filter_dict["app_name"] = params["apm_app_name"]
+                        filter_dict["service_name"] = params["apm_service_name"]
+
                     query_config = {
                         "metrics": [
                             {
@@ -401,8 +450,8 @@ class GetCustomTsGraphConfig(Resource):
                             }
                         ],
                         "interval": "$interval",
-                        "table": table.table_id,
-                        "data_label": table.data_label.split(",")[0],
+                        "table": result_table_id,
+                        "data_label": data_label.split(",")[0],
                         "data_source_label": DataSourceLabel.CUSTOM,
                         "data_type_label": DataTypeLabel.TIME_SERIES,
                         # 只使用指标的维度
@@ -411,17 +460,7 @@ class GetCustomTsGraphConfig(Resource):
                         "where": params.get("where", []),
                         "functions": functions,
                         # 只使用指标的维度
-                        "filter_dict": {
-                            # 分组过滤条件
-                            "group_filter": {x[0]: x[1] for x in group_series},
-                            "panel_filter": {x[0]: x[1] for x in panel_series},
-                            # 常用维度过滤
-                            "common_filter": {
-                                f"{condition['key']}__{condition['method']}": condition["value"]
-                                for condition in params.get("common_conditions", [])
-                                if condition["key"] in metric.get("dimensions", [])
-                            },
-                        },
+                        "filter_dict": filter_dict,
                     }
                     targets.append(
                         {
@@ -446,7 +485,7 @@ class GetCustomTsGraphConfig(Resource):
 
     @classmethod
     def query_metric_series(
-        cls, table: CustomTSTable, metrics: list[dict], dimensions: list[str], params: dict
+        cls, result_table_id: str, metrics: list[dict], dimensions: list[str], params: dict
     ) -> dict[tuple[tuple[str, str]], list[dict]]:
         """
         查询指标系列
@@ -498,7 +537,7 @@ class GetCustomTsGraphConfig(Resource):
                     "start_time": params["start_time"],
                     "end_time": params["end_time"],
                     "metric_name": f"({'|'.join(metric_list)})",
-                    "table_id": table.table_id,
+                    "table_id": result_table_id,
                     "keys": list(dimension_tuple),
                     "conditions": conditions,
                 }
@@ -515,16 +554,29 @@ class GetCustomTsGraphConfig(Resource):
         if not params["metrics"]:
             return {"groups": []}
 
-        table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
-            pk=params["time_series_group_id"],
-            bk_tenant_id=get_request_tenant_id(),
-        )
+        is_apm_scenario = params.get("is_apm_scenario")
+        if is_apm_scenario:
+            result_table_id = params["result_table_id"]
+            data_label = "APM"
+        else:
+            result_table_id, data_label = (
+                CustomTSTable.objects.filter(
+                    models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+                    pk=params["time_series_group_id"],
+                    bk_tenant_id=get_request_tenant_id(),
+                )
+                .values_list("table_id", "data_label")
+                .first()
+            )
 
         # 从 metadata 获取指标分组列表
-        metadata_result = api.metadata.query_time_series_scope(
-            group_id=params["time_series_group_id"], include_metrics=True
-        )
+        request_params = {
+            "group_id": params["time_series_group_id"],
+            "include_metrics": True,
+        }
+        if params.get("scope_prefix"):
+            request_params["scope_name"] = params["scope_prefix"]
+        metadata_result = api.metadata.query_time_series_scope(**request_params)
 
         # 构建指标字典和维度字典
         metrics_list = []
@@ -573,9 +625,9 @@ class GetCustomTsGraphConfig(Resource):
 
         compare_config = params.get("compare", {})
         if not compare_config or compare_config.get("type") == "time":
-            groups = self.time_or_no_compare(table, metrics_list, params, dimension_names)
+            groups = self.time_or_no_compare(result_table_id, data_label, metrics_list, params, dimension_names)
         elif compare_config.get("type") == "metric":
-            groups = self.metric_compare(table, metrics_list, params, dimension_names)
+            groups = self.metric_compare(result_table_id, data_label, metrics_list, params, dimension_names)
         else:
             raise ValueError(f"Invalid compare config type: {compare_config.get('type')}")
 
