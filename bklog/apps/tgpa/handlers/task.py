@@ -160,8 +160,8 @@ class TGPATaskHandler:
         获取任务分页
         """
         params["task_type"] = TGPATaskTypeEnum.BUSINESS_LOG_V2.value
-        params["offset"] = (params["page"] - 1) * params["page_size"]
-        params["limit"] = params["page_size"]
+        params["offset"] = (params["page"] - 1) * params["pagesize"]
+        params["limit"] = params["pagesize"]
 
         result = TGPATaskApi.query_single_user_log_task_v2(params)
         return {
