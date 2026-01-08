@@ -19,12 +19,12 @@ from api.cmdb.define import Host
 from bkmonitor.data_source import q_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.documents import AlertDocument
+from bkmonitor.utils.alert_drilling import merge_dimensions_into_conditions
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.alert import APMTargetType, K8STargetType
 from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import Resource, resource, api
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
-from fta_web.alert.utils import merge_dimensions_into_conditions
 from fta_web.alert_v2.target import BaseTarget, get_target_instance
 from monitor_web.data_explorer.event.constants import EventSource
 from monitor_web.data_explorer.event.resources import (
@@ -188,7 +188,7 @@ class AlertEventBaseResource(Resource, abc.ABC):
         :param alert: 告警文档对象
         :param target: 目标对象
         :param q: 查询构建器
-        :return: 构建好的查询配置，如果不是自定义事件告警则返回 None
+        :return: 构建好的查询配置，如果不是支持的告警类型则返回 None
         """
         # 获取告警策略数据查询配置
         try:
@@ -196,10 +196,16 @@ class AlertEventBaseResource(Resource, abc.ABC):
         except (KeyError, IndexError, TypeError):
             return None
 
-        if not (
-            query_config.get("data_source_label") == DataSourceLabel.CUSTOM
-            and query_config.get("data_type_label") == DataTypeLabel.EVENT
-        ):
+        # 事件类告警包括：自定义事件、日志关键字事件
+        data_source: tuple[str, str] = (
+            query_config.get("data_source_label", ""),
+            query_config.get("data_type_label", ""),
+        )
+        supported_sources: list[tuple[str, str]] = [
+            (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
+            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+        ]
+        if data_source not in supported_sources:
             return None
 
         result_table_id: str = query_config.get("result_table_id") or ""

@@ -18,10 +18,10 @@ from django.conf import settings
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.models import ActionInstance
 from bkmonitor.utils import time_tools
+from bkmonitor.utils.alert_drilling import merge_dimensions_into_conditions
 from constants.apm import ApmAlertHelper, FIVE_MIN_SECONDS
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
-from fta_web.alert.utils import merge_dimensions_into_conditions
 
 """
 提供告警详情页面跳转
