@@ -572,7 +572,7 @@ class ResultTable(models.Model):
             DataLink.objects.get(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).delete_data_link()
             record.delete()
 
-    def apply_datalink(self) -> None:
+    def apply_datalink(self, force_update: bool = False) -> None:
         """创建数据链路"""
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
         from metadata.task.datalink import apply_event_group_datalink, apply_log_datalink
@@ -611,6 +611,7 @@ class ResultTable(models.Model):
                         self.table_id,
                         datasource.bk_data_id,
                         is_v4_datalink_etl_config,
+                        force_update=force_update,
                     )
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("create_result_table: access vm error: %s", e)
@@ -1124,7 +1125,7 @@ class ResultTable(models.Model):
         is_time_field_only=False,
         is_reserved_check=True,
         external_storage=None,
-        option=None,
+        option: dict[str, Any] | None = None,
         is_enable=None,
         time_option=None,
         data_label=None,
@@ -1337,8 +1338,30 @@ class ResultTable(models.Model):
                 ex_storage.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).delete()
                 logger.info("table->[%s] delete storage->[%s] config success.", self.table_id, storage_type)
 
+        force_update_datalink = False
+
         # 更新结果表option配置
         if option is not None:
+            # 检查ENABLE_FIELD_BLACK_LIST是否需要更新，如果需要更新，则需要强制更新数据链路
+            modify_enable_field_black_list_option_value = option.get(ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST)
+            enable_field_black_list_option = ResultTableOption.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
+            ).first()
+            enable_field_black_list_option_value = (
+                enable_field_black_list_option.get_value() if enable_field_black_list_option else None
+            )
+
+            # 判断是否需要强制更新数据链路：
+            # 1. 如果修改了 ENABLE_FIELD_BLACK_LIST 的值，需要强制更新
+            # 2. 如果修改为 False（非自动发现的结果表），也需要强制更新
+            if (
+                modify_enable_field_black_list_option_value != enable_field_black_list_option_value
+                or modify_enable_field_black_list_option_value is False
+            ):
+                force_update_datalink = True
+
             # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。
             # 目前在option配置的时候并没有标记option的类型，因此只能通过名单的方式进行管理
             # TODO: 后续需要优化option的配置方式，增加option的类型标记
@@ -1358,6 +1381,15 @@ class ResultTable(models.Model):
             ResultTableOption.bulk_create_options(
                 table_id=self.table_id, option_data=option, creator=operator, bk_tenant_id=self.bk_tenant_id
             )
+        else:
+            # 如果是非自动发现的结果表，则需要强制更新数据链路
+            enable_field_black_list_option = ResultTableOption.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
+            ).first()
+            if enable_field_black_list_option and not enable_field_black_list_option.get_value():
+                force_update_datalink = True
 
         # 是否需要修改结果表是否启用
         if is_enable is not None:
@@ -1422,7 +1454,7 @@ class ResultTable(models.Model):
 
         # 如果结果表启用，则刷新清洗配置
         if self.is_enable:
-            self.apply_datalink()
+            self.apply_datalink(force_update=force_update_datalink)
         else:
             try:
                 self.delete_datalink()
