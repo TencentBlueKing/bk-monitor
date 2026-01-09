@@ -602,16 +602,21 @@ class ResultTable(models.Model):
                 and datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
             )
             if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
-                # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
-                # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
+                # NOTE: 使用 on_commit 确保事务提交后再执行异步任务，避免事务未提交但异步任务先执行的情况
+                # 提取变量值到局部变量，确保闭包捕获的是值而不是引用
+                bk_data_id = datasource.bk_data_id
+                bk_tenant_id = self.bk_tenant_id
+                table_id = self.table_id
                 try:
-                    access_bkdata_vm.delay(
-                        self.bk_tenant_id,
-                        target_bk_biz_id,
-                        self.table_id,
-                        datasource.bk_data_id,
-                        is_v4_datalink_etl_config,
-                        force_update=force_update,
+                    on_commit(
+                        lambda: access_bkdata_vm.delay(
+                            bk_tenant_id,
+                            target_bk_biz_id,
+                            table_id,
+                            bk_data_id,
+                            is_v4_datalink_etl_config,
+                            force_update=force_update,
+                        )
                     )
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("create_result_table: access vm error: %s", e)
