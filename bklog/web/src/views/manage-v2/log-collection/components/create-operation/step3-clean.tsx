@@ -36,6 +36,7 @@ import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import InfoTips from '../common-comp/info-tips';
 import { useSpaceSelector } from '../../../hooks/use-space-selector';
+import * as authorityMap from '@/common/authority-map';
 import $http from '@/api';
 
 import type { ISelectItem } from '../../type';
@@ -162,6 +163,12 @@ export default defineComponent({
 
     const visibleBkBiz = ref([]);
     const cacheVisibleList = ref([]);
+    /**
+     * 采集项下拉选项
+     */
+    const cleanCollectorList = ref([]);
+    const cleanCollectorId = ref();
+    const indexSetSelectLoading = ref(false);
 
     const builtInFieldsList = ref([]);
     const defaultParticipleStr = ref('@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\');
@@ -240,11 +247,15 @@ export default defineComponent({
 
     const isClean = computed(() => cleaningMode.value !== 'bk_log_text');
 
+    const isEditCleanItem = computed(() => route.name === 'clean-edit');
+
     onMounted(() => {
-      console.log(props.isTempField, 'isTempField', isEditTemp.value, route.name);
       // 清洗列表进入
       if (props.isCleanField) {
-        // this.initCleanItem();
+        if (isEditCleanItem.value) {
+          cleanCollectorId.value = Number(route.params.collectorId);
+        }
+        initCleanItem();
         return;
       }
       // 清洗模板进入
@@ -253,9 +264,32 @@ export default defineComponent({
         isEditTemp.value && initCleanTemp();
         return;
       }
-      setDetail();
+      const id = isUpdate.value ? route.params.collectorId : route.query.collectorId;
+      setDetail(id);
       getTemplate();
     });
+    /**
+     * 当为清洗列表 - 创建/编辑清洗的时候，获取采集项下拉框内容
+     */
+    const initCleanItem = () => {
+      // 初始化清洗项
+      indexSetSelectLoading.value = true;
+      const query = {
+        bk_biz_id: bkBizId.value,
+        have_data_id: 1,
+      };
+      // 获取采集项列表
+      $http
+        .request('collect/getAllCollectors', { query })
+        .then(res => {
+          indexSetSelectLoading.value = false;
+          const { data } = res;
+          cleanCollectorList.value = data || [];
+        })
+        .catch(() => {
+          indexSetSelectLoading.value = false;
+        });
+    };
 
     const setTempDetail = data => {
       formData.value = {
@@ -266,7 +300,6 @@ export default defineComponent({
       templateName.value = data.name;
       cleaningMode.value = data.clean_type;
       visibleBkBiz.value = data.visible_bk_biz_id;
-      console.log(data, 'res.data====');
     };
 
     const initCleanTemp = () => {
@@ -345,7 +378,7 @@ export default defineComponent({
     };
 
     // 新建、编辑采集项时获取更新详情
-    const setDetail = () => {
+    const setDetail = id => {
       /**
        * 初始化导入的配置
        */
@@ -356,7 +389,7 @@ export default defineComponent({
         ...props.configData,
         etl_fields: eltField,
       };
-      const id = isUpdate.value ? route.params.collectorId : route.query.collectorId;
+
       if (!id) {
         return;
       }
@@ -369,7 +402,7 @@ export default defineComponent({
           if (res.data) {
             store.commit('collect/setCurCollect', res.data);
             builtInFieldsList.value = curCollect.value.fields.filter(item => item.is_built_in);
-            if (props.isEdit || props.isClone) {
+            if (props.isEdit || props.isClone || props.isCleanField) {
               getDataLog('init');
               await getCleanStash(id);
             }
@@ -756,14 +789,102 @@ export default defineComponent({
         });
       return result;
     };
+    /**
+     * 在清洗列表进入的时候，选择采集项之后的操作
+     * @param id
+     * @returns
+     */
+    const handleCollectorChange = async (id: number) => {
+      cleanCollectorId.value = id;
+      // 先校验有无采集项管理权限
+      const paramData = {
+        action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+        resources: [
+          {
+            type: 'collection',
+            id,
+          },
+        ],
+      };
+      const res = await store.dispatch('checkAndGetData', paramData);
+      if (res.isAllowed === false) {
+        return;
+      }
+      setDetail(id);
+    };
+    // 采集项列表点击申请采集项目管理权限
+    const applyProjectAccess = async item => {
+      try {
+        const res = await store.dispatch('getApplyData', {
+          action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'collection',
+              id: item.collector_config_id,
+            },
+          ],
+        });
+        window.open(res.data.apply_url);
+      } catch (err) {
+        console.warn(err);
+      }
+    };
     /** 清洗设置 */
     const renderSetting = () => (
       <div class='clean-setting'>
-        <bk-alert
-          class='clean-alert'
-          title={t('通过字段清洗，可以格式化日志内容方便检索、告警和分析。')}
-          type='info'
-        />
+        {!props.isCleanField && !props.isTempField && (
+          <bk-alert
+            class='clean-alert'
+            title={t('通过字段清洗，可以格式化日志内容方便检索、告警和分析。')}
+            type='info'
+          />
+        )}
+        {props.isCleanField && (
+          <div class='label-form-box'>
+            <span class='label-title'>{t('采集项')}</span>
+            <div class='form-box mt-5'>
+              <bk-select
+                class='index-set-select'
+                searchable
+                disabled={isEditCleanItem.value}
+                loading={indexSetSelectLoading.value}
+                value={cleanCollectorId.value}
+                on-change={handleCollectorChange}
+              >
+                {cleanCollectorList.value.map(option => (
+                  <bk-option
+                    id={option.collector_config_id}
+                    key={option.collector_config_id}
+                    name={option.collector_config_name}
+                  >
+                    {!option.permission?.[authorityMap.MANAGE_COLLECTION_AUTH] ? (
+                      <div class='option-slot-container no-authority'>
+                        <span class='text'>
+                          <span>{option.collector_config_name}</span>
+                          <span style='color: #979ba5'>（{`#${option.collector_config_id}`}）</span>
+                        </span>
+                        <span
+                          class='apply-text'
+                          on-click={() => applyProjectAccess(option)}
+                        >
+                          {t('申请权限')}
+                        </span>
+                      </div>
+                    ) : (
+                      <div
+                        class='option-slot-container'
+                        v-bk-overflow-tips
+                      >
+                        <span>{option.collector_config_name}</span>
+                        <span style='color: #979ba5'>（{`#${option.collector_config_id}`}）</span>
+                      </div>
+                    )}
+                  </bk-option>
+                ))}
+              </bk-select>
+            </div>
+          </div>
+        )}
         <div class='label-form-box'>
           <span class='label-title'>{t('原始日志')}</span>
           <div class='form-box'>
@@ -1246,7 +1367,7 @@ export default defineComponent({
          * 编辑/创建清洗
          * 未完成的情况下，调用创建清洗配置接口 （storage_cluster_id = -1 或者为空，都代表未完成）
          */
-        const isNeedCreate = isUpdate.value && !!storage_cluster_id;
+        const isNeedCreate = (isUpdate.value && !!storage_cluster_id) || props.isCleanField;
         const url = isNeedCreate ? 'collect/fieldCollection' : 'clean/updateCleanStash';
         const data = {
           bk_biz_id: bkBizId.value,
@@ -1282,6 +1403,9 @@ export default defineComponent({
             if (res?.result) {
               const data = isNeedCreate ? { ...formData.value, ...curCollect.value } : formData.value;
               emit('next', data);
+              if (props.isCleanField) {
+                emit('change-submit', true);
+              }
             }
           })
           .catch(() => {
