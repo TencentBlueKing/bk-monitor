@@ -26,7 +26,7 @@ from django.db import IntegrityError, transaction
 from apps.api import CCApi, NodeApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
-from apps.exceptions import ApiRequestError
+from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import FEATURE_COLLECTOR_ITSM
 from apps.log_databus.models import CollectorConfig
@@ -1005,17 +1005,22 @@ class HostCollectorHandler(CollectorHandler):
                 params=self.data.params,
             )
 
-        status_result = NodeApi.get_subscription_task_status.bulk_request(
-            params={
-                "subscription_id": self.data.subscription_id,
-                "need_detail": False,
-                "need_aggregate_all_tasks": True,
-                "need_out_of_scope_snapshots": False,
-                "bk_biz_id": self.data.bk_biz_id,
-            },
-            get_data=lambda x: x["list"],
-            get_count=lambda x: x["total"],
-        )
+        try:
+            status_result = NodeApi.get_subscription_task_status.bulk_request(
+                params={
+                    "subscription_id": self.data.subscription_id,
+                    "need_detail": False,
+                    "need_aggregate_all_tasks": True,
+                    "need_out_of_scope_snapshots": False,
+                    "bk_biz_id": self.data.bk_biz_id,
+                },
+                get_data=lambda x: x["list"],
+                get_count=lambda x: x["total"],
+            )
+        except ApiResultError:
+            logger.exception("get task status failed, subscription_id: %s", self.data.subscription_id)
+            status_result = []
+
         instance_status = self.format_task_instance_status(status_result)
 
         return {"task_ready": True, "contents": self._get_status_content(instance_status, is_task=True)}

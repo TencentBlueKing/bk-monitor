@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import copy
 import gzip
@@ -15,7 +15,7 @@ import json
 import time
 from collections import defaultdict
 
-import mock
+from unittest import mock
 import pytest
 from django.conf import settings
 
@@ -46,7 +46,7 @@ class MockRecord:
         self.inhibitions = defaultdict(lambda: False)
 
 
-class TestAccessDataProcess(object):
+class TestAccessDataProcess:
     def setup_method(self):
         CacheNode.refresh_from_settings()
         c = key.ACCESS_BATCH_DATA_KEY.client
@@ -197,3 +197,178 @@ class TestAccessDataProcess(object):
             strategy_id=strategy_id, noise_dimension_hash=noise_dimension_hash
         )
         assert client.zrangebyscore(record_key, start_timestamp, int(time.time() + 1)) == []
+
+
+class TestLimitRecordsByTimePoints:
+    """测试 _limit_records_by_time_points 方法（方案 B：限制处理时间点数量）"""
+
+    def setup_method(self):
+        CacheNode.refresh_from_settings()
+
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_by_id", return_value=STRATEGY_CONFIG_V3
+    )
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_group_detail", return_value={"1": [1]}
+    )
+    def test_limit_records_empty_list(self, mock_strategy_group, mock_strategy):
+        """测试空记录列表"""
+        strategy_group_key = "test_empty"
+        acc_data = AccessDataProcess(strategy_group_key)
+
+        records, last_time_point = acc_data._limit_records_by_time_points([])
+
+        assert records == []
+        assert last_time_point is None
+
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_by_id", return_value=STRATEGY_CONFIG_V3
+    )
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_group_detail", return_value={"1": [1]}
+    )
+    def test_limit_records_under_limit(self, mock_strategy_group, mock_strategy):
+        """测试时间点数量未超限 - 全部处理，无限制"""
+        strategy_group_key = "test_under_limit"
+        acc_data = AccessDataProcess(strategy_group_key)
+
+        # 创建 5 个不同时间点的记录（默认限制是 10）
+        records = [
+            MockRecord({"time": 100, "value": 1}),
+            MockRecord({"time": 200, "value": 2}),
+            MockRecord({"time": 300, "value": 3}),
+            MockRecord({"time": 400, "value": 4}),
+            MockRecord({"time": 500, "value": 5}),
+        ]
+
+        result_records, last_time_point = acc_data._limit_records_by_time_points(records)
+
+        assert len(result_records) == 5
+        assert last_time_point is None  # 未触发限制
+
+    @mock.patch("django.conf.settings.ACCESS_DATA_MAX_TIME_POINTS", 3)
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_by_id", return_value=STRATEGY_CONFIG_V3
+    )
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_group_detail", return_value={"1": [1]}
+    )
+    def test_limit_records_over_limit(self, mock_strategy_group, mock_strategy):
+        """测试时间点数量超限 - 处理前 N 个，丢弃其余"""
+        strategy_group_key = "test_over_limit"
+        acc_data = AccessDataProcess(strategy_group_key)
+
+        # 创建 5 个不同时间点的记录，限制为 3
+        records = [
+            MockRecord({"time": 100, "value": 1}),
+            MockRecord({"time": 200, "value": 2}),
+            MockRecord({"time": 300, "value": 3}),
+            MockRecord({"time": 400, "value": 4}),
+            MockRecord({"time": 500, "value": 5}),
+        ]
+
+        result_records, last_time_point = acc_data._limit_records_by_time_points(records)
+
+        assert len(result_records) == 3
+        assert last_time_point == 300  # 最后处理的时间点
+        # 验证保留的是前 3 个时间点
+        assert all(r.time <= 300 for r in result_records)
+
+    @mock.patch("django.conf.settings.ACCESS_DATA_MAX_TIME_POINTS", 2)
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_by_id", return_value=STRATEGY_CONFIG_V3
+    )
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_group_detail", return_value={"1": [1]}
+    )
+    def test_limit_records_multi_series_same_time(self, mock_strategy_group, mock_strategy):
+        """测试同一时间点多序列数据 - 完整处理或完整丢弃"""
+        strategy_group_key = "test_multi_series"
+        acc_data = AccessDataProcess(strategy_group_key)
+
+        # 创建记录：时间点 100 有 3 条，时间点 200 有 2 条，时间点 300 有 1 条
+        # 限制为 2 个时间点
+        records = [
+            MockRecord({"time": 100, "value": 1, "ip": "1.1.1.1"}),
+            MockRecord({"time": 100, "value": 2, "ip": "1.1.1.2"}),
+            MockRecord({"time": 100, "value": 3, "ip": "1.1.1.3"}),
+            MockRecord({"time": 200, "value": 4, "ip": "1.1.1.1"}),
+            MockRecord({"time": 200, "value": 5, "ip": "1.1.1.2"}),
+            MockRecord({"time": 300, "value": 6, "ip": "1.1.1.1"}),
+        ]
+
+        result_records, last_time_point = acc_data._limit_records_by_time_points(records)
+
+        assert len(result_records) == 5  # 时间点 100 (3条) + 时间点 200 (2条)
+        assert last_time_point == 200
+        # 验证时间点 300 的数据被完全丢弃
+        assert all(r.time <= 200 for r in result_records)
+        # 验证时间点 100 的所有 3 条数据都被保留
+        assert len([r for r in result_records if r.time == 100]) == 3
+
+    @mock.patch("django.conf.settings.ACCESS_DATA_MAX_TIME_POINTS", 2)
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_by_id", return_value=STRATEGY_CONFIG_V3
+    )
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_group_detail", return_value={"1": [1]}
+    )
+    def test_limit_records_unordered_times(self, mock_strategy_group, mock_strategy):
+        """测试时间戳乱序的情况 - 应按排序后的时间点顺序处理"""
+        strategy_group_key = "test_unordered"
+        acc_data = AccessDataProcess(strategy_group_key)
+
+        # 创建乱序的记录，限制为 2 个时间点
+        records = [
+            MockRecord({"time": 300, "value": 3}),
+            MockRecord({"time": 100, "value": 1}),
+            MockRecord({"time": 500, "value": 5}),
+            MockRecord({"time": 200, "value": 2}),
+        ]
+
+        result_records, last_time_point = acc_data._limit_records_by_time_points(records)
+
+        assert len(result_records) == 2
+        assert last_time_point == 200  # 排序后前 2 个时间点是 100 和 200
+        # 验证保留的是时间最早的 2 个点
+        result_times = {r.time for r in result_records}
+        assert result_times == {100, 200}
+
+
+# LOG 类型策略配置（用于测试非时序数据不触发限制）
+STRATEGY_CONFIG_LOG = copy.deepcopy(STRATEGY_CONFIG_V3)
+STRATEGY_CONFIG_LOG["items"][0]["query_configs"][0]["data_type_label"] = "log"
+
+
+class TestLimitRecordsByTimePointsLogType:
+    """测试非时序数据类型不触发限制"""
+
+    def setup_method(self):
+        CacheNode.refresh_from_settings()
+
+    @mock.patch("django.conf.settings.ACCESS_DATA_MAX_TIME_POINTS", 2)
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_by_id", return_value=STRATEGY_CONFIG_LOG
+    )
+    @mock.patch(
+        "alarm_backends.core.cache.strategy.StrategyCacheManager.get_strategy_group_detail", return_value={"1": [1]}
+    )
+    def test_limit_records_log_type_not_limited(self, mock_strategy_group, mock_strategy):
+        """测试 LOG 类型数据不触发时间点限制"""
+        strategy_group_key = "test_log_type"
+        acc_data = AccessDataProcess(strategy_group_key)
+
+        # 创建 5 个时间点的记录，即使限制为 2，LOG 类型也不应触发限制
+        records = [
+            MockRecord({"time": 100, "value": 1}),
+            MockRecord({"time": 200, "value": 2}),
+            MockRecord({"time": 300, "value": 3}),
+            MockRecord({"time": 400, "value": 4}),
+            MockRecord({"time": 500, "value": 5}),
+        ]
+
+        result_records, last_time_point = acc_data._limit_records_by_time_points(records)
+
+        # LOG 类型不触发限制，全部保留
+        assert len(result_records) == 5
+        assert last_time_point is None

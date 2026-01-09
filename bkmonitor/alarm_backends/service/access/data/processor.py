@@ -657,11 +657,86 @@ class AccessDataProcess(BaseAccessDataProcess):
                     "none_point_count": none_point_counts,
                 }
 
+    def _limit_records_by_time_points(self, records: list) -> tuple[list, int | None]:
+        """
+        限制处理的时间点数量（方案 B）。
+
+        限制的是唯一时间点数量，同一时间点的所有序列数据会被完整保留或完整丢弃。
+        这样可以控制推送到下游 detect 模块的数据量，避免故障恢复后一次性处理过量数据。
+
+        注意：
+        - 仅对 TIME_SERIES 类型数据生效，日志关键字等其他类型不受影响
+        - 查询逻辑保持不变，仅在处理阶段进行限制
+        - checkpoint 更新为最后处理的时间点，确保逐步补齐历史数据
+
+        Args:
+            records: 原始数据记录列表
+
+        Returns:
+            tuple: (限制后的记录列表, 最后处理的时间点 或 None（未触发限制）)
+        """
+        if not records:
+            return records, None
+
+        # 检查是否为时序数据类型
+        first_item = self.items[0]
+        is_time_series = DataTypeLabel.TIME_SERIES in first_item.data_type_labels
+
+        if not is_time_series:
+            # 非时序数据，不做限制
+            return records, None
+
+        max_time_points = settings.ACCESS_DATA_MAX_TIME_POINTS
+
+        # 提取所有唯一时间点并排序
+        unique_times = sorted(set(r.time for r in records))
+
+        if len(unique_times) <= max_time_points:
+            # 时间点数量未超限，不做限制
+            return records, None
+
+        # 取前 N 个时间点
+        allowed_times = set(unique_times[:max_time_points])
+        last_time_point = max(allowed_times)
+
+        # 过滤：只保留允许时间点内的所有序列数据
+        limited_records = [r for r in records if r.time in allowed_times]
+
+        logger.info(
+            f"strategy_group_key({self.strategy_group_key}) time points limited: "
+            f"total={len(unique_times)}, processed={max_time_points}, "
+            f"last_time_point={last_time_point}, "
+            f"records: {len(records)} -> {len(limited_records)}"
+        )
+
+        return limited_records, last_time_point
+
     def push(self, records: list = None, output_client=None):
+        # 方案 B：限制处理的时间点数量（在处理阶段限制，不影响查询）
+        # 这样可以控制推送到下游 detect 模块的数据量
+        limited_records, last_time_point = self._limit_records_by_time_points(self.record_list)
+        self.record_list = limited_records
+
         super().push(records=records, output_client=output_client)
 
         checkpoint = Checkpoint(self.strategy_group_key)
-        last_checkpoint = max([checkpoint.get()] + [r.time for r in self.record_list])
+        checkpoint_timestamp = checkpoint.get()
+
+        if self.record_list:
+            if last_time_point:
+                # 触发了时间点限制，使用最后处理的时间点作为 checkpoint
+                # 这样下次会从这个时间点继续处理，逐步补齐历史数据
+                last_checkpoint = last_time_point
+            else:
+                # 未触发限制，正常计算 checkpoint
+                # 使用生成器表达式优化内存，避免创建临时列表
+                last_checkpoint = max(checkpoint_timestamp, max(r.time for r in self.record_list))
+        else:
+            # 无数据：保持 checkpoint 不变
+            # 注意：方案 B 不需要空数据检测逻辑，因为查询逻辑保持不变
+            # 如果查询返回空数据，说明确实没有数据，无需特殊处理
+            last_checkpoint = checkpoint_timestamp
+
         if last_checkpoint > 0:
             # 记录检测点 下次从检测点开始重新检查
             checkpoint.set(last_checkpoint)
@@ -820,7 +895,8 @@ class AccessDataProcess(BaseAccessDataProcess):
 
             # 记录最后检测点，避免子任务并发导致checkpoint数据不准确
             checkpoint = Checkpoint(self.strategy_group_key)
-            last_checkpoint = max([checkpoint.get()] + [r.time for r in self.record_list])
+            # 使用生成器表达式优化内存，避免创建临时列表
+            last_checkpoint = max(checkpoint.get(), max((r.time for r in self.record_list), default=0))
             if last_checkpoint > 0:
                 # 记录检测点 下次从检测点开始重新检查
                 checkpoint.set(last_checkpoint)
