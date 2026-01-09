@@ -23,6 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export * from './custom_report';
-export * from './scene_view';
-export * from './strategies';
+import type * as apiMap from './service';
+
+export type ApmRequestHandlerMap = {
+  [K in ApmRequestHandlerKey]: (typeof apiMap)[K];
+};
+
+type ApmRequestHandlerKey = keyof typeof apiMap;

@@ -23,6 +23,4 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export * from './custom_report';
-export * from './scene_view';
-export * from './strategies';
+export * from './apm_custom_report';

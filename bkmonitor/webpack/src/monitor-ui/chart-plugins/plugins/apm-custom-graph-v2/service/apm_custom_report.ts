@@ -23,6 +23,65 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export * from './custom_report';
-export * from './scene_view';
-export * from './strategies';
+import * as ApmCustomReportApi from 'monitor-api/modules/apm_custom_metric';
+
+export const modifyCustomTsFields = ApmCustomReportApi.modifyCustomTsFields<
+  {
+    app_name?: string;
+    delete_fields?: {
+      config?: {
+        aggregate_method?: string;
+        alias?: string;
+        common?: boolean;
+        disabled?: boolean;
+        function?: {
+          id: string;
+          params: {
+            id: string;
+            value: number;
+          }[];
+        }[];
+        hidden?: boolean;
+        interval?: number;
+        unit?: string;
+      };
+      dimensions?: string[];
+      id?: number;
+      name?: string;
+      scope?: {
+        id: number;
+        name: string;
+      };
+      type: string;
+    }[];
+    service_name?: string;
+    time_series_group_id?: number;
+    update_fields: {
+      config?: {
+        aggregate_method?: string;
+        alias?: string;
+        common?: boolean;
+        disabled?: boolean;
+        function?: {
+          id: string;
+          params: {
+            id: string;
+            value: number;
+          }[];
+        }[];
+        hidden?: boolean;
+        interval?: number;
+        unit?: string;
+      };
+      dimensions?: string[];
+      id?: number;
+      name?: string;
+      scope?: {
+        id: number;
+        name: string;
+      };
+      type: string;
+    }[];
+  },
+  null
+>;

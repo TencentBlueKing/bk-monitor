@@ -81,17 +81,21 @@ interface ICustomTsMetricGroups {
         alias: string;
         name: string;
       }[];
+      field_id: number;
       metric_name: string;
     }[];
     name: string;
+    scope_id: number;
   }[];
 }
 
 // 请求路径 'rest/v2/scene_view/get_custom_ts_metric_groups/'
 export const getCustomTsMetricGroups = SceneViewApi.getCustomTsMetricGroups<
   {
+    apm_app_name?: string;
+    apm_service_name?: string;
     bk_biz_id?: number;
-    time_series_group_id: number;
+    time_series_group_id?: number;
   },
   ICustomTsMetricGroups
 >;
@@ -99,12 +103,14 @@ export const getCustomTsMetricGroups = SceneViewApi.getCustomTsMetricGroups<
 // 请求路径 'rest/v2/scene_view/get_custom_ts_dimension_values/'
 export const getCustomTsDimensionValues = SceneViewApi.getCustomTsDimensionValues<
   {
-    bk_biz_id: number;
+    apm_app_name?: string;
+    apm_service_name?: string;
+    bk_biz_id?: number;
     dimension: string;
     end_time: number;
     metrics: { name: string; scope_name: string }[];
     start_time: number;
-    time_series_group_id: number;
+    time_series_group_id?: number;
   },
   {
     alias: string;
@@ -115,15 +121,17 @@ export const getCustomTsDimensionValues = SceneViewApi.getCustomTsDimensionValue
 // 请求路径 'rest/v2/scene_view/get_custom_ts_graph_config/'
 export const getCustomTsGraphConfig = SceneViewApi.getCustomTsGraphConfig<
   {
-    bk_biz_id: number;
-    end_time: number;
+    apm_app_name?: string;
+    apm_service_name?: string;
+    bk_biz_id?: number;
+    end_time?: number;
     limit: {
       function: string;
       limit: number;
     };
     metrics: { name: string; scope_name: string }[];
-    start_time: number;
-    time_series_group_id: number;
+    start_time?: number;
+    time_series_group_id?: number;
     view_column?: number;
   },
   ICustomTsGraphConfig
@@ -133,12 +141,12 @@ export const getSceneView = SceneViewApi.getSceneView<{
   common_conditions: {
     alias: string;
     key: string;
-    method: string;
+    method: 'eq' | 'exclude' | 'include' | 'neq' | 'nreg' | 'reg';
     value: string[];
   }[];
   compare: {
     offset: string[];
-    type: string;
+    type: '' | 'metric' | 'time';
   };
   group_by: {
     field: string;
