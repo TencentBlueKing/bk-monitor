@@ -751,6 +751,11 @@ ACCESS_DATA_TIME_DELAY = 10
 ACCESS_LATENCY_INTERVAL_FACTOR = 1
 ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 
+# access-detect 合并处理开关
+# 灰度策略 ID 列表（可选）
+# 仅对列表中的策略启用合并处理，为空时对所有静态阈值策略生效
+ACCESS_DETECT_MERGE_STRATEGY_IDS = []
+
 # kafka是否自动提交配置
 KAFKA_AUTO_COMMIT = True
 
