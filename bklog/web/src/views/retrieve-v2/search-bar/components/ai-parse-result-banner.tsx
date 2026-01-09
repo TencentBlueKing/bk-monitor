@@ -81,6 +81,7 @@ export default defineComponent({
     };
 
     watch(() => [props.aiQueryResult?.explain, props.aiQueryResult?.queryString], () => {
+      isExpanded.value = false;
       nextTick(checkOverflow);
     }, {
       immediate: true,

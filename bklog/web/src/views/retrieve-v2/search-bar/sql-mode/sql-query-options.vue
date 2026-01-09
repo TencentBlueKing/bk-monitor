@@ -868,6 +868,7 @@ watch(activeIndex, () => {
             margin-right: 24px;
             font-size: 12px;
             line-height: 16px;
+            min-width: fit-content;
 
             .label {
               display: inline-flex;
@@ -960,6 +961,9 @@ watch(activeIndex, () => {
               margin-left: 4px;
               font-size: 12px;
               color: #313238;
+              overflow: hidden;
+              white-space: nowrap;
+              text-overflow: ellipsis;
             }
           }
 
