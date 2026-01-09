@@ -51,7 +51,7 @@ from apps.log_search.models import (
 )
 from apps.log_search.permission import Permission
 from apps.log_search.utils import handle_es_query_error
-from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT
+from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
@@ -1179,7 +1179,7 @@ class UnifyQueryHandler:
             result_table_options = {
                 key: value
                 for key, value in search_result.get("result_table_options", {}).items()
-                if value.get("search_after")
+                if value.get(SEARCH_AFTER_KEY)
             }
 
             if not result_table_options:
