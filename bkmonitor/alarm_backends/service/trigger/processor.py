@@ -115,7 +115,7 @@ class TriggerProcessor:
             # 获取 Redis 节点信息（带异常处理）
             try:
                 cache_node = get_node_by_strategy_id(self.strategy_id)
-                redis_node = cache_node.node_alias
+                redis_node = cache_node.node_alias or f"{cache_node.host}:{cache_node.port}"
             except Exception:
                 redis_node = "unknown"  # 异常情况下使用默认值
 

@@ -407,7 +407,7 @@ class AccessDataProcess(BaseAccessDataProcess):
             for item in self.items:
                 strategy_id = item.strategy.id
                 cache_node = get_node_by_strategy_id(strategy_id)
-                redis_node = cache_node.node_alias
+                redis_node = cache_node.node_alias or f"{cache_node.host}:{cache_node.port}"
 
                 # 为每个策略记录指标（使用总数据点数作为参考）
                 metrics.PROCESS_OVER_FLOW.labels(
