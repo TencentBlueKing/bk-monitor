@@ -323,7 +323,7 @@ export default defineComponent({
               {!!this.exceptionData.desc && <div class='exception-desc'>{this.exceptionData.desc}</div>}
               {this.exceptionData.showClear && (
                 <div
-                  class='link cursor'
+                  class='clear-btn cursor'
                   onClick={this.handleClearSearch}
                 >
                   {this.t('清空筛选条件')}
