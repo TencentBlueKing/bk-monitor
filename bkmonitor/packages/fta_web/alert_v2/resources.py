@@ -91,7 +91,7 @@ class AlertEventBaseResource(Resource, abc.ABC):
     为告警关联事件查询提供通用的查询构建逻辑。
     """
 
-    # 事件检索支持的数据源类型
+    # 通用事件支持的数据源类型
     supported_event_sources: list[tuple[str, str]] = [
         (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
         (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
