@@ -879,7 +879,7 @@ class AccessDataProcess(BaseAccessDataProcess):
             logger.info(
                 f"[access-detect-merge] strategy_group_key({self.strategy_group_key}) "
                 f"strategy({strategy_id}) merged processing completed, "
-                f"records: {len(records)}, detect_time: {detect_end_time - detect_start_time:.3f}s"
+                f"processed: {len(data_points)}, detect_time: {detect_end_time - detect_start_time:.3f}s"
             )
 
             # 指标上报：数据处理计数
