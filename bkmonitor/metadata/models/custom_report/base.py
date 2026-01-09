@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
 import logging
 from typing import Any
 
@@ -330,7 +329,7 @@ class CustomGroupBase(models.Model):
         metric_info_list=None,
         field_list=None,
         max_rate=None,
-        enable_field_black_list=None,
+        enable_field_black_list: bool | None = None,
         data_label: str | None = None,
     ):
         """
@@ -399,25 +398,52 @@ class CustomGroupBase(models.Model):
             self.save()
             logger.info(f"{self.__class__.__name__}->[{self.custom_group_id}] is updated by->[{operator}]")
 
+        # 判断黑白名单是否发生变化
+        options: dict[str, Any] | None = None
+        if enable_field_black_list is not None:
+            current_enable_field_black_list_option = ResultTableOption.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
+            ).first()
+            current_enable_field_black_list_option_value = (
+                current_enable_field_black_list_option.get_value() if current_enable_field_black_list_option else None
+            )
+            if current_enable_field_black_list_option_value != enable_field_black_list:
+                # 获取当前结果表的option配置，options的更新必须提供所有option的配置
+                options = {
+                    option_obj.name: option_obj.get_value()
+                    for option_obj in ResultTableOption.objects.filter(
+                        table_id=self.table_id,
+                        bk_tenant_id=self.bk_tenant_id,
+                    )
+                }
+                options[ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST] = enable_field_black_list
+                logger.info(
+                    f"{self.__class__.__name__}->[{self.custom_group_id}] has change enable_field_black_list->[{enable_field_black_list}]"
+                )
+
         # 这里之前在split的情况下是不做field_list的更新的 之前的背景是会动态更新指标 而不应该用户去设置指标
         # 但是如果用户需要修改元信息的时候 会出现该接口无法更新的情况 所以这里先去掉这个限制
-        rt = None
-        if field_list or data_label:
+        if field_list is not None or data_label is not None or options is not None:
             try:
                 rt = ResultTable.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
             except ResultTable.DoesNotExist:
                 raise ValueError(_("对应结果表不存在"))
 
-        if field_list is not None:  # 无需添加租户过滤,上文RT已经携带租户属性
-            rt.modify(operator=operator, is_reserved_check=False, is_time_field_only=True, field_list=field_list)
+            modify_params = {}
+            if field_list is not None:
+                modify_params.update({"field_list": field_list, "is_time_field_only": True, "is_reserved_check": False})
+            if data_label is not None:
+                modify_params["data_label"] = data_label
+            if options is not None:
+                modify_params["option"] = options
 
-        # 如果有传开启/关闭黑名单，则修改结果表数据，并刷新consul数据，触发transfer更新
+            if modify_params:
+                rt.modify(operator=operator, **modify_params)
+
+        # 如果有传开启/关闭黑名单，则刷新consul数据，触发transfer更新
         if enable_field_black_list is not None:
-            ResultTableOption.objects.filter(
-                table_id=self.table_id,
-                bk_tenant_id=self.bk_tenant_id,
-                name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
-            ).update(value=json.dumps(enable_field_black_list))
             logger.info(
                 "%s->[%s] has change enable_field_black_list->[%s]",
                 self.__class__.__name__,
@@ -431,10 +457,6 @@ class CustomGroupBase(models.Model):
             from metadata.models import DataSource
 
             DataSource.objects.get(bk_data_id=self.bk_data_id).refresh_consul_config()
-
-        # 判断是否修改数据标签
-        if data_label:
-            rt.modify(operator=operator, data_label=data_label)
 
         logger.info(f"{self.__class__.__name__}->[{self.custom_group_id}] update success.")
         return True
