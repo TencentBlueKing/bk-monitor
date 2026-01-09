@@ -343,12 +343,11 @@ def sync_bkbase_cluster_info(
             is_updated = False
             update_fields: list[str] = []
 
-            if update:
-                for field, value in need_update_fields.items():
-                    if value is not None and getattr(cluster, field) != value:
-                        setattr(cluster, field, value)
-                        is_updated = True
-                        update_fields.append(field)
+            for field, value in need_update_fields.items():
+                if value is not None and getattr(cluster, field) != value:
+                    setattr(cluster, field, value)
+                    is_updated = True
+                    update_fields.append(field)
 
             # 如果集群未被标记为已注册到bkbase平台，则标记为已注册
             if not cluster.registered_to_bkbase:
@@ -358,8 +357,13 @@ def sync_bkbase_cluster_info(
 
             # 如果字段有更新，则保存模型
             if is_updated:
-                logger.info(f"sync_bkbase_cluster_info: updated {cluster_type} cluster: {cluster_name}")
-                cluster.save(update_fields=update_fields)
+                if update:
+                    logger.info(f"sync_bkbase_cluster_info: updated {cluster_type} cluster: {cluster_name}")
+                    cluster.save(update_fields=update_fields)
+                else:
+                    logger.info(
+                        f"sync_bkbase_cluster_info: updated {cluster_type} cluster: {cluster_name} but not saved because update is False"
+                    )
         else:
             # 创建新集群，默认为非默认集群
             models.ClusterInfo.objects.create(
