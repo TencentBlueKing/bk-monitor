@@ -159,11 +159,31 @@ class TGPATaskHandler:
         """
         获取任务分页
         """
-        params["task_type"] = TGPATaskTypeEnum.BUSINESS_LOG_V2.value
-        params["offset"] = (params["page"] - 1) * params["pagesize"]
-        params["limit"] = params["pagesize"]
+        request_params = {
+            "cc_id": params["bk_biz_id"],
+            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "offset": (params["page"] - 1) * params["pagesize"],
+            "limit": params["pagesize"],
+        }
 
-        result = TGPATaskApi.query_single_user_log_task_v2(params)
+        if params.get("ordering"):
+            request_params["ordering"] = params["ordering"]
+
+        condition_list = []
+
+        if params.get("keyword"):
+            condition_list.append(params["keyword"])
+        if params.get("status_list"):
+            condition_list.append(f"status={','.join(params['status_list'])}")
+        if params.get("scene_list"):
+            condition_list.append(f"scene={','.join(params['scene_list'])}")
+        if params.get("created_by_list"):
+            condition_list.append(f"created_by={','.join(params['created_by_list'])}")
+
+        if condition_list:
+            request_params["search"] = ";".join(condition_list)
+
+        result = TGPATaskApi.query_single_user_log_task_v2(request_params)
         return {
             "total": result["count"],
             "list": TGPATaskHandler.format_task_list(result["results"]) if need_format else result["results"],
