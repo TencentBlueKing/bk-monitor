@@ -180,7 +180,7 @@ const getManageRoutes = () => [
               },
               {
                 path: 'oldAdd',
-                name: 'collectAdd',
+                name: 'oldCollectAdd',
                 meta: {
                   title: '日志采集',
                   needBack: true,

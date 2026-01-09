@@ -1253,4 +1253,14 @@ export default {
   '本功能为灰度业务，请联系管理员开通':
     'This feature is currently in a phased rollout phase. Please contact the administrator to activate it.',
   任务未完成: 'Task not completed',
+  'Windows Event 日志': 'Windows Event Log',
+  容器标准输出: 'Container Standard Output',
+  容器文件采集: 'Container File Collection',
+  开启清洗: 'Enable Cleaning',
+  停用索引集: 'Disable Index Set',
+  '索引集停用后，该索引集将无法检索。': 'After the index set is disabled, it will no longer be searchable.',
+  请确认停用类型: 'Please confirm the disable type',
+  停用采集配置: 'Disable Collection Configuration',
+  '采集项停用后，在有效期内，您仍可检索历史日志。':
+    'After the collection item is disabled, you can still search historical logs within the validity period.',
 };
