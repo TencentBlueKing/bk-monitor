@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { Checkbox, Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -34,21 +34,68 @@ import './dimension-selector.scss';
 export default defineComponent({
   name: 'DimensionSelector',
   props: {
-    a: {
-      type: String,
-      default: '',
+    dimensions: {
+      type: Array as PropType<{ id: string; name: string }[]>,
+      default: () => [],
+    },
+    isMulti: {
+      type: Boolean,
+      default: false,
+    },
+    selected: {
+      type: Array as PropType<string[]>,
+      default: () => [],
     },
   },
   emits: {
-    change: (_val: any) => true,
+    multiChange: (_val: boolean) => true,
+    change: (_val: string[]) => true,
   },
-  setup() {
+  setup(props, { emit }) {
     const { t } = useI18n();
 
     const searchValue = shallowRef('');
+
+    const filteredDimensions = computed(() => {
+      if (!searchValue.value) {
+        return props.dimensions;
+      }
+      return props.dimensions.filter(
+        item => item.name.includes(searchValue.value) || item.id.includes(searchValue.value)
+      );
+    });
+
+    const handleMultiChange = (val: boolean) => {
+      emit('multiChange', val);
+    };
+
+    const handleSelect = (item: { id: string; name: string }) => {
+      emit('change', [item.id]);
+    };
+
+    const handleCheck = (val: boolean, item: { id: string; name: string }) => {
+      if (val) {
+        emit('change', Array.from(new Set([...props.selected, item.id])));
+      } else {
+        emit(
+          'change',
+          props.selected.filter(id => id !== item.id)
+        );
+      }
+    };
+
+    const handleSearch = (val: string) => {
+      searchValue.value = val;
+    };
+
     return {
       searchValue,
+      filteredDimensions,
       t,
+      handleMultiChange,
+      handleSelect,
+      handleCheck,
+      handleSearch,
     };
   },
   render() {
@@ -56,52 +103,70 @@ export default defineComponent({
       <div class='dimension-analysis-dimension-selector'>
         <div class='header-title'>
           <span class='title'>{this.t('维度分析')}</span>
-          <Checkbox>{this.t('多选')}</Checkbox>
+          <Checkbox
+            modelValue={this.isMulti}
+            onChange={this.handleMultiChange}
+          >
+            {this.t('多选')}
+          </Checkbox>
         </div>
         <div class='search-wrap'>
           <Input
-            v-model={this.searchValue}
+            modelValue={this.searchValue}
             type='search'
+            onChange={this.handleSearch}
           />
         </div>
         <div class='dimension-list'>
-          {new Array(10).fill(0).map((_item, index) => (
+          {this.filteredDimensions.map((item, index) => (
             <div
               key={index}
-              class='dimension-list-item single-type'
+              class={[
+                'dimension-list-item',
+                this.isMulti ? 'multi-type' : 'single-type',
+                {
+                  active: this.selected.includes(item.id),
+                },
+              ]}
+              onClick={() => {
+                if (!this.isMulti) {
+                  this.handleSelect(item);
+                }
+              }}
             >
-              <span class='item-label'>dimension0{index + 1}</span>
-              {index > 5 && (
-                <span
-                  class='suspicious-tag'
-                  v-bk-tooltips={{
-                    content: <div>可疑可疑</div>,
-                    zIndex: 4000,
-                  }}
-                >
-                  <span>{this.t('可疑')}</span>
-                </span>
-              )}
-            </div>
-          ))}
-          {new Array(10).fill(0).map((_item, index) => (
-            <div
-              key={index}
-              class='dimension-list-item multi-type'
-            >
-              <Checkbox>
-                <span>dimension0{index + 1}</span>
-              </Checkbox>
-              {index > 5 && (
-                <span
-                  class='suspicious-tag'
-                  v-bk-tooltips={{
-                    content: <div>可疑可疑</div>,
-                    zIndex: 4000,
-                  }}
-                >
-                  <span>{this.t('可疑')}</span>
-                </span>
+              {this.isMulti ? (
+                <>
+                  <Checkbox
+                    modelValue={this.selected.includes(item.id)}
+                    onChange={v => this.handleCheck(v, item)}
+                  >
+                    <span>{item.name}</span>
+                  </Checkbox>
+                  {index > 5 && (
+                    <span
+                      class='suspicious-tag'
+                      v-bk-tooltips={{
+                        content: <div>可疑可疑</div>,
+                      }}
+                    >
+                      <span>{this.t('可疑')}</span>
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span class='item-label'>{item.name}</span>
+                  {index > 5 && (
+                    <span
+                      class='suspicious-tag'
+                      v-bk-tooltips={{
+                        content: <div>可疑可疑</div>,
+                      }}
+                    >
+                      <span>{this.t('可疑')}</span>
+                    </span>
+                  )}
+                </>
               )}
             </div>
           ))}

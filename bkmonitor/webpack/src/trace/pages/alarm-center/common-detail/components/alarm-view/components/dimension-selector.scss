@@ -56,6 +56,10 @@
           color: #4d4f56;
           white-space: nowrap;
         }
+
+        &.active {
+          background: #e1ecff;
+        }
       }
 
       &.multi-type {
