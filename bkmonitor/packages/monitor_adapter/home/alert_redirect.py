@@ -19,7 +19,7 @@ from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.models import ActionInstance
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.alert_drilling import merge_dimensions_into_conditions
-from constants.apm import ApmAlertHelper, FIVE_MIN_SECONDS
+from constants.apm import ApmAlertHelper
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
 
@@ -189,7 +189,7 @@ def generate_event_explore_url(bk_biz_id: int, collect_id: str) -> str | None:
         dimension_fields=redirect_info.dimension_fields,
     )
 
-    offset: int = FIVE_MIN_SECONDS * 60 * 1000
+    offset: int = 5 * 60 * 1000
     create_timestamp: int = redirect_info.alert.event.time
     params: dict[str, Any] = {
         "targets": json.dumps([{"data": {"query_configs": [query_filter]}}]),
