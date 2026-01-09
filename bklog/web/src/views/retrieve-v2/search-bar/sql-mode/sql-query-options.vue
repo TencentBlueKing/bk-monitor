@@ -621,9 +621,9 @@ watch(activeIndex, () => {
               <i class="bklog-icon bklog-plus" />
               <i class="bklog-icon bklog-enter-3" /></span>
             <span class="value">{{ $t('AI 解析') }}</span>
-            <span v-if="showAiAssistant" class="ai-parse-value">{{ aiPreviewText }}</span>
           </div>
         </div>
+        <span v-if="showAiAssistant" class="ai-parse-value">{{ aiPreviewText }}</span>
         <div
           class="sql-syntax-link"
           @click="handleSQLReadmeClick"
@@ -850,17 +850,18 @@ watch(activeIndex, () => {
       .sql-query-header {
         display: flex;
         align-items: center;
-        justify-content: space-between;
         height: 48px;
-        padding: 0 16px;
+        padding-left: 16px;
         background-color: #fafbfd;
         border-bottom: 1px solid #dcdee5;
         border-radius: 2px 2px 0 0;
+        gap: 16px;
 
         .ui-shortcut-key {
           display: flex;
           align-items: center;
-          flex: 1;
+          flex-shrink: 0;
+          white-space: nowrap;
 
           .ui-shortcut-item {
             display: inline-flex;
@@ -904,6 +905,10 @@ watch(activeIndex, () => {
             .value {
               margin-left: 4px;
               color: #4D4F56;
+            }
+
+            &:last-child {
+              margin-right: 0;
             }
           }
 
@@ -956,15 +961,6 @@ watch(activeIndex, () => {
               font-size: 12px;
               color: #8474f3;
             }
-
-            .ai-parse-value {
-              margin-left: 4px;
-              font-size: 12px;
-              color: #313238;
-              overflow: hidden;
-              white-space: nowrap;
-              text-overflow: ellipsis;
-            }
           }
 
           .ai-parse-item {
@@ -994,13 +990,25 @@ watch(activeIndex, () => {
           }
         }
 
+        .ai-parse-value {
+          flex: 1;
+          min-width: 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-size: 12px;
+          color: #313238;
+        }
+
         .sql-syntax-link {
           display: flex;
           align-items: center;
+          flex-shrink: 0;
           height: 100%;
           color: #3a84ff;
           cursor: pointer;
           font-size: 12px;
+          margin-left: auto;
 
           .fold-title-icon {
             margin-left: 5px;

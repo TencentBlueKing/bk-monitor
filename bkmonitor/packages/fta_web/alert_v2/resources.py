@@ -19,6 +19,7 @@ from api.cmdb.define import Host
 from bkmonitor.data_source import q_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.documents import AlertDocument
+from bkmonitor.utils.alert_drilling import merge_dimensions_into_conditions
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.alert import APMTargetType, K8STargetType
 from constants.data_source import DataTypeLabel, DataSourceLabel
@@ -90,12 +91,35 @@ class AlertEventBaseResource(Resource, abc.ABC):
     为告警关联事件查询提供通用的查询构建逻辑。
     """
 
-    @classmethod
-    def _get_q(cls, target: BaseTarget) -> QueryConfigBuilder:
-        using: tuple[str, str] = (DataTypeLabel.EVENT, DataSourceLabel.CUSTOM)
-        if cls.is_apm_target(target):
-            using = (DataTypeLabel.EVENT, DataSourceLabel.BK_APM)
+    # 通用事件支持的数据源类型
+    supported_event_sources: list[tuple[str, str]] = [
+        (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
+        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+    ]
 
+    @classmethod
+    def _get_data_source(cls, alert: AlertDocument) -> tuple[str, str] | None:
+        """获取告警的数据源类型"""
+        try:
+            query_config: dict[str, Any] = alert.strategy["items"][0]["query_configs"][0]
+            return query_config.get("data_source_label", ""), query_config.get("data_type_label", "")
+        except (KeyError, IndexError, TypeError):
+            return None
+
+    @classmethod
+    def _get_q(cls, alert: AlertDocument, target: BaseTarget) -> QueryConfigBuilder:
+        """获取查询构建器"""
+        if cls.is_apm_target(target):
+            return QueryConfigBuilder((DataTypeLabel.EVENT, DataSourceLabel.BK_APM)).time_field("time")
+
+        # 日志关键字事件使用 (LOG, BK_MONITOR_COLLECTOR)，其他使用默认的自定义事件数据源
+        data_source: tuple[str, str] | None = cls._get_data_source(alert)
+        is_bk_monitor_log: bool = data_source == (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG)
+        using: tuple[str, str] = (
+            (DataTypeLabel.LOG, DataSourceLabel.BK_MONITOR_COLLECTOR)
+            if is_bk_monitor_log
+            else (DataTypeLabel.EVENT, DataSourceLabel.CUSTOM)
+        )
         return QueryConfigBuilder(using).time_field("time")
 
     @classmethod
@@ -182,14 +206,35 @@ class AlertEventBaseResource(Resource, abc.ABC):
     ) -> QueryConfigBuilder | None:
         """构建通用事件查询。
 
-        # TODO：事件类告警直接使用结果表 + 策略过滤条件 + 触发告警维度条件进行关联。
+        事件类告警使用结果表 + 策略过滤条件 + 触发告警维度条件进行关联。
 
         :param alert: 告警文档对象
         :param target: 目标对象
         :param q: 查询构建器
-        :return: 构建好的查询配置
+        :return: 构建好的查询配置，如果不是支持的告警类型则返回 None
         """
-        return None
+        data_source: tuple[str, str] | None = cls._get_data_source(alert)
+        if not data_source or data_source not in cls.supported_event_sources:
+            return None
+
+        query_config: dict[str, Any] = alert.strategy["items"][0]["query_configs"][0]
+        result_table_id: str = query_config.get("result_table_id") or ""
+        if not result_table_id:
+            return None
+
+        q: QueryConfigBuilder = q.table(result_table_id)
+
+        # 合并策略过滤条件和告警维度过滤条件
+        alert_data: dict[str, Any] = alert.origin_alarm.get("data", {})
+        conditions: list[dict[str, Any]] = merge_dimensions_into_conditions(
+            agg_condition=query_config.get("agg_condition"),
+            dimensions=alert_data.get("dimensions", {}),
+            dimension_fields=alert_data.get("dimension_fields", []),
+        )
+        if conditions:
+            q: QueryConfigBuilder = q.conditions(conditions)
+
+        return q
 
     @classmethod
     def build_queryset(cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder) -> UnifyQuerySet:
@@ -282,7 +327,7 @@ class AlertEventsResource(AlertEventBaseResource):
         alert_id: str = validated_request_data["alert_id"]
         alert: AlertDocument = AlertDocument.get(alert_id)
         target: BaseTarget = get_target_instance(alert)
-        q: QueryConfigBuilder = self._get_q(target)
+        q: QueryConfigBuilder = self._get_q(alert, target)
         if validated_request_data.get("sources"):
             q: QueryConfigBuilder = q.conditions(q_to_conditions(Q(source=validated_request_data["sources"])))
 
@@ -336,7 +381,7 @@ class AlertEventTotalResource(AlertEventBaseResource):
         )
 
         # 在线程外构建基础查询，避免在每个线程中重复构建
-        base_q: QueryConfigBuilder = self._get_q(target)
+        base_q: QueryConfigBuilder = self._get_q(alert, target)
 
         def _get_total_info_by_source(source: str) -> dict[str, Any]:
             # 在线程内基于 base_q 添加 source 条件，然后构建查询参数并发起请求
@@ -396,7 +441,9 @@ class AlertEventTSResource(AlertEventBaseResource):
         target: BaseTarget = get_target_instance(alert)
 
         interval: int = validated_request_data["interval"]
-        q: QueryConfigBuilder = self._get_q(target).interval(interval).metric(field="_index", method="SUM", alias="a")
+        q: QueryConfigBuilder = (
+            self._get_q(alert, target).interval(interval).metric(field="_index", method="SUM", alias="a")
+        )
         # 添加 sources 过滤条件
         if validated_request_data.get("sources"):
             q: QueryConfigBuilder = q.conditions(q_to_conditions(Q(source=validated_request_data["sources"])))
@@ -444,7 +491,9 @@ class AlertEventTagDetailResource(AlertEventBaseResource):
         target: BaseTarget = get_target_instance(alert)
 
         interval: int = validated_request_data["interval"]
-        q: QueryConfigBuilder = self._get_q(target).interval(interval).metric(field="_index", method="SUM", alias="a")
+        q: QueryConfigBuilder = (
+            self._get_q(alert, target).interval(interval).metric(field="_index", method="SUM", alias="a")
+        )
         # 添加 sources 过滤条件
         if validated_request_data.get("sources"):
             q: QueryConfigBuilder = q.conditions(q_to_conditions(Q(source=validated_request_data["sources"])))

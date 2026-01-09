@@ -36,6 +36,7 @@ from alarm_backends.core.control.checkpoint import Checkpoint
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.storage.redis import Cache
+from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.management.hashring import HashRing
 from alarm_backends.service.access import base
 from alarm_backends.service.access.data.duplicate import Duplicate
@@ -401,13 +402,21 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 当点数大于阈值时，将数据拆分为多个批量任务
         point_total = len(points)
         if point_total > (settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD or 500000):
-            # 超过50w点，或者触发了分批处理阈值， 则记录策略信息
-            metrics.PROCESS_OVER_FLOW.labels(
-                module="access.data",
-                strategy_id=self.items[0].strategy.id,
-                bk_biz_id=self.items[0].strategy.bk_biz_id,
-                strategy_name=self.items[0].strategy.name,
-            ).inc(point_total)
+            # 为分组中的每个策略分别记录指标（修复指标漏报问题）
+            # Access 数据拉取基于分组，一个分组可能包含多个策略，且可能使用不同的 Redis 节点
+            for item in self.items:
+                strategy_id = item.strategy.id
+                cache_node = get_node_by_strategy_id(strategy_id)
+                redis_node = cache_node.node_alias or f"{cache_node.host}:{cache_node.port}"
+
+                # 为每个策略记录指标（使用总数据点数作为参考）
+                metrics.PROCESS_OVER_FLOW.labels(
+                    module="access.data",
+                    strategy_id=item.strategy.id,
+                    bk_biz_id=item.strategy.bk_biz_id,
+                    strategy_name=item.strategy.name,
+                    redis_node=redis_node,
+                ).inc(point_total)
             if settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:
                 points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
 
