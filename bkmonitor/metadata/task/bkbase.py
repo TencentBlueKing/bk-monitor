@@ -269,6 +269,7 @@ def sync_bkbase_cluster_info(
     port = _get_attr_by_path(cluster_spec, field_mappings["port"])
     username = _get_attr_by_path(cluster_spec, field_mappings["username"])
     password = _get_attr_by_path(cluster_spec, field_mappings["password"])
+    version = _get_attr_by_path(cluster_spec, field_mappings.get("version", ""))
 
     # kafka 集群专用字段
     sasl_mechanisms = _get_attr_by_path(cluster_spec, field_mappings.get("sasl_mechanisms", ""))
@@ -276,7 +277,6 @@ def sync_bkbase_cluster_info(
     security_protocol: str | None = None
     stream_to_id = _get_attr_by_path(cluster_spec, field_mappings.get("stream_to_id", ""))
     v3_channel_id = _get_attr_by_path(cluster_spec, field_mappings.get("v3_channel_id", ""))
-    version = _get_attr_by_path(cluster_spec, field_mappings.get("version", ""))
 
     # 同步ClusterConfig
     cluster_config_data = copy.deepcopy(cluster_data)
@@ -303,8 +303,6 @@ def sync_bkbase_cluster_info(
         if is_auth:
             security_protocol = config.KAFKA_SASL_PROTOCOL
 
-        if version:
-            default_settings["version"] = version
         if v3_channel_id:
             default_settings["v3_channel_id"] = v3_channel_id
 
@@ -317,15 +315,16 @@ def sync_bkbase_cluster_info(
         if cluster_spec.get("role") == "inner":
             return
 
-    nee_update_fields = {
+    need_update_fields = {
         "port": port,
         "username": username,
         "password": password,
         "default_settings": default_settings,
         "sasl_mechanisms": sasl_mechanisms,
         "is_auth": is_auth,
-        "stream_to_id": stream_to_id,
+        "gse_stream_to_id": stream_to_id,
         "security_protocol": security_protocol,
+        "version": version,
     }
 
     with transaction.atomic():
@@ -345,7 +344,7 @@ def sync_bkbase_cluster_info(
             update_fields: list[str] = []
 
             if update:
-                for field, value in nee_update_fields.items():
+                for field, value in need_update_fields.items():
                     if value is not None and getattr(cluster, field) != value:
                         setattr(cluster, field, value)
                         is_updated = True
@@ -379,6 +378,8 @@ def sync_bkbase_cluster_info(
                 default_settings=default_settings,
                 registered_system=models.ClusterInfo.BKDATA_REGISTERED_SYSTEM,
                 registered_to_bkbase=True,
+                version=version,
+                gse_stream_to_id=stream_to_id,
             )
             logger.info(f"sync_bkbase_cluster_info: created new {cluster_type} cluster: {cluster_name}")
 
