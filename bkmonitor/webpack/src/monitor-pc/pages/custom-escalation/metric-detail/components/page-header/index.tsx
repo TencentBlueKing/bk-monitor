@@ -23,25 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { customTimeSeriesList } from '../../../service';
 import { copyText } from 'monitor-common/utils/utils';
+import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
+import { customTimeSeriesList } from '../../../service';
 
 import './index.scss';
 
 @Component
 export default class PageHeader extends tsc<object> {
+  @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
   customTimeSeriesList: Readonly<{ data_label: string; name: string; time_series_group_id: number }[]> = [];
 
-  currentCustomTimeSeriesId = 0;
   get currentCustomTimeSeriesName() {
-    return (
-      this.customTimeSeriesList.find(item => item.time_series_group_id === this.currentCustomTimeSeriesId)?.name || '--'
-    );
+    return this.customTimeSeriesList.find(item => item.time_series_group_id === this.timeSeriesGroupId)?.name || '--';
   }
 
   get currentSelectedMetricList() {
@@ -88,7 +86,6 @@ export default class PageHeader extends tsc<object> {
 
   created() {
     this.fetchData();
-    this.currentCustomTimeSeriesId = Number(this.$route.params.id);
   }
 
   render() {
@@ -101,7 +98,7 @@ export default class PageHeader extends tsc<object> {
           />
           <div class='custom-time-series-switcher'>
             <bk-select
-              v-model={this.currentCustomTimeSeriesId}
+              // v-model={this.currentCustomTimeSeriesId}
               clearable={false}
               popover-min-width={400}
               scroll-height={300}

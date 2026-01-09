@@ -1,3 +1,5 @@
+import type * as apiMap from '../service';
+
 export interface IColumnItem {
   colKey?: string;
   color?: string;
@@ -18,6 +20,7 @@ export interface IColumnItem {
   width?: number | string;
   renderFn?: (row) => void;
 }
+
 export interface ICommonCondition {
   key: string;
   method: 'eq' | 'exclude' | 'include' | 'neq' | 'nreg' | 'reg';
@@ -38,6 +41,7 @@ export interface ICondition {
 export interface IDataItem {
   avg?: number;
   color?: string;
+  datapoints?: number[];
   date?: number;
   dimensions?: IObjItem;
   latest?: number;
@@ -57,7 +61,6 @@ export interface IDataItem {
     value?: number;
   }[];
 }
-
 export interface IDimensionItem {
   alias?: string;
   checked?: boolean;
@@ -110,18 +113,18 @@ export interface ILimit {
 }
 
 export interface IMetricAnalysisConfig {
-  bk_biz_id: number;
-  common_conditions: ICommonCondition[];
-  compare: ICompare;
-  conditions: ICondition[];
-  end_time: number;
-  group_by: IGroupBy[];
+  bk_biz_id?: number;
+  common_conditions?: ICommonCondition[];
+  compare?: ICompare;
+  conditions?: ICondition[];
+  end_time?: number;
+  group_by?: IGroupBy[];
   highlight_peak_value?: boolean;
   limit: ILimit;
   metrics: { name: string; scope_name: string }[];
-  show_statistical_value: boolean;
-  start_time: number;
-  time_series_group_id: number;
+  show_statistical_value?: boolean;
+  start_time?: number;
+  time_series_group_id?: number;
   view_column?: number;
 }
 
@@ -129,16 +132,17 @@ export interface IMetrics {
   groupName: string;
   metricsName: string[];
 }
+
 export interface IObjItem {
   [key: string]: any;
 }
+
 export interface IRefreshItem {
   // 自动刷新间隔值
   id: number | string;
   // 刷新间隔名称
   name: string;
 }
-
 export interface IResultItem {
   highlight_peak_value: boolean;
   metrics: string[];
@@ -168,7 +172,6 @@ export interface IResultItem {
     value: string[];
   }[];
 }
-
 export interface ITableColumn {
   $index: number;
   checked?: boolean;
@@ -197,3 +200,9 @@ export interface ITableColumn {
   // renderHeader
   renderHeader?: () => any;
 }
+
+export type RequestHandlerMap = {
+  [K in RequestHandlerKey]: (typeof apiMap)[K];
+};
+
+type RequestHandlerKey = keyof typeof apiMap;

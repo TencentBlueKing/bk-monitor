@@ -29,12 +29,11 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
 import { deleteSceneView, getSceneView, getSceneViewList, updateSceneView } from 'monitor-api/modules/scene_view';
+import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
 
-import { optimizedDeepEqual } from '../../metric-chart-view/utils';
-import RemoveConfirm from './components/remove-confirm';
+import { optimizedDeepEqual } from '../../utils';
 import ViewManage from './components/view-manage';
 import ViewSave from './components/view-save';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import './index.scss';
 
@@ -43,17 +42,17 @@ interface GroupItem {
   metricsName: string[];
 }
 
-interface Metric {
-  name: string;
-  scope_name: string;
-}
-
 interface IEmit {
   onPayloadChange: (params: Record<string, any>) => void;
 }
 
 interface IProps {
   graphConfigPayload: Record<string, any>;
+}
+
+interface Metric {
+  name: string;
+  scope_name: string;
 }
 
 const DEFAULT_VALUE = 'default';
@@ -148,7 +147,7 @@ export default class ViewTab extends tsc<IProps, IEmit> {
       // url 上面附带的参数优先级高
       const urlPayload = this.parseUrlPayload();
       if (urlPayload) {
-        const convertData = this.convertMetricsData(urlPayload.metrics)
+        const convertData = this.convertMetricsData(urlPayload.metrics);
         updateCurrentSelectedGroupAndMetricNameList(convertData);
         this.$emit('payloadChange', urlPayload);
         return;
