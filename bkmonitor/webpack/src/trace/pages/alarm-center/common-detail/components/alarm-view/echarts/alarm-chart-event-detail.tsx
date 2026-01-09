@@ -29,12 +29,12 @@ import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue
 import { Button, Exception, Progress } from 'bkui-vue';
 import dayjs from 'dayjs';
 import base64Svg from 'monitor-common/svg/base64';
-import { type ICustomEventDetail } from 'monitor-ui/chart-plugins/plugins/caller-line-chart/use-custom';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import { getAlertEventTagDetails } from '@/pages/alarm-center/services/alarm-detail';
-import { type AlertEventTagDetailParams } from '@/pages/alarm-center/typings';
+
+import type { AlertEventTagDetailParams } from '@/pages/alarm-center/typings';
+import type { ICustomEventDetail } from 'monitor-ui/chart-plugins/plugins/caller-line-chart/use-custom';
 
 import './alarm-chart-event-detail.scss';
 
@@ -62,8 +62,6 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const router = useRouter();
-    const route = useRoute();
 
     const warningData = shallowRef<ICustomEventDetail>({});
     const allData = shallowRef<ICustomEventDetail>({});
@@ -77,8 +75,10 @@ export default defineComponent({
     const getCustomEventTagDetailsData = async () => {
       if (props.position.left && props.position.top && props.eventItem) {
         loading.value = true;
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        const { query_config: _, bizId: __, ...requestParams } = props.eventItem;
         try {
-          const { Warning, All } = await getAlertEventTagDetails(props.eventItem);
+          const { Warning, All } = await getAlertEventTagDetails(requestParams);
           warningData.value = Warning;
           allData.value = All;
           activeTab.value = warningData.value?.total > 0 ? EventTab.Warning : EventTab.All;
@@ -90,6 +90,22 @@ export default defineComponent({
       }
     };
 
+    /**
+     * @description: 获取跳转url
+     * @param {string} hash hash值
+     * @param {number} bizId 业务ID
+     * @return {*}
+     */
+    const commOpenUrl = (hash: string, bizId?: number) => {
+      let url = '';
+      if (process.env.NODE_ENV === 'development') {
+        url = `${process.env.proxyUrl}?bizId=${bizId || window.cc_biz_id}${hash}`;
+      } else {
+        url = location.href.replace(location.hash, hash);
+      }
+      return url;
+    };
+
     const handleTabChange = (tab: EventTab) => {
       activeTab.value = tab;
     };
@@ -99,6 +115,7 @@ export default defineComponent({
       eventName = '',
       defaultWhere: Record<string, any>[] = []
     ) => {
+      const eventTarget = props.eventItem?.query_config;
       const targets = [
         {
           data: {
@@ -115,7 +132,6 @@ export default defineComponent({
                         value: [eventName],
                         method: 'eq',
                       },
-                      ...(props.eventItem.where || []),
                       ...defaultWhere,
                     ]
                   : [],
@@ -127,33 +143,100 @@ export default defineComponent({
           },
         },
       ];
-      const query = {
+      const searchParams = new URLSearchParams({
         sceneId: 'apm_service',
         sceneType: 'overview',
         dashboardId: 'service-default-event',
         from: ((startTime || props.eventItem.start_time) * 1000).toString(),
-        to: `${((startTime || props.eventItem.start_time) + props.eventItem.interval) * 1000}`,
-        'filter-app_name': props.eventItem.app_name,
-        'filter-service_name': props.eventItem.service_name,
+        to: `${((startTime || props.eventItem.start_time) + (props.eventItem.interval ?? 0)) * 1000}`,
+        'filter-app_name': eventTarget?.app_name,
+        'filter-service_name': eventTarget?.service_name,
         targets: JSON.stringify(targets),
-      };
-      const { href } = router.resolve({
-        path: route.path,
-        query,
       });
-      window.open(location.href.replace(location.hash, href), '_blank');
+      const url = commOpenUrl('#/apm/service', props.eventItem.bizId);
+      window.open(`${url}?${searchParams.toString()}`, '_blank');
     };
 
+    /**
+     * @description 跳转到事件检索页
+     */
+    const handleToEventExplore = (startTime?: number, eventName = '', defaultWhere: Record<string, any>[] = []) => {
+      const eventTarget = props.eventItem?.query_config;
+      const queryConfig = eventTarget?.query_configs?.[0];
+      const targets = [
+        {
+          data: {
+            query_configs: [
+              {
+                data_type_label: 'event',
+                data_source_label: 'custom',
+                where: eventName
+                  ? [
+                      {
+                        key: 'event_name',
+                        condition: 'and',
+                        value: [eventName],
+                        method: 'eq',
+                      },
+                      ...(queryConfig?.where ?? []),
+                      ...defaultWhere,
+                    ]
+                  : [],
+                query_string: '',
+                group_by: [],
+                filter_dict: {},
+                result_table_id: queryConfig?.table ?? undefined,
+              },
+            ],
+          },
+        },
+      ];
+      const searchParams = new URLSearchParams({
+        filterMode: 'ui',
+        commonWhere: JSON.stringify([]),
+        showResidentBtn: 'false',
+        from: ((startTime || props.eventItem.start_time) * 1000).toString(),
+        to: `${((startTime || props.eventItem.start_time) + (props.eventItem.interval ?? 0)) * 1000}`,
+        targets: encodeURIComponent(JSON.stringify(targets)),
+      });
+      const url = commOpenUrl('#/event-explore', props.eventItem.bizId);
+      window.open(`${url}?${searchParams.toString()}`, '_blank');
+    };
+
+    /**
+     * @description 查看详情点击回调(事件列表项面板)
+     * @param event MouseEvent鼠标事件
+     * @param item 事件列表项
+     */
     const handleListGotoEventDetail = (event: MouseEvent, item: ICustomEventDetail['list'][number]) => {
       event.preventDefault();
-      createApmEventExploreHref(+item.time?.value / 1000, item.event_name.value, [
-        { key: 'time', value: [item.time?.value], method: 'eq', condition: 'and' },
-      ]);
+      console.log('handleListGotoEventDetail', item);
+      const eventTarget = props.eventItem?.query_config;
+      // 如果有app_name和service_name，跳转到APM事件检索页，否则跳转到事件检索页
+      if (eventTarget?.app_name && eventTarget?.service_name) {
+        createApmEventExploreHref(+item.time?.value / 1000, item.event_name.value, [
+          { key: 'time', value: [item.time?.value], method: 'eq', condition: 'and' },
+        ]);
+      } else {
+        handleToEventExplore(menuData.value.time, item.event_name.value);
+      }
     };
 
+    /**
+     * @description 查看详情点击回调(事件汇总面板)
+     * @param event MouseEvent鼠标事件
+     * @param item 事件汇总项
+     */
     const handleTopKGotoEventDetail = (event: MouseEvent, item: ICustomEventDetail['topk'][number]) => {
       event.preventDefault();
-      createApmEventExploreHref(menuData.value.time, item.event_name.value);
+      console.log('handleListGotoEventDetail', item);
+      const eventTarget = props.eventItem?.query_config;
+      // 如果有app_name和service_name，跳转到APM事件检索页，否则跳转到事件检索页
+      if (eventTarget?.app_name && eventTarget?.service_name) {
+        createApmEventExploreHref(menuData.value.time, item.event_name.value);
+      } else {
+        handleToEventExplore(menuData.value.time, item.event_name.value);
+      }
     };
 
     const createTitleRender = () => {

@@ -24,10 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+import type { ExploreTableRequestParams } from 'monitor-pc/pages/event-explore/typing';
+
 export interface AlertEventTagDetailParams {
   alert_id?: string;
+  bizId?: number;
   interval?: number;
   limit?: number;
+  query_config?: ExploreTableRequestParams;
   sources?: string[];
   start_time?: number;
 }

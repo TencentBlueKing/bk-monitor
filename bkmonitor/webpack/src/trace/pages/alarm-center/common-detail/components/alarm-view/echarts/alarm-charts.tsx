@@ -49,8 +49,9 @@ import MonitorCharts from './monitor-charts';
 import { useChartOperation } from '@/pages/trace-explore/components/explore-chart/use-chart-operation';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
-import type { AlarmDetail } from '@/pages/alarm-center/typings';
+import type { AlarmDetail, AlertEventTagDetailParams } from '@/pages/alarm-center/typings';
 import type { IDataQuery, ILegendItem } from '@/plugins/typings';
+import type { ExploreTableRequestParams } from 'monitor-pc/pages/event-explore/typing';
 import type { LegendActionType } from 'monitor-ui/chart-plugins/typings/chart-legend';
 
 import './alarm-charts.scss';
@@ -78,12 +79,14 @@ export default defineComponent({
     /** 事件气泡详情组件 */
     const alertEventChartDetailRef =
       useTemplateRef<InstanceType<typeof AlarmChartEventDetail>>('alertEventChartDetailRef');
+    /** 事件查询配置 */
+    const eventQueryConfig = shallowRef<ExploreTableRequestParams>(null);
     /** 事件详情弹窗显示位置 */
     const eventDetailPopupPosition = shallowRef({ left: 0, top: 0 });
     /** 散点点击事件的详情数据 */
-    const scatterClickEventData = shallowRef({});
+    const scatterClickEventData = shallowRef<AlertEventTagDetailParams>({});
 
-    const { timeRange: defaultTimeRange } = storeToRefs(useAlarmCenterDetailStore());
+    const { timeRange: defaultTimeRange, bizId } = storeToRefs(useAlarmCenterDetailStore());
 
     const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation(get(defaultTimeRange));
     provide('timeRange', timeRange);
@@ -180,7 +183,10 @@ export default defineComponent({
      */
     const formatterData = (data, target: IDataQuery) => {
       // 事件时序接口不需要处理
-      if (target.alias === 'alertEventTs') return data;
+      if (target.alias === 'alertEventTs') {
+        eventQueryConfig.value = data?.queryConfig ?? {};
+        return data;
+      }
       const { graph_panel } = props.detail;
       const [{ alias }] = graph_panel.targets;
 
@@ -487,8 +493,10 @@ export default defineComponent({
       };
       // 设置事件项数据
       scatterClickEventData.value = {
+        bizId: bizId.value,
         alert_id: props.detail?.id,
         start_time: startTime / 1000,
+        query_config: eventQueryConfig.value,
       };
     };
 
