@@ -319,7 +319,7 @@ PROCESS_BIG_LATENCY = Histogram(
 PROCESS_OVER_FLOW = Counter(
     name="bkmonitor_process_overflow",
     documentation="模块处理量级过大",
-    labelnames=("module", "strategy_id", "bk_biz_id", "strategy_name"),
+    labelnames=("module", "strategy_id", "bk_biz_id", "strategy_name", "redis_node"),
 )
 
 DETECT_PROCESS_LATENCY = Histogram(
