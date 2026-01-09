@@ -67,12 +67,6 @@ class Command(BaseCommand):
             storage_info[k] = options[k]
         self.stdout.write(f"will_update_storage_info: {storage_info}")
 
-        # 确认是否更新
-        is_update = input("Please confirm to update?(y/n)")
-        if is_update.strip().lower() != "y":
-            self.stderr.write("Update canceled.")
-            return
-
         # 更新
         SetupResource().request(
             bk_biz_id=options["bk_biz_id"], application_id=app.application_id, trace_datasource_option=storage_info
