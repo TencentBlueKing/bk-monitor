@@ -58,11 +58,18 @@ export default defineComponent({
   },
   setup() {
     const showTypeActive = shallowRef(TYPE_ENUM.TABLE);
-    const dimensionList = shallowRef([
-      { id: 'dimension_01', name: '维度1' },
-      { id: 'dimension_02', name: '维度2' },
-      { id: 'dimension_03', name: '维度3' },
-    ]);
+    const dimensionList = shallowRef(
+      new Array(10).fill(null).map((_, index) => ({ id: `dimension_0${index}`, name: `维度${index}` }))
+    );
+
+    /**
+     * 是否多选
+     */
+    const isMulti = shallowRef(false);
+    /**
+     * 选中的维度
+     */
+    const selectedDimension = shallowRef([]);
 
     const handleDrillDown = (item: any) => {
       console.log(item);
@@ -72,11 +79,26 @@ export default defineComponent({
       showTypeActive.value = val;
     };
 
+    const handleMultiChange = (val: boolean) => {
+      isMulti.value = val;
+      if (!val) {
+        selectedDimension.value = selectedDimension.value.length ? selectedDimension.value[0] : [];
+      }
+    };
+
+    const handleDimensionSelectChange = (val: string[]) => {
+      selectedDimension.value = val;
+    };
+
     return {
+      isMulti,
       showTypeActive,
       dimensionList,
+      selectedDimension,
       handleDrillDown,
       handleShowTypeChange,
+      handleMultiChange,
+      handleDimensionSelectChange,
     };
   },
   render() {
@@ -85,7 +107,13 @@ export default defineComponent({
         <DimensionChart />
         <div class='dimension-analysis-table-view'>
           <div class='dimension-analysis-left'>
-            <DimensionSelector />
+            <DimensionSelector
+              dimensions={this.dimensionList}
+              isMulti={this.isMulti}
+              selected={this.selectedDimension}
+              onChange={this.handleDimensionSelectChange}
+              onMultiChange={this.handleMultiChange}
+            />
           </div>
           <div class='dimension-analysis-right'>
             <div class='type-select'>
@@ -114,7 +142,7 @@ export default defineComponent({
             </div>
             <div class='dimension-analysis-data'>
               {this.showTypeActive === TYPE_ENUM.TABLE ? (
-                <DimensionAnalysisTable />
+                <DimensionAnalysisTable dimensions={this.dimensionList} />
               ) : (
                 <DimensionTreeMapCharts
                   dimensionList={this.dimensionList}

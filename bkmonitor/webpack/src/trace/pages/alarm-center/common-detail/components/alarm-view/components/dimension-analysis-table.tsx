@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, shallowRef, useTemplateRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, useTemplateRef } from 'vue';
 
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { useI18n } from 'vue-i18n';
@@ -41,9 +41,9 @@ const tableColumnKey = {
 export default defineComponent({
   name: 'DimensionAnalysisTable',
   props: {
-    a: {
-      type: String,
-      default: '',
+    dimensions: {
+      type: Array as PropType<{ id: string; name: string }[]>,
+      default: () => [],
     },
   },
   emits: {
@@ -155,13 +155,13 @@ export default defineComponent({
             ref='selector'
             class='dimension-analysis-data-table-popover'
           >
-            {new Array(10).fill(null).map((_, index) => (
+            {this.dimensions.map((item, index) => (
               <div
                 key={index}
                 class={['selector-item', { active: index === 5 }]}
                 onClick={() => this.handleSelectDimension()}
               >
-                dimension0{index}
+                {item.name}
               </div>
             ))}
           </div>
