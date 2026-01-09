@@ -24,103 +24,39 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Inject, InjectReactive, Prop, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
+import { modifyCustomTsFields } from 'monitor-api/modules/apm_custom_metric';
 import ApmCustomGraphV2 from 'monitor-pc/pages/custom-escalation/metric-detail/components/view-main';
 import {
-  createOrUpdateGroupingRule,
-  customTimeSeriesDetail,
-  customTimeSeriesList,
-  customTsGroupingRuleList,
-  deleteGroupingRule,
-  exportCustomTimeSeriesFields,
-  getCustomTimeSeriesLatestDataByFields,
   getCustomTsDimensionValues,
-  getCustomTsFields,
   getCustomTsGraphConfig,
   getCustomTsMetricGroups,
   getSceneView,
-  getUnitList,
-  importCustomTimeSeriesFields,
-  modifyCustomTimeSeries,
-  // modifyCustomTsFields, // 使用apm接口
-  previewGroupingRule,
-  proxyHostInfo,
-  validateCustomTsGroupLabel,
-  validateCustomTsGroupName,
 } from 'monitor-pc/pages/custom-escalation/service';
 import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
 
-import { modifyCustomTsFields } from './service';
-
-import type { ApmRequestHandlerMap } from './type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import type { RequestHandlerMap } from 'monitor-pc/pages/custom-escalation/metric-detail/type';
 
 import './apm-custom-graph-v2.scss';
 
-type CombinedRequestHandlerMap = MergeWithPriority<RequestHandlerMap, ApmRequestHandlerMap>;
 type GetSceneViewParams = Parameters<typeof getSceneView>[0];
-
-
-type MergeWithPriority<T1, T2> = {
-  [K in keyof T1 | keyof T2]: K extends keyof T2 ? T2[K] : K extends keyof T1 ? T1[K] : never;
-};
 
 @Component({
   name: 'ApmCustomGraphV2',
 })
 export default class ApmViewContent extends tsc<any, any> {
-  // @Prop({ default: -1, type: Number }) timeSeriesGroupId: number;
   @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
-  // @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('showRestore') showRestore = false;
   @ProvideReactive('containerScrollTop') containerScrollTop = 0;
   @ProvideReactive('refreshInterval') refreshInterval = -1;
-  @Provide('requestHandlerMap') requestHandlerMap: CombinedRequestHandlerMap = {
-    getCustomTsMetricGroups, // 详情页
-    customTimeSeriesList, // 详情页
-    customTimeSeriesDetail, // 详情页面暂未使用过
-    getCustomTsFields, // 详情页面暂未使用
-    modifyCustomTsFields, // 详情页
-    createOrUpdateGroupingRule, // 详情页面暂未使用
-    customTsGroupingRuleList, // 详情页面暂未使用
-    getCustomTimeSeriesLatestDataByFields, // 详情页面暂未使用
-    getCustomTsDimensionValues, // 详情页
-    getCustomTsGraphConfig, // 详情页
-    getSceneView, // 详情页
-    previewGroupingRule,
-    modifyCustomTimeSeries,
-    importCustomTimeSeriesFields,
-    exportCustomTimeSeriesFields,
-    validateCustomTsGroupName,
-    validateCustomTsGroupLabel,
-    deleteGroupingRule,
-    proxyHostInfo,
-    getUnitList,
-  };
-  // @InjectReactive('viewOptions') readonly viewOptions;
   @InjectReactive('customRouteQuery') customRouteQuery: Record<string, string>;
   @Inject('handleCustomRouteQueryChange') handleCustomRouteQueryChange: (
     customRouteQuery: Record<string, number | string>
   ) => void;
-
-  // @Provide('handleChartDataZoom')
-  // handleChartDataZoom(value) {
-  //   if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
-  //     this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-  //     this.timeRange = value;
-  //     this.showRestore = true;
-  //   }
-  // }
-  // @Provide('handleRestoreEvent')
-  // handleRestoreEvent() {
-  //   this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
-  //   this.showRestore = false;
-  // }
 
   cacheTimeRange = [];
   dimenstionParams: GetSceneViewParams | null = null;
@@ -158,11 +94,6 @@ export default class ApmViewContent extends tsc<any, any> {
       metrics: this.selectedMetricsData,
     };
   }
-
-  // @Watch('serviceName')
-  // timeSeriesGroupIdChange() {
-  //   this.isCustomTsMetricGroupsLoading = true;
-  // }
 
   @Watch('isCustomTsMetricGroupsLoading')
   isCustomTsMetricGroupsLoadingChange(v) {
@@ -299,6 +230,13 @@ export default class ApmViewContent extends tsc<any, any> {
         v-bkloading={{ isLoading: this.isCustomTsMetricGroupsLoading }}
       >
         <ApmCustomGraphV2
+          requestMap={{
+            modifyCustomTsFields, // apm可视化页面只有此接口用新的，下面接口用原有的
+            getCustomTsMetricGroups,
+            getCustomTsDimensionValues,
+            getCustomTsGraphConfig,
+            getSceneView,
+          }}
           config={this.graphConfigParams}
           dimenstionParams={this.dimenstionParams}
           isApm={true}

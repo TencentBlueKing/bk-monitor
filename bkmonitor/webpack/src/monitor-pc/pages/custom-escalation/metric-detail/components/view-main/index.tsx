@@ -24,17 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Inject, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
 
+import {
+  // customTimeSeriesList, // 详情页
+  getCustomTsDimensionValues, // 详情页
+  getCustomTsGraphConfig, // 详情页
+  getCustomTsMetricGroups, // 详情页
+  getSceneView, // 详情页
+  modifyCustomTsFields, // 详情页
+} from '../../../service';
 import HeaderBox from './components/header-box';
 import MetricsSelect from './components/metrics-select';
 import PanelChartView from './components/panel-chart-view';
 import ViewColumn from './components/view-column';
 
-import type { getSceneView } from '../../../service';
 import type { IMetricAnalysisConfig, RequestHandlerMap } from '../../type';
 
 import './index.scss';
@@ -54,6 +61,7 @@ interface IProps {
   dimenstionParams?: GetSceneViewParams | null;
   isApm?: boolean;
   // timeSeriesGroupId?: number;
+  requestMap?: object;
 }
 
 const ASIDE_WIDTH_SETTING_KEY = 'ASIDE_WIDTH_SETTING_KEY';
@@ -64,8 +72,20 @@ export default class ViewContent extends tsc<IProps, IEmit> {
   @Prop({ type: Object, default: null }) readonly dimenstionParams: IProps['dimenstionParams'];
   @Prop({ type: Boolean, default: false }) readonly isApm: IProps['isApm'];
   @Prop({ type: Object, default: null }) readonly config: IProps['config'];
+  @Prop({
+    default: () => ({
+      getSceneView,
+      getCustomTsDimensionValues,
+      getCustomTsGraphConfig,
+      getCustomTsMetricGroups,
+      modifyCustomTsFields,
+    }),
+  })
+  requestMap: RequestHandlerMap;
+
+  @ProvideReactive('requestHandlerMap') requestHandlerMap: RequestHandlerMap;
+
   @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
-  @Inject('requestHandlerMap') readonly requestHandlerMap!: RequestHandlerMap;
 
   @Emit('openSideslider')
   handleSideslider() {}
@@ -107,6 +127,11 @@ export default class ViewContent extends tsc<IProps, IEmit> {
         key: `${Date.now()}`, // query 相同时 router.replace 会报错
       },
     });
+  }
+
+  @Watch('requestMap', { immediate: true })
+  setRequestHandlerMap() {
+    this.requestHandlerMap = this.requestMap;
   }
 
   @ProvideReactive('appName')
