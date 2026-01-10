@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from typing import Any
+from typing import Any, ClassVar, Self
 
 from django.conf import settings
 from django.db import models
@@ -34,8 +34,8 @@ logger = logging.getLogger("metadata")
 
 class CustomGroupBase(models.Model):
     # model差异动态配置
-    GROUP_ID_FIELD = None
-    GROUP_NAME_FIELD = None
+    GROUP_ID_FIELD: ClassVar[str]
+    GROUP_NAME_FIELD: ClassVar[str]
 
     # 默认存储差异配置
     DEFAULT_STORAGE_CONFIG = {}
@@ -44,8 +44,6 @@ class CustomGroupBase(models.Model):
     # 时间字段的配置
     STORAGE_TIME_OPTION = {}
     STORAGE_FIELD_LIST = []
-
-    NEED_REFRESH_CONSUL = None
 
     # 虚拟RT字段配置
     bk_data_id = models.IntegerField(verbose_name="数据源ID", db_index=True)
@@ -84,7 +82,7 @@ class CustomGroupBase(models.Model):
         return {}
 
     @staticmethod
-    def make_table_id(bk_biz_id, bk_data_id, bk_tenant_id: str, table_name: str = None) -> str:
+    def make_table_id(bk_biz_id, bk_data_id, bk_tenant_id: str, table_name: str | None = None) -> str:
         raise NotImplementedError
 
     def update_metrics(self, metric_info):
@@ -107,7 +105,7 @@ class CustomGroupBase(models.Model):
         pass
 
     @classmethod
-    def process_default_storage_config(cls, custom_group: "CustomGroupBase", default_storage_config: dict[str, Any]):
+    def process_default_storage_config(cls, custom_group: Self, default_storage_config: dict[str, Any]):
         pass
 
     @classmethod
@@ -127,7 +125,7 @@ class CustomGroupBase(models.Model):
             raise ValueError(_("数据源[{}]已经被其他自定义组注册使用，请更换数据源").format(bk_data_id))
 
         # 判断同一个业务下是否有重名的custom_group_name
-        filter_kwargs = {
+        filter_kwargs: dict[str, Any] = {
             cls.GROUP_NAME_FIELD: custom_group_name,
         }
         if cls.objects.filter(
@@ -143,7 +141,7 @@ class CustomGroupBase(models.Model):
     @classmethod
     def _create(
         cls,
-        table_id: str,
+        table_id: str | None,
         bk_biz_id: int,
         bk_data_id: int,
         custom_group_name: str,
@@ -153,7 +151,7 @@ class CustomGroupBase(models.Model):
         bk_tenant_id: str,
         max_rate: int = -1,
         **filter_kwargs,
-    ) -> (str, "CustomGroupBase"):
+    ) -> tuple[str, Self]:
         """
         create custom log group
         """
@@ -192,7 +190,7 @@ class CustomGroupBase(models.Model):
         operator,
         bk_tenant_id: str,
         metric_info_list=None,
-        table_id=None,
+        table_id: str | None = None,
         is_builtin=False,
         is_split_measurement=False,
         default_storage_config=None,
@@ -441,22 +439,6 @@ class CustomGroupBase(models.Model):
 
             if modify_params:
                 rt.modify(operator=operator, **modify_params)
-
-        # 如果有传开启/关闭黑名单，则刷新consul数据，触发transfer更新
-        if enable_field_black_list is not None:
-            logger.info(
-                "%s->[%s] has change enable_field_black_list->[%s]",
-                self.__class__.__name__,
-                self.custom_group_id,
-                enable_field_black_list,
-            )
-            self.NEED_REFRESH_CONSUL = True
-
-        # 只在需要刷新 consul 的时候才进行刷新操作
-        if self.NEED_REFRESH_CONSUL:
-            from metadata.models import DataSource
-
-            DataSource.objects.get(bk_data_id=self.bk_data_id).refresh_consul_config()
 
         logger.info(f"{self.__class__.__name__}->[{self.custom_group_id}] update success.")
         return True
