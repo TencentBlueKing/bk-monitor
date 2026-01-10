@@ -18,7 +18,7 @@ from bkm_space.errors import NoRelatedResourceError
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.user import get_admin_username
-from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.data_source import DataSourceLabel, DataTypeLabel, MetricType
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
@@ -577,11 +577,11 @@ class GetCustomTsFields(Resource):
         dimensions = []
         metrics = []
         for item in CustomTSField.objects.filter(time_series_group_id=table.time_series_group_id):
-            if item.type == CustomTSField.MetricType.DIMENSION:
+            if item.type == MetricType.DIMENSION:
                 dimensions.append(
                     {
                         "name": item.name,
-                        "type": CustomTSField.MetricType.DIMENSION,
+                        "type": MetricType.DIMENSION,
                         "description": item.description,
                         "disabled": item.disabled,
                         "hidden": item.config.get("hidden", False),
@@ -594,7 +594,7 @@ class GetCustomTsFields(Resource):
                 metrics.append(
                     {
                         "name": item.name,
-                        "type": CustomTSField.MetricType.METRIC,
+                        "type": MetricType.METRIC,
                         "description": item.description,
                         "disabled": item.disabled,
                         "unit": item.config.get("unit", ""),
@@ -675,7 +675,7 @@ class ModifyCustomTsFields(Resource):
             field = field_map.get((update_field["name"], update_field["type"]))
 
             # 根据字段类型，生成 config
-            if update_field["type"] == CustomTSField.MetricType.DIMENSION:
+            if update_field["type"] == MetricType.DIMENSION:
                 field_keys = CustomTSField.DimensionConfigFields
             else:
                 field_keys = CustomTSField.MetricConfigFields
@@ -826,9 +826,7 @@ class CustomTsGroupingRuleList(Resource):
             )
 
         # 获取指标信息
-        metrics = CustomTSField.objects.filter(
-            time_series_group_id=table.time_series_group_id, type=CustomTSField.MetricType.METRIC
-        )
+        metrics = CustomTSField.objects.filter(time_series_group_id=table.time_series_group_id, type=MetricType.METRIC)
         # 分组计数
         group_metric_count = defaultdict(int)
         for metric in metrics:
@@ -1004,9 +1002,7 @@ class PreviewGroupingRule(Resource):
             )
 
         # 获取指标信息
-        metrics = CustomTSField.objects.filter(
-            time_series_group_id=table.time_series_group_id, type=CustomTSField.MetricType.METRIC
-        )
+        metrics = CustomTSField.objects.filter(time_series_group_id=table.time_series_group_id, type=MetricType.METRIC)
 
         manual_metrics = []
         auto_metrics = defaultdict(list)
