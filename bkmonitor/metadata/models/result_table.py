@@ -609,14 +609,15 @@ class ResultTable(models.Model):
                 table_id = self.table_id
                 try:
                     on_commit(
-                        lambda: access_bkdata_vm.delay(
+                        func=lambda: access_bkdata_vm.delay(
                             bk_tenant_id,
                             target_bk_biz_id,
                             table_id,
                             bk_data_id,
                             is_v4_datalink_etl_config,
                             force_update=force_update,
-                        )
+                        ),
+                        using=config.DATABASE_CONNECTION_NAME,
                     )
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("create_result_table: access vm error: %s", e)
@@ -1452,7 +1453,10 @@ class ResultTable(models.Model):
                     push_and_publish_space_router(space_type, space_id, table_id_list=[self.table_id])
                 else:
                     on_commit(
-                        lambda: push_and_publish_space_router.delay(space_type, space_id, table_id_list=[self.table_id])
+                        func=lambda: push_and_publish_space_router.delay(
+                            space_type, space_id, table_id_list=[self.table_id]
+                        ),
+                        using=config.DATABASE_CONNECTION_NAME,
                     )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("push and publish redis error, table_id: %s, %s", self.table_id, e)
