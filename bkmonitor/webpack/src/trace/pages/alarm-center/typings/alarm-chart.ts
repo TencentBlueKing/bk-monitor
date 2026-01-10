@@ -26,6 +26,11 @@
 
 import type { ExploreTableRequestParams } from 'monitor-pc/pages/event-explore/typing';
 
+export enum EventTab {
+  All = 'all',
+  Warning = 'warning',
+}
+
 export interface AlertEventTagDetailParams {
   alert_id?: string;
   bizId?: number;
@@ -34,4 +39,26 @@ export interface AlertEventTagDetailParams {
   query_config?: ExploreTableRequestParams;
   sources?: string[];
   start_time?: number;
+}
+
+export interface IEventListItem {
+  [key: string]: any;
+  'event.content': { detail: Record<string, { alias?: string; label: string; url?: string; value: string }> };
+  event_name: { alias?: string; value: string };
+  source: { alias?: string; value: string };
+  target: { alias?: string; url?: string; value?: string };
+  time?: { value: string };
+}
+
+export interface IEventTopkItem {
+  [key: string]: any;
+  count: number;
+  event_name: { alias?: string; value: string };
+  proportions: number;
+  source: { alias?: string; value: string };
+}
+
+export interface IPosition {
+  left: number;
+  top: number;
 }
