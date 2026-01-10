@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 from django.conf import settings
 from django.db import models
@@ -105,7 +105,7 @@ class CustomGroupBase(models.Model):
         pass
 
     @classmethod
-    def process_default_storage_config(cls, custom_group: "CustomGroupBase", default_storage_config: dict[str, Any]):
+    def process_default_storage_config(cls, custom_group: Self, default_storage_config: dict[str, Any]):
         pass
 
     @classmethod
@@ -151,7 +151,7 @@ class CustomGroupBase(models.Model):
         bk_tenant_id: str,
         max_rate: int = -1,
         **filter_kwargs,
-    ) -> tuple[str, "CustomGroupBase"]:
+    ) -> tuple[str, Self]:
         """
         create custom log group
         """
