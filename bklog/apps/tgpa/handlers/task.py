@@ -27,6 +27,7 @@ from django.utils.functional import cached_property
 from apps.api import TGPATaskApi
 from apps.tgpa.constants import TGPA_BASE_DIR, TGPATaskTypeEnum, TASK_LIST_BATCH_SIZE
 from apps.tgpa.handlers.base import TGPAFileHandler
+from apps.tgpa.models import TGPATask
 from apps.utils.thread import MultiExecuteFunc
 
 
@@ -155,9 +156,9 @@ class TGPATaskHandler:
         return {"total": count, "list": data}
 
     @staticmethod
-    def get_task_page(params, need_format=False):
+    def get_task_page(params):
         """
-        获取任务分页
+        分页获取任务列表，用于前端
         """
         request_params = {
             "cc_id": params["bk_biz_id"],
@@ -173,21 +174,43 @@ class TGPATaskHandler:
 
         if params.get("keyword"):
             condition_list.append(params["keyword"])
-        if params.get("status_list"):
-            condition_list.append(f"status={','.join(params['status_list'])}")
-        if params.get("scene_list"):
-            condition_list.append(f"scene={','.join(params['scene_list'])}")
-        if params.get("created_by_list"):
-            condition_list.append(f"created_by={','.join(params['created_by_list'])}")
+        if params.get("status"):
+            condition_list.append(f"status={params['status']}")
+        if params.get("scene"):
+            condition_list.append(f"scene={params['scene']}")
+        if params.get("created_by"):
+            condition_list.append(f"created_by={params['created_by']}")
 
         if condition_list:
             request_params["search"] = ";".join(condition_list)
 
         result = TGPATaskApi.query_single_user_log_task_v2(request_params)
+        task_list = TGPATaskHandler.format_task_list(result["results"])
+
+        # 获取任务处理时间
+        task_ids = [task["task_id"] for task in task_list]
+        tgpa_tasks = TGPATask.objects.filter(task_id__in=task_ids).values("task_id", "processed_at")
+        processed_at_map = {str(item["task_id"]): item["processed_at"] for item in tgpa_tasks}
+        for task in task_list:
+            task["processed_at"] = processed_at_map.get(task["task_id"], None)
+
         return {
             "total": result["count"],
-            "list": TGPATaskHandler.format_task_list(result["results"]) if need_format else result["results"],
+            "list": task_list,
         }
+
+    @staticmethod
+    def get_username_list(bk_biz_id):
+        """
+        获取用户名列表
+        """
+        request_params = {
+            "cc_id": bk_biz_id,
+            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "limit": 1,
+        }
+        result = TGPATaskApi.query_single_user_log_task_v2(request_params)
+        return result["user_list"]
 
     def download_and_process_file(self):
         """

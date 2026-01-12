@@ -58,15 +58,9 @@ class GetTGPATaskListSerializer(serializers.Serializer):
     """
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-    status_list = serializers.ListField(
-        label=_("任务状态列表"), child=serializers.IntegerField(), required=False, allow_null=True, allow_empty=True
-    )
-    scene_list = serializers.ListField(
-        label=_("任务阶段列表"), child=serializers.IntegerField(), required=False, allow_null=True, allow_empty=True
-    )
-    created_by_list = serializers.ListField(
-        label=_("创建人列表"), child=serializers.CharField(), required=False, allow_null=True, allow_empty=True
-    )
+    status = serializers.CharField(label=_("任务状态"), required=False, allow_null=True)
+    scene = serializers.CharField(label=_("任务阶段"), required=False, allow_null=True)
+    created_by = serializers.CharField(label=_("创建人"), required=False, allow_null=True)
     ordering = serializers.CharField(label=_("排序字段"), required=False, allow_null=True, allow_blank=True)
     keyword = serializers.CharField(label=_("关键字"), required=False, allow_null=True, allow_blank=True)
     page = serializers.IntegerField(label=_("页码"), default=1)
@@ -80,6 +74,14 @@ class GetDownloadUrlSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     id = serializers.IntegerField(label=_("任务ID"))
+
+
+class GetUsernameListSerializer(serializers.Serializer):
+    """
+    获取用户名列表
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
 
 
 class GetIndexSetIdSerializer(serializers.Serializer):

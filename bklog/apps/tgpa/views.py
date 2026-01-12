@@ -41,6 +41,7 @@ from apps.tgpa.serializers import (
     GetFileStatusSerializer,
     RetrieveSyncRecordSerializer,
     GetCountInfoSerializer,
+    GetUsernameListSerializer,
 )
 from apps.tgpa.tasks import fetch_and_process_tgpa_reports
 from bkm_search_module.constants import list_route
@@ -78,7 +79,7 @@ class TGPATaskViewSet(APIViewSet):
         获取日志拉取任务列表
         """
         params = self.params_valid(GetTGPATaskListSerializer)
-        return Response(TGPATaskHandler.get_task_page(params, need_format=True))
+        return Response(TGPATaskHandler.get_task_page(params))
 
     def create(self, request, *args, **kwargs):
         """
@@ -117,6 +118,14 @@ class TGPATaskViewSet(APIViewSet):
             res["index_set_id"] = collector_config.index_set_id
             res["collector_config_id"] = collector_config.collector_config_id
         return Response(res)
+
+    @list_route(methods=["GET"], url_path="username_list")
+    def get_username_list(self, request, *args, **kwargs):
+        """
+        获取用户名列表
+        """
+        params = self.params_valid(GetUsernameListSerializer)
+        return Response(TGPATaskHandler.get_username_list(params["bk_biz_id"]))
 
 
 class TGPAReportViewSet(APIViewSet):
