@@ -187,12 +187,14 @@ class TGPATaskHandler:
         result = TGPATaskApi.query_single_user_log_task_v2(request_params)
         task_list = TGPATaskHandler.format_task_list(result["results"])
 
-        # 获取任务处理时间
+        # 获取任务处理时间和处理状态
         task_ids = [task["task_id"] for task in task_list]
-        tgpa_tasks = TGPATask.objects.filter(task_id__in=task_ids).values("task_id", "processed_at")
-        processed_at_map = {str(item["task_id"]): item["processed_at"] for item in tgpa_tasks}
+        tgpa_tasks = TGPATask.objects.filter(task_id__in=task_ids).values("task_id", "processed_at", "process_status")
+        task_info_map = {str(item["task_id"]): item for item in tgpa_tasks}
         for task in task_list:
-            task["processed_at"] = processed_at_map.get(task["task_id"], None)
+            task_info = task_info_map.get(task["task_id"], {})
+            task["processed_at"] = task_info.get("processed_at", None)
+            task["process_status"] = task_info.get("process_status", None)
 
         return {
             "total": result["count"],
