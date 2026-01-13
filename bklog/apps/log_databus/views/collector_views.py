@@ -1848,7 +1848,7 @@ class CollectorViewSet(ModelViewSet):
         @apiDescription 采集项列表，运行状态通过异步接口获取，可不带分页参数
         @apiParam {Int} bk_biz_id 业务ID
         @apiParam {String} keyword 搜索关键字
-        @apiParam {String} [have_table_id] 是否过滤掉未完成的采集项（table_id为空）
+        @apiParam {String} have_table_id 是否过滤掉未完成的采集项（table_id为空）
         @apiSuccess {Array} results 返回结果
         @apiSuccess {Int} results.collector_config_id 采集项ID
         @apiSuccess {Int} results.collector_config_name 采集项名称
