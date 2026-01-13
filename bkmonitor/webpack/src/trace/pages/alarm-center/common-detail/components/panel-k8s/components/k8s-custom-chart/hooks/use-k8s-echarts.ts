@@ -38,11 +38,14 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFor
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../../../../../components/time-range/utils';
 import { useChartTooltips } from '../../../../../../../trace-explore/components/explore-chart/use-chart-tooltips';
-import { handleGetMinPrecision } from '../../../../../../components/alarm-metrics-dashboard/components/alarm-chart/utils';
+import { handleGetMinPrecision } from '../../../../../../../trace-explore/components/explore-chart/utils';
 import { type AlertK8sEchartSeriesItem, SpecialSeriesColorMap } from '../../../../../../typings';
 
 import type { FormatterFunc, SeriesItem } from '../../../../../../../trace-explore/components/explore-chart/types';
-import type { AlertChartInteractionState } from '../../../../../../components/alarm-metrics-dashboard/components/alarm-chart/hooks/use-alert-echart';
+import type {
+  ChartInteractionState,
+  CustomOptions,
+} from '../../../../../../../trace-explore/components/explore-chart/use-echarts';
 import type { IDataQuery } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -53,7 +56,7 @@ import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
  * @param chartRef - 图表 DOM 元素引用，用于 tooltip 定位
  * @param $api - API 模块对象，用于调用后端接口获取图表数据
  * @param params - 请求参数，会与 target.data 合并后发送请求
- * @param formatterSeriesData - 数据格式化函数，用于处理接口返回的原始数据
+ * @param customOptions - 数据格式化函数，用于需要自定义逻辑
  * @param interactionState - 图表交互状态配置，控制 tooltip 联动等行为
  */
 export const useK8sEcharts = (
@@ -61,8 +64,8 @@ export const useK8sEcharts = (
   chartRef: Ref<HTMLElement>,
   $api: Record<string, () => Promise<any>>,
   params: MaybeRef<Record<string, any>>,
-  formatterSeriesData = res => res,
-  interactionState?: AlertChartInteractionState
+  customOptions: CustomOptions,
+  interactionState?: ChartInteractionState
 ) => {
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
@@ -242,7 +245,7 @@ export const useK8sEcharts = (
           }
         )
         .then(res => {
-          const { series, metrics, query_config } = formatterSeriesData(res);
+          const { series, metrics, query_config } = customOptions.formatterData?.(res, target) ?? res;
           for (const metric of metrics) {
             if (!metricList.value.some(item => item.metric_id === metric.metric_id)) {
               metricList.value.push(metric);

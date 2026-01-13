@@ -131,6 +131,7 @@ export default defineComponent({
             {this.panelModels.map(panel => (
               <ExploreChart
                 key={panel.id}
+                hoverAllTooltips={true}
                 panel={panel}
                 params={this.params}
                 onDataZoomChange={this.handleDataZoomChange}

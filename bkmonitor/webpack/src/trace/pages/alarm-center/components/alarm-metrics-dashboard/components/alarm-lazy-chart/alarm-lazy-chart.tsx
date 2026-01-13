@@ -39,7 +39,12 @@ import { get } from '@vueuse/core';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { DEFAULT_TIME_RANGE } from '../../../../../../components/time-range/utils';
-import AlertBaseChart from '../alarm-chart/alert-base-chart';
+import ExploreChart from '../../../../../trace-explore/components/explore-chart/explore-chart';
+
+import type { LegendCustomOptions } from '../../../../../trace-explore/components/explore-chart/use-chart-legend';
+import type { CustomOptions } from '../../../../../trace-explore/components/explore-chart/use-echarts';
+
+import './alarm-lazy-chart.scss';
 
 export default defineComponent({
   name: 'AlarmLazyChart',
@@ -54,14 +59,19 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
-    /** 图表数据格式化函数 */
-    formatterData: {
-      type: Function as PropType<(val) => any>,
-      default: res => res,
-    },
     /** 查询参数 */
     params: {
       type: Object as PropType<Record<string, any>>,
+      default: () => ({}),
+    },
+    /** 图表数据格式化函数 */
+    customOptions: {
+      type: Object as PropType<CustomOptions>,
+      default: () => ({}),
+    },
+    /** 图例配置 */
+    customLegendOptions: {
+      type: Object as PropType<LegendCustomOptions>,
       default: () => ({}),
     },
     /** 是否展示复位按钮 */
@@ -193,7 +203,8 @@ export default defineComponent({
       params: this.viewerParams,
       showTitle: this.showTitle,
       showRestore: this.showRestore,
-      formatterData: this.formatterData,
+      customOptions: this.customOptions,
+      customLegendOptions: this.customLegendOptions,
       onDataZoomChange: this.handleDataZoomChange,
       onDurationChange: this.handleDurationChange,
       onRestore: this.handleRestore,
@@ -203,7 +214,12 @@ export default defineComponent({
         ref='chartContainerRef'
         class='alarm-lazy-chart'
       >
-        {this.$slots?.customBaseChart?.(renderContext) || <AlertBaseChart {...renderContext} />}
+        {this.$slots?.customBaseChart?.(renderContext) || (
+          <ExploreChart
+            class='base-chart'
+            {...renderContext}
+          />
+        )}
       </div>
     );
   },

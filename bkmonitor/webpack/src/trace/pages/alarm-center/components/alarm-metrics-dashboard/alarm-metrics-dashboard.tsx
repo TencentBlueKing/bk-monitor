@@ -34,6 +34,9 @@ import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../comp
 import ChartCollapse from '../../../trace-explore/components/explore-chart/chart-collapse';
 import AlarmLazyChart from './components/alarm-lazy-chart/alarm-lazy-chart';
 
+import type { LegendCustomOptions } from '../../../trace-explore/components/explore-chart/use-chart-legend';
+import type { CustomOptions } from '../../../trace-explore/components/explore-chart/use-echarts';
+
 import './alarm-metrics-dashboard.scss';
 
 export default defineComponent({
@@ -77,10 +80,15 @@ export default defineComponent({
       type: Number,
       default: 36,
     },
-    /** 对接口请求返回数据进行处理 */
-    formatterData: {
-      type: Function as PropType<(val) => any>,
-      default: res => res,
+    /** 图表数据格式化函数 */
+    customOptions: {
+      type: Object as PropType<CustomOptions>,
+      default: () => ({}),
+    },
+    /** 图例配置 */
+    customLegendOptions: {
+      type: Object as PropType<LegendCustomOptions>,
+      default: () => ({}),
     },
     /** 是否展示复位按钮 */
     showRestore: {
@@ -179,7 +187,8 @@ export default defineComponent({
               <AlarmLazyChart
                 key={panel.id}
                 class='alarm-metrics-dashboard-chart'
-                formatterData={this.formatterData}
+                customLegendOptions={this.customLegendOptions}
+                customOptions={this.customOptions}
                 panel={panel}
                 params={this.params}
                 showRestore={this.showRestore}
