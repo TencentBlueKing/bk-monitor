@@ -1,16 +1,19 @@
 .alarm-view-panel-dimension-analysis-wrap {
   .dimension-analysis-table-view {
+    position: relative;
     display: flex;
     min-height: 300px;
     border-top: 1px solid #dcdee5;
 
     .dimension-analysis-left {
       width: 160px;
+      min-width: 160px;
       background: #f3f6fa;
     }
 
     .dimension-analysis-right {
       flex: 1;
+      max-width: calc(100% - 160px);
       background: #fff;
 
       .type-select {
