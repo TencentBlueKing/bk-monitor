@@ -887,7 +887,7 @@ class AccessDataProcess(BaseAccessDataProcess):
             metrics.ACCESS_PROCESS_PUSH_DATA_COUNT.labels(
                 strategy_id=metrics.TOTAL_TAG,
                 type="data",
-            ).inc(len(records))
+            ).inc(len(data_points))
 
     def push(self, records: list = None, output_client=None):
         # 方案 B：限制处理的时间点数量（在处理阶段限制，不影响查询）
