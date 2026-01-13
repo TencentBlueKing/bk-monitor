@@ -58,12 +58,20 @@ import './alarm-charts.scss';
 
 /** 图表颜色常量 */
 const CHART_COLORS = {
+  /** 异常点颜色 */
   ANOMALY: '#E71818',
+  /** 致命告警图标颜色 */
   FATAL_ALARM: '#e64545',
+  /** 告警触发阶段图例颜色 */
   TRIGGER_PHASE: '#DCDEE5',
+  /** 致命告警时段图例颜色 */
   FATAL_PERIOD: '#F8B4B4',
+  /** 告警触发阶段背景色 */
   TRIGGER_PHASE_BG: 'rgba(155, 168, 194, 0.12)',
+  /** 致命告警时段背景色 */
   FATAL_PERIOD_BG: 'rgba(234, 54, 54, 0.12)',
+  /** 事件散点图颜色 */
+  EVENT_SCATTER: '#49C4CC',
 } as const;
 
 export default defineComponent({
@@ -87,66 +95,35 @@ export default defineComponent({
     const scatterClickEventData = shallowRef<AlertEventTagDetailParams>({});
 
     const { timeRange: defaultTimeRange, bizId } = storeToRefs(useAlarmCenterDetailStore());
-
     const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation(get(defaultTimeRange));
     provide('timeRange', timeRange);
 
-    const chartParams = computed(() => {
-      return !showRestore.value
-        ? {
-            start_time: undefined,
-            end_time: undefined,
-          }
-        : {};
-    });
-
-    /**
-     * 是否为事件或日志告警
-     */
-    const isEventOrLogAlarm = computed(() => {
-      return props.detail?.data_type === 'event' || props.detail?.data_type === 'log';
-    });
-
-    const legendOptions = {
-      [t('异常')]: {
-        id: 'anomaly',
-        disabled: true,
-        icon: 'circle-legend',
-      },
-      [t('致命告警产生')]: {
-        id: 'fatal_alarm',
-        disabled: true,
-        icon: 'icon-monitor icon-danger',
-      },
-      [t('告警触发阶段')]: {
-        id: 'trigger_phase',
-        disabled: true,
-        icon: 'rect-legend',
-      },
-      [t('致命告警时段')]: {
-        id: 'fatal_period',
-        disabled: true,
-        icon: 'rect-legend',
-      },
-    };
-
+    /** 图表请求参数（框选时间范围） */
+    const chartParams = computed(() => (showRestore.value ? {} : { start_time: undefined, end_time: undefined }));
+    /** 是否为事件或日志类型告警 */
+    const isEventOrLogAlarm = computed(() => ['event', 'log'].includes(props.detail?.data_type));
+    /** 图例配置映射表 */
+    const legendOptionsMap = computed(() => ({
+      [t('异常')]: { id: 'anomaly', disabled: true, icon: 'circle-legend' },
+      [t('致命告警产生')]: { id: 'fatal_alarm', disabled: true, icon: 'icon-monitor icon-danger' },
+      [t('告警触发阶段')]: { id: 'trigger_phase', disabled: true, icon: 'rect-legend' },
+      [t('致命告警时段')]: { id: 'fatal_period', disabled: true, icon: 'rect-legend' },
+      [t('事件')]: { id: 'event', disabled: false, icon: 'event-legend-icon' },
+    }));
+    /** 图表面板配置 */
     const monitorChartPanel = computed(() => {
       const { graph_panel } = props.detail;
       if (!graph_panel) return null;
       const [{ data: queryConfig }] = graph_panel.targets;
+      // 异常检测场景需要禁用采样
       if (queryConfig.extendMetricFields?.some(item => item.includes('is_anomaly'))) {
         queryConfig.function = { ...queryConfig.function, max_point_number: 0 };
       }
-      const chartQueryConfig = transformDataKey(queryConfig, true);
+
       return new PanelModel({
         title: graph_panel.title || '',
         subTitle: graph_panel.subTitle || '',
-        gridPos: {
-          x: 16,
-          y: 16,
-          w: 8,
-          h: 4,
-        },
+        gridPos: { x: 16, y: 16, w: 8, h: 4 },
         id: 'alarm-trend-chart',
         type: 'graph',
         options: {},
@@ -158,7 +135,7 @@ export default defineComponent({
             data: {
               bk_biz_id: props.detail.bk_biz_id,
               id: props.detail.id,
-              ...chartQueryConfig,
+              ...transformDataKey(queryConfig, true),
               ...chartParams.value,
             },
           },
@@ -182,11 +159,12 @@ export default defineComponent({
      * @param {IDataQuery} target - 图表配置
      */
     const formatterData = (data, target: IDataQuery) => {
-      // 事件时序接口不需要处理
+      // 事件时序接口单独处理
       if (target.alias === 'alertEventTs') {
         eventQueryConfig.value = data?.queryConfig ?? {};
         return data;
       }
+
       const { graph_panel } = props.detail;
       const [{ alias }] = graph_panel.targets;
 
@@ -234,8 +212,8 @@ export default defineComponent({
           }
         }
 
+        // 设置标记点（异常点 + 致命告警图标）
         mainSeries.markPoints = [
-          // 异常点
           ...datapoints
             .filter(item => props.detail.anomaly_timestamps.includes(Number(String(item[1]).slice(0, -3))))
             .map(item => ({
@@ -246,11 +224,10 @@ export default defineComponent({
               symbolSize: 5,
               itemStyle: { color: CHART_COLORS.ANOMALY },
             })),
-          // 致命告警产生点
           {
             value: beginTime,
             xAxis: beginTimeStr,
-            yAxis: yMax === 0 ? 1 : yMax,
+            yAxis: yMax || 1,
             symbol: 'circle',
             symbolSize: 0,
             label: {
@@ -264,16 +241,8 @@ export default defineComponent({
           },
         ];
         mainSeries.markTimeRange = [
-          {
-            from: firstAnomalyTimeStr,
-            to: beginTimeStr,
-            color: CHART_COLORS.TRIGGER_PHASE_BG,
-          },
-          {
-            from: beginTimeStr,
-            to: endTimeStr,
-            color: CHART_COLORS.FATAL_PERIOD_BG,
-          },
+          { from: firstAnomalyTimeStr, to: beginTimeStr, color: CHART_COLORS.TRIGGER_PHASE_BG },
+          { from: beginTimeStr, to: endTimeStr, color: CHART_COLORS.FATAL_PERIOD_BG },
         ];
       }
 
@@ -281,7 +250,7 @@ export default defineComponent({
         ...data,
         series: [
           ...series,
-          // 辅助系列用于图例（透明线条）
+          // 辅助图例系列（透明线条，仅用于显示图例）
           {
             type: 'line',
             alias: t('异常'),
@@ -320,6 +289,22 @@ export default defineComponent({
     };
 
     /**
+     * @description 处理series， 事件和日志告警对于告警点的柱状图需要变颜色
+     */
+    const formatterGraphQueryCurrentSeries = series => {
+      if (isEventOrLogAlarm.value && series.length > 0) {
+        for (const ponit of props.detail.anomaly_timestamps) {
+          const index = series.datapoints.findIndex(item => Number(String(item[1]).slice(0, -3)) === ponit);
+          series.data[index] = {
+            ...series.data[index],
+            itemStyle: { color: CHART_COLORS.ANOMALY },
+          };
+        }
+      }
+      return series;
+    };
+
+    /**
      * @description 将数组值缩放到指定范围
      * @param inputArray 输入数组
      * @param minRange 最小范围
@@ -344,20 +329,30 @@ export default defineComponent({
     };
 
     /**
-     * @description 处理series， 事件和日志告警对于告警点的柱状图需要变颜色
+     * @description 创建事件散点图series配置
+     * @param series 原始series数据
      */
-    const formatterGraphQueryCurrentSeries = series => {
-      /** 事件告警 */
-      if (isEventOrLogAlarm.value && series.length > 0) {
-        for (const ponit of props.detail.anomaly_timestamps) {
-          const index = series.datapoints.findIndex(item => Number(String(item[1]).slice(0, -3)) === ponit);
-          series.data[index] = {
-            ...series.data[index],
-            itemStyle: { color: CHART_COLORS.ANOMALY },
-          };
-        }
-      }
-      return series;
+    const createEventScatterSeries = series => {
+      const scaleList = scaleArrayToRange(series.datapoints.map(item => item[0]));
+      return {
+        ...series,
+        type: 'scatter',
+        name: t('事件'),
+        symbolSize: (_, p) => {
+          const scaledSize = scaleList[p.dataIndex];
+          return scaledSize ? Math.max(scaledSize, 6) : scaledSize;
+        },
+        showSymbol: true,
+        z: 10,
+        emphasis: { scale: 1.666 },
+        itemStyle: {
+          shadowBlur: 10,
+          shadowColor: 'rgba(25, 100, 150, 0.5)',
+          shadowOffsetY: 5,
+          color: CHART_COLORS.EVENT_SCATTER,
+          opacity: 0.5,
+        },
+      };
     };
 
     /**
@@ -365,35 +360,50 @@ export default defineComponent({
      */
     const formatterSeries = seriesList => {
       return seriesList
-        .map((series, i) => {
-          if (i === 0) return formatterGraphQueryCurrentSeries(series);
-          if (series.alias !== 'alertEventTs') return series;
-          const datapoints = series.datapoints.filter(item => item[0]);
-          if (!datapoints.length) return undefined;
-          const scaleList = scaleArrayToRange(datapoints.map(item => item[0]));
-          return {
-            ...series,
-            type: 'scatter',
-            name: t('事件'),
-            symbolSize: (_, p) => {
-              const scaledSize = scaleList[p.dataIndex];
-              // 确保散点有足够的点击热区，最小 8px
-              return Math.max(scaledSize || 6, 6);
-            },
-            showSymbol: true, // 确保散点可见
-            z: 10,
-            emphasis: {
-              scale: 1.666,
-            },
-            itemStyle: {
-              shadowBlur: 10,
-              shadowColor: 'rgba(25, 100, 150, 0.5)',
-              shadowOffsetY: 5,
-              color: '#49C4CC',
-            },
-          };
+        .map(series => {
+          if (series.time_offset === 'current') return formatterGraphQueryCurrentSeries(series);
+          if (series.alias === 'alertEventTs') return createEventScatterSeries(series);
+          return series;
         })
         .filter(Boolean);
+    };
+
+    /**
+     * @description 自定义图表options配置（为事件散点图添加独立坐标轴）
+     */
+    const formatterOptions = options => {
+      options.color = COLOR_LIST;
+      options.grid.top = 24;
+
+      const eventSeriesIndex = options.series.findIndex(item => item.alias === 'alertEventTs');
+      if (eventSeriesIndex === -1) return options;
+
+      const eventSeries = options.series[eventSeriesIndex];
+      const shouldCreateNewXAxis = eventSeries.xAxisIndex === 0;
+
+      // 为事件散点图创建独立的x轴
+      if (shouldCreateNewXAxis) {
+        options.xAxis.push({
+          show: false,
+          type: 'category',
+          data: eventSeries.datapoints.map(e => e[1]),
+        });
+      }
+      options.yAxis.push({
+        scale: true,
+        show: true,
+        position: 'right',
+        max: 'dataMax',
+        min: 0,
+        splitNumber: 2,
+        minInterval: 1,
+        splitLine: { show: false },
+      });
+
+      eventSeries.xAxisIndex = shouldCreateNewXAxis ? options.xAxis.length - 1 : eventSeries.xAxisIndex;
+      eventSeries.yAxisIndex = options.yAxis.length - 1;
+
+      return options;
     };
 
     /**
@@ -432,13 +442,13 @@ export default defineComponent({
     const customLegendData = (legendData: ILegendItem[]): ILegendItem[] => {
       return legendData.map(legend => ({
         ...legend,
-        legendId: legendOptions[legend.name]?.id,
-        disabled: legendOptions[legend.name]?.disabled,
-        icon: legendOptions[legend.name]?.icon,
+        legendId: legendOptionsMap.value[legend.name]?.id,
+        disabled: legendOptionsMap.value[legend.name]?.disabled,
+        icon: legendOptionsMap.value[legend.name]?.icon,
       }));
     };
 
-    /** 图例点击事件 */
+    /** 图例点击事件处理 */
     const handleSelectLegend = (
       actionType: LegendActionType,
       item: ILegendItem,
@@ -481,21 +491,17 @@ export default defineComponent({
      * @description 处理散点点击事件
      */
     const handleScatterClick = params => {
-      // 处理散点点击事件，显示事件详情弹窗
       if (params.seriesType !== 'scatter') return;
+
       const { name, event } = params;
-      const startTime = Number(name);
-      // 计算弹窗位置
-      const { clientX, clientY } = event.event;
       eventDetailPopupPosition.value = {
-        left: clientX + 12,
-        top: clientY + 12,
+        left: event.event.clientX + 12,
+        top: event.event.clientY + 12,
       };
-      // 设置事件项数据
       scatterClickEventData.value = {
         bizId: bizId.value,
         alert_id: props.detail?.id,
-        start_time: startTime / 1000,
+        start_time: Number(name) / 1000,
         query_config: eventQueryConfig.value,
       };
     };
@@ -504,28 +510,19 @@ export default defineComponent({
      * @description 点击事件详情弹窗外部区域时关闭弹窗
      * @param event 点击事件
      */
-    const handleCloseEventDetailPopup = event => {
+    const handleCloseEventDetailPopup = (event: MouseEvent) => {
       // 弹窗未显示时跳过
       if (!eventDetailPopupPosition.value.left) return;
-      const target = event.target;
-      const menuEl = alertEventChartDetailRef.value?.$el;
-      // 检测点击目标是否在弹窗内
-      if (menuEl?.contains(target)) return;
+      if (alertEventChartDetailRef.value?.$el?.contains(event.target)) return;
+
       nextTick(() => {
-        eventDetailPopupPosition.value = {
-          left: 0,
-          top: 0,
-        };
+        eventDetailPopupPosition.value = { left: 0, top: 0 };
       });
     };
 
-    onMounted(() => {
-      document.addEventListener('mousedown', handleCloseEventDetailPopup);
-    });
-
-    onUnmounted(() => {
-      document.removeEventListener('mousedown', handleCloseEventDetailPopup);
-    });
+    // ==================== 生命周期 ====================
+    onMounted(() => document.addEventListener('mousedown', handleCloseEventDetailPopup));
+    onUnmounted(() => document.removeEventListener('mousedown', handleCloseEventDetailPopup));
 
     return {
       monitorChartPanel,
@@ -534,6 +531,7 @@ export default defineComponent({
       handleRestore,
       formatterData,
       formatterSeries,
+      formatterOptions,
       customLegendData,
       handleSelectLegend,
       handleScatterClick,
@@ -551,11 +549,7 @@ export default defineComponent({
           }}
           customOptions={{
             formatterData: this.formatterData,
-            options: options => {
-              options.color = COLOR_LIST;
-              options.grid.top = 24;
-              return options;
-            },
+            options: this.formatterOptions,
             series: this.formatterSeries,
           }}
           menuList={['screenshot', 'explore']}

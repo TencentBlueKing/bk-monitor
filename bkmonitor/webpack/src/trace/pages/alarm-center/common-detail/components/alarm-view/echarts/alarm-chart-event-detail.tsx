@@ -32,21 +32,27 @@ import base64Svg from 'monitor-common/svg/base64';
 import { useI18n } from 'vue-i18n';
 
 import { getAlertEventTagDetails } from '@/pages/alarm-center/services/alarm-detail';
+import {
+  type AlertEventTagDetailParams,
+  type IEventListItem,
+  type IEventTopkItem,
+  type IPosition,
+  EventTab,
+} from '@/pages/alarm-center/typings';
 
-import type { AlertEventTagDetailParams } from '@/pages/alarm-center/typings';
 import type { ICustomEventDetail } from 'monitor-ui/chart-plugins/plugins/caller-line-chart/use-custom';
 
 import './alarm-chart-event-detail.scss';
 
-export enum EventTab {
-  All = 'all',
-  Warning = 'warning',
-}
+// 常量定义
+/** 标签颜色配置 */
+const TAB_COLORS = {
+  [EventTab.Warning]: '#F59500',
+  [EventTab.All]: '#3A84FF',
+} as const;
 
-export interface IPosition {
-  left: number;
-  top: number;
-}
+/** 默认SVG图标 */
+const DEFAULT_SVG = 'bcs';
 
 export default defineComponent({
   name: 'AlarmChartEventDetail',
@@ -63,403 +69,359 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
 
+    /** 异常事件数据 */
     const warningData = shallowRef<ICustomEventDetail>({});
+    /** 全部事件数据 */
     const allData = shallowRef<ICustomEventDetail>({});
+    /** 当前激活的标签页 */
     const activeTab = shallowRef<EventTab>(EventTab.Warning);
+    /** 加载状态 */
     const loading = shallowRef(false);
 
+    /** 当前菜单数据，根据激活标签页动态计算 */
     const menuData = computed<ICustomEventDetail>(() => {
       return activeTab.value === EventTab.Warning ? warningData.value : allData.value;
     });
 
-    const getCustomEventTagDetailsData = async () => {
-      if (props.position.left && props.position.top && props.eventItem) {
-        loading.value = true;
+    /**
+     * @description 生成基础URL
+     * @param {string} hash - URL的hash部分
+     * @param {number} [bizId] - 业务ID，可选
+     * @returns {string} 生成的URL
+     */
+    const generateBaseUrl = (hash: string, bizId?: number): string => {
+      if (process.env.NODE_ENV === 'development') {
+        return `${process.env.proxyUrl}?bizId=${bizId || window.cc_biz_id}${hash}`;
+      }
+      return location.href.replace(location.hash, hash);
+    };
+
+    /**
+     * @description 创建查询配置
+     * @param {string} [eventName] - 事件名称，可选
+     * @param {Record<string, any>[]} [defaultWhere=[]] - 默认查询条件
+     * @param {boolean} [isApm=false] - 是否为APM配置
+     * @returns {object} 查询配置对象
+     */
+    const createQueryConfig = (eventName?: string, defaultWhere: Record<string, any>[] = [], isApm = false) => {
+      const eventTarget = props.eventItem?.query_config;
+      const queryConfig = eventTarget?.query_configs?.[0];
+
+      const baseConfig = {
+        data_type_label: 'event',
+        where: eventName
+          ? [
+              {
+                key: 'event_name',
+                condition: 'and',
+                value: [eventName],
+                method: 'eq',
+              },
+              ...(isApm ? defaultWhere : (queryConfig?.where ?? [])),
+              ...(!isApm ? defaultWhere : []),
+            ]
+          : [],
+        query_string: '',
+        group_by: [],
+        filter_dict: {},
+      };
+
+      if (isApm) {
+        return {
+          ...baseConfig,
+          result_table_id: 'builtin',
+          data_source_label: 'apm',
+        };
+      }
+
+      return {
+        ...baseConfig,
+        data_source_label: 'custom',
+        result_table_id: queryConfig?.table ?? undefined,
+      };
+    };
+
+    /**
+     * @description 创建搜索参数
+     * @param {any[]} targets - 目标查询配置数组
+     * @param {number} startTime - 开始时间戳
+     * @param {number} endTime - 结束时间戳
+     * @param {Record<string, string>} [additionalParams={}] - 额外参数
+     * @returns {URLSearchParams} URL搜索参数对象
+     */
+    const createSearchParams = (
+      targets: any[],
+      startTime: number,
+      endTime: number,
+      additionalParams: Record<string, string> = {}
+    ): URLSearchParams => {
+      const baseParams = {
+        from: (startTime * 1000).toString(),
+        to: (endTime * 1000).toString(),
+        targets: JSON.stringify(targets),
+        ...additionalParams,
+      };
+      return new URLSearchParams(baseParams);
+    };
+
+    /**
+     * @description 获取事件详情数据
+     * @returns {Promise<void>}
+     */
+    const getCustomEventTagDetailsData = async (): Promise<void> => {
+      if (!props.position.left || !props.position.top || !props.eventItem) return;
+
+      loading.value = true;
+      try {
         // eslint-disable-next-line @typescript-eslint/naming-convention
         const { query_config: _, bizId: __, ...requestParams } = props.eventItem;
-        try {
-          const { Warning, All } = await getAlertEventTagDetails(requestParams);
-          warningData.value = Warning;
-          allData.value = All;
-          activeTab.value = warningData.value?.total > 0 ? EventTab.Warning : EventTab.All;
-        } catch (error) {
-          console.error('获取事件详情失败:', error);
-        } finally {
-          loading.value = false;
-        }
+        const { Warning: warning, All: all } = await getAlertEventTagDetails(requestParams);
+
+        warningData.value = warning;
+        allData.value = all;
+        activeTab.value = warningData.value?.total > 0 ? EventTab.Warning : EventTab.All;
+      } catch (error) {
+        console.error('获取事件详情失败:', error);
+      } finally {
+        loading.value = false;
       }
     };
 
     /**
-     * @description: 获取跳转url
-     * @param {string} hash hash值
-     * @param {number} bizId 业务ID
-     * @return {*}
+     * @description APM事件检索页跳转
+     * @param {number} [startTime] - 开始时间，可选
+     * @param {string} [eventName=''] - 事件名称
+     * @param {Record<string, any>[]} [defaultWhere=[]] - 默认查询条件
      */
-    const commOpenUrl = (hash: string, bizId?: number) => {
-      let url = '';
-      if (process.env.NODE_ENV === 'development') {
-        url = `${process.env.proxyUrl}?bizId=${bizId || window.cc_biz_id}${hash}`;
-      } else {
-        url = location.href.replace(location.hash, hash);
-      }
-      return url;
-    };
-
-    const handleTabChange = (tab: EventTab) => {
-      activeTab.value = tab;
-    };
-
-    const createApmEventExploreHref = (
+    const navigateToApmEventExplore = (
       startTime?: number,
       eventName = '',
       defaultWhere: Record<string, any>[] = []
-    ) => {
+    ): void => {
       const eventTarget = props.eventItem?.query_config;
-      const targets = [
-        {
-          data: {
-            query_configs: [
-              {
-                result_table_id: 'builtin',
-                data_type_label: 'event',
-                data_source_label: 'apm',
-                where: eventName
-                  ? [
-                      {
-                        key: 'event_name',
-                        condition: 'and',
-                        value: [eventName],
-                        method: 'eq',
-                      },
-                      ...defaultWhere,
-                    ]
-                  : [],
-                query_string: '',
-                group_by: [],
-                filter_dict: {},
-              },
-            ],
-          },
-        },
-      ];
-      const searchParams = new URLSearchParams({
+      const queryConfig = createQueryConfig(eventName, defaultWhere, true);
+      const targets = [{ data: { query_configs: [queryConfig] } }];
+
+      const calculatedStartTime = startTime || props.eventItem.start_time;
+      const endTime = calculatedStartTime + (props.eventItem.interval ?? 0);
+
+      const searchParams = createSearchParams(targets, calculatedStartTime, endTime, {
         sceneId: 'apm_service',
         sceneType: 'overview',
         dashboardId: 'service-default-event',
-        from: ((startTime || props.eventItem.start_time) * 1000).toString(),
-        to: `${((startTime || props.eventItem.start_time) + (props.eventItem.interval ?? 0)) * 1000}`,
         'filter-app_name': eventTarget?.app_name,
         'filter-service_name': eventTarget?.service_name,
-        targets: JSON.stringify(targets),
       });
-      const url = commOpenUrl('#/apm/service', props.eventItem.bizId);
+
+      const url = generateBaseUrl('#/apm/service', props.eventItem.bizId);
       window.open(`${url}?${searchParams.toString()}`, '_blank');
     };
 
     /**
-     * @description 跳转到事件检索页
+     * @description 事件检索页跳转
+     * @param {number} [startTime] - 开始时间，可选
+     * @param {string} [eventName=''] - 事件名称
+     * @param {Record<string, any>[]} [defaultWhere=[]] - 默认查询条件
      */
-    const handleToEventExplore = (startTime?: number, eventName = '', defaultWhere: Record<string, any>[] = []) => {
-      const eventTarget = props.eventItem?.query_config;
-      const queryConfig = eventTarget?.query_configs?.[0];
-      const targets = [
-        {
-          data: {
-            query_configs: [
-              {
-                data_type_label: 'event',
-                data_source_label: 'custom',
-                where: eventName
-                  ? [
-                      {
-                        key: 'event_name',
-                        condition: 'and',
-                        value: [eventName],
-                        method: 'eq',
-                      },
-                      ...(queryConfig?.where ?? []),
-                      ...defaultWhere,
-                    ]
-                  : [],
-                query_string: '',
-                group_by: [],
-                filter_dict: {},
-                result_table_id: queryConfig?.table ?? undefined,
-              },
-            ],
-          },
-        },
-      ];
-      const searchParams = new URLSearchParams({
+    const navigateToEventExplore = (
+      startTime?: number,
+      eventName = '',
+      defaultWhere: Record<string, any>[] = []
+    ): void => {
+      const queryConfig = createQueryConfig(eventName, defaultWhere, false);
+      const targets = [{ data: { query_configs: [queryConfig] } }];
+
+      const calculatedStartTime = startTime || props.eventItem.start_time;
+      const endTime = calculatedStartTime + (props.eventItem.interval ?? 0);
+
+      const searchParams = createSearchParams(targets, calculatedStartTime, endTime, {
         filterMode: 'ui',
         commonWhere: JSON.stringify([]),
         showResidentBtn: 'false',
-        from: ((startTime || props.eventItem.start_time) * 1000).toString(),
-        to: `${((startTime || props.eventItem.start_time) + (props.eventItem.interval ?? 0)) * 1000}`,
-        targets: encodeURIComponent(JSON.stringify(targets)),
       });
-      const url = commOpenUrl('#/event-explore', props.eventItem.bizId);
+
+      // 对targets进行URL编码
+      searchParams.set('targets', encodeURIComponent(JSON.stringify(targets)));
+
+      const url = generateBaseUrl('#/event-explore', props.eventItem.bizId);
       window.open(`${url}?${searchParams.toString()}`, '_blank');
     };
 
     /**
-     * @description 查看详情点击回调(事件列表项面板)
-     * @param event MouseEvent鼠标事件
-     * @param item 事件列表项
+     * @description Tab切换处理
+     * @param {EventTab} tab - 切换到的Tab
      */
-    const handleListGotoEventDetail = (event: MouseEvent, item: ICustomEventDetail['list'][number]) => {
-      event.preventDefault();
-      console.log('handleListGotoEventDetail', item);
+    const handleTabChange = (tab: EventTab): void => {
+      activeTab.value = tab;
+    };
+
+    /**
+     * @description 通用事件详情跳转处理
+     * @param {number} [startTime] - 开始时间，可选
+     * @param {string} [eventName=''] - 事件名称
+     * @param {Record<string, any>[]} [defaultWhere=[]] - 默认查询条件
+     */
+    const handleEventDetailNavigation = (
+      startTime?: number,
+      eventName = '',
+      defaultWhere: Record<string, any>[] = []
+    ): void => {
       const eventTarget = props.eventItem?.query_config;
-      // 如果有app_name和service_name，跳转到APM事件检索页，否则跳转到事件检索页
-      if (eventTarget?.app_name && eventTarget?.service_name) {
-        createApmEventExploreHref(+item.time?.value / 1000, item.event_name.value, [
-          { key: 'time', value: [item.time?.value], method: 'eq', condition: 'and' },
-        ]);
+      const hasApmConfig = eventTarget?.app_name && eventTarget?.service_name;
+
+      if (hasApmConfig) {
+        navigateToApmEventExplore(startTime, eventName, defaultWhere);
       } else {
-        handleToEventExplore(menuData.value.time, item.event_name.value);
+        navigateToEventExplore(startTime, eventName, defaultWhere);
       }
     };
 
     /**
-     * @description 查看详情点击回调(事件汇总面板)
-     * @param event MouseEvent鼠标事件
-     * @param item 事件汇总项
+     * @description 事件列表项详情跳转
+     * @param {MouseEvent} event - 鼠标事件
+     * @param {IEventListItem} item - 事件列表项
      */
-    const handleTopKGotoEventDetail = (event: MouseEvent, item: ICustomEventDetail['topk'][number]) => {
+    const handleListGotoEventDetail = (event: MouseEvent, item: IEventListItem): void => {
       event.preventDefault();
-      console.log('handleListGotoEventDetail', item);
-      const eventTarget = props.eventItem?.query_config;
-      // 如果有app_name和service_name，跳转到APM事件检索页，否则跳转到事件检索页
-      if (eventTarget?.app_name && eventTarget?.service_name) {
-        createApmEventExploreHref(menuData.value.time, item.event_name.value);
-      } else {
-        handleToEventExplore(menuData.value.time, item.event_name.value);
-      }
+      const timeValue = item.time?.value ? +item.time.value / 1000 : undefined;
+      const defaultWhere = item.time?.value
+        ? [{ key: 'time', value: [item.time.value], method: 'eq', condition: 'and' }]
+        : [];
+
+      handleEventDetailNavigation(timeValue, item.event_name.value, defaultWhere);
     };
 
+    /**
+     * @description 事件汇总项详情跳转
+     * @param {MouseEvent} event - 鼠标事件
+     * @param {IEventTopkItem} item - 事件汇总项
+     */
+    const handleTopKGotoEventDetail = (event: MouseEvent, item: IEventTopkItem): void => {
+      event.preventDefault();
+      handleEventDetailNavigation(menuData.value.time, item.event_name.value);
+    };
+
+    /**
+     * @description 渲染事件图标
+     * @param {object} source - 事件源对象
+     * @param {string} [source.alias] - 别名，可选
+     * @param {string} source.value - 值
+     * @returns {JSX.Element} 图标元素
+     */
+    const renderEventIcon = (source: { alias?: string; value: string }) => (
+      <span
+        style={{ backgroundImage: `url(${base64Svg[source.value?.toLowerCase() || DEFAULT_SVG]})` }}
+        class='event-icon'
+        v-bk-tooltips={{ content: source.alias || source.value }}
+      />
+    );
+
+    /**
+     * @description 渲染详情按钮
+     * @param {(e: MouseEvent) => void} onClick - 点击事件处理函数
+     * @param {string} [tooltipContent=t('查看事件详情')] - 提示内容
+     * @returns {JSX.Element} 按钮元素
+     */
+    const renderDetailButton = (onClick: (e: MouseEvent) => void, tooltipContent = t('查看事件详情')) => (
+      <i
+        class='icon-monitor icon-xiangqing1 link-icon'
+        v-bk-tooltips={{
+          content: tooltipContent,
+          allowHTML: false,
+        }}
+        onMousedown={onClick}
+      />
+    );
+
+    /**
+     * @description 渲染单个事件标题
+     * @param {IEventListItem} item - 事件列表项
+     * @returns {JSX.Element} 标题元素
+     */
+    const renderSingleEventTitle = (item: IEventListItem) => (
+      <div class='alarm-chart-event-detail-title'>
+        {renderEventIcon(item.source)}
+        <div class='event-name'>{item.event_name.alias}</div>
+        <span
+          class='detail-btn is-url'
+          v-bk-tooltips={{
+            content: t('查看事件详情'),
+            allowHTML: false,
+          }}
+          onMousedown={e => handleListGotoEventDetail(e, item)}
+        >
+          <i class='icon-monitor icon-xiangqing1 detail-icon' />
+          {t('详情')}
+        </span>
+      </div>
+    );
+
+    /**
+     * @description 渲染多事件标题
+     * @param {IEventListItem[] | IEventTopkItem[]} data - 事件数据数组
+     * @param {boolean} isList - 是否为列表数据
+     * @returns {JSX.Element} 标题元素
+     */
+    const renderMultiEventTitle = (data: IEventListItem[] | IEventTopkItem[], isList: boolean) => (
+      <div class='alarm-chart-event-detail-title'>
+        <div class='event-name'>
+          {isList ? (
+            <i18n-t keypath={'共 {0} 个事件，展示 Top{1}'}>
+              <span style='font-weight: bold;color:#313238;'> {menuData.value.total} </span>
+              <span style='font-weight: bold;color:#313238;'> {data.length} </span>
+            </i18n-t>
+          ) : (
+            <i18n-t keypath={'共 {0} 个事件，已按事件名汇总'}>
+              <span style='font-weight: bold;color:#313238;'> {menuData.value.total} </span>
+            </i18n-t>
+          )}
+        </div>
+        <span
+          style='color: #979BA5;'
+          class='detail-btn'
+        >
+          {dayjs(menuData.value.time * 1000).format('YYYY-MM-DD HH:mm:ssZZ')}
+        </span>
+      </div>
+    );
+
+    /**
+     * @description 创建标题渲染
+     * @returns {JSX.Element | null} 标题元素或null
+     */
     const createTitleRender = () => {
       if (!menuData.value?.list?.length && !menuData.value.topk) return null;
-      const { list, time, topk } = menuData.value;
+
+      const { list, topk } = menuData.value;
       const data = list || topk;
 
       if (list?.length === 1) {
-        const { event_name, source } = data[0];
-        return (
-          <div class='alarm-chart-event-detail-title'>
-            <span
-              style={{ backgroundImage: `url(${base64Svg[source.value?.toLowerCase() || 'bcs']})` }}
-              class='event-icon'
-              v-bk-tooltips={{ content: source.alias }}
-            />
-            <div class='event-name'>{event_name.alias}</div>
-            <span
-              class='detail-btn is-url'
-              v-bk-tooltips={{
-                content: t('查看事件详情'),
-                allowHTML: false,
-              }}
-              onMousedown={e => handleListGotoEventDetail(e, list[0])}
-            >
-              <i class='icon-monitor icon-xiangqing1 detail-icon' />
-              {t('详情')}
-            </span>
-          </div>
-        );
+        return renderSingleEventTitle(list[0] as unknown as IEventListItem);
       }
 
       if (data?.length > 0) {
-        return (
-          <div class='alarm-chart-event-detail-title'>
-            <div class='event-name'>
-              {list?.length > 0 ? (
-                <i18n-t keypath={'共 {0} 个事件，展示 Top{1}'}>
-                  <span style='font-weight: bold;color:#313238;'> {menuData.value.total} </span>
-                  <span style='font-weight: bold;color:#313238;'> {data.length} </span>
-                </i18n-t>
-              ) : (
-                <i18n-t keypath={'共 {0} 个事件，已按事件名汇总'}>
-                  <span style='font-weight: bold;color:#313238;'> {menuData.value.total} </span>
-                </i18n-t>
-              )}
-            </div>
-            <span
-              style='color: #979BA5;'
-              class='detail-btn'
-            >
-              {dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ssZZ')}
-            </span>
-          </div>
-        );
+        return renderMultiEventTitle(data as unknown as IEventListItem[] | IEventTopkItem[], !!list?.length);
       }
+
       return null;
     };
 
-    const createContentRender = () => {
-      const { list, topk } = menuData.value || {};
-
-      if (list?.length === 1) {
-        const {
-          'event.content': { detail },
-        } = list[0];
-        return (
-          <div class='alarm-chart-event-detail-content'>
-            {Object.values(detail).map(item => {
-              return (
-                <div
-                  key={item.label}
-                  class='content-item'
-                >
-                  <div class='content-item-label'>{item.label}:</div>
-                  <div class={'content-item-value'}>
-                    {item.url ? (
-                      <span
-                        class='is-url'
-                        onMousedown={() => window.open(item.url, '_blank')}
-                      >
-                        {item.alias || item.value}
-                      </span>
-                    ) : (
-                      item.alias || item.value
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        );
-      }
-
-      if (list?.length > 1) {
-        return (
-          <div class='alarm-chart-event-detail-content'>
-            {list.map((item, index) => {
-              return (
-                <div
-                  key={index}
-                  class='content-item'
-                >
-                  <span
-                    style={{ backgroundImage: `url(${base64Svg[item?.source.value?.toLowerCase() || 'bcs']})` }}
-                    class='event-icon'
-                    v-bk-tooltips={{ content: item?.source.alias }}
-                  />
-                  <div class='content-item-content'>
-                    {item.event_name.alias}
-                    <span
-                      class='is-url '
-                      v-bk-tooltips={{
-                        content: t('查看资源'),
-                        allowHTML: false,
-                      }}
-                      onMousedown={() => item.target.url && window.open(item.target.url, '_blank')}
-                    >
-                      （{item.target.alias}）
-                    </span>
-                  </div>
-                  <i
-                    class='icon-monitor icon-xiangqing1 link-icon'
-                    v-bk-tooltips={{
-                      content: t('查看事件详情'),
-                      allowHTML: false,
-                    }}
-                    onMousedown={e => handleListGotoEventDetail(e, item)}
-                  />
-                </div>
-              );
-            })}
-            {createContentMore()}
-          </div>
-        );
-      }
-
-      if (topk?.length) {
-        return (
-          <div class='alarm-chart-event-detail-content'>
-            {topk.map((item, index) => {
-              return (
-                <div
-                  key={index}
-                  class='content-progress'
-                >
-                  <div class='progress-title'>
-                    <span
-                      style={{ backgroundImage: `url(${base64Svg[item?.source.value?.toLowerCase() || 'bcs']})` }}
-                      class='event-icon'
-                      v-bk-tooltips={{ content: item?.source.alias }}
-                    />
-                    {item.event_name.alias}
-                    <span class='proportions-num'>{item.count}</span>
-                    <i
-                      style={{ marginLeft: '0px' }}
-                      class='icon-monitor icon-xiangqing1 link-icon'
-                      v-bk-tooltips={{
-                        content: t('查看事件详情'),
-                        allowHTML: false,
-                      }}
-                      onMousedown={e => handleTopKGotoEventDetail(e, item)}
-                    />
-                  </div>
-                  <Progress
-                    color={activeTab.value === EventTab.Warning ? '#F59500' : '#3A84FF'}
-                    percent={Math.max(+item.proportions.toFixed(2), 0.01)}
-                    show-text={false}
-                  />
-                </div>
-              );
-            })}
-            {createContentMore()}
-          </div>
-        );
-      }
-
-      return (
-        <Exception
-          class='no-data'
-          scene='part'
-          type='empty'
-        >
-          {t('暂无数据')}
-        </Exception>
-      );
-    };
-
-    const createHeaderRender = () => {
-      if (!warningData.value?.total || loading.value || !menuData.value?.total) return null;
-      return (
-        <div class='alarm-chart-event-detail-header'>
-          {[EventTab.Warning, EventTab.All].map(level => {
-            return (
-              <div
-                key={level}
-                style={{
-                  borderTopColor:
-                    level !== activeTab.value ? '#F0F1F5' : level === EventTab.Warning ? '#F59500' : '#3A84FF',
-                  backgroundColor: level === activeTab.value ? 'transparent' : '#F0F1F5',
-                }}
-                class='header-tab'
-                onMousedown={() => handleTabChange(level)}
-              >
-                {level === EventTab.Warning
-                  ? t('异常事件 ({0})', [warningData.value.total || 0])
-                  : t('全部事件 ({0})', [allData.value.total])}
-              </div>
-            );
-          })}
-        </div>
-      );
-    };
-
+    /**
+     * @description 创建更多按钮
+     * @returns {JSX.Element | null} 更多按钮元素或null
+     */
     const createContentMore = () => {
-      if (menuData.value?.list?.length >= menuData.value.total && menuData.value?.topk?.length >= menuData.value.total)
-        return null;
+      const shouldShowMore =
+        menuData.value?.list?.length < menuData.value.total || menuData.value?.topk?.length < menuData.value.total;
+
+      if (!shouldShowMore) return null;
+
       return (
         <div
           class='common-more'
           onMousedown={e => {
             e.preventDefault();
-            createApmEventExploreHref(menuData.value.time);
+            handleEventDetailNavigation(menuData.value.time);
           }}
         >
           ...
@@ -475,44 +437,191 @@ export default defineComponent({
       );
     };
 
-    const createLoadingRender = () => {
-      return [
-        <div
-          key={'title'}
-          class='alarm-chart-event-detail-title'
+    /**
+     * @description 渲染单个事件内容详情
+     * @param {IEventListItem} item - 事件列表项
+     * @returns {JSX.Element} 内容元素
+     */
+    const renderSingleEventContent = (item: IEventListItem) => (
+      <div class='alarm-chart-event-detail-content'>
+        {Object.values(item['event.content'].detail).map(detailItem => (
+          <div
+            key={detailItem.label}
+            class='content-item'
+          >
+            <div class='content-item-label'>{detailItem.label}:</div>
+            <div class='content-item-value'>
+              {detailItem.url ? (
+                <span
+                  class='is-url'
+                  onMousedown={() => window.open(detailItem.url, '_blank')}
+                >
+                  {detailItem.alias || detailItem.value}
+                </span>
+              ) : (
+                detailItem.alias || detailItem.value
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+
+    /**
+     * @description 渲染事件列表内容
+     * @param {IEventListItem[]} list - 事件列表数组
+     * @returns {JSX.Element} 内容元素
+     */
+    const renderEventListContent = (list: IEventListItem[]) => (
+      <div class='alarm-chart-event-detail-content'>
+        {list.map((item, index) => (
+          <div
+            key={item.event_name?.value || index}
+            class='content-item'
+          >
+            {renderEventIcon(item.source)}
+            <div class='content-item-content'>
+              {item.event_name.alias}
+              <span
+                class='is-url'
+                v-bk-tooltips={{
+                  content: t('查看资源'),
+                  allowHTML: false,
+                }}
+                onMousedown={() => item.target.url && window.open(item.target.url, '_blank')}
+              >
+                （{item.target.alias}）
+              </span>
+            </div>
+            {renderDetailButton(e => handleListGotoEventDetail(e, item))}
+          </div>
+        ))}
+        {createContentMore()}
+      </div>
+    );
+
+    /**
+     * @description 渲染TopK进度条内容
+     * @param {IEventTopkItem[]} topk - TopK事件数组
+     * @returns {JSX.Element} 内容元素
+     */
+    const renderTopKContent = (topk: IEventTopkItem[]) => (
+      <div class='alarm-chart-event-detail-content'>
+        {topk.map((item, index) => (
+          <div
+            key={item.event_name?.value || index}
+            class='content-progress'
+          >
+            <div class='progress-title'>
+              {renderEventIcon(item.source)}
+              {item.event_name.alias}
+              <span class='proportions-num'>{item.count}</span>
+              {renderDetailButton(e => handleTopKGotoEventDetail(e, item))}
+            </div>
+            <Progress
+              color={TAB_COLORS[activeTab.value === EventTab.Warning ? EventTab.Warning : EventTab.All]}
+              percent={Math.max(+item.proportions.toFixed(2), 0.01)}
+              show-text={false}
+            />
+          </div>
+        ))}
+        {createContentMore()}
+      </div>
+    );
+
+    /**
+     * @description 创建内容渲染
+     * @returns {JSX.Element} 内容元素
+     */
+    const createContentRender = () => {
+      const { list, topk } = menuData.value || {};
+
+      if (list?.length === 1) {
+        return renderSingleEventContent(list[0] as unknown as IEventListItem);
+      }
+
+      if (list?.length > 1) {
+        return renderEventListContent(list as unknown as IEventListItem[]);
+      }
+
+      if (topk?.length) {
+        return renderTopKContent(topk as unknown as IEventTopkItem[]);
+      }
+
+      return (
+        <Exception
+          class='no-data'
+          scene='part'
+          type='empty'
         >
-          <div
-            style='width: 33%'
-            class='skeleton-element custom-menu-skeleton'
-          />
-        </div>,
-        <div
-          key={'content'}
-          class='alarm-chart-event-detail-content'
-        >
-          <div
-            style='width: 90%'
-            class='skeleton-element custom-menu-skeleton'
-          />
-          <div
-            style='width: 70%'
-            class='skeleton-element custom-menu-skeleton'
-          />
-          <div
-            style='width: 50%'
-            class='skeleton-element custom-menu-skeleton'
-          />
-        </div>,
-      ];
+          {t('暂无数据')}
+        </Exception>
+      );
     };
 
-    watch(
-      () => props.eventItem,
-      () => {
-        getCustomEventTagDetailsData();
-      },
-      { deep: true, immediate: true }
-    );
+    /**
+     * @description 创建头部标签渲染
+     * @returns {JSX.Element | null} 头部元素或null
+     */
+    const createHeaderRender = () => {
+      if (!warningData.value?.total || loading.value || !menuData.value?.total) return null;
+
+      return (
+        <div class='alarm-chart-event-detail-header'>
+          {[EventTab.Warning, EventTab.All].map(level => (
+            <div
+              key={level}
+              style={{
+                borderTopColor: level !== activeTab.value ? '#F0F1F5' : TAB_COLORS[level],
+                backgroundColor: level === activeTab.value ? 'transparent' : '#F0F1F5',
+              }}
+              class='header-tab'
+              onMousedown={() => handleTabChange(level)}
+            >
+              {level === EventTab.Warning
+                ? t('异常事件 ({0})', [warningData.value.total || 0])
+                : t('全部事件 ({0})', [allData.value.total])}
+            </div>
+          ))}
+        </div>
+      );
+    };
+
+    /**
+     * @description 创建加载状态渲染
+     * @returns {JSX.Element[]} 加载状态元素数组
+     */
+    const createLoadingRender = () => [
+      <div
+        key='title'
+        class='alarm-chart-event-detail-title'
+      >
+        <div
+          style='width: 33%'
+          class='skeleton-element custom-menu-skeleton'
+        />
+      </div>,
+      <div
+        key='content'
+        class='alarm-chart-event-detail-content'
+      >
+        <div
+          style='width: 90%'
+          class='skeleton-element custom-menu-skeleton'
+        />
+        <div
+          style='width: 70%'
+          class='skeleton-element custom-menu-skeleton'
+        />
+        <div
+          style='width: 50%'
+          class='skeleton-element custom-menu-skeleton'
+        />
+      </div>,
+    ];
+
+    // 监听eventItem变化，重新获取数据
+    watch(() => props.eventItem, getCustomEventTagDetailsData, { deep: true, immediate: true });
 
     return {
       loading,
@@ -523,7 +632,9 @@ export default defineComponent({
     };
   },
   render() {
+    // 位置校验
     if (!this.position?.left || !this.position?.top) return null;
+
     return (
       <div
         style={{
@@ -533,9 +644,7 @@ export default defineComponent({
         class='alarm-chart-event-detail'
       >
         {this.loading && this.createLoadingRender()}
-        {!this.loading && this.createHeaderRender()}
-        {!this.loading && this.createTitleRender()}
-        {!this.loading && this.createContentRender()}
+        {!this.loading && [this.createHeaderRender(), this.createTitleRender(), this.createContentRender()]}
       </div>
     );
   },

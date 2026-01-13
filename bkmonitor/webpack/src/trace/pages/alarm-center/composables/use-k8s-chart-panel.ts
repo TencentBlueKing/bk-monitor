@@ -39,78 +39,6 @@ import {
 
 import type { K8sBasePromqlGeneratorContext } from 'monitor-pc/pages/monitor-k8s/components/k8s-charts/typing';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
-
-const _mockMetricListData = [
-  {
-    id: 'CPU',
-    name: 'CPU',
-    children: [
-      {
-        id: 'container_cpu_usage_seconds_total',
-        name: 'CPU使用量',
-        unit: 'core',
-      },
-      {
-        id: 'kube_pod_cpu_requests_ratio',
-        name: 'CPU request使用率',
-        unit: 'percentunit',
-      },
-      {
-        id: 'kube_pod_cpu_limits_ratio',
-        name: 'CPU limit使用率',
-        unit: 'percentunit',
-      },
-      {
-        id: 'container_cpu_cfs_throttled_ratio',
-        name: 'CPU 限流占比',
-        unit: 'percentunit',
-      },
-    ],
-  },
-  {
-    id: 'memory',
-    name: '内存',
-    children: [
-      {
-        id: 'container_memory_working_set_bytes',
-        name: '内存使用量(Working Set)',
-        unit: 'bytes',
-      },
-      {
-        id: 'kube_pod_memory_requests_ratio',
-        name: '内存 request使用率',
-        unit: 'percentunit',
-      },
-      {
-        id: 'kube_pod_memory_limits_ratio',
-        name: '内存 limit使用率',
-        unit: 'percentunit',
-      },
-      {
-        id: 'kube_pod_container_resource_requests_memory_bytes',
-        name: '内存 request',
-        unit: 'bytes',
-      },
-    ],
-  },
-  {
-    id: 'network',
-    name: '流量',
-    children: [
-      {
-        id: 'container_network_receive_bytes_total',
-        name: '网络入带宽',
-        unit: 'Bps',
-      },
-      {
-        id: 'container_network_transmit_bytes_total',
-        name: '网络出带宽',
-        unit: 'Bps',
-      },
-    ],
-  },
-];
-
 export interface UseK8sChartPanelOptions {
   /** 业务ID */
   bizId?: MaybeRef<number>;
@@ -150,7 +78,7 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
   /** 容器监控-过滤数据 */
   const filterBy = computed(() =>
     Object.fromEntries(
-      Object.entries(get(currentTarget))
+      Object.entries(get(currentTarget) ?? {})
         .filter(([k, v]) => v && k !== 'bcs_cluster_id')
         .map(([k, v]) => [k, [v]])
     )
