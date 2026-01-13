@@ -296,7 +296,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   // 时间格式化
   timeFormatter(time: ITableItem<'time'>) {
     if (!time) return '--';
-    if (typeof time !== 'number') return time;
+    if (typeof time !== 'number') return formatWithTimezone(time);
     if (time.toString().length < 13) return formatWithTimezone(time * 1000);
     return formatWithTimezone(time);
   }
