@@ -50,13 +50,7 @@ class UnifyQueryPatternHandler(UnifyQueryHandler):
 
         query_condition.update({"order_by": ["-_value"]})
 
-        print(query_condition)
-
-        result = self.query_ts_reference(query_condition)
-
-        print(result)
-
-        return result
+        return self.query_ts_reference(query_condition)
 
     @staticmethod
     def handle_result_formats(result: dict) -> list:
