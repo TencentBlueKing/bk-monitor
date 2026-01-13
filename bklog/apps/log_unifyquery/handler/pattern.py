@@ -52,7 +52,11 @@ class UnifyQueryPatternHandler(UnifyQueryHandler):
 
         print(query_condition)
 
-        return self.query_ts_reference(query_condition)
+        result = self.query_ts_reference(query_condition)
+
+        print(result)
+
+        return result
 
     @staticmethod
     def handle_result_formats(result: dict) -> list:
