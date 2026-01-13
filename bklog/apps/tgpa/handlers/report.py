@@ -105,9 +105,9 @@ class TGPAReportHandler:
 
         # 默认时间范围：当前时间到七天前
         if not start_time:
-            start_time = arrow.now().shift(days=-7).timestamp()
+            start_time = int(arrow.now().shift(days=-7).timestamp() * 1000)
         if not end_time:
-            end_time = arrow.now().timestamp()
+            end_time = int(arrow.now().timestamp() * 1000)
 
         where_conditions.append(f"dtEventTimeStamp >= '{start_time}'")
         where_conditions.append(f"dtEventTimeStamp < '{end_time}'")
