@@ -348,7 +348,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
             }}
             v-bk-tooltips={{
               placement: 'top',
-              content: showTip ? `${this.$t('数据时间')}：${item.sourceTime}` : '',
+              content: showTip ? `${this.$t('数据时间')}：${formatWithTimezone(item.sourceTime)}` : '',
               disabled: !showTip,
               allowHTML: false,
             }}
@@ -376,7 +376,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
             class={{ 'tip-dashed': item.operate === 'CREATE' || item.operate === 'CONVERGE' }}
             v-bk-tooltips={{
               placement: 'top',
-              content: item.sourceTime ? `${this.$t('数据时间')}：${item.sourceTime}` : '',
+              content: item.sourceTime ? `${this.$t('数据时间')}：${formatWithTimezone(item.sourceTime)}` : '',
               disabled: !item.sourceTime,
               allowHTML: false,
             }}
