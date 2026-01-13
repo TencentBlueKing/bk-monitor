@@ -44,7 +44,7 @@ export default class NewMetricView extends tsc<object> {
   currentView = 'default';
   dimenstionParams: GetSceneViewParams | null = null;
   showStatisticalValue = false;
-  isCustomTsMetricGroupsLoading = true;
+  loading = true;
   viewColumn = 2;
   cacheTimeRange = [];
   asideWidth = 220; // 侧边栏初始化宽度
@@ -52,12 +52,8 @@ export default class NewMetricView extends tsc<object> {
   @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('showRestore') showRestore = false;
-  @ProvideReactive('containerScrollTop') containerScrollTop = 0;
+  // @ProvideReactive('containerScrollTop') containerScrollTop = 0;
   @ProvideReactive('refreshInterval') refreshInterval = -1;
-  @ProvideReactive('timeSeriesGroupId')
-  get timeSeriesGroupId() {
-    return Number(this.$route.params.id);
-  }
 
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
@@ -73,33 +69,8 @@ export default class NewMetricView extends tsc<object> {
     this.showRestore = false;
   }
 
-  @Watch('isCustomTsMetricGroupsLoading')
-  isCustomTsMetricGroupsLoadingChange(v) {
-    if (!v) {
-      this.$nextTick(() => {
-        this.initScroll();
-      });
-    }
-  }
-  initScroll() {
-    const container = document.querySelector('.metric-view-dashboard-container') as HTMLElement;
-    if (container) {
-      container.removeEventListener('scroll', this.handleScroll);
-      container.addEventListener('scroll', this.handleScroll);
-    }
-  }
-
-  removeScrollEvent() {
-    const container = document.querySelector('.metric-view-dashboard-container') as HTMLElement;
-    if (container) {
-      container.removeEventListener('scroll', this.handleScroll);
-    }
-  }
-
-  handleScroll(e) {
-    if (e.target.scrollTop > 0) {
-      this.containerScrollTop = e.target.scrollTop;
-    }
+  get timeSeriesGroupId() {
+    return Number(this.$route.params.id);
   }
 
   get startTime() {
@@ -133,11 +104,11 @@ export default class NewMetricView extends tsc<object> {
 
   @Watch('timeSeriesGroupId')
   timeSeriesGroupIdChange() {
-    this.isCustomTsMetricGroupsLoading = true;
+    this.loading = true;
   }
 
   async handleSuccess() {
-    this.isCustomTsMetricGroupsLoading = false;
+    this.loading = false;
   }
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
@@ -168,10 +139,6 @@ export default class NewMetricView extends tsc<object> {
     this.currentView = routerQuery.viewTab || 'default';
   }
 
-  beforeDestroy() {
-    this.removeScrollEvent();
-  }
-
   render() {
     return (
       <div class='bk-monitor-new-metric-view'>
@@ -188,9 +155,9 @@ export default class NewMetricView extends tsc<object> {
         </PageHeadr>
         <div
           key={this.timeSeriesGroupId}
-          v-bkloading={{ isLoading: this.isCustomTsMetricGroupsLoading }}
+          v-bkloading={{ isLoading: this.loading }}
         >
-          {!this.isCustomTsMetricGroupsLoading && (
+          {!this.loading && (
             <ViewTab
               v-model={this.currentView}
               graphConfigPayload={this.graphConfigParams}
@@ -201,6 +168,7 @@ export default class NewMetricView extends tsc<object> {
             config={this.graphConfigParams}
             currentView={this.currentView}
             dimenstionParams={this.dimenstionParams}
+            timeSeriesGroupId={this.timeSeriesGroupId}
             onCustomTsMetricGroups={this.handleSuccess}
             onDimensionParamsChange={this.handleDimensionParamsChange}
             onResetMetricsSelect={this.handleMetricsSelectReset}

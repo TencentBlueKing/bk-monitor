@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
@@ -76,7 +76,7 @@ export const encodeRegexp = (paramStr: string) => {
 @Component
 export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   @Prop({ type: String, default: '' }) readonly searchKey: IProps['searchKey'];
-  @Inject('requestHandlerMap') readonly requestHandlerMap!: RequestHandlerMap;
+  @InjectReactive('requestHandlerMap') readonly requestHandlerMap!: RequestHandlerMap;
   @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
   @InjectReactive('isApm') readonly isApm: boolean;
   @InjectReactive('appName') readonly appName: string;

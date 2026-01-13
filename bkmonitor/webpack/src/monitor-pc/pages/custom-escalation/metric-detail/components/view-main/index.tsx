@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
@@ -51,7 +51,7 @@ type GetSceneViewParams = Parameters<typeof getSceneView>[0];
 interface IEmit {
   onCustomTsMetricGroups: (payload: any) => void;
   onDimensionParamsChange: (payload: GetSceneViewParams) => void;
-  onOpenSideslider?: () => void;
+  onMerticManage?: () => void;
   onResetMetricsSelect: () => void;
 }
 
@@ -60,14 +60,14 @@ interface IProps {
   currentView?: string;
   dimenstionParams?: GetSceneViewParams | null;
   isApm?: boolean;
-  // timeSeriesGroupId?: number;
   requestMap?: object;
+  timeSeriesGroupId?: number;
 }
 
 const ASIDE_WIDTH_SETTING_KEY = 'ASIDE_WIDTH_SETTING_KEY';
 @Component
 export default class ViewContent extends tsc<IProps, IEmit> {
-  // @Prop({ type: Number, default: -1 }) readonly timeSeriesGroupId: IProps['timeSeriesGroupId'];
+  @Prop({ type: Number, default: -1 }) readonly timeSeriesGroupId: IProps['timeSeriesGroupId'];
   @Prop({ type: String, default: 'default' }) readonly currentView: IProps['currentView'];
   @Prop({ type: Object, default: null }) readonly dimenstionParams: IProps['dimenstionParams'];
   @Prop({ type: Boolean, default: false }) readonly isApm: IProps['isApm'];
@@ -84,11 +84,10 @@ export default class ViewContent extends tsc<IProps, IEmit> {
   requestMap: RequestHandlerMap;
 
   @ProvideReactive('requestHandlerMap') requestHandlerMap: RequestHandlerMap;
+  // @ProvideReactive('containerScrollTop') containerScrollTop = 0;
 
-  @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
-
-  @Emit('openSideslider')
-  handleSideslider() {}
+  @Emit('merticManage')
+  handleMerticManage() {}
 
   @Emit('resetMetricsSelect')
   handleMetricsSelectReset() {}
@@ -116,6 +115,11 @@ export default class ViewContent extends tsc<IProps, IEmit> {
   @ProvideReactive('isApm')
   get isApmMode() {
     return this.isApm;
+  }
+
+  @ProvideReactive('timeSeriesGroupId')
+  get groupId() {
+    return this.timeSeriesGroupId;
   }
 
   @Watch('state', { deep: true })
@@ -147,7 +151,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
   async getCustomTsMetricGroupsData() {
     const needParseUrl = Boolean(this.$route.query?.viewPayload);
     let metricGroupsData: ServiceReturnType<RequestHandlerMap['getCustomTsMetricGroups']>['metric_groups'] = [];
-    if (this.timeSeriesGroupId < 1) {
+    if (this.timeSeriesGroupId < 1 && !this.isApmMode) {
       return [];
     }
     try {
@@ -210,7 +214,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
         <template slot='aside'>
           <MetricsSelect
             isApm={this.isApm}
-            onOpenSideslider={this.handleSideslider}
+            onMerticManage={this.handleMerticManage}
             onReset={this.handleMetricsSelectReset}
           />
         </template>
@@ -219,7 +223,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
             key={this.currentView}
             dimenstionParams={this.dimenstionParams}
             onChange={this.handleDimensionParamsChange}
-            onMericManage={this.handleSideslider}
+            onMericManage={this.handleMerticManage}
           >
             <template slot='actionExtend'>
               <bk-checkbox v-model={this.state.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
@@ -234,7 +238,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
               config={this.config}
               showStatisticalValue={this.state.showStatisticalValue}
               viewColumn={this.state.viewColumn}
-              onMericManage={this.handleSideslider}
+              onMericManage={this.handleMerticManage}
             />
           </div>
         </template>

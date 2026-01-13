@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
@@ -35,8 +35,11 @@ import './index.scss';
 
 @Component
 export default class PageHeader extends tsc<object> {
-  @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
   customTimeSeriesList: Readonly<{ data_label: string; name: string; time_series_group_id: number }[]> = [];
+
+  get timeSeriesGroupId() {
+    return Number(this.$route.params.id);
+  }
 
   get currentCustomTimeSeriesName() {
     return this.customTimeSeriesList.find(item => item.time_series_group_id === this.timeSeriesGroupId)?.name || '--';

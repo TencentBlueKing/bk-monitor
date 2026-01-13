@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Inject, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { connect, disconnect } from 'echarts/core';
@@ -77,7 +77,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
   @InjectReactive('isApm') readonly isApm: boolean;
   @InjectReactive('appName') readonly appName: string;
   @InjectReactive('serviceName') readonly serviceName: string;
-  @Inject('requestHandlerMap') readonly requestHandlerMap!: RequestHandlerMap;
+  @InjectReactive('requestHandlerMap') readonly requestHandlerMap!: RequestHandlerMap;
 
   activeName = [];
   /** 分组数据 */

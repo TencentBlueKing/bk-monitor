@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Inject, InjectReactive, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
@@ -49,7 +49,7 @@ type GetSceneViewParams = Parameters<typeof getSceneView>[0];
 })
 export default class ApmViewContent extends tsc<any, any> {
   @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
-  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
+  @ProvideReactive('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('showRestore') showRestore = false;
   @ProvideReactive('containerScrollTop') containerScrollTop = 0;
   @ProvideReactive('refreshInterval') refreshInterval = -1;
@@ -60,7 +60,7 @@ export default class ApmViewContent extends tsc<any, any> {
 
   cacheTimeRange = [];
   dimenstionParams: GetSceneViewParams | null = null;
-  isCustomTsMetricGroupsLoading = true;
+  loading = true;
 
   get metricGroupList() {
     return customEscalationViewStore.metricGroupList;
@@ -95,15 +95,6 @@ export default class ApmViewContent extends tsc<any, any> {
     };
   }
 
-  @Watch('isCustomTsMetricGroupsLoading')
-  isCustomTsMetricGroupsLoadingChange(v) {
-    if (!v) {
-      this.$nextTick(() => {
-        this.initScroll();
-      });
-    }
-  }
-
   @Watch('selectedMetricsData')
   selectedMetricsDataChange() {
     this.updateUrlParams();
@@ -111,28 +102,7 @@ export default class ApmViewContent extends tsc<any, any> {
 
   getGroupDataSuccess() {
     this.parseUrlParams();
-    this.isCustomTsMetricGroupsLoading = false;
-  }
-
-  initScroll() {
-    const container = document.querySelector('.metric-view-dashboard-container') as HTMLElement;
-    if (container) {
-      container.removeEventListener('scroll', this.handleScroll);
-      container.addEventListener('scroll', this.handleScroll);
-    }
-  }
-
-  removeScrollEvent() {
-    const container = document.querySelector('.metric-view-dashboard-container') as HTMLElement;
-    if (container) {
-      container.removeEventListener('scroll', this.handleScroll);
-    }
-  }
-
-  handleScroll(e) {
-    if (e.target.scrollTop > 0) {
-      this.containerScrollTop = e.target.scrollTop;
-    }
+    this.loading = false;
   }
 
   // 回显 转换url参数
@@ -219,7 +189,7 @@ export default class ApmViewContent extends tsc<any, any> {
     }, []);
   }
 
-  handleSideslider() {
+  handleMerticManage() {
     // 打开指标管理抽屉
   }
 
@@ -227,7 +197,7 @@ export default class ApmViewContent extends tsc<any, any> {
     return (
       <div
         class='apm-custom-graph-v2 bk-monitor-new-metric-view'
-        v-bkloading={{ isLoading: this.isCustomTsMetricGroupsLoading }}
+        v-bkloading={{ isLoading: this.loading }}
       >
         <ApmCustomGraphV2
           requestMap={{
@@ -242,7 +212,7 @@ export default class ApmViewContent extends tsc<any, any> {
           isApm={true}
           onCustomTsMetricGroups={this.getGroupDataSuccess}
           onDimensionParamsChange={this.handleDimensionParamsChange}
-          onOpenSideslider={this.handleSideslider}
+          onMerticManage={this.handleMerticManage}
           onResetMetricsSelect={this.handleMetricsSelectReset}
         />
       </div>

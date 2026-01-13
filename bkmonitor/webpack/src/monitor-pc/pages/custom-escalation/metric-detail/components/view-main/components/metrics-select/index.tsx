@@ -33,7 +33,7 @@ import RenderMetricsGroup from './components/render-metrics-group';
 import './index.scss';
 
 interface IEmit {
-  onOpenSideslider: () => void;
+  onMerticManage: () => void;
   onReset: () => void;
 }
 
@@ -45,8 +45,8 @@ export default class MetricsSelect extends tsc<IProps, IEmit> {
   @Prop({ type: Boolean, default: false }) readonly isApm: IProps['isApm'];
   @Ref('metricGroupRef') metricGroupRef: RenderMetricsGroup;
 
-  @Emit('openSideslider')
-  handleSideslider() {}
+  @Emit('merticManage')
+  handleMerticManage() {}
 
   searchKey = '';
   isExpandAll = false;
@@ -86,7 +86,7 @@ export default class MetricsSelect extends tsc<IProps, IEmit> {
         return (
           <div
             style='color: #3a84ff;cursor: pointer'
-            onClick={this.handleSideslider}
+            onClick={this.handleMerticManage}
           >
             <i class='icon-monitor icon-shezhi1' />
             {this.$t('指标管理')}

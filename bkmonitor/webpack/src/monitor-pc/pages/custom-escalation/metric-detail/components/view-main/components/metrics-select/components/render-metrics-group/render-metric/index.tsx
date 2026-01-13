@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 // import { modifyCustomTsFields } from 'monitor-api/modules/custom_report';
@@ -57,7 +57,7 @@ export default class RenderMetric extends tsc<IProps, IEmit> {
   @InjectReactive('isApm') readonly isApm: boolean;
   @InjectReactive('appName') readonly appName: string;
   @InjectReactive('serviceName') readonly serviceName: string;
-  @Inject('requestHandlerMap') readonly requestHandlerMap!: RequestHandlerMap;
+  @InjectReactive('requestHandlerMap') readonly requestHandlerMap!: RequestHandlerMap;
 
   @Ref('fromRef') fromRef;
   @Ref('popoverRef') popoverRef;

@@ -74,7 +74,7 @@ import './index.scss';
 const APM_CUSTOM_METHODS = ['COUNT', 'SUM', 'AVG', 'MAX', 'MIN'];
 
 // 最小展示tooltips高度
-const MIN_SHOW_TOOLTIPS_HEIGHT = 200;
+// const MIN_SHOW_TOOLTIPS_HEIGHT = 200;
 
 interface INewMetricChartEvents {
   onDrillDown?: () => void;
@@ -111,7 +111,8 @@ class NewMetricChart extends CommonSimpleChart {
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: string[]) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
-  @InjectReactive({ from: 'containerScrollTop', default: 0 }) readonly containerScrollTop: number;
+  // @InjectReactive({ from: 'containerScrollTop', default: 0 }) readonly containerScrollTop: number;
+  @InjectReactive('isApm') readonly isApm: boolean;
   @Ref('baseChart') readonly baseChart: HTMLElement;
   @Ref('chart') readonly chart: HTMLElement;
   methodList = APM_CUSTOM_METHODS.map(method => ({
@@ -174,6 +175,8 @@ class NewMetricChart extends CommonSimpleChart {
   enableContextmenu = true;
   // 自动粒度降采样
   downSampleRange = 'auto';
+  // 图表是否在视图范围内
+  chartIntoView = false;
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
   }
@@ -200,13 +203,47 @@ class NewMetricChart extends CommonSimpleChart {
     return ['explore', 'drill-down', 'relate-alert', 'more', 'save'];
   }
   /** hover展示多个tooltips */
-  get hoverAllTooltips() {
-    // 根据图表是否在可视区域内来判断是否展示多个tooltips
-    const { top = MIN_SHOW_TOOLTIPS_HEIGHT } = this.$refs.baseChart?.$el?.getBoundingClientRect() || {};
-    return (
-      (this.panel.options?.time_series?.hoverAllTooltips && top >= this.containerScrollTop) ||
-      top >= MIN_SHOW_TOOLTIPS_HEIGHT
+  // get hoverAllTooltips() {
+  //   // 根据图表是否在可视区域内来判断是否展示多个tooltips
+  //   const { top = MIN_SHOW_TOOLTIPS_HEIGHT } = this.$refs.baseChart?.$el?.getBoundingClientRect() || {};
+  //   return (
+  //     (this.panel.options?.time_series?.hoverAllTooltips && top >= this.containerScrollTop) ||
+  //     top >= MIN_SHOW_TOOLTIPS_HEIGHT
+  //   );
+  // }
+  // beforeDestroy() {
+  //   this.removeScrollEvent();
+  // }
+  @Watch('initialized', { immediate: true })
+  loadingChange(v) {
+    this.$nextTick(() => {
+      if (v) {
+        this.observerChart();
+      }
+    })
+  }
+
+  observerChart() {
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          this.chartIntoView = entry.isIntersecting;
+        });
+      },
+      {
+        root: null,
+        threshold: 0.5,
+      }
     );
+
+    // 获取要观察的目标元素
+    const target = document.querySelector(`.baseChart-${this.panel.title}`);
+    if (target) {
+      observer.observe(target);
+      this.$once('hook:beforeDestroy', () => {
+        observer.unobserve(target);
+      });
+    }
   }
   /** 拉伸的时候图表重新渲染 */
   @Watch('chartHeight')
@@ -979,8 +1016,9 @@ class NewMetricChart extends CommonSimpleChart {
                   ref='baseChart'
                   width={this.width}
                   height={this.chartHeight}
+                  class={`baseChart-${this.panel.title}`}
                   groupId={this.panel.groupId}
-                  hoverAllTooltips={this.hoverAllTooltips}
+                  hoverAllTooltips={this.chartIntoView}
                   isContextmenuPreventDefault={true}
                   needTooltips={true}
                   options={this.options}
