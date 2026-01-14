@@ -135,24 +135,6 @@ export default defineComponent({
       }
     };
 
-    // 获取索引集ID
-    // const getIndexSetId = async () => {
-    //   try {
-    //     const params = {
-    //       query: {
-    //         bk_biz_id: store.state.bkBizId,
-    //       },
-    //     };
-
-    //     const response = await http.request('collect/getTaskIndexSetId', params);
-    //     if (response.data && response.data.index_set_id) {
-    //       indexSetId.value = String(response.data.index_set_id);
-    //     }
-    //   } catch (error) {
-    //     console.warn('获取索引集ID失败:', error);
-    //   }
-    // };
-
     // 检查是否为灰度业务
     const checkGrayReleaseAccess = () => {
       const bizId = store.state.bkBizId;
