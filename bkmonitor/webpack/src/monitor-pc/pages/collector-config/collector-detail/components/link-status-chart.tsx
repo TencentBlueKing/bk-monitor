@@ -27,6 +27,7 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
@@ -82,6 +83,9 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
       },
       axisLabel: {
         color: '#979BA5',
+        formatter: value => {
+          return dayjs.tz(value).format('HH:mm')
+        },
       },
       axisTick: {
         show: false,
