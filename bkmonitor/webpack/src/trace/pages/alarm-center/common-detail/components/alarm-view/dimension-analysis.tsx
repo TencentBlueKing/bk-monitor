@@ -69,10 +69,26 @@ export default defineComponent({
     /**
      * 选中的维度
      */
-    const selectedDimension = shallowRef([]);
+    const selectedDimension = shallowRef<string[]>([dimensionList.value[0].id]);
+    /**
+     * 下钻条件
+     */
+    const where = shallowRef([
+      {
+        method: 'eq',
+        value: ['test'],
+        condition: 'and',
+        key: 'test',
+      },
+    ]);
 
     const handleDrillDown = (item: any) => {
       console.log(item);
+    };
+    const handleTableDrillDown = (obj: { dimension: string; where: any[] }) => {
+      const existingKeys = new Set(obj.where.map(item => item.key));
+      where.value = [...where.value.filter(item => !existingKeys.has(item.key)), ...obj.where];
+      selectedDimension.value = [obj.dimension];
     };
 
     const handleShowTypeChange = (val: string) => {
@@ -82,7 +98,7 @@ export default defineComponent({
     const handleMultiChange = (val: boolean) => {
       isMulti.value = val;
       if (!val) {
-        selectedDimension.value = selectedDimension.value.length ? selectedDimension.value[0] : [];
+        selectedDimension.value = selectedDimension.value.length ? [selectedDimension.value[0]] : [];
       }
     };
 
@@ -90,15 +106,22 @@ export default defineComponent({
       selectedDimension.value = val;
     };
 
+    const handleRemoveCondition = (index: number) => {
+      where.value = [...where.value.slice(0, index), ...where.value.slice(index + 1)];
+    };
+
     return {
       isMulti,
       showTypeActive,
       dimensionList,
       selectedDimension,
+      where,
       handleDrillDown,
+      handleTableDrillDown,
       handleShowTypeChange,
       handleMultiChange,
       handleDimensionSelectChange,
+      handleRemoveCondition,
     };
   },
   render() {
@@ -128,21 +151,28 @@ export default defineComponent({
               ))}
             </div>
             <div class='conditions-wrap'>
-              {new Array(10).fill(0).map((_item, index) => (
+              {this.where.map((item, index) => (
                 <div
                   key={index}
                   class='condition-item'
                 >
-                  dimension0{index}
+                  {item.key}
                   <span class='method'>等于</span>
-                  value0{index}
-                  <span class='icon-monitor icon-mc-close' />
+                  {item.value}
+                  <span
+                    class='icon-monitor icon-mc-close'
+                    onClick={() => this.handleRemoveCondition(index)}
+                  />
                 </div>
               ))}
             </div>
             <div class='dimension-analysis-data'>
               {this.showTypeActive === TYPE_ENUM.TABLE ? (
-                <DimensionAnalysisTable dimensions={this.dimensionList} />
+                <DimensionAnalysisTable
+                  dimensions={this.dimensionList}
+                  displayDimensions={this.selectedDimension}
+                  onDrillDown={this.handleTableDrillDown}
+                />
               ) : (
                 <DimensionTreeMapCharts
                   dimensionList={this.dimensionList}

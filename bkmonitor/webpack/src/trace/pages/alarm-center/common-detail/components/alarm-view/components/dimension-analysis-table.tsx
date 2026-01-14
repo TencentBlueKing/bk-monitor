@@ -41,18 +41,40 @@ const tableColumnKey = {
 export default defineComponent({
   name: 'DimensionAnalysisTable',
   props: {
+    displayDimensions: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
     dimensions: {
       type: Array as PropType<{ id: string; name: string }[]>,
       default: () => [],
     },
+    tableData: {
+      type: Array as PropType<any[]>,
+      default: () =>
+        new Array(10).fill(null).map((_, index) => ({
+          dimensions: new Array(10).fill(null).reduce((prev, _, _index) => {
+            prev[`dimension_0${_index}`] = `维度值-${index}`;
+            return prev;
+          }, {} as any),
+          '0s': 116551,
+          growth_rates: {
+            '0s': 0,
+          },
+          proportions: {
+            '0s': 5.75,
+          },
+        })),
+    },
   },
   emits: {
-    change: (_val: any) => true,
+    drillDown: (_val: { dimension: string; where: any[] }) => true,
   },
-  setup() {
+  setup(props, { emit }) {
     const { t } = useI18n();
     const selectorRef = useTemplateRef<HTMLDivElement>('selector');
     const popoverInstance = shallowRef(null);
+    const currentRow = shallowRef<any>(null);
     const destroyPopoverInstance = () => {
       popoverInstance.value?.hide();
       popoverInstance.value?.destroy();
@@ -80,29 +102,46 @@ export default defineComponent({
       });
       popoverInstance.value?.show();
     };
-    const handleSelectDimension = (_dimension?: string) => {
+    const handleSelectDimension = (dimension: string) => {
+      emit('drillDown', {
+        dimension,
+        where: props.displayDimensions.map(id => {
+          return {
+            method: 'eq',
+            value: currentRow.value?.dimensions?.[id] || '',
+            condition: 'and',
+            key: id,
+          };
+        }),
+      });
       destroyPopoverInstance();
     };
     const columns = computed<TdPrimaryTableProps['columns']>(
       () =>
         [
-          {
-            colKey: 'colKey',
-            title: 'xxx维度',
-            width: 155,
-            cell: (_h, { _row }) => {
-              return <div>维度值</div>;
-            },
-          },
+          ...props.displayDimensions.map(dimension => {
+            return {
+              colKey: dimension,
+              title: props.dimensions.find(item => item.id === dimension)?.name || dimension,
+              width: 155,
+              cell: (_h, { row }) => {
+                return <div>{row?.dimensions?.[dimension] || '--'}</div>;
+              },
+            };
+          }),
           {
             colKey: tableColumnKey.operation,
             title: t('操作'),
             width: '100',
-            cell: (_h, { _row }) => {
+            fixed: 'right',
+            cell: (_h, { row }) => {
               return (
                 <span
                   class='operation-btn'
-                  onClick={event => showPopover(event)}
+                  onClick={event => {
+                    currentRow.value = row;
+                    showPopover(event);
+                  }}
                 >
                   <span>{t('下钻')}</span>
                   <span class='icon-monitor icon-mc-triangle-down' />
@@ -115,6 +154,7 @@ export default defineComponent({
             title: t('占比'),
             width: 100,
             sorter: true,
+            fixed: 'right',
             cell: (_h, { _row }) => {
               return <div>占比</div>;
             },
@@ -123,6 +163,7 @@ export default defineComponent({
             colKey: tableColumnKey.currentValue,
             title: t('当前值'),
             width: 100,
+            fixed: 'right',
             cell: (_h, { _row }) => {
               return <div>当前值</div>;
             },
@@ -141,8 +182,10 @@ export default defineComponent({
         <PrimaryTable
           class='dimension-analysis-data-table'
           columns={this.columns}
-          data={new Array(10).fill(null).map((_, index) => ({ key: index }))}
+          data={this.tableData}
+          horizontalScrollAffixedBottom={true}
           hover={true}
+          needCustomScroll={false}
           resizable={true}
           tableLayout='fixed'
         />
@@ -155,15 +198,22 @@ export default defineComponent({
             ref='selector'
             class='dimension-analysis-data-table-popover'
           >
-            {this.dimensions.map((item, index) => (
-              <div
-                key={index}
-                class={['selector-item', { active: index === 5 }]}
-                onClick={() => this.handleSelectDimension()}
-              >
-                {item.name}
-              </div>
-            ))}
+            {this.dimensions.map((item, index) => {
+              const active = this.displayDimensions?.[0] === item.id;
+              return (
+                <div
+                  key={index}
+                  class={['selector-item', { active }]}
+                  onClick={() => {
+                    if (!active) {
+                      this.handleSelectDimension(item.id);
+                    }
+                  }}
+                >
+                  {item.name}
+                </div>
+              );
+            })}
           </div>
         </div>
       </>
