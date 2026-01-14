@@ -12,7 +12,9 @@
     }
 
     .dimension-analysis-right {
+      display: flex;
       flex: 1;
+      flex-direction: column;
       max-width: calc(100% - 160px);
       background: #fff;
 
@@ -53,7 +55,7 @@
       .conditions-wrap {
         display: flex;
         flex-wrap: wrap;
-        margin: 8px;
+        margin: 0 8px 8px;
 
         .condition-item {
           display: flex;
@@ -77,7 +79,7 @@
       }
 
       .dimension-analysis-data {
-        height: calc(100% - 40px);
+        flex: 1;
       }
     }
   }

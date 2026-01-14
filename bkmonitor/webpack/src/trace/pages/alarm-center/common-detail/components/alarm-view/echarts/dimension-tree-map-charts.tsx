@@ -28,6 +28,8 @@ import { defineComponent, nextTick, shallowRef, useTemplateRef } from 'vue';
 
 import VueEcharts from 'vue-echarts';
 
+import type { TooltipComponentOption } from 'echarts';
+
 import './dimension-tree-map-charts.scss';
 
 export default defineComponent({
@@ -48,27 +50,76 @@ export default defineComponent({
     });
     const menuContainerRef = useTemplateRef<HTMLDivElement>('menuContainer');
 
+    const total = shallowRef(100);
+
+    const tooltipFormatter: TooltipComponentOption['formatter'] = params => {
+      return `<div class="monitor-chart-tooltips">
+              <ul class="tooltips-content">
+              <li class="tooltips-content-item">
+                  <span class="item-series"
+                   style="background-color:${params.color};">
+                  </span>
+                  <span class="item-name" style="color: #fafbfd;">${params.name}:</span>
+                  <span class="item-value tag" style="color: #fafbfd;">
+                   ${params.value}（${((params.value / total.value) * 100).toFixed(2)}%）
+                  </span>
+                  </li>
+              </ul>
+              </div>`;
+    };
+
     const options = {
-      tooltip: {},
+      tooltip: {
+        transitionDuration: 0,
+        alwaysShowContent: false,
+        backgroundColor: 'rgba(54,58,67,.88)',
+        borderWidth: 0,
+        textStyle: {
+          fontSize: 12,
+          color: '#BEC0C6',
+        },
+        extraCssText: 'border-radius: 4px',
+        appendToBody: true,
+        formatter: tooltipFormatter,
+      },
+      color: [
+        '#7EC2BD',
+        '#EB768F',
+        '#3754B0',
+        '#3FA8CA',
+        '#A563A3',
+        '#F68772',
+        '#FCB391',
+        '#56D1A2',
+        '#6289CE',
+        '#F3CE88',
+        '#83C2EA',
+      ],
       series: [
         {
           name: 'dimension-analysis',
           type: 'treemap',
+          top: 0,
+          left: 8,
+          right: 8,
+          bottom: 0,
           breadcrumb: {
             show: false,
+          },
+          itemStyle: {
+            gapWidth: 2,
+            borderRadius: 2,
           },
           roam: false,
           nodeClick: false,
           data: [
-            { name: 'A', value: 10 },
-            {
-              name: 'B',
-              value: 20,
-              children: [
-                { name: 'B1', value: 5 },
-                { name: 'B2', value: 15 },
-              ],
-            },
+            { name: 'SayHello', value: 20 },
+            { name: 'Tencent-Hello', value: 15 },
+            { name: 'handle', value: 10 },
+            { name: '/404', value: 9 },
+            { name: '/500', value: 8 },
+            { name: '/placeholder', value: 7 },
+            { name: '/name', value: 6 },
           ],
         },
       ],
@@ -133,7 +184,10 @@ export default defineComponent({
   render() {
     return (
       <div class='dimension-tree-map-charts'>
-        <div class='echart-container'>
+        <div
+          ref='chartRef'
+          class='echart-container'
+        >
           <VueEcharts
             ref='echart'
             option={this.options}
