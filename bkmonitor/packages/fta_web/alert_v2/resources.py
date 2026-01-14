@@ -280,7 +280,9 @@ class AlertEventBaseResource(Resource, abc.ABC):
             query_params.update(target.list_related_apm_targets()[0])
 
         for query_config in queryset.config.get("query_configs", []):
-            query_params["query_configs"].append(query_config)
+            # 当 build_query_func 不为 None 时，才去添加 query_configs 列表（避免添加包含默认配置的列表，会导致后续序列化校验失败）
+            if query_config.get("table"):
+                query_params["query_configs"].append(query_config)
 
         return query_params
 
@@ -324,8 +326,7 @@ class AlertEventsResource(AlertEventBaseResource):
         Raises:
             ValueError: 当告警目标类型不支持时抛出异常
         """
-        alert_id: str = validated_request_data["alert_id"]
-        alert: AlertDocument = AlertDocument.get(alert_id)
+        alert: AlertDocument = AlertDocument.get(validated_request_data["alert_id"])
         target: BaseTarget = get_target_instance(alert)
         q: QueryConfigBuilder = self._get_q(alert, target)
         if validated_request_data.get("sources"):
@@ -337,7 +338,10 @@ class AlertEventsResource(AlertEventBaseResource):
         query_params["offset"] = validated_request_data["offset"]
 
         if self.is_apm_target(target):
-            return APMEventLogsResource().request(query_params)
+            result: dict[str, Any] = APMEventLogsResource().request(query_params)
+            # APM 告警场景下需跳转到 APM 事件页面，query_config 设置为前端跳转所需的请求参数
+            result["query_config"] = query_params
+            return result
 
         result: dict[str, Any] = EventLogsResource().request(query_params)
         if result.get("query_config") and result["query_config"].get("query_configs"):
@@ -458,10 +462,13 @@ class AlertEventTSResource(AlertEventBaseResource):
         if validated_request_data.get("end_time") is not None:
             query_params["end_time"] = validated_request_data["end_time"]
 
-        event_ts_resource_cls: type[EventTimeSeriesResource] = (
-            APMEventTimeSeriesResource if self.is_apm_target(target) else EventTimeSeriesResource
-        )
-        return event_ts_resource_cls().request(query_params)
+        if self.is_apm_target(target):
+            result: dict[str, Any] = APMEventTimeSeriesResource().request(query_params)
+            # APM 告警场景下需跳转到 APM 事件页面，query_config 设置为前端跳转所需的请求参数（具体的 where 字段再从气泡详情中拿）
+            result["query_config"] = query_params
+            return result
+
+        return EventTimeSeriesResource().request(query_params)
 
 
 class AlertEventTagDetailResource(AlertEventBaseResource):

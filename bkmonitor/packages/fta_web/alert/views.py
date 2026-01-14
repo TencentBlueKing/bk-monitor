@@ -183,6 +183,7 @@ class AlertViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.alert.alert_extend_fields, endpoint="alert/extend_fields"),
         ResourceRoute("POST", resource.alert.ack_alert, endpoint="alert/ack"),
         ResourceRoute("POST", resource.alert.alert_graph_query, endpoint="alert/graph_query"),
+        ResourceRoute("POST", resource.alert.edit_data_meaning, endpoint="alert/edit_data_meaning"),
         ResourceRoute("POST", resource.alert.event_date_histogram, endpoint="event/date_histogram"),
         ResourceRoute("POST", resource.alert.search_action, endpoint="action/search"),
         ResourceRoute("GET", resource.alert.action_detail, endpoint="action/detail"),
