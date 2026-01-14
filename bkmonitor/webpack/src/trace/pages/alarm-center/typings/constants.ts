@@ -50,6 +50,16 @@ export enum AlertAllActionEnum {
 /** 进入页面后需要能自动打开展示dialog的事件 */
 export const CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS = [AlertAllActionEnum.CONFIRM, AlertAllActionEnum.SHIELD];
 
+/** 告警级别枚举 */
+export enum AlertLevelEnum {
+  /** 致命 */
+  FATAL = 1,
+  /** 提醒 */
+  REMIND = 3,
+  /** 预警 */
+  WARNING = 2,
+}
+
 /** 告警详情-容器tab图表特殊辅助线series颜色映射 */
 export const SpecialSeriesColorMap = {
   request: {
@@ -154,19 +164,19 @@ export const IncidentIconMap = {
 };
 
 export const AlarmLevelIconMap = {
-  1: {
+  [AlertLevelEnum.FATAL]: {
     icon: 'rect',
     iconColor: '#E71818',
     text: window.i18n.t('致命'),
     textColor: '#E71818',
   },
-  2: {
+  [AlertLevelEnum.WARNING]: {
     icon: 'rect',
     iconColor: '#E38B02',
     text: window.i18n.t('预警'),
     textColor: '#E38B02',
   },
-  3: {
+  [AlertLevelEnum.REMIND]: {
     icon: 'rect',
     iconColor: '#3A84FF',
     text: window.i18n.t('提醒'),

@@ -2,8 +2,13 @@
   height: 100%;
 
   .common-legend-item {
-    .icon-danger {
+    .icon-monitor {
+      display: flex;
+      align-items: center;
+      width: 14px;
+      height: 14px;
       margin-right: 3px;
+      font-size: 14px;
       color: var(--legend-color);
     }
 

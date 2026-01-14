@@ -44,34 +44,70 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
+import { useAlarmCenterDetailStore } from '../../../../../../store/modules/alarm-center-detail';
+import { useChartOperation } from '../../../../../trace-explore/components/explore-chart/use-chart-operation';
+import { type AlarmDetail, type AlertEventTagDetailParams, AlertLevelEnum } from '../../../../typings';
 import AlarmChartEventDetail from './alarm-chart-event-detail';
 import MonitorCharts from './monitor-charts';
-import { useChartOperation } from '@/pages/trace-explore/components/explore-chart/use-chart-operation';
-import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
-import type { AlarmDetail, AlertEventTagDetailParams } from '@/pages/alarm-center/typings';
-import type { IDataQuery, ILegendItem } from '@/plugins/typings';
+import type { IDataQuery, ILegendItem } from '../../../../../../plugins/typings';
 import type { ExploreTableRequestParams } from 'monitor-pc/pages/event-explore/typing';
 import type { LegendActionType } from 'monitor-ui/chart-plugins/typings/chart-legend';
 
 import './alarm-charts.scss';
 
-/** 图表颜色常量 */
-const CHART_COLORS = {
-  /** 异常点颜色 */
-  ANOMALY: '#E71818',
-  /** 致命告警图标颜色 */
-  FATAL_ALARM: '#e64545',
-  /** 告警触发阶段图例颜色 */
-  TRIGGER_PHASE: '#DCDEE5',
-  /** 致命告警时段图例颜色 */
-  FATAL_PERIOD: '#F8B4B4',
-  /** 告警触发阶段背景色 */
-  TRIGGER_PHASE_BG: 'rgba(155, 168, 194, 0.12)',
-  /** 致命告警时段背景色 */
-  FATAL_PERIOD_BG: 'rgba(234, 54, 54, 0.12)',
-  /** 事件散点图颜色 */
-  EVENT_SCATTER: '#49C4CC',
+/** 异常点颜色 */
+const ANOMALY_COLOR = '#E71818';
+/** 事件散点图颜色 */
+const EVENT_SCATTER_COLOR = '#49C4CC';
+/** 告警产生图标配置 */
+const ALARM_ICON_CONFIG = {
+  [AlertLevelEnum.FATAL]: {
+    alias: window.i18n.t('致命告警产生'),
+    color: '#e64545',
+    icon: 'icon-monitor icon-danger',
+    unicode: '\ue606',
+  },
+  [AlertLevelEnum.WARNING]: {
+    alias: window.i18n.t('预警告警产生'),
+    color: '#F59500',
+    icon: 'icon-monitor icon-mind-fill',
+    unicode: '\ue670',
+  },
+  [AlertLevelEnum.REMIND]: {
+    alias: window.i18n.t('提醒告警产生'),
+    color: '#3A84FF',
+    icon: 'icon-monitor icon-tips',
+    unicode: '\ue602',
+  },
+} as const;
+/** 告警触发阶段颜色配置 */
+const TRIGGER_PHASE_COLOR_CONFIG = {
+  alias: window.i18n.t('告警触发阶段'),
+  timeRangeColor: 'rgba(155, 168, 194, 0.12)',
+  lengthColor: '#DCDEE5',
+  icon: 'rect-legend',
+} as const;
+/** 告警时段配置映射表 */
+const TIME_RANGE_CONFIG_MAP = {
+  [AlertLevelEnum.FATAL]: {
+    alias: window.i18n.t('致命告警时段'),
+    timeRangeColor: 'rgba(231, 24, 24, 0.12)',
+    lengthColor: '#F8B4B4',
+    icon: 'rect-legend',
+  },
+  [AlertLevelEnum.WARNING]: {
+    alias: window.i18n.t('预警告警时段'),
+    timeRangeColor: 'rgba(255, 184, 72, 0.12)',
+    lengthColor: '#FCE5C0',
+    icon: 'rect-legend',
+  },
+  [AlertLevelEnum.REMIND]: {
+    alias: window.i18n.t('提醒告警时段'),
+    timeRangeColor: 'rgba(58, 132, 255, 0.12)',
+    lengthColor: '#E1ECFF',
+    icon: 'rect-legend',
+  },
 } as const;
 
 export default defineComponent({
@@ -102,14 +138,6 @@ export default defineComponent({
     const chartParams = computed(() => (showRestore.value ? {} : { start_time: undefined, end_time: undefined }));
     /** 是否为事件或日志类型告警 */
     const isEventOrLogAlarm = computed(() => ['event', 'log'].includes(props.detail?.data_type));
-    /** 图例配置映射表 */
-    const legendOptionsMap = computed(() => ({
-      [t('异常')]: { id: 'anomaly', disabled: true, icon: 'circle-legend' },
-      [t('致命告警产生')]: { id: 'fatal_alarm', disabled: true, icon: 'icon-monitor icon-danger' },
-      [t('告警触发阶段')]: { id: 'trigger_phase', disabled: true, icon: 'rect-legend' },
-      [t('致命告警时段')]: { id: 'fatal_period', disabled: true, icon: 'rect-legend' },
-      [t('事件')]: { id: 'event', disabled: false, icon: 'event-legend-icon' },
-    }));
     /** 图表面板配置 */
     const monitorChartPanel = computed(() => {
       const { graph_panel } = props.detail;
@@ -179,7 +207,6 @@ export default defineComponent({
       const yMax = series
         .reduce((pre, cur) => [...pre, ...(cur.datapoints || [])], [])
         .reduce((prev, cur) => Math.max(prev, cur[0]), 0);
-      const emptyDatapoints = datapoints?.map(item => [null, item[1]]) || [];
       const beginTime = props.detail.begin_time * 1000;
       const beginTimeStr = String(beginTime);
       const firstAnomalyTimeStr = String(props.detail.first_anomaly_time * 1000);
@@ -214,16 +241,18 @@ export default defineComponent({
 
         // 设置标记点（异常点 + 致命告警图标）
         mainSeries.markPoints = [
-          ...datapoints
-            .filter(item => props.detail.anomaly_timestamps.includes(Number(String(item[1]).slice(0, -3))))
-            .map(item => ({
-              value: item[1],
-              xAxis: String(item[1]),
-              yAxis: item[0],
-              symbol: 'circle',
-              symbolSize: 5,
-              itemStyle: { color: CHART_COLORS.ANOMALY },
-            })),
+          ...(isEventOrLogAlarm.value && mainSeries?.type === 'bar'
+            ? []
+            : datapoints
+                .filter(item => props.detail.anomaly_timestamps.includes(Number(String(item[1]).slice(0, -3))))
+                .map(item => ({
+                  value: item[1],
+                  xAxis: String(item[1]),
+                  yAxis: item[0],
+                  symbol: 'circle',
+                  symbolSize: 5,
+                  itemStyle: { color: ANOMALY_COLOR },
+                }))),
           {
             value: beginTime,
             xAxis: beginTimeStr,
@@ -233,75 +262,23 @@ export default defineComponent({
             label: {
               show: true,
               position: 'top',
-              formatter: '\ue606',
-              color: CHART_COLORS.FATAL_ALARM,
-              fontSize: 18,
+              formatter: ALARM_ICON_CONFIG[props.detail.severity]?.unicode,
+              color: ALARM_ICON_CONFIG[props.detail.severity]?.color,
+              fontSize: 16,
               fontFamily: 'icon-monitor',
             },
           },
         ];
         mainSeries.markTimeRange = [
-          { from: firstAnomalyTimeStr, to: beginTimeStr, color: CHART_COLORS.TRIGGER_PHASE_BG },
-          { from: beginTimeStr, to: endTimeStr, color: CHART_COLORS.FATAL_PERIOD_BG },
+          { from: firstAnomalyTimeStr, to: beginTimeStr, color: TRIGGER_PHASE_COLOR_CONFIG.timeRangeColor },
+          { from: beginTimeStr, to: endTimeStr, color: TIME_RANGE_CONFIG_MAP[props.detail.severity]?.timeRangeColor },
         ];
       }
 
       return {
         ...data,
-        series: [
-          ...series,
-          // 辅助图例系列（透明线条，仅用于显示图例）
-          {
-            type: 'line',
-            alias: t('异常'),
-            tooltip: { show: false },
-            datapoints: emptyDatapoints,
-            color: CHART_COLORS.ANOMALY,
-            lineStyle: { opacity: 0 },
-          },
-          {
-            type: 'line',
-            alias: t('致命告警产生'),
-            tooltip: { show: false },
-            datapoints: emptyDatapoints,
-            color: CHART_COLORS.FATAL_ALARM,
-            lineStyle: { opacity: 0 },
-          },
-          {
-            type: 'line',
-            alias: t('告警触发阶段'),
-            tooltip: { show: false },
-            datapoints: emptyDatapoints,
-            color: CHART_COLORS.TRIGGER_PHASE,
-            lineStyle: { opacity: 0 },
-          },
-          {
-            type: 'line',
-            alias: t('致命告警时段'),
-            tooltip: { show: false },
-            datapoints: emptyDatapoints,
-            color: CHART_COLORS.FATAL_PERIOD,
-            lineStyle: { opacity: 0 },
-            z: 1,
-          },
-        ],
+        series: series,
       };
-    };
-
-    /**
-     * @description 处理series， 事件和日志告警对于告警点的柱状图需要变颜色
-     */
-    const formatterGraphQueryCurrentSeries = series => {
-      if (isEventOrLogAlarm.value && series.length > 0) {
-        for (const ponit of props.detail.anomaly_timestamps) {
-          const index = series.datapoints.findIndex(item => Number(String(item[1]).slice(0, -3)) === ponit);
-          series.data[index] = {
-            ...series.data[index],
-            itemStyle: { color: CHART_COLORS.ANOMALY },
-          };
-        }
-      }
-      return series;
     };
 
     /**
@@ -329,10 +306,27 @@ export default defineComponent({
     };
 
     /**
+     * @description 处理series， 事件和日志告警对于告警点的柱状图需要变颜色
+     */
+    const formatterGraphQueryCurrentSeries = series => {
+      if (isEventOrLogAlarm.value && series?.type === 'bar') {
+        series.itemStyle = { ...(series?.itemStyle ?? {}), color: '#3A84FF' };
+        for (const ponit of props.detail.anomaly_timestamps) {
+          const index = series.datapoints.findIndex(item => Number(String(item[1]).slice(0, -3)) === ponit);
+          series.data[index] = {
+            ...series.data[index],
+            itemStyle: { color: ANOMALY_COLOR },
+          };
+        }
+      }
+      return series;
+    };
+
+    /**
      * @description 创建事件散点图series配置
      * @param series 原始series数据
      */
-    const createEventScatterSeries = series => {
+    const formatterEventScatterSeries = series => {
       const scaleList = scaleArrayToRange(series.datapoints.map(item => item[0]));
       return {
         ...series,
@@ -349,7 +343,7 @@ export default defineComponent({
           shadowBlur: 10,
           shadowColor: 'rgba(25, 100, 150, 0.5)',
           shadowOffsetY: 5,
-          color: CHART_COLORS.EVENT_SCATTER,
+          color: EVENT_SCATTER_COLOR,
           opacity: 0.5,
         },
       };
@@ -362,7 +356,7 @@ export default defineComponent({
       return seriesList
         .map(series => {
           if (series.time_offset === 'current') return formatterGraphQueryCurrentSeries(series);
-          if (series.alias === 'alertEventTs') return createEventScatterSeries(series);
+          if (series.alias === 'alertEventTs') return formatterEventScatterSeries(series);
           return series;
         })
         .filter(Boolean);
@@ -440,12 +434,54 @@ export default defineComponent({
 
     /** 自定义图例数据 */
     const customLegendData = (legendData: ILegendItem[]): ILegendItem[] => {
-      return legendData.map(legend => ({
-        ...legend,
-        legendId: legendOptionsMap.value[legend.name]?.id,
-        disabled: legendOptionsMap.value[legend.name]?.disabled,
-        icon: legendOptionsMap.value[legend.name]?.icon,
-      }));
+      let eventLegend = null;
+      let legendList = legendData.reduce((prev, curr) => {
+        if (curr.name === t('事件')) {
+          eventLegend = curr;
+          return prev;
+        }
+        return [...prev, curr];
+      }, []);
+
+      legendList = [
+        ...legendList,
+        {
+          name: t('异常'),
+          show: true,
+          icon: 'circle-legend',
+          color: ANOMALY_COLOR,
+          disabled: true,
+        },
+        {
+          name: ALARM_ICON_CONFIG[props.detail.severity]?.alias,
+          show: true,
+          icon: ALARM_ICON_CONFIG[props.detail.severity]?.icon,
+          color: ALARM_ICON_CONFIG[props.detail.severity]?.color,
+          disabled: true,
+        },
+        {
+          name: TRIGGER_PHASE_COLOR_CONFIG.alias,
+          show: true,
+          icon: TRIGGER_PHASE_COLOR_CONFIG.icon,
+          color: TRIGGER_PHASE_COLOR_CONFIG.lengthColor,
+          disabled: true,
+        },
+        {
+          name: TIME_RANGE_CONFIG_MAP[props.detail.severity]?.alias,
+          show: true,
+          icon: TIME_RANGE_CONFIG_MAP[props.detail.severity]?.icon,
+          color: TIME_RANGE_CONFIG_MAP[props.detail.severity]?.lengthColor,
+          disabled: true,
+        },
+      ];
+      if (eventLegend) {
+        legendList.push({
+          ...eventLegend,
+          disabled: true,
+          icon: 'event-legend-icon',
+        });
+      }
+      return legendList;
     };
 
     /** 图例点击事件处理 */
@@ -483,7 +519,6 @@ export default defineComponent({
           legend.show = legendDataCopy[0].show;
         }
       }
-      console.log(legendDataCopy);
       return legendDataCopy;
     };
 
@@ -520,7 +555,6 @@ export default defineComponent({
       });
     };
 
-    // ==================== 生命周期 ====================
     onMounted(() => document.addEventListener('mousedown', handleCloseEventDetailPopup));
     onUnmounted(() => document.removeEventListener('mousedown', handleCloseEventDetailPopup));
 
