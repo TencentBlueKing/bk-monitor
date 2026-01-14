@@ -25,9 +25,6 @@
  */
 import { computed, defineComponent, onMounted, ref, type Ref } from 'vue';
 
-import(/* webpackChunkName: 'appload-import' */ './common/appload-import');
-import(/* webpackChunkName: 'demand-import' */ './common/demand-import');
-
 import AuthDialog from '@/components/common/auth-dialog.vue';
 import GlobalSettingDialog from '@/components/global-setting/index';
 import HeadNav from '@/global/head-navi/index';
@@ -40,6 +37,9 @@ import useStore from './hooks/use-store';
 
 import '@blueking/notice-component-vue2/dist/style.css';
 import './app.scss';
+
+import(/* webpackChunkName: 'appload-import' */ './common/appload-import');
+import(/* webpackChunkName: 'demand-import' */ './common/demand-import');
 
 export default defineComponent({
   setup() {
@@ -120,7 +120,7 @@ export default defineComponent({
         return (
           <NoticeComponent
             ref='refNoticeComponent'
-            api-url='/notice/announcements/'
+            api-url={`${(window as any).SITE_URL}notice/announcements/`}
             on-show-alert-change={showAlertChange}
           />
         );
@@ -212,15 +212,14 @@ export default defineComponent({
 
     onMounted(() => {
       const platform = window.navigator.platform.toLowerCase();
-      const fontFamily =
-        platform.indexOf('win') === 0
-          ? 'Microsoft Yahei, pingFang-SC-Regular, Helvetica, Aria, sans-serif'
-          : 'pingFang-SC-Regular, Microsoft Yahei, Helvetica, Aria, sans-serif';
+      const fontFamily =        platform.indexOf('win') === 0
+        ? 'Microsoft Yahei, pingFang-SC-Regular, Helvetica, Aria, sans-serif'
+        : 'pingFang-SC-Regular, Microsoft Yahei, Helvetica, Aria, sans-serif';
       document.body.style['font-family'] = fontFamily;
       store.commit('updateState', { runVersion: window.RUN_VER || '' });
 
       const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
-      store.commit('updateState', { isEnLanguage: isEnLanguage });
+      store.commit('updateState', { isEnLanguage });
       const languageClassName = isEnLanguage ? 'language-en' : 'language-zh';
       document.body.classList.add(languageClassName);
       // 初始化脱敏灰度相关的代码
