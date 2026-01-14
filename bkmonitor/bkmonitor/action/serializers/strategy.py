@@ -76,6 +76,11 @@ class TimezoneAwareDateTimeField(serializers.CharField):
 
     def run_validators(self, value):
         super().run_validators(value)
+        # 如果值为空字符串且允许为空，跳过验证
+        if value == "" and getattr(self, "allow_blank", False):
+            self._validated_value = ""
+            return
+
         if value:
             # 尝试解析带时区或不带时区的时间格式
             try:
@@ -209,8 +214,8 @@ class DutyTimeSerializer(serializers.Serializer):
 
 class BackupSerializer(serializers.Serializer):
     users = serializers.ListField(required=True, child=UserSerializer())
-    begin_time = DateTimeField(label="配置生效时间", required=True)
-    end_time = DateTimeField(label="配置生效时间", required=True)
+    begin_time = TimezoneAwareDateTimeField(label="配置生效时间", required=True)
+    end_time = TimezoneAwareDateTimeField(label="配置生效时间", required=True)
     duty_time = DutyTimeSerializer(label="工作时间段", required=True)
     exclude_settings = serializers.ListField(label="被删除的代班", child=ExcludeSettingsSerializer())
 
