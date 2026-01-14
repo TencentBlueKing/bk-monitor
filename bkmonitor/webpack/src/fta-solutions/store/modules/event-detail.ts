@@ -58,7 +58,6 @@ class EventDetail extends VuexModule {
 
       if (item.is_multiple) {
         item.collapse = true;
-        // item.expandTime = `${item.begin_time} 至 ${item.time}`;
         item.expandTime = `${formatWithTimezone(item.begin_time)} ${window.i18n.locale === 'zhCN' ? '至' : 'to'} ${formatWithTimezone(item.time)}`;
         item.expand = false;
       } else {
