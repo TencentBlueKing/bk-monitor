@@ -36,6 +36,7 @@ from alarm_backends.core.control.checkpoint import Checkpoint
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.storage.redis import Cache
+from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.management.hashring import HashRing
 from alarm_backends.service.access import base
 from alarm_backends.service.access.data.duplicate import Duplicate
@@ -401,13 +402,21 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 当点数大于阈值时，将数据拆分为多个批量任务
         point_total = len(points)
         if point_total > (settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD or 500000):
-            # 超过50w点，或者触发了分批处理阈值， 则记录策略信息
-            metrics.PROCESS_OVER_FLOW.labels(
-                module="access.data",
-                strategy_id=self.items[0].strategy.id,
-                bk_biz_id=self.items[0].strategy.bk_biz_id,
-                strategy_name=self.items[0].strategy.name,
-            ).inc(point_total)
+            # 为分组中的每个策略分别记录指标（修复指标漏报问题）
+            # Access 数据拉取基于分组，一个分组可能包含多个策略，且可能使用不同的 Redis 节点
+            for item in self.items:
+                strategy_id = item.strategy.id
+                cache_node = get_node_by_strategy_id(strategy_id)
+                redis_node = cache_node.node_alias or f"{cache_node.host}:{cache_node.port}"
+
+                # 为每个策略记录指标（使用总数据点数作为参考）
+                metrics.PROCESS_OVER_FLOW.labels(
+                    module="access.data",
+                    strategy_id=item.strategy.id,
+                    bk_biz_id=item.strategy.bk_biz_id,
+                    strategy_name=item.strategy.name,
+                    redis_node=redis_node,
+                ).inc(point_total)
             if settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:
                 points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
 
@@ -657,11 +666,262 @@ class AccessDataProcess(BaseAccessDataProcess):
                     "none_point_count": none_point_counts,
                 }
 
+    def _limit_records_by_time_points(self, records: list) -> tuple[list, int | None]:
+        """
+        限制处理的时间点数量（方案 B）。
+
+        限制的是唯一时间点数量，同一时间点的所有序列数据会被完整保留或完整丢弃。
+        这样可以控制推送到下游 detect 模块的数据量，避免故障恢复后一次性处理过量数据。
+
+        注意：
+        - 仅对 TIME_SERIES 类型数据生效，日志关键字等其他类型不受影响
+        - 查询逻辑保持不变，仅在处理阶段进行限制
+        - checkpoint 更新为最后处理的时间点，确保逐步补齐历史数据
+
+        Args:
+            records: 原始数据记录列表
+
+        Returns:
+            tuple: (限制后的记录列表, 最后处理的时间点 或 None（未触发限制）)
+        """
+        if not records:
+            return records, None
+
+        # 检查是否为时序数据类型
+        first_item = self.items[0]
+        is_time_series = DataTypeLabel.TIME_SERIES in first_item.data_type_labels
+
+        if not is_time_series:
+            # 非时序数据，不做限制
+            return records, None
+
+        max_time_points = settings.ACCESS_DATA_MAX_TIME_POINTS
+
+        # 提取所有唯一时间点并排序
+        unique_times = sorted(set(r.time for r in records))
+
+        if len(unique_times) <= max_time_points:
+            # 时间点数量未超限，不做限制
+            return records, None
+
+        # 取前 N 个时间点
+        allowed_times = set(unique_times[:max_time_points])
+        last_time_point = max(allowed_times)
+
+        # 过滤：只保留允许时间点内的所有序列数据
+        limited_records = [r for r in records if r.time in allowed_times]
+
+        logger.info(
+            f"strategy_group_key({self.strategy_group_key}) time points limited: "
+            f"total={len(unique_times)}, processed={max_time_points}, "
+            f"last_time_point={last_time_point}, "
+            f"records: {len(records)} -> {len(limited_records)}"
+        )
+
+        return limited_records, last_time_point
+
+    def _is_all_static_threshold(self, item: Item) -> bool:
+        """
+        判断 Item 的所有检测算法是否均为静态阈值。
+
+        静态阈值算法的特点：
+        - 纯计算：只需要当前数据点的值，不依赖历史数据
+        - 无外部依赖：不需要调用外部服务
+        - 计算简单：只是简单的数值比较
+
+        Args:
+            item: 策略项
+
+        Returns:
+            bool: True 表示所有算法都是静态阈值
+        """
+        for algorithm in item.algorithms:
+            # Threshold 算法类型
+            if algorithm.get("type") != "Threshold":
+                return False
+        return True
+
+    def _can_merge_access_detect(self) -> bool:
+        """
+        判断当前策略组是否可以进行 access-detect 合并处理。
+
+        条件：
+        1. 配置开关启用
+        2. 策略的所有检测算法均为静态阈值
+        3. 如果配置了灰度列表，策略必须在灰度列表中
+
+        Returns:
+            bool: True 表示可以合并处理
+        """
+        # 检查开关
+        if not settings.ACCESS_DETECT_MERGE_ENABLED:
+            return False
+
+        # 检查是否有策略项
+        if not self.items:
+            return False
+
+        # 检查灰度列表
+        merge_strategy_ids = getattr(settings, "ACCESS_DETECT_MERGE_STRATEGY_IDS", [])
+        if merge_strategy_ids:
+            # 如果配置了灰度列表，检查策略是否在列表中
+            for item in self.items:
+                if item.strategy.id not in merge_strategy_ids:
+                    return False
+
+        # 检查所有 Item 的算法类型
+        for item in self.items:
+            if not self._is_all_static_threshold(item):
+                return False
+
+        return True
+
+    def _detect_and_push_abnormal(self, output_client=None):
+        """
+        在 access 模块直接执行静态阈值检测，并推送异常数据。
+
+        优化方案：复用 DetectProcess，避免重复实现检测逻辑。
+        通过 pull_data(item, inputs=data_points) 直接传入数据，
+        自动获得所有监控指标（延迟统计、大延迟告警、double_check 等）。
+
+        流程：
+        1. 去重和优先级检查（复用 access 原有逻辑）
+        2. 创建 DetectProcess 实例
+        3. gen_strategy_snapshot 生成策略快照
+        4. pull_data(item, inputs=data_points) 直接传入数据
+        5. handle_data 执行检测
+        6. double_check 二次确认（自动获得）
+        7. push_data 推送异常数据（自动获得所有监控指标）
+        8. 推送无数据检测数据
+        9. 推送降噪数据
+        10. 上报 detect 模块指标（DETECT_PROCESS_TIME/COUNT）
+
+        Args:
+            output_client: Redis 客户端（可选）
+        """
+        from alarm_backends.service.detect import DataPoint
+        from alarm_backends.service.detect.process import DetectProcess
+
+        # 记录检测开始时间，用于上报 DETECT_PROCESS_TIME
+        detect_start_time = time.time()
+        exc = None
+
+        # 去除重复数据（复用原有逻辑）
+        records: list[DataRecord] = [record for record in self.record_list if not record.is_duplicate]
+
+        # 优先级检查（复用原有逻辑）
+        PriorityChecker.check_records(records)
+        for item in self.items:
+            strategy_id = item.strategy.id
+            # 创建 DetectProcess 实例，复用成熟的检测逻辑
+            detect_process = DetectProcess(strategy_id)
+
+            # 生成策略快照（与 detect 模块保持一致）
+            detect_process.strategy.gen_strategy_snapshot()
+            # 转换数据格式：将 DataRecord 转换为 DataPoint
+            # 过滤条件与原有 push 逻辑一致：is_retains 且非 inhibitions
+            data_points = []
+            valid_records = []
+            for record in records:
+                if record.is_retains.get(item.id) and not record.inhibitions.get(item.id):
+                    try:
+                        data_point = DataPoint(record.data, item)
+                        data_points.append(data_point)
+                        valid_records.append(record)
+                    except ValueError as e:
+                        logger.warning(
+                            f"[access-detect-merge] strategy({strategy_id}) item({item.id}) "
+                            f"failed to create DataPoint: {e}"
+                        )
+
+            # 使用 DetectProcess 复用检测逻辑
+            # pull_data 支持直接传入数据，不需要从 Redis 拉取
+            detect_process.pull_data(item, inputs=data_points)
+            detect_process.handle_data(item)
+
+            # 二次确认（自动获得）
+            try:
+                detect_process.double_check(item)
+            except Exception:
+                logger.exception("[access-detect-merge] strategy(%s) 二次确认时发生异常，不影响告警主流程", strategy_id)
+
+            # 推送无数据检测数据（如果启用）
+            # 无数据检测需要知道有哪些维度有数据上报，用于判断哪些维度无数据
+            if item.no_data_config.get("is_enabled"):
+                self._push(item, records, output_client, key.NO_DATA_LIST_KEY)
+
+            # 推送降噪数据
+            if valid_records:
+                try:
+                    self._push_noise_data(item, valid_records)
+                except Exception as e:
+                    logger.exception(f"[access-detect-merge] push noise data of strategy({strategy_id}) error: {e}")
+
+            # 推送异常数据（自动获得所有监控指标：延迟统计、大延迟告警、PROCESS_OVER_FLOW 等）
+            detect_process.push_data()
+            # 上报 detect 模块指标，保持监控连续性
+            # 即使合并处理跳过了 detect 异步任务，也需要上报这些指标
+            detect_end_time = time.time()
+
+            # DETECT_PROCESS_TIME: 检测处理耗时
+            metrics.DETECT_PROCESS_TIME.labels(strategy_id=metrics.TOTAL_TAG).observe(
+                detect_end_time - detect_start_time
+            )
+
+            # DETECT_PROCESS_COUNT: 检测处理次数（包含成功/失败状态）
+            metrics.DETECT_PROCESS_COUNT.labels(
+                strategy_id=metrics.TOTAL_TAG,
+                status=metrics.StatusEnum.from_exc(exc),
+                exception=exc,
+            ).inc()
+
+            # 日志记录
+            logger.info(
+                f"[access-detect-merge] strategy_group_key({self.strategy_group_key}) "
+                f"strategy({strategy_id}) merged processing completed, "
+                f"processed: {len(data_points)}, detect_time: {detect_end_time - detect_start_time:.3f}s"
+            )
+
+            # 指标上报：数据处理计数
+            # 复用 ACCESS_PROCESS_PUSH_DATA_COUNT 指标，与原有 push 流程保持一致
+            metrics.ACCESS_PROCESS_PUSH_DATA_COUNT.labels(
+                strategy_id=metrics.TOTAL_TAG,
+                type="data",
+            ).inc(len(data_points))
+
     def push(self, records: list = None, output_client=None):
-        super().push(records=records, output_client=output_client)
+        # 方案 B：限制处理的时间点数量（在处理阶段限制，不影响查询）
+        # 这样可以控制推送到下游 detect 模块的数据量
+        limited_records, last_time_point = self._limit_records_by_time_points(self.record_list)
+        self.record_list = limited_records
+
+        # 判断是否可以合并处理（access-detect 合并）
+        # 当策略的所有检测算法均为静态阈值时，直接在 access 模块执行检测
+        if self._can_merge_access_detect():
+            # 直接在 access 中执行检测并推送异常数据
+            self._detect_and_push_abnormal()
+        else:
+            # 走原有流程：推送到 Redis 队列，由 detect 异步任务处理
+            super().push(records=records, output_client=output_client)
 
         checkpoint = Checkpoint(self.strategy_group_key)
-        last_checkpoint = max([checkpoint.get()] + [r.time for r in self.record_list])
+        checkpoint_timestamp = checkpoint.get()
+
+        if self.record_list:
+            if last_time_point:
+                # 触发了时间点限制，使用最后处理的时间点作为 checkpoint
+                # 这样下次会从这个时间点继续处理，逐步补齐历史数据
+                last_checkpoint = last_time_point
+            else:
+                # 未触发限制，正常计算 checkpoint
+                # 使用生成器表达式优化内存，避免创建临时列表
+                last_checkpoint = max(checkpoint_timestamp, max(r.time for r in self.record_list))
+        else:
+            # 无数据：保持 checkpoint 不变
+            # 注意：方案 B 不需要空数据检测逻辑，因为查询逻辑保持不变
+            # 如果查询返回空数据，说明确实没有数据，无需特殊处理
+            last_checkpoint = checkpoint_timestamp
+
         if last_checkpoint > 0:
             # 记录检测点 下次从检测点开始重新检查
             checkpoint.set(last_checkpoint)
@@ -820,7 +1080,8 @@ class AccessDataProcess(BaseAccessDataProcess):
 
             # 记录最后检测点，避免子任务并发导致checkpoint数据不准确
             checkpoint = Checkpoint(self.strategy_group_key)
-            last_checkpoint = max([checkpoint.get()] + [r.time for r in self.record_list])
+            # 使用生成器表达式优化内存，避免创建临时列表
+            last_checkpoint = max(checkpoint.get(), max((r.time for r in self.record_list), default=0))
             if last_checkpoint > 0:
                 # 记录检测点 下次从检测点开始重新检查
                 checkpoint.set(last_checkpoint)

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import useStore from '@/hooks/use-store';
 import useUtils from '@/hooks/use-utils';
@@ -33,6 +33,7 @@ import { t } from '@/hooks/use-locale';
 import * as authorityMap from '../../../../common/authority-map';
 import { tenantManager, UserInfoLoadedEventData } from '@/views/retrieve-core/tenant-manager';
 import { TaskStatus } from './types';
+import { debounce } from 'lodash-es';
 
 import CollectionTable from './collection-table';
 import CollectionSlider from '../collection-slider';
@@ -72,14 +73,41 @@ export default defineComponent({
   setup(props, { emit }) {
     const store = useStore();
 
-    const userDisplayMap = new Map(); // 用于创建人 到租户信息的映射
-
     const tableData = ref({
       total: 0,
       list: [],
     });
     const isLoading = ref(false); // 加载状态
-    const searchKeyword = ref(''); // 搜索关键词
+    const createdBys = ref([]); // 创建人列表
+
+    // 分页状态
+    const pagination = ref({
+      current: 1,
+      count: 0,
+      limit: props.paginationConfig.limit,
+      limitList: props.paginationConfig.limitList,
+    });
+
+    // 查询参数状态
+    const queryParams = ref({
+      page: 1,
+      pagesize: props.paginationConfig.limit,
+      keyword: '',
+      ordering: '', // 排序，支持 'created_at' 和 '-created_at'
+      status: undefined, // 任务状态过滤
+      scene: undefined, // 任务阶段过滤
+      created_by: undefined, // 创建人过滤
+    });
+
+    // 是否有过滤条件
+    const hasFilter = computed(() => {
+      return !!(
+        queryParams.value.keyword
+        || queryParams.value.status
+        || queryParams.value.scene
+        || queryParams.value.created_by
+      );
+    });
 
     // 侧边栏相关状态
     const showSlider = ref(false); // 新建采集侧边栏打开状态
@@ -116,6 +144,12 @@ export default defineComponent({
         return;
       }
 
+      // 如果有状态过滤条件，不进行轮询
+      if (queryParams.value.status !== undefined) {
+        stopPolling();
+        return;
+      }
+
       isShouldPollTask.value = false;
 
       // 遍历新任务列表，检查轮询需求并更新现有任务状态
@@ -142,26 +176,67 @@ export default defineComponent({
       }
     };
 
+    // 处理关键词变化
+    const handleKeywordChange = () => {
+      queryParams.value.page = 1; // 重置到第一页
+      requestData();
+    };
+
     // 处理搜索事件
-    const handleSearch = (keyword: string) => {
-      searchKeyword.value = keyword;
+    const handleSearch = () => {
+      handleKeywordChange();
     };
 
     // 处理输入框内容改变事件
     const handleInputChange = (value: string) => {
-      if (value === '') {
-        searchKeyword.value = '';
+      queryParams.value.keyword = value;
+      setTimeout(() => {
+        if (queryParams.value.keyword === '' && !isLoading.value) {
+          handleKeywordChange();
+        }
+      });
+    };
+
+    // 获取用户名列表
+    const fetchUsernameList = async () => {
+      try {
+        const response = await http.request('collect/getUsernameList', {
+          query: {
+            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+          },
+        });
+        // 将接口返回的数据转换为过滤器所需的格式，text 和 value 均使用接口返回的值
+        createdBys.value = response.data.map(username => ({
+          text: username,
+          value: username,
+        }));
+        // 批量获取用户信息，用于更新 text 为 display_name
+        tenantManager.batchGetUserDisplayInfo(response.data);
+      } catch (error) {
+        console.warn('获取用户名列表失败:', error);
       }
+    };
+
+    // 构建查询参数
+    const buildQueryParams = () => {
+      return {
+        query: {
+          bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+          page: queryParams.value.page,
+          pagesize: queryParams.value.pagesize,
+          ...(queryParams.value.ordering && { ordering: queryParams.value.ordering }),
+          ...(queryParams.value.keyword && { keyword: queryParams.value.keyword }),
+          ...(queryParams.value.status !== undefined && { status: queryParams.value.status }),
+          ...(queryParams.value.scene !== undefined && { scene: queryParams.value.scene }),
+          ...(queryParams.value.created_by && { created_by: queryParams.value.created_by }),
+        },
+      };
     };
 
     // 轮询获取任务状态
     const pollTaskStatus = async () => {
       try {
-        const params = {
-          query: {
-            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-          },
-        };
+        const params = buildQueryParams();
 
         const response = await http.request('collect/getTaskLogList', params);
         if (response.data.list.length > 0) {
@@ -177,24 +252,28 @@ export default defineComponent({
     // 获取列表数据
     const requestData = async () => {
       try {
-        const params = {
-          query: {
-            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-          },
-        };
+        const params = buildQueryParams();
 
         isLoading.value = true;
 
         const response = await http.request('collect/getTaskLogList', params);
-        const listWithTenantInfo = await processListWithTenantInfo(response.data.list);
+        const formattedList = formatResponseListTimeZoneString(response.data.list);
         tableData.value = response.data;
-        tableData.value.list = listWithTenantInfo;
+        tableData.value.list = formattedList;
+
+        // 数据请求成功后，更新分页状态
+        pagination.value.current = queryParams.value.page;
+        pagination.value.count = response.data.total;
+        pagination.value.limit = queryParams.value.pagesize;
 
         // 通知父组件更新总数
         emit('update-total', response.data.total);
 
         // 检查是否需要轮询
-        checkShouldPoll(listWithTenantInfo);
+        checkShouldPoll(formattedList);
+
+        // 获取用户名列表
+        fetchUsernameList();
       } catch (error) {
         console.warn('获取采集下发列表失败:', error);
       } finally {
@@ -202,63 +281,69 @@ export default defineComponent({
       }
     };
 
+    // 防抖版本的请求数据
+    const requestDataDebounced = debounce(requestData, 300);
+
     const { formatResponseListTimeZoneString } = useUtils();
-
-    // 处理列表数据，添加租户信息
-    const processListWithTenantInfo = async (list: any[]) => {
-      if (list.length === 0) {
-        return list;
-      }
-      // 为每项添加 tenant_info 字段，并收集所有的 created_by
-      const tenantUserIds = [];
-
-      const listWithTenantInfo = formatResponseListTimeZoneString(list, (item) => {
-        let tenantInfo = {
-          login_name: '',
-          full_name: '',
-          display_name: '',
-        };
-        if (userDisplayMap.get(item.created_by)) {
-          tenantInfo = userDisplayMap.get(item.created_by);
-        } else {
-          userDisplayMap.set(item.created_by, tenantInfo);
-        }
-        const newItem = {
-          tenant_info: tenantInfo,
-        };
-
-        // 收集 created_by 用于批量查询用户信息
-        tenantUserIds.push(item.created_by);
-
-        return newItem;
-      });
-
-      // 批量获取用户信息
-      tenantManager.batchGetUserDisplayInfo(tenantUserIds);
-      return listWithTenantInfo;
-    };
 
     // 处理用户信息更新事件
     const handleUserInfoUpdate = (data: UserInfoLoadedEventData) => {
       const userInfo = data.userInfo;
 
-      // 直接根据映射关系更新对应的列表项对象
-      userInfo.forEach((userInfo, userId) => {
-        const targetItem = userDisplayMap.get(userId);
-        if (targetItem && userInfo) {
-          // 修改映射中的对象
-          Object.assign(targetItem, {
-            login_name: userInfo.login_name || '',
-            full_name: userInfo.full_name || '',
-            display_name: userInfo.display_name || '',
-          });
+      // 更新 createdBys 中的 text 为 display_name
+      createdBys.value = createdBys.value.map((item) => {
+        const info = userInfo.get(item.value);
+        if (info && info.display_name) {
+          return {
+            ...item,
+            text: info.display_name,
+          };
         }
+        return item;
       });
     };
 
     // 清除搜索关键词
     const handleClearKeyword = () => {
-      searchKeyword.value = '';
+      requestDataDebounced.cancel();
+      queryParams.value.keyword = '';
+      handleKeywordChange();
+    };
+
+    // 处理分页变化
+    const handlePageChange = (current: number) => {
+      queryParams.value.page = current;
+      requestData();
+    };
+
+    // 处理分页大小变化
+    const handlePageLimitChange = (limit: number) => {
+      queryParams.value.pagesize = limit;
+      queryParams.value.page = 1; // 重置到第一页
+      requestData();
+    };
+
+    // 处理筛选变化
+    const handleFilterChange = (filters: any) => {
+      Object.keys(filters).forEach((key) => {
+        queryParams.value[key] = filters[key]?.[0];
+      });
+      queryParams.value.page = 1;
+      requestDataDebounced(); // 使用防抖版本
+    };
+
+    // 处理排序变化
+    const handleSortChange = (sort: any) => {
+      const { prop, order } = sort;
+      if (order) {
+        // 支持的排序字段：created_at
+        if (prop === 'created_at') {
+          queryParams.value.ordering = order === 'ascending' ? 'created_at' : '-created_at';
+        }
+      } else {
+        queryParams.value.ordering = '';
+      }
+      requestData();
     };
 
     // 新建采集
@@ -337,7 +422,7 @@ export default defineComponent({
             <div>
               <bk-input
                 placeholder={t('搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人')}
-                value={searchKeyword.value}
+                value={queryParams.value.keyword}
                 clearable
                 right-icon={'bk-icon icon-search'}
                 onEnter={handleSearch}
@@ -350,16 +435,21 @@ export default defineComponent({
           {/* 表格内容区域 */}
           <section>
             <CollectionTable
-              total={tableData.value.total}
+              pagination={pagination.value}
               isAllowedDownload={props.isAllowedDownload}
               data={tableData.value.list}
               indexSetId={props.indexSetId}
-              paginationConfig={props.paginationConfig}
               v-bkloading={{ isLoading: isLoading.value }}
-              keyword={searchKeyword.value}
+              keyword={queryParams.value.keyword}
+              hasFilter={hasFilter.value}
+              createdBys={createdBys.value}
               on-clear-keyword={handleClearKeyword}
               on-clone-task={task => handleOperateTask(task, 'clone')}
               on-view-task={task => handleOperateTask(task, 'view')}
+              on-page-change={handlePageChange}
+              on-page-limit-change={handlePageLimitChange}
+              on-filter-change={handleFilterChange}
+              on-sort-change={handleSortChange}
             />
           </section>
           {/* 新建采集侧边栏 */}

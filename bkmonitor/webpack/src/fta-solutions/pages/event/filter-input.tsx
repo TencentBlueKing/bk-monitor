@@ -1488,7 +1488,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
             class='menu-wrapper'
           >
             {/* 菜单搜索框 */}
-            {this.needSearch && (
+            {Boolean(this.needSearch) && (
               <div class='menu-search-wrapper'>
                 <i class='icon-monitor icon-mc-search menu-search-icon' />
                 <input
