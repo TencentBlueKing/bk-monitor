@@ -485,7 +485,8 @@ class ClusterInfo(models.Model):
         new_cluster.cluster_init()
 
         # 同步集群配置到bkbase
-        ClusterConfig.sync_cluster_config(cluster=new_cluster)
+        if new_cluster.cluster_type == ClusterInfo.TYPE_ES:
+            ClusterConfig.sync_cluster_config(cluster=new_cluster)
 
         return new_cluster
 
@@ -569,8 +570,9 @@ class ClusterInfo(models.Model):
         self.save()
         logger.info(f"cluster->[{self.cluster_name}] update success.")
 
-        # 同步集群配置到bkbase
-        ClusterConfig.sync_cluster_config(cluster=self)
+        # 同步集群配置到bkbase（目前仅支持ES集群）
+        if self.cluster_type == ClusterInfo.TYPE_ES:
+            ClusterConfig.sync_cluster_config(cluster=self)
 
         return True
 

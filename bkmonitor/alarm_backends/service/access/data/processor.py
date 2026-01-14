@@ -36,6 +36,7 @@ from alarm_backends.core.control.checkpoint import Checkpoint
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.storage.redis import Cache
+from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.management.hashring import HashRing
 from alarm_backends.service.access import base
 from alarm_backends.service.access.data.duplicate import Duplicate
@@ -401,13 +402,21 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 当点数大于阈值时，将数据拆分为多个批量任务
         point_total = len(points)
         if point_total > (settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD or 500000):
-            # 超过50w点，或者触发了分批处理阈值， 则记录策略信息
-            metrics.PROCESS_OVER_FLOW.labels(
-                module="access.data",
-                strategy_id=self.items[0].strategy.id,
-                bk_biz_id=self.items[0].strategy.bk_biz_id,
-                strategy_name=self.items[0].strategy.name,
-            ).inc(point_total)
+            # 为分组中的每个策略分别记录指标（修复指标漏报问题）
+            # Access 数据拉取基于分组，一个分组可能包含多个策略，且可能使用不同的 Redis 节点
+            for item in self.items:
+                strategy_id = item.strategy.id
+                cache_node = get_node_by_strategy_id(strategy_id)
+                redis_node = cache_node.node_alias or f"{cache_node.host}:{cache_node.port}"
+
+                # 为每个策略记录指标（使用总数据点数作为参考）
+                metrics.PROCESS_OVER_FLOW.labels(
+                    module="access.data",
+                    strategy_id=item.strategy.id,
+                    bk_biz_id=item.strategy.bk_biz_id,
+                    strategy_name=item.strategy.name,
+                    redis_node=redis_node,
+                ).inc(point_total)
             if settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:
                 points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
 
@@ -802,66 +811,54 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 优先级检查（复用原有逻辑）
         PriorityChecker.check_records(records)
-
-        strategy_id = self.items[0].strategy.id
-
-        try:
+        for item in self.items:
+            strategy_id = item.strategy.id
             # 创建 DetectProcess 实例，复用成熟的检测逻辑
             detect_process = DetectProcess(strategy_id)
 
             # 生成策略快照（与 detect 模块保持一致）
             detect_process.strategy.gen_strategy_snapshot()
-
-            for item in self.items:
-                # 转换数据格式：将 DataRecord 转换为 DataPoint
-                # 过滤条件与原有 push 逻辑一致：is_retains 且非 inhibitions
-                data_points = []
-                valid_records = []
-                for record in records:
-                    if record.is_retains.get(item.id) and not record.inhibitions.get(item.id):
-                        try:
-                            data_point = DataPoint(record.data, item)
-                            data_points.append(data_point)
-                            valid_records.append(record)
-                        except ValueError as e:
-                            logger.warning(
-                                f"[access-detect-merge] strategy({strategy_id}) item({item.id}) "
-                                f"failed to create DataPoint: {e}"
-                            )
-
-                # 使用 DetectProcess 复用检测逻辑
-                # pull_data 支持直接传入数据，不需要从 Redis 拉取
-                detect_process.pull_data(item, inputs=data_points)
-                detect_process.handle_data(item)
-
-                # 二次确认（自动获得）
-                try:
-                    detect_process.double_check(item)
-                except Exception:
-                    logger.exception(
-                        "[access-detect-merge] strategy(%s) 二次确认时发生异常，不影响告警主流程", strategy_id
-                    )
-
-                # 推送无数据检测数据（如果启用）
-                # 无数据检测需要知道有哪些维度有数据上报，用于判断哪些维度无数据
-                if item.no_data_config.get("is_enabled"):
-                    self._push(item, records, output_client, key.NO_DATA_LIST_KEY)
-
-                # 推送降噪数据
-                if valid_records:
+            # 转换数据格式：将 DataRecord 转换为 DataPoint
+            # 过滤条件与原有 push 逻辑一致：is_retains 且非 inhibitions
+            data_points = []
+            valid_records = []
+            for record in records:
+                if record.is_retains.get(item.id) and not record.inhibitions.get(item.id):
                     try:
-                        self._push_noise_data(item, valid_records)
-                    except Exception as e:
-                        logger.exception(f"[access-detect-merge] push noise data of strategy({strategy_id}) error: {e}")
+                        data_point = DataPoint(record.data, item)
+                        data_points.append(data_point)
+                        valid_records.append(record)
+                    except ValueError as e:
+                        logger.warning(
+                            f"[access-detect-merge] strategy({strategy_id}) item({item.id}) "
+                            f"failed to create DataPoint: {e}"
+                        )
+
+            # 使用 DetectProcess 复用检测逻辑
+            # pull_data 支持直接传入数据，不需要从 Redis 拉取
+            detect_process.pull_data(item, inputs=data_points)
+            detect_process.handle_data(item)
+
+            # 二次确认（自动获得）
+            try:
+                detect_process.double_check(item)
+            except Exception:
+                logger.exception("[access-detect-merge] strategy(%s) 二次确认时发生异常，不影响告警主流程", strategy_id)
+
+            # 推送无数据检测数据（如果启用）
+            # 无数据检测需要知道有哪些维度有数据上报，用于判断哪些维度无数据
+            if item.no_data_config.get("is_enabled"):
+                self._push(item, records, output_client, key.NO_DATA_LIST_KEY)
+
+            # 推送降噪数据
+            if valid_records:
+                try:
+                    self._push_noise_data(item, valid_records)
+                except Exception as e:
+                    logger.exception(f"[access-detect-merge] push noise data of strategy({strategy_id}) error: {e}")
 
             # 推送异常数据（自动获得所有监控指标：延迟统计、大延迟告警、PROCESS_OVER_FLOW 等）
             detect_process.push_data()
-
-        except Exception as e:
-            exc = e
-            raise
-
-        finally:
             # 上报 detect 模块指标，保持监控连续性
             # 即使合并处理跳过了 detect 异步任务，也需要上报这些指标
             detect_end_time = time.time()
@@ -878,19 +875,19 @@ class AccessDataProcess(BaseAccessDataProcess):
                 exception=exc,
             ).inc()
 
-        # 日志记录
-        logger.info(
-            f"[access-detect-merge] strategy_group_key({self.strategy_group_key}) "
-            f"strategy({strategy_id}) merged processing completed, "
-            f"records: {len(records)}, detect_time: {detect_end_time - detect_start_time:.3f}s"
-        )
+            # 日志记录
+            logger.info(
+                f"[access-detect-merge] strategy_group_key({self.strategy_group_key}) "
+                f"strategy({strategy_id}) merged processing completed, "
+                f"processed: {len(data_points)}, detect_time: {detect_end_time - detect_start_time:.3f}s"
+            )
 
-        # 指标上报：数据处理计数
-        # 复用 ACCESS_PROCESS_PUSH_DATA_COUNT 指标，与原有 push 流程保持一致
-        metrics.ACCESS_PROCESS_PUSH_DATA_COUNT.labels(
-            strategy_id=metrics.TOTAL_TAG,
-            type="data",
-        ).inc(len(records))
+            # 指标上报：数据处理计数
+            # 复用 ACCESS_PROCESS_PUSH_DATA_COUNT 指标，与原有 push 流程保持一致
+            metrics.ACCESS_PROCESS_PUSH_DATA_COUNT.labels(
+                strategy_id=metrics.TOTAL_TAG,
+                type="data",
+            ).inc(len(data_points))
 
     def push(self, records: list = None, output_client=None):
         # 方案 B：限制处理的时间点数量（在处理阶段限制，不影响查询）
