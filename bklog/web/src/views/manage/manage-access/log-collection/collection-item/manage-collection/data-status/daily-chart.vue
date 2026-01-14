@@ -67,7 +67,7 @@
   import dayjs from 'dayjs';
   import * as echarts from 'echarts';
   import { mapGetters } from 'vuex';
-  import { formatAdditionalFields } from '@/store/helper';
+  // import { formatAdditionalFields } from '@/store/helper';
 
   import SelectDate from './select-date';
 
@@ -142,7 +142,7 @@
             data: Object.assign({}, this.retrieveParams, {
               start_time: `${this.retrieveParams.start_time} 00:00:00`,
               end_time: `${this.retrieveParams.end_time} 23:59:59`,
-              addition: formatAdditionalFields(this.$store.state, this.retrieveParams.addition),
+              addition: this.retrieveParams.addition,
             }),
           });
           const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
