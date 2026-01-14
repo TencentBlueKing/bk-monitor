@@ -29,6 +29,7 @@ from apm_web.topo.handle.relation.define import (
 from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.documents import AlertDocument
 from constants.alert import K8S_RESOURCE_TYPE, K8STargetType, APMTargetType, EventTargetType
+from constants.data_source import DataSourceLabel
 
 
 class BaseTarget(abc.ABC):
@@ -60,7 +61,7 @@ class BaseTarget(abc.ABC):
 
         # dimensions 有一些额外的关联信息，也需要补充进来。
         for d in self._alert.dimensions:
-            if d["key"].startswith("tag."):
+            if d["key"].startswith("tags."):
                 # 忽略已经存在于 tags 中的维度。
                 continue
             dimensions[d["key"]] = d["value"]
@@ -215,8 +216,50 @@ class DefaultTarget(BaseTarget):
         return []
 
     def list_related_log_targets(self) -> list[dict[str, Any]]:
-        # TODO 日志类告警，直接取 query_config 的索引集 ID 作为日志目标，并根据告警维度、策略生成过滤条件（addition）。
-        return []
+        """获取日志类告警关联的日志目标信息。
+
+        日志类告警直接使用策略配置中的索引集 ID，并根据告警维度和策略过滤条件生成日志查询的过滤条件（addition）。
+        """
+        try:
+            query_config: dict[str, Any] = self._alert.strategy["items"][0]["query_configs"][0]
+        except (KeyError, IndexError, TypeError):
+            return []
+
+        if query_config.get("data_source_label") != DataSourceLabel.BK_LOG_SEARCH:
+            return []
+
+        index_set_id: int = query_config.get("index_set_id", 0)
+        if not index_set_id:
+            return []
+
+        # 获取完整的索引集信息
+        index_sets: list[dict[str, Any]] = get_biz_index_sets_with_cache(bk_biz_id=self._alert.event.bk_biz_id)
+        index_set_info: dict[str, Any] | None = next(
+            (i for i in index_sets if i.get("index_set_id", 0) == index_set_id),
+            None,
+        )
+        if not index_set_info:
+            return []
+
+        # 构建日志查询的过滤条件
+        addition: list[dict[str, Any]] = []
+        added_dimension_keys: set[str] = set()
+
+        # 添加策略过滤条件
+        for condition in query_config.get("agg_condition", []):
+            operator: str = condition.get("method") or "="
+            addition.append({"field": condition["key"], "operator": operator, "value": condition["value"]})
+            added_dimension_keys.add(condition["key"])
+
+        # 添加告警维度
+        for field in self._alert.origin_alarm.get("data", {}).get("dimension_fields", []):
+            if field not in added_dimension_keys and field in self.dimensions:
+                addition.append({"field": field, "operator": "=", "value": [self.dimensions[field]]})
+
+        # 返回完整的索引集信息，并补充 addition 字段
+        log_target: dict[str, Any] = copy.deepcopy(index_set_info)
+        log_target["addition"] = addition
+        return [log_target]
 
 
 class BaseK8STarget(BaseTarget):
