@@ -37,11 +37,8 @@ class UnifyQueryPatternHandler(UnifyQueryHandler):
         """
         unify_query 查询 pattern
         """
-        dimensions = [self.agg_field]
-
         # 增加聚合维度
-        for field in self.search_params.get("group_by", []):
-            dimensions.append(field)
+        dimensions = [self.agg_field] + self.search_params.get("group_by", [])
 
         # 构建完整查询条件
         for query in query_condition["query_list"]:
