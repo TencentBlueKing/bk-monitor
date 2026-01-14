@@ -150,22 +150,24 @@ export default defineComponent({
                 </div>
               ))}
             </div>
-            <div class='conditions-wrap'>
-              {this.where.map((item, index) => (
-                <div
-                  key={index}
-                  class='condition-item'
-                >
-                  {item.key}
-                  <span class='method'>等于</span>
-                  {item.value}
-                  <span
-                    class='icon-monitor icon-mc-close'
-                    onClick={() => this.handleRemoveCondition(index)}
-                  />
-                </div>
-              ))}
-            </div>
+            {this.where.length > 0 && (
+              <div class='conditions-wrap'>
+                {this.where.map((item, index) => (
+                  <div
+                    key={index}
+                    class='condition-item'
+                  >
+                    {item.key}
+                    <span class='method'>等于</span>
+                    {item.value}
+                    <span
+                      class='icon-monitor icon-mc-close'
+                      onClick={() => this.handleRemoveCondition(index)}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
             <div class='dimension-analysis-data'>
               {this.showTypeActive === TYPE_ENUM.TABLE ? (
                 <DimensionAnalysisTable
