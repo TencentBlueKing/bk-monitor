@@ -280,6 +280,7 @@ class AlertEventBaseResource(Resource, abc.ABC):
             query_params.update(target.list_related_apm_targets()[0])
 
         for query_config in queryset.config.get("query_configs", []):
+            # 当 build_query_func 不为 None 时，才去添加 query_configs 列表（避免添加包含默认配置的列表，会导致后续序列化校验失败）
             if query_config.get("table"):
                 query_params["query_configs"].append(query_config)
 
@@ -325,8 +326,7 @@ class AlertEventsResource(AlertEventBaseResource):
         Raises:
             ValueError: 当告警目标类型不支持时抛出异常
         """
-        alert_id: str = validated_request_data["alert_id"]
-        alert: AlertDocument = AlertDocument.get(alert_id)
+        alert: AlertDocument = AlertDocument.get(validated_request_data["alert_id"])
         target: BaseTarget = get_target_instance(alert)
         q: QueryConfigBuilder = self._get_q(alert, target)
         if validated_request_data.get("sources"):
@@ -334,17 +334,14 @@ class AlertEventsResource(AlertEventBaseResource):
 
         queryset: UnifyQuerySet = self.build_queryset(alert, target, q)
         query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
-        # 如果没有关联的事件查询配置，直接返回空结果
-        if not query_params.get("query_configs"):
-            return {"list": []}
         query_params["limit"] = validated_request_data["limit"]
         query_params["offset"] = validated_request_data["offset"]
 
         if self.is_apm_target(target):
             result: dict[str, Any] = APMEventLogsResource().request(query_params)
             if result.get("query_config"):
-                # APM 告警场景补充 app_name & service_name，用于前端跳转到 APM 事件页面
-                result["query_config"].update(target.list_related_apm_targets()[0])
+                # APM 告警场景下需跳转到 APM 事件页面，query_config 设置为前端跳转所需的请求参数
+                result["query_config"] = query_params
             return result
 
         result: dict[str, Any] = EventLogsResource().request(query_params)
@@ -384,24 +381,12 @@ class AlertEventTotalResource(AlertEventBaseResource):
         :param target: 目标对象
         :return: 包含总数和分组统计的响应数据
         """
-        # 在线程外构建基础查询，避免在每个线程中重复构建
-        base_q: QueryConfigBuilder = self._get_q(alert, target)
-
-        queryset: UnifyQuerySet = self.build_queryset(alert, target, base_q)
-        query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
-        # 如果没有关联的事件查询配置，直接返回空结果
-        if not query_params.get("query_configs"):
-            return {
-                "total": 0,
-                "list": [
-                    {"value": source, "alias": EventSource.from_value(source).label, "total": 0}
-                    for source, _ in EventSource.choices()
-                ],
-            }
-
         event_total_resource_cls: type[EventTotalResource] = (
             APMEventTotalResource if self.is_apm_target(target) else EventTotalResource
         )
+
+        # 在线程外构建基础查询，避免在每个线程中重复构建
+        base_q: QueryConfigBuilder = self._get_q(alert, target)
 
         def _get_total_info_by_source(source: str) -> dict[str, Any]:
             # 在线程内基于 base_q 添加 source 条件，然后构建查询参数并发起请求
@@ -470,10 +455,6 @@ class AlertEventTSResource(AlertEventBaseResource):
 
         queryset: UnifyQuerySet = self.build_queryset(alert, target, q)
         query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
-        # 如果没有关联的事件查询配置，直接返回空结果
-        if not query_params.get("query_configs"):
-            return {}
-
         query_params["expression"] = "a"
 
         # 如果传入了自定义时间范围，则覆盖默认的时间范围
@@ -485,8 +466,8 @@ class AlertEventTSResource(AlertEventBaseResource):
         if self.is_apm_target(target):
             result: dict[str, Any] = APMEventTimeSeriesResource().request(query_params)
             if result.get("query_config"):
-                # APM 告警场景补充 app_name & service_name，用于前端跳转到 APM 事件页面
-                result["query_config"].update(target.list_related_apm_targets()[0])
+                # APM 告警场景下需跳转到 APM 事件页面，query_config 设置为前端跳转所需的请求参数（具体的 where 字段再从气泡详情中拿）
+                result["query_config"] = query_params
             return result
 
         return EventTimeSeriesResource().request(query_params)
@@ -528,10 +509,6 @@ class AlertEventTagDetailResource(AlertEventBaseResource):
 
         queryset: UnifyQuerySet = self.build_queryset(alert, target, q)
         query_params: dict[str, Any] = self.build_query_params(alert, target, queryset)
-        # 如果没有关联的事件查询配置，直接返回空结果
-        if not query_params.get("query_configs"):
-            empty_detail: dict[str, Any] = {"time": validated_request_data["start_time"], "total": 0, "list": []}
-            return {"Warning": empty_detail, "All": empty_detail}
 
         # 添加 EventTagDetailResource 类所需的参数
         query_params["expression"] = "a"
