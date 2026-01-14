@@ -59,6 +59,10 @@
 
         &.active {
           background: #e1ecff;
+
+          .item-label {
+            color: #3A84FF;
+          }
         }
       }
 

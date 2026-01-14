@@ -3,40 +3,5 @@
 
   .echart-container {
     height: 100%;
-
-    .echarts-menu-container {
-      position: fixed;
-      width: 128px;
-      padding: 4px 0;
-      background: #fff;
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
-      box-shadow: 0 2px 6px 0 #0000001a;
-
-      .echarts-menu-title {
-        height: 32px;
-        padding: 0 12px;
-        font-size: 12px;
-        line-height: 32px;
-        color: #979ba5;
-      }
-
-      .echarts-menu {
-        max-height: 256px;
-        overflow-y: auto;
-      }
-
-      .echarts-menu-item {
-        height: 32px;
-        padding: 0 12px;
-        line-height: 32px;
-        color: #4d4f56;
-        cursor: pointer;
-
-        &:hover {
-          background: #f5f7fa;
-        }
-      }
-    }
   }
 }
