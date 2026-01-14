@@ -1,3 +1,28 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import * as CustomReportApi from 'monitor-api/modules/custom_report';
 
 export interface ICustomTimeSeriesDetail {
@@ -13,6 +38,15 @@ export interface ICustomTimeSeriesDetail {
   is_deleted: boolean;
   is_platform: boolean;
   is_readonly: boolean;
+  name: string;
+  protocol: string;
+  scenario: string;
+  scenario_display: string[];
+  table_id: string;
+  target: any[];
+  time_series_group_id: number;
+  update_time: string;
+  update_user: string;
   metric_json: {
     fields: {
       aggregate_method: string;
@@ -28,15 +62,6 @@ export interface ICustomTimeSeriesDetail {
       unit: string;
     }[];
   }[];
-  name: string;
-  protocol: string;
-  scenario: string;
-  scenario_display: string[];
-  table_id: string;
-  target: any[];
-  time_series_group_id: number;
-  update_time: string;
-  update_user: string;
 }
 
 export interface ICustomTimeSeriesList {
@@ -62,7 +87,6 @@ export interface ICustomTimeSeriesList {
     update_time: string;
     update_user: string;
   }[];
-  total: number;
 }
 
 export interface ICustomTsFields {
@@ -125,8 +149,8 @@ export interface IGroupingRule {
 /** 获取自定义时序列表 rest/v2/custom_metric_report/custom_time_series/ */
 export const customTimeSeriesList = CustomReportApi.customTimeSeriesList<
   {
-    page_size: number;
     bk_biz_id?: number;
+    page_size: number;
   },
   ICustomTimeSeriesList
 >;
@@ -143,8 +167,8 @@ export const customTimeSeriesDetail = CustomReportApi.customTimeSeriesDetail<
 /** 获取自定义时序字段 rest/v2/custom_metric_report/get_custom_ts_fields/ */
 export const getCustomTsFields = CustomReportApi.getCustomTsFields<
   {
-    time_series_group_id: number;
     bk_biz_id?: number;
+    time_series_group_id: number;
   },
   ICustomTsFields
 >;
@@ -152,7 +176,7 @@ export const getCustomTsFields = CustomReportApi.getCustomTsFields<
 /** 修改自定义时序字段 rest/v2/custom_metric_report/modify_custom_ts_fields/ */
 export const modifyCustomTsFields = CustomReportApi.modifyCustomTsFields<
   {
-    time_series_group_id: number;
+    time_series_group_id?: number;
     update_fields: {
       scope?: {
         id: number;
@@ -228,8 +252,8 @@ export const createOrUpdateGroupingRule = CustomReportApi.createOrUpdateGrouping
 /** 获取分组规则列表 rest/v2/custom_metric_report/custom_ts_grouping_rule_list/ */
 export const customTsGroupingRuleList = CustomReportApi.customTsGroupingRuleList<
   {
-    time_series_group_id: number;
     bk_biz_id?: number;
+    time_series_group_id: number;
   },
   IGroupingRule[]
 >;
@@ -245,7 +269,7 @@ export const getCustomTimeSeriesLatestDataByFields = CustomReportApi.getCustomTi
   },
   {
     fields_value: Record<string, any>;
-    last_time: number | null;
+    last_time: null | number;
     table_id: string;
   }
 >;

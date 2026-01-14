@@ -23,48 +23,37 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
+import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
 
-import { type getSceneView, getCustomTsMetricGroups } from '../service';
-import HeaderBox from './components/header-box/index';
-import MetricsSelect from './components/metrics-select/index';
 import PageHeadr from './components/page-header/index';
-import PanelChartView from './components/panel-chart-view';
-import ViewColumn from './components/view-column/index';
+import ViewMain from './components/view-main';
 import ViewTab from './components/view-tab/index';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
+import type { getSceneView } from '../service';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './index.scss';
 
 type GetSceneViewParams = Parameters<typeof getSceneView>[0];
-
-const ASIDE_WIDTH_SETTING_KEY = 'ASIDE_WIDTH_SETTING_KEY';
-
 @Component
 export default class NewMetricView extends tsc<object> {
   currentView = 'default';
   dimenstionParams: GetSceneViewParams | null = null;
   showStatisticalValue = false;
-  isCustomTsMetricGroupsLoading = true;
+  loading = true;
   viewColumn = 2;
-  state = {
-    showStatisticalValue: false,
-    viewColumn: 2,
-  };
   cacheTimeRange = [];
   asideWidth = 220; // 侧边栏初始化宽度
   @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
   @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('showRestore') showRestore = false;
-  @ProvideReactive('containerScrollTop') containerScrollTop = 0;
+  // @ProvideReactive('containerScrollTop') containerScrollTop = 0;
   @ProvideReactive('refreshInterval') refreshInterval = -1;
-  @Ref('panelChartView') panelChartView!: PanelChartView;
 
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
@@ -78,35 +67,6 @@ export default class NewMetricView extends tsc<object> {
   handleRestoreEvent() {
     this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
     this.showRestore = false;
-  }
-
-  @Watch('isCustomTsMetricGroupsLoading')
-  isCustomTsMetricGroupsLoadingChange(v) {
-    if (!v) {
-      this.$nextTick(() => {
-        this.initScroll();
-      });
-    }
-  }
-  initScroll() {
-    const container = document.querySelector('.metric-view-dashboard-container') as HTMLElement;
-    if (container) {
-      container.removeEventListener('scroll', this.handleScroll);
-      container.addEventListener('scroll', this.handleScroll);
-    }
-  }
-
-  removeScrollEvent() {
-    const container = document.querySelector('.metric-view-dashboard-container') as HTMLElement;
-    if (container) {
-      container.removeEventListener('scroll', this.handleScroll);
-    }
-  }
-
-  handleScroll(e) {
-    if (e.target.scrollTop > 0) {
-      this.containerScrollTop = e.target.scrollTop;
-    }
   }
 
   get timeSeriesGroupId() {
@@ -133,57 +93,22 @@ export default class NewMetricView extends tsc<object> {
   get graphConfigParams() {
     return {
       limit: {
-        function: 'top', // top/bottom
+        function: 'top' as const, // top/bottom
         limit: 50, // 0不限制
       },
       view_column: 2,
       ...this.dimenstionParams,
-      // start_time: this.startTime,
-      // end_time: this.endTime,
-      // metrics: customEscalationViewStore.currentSelectedMetricNameList,
       metrics: this.metricsData,
     };
   }
 
-  @Watch('state', { deep: true })
-  stateChange() {
-    this.$router.replace({
-      query: {
-        ...this.$route.query,
-        ...(this.state as Record<string, any>),
-        key: `${Date.now()}`, // query 相同时 router.replace 会报错
-      },
-    });
-  }
-
-  @Watch('timeSeriesGroupId', { immediate: true })
+  @Watch('timeSeriesGroupId')
   timeSeriesGroupIdChange() {
-    this.asideWidth = Number(localStorage.getItem(ASIDE_WIDTH_SETTING_KEY) || 220);
-    this.getCustomTsMetricGroups();
+    this.loading = true;
   }
 
-  async getCustomTsMetricGroups() {
-    const needParseUrl = Boolean(this.$route.query.viewPayload);
-    this.isCustomTsMetricGroupsLoading = true;
-    try {
-      const result = await getCustomTsMetricGroups({
-        time_series_group_id: this.timeSeriesGroupId,
-        // is_mock: true,
-      });
-      customEscalationViewStore.updateMetricGroupList(result.metric_groups);
-      if (!needParseUrl) {
-        const metricGroup = result.metric_groups;
-        const defaultSelectedData = {
-          groupName: metricGroup[0]?.name || '',
-          metricsName: [metricGroup[0]?.metrics[0]?.metric_name || ''],
-        };
-        customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(
-          metricGroup.length > 0 && metricGroup[0].metrics.length > 0 ? [defaultSelectedData] : []
-        );
-      }
-    } finally {
-      this.isCustomTsMetricGroupsLoading = false;
-    }
+  async handleSuccess() {
+    this.loading = false;
   }
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
@@ -205,24 +130,13 @@ export default class NewMetricView extends tsc<object> {
   handleRefreshChange(value: number) {
     this.refreshInterval = value;
   }
-
-  handleResetAsideWidth(width: number) {
-    localStorage.setItem(ASIDE_WIDTH_SETTING_KEY, String(width));
+  handleOpenSideslider() {
+    // 打开指标管理操作面板
   }
 
   created() {
     const routerQuery = this.$route.query as Record<string, string>;
     this.currentView = routerQuery.viewTab || 'default';
-    this.state = {
-      viewColumn: Number.parseInt(routerQuery.viewColumn, 10) || 2,
-      showStatisticalValue: routerQuery.showStatisticalValue === 'true',
-    };
-    const asideWidth = localStorage.getItem(ASIDE_WIDTH_SETTING_KEY);
-    this.asideWidth = Number(asideWidth || 220);
-  }
-
-  beforeDestroy() {
-    this.removeScrollEvent();
   }
 
   render() {
@@ -241,51 +155,58 @@ export default class NewMetricView extends tsc<object> {
         </PageHeadr>
         <div
           key={this.timeSeriesGroupId}
-          v-bkloading={{ isLoading: this.isCustomTsMetricGroupsLoading }}
+          v-bkloading={{ isLoading: this.loading }}
         >
-          {!this.isCustomTsMetricGroupsLoading && (
+          {!this.loading && (
             <ViewTab
               v-model={this.currentView}
               graphConfigPayload={this.graphConfigParams}
               onPayloadChange={this.handleDimensionParamsChange}
-            >
-              <bk-resize-layout
-                style='height: calc(100vh - 140px - var(--notice-alert-height))'
-                collapsible={true}
-                initial-divide={this.asideWidth}
-                max={550}
-                min={200}
-                on-after-resize={this.handleResetAsideWidth}
-              >
-                <template slot='aside'>
-                  <MetricsSelect onReset={this.handleMetricsSelectReset} />
-                </template>
-                <template slot='main'>
-                  <HeaderBox
-                    key={this.currentView}
-                    dimenstionParams={this.dimenstionParams}
-                    onChange={this.handleDimensionParamsChange}
-                  >
-                    <template slot='actionExtend'>
-                      <bk-checkbox v-model={this.state.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
-                      <ViewColumn
-                        style='margin-left: 32px;'
-                        v-model={this.state.viewColumn}
-                      />
-                    </template>
-                  </HeaderBox>
-                  <div class='metric-view-dashboard-container'>
-                    <PanelChartView
-                      ref='panelChartView'
-                      config={this.graphConfigParams as any}
-                      showStatisticalValue={this.state.showStatisticalValue}
-                      viewColumn={this.state.viewColumn}
-                    />
-                  </div>
-                </template>
-              </bk-resize-layout>
-            </ViewTab>
+            />
           )}
+          <ViewMain
+            config={this.graphConfigParams}
+            currentView={this.currentView}
+            dimenstionParams={this.dimenstionParams}
+            timeSeriesGroupId={this.timeSeriesGroupId}
+            onCustomTsMetricGroups={this.handleSuccess}
+            onDimensionParamsChange={this.handleDimensionParamsChange}
+            onResetMetricsSelect={this.handleMetricsSelectReset}
+          />
+          {/* <bk-resize-layout
+              style='height: calc(100vh - 140px - var(--notice-alert-height))'
+              collapsible={true}
+              initial-divide={220}
+              max={550}
+              min={200}
+            >
+              <template slot='aside'>
+                <MetricsSelect onReset={this.handleMetricsSelectReset} />
+              </template>
+              <template slot='main'>
+                <HeaderBox
+                  key={this.currentView}
+                  dimenstionParams={this.dimenstionParams}
+                  onChange={this.handleDimensionParamsChange}
+                >
+                  <template slot='actionExtend'>
+                    <bk-checkbox v-model={this.state.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
+                    <ViewColumn
+                      style='margin-left: 32px;'
+                      v-model={this.state.viewColumn}
+                    />
+                  </template>
+                </HeaderBox>
+                <div class='metric-view-dashboard-container'>
+                  <PanelChartView
+                    ref='panelChartView'
+                    config={this.graphConfigParams as any}
+                    showStatisticalValue={this.state.showStatisticalValue}
+                    viewColumn={this.state.viewColumn}
+                  />
+                </div>
+              </template>
+            </bk-resize-layout> */}
         </div>
       </div>
     );
