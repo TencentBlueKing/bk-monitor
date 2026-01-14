@@ -115,21 +115,33 @@ class GrafanaSwitchOrgView(SwitchOrgView):
 
     @staticmethod
     def is_allowed_external_request(request):
+        """
+        检查外部用户是否有权限访问当前请求的资源
+        支持 folder 权限自动展开为 dashboard 权限
+        """
         if not request.org_name:
             return True
 
-        filter_resources = ["home"]
+        # 收集所有允许的 dashboard uids（包括 folder 展开后的）
+        allowed_dashboard_uids = set(["home"])
+        org_id = get_or_create_org(request.org_name)["id"]
+
         for external_permission in ExternalPermission.objects.filter(
             authorized_user=request.external_user,
             bk_biz_id=int(request.org_name),
             action_id="view_grafana",
             expire_time__gt=timezone.now(),
         ):
-            filter_resources.extend(external_permission.resources)
+            # 展开资源（dashboard 和 folder）为 dashboard uids
+            dashboard_uids = DashboardPermission.expand_resources_to_dashboard_uids(
+                org_id, external_permission.resources
+            )
+            allowed_dashboard_uids.update(dashboard_uids)
 
         if "d/" in request.path or "dashboards/" in request.path:
-            for resource in filter_resources:
-                if resource in request.path:
+            # 检查 uid 是否在允许列表中
+            for uid in allowed_dashboard_uids:
+                if uid in request.path:
                     return True
             return False
         else:
@@ -255,20 +267,33 @@ class ApiProxyView(GrafanaProxyView):
         return response
 
     def filter_external_resource(self, request, response):
-        filter_resources = []
+        """
+        过滤外部用户可访问的资源列表
+        支持 folder 权限自动展开为 dashboard 权限
+        """
         org_name = self.get_org_name(request)
         if request and getattr(request, "external_user", None) and org_name:
+            # 收集所有允许的 dashboard uids（包括 folder 展开后的）
+            allowed_dashboard_uids = set()
+            org_id = get_or_create_org(org_name)["id"]
+
             for external_permission in ExternalPermission.objects.filter(
                 authorized_user=request.external_user,
                 bk_biz_id=int(org_name),
                 action_id="view_grafana",
                 expire_time__gt=timezone.now(),
             ):
-                filter_resources.extend(external_permission.resources)
+                # 展开资源（dashboard 和 folder）为 dashboard uids
+                dashboard_uids = DashboardPermission.expand_resources_to_dashboard_uids(
+                    org_id, external_permission.resources
+                )
+                allowed_dashboard_uids.update(dashboard_uids)
+
+            # 过滤结果
             result = json.loads(response.content)
             result = [
                 record
                 for record in result
-                if record.get("type", "") == "dash-db" and record.get("uid", "") in filter_resources
+                if record.get("type", "") == "dash-db" and record.get("uid", "") in allowed_dashboard_uids
             ]
             response.content = json.dumps(result)
