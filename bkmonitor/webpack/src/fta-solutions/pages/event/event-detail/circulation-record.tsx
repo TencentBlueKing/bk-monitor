@@ -315,13 +315,6 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
   }
 
   getTitleComponent(item) {
-    console.log(item, item.count > 1);
-    let time = formatWithTimezone(item.time);
-    // 可能会有时间区间，例：2026-01-13 14:31:15 至 2026-01-13 14:36:15
-    if (!item.expand) {
-      const [startTime = '', endTime = ''] = item.expandTime.split(' 至 ');
-      time = `${formatWithTimezone(startTime)} 至 ${formatWithTimezone(endTime)}`
-    }
     return (
       <div class='item-title'>
         {/* {
@@ -332,7 +325,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
         <span class='item-title-icon'>
           <i class={['icon-monitor', item.logIcon]} />
         </span>
-        <span class='item-title-date'>{time}</span>
+        <span class='item-title-date'>{item.expand ? formatWithTimezone(item.time) : item.expandTime}</span>
       </div>
     );
   }
