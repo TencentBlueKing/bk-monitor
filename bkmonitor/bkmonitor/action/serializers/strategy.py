@@ -74,37 +74,32 @@ class TimezoneAwareDateTimeField(serializers.CharField):
     2. 带时区: "2026-01-12 11:00:08+0800" 或 "2026-01-12 11:00:08+08:00"
     """
 
-    def run_validators(self, value):
-        super().run_validators(value)
-        # 如果值为空字符串且允许为空，跳过验证
-        if value == "" and getattr(self, "allow_blank", False):
-            self._validated_value = ""
-            return
+    def to_internal_value(self, data):
+        # 先进行字符串验证
+        data = super().to_internal_value(data)
 
-        if value:
+        # 如果值为空字符串且允许为空，直接返回
+        if data == "" and getattr(self, "allow_blank", False):
+            return data
+
+        if data:
             # 尝试解析带时区或不带时区的时间格式
             try:
                 # 尝试使用 arrow 解析（支持多种格式，包括带时区的）
-                parsed_time = arrow.get(value)
+                parsed_time = arrow.get(data)
                 # 转换为标准格式（不带时区）
-                self._validated_value = parsed_time.format("YYYY-MM-DD HH:mm:ss")
+                return parsed_time.format("YYYY-MM-DD HH:mm:ss")
             except (arrow.parser.ParserError, ValueError):
                 # 如果 arrow 解析失败，尝试传统格式
                 try:
-                    datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
-                    self._validated_value = value
+                    datetime.strptime(data, "%Y-%m-%d %H:%M:%S")
+                    return data
                 except ValueError:
                     raise ValidationError(
                         detail=_("当前输入非日期时间格式，请按格式[年-月-日 时:分:秒]或[年-月-日 时:分:秒+时区]填写")
                     )
 
-    def to_internal_value(self, data):
-        # 调用父类的验证逻辑
-        value = super().to_internal_value(data)
-        # 如果有验证后的值（可能是带时区转换后的），返回转换后的标准格式
-        if hasattr(self, "_validated_value"):
-            return self._validated_value
-        return value
+        return data
 
 
 class HandOffSettingsSerializer(serializers.Serializer):
