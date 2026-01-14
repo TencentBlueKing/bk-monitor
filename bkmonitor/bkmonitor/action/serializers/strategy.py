@@ -78,9 +78,9 @@ class TimezoneAwareDateTimeField(serializers.CharField):
         # 先进行字符串验证
         data = super().to_internal_value(data)
 
-        # 如果值为空字符串且允许为空，直接返回
+        # 如果值为空字符串 and 只允许blank，返回空字符串（兼容CharField）
         if data == "" and getattr(self, "allow_blank", False):
-            return data
+            return ""
 
         if data:
             # 尝试解析带时区或不带时区的时间格式
@@ -311,7 +311,7 @@ class DutyArrangeSlz(DutyBaseInfoSlz):
     group_number = serializers.IntegerField(required=False)
 
     # 配置生效时间
-    effective_time = TimezoneAwareDateTimeField(label="配置生效时间", required=False, allow_blank=True)
+    effective_time = TimezoneAwareDateTimeField(label="配置生效时间", required=False, allow_null=True)
     # handoff_time: {"date": 1, "time": "10:00"  } 根据rotation_type进行切换
     handoff_time = HandOffField(label="轮班交接时间安排", required=False)
     # duty_time: [{"work_type": "daily|month|week", "work_days":[1,2,3], "work_time"}]
