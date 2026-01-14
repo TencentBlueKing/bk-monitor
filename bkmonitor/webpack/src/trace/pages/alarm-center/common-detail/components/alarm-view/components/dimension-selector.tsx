@@ -113,6 +113,7 @@ export default defineComponent({
         <div class='search-wrap'>
           <Input
             modelValue={this.searchValue}
+            placeholder={`${this.t('搜索')} ${this.t('维度')}`}
             type='search'
             onChange={this.handleSearch}
           />

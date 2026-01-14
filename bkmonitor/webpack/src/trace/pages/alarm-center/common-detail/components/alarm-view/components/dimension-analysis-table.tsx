@@ -30,6 +30,8 @@ import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { useI18n } from 'vue-i18n';
 import { useTippy } from 'vue-tippy';
 
+import DrillDownOptions from './drill-down-options';
+
 import './dimension-analysis-table.scss';
 
 const tableColumnKey = {
@@ -72,7 +74,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    const selectorRef = useTemplateRef<HTMLDivElement>('selector');
+    const selectorRef = useTemplateRef<InstanceType<typeof DrillDownOptions>>('selector');
     const popoverInstance = shallowRef(null);
     const currentRow = shallowRef<any>(null);
     const destroyPopoverInstance = () => {
@@ -86,7 +88,7 @@ export default defineComponent({
         return;
       }
       popoverInstance.value = useTippy(event.target as any, {
-        content: () => selectorRef.value,
+        content: () => selectorRef.value.$el,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',
@@ -125,7 +127,12 @@ export default defineComponent({
               title: props.dimensions.find(item => item.id === dimension)?.name || dimension,
               width: 155,
               cell: (_h, { row }) => {
-                return <div>{row?.dimensions?.[dimension] || '--'}</div>;
+                return (
+                  <div class='dimension-value'>
+                    <span class='color-rect' />
+                    {row?.dimensions?.[dimension] || '--'}
+                  </div>
+                );
               },
             };
           }),
@@ -194,27 +201,12 @@ export default defineComponent({
             display: 'none',
           }}
         >
-          <div
+          <DrillDownOptions
             ref='selector'
-            class='dimension-analysis-data-table-popover'
-          >
-            {this.dimensions.map((item, index) => {
-              const active = this.displayDimensions?.[0] === item.id;
-              return (
-                <div
-                  key={index}
-                  class={['selector-item', { active }]}
-                  onClick={() => {
-                    if (!active) {
-                      this.handleSelectDimension(item.id);
-                    }
-                  }}
-                >
-                  {item.name}
-                </div>
-              );
-            })}
-          </div>
+            active={this.displayDimensions?.[0] || ''}
+            dimensions={this.dimensions}
+            onSelect={this.handleSelectDimension}
+          />
         </div>
       </>
     );

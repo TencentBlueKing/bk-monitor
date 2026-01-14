@@ -24,14 +24,16 @@
  * IN THE SOFTWARE.
  */
 
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
+import { docCookies } from 'monitor-common/utils/utils';
+
 import {
   type IGetValueFnParams,
   type IWhereValueOptionsItem,
   EMode,
 } from '../../../../../components/retrieval-filter/typing';
 import { AlarmServiceFactory } from '../../../../../pages/alarm-center/services/factory';
-
-import type { AlarmType } from '../../../../../pages/alarm-center/typings';
+import { AlarmType } from '../../../../../pages/alarm-center/typings';
 
 type ICandidateValueMap = Map<
   string,
@@ -41,6 +43,107 @@ type ICandidateValueMap = Map<
     values: { id: string; name: string }[];
   }
 >;
+
+const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
+export const commonAlertFieldMap = {
+  status: [
+    {
+      id: isEn ? 'ABNORMAL' : '未恢复',
+      name: window.i18n.t('未恢复'),
+    },
+    {
+      id: isEn ? 'RECOVERED' : '已恢复',
+      name: window.i18n.t('已恢复'),
+    },
+    {
+      id: isEn ? 'CLOSED' : '已失效',
+      name: window.i18n.t('已失效'),
+    },
+  ],
+  severity: [
+    {
+      id: isEn ? 1 : '致命',
+      name: window.i18n.t('致命'),
+    },
+    {
+      id: isEn ? 2 : '预警',
+      name: window.i18n.t('预警'),
+    },
+    {
+      id: isEn ? 3 : '提醒',
+      name: window.i18n.t('提醒'),
+    },
+  ],
+  stage: [
+    {
+      id: isEn ? 'is_handled' : '已通知',
+      name: window.i18n.t('已通知'),
+    },
+    {
+      id: isEn ? 'is_ack' : '已确认',
+      name: window.i18n.t('已确认'),
+    },
+    {
+      id: isEn ? 'is_shielded' : '已屏蔽',
+      name: window.i18n.t('已屏蔽'),
+    },
+    {
+      id: isEn ? 'is_blocked' : '已流控',
+      name: window.i18n.t('已流控'),
+    },
+  ],
+};
+const commonActionFieldMap = {
+  status: [
+    {
+      id: isEn ? 'RUNNING' : '执行中',
+      name: window.i18n.t('执行中'),
+    },
+    {
+      id: isEn ? 'SUCCESS' : '成功',
+      name: window.i18n.t('成功'),
+    },
+    {
+      id: isEn ? 'FAILURE' : '失败',
+      name: window.i18n.t('失败'),
+    },
+  ],
+};
+
+const commonIncidentFieldMap = {
+  status: [
+    {
+      id: isEn ? 'ABNORMAL' : '未恢复',
+      name: window.i18n.t('未恢复'),
+    },
+    {
+      id: isEn ? 'RECOVERING' : '观察中',
+      name: window.i18n.t('观察中'),
+    },
+    {
+      id: isEn ? 'RECOVERED' : '已恢复',
+      name: window.i18n.t('已恢复'),
+    },
+    {
+      id: isEn ? 'CLOSED' : '已解决',
+      name: window.i18n.t('已解决'),
+    },
+  ],
+  level: [
+    {
+      id: isEn ? 'ERROR' : '致命',
+      name: window.i18n.t('致命'),
+    },
+    {
+      id: isEn ? 'INFO' : '预警',
+      name: window.i18n.t('预警'),
+    },
+    {
+      id: isEn ? 'WARN' : '提醒',
+      name: window.i18n.t('提醒'),
+    },
+  ],
+};
 
 export function useAlarmFilter(
   options: () => { alarmType: AlarmType; commonFilterParams: Record<string, any>; filterMode: EMode }
@@ -81,7 +184,25 @@ export function useAlarmFilter(
       const searchValue = String(params.where?.[0]?.value?.[0] || '');
       const searchValueLower = searchValue.toLocaleLowerCase();
       const candidateItem = candidateValueMap.get(getMapKey(params));
-      if (candidateItem?.isEnd && !params?.queryString) {
+
+      // 故障部分字段枚举值
+      const paramsField = params?.fields?.[0];
+      if (options().alarmType === AlarmType.ALERT && ['status', 'severity', 'stage'].includes(paramsField)) {
+        resolve({
+          list: commonAlertFieldMap[paramsField],
+          count: commonAlertFieldMap[paramsField].length,
+        });
+      } else if (options().alarmType === AlarmType.ACTION && ['status'].includes(paramsField)) {
+        resolve({
+          list: commonActionFieldMap[paramsField],
+          count: commonActionFieldMap[paramsField].length,
+        });
+      } else if (options().alarmType === AlarmType.INCIDENT && ['status', 'level'].includes(paramsField)) {
+        resolve({
+          list: commonIncidentFieldMap[paramsField],
+          count: commonIncidentFieldMap[paramsField].length,
+        });
+      } else if (candidateItem?.isEnd && !params?.queryString) {
         if (searchValue) {
           const filterValues = candidateItem.values.filter(item => {
             const idLower = `${item.id}`.toLocaleLowerCase();
@@ -116,7 +237,7 @@ export function useAlarmFilter(
             }
           )
           .then(res => {
-            const values = (res.fields?.find(f => f.field === params?.fields?.[0])?.buckets || []).map(item => {
+            const values = (res.fields?.find(f => f.field === paramsField)?.buckets || []).map(item => {
               if (options().filterMode === EMode.ui) {
                 return {
                   ...item,

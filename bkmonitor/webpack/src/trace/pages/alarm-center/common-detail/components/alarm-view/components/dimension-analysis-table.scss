@@ -13,30 +13,18 @@
       font-size: 16px;
     }
   }
-}
 
-.dimension-analysis-data-table-popover {
-  min-width: 80px;
-  min-height: 140px;
-  max-height: 300px;
-  overflow: auto;
-  background: rgb(255 255 255);
-
-  .selector-item {
+  .dimension-value {
     display: flex;
     align-items: center;
-    height: 32px;
-    padding: 0 12px;
-    cursor: pointer;
 
-    &:hover {
-      color: rgb(58 132 255);
-      background: rgb(225 236 255);
-    }
-
-    &.active {
-      color: rgb(58 132 255);
-      background: rgb(244 246 250);
+    .color-rect {
+      display: block;
+      width: 10px;
+      height: 2px;
+      margin-right: 6px;
+      background: #7EC7E7;
     }
   }
 }
+

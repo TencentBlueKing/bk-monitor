@@ -28,6 +28,8 @@ import { defineComponent, nextTick, shallowRef, useTemplateRef } from 'vue';
 
 import VueEcharts from 'vue-echarts';
 
+import DrillDownOptions from '../components/drill-down-options';
+
 import type { TooltipComponentOption } from 'echarts';
 
 import './dimension-tree-map-charts.scss';
@@ -48,7 +50,7 @@ export default defineComponent({
       y: 0,
       data: null,
     });
-    const menuContainerRef = useTemplateRef<HTMLDivElement>('menuContainer');
+    const menuContainerRef = useTemplateRef<InstanceType<typeof DrillDownOptions>>('menuContainer');
 
     const total = shallowRef(100);
 
@@ -146,7 +148,7 @@ export default defineComponent({
       document.addEventListener('click', closeTreeMapMenu);
 
       nextTick(() => {
-        const { width, height } = menuContainerRef.value.getBoundingClientRect();
+        const { width, height } = menuContainerRef.value.$el.getBoundingClientRect();
         if (x + width > window.innerWidth) {
           x = x - width;
         }
@@ -194,29 +196,19 @@ export default defineComponent({
             autoresize
             onClick={this.handleChartClick}
           />
-
-          <div
+          <DrillDownOptions
             ref='menuContainer'
             style={{
               display: this.showMenu ? 'block' : 'none',
               left: `${this.menuInfo.x}px`,
               top: `${this.menuInfo.y}px`,
             }}
-            class='echarts-menu-container'
-          >
-            <div class='echarts-menu-title'>下钻至</div>
-            <div class='echarts-menu'>
-              {this.dimensionList.map(item => (
-                <div
-                  key={item.name}
-                  class='echarts-menu-item'
-                  onClick={() => this.handleMenuItemClick(item)}
-                >
-                  {item.name}
-                </div>
-              ))}
-            </div>
-          </div>
+            active={''}
+            dimensions={this.dimensionList as any[]}
+            hasTitle={true}
+            isFixed={true}
+            onSelect={this.handleMenuItemClick}
+          />
         </div>
       </div>
     );
