@@ -36,12 +36,16 @@ import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/u
 import ChartTitle from '../../../../../../../plugins/components/chart-title';
 import CommonLegend from '../../../../../../../plugins/components/common-legend';
 import { commOpenUrl, getMetricId } from '../../../../../../../plugins/utls/menu';
-import { useChartLegend } from '../../../../../../trace-explore/components/explore-chart/use-chart-legend';
+import {
+  type LegendCustomOptions,
+  useChartLegend,
+} from '../../../../../../trace-explore/components/explore-chart/use-chart-legend';
 import { useChartTitleEvent } from '../../../../../../trace-explore/components/explore-chart/use-chart-title-event';
 import { useK8sEcharts } from './hooks/use-k8s-echarts';
 
 import type { IDataQuery, IMenuItem } from '../../../../../../../plugins/typings';
 import type { DataZoomEvent } from '../../../../../../trace-explore/components/explore-chart/types';
+import type { CustomOptions } from '../../../../../../trace-explore/components/explore-chart/use-echarts';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './k8s-custom-chart.scss';
@@ -59,9 +63,14 @@ export default defineComponent({
       default: true,
     },
     /** 图表数据格式化函数 */
-    formatterData: {
-      type: Function as PropType<(val) => any>,
-      default: res => res,
+    customOptions: {
+      type: Object as PropType<CustomOptions>,
+      default: () => ({}),
+    },
+    /** 图例配置 */
+    customLegendOptions: {
+      type: Object as PropType<LegendCustomOptions>,
+      default: () => ({}),
     },
     /** 查询参数 */
     params: {
@@ -97,7 +106,7 @@ export default defineComponent({
       chartMainRef,
       instance.appContext.config.globalProperties.$api,
       params,
-      props.formatterData,
+      props.customOptions,
       {
         isMouseOver: mouseIn,
         hoverAllTooltips: toRef(props, 'hoverAllTooltips'),
@@ -110,7 +119,7 @@ export default defineComponent({
       series,
       chartRef
     );
-    const { legendData, handleSelectLegend } = useChartLegend(options, chartId);
+    const { legendData, handleSelectLegend } = useChartLegend(options, chartId, props.customLegendOptions);
     const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
       chartInstance.value.dispatchAction({
         type: 'restore',

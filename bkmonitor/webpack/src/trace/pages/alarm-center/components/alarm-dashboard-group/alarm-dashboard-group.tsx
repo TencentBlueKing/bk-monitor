@@ -34,6 +34,8 @@ import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../components/t
 import AlarmMetricsDashboard from '../alarm-metrics-dashboard/alarm-metrics-dashboard';
 import ChartSkeleton from '@/components/skeleton/chart-skeleton';
 
+import type { LegendCustomOptions } from '../../../trace-explore/components/explore-chart/use-chart-legend';
+import type { CustomOptions } from '../../../trace-explore/components/explore-chart/use-echarts';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './alarm-dashboard-group.scss';
@@ -59,6 +61,11 @@ export default defineComponent({
       type: Object as PropType<Record<string, unknown>>,
       default: () => ({}),
     },
+    /** 请求图表数据时所需要额外携带的参数 */
+    params: {
+      type: Object as PropType<Record<string, unknown>>,
+      default: () => ({}),
+    },
     /** 仪表板面板每行显示的图表列数 */
     gridCol: {
       type: Number,
@@ -69,10 +76,15 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    /** 对接口请求返回数据进行处理 */
-    formatterData: {
-      type: Function as PropType<(val) => any>,
-      default: res => res,
+    /** 图表数据格式化函数 */
+    customOptions: {
+      type: Object as PropType<CustomOptions>,
+      default: () => ({}),
+    },
+    /** 图例配置 */
+    customLegendOptions: {
+      type: Object as PropType<LegendCustomOptions>,
+      default: () => ({}),
     },
     /** 是否展示复位按钮 */
     showRestore: {
@@ -138,11 +150,13 @@ export default defineComponent({
             {this.dashboards?.map?.(dashboard => (
               <AlarmMetricsDashboard
                 key={dashboard.id}
+                customLegendOptions={this.customLegendOptions}
+                customOptions={this.customOptions}
                 dashboardId={this.dashboardId}
                 dashboardTitle={dashboard?.title}
-                formatterData={this.formatterData}
                 gridCol={this.gridCol}
                 panelModels={dashboard?.panels}
+                params={this.params}
                 showRestore={this.showRestore}
                 viewOptions={this.viewOptions}
                 onDataZoomChange={(timeRange: [number, number]) => this.$emit('dataZoomChange', timeRange)}

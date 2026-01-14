@@ -50,18 +50,36 @@ import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
 import type { IDataQuery } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
+/** 图表交互状态配置 */
+export interface ChartInteractionState {
+  /** 所有联动图表中存在有一个图表触发 hover 是否展示所有联动图表的 tooltip(默认 false) */
+  hoverAllTooltips?: MaybeRef<boolean>;
+  /** 当前鼠标是否 hover 在图表区域 */
+  isMouseOver: MaybeRef<boolean>;
+}
 export interface CustomOptions {
   formatterData?: (formatter: any, target: IDataQuery) => any;
   options?: (options: any) => any;
   series?: (series: EchartSeriesItem[]) => EchartSeriesItem[];
 }
 
+/**
+ * @function useAlertEcharts 告警图表 ECharts Hook
+ * @description 用于管理告警指标图表的数据获取、配置生成和交互状态
+ * @param panel - 图表面板配置，包含 targets、options 等图表配置信息
+ * @param chartRef - 图表 DOM 元素引用，用于 tooltip 定位
+ * @param $api - API 模块对象，用于调用后端接口获取图表数据
+ * @param params - 请求参数，会与 target.data 合并后发送请求
+ * @param customOptions - 数据格式化函数，用于需要自定义逻辑
+ * @param interactionState - 图表交互状态配置，控制 tooltip 联动等行为
+ */
 export const useEcharts = (
   panel: MaybeRef<PanelModel>,
   chartRef: Ref<HTMLElement>,
   $api: Record<string, () => Promise<any>>,
   params: MaybeRef<Record<string, any>>,
-  customOptions: CustomOptions
+  customOptions: CustomOptions,
+  interactionState?: ChartInteractionState
 ) => {
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
@@ -146,8 +164,8 @@ export const useEcharts = (
     const yAxis = createYAxis(seriesData);
     const options = createOptions(xAxis, yAxis, seriesData);
     const { tooltipsOptions } = useChartTooltips(chartRef, {
-      isMouseOver: true,
-      hoverAllTooltips: false,
+      isMouseOver: interactionState?.isMouseOver ?? true,
+      hoverAllTooltips: interactionState?.hoverAllTooltips ?? false,
       options,
     });
     return {

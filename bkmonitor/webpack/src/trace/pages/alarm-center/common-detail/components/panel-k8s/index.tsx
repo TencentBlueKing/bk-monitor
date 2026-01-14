@@ -129,6 +129,7 @@ export default defineComponent({
     });
 
     return {
+      bizId,
       scene,
       currentTarget,
       sceneList,
@@ -189,6 +190,9 @@ export default defineComponent({
         </div>
         <div class='panel-k8s-chart-wrap'>
           <AlarmDashboardGroup
+            params={{
+              bk_biz_id: this.bizId,
+            }}
             viewOptions={{
               interval: 'auto',
               method: 'sum',

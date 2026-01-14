@@ -36,6 +36,8 @@ import { useAlertHost } from '../../../composables/use-alert-host';
 import { useHostSceneView } from '../../../composables/use-host-scene-view';
 import PanelHostSelector from './components/panel-host-selector/panel-host-selector';
 
+import type { IDataQuery } from '../../../../../plugins/typings';
+
 import './index.scss';
 
 export default defineComponent({
@@ -88,9 +90,10 @@ export default defineComponent({
      * @description: 格式化图表数据
      * @param {any} data 图表接口返回的series数据
      */
-    const formatterData = (data: any) => {
+    const formatterData = (data: any, target: IDataQuery) => {
       return {
         ...data,
+        query_config: data?.query_config || target.data,
         series: data.series.map(item => {
           return {
             ...item,
@@ -146,6 +149,7 @@ export default defineComponent({
     );
 
     return {
+      bizId,
       currentTarget,
       sceneViewLoading,
       hostDashboards,
@@ -193,8 +197,13 @@ export default defineComponent({
         </div>
         <div class='panel-host-chart-wrap'>
           <AlarmDashboardGroup
+            customOptions={{
+              formatterData: this.formatterData,
+            }}
+            params={{
+              bk_biz_id: this.bizId,
+            }}
             dashboards={this.hostDashboards}
-            formatterData={this.formatterData}
             loading={this.sceneViewLoading}
             showRestore={this.dataZoomTimeRange}
             timeRange={this.viewerTimeRange}
