@@ -339,9 +339,8 @@ class AlertEventsResource(AlertEventBaseResource):
 
         if self.is_apm_target(target):
             result: dict[str, Any] = APMEventLogsResource().request(query_params)
-            if result.get("query_config"):
-                # APM 告警场景下需跳转到 APM 事件页面，query_config 设置为前端跳转所需的请求参数
-                result["query_config"] = query_params
+            # APM 告警场景下需跳转到 APM 事件页面，query_config 设置为前端跳转所需的请求参数
+            result["query_config"] = query_params
             return result
 
         result: dict[str, Any] = EventLogsResource().request(query_params)
@@ -465,9 +464,8 @@ class AlertEventTSResource(AlertEventBaseResource):
 
         if self.is_apm_target(target):
             result: dict[str, Any] = APMEventTimeSeriesResource().request(query_params)
-            if result.get("query_config"):
-                # APM 告警场景下需跳转到 APM 事件页面，query_config 设置为前端跳转所需的请求参数（具体的 where 字段再从气泡详情中拿）
-                result["query_config"] = query_params
+            # APM 告警场景下需跳转到 APM 事件页面，query_config 设置为前端跳转所需的请求参数（具体的 where 字段再从气泡详情中拿）
+            result["query_config"] = query_params
             return result
 
         return EventTimeSeriesResource().request(query_params)
