@@ -3252,12 +3252,9 @@ class EditDataMeaningResource(Resource):
 
         # 同步更新ItemModel(如果存在)
         if item_id:
-            try:
-                item = ItemModel.objects.get(id=item_id)
-                if item.name != data_meaning:
-                    item.name = data_meaning
-                    item.save()
-            except ItemModel.DoesNotExist:
+            # 使用原子性update避免并发覆盖
+            updated_count = ItemModel.objects.filter(id=item_id).update(name=data_meaning)
+            if updated_count == 0:
                 logger.error(f"ItemModel with id {item_id} does not exist for alert {alert_id}")
         else:
             # ES中的strategy.items[0]缺少id字段
