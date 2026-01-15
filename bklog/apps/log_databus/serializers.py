@@ -733,6 +733,7 @@ class StorageBatchDetectSerializer(serializers.Serializer):
 
 class StorageUpdateSerializer(serializers.Serializer):
     cluster_name = serializers.CharField(label=_("集群名称"), required=False)
+    display_name = serializers.CharField(label=_("集群中文名称"), required=True)
     domain_name = serializers.CharField(label=_("集群域名"), required=True)
     port = serializers.IntegerField(label=_("端口"), required=True)
     schema = serializers.CharField(label=_("集群协议"), required=True)
