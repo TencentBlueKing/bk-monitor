@@ -25,6 +25,9 @@
  */
 import { computed, defineComponent, onMounted, ref, type Ref } from 'vue';
 
+import(/* webpackChunkName: 'appload-import' */ './common/appload-import');
+import(/* webpackChunkName: 'demand-import' */ './common/demand-import');
+
 import AuthDialog from '@/components/common/auth-dialog.vue';
 import GlobalSettingDialog from '@/components/global-setting/index';
 import HeadNav from '@/global/head-navi/index';
@@ -34,12 +37,10 @@ import { useRoute } from 'vue-router/composables';
 
 import useLocale from './hooks/use-locale';
 import useStore from './hooks/use-store';
+import { join } from '@/global/utils/path';
 
 import '@blueking/notice-component-vue2/dist/style.css';
 import './app.scss';
-
-import(/* webpackChunkName: 'appload-import' */ './common/appload-import');
-import(/* webpackChunkName: 'demand-import' */ './common/demand-import');
 
 export default defineComponent({
   setup() {
@@ -120,7 +121,7 @@ export default defineComponent({
         return (
           <NoticeComponent
             ref='refNoticeComponent'
-            api-url={`${(window as any).SITE_URL}notice/announcements/`}
+            api-url={join((window as any).SITE_URL, '/notice/announcements/')}
             on-show-alert-change={showAlertChange}
           />
         );
