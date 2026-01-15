@@ -613,10 +613,18 @@ class AccessDataProcess(BaseAccessDataProcess):
                 break
 
         max_data_time = 0
+        # 记录所有查询到的数据的最大时间点（包括重复数据）
+        # 用于在去重后 record_list 为空时，仍然能够更新 checkpoint，避免死循环
+        max_queried_data_time = 0
+
         for record in reversed(points):
             point = DataRecord(self.items, record)
 
             if point.value is not None:
+                # 记录所有数据的最大时间点（不管是否重复）
+                if point.time > max_queried_data_time:
+                    max_queried_data_time = point.time
+
                 # 去除重复数据
                 if dup_obj.is_duplicate(point):
                     duplicate_counts += 1
@@ -633,6 +641,9 @@ class AccessDataProcess(BaseAccessDataProcess):
                         max_data_time = point.time
             else:
                 none_point_counts += 1
+
+        # 保存到实例变量，供 push 方法使用
+        self.max_queried_data_time = max_queried_data_time
 
         # 如果当前数据延迟超过一定值，则上报延迟埋点
         # 对于非batch的数据，有可能存在数据稀疏的情况，因此在filter duplicate后再进行延迟统计
@@ -917,10 +928,23 @@ class AccessDataProcess(BaseAccessDataProcess):
                 # 使用生成器表达式优化内存，避免创建临时列表
                 last_checkpoint = max(checkpoint_timestamp, max(r.time for r in self.record_list))
         else:
-            # 无数据：保持 checkpoint 不变
-            # 注意：方案 B 不需要空数据检测逻辑，因为查询逻辑保持不变
-            # 如果查询返回空数据，说明确实没有数据，无需特殊处理
-            last_checkpoint = checkpoint_timestamp
+            # 无数据（去重后）：检查是否查询到了数据
+            # 如果查询到了数据但全部被去重，应该基于查询到的数据的最大时间点更新 checkpoint
+            # 这样可以避免 checkpoint 卡住导致的死循环问题
+            max_queried_data_time = getattr(self, "max_queried_data_time", 0)
+            if max_queried_data_time > 0:
+                # 查询到了数据，但全部被去重
+                # 使用查询到的数据的最大时间点更新 checkpoint，避免死循环
+                last_checkpoint = max(checkpoint_timestamp, max_queried_data_time)
+                logger.info(
+                    f"strategy_group_key({self.strategy_group_key}) "
+                    f"all queried data are duplicated, but checkpoint will be updated to avoid deadlock. "
+                    f"old_checkpoint={arrow.get(checkpoint_timestamp).strftime(constants.STD_LOG_DT_FORMAT)}, "
+                    f"new_checkpoint={arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT)}"
+                )
+            else:
+                # 查询没有返回数据，保持 checkpoint 不变
+                last_checkpoint = checkpoint_timestamp
 
         if last_checkpoint > 0:
             # 记录检测点 下次从检测点开始重新检查
