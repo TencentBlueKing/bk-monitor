@@ -36,7 +36,6 @@ import {
   useTemplateRef,
 } from 'vue';
 
-import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 import { transformDataKey } from 'monitor-common/utils';
 import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants';
@@ -46,7 +45,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useAlarmCenterDetailStore } from '../../../../../../store/modules/alarm-center-detail';
 import { useChartOperation } from '../../../../../trace-explore/components/explore-chart/use-chart-operation';
-import { type AlarmDetail, type AlertEventTagDetailParams, AlertLevelEnum } from '../../../../typings';
+import { type AlarmDetail, type AlertScatterClickEvent, AlertLevelEnum } from '../../../../typings';
 import AlarmChartEventDetail from './alarm-chart-event-detail';
 import MonitorCharts from './monitor-charts';
 
@@ -128,10 +127,10 @@ export default defineComponent({
     /** 事件详情弹窗显示位置 */
     const eventDetailPopupPosition = shallowRef({ left: 0, top: 0 });
     /** 散点点击事件的详情数据 */
-    const scatterClickEventData = shallowRef<AlertEventTagDetailParams>({});
+    const scatterClickEventData = shallowRef<AlertScatterClickEvent>({});
 
     const { timeRange: defaultTimeRange, bizId } = storeToRefs(useAlarmCenterDetailStore());
-    const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation(get(defaultTimeRange));
+    const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation(defaultTimeRange);
     provide('timeRange', timeRange);
 
     /** 图表请求参数（框选时间范围） */
@@ -189,7 +188,7 @@ export default defineComponent({
     const formatterData = (data, target: IDataQuery) => {
       // 事件时序接口单独处理
       if (target.alias === 'alertEventTs') {
-        eventQueryConfig.value = data?.queryConfig ?? {};
+        eventQueryConfig.value = data?.query_config ?? {};
         return data;
       }
 
