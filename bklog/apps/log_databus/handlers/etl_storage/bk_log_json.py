@@ -187,6 +187,10 @@ class BkLogJsonEtlStorage(EtlStorage):
                 }
             })
         
+        # 4.1. 提取iterationIndex字段（从iter_item提取，参考v3的flat_field处理）
+        iteration_index_rules = self._build_iteration_index_field_v4(built_in_config)
+        rules.extend(iteration_index_rules)
+        
         # 5. JSON解析（解析iter_string中的JSON）
         rules.append({
             "input_id": "iter_string",
@@ -213,6 +217,12 @@ class BkLogJsonEtlStorage(EtlStorage):
                     "output_type": self._get_output_type(field["field_type"])
                 }
             })
+
+        # 6.1. 处理ext_json字段
+        rules.extend(self._build_extra_json_field_v4(etl_params, fields))
+
+        # 6.2. 处理清洗失败标记字段
+        rules.extend(self._build_parse_failure_field_v4(etl_params))
 
         # 7. Path字段处理（根据separator_configs配置）
         separator_configs = built_in_config.get("option", {}).get("separator_configs", [])

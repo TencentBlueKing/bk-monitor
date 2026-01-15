@@ -1179,7 +1179,7 @@ export default {
   灰度业务: 'Gray scale business',
   '本功能为灰度业务，请联系管理员开通':
     'This feature is currently in a phased rollout phase. Please contact the administrator to activate it.',
-  任务未完成: 'Task not completed',
+  任务未处理完成: 'The task has not been processed completely',
   '最大 {num} 个': 'Maximum {num}',
   '最大 {num} 天': 'Maximum {num} days',
   所属索引集: 'Associated index set',
@@ -1254,7 +1254,8 @@ export default {
   副本数量: 'Replica Count',
   集群备注: 'Cluster Remarks',
   '日志上传中...': 'Log uploading...',
-  '预计等待2-3分钟': 'Expected wait time: 2-3 minutes',
+  '预计等待2-3分钟，窗口关闭后不会影响任务执行':
+    'The estimated waiting time is 2-3 minutes. Closing the window will not affect the task execution.',
   日志上传成功: 'Log upload successful',
   去首页查询: 'Go to the homepage to check',
   日志上传失败: 'Log upload failed',

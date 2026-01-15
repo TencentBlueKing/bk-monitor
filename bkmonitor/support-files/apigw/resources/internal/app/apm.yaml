@@ -1025,3 +1025,147 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "calculate by range"
+  /app/apm/event_logs/:
+    post:
+      operationId: apm_event_logs
+      description: 【APM】事件日志查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_event_web/logs/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query apm event logs"
+  /app/apm/event_topk/:
+    post:
+      operationId: apm_event_topk
+      description: 【APM】事件TopK查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_event_web/topk/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query apm event topk"
+  /app/apm/event_total/:
+    post:
+      operationId: apm_event_total
+      description: 【APM】事件总数查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_event_web/total/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query apm event total"
+  /app/apm/event_view_config/:
+    post:
+      operationId: apm_event_view_config
+      description: 【APM】事件视图配置查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_event_web/view_config/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query apm event view config"
+  /app/apm/event_time_series/:
+    post:
+      operationId: apm_event_time_series
+      description: 【APM】事件时序数据查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_event_web/time_series/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query apm event time series"
+  /app/apm/event_tag_detail/:
+    post:
+      operationId: apm_event_tag_detail
+      description: 【APM】事件标签详情查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_event_web/tag_detail/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query apm event tag detail"
+  /app/apm/event_statistics_info/:
+    post:
+      operationId: apm_event_statistics_info
+      description: 【APM】事件统计信息查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_event_web/statistics_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query apm event statistics info"
+  /app/apm/event_statistics_graph/:
+    post:
+      operationId: apm_event_statistics_graph
+      description: 【APM】事件统计图表查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_event_web/statistics_graph/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query apm event statistics graph"

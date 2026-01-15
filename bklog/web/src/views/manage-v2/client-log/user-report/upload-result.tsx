@@ -75,7 +75,7 @@ export default defineComponent({
           <bk-spin size='normal'></bk-spin>
         </div>
         <div class='upload-title'>{t('日志上传中...')}</div>
-        <div class='upload-desc'>{t('预计等待2-3分钟')}</div>
+        <div class='upload-desc'>{t('预计等待2-3分钟，窗口关闭后不会影响任务执行')}</div>
         <div class='upload-actions'>
           <bk-button on-click={handleClose}>{t('关闭')}</bk-button>
         </div>

@@ -253,6 +253,10 @@ class BCSClusterInfo(models.Model):
             else:
                 default_storage_config = {"cluster_id": settings.BCS_CUSTOM_EVENT_STORAGE_CLUSTER_ID}
                 additional_options = copy.deepcopy(EventGroup.DEFAULT_RESULT_TABLE_OPTIONS)
+                field_names = [field["field_name"] for field in EventGroup.STORAGE_FIELD_LIST]
+                field_names.append("time")
+                additional_options[ResultTableOption.OPTION_ES_DOCUMENT_ID] = field_names
+                additional_options[ResultTableOption.OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK] = True
 
             report_group = report_class.create_custom_group(
                 bk_data_id=data_source.bk_data_id,

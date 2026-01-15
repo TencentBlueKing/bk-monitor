@@ -50,13 +50,27 @@ export const useSearchTask = ({ indexSetId }: UseSearchTaskOptions) => {
   /**
    * 执行检索任务
    * @param conditions 查询条件数组
+   * @param timeRange 时间范围 [开始时间, 结束时间]
    */
-  const searchTask = (conditions: SearchCondition[]) => {
+  const searchTask = (conditions: SearchCondition[], timeRange?: [string, string]) => {
     // 更新最后选择的索引集ID
     updateLastSelectedIndexId(store.state.spaceUid, indexSetId);
 
     // 设置搜索类型为UI模式
     store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
+
+    // 构建查询参数
+    const queryParams: any = {
+      spaceUid: store.state.spaceUid,
+      search_mode: 'ui',
+      addition: JSON.stringify(conditions),
+    };
+
+    // 如果提供了时间范围，则添加 start_time 和 end_time
+    if (timeRange && timeRange.length === 2) {
+      queryParams.start_time = timeRange[0];
+      queryParams.end_time = timeRange[1];
+    }
 
     // 跳转到检索页面
     router.push({
@@ -64,11 +78,7 @@ export const useSearchTask = ({ indexSetId }: UseSearchTaskOptions) => {
       params: {
         indexId: indexSetId,
       },
-      query: {
-        spaceUid: store.state.spaceUid,
-        search_mode: 'ui',
-        addition: JSON.stringify(conditions),
-      },
+      query: queryParams,
     });
   };
 

@@ -553,3 +553,214 @@ class GseSlotResource(Resource):
         )
 
         return True
+
+
+class QueryDataLinkMetadataResource(Resource):
+    """
+    查询数据链路元数据 - 简化的结构化API，用于程序化提取
+    返回英文字段的结构化数据，不包含复杂的路由信息
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_data_id = serializers.CharField(label="数据源ID", required=True)
+
+    def perform_request(self, validated_request_data):
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
+        bk_data_id = validated_request_data["bk_data_id"]
+
+        try:
+            # 获取数据源
+            ds = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
+
+            # 构建结构化响应
+            result = {
+                "data_source": self._build_data_source_info(ds),
+                "kafka_config": self._build_kafka_config(ds),
+                "result_tables": self._build_result_tables_info(bk_tenant_id, bk_data_id),
+            }
+
+            return result
+
+        except models.DataSource.DoesNotExist:
+            raise ValidationError(f"Data source {bk_data_id} does not exist")
+        except Exception as e:
+            logger.error(
+                "QueryDataLinkMetadataResource: Failed to query metadata, bk_data_id: %s, error: %s",
+                bk_data_id,
+                str(e),
+            )
+            raise ValidationError(f"Failed to query metadata: {str(e)}")
+
+    def _build_data_source_info(self, ds: models.DataSource) -> dict[str, Any]:
+        """构建数据源基础信息"""
+        return {
+            "bk_data_id": ds.bk_data_id,
+            "data_name": ds.data_name,
+            "source_system": ds.source_system,
+            "etl_config": ds.etl_config,
+            "is_enabled": ds.is_enable,
+            "is_platform_data_id": ds.is_platform_data_id,
+            "created_from": ds.created_from,
+            "transfer_cluster_id": ds.transfer_cluster_id,
+            "data_link_version": "v4" if ds.created_from == DataIdCreatedFromSystem.BKDATA.value else "v3",
+        }
+
+    def _build_kafka_config(self, ds: models.DataSource) -> dict[str, Any]:
+        """构建Kafka配置信息"""
+        try:
+            cluster = models.ClusterInfo.objects.get(bk_tenant_id=ds.bk_tenant_id, cluster_id=ds.mq_cluster_id)
+            mq_config = models.KafkaTopicInfo.objects.get(id=ds.mq_config_id)
+
+            return {
+                "cluster_id": cluster.cluster_id,
+                "cluster_name": cluster.cluster_name,
+                "domain_name": cluster.domain_name,
+                "topic": mq_config.topic,
+                "partition": mq_config.partition,
+            }
+        except Exception as e:
+            logger.warning("Failed to get Kafka config for data_id %s: %s", ds.bk_data_id, str(e))
+            return {"error": f"Failed to retrieve Kafka configuration: {str(e)}"}
+
+    def _build_result_tables_info(self, bk_tenant_id: str, bk_data_id: str) -> list[dict[str, Any]]:
+        """构建结果表信息列表"""
+        result_tables = []
+
+        # 获取该数据源的所有结果表
+        dsrt = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id)
+        table_ids = list(dsrt.values_list("table_id", flat=True))
+
+        for table_id in table_ids:
+            try:
+                rt = models.ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+
+                # 获取空间信息
+                space_info = self._get_space_info(bk_tenant_id, rt.bk_biz_id)
+
+                # 构建基础结果表信息
+                rt_info = {
+                    "table_id": table_id,
+                    "storage_type": rt.default_storage,
+                    "bk_biz_id": rt.bk_biz_id,
+                    "space_uid": space_info["space_uid"],
+                    "space_name": space_info["space_name"],
+                    "is_enabled": rt.is_enable,
+                    "data_label": rt.data_label,
+                }
+
+                # 添加存储特定信息
+                if rt.default_storage == models.ClusterInfo.TYPE_ES:
+                    rt_info["storage_details"] = self._get_es_storage_info(bk_tenant_id, table_id)
+                elif (
+                    rt.default_storage == models.ClusterInfo.TYPE_VM
+                    or rt.default_storage == models.ClusterInfo.TYPE_INFLUXDB
+                ):
+                    rt_info["storage_details"] = self._get_vm_storage_info(bk_tenant_id, table_id)
+
+                # 如果存在后端Kafka配置，添加到返回信息
+                backend_kafka = self._get_backend_kafka_info(bk_tenant_id, table_id)
+                if backend_kafka:
+                    rt_info["backend_kafka"] = backend_kafka
+
+                result_tables.append(rt_info)
+
+            except Exception as e:
+                logger.warning("Failed to get info for table_id %s: %s", table_id, str(e))
+                result_tables.append(
+                    {
+                        "table_id": table_id,
+                        "error": f"Failed to retrieve table information: {str(e)}",
+                    }
+                )
+
+        return result_tables
+
+    def _get_space_info(self, bk_tenant_id: str, bk_biz_id: int) -> dict[str, str]:
+        """获取空间信息"""
+        try:
+            if bk_biz_id > 0:
+                space = models.Space.objects.get(
+                    bk_tenant_id=bk_tenant_id, space_type_id=SpaceTypes.BKCC.value, space_id=bk_biz_id
+                )
+            elif bk_biz_id < 0:
+                space = models.Space.objects.get(bk_tenant_id=bk_tenant_id, id=abs(bk_biz_id))
+            else:
+                return {"space_uid": "global", "space_name": "Global"}
+
+            return {
+                "space_uid": f"{space.space_type_id}__{space.space_id}",
+                "space_name": space.space_name,
+            }
+        except Exception:
+            return {"space_uid": "unknown", "space_name": "Unknown"}
+
+    def _get_backend_kafka_info(self, bk_tenant_id: str, table_id: str) -> dict[str, Any] | None:
+        """获取后端Kafka配置信息"""
+        try:
+            kafka_storage = models.KafkaStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
+            if not kafka_storage:
+                return None
+
+            cluster = models.ClusterInfo.objects.get(
+                bk_tenant_id=bk_tenant_id, cluster_id=kafka_storage.storage_cluster_id
+            )
+
+            return {
+                "cluster_id": kafka_storage.storage_cluster_id,
+                "cluster_name": cluster.cluster_name,
+                "domain_name": cluster.domain_name,
+                "topic": kafka_storage.topic,
+                "partition": kafka_storage.partition,
+            }
+        except Exception:
+            return None
+
+    def _get_es_storage_info(self, bk_tenant_id: str, table_id: str) -> dict[str, Any]:
+        """获取ES存储信息"""
+        try:
+            es_storage = models.ESStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+            es_cluster = models.ClusterInfo.objects.get(
+                bk_tenant_id=bk_tenant_id, cluster_id=es_storage.storage_cluster_id
+            )
+
+            return {
+                "type": "elasticsearch",
+                "cluster_id": es_storage.storage_cluster_id,
+                "cluster_name": es_cluster.cluster_name,
+                "domain_name": es_cluster.domain_name,
+                "index_set": es_storage.index_set,
+                "slice_size_gb": es_storage.slice_size,
+                "slice_gap_minutes": es_storage.slice_gap,
+            }
+        except Exception as e:
+            return {"type": "elasticsearch", "error": str(e)}
+
+    def _get_vm_storage_info(self, bk_tenant_id: str, table_id: str) -> dict[str, Any]:
+        """获取VM（VictoriaMetrics/计算平台）存储信息"""
+        try:
+            vm_records = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, result_table_id=table_id)
+
+            if not vm_records.exists():
+                return {"type": "vm", "error": "No VM access record found"}
+
+            vm_info_list = []
+            for vm in vm_records:
+                try:
+                    vm_cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=vm.vm_cluster_id)
+                    vm_info_list.append(
+                        {
+                            "vm_result_table_id": vm.vm_result_table_id,
+                            "vm_cluster_id": vm.vm_cluster_id,
+                            "storage_cluster_id": vm.storage_cluster_id,
+                            "bk_base_data_id": vm.bk_base_data_id,
+                            "domain_name": vm_cluster.domain_name,
+                        }
+                    )
+                except Exception as e:
+                    logger.warning("Failed to get VM cluster info: %s", str(e))
+                    continue
+
+            return {"type": "vm", "records": vm_info_list}
+        except Exception as e:
+            return {"type": "vm", "error": str(e)}
