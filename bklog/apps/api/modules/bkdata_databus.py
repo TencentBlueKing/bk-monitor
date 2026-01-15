@@ -45,7 +45,7 @@ class _BkDataDatabusApi:
         return (
             f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v4/databus/{new_path}"
             if self.use_apigw
-            else f"{DATABUS_APIGATEWAY_ROOT_V4}{old_path}"
+            else f"{DATABUS_APIGATEWAY_ROOT_V4 or DATABUS_APIGATEWAY_ROOT}{old_path}"
         )
 
     def __init__(self):
