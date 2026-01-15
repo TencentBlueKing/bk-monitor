@@ -148,11 +148,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
   const getDefData = (buckets?) => {
     if (buckets?.length) {
-      // 使用对象格式：value[1]为null让barMinHeight不生效，originalValue保存真实值0
-      return buckets.map(bucket => ({
-        value: [bucket.key, null, bucket.key_as_string] as [number, null, string],
-        originalValue: 0,
-      }));
+      return buckets.map(bucket => [bucket.key, 0, bucket.key_as_string]);
     }
 
     const data: any[] = [];
@@ -162,21 +158,13 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const intervalTimestamp = getIntervalValue(runningInterval);
 
     while (endValue > startValue) {
-      // 使用对象格式：value[1]为null让barMinHeight不生效，originalValue保存真实值0
-      data.push({
-        value: [endValue * 1000, null, null] as [number, null, null],
-        originalValue: 0,
-      });
+      data.push([endValue * 1000, 0, null]);
       endValue -= intervalTimestamp;
     }
 
     if (endValue < startValue) {
       endValue = startValue;
-      // 使用对象格式：value[1]为null让barMinHeight不生效，originalValue保存真实值0
-      data.push({
-        value: [endValue * 1000, null, null] as [number, null, null],
-        originalValue: 0,
-      });
+      data.push([endValue * 1000, 0, null]);
     }
 
     return data;
@@ -252,21 +240,15 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const padBefore = Math.floor(missing / 2);
     const padAfter = missing - padBefore;
 
-    // 前补 - 使用对象格式：value[1]为null让barMinHeight不生效
+    // 前补
     const firstTime = data.length ? getDataItemTime(data[0]) : Date.now();
     for (let i = 1; i <= padBefore; i++) {
-      result.unshift({
-        value: [firstTime - i * intervalMs, null, null] as [number, null, null],
-        originalValue: 0,
-      });
+      result.unshift([firstTime - i * intervalMs, 0, null]);
     }
-    // 后补 - 使用对象格式：value[1]为null让barMinHeight不生效
+    // 后补
     const lastTime = data.length ? getDataItemTime(data.at(-1)) : Date.now();
     for (let i = 1; i <= padAfter; i++) {
-      result.push({
-        value: [lastTime + i * intervalMs, null, null] as [number, null, null],
-        originalValue: 0,
-      });
+      result.push([lastTime + i * intervalMs, 0, null]);
     }
 
     return result;
