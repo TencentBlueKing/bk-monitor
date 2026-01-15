@@ -406,11 +406,13 @@ export default defineComponent({
       isSelectedFollower.value = options?.selectedRowData?.some?.(item => item.followerDisabled);
     };
 
+    /** 上一个详情 */
     const handlePreviousDetail = () => {
       const index = data.value.findIndex(item => item.id === alarmId.value);
       alarmId.value = (data.value as AlertTableItem[])[index === 0 ? data.value.length - 1 : index - 1].id;
     };
 
+    /** 下一个详情 */
     const handleNextDetail = () => {
       const index = data.value.findIndex(item => item.id === alarmId.value);
       alarmId.value = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 0 : index + 1].id;
@@ -663,9 +665,11 @@ export default defineComponent({
                       <div class='chart-trend'>
                         <AlarmTrendChart />
                       </div>
-                      <div class='alarm-analysis'>
-                        <AlarmAnalysis onConditionChange={this.handleAddCondition} />
-                      </div>
+                      {this.alarmStore.alarmType !== AlarmType.INCIDENT && (
+                        <div class='alarm-analysis'>
+                          <AlarmAnalysis onConditionChange={this.handleAddCondition} />
+                        </div>
+                      )}
                       <div class='alarm-center-table'>
                         <AlarmTable
                           pagination={{
