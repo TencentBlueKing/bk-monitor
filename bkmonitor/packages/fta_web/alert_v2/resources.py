@@ -19,7 +19,12 @@ from api.cmdb.define import Host
 from bkmonitor.data_source import q_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.documents import AlertDocument
-from bkmonitor.utils.alert_drilling import merge_dimensions_into_conditions
+from bkmonitor.utils.alert_drilling import (
+    get_alert_data_source,
+    get_alert_dimensions,
+    get_alert_query_config,
+    merge_dimensions_into_conditions,
+)
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.alert import APMTargetType, K8STargetType
 from constants.apm import ApmAlertHelper
@@ -99,22 +104,13 @@ class AlertEventBaseResource(Resource, abc.ABC):
     ]
 
     @classmethod
-    def _get_data_source(cls, alert: AlertDocument) -> tuple[str, str] | None:
-        """获取告警的数据源类型"""
-        try:
-            query_config: dict[str, Any] = alert.strategy["items"][0]["query_configs"][0]
-            return query_config.get("data_source_label", ""), query_config.get("data_type_label", "")
-        except (KeyError, IndexError, TypeError):
-            return None
-
-    @classmethod
     def _get_q(cls, alert: AlertDocument, target: BaseTarget) -> QueryConfigBuilder:
         """获取查询构建器"""
         if cls.is_apm_target(target):
             return QueryConfigBuilder((DataTypeLabel.EVENT, DataSourceLabel.BK_APM)).time_field("time")
 
         # 日志关键字事件使用 (LOG, BK_MONITOR_COLLECTOR)，其他使用默认的自定义事件数据源
-        data_source: tuple[str, str] | None = cls._get_data_source(alert)
+        data_source: tuple[str, str] | None = get_alert_data_source(alert)
         is_bk_monitor_log: bool = data_source == (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG)
         using: tuple[str, str] = (
             (DataTypeLabel.LOG, DataSourceLabel.BK_MONITOR_COLLECTOR)
@@ -214,11 +210,11 @@ class AlertEventBaseResource(Resource, abc.ABC):
         :param q: 查询构建器
         :return: 构建好的查询配置，如果不是支持的告警类型则返回 None
         """
-        data_source: tuple[str, str] | None = cls._get_data_source(alert)
+        data_source: tuple[str, str] | None = get_alert_data_source(alert)
         if not data_source or data_source not in cls.supported_event_sources:
             return None
 
-        query_config: dict[str, Any] = alert.strategy["items"][0]["query_configs"][0]
+        query_config: dict[str, Any] = get_alert_query_config(alert)
         result_table_id: str = query_config.get("result_table_id") or ""
         if not result_table_id:
             return None
@@ -226,11 +222,9 @@ class AlertEventBaseResource(Resource, abc.ABC):
         q: QueryConfigBuilder = q.table(result_table_id)
 
         # 合并策略过滤条件和告警维度过滤条件
-        alert_data: dict[str, Any] = alert.origin_alarm.get("data", {})
         conditions: list[dict[str, Any]] = merge_dimensions_into_conditions(
             agg_condition=query_config.get("agg_condition"),
-            dimensions=alert_data.get("dimensions", {}),
-            dimension_fields=alert_data.get("dimension_fields", []),
+            dimensions=get_alert_dimensions(alert),
         )
         if conditions:
             q: QueryConfigBuilder = q.conditions(conditions)

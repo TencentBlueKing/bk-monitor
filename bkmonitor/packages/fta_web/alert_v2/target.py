@@ -28,6 +28,12 @@ from apm_web.topo.handle.relation.define import (
 )
 from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.documents import AlertDocument
+from bkmonitor.utils.alert_drilling import (
+    build_log_search_condition,
+    get_alert_dimensions,
+    get_alert_query_config,
+    LogSearchCondition,
+)
 from constants.alert import K8S_RESOURCE_TYPE, K8STargetType, APMTargetType, EventTargetType
 from constants.data_source import DataSourceLabel
 
@@ -220,9 +226,8 @@ class DefaultTarget(BaseTarget):
 
         日志类告警直接使用策略配置中的索引集 ID，并根据告警维度和策略过滤条件生成日志查询的过滤条件（addition）。
         """
-        try:
-            query_config: dict[str, Any] = self._alert.strategy["items"][0]["query_configs"][0]
-        except (KeyError, IndexError, TypeError):
+        query_config: dict[str, Any] | None = get_alert_query_config(self._alert)
+        if not query_config:
             return []
 
         if query_config.get("data_source_label") != DataSourceLabel.BK_LOG_SEARCH:
@@ -241,24 +246,15 @@ class DefaultTarget(BaseTarget):
         if not index_set_info:
             return []
 
-        # 构建日志查询的过滤条件
-        addition: list[dict[str, Any]] = []
-        added_dimension_keys: set[str] = set()
+        # 构造日志查询过滤条件
+        log_search_condition: LogSearchCondition = build_log_search_condition(
+            query_config=query_config,
+            dimensions=get_alert_dimensions(self._alert),
+        )
 
-        # 添加策略过滤条件
-        for condition in query_config.get("agg_condition", []):
-            operator: str = condition.get("method") or "="
-            addition.append({"field": condition["key"], "operator": operator, "value": condition["value"]})
-            added_dimension_keys.add(condition["key"])
-
-        # 添加告警维度
-        for field in self._alert.origin_alarm.get("data", {}).get("dimension_fields", []):
-            if field not in added_dimension_keys and field in self.dimensions:
-                addition.append({"field": field, "operator": "=", "value": [self.dimensions[field]]})
-
-        # 返回完整的索引集信息，并补充 addition 字段
+        # 返回完整的索引集信息，并补充 addition 和 keyword 字段
         log_target: dict[str, Any] = copy.deepcopy(index_set_info)
-        log_target["addition"] = addition
+        log_target.update(log_search_condition)
         return [log_target]
 
 
