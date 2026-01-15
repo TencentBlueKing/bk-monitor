@@ -24,14 +24,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, inject, onUnmounted, ref, shallowRef, watch } from 'vue';
+import { type Ref, computed, ref as deepRef, inject, onUnmounted, shallowRef, watch } from 'vue';
 
 import { incidentEventsSearch, incidentMetricsSearch } from 'monitor-api/modules/incident';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
 
-import { scaleArrayToRange, handleEndTime } from '../utils';
+import { handleEndTime, scaleArrayToRange } from '../utils';
 
 import type { IncidentDetailData } from '../types';
 import type {
@@ -46,6 +46,19 @@ import type {
 // 定义固定的图表连接组ID
 const CONNECT_GROUP_ID = 'incident-metric-chart-group';
 
+// 统一 ECharts 实例类型，避免报错
+type ChartInstance = {
+  // 对当前图表派发动作（这里主要用于 dataZoom 联动）
+  dispatchAction?: (payload: any) => void;
+  getId?: () => string;
+  // 联动组标识：`echarts.connect(groupId)` 会让同组图表联动
+  group?: string;
+  // 实例 id
+  id?: string;
+  // 实例是否已销毁
+  isDisposed?: () => boolean;
+};
+
 export default function useMetrics(
   commonParams: Ref<any>,
   metricType: Ref<string>,
@@ -55,9 +68,9 @@ export default function useMetrics(
   edgeMetricData: Ref<Array<any>> // 边的指标数据
 ) {
   const { t } = useI18n();
-  const loading = ref<boolean>(false);
+  const loading = deepRef<boolean>(false);
   // 指标数据获取异常处理
-  const exceptionData = ref({
+  const exceptionData = deepRef({
     showException: false,
     type: '',
     msg: '',
@@ -65,17 +78,17 @@ export default function useMetrics(
   // 指标数据
   const metricsData = shallowRef<IMetricItem[]>([]);
   // 图表实例引用集合
-  const chartInstances = ref<echarts.ECharts[]>([]);
+  const chartInstances = deepRef<ChartInstance[]>([]);
   // 事件接口是否加载完毕
-  const isEventsLoaded = ref(false);
+  const isEventsLoaded = deepRef(false);
   // 事件分析弹窗列配置
-  const eventColumns = ref<EventColumnConfig[]>([]);
+  const eventColumns = deepRef<EventColumnConfig[]>([]);
   // 事件分析散点图数据
-  const allEventsData = ref<MetricEvent[]>([]);
+  const allEventsData = deepRef<MetricEvent[]>([]);
   // 筛选\转换后的散点图数据
-  const eventsData = ref<any[]>([]);
+  const eventsData = deepRef<any[]>([]);
   // 当前勾选的事件分析弹窗数据
-  const eventConfig = ref<EventConfig>({
+  const eventConfig = deepRef<EventConfig>({
     event_source: {
       is_select_all: true,
       list: [],
@@ -86,9 +99,9 @@ export default function useMetrics(
     },
   });
   // 使用 ref 存储定时器，以便在 watch 中访问
-  const refreshTimeout = ref<NodeJS.Timeout | null>(null);
+  const refreshTimeout = deepRef<NodeJS.Timeout | null>(null);
   // 是否禁用事件分析弹窗相关功能
-  const disableEventAnalysis = ref(false);
+  const disableEventAnalysis = deepRef(false);
   // 故障结束时间戳
   const endTime = shallowRef(null);
   const metricInterval = shallowRef(0);
@@ -97,6 +110,32 @@ export default function useMetrics(
   const incidentDetailData: Ref<IncidentDetailData> = computed(() => {
     return incidentDetail.value;
   });
+  // 图表联动状态（是否已对 `CONNECT_GROUP_ID` 调用过 connect）
+  const isChartsConnected = deepRef(false);
+
+  /**
+   * 规范化 `chartInstances`（去重 + 过滤已销毁实例）。
+   * 用“实例 id”去重，避免直接 `Set.has(chart)` 触发 TS 名义类型不兼容
+   */
+  const normalizeChartInstances = () => {
+    const uniqueId = new Set<string>();
+
+    chartInstances.value = chartInstances.value.filter(chart => {
+      if (!chart) return false;
+
+      // echarts 实例在 dispose 后通常会提供 isDisposed()，这里做兼容判断
+      const isDisposed = (chart as any).isDisposed?.() === true;
+      if (isDisposed) return false;
+
+      const id = String((chart as any).id ?? (chart as any).getId?.() ?? '');
+      if (!id) return true; // 极端兜底：拿不到 id 时不参与去重
+
+      if (uniqueId.has(id)) return false;
+      uniqueId.add(id);
+      return true;
+    });
+  };
+
   /** 异常情况赋值 */
   const handleExceptionData = (type: string, msg: string) => {
     exceptionData.value.showException = true;
@@ -127,7 +166,13 @@ export default function useMetrics(
 
   watch(refreshTime, startRefreshTimer);
 
-  onUnmounted(clearRefreshTimer);
+  onUnmounted(() => {
+    clearRefreshTimer();
+    // 组件卸载时断开联动组，避免残留连接影响其它页面/实例
+    echarts.disconnect(CONNECT_GROUP_ID);
+    isChartsConnected.value = false;
+    chartInstances.value = [];
+  });
 
   /** 获取指标数据 */
   const getMetricsData = async () => {
@@ -201,26 +246,82 @@ export default function useMetrics(
   };
 
   /** 图表初始化回调：添加图表实例到集合 */
-  const handleChartInit = (chart: echarts.ECharts) => {
+  const handleChartInit = (chart: ChartInstance) => {
+    if (!chart) return;
     chartInstances.value.push(chart);
+    // `MetricChart` 内部可能在数据更新时重复触发 init，去重一下
+    normalizeChartInstances();
     connectCharts();
   };
 
-  /** 图表销毁回调：从集合中移除图表实例 */
-  const handleChartDestroy = (chart: echarts.ECharts) => {
+  /**
+   * 图表销毁回调：从集合中移除图表实例，避免联动还指向旧实例。
+   */
+  const handleChartDestroy = (chart: ChartInstance) => {
     chartInstances.value = chartInstances.value.filter(instance => instance !== chart);
+    normalizeChartInstances();
     connectCharts();
   };
 
-  /** 连接所有图表实现联动 */
-  const connectCharts = () => {
-    // 断开现有连接，避免重复连接
-    echarts.disconnect(CONNECT_GROUP_ID);
+  /**
+   * 同步所有图表的 dataZoom 范围。
+   * - 只需要对其中一个（primary）dispatchAction，其它图表会自动联动
+   * - 这样可以显著减少重复派发，避免卡顿
+   */
+  const syncChartsDataZoom = (range: { endValue: number; startValue: number }) => {
+    if (typeof range?.startValue === 'undefined' || typeof range.endValue === 'undefined') return;
+    // 去重
+    normalizeChartInstances();
 
-    if (chartInstances.value.length > 1) {
-      chartInstances.value.forEach(chart => {
-        chart.group = CONNECT_GROUP_ID;
-      });
+    const primary = chartInstances.value[0];
+    if (!primary) return;
+
+    primary.dispatchAction?.({
+      type: 'dataZoom',
+      // 明确索引，避免未来 dataZoom 数组扩展后派发不到正确组件
+      dataZoomIndex: 0,
+      startValue: range.startValue,
+      endValue: range.endValue,
+      // 避免 primary 图表反复触发 `dataZoom` 事件链
+      silent: true,
+    });
+
+    //  tooltip 状态清理。修复拖拽顶部滑块后，第一个图表 tooltip 不出现的问题。
+    try {
+      primary.dispatchAction?.({ type: 'hideTip', silent: true });
+      (primary as any).resize?.();
+    } catch (e) {
+      console.warn('reset primary tooltip state failed:', e);
+    }
+  };
+
+  /**
+   * 连接所有图表实现联动
+   */
+  const connectCharts = () => {
+    normalizeChartInstances();
+
+    const len = chartInstances.value.length;
+    // 图表实例数量不足 2 个时无需联动：如果之前连过，断开即可
+    if (len <= 1) {
+      if (isChartsConnected.value) {
+        echarts.disconnect(CONNECT_GROUP_ID);
+        isChartsConnected.value = false;
+      }
+      return;
+    }
+
+    // 2个以上图表：确保全部加入同一 group
+    chartInstances.value.forEach(chart => {
+      chart.group = CONNECT_GROUP_ID;
+    });
+
+    // connect 可重复调用（幂等），但这里用状态避免高频重复
+    if (!isChartsConnected.value) {
+      echarts.connect(CONNECT_GROUP_ID);
+      isChartsConnected.value = true;
+    } else {
+      // 已连接但实例集合可能变化（新增/销毁），再 connect 一次确保新实例生效
       echarts.connect(CONNECT_GROUP_ID);
     }
   };
@@ -407,6 +508,7 @@ export default function useMetrics(
     getEventsData,
     handleChartInit,
     handleChartDestroy,
+    syncChartsDataZoom,
     handleCheckedAllChange,
     handleGroupChange,
     transformEventData,
