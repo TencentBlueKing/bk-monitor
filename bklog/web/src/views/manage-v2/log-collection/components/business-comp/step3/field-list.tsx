@@ -541,21 +541,18 @@ export default defineComponent({
     };
 
     /**
-     * 验证并处理字段名输入
-     * 对于 JSON 提取方式，如果字段名不符合标准命名规范，自动添加引号包裹
-     * @param row 字段行数据
+     * 检测字段名是否包含不完整的引号
+     * @param fieldName 字段名称
+     * @returns 是否包含不完整引号
      */
-    const validateInput = (row: FieldItem): void => {
-      if (!row.field_name || props.extractMethod !== 'bk_log_json') {
-        return;
+    const hasIncompleteQuotes = (fieldName: string): boolean => {
+      // 检测是否有完整的引号包裹（英文或中文）
+      const completeQuotedPattern = /^[""].*[""]$/;
+      if (completeQuotedPattern.test(fieldName)) {
+        return false;
       }
-      const quotedPattern = /^".*"$/; // 检测是否已被引号包裹
-      const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/; // 标准字段名格式：字母或下划线开头，只能包含字母、数字和下划线
-
-      // 如果未被引号包裹且不符合标准命名规范，则添加引号
-      if (!quotedPattern.test(row.field_name) && !validFieldPattern.test(row.field_name)) {
-        row.field_name = `"${row.field_name}"`;
-      }
+      // 检测是否包含引号（单边引号）
+      return /[""]/.test(fieldName);
     };
 
     /**
@@ -580,9 +577,6 @@ export default defineComponent({
       if (!currentRow) {
         return '';
       }
-
-      // 先验证并处理输入（自动添加引号等）
-      validateInput(currentRow);
 
       // 如果已有别名，则不需要校验字段名，但需要清空 fieldAliasErr
       if (currentRow.alias_name) {
@@ -612,8 +606,12 @@ export default defineComponent({
       if (!field_name) {
         result = REQUIRED_FIELD_MSG;
       }
-      // 校验字段名格式：只能包含 a-z、A-Z、0-9 和 _，且不能以 _ 开头和结尾
-      else if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
+      // 校验是否包含不完整的引号
+      else if (hasIncompleteQuotes(field_name)) {
+        result = t('字段名包含不完整的引号，请补全或删除引号');
+      }
+      // 校验字段名格式：只能包含 a-z、A-Z、0-9 和 _，且不能以 _ 开头和结尾（或被完整引号包裹）
+      else if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name) && !/^[""].*[""]$/.test(field_name)) {
         if (props.selectEtlConfig === 'bk_log_json') {
           // JSON 模式下，格式错误时提示用户重命名
           btnShow = true;
