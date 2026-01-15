@@ -645,12 +645,19 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 保存到实例变量，供 push 方法使用
         self.max_queried_data_time = max_queried_data_time
 
+        # 保存 Duplicate 对象，供 push 方法使用
+        # 用于在时间点限制后，清理被丢弃时间点的去重缓存
+        self.dup_obj = dup_obj
+
         # 如果当前数据延迟超过一定值，则上报延迟埋点
         # 对于非batch的数据，有可能存在数据稀疏的情况，因此在filter duplicate后再进行延迟统计
         if max_data_time > 0 and not self.batch_timestamp and self.until_timestamp:
             self.observe_big_latency_datasource(first_item, max_data_time)
 
-        dup_obj.refresh_cache()
+        # 修改：不在这里刷新缓存，而是在 push() 中，时间点限制之后刷新
+        # 这样可以确保只有被处理的数据才会被标记为"已见过"
+        # dup_obj.refresh_cache()
+
         self.record_list = records
         point_count = len(records)
         if point_count:
@@ -677,9 +684,9 @@ class AccessDataProcess(BaseAccessDataProcess):
                     "none_point_count": none_point_counts,
                 }
 
-    def _limit_records_by_time_points(self, records: list) -> tuple[list, int | None]:
+    def _limit_records_by_time_points(self, records: list) -> tuple[list, int | None, set | None]:
         """
-        限制处理的时间点数量（方案 B）。
+        限制处理的时间点数量。
 
         限制的是唯一时间点数量，同一时间点的所有序列数据会被完整保留或完整丢弃。
         这样可以控制推送到下游 detect 模块的数据量，避免故障恢复后一次性处理过量数据。
@@ -693,10 +700,10 @@ class AccessDataProcess(BaseAccessDataProcess):
             records: 原始数据记录列表
 
         Returns:
-            tuple: (限制后的记录列表, 最后处理的时间点 或 None（未触发限制）)
+            tuple: (限制后的记录列表, 最后处理的时间点 或 None（未触发限制）, 被丢弃的时间点集合 或 None)
         """
         if not records:
-            return records, None
+            return records, None, None
 
         # 检查是否为时序数据类型
         first_item = self.items[0]
@@ -704,7 +711,7 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         if not is_time_series:
             # 非时序数据，不做限制
-            return records, None
+            return records, None, None
 
         max_time_points = settings.ACCESS_DATA_MAX_TIME_POINTS
 
@@ -713,10 +720,11 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         if len(unique_times) <= max_time_points:
             # 时间点数量未超限，不做限制
-            return records, None
+            return records, None, None
 
         # 取前 N 个时间点
         allowed_times = set(unique_times[:max_time_points])
+        discarded_times = set(unique_times[max_time_points:])
         last_time_point = max(allowed_times)
 
         # 过滤：只保留允许时间点内的所有序列数据
@@ -729,7 +737,7 @@ class AccessDataProcess(BaseAccessDataProcess):
             f"records: {len(records)} -> {len(limited_records)}"
         )
 
-        return limited_records, last_time_point
+        return limited_records, last_time_point, discarded_times
 
     def _is_all_static_threshold(self, item: Item) -> bool:
         """
@@ -901,9 +909,44 @@ class AccessDataProcess(BaseAccessDataProcess):
             ).inc(len(data_points))
 
     def push(self, records: list = None, output_client=None):
-        # 方案 B：限制处理的时间点数量（在处理阶段限制，不影响查询）
+        # 限制处理的时间点数量（在处理阶段限制，不影响查询）
         # 这样可以控制推送到下游 detect 模块的数据量
-        limited_records, last_time_point = self._limit_records_by_time_points(self.record_list)
+        limited_records, last_time_point, discarded_times = self._limit_records_by_time_points(self.record_list)
+
+        # 清理被时间点限制丢弃的数据的去重缓存
+        # 确保只有被处理的数据才会被标记为"已见过"
+        dup_obj = getattr(self, "dup_obj", None)
+        if dup_obj and discarded_times:
+            # 提前获取 strategy_id，避免循环内重复检查
+            strategy_id = dup_obj.strategy_id
+
+            # 从 record_ids_cache 和 pending_to_add 中移除被丢弃时间点的 key
+            for discarded_time in discarded_times:
+                dup_key = key.ACCESS_DUPLICATE_KEY.get_key(
+                    strategy_group_key=self.strategy_group_key, dt_event_time=discarded_time
+                )
+                if strategy_id is not None:
+                    dup_key.strategy_id = strategy_id
+
+                # 使用 pop 方法更安全，避免 KeyError 和并发问题
+                dup_obj.record_ids_cache.pop(dup_key, None)
+                dup_obj.pending_to_add.pop(dup_key, None)
+
+            logger.info(
+                f"strategy_group_key({self.strategy_group_key}) "
+                f"cleaned duplicate cache for {len(discarded_times)} discarded time points"
+            )
+
+        # 刷新去重缓存，将保留的数据写入 Redis
+        if dup_obj:
+            dup_obj.refresh_cache()
+        else:
+            # 异常情况：dup_obj 为 None 可能表示 filter_duplicates 未被调用
+            logger.warning(
+                f"strategy_group_key({self.strategy_group_key}) "
+                f"dup_obj is None, skip refresh_cache. This may indicate filter_duplicates was not called."
+            )
+
         self.record_list = limited_records
 
         # 判断是否可以合并处理（access-detect 合并）
