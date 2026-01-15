@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
+
 from apm_web.custom_metric.serializers import BaseRequestSerializer
 from apm_web.custom_metric.utils import (
     scope_prefix_handler,
@@ -18,7 +19,10 @@ from apm_web.custom_metric.utils import (
     DefaultFieldScopeMixin,
 )
 from monitor_web.custom_report.constants import DEFAULT_FIELD_SCOPE
-from monitor_web.custom_report.handlers.metric.query import ScopeQueryMetricResponseDTO
+from monitor_web.custom_report.handlers.metric.query import (
+    ScopeQueryMetricResponseDTO,
+    ScopeQueryConverter,
+)
 from monitor_web.custom_report.resources.metric import (
     GetCustomTsFields,
     ModifyCustomTsFields,
@@ -45,7 +49,22 @@ class ApmGetCustomTsFields(ScopeQueryFilterMixin, GetCustomTsFields):
 
 class ApmModifyCustomTsFields(DefaultScopeNameMixin, ModifyCustomTsFields):
     class RequestSerializer(BaseRequestSerializer, ModifyCustomTsFields.RequestSerializer):
-        pass
+        def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+            """验证 scope 权限"""
+            fields = attrs.get("delete_fields", []) + attrs.get("update_fields", [])
+            scope_ids = [field["scope"]["id"] for field in fields]
+
+            if scope_ids:
+                converter = ScopeQueryConverter(attrs["time_series_group_id"])
+                scope_objs = converter.query_time_series_scope(scope_ids=scope_ids, include_metrics=False)
+
+                scope_prefix = attrs["scope_prefix"]
+                invalid_scopes = [obj.name for obj in scope_objs if not obj.name.startswith(scope_prefix)]
+
+                if invalid_scopes:
+                    raise ValueError(f"不允许操作分组: {', '.join(invalid_scopes)}")
+
+            return attrs
 
     @scope_prefix_handler(input_field=["update_fields.scope.name", "delete_fields.scope.name"])
     def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
@@ -61,7 +80,7 @@ class ApmCustomTsGroupingRuleList(ScopeQueryFilterMixin, CustomTsGroupingRuleLis
         return super().perform_request(params)
 
 
-class ApmCreateOrUpdateGroupingRule(DefaultScopeNameMixin, CreateOrUpdateGroupingRule):
+class ApmCreateOrUpdateGroupingRule(ScopeQueryFilterMixin, DefaultScopeNameMixin, CreateOrUpdateGroupingRule):
     class RequestSerializer(BaseRequestSerializer, CreateOrUpdateGroupingRule.RequestSerializer):
         pass
 
