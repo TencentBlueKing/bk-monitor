@@ -572,7 +572,7 @@ class ResultTable(models.Model):
             DataLink.objects.get(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).delete_data_link()
             record.delete()
 
-    def apply_datalink(self) -> None:
+    def apply_datalink(self, force_update: bool = False) -> None:
         """创建数据链路"""
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
         from metadata.task.datalink import apply_event_group_datalink, apply_log_datalink
@@ -602,15 +602,22 @@ class ResultTable(models.Model):
                 and datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
             )
             if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
-                # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
-                # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
+                # NOTE: 使用 on_commit 确保事务提交后再执行异步任务，避免事务未提交但异步任务先执行的情况
+                # 提取变量值到局部变量，确保闭包捕获的是值而不是引用
+                bk_data_id = datasource.bk_data_id
+                bk_tenant_id = self.bk_tenant_id
+                table_id = self.table_id
                 try:
-                    access_bkdata_vm.delay(
-                        self.bk_tenant_id,
-                        target_bk_biz_id,
-                        self.table_id,
-                        datasource.bk_data_id,
-                        is_v4_datalink_etl_config,
+                    on_commit(
+                        func=lambda: access_bkdata_vm.delay(
+                            bk_tenant_id,
+                            target_bk_biz_id,
+                            table_id,
+                            bk_data_id,
+                            is_v4_datalink_etl_config,
+                            force_update=force_update,
+                        ),
+                        using=config.DATABASE_CONNECTION_NAME,
                     )
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("create_result_table: access vm error: %s", e)
@@ -1124,7 +1131,7 @@ class ResultTable(models.Model):
         is_time_field_only=False,
         is_reserved_check=True,
         external_storage=None,
-        option=None,
+        option: dict[str, Any] | None = None,
         is_enable=None,
         time_option=None,
         data_label=None,
@@ -1337,8 +1344,30 @@ class ResultTable(models.Model):
                 ex_storage.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).delete()
                 logger.info("table->[%s] delete storage->[%s] config success.", self.table_id, storage_type)
 
+        force_update_datalink = False
+
         # 更新结果表option配置
         if option is not None:
+            # 检查ENABLE_FIELD_BLACK_LIST是否需要更新，如果需要更新，则需要强制更新数据链路
+            modify_enable_field_black_list_option_value = option.get(ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST)
+            enable_field_black_list_option = ResultTableOption.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
+            ).first()
+            enable_field_black_list_option_value = (
+                enable_field_black_list_option.get_value() if enable_field_black_list_option else None
+            )
+
+            # 判断是否需要强制更新数据链路：
+            # 1. 如果修改了 ENABLE_FIELD_BLACK_LIST 的值，需要强制更新
+            # 2. 如果修改为 False（非自动发现的结果表），也需要强制更新
+            if (
+                modify_enable_field_black_list_option_value != enable_field_black_list_option_value
+                or modify_enable_field_black_list_option_value is False
+            ):
+                force_update_datalink = True
+
             # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。
             # 目前在option配置的时候并没有标记option的类型，因此只能通过名单的方式进行管理
             # TODO: 后续需要优化option的配置方式，增加option的类型标记
@@ -1358,6 +1387,15 @@ class ResultTable(models.Model):
             ResultTableOption.bulk_create_options(
                 table_id=self.table_id, option_data=option, creator=operator, bk_tenant_id=self.bk_tenant_id
             )
+        else:
+            # 如果是非自动发现的结果表，则需要强制更新数据链路
+            enable_field_black_list_option = ResultTableOption.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
+            ).first()
+            if enable_field_black_list_option and not enable_field_black_list_option.get_value():
+                force_update_datalink = True
 
         # 是否需要修改结果表是否启用
         if is_enable is not None:
@@ -1415,14 +1453,17 @@ class ResultTable(models.Model):
                     push_and_publish_space_router(space_type, space_id, table_id_list=[self.table_id])
                 else:
                     on_commit(
-                        lambda: push_and_publish_space_router.delay(space_type, space_id, table_id_list=[self.table_id])
+                        func=lambda: push_and_publish_space_router.delay(
+                            space_type, space_id, table_id_list=[self.table_id]
+                        ),
+                        using=config.DATABASE_CONNECTION_NAME,
                     )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("push and publish redis error, table_id: %s, %s", self.table_id, e)
 
         # 如果结果表启用，则刷新清洗配置
         if self.is_enable:
-            self.apply_datalink()
+            self.apply_datalink(force_update=force_update_datalink)
         else:
             try:
                 self.delete_datalink()

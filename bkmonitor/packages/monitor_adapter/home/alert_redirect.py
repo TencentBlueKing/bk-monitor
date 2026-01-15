@@ -18,6 +18,7 @@ from django.conf import settings
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.models import ActionInstance
 from bkmonitor.utils import time_tools
+from bkmonitor.utils.alert_drilling import merge_dimensions_into_conditions
 from constants.apm import ApmAlertHelper
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
@@ -80,62 +81,6 @@ def _get_alert_redirect_info(action_id: str) -> AlertRedirectInfo | None:
         dimension_fields=dimension_fields,
         duration=duration,
     )
-
-
-def generate_explore_url_query_params(
-    query_filter: dict[str, Any],
-    agg_condition: list[dict[str, Any]] | None,
-    origin_dimensions: dict[str, Any],
-    dimension_fields: list[str],
-    event_time: int,
-    duration: int,
-    offset: int = 5,
-) -> dict[str, Any]:
-    """
-    生成检索页面 URL 查询参数
-
-    基于查询过滤条件和告警相关字段，构建完整的 URL 查询参数字典。
-
-    :param query_filter: 查询过滤条件字典
-    :param agg_condition: 告警策略配置的汇聚条件列表
-    :param origin_dimensions: 原始维度信息字典
-    :param dimension_fields: 维度字段列表
-    :param event_time: 告警事件时间戳（秒）
-    :param duration: 告警持续时间（秒）
-    :param offset: 时间偏移量，默认是 5 分钟
-    :return: URL 查询参数字典，包含 targets、from、to 字段
-    """
-    # 使用告警策略配置的汇聚条件作为初始 where 条件
-    where: list[dict[str, Any]] = agg_condition or []
-
-    # 构建一个 key → 索引位置 的映射字典，方便后续更新替换
-    agg_condition_index: dict[str, int] = {condition["key"]: idx for idx, condition in enumerate(where)}
-
-    # 遍历告警的原始维度信息，构建维度过滤条件
-    for key, value in origin_dimensions.items():
-        if key not in dimension_fields or value is None:
-            continue
-
-        condition: dict[str, Any] = {
-            "key": key,
-            "method": "eq",
-            "value": value if isinstance(value, list) else [value or ""],
-            "condition": "and",
-        }
-        # 如果该维度已存在于汇聚条件中，则更新替换；否则添加为新过滤条件
-        if key in agg_condition_index:
-            where[agg_condition_index[key]] = condition
-        else:
-            where.append(condition)
-
-    # 构建并返回完整的查询参数
-    query_filter["where"] = where
-    offset_ms: int = offset * 60 * 1000
-    return {
-        "targets": json.dumps([{"data": {"query_configs": [query_filter]}}]),
-        "from": event_time * 1000 - duration * 1000 - offset_ms,
-        "to": event_time * 1000 + offset_ms,
-    }
 
 
 def generate_data_retrieval_url(bk_biz_id, collect_id):
@@ -229,7 +174,6 @@ def generate_event_explore_url(bk_biz_id: int, collect_id: str) -> str | None:
         return None
 
     query_config: dict[str, Any] = redirect_info.query_config
-
     # 构建事件检索场景的查询过滤条件
     query_filter: dict[str, Any] = {
         "result_table_id": query_config["result_table_id"],
@@ -238,15 +182,20 @@ def generate_event_explore_url(bk_biz_id: int, collect_id: str) -> str | None:
         "query_string": query_config.get("query_string", ""),
     }
 
-    # 调用通用方法生成查询参数
-    params: dict[str, Any] = generate_explore_url_query_params(
-        query_filter=query_filter,
+    # 添加 where 过滤条件
+    query_filter["where"] = merge_dimensions_into_conditions(
         agg_condition=query_config.get("agg_condition"),
-        origin_dimensions=redirect_info.origin_dimensions,
+        dimensions=redirect_info.origin_dimensions,
         dimension_fields=redirect_info.dimension_fields,
-        event_time=redirect_info.alert.event.time,
-        duration=redirect_info.duration,
     )
+
+    offset: int = 5 * 60 * 1000
+    create_timestamp: int = redirect_info.alert.event.time
+    params: dict[str, Any] = {
+        "targets": json.dumps([{"data": {"query_configs": [query_filter]}}]),
+        "from": create_timestamp * 1000 - redirect_info.duration * 1000 - offset,
+        "to": create_timestamp * 1000 + offset,
+    }
 
     encoded_params: str = urlencode(params)
     return urljoin(settings.BK_MONITOR_HOST, f"/?bizId={bk_biz_id}#/event-explore?{encoded_params}")

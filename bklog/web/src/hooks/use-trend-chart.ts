@@ -58,8 +58,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const gradeOptionsGroups = computed(() => {
-    return (store.state.indexFieldInfo.custom_config?.grade_options?.settings ?? [])
-      .filter(setting => setting.enable);
+    return (store.state.indexFieldInfo.custom_config?.grade_options?.settings ?? []).filter(setting => setting.enable);
   });
 
   // const timezone = computed(() => store.state.userMeta.time_zone);
@@ -149,7 +148,11 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
   const getDefData = (buckets?) => {
     if (buckets?.length) {
-      return buckets.map(bucket => [bucket.key, 0, bucket.key_as_string]);
+      // 使用对象格式：value[1]为null让barMinHeight不生效，originalValue保存真实值0
+      return buckets.map(bucket => ({
+        value: [bucket.key, null, bucket.key_as_string] as [number, null, string],
+        originalValue: 0,
+      }));
     }
 
     const data: any[] = [];
@@ -159,13 +162,21 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const intervalTimestamp = getIntervalValue(runningInterval);
 
     while (endValue > startValue) {
-      data.push([endValue * 1000, 0, null]);
+      // 使用对象格式：value[1]为null让barMinHeight不生效，originalValue保存真实值0
+      data.push({
+        value: [endValue * 1000, null, null] as [number, null, null],
+        originalValue: 0,
+      });
       endValue -= intervalTimestamp;
     }
 
     if (endValue < startValue) {
       endValue = startValue;
-      data.push([endValue * 1000, 0, null]);
+      // 使用对象格式：value[1]为null让barMinHeight不生效，originalValue保存真实值0
+      data.push({
+        value: [endValue * 1000, null, null] as [number, null, null],
+        originalValue: 0,
+      });
     }
 
     return data;
@@ -213,14 +224,27 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return 'YYYY-MM-DD HH:mm'; // >1d
   };
 
+  // 定义数据项类型：支持数组格式和对象格式（对象格式用于值为0时隐藏柱子）
+  type DataItem =
+    | [number, number, null | string]
+    | { value: [number, number | null, null | string]; originalValue: number };
+
+  // 辅助函数：获取数据项的时间戳
+  const getDataItemTime = (item: DataItem): number => {
+    if (Array.isArray(item)) {
+      return item[0];
+    }
+    return item.value[0];
+  };
+
   // 补齐图表数据到指定长度
-  const padDataToLength = (data: [number, number, null | string][], targetLength: number, intervalMs: number) => {
+  const padDataToLength = (data: DataItem[], targetLength: number, intervalMs: number) => {
     if (data.length >= targetLength) {
       return data;
     }
 
     // 按时间升序排序
-    data.sort((a, b) => a[0] - b[0]);
+    data.sort((a, b) => getDataItemTime(a) - getDataItemTime(b));
     const result = [...data];
     const missing = targetLength - data.length;
 
@@ -228,15 +252,21 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const padBefore = Math.floor(missing / 2);
     const padAfter = missing - padBefore;
 
-    // 前补
-    const firstTime = data.length ? data[0][0] : Date.now();
+    // 前补 - 使用对象格式：value[1]为null让barMinHeight不生效
+    const firstTime = data.length ? getDataItemTime(data[0]) : Date.now();
     for (let i = 1; i <= padBefore; i++) {
-      result.unshift([firstTime - i * intervalMs, 0, null]);
+      result.unshift({
+        value: [firstTime - i * intervalMs, null, null] as [number, null, null],
+        originalValue: 0,
+      });
     }
-    // 后补
-    const lastTime = data.length ? data.at(-1)[0] : Date.now();
+    // 后补 - 使用对象格式：value[1]为null让barMinHeight不生效
+    const lastTime = data.length ? getDataItemTime(data.at(-1)) : Date.now();
     for (let i = 1; i <= padAfter; i++) {
-      result.push([lastTime + i * intervalMs, 0, null]);
+      result.push({
+        value: [lastTime + i * intervalMs, null, null] as [number, null, null],
+        originalValue: 0,
+      });
     }
 
     return result;
@@ -274,6 +304,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       for (const newGroup of gradeOptionsGroups.value) {
         if (!dataset.has(newGroup.id)) {
           const dst = getSeriesData({ name: newGroup.name, data: [], color: newGroup.color });
+          // 添加 barMinHeight：值>0时显示最小3像素高度，值为null时不显示柱子
+          dst.barMinHeight = 3;
           options.series.push(dst);
           colors.push(newGroup.color);
           const index = options.series.length - 1;
@@ -357,13 +389,31 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
     const keys = [...optData.keys()];
     keys.sort((a, b) => a[0] - b[0]);
+
     const data = keys.map((key) => {
       const val = optData.get(key);
-      return [key, val ? val[0] : 0, val ? val[1] : null] as [number, number, null | string];
+      const originalValue = val ? val[0] : 0;
+      // 使用对象格式存储数据：
+      // - value[1]: 值为0时设置为null，让barMinHeight不生效，柱子不显示
+      // - value[1]: 值>0时保持原值，由series的barMinHeight控制最小像素高度
+      // - originalValue: 保存原始值用于tooltip显示
+      return {
+        value: [key, originalValue > 0 ? originalValue : null, val ? val[1] : null] as [
+          number,
+          number | null,
+          null | string,
+        ],
+        originalValue, // 保存原始值用于 tooltip
+      };
     });
 
     if (isInit) {
-      series.push(getSeriesData({ name: '', data: data.length ? data : getDefData(), color: '#A4B3CD' }));
+      // 添加 barMinHeight：值>0时显示最小3像素高度，值为null时不显示柱子
+      const seriesData = {
+        ...getSeriesData({ name: '', data: data.length ? data : getDefData(), color: '#A4B3CD' }),
+        barMinHeight: 3,
+      };
+      series.push(seriesData);
       options.series = series;
     } else {
       options.series[0].data = data;
@@ -447,7 +497,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       // 多 series 展示
       const seriesHtml = params
         .map((item) => {
-          const value = item.value[1] || 0;
+          // 优先使用 originalValue（真实值），如果没有则使用 value[1]
+          const value = item.data?.originalValue ?? item.value[1] ?? 0;
           const seriesName = item.seriesName;
           const color = item.color;
           return `

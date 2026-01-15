@@ -33,3 +33,6 @@
     }
   }
 }
+.fix-search-bar{
+  width: calc(100vw - var(--left-collection-width) - 20px);
+}

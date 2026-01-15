@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -20,6 +19,7 @@ from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.i18n import i18n
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.core.processor.base import BaseAbnormalPushProcessor
+from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.detect import DataPoint
 from core.prometheus import metrics
 
@@ -64,13 +64,13 @@ class DetectProcess(BaseAbnormalPushProcessor):
         assert settings.SQL_MAX_LIMIT > 0, "SQL_MAX_LIMIT should bigger than zero"
         offset = min([total_points, settings.SQL_MAX_LIMIT])
         if offset == 0:
-            logger.info("[detect] strategy({}) item({}) 暂无待检测数据".format(self.strategy_id, item.id))
+            logger.info(f"[detect] strategy({self.strategy_id}) item({item.id}) 暂无待检测数据")
             return
         if offset == settings.SQL_MAX_LIMIT:
             self.is_busy = True
             logger.error(
-                "[detect] strategy({}) item({}) 待检测数据量达到配置值"
-                "(SQL_MAX_LIMIT){}，部分数据可能存在处理延时".format(self.strategy_id, item.id, settings.SQL_MAX_LIMIT)
+                f"[detect] strategy({self.strategy_id}) item({item.id}) 待检测数据量达到配置值"
+                f"(SQL_MAX_LIMIT){settings.SQL_MAX_LIMIT}，部分数据可能存在处理延时"
             )
 
         records = client.lrange(data_channel, -offset, -1)
@@ -93,12 +93,12 @@ class DetectProcess(BaseAbnormalPushProcessor):
                     last_unexpected_record = record
             if unexpected_record_count > 0:
                 logger.error(
-                    "[detect] strategy({}) item({}) 发现非期望格式的待检测数据{}条,"
-                    " 其中之一: {}".format(self.strategy_id, item.id, unexpected_record_count, last_unexpected_record)
+                    f"[detect] strategy({self.strategy_id}) item({item.id}) 发现非期望格式的待检测数据{unexpected_record_count}条,"
+                    f" 其中之一: {last_unexpected_record}"
                 )
 
             logger.info(
-                "[detect] strategy({}) item({}) 拉取数据({})条".format(self.strategy_id, item.id, len(self.inputs[item.id]))
+                f"[detect] strategy({self.strategy_id}) item({item.id}) 拉取数据({len(self.inputs[item.id])})条"
             )
 
     def handle_data(self, item):
@@ -136,15 +136,23 @@ class DetectProcess(BaseAbnormalPushProcessor):
             ).observe(max_latency)
         anomaly_count = self.push_abnormal_data(self.outputs, self.strategy_id)
         if anomaly_count > 1000:
+            # 获取 Redis 节点信息（带异常处理）
+            try:
+                cache_node = get_node_by_strategy_id(int(self.strategy_id))
+                redis_node = cache_node.node_alias or f"{cache_node.host}:{cache_node.port}"
+            except Exception:
+                redis_node = "unknown"  # 异常情况下使用默认值
+
             # 记录异常数据量较大的策略信息
             metrics.PROCESS_OVER_FLOW.labels(
                 module="detect",
                 strategy_id=self.strategy_id,
                 bk_biz_id=self.strategy.bk_biz_id,
                 strategy_name=self.strategy.name,
+                redis_node=redis_node,
             ).inc(anomaly_count)
         if any(self.inputs.values()):
-            logger.info("[detect] strategy({}) 异常检测完成: 异常记录数({})".format(self.strategy_id, anomaly_count))
+            logger.info(f"[detect] strategy({self.strategy_id}) 异常检测完成: 异常记录数({anomaly_count})")
             metrics.DETECT_PROCESS_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="push").inc(anomaly_count)
 
     def double_check(self, item):
@@ -157,7 +165,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
         # 后续优化性能后，考虑默认开启全量二次确认。
         if int(self.strategy_id) not in settings.DOUBLE_CHECK_SUM_STRATEGY_IDS:
             return
-        logger.info("[detect] strategy({}) item({}) 开始异常二次确认流程".format(self.strategy_id, item.id))
+        logger.info(f"[detect] strategy({self.strategy_id}) item({item.id}) 开始异常二次确认流程")
         item.double_check(outputs=self.outputs[item.id])
 
     def process(self):
@@ -175,7 +183,5 @@ class DetectProcess(BaseAbnormalPushProcessor):
 
             self.push_data()
             end_at = time.time()
-            logger.info(
-                "[detect][latency] strategy({}) processing end in {}".format(self.strategy_id, end_at - start_at)
-            )
+            logger.info(f"[detect][latency] strategy({self.strategy_id}) processing end in {end_at - start_at}")
             metrics.DETECT_PROCESS_TIME.labels(strategy_id=metrics.TOTAL_TAG).observe(end_at - start_at)

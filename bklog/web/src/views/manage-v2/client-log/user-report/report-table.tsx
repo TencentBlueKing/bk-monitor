@@ -314,12 +314,12 @@ export default defineComponent({
       const conditions = [
         {
           field: 'openid',
-          operator: 'is',
+          operator: '=',
           value: row.openid,
         },
         {
           field: 'cos_file_name',
-          operator: 'is',
+          operator: '=',
           value: row.file_name,
         },
       ];

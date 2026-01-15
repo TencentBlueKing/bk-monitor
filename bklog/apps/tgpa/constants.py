@@ -150,8 +150,8 @@ TGPA_TASK_ETL_FIELDS = [
     },
 ]
 
-TGPA_TASK_SORT_FIELDS = ["dtEventTimeStamp", "lineno"]
-TGPA_TASK_TARGET_FIELDS = ["task_id", "file"]
+TGPA_TASK_SORT_FIELDS = ["lineno", "dtEventTimeStamp"]
+TGPA_TASK_TARGET_FIELDS = ["cos_file_name", "file"]
 
 CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "file", "lineno", "cos_file_name"]
 LOG_FILE_EXPIRE_DAYS = 3

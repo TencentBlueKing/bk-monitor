@@ -117,7 +117,8 @@ class DashboardPermission(BasePermission):
                     if f_org_id == org_id:
                         return None, (f_org_id, folder_id)
                 except ValueError:
-                    pass
+                    # 资源id无效
+                    logger.warning(f"Invalid folder resource ID format: {resource_id}")
             return None, None
 
         # Dashboard 格式: "{org_id}|{uid}" 或 "{uid}"
@@ -163,6 +164,38 @@ class DashboardPermission(BasePermission):
         ).values_list("uid", flat=True)
 
         return set(dashboards)
+
+    @classmethod
+    def expand_resources_to_dashboard_uids(cls, org_id: int, resource_ids: list[str]) -> set[str]:
+        """
+        将资源列表（包含 dashboard 和 folder）展开为 dashboard uid 集合
+        这是一个通用方法，用于统一处理资源展开逻辑
+
+        参数:
+            org_id: 当前组织 ID
+            resource_ids: 资源 ID 列表，可包含:
+                - dashboard: "{org_id}|{uid}" 或 "{uid}"
+                - folder: "folder:{org_id}|{folder_id}"
+
+        返回:
+            dashboard uid 集合
+        """
+        dashboard_uids = set()
+        folder_ids = set()
+
+        # 分离 dashboard 和 folder 资源
+        for resource_id in resource_ids:
+            d_uid, f_id = cls._parse_resource_id(org_id, resource_id)
+            if d_uid:
+                dashboard_uids.add(d_uid)
+            if f_id:
+                folder_ids.add(f_id)
+
+        # 展开 folder 为 dashboards
+        folder_dashboard_uids = cls.expand_folder_to_dashboards(org_id, folder_ids)
+
+        # 合并所有 dashboard uids
+        return dashboard_uids | folder_dashboard_uids
 
     @classmethod
     def get_policy_dashboard_uids(cls, org_id: int, bk_biz_id: int, policy: dict) -> set[str]:
@@ -260,7 +293,7 @@ class DashboardPermission(BasePermission):
         cls, request, view, org_name: str, force_check: bool = False
     ) -> tuple[bool, GrafanaRole, dict[str, GrafanaPermission]]:
         """
-        仪表盘权限校验
+        检查用户的仪表盘权限
         """
         # 内部用户权限处理
         if getattr(request, "skip_check", False) or request.user.is_superuser:
@@ -276,8 +309,10 @@ class DashboardPermission(BasePermission):
                     role = new_role
 
         # 外部用户权限处理
+        # 兼容处理folder权限判断: 将folder权限展开为dashboard权限
         if getattr(request, "external_user", None):
             external_dashboard_permissions = {}
+            # 获取权限记录
             external_permissions = ExternalPermission.objects.filter(
                 authorized_user=request.external_user,
                 bk_biz_id=int(org_name),
@@ -285,16 +320,21 @@ class DashboardPermission(BasePermission):
                 expire_time__gt=timezone.now(),
             )
 
+            org_id = get_or_create_org(org_name)["id"]
             for permission in external_permissions:
-                for record in permission.resources:
+                # 展开资源（dashboard 和 folder）为 dashboard uids
+                all_dashboard_uids = cls.expand_resources_to_dashboard_uids(org_id, permission.resources)
+
+                # 为所有dashboard设置权限
+                for uid in all_dashboard_uids:
                     if permission.action_id == "view_grafana" and (
-                        role >= GrafanaRole.Viewer or record in dashboard_permissions
+                        role >= GrafanaRole.Viewer or uid in dashboard_permissions
                     ):
-                        external_dashboard_permissions[record] = GrafanaPermission.View
+                        external_dashboard_permissions[uid] = GrafanaPermission.View
                     elif permission.action_id == "manage_grafana" and (
-                        role >= GrafanaRole.Editor or record in dashboard_permissions
+                        role >= GrafanaRole.Editor or uid in dashboard_permissions
                     ):
-                        external_dashboard_permissions[record] = GrafanaPermission.Edit
+                        external_dashboard_permissions[uid] = GrafanaPermission.Edit
 
             role = GrafanaRole.Viewer
             dashboard_permissions = external_dashboard_permissions

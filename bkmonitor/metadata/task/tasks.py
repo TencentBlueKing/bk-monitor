@@ -19,7 +19,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import gettext as _
-from tenacity import RetryError, retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import RetryError, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from alarm_backends.service.scheduler.app import app
 from constants.common import DEFAULT_TENANT_ID
@@ -510,6 +510,7 @@ def _access_bkdata_vm(
     table_id: str,
     data_id: int,
     allow_access_v2_data_link: bool | None = False,
+    force_update: bool = False,
 ):
     """接入计算平台 VM 任务
     NOTE: 根据环境变量判断是否启用新版vm链路
@@ -519,7 +520,13 @@ def _access_bkdata_vm(
     # NOTE：只有当allow_access_v2_data_link为True，即单指标单表时序指标数据时，才允许接入V4链路
     if settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link:
         logger.info("_access_bkdata_vm: start to access v2 bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
-        access_v2_bkdata_vm(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
+        access_v2_bkdata_vm(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            table_id=table_id,
+            data_id=data_id,
+            force_update=force_update,
+        )
     else:
         logger.info("_access_bkdata_vm: start to access bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
         access_bkdata(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
@@ -532,6 +539,7 @@ def access_bkdata_vm(
     table_id: str,
     data_id: int,
     allow_access_v2_data_link: bool = False,
+    force_update: bool = False,
 ):
     """接入计算平台 VM 任务"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
@@ -542,6 +550,7 @@ def access_bkdata_vm(
             table_id=table_id,
             data_id=data_id,
             allow_access_v2_data_link=allow_access_v2_data_link,
+            force_update=force_update,
         )
     except RetryError as e:
         logger.error(

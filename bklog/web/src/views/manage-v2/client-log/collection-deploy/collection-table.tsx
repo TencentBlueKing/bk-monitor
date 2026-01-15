@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 
 import { clearTableFilter, downFile } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
@@ -51,9 +51,14 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    total: {
-      type: Number,
-      default: 0,
+    pagination: {
+      type: Object,
+      default: () => ({
+        current: 1,
+        count: 0,
+        limit: 10,
+        limitList: [10, 20, 50, 100],
+      }),
     },
     isAllowedDownload: {
       type: Boolean,
@@ -67,32 +72,28 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    paginationConfig: {
-      type: Object,
-      default: () => ({
-        limit: 10,
-        limitList: [10, 20, 50, 100],
-      }),
+    hasFilter: {
+      type: Boolean,
+      default: false,
+    },
+    createdBys: {
+      type: Array,
+      default: () => [],
     },
   },
-  emits: ['clear-keyword', 'clone-task', 'view-task'],
+  emits: [
+    'clear-keyword',
+    'clone-task',
+    'view-task',
+    'page-change',
+    'page-limit-change',
+    'filter-change',
+    'sort-change',
+  ],
   setup(props, { emit }) {
     const store = useStore();
-    // const router = useRouter();
 
-    const pagination = ref({
-      current: 1,
-      count: props.total,
-      limit: props.paginationConfig.limit,
-      limitList: props.paginationConfig.limitList,
-    });
-
-    const createdBys = ref([]); // 创建人
     const logTableRef = ref(null); // 表格引用
-    const tableDataSort = ref({
-      id: '',
-      order: '',
-    });
 
     // 表格字段配置
     const tableFields = [
@@ -158,198 +159,30 @@ export default defineComponent({
       { text: t('登录前'), value: TaskScene.BEFORE_LOGIN },
     ];
 
-    // 当前筛选条件
-    const filterParams = ref({
-      create_type: [],
-      status: [],
-      scene: [],
-      created_by: [],
-    });
-
-    // 从日志数据中提取去重数据
-    const extractUniqueData = () => {
-      if (!props.data || props.data.length === 0) {
-        return;
-      }
-
-      // 提取创建人
-      const tenantInfos = [...new Set(props.data.map((item: Record<string, any>) => item.tenant_info))].filter(Boolean);
-      createdBys.value = tenantInfos.map(tenantInfo => ({
-        text: tenantInfo.display_name,
-        value: tenantInfo.login_name,
-      }));
-    };
-
-    // 监听data变化，更新提取的数据
-    watch(
-      () => props.data,
-      () => {
-        pagination.value.current = 1;
-        extractUniqueData();
-      },
-    );
-
-    watch(
-      () => props.total,
-      (newTotal) => {
-        pagination.value.count = newTotal;
-      },
-    );
-
-    // 关键词搜索后重置分页
-    watch(
-      () => props.keyword,
-      () => {
-        pagination.value.current = 1;
-      },
-    );
-
     // 添加分页变化事件处理函数
     const handlePageChange = (current: number) => {
-      pagination.value.current = current;
+      emit('page-change', current);
     };
 
     // 添加分页限制变化事件处理函数
     const handlePageLimitChange = (limit: number) => {
-      pagination.value.limit = limit;
-      pagination.value.current = 1;
+      emit('page-limit-change', limit);
     };
-
-    // 根据过滤参数过滤日志列表
-    const filterByParams = (list, params) => {
-      return list.filter((item) => {
-        return Object.keys(params).every((key) => {
-          const paramValue = params[key];
-          if (filterIsNotCompared(paramValue)) {
-            return true;
-          }
-          return item[key].toString() === paramValue;
-        });
-      });
-    };
-
-    // 根据排序参数排序日志列表
-    const sortLogList = (list) => {
-      const { id, order } = tableDataSort.value;
-
-      // 检查是否有有效的排序条件
-      if (!id || !order) {
-        return list;
-      }
-
-      // 只允许特定字段进行排序
-      const allowedSortFields = ['task_id', 'task_name', 'openid', 'created_at'];
-      if (!allowedSortFields.includes(id)) {
-        return list;
-      }
-
-      const isAsc = order === 'ascending';
-
-      return [...list].sort((a, b) => {
-        let compareResult = 0;
-
-        if (id === 'task_id') {
-          const prevTaskId = Number(a[id]) || 0;
-          const nextTaskId = Number(b[id]) || 0;
-          compareResult = prevTaskId - nextTaskId;
-        } else {
-          // task_name、openid、created_at 使用字符串比较
-          compareResult = (a[id] || '').localeCompare(b[id] || '');
-        }
-
-        // 根据排序方向返回结果
-        return isAsc ? compareResult : -compareResult;
-      });
-    };
-
-    // 过滤后的日志列表
-    const filteredLogList = computed(() => {
-      let logList = props.data;
-
-      if (isFilterSearch.value) {
-        logList = filterByParams(logList, filterParams.value);
-      }
-
-      // 关键词搜索
-      if (props.keyword) {
-        const keywordLower = props.keyword.trim().toLowerCase();
-        logList = logList.filter((item: Record<string, any>) => {
-          const searchFields = [
-            item.task_id?.toString() || '',
-            item.task_name || '',
-            item.openid || '',
-            item.create_type || '',
-            item.status_name || '',
-            item.scene_name || '',
-            item.tenant_info.display_name || '',
-          ];
-
-          return searchFields.some(field => field.toLowerCase().includes(keywordLower));
-        });
-      }
-
-      changePagination({ count: logList.length });
-
-      return logList;
-    });
-
-    // 显示的日志列表
-    const logShowList = computed(() => {
-      const logList = sortLogList(filteredLogList.value);
-
-      const { current, limit } = pagination.value;
-      const startIndex = (current - 1) * limit;
-      const endIndex = current * limit;
-      return logList.slice(startIndex, endIndex);
-    });
-
-    // 空状态类型计算属性
-    const emptyType = computed(() => {
-      return props.keyword || isFilterSearch.value ? 'search-empty' : 'empty';
-    });
-
-    // 是否筛选搜索
-    const isFilterSearch = computed(() => {
-      return !!Object.values(filterParams.value).some(item => !filterIsNotCompared(item));
-    });
 
     // 过滤器变化事件处理函数
     const handleFilterChange = (filters: any) => {
-      // 更新当前过滤条件
-      Object.keys(filters).forEach((key) => {
-        filterParams.value[key] = filters[key].join('');
-      });
-      handlePageChange(1);
+      emit('filter-change', filters);
     };
 
     // 排序变化事件处理函数
     const handleSortChange = (sort: any) => {
-      const { prop, order } = sort;
-      tableDataSort.value = {
-        id: prop,
-        order,
-      };
+      emit('sort-change', sort);
     };
 
-    // 过滤条件是否为空
-    const filterIsNotCompared = (val: string | any[]) => {
-      if (typeof val === 'string' && val === '') return true;
-      if (Array.isArray(val) && !val.length) return true;
-      return false;
-    };
-
-    // 更新分页信息
-    const changePagination = (paginationValue = {}) => {
-      Object.assign(pagination.value, paginationValue);
-
-      // 检查当前页码是否超出范围
-      const { current, limit, count } = pagination.value;
-      const maxPage = Math.max(1, Math.ceil(count / limit));
-
-      if (current > maxPage) {
-        pagination.value.current = maxPage;
-      }
-    };
+    // 空状态类型计算属性
+    const emptyType = computed(() => {
+      return props.hasFilter ? 'search-empty' : 'empty';
+    });
 
     // 清空过滤条件
     const clearFilters = () => {
@@ -407,12 +240,12 @@ export default defineComponent({
     const handleSearchTask = (row: any) => {
       const conditions = [
         {
-          field: 'task_name',
-          operator: 'is',
-          value: row.task_name,
+          field: 'task_id',
+          operator: '=',
+          value: row.task_id,
         },
       ];
-      searchTask(conditions);
+      searchTask(conditions, [row.processed_at, 'now']);
     };
 
     // 任务名称插槽
@@ -521,14 +354,14 @@ export default defineComponent({
           <span
             class='king-button'
             v-bk-tooltips={{
-              content: t('任务未完成'),
-              disabled: row.status === TaskStatus.COMPLETED,
+              content: t('任务未处理完成'),
+              disabled: row.process_status === 'success',
             }}
           >
             <bk-button
               text
               theme='primary'
-              disabled={row.status !== TaskStatus.COMPLETED}
+              disabled={row.process_status !== 'success'}
               on-click={() => handleSearchTask(row)}
             >
               {t('检索')}
@@ -557,7 +390,6 @@ export default defineComponent({
                   'disabled-download': !props.isAllowedDownload,
                 },
               ]}
-              disable
               theme='primary'
               v-cursor={{
                 active: row.status === TaskStatus.COMPLETED && !props.isAllowedDownload,
@@ -574,8 +406,8 @@ export default defineComponent({
     return () => (
       <div class='log-table'>
         <bk-table
-          data={logShowList.value}
-          pagination={pagination.value}
+          data={props.data}
+          pagination={props.pagination}
           outer-border={false}
           ref={logTableRef}
           onPage-change={handlePageChange}
@@ -600,7 +432,6 @@ export default defineComponent({
               width='100'
               label={t('任务 ID')}
               prop='task_id'
-              sortable='custom'
             />
           )}
           <bk-table-column
@@ -610,7 +441,6 @@ export default defineComponent({
             label={t('任务名称')}
             prop='task_name'
             scopedSlots={nameSlot}
-            sortable
           />
           <bk-table-column
             key='openid'
@@ -619,7 +449,6 @@ export default defineComponent({
             label='openid'
             prop='openid'
             scopedSlots={openidSlot}
-            sortable
           />
           {checkFields('status_name') && (
             <bk-table-column
@@ -654,7 +483,7 @@ export default defineComponent({
               label={t('创建人')}
               prop='created_by'
               column-key='created_by'
-              filters={createdBys}
+              filters={props.createdBys}
               filter-multiple={false}
               filter-searchable
               scopedSlots={creatorSlot}

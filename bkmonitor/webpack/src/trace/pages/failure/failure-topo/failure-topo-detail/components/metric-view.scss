@@ -6,12 +6,12 @@
 }
 
 .metric-wrap {
-  padding: 0 12px 28px 12px;
   position: relative;
 
   .event-analyze {
     height: 16px;
     position: absolute;
+    top: 9px;
     right: 8px;
     display: flex;
     align-items: center;
@@ -32,7 +32,7 @@
       }
 
       &-active {
-        color: #979BA5;
+        color: #979ba5;
       }
     }
 
@@ -41,20 +41,124 @@
     }
   }
 
-  .chart-wrap_title-first {
-    max-width: 200px;
+  &-header {
+    padding: 9px 12px;
+    border-bottom: 1px solid #000;
+
+    .metric-slider-wrap {
+      width: calc(100% - 100px);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding-right: 12px;
+      color: #c4c6cc;
+
+      &--full-width {
+        width: 100%;
+        padding-right: 0;
+      }
+
+      .metric-slider {
+        position: relative;
+        width: calc(100% - 28px);
+        height: 16px;
+        border-radius: 2px;
+        background: #34383c;
+        user-select: none;
+        touch-action: none;
+
+        /**
+          * 选中窗口（滑块）
+          * - `--window-width`: 当前窗口宽度（百分比）
+          * - `--window-left`: 当前窗口左侧位置（百分比）
+          */
+        &__window {
+          //  “最小像素宽度”兜底（仅影响视觉/命中，不改变真实 dataZoom 范围）
+          width: max(var(--window-width, 0%), 20px);
+          // 当宽度被 20px 兜底时，窗口贴近右侧可能会“超出轨道”。这里做一个轻量 clamp。
+          // 注意：我们只知道最小宽度，所以 clamp 只针对 20px 兜底场景主要生效。
+          left: min(var(--window-left, 0%), calc(100% - 20px));
+          position: absolute;
+          top: 0;
+          height: 16px;
+          background: #3a84ff99;
+          border-left: 1px solid #3a84ff;
+          border-right: 1px solid #3a84ff;
+          border-radius: 2px;
+          box-sizing: border-box;
+          cursor: grab;
+          transition: left 0.08s ease;
+          container-type: inline-size;
+
+          &::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            // 点阵容器：最多 26px，超出部分会被伪元素自身宽度裁掉，达到“溢出窗口隐藏”的效果
+            width: min(26px, 100%);
+            height: 2px;
+            background-image:
+              radial-gradient(circle, #1d2024 1px, transparent 1px),
+              radial-gradient(circle, #1d2024 1px, transparent 1px),
+              radial-gradient(circle, #1d2024 1px, transparent 1px),
+              radial-gradient(circle, #1d2024 1px, transparent 1px),
+              radial-gradient(circle, #1d2024 1px, transparent 1px);
+            background-repeat: no-repeat;
+            background-size: 2px 2px;
+            background-position:
+              calc(50% - 12px) 50%,
+              calc(50% - 6px) 50%,
+              50% 50%,
+              calc(50% + 6px) 50%,
+              calc(50% + 12px) 50%;
+
+            pointer-events: none;
+          }
+        }
+
+        // 左右把手
+        &__handle {
+          position: absolute;
+          top: 2px;
+          bottom: 2px;
+          width: 4px;
+          background: #34383c;
+          border: 1px solid #3a84ff;
+          border-radius: 2px;
+          cursor: ew-resize;
+
+          &--left {
+            left: -2px;
+          }
+
+          &--right {
+            right: -2px;
+          }
+        }
+      }
+    }
   }
 
-  .chart-wrap_title {
-    height: 20px;
-    line-height: 20px;
-    font-size: 13px;
-    color: #c4c6cc;
-    margin-top: 16px;
-    margin-bottom: 4px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  &-main {
+    padding: 0 12px 28px 12px;
+
+    .chart-wrap_title-first {
+      max-width: 200px;
+    }
+
+    .chart-wrap_title {
+      height: 20px;
+      line-height: 20px;
+      font-size: 13px;
+      color: #c4c6cc;
+      margin-top: 16px;
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
   .legend-name {
@@ -67,6 +171,7 @@
     align-items: center;
     justify-content: center;
     font-size: 14px;
+    color: #63656e;
   }
 }
 
@@ -164,5 +269,4 @@
     background-color: rgba(1, 1, 1, 0.8);
     border-radius: 3px;
   }
-
 }

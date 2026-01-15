@@ -5,8 +5,7 @@
       class="custom-select-list"
       v-model="sortList"
     >
-      <transition-group>
-        <li
+      <li
           v-for="({ key, sorts }, index) in sortList"
           class="custom-select-item"
           :key="key"
@@ -79,11 +78,10 @@
           </bk-select>
           <span
             style="font-size: 14px; color: #c4c6cc"
-            class="bklog-icon bklog-circle-minus-filled"
+            class="bklog-icon bklog-circle-minus-filled bklog-v3-popover-tag"
             @click="deleteTableItem(key)"
           ></span>
         </li>
-      </transition-group>
     </vue-draggable>
     <span
       style="margin-left: 20px; font-size: 14px; color: #3a84ff"

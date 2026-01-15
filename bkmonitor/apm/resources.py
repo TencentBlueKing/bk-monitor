@@ -1951,7 +1951,9 @@ class CreateApplicationSimpleResource(Resource):
         if not validate_data.get("language_ids"):
             validate_data["language_ids"] = self.DEFAULT_LANGUAGE_IDS
 
-        validate_data["datasource_option"] = ApplicationHelper.get_default_storage_config(validate_data["bk_biz_id"])
+        validate_data["datasource_option"] = ApplicationHelper.get_default_storage_config(
+            validate_data["bk_biz_id"], validate_data["app_name"]
+        )
 
     def perform_request(self, validated_request_data):
         """api侧创建应用 需要保持和saas侧创建应用接口逻辑一致"""

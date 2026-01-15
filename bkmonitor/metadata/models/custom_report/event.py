@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import logging
-from typing import Any
+from typing import Any, cast
 
 from django.conf import settings
 from django.db import models
@@ -35,8 +35,8 @@ class EventGroup(CustomGroupBase):
     """事件分组记录"""
 
     EVENT_GROUP_STATUS_CHOICES = (
-        (EventGroupStatus.NORMAL, "正常"),
-        (EventGroupStatus.SLEEP, "休眠"),
+        (EventGroupStatus.NORMAL.value, "正常"),
+        (EventGroupStatus.SLEEP.value, "休眠"),
     )
 
     # event_group_id 类似于uuid,因此过滤时无需添加租户属性
@@ -211,6 +211,7 @@ class EventGroup(CustomGroupBase):
                 "size": 0,
             },
         )
+        result = cast(dict[str, Any], result)
         # 使用 .get() 获取，避免直接 KeyError
         buckets = result.get("aggregations", {}).get("find_event_name", {}).get("buckets", [])
         logger.info(f"event->[{self.event_group_id}] found total event->[{len(buckets)}]")
@@ -218,23 +219,30 @@ class EventGroup(CustomGroupBase):
         # 逐个获取信息
         event_dimension_list = []
         for event_info in buckets:
-            try:
-                result = client.search(
-                    index=f"{self.table_id}*",
-                    body={
-                        "query": {"bool": {"must": {"term": {"event_name": event_info["key"]}}}},
-                        "size": 1,
-                        "sort": {"time": "desc"},
-                    },
-                )["hits"]["hits"][0]  # 只需要其中一个命中的结果即可
+            search_resp = client.search(
+                index=f"{self.table_id}*",
+                body={
+                    "query": {"bool": {"must": {"term": {"event_name": event_info["key"]}}}},
+                    "size": 1,
+                    "sort": {"time": "desc"},
+                },
+            )
+            # ES 客户端在不同版本下的 typing 定义不一致（可能被推断为 Literal[False] 等），
+            # 这里做显式收窄：先转为 dict，再用 .get() 安全取值，避免直接下标访问触发类型错误。
+            search_resp_dict = cast(dict[str, Any], search_resp)
+            hits = (search_resp_dict.get("hits") or {}).get("hits") or []
+            if not hits:
+                continue
+            data = cast(dict[str, Any], hits[0])  # 只需要其中一个命中的结果即可
 
-            except IndexError:
+            source = cast(dict[str, Any], data.get("_source") or {})
+            dimensions = source.get("dimensions") or {}
+            if not isinstance(dimensions, dict):
                 continue
 
-            event_dimension_list.append(
-                {"event_name": event_info["key"], "dimension_list": list(result["_source"]["dimensions"].keys())}
-            )
-            logger.info(f"event->[{self.event_group_id}] added new event_dimension->[{event_dimension_list[0]}]")
+            new_event_dimension = {"event_name": event_info["key"], "dimension_list": list(dimensions.keys())}
+            event_dimension_list.append(new_event_dimension)
+            logger.info(f"event->[{self.event_group_id}] added new event_dimension->[{new_event_dimension}]")
 
         # 更新所有的相关事件
         Event.modify_event_list(self.event_group_id, event_dimension_list)

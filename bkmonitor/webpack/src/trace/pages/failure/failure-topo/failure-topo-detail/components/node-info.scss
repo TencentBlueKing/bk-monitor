@@ -228,13 +228,10 @@
   }
 
   &__main {
+    position: relative;
     height: calc(100% - 40px);
     overflow: auto;
     background: #1d2024;
-
-    .metric-wrap {
-      margin-top: -9px;
-    }
 
     .aggregated-edges-wrap {
       padding: 12px 16px;

@@ -373,10 +373,10 @@ class DataSource(models.Model):
         self.created_from = DataIdCreatedFromSystem.BKDATA.value
         self.save()
 
-    # TODO：多租户,需要等待BkBase接口协议,理论上需要补充租户ID,不再有默认接入者概念
     @classmethod
     def apply_for_data_id_from_bkdata(
         cls,
+        bk_tenant_id: str,
         data_name: str,
         bk_biz_id: int,
         is_base: bool = False,
@@ -401,6 +401,7 @@ class DataSource(models.Model):
 
         try:
             apply_data_id_v2(
+                bk_tenant_id=bk_tenant_id,
                 data_name=data_name,
                 bk_biz_id=bk_biz_id,
                 is_base=is_base,
@@ -625,6 +626,7 @@ class DataSource(models.Model):
                 # 如果没有指定业务ID，则使用默认业务ID
                 bk_biz_id = get_tenant_datalink_biz_id(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).label_biz_id
                 bk_data_id = cls.apply_for_data_id_from_bkdata(
+                    bk_tenant_id=bk_tenant_id,
                     data_name=data_name,
                     bk_biz_id=bk_biz_id,
                     is_base=is_base,

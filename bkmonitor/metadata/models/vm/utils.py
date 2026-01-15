@@ -462,11 +462,13 @@ def get_timestamp_len(data_id: int | None = None, etl_config: str | None = None)
     # 新接入场景默认使用毫秒作为单位，若过程出现失败，直接返回默认单位，不应影响后续流程
     try:
         ds = DataSource.objects.get(bk_data_id=data_id)
-        ds_option = DataSourceOption.objects.filter(bk_data_id=data_id, name=DataSourceOption.OPTION_ALIGN_TIME_UNIT)
+        ds_option = DataSourceOption.objects.filter(
+            bk_data_id=data_id, name=DataSourceOption.OPTION_ALIGN_TIME_UNIT
+        ).first()
         # 若存在对应配置项，优先使用配置的时间格式
-        if ds_option.exists():
-            logger.info("get_timestamp_len: ds_option exists,ds_option ALIGN_TIME)UNIT: %s", ds_option.first().value)
-            return TimestampLen.get_len_choices(ds_option.first().value)
+        if ds_option:
+            logger.info("get_timestamp_len: ds_option exists,ds_option ALIGN_TIME)UNIT: %s", ds_option.value)
+            return TimestampLen.get_len_choices(ds_option.value)
         # Note： 历史原因，针对脚本等配置，若不存在对应时间戳配置，默认单位应为秒
         if ds.etl_config in {EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value}:
             logger.info("get_timestamp_len: ds.etl_config: %s,will use second as time format", ds.etl_config)
@@ -484,12 +486,15 @@ def get_data_source(data_id):
     return DataSource.objects.get(bk_data_id=data_id)
 
 
-def access_v2_bkdata_vm(bk_tenant_id: str, bk_biz_id: int, table_id: str, data_id: int):
-    """
-    接入计算平台V4链路
-    @param bk_biz_id: 业务ID
-    @param table_id: 结果表ID
-    @param data_id: 数据源ID
+def access_v2_bkdata_vm(bk_tenant_id: str, bk_biz_id: int, table_id: str, data_id: int, force_update: bool = False):
+    """接入计算平台V4链路
+
+    Args:
+        bk_tenant_id: 租户ID
+        bk_biz_id: 业务ID
+        table_id: 结果表ID
+        data_id: 数据源ID
+        force_update: 是否强制更新(后续应该移除该参数，所有的结果表都应当持续更新)
     """
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access v2 vm", bk_biz_id, table_id, data_id)
 
@@ -537,7 +542,7 @@ def access_v2_bkdata_vm(bk_tenant_id: str, bk_biz_id: int, table_id: str, data_i
         return
 
     # 2. 获取 vm 集群名称
-    vm_cluster_name = vm_cluster.get("cluster_name")
+    vm_cluster_name = vm_cluster["cluster_name"]
 
     # 3. 获取数据源对应的集群 ID
     data_type_cluster = get_data_type_cluster(data_id=data_id)
@@ -552,7 +557,12 @@ def access_v2_bkdata_vm(bk_tenant_id: str, bk_biz_id: int, table_id: str, data_i
             storage_cluster_name=vm_cluster_name,
             bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
         )
-        return
+
+        # 如果不是强制更新，则跳过后续的数据链路更新
+        if not force_update:
+            return
+
+        logger.info("access_v2_bkdata_vm: force_update is True, now try to update datalink for table_id: %s", table_id)
 
     # 5. 接入 vm 链路
     try:

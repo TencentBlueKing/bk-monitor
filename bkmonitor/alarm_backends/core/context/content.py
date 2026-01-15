@@ -400,7 +400,7 @@ class DimensionCollectContent(DefaultContent):
         "assign_detail": defaultdict(lambda: _lazy("分派详情")),
         "anomaly_dimensions": defaultdict(lambda: _lazy("维度下钻")),
         "recommended_metrics": defaultdict(lambda: _lazy("关联指标")),
-        "receivers": defaultdict(lambda: _lazy("通知人")),
+        "receivers": defaultdict(lambda: _lazy("告警接收人")),
         "remarks": defaultdict(lambda: _lazy("备注")),
     }
 
@@ -541,7 +541,7 @@ class MultiStrategyCollectContent(DefaultContent):
         "assign_detail": defaultdict(lambda: _lazy("分派详情")),
         "anomaly_dimensions": defaultdict(lambda: _lazy("维度下钻")),
         "recommended_metrics": defaultdict(lambda: _lazy("关联指标")),
-        "receivers": defaultdict(lambda: _lazy("通知人")),
+        "receivers": defaultdict(lambda: _lazy("告警接收人")),
         "remarks": defaultdict(lambda: _lazy("备注")),
     }
 

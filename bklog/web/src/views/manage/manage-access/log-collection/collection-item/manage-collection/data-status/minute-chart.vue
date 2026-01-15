@@ -139,7 +139,7 @@
           const res = await this.$http.request('retrieve/getLogChartList', {
             params: { index_set_id: this.curCollect.index_set_id },
             data: Object.assign({}, this.retrieveParams, {
-              addition: formatAdditionalFields(this.$store.state, this.retrieveParams.addition),
+              addition: this.retrieveParams.addition,
             }),
           });
           const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];

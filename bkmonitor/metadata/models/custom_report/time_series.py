@@ -205,11 +205,7 @@ class TimeSeriesGroup(CustomGroupBase):
             rt_field.save(update_fields=["is_disabled"])
             is_field_update = True
 
-        # RTField 有新增 或是 is_disabled 有变更，需要刷新 consul
-        if is_created or is_field_update:
-            self.NEED_REFRESH_CONSUL = True
-
-        logger.info("table->[%s] metric field->[%s] is update.", table_id, field_name)
+        logger.info("table->[%s] metric field->[%s] is update(%s).", table_id, field_name, is_field_update)
         return True
 
     def is_auto_discovery(self) -> bool:

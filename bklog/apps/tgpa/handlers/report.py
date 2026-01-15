@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 
 import os
 
+import arrow
 from django.utils.functional import cached_property
 
 from apps.api import BkDataQueryApi
@@ -91,8 +92,8 @@ class TGPAReportHandler:
         :param bk_biz_id: 业务ID
         :param keyword: 搜索关键词
         :param keyword_fields: keyword需要搜索的字段列表，默认为TGPA_REPORT_FILTER_FIELDS中的所有字段
-        :param start_time: 开始时间
-        :param end_time: 结束时间
+        :param start_time: 开始时间，默认为七天前
+        :param end_time: 结束时间，默认为当前时间
         """
         where_conditions = [f"cc_id={bk_biz_id}"]
 
@@ -101,10 +102,15 @@ class TGPAReportHandler:
             fields = keyword_fields if keyword_fields else TGPA_REPORT_FILTER_FIELDS
             keyword_conditions = [f"{field} LIKE '%{escaped_keyword}%' ESCAPE '\\'" for field in fields]
             where_conditions.append(f"({' OR '.join(keyword_conditions)})")
-        if start_time:
-            where_conditions.append(f"dtEventTimeStamp >= '{start_time}'")
-        if end_time:
-            where_conditions.append(f"dtEventTimeStamp < '{end_time}'")
+
+        # 默认时间范围：当前时间到七天前
+        if not start_time:
+            start_time = int(arrow.now().shift(days=-7).timestamp() * 1000)
+        if not end_time:
+            end_time = int(arrow.now().timestamp() * 1000)
+
+        where_conditions.append(f"dtEventTimeStamp >= '{start_time}'")
+        where_conditions.append(f"dtEventTimeStamp < '{end_time}'")
 
         return " AND ".join(where_conditions)
 
@@ -113,7 +119,8 @@ class TGPAReportHandler:
         """
         获取客户端日志上报文件数量
         """
-        query_sql = f"SELECT COUNT(*) as total FROM {cls._get_result_table_id()} WHERE cc_id={bk_biz_id}"
+        where_clause = cls._build_where_clause(bk_biz_id)
+        query_sql = f"SELECT COUNT(*) as total FROM {cls._get_result_table_id()} WHERE {where_clause}"
         result = BkDataQueryApi.query({"sql": query_sql})
         return result["list"][0].get("total", 0)
 
@@ -223,40 +230,6 @@ class TGPAReportHandler:
                 break
 
             offset += batch_size
-
-    @classmethod
-    def get_openid_list(cls, params):
-        """
-        获取openid列表
-        """
-        result_table_id = cls._get_result_table_id()
-        limit = params["pagesize"]
-        offset = (params["page"] - 1) * limit
-        where_clause = cls._build_where_clause(
-            bk_biz_id=params["bk_biz_id"], keyword=params.get("keyword"), keyword_fields=["openid"]
-        )
-
-        query_sql = f"SELECT DISTINCT openid FROM {result_table_id} WHERE {where_clause} LIMIT {limit} OFFSET {offset}"
-
-        result = BkDataQueryApi.query({"sql": query_sql})
-        return [item["openid"] for item in result.get("list", [])]
-
-    @classmethod
-    def get_file_name_list(cls, params):
-        """
-        获取文件名列表
-        """
-        result_table_id = cls._get_result_table_id()
-        limit = params["pagesize"]
-        offset = (params["page"] - 1) * limit
-        where_clause = cls._build_where_clause(
-            bk_biz_id=params["bk_biz_id"], keyword=params.get("keyword"), keyword_fields=["file_name"]
-        )
-
-        query_sql = f"SELECT file_name FROM {result_table_id} WHERE {where_clause} LIMIT {limit} OFFSET {offset}"
-
-        result = BkDataQueryApi.query({"sql": query_sql})
-        return [item["file_name"] for item in result.get("list", [])]
 
     @classmethod
     def get_file_status_map(cls, file_name_list) -> dict:

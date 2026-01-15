@@ -143,3 +143,39 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "query flatten span list"
+  /app/apm/get_fields_option_values/:
+    post:
+      operationId: get_fields_option_values
+      description: trace 字段可选值
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/trace_query_web/get_fields_option_values/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "get fields option values"
+  /app/apm/view_config/:
+    get:
+      operationId: trace_query_view_config
+      description: query trace 视图配置
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/trace_query_web/view_config/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query trace view config"

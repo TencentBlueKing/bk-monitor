@@ -26,11 +26,10 @@
 import {
   type PropType,
   computed,
+  ref as deepRef,
   defineComponent,
-  nextTick,
   onBeforeUnmount,
   onMounted,
-  ref,
   shallowRef,
   watch,
 } from 'vue';
@@ -90,18 +89,21 @@ export default defineComponent({
       required: true,
     },
   },
-  emits: ['init', 'destroy', 'eventClick'],
+  emits: ['init', 'destroy', 'eventClick', 'dataZoomChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const chartDomRef = shallowRef<HTMLDivElement | null>(null);
-    const chart = shallowRef<echarts.ECharts | null>(null);
+
+    // 图表实例类型统一为 `echarts.init()` 的返回值类型，避免不同类型别名导致的 TS 不兼容。
+    type EChartsInstance = ReturnType<typeof echarts.init>;
+    const chart = shallowRef<EChartsInstance | null>(null);
     // 图表是否在可视区域
-    const isChartVisible = ref(true);
+    const isChartVisible = deepRef(true);
     let observer: IntersectionObserver | null = null;
     // 是否为多维度指标数据
     const isMultiDimension = shallowRef(Object.keys(props.metricItem.time_series).length > 1);
     // 指标数据
-    const seriesList = ref(Object.values(props.metricItem.time_series));
+    const seriesList = deepRef(Object.values(props.metricItem.time_series));
     // 指标数据名称集合
     const dimensionNameList = computed(() => Object.keys(props.metricItem.time_series));
 
@@ -115,6 +117,24 @@ export default defineComponent({
         }
       } catch (e) {
         console.error('Hide tooltip failed:', e);
+      }
+    };
+
+    /** 设置抓手指针，提示可拖拽/平移 */
+    let zrCursorInited = false;
+    const handleZrMouseMove = (e: any) => {
+      if (!chart.value) return;
+      // 空白区域维持 grab，不影响元素自身的 pointer
+      if (!e?.target) chart.value.getZr().setCursorStyle('grab');
+    };
+    const applyGrabCursor = () => {
+      const canvas = chart.value?.getDom().querySelector('canvas');
+      if (canvas) (canvas as HTMLCanvasElement).style.cursor = 'grab';
+      if (!chart.value) return;
+      chart.value.getZr().setCursorStyle('grab');
+      if (!zrCursorInited) {
+        chart.value.getZr().on('mousemove', handleZrMouseMove);
+        zrCursorInited = true;
       }
     };
 
@@ -145,12 +165,19 @@ export default defineComponent({
       observer.observe(chartDomRef.value);
     };
 
-    /** 初始化图表 */
+    /**
+     * 初始化图表（创建 echarts 实例）
+     */
     const initChart = () => {
       if (!chartDomRef.value) return;
 
       chart.value = echarts.init(chartDomRef.value);
+
+      // 首次创建实例：向父组件传递图表实例用于联动（只触发一次）
+      emit('init', chart.value);
+
       renderChart();
+      setupDataZoomListener();
 
       // 初始化可视区域监听
       initVisibilityListener();
@@ -212,6 +239,34 @@ export default defineComponent({
       return `<div style='color:#fff;font-size:12px;'>${html}</div>`;
     };
 
+    /**
+     * 计算默认 dataZoom 窗口。
+     * 图表刚出来时先默认只展示“最后 50 个点”，
+     * 这样不会把整段时间轴挤得太密，同时也和顶部 slider 的默认行为一致。
+     */
+    const getDataZoomOption = () => {
+      const firstSeriesKey = Object.keys(props.metricItem.time_series || {})[0];
+      const datapoints = firstSeriesKey ? props.metricItem.time_series[firstSeriesKey]?.datapoints || [] : [];
+      if (!Array.isArray(datapoints) || datapoints.length === 0) return [];
+
+      const startIndex = Math.max(datapoints.length - 50, 0);
+      const startValue = datapoints[startIndex]?.[0];
+      const endValue = datapoints[datapoints.length - 1]?.[0];
+
+      return [
+        {
+          type: 'inside',
+          xAxisIndex: 0,
+          startValue,
+          endValue,
+          zoomLock: true,
+          zoomOnMouseWheel: false,
+          moveOnMouseWheel: false,
+          moveOnMouseMove: true,
+        },
+      ];
+    };
+
     /** 创建折线series */
     const getLineSeries = () => {
       // 创建标记点markPoint
@@ -244,6 +299,11 @@ export default defineComponent({
     /** 渲染图表 */
     const renderChart = () => {
       if (!chart.value) return;
+
+      const currentOption = chart.value.getOption?.() as any;
+      const existingDataZoom = currentOption?.dataZoom;
+      const dataZoomOption = existingDataZoom?.length ? existingDataZoom : getDataZoomOption();
+
       const option: echarts.EChartsCoreOption = {
         color: COLOR_LIST,
         grid: getGridOptions(),
@@ -272,6 +332,7 @@ export default defineComponent({
           show: isChartVisible.value,
           formatter: params => getTooltipFormatter(params),
         },
+        dataZoom: dataZoomOption,
         xAxis: {
           type: 'time',
           minInterval: 20 * 1000,
@@ -324,11 +385,6 @@ export default defineComponent({
         series: getLineSeries(),
       };
       chart.value.setOption(option, { replaceMerge: ['series'] });
-
-      nextTick(() => {
-        // 向父组件传递图表实例用于联动
-        emit('init', chart.value);
-      });
     };
 
     /** 统一处理事件分析显示 */
@@ -388,6 +444,8 @@ export default defineComponent({
         // 替换yAxis和series
         { replaceMerge: ['yAxis', 'series'] }
       );
+
+      applyGrabCursor();
     };
 
     /** 移除散点图 */
@@ -407,6 +465,29 @@ export default defineComponent({
         },
         { replaceMerge: ['yAxis', 'series'] }
       );
+
+      applyGrabCursor();
+    };
+
+    /**
+     * dataZoom 变化监听：把“图表内部的缩放/平移”同步给外部（顶部 slider）。
+     * - start/end：百分比（0~100）
+     * - startValue/endValue：时间戳（更精确）
+     */
+    const handleDataZoomChange = (params: any) => {
+      const batchItem = params?.batch?.[0] || params;
+      emit('dataZoomChange', {
+        start: batchItem?.start,
+        end: batchItem?.end,
+        startValue: batchItem?.startValue,
+        endValue: batchItem?.endValue,
+      });
+    };
+
+    const setupDataZoomListener = () => {
+      if (!chart.value) return;
+      chart.value.off('dataZoom', handleDataZoomChange);
+      chart.value.on('dataZoom', handleDataZoomChange);
     };
 
     /** 添加事件监听 */
@@ -418,14 +499,19 @@ export default defineComponent({
       chart.value.on('click', { seriesId: 'scatter-event' }, params => {
         emit('eventClick', params);
       });
+
+      setupDataZoomListener();
     };
 
-    // 监听数据变化
+    /**
+     * 监听指标数据变化：
+     * - 有实例就复用实例更新 option（更省资源）
+     * - 没实例就走初始化（首次渲染/极端情况）
+     */
     watch(
       () => props.metricItem,
       () => {
         if (chart.value) {
-          // 重用实例更新数据
           renderChart();
         } else {
           initChart();
@@ -448,11 +534,19 @@ export default defineComponent({
 
     onMounted(() => {
       initChart();
+      applyGrabCursor();
     });
 
     onBeforeUnmount(() => {
+      // 统一做资源清理：事件监听、observer、resize、以及 echarts 实例本身。
+      // 避免页面多次进入/退出后出现内存泄漏或重复监听。
       if (chart.value) {
+        chart.value.off('dataZoom', handleDataZoomChange);
+        chart.value.getZr()?.off('mousemove', handleZrMouseMove);
+
+        // 通知父组件移除该实例（联动管理层需要）
         emit('destroy', chart.value);
+
         chart.value.dispose();
         chart.value = null;
       }

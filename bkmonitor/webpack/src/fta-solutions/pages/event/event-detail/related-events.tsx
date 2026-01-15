@@ -170,7 +170,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         props: {
           minWidth: 130,
           sortable: 'custom',
-          formatter: (row: IEventItem) => <span>{dayjs.tz(row.time * 1000).format('YYYY-MM-DD HH:mm')}</span>,
+          formatter: (row: IEventItem) => <span>{dayjs.tz(row.time * 1000).format('YYYY-MM-DD HH:mmZZ')}</span>,
         },
       },
       {

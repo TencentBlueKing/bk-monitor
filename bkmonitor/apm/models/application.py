@@ -92,7 +92,7 @@ class ApmApplication(AbstractRecordModel):
             # 没有则同步创建
             from apm.core.handlers.application_hepler import ApplicationHelper
 
-            datasource_options = ApplicationHelper.get_default_storage_config(self.bk_biz_id)
+            datasource_options = ApplicationHelper.get_default_storage_config(self.bk_biz_id, self.app_name)
             try:
                 # Log
                 LogDataSource.apply_datasource(
