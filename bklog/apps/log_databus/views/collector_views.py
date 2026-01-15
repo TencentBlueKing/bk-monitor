@@ -137,7 +137,6 @@ class CollectorViewSet(ModelViewSet):
             "start",
             "stop",
             "etl_preview",
-            "etl_time",
             "update_or_create_clean_config",
             "custom_update",
             "report_token",
