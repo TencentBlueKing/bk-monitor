@@ -28,6 +28,7 @@ import { defineComponent, ref, watch, computed, onMounted, onBeforeUnmount } fro
 import { parseTableRowData, readBlobRespToJson, parseBigNumberList, xssFilter } from '@/common/util';
 
 import JsonFormatter from '@/global/json-formatter.vue';
+import { processLogData } from '@/views/retrieve-v2/search-result-tab/personalized-configuration/process-log-data';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '@/store/store.type';
@@ -81,15 +82,17 @@ export default defineComponent({
     const requestOtherparams = cloneDeep(props.retrieveParams);
     delete requestOtherparams.format;
 
-    // 隐藏掉tippy弹出框中的非必要按钮
+    // 隐藏掉tippy弹出框中的非必要按钮，只显示"添加到本次检索"、"从本次检索中排除"和自定义插槽
     const styleContent = `
-      .tippy-box[data-theme~="segment-light"] .tippy-content .segment-event-box:nth-child(1),
-      .tippy-box[data-theme~="segment-light"] .tippy-content .segment-event-box:nth-child(2),
-      .tippy-box[data-theme~="segment-light"] .tippy-content .segment-event-box:nth-child(5) {
+      .tippy-box[data-theme~="segment-light"] .tippy-content .segment-event-box[data-item-id="copy"],
+      .tippy-box[data-theme~="segment-light"] .tippy-content .segment-event-box[data-item-id="highlight"],
+      .tippy-box[data-theme~="segment-light"] .tippy-content .segment-event-box[data-item-id="add-to-ai"],
+      .tippy-box[data-theme~="segment-light"] .tippy-content .segment-event-box[data-item-id="new-search-page-is"],
+      .tippy-box[data-theme~="segment-light"] .tippy-content .segment-event-box[data-item-id="trace-view"] {
         display: none !important;
       }
-      .tippy-box[data-theme~="segment-light"] .tippy-content .segment-event-box:nth-child(3),
-      .tippy-box[data-theme~="segment-light"] .tippy-content .segment-event-box:nth-child(4) {
+      .tippy-box[data-theme~="segment-light"] .tippy-content .segment-event-box[data-item-id="is"],
+      .tippy-box[data-theme~="segment-light"] .tippy-content .segment-event-box[data-item-id="not"] {
         .segment-new-link {
           display: none !important;
         }
@@ -144,10 +147,12 @@ export default defineComponent({
                 begin += size;
                 total = data.total.toNumber();
                 const list = parseBigNumberList(data.list);
-                logList.value.push(...list);
+                // 对返回的日志数据应用个性化配置处理
+                const processedList = processLogData(list, store);
+                logList.value.push(...processedList);
                 if (isManualSearch) {
                   choosedIndex.value = -1;
-                  handleChooseRow(0, list[0]);
+                  handleChooseRow(0, processedList[0]);
                 }
               }
             });

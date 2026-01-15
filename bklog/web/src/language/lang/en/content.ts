@@ -1264,4 +1264,15 @@ export default {
   '已上传成功，请直接检索': 'Uploaded successfully, please search directly',
   '搜索 openID、文件名称': 'Search by OpenID, file name',
   请先勾选任务: 'Please check the task first',
+  '当前任务名称为{n}，确认要删除？': 'The current task name is {n}, are you sure you want to delete it?',
+  'tag名称不得超出8个字母、数字、_': 'The tag name cannot exceed 8 letters, numbers, and _',
+  '点击"测试匹配"按钮查看结果': 'Click the "Test Match" button to view the results',
+  请先输入原文和正则表达式: 'Please enter the original text and regular expression first',
+  未找到匹配项: 'No match found.',
+  '匹配成功！找到 {0} 个匹配项：': 'Match successful! {0} matches found:',
+  '正则表达式语法错误：': 'Regular expression syntax error:',
+  正则表达式未测试匹配: 'The regular expression was not tested for matching',
+  '该字段已存在个性化设置任务，请勿重复创建':
+    'A personalization task already exists for this field; please do not create another one',
+  '请输入跳转链接，支持 {变量名} 格式': 'Please enter the redirect link, supporting the {variable name} format',
 };

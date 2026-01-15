@@ -46,6 +46,8 @@ import * as pinyin from 'tiny-pinyin';
 import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
 import Vuex from 'vuex';
 
+import { processLogListWithMarkHighlight } from '@/views/retrieve-v2/search-result-tab/personalized-configuration/mark-highlighter';
+
 import collect from './collect.js';
 import { ConditionOperator } from './condition-operator.ts';
 
@@ -1340,12 +1342,16 @@ const store = new Vuex.Store({
               if (result) {
                 const indexSetQueryResult = state.indexSetQueryResult;
                 const logList = parseBigNumberList(rsolvedData.list);
+                // 对 logList 应用个性化标记高亮处理
+                const personalizationSettings = state.indexFieldInfo?.custom_config?.personalization?.settings || [];
+                const fieldList = state.indexFieldInfo?.fields || [];
+                const processedLogList = processLogListWithMarkHighlight(logList, personalizationSettings, fieldList);
                 const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
                 rsolvedData.total = rsolvedData.total.toNumber();
-                const size = logList.length;
+                const size = processedLogList.length;
 
                 rsolvedData.list = Object.freeze(
-                  payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList,
+                  payload.isPagination ? indexSetQueryResult.list.concat(processedLogList) : processedLogList,
                 );
                 rsolvedData.origin_log_list = Object.freeze(
                   payload.isPagination ? indexSetQueryResult.origin_log_list.concat(originLogList) : originLogList,
@@ -1372,7 +1378,7 @@ const store = new Vuex.Store({
                   message,
                   code,
                   result,
-                  length: logList.length,
+                  length: processedLogList.length,
                   size,
                 };
               }

@@ -208,7 +208,7 @@ export default defineComponent({
           }
         } else {
           localParams.value[prefixKey] = String(obj[key])
-            .replace(/<mark>/g, '')
+            .replace(/<mark\b[^>]*>/g, '')
             .replace(/<\/mark>/g, '');
         }
       }

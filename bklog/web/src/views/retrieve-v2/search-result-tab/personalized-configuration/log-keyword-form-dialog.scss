@@ -1,0 +1,108 @@
+.log-keyword-setting-dialog {
+    .bk-dialog{
+        top: 98px;
+    }
+
+    .dialog-footer {
+        .bk-button:first-child {
+            margin-right: 8px;
+        }
+    }
+
+    .bk-form {
+        .bk-form-radio {
+            margin-right: 24px;
+        }
+
+        .bk-radio-text {
+            margin-left: 6px;
+        }
+
+        .prepend-text {
+
+            display: inline-block;
+            width: 58px;
+            max-width: 200px;
+            height: 30px;
+            overflow: hidden;
+            font-size: 12px;
+            line-height: 30px;
+            color: #4D4F56;
+            text-align: center;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            background: #FAFBFD;
+            border-radius: 2px 0 0 2px;
+        }
+
+        .color-item {
+            display: flex;
+
+            .prepend-text {
+                width: 59px;
+                height: 32px;
+                border: 1px solid #c4c6cc;
+                border-right: none;
+            }
+
+            .color-picker-wrapper {
+                position: relative;
+                width: 120px;
+
+                .color-input-underlay {
+                    width: 100%;
+
+                    .bk-form-input {
+                        color: transparent;
+                        background: transparent;
+                        border-radius: 0 2px 2px 0;
+                    }
+                }
+
+                .color-picker-overlay {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    z-index: 1;
+                    width: 100%;
+                    border-color: transparent;
+                    border-radius: 0 2px 2px 0;
+
+                    &.color-picker-active {
+                        border-color: #3a84ff;
+                    }
+                }
+            }
+        }
+
+        .mt22 {
+            margin-top: 22px;
+        }
+
+        .jump-link-wrapper {
+            position: relative;
+            width: 100%;
+
+            .jump-link-input-underlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+
+                .bk-form-input {
+                    color: transparent;
+                    background: transparent;
+                }
+            }
+
+            .jump-link-editor-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 1;
+                box-sizing: border-box;
+                width: 100%;
+            }
+        }
+    }
+}
