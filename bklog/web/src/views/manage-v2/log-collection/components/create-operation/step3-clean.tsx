@@ -226,7 +226,7 @@ export default defineComponent({
     const rowTemplate = ref({
       alias_name: '',
       description: '',
-      field_type: '',
+      field_type: 'string',
       is_case_sensitive: false,
       is_analyzed: false,
       is_built_in: false,
@@ -247,9 +247,10 @@ export default defineComponent({
 
     const isClean = computed(() => cleaningMode.value !== 'bk_log_text');
 
-    const isEditCleanItem = computed(() => route.name === 'clean-edit');
+    const isEditCleanItem = computed(() => route.name === 'clean-edit' || route.name === 'v2-clean-edit');
 
     onMounted(() => {
+      console.log('mounted step3 clean');
       // 清洗列表进入
       if (props.isCleanField) {
         if (isEditCleanItem.value) {
@@ -277,6 +278,7 @@ export default defineComponent({
       const query = {
         bk_biz_id: bkBizId.value,
         have_data_id: 1,
+        have_table_id: 1,
       };
       // 获取采集项列表
       $http
