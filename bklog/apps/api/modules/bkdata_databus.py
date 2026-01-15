@@ -24,7 +24,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_user, biz_to_tenant_getter
-from config.domains import DATABUS_APIGATEWAY_ROOT, DATABUS_APIGATEWAY_V4_ROOT
+from config.domains import DATABUS_APIGATEWAY_ROOT, DATABUS_APIGATEWAY_ROOT_V4
 
 
 class _BkDataDatabusApi:
@@ -45,7 +45,7 @@ class _BkDataDatabusApi:
         return (
             f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v4/databus/{new_path}"
             if self.use_apigw
-            else f"{DATABUS_APIGATEWAY_V4_ROOT}{old_path}"
+            else f"{DATABUS_APIGATEWAY_ROOT_V4}{old_path}"
         )
 
     def __init__(self):
