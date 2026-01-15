@@ -487,6 +487,7 @@ export default defineComponent({
           {/* 根据匹配类型条件显示字段 */}
           {localFormData.value.matchType === MatchType.FIELD && (
             <bk-form-item
+              key='field-match-select'
               label={t('选择字段')}
               required
               property='selectField'
@@ -507,7 +508,7 @@ export default defineComponent({
             </bk-form-item>
           )}
           {localFormData.value.matchType === MatchType.REGEX && (
-            <div class='mt22'>
+            <div class='mt22' key='regex-match-section'>
               <bk-form-item
                 label={t('原文')}
                 required
@@ -571,7 +572,7 @@ export default defineComponent({
           </bk-form-item>
           {/* 根据执行动作条件显示不同配置 */}
           {localFormData.value.actionType === ActionType.MARK && (
-            <div class='mt22'>
+            <div class='mt22' key='mark-action-section'>
               <bk-form-item
                 label={t('配置')}
                 required
@@ -614,6 +615,7 @@ export default defineComponent({
           {(localFormData.value.actionType === ActionType.JUMP
             || localFormData.value.actionType === ActionType.RELATED) && (
             <bk-form-item
+              key='jump-related-action-tagname'
               label={t('tag 名称')}
               property='tagName'
             >
@@ -640,11 +642,10 @@ export default defineComponent({
                 <JumpLinkEditor
                   value={localFormData.value.jumpLink}
                   on-change={(value: string) => (localFormData.value.jumpLink = value)}
-                  on-blur={() => {
-                    // JumpLinkEditor失焦时，触发bk-input的聚焦和失焦以触发验证
-                    if (jumpLinkInputRef.value) {
-                      jumpLinkInputRef.value.focus();
-                      jumpLinkInputRef.value.blur();
+                  on-blur={async () => {
+                    try {
+                      await formRef.value.validateField('jumpLink');
+                    } catch {
                     }
                   }}
                   placeholder={t('请输入跳转链接，支持 {变量名} 格式')}

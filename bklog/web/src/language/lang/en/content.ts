@@ -1273,4 +1273,5 @@ export default {
   正则表达式未测试匹配: 'The regular expression was not tested for matching',
   '该字段已存在个性化设置任务，请勿重复创建':
     'A personalization task already exists for this field; please do not create another one',
+  '请输入跳转链接，支持 {变量名} 格式': 'Please enter the redirect link, supporting the {variable name} format',
 };

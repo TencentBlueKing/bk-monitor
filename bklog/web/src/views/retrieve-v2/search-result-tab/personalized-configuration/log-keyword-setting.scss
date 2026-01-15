@@ -17,14 +17,21 @@
     .expand-content {
         display: flex;
         flex-wrap: wrap;
-        padding: 16px 198px 16px 37px;
+        padding: 16px 36px;
         background: #FAFBFD;
 
         .expand-item {
             display: flex;
-            width: 50%;
             font-size: 12px;
             line-height: 32px;
+
+            &:nth-child(2n-1) {
+                width: 322px;
+            }
+
+            &:nth-child(2n) {
+                width: calc(100% - 322px);
+            }
 
             .expand-label {
                 min-width: 84px;

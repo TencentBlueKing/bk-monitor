@@ -101,6 +101,7 @@ export default defineComponent({
                   settings: structuredClone(updatedSettings),
                 },
               });
+              store.dispatch('requestIndexSetQuery');
             } else {
               // API调用失败，显示错误信息
               bkMessage({
@@ -154,6 +155,7 @@ export default defineComponent({
               settings: structuredClone(updatedSettings),
             },
           });
+          store.dispatch('requestIndexSetQuery');
         } else {
           // API调用失败，显示错误信息
           bkMessage({
@@ -202,19 +204,17 @@ export default defineComponent({
       default: ({ row }) => <bk-user-display-name user-id={row.creator}></bk-user-display-name>,
     };
 
+    // 任务名称插槽
+    const taskNameSlot = {
+      default: ({ row }) => <div v-bk-overflow-tips>{row.taskName}</div>,
+    };
+
     // 跳转链接插槽
     const jumpLinkSlot = {
       default: ({ row }) => {
         // 如果执行动作类型是跳转，则显示前往按钮，否则显示 /
-        if (row.actionType === ActionType.JUMP) {
-          return (
-            <bk-button
-              text
-              theme='primary'
-            >
-              {t('前往')}
-            </bk-button>
-          );
+        if (row.actionType === ActionType.JUMP && row.jumpLink) {
+          return <div v-bk-overflow-tips>{row.jumpLink}</div>;
         }
         return <span class='jump-link-placeholder'>--</span>;
       },
@@ -346,6 +346,7 @@ export default defineComponent({
             label={t('任务名称')}
             prop='taskName'
             min-width='120'
+            scopedSlots={taskNameSlot}
           />
           <bk-table-column
             label={t('正则表达式')}

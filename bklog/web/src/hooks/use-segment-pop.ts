@@ -65,10 +65,18 @@ export interface UseSegmentPropOptions {
   highlightEnabled?: boolean;
 }
 
+export interface DynamicContentOption {
+  text: string;
+  iconName?: string;
+  svg?: string;
+  onClick: (e: MouseEvent) => void;
+}
+
 class UseSegmentProp {
   private className = 'bklog-segment-pop-content';
   private wrapperClassName = 'bklog-pop-wrapper';
   private wrapperIdName = 'bklog_pop_wrapper';
+  private dynamicSlotClassName = 'segment-dynamic-slot';
   private refContent: Ref<HTMLElement>;
   private delineate: boolean;
   private $t: (_str: string) => string;
@@ -107,24 +115,28 @@ class UseSegmentProp {
   createSegmentContent(refName: Ref) {
     const eventBoxList = [
       {
+        id: 'copy',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'copy'),
         iconName: 'icon bklog-icon bklog-copy-3',
         text: this.$t('复制'),
         disabled: false,
       },
       {
+        id: 'highlight',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'highlight'),
         iconName: 'icon bklog-icon bklog-highlight',
         text: this.$t('高亮'),
         disabled: !this.highlightEnabled,
       },
       {
+        id: 'add-to-ai',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'add-to-ai'),
         svg: AiSvg,
         text: this.$t('引用至小鲸'),
         disabled: !this.delineate || !this.aiBluekingEnabled,
       },
       {
+        id: 'is',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'is'),
         iconName: 'icon bk-icon icon-plus-circle',
         text: this.$t('添加到本次检索'),
@@ -139,6 +151,7 @@ class UseSegmentProp {
         },
       },
       {
+        id: 'not',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'not'),
         iconName: 'icon bk-icon icon-minus-circle',
         text: this.$t('从本次检索中排除'),
@@ -153,6 +166,7 @@ class UseSegmentProp {
         },
       },
       {
+        id: 'new-search-page-is',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'new-search-page-is', true),
         iconName: 'icon bk-icon icon-plus-circle',
         text: this.$t('新建检索'),
@@ -162,6 +176,7 @@ class UseSegmentProp {
         },
       },
       {
+        id: 'trace-view',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'trace-view', true),
         iconName: 'bklog-icon bklog-jincheng bklog-trace-view',
         text: this.$t('关联Trace检索'),
@@ -192,6 +207,9 @@ class UseSegmentProp {
         'div',
         {
           class: 'segment-event-box',
+          attrs: {
+            'data-item-id': item.id,
+          },
           on: {
             click: item.onClick,
           },
@@ -232,6 +250,7 @@ class UseSegmentProp {
         ],
       ),
       ),
+      h('div', { class: this.dynamicSlotClassName, attrs: { 'data-item-id': 'dynamic-slot' } }),
     ]);
   }
 
@@ -266,6 +285,69 @@ class UseSegmentProp {
     taskEventManager.appendEvent(keyRef, onSegmentEnumClick);
     taskEventManager.setActiveKey(keyRef);
     return this.refContent;
+  }
+
+  /**
+   * 设置动态内容
+   * @param options 动态选项配置
+   */
+  setDynamicContent(options: DynamicContentOption[] | null) {
+    const slotElement = this.refContent.value?.querySelector(`.${this.dynamicSlotClassName}`) as HTMLElement;
+    if (!slotElement) return;
+
+    slotElement.innerHTML = '';
+
+    if (!options || options.length === 0) {
+      slotElement.style.display = 'none';
+      return;
+    }
+
+    slotElement.style.display = 'block';
+
+    options.forEach((option) => {
+      const itemEl = this.createDynamicItem(option);
+      slotElement.appendChild(itemEl);
+    });
+  }
+
+  /**
+   * 创建单个动态选项元素
+   */
+  private createDynamicItem(option: DynamicContentOption): HTMLElement {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'segment-event-box';
+
+    const btn = document.createElement('span');
+    btn.className = 'segment-event-btn';
+
+    const left = document.createElement('span');
+    left.className = 'segment-btn-left';
+    left.style.display = 'inline-flex';
+
+    if (option.svg) {
+      const img = document.createElement('img');
+      img.src = option.svg;
+      img.style.cssText = 'width: 16px; height: 16px; margin-right: 4px;';
+      left.appendChild(img);
+    } else if (option.iconName) {
+      const icon = document.createElement('i');
+      icon.className = option.iconName;
+      left.appendChild(icon);
+    }
+
+    const text = document.createElement('span');
+    text.textContent = option.text;
+    left.appendChild(text);
+
+    btn.appendChild(left);
+    wrapper.appendChild(btn);
+
+    wrapper.addEventListener('click', (e) => {
+      e.stopPropagation();
+      option.onClick?.(e);
+    });
+
+    return wrapper;
   }
 
   /**

@@ -32,7 +32,8 @@ export default class LuceneSegment {
    */
   static split(input: string, MAX_TOKENS: number): { text: string; isMark: boolean; isCursorText: boolean }[] {
     const result: { text: string; isMark: boolean; isCursorText: boolean }[] = [];
-    const markRegex = /<mark>(.*?)<\/mark>/g;
+    /** 匹配带属性和不带属性的 mark 标签，保留完整标签 */
+    const markRegex = /<mark\b[^>]*>.*?<\/mark>/gs;
     let lastIndex = 0;
     let match: RegExpExecArray | null;
     let tokenCount = 0;
@@ -62,8 +63,8 @@ export default class LuceneSegment {
           result.push({ text: plainText, isMark: false, isCursorText: false });
         }
       }
-      // 处理 mark 内容，始终单独分割
-      result.push({ text: match[1], isMark: true, isCursorText: true });
+      // 处理 mark 内容，保留完整的 mark 标签（包括属性）
+      result.push({ text: match[0], isMark: true, isCursorText: true });
       tokenCount++;
       lastIndex = match.index + match[0].length;
     }
