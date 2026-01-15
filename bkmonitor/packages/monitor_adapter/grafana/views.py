@@ -139,10 +139,14 @@ class GrafanaSwitchOrgView(SwitchOrgView):
             allowed_dashboard_uids.update(dashboard_uids)
 
         if "d/" in request.path or "dashboards/" in request.path:
-            # 检查 uid 是否在允许列表中
-            for uid in allowed_dashboard_uids:
-                if uid in request.path:
-                    return True
+            # 将path按"/"分段，使用集合加速匹配（O(1)查找）
+            # 这样可以确保访问的一定是dashboard相关资源，避免误匹配
+            # 注意: Django的request.path不包含查询参数（query string），只包含路径部分
+            path_segments = set(request.path.split("/"))
+            # 使用集合交集检查是否有匹配的uid（更高效）
+            if allowed_dashboard_uids & path_segments:
+                return True
+            # 如果没有匹配到uid，拒绝访问
             return False
         else:
             return True
