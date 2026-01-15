@@ -615,7 +615,9 @@ export default defineComponent({
                   }}
                 </Popover>
               )}
+              {this.$slots?.customRightBtns?.()}
             </div>
+
             {this.isShowSearchBtn && (
               <div
                 class='search-btn'
