@@ -751,9 +751,6 @@ class AlertTracesResource(Resource):
 
     _SAMPLE_SIZE: int = 20
 
-    # 默认查询时间范围（秒），告警可能持续很长时间，限制查询范围避免性能问题
-    _DEFAULT_TIME_RANGE: int = 60 * 60
-
     class RequestSerializer(serializers.Serializer):
         """请求参数序列化器"""
 

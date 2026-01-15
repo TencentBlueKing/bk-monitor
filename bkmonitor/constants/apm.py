@@ -1752,8 +1752,8 @@ class ApmAlertHelper:
         :param dimensions: 告警维度信息
         :return: filters 条件列表
         """
-        service_nme: str = dimensions.get(CommonMetricTag.SERVICE_NAME.value) or ""
-        if not service_nme:
+        service_name: str = dimensions.get(CommonMetricTag.SERVICE_NAME.value) or ""
+        if not service_name:
             return []
 
         return [
@@ -1780,7 +1780,7 @@ class ApmAlertHelper:
             dimensions = {**dimensions, "service_name": target["service_name"]}
 
         # 目前只有 RPC 场景能明确跳转调用链，其他场景统一增加服务过滤，后续可根据需要扩展更多场景。
-        filter_builders: list[Callable[..., str | None]] = [
+        filter_builders: list[Callable[..., list[dict[str, Any]] | None]] = [
             cls._build_rpc_trace_filters,
             cls._build_default_trace_filters,
         ]
@@ -1798,7 +1798,7 @@ class ApmAlertHelper:
         timestamp: int,
         duration: int,
         encode_filters: bool = True,
-    ):
+    ) -> dict[str, Any]:
         """构建 Trace 页面查询参数。
 
         :param target: 告警目标信息
@@ -1809,7 +1809,7 @@ class ApmAlertHelper:
         :return: 查询参数字典
         """
         offset: int = FIVE_MIN_SECONDS * 1000
-        params: dict[str, str | int] = {
+        params: dict[str, Any] = {
             "app_name": target["app_name"],
             "sceneMode": "span",
             "where": json.dumps(filters) if encode_filters else filters,
@@ -1832,7 +1832,7 @@ class ApmAlertHelper:
             return None
 
         filters: list[dict[str, Any]] | None = cls.build_trace_filters(strategy, target, dimensions)
-        params: dict[str, str | int] = cls.build_trace_query_params(target, filters or [], timestamp, duration)
+        params: dict[str, Any] = cls.build_trace_query_params(target, filters or [], timestamp, duration)
         encoded_params: str = urllib.parse.urlencode(params)
         return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"/?bizId={bk_biz_id}/#/trace/home/?{encoded_params}")
 
