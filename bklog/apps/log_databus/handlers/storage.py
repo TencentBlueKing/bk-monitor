@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,12 +18,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import functools
 import ipaddress
 import operator
 import re
 from collections import defaultdict
-from typing import List, Union
 
 import arrow
 from django.conf import settings
@@ -76,11 +75,12 @@ from apps.utils.time_handler import format_user_time_zone
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
+import builtins
 
 CACHE_EXPIRE_TIME = 300
 
 
-class StorageHandler(object):
+class StorageHandler:
     def __init__(self, cluster_id=None):
         self.cluster_id = cluster_id
         super().__init__()
@@ -173,8 +173,7 @@ class StorageHandler(object):
                 "index_count": i["index_count"],
                 "biz_count": i["biz_count"],
                 "storage_cluster_id": i["cluster_config"].get("cluster_id"),
-                "storage_cluster_name": i["cluster_config"].get("display_name") or
-                                        i["cluster_config"].get("cluster_name"),
+                "storage_cluster_name": i["cluster_config"].get("cluster_name"),
                 "storage_version": i["cluster_config"].get("version"),
                 "storage_type": STORAGE_CLUSTER_TYPE,
                 "priority": i["priority"],
@@ -479,14 +478,12 @@ class StorageHandler(object):
             cluster_info = self._get_cluster_detail_info(cluster_info)
         cluster_groups = self.filter_cluster_groups(cluster_info, bk_biz_id, is_default, enable_archive)
         for cluster_info in cluster_groups:
-            if cluster_info["cluster_config"].get("display_name"):
-                cluster_info["cluster_config"]["cluster_name"] = cluster_info["cluster_config"]["display_name"]
             cluster_info["is_platform"] = self.is_platform_cluster(
                 cluster_info["cluster_config"]["custom_option"]["visible_config"]["visible_type"]
             )
         return cluster_groups
 
-    def _get_cluster_nodes(self, cluster_info: List[dict]):
+    def _get_cluster_nodes(self, cluster_info: builtins.list[dict]):
         for cluster in cluster_info:
             cluster_id = cluster.get("cluster_config").get("cluster_id")
             nodes_stats = EsRoute(
@@ -510,7 +507,7 @@ class StorageHandler(object):
             ]
         return cluster_info
 
-    def _get_cluster_detail_info(self, cluster_info: List[dict]):
+    def _get_cluster_detail_info(self, cluster_info: builtins.list[dict]):
         multi_execute_func = MultiExecuteFunc()
 
         def get_cluster_stats(cluster_id: int):
@@ -565,10 +562,8 @@ class StorageHandler(object):
         setup_config = params["setup_config"]
         bk_biz_id = params["bk_biz_id"]
         username = get_request_username()
-        cluster_en_name = (
-            f"{bk_biz_id}_{params['bkbase_cluster_en_name']}" if is_create else params["bkbase_cluster_en_name"]
-        )
-        cluster_name = params.get("cluster_name", cluster_en_name)
+        resource_set_id = f"{bk_biz_id}_{params['cluster_name']}" if is_create else params["bkbase_cluster_id"]
+        cluster_name = params.get("cluster_name")
         # 获取节点信息
         hot_node_num, warm_node_num = self.get_hot_warm_node_info(params)
         # 获取管理员信息
@@ -579,7 +574,7 @@ class StorageHandler(object):
         bkbase_params = {
             "bk_username": username,
             "bk_biz_id": bk_biz_id,
-            "resource_set_id": cluster_en_name,
+            "resource_set_id": resource_set_id,
             "resource_set_name": cluster_name,
             "geog_area_code": "inland",
             "category": "es",
@@ -640,9 +635,6 @@ class StorageHandler(object):
             bkbase_cluster_id = self.sync_es_cluster(params)
             params["custom_option"]["bkbase_cluster_id"] = bkbase_cluster_id
 
-        if params.get("cluster_name"):
-            params["display_name"] = params.pop("cluster_name")
-
         bk_biz_id = int(params["custom_option"]["bk_biz_id"])
         es_source_id = TransferApi.create_cluster_info(params)
         username = get_request_username()
@@ -660,7 +652,7 @@ class StorageHandler(object):
 
         Permission().grant_creator_action(
             resource=ResourceEnum.ES_SOURCE.create_simple_instance(
-                es_source_id, attribute={"name": params.get("display_name") or params.get("cluster_name")}
+                es_source_id, attribute={"name": params.get("cluster_name")}
             )
         )
 
@@ -718,7 +710,7 @@ class StorageHandler(object):
 
         # 原集群信息中有，新集群信息中没有时进行补充
         if raw_custom_option.get("bkbase_cluster_id"):
-            params["bkbase_cluster_en_name"] = raw_custom_option["bkbase_cluster_id"]
+            params["bkbase_cluster_id"] = raw_custom_option["bkbase_cluster_id"]
             params["version"] = version_num_str
             bkbase_cluster_id = self.sync_es_cluster(params, False)
             params["custom_option"]["bkbase_cluster_id"] = bkbase_cluster_id
@@ -733,9 +725,6 @@ class StorageHandler(object):
             params["custom_option"]["option"] = params["option"]
         elif raw_custom_option.get("option"):
             params["custom_option"]["option"] = raw_custom_option["option"]
-
-        if params.get("cluster_name"):
-            params["display_name"] = params.pop("cluster_name")
 
         cluster_obj = TransferApi.modify_cluster_info(params)
         cluster_obj["auth_info"]["password"] = ""
@@ -997,7 +986,7 @@ class StorageHandler(object):
         password="",
         version_info=False,
         schema=DEFAULT_ES_SCHEMA,
-    ) -> Union[bool, tuple]:
+    ) -> bool | tuple:
         # socket ping
         es_socket_ping(host=domain_name, port=port)
         # 利用es_client对用户名和密码的连通性进行验证, version默认走es7
