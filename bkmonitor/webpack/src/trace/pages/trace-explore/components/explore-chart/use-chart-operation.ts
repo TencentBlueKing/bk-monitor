@@ -28,11 +28,13 @@ import { type MaybeRef, shallowRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 
+import { type TimeRangeType } from '../../../../components/time-range/utils';
+
 /**
  * @description 图表相关操作
  * 1. 框选，复位
  */
-export const useChartOperation = (defaultTimeRange: MaybeRef<string[]>) => {
+export const useChartOperation = (defaultTimeRange: MaybeRef<TimeRangeType>) => {
   const showRestore = shallowRef(false);
   const timeRange = shallowRef(null);
   const cacheTimeRange = shallowRef(null);
