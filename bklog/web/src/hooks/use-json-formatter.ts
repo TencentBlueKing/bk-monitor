@@ -128,15 +128,35 @@ export default class UseJsonFormatter {
     if (!value.toString() || value === '--') {
       return;
     }
+
+    const valueElement = (e.target as HTMLElement).closest('.field-value') as HTMLElement;
+    const fieldName = valueElement?.getAttribute('data-field-name');
+
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
-    const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;
+    const traceView = content.value.querySelector('[data-item-id="trace-view"]') as HTMLElement;
     traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
+
+    // 根据字段信息隐藏虚拟字段相关的选项
+    const field = this.getField(fieldName);
+    const isVirtualField = field?.field_type === '__virtual__';
+    const virtualFieldHiddenItems = ['is', 'not', 'new-search-page-is']; // 需要隐藏的选项
+
+    virtualFieldHiddenItems.forEach((itemId) => {
+      const element = content.value.querySelector(`[data-item-id="${itemId}"]`) as HTMLElement;
+      element?.style.setProperty('display', isVirtualField ? 'none' : 'inline-flex');
+    });
+
+    // 这里的动态样式用于只显示"添加到本次检索"、"从本次检索中排除"
+    const hasSegmentLightStyle = document.getElementById('dynamic-segment-light-style') !== null;
+
+    // 若是应用了动态样式(实时日志/上下文)，且是虚拟字段，则不显示弹窗(弹窗无内容)
+    if (hasSegmentLightStyle && isVirtualField) {
+      return;
+    }
 
     const { offsetX, offsetY } = getClickTargetElement(e);
     const target = setPointerCellClickTargetHandler(e, { offsetX, offsetY });
 
-    const valueElement = (e.target as HTMLElement).closest('.field-value') as HTMLElement;
-    const fieldName = valueElement?.getAttribute('data-field-name');
     const depth = valueElement.closest('[data-depth]')?.getAttribute('data-depth');
 
     target.setAttribute('data-field-value', value);
