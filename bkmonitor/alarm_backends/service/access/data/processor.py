@@ -967,6 +967,50 @@ class AccessDataProcess(BaseAccessDataProcess):
                 type="data",
             ).inc(len(data_points))
 
+    def _update_checkpoint(self, last_time_point: int | None = None) -> int:
+        """
+        更新checkpoint检测点
+
+        :param last_time_point: 最后处理的时间点（触发时间点限制时使用）
+        :return: 更新后的checkpoint值
+        """
+        checkpoint = Checkpoint(self.strategy_group_key)
+        checkpoint_timestamp = checkpoint.get()
+
+        if self.record_list:
+            if last_time_point:
+                # 触发了时间点限制，使用最后处理的时间点作为 checkpoint
+                # 这样下次会从这个时间点继续处理，逐步补齐历史数据
+                last_checkpoint = last_time_point
+            else:
+                # 未触发限制，正常计算 checkpoint
+                # 使用生成器表达式优化内存，避免创建临时列表
+                last_checkpoint = max(checkpoint_timestamp, max(r.time for r in self.record_list))
+        else:
+            # 无数据（去重后）：检查是否查询到了数据
+            # 如果查询到了数据但全部被去重，应该基于查询到的数据的最大时间点更新 checkpoint
+            # 这样可以避免 checkpoint 卡住导致的死循环问题
+            max_queried_data_time = getattr(self, "max_queried_data_time", 0)
+            if max_queried_data_time > 0:
+                # 查询到了数据，但全部被去重
+                # 使用查询到的数据的最大时间点更新 checkpoint，避免死循环
+                last_checkpoint = max(checkpoint_timestamp, max_queried_data_time)
+                logger.info(
+                    f"strategy_group_key({self.strategy_group_key}) "
+                    f"all queried data are duplicated, but checkpoint will be updated to avoid deadlock. "
+                    f"old_checkpoint={arrow.get(checkpoint_timestamp).strftime(constants.STD_LOG_DT_FORMAT)}, "
+                    f"new_checkpoint={arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT)}"
+                )
+            else:
+                # 查询没有返回数据，保持 checkpoint 不变
+                last_checkpoint = checkpoint_timestamp
+
+        if last_checkpoint > 0:
+            # 记录检测点 下次从检测点开始重新检查
+            checkpoint.set(last_checkpoint)
+
+        return last_checkpoint
+
     def push(self, records: list = None, output_client=None):
         # 限制处理的时间点数量（在处理阶段限制，不影响查询）
         # 这样可以控制推送到下游 detect 模块的数据量
@@ -1017,54 +1061,22 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 走原有流程：推送到 Redis 队列，由 detect 异步任务处理
             super().push(records=records, output_client=output_client)
 
-        checkpoint = Checkpoint(self.strategy_group_key)
-        checkpoint_timestamp = checkpoint.get()
-
-        if self.record_list:
-            if last_time_point:
-                # 触发了时间点限制，使用最后处理的时间点作为 checkpoint
-                # 这样下次会从这个时间点继续处理，逐步补齐历史数据
-                last_checkpoint = last_time_point
-            else:
-                # 未触发限制，正常计算 checkpoint
-                # 使用生成器表达式优化内存，避免创建临时列表
-                last_checkpoint = max(checkpoint_timestamp, max(r.time for r in self.record_list))
-        else:
-            # 无数据（去重后）：检查是否查询到了数据
-            # 如果查询到了数据但全部被去重，应该基于查询到的数据的最大时间点更新 checkpoint
-            # 这样可以避免 checkpoint 卡住导致的死循环问题
-            max_queried_data_time = getattr(self, "max_queried_data_time", 0)
-            if max_queried_data_time > 0:
-                # 查询到了数据，但全部被去重
-                # 使用查询到的数据的最大时间点更新 checkpoint，避免死循环
-                last_checkpoint = max(checkpoint_timestamp, max_queried_data_time)
-                logger.info(
-                    f"strategy_group_key({self.strategy_group_key}) "
-                    f"all queried data are duplicated, but checkpoint will be updated to avoid deadlock. "
-                    f"old_checkpoint={arrow.get(checkpoint_timestamp).strftime(constants.STD_LOG_DT_FORMAT)}, "
-                    f"new_checkpoint={arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT)}"
-                )
-            else:
-                # 查询没有返回数据，保持 checkpoint 不变
-                last_checkpoint = checkpoint_timestamp
-
-        if last_checkpoint > 0:
-            # 记录检测点 下次从检测点开始重新检查
-            checkpoint.set(last_checkpoint)
-
-        # 记录access最后一次数据拉取时间
-        access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(strategy_group_key=self.strategy_group_key)
-        key.ACCESS_RUN_TIMESTAMP_KEY.client.set(access_run_timestamp_key, int(time.time()))
-
-        # 非批量任务，记录日志
-        if not self.sub_task_id:
+        if self.sub_task_id is None:
+            # 主任务 需要额外做一些事情
+            # 更新checkpoint
+            last_checkpoint = self._update_checkpoint(last_time_point)
             logger.info(
                 f"strategy_group_key({self.strategy_group_key}), process records({len(self.record_list)}), last_checkpoint({arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT)})"
             )
-        else:
+            # 记录access最后一次数据拉取时间
+            access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(strategy_group_key=self.strategy_group_key)
+            key.ACCESS_RUN_TIMESTAMP_KEY.client.set(access_run_timestamp_key, int(time.time()))
+
+        # 非批量任务，记录日志
+        if self.sub_task_id:
             self.process_counts["total_push_data"] = {
                 "count": len(self.record_list),
-                "last_checkpoint": last_checkpoint,
+                "last_checkpoint": 0,
             }
 
     def process(self):
@@ -1144,7 +1156,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 continue
 
             total_push_data = result["process_counts"].get("total_push_data", {})
-            last_checkpoint = max(last_checkpoint, total_push_data.get("last_checkpoint", 0))
+            last_checkpoint = Checkpoint(self.strategy_group_key).get()
             total_push_count += total_push_data.get("count", 0)
 
         # 拉取数量记录日志
