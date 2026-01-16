@@ -322,7 +322,8 @@ class StorageViewSet(APIViewSet):
         @apiSuccess {Boolean} enable_assessment 是否启用评估
         @apiParamExample {Json} 请求参数
         {
-            "cluster_name": "ES集群",
+            "cluster_name": "es_cluster",
+            "display_name": "ES集群",
             "domain_name": "xxx",
             "port": 9200,
             "schema": "http",
@@ -413,6 +414,7 @@ class StorageViewSet(APIViewSet):
         @apiParam {List} [visible_bk_biz] 可见业务范围
         @apiParamExample {Json} 请求参数
         {
+            "display_name": "ES集群",
             "domain_name": "127.0.0.11",
             "port":9200,
             "schema": "http",
