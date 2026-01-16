@@ -673,14 +673,6 @@ class StorageCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
-        if not attrs["enable_hot_warm"]:
-            return attrs
-
-        if not all(
-            [attrs["hot_attr_name"], attrs["hot_attr_value"], attrs["warm_attr_name"], attrs["warm_attr_value"]]
-        ):
-            raise ValidationError(_("当冷热数据处于开启状态时，冷热节点属性配置不能为空"))
-
         cluster_info_list = TransferApi.get_cluster_info({"cluster_type": "elasticsearch"})
 
         exist_cluster_name_list = set()
@@ -698,6 +690,14 @@ class StorageCreateSerializer(serializers.Serializer):
 
         if attrs.get("display_name") in exist_display_name_list:
             raise ValidationError(_("该集群名称已存在"))
+
+        if not attrs["enable_hot_warm"]:
+            return attrs
+
+        if not all(
+            [attrs["hot_attr_name"], attrs["hot_attr_value"], attrs["warm_attr_name"], attrs["warm_attr_value"]]
+        ):
+            raise ValidationError(_("当冷热数据处于开启状态时，冷热节点属性配置不能为空"))
 
         return attrs
 
@@ -760,13 +760,6 @@ class StorageUpdateSerializer(serializers.Serializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
-        if not attrs["enable_hot_warm"]:
-            return attrs
-        if not all(
-            [attrs["hot_attr_name"], attrs["hot_attr_value"], attrs["warm_attr_name"], attrs["warm_attr_value"]]
-        ):
-            raise ValidationError(_("当冷热数据处于开启状态时，冷热节点属性配置不能为空"))
-
         cluster_info_list = TransferApi.get_cluster_info({"cluster_type": "elasticsearch"})
 
         exist_display_name_list = set()
@@ -780,6 +773,16 @@ class StorageUpdateSerializer(serializers.Serializer):
 
         if attrs.get("display_name") in exist_display_name_list:
             raise ValidationError(_("该集群名称已存在"))
+
+        attrs.pop("cluster_name")
+
+        if not attrs["enable_hot_warm"]:
+            return attrs
+
+        if not all(
+            [attrs["hot_attr_name"], attrs["hot_attr_value"], attrs["warm_attr_name"], attrs["warm_attr_value"]]
+        ):
+            raise ValidationError(_("当冷热数据处于开启状态时，冷热节点属性配置不能为空"))
 
         return attrs
 
