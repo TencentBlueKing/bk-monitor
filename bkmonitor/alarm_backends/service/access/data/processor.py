@@ -79,6 +79,8 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
     def post_handle(self):
         # 释放主机信息本地内存
         clear_mem_cache("host_cache")
+        # 释放服务实例信息本地内存
+        clear_mem_cache("service_instance_cache")
 
     def _check_circuit_breaking_before_pull(self) -> bool:
         """在数据查询前检查策略级别熔断并剔除触发熔断的策略。
