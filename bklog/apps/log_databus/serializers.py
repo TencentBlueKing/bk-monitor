@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 import base64
 
 from django.conf import settings
+from django.core.validators import RegexValidator
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -645,7 +646,13 @@ class StorageCreateSerializer(serializers.Serializer):
     创建集群序列化
     """
 
-    cluster_name = serializers.CharField(label=_("集群英文名称"), regex=CLUSTER_NAME_EN_REGEX, required=True)
+    cluster_name = serializers.CharField(
+        label=_("集群英文名称"),
+        required=True,
+        validators=[
+            RegexValidator(regex=CLUSTER_NAME_EN_REGEX, message=_("集群英文名称格式有误"), code="invalid_cluster_name")
+        ],
+    )
     display_name = serializers.CharField(label=_("集群中文名称"), required=True)
     domain_name = serializers.CharField(label=_("集群域名"), required=True)
     port = serializers.IntegerField(label=_("集群端口"), required=True)
