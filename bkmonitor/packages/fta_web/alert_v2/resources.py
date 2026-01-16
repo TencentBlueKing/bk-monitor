@@ -214,7 +214,10 @@ class AlertEventBaseResource(Resource, abc.ABC):
         if not data_source or data_source not in cls.supported_event_sources:
             return None
 
-        query_config: dict[str, Any] = get_alert_query_config_or_none(alert)
+        query_config: dict[str, Any] | None = get_alert_query_config_or_none(alert)
+        if not query_config:
+            return None
+
         result_table_id: str = query_config.get("result_table_id") or ""
         if not result_table_id:
             return None

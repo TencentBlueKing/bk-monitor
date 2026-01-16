@@ -38,7 +38,7 @@ class AlertRedirectInfo:
     """告警重定向所需信息数据类"""
 
     alert: AlertDocument
-    valid_dimensions: dict
+    dimensions: dict
     query_config: dict
     duration: int
 
@@ -68,16 +68,13 @@ def _get_alert_redirect_info(action_id: str) -> AlertRedirectInfo | None:
     if not query_config:
         return None
 
-    # 获取告警的有效维度信息
-    dimensions = get_alert_dimensions(alert)
-
     # 获取持续时间
     duration: int = alert.duration or 60
 
     return AlertRedirectInfo(
         alert=alert,
         query_config=query_config,
-        valid_dimensions=dimensions,
+        dimensions=get_alert_dimensions(alert),
         duration=duration,
     )
 
@@ -123,7 +120,7 @@ def generate_log_search_url(bk_biz_id, collect_id):
         # 构造日志查询过滤条件
         log_search_condition: dict[str, Any] = build_log_search_condition(
             query_config=query_config,
-            dimensions=redirect_info.valid_dimensions,
+            dimensions=redirect_info.dimensions,
         )
 
         params = {
@@ -147,7 +144,7 @@ def generate_apm_rpc_url(bk_biz_id: int, collect_id: str) -> str | None:
     return ApmAlertHelper.get_rpc_url(
         bk_biz_id,
         redirect_info.alert.strategy,
-        redirect_info.valid_dimensions,
+        redirect_info.dimensions,
         redirect_info.alert.event.time,
         redirect_info.duration,
     )
@@ -162,7 +159,7 @@ def generate_apm_trace_url(bk_biz_id: int, collect_id: str) -> str | None:
     return ApmAlertHelper.get_trace_url(
         bk_biz_id,
         redirect_info.alert.strategy,
-        redirect_info.valid_dimensions,
+        redirect_info.dimensions,
         redirect_info.alert.event.time,
         redirect_info.duration,
     )
@@ -186,7 +183,7 @@ def generate_event_explore_url(bk_biz_id: int, collect_id: str) -> str | None:
     # 添加 where 过滤条件
     query_filter["where"] = merge_dimensions_into_conditions(
         agg_condition=query_config.get("agg_condition"),
-        dimensions=redirect_info.valid_dimensions,
+        dimensions=redirect_info.dimensions,
     )
 
     offset: int = 5 * 60 * 1000

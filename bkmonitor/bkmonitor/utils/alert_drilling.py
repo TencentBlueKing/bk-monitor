@@ -13,7 +13,7 @@ from typing import Any
 from bkmonitor.documents import AlertDocument
 
 
-_MONITOR_TO_LOG_OPERATOR_MAP: dict[str, str] = {
+MONITOR_TO_LOG_OPERATOR_MAP: dict[str, str] = {
     "=": "=",
     "!=": "!=",
     "eq": "=",
@@ -29,12 +29,6 @@ _MONITOR_TO_LOG_OPERATOR_MAP: dict[str, str] = {
     "contains": "contains",
     "not contains": "not contains",
 }
-
-
-def convert_operator_to_log_platform(operator: str) -> str | None:
-    """将监控平台操作符转换为日志平台操作符"""
-
-    return _MONITOR_TO_LOG_OPERATOR_MAP.get(operator)
 
 
 def get_alert_query_config_or_none(alert: AlertDocument) -> dict[str, Any] | None:
@@ -114,7 +108,7 @@ def build_log_search_condition(query_config: dict[str, Any], dimensions: dict[st
 
             # 转换操作符为日志平台格式，如果不支持则跳过该条件
             operator: str = condition.get("method") or "="
-            log_operator: str | None = convert_operator_to_log_platform(operator)
+            log_operator: str | None = MONITOR_TO_LOG_OPERATOR_MAP.get(operator)
             if log_operator is None:
                 continue
 
@@ -148,12 +142,8 @@ def merge_dimensions_into_conditions(
     # 使用告警策略配置的汇聚条件作为初始过滤条件
     filter_conditions: list[dict[str, Any]] = agg_condition or []
 
-    # 构建 key → 索引位置的映射，并处理操作符转换（事件检索页的不等于操作符为 ne）
-    condition_index: dict[str, int] = {}
-    for idx, condition in enumerate(filter_conditions):
-        condition_index[condition["key"]] = idx
-        if condition["method"] == "neq":
-            condition["method"] = "ne"
+    # 构建 key → 索引位置的映射，方便后续更新替换
+    condition_index: dict[str, int] = {condition["key"]: idx for idx, condition in enumerate(filter_conditions)}
 
     # 遍历告警的原始维度信息，增加维度过滤条件
     for key, value in dimensions.items():
