@@ -116,9 +116,12 @@ const isFilterSecFocused = computed(
   () => isGloalUsage.value
       && store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition,
 );
-const indexItem = computed(() => store.state.indexItem);
-const keyword = computed(() => indexItem.value.keyword);
-const addition = computed(() => indexItem.value.addition);
+// const indexItem = computed(() => store.state.indexItem);
+const keyword = computed(() => {
+  const value = store.state.indexItem.keyword;
+  return value;
+});
+const addition = computed(() => store.state.indexItem.addition);
 const searchMode = computed(() => (!isGloalUsage.value
   ? SEARCH_MODE_DIC[localModeActiveIndex.value]
   : SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui'),
@@ -181,12 +184,47 @@ watch(
   },
 );
 
+// 监听 computed keyword 的变化
 watch(
-  keyword,
-  () => {
-    sqlQueryValue.value = keyword.value;
+  () => keyword.value,
+  (newValue, oldValue) => {
+    if (newValue !== sqlQueryValue.value) {
+      sqlQueryValue.value = newValue;
+    }
   },
   { immediate: true },
+);
+
+// 额外监听 store 中的 keyword 变化（深度监听）
+watch(
+  () => store.state.indexItem.keyword,
+  (newValue, oldValue) => {
+    if (newValue !== sqlQueryValue.value) {
+      sqlQueryValue.value = newValue;
+    }
+  },
+  { immediate: true },
+);
+
+// 监听 aiQueryResult 的变化，当 AI 分析完成时，强制同步 sqlQueryValue
+watch(
+  () => props.aiQueryResult?.queryString,
+  (newQueryString, oldQueryString) => {
+    // 当 AI 分析结果返回时（从 undefined/null 变为有值，或者值发生变化），强制同步 sqlQueryValue
+    // 这样可以确保即使用户在 AI 分析过程中输入了内容，最终也会被 AI 结果覆盖
+    if (newQueryString) {
+      // 使用 nextTick 确保 store 中的 keyword 已经更新
+      nextTick(() => {
+        const storeKeyword = store.state.indexItem.keyword;
+        // 如果 store 中的 keyword 与 AI 结果一致，或者 AI 结果刚返回（oldQueryString 为空），则强制同步
+        if (storeKeyword === newQueryString || !oldQueryString) {
+          if (sqlQueryValue.value !== newQueryString) {
+            sqlQueryValue.value = newQueryString;
+          }
+        }
+      });
+    }
+  },
 );
 
 watch(clearSearchValueNum, () => {

@@ -328,9 +328,6 @@ export default defineComponent({
           explain = '',
         } = contentObj;
 
-        aiQueryResult.value.parseResult = parseResult;
-        aiQueryResult.value.explain = explain;
-
         const queryParams = { search_mode: 'sql' };
         let needReplace = false;
         if (startTime && endTime) {
@@ -358,6 +355,9 @@ export default defineComponent({
             store.dispatch('requestIndexSetQuery');
           });
         }
+
+        aiQueryResult.value.parseResult = parseResult;
+        aiQueryResult.value.explain = explain;
       } catch (e) {
         console.error(e);
         bkMessage({
@@ -482,6 +482,11 @@ export default defineComponent({
           on-text-to-query={(value: string) => {
             // 根据当前模式确定触发来源
             const triggerSource = `${currentSearchMode.value}_mode` as 'ui_mode' | 'sql_mode';
+
+            if (triggerSource === 'sql_mode') {
+              store.commit('updateIndexItemParams', { keyword: value });
+            }
+
             handleTextToQuery(value, triggerSource);
           }}
           is-ai-loading={isAiLoading.value}
