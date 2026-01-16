@@ -60,7 +60,7 @@ export default defineComponent({
     const { t } = useI18n();
     const boxWrapRef = useTemplateRef<HTMLDivElement>('boxWrap');
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmDetail, loading, bizId, alarmId } = storeToRefs(alarmCenterDetailStore);
+    const { alarmDetail, loading, bizId, alarmId, timeRange } = storeToRefs(alarmCenterDetailStore);
     const currentPanel = shallowRef(alarmDetail.value?.alarmTabList?.[0]?.name);
     const { alarmStatusOverview, alarmStatusActions, alarmStatusTotal } = useAlarmBasicInfo();
 
@@ -173,6 +173,8 @@ export default defineComponent({
         case ALARM_CENTER_PANEL_TAB_MAP.VIEW:
           return (
             <AlarmView
+              bizId={bizId.value}
+              defaultTimeRange={timeRange.value}
               detail={alarmDetail.value}
               onRelatedEventsTimeRange={handleRelatedEventsTimeRange}
             />
