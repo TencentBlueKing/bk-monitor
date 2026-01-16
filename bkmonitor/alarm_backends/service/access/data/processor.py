@@ -46,7 +46,7 @@ from alarm_backends.service.access.data.filters import (
     RangeFilter,
 )
 from alarm_backends.service.access.data.fullers import TopoNodeFuller
-from alarm_backends.service.access.data.records import DataRecord
+from alarm_backends.service.access.data.records import DataRecord, calculate_record_id, get_value_from_raw_data
 from alarm_backends.service.access.priority import PriorityChecker
 from alarm_backends.core.circuit_breaking.manager import AccessDataCircuitBreakingManager
 from bkmonitor.utils.common_utils import count_md5, get_local_ip
@@ -79,6 +79,8 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
     def post_handle(self):
         # 释放主机信息本地内存
         clear_mem_cache("host_cache")
+        # 释放服务实例信息本地内存
+        clear_mem_cache("service_instance_cache")
 
     def _check_circuit_breaking_before_pull(self) -> bool:
         """在数据查询前检查策略级别熔断并剔除触发熔断的策略。
@@ -605,6 +607,9 @@ class AccessDataProcess(BaseAccessDataProcess):
         dup_obj = Duplicate(self.strategy_group_key, strategy_id=first_item.strategy.id, ttl=max_agg_interval * 10)
         duplicate_counts = none_point_counts = 0
 
+        # 预加载去重缓存
+        dup_obj.preload_duplicate_cache(points)
+
         # 是否有优先级
         have_priority = False
         for item in self.items:
@@ -613,33 +618,64 @@ class AccessDataProcess(BaseAccessDataProcess):
                 break
 
         max_data_time = 0
+        # 记录所有查询到的数据的最大时间点（包括重复数据）
+        # 用于在去重后 record_list 为空时，仍然能够更新 checkpoint，避免死循环
+        max_queried_data_time = 0
+
+        non_duplicate_records = []
+
         for record in reversed(points):
-            point = DataRecord(self.items, record)
-
-            if point.value is not None:
-                # 去除重复数据
-                if dup_obj.is_duplicate(point):
-                    duplicate_counts += 1
-                    # 有优先级的策略，重复数据需要保留，后续再过滤
-                    if have_priority:
-                        point.is_duplicate = True
-                        records.append(point)
-                else:
-                    dup_obj.add_record(point)
-                    records.append(point)
-
-                    # 只观察非重复数据
-                    if point.time > max_data_time:
-                        max_data_time = point.time
-            else:
+            # 先进行轻量级 value 检查
+            value = get_value_from_raw_data(record, first_item)
+            if value is None:
                 none_point_counts += 1
+                continue
+
+            # 计算 record_id 用于去重判断
+            record_id, record_time = calculate_record_id(record, first_item)
+
+            # 记录所有数据的最大时间点（不管是否重复）
+            if record_time > max_queried_data_time:
+                max_queried_data_time = record_time
+
+            # 去重判断
+            if dup_obj.is_duplicate_by_id(record_id, record_time):
+                duplicate_counts += 1
+                # 有优先级的策略，重复数据需要保留，后续再过滤
+                if have_priority:
+                    point = DataRecord(self.items, record)
+                    point.is_duplicate = True
+                    records.append(point)
+            else:
+                # 非重复数据创建 DataRecord
+                point = DataRecord(self.items, record)
+                records.append(point)
+                non_duplicate_records.append(point)
+
+                # 只观察非重复数据
+                if point.time > max_data_time:
+                    max_data_time = point.time
+
+        # 批量添加非重复记录到去重缓存
+        if non_duplicate_records:
+            dup_obj.add_records_batch(non_duplicate_records)
+
+        # 保存到实例变量，供 push 方法使用
+        self.max_queried_data_time = max_queried_data_time
+
+        # 保存 Duplicate 对象，供 push 方法使用
+        # 用于在时间点限制后，清理被丢弃时间点的去重缓存
+        self.dup_obj = dup_obj
 
         # 如果当前数据延迟超过一定值，则上报延迟埋点
         # 对于非batch的数据，有可能存在数据稀疏的情况，因此在filter duplicate后再进行延迟统计
         if max_data_time > 0 and not self.batch_timestamp and self.until_timestamp:
             self.observe_big_latency_datasource(first_item, max_data_time)
 
-        dup_obj.refresh_cache()
+        # 修改：不在这里刷新缓存，而是在 push() 中，时间点限制之后刷新
+        # 这样可以确保只有被处理的数据才会被标记为"已见过"
+        # dup_obj.refresh_cache()
+
         self.record_list = records
         point_count = len(records)
         if point_count:
@@ -666,9 +702,9 @@ class AccessDataProcess(BaseAccessDataProcess):
                     "none_point_count": none_point_counts,
                 }
 
-    def _limit_records_by_time_points(self, records: list) -> tuple[list, int | None]:
+    def _limit_records_by_time_points(self, records: list) -> tuple[list, int | None, set | None]:
         """
-        限制处理的时间点数量（方案 B）。
+        限制处理的时间点数量。
 
         限制的是唯一时间点数量，同一时间点的所有序列数据会被完整保留或完整丢弃。
         这样可以控制推送到下游 detect 模块的数据量，避免故障恢复后一次性处理过量数据。
@@ -682,10 +718,10 @@ class AccessDataProcess(BaseAccessDataProcess):
             records: 原始数据记录列表
 
         Returns:
-            tuple: (限制后的记录列表, 最后处理的时间点 或 None（未触发限制）)
+            tuple: (限制后的记录列表, 最后处理的时间点 或 None（未触发限制）, 被丢弃的时间点集合 或 None)
         """
         if not records:
-            return records, None
+            return records, None, None
 
         # 检查是否为时序数据类型
         first_item = self.items[0]
@@ -693,7 +729,7 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         if not is_time_series:
             # 非时序数据，不做限制
-            return records, None
+            return records, None, None
 
         max_time_points = settings.ACCESS_DATA_MAX_TIME_POINTS
 
@@ -702,10 +738,11 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         if len(unique_times) <= max_time_points:
             # 时间点数量未超限，不做限制
-            return records, None
+            return records, None, None
 
         # 取前 N 个时间点
         allowed_times = set(unique_times[:max_time_points])
+        discarded_times = set(unique_times[max_time_points:])
         last_time_point = max(allowed_times)
 
         # 过滤：只保留允许时间点内的所有序列数据
@@ -718,7 +755,7 @@ class AccessDataProcess(BaseAccessDataProcess):
             f"records: {len(records)} -> {len(limited_records)}"
         )
 
-        return limited_records, last_time_point
+        return limited_records, last_time_point, discarded_times
 
     def _is_all_static_threshold(self, item: Item) -> bool:
         """
@@ -890,9 +927,44 @@ class AccessDataProcess(BaseAccessDataProcess):
             ).inc(len(data_points))
 
     def push(self, records: list = None, output_client=None):
-        # 方案 B：限制处理的时间点数量（在处理阶段限制，不影响查询）
+        # 限制处理的时间点数量（在处理阶段限制，不影响查询）
         # 这样可以控制推送到下游 detect 模块的数据量
-        limited_records, last_time_point = self._limit_records_by_time_points(self.record_list)
+        limited_records, last_time_point, discarded_times = self._limit_records_by_time_points(self.record_list)
+
+        # 清理被时间点限制丢弃的数据的去重缓存
+        # 确保只有被处理的数据才会被标记为"已见过"
+        dup_obj = getattr(self, "dup_obj", None)
+        if dup_obj and discarded_times:
+            # 提前获取 strategy_id，避免循环内重复检查
+            strategy_id = dup_obj.strategy_id
+
+            # 从 record_ids_cache 和 pending_to_add 中移除被丢弃时间点的 key
+            for discarded_time in discarded_times:
+                dup_key = key.ACCESS_DUPLICATE_KEY.get_key(
+                    strategy_group_key=self.strategy_group_key, dt_event_time=discarded_time
+                )
+                if strategy_id is not None:
+                    dup_key.strategy_id = strategy_id
+
+                # 使用 pop 方法更安全，避免 KeyError 和并发问题
+                dup_obj.record_ids_cache.pop(dup_key, None)
+                dup_obj.pending_to_add.pop(dup_key, None)
+
+            logger.info(
+                f"strategy_group_key({self.strategy_group_key}) "
+                f"cleaned duplicate cache for {len(discarded_times)} discarded time points"
+            )
+
+        # 刷新去重缓存，将保留的数据写入 Redis
+        if dup_obj:
+            dup_obj.refresh_cache()
+        else:
+            # 异常情况：dup_obj 为 None 可能表示 filter_duplicates 未被调用
+            logger.warning(
+                f"strategy_group_key({self.strategy_group_key}) "
+                f"dup_obj is None, skip refresh_cache. This may indicate filter_duplicates was not called."
+            )
+
         self.record_list = limited_records
 
         # 判断是否可以合并处理（access-detect 合并）
@@ -917,10 +989,23 @@ class AccessDataProcess(BaseAccessDataProcess):
                 # 使用生成器表达式优化内存，避免创建临时列表
                 last_checkpoint = max(checkpoint_timestamp, max(r.time for r in self.record_list))
         else:
-            # 无数据：保持 checkpoint 不变
-            # 注意：方案 B 不需要空数据检测逻辑，因为查询逻辑保持不变
-            # 如果查询返回空数据，说明确实没有数据，无需特殊处理
-            last_checkpoint = checkpoint_timestamp
+            # 无数据（去重后）：检查是否查询到了数据
+            # 如果查询到了数据但全部被去重，应该基于查询到的数据的最大时间点更新 checkpoint
+            # 这样可以避免 checkpoint 卡住导致的死循环问题
+            max_queried_data_time = getattr(self, "max_queried_data_time", 0)
+            if max_queried_data_time > 0:
+                # 查询到了数据，但全部被去重
+                # 使用查询到的数据的最大时间点更新 checkpoint，避免死循环
+                last_checkpoint = max(checkpoint_timestamp, max_queried_data_time)
+                logger.info(
+                    f"strategy_group_key({self.strategy_group_key}) "
+                    f"all queried data are duplicated, but checkpoint will be updated to avoid deadlock. "
+                    f"old_checkpoint={arrow.get(checkpoint_timestamp).strftime(constants.STD_LOG_DT_FORMAT)}, "
+                    f"new_checkpoint={arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT)}"
+                )
+            else:
+                # 查询没有返回数据，保持 checkpoint 不变
+                last_checkpoint = checkpoint_timestamp
 
         if last_checkpoint > 0:
             # 记录检测点 下次从检测点开始重新检查

@@ -20,8 +20,8 @@ from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from functools import reduce
 from io import StringIO
-from typing import Any
 from itertools import chain
+from typing import Any
 
 from django.conf import settings
 from django.core.cache import cache
@@ -1944,10 +1944,14 @@ class ExportActionResource(Resource):
 
     class RequestSerializer(ActionSearchSerializer):
         ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
 
     def perform_request(self, validated_request_data):
         handler = ActionQueryHandler(**validated_request_data)
-        return resource.export_import.export_package(list_data=handler.export())
+        return resource.export_import.export_package(
+            list_data=handler.export(),
+            bk_biz_id=validated_request_data["bk_biz_id"],
+        )
 
 
 class AlertExtendFields(Resource):
