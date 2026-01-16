@@ -1943,6 +1943,7 @@ class ExportActionResource(Resource):
     """
 
     class RequestSerializer(ActionSearchSerializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
         ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
         bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
 
