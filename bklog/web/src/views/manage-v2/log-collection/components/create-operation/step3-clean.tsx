@@ -250,7 +250,6 @@ export default defineComponent({
     const isEditCleanItem = computed(() => route.name === 'clean-edit' || route.name === 'v2-clean-edit');
 
     onMounted(() => {
-      console.log('mounted step3 clean');
       // 清洗列表进入
       if (props.isCleanField) {
         if (isEditCleanItem.value) {
@@ -989,7 +988,7 @@ export default defineComponent({
             <bk-input
               type='textarea'
               value={logOriginal.value}
-              on-change={val => {
+              on-change={(val: string) => {
                 logOriginal.value = val;
               }}
             />
@@ -1002,7 +1001,7 @@ export default defineComponent({
               size='large'
               theme='primary'
               value={isClean.value}
-              disabled={props.isTempField}
+              disabled={props.isTempField || (props.isCleanField && !cleanCollectorId.value)}
               on-change={(val: boolean) => {
                 const type = val ? 'bk_log_json' : 'bk_log_text';
                 cleaningMode.value = type;
