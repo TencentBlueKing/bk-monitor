@@ -871,9 +871,17 @@ const store = new Vuex.Store({
       // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
       const filterList = (isVersion2Payload ? payload.displayFieldNames : payload || displayFields)
         ?? state.indexFieldInfo.display_fields;
+      
+      // 性能优化：使用 Map 缓存字段查找，从 O(n*m) 降到 O(n+m)
+      // 当字段数量很大（如1500个）时，能显著提升性能
+      const fieldsMap = new Map();
+      state.indexFieldInfo.fields.forEach(field => {
+        fieldsMap.set(field.field_name, field);
+      });
+      
       const visibleFields = filterList
         .map((displayName) => {
-          const field = state.indexFieldInfo.fields.find(field => field.field_name === displayName);
+          const field = fieldsMap.get(displayName);
           if (field) {
             return field;
           }

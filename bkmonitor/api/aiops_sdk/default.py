@@ -97,6 +97,8 @@ class TfGroupPredictResource(TfSdkResource, SdkGroupPredictResource):
 
 
 class KpiSdkResource(SdkResource):
+    name = "kpi"
+
     # 智能异常检测远程访问地址
     base_url = settings.AIOPS_SERVER_KPI_URL
 
@@ -108,9 +110,16 @@ class BKFaraGrayMixin:
         serving_config = validated_request_data.get("serving_config", {})
         grey_to_bkfara = serving_config.get("grey_to_bkfara", False)
 
+        # 灰度开启
         if grey_to_bkfara:
-            base_url = "http://bk-incident-aiops-service-aiops-serving-kpi:8000"
-            action = self.action.replace("/api/aiops/", "/aiops/serving/")
+            # 不同集群走网关分发
+            if settings.BKFARA_AIOPS_SERVICE_USE_APIGW:
+                base_url = settings.BKFARA_AIOPS_SERVICE_APIGW_HOST
+                action = self.action.replace("/api/aiops/", f"/algorithm/serving/{self.name}/")
+            # 相同集群直接访问service
+            else:
+                base_url = f"http://{settings.BKFARA_AIOPS_SERVICE_HOST_PREFIX}-{self.name}:8000"
+                action = self.action.replace("/api/aiops/", "/aiops/serving/")
         else:
             base_url = "http://bk-aiops-serving-kpi:8000"
             action = self.action
@@ -141,6 +150,7 @@ class KpiGroupPredictResource(KpiSdkResource, SdkGroupPredictResource):
 class AcdSdkResource(SdkResource):
     # 离群检测远程访问地址
     base_url = settings.AIOPS_SERVER_ACD_URL
+
 
 class AcdPredictResource(AcdSdkResource, SdkPredictResource):
     """离群检测SDK执行时序预测逻辑."""

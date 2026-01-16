@@ -58,6 +58,13 @@ class GetTGPATaskListSerializer(serializers.Serializer):
     """
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    status = serializers.CharField(label=_("任务状态"), required=False, allow_null=True)
+    scene = serializers.CharField(label=_("任务阶段"), required=False, allow_null=True)
+    created_by = serializers.CharField(label=_("创建人"), required=False, allow_null=True)
+    ordering = serializers.CharField(label=_("排序字段"), required=False, allow_null=True, allow_blank=True)
+    keyword = serializers.CharField(label=_("关键字"), required=False, allow_null=True, allow_blank=True)
+    page = serializers.IntegerField(label=_("页码"), default=1)
+    pagesize = serializers.IntegerField(label=_("分页大小"), default=10)
 
 
 class GetDownloadUrlSerializer(serializers.Serializer):
@@ -67,6 +74,14 @@ class GetDownloadUrlSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     id = serializers.IntegerField(label=_("任务ID"))
+
+
+class GetUsernameListSerializer(serializers.Serializer):
+    """
+    获取用户名列表
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
 
 
 class GetIndexSetIdSerializer(serializers.Serializer):
@@ -111,32 +126,6 @@ class SyncReportSerializer(serializers.Serializer):
         if not attrs.get("openid_list") and not attrs.get("file_name_list"):
             raise serializers.ValidationError(_("openid_list 和 file_name_list 不能同时为空"))
         return attrs
-
-
-class GetOpenidListSerializer(serializers.Serializer):
-    """
-    获取openid列表
-    """
-
-    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-    keyword = serializers.CharField(label=_("关键字"), required=False, allow_null=True, allow_blank=True)
-    start_time = serializers.IntegerField(label=_("开始时间"), required=False, allow_null=True)
-    end_time = serializers.IntegerField(label=_("结束时间"), required=False, allow_null=True)
-    page = serializers.IntegerField(label=_("页码"), default=1)
-    pagesize = serializers.IntegerField(label=_("分页大小"), default=10)
-
-
-class GetFileNameListSerializer(serializers.Serializer):
-    """
-    获取文件名列表
-    """
-
-    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-    keyword = serializers.CharField(label=_("关键字"), required=False, allow_null=True, allow_blank=True)
-    start_time = serializers.IntegerField(label=_("开始时间"), required=False, allow_null=True)
-    end_time = serializers.IntegerField(label=_("结束时间"), required=False, allow_null=True)
-    page = serializers.IntegerField(label=_("页码"), default=1)
-    pagesize = serializers.IntegerField(label=_("分页大小"), default=10)
 
 
 class GetFileStatusSerializer(serializers.Serializer):
