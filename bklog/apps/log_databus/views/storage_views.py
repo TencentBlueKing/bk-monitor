@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from rest_framework import serializers
 from rest_framework.response import Response
 
@@ -456,6 +456,7 @@ class StorageViewSet(APIViewSet):
             "message": ""
         }
         """
+        request.data["cluster_id"] = kwargs["cluster_id"]
         data = self.params_valid(StorageUpdateSerializer)
         data.update(
             {

@@ -563,7 +563,7 @@ class StorageHandler:
         setup_config = params["setup_config"]
         bk_biz_id = params["bk_biz_id"]
         username = get_request_username()
-        resource_set_id = f"{bk_biz_id}_{params['cluster_name']}" if is_create else params["bkbase_cluster_id"]
+        resource_set_id = f"{bk_biz_id}_{params['cluster_name']}" if is_create else params.pop("bkbase_cluster_id")
         cluster_name = params.get("cluster_name")
         # 获取节点信息
         hot_node_num, warm_node_num = self.get_hot_warm_node_info(params)

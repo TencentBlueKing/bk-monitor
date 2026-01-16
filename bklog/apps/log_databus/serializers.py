@@ -701,10 +701,10 @@ class StorageCreateSerializer(serializers.Serializer):
                 exist_display_name_list.add(cluster_config.get("display_name"))
 
         if attrs.get("cluster_name") in exist_cluster_name_list:
-            raise ValidationError(_("该集群中文名称已存在"))
+            raise ValidationError(_("该集群英文名称已存在"))
 
         if attrs.get("display_name") in exist_display_name_list:
-            raise ValidationError(_("该集群英文名称已存在"))
+            raise ValidationError(_("该集群中文名称已存在"))
 
         return attrs
 
@@ -739,7 +739,14 @@ class StorageBatchDetectSerializer(serializers.Serializer):
 
 
 class StorageUpdateSerializer(serializers.Serializer):
-    cluster_name = serializers.CharField(label=_("集群名称"), required=False)
+    cluster_id = serializers.IntegerField(label=_("集群ID"), required=True)
+    cluster_name = serializers.CharField(
+        label=_("集群英文名称"),
+        required=False,
+        validators=[
+            RegexValidator(regex=CLUSTER_NAME_EN_REGEX, message=_("集群英文名称格式有误"), code="invalid_cluster_name")
+        ],
+    )
     display_name = serializers.CharField(label=_("集群中文名称"), required=True)
     domain_name = serializers.CharField(label=_("集群域名"), required=True)
     port = serializers.IntegerField(label=_("端口"), required=True)
@@ -772,6 +779,21 @@ class StorageUpdateSerializer(serializers.Serializer):
             [attrs["hot_attr_name"], attrs["hot_attr_value"], attrs["warm_attr_name"], attrs["warm_attr_value"]]
         ):
             raise ValidationError(_("当冷热数据处于开启状态时，冷热节点属性配置不能为空"))
+
+        cluster_info_list = TransferApi.get_cluster_info({"cluster_type": "elasticsearch"})
+
+        exist_display_name_list = set()
+
+        for item in cluster_info_list:
+            cluster_config = item.get("cluster_config", {})
+            if cluster_config.get("cluster_id") == attrs.get("cluster_id"):
+                continue
+            if cluster_config.get("display_name"):
+                exist_display_name_list.add(cluster_config.get("display_name"))
+
+        if attrs.get("display_name") in exist_display_name_list:
+            raise ValidationError(_("该集群中文名称已存在"))
+
         return attrs
 
 
