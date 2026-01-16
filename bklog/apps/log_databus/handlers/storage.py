@@ -653,7 +653,7 @@ class StorageHandler:
 
         Permission().grant_creator_action(
             resource=ResourceEnum.ES_SOURCE.create_simple_instance(
-                es_source_id, attribute={"name": params.get("cluster_name")}
+                es_source_id, attribute={"name": params.get("display_name") or params.get("cluster_name")}
             )
         )
 
