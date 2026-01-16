@@ -72,6 +72,7 @@ export default ({
   const scrollWidth = ref(0);
   const scrollDirection = ref('down');
   const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
+  let scrollElement = null;
 
   // let scrollElementOffset = 0;
   let isComputingCalcOffset = false;
@@ -80,7 +81,12 @@ export default ({
     if (window.__IS_MONITOR_TRACE__) {
       return deepQueryShadowSelector(GLOBAL_SCROLL_SELECTOR);
     }
-    return document.body.querySelector(GLOBAL_SCROLL_SELECTOR);
+
+    if (!scrollElement) {
+      scrollElement = document.body.querySelector(GLOBAL_SCROLL_SELECTOR);
+    }
+
+    return scrollElement;
   };
 
   const debounceStopComputing = debounce(() => {
@@ -124,6 +130,7 @@ export default ({
 
   return {
     scrollToTop,
+    getScrollElement,
     hasScrollX,
     computeRect: debounceComputeRect,
     scrollDirection,

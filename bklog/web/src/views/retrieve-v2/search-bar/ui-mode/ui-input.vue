@@ -10,7 +10,6 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import jsCookie from 'js-cookie';
 
-import PopInstanceUtil from '@/global/pop-instance-util';
 import IPSelector from '../components/ip-selector';
 import { operatorMapping, translateKeys } from '../utils/const-values';
 import {
@@ -35,14 +34,6 @@ const store = useStore();
 const { t } = useLocale();
 const popoverRefs = ref(new Map());
 const morePopoverRefs = ref([]);
-
-const refChoiceList = ref(null);
-
-const choicePopInstanceUtil = new PopInstanceUtil({ refContent: () => refChoiceList.value,
-  arrow: false,
-  newInstance: true,
-  tippyOptions: { placement: 'bottom-start', appendTo: document.body },
-});
 
 const language = (jsCookie.get('blueking_language') || 'zh-cn');
 const aiSpanPadding = ({
@@ -71,8 +62,7 @@ const setMorePopoverRef = (el, index) => {
   }
 };
 const inputValueLength = ref(0);
-// 当前选中的选择项索引：0=全文检索，1=AI 搜索
-const selectedChoiceIndex = ref(0);
+
 // 动态设置placeHolder
 const inputPlaceholder = computed(() => {
   if (inputValueLength.value === 0) {
@@ -224,10 +214,18 @@ const {
   showPopoverOnClick: false,
 });
 
+const debounceShowInstance = () => {
+  const target = refSearchInput.value?.closest(".search-item");
+  if (target) {
+    delayShowInstance(target);
+  }
+};
+
 const closeTippyInstance = () => {
   setIsDocumentMousedown(false);
   hideTippyInstance();
 };
+
 
 /**
  * 执行点击弹出操作项方法
@@ -371,25 +369,6 @@ const handleInputValueEnter = (e) => {
     return;
   }
 
-  // 如果选择列表弹出框显示，处理选择列表的回车键
-  if (choicePopInstanceUtil.isShown()) {
-    e.preventDefault();
-    const type = selectedChoiceIndex.value === 0 ? 'fulltext' : 'ai';
-    choicePopInstanceUtil?.hide();
-
-    if (type === 'fulltext') {
-      handleChoiceItemClick(type);
-      selectedChoiceIndex.value = 0;
-      return;
-    }
-
-    if (type === 'ai') {
-      handleChoiceItemClick(type);
-      selectedChoiceIndex.value = 0;
-      return;
-    }
-  }
-
   // 正常处理输入框的回车键
   if (!isGlobalKeyEnter.value) {
     handleSaveQueryClick(undefined);
@@ -425,95 +404,23 @@ const handleFullTextInputBlur = (e) => {
     e.target.style.setProperty('width', '12px');
     e.target.value = '';
     queryItem.value = '';
-    // 重置选中状态
-    selectedChoiceIndex.value = 0;
-    // 隐藏弹出框
-    if (choicePopInstanceUtil.isShown()) {
-      choicePopInstanceUtil?.hide();
-    }
   }, 300);
 };
 
 
 const handleFullTextInputFocus = (e) => {
   inputValueLength.value = e.target.value.length;
-  if (!choicePopInstanceUtil.isShown()) {
-    choicePopInstanceUtil?.show(e.target);
-    selectedChoiceIndex.value = 0;
-  }
   queryItem.value = e.target.value;
+  debounceShowInstance();
 };
 
 const handleInputValueChange = (e) => {
   const currentLength = e.target.value.length;
   inputValueLength.value = currentLength;
-
-  if (!choicePopInstanceUtil.isShown()) {
-      choicePopInstanceUtil?.show(e.target);
-      selectedChoiceIndex.value = 0;
-    }
   queryItem.value = e.target.value;
-};
 
-/**
- * 点击全文检索或 AI 搜索
- * @param type fulltext or ai
- */
-const handleChoiceItemClick = (type) => {
-  if(!refSearchInput.value?.value) {
-    return;
-  }
-
-  choicePopInstanceUtil?.hide();
-  selectedChoiceIndex.value = 0; // 重置选中状态
-  if (type === 'fulltext') {
-    modelValue.value.push({ field: '*', operator: FulltextOperator, value: refSearchInput.value?.value, disabled: false });
-    emitChange(modelValue.value);
-    refSearchInput.value.value = '';
-    return;
-  }
-
-  if (type === 'ai') {
-    delayBlurTimer && clearTimeout(delayBlurTimer);
-    emit('text-to-query', refSearchInput.value?.value);
-    return;
-  }
-};
-
-/**
- * 处理提示项点击
- * @param text 提示文本
- */
-const handlePromptClick = (text) => {
-  choicePopInstanceUtil?.hide();
-  if (refSearchInput.value) {
-    refSearchInput.value.value = text;
-    inputValueLength.value = text.length;
-    emit('text-to-query', text);
-  }
-};
-
-/**
- * 处理选择列表的键盘事件（仅处理上下键）
- * @param e 键盘事件
- */
-const handleChoiceListKeydown = (e) => {
-  // 如果弹出框未显示，不做任何操作
-  if (!choicePopInstanceUtil.isShown()) {
-    return;
-  }
-
-  // 处理上下键切换选中项
-  if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    selectedChoiceIndex.value = selectedChoiceIndex.value === 0 ? 1 : 0;
-    return;
-  }
-
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    selectedChoiceIndex.value = selectedChoiceIndex.value === 1 ? 0 : 1;
-    return;
+  if (currentLength > 0) {
+    debounceShowInstance();
   }
 };
 
@@ -797,7 +704,6 @@ const handleBatchInputChange = (isShow) => {
         @blur.stop="handleFullTextInputBlur"
         @focus.stop="handleFullTextInputFocus"
         @input="handleInputValueChange"
-        @keydown="handleChoiceListKeydown"
         @keyup.delete="handleDeleteItem"
         @keydown.enter.stop="handleInputValueEnter"
         @compositionstart="handleCompositionStart"
@@ -814,20 +720,6 @@ const handleBatchInputChange = (isShow) => {
       />
     </li>
     <div style="display: none">
-      <div
-        ref="refChoiceList"
-        class="v3-bklog-search-bar-choice-list"
-      >
-      <div
-          :class="[
-            'v3-bklog-search-bar-choice-list-item',
-            { 'is-selected': selectedChoiceIndex === 0 }
-          ]"
-          @click="handleChoiceItemClick('fulltext')"
-        >
-          {{ t('全文检索') }}
-        </div>
-      </div>
       <UiInputOptions
         ref="refPopInstance"
         :is-input-focus="isInputTextFocus"
@@ -963,6 +855,79 @@ const handleBatchInputChange = (isShow) => {
 
     &:not(:last-child) {
       border-bottom: 1px solid #f0f1f5;
+    }
+  }
+
+  .first-use-guide {
+    padding: 16px;
+    margin-top: -4px;
+    background-image: radial-gradient(circle at 50% 0%, #F5F1FF 0%, #FFFFFF 48%);
+    border-radius: 2px;
+
+    .guide-header {
+      margin-bottom: 12px;
+
+      .guide-text {
+        margin-bottom: 4px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #4d4f56;
+
+        .ai-search-text {
+          display: inline-block;
+          padding: 0 4px;
+          font-weight: 500;
+          background-image: linear-gradient(128deg, #235DFA 0%, #E28BED 100%);
+          background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+      }
+    }
+
+    .guide-prompts {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+
+      .prompt-item {
+        display: flex;
+        align-items: center;
+        height: 32px;
+        padding: 0 12px;
+        font-size: 12px;
+        color: #4D4F56;
+        cursor: pointer;
+        background: #F0F3FA;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+
+        &:hover {
+          background: #E1E6F0;
+        }
+
+        .bklog-icon {
+          font-size: 14px;
+          color: #A3B1CC;
+
+          &.bklog-prompt {
+            margin-right: 8px;
+          }
+
+          &.bklog-goto-bold {
+            margin-left: 8px;
+          }
+        }
+
+        .prompt-text {
+          flex: 1;
+          overflow: hidden;
+          font-size: 12px;
+          color: #313238;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
     }
   }
 }
