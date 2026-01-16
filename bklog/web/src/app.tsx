@@ -25,6 +25,9 @@
  */
 import { computed, defineComponent, onMounted, ref, type Ref } from 'vue';
 
+import(/* webpackChunkName: 'appload-import' */ './common/appload-import');
+import(/* webpackChunkName: 'demand-import' */ './common/demand-import');
+
 import AuthDialog from '@/components/common/auth-dialog.vue';
 import GlobalSettingDialog from '@/components/global-setting/index';
 import HeadNav from '@/global/head-navi/index';
@@ -38,9 +41,6 @@ import { join } from '@/global/utils/path';
 
 import '@blueking/notice-component-vue2/dist/style.css';
 import './app.scss';
-
-import(/* webpackChunkName: 'appload-import' */ './common/appload-import');
-import(/* webpackChunkName: 'demand-import' */ './common/demand-import');
 
 export default defineComponent({
   setup() {
