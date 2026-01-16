@@ -28,6 +28,10 @@
       gap: 8px;
       width: 100%;
       min-height: 24px;
+
+      .bklog-qingkong {
+        cursor: pointer;
+      }
     }
 
     .ai-input-container {
@@ -67,6 +71,7 @@
 
 
     .ai-mode-toggle-btn {
+      cursor: pointer;
       display: flex;
       align-items: center;
       gap: 4px;
