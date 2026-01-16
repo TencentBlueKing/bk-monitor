@@ -22,7 +22,6 @@ the project delivered to anyone in the future.
 import base64
 
 from django.conf import settings
-from django.core.validators import RegexValidator
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -646,14 +645,8 @@ class StorageCreateSerializer(serializers.Serializer):
     创建集群序列化
     """
 
-    cluster_name = serializers.CharField(
-        label=_("集群英文名称"),
-        required=True,
-        validators=[
-            RegexValidator(regex=CLUSTER_NAME_EN_REGEX, message=_("集群英文名称格式有误"), code="invalid_cluster_name")
-        ],
-    )
-    display_name = serializers.CharField(label=_("集群中文名称"), required=True)
+    cluster_name = serializers.RegexField(label=_("集群英文名称"), regex=CLUSTER_NAME_EN_REGEX, required=True)
+    display_name = serializers.CharField(label=_("集群名称"), required=True)
     domain_name = serializers.CharField(label=_("集群域名"), required=True)
     port = serializers.IntegerField(label=_("集群端口"), required=True)
     schema = serializers.CharField(label=_("集群协议"), required=True)
@@ -704,7 +697,7 @@ class StorageCreateSerializer(serializers.Serializer):
             raise ValidationError(_("该集群英文名称已存在"))
 
         if attrs.get("display_name") in exist_display_name_list:
-            raise ValidationError(_("该集群中文名称已存在"))
+            raise ValidationError(_("该集群名称已存在"))
 
         return attrs
 
@@ -740,14 +733,8 @@ class StorageBatchDetectSerializer(serializers.Serializer):
 
 class StorageUpdateSerializer(serializers.Serializer):
     cluster_id = serializers.IntegerField(label=_("集群ID"), required=True)
-    cluster_name = serializers.CharField(
-        label=_("集群英文名称"),
-        required=False,
-        validators=[
-            RegexValidator(regex=CLUSTER_NAME_EN_REGEX, message=_("集群英文名称格式有误"), code="invalid_cluster_name")
-        ],
-    )
-    display_name = serializers.CharField(label=_("集群中文名称"), required=True)
+    cluster_name = serializers.RegexField(label=_("集群英文名称"), regex=CLUSTER_NAME_EN_REGEX, required=False)
+    display_name = serializers.CharField(label=_("集群名称"), required=True)
     domain_name = serializers.CharField(label=_("集群域名"), required=True)
     port = serializers.IntegerField(label=_("端口"), required=True)
     schema = serializers.CharField(label=_("集群协议"), required=True)
@@ -792,7 +779,7 @@ class StorageUpdateSerializer(serializers.Serializer):
                 exist_display_name_list.add(cluster_config.get("display_name"))
 
         if attrs.get("display_name") in exist_display_name_list:
-            raise ValidationError(_("该集群中文名称已存在"))
+            raise ValidationError(_("该集群名称已存在"))
 
         return attrs
 

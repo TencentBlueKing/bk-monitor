@@ -297,8 +297,8 @@ class StorageViewSet(APIViewSet):
         @api {post} /databus/storage/?bk_biz_id=$bk_biz_id 05_存储集群-创建
         @apiName create_storage
         @apiGroup 09_StorageCluster
-        @apiParam {String} cluster_name 集群名称
-        @apiParam {String} [bkbase_cluster_en_name] 集群英文名
+        @apiParam {String} cluster_name 集群英文名称
+        @apiParam {String} display_name 集群名称
         @apiParam {String} domain_name 集群域名（可以填入IP）
         @apiParam {Int} port 端口
         @apiParam {String} schema 协议
@@ -409,7 +409,7 @@ class StorageViewSet(APIViewSet):
         @apiParam {Object} auth_info 凭据信息
         @apiParam {String} auth_info.username 用户
         @apiParam {String} auth_info.password 密码
-        @apiParam {String} cluster_name 集群名称
+        @apiParam {String} display_name 集群名称
         @apiParam {List} [visible_bk_biz] 可见业务范围
         @apiParamExample {Json} 请求参数
         {
