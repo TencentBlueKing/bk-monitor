@@ -34,7 +34,7 @@ import './index.scss';
 
 interface IEmit {
   onChange: (value: IProps['data']) => void;
-  onMericManage: () => void;
+  onMetricManage: (tab: 'dimension' | 'metric') => 'dimension' | 'metric';
 }
 
 interface IProps {
@@ -51,8 +51,10 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
   @Prop({ type: Array, required: true }) readonly data: IProps['data'];
   @InjectReactive('isApm') readonly isApm: boolean;
 
-  @Emit('mericManage')
-  apmGoToTimeseries() {}
+  @Emit('metricManage')
+  apmGoToTimeseries() {
+    return 'dimension';
+  }
 
   handleChange(payload: IProps['data'][number]) {
     const latestValue = [...this.data];

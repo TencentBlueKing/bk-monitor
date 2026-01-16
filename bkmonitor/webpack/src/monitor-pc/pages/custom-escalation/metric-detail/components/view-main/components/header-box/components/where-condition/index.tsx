@@ -58,7 +58,7 @@ interface IEmit {
       value: string[];
     }[];
   }) => void;
-  onMericManage?: () => void;
+  onMetricManage?: (tab: 'dimension' | 'metric') => 'dimension' | 'metric';
 }
 
 interface IProps {
@@ -87,8 +87,10 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
   @Prop({ type: Boolean, default: false }) readonly commonDimensionEnable: IProps['commonDimensionEnable'];
   @Prop({ type: Array, default: () => [] }) readonly customData: IProps['customData'];
 
-  @Emit('mericManage')
-  handleMericManage() {};
+  @Emit('metricManage')
+  handleMetricManage(tab: 'dimension' | 'metric') {
+    return tab;
+  };
 
   localWhereValueList: Readonly<IProps['value']> = [];
   localCommonConditionValueList: Readonly<IProps['commonConditionValue']> = [];
@@ -208,7 +210,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
             <RenderCommonList
               data={this.localCommonConditionValueList as IProps['commonConditionValue']}
               onChange={this.handleCommonConditinChange}
-              onMericManage={this.handleMericManage}
+              onMetricManage={this.handleMetricManage}
             />
           )}
           {this.customData.length > 0 && (

@@ -43,6 +43,7 @@ import PanelChartView from './components/panel-chart-view';
 import ViewColumn from './components/view-column';
 
 import type { IMetricAnalysisConfig, RequestHandlerMap } from '../../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './index.scss';
 
@@ -51,7 +52,7 @@ type GetSceneViewParams = Parameters<typeof getSceneView>[0];
 interface IEmit {
   onCustomTsMetricGroups: (payload: any) => void;
   onDimensionParamsChange: (payload: GetSceneViewParams) => void;
-  onMerticManage?: () => void;
+  onMetricManage?: (tab: 'dimension' | 'metric') => void;
   onResetMetricsSelect: () => void;
 }
 
@@ -60,6 +61,7 @@ interface IProps {
   currentView?: string;
   dimenstionParams?: GetSceneViewParams | null;
   isApm?: boolean;
+  metricTimeRange: TimeRangeType;
   requestMap?: object;
   timeSeriesGroupId?: number;
 }
@@ -67,6 +69,7 @@ interface IProps {
 const ASIDE_WIDTH_SETTING_KEY = 'ASIDE_WIDTH_SETTING_KEY';
 @Component
 export default class ViewContent extends tsc<IProps, IEmit> {
+  @Prop({ type: Array, default: () => [] }) readonly metricTimeRange: TimeRangeType;
   @Prop({ type: Number, default: -1 }) readonly timeSeriesGroupId: IProps['timeSeriesGroupId'];
   @Prop({ type: String, default: 'default' }) readonly currentView: IProps['currentView'];
   @Prop({ type: Object, default: null }) readonly dimenstionParams: IProps['dimenstionParams'];
@@ -84,10 +87,11 @@ export default class ViewContent extends tsc<IProps, IEmit> {
   requestMap: RequestHandlerMap;
 
   @ProvideReactive('requestHandlerMap') requestHandlerMap: RequestHandlerMap;
-  // @ProvideReactive('containerScrollTop') containerScrollTop = 0;
 
-  @Emit('merticManage')
-  handleMerticManage() {}
+  @Emit('metricManage')
+  handleMetricManage(tab: 'dimension' | 'metric') {
+    return tab;
+  }
 
   @Emit('resetMetricsSelect')
   handleMetricsSelectReset() {}
@@ -136,6 +140,11 @@ export default class ViewContent extends tsc<IProps, IEmit> {
   @Watch('requestMap', { immediate: true })
   setRequestHandlerMap() {
     this.requestHandlerMap = this.requestMap;
+  }
+
+  @ProvideReactive('timeRange')
+  get timeRange() {
+    return this.metricTimeRange;
   }
 
   @ProvideReactive('appName')
@@ -214,7 +223,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
         <template slot='aside'>
           <MetricsSelect
             isApm={this.isApm}
-            onMerticManage={this.handleMerticManage}
+            onMetricManage={this.handleMetricManage}
             onReset={this.handleMetricsSelectReset}
           />
         </template>
@@ -223,7 +232,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
             key={this.currentView}
             dimenstionParams={this.dimenstionParams}
             onChange={this.handleDimensionParamsChange}
-            onMericManage={this.handleMerticManage}
+            onMetricManage={this.handleMetricManage}
           >
             <template slot='actionExtend'>
               <bk-checkbox v-model={this.state.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
@@ -238,7 +247,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
               config={this.config}
               showStatisticalValue={this.state.showStatisticalValue}
               viewColumn={this.state.viewColumn}
-              onMericManage={this.handleMerticManage}
+              onMetricManage={this.handleMetricManage}
             />
           </div>
         </template>

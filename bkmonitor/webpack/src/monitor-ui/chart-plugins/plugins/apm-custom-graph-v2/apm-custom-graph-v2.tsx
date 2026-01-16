@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Inject, InjectReactive, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
@@ -48,17 +48,18 @@ type GetSceneViewParams = Parameters<typeof getSceneView>[0];
   name: 'ApmCustomGraphV2',
 })
 export default class ApmViewContent extends tsc<any, any> {
-  @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
   @ProvideReactive('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
-  @ProvideReactive('showRestore') showRestore = false;
   @ProvideReactive('containerScrollTop') containerScrollTop = 0;
   @ProvideReactive('refreshInterval') refreshInterval = -1;
   @InjectReactive('customRouteQuery') customRouteQuery: Record<string, string>;
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @Inject('handleCustomRouteQueryChange') handleCustomRouteQueryChange: (
     customRouteQuery: Record<string, number | string>
   ) => void;
 
-  cacheTimeRange = [];
+  @Ref('apmCustomGraphV2Ref') apmCustomGraphV2Ref: ApmCustomGraphV2;
+
+  metricTimeRange: TimeRangeType = [this.startTime, this.endTime];
   dimenstionParams: GetSceneViewParams | null = null;
   loading = true;
 
@@ -98,6 +99,11 @@ export default class ApmViewContent extends tsc<any, any> {
   @Watch('selectedMetricsData')
   selectedMetricsDataChange() {
     this.updateUrlParams();
+  }
+
+  @Watch('timeRange', { immediate: true })
+  setTimeRange(v) {
+    this.metricTimeRange = v;
   }
 
   getGroupDataSuccess() {
@@ -189,8 +195,13 @@ export default class ApmViewContent extends tsc<any, any> {
     }, []);
   }
 
-  handleMerticManage() {
+  handleMetricManage(tab: 'dimension' | 'metric') {
     // 打开指标管理抽屉
+  }
+
+  // 刷新指标和分组的数据
+  handleRefreshGroupData() {
+    this.apmCustomGraphV2Ref.getCustomTsMetricGroupsData();
   }
 
   render() {
@@ -200,6 +211,7 @@ export default class ApmViewContent extends tsc<any, any> {
         v-bkloading={{ isLoading: this.loading }}
       >
         <ApmCustomGraphV2
+          ref='apmCustomGraphV2Ref'
           requestMap={{
             modifyCustomTsFields, // apm可视化页面只有此接口用新的，下面接口用原有的
             getCustomTsMetricGroups,
@@ -210,9 +222,10 @@ export default class ApmViewContent extends tsc<any, any> {
           config={this.graphConfigParams}
           dimenstionParams={this.dimenstionParams}
           isApm={true}
+          metricTimeRange={this.metricTimeRange}
           onCustomTsMetricGroups={this.getGroupDataSuccess}
           onDimensionParamsChange={this.handleDimensionParamsChange}
-          onMerticManage={this.handleMerticManage}
+          onMetricManage={this.handleMetricManage}
           onResetMetricsSelect={this.handleMetricsSelectReset}
         />
       </div>

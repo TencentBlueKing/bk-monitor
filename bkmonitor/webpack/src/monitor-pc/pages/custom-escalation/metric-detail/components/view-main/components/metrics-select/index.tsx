@@ -33,7 +33,7 @@ import RenderMetricsGroup from './components/render-metrics-group';
 import './index.scss';
 
 interface IEmit {
-  onMerticManage: () => void;
+  onMetricManage: (tab: 'dimension' | 'metric') => 'dimension' | 'metric';
   onReset: () => void;
 }
 
@@ -45,8 +45,10 @@ export default class MetricsSelect extends tsc<IProps, IEmit> {
   @Prop({ type: Boolean, default: false }) readonly isApm: IProps['isApm'];
   @Ref('metricGroupRef') metricGroupRef: RenderMetricsGroup;
 
-  @Emit('merticManage')
-  handleMerticManage() {}
+  @Emit('metricManage')
+  handleMetricManage() {
+    return 'metric';
+  }
 
   searchKey = '';
   isExpandAll = false;
@@ -81,12 +83,12 @@ export default class MetricsSelect extends tsc<IProps, IEmit> {
   }
 
   render() {
-    const merticManageRender = () => {
+    const metricManageRender = () => {
       if (this.isApm) {
         return (
           <div
             style='color: #3a84ff;cursor: pointer'
-            onClick={this.handleMerticManage}
+            onClick={this.handleMetricManage}
           >
             <i class='icon-monitor icon-shezhi1' />
             {this.$t('指标管理')}
@@ -107,7 +109,7 @@ export default class MetricsSelect extends tsc<IProps, IEmit> {
         </router-link>
       );
     };
-    const merticCalculationRender = () => {
+    const metricCalculationRender = () => {
       if (this.isApm) {
         return (
           <div
@@ -142,8 +144,8 @@ export default class MetricsSelect extends tsc<IProps, IEmit> {
             right-icon='bk-icon icon-search'
           />
           <div class='action-box'>
-            {merticManageRender()}
-            {merticCalculationRender()}
+            {metricManageRender()}
+            {metricCalculationRender()}
             {this.isExpandAll ? (
               <div
                 style='display: inline-block; margin-left: auto; cursor: pointer'

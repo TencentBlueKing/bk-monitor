@@ -48,24 +48,23 @@ export default class NewMetricView extends tsc<object> {
   viewColumn = 2;
   cacheTimeRange = [];
   asideWidth = 220; // 侧边栏初始化宽度
-  @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
+  metricTimeRange: TimeRangeType = [this.startTime, this.endTime];
   @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('showRestore') showRestore = false;
-  // @ProvideReactive('containerScrollTop') containerScrollTop = 0;
   @ProvideReactive('refreshInterval') refreshInterval = -1;
 
   @Provide('handleChartDataZoom')
   handleChartDataZoom(value) {
-    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
-      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-      this.timeRange = value;
+    if (JSON.stringify(this.metricTimeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.metricTimeRange));
+      this.metricTimeRange = value;
       this.showRestore = true;
     }
   }
   @Provide('handleRestoreEvent')
   handleRestoreEvent() {
-    this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
+    this.metricTimeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
     this.showRestore = false;
   }
 
@@ -113,7 +112,7 @@ export default class NewMetricView extends tsc<object> {
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
     customEscalationViewStore.updateTimeRange(timeRange);
-    this.timeRange = timeRange;
+    this.metricTimeRange = timeRange;
   }
   // 刷新视图
   handleImmediateRefresh() {
@@ -147,7 +146,7 @@ export default class NewMetricView extends tsc<object> {
             isSplitPanel={false}
             refreshInterval={this.refreshInterval}
             showListMenu={false}
-            timeRange={this.timeRange}
+            timeRange={this.metricTimeRange}
             onImmediateRefresh={this.handleImmediateRefresh}
             onRefreshChange={this.handleRefreshChange}
             onTimeRangeChange={this.handleTimeRangeChange}
@@ -168,45 +167,12 @@ export default class NewMetricView extends tsc<object> {
             config={this.graphConfigParams}
             currentView={this.currentView}
             dimenstionParams={this.dimenstionParams}
+            metricTimeRange={this.metricTimeRange}
             timeSeriesGroupId={this.timeSeriesGroupId}
             onCustomTsMetricGroups={this.handleSuccess}
             onDimensionParamsChange={this.handleDimensionParamsChange}
             onResetMetricsSelect={this.handleMetricsSelectReset}
           />
-          {/* <bk-resize-layout
-              style='height: calc(100vh - 140px - var(--notice-alert-height))'
-              collapsible={true}
-              initial-divide={220}
-              max={550}
-              min={200}
-            >
-              <template slot='aside'>
-                <MetricsSelect onReset={this.handleMetricsSelectReset} />
-              </template>
-              <template slot='main'>
-                <HeaderBox
-                  key={this.currentView}
-                  dimenstionParams={this.dimenstionParams}
-                  onChange={this.handleDimensionParamsChange}
-                >
-                  <template slot='actionExtend'>
-                    <bk-checkbox v-model={this.state.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
-                    <ViewColumn
-                      style='margin-left: 32px;'
-                      v-model={this.state.viewColumn}
-                    />
-                  </template>
-                </HeaderBox>
-                <div class='metric-view-dashboard-container'>
-                  <PanelChartView
-                    ref='panelChartView'
-                    config={this.graphConfigParams as any}
-                    showStatisticalValue={this.state.showStatisticalValue}
-                    viewColumn={this.state.viewColumn}
-                  />
-                </div>
-              </template>
-            </bk-resize-layout> */}
         </div>
       </div>
     );
