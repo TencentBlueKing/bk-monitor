@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.conf import settings
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
@@ -35,7 +36,7 @@ class SdkPredictResource(APIResource):
         extra_data = serializers.DictField(default=dict())
         serving_config = serializers.DictField(default=dict())
 
-    action = "/api/aiops/default/"
+    action = settings.AIOPS_PREDICT_SDK
     method = "POST"
 
 
@@ -49,7 +50,7 @@ class SdkGroupPredictResource(APIResource):
         predict_args = serializers.DictField(required=False, default=dict())
         interval = serializers.IntegerField(default=60)
 
-    action = "/api/aiops/group_predict/"
+    action = settings.AIOPS_GROUP_PREDICT_SDK
     method = "POST"
 
 
@@ -68,13 +69,13 @@ class SdkInitDependResource(APIResource):
         dependency_data = serializers.ListField(child=DependencyDataSerializer())
         serving_config = serializers.DictField(default=dict())
 
-    action = "/api/aiops/init_depend/"
+    action = settings.AIOPS_INIT_DEPEND_SDK
     method = "POST"
 
 
 class TfSdkResource(SdkResource):
     # 时序预测远程访问地址
-    base_url = "http://bk-aiops-serving-tf:8000"
+    base_url = settings.AIOPS_SERVER_TF_URL
 
 
 class TfPredictResource(TfSdkResource, SdkPredictResource):
@@ -97,7 +98,7 @@ class TfGroupPredictResource(TfSdkResource, SdkGroupPredictResource):
 
 class KpiSdkResource(SdkResource):
     # 智能异常检测远程访问地址
-    base_url = "http://bk-aiops-serving-kpi:8000"
+    base_url = settings.AIOPS_SERVER_KPI_URL
 
 
 class BKFaraGrayMixin:
@@ -139,8 +140,7 @@ class KpiGroupPredictResource(KpiSdkResource, SdkGroupPredictResource):
 
 class AcdSdkResource(SdkResource):
     # 离群检测远程访问地址
-    base_url = "http://bk-aiops-serving-acd:8000"
-
+    base_url = settings.AIOPS_SERVER_ACD_URL
 
 class AcdPredictResource(AcdSdkResource, SdkPredictResource):
     """离群检测SDK执行时序预测逻辑."""
