@@ -988,7 +988,7 @@ export default defineComponent({
             <bk-input
               type='textarea'
               value={logOriginal.value}
-              on-change={val => {
+              on-change={(val: string) => {
                 logOriginal.value = val;
               }}
             />
