@@ -25,9 +25,6 @@
  */
 import { computed, defineComponent, onMounted, ref, type Ref } from 'vue';
 
-import(/* webpackChunkName: 'appload-import' */ './common/appload-import');
-import(/* webpackChunkName: 'demand-import' */ './common/demand-import');
-
 import AuthDialog from '@/components/common/auth-dialog.vue';
 import GlobalSettingDialog from '@/components/global-setting/index';
 import HeadNav from '@/global/head-navi/index';
@@ -41,6 +38,9 @@ import { join } from '@/global/utils/path';
 
 import '@blueking/notice-component-vue2/dist/style.css';
 import './app.scss';
+
+import(/* webpackChunkName: 'appload-import' */ './common/appload-import');
+import(/* webpackChunkName: 'demand-import' */ './common/demand-import');
 
 export default defineComponent({
   setup() {
@@ -96,8 +96,15 @@ export default defineComponent({
 
       // 更新全局操作列表
       const isShowSettingList = logDesensitize !== 'off';
+      // 自定义菜单项
+      const customItems = [
+        { id: 'my-applied', name: $t('我申请的') },
+        { id: 'my-report', name: $t('我的订阅') },
+      ];
+      // 脱敏菜单项
+      const maskingItems = isShowSettingList ? [{ id: 'masking-setting', name: $t('全局脱敏') }] : [];
       store.commit('updateState', {
-        globalSettingList: isShowSettingList ? [{ id: 'masking-setting', name: $t('全局脱敏') }] : [],
+        globalSettingList: [...customItems, ...maskingItems],
       });
     };
 
