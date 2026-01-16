@@ -8,9 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
 import logging
-from typing import Any
+from typing import Any, ClassVar, Self
 
 from django.conf import settings
 from django.db import models
@@ -35,8 +34,8 @@ logger = logging.getLogger("metadata")
 
 class CustomGroupBase(models.Model):
     # model差异动态配置
-    GROUP_ID_FIELD = None
-    GROUP_NAME_FIELD = None
+    GROUP_ID_FIELD: ClassVar[str]
+    GROUP_NAME_FIELD: ClassVar[str]
 
     # 默认存储差异配置
     DEFAULT_STORAGE_CONFIG = {}
@@ -45,8 +44,6 @@ class CustomGroupBase(models.Model):
     # 时间字段的配置
     STORAGE_TIME_OPTION = {}
     STORAGE_FIELD_LIST = []
-
-    NEED_REFRESH_CONSUL = None
 
     # 虚拟RT字段配置
     bk_data_id = models.IntegerField(verbose_name="数据源ID", db_index=True)
@@ -85,7 +82,7 @@ class CustomGroupBase(models.Model):
         return {}
 
     @staticmethod
-    def make_table_id(bk_biz_id, bk_data_id, bk_tenant_id: str, table_name: str = None) -> str:
+    def make_table_id(bk_biz_id, bk_data_id, bk_tenant_id: str, table_name: str | None = None) -> str:
         raise NotImplementedError
 
     def update_metrics(self, metric_info):
@@ -108,7 +105,7 @@ class CustomGroupBase(models.Model):
         pass
 
     @classmethod
-    def process_default_storage_config(cls, custom_group: "CustomGroupBase", default_storage_config: dict[str, Any]):
+    def process_default_storage_config(cls, custom_group: Self, default_storage_config: dict[str, Any]):
         pass
 
     @classmethod
@@ -128,7 +125,7 @@ class CustomGroupBase(models.Model):
             raise ValueError(_("数据源[{}]已经被其他自定义组注册使用，请更换数据源").format(bk_data_id))
 
         # 判断同一个业务下是否有重名的custom_group_name
-        filter_kwargs = {
+        filter_kwargs: dict[str, Any] = {
             cls.GROUP_NAME_FIELD: custom_group_name,
         }
         if cls.objects.filter(
@@ -144,7 +141,7 @@ class CustomGroupBase(models.Model):
     @classmethod
     def _create(
         cls,
-        table_id: str,
+        table_id: str | None,
         bk_biz_id: int,
         bk_data_id: int,
         custom_group_name: str,
@@ -154,7 +151,7 @@ class CustomGroupBase(models.Model):
         bk_tenant_id: str,
         max_rate: int = -1,
         **filter_kwargs,
-    ) -> (str, "CustomGroupBase"):
+    ) -> tuple[str, Self]:
         """
         create custom log group
         """
@@ -193,7 +190,7 @@ class CustomGroupBase(models.Model):
         operator,
         bk_tenant_id: str,
         metric_info_list=None,
-        table_id=None,
+        table_id: str | None = None,
         is_builtin=False,
         is_split_measurement=False,
         default_storage_config=None,
@@ -330,7 +327,7 @@ class CustomGroupBase(models.Model):
         metric_info_list=None,
         field_list=None,
         max_rate=None,
-        enable_field_black_list=None,
+        enable_field_black_list: bool | None = None,
         data_label: str | None = None,
     ):
         """
@@ -399,42 +396,49 @@ class CustomGroupBase(models.Model):
             self.save()
             logger.info(f"{self.__class__.__name__}->[{self.custom_group_id}] is updated by->[{operator}]")
 
+        # 判断黑白名单是否发生变化
+        options: dict[str, Any] | None = None
+        if enable_field_black_list is not None:
+            current_enable_field_black_list_option = ResultTableOption.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
+            ).first()
+            current_enable_field_black_list_option_value = (
+                current_enable_field_black_list_option.get_value() if current_enable_field_black_list_option else None
+            )
+            if current_enable_field_black_list_option_value != enable_field_black_list:
+                # 获取当前结果表的option配置，options的更新必须提供所有option的配置
+                options = {
+                    option_obj.name: option_obj.get_value()
+                    for option_obj in ResultTableOption.objects.filter(
+                        table_id=self.table_id,
+                        bk_tenant_id=self.bk_tenant_id,
+                    )
+                }
+                options[ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST] = enable_field_black_list
+                logger.info(
+                    f"{self.__class__.__name__}->[{self.custom_group_id}] has change enable_field_black_list->[{enable_field_black_list}]"
+                )
+
         # 这里之前在split的情况下是不做field_list的更新的 之前的背景是会动态更新指标 而不应该用户去设置指标
         # 但是如果用户需要修改元信息的时候 会出现该接口无法更新的情况 所以这里先去掉这个限制
-        rt = None
-        if field_list or data_label:
+        if field_list is not None or data_label is not None or options is not None:
             try:
                 rt = ResultTable.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
             except ResultTable.DoesNotExist:
                 raise ValueError(_("对应结果表不存在"))
 
-        if field_list is not None:  # 无需添加租户过滤,上文RT已经携带租户属性
-            rt.modify(operator=operator, is_reserved_check=False, is_time_field_only=True, field_list=field_list)
+            modify_params = {}
+            if field_list is not None:
+                modify_params.update({"field_list": field_list, "is_time_field_only": True, "is_reserved_check": False})
+            if data_label is not None:
+                modify_params["data_label"] = data_label
+            if options is not None:
+                modify_params["option"] = options
 
-        # 如果有传开启/关闭黑名单，则修改结果表数据，并刷新consul数据，触发transfer更新
-        if enable_field_black_list is not None:
-            ResultTableOption.objects.filter(
-                table_id=self.table_id,
-                bk_tenant_id=self.bk_tenant_id,
-                name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
-            ).update(value=json.dumps(enable_field_black_list))
-            logger.info(
-                "%s->[%s] has change enable_field_black_list->[%s]",
-                self.__class__.__name__,
-                self.custom_group_id,
-                enable_field_black_list,
-            )
-            self.NEED_REFRESH_CONSUL = True
-
-        # 只在需要刷新 consul 的时候才进行刷新操作
-        if self.NEED_REFRESH_CONSUL:
-            from metadata.models import DataSource
-
-            DataSource.objects.get(bk_data_id=self.bk_data_id).refresh_consul_config()
-
-        # 判断是否修改数据标签
-        if data_label:
-            rt.modify(operator=operator, data_label=data_label)
+            if modify_params:
+                rt.modify(operator=operator, **modify_params)
 
         logger.info(f"{self.__class__.__name__}->[{self.custom_group_id}] update success.")
         return True

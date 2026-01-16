@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 from django.conf import settings
 from django.db import models
@@ -971,7 +971,7 @@ class ClusterConfig(models.Model):
             "metadata": {
                 "namespace": self.namespace,
                 "name": cluster.cluster_name,
-                "annotations": {"StreamToId": cluster.gse_stream_to_id},
+                "annotations": {"display_name": cluster.display_name or cluster.cluster_name},
             },
             "spec": {
                 "host": cluster.domain_name,
@@ -980,6 +980,26 @@ class ClusterConfig(models.Model):
                 "role": "outer",
             },
         }
+
+        if cluster.gse_stream_to_id != -1:
+            config["metadata"]["annotations"]["StreamToId"] = str(cluster.gse_stream_to_id)
+            config["spec"]["streamToId"] = cluster.gse_stream_to_id
+
+        default_settings = cast(dict[str, Any], cluster.default_settings)
+        if default_settings.get("v3_channel_id"):
+            config["spec"]["v3ChannelId"] = default_settings["v3_channel_id"]
+        if default_settings.get("version"):
+            config["spec"]["version"] = default_settings["version"]
+
+        if cluster.is_auth or cluster.username:
+            config["spec"]["auth"] = {
+                "sasl": {
+                    "enabled": cluster.is_auth,
+                    "username": cluster.username,
+                    "password": cluster.password,
+                    "mechanisms": cluster.sasl_mechanisms,
+                }
+            }
 
         if settings.ENABLE_MULTI_TENANT_MODE:
             config["metadata"]["tenant"] = cluster.bk_tenant_id
@@ -1051,11 +1071,6 @@ class ClusterConfig(models.Model):
         Args:
             cluster: 集群信息
         """
-        from metadata.models.storage import ClusterInfo
-
-        # NOTE: 目前仅允许将ES集群配置到bkbase平台，VM和Doris集群需要通过bkbase配置，定时任务会自动从bkbase拉取配置
-        if cluster.cluster_type not in [ClusterInfo.TYPE_ES]:
-            return
 
         # 根据集群类型获取kind和namespace
         kind = cls.CLUSTER_TYPE_TO_KIND_MAP[cluster.cluster_type]

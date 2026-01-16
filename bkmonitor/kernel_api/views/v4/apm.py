@@ -1,5 +1,6 @@
 from apm_web.meta.views import ApplicationViewSet
 from apm_web.trace.views import TraceQueryViewSet
+from apm_web.event.views import EventViewSet
 from apm_web.metric.views import MetricViewSet
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from kernel_api.resource.apm import (
@@ -14,6 +15,12 @@ from kernel_api.resource.apm import (
 class ApmMetricWebViewSet(MetricViewSet):
     """
     APM 指标相关 API
+    """
+
+
+class ApmEventWebViewSet(EventViewSet):
+    """
+    APM 事件相关 API
     """
 
 

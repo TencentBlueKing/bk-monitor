@@ -53,6 +53,7 @@ from bkmonitor.models import (
     ActionInstance,
     AlertAssignGroup,
     AlgorithmModel,
+    ItemModel,
     MetricListCache,
     StrategyModel,
 )
@@ -3227,3 +3228,54 @@ class GetAlertDataRetrievalResource(Resource):
             result = {}
 
         return result
+
+
+class EditDataMeaningResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        alert_id = serializers.CharField(required=True, label="告警ID")
+        data_meaning = serializers.CharField(required=True, label="数据含义")
+
+    def perform_request(self, request_data):
+        alert_id = request_data["alert_id"]
+        data_meaning = request_data["data_meaning"]
+
+        alert = AlertDocument.get(alert_id)
+
+        alert_dict = alert.to_dict()
+        extra_info = alert_dict.setdefault("extra_info", {})
+        strategy = extra_info.setdefault("strategy", {})
+        items = strategy.setdefault("items", [])
+
+        item_id = None
+        if not items:
+            # items为空,创建新的item
+            strategy["items"] = [{"name": data_meaning}]
+        else:
+            name = items[0].get("name")
+            item_id = items[0].get("id")
+
+            if name == data_meaning:
+                return {"alert_id": alert_id, "data_meaning": data_meaning}
+
+            items[0]["name"] = data_meaning
+
+        # 执行ES文档更新
+        AlertDocument.bulk_create(
+            [AlertDocument(id=alert_id, extra_info=extra_info)],
+            action=BulkActionType.UPDATE,
+        )
+
+        # 同步更新ItemModel(如果存在)
+        if item_id:
+            # 使用原子性update避免并发覆盖
+            updated_count = ItemModel.objects.filter(id=item_id).update(name=data_meaning)
+            if updated_count == 0:
+                logger.error(f"ItemModel with id {item_id} does not exist for alert {alert_id}")
+        else:
+            # ES中的strategy.items[0]缺少id字段
+            logger.warning(f"alert {alert_id}: extra_info.strategy.items[0].id does not exist")
+
+        return {
+            "alert_id": alert_id,
+            "data_meaning": data_meaning,
+        }

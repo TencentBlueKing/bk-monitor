@@ -103,11 +103,14 @@ def json_formatter(context: dict[str, Any]):
 
 def get_core_context(request):
     username = request.user.username
-    try:
-        user_time_zone = api.bk_login.get_user_info(id=username).get("time_zone", "")
-    except Exception as e:
-        logger.error(f"Get user {username} time zone failed: {e}")
-        user_time_zone = ""
+
+    # 获取用户时区
+    user_time_zone = ""
+    if username:
+        try:
+            user_time_zone = api.bk_login.get_user_info(id=username).get("time_zone", "")
+        except Exception as e:
+            logger.error(f"Get user {username} time zone failed: {e}")
 
     return {
         # healthz 自监控引用
