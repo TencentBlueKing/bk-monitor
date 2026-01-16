@@ -259,16 +259,16 @@ export default defineComponent({
           (window as any).BK_PAAS_API_HOST,
           '/api/bk-user-web/prod/api/v3/open-web/tenant/current-user/language/',
         );
-        requestJson({ url, params: { language: value }, method: 'PUT', headers: { 'X-Bk-Tenant-Id': state.bk_tenant_id } }).catch(
-          (err) => {
+        requestJson({ url, params: { language: value }, method: 'PUT', headers: { 'X-Bk-Tenant-Id': state.bk_tenant_id } })
+          .catch((err) => {
             bkMessage({
               message: err.message,
               theme: 'error',
-            }).finally(() => {
-              location.reload();
             });
-          },
-        );
+          })
+          .finally(() => {
+            location.reload();
+          });
 
         return;
       }
