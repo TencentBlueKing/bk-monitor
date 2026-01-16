@@ -74,6 +74,11 @@ export default (
    */
   const delayShowInstance = (target) => {
     popInstanceUtil?.cancelHide();
+
+    if (popInstanceUtil?.isShown()) {
+      return;
+    }
+
     popInstanceUtil?.show(target);
   };
 
@@ -113,7 +118,8 @@ export default (
       if (!isInstanceShown()) {
         setIsInputTextFocus(true);
         onInputFocus?.();
-        if (showPopoverOnClick) { // 是否在点击时显示弹窗
+        if (showPopoverOnClick) {
+          // 是否在点击时显示弹窗
           delayShowInstance(getPopTarget());
         }
       }
