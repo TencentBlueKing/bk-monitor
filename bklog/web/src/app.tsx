@@ -37,6 +37,7 @@ import { useRoute } from 'vue-router/composables';
 
 import useLocale from './hooks/use-locale';
 import useStore from './hooks/use-store';
+import { join } from '@/global/utils/path';
 
 import '@blueking/notice-component-vue2/dist/style.css';
 import './app.scss';
@@ -120,7 +121,7 @@ export default defineComponent({
         return (
           <NoticeComponent
             ref='refNoticeComponent'
-            api-url='/notice/announcements/'
+            api-url={join((window as any).SITE_URL, '/notice/announcements/')}
             on-show-alert-change={showAlertChange}
           />
         );
@@ -212,15 +213,14 @@ export default defineComponent({
 
     onMounted(() => {
       const platform = window.navigator.platform.toLowerCase();
-      const fontFamily =
-        platform.indexOf('win') === 0
-          ? 'Microsoft Yahei, pingFang-SC-Regular, Helvetica, Aria, sans-serif'
-          : 'pingFang-SC-Regular, Microsoft Yahei, Helvetica, Aria, sans-serif';
+      const fontFamily =        platform.indexOf('win') === 0
+        ? 'Microsoft Yahei, pingFang-SC-Regular, Helvetica, Aria, sans-serif'
+        : 'pingFang-SC-Regular, Microsoft Yahei, Helvetica, Aria, sans-serif';
       document.body.style['font-family'] = fontFamily;
       store.commit('updateState', { runVersion: window.RUN_VER || '' });
 
       const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
-      store.commit('updateState', { isEnLanguage: isEnLanguage });
+      store.commit('updateState', { isEnLanguage });
       const languageClassName = isEnLanguage ? 'language-en' : 'language-zh';
       document.body.classList.add(languageClassName);
       // 初始化脱敏灰度相关的代码
