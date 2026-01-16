@@ -61,7 +61,7 @@ export default defineComponent({
     const boxWrapRef = useTemplateRef<HTMLDivElement>('boxWrap');
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     const { alarmDetail, loading, bizId, alarmId } = storeToRefs(alarmCenterDetailStore);
-    const currentPanel = shallowRef(alarmDetail.value?.alarmTabList?.[0]?.label);
+    const currentPanel = shallowRef(alarmDetail.value?.alarmTabList?.[0]?.name);
     const { alarmStatusOverview, alarmStatusActions, alarmStatusTotal } = useAlarmBasicInfo();
 
     const authority = inject<IAuthority>('authority');
