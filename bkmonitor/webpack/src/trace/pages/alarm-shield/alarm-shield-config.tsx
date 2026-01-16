@@ -349,7 +349,6 @@ export default defineComponent({
           type: cycleMap[noticeDate.value.shieldCycle],
         },
       };
-      console.log(isSingle ? cycleDate.range[1] : dateRange[1], cycleParams);
       // 通知设置参数
       const groupList = defaultGroupList.value.find(item => item.id === 'group')?.children || [];
       const memberParams = formData.noticeMember.map(id => {
