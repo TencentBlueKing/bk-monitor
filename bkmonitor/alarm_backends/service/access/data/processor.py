@@ -46,7 +46,7 @@ from alarm_backends.service.access.data.filters import (
     RangeFilter,
 )
 from alarm_backends.service.access.data.fullers import TopoNodeFuller
-from alarm_backends.service.access.data.records import DataRecord
+from alarm_backends.service.access.data.records import DataRecord, calculate_record_id, get_value_from_raw_data
 from alarm_backends.service.access.priority import PriorityChecker
 from alarm_backends.core.circuit_breaking.manager import AccessDataCircuitBreakingManager
 from bkmonitor.utils.common_utils import count_md5, get_local_ip
@@ -605,6 +605,9 @@ class AccessDataProcess(BaseAccessDataProcess):
         dup_obj = Duplicate(self.strategy_group_key, strategy_id=first_item.strategy.id, ttl=max_agg_interval * 10)
         duplicate_counts = none_point_counts = 0
 
+        # 预加载去重缓存
+        dup_obj.preload_duplicate_cache(points)
+
         # 是否有优先级
         have_priority = False
         for item in self.items:
@@ -617,30 +620,43 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 用于在去重后 record_list 为空时，仍然能够更新 checkpoint，避免死循环
         max_queried_data_time = 0
 
+        non_duplicate_records = []
+
         for record in reversed(points):
-            point = DataRecord(self.items, record)
-
-            if point.value is not None:
-                # 记录所有数据的最大时间点（不管是否重复）
-                if point.time > max_queried_data_time:
-                    max_queried_data_time = point.time
-
-                # 去除重复数据
-                if dup_obj.is_duplicate(point):
-                    duplicate_counts += 1
-                    # 有优先级的策略，重复数据需要保留，后续再过滤
-                    if have_priority:
-                        point.is_duplicate = True
-                        records.append(point)
-                else:
-                    dup_obj.add_record(point)
-                    records.append(point)
-
-                    # 只观察非重复数据
-                    if point.time > max_data_time:
-                        max_data_time = point.time
-            else:
+            # 先进行轻量级 value 检查
+            value = get_value_from_raw_data(record, first_item)
+            if value is None:
                 none_point_counts += 1
+                continue
+
+            # 计算 record_id 用于去重判断
+            record_id, record_time = calculate_record_id(record, first_item)
+
+            # 记录所有数据的最大时间点（不管是否重复）
+            if record_time > max_queried_data_time:
+                max_queried_data_time = record_time
+
+            # 去重判断
+            if dup_obj.is_duplicate_by_id(record_id, record_time):
+                duplicate_counts += 1
+                # 有优先级的策略，重复数据需要保留，后续再过滤
+                if have_priority:
+                    point = DataRecord(self.items, record)
+                    point.is_duplicate = True
+                    records.append(point)
+            else:
+                # 非重复数据创建 DataRecord
+                point = DataRecord(self.items, record)
+                records.append(point)
+                non_duplicate_records.append(point)
+
+                # 只观察非重复数据
+                if point.time > max_data_time:
+                    max_data_time = point.time
+
+        # 批量添加非重复记录到去重缓存
+        if non_duplicate_records:
+            dup_obj.add_records_batch(non_duplicate_records)
 
         # 保存到实例变量，供 push 方法使用
         self.max_queried_data_time = max_queried_data_time
