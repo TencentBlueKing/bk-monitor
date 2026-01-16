@@ -20,10 +20,8 @@ from bkmonitor.models import ActionInstance
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.alert_drilling import (
     build_log_search_condition,
-    get_alert_dimension_info,
     get_alert_dimensions,
-    get_alert_query_config,
-    LogSearchCondition,
+    get_alert_query_config_or_none,
     merge_dimensions_into_conditions,
 )
 from constants.apm import ApmAlertHelper
@@ -40,7 +38,7 @@ class AlertRedirectInfo:
     """告警重定向所需信息数据类"""
 
     alert: AlertDocument
-    origin_dimensions: dict
+    valid_dimensions: dict
     query_config: dict
     duration: int
 
@@ -66,12 +64,12 @@ def _get_alert_redirect_info(action_id: str) -> AlertRedirectInfo | None:
         return None
 
     # 获取告警策略的查询配置
-    query_config: dict[str, Any] | None = get_alert_query_config(alert)
+    query_config: dict[str, Any] | None = get_alert_query_config_or_none(alert)
     if not query_config:
         return None
 
-    # 获取告警维度信息
-    dimension_info = get_alert_dimension_info(alert)
+    # 获取告警的有效维度信息
+    dimensions = get_alert_dimensions(alert)
 
     # 获取持续时间
     duration: int = alert.duration or 60
@@ -79,7 +77,7 @@ def _get_alert_redirect_info(action_id: str) -> AlertRedirectInfo | None:
     return AlertRedirectInfo(
         alert=alert,
         query_config=query_config,
-        origin_dimensions=dimension_info["dimensions"],
+        valid_dimensions=dimensions,
         duration=duration,
     )
 
@@ -123,9 +121,9 @@ def generate_log_search_url(bk_biz_id, collect_id):
         end_time_str = time_tools.utc2biz_str(end_time)
 
         # 构造日志查询过滤条件
-        log_search_condition: LogSearchCondition = build_log_search_condition(
+        log_search_condition: dict[str, Any] = build_log_search_condition(
             query_config=query_config,
-            dimensions=get_alert_dimensions(redirect_info.alert),
+            dimensions=redirect_info.valid_dimensions,
         )
 
         params = {
@@ -149,7 +147,7 @@ def generate_apm_rpc_url(bk_biz_id: int, collect_id: str) -> str | None:
     return ApmAlertHelper.get_rpc_url(
         bk_biz_id,
         redirect_info.alert.strategy,
-        redirect_info.origin_dimensions,
+        redirect_info.valid_dimensions,
         redirect_info.alert.event.time,
         redirect_info.duration,
     )
@@ -164,7 +162,7 @@ def generate_apm_trace_url(bk_biz_id: int, collect_id: str) -> str | None:
     return ApmAlertHelper.get_trace_url(
         bk_biz_id,
         redirect_info.alert.strategy,
-        redirect_info.origin_dimensions,
+        redirect_info.valid_dimensions,
         redirect_info.alert.event.time,
         redirect_info.duration,
     )
@@ -188,7 +186,7 @@ def generate_event_explore_url(bk_biz_id: int, collect_id: str) -> str | None:
     # 添加 where 过滤条件
     query_filter["where"] = merge_dimensions_into_conditions(
         agg_condition=query_config.get("agg_condition"),
-        dimensions=get_alert_dimensions(redirect_info.alert),
+        dimensions=redirect_info.valid_dimensions,
     )
 
     offset: int = 5 * 60 * 1000

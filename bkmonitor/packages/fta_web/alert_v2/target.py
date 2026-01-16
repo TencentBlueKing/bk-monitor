@@ -31,8 +31,7 @@ from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.alert_drilling import (
     build_log_search_condition,
     get_alert_dimensions,
-    get_alert_query_config,
-    LogSearchCondition,
+    get_alert_query_config_or_none,
 )
 from constants.alert import K8S_RESOURCE_TYPE, K8STargetType, APMTargetType, EventTargetType
 from constants.data_source import DataSourceLabel
@@ -226,7 +225,7 @@ class DefaultTarget(BaseTarget):
 
         日志类告警直接使用策略配置中的索引集 ID，并根据告警维度和策略过滤条件生成日志查询的过滤条件（addition）。
         """
-        query_config: dict[str, Any] | None = get_alert_query_config(self._alert)
+        query_config: dict[str, Any] | None = get_alert_query_config_or_none(self._alert)
         if not query_config:
             return []
 
@@ -247,7 +246,7 @@ class DefaultTarget(BaseTarget):
             return []
 
         # 构造日志查询过滤条件
-        log_search_condition: LogSearchCondition = build_log_search_condition(
+        log_search_condition: dict[str, Any] = build_log_search_condition(
             query_config=query_config,
             dimensions=get_alert_dimensions(self._alert),
         )

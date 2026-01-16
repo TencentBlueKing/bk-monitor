@@ -8,26 +8,36 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any, TypedDict
+from typing import Any
 
 from bkmonitor.documents import AlertDocument
 
 
-class AlertDimensionInfo(TypedDict):
-    """告警维度信息类型定义"""
+_MONITOR_TO_LOG_OPERATOR_MAP: dict[str, str] = {
+    "=": "=",
+    "!=": "!=",
+    "eq": "=",
+    "neq": "!=",
+    "is": "=",
+    "is not": "!=",
+    "is one of": "=",
+    "is not one of": "!=",
+    "contains match phrase": "contains",
+    "not contains match phrase": "not contains",
+    "include": "contains",
+    "exclude": "not contains",
+    "contains": "contains",
+    "not contains": "not contains",
+}
 
-    dimensions: dict[str, str]
-    dimension_fields: list[str]
+
+def convert_operator_to_log_platform(operator: str) -> str | None:
+    """将监控平台操作符转换为日志平台操作符"""
+
+    return _MONITOR_TO_LOG_OPERATOR_MAP.get(operator)
 
 
-class LogSearchCondition(TypedDict):
-    """日志检索条件类型定义"""
-
-    addition: list[dict[str, Any]]
-    keyword: str
-
-
-def get_alert_query_config(alert: AlertDocument) -> dict[str, Any] | None:
+def get_alert_query_config_or_none(alert: AlertDocument) -> dict[str, Any] | None:
     """获取告警策略的查询配置。
 
     :param alert: 告警文档对象
@@ -39,7 +49,7 @@ def get_alert_query_config(alert: AlertDocument) -> dict[str, Any] | None:
         return None
 
 
-def get_alert_data_source(alert: AlertDocument) -> tuple[str, str] | None:
+def get_alert_data_source_or_none(alert: AlertDocument) -> tuple[str, str] | None:
     """获取告警的数据源类型。
 
     从告警策略的 query_config 中提取数据源标签和数据类型标签。
@@ -47,25 +57,10 @@ def get_alert_data_source(alert: AlertDocument) -> tuple[str, str] | None:
     :param alert: 告警文档对象
     :return: 数据源类型元组 (data_source_label, data_type_label)，如果获取失败则返回 None
     """
-    query_config: dict[str, Any] | None = get_alert_query_config(alert)
+    query_config: dict[str, Any] | None = get_alert_query_config_or_none(alert)
     if query_config is None:
         return None
     return query_config.get("data_source_label", ""), query_config.get("data_type_label", "")
-
-
-def get_alert_dimension_info(alert: AlertDocument) -> AlertDimensionInfo:
-    """获取告警的维度信息。
-
-    从告警原始数据中提取维度信息和维度字段列表。
-
-    :param alert: 告警文档对象
-    :return: 包含 dimensions 和 dimension_fields 的字典
-    """
-    alert_data: dict[str, Any] = alert.origin_alarm.get("data", {})
-    return {
-        "dimensions": alert_data.get("dimensions", {}),
-        "dimension_fields": alert_data.get("dimension_fields", []),
-    }
 
 
 def get_alert_dimensions(alert: AlertDocument) -> dict[str, str | None]:
@@ -76,14 +71,20 @@ def get_alert_dimensions(alert: AlertDocument) -> dict[str, str | None]:
     :param alert: 告警文档对象
     :return: 过滤后的有效维度字典
     """
-    dimension_info: AlertDimensionInfo = get_alert_dimension_info(alert)
-    return {k: v for k, v in dimension_info["dimensions"].items() if k in dimension_info["dimension_fields"]}
+    alert_data: dict[str, Any] = alert.origin_alarm.get("data", {})
+    # 获取原始告警中维度信息
+    dimensions: dict[str, str | int] = alert_data.get("dimensions", {})
+    # 获取告警策略配置的维度字段列表
+    dimension_fields: list[str] = alert_data.get("dimension_fields", [])
+
+    return {k: v for k, v in dimensions.items() if k in dimension_fields}
 
 
-def build_log_search_condition(query_config: dict[str, Any], dimensions: dict[str, Any]) -> LogSearchCondition:
+def build_log_search_condition(query_config: dict[str, Any], dimensions: dict[str, Any]) -> dict[str, Any]:
     """构造日志查询过滤条件。
 
-    按顺序构造日志查询的 addition 列表，先添加告警维度作为精确匹配条件，再添加策略过滤条件（排除已存在的维度 key）。
+    按顺序构造日志查询的 addition 列表，先添加告警维度作为精确匹配条件，再添加策略过滤条件（排除已存在的维度 key）
+    如果策略过滤条件中存在 OR 条件，则仅使用告警维度作为过滤条件（日志平台不支持 OR 条件）
 
     :param query_config: 告警策略查询配置
     :param dimensions: 已过滤的告警维度信息字典（仅包含有效维度字段）
@@ -103,14 +104,24 @@ def build_log_search_condition(query_config: dict[str, Any], dimensions: dict[st
         )
         added_dimension_keys.add(field)
 
-    # 再添加策略过滤条件（排除已存在的维度 key）
-    for condition in query_config.get("agg_condition", []):
-        if condition["key"] not in added_dimension_keys:
+    # 检查是否存在 or 条件，如果存在则仅使用告警维度
+    agg_condition: list[dict[str, Any]] = query_config.get("agg_condition") or []
+    has_or_condition: bool = any(cond.get("condition", "") == "or" for cond in agg_condition)
+    if not has_or_condition:
+        for condition in agg_condition:
+            if condition["key"] in added_dimension_keys:
+                continue
+
+            # 转换操作符为日志平台格式，如果不支持则跳过该条件
             operator: str = condition.get("method") or "="
+            log_operator: str | None = convert_operator_to_log_platform(operator)
+            if log_operator is None:
+                continue
+
             addition.append(
                 {
                     "field": condition["key"],
-                    "operator": operator,
+                    "operator": log_operator,
                     "value": condition.get("value", []),
                 }
             )
@@ -137,8 +148,12 @@ def merge_dimensions_into_conditions(
     # 使用告警策略配置的汇聚条件作为初始过滤条件
     filter_conditions: list[dict[str, Any]] = agg_condition or []
 
-    # 构建 key → 索引位置的映射，方便后续更新替换
-    condition_index: dict[str, int] = {condition["key"]: idx for idx, condition in enumerate(filter_conditions)}
+    # 构建 key → 索引位置的映射，并处理操作符转换（事件检索页的不等于操作符为 ne）
+    condition_index: dict[str, int] = {}
+    for idx, condition in enumerate(filter_conditions):
+        condition_index[condition["key"]] = idx
+        if condition["method"] == "neq":
+            condition["method"] = "ne"
 
     # 遍历告警的原始维度信息，增加维度过滤条件
     for key, value in dimensions.items():

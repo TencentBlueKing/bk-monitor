@@ -20,9 +20,9 @@ from bkmonitor.data_source import q_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.alert_drilling import (
-    get_alert_data_source,
+    get_alert_data_source_or_none,
     get_alert_dimensions,
-    get_alert_query_config,
+    get_alert_query_config_or_none,
     merge_dimensions_into_conditions,
 )
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -110,7 +110,7 @@ class AlertEventBaseResource(Resource, abc.ABC):
             return QueryConfigBuilder((DataTypeLabel.EVENT, DataSourceLabel.BK_APM)).time_field("time")
 
         # 日志关键字事件使用 (LOG, BK_MONITOR_COLLECTOR)，其他使用默认的自定义事件数据源
-        data_source: tuple[str, str] | None = get_alert_data_source(alert)
+        data_source: tuple[str, str] | None = get_alert_data_source_or_none(alert)
         is_bk_monitor_log: bool = data_source == (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG)
         using: tuple[str, str] = (
             (DataTypeLabel.LOG, DataSourceLabel.BK_MONITOR_COLLECTOR)
@@ -210,11 +210,11 @@ class AlertEventBaseResource(Resource, abc.ABC):
         :param q: 查询构建器
         :return: 构建好的查询配置，如果不是支持的告警类型则返回 None
         """
-        data_source: tuple[str, str] | None = get_alert_data_source(alert)
+        data_source: tuple[str, str] | None = get_alert_data_source_or_none(alert)
         if not data_source or data_source not in cls.supported_event_sources:
             return None
 
-        query_config: dict[str, Any] = get_alert_query_config(alert)
+        query_config: dict[str, Any] = get_alert_query_config_or_none(alert)
         result_table_id: str = query_config.get("result_table_id") or ""
         if not result_table_id:
             return None
