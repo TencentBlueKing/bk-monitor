@@ -71,6 +71,18 @@ if RUN_MODE == "DEVELOP":  # noqa
     except ImportError:
         pass
 
+# 融合 bk-monitor-base Django 配置：主项目优先，仅补齐缺失项
+try:
+    from bk_monitor_base.config.django import merge_django_settings
+
+    merge_django_settings(globals())
+
+    # 暂时排除metadata app
+    globals()["INSTALLED_APPS"] = tuple(app for app in globals()["INSTALLED_APPS"] if app != "bk_monitor_base.metadata")
+except ImportError as e:
+    logging.exception(e)
+    raise ImportError(f"Could not import bk-monitor-base settings merger: {e}")
+
 # Django 4.2+ 不再官方支持 Mysql 5.7，但目前 Django 仅是对 5.7 做了软性的不兼容改动，
 # 在没有使用 8.0 特异的功能时，对 5.7 版本的使用无影响，为兼容存量的 Mysql 5.7 DB 做此 Patch
 try:
