@@ -9,17 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from config.default import FRONTEND_BACKEND_SEPARATION
-
 from .default import *  # noqa
 
 # 预发布环境
 RUN_MODE = "STAGING"
-
-# 前后端开发模式下支持跨域配置
-if FRONTEND_BACKEND_SEPARATION:
-    INSTALLED_APPS += ("corsheaders",)
-    # 该跨域中间件需要放在前面
-    MIDDLEWARE = ("corsheaders.middleware.CorsMiddleware",) + MIDDLEWARE
-    CORS_ALLOW_ALL_ORIGINS = True
-    CORS_ALLOW_CREDENTIALS = True
