@@ -8,7 +8,7 @@ ARG username=bkmonitor
 ARG pypi_index_url=https://pypi.org/simple/
 
 # install tools
-RUN dnf install -y vim wget strace graphviz tini https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && dnf clean all
+RUN dnf install -y vim wget strace graphviz tini mysql-libs https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && dnf clean all
 
 # install chinese fonts
 RUN --mount=type=cache,target=/app/fonts \
