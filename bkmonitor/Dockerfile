@@ -26,7 +26,7 @@ FROM python-base AS python-builder
 
 WORKDIR /app
 
-RUN dnf install -y gcc python3-devel
+RUN dnf install -y gcc python3-devel mysql-devel
 
 # install python packages
 RUN --mount=type=cache,target=/root/.cache/uv \
