@@ -109,5 +109,3 @@ from bk_monitor_base.infras.constant import OLD_MONITOR_SAAS_DB_NAME, OLD_MONITO
 # 数据库配置初始化
 globals()["DATABASES"][OLD_MONITOR_SAAS_DB_NAME] = globals()["DATABASES"]["default"].copy()
 globals()["DATABASES"][OLD_MONITOR_BACKEND_DB_NAME] = globals()["DATABASES"]["monitor_api"].copy()
-globals()["DATABASES"][OLD_MONITOR_SAAS_DB_NAME]["NAME"] = OLD_MONITOR_SAAS_DB_NAME
-globals()["DATABASES"][OLD_MONITOR_BACKEND_DB_NAME]["NAME"] = OLD_MONITOR_BACKEND_DB_NAME
