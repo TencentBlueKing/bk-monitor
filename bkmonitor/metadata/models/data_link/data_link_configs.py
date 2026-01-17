@@ -997,7 +997,7 @@ class ClusterConfig(models.Model):
                     "enabled": cluster.is_auth,
                     "username": cluster.username,
                     "password": cluster.password,
-                    "mechanisms": cluster.sasl_mechanisms,
+                    "mechanism": cluster.sasl_mechanisms,
                 }
             }
 
