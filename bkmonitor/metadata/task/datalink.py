@@ -120,10 +120,10 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
             bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name, namespace="bklog"
         )
         update_fields: list[str] = []
-        if getattr(datalink, "bk_data_id", 0) != ds.bk_data_id:
+        if datalink.bk_data_id != ds.bk_data_id:
             datalink.bk_data_id = ds.bk_data_id
             update_fields.append("bk_data_id")
-        if getattr(datalink, "table_ids", None) != [table_id]:
+        if datalink.table_ids != [table_id]:
             datalink.table_ids = [table_id]
             update_fields.append("table_ids")
         if update_fields:
@@ -213,13 +213,15 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
             table_ids=[table_id],
         )
     else:
-        datalink = DataLink.objects.get(bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name)
+        datalink = DataLink.objects.get(
+            bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name, namespace="bklog"
+        )
         data_link_name = bkbase_rt.data_link_name
         update_fields: list[str] = []
-        if getattr(datalink, "bk_data_id", 0) != ds.bk_data_id:
+        if datalink.bk_data_id != ds.bk_data_id:
             datalink.bk_data_id = ds.bk_data_id
             update_fields.append("bk_data_id")
-        if getattr(datalink, "table_ids", None) != [table_id]:
+        if datalink.table_ids != [table_id]:
             datalink.table_ids = [table_id]
             update_fields.append("table_ids")
         if update_fields:

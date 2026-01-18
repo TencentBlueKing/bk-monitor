@@ -100,7 +100,7 @@ def get_data_id_v2(
         data_id = int(data_id_config.get("metadata", {}).get("annotations", {}).get("dataId", 0))
         data_id_config_ins.status = phase
         # 记录 bkbase 的 dataId，便于后续链路组件关联与排障
-        if getattr(data_id_config_ins, "bk_data_id", 0) != data_id:
+        if data_id_config_ins.bk_data_id != data_id:
             data_id_config_ins.bk_data_id = data_id
             data_id_config_ins.save(update_fields=["status", "bk_data_id"])
         else:
