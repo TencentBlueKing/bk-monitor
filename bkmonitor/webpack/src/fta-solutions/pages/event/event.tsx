@@ -567,7 +567,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     !this.isSplitEventPanel && window.addEventListener('popstate', this.handlePopstate);
   }
 
-  beforeRouteEnter(to, from, next) {
+  beforeRouteEnter(_to, _fromm, next) {
     next(async (vm: Event) => {
       vm.routeStateKeyList = [];
       const params = vm.handleUrl2Params();
@@ -625,7 +625,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       }
     });
   }
-  beforeRouteLeave(to, from, next) {
+  beforeRouteLeave(_to, _fromm, next) {
     this.detailInfo.isShow = false;
     destroyTimezone();
     next();
@@ -734,8 +734,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         : `action_id : ${defaultData.actionId}`;
       const time = +defaultData.actionId.toString().slice(0, 10) * 1000;
       defaultData.timeRange = [
-        dayjs.tz(time).add(-30, 'd').format('YYYY-MM-DD HH:mm:ss'),
-        dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss'),
+        dayjs.tz(time).add(-30, 'd').format('YYYY-MM-DD HH:mm:ssZZ'),
+        dayjs.tz(time).format('YYYY-MM-DD HH:mm:ssZZ'),
       ];
     }
     /** 移动端带collectId跳转事件中心 */
@@ -769,7 +769,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   async handlePopstate() {
     if (this.isSplitEventPanel) return;
     let params = this.handleUrl2Params();
-    const index = this.routeStateKeyList.findIndex(key => key === this.$route.query.key);
+    const index = this.routeStateKeyList.indexOf(this.$route.query.key);
     params = index === -1 ? this.handleGetDefaultRouteData() : params;
     if (this.$route.name === 'event-center') {
       Object.keys(params).forEach(key => {
@@ -1603,8 +1603,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       });
     if (from) {
       this.timeRange = [
-        dayjs.tz(params.start_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
-        dayjs.tz(params.end_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
+        dayjs.tz(params.start_time * 1000).format('YYYY-MM-DD HH:mm:ssZZ'),
+        dayjs.tz(params.end_time * 1000).format('YYYY-MM-DD HH:mm:ssZZ'),
       ];
       this.handleGetFilterData();
       this.pagination.current = 1;

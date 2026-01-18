@@ -25,6 +25,7 @@ logger = logging.getLogger("metadata")
 
 @atomic(config.DATABASE_CONNECTION_NAME)
 def apply_data_id_v2(
+    bk_tenant_id: str,
     data_name: str,
     bk_biz_id: int,
     namespace: str = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
@@ -34,6 +35,7 @@ def apply_data_id_v2(
 ) -> bool:
     """
     下发 data_id 资源，并记录对应的资源及配置
+    @param bk_tenant_id: 租户ID
     @param data_name: 数据源名称
     @param namespace: 资源命名空间
     @param bk_biz_id: 业务ID
@@ -41,8 +43,6 @@ def apply_data_id_v2(
     @param event_type: 数据类型
     """
     logger.info("apply_data_id_v2:apply data_id for data_name: %s,event_type: %s", data_name, event_type)
-
-    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
 
     if is_base:  # 如果是基础数据源（1000,1001）,那么沿用固定格式的data_name，会以此name作为bkbase申请时的唯一键
         bkbase_data_name = data_name

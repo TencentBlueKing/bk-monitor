@@ -244,6 +244,10 @@ import { isEqual } from 'lodash-es';
         return (this.$store.getters.visibleFields ?? []).map(e => e.field_name);
       },
       shadowSort() {
+        // 如果是模板配置模式，使用当前选中配置的 sort_list
+        if (this.isTemplateConfig) {
+          return this.currentClickConfigData?.sort_list ?? [];
+        }
         if (!this.isTemplateConfig && this.catchFieldCustomSortList?.length) {
           return this.catchFieldCustomSortList;
         }
@@ -597,6 +601,13 @@ import { isEqual } from 'lodash-es';
       /** 初始化显示字段 */
       initShadowFields(configData) {
         this.activeConfigTab = this.currentClickConfigData?.name;
+
+        // 为当前配置创建独立的排序数据副本
+        const currentSortList = structuredClone(this.shadowSort);
+
+        // 更新缓存，传递给子组件
+        this.cachedSortFields = currentSortList;
+
         this.shadowTotal.forEach(fieldInfo => {
           this.shadowSort.forEach(item => {
             if (fieldInfo.field_name === item[0]) {

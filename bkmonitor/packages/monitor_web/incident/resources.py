@@ -52,9 +52,9 @@ from fta_web.alert.handlers.incident import (
 from fta_web.alert.resources import BaseTopNResource
 from fta_web.alert.serializers import AlertSearchSerializer
 from fta_web.models.alert import SearchHistory, SearchType
-from monitor_web.incident.serializers import IncidentSearchSerializer
+from monitor_web.incident.events.resources import IncidentEventsDetailResource, IncidentEventsSearchResource  # noqa
 from monitor_web.incident.metrics.resources import IncidentMetricsSearchResource  # noqa
-from monitor_web.incident.events.resources import IncidentEventsSearchResource, IncidentEventsDetailResource  # noqa
+from monitor_web.incident.serializers import IncidentSearchSerializer
 
 
 class IncidentBaseResource(Resource):
@@ -405,6 +405,7 @@ class ExportIncidentResource(Resource):
     """
 
     class RequestSerializer(IncidentSearchSerializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
         level = serializers.ListField(required=False, label="故障级别", default=[])
         assignee = serializers.ListField(required=False, label="故障负责人", default=[])
         handler = serializers.ListField(required=False, label="故障处理人", default=[])
@@ -412,7 +413,7 @@ class ExportIncidentResource(Resource):
     def perform_request(self, validated_request_data):
         handler = IncidentQueryHandler(**validated_request_data)
         incidents = handler.export()
-        return resource.export_import.export_package(list_data=incidents)
+        return resource.export_import.export_package(list_data=incidents, bk_biz_id=validated_request_data["bk_biz_id"])
 
 
 class IncidentOverviewResource(IncidentBaseResource):
@@ -1450,7 +1451,7 @@ class IncidentResultsResource(IncidentBaseResource):
         if not content:
             return False
         if isinstance(content, dict):
-            return all([sub_content for sub_content in content.values()])
+            return all([sub_content for sub_content in content.values()]) and content.get("is_show", True)
         return True
 
     def perform_request(self, validated_request_data: dict) -> dict:

@@ -173,6 +173,8 @@ LANGUAGE_COOKIE_NAME = "blueking_language"
 USE_TZ = True
 TIME_ZONE = "Asia/Shanghai"
 TIMEZONE_SESSION_KEY = "blueking_timezone"
+# Django 4.0+ 默认使用 zoneinfo，但项目仍使用 pytz，需要设置此选项以继续使用 pytz
+USE_DEPRECATED_PYTZ = True
 
 # 平台地址配置
 BK_PAAS_HOST = BK_URL = os.getenv("BK_PAAS_HOST") or os.getenv("BK_PAAS_PUBLIC_URL") or os.getenv("BK_PAAS2_URL") or ""
@@ -256,8 +258,16 @@ USE_DISK_FILTER = True
 # method字段由SaaS在图形展示、策略配置的sql中作为where字段条件使用，
 # 无 method 字段则为后台磁盘事件型告警进行过滤使用
 DISK_FILTER_CONDITION_LIST_V1 = [
-    {"method": "not like", "sql_statement": "%dev\\/loop%", "file_system_regex": r"/?dev/loop.*"},
-    {"method": "not like", "sql_statement": "%dev\\/sr%", "file_system_regex": r"/?dev/sr.*"},
+    {
+        "method": "not like",
+        "sql_statement": "%dev\\/loop%",
+        "file_system_regex": r"/?dev/loop.*",
+    },
+    {
+        "method": "not like",
+        "sql_statement": "%dev\\/sr%",
+        "file_system_regex": r"/?dev/sr.*",
+    },
     {"method": "not like", "sql_statement": "%.iso", "file_system_regex": r".*?\.iso$"},
 ]
 
@@ -512,6 +522,9 @@ APM_APP_QPS = 500
 
 APM_CUSTOM_EVENT_REPORT_CONFIG = {}
 
+# 新建应用时，指定存储集群的路由规则
+APM_APP_STORAGE_ROUTES = []
+
 # 新建应用的刷新频率，每 2 分钟执行一次拓扑发现
 APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
 
@@ -647,7 +660,12 @@ BCS_STORAGE_PAGE_SIZE = os.getenv("BKAPP_BCS_STORAGE_PAGE_SIZE", 5000)
 BCS_SYNC_SYNC_CONCURRENCY = os.getenv("BKAPP_BCS_SYNC_SYNC_CONCURRENCY", 20)
 
 # 所有bcs指标都将基于该信息进行label复制
-BCS_METRICS_LABEL_PREFIX = {"*": "kubernetes", "node_": "kubernetes", "container_": "kubernetes", "kube_": "kubernetes"}
+BCS_METRICS_LABEL_PREFIX = {
+    "*": "kubernetes",
+    "node_": "kubernetes",
+    "container_": "kubernetes",
+    "kube_": "kubernetes",
+}
 
 # 容器化共存适配，添加API访问子路径
 API_SUB_PATH = os.getenv("BKAPP_API_SUB_PATH", os.getenv("API_SUB_PATH", ""))
@@ -733,6 +751,11 @@ ACCESS_DATA_TIME_DELAY = 10
 ACCESS_LATENCY_INTERVAL_FACTOR = 1
 ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 
+# access-detect 合并处理开关
+# 灰度策略 ID 列表（可选）
+# 仅对列表中的策略启用合并处理，为空时对所有静态阈值策略生效
+ACCESS_DETECT_MERGE_STRATEGY_IDS = []
+
 # kafka是否自动提交配置
 KAFKA_AUTO_COMMIT = True
 
@@ -754,7 +777,13 @@ if os.getenv("ENABLE_TABLE_VISIT_COUNT", "false").lower() == "true":
     BACKEND_MYSQL_PASSWORD,
 ) = get_backend_mysql_settings()
 # SaaS DB配置
-SAAS_MYSQL_NAME, SAAS_MYSQL_HOST, SAAS_MYSQL_PORT, SAAS_MYSQL_USER, SAAS_MYSQL_PASSWORD = get_saas_mysql_settings()
+(
+    SAAS_MYSQL_NAME,
+    SAAS_MYSQL_HOST,
+    SAAS_MYSQL_PORT,
+    SAAS_MYSQL_USER,
+    SAAS_MYSQL_PASSWORD,
+) = get_saas_mysql_settings()
 # 后台DB扩展配置
 (
     BACKEND_ALERT_MYSQL_NAME,
@@ -899,7 +928,10 @@ LOG_LEVEL_MAP = {
 }
 
 warnings.filterwarnings(
-    "ignore", r"DateTimeField .* received a naive datetime", RuntimeWarning, r"django\.db\.models\.fields"
+    "ignore",
+    r"DateTimeField .* received a naive datetime",
+    RuntimeWarning,
+    r"django\.db\.models\.fields",
 )
 
 #
@@ -1119,7 +1151,10 @@ HEADER_FOOTER_CONFIG = {
                     "text": "技术支持",
                     "link": "https://wpa1.qq.com/KziXGWJs?_type=wpa&qidian=true",
                 },
-                {"text": "社区论坛", "link": "https://bk.tencent.com/s-mart/community/"},
+                {
+                    "text": "社区论坛",
+                    "link": "https://bk.tencent.com/s-mart/community/",
+                },
                 {"text": "产品官网", "link": "https://bk.tencent.com/index/"},
             ],
             "en": [
@@ -1208,6 +1243,9 @@ JOB_URL = os.getenv("BK_JOB_SITE_URL") or os.getenv("BK_JOB_HOST", JOB_URL)
 BK_CC_URL = BK_PAAS_HOST.replace("paas", "cmdb")
 BK_CC_URL = os.getenv("BK_CC_SITE_URL") or os.getenv("BK_CC_HOST", BK_CC_URL)
 
+# 用户管理站点 URL（用于个人中心跳转等）
+BK_USER_SITE_URL = os.getenv("BK_USER_SITE_URL", "")
+
 # 新版ITSM
 BK_ITSM_V4_HOST = os.getenv("BK_ITSM_V4_HOST", "")
 BK_ITSM_V4_API_URL = os.getenv("BK_ITSM_V4_API_URL", f"{BK_COMPONENT_API_URL}/api/cw-aitsm/prod")
@@ -1225,7 +1263,8 @@ BKCI_APP_SECRET = os.getenv("BKCI_APP_SECRET")
 BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PAAS_HOST.rstrip("/")))
 ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}/#/event-center/action-detail/{{action_id}}"
 EVENT_CENTER_URL = urljoin(
-    BK_MONITOR_HOST, "?bizId={bk_biz_id}#/event-center?queryString=action_id%20%3A%20{collect_id}"
+    BK_MONITOR_HOST,
+    "?bizId={bk_biz_id}#/event-center?queryString=action_id%20%3A%20{collect_id}",
 )
 MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 
@@ -1428,6 +1467,9 @@ MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}
 
+# 默认MCP APP_CODE
+AIDEV_AGENT_MCP_REQUEST_AGENT_CODE = "bkmonitor-mcp"
+
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True
 
@@ -1454,6 +1496,9 @@ FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200
 
 # 自定义指标过期时间
 TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
+
+# 是否使用 is_active 字段来过滤时序指标（开启时使用 is_active=True，关闭时使用过期时间过滤）
+ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE = False
 
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
@@ -1503,8 +1548,6 @@ APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split('
 
 # 是否启用新版的数据链路，默认开启
 ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == "true"
-# 是否启用事件组V4数据链路，默认关闭
-ENABLE_V4_EVENT_GROUP_DATA_LINK = os.getenv("ENABLE_V4_EVENT_GROUP_DATA_LINK", "false").lower() == "true"
 # 插件数据是否启用接入V4链路，默认开启
 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "true").lower() == "true"
 # 是否启用influxdb，默认关闭
@@ -1679,10 +1722,19 @@ if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
     BKREPO_PROJECT = os.getenv("BKAPP_BKREPO_PROJECT") or os.environ["BKREPO_PROJECT"]
     BKREPO_BUCKET = os.getenv("BKAPP_BKREPO_BUCKET") or os.environ["BKREPO_BUCKET"]
 
-    DEFAULT_FILE_STORAGE = "bkstorages.backends.bkrepo.BKRepoStorage"
+    AI_BKREPO_BUCKET = os.getenv("BKAPP_AI_BKREPO_BUCKET")
+    AI_BKREPO_PROJECT = os.getenv("BKAPP_AI_BKREPO_PROJECT")
 
-# 告警图表渲染模式
-ALARM_GRAPH_RENDER_MODE = os.getenv("BKAPP_ALARM_GRAPH_RENDER_MODE", "image_exporter")
+    # Django 4.2+ 使用 STORAGES 配置替代 DEFAULT_FILE_STORAGE 和 STATICFILES_STORAGE
+    # 注意：Django 4.2+ 中 STORAGES 和 DEFAULT_FILE_STORAGE 是互斥的，不能同时配置
+    STORAGES = {
+        "default": {
+            "BACKEND": "bkstorages.backends.bkrepo.BKRepoStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
 
 # 首页告警图业务数量限制
 HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT = 5
@@ -1713,3 +1765,11 @@ ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH = False
 # V4链路分业务系统事件初始化配置
 SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS = int(os.getenv("SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS", 1))
 SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS = int(os.getenv("SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS", 0))
+
+# bkfara apigew地址
+BKFARA_AIOPS_SERVICE_USE_APIGW = bool(str(os.getenv("BKFARA_AIOPS_SERVICE_USE_APIGW", False)).lower() == "true")
+BKFARA_AIOPS_SERVICE_APIGW_HOST = os.getenv("BKFARA_AIOPS_SERVICE_APIGW_HOST", "")
+BKFARA_AIOPS_SERVICE_HOST_PREFIX = os.getenv("BKFARA_AIOPS_SERVICE_HOST_PREFIX", "")
+
+# 在同步bkbase集群信息时，是否进行更新
+SYNC_BKBASE_CLUSTER_INFO_UPDATE = os.getenv("SYNC_BKBASE_CLUSTER_INFO_UPDATE", "false").lower() == "true"

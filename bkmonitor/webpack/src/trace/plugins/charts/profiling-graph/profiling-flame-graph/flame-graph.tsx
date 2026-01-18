@@ -311,7 +311,7 @@ export default defineComponent({
           pixelRatio: window.devicePixelRatio,
           backgroundColor: '#fff',
         });
-        downloadBase64AsPng(base64Url, `${props.appName} ${dayjs().format('YYYY-MM-DD HH:mm:ss')}.png`);
+        downloadBase64AsPng(base64Url, `${props.appName} ${dayjs().format('YYYY-MM-DD HH:mm:ssZZ')}.png`);
       }
     );
     onBeforeUnmount(() => {
