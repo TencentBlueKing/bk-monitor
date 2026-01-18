@@ -112,15 +112,22 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
             namespace="bklog",
             data_link_strategy=DataLink.BK_LOG,
             bk_data_id=ds.bk_data_id,
+            table_ids=[table_id],
         )
     else:
         # 获取链路
         datalink = DataLink.objects.get(
             bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name, namespace="bklog"
         )
+        update_fields: list[str] = []
         if getattr(datalink, "bk_data_id", 0) != ds.bk_data_id:
             datalink.bk_data_id = ds.bk_data_id
-            datalink.save(update_fields=["bk_data_id"])
+            update_fields.append("bk_data_id")
+        if getattr(datalink, "table_ids", None) != [table_id]:
+            datalink.table_ids = [table_id]
+            update_fields.append("table_ids")
+        if update_fields:
+            datalink.save(update_fields=update_fields)
     datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
 
     # 清理多余的存储链路
@@ -203,13 +210,20 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
             namespace="bklog",
             data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
             bk_data_id=ds.bk_data_id,
+            table_ids=[table_id],
         )
     else:
         datalink = DataLink.objects.get(bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name)
         data_link_name = bkbase_rt.data_link_name
+        update_fields: list[str] = []
         if getattr(datalink, "bk_data_id", 0) != ds.bk_data_id:
             datalink.bk_data_id = ds.bk_data_id
-            datalink.save(update_fields=["bk_data_id"])
+            update_fields.append("bk_data_id")
+        if getattr(datalink, "table_ids", None) != [table_id]:
+            datalink.table_ids = [table_id]
+            update_fields.append("table_ids")
+        if update_fields:
+            datalink.save(update_fields=update_fields)
 
     # 创建/更新链路配置
     datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
