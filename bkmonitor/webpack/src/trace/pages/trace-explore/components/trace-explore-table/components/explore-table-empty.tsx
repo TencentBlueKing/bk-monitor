@@ -34,6 +34,13 @@ import './explore-table-empty.scss';
 
 export default defineComponent({
   name: 'ExploreTableEmpty',
+  props: {
+    /** 是否显示操作按钮 */
+    showOperation: {
+      type: Boolean,
+      default: true,
+    },
+  },
   emits: {
     dataSourceConfigClick: () => true,
     clearFilter: () => true,
@@ -46,7 +53,7 @@ export default defineComponent({
     return (
       <EmptyStatus
         class='explore-table-empty'
-        type='search-empty'
+        showOperation={this.showOperation}
       >
         <div class='search-empty-content'>
           <div class='tips'>

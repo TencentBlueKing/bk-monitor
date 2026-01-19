@@ -301,7 +301,9 @@ export default defineComponent({
           }
         }
       });
-      observer.value.observe(loadingRef.value as HTMLDivElement);
+      if (loadingRef.value) {
+        observer.value.observe(loadingRef.value as HTMLDivElement);
+      }
     };
 
     /**
@@ -376,7 +378,7 @@ export default defineComponent({
      * @description 告警记录数据列表滚动加载卸载
      */
     onUnmounted(() => {
-      observer.value.disconnect();
+      observer.value?.disconnect();
     });
 
     return {
