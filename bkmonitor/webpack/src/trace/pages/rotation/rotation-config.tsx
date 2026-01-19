@@ -30,7 +30,6 @@ import dayjs from 'dayjs';
 import { createDutyRule, retrieveDutyRule, updateDutyRule } from 'monitor-api/modules/model';
 import { getReceiver } from 'monitor-api/modules/notice_group';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import TimezoneTips from 'trace/components/timezone-tips/timezone-tips';
 import { useAppStore } from 'trace/store/modules/app';
 import { useI18n } from 'vue-i18n';
@@ -314,12 +313,8 @@ export default defineComponent({
         labels,
         enabled,
         duty_arranges: dutyArranges,
-        effective_time: effective.startTime
-          ? dayjs(effective.startTime).tz(window.user_time_zone).format('YYYY-MM-DD HH:mm:ssZZ')
-          : '',
-        end_time: effective.endTime
-          ? dayjs(effective.endTime).tz(window.user_time_zone).format('YYYY-MM-DD HH:mm:ssZZ')
-          : '',
+        effective_time: effective.startTime ? dayjs(effective.startTime).format('YYYY-MM-DD HH:mm:ssZZ') : '',
+        end_time: effective.endTime ? dayjs(effective.endTime).format('YYYY-MM-DD HH:mm:ssZZ') : '',
       };
       return params;
     }
@@ -346,8 +341,10 @@ export default defineComponent({
         formData.name = res.name;
         formData.labels = res.labels;
         formData.enabled = res.enabled;
-        formData.effective.startTime = res.effective_time ? (formatWithTimezone(res.effective_time) as string) : '';
-        formData.effective.endTime = res.end_time ? (formatWithTimezone(res.end_time) as string) : '';
+        formData.effective.startTime = res.effective_time
+          ? dayjs(res.effective_time).format('YYYY-MM-DD HH:mm:ssZZ')
+          : '';
+        formData.effective.endTime = res.end_time ? dayjs(res.end_time).format('YYYY-MM-DD HH:mm:ssZZ') : '';
         if (res.category === 'regular') {
           rotationTypeData.regular = fixedRotationTransform(res.duty_arranges, 'data');
         } else {

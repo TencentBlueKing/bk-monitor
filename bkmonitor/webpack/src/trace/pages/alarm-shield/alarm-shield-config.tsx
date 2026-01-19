@@ -30,7 +30,6 @@ import dayjs from 'dayjs';
 import { getNoticeWay, getReceiver } from 'monitor-api/modules/notice_group';
 import { addShield, editShield, frontendCloneInfo, frontendShieldDetail } from 'monitor-api/modules/shield';
 import { deepClone, random } from 'monitor-common/utils';
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { getDefaultUserGroupListSync } from 'monitor-pc/components/user-selector/user-group';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -247,12 +246,12 @@ export default defineComponent({
       noticeDate.value[type] = {
         list: [...cycleConfig.day_list, ...cycleConfig.week_list],
         range: isSingle
-          ? [data.begin_time, data.end_time].map(t => formatWithTimezone(t))
+          ? [data.begin_time, data.end_time].map(t => dayjs(t).format('YYYY-MM-DD HH:mm:ssZZ'))
           : [cycleConfig.begin_time, cycleConfig.end_time],
       };
       noticeDate.value.dateRange = isSingle
         ? []
-        : ([data.begin_time, data.end_time].map(t => formatWithTimezone(t)) as string[]);
+        : ([data.begin_time, data.end_time].map(t => dayjs(t).format('YYYY-MM-DD HH:mm:ssZZ')) as string[]);
       noticeDate.value.key = random(8);
       /* 屏蔽原因 */
       formData.desc = data.description;
@@ -334,12 +333,8 @@ export default defineComponent({
         [EShieldCycle.month]: 4,
       };
       const cycleParams = {
-        begin_time: dayjs(isSingle ? cycleDate.range[0] : dateRange[0])
-          .tz(window.user_time_zone)
-          .format('YYYY-MM-DD HH:mm:ssZZ'),
-        end_time: dayjs(isSingle ? cycleDate.range[1] : dateRange[1])
-          .tz(window.user_time_zone)
-          .format('YYYY-MM-DD HH:mm:ssZZ'),
+        begin_time: dayjs(isSingle ? cycleDate.range[0] : dateRange[0]).format('YYYY-MM-DD HH:mm:ssZZ'),
+        end_time: dayjs(isSingle ? cycleDate.range[1] : dateRange[1]).format('YYYY-MM-DD HH:mm:ssZZ'),
         cycle_config: {
           begin_time: isSingle ? '' : cycleDate.range[0],
           end_time: isSingle ? '' : cycleDate.range[1],
