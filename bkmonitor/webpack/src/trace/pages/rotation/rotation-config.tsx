@@ -314,8 +314,12 @@ export default defineComponent({
         labels,
         enabled,
         duty_arranges: dutyArranges,
-        effective_time: dayjs(effective.startTime).tz(window.user_time_zone).format('YYYY-MM-DD HH:mm:ssZZ'),
-        end_time: dayjs(effective.endTime).tz(window.user_time_zone).format('YYYY-MM-DD HH:mm:ssZZ'),
+        effective_time: effective.startTime
+          ? dayjs(effective.startTime).tz(window.user_time_zone).format('YYYY-MM-DD HH:mm:ssZZ')
+          : '',
+        end_time: effective.endTime
+          ? dayjs(effective.endTime).tz(window.user_time_zone).format('YYYY-MM-DD HH:mm:ssZZ')
+          : '',
       };
       return params;
     }
