@@ -131,48 +131,21 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
             if dim_name in dim_configs:
                 scope_info[scope_name]["dim_configs"][dim_name] = dim_configs[dim_name]
 
-    # 根据收集的信息批量创建或更新所有 Scope，并配置维度
-    existing_scopes = {
-        scope.scope_name: scope
-        for scope in TimeSeriesScope.objects.filter(group_id=group_id, scope_name__in=scope_info.keys())
-    }
+    # 批量创建所有 Scope
+    scopes_to_create = [
+        TimeSeriesScope(
+            group_id=group_id,
+            scope_name=scope_name,
+            dimension_config=info["dim_configs"],
+            auto_rules=[],
+            create_from=CREATE_FROM_DEFAULT if info["is_default"] else CREATE_FROM_USER,
+        )
+        for scope_name, info in scope_info.items()
+    ]
 
-    scopes_to_create = []
-    scopes_to_update = []
-
-    for scope_name, info in scope_info.items():
-        scope_dim_config = info["dim_configs"]
-
-        if scope_name in existing_scopes:
-            # 更新已存在的 scope
-            scope_obj = existing_scopes[scope_name]
-            merged_dim_config = scope_obj.dimension_config or {}
-
-            for dim_name, dim_config in scope_dim_config.items():
-                merged_dim_config.setdefault(dim_name, {}).update(dim_config)
-
-            if merged_dim_config != scope_obj.dimension_config:
-                scope_obj.dimension_config = merged_dim_config
-                scopes_to_update.append(scope_obj)
-        else:
-            # 创建新的 scope
-            scopes_to_create.append(
-                TimeSeriesScope(
-                    group_id=group_id,
-                    scope_name=scope_name,
-                    dimension_config=scope_dim_config,
-                    auto_rules=[],
-                    create_from=CREATE_FROM_DEFAULT if info["is_default"] else CREATE_FROM_USER,
-                )
-            )
-
-    # 批量创建和更新
     if scopes_to_create:
         TimeSeriesScope.objects.bulk_create(scopes_to_create, batch_size=500)
         stats["scopes_created"] += len(scopes_to_create)
-    if scopes_to_update:
-        TimeSeriesScope.objects.bulk_update(scopes_to_update, ["dimension_config"], batch_size=500)
-        stats["scopes_updated"] += len(scopes_to_update)
 
     return {
         scope.scope_name: scope.id
