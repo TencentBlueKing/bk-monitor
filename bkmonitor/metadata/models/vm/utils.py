@@ -685,11 +685,12 @@ def create_bkbase_data_link(
         data_link_strategy = DataLink.BK_STANDARD_TIME_SERIES
 
     # 2. 创建链路资源对象
-    data_link_ins, _ = DataLink.objects.get_or_create(
+    data_link_ins, _ = DataLink.objects.update_or_create(
         bk_tenant_id=data_source.bk_tenant_id,
         data_link_name=bkbase_data_name,
         namespace=namespace,
         data_link_strategy=data_link_strategy,
+        defaults={"bk_data_id": data_source.bk_data_id, "table_ids": [monitor_table_id]},
     )
     try:
         # 2. 尝试根据套餐，申请创建链路
@@ -815,11 +816,12 @@ def create_fed_bkbase_data_link(
         data_source.bk_data_id,
         bkbase_data_name,
     )
-    data_link_ins, _ = DataLink.objects.get_or_create(
+    data_link_ins, _ = DataLink.objects.update_or_create(
         bk_tenant_id=data_source.bk_tenant_id,
         data_link_name=bkbase_data_name,
         namespace=namespace,
         data_link_strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
+        defaults={"bk_data_id": data_source.bk_data_id, "table_ids": [monitor_table_id]},
     )
 
     try:

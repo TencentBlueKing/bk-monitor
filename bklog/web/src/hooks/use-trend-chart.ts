@@ -148,11 +148,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
   const getDefData = (buckets?) => {
     if (buckets?.length) {
-      // 使用对象格式：value[1]为null让barMinHeight不生效，originalValue保存真实值0
-      return buckets.map(bucket => ({
-        value: [bucket.key, null, bucket.key_as_string] as [number, null, string],
-        originalValue: 0,
-      }));
+      return buckets.map(bucket => [bucket.key, null, bucket.key_as_string]);
     }
 
     const data: any[] = [];
@@ -162,21 +158,13 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const intervalTimestamp = getIntervalValue(runningInterval);
 
     while (endValue > startValue) {
-      // 使用对象格式：value[1]为null让barMinHeight不生效，originalValue保存真实值0
-      data.push({
-        value: [endValue * 1000, null, null] as [number, null, null],
-        originalValue: 0,
-      });
+      data.push([endValue * 1000, null, null]);
       endValue -= intervalTimestamp;
     }
 
     if (endValue < startValue) {
       endValue = startValue;
-      // 使用对象格式：value[1]为null让barMinHeight不生效，originalValue保存真实值0
-      data.push({
-        value: [endValue * 1000, null, null] as [number, null, null],
-        originalValue: 0,
-      });
+      data.push([endValue * 1000, null, null]);
     }
 
     return data;
@@ -224,27 +212,14 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return 'YYYY-MM-DD HH:mm'; // >1d
   };
 
-  // 定义数据项类型：支持数组格式和对象格式（对象格式用于值为0时隐藏柱子）
-  type DataItem =
-    | [number, number, null | string]
-    | { value: [number, number | null, null | string]; originalValue: number };
-
-  // 辅助函数：获取数据项的时间戳
-  const getDataItemTime = (item: DataItem): number => {
-    if (Array.isArray(item)) {
-      return item[0];
-    }
-    return item.value[0];
-  };
-
   // 补齐图表数据到指定长度
-  const padDataToLength = (data: DataItem[], targetLength: number, intervalMs: number) => {
+  const padDataToLength = (data: [number, number, null | string][], targetLength: number, intervalMs: number) => {
     if (data.length >= targetLength) {
       return data;
     }
 
     // 按时间升序排序
-    data.sort((a, b) => getDataItemTime(a) - getDataItemTime(b));
+    data.sort((a, b) => a[0] - b[0]);
     const result = [...data];
     const missing = targetLength - data.length;
 
@@ -252,21 +227,15 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const padBefore = Math.floor(missing / 2);
     const padAfter = missing - padBefore;
 
-    // 前补 - 使用对象格式：value[1]为null让barMinHeight不生效
-    const firstTime = data.length ? getDataItemTime(data[0]) : Date.now();
+    // 前补
+    const firstTime = data.length ? data[0][0] : Date.now();
     for (let i = 1; i <= padBefore; i++) {
-      result.unshift({
-        value: [firstTime - i * intervalMs, null, null] as [number, null, null],
-        originalValue: 0,
-      });
+      result.unshift([firstTime - i * intervalMs, null, null]);
     }
-    // 后补 - 使用对象格式：value[1]为null让barMinHeight不生效
-    const lastTime = data.length ? getDataItemTime(data.at(-1)) : Date.now();
+    // 后补
+    const lastTime = data.length ? data.at(-1)[0] : Date.now();
     for (let i = 1; i <= padAfter; i++) {
-      result.push({
-        value: [lastTime + i * intervalMs, null, null] as [number, null, null],
-        originalValue: 0,
-      });
+      result.push([lastTime + i * intervalMs, null, null]);
     }
 
     return result;
@@ -304,8 +273,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       for (const newGroup of gradeOptionsGroups.value) {
         if (!dataset.has(newGroup.id)) {
           const dst = getSeriesData({ name: newGroup.name, data: [], color: newGroup.color });
-          // 添加 barMinHeight：值>0时显示最小3像素高度，值为null时不显示柱子
-          dst.barMinHeight = 3;
           options.series.push(dst);
           colors.push(newGroup.color);
           const index = options.series.length - 1;
@@ -331,7 +298,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         // 这里初始化默认数据
         for (const dstKey of sortKeys) {
           const { dataMap } = dataset.get(dstKey);
-          dataMap.set(key, [key, 0, keyAsString]);
+          dataMap.set(key, [key, null, keyAsString]);
           xLabelMap.set(key, dayjs(key).format(formatStr));
         }
       }
@@ -351,7 +318,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
             newCount += d.doc_count ?? 0;
           }
 
-          dataMap.set(key, [key, newCount, keyAsString]);
+          const finalCount = newCount === 0 ? null : newCount;
+          dataMap.set(key, [key, finalCount, keyAsString]);
           xLabelMap.set(key, dayjs(key).format(formatStr));
         }
       }
@@ -389,31 +357,14 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
     const keys = [...optData.keys()];
     keys.sort((a, b) => a[0] - b[0]);
-
     const data = keys.map((key) => {
       const val = optData.get(key);
-      const originalValue = val ? val[0] : 0;
-      // 使用对象格式存储数据：
-      // - value[1]: 值为0时设置为null，让barMinHeight不生效，柱子不显示
-      // - value[1]: 值>0时保持原值，由series的barMinHeight控制最小像素高度
-      // - originalValue: 保存原始值用于tooltip显示
-      return {
-        value: [key, originalValue > 0 ? originalValue : null, val ? val[1] : null] as [
-          number,
-          number | null,
-          null | string,
-        ],
-        originalValue, // 保存原始值用于 tooltip
-      };
+      const count = val ? (val[0] === 0 ? null : val[0]) : null;
+      return [key, count, val ? val[1] : null] as [number, number | null, null | string];
     });
 
     if (isInit) {
-      // 添加 barMinHeight：值>0时显示最小3像素高度，值为null时不显示柱子
-      const seriesData = {
-        ...getSeriesData({ name: '', data: data.length ? data : getDefData(), color: '#A4B3CD' }),
-        barMinHeight: 3,
-      };
-      series.push(seriesData);
+      series.push(getSeriesData({ name: '', data: data.length ? data : getDefData(), color: '#A4B3CD' }));
       options.series = series;
     } else {
       options.series[0].data = data;
@@ -497,8 +448,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       // 多 series 展示
       const seriesHtml = params
         .map((item) => {
-          // 优先使用 originalValue（真实值），如果没有则使用 value[1]
-          const value = item.data?.originalValue ?? item.value[1] ?? 0;
+          const value = item.value[1] || 0;
           const seriesName = item.seriesName;
           const color = item.color;
           return `

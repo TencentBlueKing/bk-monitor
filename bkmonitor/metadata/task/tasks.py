@@ -1223,13 +1223,13 @@ def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         bk_biz_id,
         data_name,
     )
-    data_link_ins, created = models.DataLink.objects.get_or_create(
+    data_link_ins, created = models.DataLink.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
         data_link_name=data_name,
         namespace="bkmonitor",
         data_link_strategy=models.DataLink.BASEREPORT_TIME_SERIES_V1,
-        bk_tenant_id=bk_tenant_id,
+        defaults={"bk_data_id": data_source.bk_data_id, "table_ids": result_table_ids},
     )
-
     # 2. 申请数据链路配置 VmResultTable, VmResultTableBinding, DataBus, ConditionalSink
     try:
         data_link_ins.apply_data_link(
@@ -1494,11 +1494,11 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         bk_biz_id,
         data_name,
     )
-    data_link_ins, _ = models.DataLink.objects.get_or_create(
+    data_link_ins, _ = models.DataLink.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
         data_link_name=data_name,
         data_link_strategy=models.DataLink.BASE_EVENT_V1,
-        bk_tenant_id=bk_tenant_id,
-        defaults={"namespace": "bklog"},
+        defaults={"namespace": "bklog", "bk_data_id": data_source.bk_data_id, "table_ids": [table_id]},
     )
 
     # 2. 申请数据链路配置 ResultTableConfig,ESStorageBindingConfig,DataBusConfig
@@ -1791,11 +1791,12 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
             models.ResultTableField.objects.bulk_create(result_table_field_to_create)
 
         # 创建数据链路
-        data_link_ins, _ = models.DataLink.objects.get_or_create(
+        data_link_ins, _ = models.DataLink.objects.update_or_create(
+            bk_tenant_id=bk_tenant_id,
             data_link_name=data_name,
             namespace="bkmonitor",
             data_link_strategy=data_name_to_data_link_strategy[data_link_type],
-            bk_tenant_id=bk_tenant_id,
+            defaults={"bk_data_id": data_source.bk_data_id, "table_ids": [table_id]},
         )
 
         # 申请数据链路配置
@@ -1972,6 +1973,8 @@ def create_single_tenant_system_datalink(
             "data_link_strategy": DataLink.BASEREPORT_TIME_SERIES_V1,
             "namespace": BKBASE_NAMESPACE_BK_MONITOR,
             "bk_tenant_id": datasource.bk_tenant_id,
+            "bk_data_id": datasource.bk_data_id,
+            "table_ids": table_ids,
         },
     )
     data_link_ins.apply_data_link(
@@ -2075,6 +2078,8 @@ def create_single_tenant_system_proc_datalink(
                 "data_link_strategy": data_id_to_data_link_strategy[data_id],
                 "namespace": BKBASE_NAMESPACE_BK_MONITOR,
                 "bk_tenant_id": datasource.bk_tenant_id,
+                "bk_data_id": datasource.bk_data_id,
+                "table_ids": [data_id_to_table_id[data_id]],
             },
         )
         data_link_ins.apply_data_link(
