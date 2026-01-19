@@ -387,7 +387,7 @@ class ReportHandler:
         # 邮件范围
         # 使用第一个业务的时区作为时间转换的时区
         if bk_biz_ids:
-            target_bk_biz_id = list(bk_biz_ids)[0]
+            target_bk_biz_id = int(list(bk_biz_ids)[0])
             if target_bk_biz_id < 0:
                 space = Space.objects.filter(id=abs(target_bk_biz_id)).first()
             else:
