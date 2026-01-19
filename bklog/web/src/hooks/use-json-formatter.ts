@@ -131,14 +131,14 @@ export default class UseJsonFormatter {
 
     const valueElement = (e.target as HTMLElement).closest('.field-value') as HTMLElement;
     const fieldName = valueElement?.getAttribute('data-field-name');
+    const fieldType = valueElement?.getAttribute('data-field-type');
 
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
     const traceView = content.value.querySelector('[data-item-id="trace-view"]') as HTMLElement;
     traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
 
     // 根据字段信息隐藏虚拟字段相关的选项
-    const field = this.getField(fieldName);
-    const isVirtualField = field?.field_type === '__virtual__';
+    const isVirtualField = fieldType === '__virtual__';
     const virtualFieldHiddenItems = ['is', 'not', 'new-search-page-is']; // 需要隐藏的选项
 
     virtualFieldHiddenItems.forEach((itemId) => {
@@ -285,6 +285,7 @@ export default class UseJsonFormatter {
         const vlaues = this.getSplitList(field, text);
         element?.setAttribute('data-has-word-split', '1');
         element?.setAttribute('data-field-name', fieldName);
+        element?.setAttribute('data-field-type', field?.field_type);
 
         if (element.hasAttribute('data-with-intersection')) {
           (element as HTMLElement).style.setProperty('min-height', `${(element as HTMLElement).offsetHeight}px`);
