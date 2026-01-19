@@ -102,7 +102,6 @@ class KpiSdkResource(SdkResource):
     # 智能异常检测远程访问地址
     base_url = settings.AIOPS_SERVER_KPI_URL
 
-
 class BKFaraGrayMixin:
     def get_request_url(self, validated_request_data):
         """根据灰度参数动态选择服务地址和 action 路径"""
@@ -121,7 +120,7 @@ class BKFaraGrayMixin:
                 base_url = f"http://{settings.BKFARA_AIOPS_SERVICE_HOST_PREFIX}-{self.name}:8000"
                 action = self.action.replace("/api/aiops/", "/aiops/serving/")
         else:
-            base_url = "http://bk-aiops-serving-kpi:8000"
+            base_url = self.base_url
             action = self.action
 
         request_url = base_url.rstrip("/") + "/" + action.lstrip("/")
@@ -150,7 +149,6 @@ class KpiGroupPredictResource(KpiSdkResource, SdkGroupPredictResource):
 class AcdSdkResource(SdkResource):
     # 离群检测远程访问地址
     base_url = settings.AIOPS_SERVER_ACD_URL
-
 
 class AcdPredictResource(AcdSdkResource, SdkPredictResource):
     """离群检测SDK执行时序预测逻辑."""
