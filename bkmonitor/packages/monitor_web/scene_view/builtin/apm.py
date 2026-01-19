@@ -169,7 +169,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-log",
         "apm_service-service-default-event",
         "apm_service-service-default-overview",
-        "apm_service-service-default-profiling",
+        # "apm_service-service-default-profiling",
         "apm_service-service-default-topo",
         "apm_service-service-default-db",
         "apm_service-service-default-custom_metric",
