@@ -322,8 +322,8 @@ export default defineComponent({
       const isSingle = noticeDate.value.shieldCycle === EShieldCycle.single;
       const dateRange = [];
       if (!isSingle) {
-        dateRange[0] = dayjs.tz(noticeDate.value.dateRange[0]).format('YYYY-MM-DD HH:mm:ss');
-        dateRange[1] = dayjs.tz(noticeDate.value.dateRange[1]).format('YYYY-MM-DD HH:mm:ss');
+        dateRange[0] = dayjs.tz(noticeDate.value.dateRange[0]).format('YYYY-MM-DD 00:00:00');
+        dateRange[1] = dayjs.tz(noticeDate.value.dateRange[1]).format('YYYY-MM-DD 23:59:59');
       }
       const cycleDate = noticeDate.value[noticeDate.value.shieldCycle];
       const cycleMap = {
