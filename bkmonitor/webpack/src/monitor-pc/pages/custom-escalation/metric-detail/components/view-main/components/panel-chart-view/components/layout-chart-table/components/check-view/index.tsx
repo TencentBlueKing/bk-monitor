@@ -44,7 +44,7 @@ import type { ILegendItem, IPanelModel } from 'monitor-ui/chart-plugins/typings'
 import './index.scss';
 interface IDrillAnalysisViewEvents {
   onClose?: () => void;
-  onMericManage?: () => void;
+  onMetricManage?: (tab: 'dimension' | 'metric') => 'dimension' | 'metric';
 }
 /** 维度下钻 */
 interface IDrillAnalysisViewProps {
@@ -111,8 +111,10 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
     this.showRestore = false;
   }
 
-  @Emit('mericManage')
-  handleMericManage() {};
+  @Emit('metricManage')
+  handleMetricManage(tab) {
+    return tab;
+  };
 
   get titleName() {
     return this.panel?.config?.title || '';
@@ -311,7 +313,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
             offsetSingle={true}
             splitable={false}
             onChange={this.handleDimensionParamsChange}
-            onMericManage={this.handleMericManage}
+            onMetricManage={this.handleMetricManage}
           >
             <template slot='actionExtend'>
               <bk-checkbox v-model={this.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>

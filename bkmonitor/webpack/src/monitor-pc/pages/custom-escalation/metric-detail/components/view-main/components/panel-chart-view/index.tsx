@@ -50,7 +50,7 @@ interface IGroups {
   panels: IPanelModel[];
 }
 interface IPanelChartViewEvents {
-  onMericManage?: () => void;
+  onMetricManage?: (tab: 'dimension' | 'metric') => 'dimension' | 'metric';
 }
 interface IPanelChartViewProps {
   config?: IMetricAnalysisConfig;
@@ -123,8 +123,10 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
     return this.showStatisticalValue ? DEFAULT_HEIGHT : 300;
   }
 
-  @Emit('mericManage')
-  handleMericManage() {};
+  @Emit('metricManage')
+  handleMetricManage(tab) {
+    return tab;
+  };
 
   /** 重新获取对应的高度 */
   handleCollapseChange() {
@@ -235,7 +237,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
           groupId={name || this.defaultGroupId}
           isShowStatisticalValue={this.showStatisticalValue}
           panel={chart}
-          onMericManage={this.handleMericManage}
+          onMetricManage={this.handleMetricManage}
           onResize={height => this.handleResize(height, ind, chartInd)}
         />
       </div>

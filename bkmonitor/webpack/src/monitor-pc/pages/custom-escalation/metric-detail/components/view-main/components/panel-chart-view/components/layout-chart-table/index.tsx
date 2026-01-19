@@ -51,7 +51,7 @@ interface IDragInfo {
 interface ILayoutChartTableEvents {
   onDrillDown?: void;
   onResize?: number;
-  onMericManage?: () => void;
+  onMetricManage?: (tab: 'dimension' | 'metric') => 'dimension' | 'metric';
 }
 /** 图表 + 表格，支持拉伸 */
 interface ILayoutChartTableProps {
@@ -114,8 +114,10 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     this.selectLegendInd = -1;
   }
 
-  @Emit('mericManage')
-  handleMericManage() {};
+  @Emit('metricManage')
+  handleMetricManage(tab) {
+    return tab;
+  };
 
   /** 对比工具栏数据 */
   get compareValue() {
@@ -518,7 +520,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
             timeRangeData={this.timeRange}
             onClose={() => (this.showViewDetail = false)}
             onContextMenuClick={this.contextMenuClick}
-            onMericManage={this.handleMericManage}
+            onMetricManage={this.handleMetricManage}
           />
         )}
         {/* 收藏到仪表盘 */}

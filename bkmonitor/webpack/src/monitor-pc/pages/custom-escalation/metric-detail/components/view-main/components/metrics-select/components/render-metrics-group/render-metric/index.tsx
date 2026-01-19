@@ -218,7 +218,10 @@ export default class RenderMetric extends tsc<IProps, IEmit> {
             </div>
           </bk-popover>
         </div>
-        <div slot='content'>
+        <div
+          class='metric-item-tooltip'
+          slot='content'
+        >
           <div>
             {this.$t('指标名：')}
             {this.data.metric_name}

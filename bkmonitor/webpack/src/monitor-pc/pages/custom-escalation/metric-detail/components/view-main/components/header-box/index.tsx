@@ -42,7 +42,7 @@ type GetSceneViewParams = Parameters<typeof getSceneView>[0];
 
 interface IEmit {
   onChange: (value: GetSceneViewParams) => void;
-  onMericManage?: () => void;
+  onMetricManage?: (tab: 'dimension' | 'metric') => 'dimension' | 'metric';
 }
 
 interface IProps {
@@ -78,8 +78,10 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
   @Prop({ type: Boolean, default: false }) readonly offsetSingle: IProps['offsetSingle'];
   @Ref('rootRef') rootRef: HTMLElement;
 
-  @Emit('mericManage')
-  handleMericManage() {};
+  @Emit('metricManage')
+  handleMetricManage(tab: 'dimension' | 'metric') {
+    return tab;
+  };
 
   isExpaned = true;
   params = createDefaultParams();
@@ -185,7 +187,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
               commonDimensionEnable={true}
               value={this.params.where}
               onChange={this.handleConditionChange}
-              onMericManage={this.handleMericManage}
+              onMetricManage={this.handleMetricManage}
             />
             <div class='mult-item-box'>
               <GroupBy

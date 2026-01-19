@@ -96,3 +96,8 @@
     box-shadow: 0 -1px 0 0 #dcdee5;
   }
 }
+
+// 线上环境 apm有样式污染
+#apm .bk-tooltip-content .metric-item-tooltip {
+  color: #fff;
+}
