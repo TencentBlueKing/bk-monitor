@@ -24,6 +24,7 @@ from alarm_backends.service.report.render.dashboard import (
     render_dashboard_panel,
 )
 from alarm_backends.service.report.tasks import render_mails
+from bkm_space.define import SpaceTypeEnum
 from bkmonitor.browser import get_or_create_eventloop
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import ReportContents, ReportItems
@@ -386,7 +387,13 @@ class ReportHandler:
         # 邮件范围
         # 使用第一个业务的时区作为时间转换的时区
         if bk_biz_ids:
-            space = Space.objects.filter(bk_biz_id=list(bk_biz_ids)[0]).first()
+            target_bk_biz_id = list(bk_biz_ids)[0]
+            if target_bk_biz_id < 0:
+                space = Space.objects.filter(id=abs(target_bk_biz_id)).first()
+            else:
+                space = Space.objects.filter(
+                    space_type_id=SpaceTypeEnum.BKCC.value, space_id=str(target_bk_biz_id)
+                ).first()
             if space:
                 from_time = arrow.get(from_time).to(space.time_zone).datetime
                 to_time = arrow.get(to_time).to(space.time_zone).datetime
