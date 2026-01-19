@@ -64,7 +64,7 @@ class TopoNodeFuller(Fuller):
         service_instance_id = dimensions.get("bk_target_service_instance_id") or dimensions.get("service_instance_id")
         if service_instance_id:
             service_instance = ServiceInstanceManager.get(
-                bk_tenant_id=bk_tenant_id, service_instance_id=service_instance_id
+                bk_tenant_id=bk_tenant_id, service_instance_id=service_instance_id, using_mem=True
             )
             if service_instance:
                 bk_topo_node = []

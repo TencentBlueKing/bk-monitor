@@ -328,7 +328,7 @@ class NavTools extends DocumentLinkMixin {
     window.open(`${base}/personal-center`, '_blank');
   }
   handleQuit() {
-    location.href = `${location.origin}/logout`;
+    location.href = `${site_url}logout`;
   }
   render() {
     return (

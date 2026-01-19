@@ -28,7 +28,13 @@ from apm_web.topo.handle.relation.define import (
 )
 from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.documents import AlertDocument
+from bkmonitor.utils.alert_drilling import (
+    build_log_search_condition,
+    get_alert_dimensions,
+    get_alert_query_config_or_none,
+)
 from constants.alert import K8S_RESOURCE_TYPE, K8STargetType, APMTargetType, EventTargetType
+from constants.data_source import DataSourceLabel
 
 
 class BaseTarget(abc.ABC):
@@ -60,7 +66,7 @@ class BaseTarget(abc.ABC):
 
         # dimensions 有一些额外的关联信息，也需要补充进来。
         for d in self._alert.dimensions:
-            if d["key"].startswith("tag."):
+            if d["key"].startswith("tags."):
                 # 忽略已经存在于 tags 中的维度。
                 continue
             dimensions[d["key"]] = d["value"]
@@ -215,8 +221,40 @@ class DefaultTarget(BaseTarget):
         return []
 
     def list_related_log_targets(self) -> list[dict[str, Any]]:
-        # TODO 日志类告警，直接取 query_config 的索引集 ID 作为日志目标，并根据告警维度、策略生成过滤条件（addition）。
-        return []
+        """获取日志类告警关联的日志目标信息。
+
+        日志类告警直接使用策略配置中的索引集 ID，并根据告警维度和策略过滤条件生成日志查询的过滤条件（addition）。
+        """
+        query_config: dict[str, Any] | None = get_alert_query_config_or_none(self._alert)
+        if not query_config:
+            return []
+
+        if query_config.get("data_source_label") != DataSourceLabel.BK_LOG_SEARCH:
+            return []
+
+        index_set_id: int = query_config.get("index_set_id", 0)
+        if not index_set_id:
+            return []
+
+        # 获取完整的索引集信息
+        index_sets: list[dict[str, Any]] = get_biz_index_sets_with_cache(bk_biz_id=self._alert.event.bk_biz_id)
+        index_set_info: dict[str, Any] | None = next(
+            (i for i in index_sets if i.get("index_set_id", 0) == index_set_id),
+            None,
+        )
+        if not index_set_info:
+            return []
+
+        # 构造日志查询过滤条件
+        log_search_condition: dict[str, Any] = build_log_search_condition(
+            query_config=query_config,
+            dimensions=get_alert_dimensions(self._alert),
+        )
+
+        # 返回完整的索引集信息，并补充 addition 和 keyword 字段
+        log_target: dict[str, Any] = copy.deepcopy(index_set_info)
+        log_target.update(log_search_condition)
+        return [log_target]
 
 
 class BaseK8STarget(BaseTarget):

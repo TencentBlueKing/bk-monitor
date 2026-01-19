@@ -13,7 +13,6 @@ import { debounce } from 'lodash-es';
 
 import { getOsCommandLabel } from '@/common/util';
 import useFieldEgges from '@/hooks/use-field-egges';
-import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
 import { FieldInfoItem } from '@/store/store.type';
 import { excludesFields } from '../utils/const.common'; // @ts-ignore
 import FavoriteList from '../components/favorite-list';
@@ -481,8 +480,8 @@ const handleKeydown = (e: {
   const dropdownList = dropdownEl.querySelectorAll('.list-item');
   const hasHover = dropdownEl.querySelector('.list-item.is-hover');
   if (code === 'NumpadEnter' || code === 'Enter') {
+    // Ctrl+Enter 操作已由父组件处理，这里不再处理
     if (e.ctrlKey || e.metaKey) {
-      emits('text-to-query', props.value);
       return;
     }
 
@@ -559,35 +558,6 @@ const beforeHideFn = () => {
   document.removeEventListener('keydown', handleKeydown, { capture: true });
 };
 
-// 查询语法按钮部分
-const isRetractShow = ref(true);
-
-const matchList = ref([
-  {
-    name: $t('精确匹配(支持AND、OR):'),
-    value: ['author:"John Smith" AND age:20'],
-  },
-  {
-    name: $t('字段名匹配(*代表通配符):'),
-    value: ['status:active', 'title:(quick brown)'],
-  },
-  {
-    name: $t('字段名模糊匹配:'),
-    value: ['vers\\*on:(quick brown)'],
-  },
-  {
-    name: $t('通配符匹配:'),
-    value: ['qu?ck bro*'],
-  },
-  {
-    name: $t('正则匹配:'),
-    value: ['name:/joh?n(ath[oa]n)/'],
-  },
-  {
-    name: $t('范围匹配:'),
-    value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'],
-  },
-]);
 
 const handleFavoriteClick = (item) => {
   emitValueChange(item.params?.keyword, true, true);
@@ -611,13 +581,6 @@ const fieldNameShow = (item) => {
   return getQualifiedFieldName(item, totalFields.value);
 };
 
-/**
- * @description 点击 AI 助手
- */
-const handleAiAssistantClick = () => {
-  emits('text-to-query', props.value);
-};
-
 defineExpose({
   beforeShowndFn,
   beforeHideFn,
@@ -638,33 +601,43 @@ watch(activeIndex, () => {
 <template>
   <div class="sql-query-container">
     <div class="sql-field-list">
+      <!-- 顶部工具栏 -->
+      <div class="sql-query-header">
+        <div class="ui-shortcut-key">
+          <div
+            class="ui-shortcut-item direct-retrieve-item"
+          >
+            <span class="bklog-icon bklog-enter-3 label" />
+            <span class="value">{{ $t('直接检索') }}</span>
+          </div>
+          <div class="ui-shortcut-item">
+            <span class="bklog-icon bklog-arrow-down-filled label up" />
+            <span class="bklog-icon bklog-arrow-down-filled label" />
+            <span class="value">{{ $t('移动光标') }}</span>
+          </div>
+          <div class="ui-shortcut-item ai-shortcut-item">
+            <span class="label">
+              <i :class="shortCutClsName" />
+              <i class="bklog-icon bklog-plus" />
+              <i class="bklog-icon bklog-enter-3" /></span>
+            <span class="value">{{ $t('AI 解析') }}</span>
+          </div>
+        </div>
+        <span v-if="showAiAssistant" class="ai-parse-value">{{ aiPreviewText }}</span>
+        <div
+          class="sql-syntax-link"
+          @click="handleSQLReadmeClick"
+        >
+          <span>{{ $t('查询语法') }}</span>
+          <span class="fold-title-icon bklog-icon bklog-jump" />
+        </div>
+      </div>
       <!-- 搜索提示 -->
       <ul
         ref="refDropdownEl"
         v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
         :class="['sql-query-options', { 'is-loading': isRequesting }]"
       >
-        <template v-if="showAiAssistant">
-          <li
-            class="ai-assistant-list-item"
-            @click="handleAiAssistantClick"
-          >
-            <span class="item-img-wrapper">
-              <img
-                :src="aiBluekingSvg"
-                width="18"
-                height="18"
-              >
-            </span>
-            <span class="item-text-label">{{ $t('AI 搜索') }}:</span>
-            <span class="item-text-value">{{ aiPreviewText }}</span>
-            <span class="short-cut-icon">
-              <i :class="shortCutClsName" />
-              <i class="bklog-icon bklog-plus" />
-              <i class="bklog-icon bklog-enter-3" />
-            </span>
-          </li>
-        </template>
         <!-- 字段列表 -->
         <template v-if="showOption.showFields">
           <div class="control-list">
@@ -852,59 +825,6 @@ watch(activeIndex, () => {
         :search-value="value"
         @change="handleFavoriteClick"
       />
-      <!-- 移动光标and确认结果提示 -->
-      <div class="ui-shortcut-key">
-        <div class="ui-shortcut-item">
-          <span class="bklog-icon bklog-arrow-down-filled label up" />
-          <span class="bklog-icon bklog-arrow-down-filled label" />
-          <span class="value">{{ $t('移动光标') }}</span>
-        </div>
-        <div class="ui-shortcut-item">
-          <span class="label">Enter</span>
-          <span class="value">{{ $t('确认结果') }}</span>
-        </div>
-        <div class="ui-shortcut-item">
-          <span class="label">
-            <i :class="shortCutClsName" />
-            <i class="bklog-icon bklog-plus" />
-            <i class="bklog-icon bklog-enter-3" /></span>
-          <span class="value">{{ $t('AI 搜索') }}</span>
-        </div>
-      </div>
-    </div>
-    <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
-      <div class="sql-query-fold">
-        <div>
-          <div class="sql-query-fold-title">
-            <div>{{ $t('如何查询') }}?</div>
-            <div
-              class="fold-title-right"
-              @click="handleSQLReadmeClick"
-            >
-              <span>{{ $t('查询语法') }}</span>
-              <span class="fold-title-icon bklog-icon bklog-jump" />
-            </div>
-          </div>
-          <div
-            v-for="item in matchList"
-            :key="item.name"
-            class="sql-query-list"
-          >
-            <div class="sql-query-name">
-              {{ item.name }}
-            </div>
-            <div class="sql-query-value">
-              <div
-                v-for="childValue in item.value"
-                :key="childValue"
-                class="sql-query-value-item"
-              >
-                {{ childValue }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -920,143 +840,193 @@ watch(activeIndex, () => {
 
     .sql-field-list {
       position: relative;
+      display: flex;
+      flex-direction: column;
       width: 100%;
-      padding-bottom: 48px;
+      min-height: 100px;
+      max-height: 400px;
 
-      /* 移动光标and确认结果提示 样式 */
-      .ui-shortcut-key {
-        position: absolute;
-        bottom: 0;
-        width: 100%;
+      /* 顶部工具栏样式 */
+      .sql-query-header {
+        display: flex;
+        align-items: center;
         height: 48px;
-        padding: 0 16px;
-        line-height: 48px;
+        padding-left: 16px;
         background-color: #fafbfd;
-        border: 1px solid #dcdee5;
-        border-radius: 0 0 0 2px;
+        border-bottom: 1px solid #dcdee5;
+        border-radius: 2px 2px 0 0;
+        gap: 16px;
 
-        .ui-shortcut-item {
-          display: inline-flex;
+        .ui-shortcut-key {
+          display: flex;
           align-items: center;
-          margin-right: 24px;
-          font-size: 12px;
-          line-height: 16px;
+          flex-shrink: 0;
+          white-space: nowrap;
 
-          .label {
+          .ui-shortcut-item {
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            height: 16px;
-            padding: 0 4px;
-            font-size: 11px;
-            font-weight: 700;
-            color: #a3b1cc;
-            background-color: #a3b1cc29;
-            border: 1px solid #a3b1cc4d;
-            border-radius: 2px;
+            margin-right: 24px;
+            font-size: 12px;
+            line-height: 16px;
+            min-width: fit-content;
 
-            &.bklog-arrow-down-filled {
-              padding: 0;
-              font-size: 14px;
+            .label {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              height: 16px;
+              padding: 0 4px;
+              font-size: 11px;
+              font-weight: 700;
+              color: #a3b1cc;
+              background-color: #a3b1cc29;
+              border: 1px solid #a3b1cc4d;
+              border-radius: 2px;
+
+              &.bklog-arrow-down-filled,
+              &.bklog-enter-3 {
+                width: 16px;
+                height: 16px;
+                padding: 0;
+                background: #a3b1cc;
+                border-radius: 2px;
+                color: #fff;
+                font-size: 12px;
+                border: none;
+              }
+
+              &.up {
+                margin-right: 2px;
+                transform: rotate(-180deg);
+              }
             }
 
-            &.up {
-              margin-right: 2px;
-              transform: rotate(-180deg);
+            .value {
+              margin-left: 4px;
+              color: #4D4F56;
+            }
+
+            &:last-child {
+              margin-right: 0;
             }
           }
 
-          .value {
-            margin-left: 4px;
-            color: #7a8599;
-          }
-        }
-      }
-    }
-
-    .sql-syntax-tips {
-      position: relative;
-      width: 240px;
-      min-width: 240px;
-      background-color: #f5f7fa;
-      border-radius: 0 2px 2px 0;
-
-      .sql-query-retract {
-        position: absolute;
-        top: 50%;
-        left: 0;
-        display: inline-block;
-        width: 20px;
-        padding: 4px 2px;
-
-        font-size: 12px;
-        color: #63656e;
-        cursor: pointer;
-        background: #f0f1f5;
-        border: 1px solid #dcdee5;
-        border-radius: 4px 0 0 4px;
-        transform: translate(-100%, -50%);
-      }
-
-      /*   收起内容 样式*/
-      .sql-query-fold {
-        width: 100%;
-        height: 100%;
-        padding: 12px;
-        background: #f5f7fa;
-        border-radius: 0 2px 2px 0;
-        outline: 1px solid #dcdee5;
-
-        &-title {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 16px;
-          font-size: 12px;
-          line-height: 20px;
-          color: #313238;
-
-          .fold-title-right {
-            display: flex;
-            align-items: center;
-            height: 100%;
-            color: #3a84ff;
+          .direct-retrieve-item {
             cursor: pointer;
 
-            .fold-title-icon {
-              margin-left: 5px;
-              font-size: 16px;
+            .label {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              width: 16px;
+              height: 16px;
+              padding: 0;
+              background: #a3b1cc;
+              border-radius: 2px;
+              font-size: 14px;
+              color: #fff;
+            }
+
+            .value {
+              color: #63656e;
+            }
+          }
+
+          .ai-shortcut-item {
+            .label {
+              height: 16px;
+              background: #8474f3;
+              border-radius: 2px;
+              color: #fff;
+              border: none;
+              padding: 0 4px;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              line-height: 1;
+
+              i {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                line-height: 1;
+                font-size: 12px;
+                height: 100%;
+                flex-shrink: 0;
+              }
+            }
+
+            .value {
+              font-size: 12px;
+              color: #8474f3;
+            }
+          }
+
+          .ai-parse-item {
+            cursor: pointer;
+            margin-left: 8px;
+
+            .ai-parse-label {
+              color: #8474f3;
+              font-size: 12px;
+              margin-right: 4px;
+            }
+
+            .ai-parse-value {
+              color: #63656e;
+              font-size: 12px;
+            }
+
+            &:hover {
+              .ai-parse-label {
+                color: #6b5dd8;
+              }
+
+              .ai-parse-value {
+                color: #313238;
+              }
             }
           }
         }
 
-        .sql-query-list {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          overflow-y: auto;
+        .ai-parse-value {
+          flex: 1;
+          min-width: 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
           font-size: 12px;
+          color: #313238;
+        }
 
-          .sql-query-name {
-            font-weight: 700;
-            color: #313238;
-            margin: 12px 0 8px 0;
-          }
+        .sql-syntax-link {
+          display: flex;
+          align-items: center;
+          flex-shrink: 0;
+          height: 100%;
+          color: #3a84ff;
+          cursor: pointer;
+          font-size: 12px;
+          margin-left: auto;
 
-          .sql-query-value {
-            font-family: 'Roboto Mono', monospace;
-            color: #4d4f56;
-            word-break: break-all;
+          .fold-title-icon {
+            margin-left: 5px;
+            font-size: 16px;
           }
         }
       }
 
-      &:not(.is-show) {
-        width: 1px;
-        border: none;
+      /* 搜索提示区域自适应高度 */
+      .sql-query-options {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+      }
 
-        .sql-query-fold {
-          display: none;
-        }
+      /* FavoriteList 自适应 */
+      :deep(.favorite-list) {
+        flex-shrink: 0;
       }
     }
   }

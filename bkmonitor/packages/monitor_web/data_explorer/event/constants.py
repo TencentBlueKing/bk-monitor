@@ -293,7 +293,7 @@ INNER_FIELD_TYPE_MAPPINGS = {
 # 查询操作符
 class Operation:
     EQ = {"alias": "=", "value": "eq"}
-    NE = {"alias": "!=", "value": "ne"}
+    NE = {"alias": "!=", "value": "neq"}
     GT = {"alias": ">", "value": "gt"}
     GTE = {"alias": ">=", "value": "gte"}
     LT = {"alias": "<", "value": "lt"}

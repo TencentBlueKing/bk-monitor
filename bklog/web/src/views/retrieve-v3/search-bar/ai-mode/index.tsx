@@ -30,6 +30,7 @@ import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
 import { AiQueryResult } from '../types';
 import BklogPopover from '@/components/bklog-popover';
 import EditInput from '@/global/edit-input';
+import AiParseResultBanner from '@/views/retrieve-v2/search-bar/components/ai-parse-result-banner';
 
 import './index.scss';
 
@@ -37,7 +38,7 @@ type AiModeStatus = 'default' | 'inputting' | 'searching';
 
 export default defineComponent({
   name: 'V3AiMode',
-  emits: ['height-change', 'text-to-query', 'edit-sql', 'filter-change'],
+  emits: ['height-change', 'text-to-query', 'edit-sql', 'filter-change', 'mode-change'],
   props: {
     isAiLoading: {
       type: Boolean,
@@ -148,10 +149,10 @@ export default defineComponent({
       emit('text-to-query', currentInput.value);
     };
 
-    const handleEdit = () => {
-      (parsedTextRef.value as any)?.hide?.();
-      emit('edit-sql');
-    };
+    // const handleEdit = () => {
+    //   (parsedTextRef.value as any)?.hide?.();
+    //   emit('edit-sql');
+    // };
 
     const handleRemoveFilter = (item: string) => {
       const newFilterList = [...props.filterList];
@@ -183,12 +184,20 @@ export default defineComponent({
       emit('filter-change', []);
     };
 
-    const getHoverContent = () => {
-      return <div class="ai-parsed-text-content">
-        <span>{props.aiQueryResult.queryString}</span>
-        <span onClick={handleEdit}>{t('前往编辑')}</span>
-      </div>;
-    }
+    /**
+     * 切换到普通模式
+     */
+    const handleChangeAIMode = (e: MouseEvent) => {
+      emit('mode-change', e);
+    };
+
+    const handleClearInputText = () => {
+      inputValue.value = '';
+      currentInput.value = '';
+      status.value = 'default';
+      adjustTextareaHeight();
+      emit('text-to-query', currentInput.value);
+    };
 
     // 手动设置焦点，避免 autofocus 警告
     onMounted(() => {
@@ -197,12 +206,12 @@ export default defineComponent({
         if (textareaRef.value && document.activeElement !== textareaRef.value) {
           // 检查是否有其他输入元素已经聚焦
           const activeElement = document.activeElement;
-          const isInputFocused = activeElement && (
-            activeElement.tagName === 'INPUT' ||
-            activeElement.tagName === 'TEXTAREA' ||
-            (activeElement instanceof HTMLElement && activeElement.isContentEditable)
-          );
-          
+          const isInputFocused =
+            activeElement &&
+            (activeElement.tagName === 'INPUT' ||
+              activeElement.tagName === 'TEXTAREA' ||
+              (activeElement instanceof HTMLElement && activeElement.isContentEditable));
+
           // 如果没有其他输入元素聚焦，则聚焦到 textarea
           if (!isInputFocused) {
             textareaRef.value.focus();
@@ -218,7 +227,7 @@ export default defineComponent({
         const popoverRef = parsedTextRef.value as any;
         popoverRef.setProps?.({
           duration: 0,
-          animation: 'none'
+          animation: 'none',
         });
         // 立即隐藏，不延迟
         popoverRef.hide?.(0);
@@ -226,95 +235,87 @@ export default defineComponent({
     });
 
     return () => (
-      <div class="v3-ai-mode-root" ref={aiModeRootRef}>
-        <div ref={containerRef} class="v3-ai-mode-container">
-          <div class="ai-mode-inner">
-            <div class="ai-input-wrapper">
-              <div class="ai-input-container">
-                  <textarea
-                    ref={textareaRef}
-                    tabindex={1}
-                    class="ai-input"
-                    value={currentInput.value}
-                    placeholder={t('输入查询内容，"帮我查询近 3 天的错误日志"，Tab 切换为普通模式')}
-                    onInput={handleInput}
-                    onFocus={handleFocus}
-                    onBlur={handleBlur}
-                    onKeydown={handleKeyDown}
-                    onCompositionstart={handleCompositionStart}
-                    onCompositionend={handleCompositionEnd}
-                    rows={1}
-                    style={{
-                      height: '24px',
-                    }}
-                  />
+      <div
+        class='v3-ai-mode-root'
+        ref={aiModeRootRef}
+      >
+        <div
+          ref={containerRef}
+          class='v3-ai-mode-container'
+        >
+          <div class='ai-mode-inner'>
+            <div class='ai-input-wrapper'>
+              <div class='ai-input-container'>
+                <textarea
+                  ref={textareaRef}
+                  tabindex={1}
+                  class='ai-input'
+                  value={currentInput.value}
+                  placeholder={t('输入查询内容，“帮我查询最近 3 天的错误日志”（Tab 可切回普通模式）')}
+                  onInput={handleInput}
+                  onFocus={handleFocus}
+                  onBlur={handleBlur}
+                  onKeydown={handleKeyDown}
+                  onCompositionstart={handleCompositionStart}
+                  onCompositionend={handleCompositionEnd}
+                  rows={1}
+                  style={{
+                    height: '24px',
+                  }}
+                />
               </div>
-              {props.aiQueryResult.queryString ? (
-                  <BklogPopover
-                    ref={parsedTextRef}
-                    class="ai-parsed-text"
-                    trigger="hover"
-                    content={getHoverContent}
-                    options={{
-                      appendTo: document.body,
-                      theme: 'bklog-basic-light',
-                      arrow: false,
-                      placement: 'bottom-start',
-                      maxWidth: containerWidth.value,
-                      offset: [0, 4],
-
-                      popperOptions: {
-                        modifiers: [
-                          {
-                            name: 'offset',
-                            options: {
-                              offset: ({ reference }) => {
-                                // 获取 containerRef 的位置
-                                const containerRect = containerRef.value.getBoundingClientRect();
-                                const offsetY = containerRect.bottom - reference.y + 4 - reference.height;
-                                return [reference.x, offsetY];
-                              },
-                            },
-                          },
-                        ],
-                      },
-                    } as any}
-                  >
-                    <span class="ai-parsed-text-icon bklog-icon bklog-eye"></span>
-                  </BklogPopover>
-                ) : null}
-              <div class="ai-mode-toggle-btn">
+              {currentInput.value.length > 0 ? (
+                <span
+                  class='bklog-icon bklog-qingkong'
+                  onClick={handleClearInputText}
+                ></span>
+              ) : null}
+              <div class='ai-mode-toggle-btn' onClick={handleChangeAIMode}>
                 <img
                   src={aiBluekingSvg}
-                  alt="AI模式"
+                  alt='AI 模式'
                   style={{ width: '18px', height: '18px' }}
                 />
-                <span class="ai-mode-text">{t('AI 模式')}</span>
+                <span class='ai-mode-text'>{t('AI 模式')}</span>
                 <span style={shortcutKeyStyle}>
-                  <i class="bklog-icon bklog-key-tab"></i>
+                  <i class='bklog-icon bklog-key-tab'></i>
                 </span>
               </div>
-
             </div>
             {props.isAiLoading && [
-              <div class="ai-loading-info" key="loading-info">
-                <span class="ai-loading-text">{t('AI 解析中...')}</span>
+              <div
+                class='ai-loading-info'
+                key='loading-info'
+              >
+                <span class='ai-loading-text'>{t('AI 解析中...')}</span>
               </div>,
-              <div class="ai-progress-bar" key="progress-bar"></div>
+              <div
+                class='ai-progress-bar'
+                key='progress-bar'
+              ></div>,
             ]}
           </div>
-          <button class="ai-execute-btn" onClick={handleAiExecute}>
-            <i class="bklog-icon bklog-publish-fill"></i>
+          <button
+            class='ai-execute-btn'
+            onClick={handleAiExecute}
+          >
+            <i class='bklog-icon bklog-publish-fill'></i>
           </button>
         </div>
-        {
-          props.filterList.length > 0 && <div class="query-list">
+        <AiParseResultBanner
+          ai-query-result={props.aiQueryResult}
+          show-border={true}
+          style='border-radius: 4px; margin-top: 4px;'
+        />
+        {props.filterList.length > 0 && (
+          <div class='query-list'>
             {props.filterList.map(item => (
               <EditInput
                 key={item}
                 value={item}
                 showDelete={true}
                 maxWidth={320}
+                resize='both'
                 on-change={(newValue: string) => {
                   handleFilterChange(item, newValue);
                 }}
@@ -325,14 +326,13 @@ export default defineComponent({
             ))}
             {props.filterList.length > 0 && (
               <i
-                class="bklog-icon bklog-qingkong query-list-clear-all"
+                class='bklog-icon bklog-qingkong query-list-clear-all'
                 onClick={handleClearAllFilters}
               ></i>
             )}
           </div>
-        }
-
+        )}
       </div>
     );
   },
-}); 
+});

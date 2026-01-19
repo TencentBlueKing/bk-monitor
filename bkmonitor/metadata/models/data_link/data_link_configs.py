@@ -110,7 +110,8 @@ class DataIdConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.DATAID.value
-    name = models.CharField(verbose_name="数据源名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="数据源名称", max_length=64, db_index=True)
+    bk_data_id = models.IntegerField(verbose_name="数据源ID", default=0)
 
     class Meta:
         verbose_name = "数据源配置"
@@ -241,8 +242,9 @@ class ResultTableConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.RESULTTABLE.value
-    name = models.CharField(verbose_name="结果表名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="结果表名称", max_length=64, db_index=True)
     data_type = models.CharField(verbose_name="结果表类型", max_length=64, default="metric")
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="")
 
     class Meta:
         verbose_name = "结果表配置"
@@ -305,8 +307,9 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.ESSTORAGEBINDING.value
-    name = models.CharField(verbose_name="存储配置名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="存储配置名称", max_length=64, db_index=True)
     es_cluster_name = models.CharField(verbose_name="ES集群名称", max_length=64)
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="")
     timezone = models.IntegerField("时区设置", default=0)
 
     class Meta:
@@ -381,11 +384,6 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info(
-                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
-                self.bk_tenant_id,
-                self.kind,
-            )
             render_params["tenant"] = self.bk_tenant_id
 
         return utils.compose_config(
@@ -401,8 +399,9 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.VMSTORAGEBINDING.value
-    name = models.CharField(verbose_name="存储配置名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="存储配置名称", max_length=64, db_index=True)
     vm_cluster_name = models.CharField(verbose_name="VM集群名称", max_length=64)
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="")
 
     class Meta:
         verbose_name = "VM存储配置"
@@ -475,11 +474,6 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info(
-                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
-                self.bk_tenant_id,
-                self.kind,
-            )
             render_params["tenant"] = self.bk_tenant_id
 
         return utils.compose_config(
@@ -495,8 +489,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.DATABUS.value
-    name = models.CharField(verbose_name="清洗任务名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="清洗任务名称", max_length=64, db_index=True)
     data_id_name = models.CharField(verbose_name="关联消费数据源名称", max_length=64)
+    bk_data_id = models.IntegerField(verbose_name="数据源ID", default=0)
 
     class Meta:
         verbose_name = "清洗任务配置"
@@ -706,7 +701,7 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.CONDITIONALSINK.value
-    name = models.CharField(verbose_name="条件处理配置名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="条件处理配置名称", max_length=64, db_index=True)
 
     class Meta:
         verbose_name = "条件处理配置"
@@ -775,7 +770,8 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.DORISBINDING.value
-    name = models.CharField(verbose_name="Doris存储绑定配置名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="Doris存储绑定配置名称", max_length=64, db_index=True)
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="")
 
     class Meta:
         verbose_name: ClassVar[str] = "Doris存储绑定配置"
@@ -997,7 +993,7 @@ class ClusterConfig(models.Model):
                     "enabled": cluster.is_auth,
                     "username": cluster.username,
                     "password": cluster.password,
-                    "mechanisms": cluster.sasl_mechanisms,
+                    "mechanism": cluster.sasl_mechanisms,
                 }
             }
 

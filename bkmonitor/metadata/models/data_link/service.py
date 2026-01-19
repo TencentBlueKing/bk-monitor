@@ -51,8 +51,11 @@ def apply_data_id_v2(
 
     logger.info("apply_data_id_v2:bkbase_data_name: %s", bkbase_data_name)
 
-    data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
-        name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id, bk_tenant_id=bk_tenant_id
+    data_id_config_ins, _ = DataIdConfig.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
+        namespace=namespace,
+        name=bkbase_data_name,
+        defaults={"bk_biz_id": bk_biz_id},
     )
     data_id_config = data_id_config_ins.compose_config(
         event_type=event_type,
@@ -96,14 +99,19 @@ def get_data_id_v2(
     if phase == DataLinkResourceStatus.OK.value:
         data_id = int(data_id_config.get("metadata", {}).get("annotations", {}).get("dataId", 0))
         data_id_config_ins.status = phase
-        data_id_config_ins.save()
+        # 记录 bkbase 的 dataId，便于后续链路组件关联与排障
+        if data_id_config_ins.bk_data_id != data_id:
+            data_id_config_ins.bk_data_id = data_id
+            data_id_config_ins.save(update_fields=["status", "bk_data_id"])
+        else:
+            data_id_config_ins.save(update_fields=["status"])
         logger.info("get_data_id: request data_name -> [%s] now is ok", data_name)
         if with_detail:
             return {"status": phase, "data_id": data_id, "data_id_config": data_id_config}
         return {"status": phase, "data_id": data_id}
 
     data_id_config_ins.status = phase
-    data_id_config_ins.save()
+    data_id_config_ins.save(update_fields=["status"])
     logger.info("get_data_id: request data_name -> [%s] ,phase->[%s]", data_name, phase)
     if with_detail:
         return {"status": phase, "data_id": None, "data_id_config": data_id_config}

@@ -15,9 +15,12 @@ from typing import cast
 
 from alarm_backends.core.cache.cmdb.host import HostManager
 from api.cmdb.define import ServiceInstance, TopoTree
+from bkmonitor.utils.local import local
 from core.drf_resource import api
 
 from .base import CMDBCacheManager
+
+setattr(local, "service_instance_cache", {})
 
 
 class ServiceInstanceManager(CMDBCacheManager):
@@ -32,17 +35,41 @@ class ServiceInstanceManager(CMDBCacheManager):
         return f"{cls._get_cache_key_prefix(bk_tenant_id)}.host_to_service_instance_id"
 
     @classmethod
-    def get(cls, *, bk_tenant_id: str, service_instance_id: str | int, **kwargs) -> ServiceInstance | None:
+    def get(
+        cls,
+        *,
+        bk_tenant_id: str,
+        service_instance_id: str | int,
+        using_mem: bool = False,
+        **kwargs,
+    ) -> ServiceInstance | None:
         """
         获取单个服务实例
         :param bk_tenant_id: 租户ID
         :param service_instance_id: 服务实例ID
+        :param using_mem: 是否使用内存缓存（如果使用，需要在逻辑结束后调用clear_mem_cache清理）
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
+        mem_cache_key = f"{cache_key}.{service_instance_id}"
+
+        # 如果使用内存缓存，先查询内存缓存
+        if using_mem:
+            instance = local.service_instance_cache.get(mem_cache_key)
+            if instance is not None:
+                return instance
+
+        # 查询 Redis 缓存
         result = cast(str | None, cls.cache.hget(cache_key, str(service_instance_id)))
         if not result:
             return None
-        return ServiceInstance(**json.loads(result))
+
+        instance = ServiceInstance(**json.loads(result))
+
+        # 如果使用内存缓存，写入内存缓存
+        if using_mem:
+            local.service_instance_cache[mem_cache_key] = instance
+
+        return instance
 
     @classmethod
     def mget(cls, *, bk_tenant_id: str, service_instance_ids: Sequence[int]) -> dict[int, ServiceInstance]:

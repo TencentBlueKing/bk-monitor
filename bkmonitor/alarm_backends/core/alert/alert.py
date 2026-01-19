@@ -866,10 +866,20 @@ class Alert:
 
     @classmethod
     def get(cls, alert_key: AlertKey) -> "Alert":
+        """获取告警对象，优先从 Redis 快照读取，失败时降级从 ES 获取。
+
+        实现了两级数据获取策略：
+        1. 优先从 Redis 快照中获取告警数据（高性能）
+        2. Redis 获取失败或数据不存在时，降级从 ES 中获取（高可靠）
+
+        :param alert_key: 告警标识对象，包含告警的唯一标识信息
+        :return: 告警对象实例
+        :raises: 当 ES 中也无法获取到告警数据时，会抛出相应异常
+        """
         try:
             alert = cls.get_from_snapshot(alert_key)
         except RedisError as error:
-            # 如果从 redis获取缓存抛异常的时候，需要记录一下日志，并且此时一定要从ES获取一次
+            # redis 获取缓存失败时记录异常日志，并降级从 ES 获取告警数据
             logger.exception("load alert(%s) from redis failed: %s", alert_key, str(error))
             alert = None
         if not alert:

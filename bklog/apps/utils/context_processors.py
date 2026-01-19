@@ -104,4 +104,6 @@ def mysetting(request):
         "BCS_WEB_CONSOLE_DOMAIN": settings.BCS_WEB_CONSOLE_DOMAIN,
         "BK_SHARED_RES_URL": settings.BK_SHARED_RES_URL,
         "VERSION": settings.VERSION,
+        "BK_USER_URL": settings.BK_USER_HOST,
+        "BK_IAM_URL": settings.BK_IAM_SAAS_HOST,
     }
