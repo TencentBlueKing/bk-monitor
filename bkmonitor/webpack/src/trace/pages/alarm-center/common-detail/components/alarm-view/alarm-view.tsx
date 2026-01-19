@@ -80,7 +80,7 @@ export default defineComponent({
             />
           </Tab>
           <KeepAlive>
-            {this.activeTab === 'dimension' && <DimensionAnalysis />}
+            {this.activeTab === 'dimension' && <DimensionAnalysis detail={this.detail} />}
             {this.activeTab === 'alarm_records' && (
               <AlarmRecords
                 detail={this.detail}

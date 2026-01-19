@@ -663,7 +663,7 @@ export default defineComponent({
                   return (
                     <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
                       <div class='chart-trend'>
-                        <AlarmTrendChart />
+                        <AlarmTrendChart total={this.total} />
                       </div>
                       {this.alarmStore.alarmType !== AlarmType.INCIDENT && (
                         <div class='alarm-analysis'>

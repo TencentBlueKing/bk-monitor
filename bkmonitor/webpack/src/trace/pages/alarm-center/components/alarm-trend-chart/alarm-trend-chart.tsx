@@ -40,6 +40,12 @@ import './alarm-trend-chart.scss';
 
 export default defineComponent({
   name: 'AlarmTrendChart',
+  props: {
+    total: {
+      type: Number,
+      default: 0,
+    },
+  },
   setup() {
     const { t } = useI18n();
     const store = useAlarmCenterStore();
@@ -48,6 +54,7 @@ export default defineComponent({
     const apiMap = {
       [AlarmType.ALERT]: 'alert_v2.alertDateHistogram',
       [AlarmType.ACTION]: 'alert_v2.actionDateHistogram',
+      // todo 等待后端接口同步到alert_v2文件中
       [AlarmType.INCIDENT]: 'alert_v2.actionDateHistogram',
     };
 
@@ -61,8 +68,6 @@ export default defineComponent({
     const handleDurationChange = (val: number) => {
       duration.value = val;
     };
-
-    const count = shallowRef(0);
 
     const seriesColorMap = {
       ...Object.entries(AlarmStatusIconMap).reduce((pre, [key, value]) => {
@@ -131,7 +136,6 @@ export default defineComponent({
 
     /** 格式化图表数据 */
     const formatterData = (data: any) => {
-      count.value = data.series?.[0].data.length || 0;
       return {
         series: data.series.map(item => {
           return {
@@ -161,7 +165,6 @@ export default defineComponent({
       params,
       interval,
       duration,
-      count,
       handleDurationChange,
       formatterData,
       handleDataZoomChange,
@@ -197,7 +200,7 @@ export default defineComponent({
                   keypath='（找到 {0} 条结果，用时 {1} 毫秒）'
                   tag='div'
                 >
-                  <span class='count'>{this.count}</span>
+                  <span class='count'>{this.total}</span>
                   <span class='duration'>{this.duration}</span>
                 </i18n-t>
                 <IntervalSelect
