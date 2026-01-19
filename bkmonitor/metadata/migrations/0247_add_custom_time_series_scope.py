@@ -146,7 +146,7 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
         if scope_name in existing_scopes:
             # 更新已存在的 scope
             scope_obj = existing_scopes[scope_name]
-            merged_dim_config = (scope_obj.dimension_config or {}).copy()
+            merged_dim_config = scope_obj.dimension_config or {}
 
             for dim_name, dim_config in scope_dim_config.items():
                 merged_dim_config.setdefault(dim_name, {}).update(dim_config)
