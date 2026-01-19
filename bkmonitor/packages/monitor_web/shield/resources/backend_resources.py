@@ -655,15 +655,9 @@ def handle_shield_time(
 
     # 如果是需要使用时间段的周期，只取日期部分，拼接上周期的时间
     if cycle_config.get("type", 1) != 1:
-        begin_time = begin_time.replace(
-            hour=cycle_config.get("begin_time", 0),
-            minute=cycle_config.get("begin_time", 0),
-            second=cycle_config.get("begin_time", 0),
-        )
-        end_time = end_time.replace(
-            hour=cycle_config.get("end_time", 0),
-            minute=cycle_config.get("end_time", 0),
-            second=cycle_config.get("end_time", 0),
-        )
+        begin_hour, begin_minute, begin_second = map(int, cycle_config.get("begin_time", "00:00:00").split(":"))
+        begin_time = begin_time.replace(hour=begin_hour, minute=begin_minute, second=begin_second)
+        end_hour, end_minute, end_second = map(int, cycle_config.get("end_time", "23:59:59").split(":"))
+        end_time = end_time.replace(hour=end_hour, minute=end_minute, second=end_second)
 
     return begin_time.datetime, end_time.datetime
