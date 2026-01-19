@@ -100,9 +100,9 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
 
     rt_fields_dict = {
         item["field_name"]: item["description"]
-        for item in ResultTableField.objects.filter(
-            table_id=table_id, field_name__in=all_needed_dimension_names, bk_tenant_id=bk_tenant_id
-        ).values("field_name", "description")
+        for item in ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values(
+            "field_name", "description"
+        )
     }
 
     # 收集所有维度的配置信息
@@ -115,6 +115,8 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
         # 添加 alias
         if description := rt_fields_dict.get(dim_name):
             config["alias"] = description
+        elif field := dim_field_dict.get(dim_name):
+            config["alias"] = field.description
 
         dim_configs[dim_name] = config
 
