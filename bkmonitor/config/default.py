@@ -59,6 +59,7 @@ INSTALLED_APPS = (
     "django.contrib.messages",
     "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
+    "corsheaders",
     # account app
     "blueapps.account",
     "apigw_manager.apigw",
@@ -92,6 +93,10 @@ INSTALLED_APPS = (
 # 自定义中间件
 MIDDLEWARE += ()  # noqa
 
+# 跨域配置
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
 # 默认数据库AUTO字段类型
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
@@ -104,8 +109,6 @@ DEBUG = TEMPLATE_DEBUG = bool(os.getenv("DEBUG", "false").lower() == "true") or 
 # 允许访问的域名，默认全部放通
 ALLOWED_HOSTS = ["*"]
 
-# 前后端分离开发配置开关，设置为True时允许跨域访问
-FRONTEND_BACKEND_SEPARATION = True
 
 # CELERY 并发数，默认为 2，可以通过环境变量或者 Procfile 设置
 CELERYD_CONCURRENCY = os.getenv("BK_CELERYD_CONCURRENCY", 2)  # noqa

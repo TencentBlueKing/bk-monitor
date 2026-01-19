@@ -1,0 +1,50 @@
+blueking:
+  app_code: example_app_code
+  app_secret: example-app-secret
+  api_url: https://api.example.com
+  api_configs:
+    cmdb:
+      mode: apigw
+django:
+  databases:
+    default:
+      engine: django.db.backends.mysql
+      name: bk-monitor-base
+      user: root
+      password: ""
+      charset: utf8
+      timezone: Asia/Shanghai
+      test:
+        name: test_bk-monitor-base
+    old_monitor_saas:
+      engine: django.db.backends.mysql
+      name: bk-monitor
+      user: root
+      charset: utf8
+      timezone: Asia/Shanghai
+    old_monitor_backend:
+      engine: django.db.backends.mysql
+      name: bk-monitor
+      user: root
+      charset: utf8
+      timezone: Asia/Shanghai
+domains:
+  strategy:
+    use_old_model: true
+  space:
+    use_old_model: true
+  uptime_check:
+    use_old_model: true
+file_storages:
+  default:
+    type: local
+    local:
+      path: src/bk_monitor_base/tests/media
+  bkmonitor:
+    type: bkrepo
+    bkrepo:
+      bucket: example-bucket
+      project: example-project
+      url: https://bkrepo.example.com
+      username: example-user
+      password: example-password

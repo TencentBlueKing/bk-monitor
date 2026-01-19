@@ -8,7 +8,7 @@ ARG username=bkmonitor
 ARG pypi_index_url=https://pypi.org/simple/
 
 # install tools
-RUN dnf install -y vim wget strace graphviz tini https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && dnf clean all
+RUN dnf install -y vim wget strace graphviz tini mysql-libs https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && dnf clean all
 
 # install chinese fonts
 RUN --mount=type=cache,target=/app/fonts \
@@ -26,12 +26,13 @@ FROM python-base AS python-builder
 
 WORKDIR /app
 
-RUN dnf install -y gcc python3-devel
+RUN dnf install -y gcc python3-devel mysql-devel
 
 # install python packages
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=bkmonitor/pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=bkmonitor/uv.lock,target=uv.lock \
+    --mount=type=bind,source=bk-monitor-base,target=/bk-monitor-base \
     uv venv venv --seed --link-mode=copy && . venv/bin/activate && uv sync --locked --no-install-project --no-dev --active
 
 # build frontend
@@ -43,7 +44,7 @@ RUN npm install -g pnpm@10
 WORKDIR /app
 
 # build frontend
-COPY ./webpack /app/webpack
+COPY bkmonitor/webpack /app/webpack
 RUN cd /app/webpack/ && npm run prod \
     && mkdir -p /app/dist && mv apm monitor fta weixin trace external /app/dist/
 
@@ -59,7 +60,8 @@ RUN groupadd -r ${username}  \
 # move code and python packages
 COPY --from=python-builder --chown=${username}:${username} /app/venv /app/venv
 COPY --from=node-builder --chown=${username}:${username} /app/dist/ /app/code/static/
-COPY --chown=${username}:${username} . /app/code/
+COPY --chown=${username}:${username} bkmonitor/ /app/code/
+COPY --chown=${username}:${username} bk-monitor-base/ /bk-monitor-base/
 
 ARG version
 RUN echo ${version} > /app/code/VERSION && rm -r /app/code/webpack && cp /app/code/docs/api/monitor_v3.yaml /app/code/kernel_api/monitor_v3.yaml
