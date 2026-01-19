@@ -8,5 +8,5 @@
 {% if notice_way == "wxwork-bot" and mentioned_users %}--mention-users--{% endif %}
 
 {% if alarm.detail_url and not alarm.link_layouts %}
-[查看详情]({{alarm.detail_url}}){{"    [告警确认](%s)" % alarm.quick_ack_url if alarm.quick_ack_url else ""}}    {{"[告警屏蔽](%s)" % alarm.quick_shield_url if alarm.quick_shield_url else ""}}    {% if alarm.query_url %}[数据检索]({{alarm.query_url}}){% endif %}{% if alarm.log_search_url %}[日志检索]({{alarm.log_search_url}}){% endif %}
+[查看详情]({{alarm.detail_url}}){{"    [告警确认](%s)" % alarm.quick_ack_url if alarm.quick_ack_url else ""}}    {{"[告警屏蔽](%s)" % alarm.quick_shield_url if alarm.quick_shield_url else ""}}{% if alarm.query_url and not alarm.apm_rpc_url %}    [数据检索]({{alarm.query_url}}){% endif %}{% if alarm.log_search_url %}    [日志检索]({{alarm.log_search_url}}){% endif %}{% if alarm.apm_rpc_url %}    [调用分析]({{alarm.apm_rpc_url}}){% endif %}{% if alarm.apm_trace_url %}    [Tracing 检索]({{alarm.apm_trace_url}}){% endif %}
 {% endif %}

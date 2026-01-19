@@ -991,12 +991,12 @@ class Alarm(BaseContextObject):
     @cached_property
     def apm_trace_url(self) -> str | None:
         """Tracing 检索跳转链接（短链接格式）"""
-        return self._build_redirect_short_url(AlertRedirectType.APM_TRACE.value)
+        return self._build_redirect_short_url(AlertRedirectType.APM_TRACE.value, check_in_redirect_types=True)
 
     @cached_property
     def apm_rpc_url(self) -> str | None:
         """调用分析跳转链接（短链接格式）"""
-        return self._build_redirect_short_url(AlertRedirectType.APM_RPC.value)
+        return self._build_redirect_short_url(AlertRedirectType.APM_RPC.value, check_in_redirect_types=True)
 
     @cached_property
     def log_search_url(self) -> str | None:
