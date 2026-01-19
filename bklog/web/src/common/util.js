@@ -447,7 +447,13 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
  */
 export function formatDate(val, isTimzone = false, formatMilliseconds = false) {
   try {
-    const date = new Date(val);
+    // 如果是数字类型的秒级时间戳（10位），转换为毫秒级时间戳
+    let timestamp = val;
+    if (/^\d+\.?\d*$/.test(val) && val.toString().length === 10) {
+      timestamp = Number(val) * 1000;
+    }
+
+    const date = new Date(timestamp);
     if (isNaN(date.getTime())) {
       console.warn('无效的时间');
       return '';
@@ -459,15 +465,6 @@ export function formatDate(val, isTimzone = false, formatMilliseconds = false) {
     }
 
     if (isTimzone) {
-      let timestamp = val;
-
-      if (/^\d+\.?\d*$/.test(val)) {
-        // 将时间戳转换为毫秒级别，如果是10位时间戳则乘以1000
-        if (val.toString().length === 10) {
-          timestamp = Number(val) * 1000;
-        }
-      }
-
       // 获取毫秒部分的最后三位
       const milliseconds = timestamp % 1000;
       // 创建 dayjs 对象
