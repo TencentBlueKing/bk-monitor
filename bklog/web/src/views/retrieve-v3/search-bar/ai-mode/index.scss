@@ -3,7 +3,7 @@
   .v3-ai-mode-container {
     position: relative;
     padding: 2px; // 边框宽度，形成渐变边框效果
-    background: linear-gradient(-36deg, #FF8FF1, #8F91FF, #70A1FF, #5DD2FF);
+    background: linear-gradient(-36deg, #8c6ef2, #70a1ff, #8f91ff, #ff8ff1);
     padding-right: 48px;
     box-shadow: 0 2px 10px 0 #0000000a;
     border-radius: 4px;
@@ -41,6 +41,10 @@
       min-height: 24px;
       position: relative;
       flex-wrap: wrap;
+
+      textarea {
+        font-family: Menlo, Monaco, Consolas, Courier, "PingFang SC", "Microsoft Yahei", monospace;
+      }
     }
 
     .ai-input {
