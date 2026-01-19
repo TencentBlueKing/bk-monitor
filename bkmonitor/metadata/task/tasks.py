@@ -19,7 +19,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import gettext as _
-from tenacity import RetryError, retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import RetryError, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from alarm_backends.service.scheduler.app import app
 from constants.common import DEFAULT_TENANT_ID
@@ -510,6 +510,7 @@ def _access_bkdata_vm(
     table_id: str,
     data_id: int,
     allow_access_v2_data_link: bool | None = False,
+    force_update: bool = False,
 ):
     """接入计算平台 VM 任务
     NOTE: 根据环境变量判断是否启用新版vm链路
@@ -519,7 +520,13 @@ def _access_bkdata_vm(
     # NOTE：只有当allow_access_v2_data_link为True，即单指标单表时序指标数据时，才允许接入V4链路
     if settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link:
         logger.info("_access_bkdata_vm: start to access v2 bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
-        access_v2_bkdata_vm(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
+        access_v2_bkdata_vm(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            table_id=table_id,
+            data_id=data_id,
+            force_update=force_update,
+        )
     else:
         logger.info("_access_bkdata_vm: start to access bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
         access_bkdata(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
@@ -532,6 +539,7 @@ def access_bkdata_vm(
     table_id: str,
     data_id: int,
     allow_access_v2_data_link: bool = False,
+    force_update: bool = False,
 ):
     """接入计算平台 VM 任务"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
@@ -542,6 +550,7 @@ def access_bkdata_vm(
             table_id=table_id,
             data_id=data_id,
             allow_access_v2_data_link=allow_access_v2_data_link,
+            force_update=force_update,
         )
     except RetryError as e:
         logger.error(
@@ -1214,13 +1223,13 @@ def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         bk_biz_id,
         data_name,
     )
-    data_link_ins, created = models.DataLink.objects.get_or_create(
+    data_link_ins, created = models.DataLink.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
         data_link_name=data_name,
         namespace="bkmonitor",
         data_link_strategy=models.DataLink.BASEREPORT_TIME_SERIES_V1,
-        bk_tenant_id=bk_tenant_id,
+        defaults={"bk_data_id": data_source.bk_data_id, "table_ids": result_table_ids},
     )
-
     # 2. 申请数据链路配置 VmResultTable, VmResultTableBinding, DataBus, ConditionalSink
     try:
         data_link_ins.apply_data_link(
@@ -1485,11 +1494,11 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         bk_biz_id,
         data_name,
     )
-    data_link_ins, _ = models.DataLink.objects.get_or_create(
+    data_link_ins, _ = models.DataLink.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
         data_link_name=data_name,
         data_link_strategy=models.DataLink.BASE_EVENT_V1,
-        bk_tenant_id=bk_tenant_id,
-        defaults={"namespace": "bklog"},
+        defaults={"namespace": "bklog", "bk_data_id": data_source.bk_data_id, "table_ids": [table_id]},
     )
 
     # 2. 申请数据链路配置 ResultTableConfig,ESStorageBindingConfig,DataBusConfig
@@ -1782,11 +1791,12 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
             models.ResultTableField.objects.bulk_create(result_table_field_to_create)
 
         # 创建数据链路
-        data_link_ins, _ = models.DataLink.objects.get_or_create(
+        data_link_ins, _ = models.DataLink.objects.update_or_create(
+            bk_tenant_id=bk_tenant_id,
             data_link_name=data_name,
             namespace="bkmonitor",
             data_link_strategy=data_name_to_data_link_strategy[data_link_type],
-            bk_tenant_id=bk_tenant_id,
+            defaults={"bk_data_id": data_source.bk_data_id, "table_ids": [table_id]},
         )
 
         # 申请数据链路配置
@@ -1963,6 +1973,8 @@ def create_single_tenant_system_datalink(
             "data_link_strategy": DataLink.BASEREPORT_TIME_SERIES_V1,
             "namespace": BKBASE_NAMESPACE_BK_MONITOR,
             "bk_tenant_id": datasource.bk_tenant_id,
+            "bk_data_id": datasource.bk_data_id,
+            "table_ids": table_ids,
         },
     )
     data_link_ins.apply_data_link(
@@ -2066,6 +2078,8 @@ def create_single_tenant_system_proc_datalink(
                 "data_link_strategy": data_id_to_data_link_strategy[data_id],
                 "namespace": BKBASE_NAMESPACE_BK_MONITOR,
                 "bk_tenant_id": datasource.bk_tenant_id,
+                "bk_data_id": datasource.bk_data_id,
+                "table_ids": [data_id_to_table_id[data_id]],
             },
         )
         data_link_ins.apply_data_link(

@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 from django.conf import settings
 from django.db import models
@@ -110,7 +110,8 @@ class DataIdConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.DATAID.value
-    name = models.CharField(verbose_name="数据源名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="数据源名称", max_length=64, db_index=True)
+    bk_data_id = models.IntegerField(verbose_name="数据源ID", default=0)
 
     class Meta:
         verbose_name = "数据源配置"
@@ -241,8 +242,9 @@ class ResultTableConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.RESULTTABLE.value
-    name = models.CharField(verbose_name="结果表名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="结果表名称", max_length=64, db_index=True)
     data_type = models.CharField(verbose_name="结果表类型", max_length=64, default="metric")
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="")
 
     class Meta:
         verbose_name = "结果表配置"
@@ -305,8 +307,9 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.ESSTORAGEBINDING.value
-    name = models.CharField(verbose_name="存储配置名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="存储配置名称", max_length=64, db_index=True)
     es_cluster_name = models.CharField(verbose_name="ES集群名称", max_length=64)
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="")
     timezone = models.IntegerField("时区设置", default=0)
 
     class Meta:
@@ -381,11 +384,6 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info(
-                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
-                self.bk_tenant_id,
-                self.kind,
-            )
             render_params["tenant"] = self.bk_tenant_id
 
         return utils.compose_config(
@@ -401,8 +399,9 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.VMSTORAGEBINDING.value
-    name = models.CharField(verbose_name="存储配置名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="存储配置名称", max_length=64, db_index=True)
     vm_cluster_name = models.CharField(verbose_name="VM集群名称", max_length=64)
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="")
 
     class Meta:
         verbose_name = "VM存储配置"
@@ -475,11 +474,6 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info(
-                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
-                self.bk_tenant_id,
-                self.kind,
-            )
             render_params["tenant"] = self.bk_tenant_id
 
         return utils.compose_config(
@@ -495,8 +489,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.DATABUS.value
-    name = models.CharField(verbose_name="清洗任务名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="清洗任务名称", max_length=64, db_index=True)
     data_id_name = models.CharField(verbose_name="关联消费数据源名称", max_length=64)
+    bk_data_id = models.IntegerField(verbose_name="数据源ID", default=0)
 
     class Meta:
         verbose_name = "清洗任务配置"
@@ -706,7 +701,7 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.CONDITIONALSINK.value
-    name = models.CharField(verbose_name="条件处理配置名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="条件处理配置名称", max_length=64, db_index=True)
 
     class Meta:
         verbose_name = "条件处理配置"
@@ -775,7 +770,8 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.DORISBINDING.value
-    name = models.CharField(verbose_name="Doris存储绑定配置名称", max_length=64, db_index=True, unique=True)
+    name = models.CharField(verbose_name="Doris存储绑定配置名称", max_length=64, db_index=True)
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="")
 
     class Meta:
         verbose_name: ClassVar[str] = "Doris存储绑定配置"
@@ -971,7 +967,7 @@ class ClusterConfig(models.Model):
             "metadata": {
                 "namespace": self.namespace,
                 "name": cluster.cluster_name,
-                "annotations": {"StreamToId": cluster.gse_stream_to_id},
+                "annotations": {"display_name": cluster.display_name or cluster.cluster_name},
             },
             "spec": {
                 "host": cluster.domain_name,
@@ -980,6 +976,26 @@ class ClusterConfig(models.Model):
                 "role": "outer",
             },
         }
+
+        if cluster.gse_stream_to_id != -1:
+            config["metadata"]["annotations"]["StreamToId"] = str(cluster.gse_stream_to_id)
+            config["spec"]["streamToId"] = cluster.gse_stream_to_id
+
+        default_settings = cast(dict[str, Any], cluster.default_settings)
+        if default_settings.get("v3_channel_id"):
+            config["spec"]["v3ChannelId"] = default_settings["v3_channel_id"]
+        if default_settings.get("version"):
+            config["spec"]["version"] = default_settings["version"]
+
+        if cluster.is_auth or cluster.username:
+            config["spec"]["auth"] = {
+                "sasl": {
+                    "enabled": cluster.is_auth,
+                    "username": cluster.username,
+                    "password": cluster.password,
+                    "mechanism": cluster.sasl_mechanisms,
+                }
+            }
 
         if settings.ENABLE_MULTI_TENANT_MODE:
             config["metadata"]["tenant"] = cluster.bk_tenant_id
@@ -1051,11 +1067,6 @@ class ClusterConfig(models.Model):
         Args:
             cluster: 集群信息
         """
-        from metadata.models.storage import ClusterInfo
-
-        # NOTE: 目前仅允许将ES集群配置到bkbase平台，VM和Doris集群需要通过bkbase配置，定时任务会自动从bkbase拉取配置
-        if cluster.cluster_type not in [ClusterInfo.TYPE_ES]:
-            return
 
         # 根据集群类型获取kind和namespace
         kind = cls.CLUSTER_TYPE_TO_KIND_MAP[cluster.cluster_type]

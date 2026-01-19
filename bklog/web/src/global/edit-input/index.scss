@@ -16,6 +16,7 @@
     gap: 4px;
     box-sizing: border-box;
     cursor: default;
+    resize: var(--resize);
 
     &:hover {
       border-color: #C4C6CC;
@@ -64,6 +65,7 @@
     min-width: 120px;
     min-height: 30px;
     transition: box-shadow 0.2s ease;
+    overflow: hidden;
 
     &:focus-within {
       box-shadow: 0 4px 16px rgba(58, 132, 255, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -85,7 +87,9 @@
       box-sizing: border-box;
       font-family: inherit;
       overflow-y: auto;
-      overflow-x: hidden;
+      overflow-x: auto;
+      word-wrap: break-word;
+      white-space: pre-wrap;
 
       &::placeholder {
         color: #C4C6CC;
