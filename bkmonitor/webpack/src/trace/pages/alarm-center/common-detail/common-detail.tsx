@@ -60,8 +60,8 @@ export default defineComponent({
     const { t } = useI18n();
     const boxWrapRef = useTemplateRef<HTMLDivElement>('boxWrap');
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const currentPanel = shallowRef(alarmCenterDetailStore.alarmDetail?.alarmTabList?.[0]?.label);
     const { alarmDetail, loading, bizId, alarmId } = storeToRefs(alarmCenterDetailStore);
+    const currentPanel = shallowRef(alarmDetail.value?.alarmTabList?.[0]?.name);
     const { alarmStatusOverview, alarmStatusActions, alarmStatusTotal } = useAlarmBasicInfo();
 
     const authority = inject<IAuthority>('authority');
@@ -98,15 +98,15 @@ export default defineComponent({
     const alarmShieldDetail = computed(() => {
       return [
         {
-          severity: alarmCenterDetailStore.alarmDetail?.severity,
-          dimension: alarmCenterDetailStore.alarmDetail?.dimensions || [],
-          trigger: alarmCenterDetailStore.alarmDetail?.description || '--',
-          alertId: alarmCenterDetailStore.alarmDetail?.id,
+          severity: alarmDetail.value?.severity,
+          dimension: alarmDetail.value?.dimensions || [],
+          trigger: alarmDetail.value?.description || '--',
+          alertId: alarmDetail.value?.id,
           strategy: {
-            id: alarmCenterDetailStore.alarmDetail?.extra_info?.strategy?.id,
-            name: alarmCenterDetailStore.alarmDetail?.extra_info?.strategy?.name,
+            id: alarmDetail.value?.extra_info?.strategy?.id,
+            name: alarmDetail.value?.extra_info?.strategy?.name,
           },
-          bkHostId: alarmCenterDetailStore.alarmDetail?.bk_host_id || '',
+          bkHostId: alarmDetail.value?.bk_host_id || '',
         },
       ];
     });
@@ -168,11 +168,12 @@ export default defineComponent({
     };
 
     const getPanelComponent = () => {
+      if (loading.value) return <div class='alarm-detail-panel-content-skeleton skeleton-element' />;
       switch (currentPanel.value) {
         case ALARM_CENTER_PANEL_TAB_MAP.VIEW:
           return (
             <AlarmView
-              detail={alarmCenterDetailStore.alarmDetail}
+              detail={alarmDetail.value}
               onRelatedEventsTimeRange={handleRelatedEventsTimeRange}
             />
           );
@@ -183,23 +184,23 @@ export default defineComponent({
                 offsetTop: 51,
                 container: () => boxWrapRef.value,
               }}
-              detail={alarmCenterDetailStore.alarmDetail}
+              detail={alarmDetail.value}
             />
           );
         case ALARM_CENTER_PANEL_TAB_MAP.TRACE:
-          return <PanelTrace alertId={alarmCenterDetailStore.alarmId} />;
+          return <PanelTrace alertId={alarmId.value} />;
         case ALARM_CENTER_PANEL_TAB_MAP.HOST:
-          return <PanelHost alertId={alarmCenterDetailStore.alarmId} />;
+          return <PanelHost alertId={alarmId.value} />;
         case ALARM_CENTER_PANEL_TAB_MAP.CONTAINER:
-          return <PanelK8s alertId={alarmCenterDetailStore.alarmId} />;
+          return <PanelK8s alertId={alarmId.value} />;
         case ALARM_CENTER_PANEL_TAB_MAP.EVENT:
-          return <PanelEvent detail={alarmCenterDetailStore.alarmDetail} />;
+          return <PanelEvent detail={alarmDetail.value} />;
         case 'metric':
           return <PanelMetric />;
         case ALARM_CENTER_PANEL_TAB_MAP.ALARM:
           return (
             <PanelAlarm
-              detail={alarmCenterDetailStore.alarmDetail}
+              detail={alarmDetail.value}
               params={relatedEventsParams.value}
             />
           );
@@ -245,7 +246,7 @@ export default defineComponent({
           : [
               <AlarmAlert
                 key='alarm-alert'
-                data={alarmCenterDetailStore.alarmDetail}
+                data={alarmDetail.value}
                 onAlarmConfirm={() => {
                   handleShowAlarmConfirm(true);
                 }}
@@ -256,7 +257,7 @@ export default defineComponent({
               <AlarmInfo
                 key='alarm-info'
                 alertActionOverview={alarmStatusOverview.value}
-                data={alarmCenterDetailStore.alarmDetail}
+                data={alarmDetail.value}
                 onAlarmDispatch={handleAlarmDispatch}
                 onAlarmStatusDetailShow={() => {
                   alarmStatusDetailShow.value = true;
@@ -276,7 +277,7 @@ export default defineComponent({
             currentPanel.value = v;
           }}
         >
-          {alarmCenterDetailStore.alarmDetail?.alarmTabList?.map(item => (
+          {alarmDetail.value?.alarmTabList?.map(item => (
             <Tab.TabPanel
               key={item.name}
               label={item.label}

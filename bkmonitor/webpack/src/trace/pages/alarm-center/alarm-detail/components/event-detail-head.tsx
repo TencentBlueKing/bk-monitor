@@ -139,7 +139,7 @@ export default defineComponent({
     watch(
       () => alarmDetail.value,
       newVal => {
-        if (newVal) {
+        if (newVal && !loading.value) {
           getAlertFeedback();
         }
       },

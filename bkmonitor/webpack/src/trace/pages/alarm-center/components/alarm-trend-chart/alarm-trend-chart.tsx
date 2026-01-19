@@ -44,10 +44,11 @@ export default defineComponent({
     const { t } = useI18n();
     const store = useAlarmCenterStore();
 
+    /** 告警类型对应的直方图接口 */
     const apiMap = {
-      [AlarmType.ALERT]: 'alert.alertDateHistogram',
-      [AlarmType.ACTION]: 'alert.actionDateHistogram',
-      [AlarmType.INCIDENT]: '',
+      [AlarmType.ALERT]: 'alert_v2.alertDateHistogram',
+      [AlarmType.ACTION]: 'alert_v2.actionDateHistogram',
+      [AlarmType.INCIDENT]: 'alert_v2.actionDateHistogram',
     };
 
     /** 汇聚周期 */

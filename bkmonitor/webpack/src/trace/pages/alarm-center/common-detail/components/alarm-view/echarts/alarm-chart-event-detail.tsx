@@ -33,7 +33,7 @@ import { useI18n } from 'vue-i18n';
 
 import { getAlertEventTagDetails } from '@/pages/alarm-center/services/alarm-detail';
 import {
-  type AlertEventTagDetailParams,
+  type AlertScatterClickEvent,
   type IEventListItem,
   type IEventTopkItem,
   type IPosition,
@@ -62,7 +62,7 @@ export default defineComponent({
       required: true,
     },
     eventItem: {
-      type: Object as PropType<Partial<AlertEventTagDetailParams>>,
+      type: Object as PropType<Partial<AlertScatterClickEvent>>,
       required: true,
     },
   },
@@ -107,20 +107,20 @@ export default defineComponent({
       const eventTarget = props.eventItem?.query_config;
       const queryConfig = eventTarget?.query_configs?.[0];
 
+      // 构建 where 条件
+      const where: Record<string, any>[] = [...defaultWhere, ...(isApm ? [] : (queryConfig?.where ?? []))];
+      if (eventName) {
+        where.push({ key: 'event_name', condition: 'and', value: [eventName], method: 'eq' });
+      }
+
+      // 异常 tab 增加 type 过滤条件
+      if (activeTab.value === EventTab.Warning) {
+        where.push({ key: 'type', condition: 'and', value: ['Warning'], method: 'eq' });
+      }
+
       const baseConfig = {
         data_type_label: 'event',
-        where: eventName
-          ? [
-              {
-                key: 'event_name',
-                condition: 'and',
-                value: [eventName],
-                method: 'eq',
-              },
-              ...(isApm ? defaultWhere : (queryConfig?.where ?? [])),
-              ...(!isApm ? defaultWhere : []),
-            ]
-          : [],
+        where,
         query_string: '',
         group_by: [],
         filter_dict: {},
@@ -174,8 +174,8 @@ export default defineComponent({
       loading.value = true;
       try {
         // eslint-disable-next-line @typescript-eslint/naming-convention
-        const { query_config: _, bizId: __, ...requestParams } = props.eventItem;
-        const { Warning: warning, All: all } = await getAlertEventTagDetails(requestParams);
+        const { query_config: _, bizId, ...requestParams } = props.eventItem;
+        const { Warning: warning, All: all } = await getAlertEventTagDetails({ ...requestParams, bk_biz_id: bizId });
 
         warningData.value = warning;
         allData.value = all;
@@ -203,7 +203,7 @@ export default defineComponent({
       const targets = [{ data: { query_configs: [queryConfig] } }];
 
       const calculatedStartTime = startTime || props.eventItem.start_time;
-      const endTime = calculatedStartTime + (props.eventItem.interval ?? 0);
+      const endTime = calculatedStartTime + Number(props.eventItem.interval ?? 300);
 
       const searchParams = createSearchParams(targets, calculatedStartTime, endTime, {
         sceneId: 'apm_service',
@@ -232,7 +232,7 @@ export default defineComponent({
       const targets = [{ data: { query_configs: [queryConfig] } }];
 
       const calculatedStartTime = startTime || props.eventItem.start_time;
-      const endTime = calculatedStartTime + (props.eventItem.interval ?? 0);
+      const endTime = calculatedStartTime + Number(props.eventItem.interval ?? 300);
 
       const searchParams = createSearchParams(targets, calculatedStartTime, endTime, {
         filterMode: 'ui',

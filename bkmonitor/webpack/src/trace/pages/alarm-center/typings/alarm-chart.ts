@@ -33,12 +33,16 @@ export enum EventTab {
 
 export interface AlertEventTagDetailParams {
   alert_id?: string;
-  bizId?: number;
+  bk_biz_id?: number;
   interval?: number;
   limit?: number;
-  query_config?: ExploreTableRequestParams;
   sources?: string[];
   start_time?: number;
+}
+
+export interface AlertScatterClickEvent extends AlertEventTagDetailParams {
+  bizId?: number;
+  query_config?: ExploreTableRequestParams;
 }
 
 export interface IEventListItem {

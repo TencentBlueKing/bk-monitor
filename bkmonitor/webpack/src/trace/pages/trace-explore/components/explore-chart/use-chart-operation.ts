@@ -24,19 +24,21 @@
  * IN THE SOFTWARE.
  */
 
-import { shallowRef } from 'vue';
+import { type MaybeRef, shallowRef, watch } from 'vue';
+
+import { get } from '@vueuse/core';
 
 /**
- * 图表相关操作
+ * @description 图表相关操作
  * 1. 框选，复位
  */
-export const useChartOperation = (defaultTimeRange: string[]) => {
+export const useChartOperation = (defaultTimeRange: MaybeRef<string[]>) => {
   const showRestore = shallowRef(false);
-  const timeRange = shallowRef(defaultTimeRange);
-  const cacheTimeRange = shallowRef(defaultTimeRange);
+  const timeRange = shallowRef(null);
+  const cacheTimeRange = shallowRef(null);
 
   /**
-   * 处理数据框选变化
+   * @description 处理数据框选变化
    * @param value 框选范围
    */
   const handleDataZoomChange = (value: any[]) => {
@@ -48,7 +50,7 @@ export const useChartOperation = (defaultTimeRange: string[]) => {
   };
 
   /**
-   * 复位时间范围
+   * @description 复位时间范围
    */
   const handleRestore = () => {
     const cacheTime = JSON.parse(JSON.stringify(cacheTimeRange.value));
@@ -57,13 +59,22 @@ export const useChartOperation = (defaultTimeRange: string[]) => {
   };
 
   /**
-   * 初始化默认时间范围
+   * @description 初始化默认时间范围
    * @param defaultTimeRange 默认时间范围
    */
   const initDefaultTimeRange = (defaultTimeRange: string[]) => {
     timeRange.value = defaultTimeRange;
     cacheTimeRange.value = defaultTimeRange;
+    showRestore.value = false;
   };
+
+  watch(
+    () => get(defaultTimeRange),
+    () => {
+      initDefaultTimeRange(get(defaultTimeRange));
+    },
+    { immediate: true }
+  );
 
   return {
     showRestore,
