@@ -120,6 +120,9 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
 
         dim_configs[dim_name] = config
 
+    # 确保默认分组一定会被创建
+    scope_info[DEFAULT_DATA_SCOPE_NAME]["is_default"] = True
+
     # 收集 scope 信息和维度使用情况
     for field in metric_fields:
         scope_name = get_scope_name(field, DEFAULT_DATA_SCOPE_NAME)
