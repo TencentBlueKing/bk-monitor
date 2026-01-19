@@ -412,6 +412,7 @@ export default defineComponent({
               index_set_id: props.indexId,
             },
             data: {
+              bk_biz_id: store.state.bkBizId,
               addition,
               size,
               keyword,
