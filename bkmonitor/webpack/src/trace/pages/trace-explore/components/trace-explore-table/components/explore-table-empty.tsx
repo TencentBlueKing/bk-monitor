@@ -54,6 +54,7 @@ export default defineComponent({
       <EmptyStatus
         class='explore-table-empty'
         showOperation={this.showOperation}
+        type='search-empty'
       >
         <div class='search-empty-content'>
           <div class='tips'>
