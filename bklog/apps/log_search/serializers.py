@@ -291,8 +291,8 @@ class SearchAttrSerializer(serializers.Serializer):
     ip_chooser = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default="")
 
-    start_time = DateTimeFieldWithEpoch(required=False)
-    end_time = DateTimeFieldWithEpoch(required=False)
+    start_time = serializers.IntegerField(required=False)
+    end_time = serializers.IntegerField(required=False)
     time_range = serializers.CharField(required=False, default=None)
     time_zone = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     from_favorite_id = serializers.IntegerField(required=False, default=0)
