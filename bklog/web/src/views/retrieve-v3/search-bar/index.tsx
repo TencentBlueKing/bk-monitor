@@ -38,10 +38,18 @@ import V3AiMode from './ai-mode/index';
 import { bkMessage } from 'bk-magic-vue';
 
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import { AiQueryResult } from './types';
+import { AiQueryResult, AiQueryContent } from './types';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 
 import './index.scss';
+
+const DEFAULT_AI_QUERY_RESULT: AiQueryResult = {
+  startTime: '',
+  endTime: '',
+  queryString: '',
+  parseResult: undefined,
+  explain: '',
+};
 
 export default defineComponent({
   name: 'V3Searchbar',
@@ -55,9 +63,11 @@ export default defineComponent({
 
     const isAiLoading = ref(false);
     const searchMode = ref<'normal' | 'ai'>('normal');
-    const aiQueryResult = ref<AiQueryResult>({ startTime: '', endTime: '', queryString: '' });
-    const aiFilterList = computed<string[]>(() => (store.state.aiMode.filterList ?? [])
-      .filter(f => !/^\s*\*?\s*$/.test(f)));
+    const aiQueryResult = ref<AiQueryResult>(DEFAULT_AI_QUERY_RESULT);
+
+    const aiFilterList = computed<string[]>(() =>
+      (store.state.aiMode.filterList ?? []).filter(f => !/^\s*\*?\s*$/.test(f)),
+    );
 
     const { setRouteParamsByKeywordAndAddition } = useRetrieveParams();
 
@@ -102,7 +112,7 @@ export default defineComponent({
      * 当前搜索模式：'ui' | 'sql'
      */
     const currentSearchMode = computed<'ui' | 'sql'>(() =>
-      store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui'
+      store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
     );
     /**
      * 更新AI助手位置
@@ -122,7 +132,7 @@ export default defineComponent({
      * 用于处理搜索栏高度变化
      * @param height 搜索栏高度
      */
-    const handleHeightChange = (height) => {
+    const handleHeightChange = height => {
       if (height === searchBarHeight.value || RetrieveHelper.aiAssitantHelper.activePosition !== 'search-bar') {
         return;
       }
@@ -136,12 +146,12 @@ export default defineComponent({
      * 处理 Tab 键切换模式
      * @param e 键盘事件
      */
-    const handleTabKeyPress = (e: KeyboardEvent) => {
+    const handleTabKeyPress = (e: KeyboardEvent, isMouseClick = false) => {
       if (isAiLoading.value) {
         return;
       }
       // 检查是否按下了 Tab 键（排除 Shift+Tab）
-      if ((e.key === 'Tab' || e.keyCode === 9) && !e.shiftKey) {
+      if (isMouseClick || ((e.key === 'Tab' || e.keyCode === 9) && !e.shiftKey)) {
         // 阻止默认的 Tab 行为
         e.preventDefault();
         e.stopPropagation();
@@ -163,6 +173,8 @@ export default defineComponent({
 
           store.commit('updateIndexItemParams', { keyword: '' });
           aiQueryResult.value.queryString = '';
+          aiQueryResult.value.parseResult = undefined;
+          aiQueryResult.value.explain = undefined;
 
           // 更新路由参数以同步状态
           setRouteParamsByKeywordAndAddition();
@@ -170,11 +182,14 @@ export default defineComponent({
           searchMode.value = 'ai';
 
           // 打点：通过Tab键切换到AI模式
-          RetrieveHelper.reportLog({
-            ai_scenario: 'tab_switch',
-            trigger_source: 'tab_key',
-            action: 'tab',
-          }, store.state);
+          RetrieveHelper.reportLog(
+            {
+              ai_scenario: 'tab_switch',
+              trigger_source: 'tab_key',
+              action: 'tab',
+            },
+            store.state,
+          );
 
           // 切换到 AI 模式后，聚焦到 AI 输入框
           nextTick(() => {
@@ -212,14 +227,20 @@ export default defineComponent({
           searchMode.value = 'normal';
           store.state.aiMode.active = false;
           store.state.aiMode.filterList = [];
-          Object.assign(aiQueryResult.value, { startTime: '', endTime: '', queryString: '' });
+          Object.assign(aiQueryResult.value, {
+            startTime: undefined,
+            endTime: undefined,
+            queryString: undefined,
+            parseResult: undefined,
+            explain: undefined,
+          });
 
           // 切换到常规模式后，点击搜索框容器以触发自动 focus
           nextTick(() => {
             const searchBarEl = searchBarRef.value?.$el || searchBarRef.value;
             // 找到搜索框容器，点击后会自动触发 focus
-            const searchInputContainer = searchBarEl?.querySelector?.('.search-bar-container')
-              || searchBarEl?.querySelector?.('.search-input');
+            const searchInputContainer =
+              searchBarEl?.querySelector?.('.search-bar-container') || searchBarEl?.querySelector?.('.search-input');
             if (searchInputContainer) {
               searchInputContainer.click();
             }
@@ -241,50 +262,54 @@ export default defineComponent({
       RetrieveHelper.aiAssitantHelper.closeAiAssitantWithSearchBar(e);
     });
 
-    // addElementEvent(document, 'keydown', handleTabKeyPress, { capture: true });
+    addElementEvent(document, 'keydown', handleTabKeyPress, { capture: true });
 
     /**
      * 使用AI编辑
      * @param e 鼠标事件
      */
     const handleAiSpanClick = (e: MouseEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      e.stopImmediatePropagation();
+      // e.stopPropagation();
+      // e.preventDefault();
+      // e.stopImmediatePropagation();
 
       // 打点：点击AI编辑按钮打开对话框
-      RetrieveHelper.reportLog({
-        ai_scenario: 'ai_edit_dialog',
-        trigger_source: `${currentSearchMode.value}_mode`,
-        action: 'click',
-      }, store.state);
-
-      const rect = searchBarRef.value?.getRect();
-      const left = rect?.left;
-      const top = rect?.top + rect?.height + 4;
-      const width = rect?.width;
-
-      RetrieveHelper.aiAssitantHelper.showAiAssitant(
+      RetrieveHelper.reportLog(
         {
-          defaultLeft: left,
-          defaultTop: top,
-          defaultWidth: width,
-          defaultHeight: 560,
-          draggable: false,
-          defaultChatInputPosition: 'bottom',
-          showCompressionIcon: false,
-          showNewChatIcon: false,
-          showMoreIcon: false,
-          maxWidth: '100%',
-          title: t('AI编辑'),
+          ai_scenario: 'ai_edit_dialog',
+          trigger_source: `${currentSearchMode.value}_mode`,
+          action: 'click',
         },
-        {
-          index_set_id: store.state.indexItem.ids[0],
-          description: '',
-          domain: window.location.origin,
-          fields: fieldsJsonValue.value,
-        },
+        store.state,
       );
+
+      handleTabKeyPress(e as any, true);
+      // const rect = searchBarRef.value?.getRect();
+      // const left = rect?.left;
+      // const top = rect?.top + rect?.height + 4;
+      // const width = rect?.width;
+
+      // RetrieveHelper.aiAssitantHelper.showAiAssitant(
+      //   {
+      //     defaultLeft: left,
+      //     defaultTop: top,
+      //     defaultWidth: width,
+      //     defaultHeight: 560,
+      //     draggable: false,
+      //     defaultChatInputPosition: 'bottom',
+      //     showCompressionIcon: false,
+      //     showNewChatIcon: false,
+      //     showMoreIcon: false,
+      //     maxWidth: '100%',
+      //     title: t('AI编辑'),
+      //   },
+      //   {
+      //     index_set_id: store.state.indexItem.ids[0],
+      //     description: '',
+      //     domain: window.location.origin,
+      //     fields: fieldsJsonValue.value,
+      //   },
+      // );
     };
 
     /**
@@ -294,8 +319,15 @@ export default defineComponent({
     const handleRequestResponse = (resp?: any) => {
       const content = resp?.choices[0]?.delta?.content ?? '{}';
       try {
-        const contentObj = JSON.parse(content);
-        const { end_time: endTime, start_time: startTime, query_string: queryString = '' } = contentObj;
+        const contentObj: AiQueryContent = JSON.parse(content);
+        const {
+          end_time: endTime,
+          start_time: startTime,
+          query_string: queryString = '',
+          parse_result: parseResult,
+          explain = '',
+        } = contentObj;
+
         const queryParams = { search_mode: 'sql' };
         let needReplace = false;
         if (startTime && endTime) {
@@ -318,12 +350,14 @@ export default defineComponent({
           store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
 
           const { start_time, end_time } = queryParams as any;
-          setRouteParamsByKeywordAndAddition({ start_time, end_time })
-            .then(() => {
-              RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
-              store.dispatch('requestIndexSetQuery');
-            });
+          setRouteParamsByKeywordAndAddition({ start_time, end_time }).then(() => {
+            RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
+            store.dispatch('requestIndexSetQuery');
+          });
         }
+
+        aiQueryResult.value.parseResult = parseResult;
+        aiQueryResult.value.explain = explain;
       } catch (e) {
         console.error(e);
         bkMessage({
@@ -331,7 +365,7 @@ export default defineComponent({
           message: e.message,
         });
       }
-    }
+    };
 
     /**
      * 使用AI编辑
@@ -342,12 +376,23 @@ export default defineComponent({
     const handleTextToQuery = (value: string, triggerSource: 'ui_mode' | 'sql_mode' | 'ai_mode' = 'ai_mode'): void => {
       isAiLoading.value = true;
 
+      Object.assign(aiQueryResult.value, {
+        queryString: '',
+        parseResult: undefined,
+        explain: undefined,
+        startTime: undefined,
+        endTime: undefined,
+      });
+
       // 打点：AI 自动补全（统计所有来源：UI/SQL/AI 模式）
-      RetrieveHelper.reportLog({
-        ai_scenario: 'auto_complete',
-        trigger_source: triggerSource,
-        action: 'request',
-      }, store.state);
+      RetrieveHelper.reportLog(
+        {
+          ai_scenario: 'auto_complete',
+          trigger_source: triggerSource,
+          action: 'request',
+        },
+        store.state,
+      );
 
       if (value.length === 0) {
         handleRequestResponse(null);
@@ -386,6 +431,23 @@ export default defineComponent({
       setRouteParamsByKeywordAndAddition();
     };
 
+    const handleCloseAiParsedText = () => {
+      console.log('handleCloseAiParsedText');
+      aiQueryResult.value.queryString = '';
+      aiQueryResult.value.parseResult = undefined;
+      aiQueryResult.value.explain = undefined;
+      aiQueryResult.value.startTime = undefined;
+      aiQueryResult.value.endTime = undefined;
+    };
+
+    /**
+     * 切换到普通模式
+     * @param e 鼠标事件
+     */
+    const handleModeChange = (e: MouseEvent) => {
+      handleTabKeyPress(e as any, true);
+    };
+
     /**
      * 渲染搜索栏
      * @returns
@@ -393,13 +455,14 @@ export default defineComponent({
     return () => {
       if (searchMode.value === 'ai') {
         return (
-          <div class='v3-search-bar-root is-ai-mode'>
+          <div class='v3-search-bar-root is-ai-mode fix-search-bar'>
             <V3AiMode
               ref={aiModeRef}
               is-ai-loading={isAiLoading.value}
               ai-query-result={aiQueryResult.value}
               filter-list={aiFilterList.value}
               on-height-change={handleHeightChange}
+              on-mode-change={handleModeChange}
               on-text-to-query={(value: string) => {
                 handleTextToQuery(value, 'ai_mode');
               }}
@@ -412,15 +475,22 @@ export default defineComponent({
 
       return (
         <V2SearchBar
-          class='v3-search-bar-root'
+          class='v3-search-bar-root fix-search-bar'
           ref={searchBarRef}
           on-height-change={handleHeightChange}
+          on-close-ai-parsed-text={handleCloseAiParsedText}
           on-text-to-query={(value: string) => {
             // 根据当前模式确定触发来源
             const triggerSource = `${currentSearchMode.value}_mode` as 'ui_mode' | 'sql_mode';
+
+            if (triggerSource === 'sql_mode') {
+              store.commit('updateIndexItemParams', { keyword: value });
+            }
+
             handleTextToQuery(value, triggerSource);
           }}
           is-ai-loading={isAiLoading.value}
+          ai-query-result={aiQueryResult.value}
           {...{
             scopedSlots: {
               'search-tool': () => {
@@ -432,14 +502,13 @@ export default defineComponent({
                     >
                       <img
                         src={aiBluekingSvg}
-                        alt='AI编辑'
+                        alt='AI 模式'
                         style={{ width: '18px', height: '18px' }}
                       />
-                      {t('AI编辑')}
+                      {t('AI 模式')}
                       <span style={shortcutKeyStyle}>
-                        <i class="bklog-icon bklog-key-tab"></i>
+                        <i class='bklog-icon bklog-key-tab'></i>
                       </span>
-
                     </span>
                   );
                 }

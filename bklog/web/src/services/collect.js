@@ -318,18 +318,6 @@ const syncUserReport = {
   method: 'post',
 };
 
-// 客户端日志-获取文件名列表
-const getFileNameList = {
-  url: '/tgpa/report/file_name_list/',
-  method: 'get',
-};
-
-// 客户端日志-获取openid列表
-const getOpenidList = {
-  url: '/tgpa/report/openid_list/',
-  method: 'get',
-};
-
 // 客户端日志-获取上报状态
 const getFileStatus = {
   url: '/tgpa/report/file_status/',
@@ -345,6 +333,12 @@ const getSyncRecord = {
 // 客户端日志-获取tab数量
 const getTgpaCount = {
   url: '/tgpa/count/',
+  method: 'get',
+};
+
+// 客户端日志-获取用户名列表
+const getUsernameList = {
+  url: '/tgpa/task/username_list/',
   method: 'get',
 };
 
@@ -402,9 +396,8 @@ export {
   getCollectorStatus,
   getUserReportList,
   syncUserReport,
-  getFileNameList,
-  getOpenidList,
   getFileStatus,
   getSyncRecord,
   getTgpaCount,
+  getUsernameList,
 };

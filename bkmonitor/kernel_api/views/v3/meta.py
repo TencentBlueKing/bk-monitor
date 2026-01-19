@@ -398,6 +398,10 @@ class QueryDataLinkInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataLinkInfoResource)]
 
 
+class QueryDataLinkMetadataViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.QueryDataLinkMetadataResource)]
+
+
 class SpaceDataLinkMetaReportViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.SpaceDataLinkMetaReport)]
 

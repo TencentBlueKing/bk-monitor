@@ -183,7 +183,7 @@ class IncidentOperationManager:
 
     @classmethod
     def record_observe_incident(
-        cls, incident_id: int, operate_time: int, last_minutes: int
+        cls, incident_id: int, operate_time: int, last_minutes: int = 60
     ) -> IncidentOperationDocument:
         """记录故障状态转为观察中
         文案: 故障观察中，剩余观察时间{last_minutes}分钟
@@ -234,9 +234,22 @@ class IncidentOperationManager:
         :param to_value: 属性修改后的值
         :return: 故障流转记录
         """
-        if incident_key == "status" and to_value == IncidentStatus.MERGED.value:
-            merge_info = kwargs.get("merge_info")
-            return cls.record_merge_incident(operate_time, merge_info=merge_info)
+        # status 变更属于高频、强语义事件：若存在对应的专用事件类型，则优先写入专用事件
+        # 以避免同一次变更重复产生 UPDATE(status) 与专用事件两条通知。
+        if incident_key == "status":
+            if to_value == IncidentStatus.MERGED.value:
+                merge_info = kwargs.get("merge_info")
+                return cls.record_merge_incident(operate_time, merge_info=merge_info)
+            if to_value == IncidentStatus.RECOVERED.value:
+                return cls.record_recover_incident(incident_id=incident_id, operate_time=operate_time)
+            if to_value == IncidentStatus.RECOVERING.value:
+                # 观察中事件：尽量使用上游传入的 last_minutes，否则使用 record_observe_incident 的默认值
+                last_minutes = kwargs.get("last_minutes")
+                if last_minutes is None:
+                    return cls.record_observe_incident(incident_id=incident_id, operate_time=operate_time)
+                return cls.record_observe_incident(
+                    incident_id=incident_id, operate_time=operate_time, last_minutes=last_minutes
+                )
 
         enum_class = INCIDENT_ATTRIBUTE_VALUE_ENUMS.get(incident_key)
         return cls.record_operation(

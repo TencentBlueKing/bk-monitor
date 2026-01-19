@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 from django.conf import settings
 from django.db import models
@@ -925,13 +925,53 @@ class ClusterConfig(models.Model):
             raise ValueError(f"不支持的集群类型: {self.kind}")
 
     def compose_kafka_config(self, cluster: "ClusterInfo") -> dict[str, Any]:
-        """组装Kafka集群配置"""
+        """组装Kafka集群配置
+
+        配置示例:
+        {
+            "kind": "KafkaChannel",
+            "metadata": {
+                "tenant": "default",
+                "namespace": "bkmonitor",
+                "name": "kafka_cluster1",
+                "labels": {},
+                "annotations": {
+                    "StreamToId": "1034" // 可能不存在
+                }
+            },
+            "spec": {
+                "host": "kafka.db",
+                "port": 9092,
+                "role": "outer", // inner/outer
+                "streamToId": 1034, // 可能为0或None，可能不存在
+                "v3ChannelId": 1, // 可能为None或不存在
+                "version": "2.4.x", // 可能为None或不存在
+                "auth": { // 可能为None或不存在
+                    "sasl": {"enabled": false, "username": "xxxx", "password": "xxx", "mechanisms": ""}
+                }
+            },
+            "status": {
+                "phase": "Ok",
+                "start_time": "2024-04-24 06:52:51.558663447 UTC",
+                "update_time": "2024-04-24 06:52:52.896714120 UTC",
+                "message": ""
+            }
+        }
+
+        说明: streamToId/v3ChannelId/auth/version可能不存在或为None
+
+        Args:
+            cluster: 集群信息
+
+        Returns:
+            dict[str, Any]: Kafka集群配置
+        """
         config = {
             "kind": DataLinkKind.KAFKACHANNEL.value,
             "metadata": {
                 "namespace": self.namespace,
                 "name": cluster.cluster_name,
-                "annotations": {"StreamToId": cluster.gse_stream_to_id},
+                "annotations": {"display_name": cluster.display_name or cluster.cluster_name},
             },
             "spec": {
                 "host": cluster.domain_name,
@@ -941,6 +981,26 @@ class ClusterConfig(models.Model):
             },
         }
 
+        if cluster.gse_stream_to_id != -1:
+            config["metadata"]["annotations"]["StreamToId"] = str(cluster.gse_stream_to_id)
+            config["spec"]["streamToId"] = cluster.gse_stream_to_id
+
+        default_settings = cast(dict[str, Any], cluster.default_settings)
+        if default_settings.get("v3_channel_id"):
+            config["spec"]["v3ChannelId"] = default_settings["v3_channel_id"]
+        if default_settings.get("version"):
+            config["spec"]["version"] = default_settings["version"]
+
+        if cluster.is_auth or cluster.username:
+            config["spec"]["auth"] = {
+                "sasl": {
+                    "enabled": cluster.is_auth,
+                    "username": cluster.username,
+                    "password": cluster.password,
+                    "mechanism": cluster.sasl_mechanisms,
+                }
+            }
+
         if settings.ENABLE_MULTI_TENANT_MODE:
             config["metadata"]["tenant"] = cluster.bk_tenant_id
 
@@ -948,6 +1008,30 @@ class ClusterConfig(models.Model):
 
     def compose_es_config(self, cluster: "ClusterInfo") -> dict[str, Any]:
         """组装ES集群配置
+
+        配置示例:
+        {
+            "kind": "ElasticSearch",
+            "metadata": {
+                "tenant": "default",
+                "namespace": "bklog",
+                "name": "es_cluster",
+                "labels": {},
+                "annotations": {}
+            },
+            "spec": {
+                "host": "es.db",
+                "port": 9200,
+                "user": "xxxx",
+                "password": "xxx"
+            },
+            "status": {
+                "phase": "Ok",
+                "start_time": "2025-12-11 07:01:48.141601176 UTC",
+                "update_time": "2025-12-11 07:01:50.855429609 UTC",
+                "message": ""
+            }
+        }
 
         Args:
             cluster: 集群信息
@@ -987,11 +1071,6 @@ class ClusterConfig(models.Model):
         Args:
             cluster: 集群信息
         """
-        from metadata.models.storage import ClusterInfo
-
-        # NOTE: 目前仅允许将ES集群配置到bkbase平台，VM和Doris集群需要通过bkbase配置，定时任务会自动从bkbase拉取配置
-        if cluster.cluster_type not in [ClusterInfo.TYPE_ES]:
-            return
 
         # 根据集群类型获取kind和namespace
         kind = cls.CLUSTER_TYPE_TO_KIND_MAP[cluster.cluster_type]
