@@ -19,9 +19,15 @@ from api.cmdb.define import Host
 from bkmonitor.data_source import q_to_conditions
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.documents import AlertDocument
-from bkmonitor.utils.alert_drilling import merge_dimensions_into_conditions
+from bkmonitor.utils.alert_drilling import (
+    get_alert_data_source_or_none,
+    get_alert_dimensions,
+    get_alert_query_config_or_none,
+    merge_dimensions_into_conditions,
+)
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.alert import APMTargetType, K8STargetType
+from constants.apm import ApmAlertHelper
 from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import Resource, resource, api
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
@@ -98,22 +104,13 @@ class AlertEventBaseResource(Resource, abc.ABC):
     ]
 
     @classmethod
-    def _get_data_source(cls, alert: AlertDocument) -> tuple[str, str] | None:
-        """获取告警的数据源类型"""
-        try:
-            query_config: dict[str, Any] = alert.strategy["items"][0]["query_configs"][0]
-            return query_config.get("data_source_label", ""), query_config.get("data_type_label", "")
-        except (KeyError, IndexError, TypeError):
-            return None
-
-    @classmethod
     def _get_q(cls, alert: AlertDocument, target: BaseTarget) -> QueryConfigBuilder:
         """获取查询构建器"""
         if cls.is_apm_target(target):
             return QueryConfigBuilder((DataTypeLabel.EVENT, DataSourceLabel.BK_APM)).time_field("time")
 
         # 日志关键字事件使用 (LOG, BK_MONITOR_COLLECTOR)，其他使用默认的自定义事件数据源
-        data_source: tuple[str, str] | None = cls._get_data_source(alert)
+        data_source: tuple[str, str] | None = get_alert_data_source_or_none(alert)
         is_bk_monitor_log: bool = data_source == (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG)
         using: tuple[str, str] = (
             (DataTypeLabel.LOG, DataSourceLabel.BK_MONITOR_COLLECTOR)
@@ -213,11 +210,14 @@ class AlertEventBaseResource(Resource, abc.ABC):
         :param q: 查询构建器
         :return: 构建好的查询配置，如果不是支持的告警类型则返回 None
         """
-        data_source: tuple[str, str] | None = cls._get_data_source(alert)
+        data_source: tuple[str, str] | None = get_alert_data_source_or_none(alert)
         if not data_source or data_source not in cls.supported_event_sources:
             return None
 
-        query_config: dict[str, Any] = alert.strategy["items"][0]["query_configs"][0]
+        query_config: dict[str, Any] | None = get_alert_query_config_or_none(alert)
+        if not query_config:
+            return None
+
         result_table_id: str = query_config.get("result_table_id") or ""
         if not result_table_id:
             return None
@@ -225,11 +225,9 @@ class AlertEventBaseResource(Resource, abc.ABC):
         q: QueryConfigBuilder = q.table(result_table_id)
 
         # 合并策略过滤条件和告警维度过滤条件
-        alert_data: dict[str, Any] = alert.origin_alarm.get("data", {})
         conditions: list[dict[str, Any]] = merge_dimensions_into_conditions(
             agg_condition=query_config.get("agg_condition"),
-            dimensions=alert_data.get("dimensions", {}),
-            dimension_fields=alert_data.get("dimension_fields", []),
+            dimensions=get_alert_dimensions(alert),
         )
         if conditions:
             q: QueryConfigBuilder = q.conditions(conditions)
@@ -741,7 +739,14 @@ class AlertTracesResource(Resource):
     """告警关联调用链资源类。
 
     根据告警 ID 获取关联的调用链信息，包括 Trace 查询配置和调用链列表。
+
+    实现逻辑：
+    1. 获取告警持续时间内可疑的调用链（报错 + 耗时长）
+    2. 通过 list_flatten_spans 按异常、耗时倒序获取 Span 列表
+    3. 提取 TopN 不重复 TraceID，通过 list_flatten_traces 获取调用链列表
     """
+
+    _SAMPLE_SIZE: int = 20
 
     class RequestSerializer(serializers.Serializer):
         """请求参数序列化器"""
@@ -756,28 +761,135 @@ class AlertTracesResource(Resource):
         :param validated_request_data: 验证后的请求参数
         :return: 包含查询配置和调用链列表的响应数据
         """
-        # TODO: 实现真实的调用链查询逻辑
-        # 当前返回 mock 数据用于前端联调
-        return {
-            "query_config": {
-                "app_name": "tilapia",
-                "sceneMode": "span",
-                "where": [
-                    {
-                        "key": "resource.service.name",
-                        "operator": "equal",
-                        "value": ["example.greeter"],
-                    }
-                ],
-            },
-            "list": [
+
+        alert: AlertDocument = AlertDocument.get(validated_request_data["alert_id"])
+        target: BaseTarget = get_target_instance(alert)
+
+        # 获取 APM 目标信息
+        apm_targets: list[dict[str, Any]] = target.list_related_apm_targets()
+        if not apm_targets:
+            return {"query_config": {}, "list": []}
+
+        bk_biz_id: int = alert.event.bk_biz_id
+        apm_target: dict[str, Any] = apm_targets[0]
+
+        # 构建查询时间范围
+        dimensions: dict[str, Any] = self._get_dimensions(alert)
+        filters: list[dict[str, Any]] = ApmAlertHelper.build_trace_filters(alert.strategy, apm_target, dimensions)
+        query_config: dict[str, Any] = ApmAlertHelper.build_trace_query_params(
+            apm_target, filters, alert.event.time, alert.duration or 60, encode_filters=False
+        )
+        start_time, end_time = query_config["start_time"] // 1000, query_config["end_time"] // 1000
+
+        spans: list[dict[str, Any]] = resource.apm_web.list_flatten_span(
+            bk_biz_id=bk_biz_id,
+            app_name=apm_target["app_name"],
+            start_time=start_time,
+            end_time=end_time,
+            filters=filters,
+            sort=["-status.code", "-elapsed_time"],
+            # 按一定倍数获取 Span，确保有足够的不重复 trace_id。
+            limit=20 * self._SAMPLE_SIZE,
+        ).get("data", [])
+        anomaly_traces: list[dict[str, Any]] = self._sample_anomaly_traces(spans, self._SAMPLE_SIZE)
+        if not anomaly_traces:
+            return {"query_config": query_config, "list": []}
+
+        trace_err_msg_map: dict[str, str] = {trace["trace_id"]: trace["error_msg"] for trace in anomaly_traces}
+        traces: list[dict[str, Any]] = resource.apm_web.list_flatten_trace(
+            bk_biz_id=bk_biz_id,
+            app_name=apm_target["app_name"],
+            start_time=start_time,
+            end_time=end_time,
+            filters=[
                 {
-                    "app_name": "tilapia",
-                    "trace_id": "84608839c9c45c074d5b0edf96d3ed0f",
-                    "root_service": "example.greeter",
-                    "root_span_name": "trpc.example.greeter.http/timeout",
-                    "root_service_span_name": "/timeout",
-                    "error_msg": "http client transport RoundTrip timeout: Get http://trpc-otlp-oteam-demo-service:8080/timeout: context deadline exceeded, cost:2.000525304s",
+                    "key": "trace_id",
+                    "operator": "equal",
+                    "value": list(trace_err_msg_map.keys()),
+                    "options": {"group_relation": "OR"},
                 }
             ],
-        }
+            limit=len(trace_err_msg_map),
+        ).get("data", [])
+
+        # 组装返回结构
+        processed_traces: list[dict[str, Any]] = []
+        for trace in traces:
+            trace_id: str = trace.get("trace_id", "")
+            if not trace_id:
+                continue
+
+            processed_traces.append(
+                {
+                    "app_name": apm_target["app_name"],
+                    "trace_id": trace_id,
+                    "root_service": trace.get("root_service", ""),
+                    "root_span_name": trace.get("root_span_name", ""),
+                    "root_service_span_name": trace.get("root_service_span_name", ""),
+                    "error": trace.get("error", False),
+                    "error_msg": trace_err_msg_map.get(trace_id, ""),
+                }
+            )
+
+        return {"query_config": query_config, "list": processed_traces}
+
+    @classmethod
+    def _get_dimensions(cls, alert: AlertDocument) -> dict[str, Any]:
+        """获取告警维度信息。
+
+        :param alert: 告警文档对象
+        :return: 维度字典
+        """
+        dimensions: dict[str, Any] = {dimension.key: dimension.value for dimension in alert.dimensions}
+        if alert.origin_alarm:
+            dimensions.update(alert.origin_alarm.get("data", {}).get("dimensions", {}))
+        return dimensions
+
+    @classmethod
+    def _sample_anomaly_traces(cls, spans: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+        """从 Span 列表中采样异常调用链。
+
+        spans 已将异常、耗时长的 Span 置顶，按顺序采样不重复的 trace 信息（trace_id + error_msg）。
+
+        :param spans: Span 列表
+        :param limit: 采样数量
+        :return: 采样后的 Span 列表
+        """
+        seen: set[str] = set()
+        sampled_traces: list[dict[str, Any]] = []
+        for span in spans:
+            trace_id: str = span.get("trace_id", "")
+            error_msg: str = cls._extract_error_msg(span)
+            if trace_id and trace_id not in seen:
+                seen.add(trace_id)
+                sampled_traces.append({"trace_id": trace_id, "error_msg": error_msg})
+                if len(sampled_traces) >= limit:
+                    break
+
+        return sampled_traces
+
+    @classmethod
+    def _extract_error_msg(cls, span: dict[str, Any]) -> str:
+        """从 Span 中提取错误信息。
+
+        优先级：
+        1. events 中的 exception.message
+        2. status.message
+
+        :param span: Span 数据
+        :return: 错误信息字符串
+        """
+        # 尝试从 status.message 获取
+        status_message: str = span.get("status.message", "")
+        if status_message:
+            return status_message
+
+        # 尝试从 events 中获取异常信息
+        # events 结构示例：{"name": ["exception"], "timestamp": [...], "attributes.exception.message": ["error"]}
+        event_names: list[str] = span.get("events.name", [])
+        if "exception" in event_names:
+            exception_messages: list[str] = span.get("events.attributes.exception.message", [])
+            if exception_messages:
+                return exception_messages[0]
+
+        return ""
