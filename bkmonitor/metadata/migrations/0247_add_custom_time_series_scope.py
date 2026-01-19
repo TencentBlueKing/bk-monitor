@@ -203,7 +203,7 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
         if existing:
             existing.scope_id = scope_id
             existing.field_config = field_config
-            existing.create_time = field.create_time
+            existing.field_scope = DEFAULT_DATA_SCOPE_NAME
             metrics_to_update.append(existing)
         else:
             metrics_to_create.append(
@@ -211,7 +211,7 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
                     group_id=group_id,
                     scope_id=scope_id,
                     table_id=table_id,
-                    field_scope=scope_name,
+                    field_scope=DEFAULT_DATA_SCOPE_NAME,
                     field_name=field.name,
                     tag_list=tag_list,
                     field_config=field_config,
@@ -227,7 +227,7 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
         stats["metrics_created"] += len(metrics_to_create)
     if metrics_to_update:
         TimeSeriesMetric.objects.bulk_update(
-            metrics_to_update, ["scope_id", "field_config", "create_time"], batch_size=500
+            metrics_to_update, ["scope_id", "field_config", "field_scope"], batch_size=500
         )
         stats["metrics_updated"] += len(metrics_to_update)
 
