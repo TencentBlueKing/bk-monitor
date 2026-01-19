@@ -24,6 +24,7 @@ from django.utils.translation import gettext_lazy as _lazy
 
 from bkmonitor.models import AnomalyRecord
 from bkmonitor.utils import time_tools
+from bkmonitor.utils.time_tools import format_user_time
 from bkmonitor.utils.template import NoticeRowRenderer
 from constants.alert import CMDB_TARGET_DIMENSIONS
 from constants.apm import ApmAlertHelper
@@ -96,12 +97,16 @@ class DefaultContent(BaseContextObject):
     # 最近一次时间
     @cached_property
     def time(self):
-        return time_tools.utc2localtime(self.parent.alert.latest_time).strftime(settings.DATETIME_FORMAT)
+        latest_datetime = time_tools.utc2localtime(self.parent.alert.latest_time)
+        # 使用用户时区格式化时间
+        timezone_name = self.parent.user_timezone
+        return format_user_time(latest_datetime, timezone_name=timezone_name)
 
     # 首次异常时间
     @cached_property
     def begin_time(self):
-        return self.parent.alarm.begin_time.strftime(settings.DATETIME_FORMAT)
+        # alarm.begin_time 已经是用户时区格式化的字符串
+        return self.parent.alarm.begin_time
 
     # 持续时间
     @cached_property
@@ -608,7 +613,11 @@ class MultiStrategyCollectContent(DefaultContent):
         max_time = time_tools.localtime(max(source_times))
         min_time = time_tools.localtime(min(source_times))
 
-        time_range = f"{min_time.strftime(settings.DATETIME_FORMAT)} ~ {max_time.strftime(settings.DATETIME_FORMAT)}"
+        # 使用用户时区格式化时间范围
+        timezone_name = self.parent.user_timezone
+        min_time_str = format_user_time(min_time, timezone_name=timezone_name)
+        max_time_str = format_user_time(max_time, timezone_name=timezone_name)
+        time_range = f"{min_time_str} ~ {max_time_str}"
         return time_range
 
     @cached_property

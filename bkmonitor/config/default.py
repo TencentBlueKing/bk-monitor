@@ -487,7 +487,7 @@ ENABLED_NOTICE_WAYS = ["weixin", "mail", "sms", "voice"]
 BK_MONITOR_PROXY_LISTEN_PORT = 10205
 
 # 日期格式
-DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S%z"
 
 # 自定义上报服务器IP
 CUSTOM_REPORT_DEFAULT_PROXY_IP = []

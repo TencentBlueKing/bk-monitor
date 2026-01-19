@@ -28,6 +28,7 @@ from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import ReportContents, ReportItems
 from bkmonitor.utils.grafana import fetch_panel_title_ids
 from bkmonitor.utils.send import Sender
+from bkmonitor.utils.time_tools import format_user_time
 from constants.report import GRAPH_ID_REGEX, LOGO, BuildInBizType, StaffChoice
 from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
@@ -377,12 +378,22 @@ class ReportHandler:
         render_args["redirect_url"] = settings.MAIL_REPORT_URL if is_link_enabled else ""
         render_args["mail_title"] = mail_title
 
-        # 邮件范围
-        render_args["from_time"] = from_time.strftime("%Y-%m-%d %H:%M:%S")
-        render_args["to_time"] = to_time.strftime("%Y-%m-%d %H:%M:%S")
+        # 获取业务时区，用于格式化时间范围
+        # 对于报表订阅，由于旧版ReportItems没有bk_biz_id字段，使用默认报表业务的时区
+        from alarm_backends.core.i18n import i18n
 
-        # 邮件标题后补
-        render_args["mail_title_time"] = f"({from_time.strftime('%Y-%m-%d')} ~ {to_time.strftime('%Y-%m-%d')})"
+        report_bk_biz_id = int(settings.MAIL_REPORT_BIZ) if settings.MAIL_REPORT_BIZ else 0
+        i18n.set_biz(report_bk_biz_id)
+        timezone_name = i18n.get_timezone()
+
+        # 邮件范围 - 使用业务时区格式化，包含时区标识
+        render_args["from_time"] = format_user_time(from_time, timezone_name=timezone_name)
+        render_args["to_time"] = format_user_time(to_time, timezone_name=timezone_name)
+
+        # 邮件标题后补 - 从已转换的时间字符串中提取日期部分，确保使用业务时区
+        from_date = render_args["from_time"].split()[0]
+        to_date = render_args["to_time"].split()[0]
+        render_args["mail_title_time"] = f"({from_date} ~ {to_date})"
         render_args["time_range"] = f"({render_args['from_time']} ~ {render_args['to_time']})"
 
         render_args["contents"] = []
