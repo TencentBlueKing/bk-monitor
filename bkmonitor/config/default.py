@@ -1786,15 +1786,3 @@ BKFARA_AIOPS_SERVICE_HOST_PREFIX = os.getenv("BKFARA_AIOPS_SERVICE_HOST_PREFIX",
 
 # 在同步bkbase集群信息时，是否进行更新
 SYNC_BKBASE_CLUSTER_INFO_UPDATE = os.getenv("SYNC_BKBASE_CLUSTER_INFO_UPDATE", "false").lower() == "true"
-# 时序预测远程访问地址
-AIOPS_SERVER_TF_URL = os.getenv("BKAPP_AIOPS_SERVER_TF_URL", "http://bk-aiops-serving-tf:8000")
-# 智能异常检测远程访问地址
-AIOPS_SERVER_KPI_URL = os.getenv("BKAPP_AIOPS_SERVER_KPI_URL", "http://bk-aiops-serving-kpi:8000")
-# 离群检测远程访问地址
-AIOPS_SERVER_ACD_URL = os.getenv("BKAPP_AIOPS_SERVER_ACD_URL", "http://bk-aiops-serving-acd:8000")
-# SDK执行预测逻辑接口
-AIOPS_PREDICT_SDK = os.getenv("BKAPP_AIOPS_PREDICT_SDK", "/aiops/serving/default/")
-# SDK初始化历史依赖接口
-AIOPS_INIT_DEPEND_SDK = os.getenv("BKAPP_AIOPS_INIT_DEPEND_SDK", "/aiops/serving/init_depend/")
-# SDK执行分组预测逻辑接口
-AIOPS_GROUP_PREDICT_SDK = os.getenv("BKAPP_AIOPS_GROUP_PREDICT_SDK", "/aiops/serving/group_predict/")
