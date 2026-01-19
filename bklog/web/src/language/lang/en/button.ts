@@ -229,4 +229,5 @@ export default {
   刷新收藏: 'Refresh Favorites',
   点击加载更多: 'Click to load more',
   批量上传: 'Batch Upload',
+  测试匹配: 'Test Match',
 };
