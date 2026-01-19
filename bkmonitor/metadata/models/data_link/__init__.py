@@ -8,6 +8,7 @@ from .data_link_configs import (  # noqa
     VMStorageBindingConfig,
     LogResultTableConfig,
     ESStorageBindingConfig,
+    DorisStorageBindingConfig,
     LogDataBusConfig,
 )
 
@@ -22,4 +23,5 @@ __all__ = [
     "LogResultTableConfig",
     "ESStorageBindingConfig",
     "LogDataBusConfig",
+    "DorisStorageBindingConfig",
 ]
