@@ -24,16 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, shallowRef } from 'vue';
-
-import { get } from '@vueuse/core';
-import dayjs from 'dayjs';
+import { type PropType, defineComponent, provide, shallowRef, toRef } from 'vue';
 
 import { useDimensionChartPanel } from '../../../composables/use-dimension-chart-panel';
 import DimensionAnalysisTable from './components/dimension-analysis-table';
 import DimensionSelector from './components/dimension-selector';
 import DimensionTreeMapCharts from './echarts/dimension-tree-map-charts';
-import { type TimeRangeType } from '@/components/time-range/utils';
+import MonitorCharts from './echarts/monitor-charts';
+
+import type { TimeRangeType } from '@/components/time-range/utils';
 
 import type { AlarmDetail } from '@/pages/alarm-center/typings';
 
@@ -88,10 +87,14 @@ export default defineComponent({
         key: 'test',
       },
     ]);
-    /** 图表执行 dataZoom 框线缩放后的时间范围 */
-    const dataZoomTimeRange = shallowRef(null);
-    /** 视图所使用的时间范围 */
-    const viewerTimeRange = computed(() => get(dataZoomTimeRange) ?? props.defaultTimeRange);
+
+    const { panel, viewerTimeRange, showRestore, handleDataZoomTimeRangeChange, handleChartRestore } =
+      useDimensionChartPanel({
+        bizId: toRef(props, 'bizId'),
+        defaultTimeRange: toRef(props, 'defaultTimeRange'),
+        groupBy: selectedDimension,
+      });
+    provide('timeRange', viewerTimeRange);
 
     const handleDrillDown = (item: any) => {
       console.log(item);
@@ -121,28 +124,14 @@ export default defineComponent({
       where.value = [...where.value.slice(0, index), ...where.value.slice(index + 1)];
     };
 
-    /**
-     * @description 数据时间间隔 值改变后回调
-     * @param {[number, number]} e 时间范围
-     */
-    const handleDataZoomTimeRangeChange = (e?: [number, number]) => {
-      if (!e?.[0] || !e?.[1]) {
-        dataZoomTimeRange.value = null;
-        return;
-      }
-      const startTime = dayjs.tz(e?.[0]).format('YYYY-MM-DD HH:mm:ss');
-      const endTime = dayjs.tz(e?.[1]).format('YYYY-MM-DD HH:mm:ss');
-      dataZoomTimeRange.value = startTime && endTime ? [startTime, endTime] : null;
-    };
-
     return {
       isMulti,
       showTypeActive,
       dimensionList,
       selectedDimension,
       where,
-      viewerTimeRange,
-      dataZoomTimeRange,
+      panel,
+      showRestore,
       handleDrillDown,
       handleTableDrillDown,
       handleShowTypeChange,
@@ -150,18 +139,20 @@ export default defineComponent({
       handleDimensionSelectChange,
       handleRemoveCondition,
       handleDataZoomTimeRangeChange,
+      handleChartRestore,
     };
   },
   render() {
     return (
       <div class='alarm-view-panel-dimension-analysis-wrap'>
-        <DimensionChart
-          groupBy={this.selectedDimension}
-          showRestore={this.dataZoomTimeRange}
-          timeRange={this.viewerTimeRange}
-          onDataZoomChange={this.handleDataZoomTimeRangeChange}
-          onRestore={this.handleDataZoomTimeRangeChange}
-        />
+        <div class='alarm-dimension-chart'>
+          <MonitorCharts
+            panel={this.panel}
+            showRestore={this.showRestore}
+            onDataZoomChange={this.handleDataZoomTimeRangeChange}
+            onRestore={this.handleChartRestore}
+          />
+        </div>
         <div class='dimension-analysis-table-view'>
           <div class='dimension-analysis-left'>
             <DimensionSelector
