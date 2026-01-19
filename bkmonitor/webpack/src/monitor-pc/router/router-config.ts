@@ -150,6 +150,7 @@ export const getRouteConfig = () => {
           path: '/trace/profiling',
           href: '#/trace/profiling',
           usePath: true,
+          hidden: true, // 数据探索下隐藏 Profiling 导航
           // isBeta: window.platform?.te === false,
           canStore: true,
         },
