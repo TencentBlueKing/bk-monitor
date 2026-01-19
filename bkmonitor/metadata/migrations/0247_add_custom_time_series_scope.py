@@ -21,6 +21,7 @@ def migrate_custom_ts_field_to_time_series(apps, schema_editor):
     # 获取模型
     CustomTSTable = apps.get_model("monitor_web", "CustomTSTable")
     CustomTSField = apps.get_model("monitor_web", "CustomTSField")
+    CustomTSGroupingRule = apps.get_model("monitor_web", "CustomTSGroupingRule")
 
     # 统计信息
     stats = {
@@ -45,6 +46,12 @@ def migrate_custom_ts_field_to_time_series(apps, schema_editor):
     for field in all_custom_fields:
         fields_by_group[field.time_series_group_id].append(field)
 
+    # 提前一次性获取所有 CustomTSGroupingRule 到内存中
+    all_grouping_rules = list(CustomTSGroupingRule.objects.all().order_by("id"))
+    grouping_rules_by_group = defaultdict(list)
+    for rule in all_grouping_rules:
+        grouping_rules_by_group[rule.time_series_group_id].append(rule)
+
     for ts_table in ts_tables:
         bk_tenant_id = ts_table["bk_tenant_id"]
         group_id = ts_table["time_series_group_id"]
@@ -63,9 +70,12 @@ def migrate_custom_ts_field_to_time_series(apps, schema_editor):
             logger.info(f"[处理中] Group {group_id} (table_id={table_id})")
             stats["processed_groups"] += 1
 
+            # 获取该 group 的分组规则
+            grouping_rules = grouping_rules_by_group.get(group_id, [])
+
             # 迁移 Scope 和 Metric
             scope_name_to_id = migrate_scope(
-                apps, bk_tenant_id, dimension_fields, group_id, metric_fields, table_id, stats
+                apps, bk_tenant_id, dimension_fields, group_id, metric_fields, table_id, grouping_rules, stats
             )
             migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, stats)
 
@@ -84,13 +94,13 @@ def migrate_custom_ts_field_to_time_series(apps, schema_editor):
     logger.info(f"[迁移完成] {summary}")
 
 
-def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields, table_id, stats):
+def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields, table_id, grouping_rules, stats):
     """迁移 Scope 数据"""
     TimeSeriesScope = apps.get_model("metadata", "TimeSeriesScope")
     ResultTableField = apps.get_model("metadata", "ResultTableField")
 
     # 收集所有配置信息到统一的数据结构
-    scope_info = defaultdict(lambda: {"is_default": False, "dim_configs": {}})
+    scope_info = defaultdict(lambda: {"is_default": False, "dim_configs": {}, "auto_rules": []})
 
     # 收集所有需要查询的维度名称
     dim_field_dict = {dim_field.name: dim_field for dim_field in dimension_fields}
@@ -134,13 +144,18 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
             if dim_name in dim_configs:
                 scope_info[scope_name]["dim_configs"][dim_name] = dim_configs[dim_name]
 
+    # rule.name 对应 scope_name
+    for rule in grouping_rules:
+        if rule.name in scope_info:
+            scope_info[rule.name]["auto_rules"] = rule.auto_rules
+
     # 批量创建所有 Scope
     scopes_to_create = [
         TimeSeriesScope(
             group_id=group_id,
             scope_name=scope_name,
             dimension_config=info["dim_configs"],
-            auto_rules=[],
+            auto_rules=info["auto_rules"],
             create_from=CREATE_FROM_DEFAULT if info["is_default"] else CREATE_FROM_USER,
         )
         for scope_name, info in scope_info.items()
