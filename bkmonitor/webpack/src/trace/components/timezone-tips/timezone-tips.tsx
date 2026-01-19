@@ -26,6 +26,7 @@
 
 import { computed, defineComponent } from 'vue';
 
+import { CommonTimezoneOptions } from '@blueking/date-picker';
 import dayjs from 'dayjs';
 import advancedFormat from 'dayjs/plugin/advancedFormat';
 import { useI18n } from 'vue-i18n';
@@ -47,42 +48,32 @@ export default defineComponent({
 
     // 动态计算时区详情
     const timezoneInfo = computed(() => {
+      const info = {
+        name: props.timezone || dayjs.tz.guess(),
+        abbr: '',
+        offset: '',
+        country: '',
+      };
       try {
-        const tz = props.timezone || dayjs.tz.guess();
-        const now = dayjs().tz(tz);
-
-        // 1. 获取缩写 (如: CST, EST)
-        // now.format('z') 有可能返回不对这里用zzz的方式
-        let abbr = now.format('zzz') || '';
-        if (!/[+-]\d/.test(abbr)) {
-          // 简单的缩写逻辑：取每个单词的首字母
-          abbr = abbr
-            .split(' ')
-            .map(word => word[0])
-            .join('')
-            .toUpperCase();
+        for (const item of CommonTimezoneOptions) {
+          if (item.label) {
+            for (const infoItem of item.options) {
+              if (infoItem.label === info.name) {
+                info.abbr = infoItem.abbreviation || '';
+                info.country = infoItem.country || '';
+                info.offset = infoItem.utc || '';
+                break;
+              }
+            }
+            if (info.abbr) {
+              break;
+            }
+          }
         }
-
-        // 2. 获取 UTC 偏移量 (如: +08:00)
-        const offset = now.format('Z');
-
-        // 3. 提取城市/区域名 (如: Asia/Shanghai -> Shanghai)
-        const region = tz.split('/').pop()?.replace('_', ' ') || '';
-
-        return {
-          name: tz,
-          abbr: abbr,
-          offset: `UTC${offset}`,
-          region: region,
-        };
+        return info;
       } catch (_e) {
         // 容错处理
-        return {
-          name: props.timezone,
-          abbr: '',
-          offset: '',
-          region: '',
-        };
+        return info;
       }
     });
 
@@ -92,13 +83,13 @@ export default defineComponent({
     };
   },
   render() {
-    const { name, abbr, offset, region } = this.timezoneInfo;
+    const { name, abbr, offset, country } = this.timezoneInfo;
     return (
       <span class='timezone-tips-component'>
         <span class='icon-monitor icon-tips' />
         <span class='timezone-name'>{`${this.t('当前业务时区')}：${name}`}</span>
         <span class='timezone-region'>
-          {region}，{abbr}
+          {country}，{abbr}
         </span>
         <span class='timezone-offset'>{offset}</span>
       </span>
