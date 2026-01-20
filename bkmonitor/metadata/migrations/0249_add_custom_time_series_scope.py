@@ -240,7 +240,7 @@ def get_scope_name(field, default_scope):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("metadata", "0246_migrate_cluster_name"),
+        ("metadata", "0248_auto_20260119_0334"),
     ]
 
     operations = [
