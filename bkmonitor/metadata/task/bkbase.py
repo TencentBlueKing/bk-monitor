@@ -309,7 +309,7 @@ def sync_bkbase_cluster_info(
         # 如果stream_to_id不存在，则尝试从annotations中获取
         if not stream_to_id:
             stream_to_id = cluster_annotations.get("StreamToId")
-            stream_to_id = int(stream_to_id) if stream_to_id else None
+            stream_to_id = int(stream_to_id) if stream_to_id else -1
 
         # 跳过inner角色集群的同步
         if cluster_spec.get("role") == "inner":

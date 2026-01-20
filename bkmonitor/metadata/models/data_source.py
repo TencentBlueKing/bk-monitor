@@ -363,8 +363,12 @@ class DataSource(models.Model):
             bkbase_data_name = utils.compose_bkdata_data_id_name(self.data_name)
 
         logger.info("register_to_bkbase: bkbase_data_name: %s", bkbase_data_name)
-        data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
-            name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id, bk_tenant_id=self.bk_tenant_id
+        data_id_config_ins, _ = DataIdConfig.objects.update_or_create(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=namespace,
+            name=bkbase_data_name,
+            bk_biz_id=bk_biz_id,
+            defaults={"bk_data_id": self.bk_data_id},
         )
         data_id_config = data_id_config_ins.compose_predefined_config(data_source=self)
         api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=self.bk_tenant_id)
