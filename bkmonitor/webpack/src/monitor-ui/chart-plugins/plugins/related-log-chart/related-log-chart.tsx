@@ -438,7 +438,7 @@ class RelatedLogChart extends CommonSimpleChart {
                       date: formatWithTimezone(l.date),
                     };
                   }
-                  return d;
+                  return l;
                 });
               };
               if (this.isScrollLoadTableData) {
