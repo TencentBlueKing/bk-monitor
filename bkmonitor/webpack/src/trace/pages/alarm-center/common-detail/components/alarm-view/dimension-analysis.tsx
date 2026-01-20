@@ -32,9 +32,8 @@ import DimensionSelector from './components/dimension-selector';
 import DimensionTreeMapCharts from './echarts/dimension-tree-map-charts';
 import MonitorCharts from './echarts/monitor-charts';
 
-import type { TimeRangeType } from '@/components/time-range/utils';
-
-import type { AlarmDetail } from '@/pages/alarm-center/typings';
+import type { AlarmDetail, IGraphPanel } from '../../../typings';
+import type { TimeRangeType } from './../../../../../components/time-range/utils';
 
 import './dimension-analysis.scss';
 
@@ -57,6 +56,10 @@ export default defineComponent({
       type: Object as PropType<AlarmDetail>,
       default: () => null,
     },
+    /** 告警ID */
+    alertId: {
+      type: String,
+    },
     /** 业务ID */
     bizId: {
       type: Number,
@@ -64,6 +67,9 @@ export default defineComponent({
     /** 默认时间范围 */
     defaultTimeRange: {
       type: Array as PropType<TimeRangeType>,
+    },
+    graphPanel: {
+      type: Object as PropType<IGraphPanel>,
     },
   },
   emits: {
@@ -88,12 +94,20 @@ export default defineComponent({
       },
     ]);
 
-    const { panel, viewerTimeRange, showRestore, handleDataZoomTimeRangeChange, handleChartRestore } =
-      useDimensionChartPanel({
-        bizId: toRef(props, 'bizId'),
-        defaultTimeRange: toRef(props, 'defaultTimeRange'),
-        groupBy: selectedDimension,
-      });
+    const {
+      panel,
+      viewerTimeRange,
+      showRestore,
+      formatterChartData,
+      handleDataZoomTimeRangeChange,
+      handleChartRestore,
+    } = useDimensionChartPanel({
+      alertId: toRef(props, 'alertId'),
+      bizId: toRef(props, 'bizId'),
+      defaultTimeRange: toRef(props, 'defaultTimeRange'),
+      groupBy: selectedDimension,
+      graphPanel: toRef(props, 'graphPanel'),
+    });
     provide('timeRange', viewerTimeRange);
 
     const handleDrillDown = (item: any) => {
@@ -132,6 +146,7 @@ export default defineComponent({
       where,
       panel,
       showRestore,
+      formatterChartData,
       handleDrillDown,
       handleTableDrillDown,
       handleShowTypeChange,
@@ -147,6 +162,16 @@ export default defineComponent({
       <div class='alarm-view-panel-dimension-analysis-wrap'>
         <div class='alarm-dimension-chart'>
           <MonitorCharts
+            customLegendOptions={{
+              legendData: () => [],
+            }}
+            customOptions={{
+              formatterData: this.formatterChartData,
+              options: options => {
+                options.grid.top = 24;
+                return options;
+              },
+            }}
             panel={this.panel}
             showRestore={this.showRestore}
             onDataZoomChange={this.handleDataZoomTimeRangeChange}

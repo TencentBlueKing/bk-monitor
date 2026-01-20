@@ -29,7 +29,7 @@ import { type MaybeRef, computed, shallowRef } from 'vue';
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 import { transformDataKey } from 'monitor-common/utils';
-import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { type IDataQuery, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 
@@ -63,7 +63,7 @@ export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) =
   const viewerTimeRange = computed(() => get(dataZoomTimeRange) ?? get(defaultTimeRange) ?? DEFAULT_TIME_RANGE);
   /** 维度图表 panel 配置数据 */
   const panel = computed<PanelModel>(() => {
-    if (get(alertId) || !get(graphPanel)) return null;
+    if (!get(alertId) || !get(graphPanel)) return null;
 
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const { query_configs, expression } = get(graphPanel).targets?.[0]?.data ?? {};
@@ -105,6 +105,24 @@ export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) =
   });
 
   /**
+   * @description: 格式化图表数据
+   * @param {any} data 图表接口返回的series数据
+   */
+  const formatterChartData = (data: any, target: IDataQuery) => {
+    const dimensionKey = get(groupBy)?.[0];
+    return {
+      ...data,
+      query_config: data?.query_config || target.data,
+      series: data.series.map(item => {
+        return {
+          ...item,
+          alias: item?.dimensions?.[dimensionKey] || item.target,
+        };
+      }),
+    };
+  };
+
+  /**
    * @description 数据时间范围 值改变后回调
    * @param {[number, number]} e 时间范围
    */
@@ -122,6 +140,7 @@ export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) =
     panel,
     viewerTimeRange,
     showRestore: dataZoomTimeRange,
+    formatterChartData,
     handleDataZoomTimeRangeChange,
     handleChartRestore: () => handleDataZoomTimeRangeChange(),
   };

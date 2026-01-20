@@ -94,7 +94,15 @@ export default defineComponent({
             />
           </Tab>
           <KeepAlive>
-            {this.activeTab === 'dimension' && <DimensionAnalysis detail={this.detail} />}
+            {this.activeTab === 'dimension' && (
+              <DimensionAnalysis
+                alertId={this.detail?.id}
+                bizId={this.bizId}
+                defaultTimeRange={this.defaultTimeRange}
+                detail={this.detail}
+                graphPanel={this.detail?.graph_panel}
+              />
+            )}
             {this.activeTab === 'alarm_records' && (
               <AlarmRecords
                 detail={this.detail}
