@@ -45,6 +45,7 @@ from apps.tgpa.constants import (
     TGPA_TASK_COLLECTOR_CONFIG_NAME,
     TGPA_TASK_SORT_FIELDS,
     TGPA_TASK_TARGET_FIELDS,
+    EXTRACT_FILE_MAX_ITERATIONS,
 )
 from apps.utils.bcs import Bcs
 from apps.utils.log import logger
@@ -127,10 +128,13 @@ class TGPAFileHandler:
         递归解压目录中的所有zip文件
         :param extract_dir: 路径
         """
-        while True:
+        iteration_count = 0
+        while iteration_count < EXTRACT_FILE_MAX_ITERATIONS:
+            iteration_count += 1
             zip_files = list(Path(extract_dir).rglob("*.zip"))
             if not zip_files:
                 break
+
             for zip_file in zip_files:
                 try:
                     with zipfile.ZipFile(zip_file, "r") as zip_ref:
