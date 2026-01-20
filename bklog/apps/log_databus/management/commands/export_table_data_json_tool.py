@@ -5,6 +5,7 @@ from datetime import datetime, date
 from django.core.management import BaseCommand
 from django.db import connection, DatabaseError
 
+from bkm_space.utils import bk_biz_id_to_space_uid
 from home_application.management.commands.migrate_tool import parse_str_int_list, Prompt, parse_str_list
 
 PROJECT_PATH = os.getcwd()
@@ -45,6 +46,9 @@ class ExportTableDataJsonTool:
         self.save_path = save_path
         self.table_names_set = set(parse_str_list(table_names_str))
         self.bk_biz_id = bk_biz_id
+        self.space_uid = ""
+        if self.bk_biz_id:
+            self.space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
         self.index_set_ids_set = set(parse_str_int_list(index_set_ids_str))
 
     def batch_export(self):
@@ -55,6 +59,9 @@ class ExportTableDataJsonTool:
 
         if self.bk_biz_id:
             where_condition_dict["bk_biz_id"] = {"condition": "bk_biz_id = %s", "param": self.bk_biz_id}
+
+        if self.space_uid:
+            where_condition_dict["space_uid"] = {"condition": "space_uid = %s", "param": self.space_uid}
 
         if self.index_set_ids_set:
             placeholders = ", ".join(["%s"] * len(self.index_set_ids_set))
@@ -81,6 +88,9 @@ class ExportTableDataJsonTool:
                 if "bk_biz_id" in table_fields and "bk_biz_id" in where_condition_dict:
                     where_conditions.append(where_condition_dict.get("bk_biz_id").get("condition"))
                     params.append(where_condition_dict.get("bk_biz_id").get("param"))
+                if "space_uid" in table_fields and "space_uid" in where_condition_dict:
+                    where_conditions.append(where_condition_dict.get("space_uid").get("condition"))
+                    params.append(where_condition_dict.get("space_uid").get("param"))
                 if "index_set_id" in table_fields and "index_set_id" in where_condition_dict:
                     where_conditions.append(where_condition_dict.get("index_set_id").get("condition"))
                     params.extend(where_condition_dict.get("index_set_id").get("param"))

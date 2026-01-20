@@ -111,7 +111,9 @@ class OverseasMigrateTool:
         self.db.connect()
         self.create_table_if_not_exists()
         self.bk_biz_id = bk_biz_id
-        self.space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
+        self.space_uid = ""
+        if self.bk_biz_id:
+            self.space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
         self.index_set_ids_set = set(parse_str_int_list(index_set_ids_str))
 
     def create_table_if_not_exists(self) -> None:
