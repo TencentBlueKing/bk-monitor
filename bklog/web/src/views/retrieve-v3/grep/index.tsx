@@ -36,7 +36,8 @@ import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import GrepCli from './grep-cli';
 import GrepCliResult from './grep-cli-result';
-import { GrepRequestResult } from './types';
+import GrepCliTotal from './grep-cli-total';
+import type { GrepRequestResult } from './types';
 import { axiosInstance } from '@/api';
 
 import './grep-cli.scss';
@@ -72,6 +73,10 @@ export default defineComponent({
     });
 
     const totalMatches = ref(0);
+    /**
+     * 检索的结果总数
+     */
+    const searchListTotal = ref(0);
 
     /**
      * 设置默认字段值
@@ -109,6 +114,7 @@ export default defineComponent({
     };
 
     const requestGrepList = debounce(() => {
+      console.log('requestGrepList called, current offset:', 1);
       if (!grepRequestResult.value.has_more) {
         return;
       }
@@ -154,10 +160,13 @@ export default defineComponent({
         });
       }
 
-      RetrieveHelper.reportLog({
-        trigger_source: 'grep',
-        action: 'request',
-      }, store.state);
+      RetrieveHelper.reportLog(
+        {
+          trigger_source: 'grep',
+          action: 'request',
+        },
+        store.state,
+      );
 
       return axiosInstance(params)
         .then((resp: any) => {
@@ -166,6 +175,7 @@ export default defineComponent({
               if (result) {
                 grepRequestResult.value.has_more = data.list.length === 100;
                 grepRequestResult.value.list.push(...data.list);
+                searchListTotal.value = data.total.toNumber?.() ?? data.total;
                 setTimeout(() => {
                   RetrieveHelper.highLightKeywords([searchValue.value], true);
                 });
@@ -313,6 +323,10 @@ export default defineComponent({
           on-grep-enter={handleGrepEnter}
           on-match-mode={handleMatchModeUpdate}
           on-search-change={handleSearchUpdate}
+        />
+        <GrepCliTotal
+          total={searchListTotal.value}
+          loading={grepRequestResult.value.is_loading}
         />
         <GrepCliResult
           fieldName={field.value}
