@@ -1005,12 +1005,12 @@ class Alarm(BaseContextObject):
 
         通过短链接重定向到日志平台检索页面，时间范围为告警前 5 分钟(可配置) 到当前时刻，最多 1 小时。
         """
-        return self._build_redirect_short_url(AlertRedirectType.LOG_SEARCH.value)
+        return self._build_redirect_short_url(AlertRedirectType.LOG_SEARCH.value, check_in_redirect_types=True)
 
     @cached_property
     def event_explore_url(self) -> str | None:
         """事件检索跳转链接（短链接格式）"""
-        return self._build_redirect_short_url(AlertRedirectType.EVENT_EXPLORE.value)
+        return self._build_redirect_short_url(AlertRedirectType.EVENT_EXPLORE.value, check_in_redirect_types=True)
 
     @cached_property
     def query_url(self) -> str | None:
