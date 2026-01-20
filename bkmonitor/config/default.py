@@ -580,7 +580,7 @@ APM_TRPC_APPS = {}
 APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
-APM_BMW_TASK_QUEUES = []
+APM_BMW_TASK_QUEUES = ["apm-01"]
 # APM V4 链路 metric data status 配置
 APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 # APM 自定义指标 SDK 映射配置
