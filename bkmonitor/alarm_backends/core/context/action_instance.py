@@ -29,6 +29,7 @@ from constants.action import (
     ActionStatus,
     ConvergeStatus,
     ConvergeType,
+    NoticeWay,
 )
 
 from . import BaseContextObject
@@ -246,7 +247,7 @@ class ActionInstanceContext(BaseContextObject):
         判断是否为短信通知
         短信通知时需要过滤 URL，因为短信内容长度有限且 URL 不便于点击使用
         """
-        return getattr(self.parent, "notice_way", None) == "sms"
+        return getattr(self.parent, "notice_way", None) == NoticeWay.SMS
 
     @cached_property
     def detail_url(self):
