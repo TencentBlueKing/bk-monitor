@@ -949,4 +949,5 @@ export default {
   系统类型: 'System type',
   上传状态: 'Upload status',
   未上传: 'Not uploaded',
+  集群英文名称: 'Cluster English Name',
 };
