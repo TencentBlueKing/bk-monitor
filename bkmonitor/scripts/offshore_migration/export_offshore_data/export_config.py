@@ -17,9 +17,9 @@ import django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
 django.setup()
 
-from scripts.offshore_migration.export_adapters import AdapterManager
-from scripts.offshore_migration.export_utils import IDMapper, EXPORT_ORDER, safe_json_dumps
-from scripts.offshore_migration.exporters import EXPORTER_REGISTRY
+from scripts.offshore_migration.export_offshore_data.export_adapters import AdapterManager
+from scripts.offshore_migration.export_offshore_data.export_utils import IDMapper, EXPORT_ORDER, safe_json_dumps
+from scripts.offshore_migration.export_offshore_data.exporters import EXPORTER_REGISTRY
 
 logging.basicConfig(
     level=logging.INFO,

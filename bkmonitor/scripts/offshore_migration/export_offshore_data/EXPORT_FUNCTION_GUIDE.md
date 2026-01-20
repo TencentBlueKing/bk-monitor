@@ -128,15 +128,15 @@ class ConfigExporter:
 **使用示例**：
 
 ```python
-from scripts.offshore_migration.export_config import ConfigExporter
+from scripts.offshore_migration.export_offshore_data.export_config import ConfigExporter
 
 # 方式1: 使用配置文件
 exporter = ConfigExporter(config_file="export_config.yaml")
 
 # 方式2: 使用配置字典
 config = {
-  "export": {"bk_biz_ids": [100, 101]},
-  "adapters": {"biz_id_mapping": {"auto": True}}
+    "export": {"bk_biz_ids": [100, 101]},
+    "adapters": {"biz_id_mapping": {"auto": True}}
 }
 exporter = ConfigExporter(config_dict=config)
 
@@ -393,7 +393,7 @@ python scripts/export_config.py --list-resources
 #### 方式3：在代码中使用
 
 ```python
-from scripts.offshore_migration.export_config import ConfigExporter
+from scripts.offshore_migration.export_offshore_data.export_config import ConfigExporter
 
 # 创建导出器
 exporter = ConfigExporter(config_file="export_config.yaml")

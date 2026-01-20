@@ -50,6 +50,14 @@ def model_to_dict(instance) -> dict:
         
         value = getattr(instance, field_name, None)
         
+        # 处理外键字段：导出ID而不是对象
+        if hasattr(field, 'related_model') and field.related_model:
+            if value is not None:
+                # 获取外键对象的ID
+                value = value.pk if hasattr(value, 'pk') else value
+            data[field_name] = value
+            continue
+        
         # 处理 None 值
         if value is None:
             data[field_name] = None

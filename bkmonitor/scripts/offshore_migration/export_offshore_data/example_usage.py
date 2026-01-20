@@ -15,7 +15,7 @@ except Exception as e:
     print(f"Failed to setup Django: {e}")
     sys.exit(1)
 
-from scripts.offshore_migration.export_config import ConfigExporter
+from scripts.offshore_migration.export_offshore_data.export_config import ConfigExporter
 
 
 def example_1_export_all():
