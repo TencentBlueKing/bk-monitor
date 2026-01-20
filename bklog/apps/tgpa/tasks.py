@@ -19,6 +19,9 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import hashlib
+
+import arrow
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from celery.schedules import crontab
@@ -231,3 +234,86 @@ def process_single_report(report_info: dict, record_id: int):
             report_obj.save(update_fields=["process_status", "error_message"])
     finally:
         lock.release()
+
+
+@periodic_task(run_every=crontab(minute="*/5"), queue="tgpa_task")
+@share_lock()
+def periodic_sync_tgpa_reports():
+    """
+    定期同步客户端上报文件
+    - 从 FeatureToggle 获取需要处理的业务列表
+    - 记录处理时间，根据上次处理时间进行增量同步
+    - 支持采样率配置，只处理部分数据
+    - 使用 Celery 异步任务处理单个文件
+    """
+    feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+    if not feature_toggle:
+        return
+    bk_biz_id_list = feature_toggle.biz_id_white_list or []
+
+    # 同步百分比配置格式: {"tgpa_report_sync_percent": {"bk_biz_id": sync_percent, ...}}
+    # sync_percent 为 1-100 的整数，表示同步百分比
+    feature_config = feature_toggle.feature_config or {}
+    sync_percent_config = feature_config.get("tgpa_report_sync_percent", {})
+
+    for bk_biz_id in bk_biz_id_list:
+        # 获取该业务的同步百分比，默认为 0（不处理），范围 1-100
+        sync_percent = sync_percent_config.get(str(bk_biz_id), 0)
+        if not isinstance(sync_percent, int) or not (1 <= sync_percent <= 100):
+            logger.warning(
+                "Invalid sync percent for business: %s, sync_percent: %s (should be 1-100)", bk_biz_id, sync_percent
+            )
+            continue
+
+        logger.info("Begin periodic sync tgpa reports for business: %s, sync_percent: %s", bk_biz_id, sync_percent)
+        # 获取上一次同步记录
+        last_sync_record = (
+            TGPAReportSyncRecord.objects.filter(bk_biz_id=bk_biz_id, created_by="periodic_task")
+            .order_by("-created_at")
+            .first()
+        )
+        # 创建新的同步记录
+        current_sync_record = TGPAReportSyncRecord.objects.create(
+            bk_biz_id=bk_biz_id,
+            status=TGPAReportSyncStatusEnum.RUNNING.value,
+            created_by="periodic_task",
+        )
+
+        # 更新上一次同步记录的状态，获取时间范围
+        if last_sync_record:
+            TGPAReportHandler.update_process_status(record_id=last_sync_record.id)
+            start_time = int(arrow.get(last_sync_record.created_at).timestamp() * 1000)
+        else:
+            # 如果没有上一次同步记录，从 5 分钟前开始同步
+            start_time = int(arrow.now().shift(minutes=-5).timestamp() * 1000)
+        end_time = int(arrow.get(current_sync_record.created_at).timestamp() * 1000)
+
+        try:
+            # 获取时间范围内的上报文件列表
+            report_list = TGPAReportHandler.iter_report_list(
+                bk_biz_id=bk_biz_id, start_time=start_time, end_time=end_time
+            )
+
+            processed_count = 0
+            skipped_count = 0
+            for report in report_list:
+                # 计算标识符的 MD5 哈希值，取前8位转换为整数
+                hash_value = int(hashlib.md5(report["file_name"].encode()).hexdigest()[:8], 16)
+                # 将哈希值映射到 0-99 的范围，判断是否小于覆盖百分比
+                if 100 > sync_percent > (hash_value % 100):
+                    skipped_count += 1
+                    continue
+                process_single_report.delay(report_info=report, record_id=current_sync_record.id)
+                processed_count += 1
+
+            logger.info(
+                "Finished periodic sync tgpa reports for business: %s, processed: %s, skipped: %s",
+                bk_biz_id,
+                processed_count,
+                skipped_count,
+            )
+        except Exception as e:
+            logger.exception("Failed to periodic sync tgpa reports for business: %s", bk_biz_id)
+            current_sync_record.status = TGPAReportSyncStatusEnum.FAILED.value
+            current_sync_record.error_message = str(e)
+            current_sync_record.save(update_fields=["status", "error_message"])
