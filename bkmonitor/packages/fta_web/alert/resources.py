@@ -20,8 +20,8 @@ from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from functools import reduce
 from io import StringIO
-from typing import Any
 from itertools import chain
+from typing import Any
 
 from django.conf import settings
 from django.core.cache import cache
@@ -53,6 +53,7 @@ from bkmonitor.models import (
     ActionInstance,
     AlertAssignGroup,
     AlgorithmModel,
+    ItemModel,
     MetricListCache,
     StrategyModel,
 )
@@ -1316,10 +1317,25 @@ class AlertGraphQueryResource(ApiAuthResource):
             def validate(self, attrs: dict) -> dict:
                 if attrs["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH and not attrs.get("index_set_id"):
                     raise ValidationError("index_set_id can not be empty.")
-                for condition in attrs["where"]:
-                    if isinstance(condition["value"], list):
-                        if len(condition["value"]) == 1 and None in condition["value"]:
-                            condition["value"].remove(None)
+
+                # 过滤掉无效的 where 条件
+                validated_where = []
+                for condition in attrs.get("where", []):
+                    if not isinstance(condition, dict):
+                        continue
+                    value = condition.get("value")
+                    # 过滤掉 value 为 None、空列表或只包含 None 的列表
+                    if value is None:
+                        continue
+                    if isinstance(value, list):
+                        # 移除列表中的 None，如果移除后列表为空则跳过该条件
+                        filtered_value = [v for v in value if v is not None]
+                        if not filtered_value:
+                            continue
+                        condition["value"] = filtered_value
+                    validated_where.append(condition)
+
+                attrs["where"] = validated_where
                 return attrs
 
         id = serializers.IntegerField(label="事件ID")
@@ -1928,10 +1944,14 @@ class ExportActionResource(Resource):
 
     class RequestSerializer(ActionSearchSerializer):
         ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
 
     def perform_request(self, validated_request_data):
         handler = ActionQueryHandler(**validated_request_data)
-        return resource.export_import.export_package(list_data=handler.export())
+        return resource.export_import.export_package(
+            list_data=handler.export(),
+            bk_biz_id=validated_request_data["bk_biz_id"],
+        )
 
 
 class AlertExtendFields(Resource):
@@ -3212,3 +3232,54 @@ class GetAlertDataRetrievalResource(Resource):
             result = {}
 
         return result
+
+
+class EditDataMeaningResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        alert_id = serializers.CharField(required=True, label="告警ID")
+        data_meaning = serializers.CharField(required=True, label="数据含义")
+
+    def perform_request(self, request_data):
+        alert_id = request_data["alert_id"]
+        data_meaning = request_data["data_meaning"]
+
+        alert = AlertDocument.get(alert_id)
+
+        alert_dict = alert.to_dict()
+        extra_info = alert_dict.setdefault("extra_info", {})
+        strategy = extra_info.setdefault("strategy", {})
+        items = strategy.setdefault("items", [])
+
+        item_id = None
+        if not items:
+            # items为空,创建新的item
+            strategy["items"] = [{"name": data_meaning}]
+        else:
+            name = items[0].get("name")
+            item_id = items[0].get("id")
+
+            if name == data_meaning:
+                return {"alert_id": alert_id, "data_meaning": data_meaning}
+
+            items[0]["name"] = data_meaning
+
+        # 执行ES文档更新
+        AlertDocument.bulk_create(
+            [AlertDocument(id=alert_id, extra_info=extra_info)],
+            action=BulkActionType.UPDATE,
+        )
+
+        # 同步更新ItemModel(如果存在)
+        if item_id:
+            # 使用原子性update避免并发覆盖
+            updated_count = ItemModel.objects.filter(id=item_id).update(name=data_meaning)
+            if updated_count == 0:
+                logger.error(f"ItemModel with id {item_id} does not exist for alert {alert_id}")
+        else:
+            # ES中的strategy.items[0]缺少id字段
+            logger.warning(f"alert {alert_id}: extra_info.strategy.items[0].id does not exist")
+
+        return {
+            "alert_id": alert_id,
+            "data_meaning": data_meaning,
+        }

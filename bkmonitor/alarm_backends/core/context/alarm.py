@@ -12,9 +12,9 @@ import base64
 import copy
 import json
 import logging
+import urllib.parse
 from typing import Any
 from collections.abc import Callable
-from urllib.parse import urljoin
 
 from django.conf import settings
 from django.utils.functional import cached_property
@@ -37,7 +37,13 @@ from bkmonitor.utils.time_tools import (
     utc2localtime,
 )
 from constants.action import ActionPluginType, ActionSignal, ConvergeType
-from constants.alert import EVENT_STATUS_DICT, CMDB_TARGET_DIMENSIONS, EventStatus, EventTargetType, AlertRedirectType
+from constants.alert import (
+    AlertRedirectType,
+    CMDB_TARGET_DIMENSIONS,
+    EVENT_STATUS_DICT,
+    EventStatus,
+    EventTargetType,
+)
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 from constants.apm import ApmAlertHelper
 from core.errors.alert import AIOpsFunctionAccessedError
@@ -815,7 +821,7 @@ class Alarm(BaseContextObject):
             # 最近一次没有的话，表示没有命中分派
             return None
         route_path = base64.b64encode(f"#/alarm-dispatch?group_id={self.latest_assign_group}".encode()).decode("utf8")
-        return urljoin(
+        return urllib.parse.urljoin(
             settings.BK_MONITOR_HOST,
             f"route/?bizId={self.parent.business.bk_biz_id}&route_path={route_path}",
         )
@@ -902,6 +908,11 @@ class Alarm(BaseContextObject):
         data_source: tuple[str, str] = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
         redirect_map: dict[str, list[tuple[str, str]]] = {
             "log_search": [(DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG)],
+            # 事件检索，用于自定义事件和日志关键字场景。
+            "event_explore": [
+                (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
+                (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+            ],
             "query": [
                 (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
                 (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
@@ -932,6 +943,7 @@ class Alarm(BaseContextObject):
         url_getters: dict[str, Callable[[], str | None]] = {
             AlertRedirectType.DETAIL.value: lambda: self.detail_url,
             AlertRedirectType.LOG_SEARCH.value: lambda: self.log_search_url,
+            AlertRedirectType.EVENT_EXPLORE.value: lambda: self.event_explore_url,
             AlertRedirectType.QUERY.value: lambda: self.query_url,
             AlertRedirectType.APM_QUERY.value: lambda: self.apm_query_url,
             AlertRedirectType.APM_RPC.value: lambda: self.apm_rpc_url,
@@ -955,47 +967,62 @@ class Alarm(BaseContextObject):
         # 按 url_getters 顺序，最多同时给出三个场景的下钻链接。
         return redirect_infos[:3]
 
-    @cached_property
-    def apm_trace_url(self) -> str | None:
-        alert: AlertDocument = self.parent.alert
-        if not alert.strategy:
+    def _build_redirect_short_url(self, redirect_type: str, check_in_redirect_types: bool = False) -> str | None:
+        """
+        构建告警重定向短链接
+
+        通用的短链接生成方法，根据不同的重定向类型生成对应的短链接。
+        短链接格式为 `{detail_url}&type={redirect_type}`，点击按钮后由 event_center_proxy 视图进行重定向，最终跳转到实际的目标页面。
+
+        :param redirect_type: 重定向类型，对应 AlertRedirectType 枚举值
+        :param check_in_redirect_types: 是否检查 redirect_type 在 self.redirect_types 中，默认 False
+        :return: 短链接 URL，若无法生成则返回 None
+        """
+        # 如果需要检查重定向类型，且类型不在允许列表中，则返回 None
+        if check_in_redirect_types and redirect_type not in self.redirect_types:
             return None
 
-        return ApmAlertHelper.get_trace_url(
-            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, alert.event.time, self.duration
-        )
+        url: str | None = self.detail_url
+        if not url:
+            return None
+
+        return f"{url}&type={redirect_type}"
+
+    @cached_property
+    def apm_trace_url(self) -> str | None:
+        """Tracing 检索跳转链接（短链接格式）"""
+        return self._build_redirect_short_url(AlertRedirectType.APM_TRACE.value)
 
     @cached_property
     def apm_rpc_url(self) -> str | None:
-        alert: AlertDocument = self.parent.alert
-        if not alert.strategy:
-            return None
-
-        return ApmAlertHelper.get_rpc_url(
-            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, alert.event.time, self.duration
-        )
+        """调用分析跳转链接（短链接格式）"""
+        return self._build_redirect_short_url(AlertRedirectType.APM_RPC.value)
 
     @cached_property
-    def log_search_url(self):
-        # 日志检索前5min(可配置) 到 当前时刻，最多1h
-        if AlertRedirectType.LOG_SEARCH.value in self.redirect_types:
-            url = self.detail_url
-            return f"{url}&type=log_search"
-        return None
+    def log_search_url(self) -> str | None:
+        """
+        日志检索跳转链接（短链接格式）
+
+        通过短链接重定向到日志平台检索页面，时间范围为告警前 5 分钟(可配置) 到当前时刻，最多 1 小时。
+        """
+        return self._build_redirect_short_url(AlertRedirectType.LOG_SEARCH.value, check_in_redirect_types=True)
 
     @cached_property
-    def query_url(self):
-        # 数据检索基于数据点的前1小时+后1小时
-        if AlertRedirectType.QUERY.value in self.redirect_types:
-            url = self.detail_url
-            return f"{url}&type=query"
-        return None
+    def event_explore_url(self) -> str | None:
+        """事件检索跳转链接（短链接格式）"""
+        return self._build_redirect_short_url(AlertRedirectType.EVENT_EXPLORE.value)
 
     @cached_property
-    def apm_query_url(self):
-        """APM 自定义指标检索跳转链接生成"""
+    def query_url(self) -> str | None:
+        """
+        数据检索跳转链接（短链接格式）
+
+        通过短链接重定向到数据检索页面，基于告警数据点的前后 1 小时时间范围。
+        """
+        return self._build_redirect_short_url(AlertRedirectType.QUERY.value, check_in_redirect_types=True)
+
+    @cached_property
+    def apm_query_url(self) -> str | None:
+        """APM 自定义指标检索跳转链接（短链接格式）"""
         # TODO 后续 APM 实现自定义指标功能后，再更新为跳转到自定义指标检索页面
-        url: str | None = self.detail_url
-        if url:
-            return f"{url}&type=query"
-        return None
+        return self._build_redirect_short_url(AlertRedirectType.QUERY.value)

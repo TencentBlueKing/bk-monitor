@@ -284,11 +284,7 @@ class TimeSeriesGroup(CustomGroupBase):
             rt_field.save(update_fields=["is_disabled"])
             is_field_update = True
 
-        # RTField 有新增 或是 is_disabled 有变更，需要刷新 consul
-        if is_created or is_field_update:
-            self.NEED_REFRESH_CONSUL = True
-
-        logger.info("table->[%s] metric field->[%s] is update.", table_id, field_name)
+        logger.info("table->[%s] metric field->[%s] is update(%s).", table_id, field_name, is_field_update)
         return True
 
     def is_auto_discovery(self) -> bool:
@@ -1800,6 +1796,7 @@ class TimeSeriesMetric(models.Model):
     last_modify_time = models.DateTimeField(verbose_name="最后更新时间", auto_now=True)
 
     label = models.CharField(verbose_name="指标监控对象", default="", max_length=255, db_index=True)
+    is_active = models.BooleanField(verbose_name="是否活跃", default=True, db_index=True, help_text="指标是否活跃")
 
     # 已废弃，已转为从 bkbase 获取数据，consul 会逐步下线
     last_index = models.IntegerField(verbose_name="上次consul的modify_index", default=0)
@@ -1904,6 +1901,7 @@ class TimeSeriesMetric(models.Model):
                 "tag_list": tag_list,
                 "field_scope": field_scope,
                 "scope_id": metric_info.get("scope_id"),
+                "is_active": True,  # 新创建的指标在返回列表中，标记为活跃
             }
             logger.info("create ts metric data: %s", json.dumps(params))
             records.append(cls(**params))
@@ -1976,6 +1974,14 @@ class TimeSeriesMetric(models.Model):
                 obj.scope_id = metric_info.get("scope_id")
                 obj.field_config = {}
 
+            # 更新 is_active 字段：指标在返回列表中，标记为活跃
+            if not obj.is_active:
+                logger.info(
+                    "_bulk_update_metrics: set active metrics for group_id->[%s], metric->[%s]", group_id, obj.field_name
+                )
+                is_need_update = True
+                obj.is_active = True
+
             if is_need_update:
                 records.append(obj)
 
@@ -1986,7 +1992,7 @@ class TimeSeriesMetric(models.Model):
 
         # 批量更新指定的字段
         cls.objects.bulk_update(
-            records, ["last_modify_time", "tag_list", "scope_id", "field_config"], batch_size=BULK_UPDATE_BATCH_SIZE
+            records, ["last_modify_time", "tag_list", "scope_id", "field_config", "is_active"], batch_size=BULK_UPDATE_BATCH_SIZE
         )
         return need_push_router
 
@@ -2040,6 +2046,20 @@ class TimeSeriesMetric(models.Model):
         if need_update_metrics:
             need_push_router |= cls._bulk_update_metrics(
                 _metrics_dict, need_update_metrics, group_id, is_auto_discovery
+            )
+
+        # 处理不在返回列表中的已存在指标，设置为非活跃
+        existing_metrics_set = set(old_records)
+        inactive_metrics = existing_metrics_set - new_records
+        if inactive_metrics:
+            # 批量更新不在返回列表中的指标为非活跃状态
+            cls.objects.filter(group_id=group_id, field_name__in=inactive_metrics, is_active=True).update(
+                is_active=False
+            )
+            logger.info(
+                "bulk_refresh_ts_metrics: set inactive metrics for group_id->[%s], metrics->[%s]",
+                group_id,
+                json.dumps(list(inactive_metrics)),
             )
 
         return need_push_router

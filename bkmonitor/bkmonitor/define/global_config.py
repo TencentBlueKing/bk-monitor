@@ -153,6 +153,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("GLOBAL_SHIELD_ENABLED", slz.BooleanField(label="是否开启全局告警屏蔽", default=False)),
         ("BIZ_WHITE_LIST_FOR_3RD_EVENT", slz.ListField(label="第三方事件接入业务白名单", default=[])),
         ("TIME_SERIES_METRIC_EXPIRED_SECONDS", slz.IntegerField(label="自定义指标过期时间", default=30 * 24 * 3600)),
+        (
+            "ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE",
+            slz.BooleanField(label="是否根据is_active过滤自定义指标", default=False),
+        ),
         ("AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE", slz.IntegerField(label="LLM默认温度参数", default=0.3)),
         ("AI_BIZ_LIST", slz.ListField(label="AI小鲸灰度业务名单", default=[])),
         ("AIDEV_COMMAND_AGENT_MAPPING", slz.DictField(label="快捷指令<->Agent映射", default={})),
@@ -279,17 +283,11 @@ ADVANCED_OPTIONS = OrderedDict(
             ),
         ),
         ("WECOM_ROBOT_CONTENT_LENGTH", slz.IntegerField(label="分级机器人内容最大长度（0表示不限制）", default=0)),
-        (
-            "ALARM_DISABLE_STRATEGY_RULES",
-            slz.JSONField(
-                label='告警后台禁用策略规则{"strategy_ids":[],"bk_biz_ids":[],"data_source_label":"","data_type_label":""}',
-                default=[],
-            ),
-        ),
         ("OPTZ_FAKE_EVENT_BIZ_IDS", slz.ListField(label="启用进程端口，ping不可达优化的业务ID列表", default=[])),
         ("ACCESS_DATA_TIME_DELAY", slz.IntegerField(label="access数据拉取延迟时间(s)", default=10)),
         ("ACCESS_LATENCY_INTERVAL_FACTOR", slz.IntegerField(label="access数据源延迟上报周期因子", default=1)),
         ("ACCESS_LATENCY_THRESHOLD_CONSTANT", slz.IntegerField(label="access数据源延迟上报常量阈值", default=180)),
+        ("ACCESS_DETECT_MERGE_STRATEGY_IDS", slz.ListField(label="access合并detect策略列表", default=[])),
         ("KAFKA_AUTO_COMMIT", slz.BooleanField(label="kafka是否自动提交", default=True)),
         ("MAX_BUILD_EVENT_NUMBER", slz.IntegerField(label="单次告警生成任务处理的event数量", default=0)),
         ("HOST_DYNAMIC_FIELDS", slz.ListField(label="主机动态属性", default=[])),
@@ -409,6 +407,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
         ("AIDEV_KNOWLEDGE_BASE_IDS", slz.ListField(label="aidev的知识库ID", default=[])),
         ("AIDEV_AGENT_AI_GENERATING_KEYWORD", slz.CharField(label="AIAgent内容生成关键字", default="生成中")),
+        ("AIDEV_AGENT_MCP_REQUEST_AGENT_CODE", slz.CharField(label="AIAgent请求Agent的代码", default="bkmonitor-mcp")),
         ("AIDEV_AGENT_ENABLE_LANGFUSE", slz.BooleanField(label="是否开启langfuse上报", default=False)),
         ("ENABLE_AI_RENAME", slz.BooleanField(label="是否开启AI RENAME", default=False)),
         (
@@ -434,6 +433,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
+        (
+            "ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME",
+            slz.BooleanField(label="是否开启dataid注册时能够指定集群名称", default=False),
+        ),
     ]
 )
 
@@ -556,6 +559,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
         ("APM_TRPC_APPS", slz.DictField(label=_("APM TRPC 应用标记"), default={})),
+        ("APM_APP_STORAGE_ROUTES", slz.ListField(label=_("APM 应用存储路由"), default=[])),
         (
             "APM_RESOURCE_FILTER_METRICS_ENABLED_APPS",
             slz.DictField(label=_("APM metrics维度补充功能应用白名单"), default={}),

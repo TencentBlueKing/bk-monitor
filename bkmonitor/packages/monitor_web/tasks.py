@@ -506,6 +506,8 @@ def remove_file(file_path):
 
     if settings.USE_CEPH:
         path = file_path.replace(settings.MEDIA_ROOT, "")
+        # 确保路径不以 / 开头，避免被识别为绝对路径
+        path = path.lstrip("/")
         if default_storage.exists(path):
             # 先删除目录下的文件
             files = default_storage.listdir(path)[1]
@@ -517,9 +519,9 @@ def remove_file(file_path):
 
 def clean_ceph_tmp_file():
     # 清理ceph临时导出文件
-    tmp = default_storage.listdir("/export_import/tmp/")[0]
+    tmp = default_storage.listdir("export_import/tmp/")[0]
     for package_dir in tmp:
-        path = f"/export_import/tmp/{package_dir}/"
+        path = f"export_import/tmp/{package_dir}/"
         files = default_storage.listdir(path)[1]
         for package in files:
             default_storage.delete(f"{path}{package}")

@@ -21,54 +21,29 @@ the project delivered to anyone in the future.
 
 import math
 import os
-import shutil
-import zipfile
-from pathlib import Path
 
-import arrow
-import magic
-import ujson
-from django.conf import settings
 from django.utils.functional import cached_property
-from qcloud_cos import CosConfig, CosS3Client
 
 from apps.api import TGPATaskApi
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.log_databus.constants import EtlConfig, ContainerCollectorType
-from apps.log_databus.handlers.collector import CollectorHandler
-from apps.log_databus.models import CollectorConfig
-from apps.log_search.constants import CustomTypeEnum, CollectorScenarioEnum
-from apps.tgpa.constants import (
-    TGPA_BASE_DIR,
-    TASK_LIST_BATCH_SIZE,
-    TGPATaskTypeEnum,
-    FEATURE_TOGGLE_TGPA_TASK,
-    TGPA_TASK_ETL_FIELDS,
-    TGPA_TASK_ETL_PARAMS,
-    TGPA_TASK_COLLECTOR_CONFIG_NAME,
-    TGPA_TASK_COLLECTOR_CONFIG_NAME_EN,
-    LOG_FILE_EXPIRE_DAYS,
-)
-from apps.utils.bcs import Bcs
-from apps.utils.log import logger
+from apps.tgpa.constants import TGPA_BASE_DIR, TGPATaskTypeEnum, TASK_LIST_BATCH_SIZE
+from apps.tgpa.handlers.base import TGPAFileHandler
+from apps.tgpa.models import TGPATask
 from apps.utils.thread import MultiExecuteFunc
 
 
 class TGPATaskHandler:
-    def __init__(self, bk_biz_id, task_id=None, task_info=None):
+    def __init__(self, bk_biz_id, inst_id=None, task_info=None):
         self.bk_biz_id = bk_biz_id
-        self.task_id = task_id
+        self.inst_id = inst_id
         self.task_info = task_info  # 通过接口获取到的任务信息
-        # task_id 和 task_info 不能同时为空
-        if not task_id:
-            self.task_id = task_info["id"]
+        # inst_id 和 task_info 不能同时为空
+        if not inst_id:
+            self.inst_id = task_info["id"]
         elif not task_info:
-            self.task_info = self.get_task_info(task_id)
-
-        # 临时目录，用于存放下载的文件、解压后的文件
-        self.temp_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), str(self.task_id), "temp")
-        # 输出目录，用于存放处理后的文件
-        self.output_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), str(self.task_id), "output")
+            self.task_info = self.get_task_info(inst_id)
+        self.task_id = self.task_info["go_svr_task_id"]
+        self.temp_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "task", str(self.task_id), "temp")
+        self.output_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "task", str(self.task_id), "output")
 
     @cached_property
     def meta_fields(self):
@@ -77,23 +52,25 @@ class TGPATaskHandler:
         """
         task_detail = {item["key"]: item["value"] for item in self.task_info["task_info"]}
         return {
-            "task_id": self.task_info["id"],
+            "task_id": self.task_info["go_svr_task_id"],
             "task_name": self.task_info["name"],
             "openid": self.task_info["openid"],
             "manufacturer": task_detail["manufacturer"],
             "sdk_version": task_detail["sdk_version"],
             "os_type": task_detail["os_type"],
             "os_version": task_detail["os_version"],
+            "model": task_detail["model"],
+            "cos_file_name": self.task_info["file_name"],
         }
 
-    def get_task_info(self, task_id):
+    def get_task_info(self, inst_id):
         """
         获取任务信息
         """
         request_params = {
             "cc_id": self.bk_biz_id,
             "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
-            "task_id": task_id,
+            "task_id": inst_id,
         }
         return TGPATaskApi.query_single_user_log_task_v2(request_params)["results"][0]
 
@@ -104,9 +81,11 @@ class TGPATaskHandler:
         """
         result_list = []
         for task in task_list:
+            # id 为数据库自增ID，task_id 为后台任务ID
             result_list.append(
                 {
                     "id": task["id"],
+                    "task_id": task["go_svr_task_id"],
                     "bk_biz_id": task["cc_id"],
                     "task_name": task["name"],
                     "log_path": task["log_path"],
@@ -128,6 +107,20 @@ class TGPATaskHandler:
                 }
             )
         return result_list
+
+    @staticmethod
+    def get_task_count(bk_biz_id):
+        """
+        获取任务总数
+        """
+        params = {
+            "cc_id": bk_biz_id,
+            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "offset": 0,
+            "limit": 1,
+        }
+        result = TGPATaskApi.query_single_user_log_task_v2(params)
+        return result["count"]
 
     @staticmethod
     def get_task_list(params, need_format=False):
@@ -162,162 +155,68 @@ class TGPATaskHandler:
 
         return {"total": count, "list": data}
 
-    def download_file(self, file_name):
+    @staticmethod
+    def get_task_page(params):
         """
-        从腾讯云COS下载文件
+        分页获取任务列表，用于前端
         """
-        config = CosConfig(
-            SecretId=settings.TGPA_TASK_QCLOUD_SECRET_ID,
-            SecretKey=settings.TGPA_TASK_QCLOUD_SECRET_KEY,
-            Region=settings.TGPA_TASK_QCLOUD_COS_REGION,
-            Domain=settings.TGPA_TASK_QCLOUD_COS_DOMAIN,
-        )
-        client = CosS3Client(config)
-        response = client.get_object(Bucket=settings.TGPA_TASK_QCLOUD_COS_BUCKET, Key=file_name)
+        request_params = {
+            "cc_id": params["bk_biz_id"],
+            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "offset": (params["page"] - 1) * params["pagesize"],
+            "limit": params["pagesize"],
+        }
 
-        save_path = os.path.join(self.temp_dir, file_name)
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        with open(save_path, "wb") as f:
-            f.write(response["Body"].get_raw_stream().read())
+        if params.get("ordering"):
+            request_params["ordering"] = params["ordering"]
 
-        return save_path
+        condition_list = []
+
+        if params.get("keyword"):
+            condition_list.append(params["keyword"])
+        if params.get("status"):
+            condition_list.append(f"status={params['status']}")
+        if params.get("scene"):
+            condition_list.append(f"scene={params['scene']}")
+        if params.get("created_by"):
+            condition_list.append(f"created_by={params['created_by']}")
+
+        if condition_list:
+            request_params["search"] = ";".join(condition_list)
+
+        result = TGPATaskApi.query_single_user_log_task_v2(request_params)
+        task_list = TGPATaskHandler.format_task_list(result["results"])
+
+        # 获取任务处理时间和处理状态
+        task_ids = [task["task_id"] for task in task_list]
+        tgpa_tasks = TGPATask.objects.filter(task_id__in=task_ids).values("task_id", "processed_at", "process_status")
+        task_info_map = {str(item["task_id"]): item for item in tgpa_tasks}
+        for task in task_list:
+            task_info = task_info_map.get(task["task_id"], {})
+            task["processed_at"] = task_info.get("processed_at", None)
+            task["process_status"] = task_info.get("process_status", None)
+
+        return {
+            "total": result["count"],
+            "list": task_list,
+        }
 
     @staticmethod
-    def find_log_files(path):
+    def get_username_list(bk_biz_id):
         """
-        在目录中查找日志文件，返回日志文件相对路径列表
+        获取用户名列表
         """
-        dir_path = Path(path).resolve()
-        if not dir_path.is_dir():
-            return []
-
-        file_paths = []
-        mime = magic.Magic(mime=True)
-        for file in dir_path.rglob("*"):
-            if not file.is_file():
-                continue
-            try:
-                mime_type = mime.from_file(str(file))
-                if mime_type and mime_type.startswith("text/"):
-                    file_paths.append(str(file.relative_to(dir_path)))
-            except Exception:
-                continue
-
-        return file_paths
-
-    def process_log_file(self, log_file_path: str):
-        """
-        转成json格式，并添加额外字段，输出到新的文件中
-        :param log_file_path: 日志文件相对路径
-        """
-        input_path = os.path.join(self.temp_dir, log_file_path)
-        output_path = os.path.join(self.output_dir, log_file_path)
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-        with (
-            open(input_path, encoding="utf-8") as input_file,
-            open(output_path, "w", encoding="utf-8") as output_file,
-        ):
-            for line_num, line in enumerate(input_file, 1):
-                log_content = line.strip()
-                log_entry = {"message": log_content, "file": log_file_path, "lineno": line_num}
-                log_entry.update(self.meta_fields)
-                output_file.write(f"{ujson.dumps(log_entry, ensure_ascii=False)}\n")
+        request_params = {
+            "cc_id": bk_biz_id,
+            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "limit": 1,
+        }
+        result = TGPATaskApi.query_single_user_log_task_v2(request_params)
+        return result["user_list"]
 
     def download_and_process_file(self):
         """
         下载并处理文件
         """
-        # 下载压缩包、解压
-        compressed_file_path = self.download_file(self.task_info["file_name"])
-        with zipfile.ZipFile(compressed_file_path, "r") as zip_ref:
-            zip_ref.extractall(self.temp_dir)
-
-        # 查找并处理日志文件，忽略异常，防止单个文件处理失败导致整个任务失败
-        log_files = self.find_log_files(self.temp_dir)
-        for log_file_path in log_files:
-            try:
-                self.process_log_file(log_file_path)
-            except Exception as e:
-                logger.exception("Failed to process log file %s: %s", log_file_path, e)
-
-        # 清理临时文件
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-
-    @staticmethod
-    def clear_expired_files(days=LOG_FILE_EXPIRE_DAYS):
-        """
-        清理过期文件和空目录
-        :param days: 过期天数阈值，默认为3天
-        """
-        if not os.path.exists(TGPA_BASE_DIR):
-            logger.warning("Directory does not exist, skip cleanup: %s", TGPA_BASE_DIR)
-            return
-
-        expire_time = arrow.now().shift(days=-days).timestamp()
-
-        for root, dirs, files in os.walk(TGPA_BASE_DIR, topdown=False):
-            for file_name in files:
-                file_path = os.path.join(root, file_name)
-                try:
-                    if os.path.getmtime(file_path) < expire_time:
-                        os.remove(file_path)
-                        logger.info("Deleted expired file: %s", file_path)
-                except Exception as e:
-                    logger.exception("Failed to delete file %s: %s", file_path, e)
-
-            # 处理空目录
-            for dir_name in dirs:
-                dir_path = os.path.join(root, dir_name)
-                try:
-                    # 检查目录是否为空且过期，空目录会在下一个周期被删除
-                    if not os.listdir(dir_path) and os.path.getmtime(dir_path) < expire_time:
-                        os.rmdir(dir_path)
-                        logger.info("Deleted empty directory: %s", dir_path)
-                except Exception as e:
-                    logger.exception("Failed to delete directory %s: %s", dir_path, e)
-
-    @staticmethod
-    def get_or_create_collector_config(bk_biz_id):
-        """
-        获取或创建采集配置
-        """
-        if collector_config_obj := CollectorConfig.objects.filter(
-            bk_biz_id=bk_biz_id, collector_config_name_en=TGPA_TASK_COLLECTOR_CONFIG_NAME_EN
-        ).first():
-            return collector_config_obj
-
-        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
-        storage_cluster_id = feature_toggle.feature_config.get("storage_cluster_id")
-        etl_params = TGPA_TASK_ETL_PARAMS
-        fields = TGPA_TASK_ETL_FIELDS
-
-        # 创建容器自定义上报
-        collector_create_result = CollectorHandler().custom_create(
-            bk_biz_id=bk_biz_id,
-            collector_config_name=TGPA_TASK_COLLECTOR_CONFIG_NAME,
-            collector_config_name_en=TGPA_TASK_COLLECTOR_CONFIG_NAME_EN,
-            custom_type=CustomTypeEnum.LOG.value,
-            category_id="application_check",
-            etl_config=EtlConfig.BK_LOG_JSON,
-            etl_params=etl_params,
-            fields=fields,
-            storage_cluster_id=storage_cluster_id,
-            collector_scenario_id=CollectorScenarioEnum.CLIENT.value,
-        )
-
-        # 采集配置下发
-        bcs_cluster_id = feature_toggle.feature_config.get("bcs_cluster_id")
-        container_release_params = feature_toggle.feature_config.get("container_release_params")
-        container_release_params.update(
-            {
-                "dataId": collector_create_result["bk_data_id"],
-                "path": [os.path.join(TGPA_BASE_DIR, str(bk_biz_id))],
-                "logConfigType": ContainerCollectorType.CONTAINER,
-            }
-        )
-        Bcs(bcs_cluster_id).save_bklog_config(
-            bklog_config_name=f"bklog-client-log-{bk_biz_id}",
-            bklog_config=container_release_params,
-        )
-        return CollectorConfig.objects.get(collector_config_id=collector_create_result["collector_config_id"])
+        file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields)
+        file_handler.download_and_process_file(self.task_info["file_name"])

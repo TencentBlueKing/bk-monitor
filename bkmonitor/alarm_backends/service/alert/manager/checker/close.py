@@ -18,6 +18,7 @@ from django.utils.translation import gettext as _
 from alarm_backends.constants import CONST_MINUTES
 from alarm_backends.core.alert import Alert
 from alarm_backends.core.cache.cmdb import HostManager, ServiceInstanceManager
+from alarm_backends.core.circuit_breaking.manager import AlertManagerCircuitBreakingManager
 from alarm_backends.core.cache.key import (
     ALERT_DEDUPE_CONTENT_KEY,
     LAST_CHECKPOINTS_CACHE_KEY,
@@ -57,6 +58,10 @@ class CloseStatusChecker(BaseChecker):
     """
 
     DEFAULT_CHECK_WINDOW_UNIT = 60
+
+    def __init__(self, alerts):
+        super().__init__(alerts)
+        self.circuit_breaking_manager = AlertManagerCircuitBreakingManager()
 
     def check(self, alert: Alert):
         if not alert.is_abnormal():
@@ -99,6 +104,10 @@ class CloseStatusChecker(BaseChecker):
 
         latest_item = latest_strategy["items"][0]
 
+        # 检查熔断规则是否命中
+        if self.check_circuit_breaking(alert):
+            return True
+
         # 检查策略是否被修改
         if self.check_strategy_changed(alert, latest_strategy):
             return True
@@ -115,6 +124,33 @@ class CloseStatusChecker(BaseChecker):
         if self.check_priority(alert, latest_strategy):
             return True
 
+        return False
+
+    def check_circuit_breaking(self, alert: Alert):
+        """
+        检查熔断规则是否命中，如果命中则关闭告警
+        """
+        if not self.circuit_breaking_manager:
+            return False
+
+        try:
+            # 使用告警的熔断检查方法
+            is_circuit_breaking = alert.check_circuit_breaking(self.circuit_breaking_manager)
+            if is_circuit_breaking:
+                logger.info(
+                    "[circuit breaking] [close 处理结果] (closed) alert(%s), strategy(%s) 命中熔断规则，告警关闭",
+                    alert.id,
+                    alert.strategy_id,
+                )
+                self.close(alert, _("命中熔断规则，告警关闭"))
+                return True
+        except Exception as e:
+            logger.exception(
+                "[circuit breaking] [close 处理结果] (error) alert(%s), strategy(%s) 熔断规则检查失败: %s",
+                alert.id,
+                alert.strategy_id,
+                e,
+            )
         return False
 
     def check_strategy_changed(self, alert: Alert, latest_strategy):

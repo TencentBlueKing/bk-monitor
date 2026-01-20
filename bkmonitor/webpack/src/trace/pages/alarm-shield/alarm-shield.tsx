@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref as deepRef, defineComponent, provide, reactive, shallowRef, computed } from 'vue';
+import { computed, ref as deepRef, defineComponent, provide, reactive, shallowRef } from 'vue';
 
 import {
   type FilterValue,
@@ -36,6 +36,7 @@ import {
 import { Button, DatePicker, InfoBox, Message, Pagination, SearchSelect } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -132,7 +133,7 @@ export default defineComponent({
       {
         id: EColumn.failureTime,
         name: t('屏蔽失效时间'),
-        width: 150,
+        width: 180,
         disabled: false,
         sortable: false,
       },
@@ -145,7 +146,7 @@ export default defineComponent({
       {
         id: EColumn.endTime,
         name: t('结束时间'),
-        width: 150,
+        width: 180,
         disabled: false,
       },
       {
@@ -185,13 +186,13 @@ export default defineComponent({
         disabled: true,
       },
     ]);
-    const columnComputed = computed(()=>{
+    const columnComputed = computed(() => {
       // 失效时间只在屏蔽失效tab展示
       if (!shieldStatus.value) {
-        return columns.value.filter((item) => item.id !== EColumn.failureTime);
+        return columns.value.filter(item => item.id !== EColumn.failureTime);
       }
       return columns.value;
-    })
+    });
     const tableLoading = deepRef(false);
 
     const pagination = reactive({
@@ -558,16 +559,16 @@ export default defineComponent({
           return <span>{row.content}</span>;
         }
         case EColumn.beginTime: {
-          return <span>{row.begin_time}</span>;
+          return <span>{formatWithTimezone(row.begin_time)}</span>;
         }
         case EColumn.failureTime: {
-          return <span>{row.failure_time}</span>;
+          return <span>{formatWithTimezone(row.failure_time)}</span>;
         }
         // case EColumn.cycleDuration: {
         //   return <span>{row.cycle_duration}</span>;
         // }
         case EColumn.endTime: {
-          return <span>{row.end_time}</span>;
+          return <span>{formatWithTimezone(row.end_time)}</span>;
         }
         case EColumn.shieldCycle: {
           return <span>{row.shield_cycle}</span>;
@@ -805,8 +806,8 @@ export default defineComponent({
         </div>
         <AlarmShieldDetail
           id={this.detailData.id}
-          show={this.detailData.show}
           failureTime={this.detailData.failureTime}
+          show={this.detailData.show}
           onShowChange={this.handleDetailShowChange}
         />
       </div>

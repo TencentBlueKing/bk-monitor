@@ -510,45 +510,15 @@ class StrategyCacheManager(CacheManager):
         )
 
     @classmethod
-    def is_disabled_strategy(cls, strategy: dict) -> bool:
-        """
-        判断策略是否被规则禁用
-        {"strategy_ids":[],"bk_biz_ids":[],"data_source_label":"","data_type_label":""}
-        """
-
-        query_config = strategy["items"][0]["query_configs"][0]
-        data_source_label = query_config["data_source_label"]
-        data_type_label = query_config["data_type_label"]
-
-        for disabled_rule in settings.ALARM_DISABLE_STRATEGY_RULES:
-            # 判断数据源是否被禁用
-            if (
-                disabled_rule.get("data_source_label")
-                and disabled_rule.get("data_type_label")
-                and (data_source_label, data_type_label)
-                != (
-                    disabled_rule["data_source_label"],
-                    disabled_rule["data_type_label"],
-                )
-            ):
-                continue
-            # 判断是否为被禁用业务
-            if disabled_rule.get("bk_biz_id") and strategy["bk_biz_id"] not in disabled_rule["bk_biz_id"]:
-                continue
-            # 判断是否为禁用策略
-            if disabled_rule.get("strategy_ids") and strategy["id"] not in disabled_rule["strategy_ids"]:
-                continue
-            return True
-
-        return False
-
-    @classmethod
     def handle_strategy(cls, strategy: dict, invalid_strategy_dict=None) -> bool:
         """
         策略预处理
         """
         strategy["update_time"] = arrow.get(strategy["update_time"]).timestamp
         strategy["create_time"] = arrow.get(strategy["create_time"]).timestamp
+
+        if not strategy["items"]:
+            return False
 
         for item in strategy["items"]:
             # 补充item的更新时间
@@ -557,13 +527,6 @@ class StrategyCacheManager(CacheManager):
             query_config = item["query_configs"][0]
             data_source_label = query_config["data_source_label"]
             data_type_label = query_config["data_type_label"]
-
-            # 判断策略是否被禁用
-            try:
-                if cls.is_disabled_strategy(strategy):
-                    return False
-            except Exception as e:
-                logger.warning(e)
 
             # 修改监控目标字段为ip的情况
             cls.transform_targets(item)
@@ -610,6 +573,8 @@ class StrategyCacheManager(CacheManager):
                 item["query_md5"] = cls.get_query_md5(strategy["bk_biz_id"], item)
 
             return True
+
+        return True
 
     @classmethod
     def get_strategy_ids(cls):
@@ -760,17 +725,34 @@ class StrategyCacheManager(CacheManager):
         updated_strategy_ids: set = {strategy["id"] for strategy in strategies}
         # 从缓存中获取当前保存的所有策略ID，形成一个集合。
         old_strategy_ids: set = set(cls.get_strategy_ids())
+        # 获取当前存在的业务ID列表
+        existed_bk_biz_ids = set(BusinessManager.keys())
+        # 不存在的业务id的策略id集合
+        invalid_strategy_ids = set()
+
+        # 把不存在的业务id的策略id存到 invalid_strategy_ids 集合内
+        for strategy in strategies:
+            if strategy["bk_biz_id"] not in existed_bk_biz_ids:
+                invalid_strategy_ids.add(strategy["id"])
+
+        # 找出已经存在于缓存中，但是业务id已经失效的策略
+        for strategy_id in old_strategy_ids:
+            if strategy_id not in updated_strategy_ids:
+                strategy_detail = cls.get_strategy_by_id(strategy_id)
+                if strategy_detail and strategy_detail["bk_biz_id"] not in existed_bk_biz_ids:
+                    invalid_strategy_ids.add(strategy_id)
 
         # 如果指定了需要删除的策略ID列表，则进行增量更新。
         if to_be_deleted_strategy_ids is not None:
-            # 增量更新
-            # 原列表(old_strategy_ids) - 删除(to_be_deleted_strategy_ids) + 更新(updated_strategy_ids) -> 去重
-            updated_strategy_ids |= old_strategy_ids - set(to_be_deleted_strategy_ids)
+            invalid_strategy_ids.update(to_be_deleted_strategy_ids)
+        # 增量更新
+        # 原列表(old_strategy_ids) - 删除(invalid_strategy_ids) + 更新(updated_strategy_ids) -> 去重
+        updated_strategy_ids |= old_strategy_ids - set(invalid_strategy_ids)
 
         # 更新缓存中的策略ID列表。
         cls.cache.set(cls.IDS_CACHE_KEY, json.dumps(list(updated_strategy_ids)), cls.CACHE_TIMEOUT)
 
-        # 遍历旧的策略ID列表，检查是否有不再新策略列表中的ID。
+        # 遍历旧的策略ID列表，检查是否有不在新策略列表中的ID。
         for strategy_id in old_strategy_ids:
             # 如果旧列表中的ID在新列表中找不到，则说明该策略已被删除或更改。
             if strategy_id not in updated_strategy_ids:

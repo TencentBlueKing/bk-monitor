@@ -47,7 +47,11 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
             "predict_args": {
                 arg_key.lstrip("$"): arg_value for arg_key, arg_value in self.validated_config["args"].items()
             },
-            "serving_config": {"service_name": self.validated_config.get("service_name") or "default"},
+            "serving_config": {
+                # 从 extra_config 中获取控制参数
+                "service_name": self.extra_config.get("service_name") or "default",
+                "grey_to_bkfara": self.extra_config.get("grey_to_bkfara", False),
+            },
             "extra_data": {
                 "history_anomaly": {
                     "source": "backfill",

@@ -567,7 +567,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     !this.isSplitEventPanel && window.addEventListener('popstate', this.handlePopstate);
   }
 
-  beforeRouteEnter(to, from, next) {
+  beforeRouteEnter(_to, _fromm, next) {
     next(async (vm: Event) => {
       vm.routeStateKeyList = [];
       const params = vm.handleUrl2Params();
@@ -625,7 +625,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       }
     });
   }
-  beforeRouteLeave(to, from, next) {
+  beforeRouteLeave(_to, _fromm, next) {
     this.detailInfo.isShow = false;
     destroyTimezone();
     next();
@@ -734,8 +734,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         : `action_id : ${defaultData.actionId}`;
       const time = +defaultData.actionId.toString().slice(0, 10) * 1000;
       defaultData.timeRange = [
-        dayjs.tz(time).add(-30, 'd').format('YYYY-MM-DD HH:mm:ss'),
-        dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss'),
+        dayjs.tz(time).add(-30, 'd').format('YYYY-MM-DD HH:mm:ssZZ'),
+        dayjs.tz(time).format('YYYY-MM-DD HH:mm:ssZZ'),
       ];
     }
     /** 移动端带collectId跳转事件中心 */
@@ -769,10 +769,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   async handlePopstate() {
     if (this.isSplitEventPanel) return;
     let params = this.handleUrl2Params();
-    const index = this.routeStateKeyList.findIndex(key => key === this.$route.query.key);
+    const index = this.routeStateKeyList.indexOf(this.$route.query.key);
     params = index === -1 ? this.handleGetDefaultRouteData() : params;
     if (this.$route.name === 'event-center') {
-      Object.keys(params).forEach(key => (this[key] = params[key]));
+      Object.keys(params).forEach(key => {
+        this[key] = params[key];
+      });
       this.isRouteBack = true;
       this.chartKey = random(10);
       await Promise.all([this.handleGetFilterData(), this.handleGetTableData(true)]);
@@ -850,7 +852,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       code,
       greyed_spaces,
       wx_cs_link,
-    } = await incidentList(params, { needRes: true, needMessage: false })
+    } = await incidentList(params, {
+      needRes: true,
+      needMessage: false,
+    })
       .then(res => {
         !onlyOverview && (this.filterInputStatus = 'success');
         return res.data || {};
@@ -860,6 +865,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
+          apiType: 'incident',
           wx_cs_link: '',
           greyed_spaces: [],
           aggs: [],
@@ -871,6 +877,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       });
     this.incidentWxCsLink = wx_cs_link;
     return {
+      apiType: 'incident',
       aggs,
       greyed_spaces,
       list:
@@ -933,6 +940,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
+          apiType: 'action',
           aggs: [],
           actions: [],
           overview: [],
@@ -941,6 +949,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         };
       });
     return {
+      apiType: 'action',
       aggs,
       list:
         list?.map(item => {
@@ -1034,7 +1043,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       overview,
       total,
       code,
-    } = await searchAlert(this.handleGetSearchParams(onlyOverview), { needRes: true, needMessage: false })
+    } = await searchAlert(this.handleGetSearchParams(onlyOverview), {
+      needRes: true,
+      needMessage: false,
+    })
       .then(res => {
         !onlyOverview && (this.filterInputStatus = 'success');
         return res.data || {};
@@ -1044,6 +1056,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
+          apiType: 'alert',
           aggs: [],
           alerts: [],
           overview: [],
@@ -1057,6 +1070,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       this.handleGetEventCount(ids);
     }
     return {
+      apiType: 'alert',
       aggs,
       list: list?.map(item => ({
         ...item,
@@ -1360,8 +1374,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     } else {
       needTopN && (await this.handleGetSearchTopNList(false));
     }
-    const [{ aggs, list, total, code, greyed_spaces }] = await Promise.all(promiseList);
-
+    const [{ aggs, list, total, code, greyed_spaces, apiType }] = await Promise.all(promiseList);
+    /** 如果数据接口类型与当前搜索类型不一致，则不进行数据展示, 大数据场景下，切换搜索类型，会导致多个tab数据错乱 */
+    if (apiType && apiType !== this.searchType) {
+      return;
+    }
     // 语法错误
     this.filterInputStatus = code !== grammaticalErrorCode ? 'success' : 'error';
     // 数据接口是否报错
@@ -1586,8 +1603,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       });
     if (from) {
       this.timeRange = [
-        dayjs.tz(params.start_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
-        dayjs.tz(params.end_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
+        dayjs.tz(params.start_time * 1000).format('YYYY-MM-DD HH:mm:ssZZ'),
+        dayjs.tz(params.end_time * 1000).format('YYYY-MM-DD HH:mm:ssZZ'),
       ];
       this.handleGetFilterData();
       this.pagination.current = 1;
