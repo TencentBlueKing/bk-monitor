@@ -212,14 +212,43 @@ class AccessBeater(MonitorBeater):
 
     def batch_access_data(self, interval_key):
         """
-        批量运行 Access data
-        :param interval_key: 策略分组key(按周期)
+        批量数据拉取：根据周期触发，将策略组任务分发到 Celery 任务队列。
+
+        功能说明：
+        - 获取周期对应的策略组列表
+        - 遍历策略组，分发任务到 Celery 队列
+        - 支持 QoS 队列：高查询耗时数据源使用独立的 QoS 队列
+        - 限流控制：避免一次性分发过多任务导致队列压力过大
+
+        参数：
+            interval_key: 策略分组key（按周期）
+
+        任务队列：
+            - 普通队列：celery_service - 普通策略组任务
+            - QoS 队列：celery_service_qos - 高查询耗时数据源任务
+
+        流程：
+            1. 获取周期对应的策略组列表
+            2. 遍历策略组，分发任务
+               - 判断是否使用 QoS 队列
+               - 异步分发任务
+               - 限流控制（每 N 个任务休眠 50ms）
         """
+        # 获取周期对应的策略组列表
         strategy_group_keys = self.interval_map.get(interval_key) or []
 
+        # 遍历策略组，分发任务
         for _idx, strategy_group_key in enumerate(strategy_group_keys):
+            # 选择任务队列（QoS 或普通队列）
+            # QoS 数据源 → celery_service_qos 队列（高查询耗时数据源）
+            # 普通数据源 → celery_service 队列
             run_task = run_access_data_with_qos_queue if strategy_group_key in self.qos_keys else run_access_data
+
+            # 异步分发任务：使用 Celery 的 delay() 方法异步分发任务
             run_task.delay(strategy_group_key, interval=interval_key)
+
+            # 限流控制：避免一次性分发过多任务导致队列压力过大
+            # 每 N 个任务休眠 50ms，其中 N = len(strategy_group_keys) // interval_key + 1
             if _idx % (len(strategy_group_keys) // interval_key + 1) == 0:
                 time.sleep(0.05)
 
