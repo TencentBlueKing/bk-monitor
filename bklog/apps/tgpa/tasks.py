@@ -300,9 +300,10 @@ def periodic_sync_tgpa_reports():
                 # 计算标识符的 MD5 哈希值，取前8位转换为整数
                 hash_value = int(hashlib.md5(report["file_name"].encode()).hexdigest()[:8], 16)
                 # 将哈希值映射到 0-99 的范围，判断是否小于覆盖百分比
-                if 100 > sync_percent > (hash_value % 100):
+                if (hash_value % 100) >= sync_percent:
                     skipped_count += 1
                     continue
+
                 process_single_report.delay(report_info=report, record_id=current_sync_record.id)
                 processed_count += 1
 
