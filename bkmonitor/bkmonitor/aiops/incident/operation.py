@@ -33,6 +33,7 @@ class IncidentOperationManager:
         IncidentOperationType.CREATE,
         IncidentOperationType.OBSERVE,
         IncidentOperationType.RECOVER,
+        IncidentOperationType.REOPEN,
         IncidentOperationType.UPDATE,
         IncidentOperationType.MERGE,
         IncidentOperationType.MERGE_TO,
@@ -207,6 +208,17 @@ class IncidentOperationManager:
         return cls.record_operation(incident_id, IncidentOperationType.RECOVER, operate_time)
 
     @classmethod
+    def record_reopen_incident(cls, incident_id: int, operate_time: int) -> IncidentOperationDocument:
+        """记录故障重新打开
+        文案: 故障在观察期间重新打开
+
+        :param incident_id: 故障ID
+        :param operate_time: 流转生成时间
+        :return: 故障流转记录
+        """
+        return cls.record_operation(incident_id, IncidentOperationType.REOPEN, operate_time)
+
+    @classmethod
     def record_notice_incident(
         cls, incident_id: int, operate_time: int, receivers: list[str]
     ) -> IncidentOperationDocument:
@@ -250,6 +262,9 @@ class IncidentOperationManager:
                 return cls.record_observe_incident(
                     incident_id=incident_id, operate_time=operate_time, last_minutes=last_minutes
                 )
+            # 故障重新打开：从观察中（RECOVERING）变为异常（ABNORMAL）
+            if to_value == IncidentStatus.ABNORMAL.value and from_value == IncidentStatus.RECOVERING.value:
+                return cls.record_reopen_incident(incident_id=incident_id, operate_time=operate_time)
 
         enum_class = INCIDENT_ATTRIBUTE_VALUE_ENUMS.get(incident_key)
         return cls.record_operation(

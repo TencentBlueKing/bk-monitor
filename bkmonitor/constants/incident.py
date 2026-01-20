@@ -98,6 +98,7 @@ class IncidentOperationType(CustomEnum):
     CREATE = "incident_create"
     OBSERVE = "incident_observe"
     RECOVER = "incident_recover"
+    REOPEN = "incident_reopen"
     NOTICE = "incident_notice"
     UPDATE = "incident_update"
     MERGE = "incident_merge"
@@ -125,6 +126,7 @@ class IncidentOperationType(CustomEnum):
             "incident_create": _lazy("故障生成"),
             "incident_observe": _lazy("故障观察中"),
             "incident_recover": _lazy("故障恢复"),
+            "incident_reopen": _lazy("故障重新打开"),
             "incident_notice": _lazy("故障通知"),
             "incident_update": _lazy("修改故障属性"),
             "incident_merge": _lazy("故障合并"),
@@ -153,6 +155,7 @@ class IncidentOperationType(CustomEnum):
             "incident_create",
             "incident_observe",
             "incident_recover",
+            "incident_reopen",
             "incident_notice",
             "incident_update",
             "incident_merge",

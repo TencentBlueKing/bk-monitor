@@ -108,6 +108,7 @@ class IncidentNoticeHelper:
                 IncidentOperationType.CREATE: "故障生成",
                 IncidentOperationType.OBSERVE: "故障通知",
                 IncidentOperationType.RECOVER: "故障恢复",
+                IncidentOperationType.REOPEN: "故障重新打开",
                 IncidentOperationType.UPDATE: "故障更新",
                 IncidentOperationType.MERGE: "故障合并",
                 IncidentOperationType.MERGE_TO: "故障合并",
@@ -116,6 +117,7 @@ class IncidentNoticeHelper:
                 IncidentOperationType.CREATE: f"【{duration_info['duration_range'][0]}】发生【{incident.incident_name}】",
                 IncidentOperationType.OBSERVE: f"故障当前状态 观察中，已观察【{observe_duration_info['duration_msg']}】",
                 IncidentOperationType.RECOVER: f"【{incident.incident_name}】故障已恢复",
+                IncidentOperationType.REOPEN: "故障在观察期间重新打开",
                 IncidentOperationType.UPDATE: f"【{incident_key_alias}】原始值：{from_value} → 最新值：{to_value}"
                 if incident_key
                 else "故障状态更新",
