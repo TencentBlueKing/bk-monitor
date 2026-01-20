@@ -101,7 +101,7 @@ class OverseasMigrateTool:
         self,
         json_filepath_dict: dict,
         mysql_config: dict,
-        bk_biz_id: int = None,
+        bk_biz_id: int = 0,
         index_set_ids_str: str = "",
     ):
         self.filepath_dict = json_filepath_dict
