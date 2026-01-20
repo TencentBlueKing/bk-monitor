@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime, date
 
 from django.core.management import BaseCommand
 from django.db import connection, DatabaseError
@@ -9,7 +10,7 @@ from home_application.management.commands.migrate_tool import parse_str_int_list
 PROJECT_PATH = os.getcwd()
 
 
-class ExportTableDataJsonCommand(BaseCommand):
+class Command(BaseCommand):
     """海外迁移指令类"""
 
     def add_arguments(self, parser):
@@ -74,10 +75,9 @@ class ExportTableDataJsonTool:
             query_sql = f"SELECT * FROM {table_name}"
 
             # 拼接查询条件
+            where_conditions = []
             params = []
             if where_condition_dict:
-                where_conditions = []
-
                 if "bk_biz_id" in table_fields and "bk_biz_id" in where_condition_dict:
                     where_conditions.append(where_condition_dict.get("bk_biz_id").get("condition"))
                     params.append(where_condition_dict.get("bk_biz_id").get("param"))
@@ -85,6 +85,7 @@ class ExportTableDataJsonTool:
                     where_conditions.append(where_condition_dict.get("index_set_id").get("condition"))
                     params.extend(where_condition_dict.get("index_set_id").get("param"))
 
+            if where_conditions:
                 query_sql += f" WHERE {' AND '.join(where_conditions)}"
 
             data = []
@@ -114,8 +115,15 @@ class ExportTableDataJsonTool:
 
                 try:
                     with open(file_path, "w", encoding="utf-8") as f:
-                        json.dump(data, f, ensure_ascii=False, indent=2)
+                        json.dump(data, f, cls=DateTimeEncoder, ensure_ascii=False, indent=2)
                 except OSError as e:
                     Prompt.error(
                         msg="导出 {table_name} json 文件失败, 错误信息: {error}", table_name=table_name, error=str(e)
                     )
+
+
+class DateTimeEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime | date):
+            return obj.strftime("%Y-%m-%d %H:%M:%S")
+        return super().default(obj)

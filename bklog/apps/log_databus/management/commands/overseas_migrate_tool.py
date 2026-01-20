@@ -24,7 +24,7 @@ PROJECT_PATH = os.getcwd()
 BK_LOG_SEARCH_OVERSEAS_MIGRATE_RESULT_TABLE = "bk_log_search_overseas_migrate_result_table"
 
 
-class OverseasMigrateCommand(BaseCommand):
+class Command(BaseCommand):
     """海外迁移指令类"""
 
     def add_arguments(self, parser):
