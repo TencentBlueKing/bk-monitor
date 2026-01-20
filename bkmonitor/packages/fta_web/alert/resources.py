@@ -1462,7 +1462,7 @@ class AlertGraphQueryResource(ApiAuthResource):
         # 遍历所有 series，给 time_offset 为 current 的 series 添加标记
         for series in data:
             time_offset = series.get("time_offset", "current")
-            if time_offset and time_offset != "current":
+            if time_offset != "current":
                 continue
 
             # 添加异常时间范围标记
