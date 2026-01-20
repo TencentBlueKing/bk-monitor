@@ -25,14 +25,15 @@
  */
 import { type PropType, defineComponent } from 'vue';
 
+import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../components/time-range/utils';
 import AlarmCharts from './echarts/alarm-charts';
-
-import type { AlarmDetail } from '@/pages/alarm-center/typings';
 // import AiopsCharts from './echarts/aiops-charts';
 // import IntelligenceScene from './echarts/intelligence-scene';
 // import OutlierDetectionChart from './echarts/outlier-detection-chart';
 // import TimeSeriesForecastingChart from './echarts/time-series-forecasting-chart';
 // import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+
+import type { AlarmDetail } from '@/pages/alarm-center/typings';
 
 import './chart-wrapper.scss';
 
@@ -49,6 +50,15 @@ export default defineComponent({
     detail: {
       type: Object as PropType<AlarmDetail>,
       default: () => ({}),
+    },
+    /** 业务ID */
+    bizId: {
+      type: Number,
+    },
+    /** 默认时间范围 */
+    defaultTimeRange: {
+      type: Object as PropType<TimeRangeType>,
+      default: () => DEFAULT_TIME_RANGE,
     },
   },
   setup(props) {
@@ -143,7 +153,11 @@ export default defineComponent({
       // }
       return (
         <div class='series-view-container'>
-          <AlarmCharts detail={props.detail} />
+          <AlarmCharts
+            bizId={props.bizId}
+            defaultTimeRange={props.defaultTimeRange}
+            detail={props.detail}
+          />
         </div>
       );
     };

@@ -24,12 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent, provide, shallowRef, toRef } from 'vue';
 
+import { useDimensionChartPanel } from '../../../composables/use-dimension-chart-panel';
 import DimensionAnalysisTable from './components/dimension-analysis-table';
 import DimensionSelector from './components/dimension-selector';
-import DimensionChart from './dimension-chart';
 import DimensionTreeMapCharts from './echarts/dimension-tree-map-charts';
+import MonitorCharts from './echarts/monitor-charts';
+
+import type { TimeRangeType } from '@/components/time-range/utils';
 
 import type { AlarmDetail } from '@/pages/alarm-center/typings';
 
@@ -54,27 +57,28 @@ export default defineComponent({
       type: Object as PropType<AlarmDetail>,
       default: () => null,
     },
+    /** 业务ID */
+    bizId: {
+      type: Number,
+    },
+    /** 默认时间范围 */
+    defaultTimeRange: {
+      type: Array as PropType<TimeRangeType>,
+    },
   },
   emits: {
     change: (_val: any) => true,
   },
-  setup() {
+  setup(props) {
     const showTypeActive = shallowRef(TYPE_ENUM.TABLE);
     const dimensionList = shallowRef(
       new Array(10).fill(null).map((_, index) => ({ id: `dimension_0${index}`, name: `维度${index}` }))
     );
-
-    /**
-     * 是否多选
-     */
+    /** 是否多选 */
     const isMulti = shallowRef(false);
-    /**
-     * 选中的维度
-     */
+    /** 选中的维度 */
     const selectedDimension = shallowRef<string[]>([dimensionList.value[0].id]);
-    /**
-     * 下钻条件
-     */
+    /** 下钻条件 */
     const where = shallowRef([
       {
         method: 'eq',
@@ -83,6 +87,14 @@ export default defineComponent({
         key: 'test',
       },
     ]);
+
+    const { panel, viewerTimeRange, showRestore, handleDataZoomTimeRangeChange, handleChartRestore } =
+      useDimensionChartPanel({
+        bizId: toRef(props, 'bizId'),
+        defaultTimeRange: toRef(props, 'defaultTimeRange'),
+        groupBy: selectedDimension,
+      });
+    provide('timeRange', viewerTimeRange);
 
     const handleDrillDown = (item: any) => {
       console.log(item);
@@ -118,18 +130,29 @@ export default defineComponent({
       dimensionList,
       selectedDimension,
       where,
+      panel,
+      showRestore,
       handleDrillDown,
       handleTableDrillDown,
       handleShowTypeChange,
       handleMultiChange,
       handleDimensionSelectChange,
       handleRemoveCondition,
+      handleDataZoomTimeRangeChange,
+      handleChartRestore,
     };
   },
   render() {
     return (
       <div class='alarm-view-panel-dimension-analysis-wrap'>
-        <DimensionChart />
+        <div class='alarm-dimension-chart'>
+          <MonitorCharts
+            panel={this.panel}
+            showRestore={this.showRestore}
+            onDataZoomChange={this.handleDataZoomTimeRangeChange}
+            onRestore={this.handleChartRestore}
+          />
+        </div>
         <div class='dimension-analysis-table-view'>
           <div class='dimension-analysis-left'>
             <DimensionSelector
