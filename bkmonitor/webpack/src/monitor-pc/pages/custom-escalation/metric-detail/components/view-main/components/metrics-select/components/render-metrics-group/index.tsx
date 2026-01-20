@@ -129,9 +129,10 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   }
 
   @Watch('metricGroupList', { immediate: true })
-  metricGroupListChange() {
-    this.renderMetricGroupList = Object.freeze(this.metricGroupList);
-    if (this.renderMetricGroupList.length > 0) {
+  metricGroupListChange(newV, oldV) {
+    this.renderMetricGroupList = Object.freeze(newV);
+    // 初始化时默认选中第一个分组的第一个指标
+    if (!oldV?.length && newV.length > 0) {
       this.groupExpandMap = Object.freeze({
         [this.metricGroupList[0].name]: true,
       });
@@ -139,8 +140,6 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   }
 
   async fetchData() {
-    console.log('fetchData');
-
     this.isLoading = true;
     try {
       const params = {
