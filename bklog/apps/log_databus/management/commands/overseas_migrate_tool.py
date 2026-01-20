@@ -255,6 +255,12 @@ class OverseasMigrateTool:
                 migrate_record.update({"status": MigrateStatus.FAIL, "details": details})
                 self.fail(data=data, migrate_record=migrate_record)
             finally:
+                migrate_record.setdefault("bk_biz_id", 0)
+                migrate_record.setdefault("space_uid", "")
+                migrate_record.setdefault("index_set_id", 0)
+                migrate_record.setdefault("status", MigrateStatus.FAIL)
+                migrate_record.setdefault("details", json.dumps({"error": "unknown error"}))
+
                 self.record(migrate_record)
 
         self.db.close()
