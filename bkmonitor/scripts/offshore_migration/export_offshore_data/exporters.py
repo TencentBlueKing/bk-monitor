@@ -179,8 +179,11 @@ class CollectConfigExporter(BaseExporter, RelationMixin):
     
     def export_relations(self, obj, data: dict) -> dict:
         """
-        导出关联的采集插件信息
+        导出关联的采集插件信息和部署配置
         """
+        relations = {}
+        
+        # 导出采集插件信息
         try:
             plugin = CollectorPluginMeta.objects.get(
                 plugin_id=obj.plugin_id,
@@ -189,11 +192,20 @@ class CollectConfigExporter(BaseExporter, RelationMixin):
             plugin_data = model_to_dict(plugin)
             if hasattr(self, 'apply_adapters'):
                 plugin_data = self.apply_adapters(plugin_data)
-            data["_relations"] = {
-                "plugin": plugin_data
-            }
+            relations["plugin"] = plugin_data
         except CollectorPluginMeta.DoesNotExist:
             logger.warning(f"Plugin {obj.plugin_id} not found for collect config {obj.id}")
+        
+        # 导出部署配置（解决循环依赖问题）
+        if obj.deployment_config:
+            from monitor_web.models.collecting import DeploymentConfigVersion
+            deployment_config_data = model_to_dict(obj.deployment_config)
+            if hasattr(self, 'apply_adapters'):
+                deployment_config_data = self.apply_adapters(deployment_config_data)
+            relations["deployment_config"] = deployment_config_data
+        
+        if relations:
+            data["_relations"] = relations
         
         return data
 
