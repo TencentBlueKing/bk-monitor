@@ -72,6 +72,11 @@ const DEFAULT_SCROLL_CONTAINER_SELECTOR = '.trace-explore-view';
 export default defineComponent({
   name: 'TraceExploreTable',
   props: {
+    /** 是否显示操作按钮 */
+    showOperation: {
+      type: Boolean,
+      default: true,
+    },
     /** 滚动容器选择器 */
     scrollContainerSelector: {
       type: String,
@@ -671,6 +676,7 @@ export default defineComponent({
           v-slots={{
             empty: () => (
               <ExploreTableEmpty
+                showOperation={this.showOperation}
                 onClearFilter={() => this.$emit('clearRetrievalFilter')}
                 onDataSourceConfigClick={this.handleDataSourceConfigClick}
               />

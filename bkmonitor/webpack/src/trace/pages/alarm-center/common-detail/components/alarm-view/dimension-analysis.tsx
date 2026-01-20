@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent, shallowRef } from 'vue';
 
 import DimensionAnalysisTable from './components/dimension-analysis-table';
 import DimensionSelector from './components/dimension-selector';
 import DimensionChart from './dimension-chart';
 import DimensionTreeMapCharts from './echarts/dimension-tree-map-charts';
+
+import type { AlarmDetail } from '@/pages/alarm-center/typings';
 
 import './dimension-analysis.scss';
 
@@ -48,9 +50,9 @@ const showTypeList = [
 export default defineComponent({
   name: 'DimensionAnalysis',
   props: {
-    a: {
-      type: String,
-      default: '',
+    detail: {
+      type: Object as PropType<AlarmDetail>,
+      default: () => null,
     },
   },
   emits: {

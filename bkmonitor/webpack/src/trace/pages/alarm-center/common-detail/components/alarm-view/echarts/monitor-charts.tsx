@@ -39,7 +39,7 @@ import ChartTitle from '@/plugins/components/chart-title';
 import CommonLegend from '@/plugins/components/common-legend';
 
 import type { DataZoomEvent } from '@/pages/trace-explore/components/explore-chart/types';
-import type { ChartTitleMenuType } from '@/plugins/typings';
+import type { ChartTitleMenuType, IMenuItem } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './monitor-charts.scss';
@@ -71,12 +71,20 @@ export default defineComponent({
       type: Object as PropType<CustomOptions>,
       default: () => ({}),
     },
+    customMenuClick: {
+      type: Array as PropType<ChartTitleMenuType[]>,
+      default: () => [],
+    },
     showRestore: {
       type: Boolean,
       default: false,
     },
+    showAddMetric: {
+      type: Boolean,
+      default: true,
+    },
   },
-  emits: ['dataZoomChange', 'durationChange', 'restore', 'click'],
+  emits: ['dataZoomChange', 'durationChange', 'restore', 'click', 'menuClick'],
   setup(props, { emit }) {
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const instance = getCurrentInstance();
@@ -133,6 +141,14 @@ export default defineComponent({
       emit('click', params);
     };
 
+    const handleCustomMenuClick = (item: IMenuItem) => {
+      if (props.customMenuClick?.includes(item.id)) {
+        emit('menuClick', item);
+        return;
+      }
+      handleMenuClick(item);
+    };
+
     watch(
       () => duration.value,
       val => {
@@ -167,7 +183,7 @@ export default defineComponent({
       legendData,
       handleClickRestore,
       handleAlarmClick,
-      handleMenuClick,
+      handleCustomMenuClick,
       handleMetricClick,
       handleSelectLegend,
       handleDataZoom,
@@ -187,15 +203,15 @@ export default defineComponent({
             isInstant={this.panel.instant}
             menuList={this.menuList}
             metrics={this.metricList}
-            showAddMetric={true}
+            showAddMetric={this.showAddMetric}
             showMore={true}
             subtitle={this.panel.subTitle || ''}
             title={this.panel.title}
             onAlarmClick={this.handleAlarmClick}
             onAllMetricClick={this.handleMetricClick}
-            onMenuClick={this.handleMenuClick}
+            onMenuClick={this.handleCustomMenuClick}
             onMetricClick={this.handleMetricClick}
-            onSelectChild={({ child }) => this.handleMenuClick(child)}
+            onSelectChild={({ child }) => this.handleCustomMenuClick(child)}
           />
         )}
 
