@@ -11,6 +11,7 @@ from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.utils.local import activate_request
 from apps.utils.thread import generate_request
+from bkm_space.utils import bk_biz_id_to_space_uid
 from home_application.management.commands.migrate_tool import (
     parse_str_int_list,
     Database,
@@ -110,6 +111,7 @@ class OverseasMigrateTool:
         self.db.connect()
         self.create_table_if_not_exists()
         self.bk_biz_id = bk_biz_id
+        self.space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
         self.index_set_ids_set = set(parse_str_int_list(index_set_ids_str))
 
     def create_table_if_not_exists(self) -> None:
@@ -156,10 +158,8 @@ class OverseasMigrateTool:
 
         # 遍历索引集数据，进行迁移操作
         for data in index_set_file_datas:
-            if (
-                self.bk_biz_id
-                and data.get("bk_biz_id") != self.bk_biz_id
-                and data.get("index_set_id") not in self.index_set_ids_set
+            if self.bk_biz_id and (
+                data.get("space_uid") != self.space_uid or data.get("index_set_id") not in self.index_set_ids_set
             ):
                 continue
 
