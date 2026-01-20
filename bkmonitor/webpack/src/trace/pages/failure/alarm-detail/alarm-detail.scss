@@ -46,7 +46,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
   .aiops-correlation-metrics {
     margin-bottom: 12px;
 
-    &:last-child{
+    &:last-child {
       margin-bottom: 0;
     }
   }
@@ -72,6 +72,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       display: inline-block;
       align-items: center;
       max-width: 100%;
+      min-width: 42px;
       height: 22px;
       padding: 0 10px;
       margin: 2px;
