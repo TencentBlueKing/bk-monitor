@@ -333,8 +333,6 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                     if incident_key == "status":
                         if update_info["to"] in (IncidentStatus.RECOVERING.value, IncidentStatus.MERGED.value):
                             incident_document.end_time = int(time.time())
-                        elif update_info["to"] == IncidentStatus.RECOVERED.value:
-                            incident_document.end_time = int(time.time())
                         elif update_info["to"] == IncidentStatus.ABNORMAL.value:
                             incident_document.end_time = None
                         api.bkdata.update_incident_detail(
