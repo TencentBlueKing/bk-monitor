@@ -193,7 +193,7 @@ class CollectConfigImporter(BaseImporter, RelationImportMixin):
     resource_type = "collect_config"
     model_class = CollectConfigMeta
     
-    def import_single(self, data: dict) -> Model:
+    def import_single(self, data: dict):
         """
         导入单个对象，特殊处理 deployment_config 的循环依赖
         """
