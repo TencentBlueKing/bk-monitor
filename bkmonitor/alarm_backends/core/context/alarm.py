@@ -991,12 +991,12 @@ class Alarm(BaseContextObject):
     @cached_property
     def apm_trace_url(self) -> str | None:
         """Tracing 检索跳转链接（短链接格式）"""
-        return self._build_redirect_short_url(AlertRedirectType.APM_TRACE.value, check_in_redirect_types=True)
+        return self._build_redirect_short_url(AlertRedirectType.APM_TRACE.value)
 
     @cached_property
     def apm_rpc_url(self) -> str | None:
         """调用分析跳转链接（短链接格式）"""
-        return self._build_redirect_short_url(AlertRedirectType.APM_RPC.value, check_in_redirect_types=True)
+        return self._build_redirect_short_url(AlertRedirectType.APM_RPC.value)
 
     @cached_property
     def log_search_url(self) -> str | None:
@@ -1005,7 +1005,7 @@ class Alarm(BaseContextObject):
 
         通过短链接重定向到日志平台检索页面，时间范围为告警前 5 分钟(可配置) 到当前时刻，最多 1 小时。
         """
-        return self._build_redirect_short_url(AlertRedirectType.LOG_SEARCH.value, check_in_redirect_types=True)
+        return self._build_redirect_short_url(AlertRedirectType.LOG_SEARCH.value)
 
     @cached_property
     def event_explore_url(self) -> str | None:
@@ -1019,7 +1019,7 @@ class Alarm(BaseContextObject):
 
         通过短链接重定向到数据检索页面，基于告警数据点的前后 1 小时时间范围。
         """
-        return self._build_redirect_short_url(AlertRedirectType.QUERY.value, check_in_redirect_types=True)
+        return self._build_redirect_short_url(AlertRedirectType.QUERY.value)
 
     @cached_property
     def apm_query_url(self) -> str | None:
