@@ -1010,7 +1010,7 @@ class Alarm(BaseContextObject):
     @cached_property
     def event_explore_url(self) -> str | None:
         """事件检索跳转链接（短链接格式）"""
-        return self._build_redirect_short_url(AlertRedirectType.EVENT_EXPLORE.value, check_in_redirect_types=True)
+        return self._build_redirect_short_url(AlertRedirectType.EVENT_EXPLORE.value)
 
     @cached_property
     def query_url(self) -> str | None:
@@ -1019,7 +1019,7 @@ class Alarm(BaseContextObject):
 
         通过短链接重定向到数据检索页面，基于告警数据点的前后 1 小时时间范围。
         """
-        return self._build_redirect_short_url(AlertRedirectType.QUERY.value)
+        return self._build_redirect_short_url(AlertRedirectType.QUERY.value, check_in_redirect_types=True)
 
     @cached_property
     def apm_query_url(self) -> str | None:
