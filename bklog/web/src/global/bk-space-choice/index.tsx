@@ -172,9 +172,11 @@ export default defineComponent({
     // 使用 use-list-sort 进行文本匹配和排序
     // 匹配的字段：space_name, py_text, space_uid, bk_biz_id, space_code
     const matchKeys = ['space_name', 'py_text', 'space_uid'];
+    const hiddenMatchKeys = ['bk_biz_id'];
     const { sortList: authorizedList, updateList, updateSearchText } = useListSort(
       baseFilteredList.value,
       matchKeys,
+      hiddenMatchKeys
     );
 
     // 监听基础列表变化，更新排序列表
@@ -183,10 +185,32 @@ export default defineComponent({
     }, { immediate: true });
 
     // 监听搜索关键词变化，更新搜索文本
-    watch(keyword, (newKeyword) => {
+    watch(keyword, async (newKeyword) => {
       updateSearchText(newKeyword);
       // 搜索时重置选中索引
       selectedIndex.value = -1;
+
+      // 搜索时，如果列表滚动位置不在最顶部，则自动滚动到顶部
+      if (bizListRef.value && showBizList.value) {
+        await nextTick();
+        // 找到实际的滚动容器
+        const listContainer = bizListRef.value?.$el || bizListRef.value;
+        if (listContainer) {
+          // 查找 RecycleScroller 的滚动容器
+          const scroller = listContainer.querySelector('.vue-recycle-scroller')
+            || listContainer.querySelector('.list-scroller');
+
+          const scrollElement = scroller || listContainer;
+
+          // 检查滚动位置，如果不在顶部则滚动到顶部
+          if (scrollElement.scrollTop > 0) {
+            scrollElement.scrollTo({
+              top: 0,
+              behavior: 'smooth',
+            });
+          }
+        }
+      }
     }, { immediate: true });
 
     const commonList = computed(
@@ -310,7 +334,9 @@ export default defineComponent({
         let targetItem: Element | null = null;
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
-          const itemId = item.getAttribute('data-id') || item.querySelector('[data-space-uid]')?.getAttribute('data-space-uid');
+          const itemId = item.getAttribute('data-id')
+            || item.querySelector('[data-space-uid]')?.getAttribute('data-space-uid');
+
           if (itemId && (itemId === String(selectedItem.id) || itemId === selectedItem.space_uid)) {
             targetItem = item;
             break;

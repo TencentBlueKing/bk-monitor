@@ -20,7 +20,7 @@ from typing import Any
 
 from django.conf import settings
 from django.db.models import Q
-from django.db.models.sql import AND, OR
+from django.db.models.sql.where import AND, OR
 from django.utils import timezone, tree
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -1698,6 +1698,7 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
         return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
 
     def switch_unify_query(self, bk_biz_id):
+        return False
         # 如果使用了查询函数或者需要特殊处理，则使用统一查询
         if getattr(self, "functions", []):
             return True

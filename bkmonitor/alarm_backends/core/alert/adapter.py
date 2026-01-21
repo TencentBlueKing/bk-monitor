@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import time as time_mod
+from typing import Any
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -21,7 +22,8 @@ from alarm_backends.core.control.record_parser import EventIDParser
 from alarm_backends.core.storage.kafka import KafkaQueue
 from bkmonitor.models import NO_DATA_TAG_DIMENSION, BCSPod
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
-from constants.alert import EventStatus, EventTargetType
+from constants.alert import APMTargetType, EventStatus, EventTargetType, K8STargetType
+from constants.apm import ApmAlertHelper, CommonMetricTag
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
@@ -195,10 +197,11 @@ class MonitorEventAdapter:
         data_dimensions = copy.deepcopy(dimensions)
 
         # 将真正用于去重的维度过滤出来
+        # 注意：__additional_dimensions 需要保留，不参与去重但需要传递到 adapt() 方法
         data_dimensions = {
             key: value
             for key, value in data_dimensions.items()
-            if key in agg_dimensions or key == NO_DATA_TAG_DIMENSION
+            if key in agg_dimensions or key == NO_DATA_TAG_DIMENSION or key == "__additional_dimensions"
         }
         # 将维度中的 tags. 前缀去掉（后续 duplicate_keys 中会统一将维度加上 tags.的前缀）
         to_be_pop = []
@@ -241,10 +244,13 @@ class MonitorEventAdapter:
                 bk_obj_id = data_dimensions.pop("bk_obj_id")
                 bk_inst_id = data_dimensions.pop("bk_inst_id")
                 return EventTargetType.TOPO, f"{bk_obj_id}|{bk_inst_id}", data_dimensions
-            # elif "bcs_cluster_id" in data_dimensions:
-            # 容器场景目标解析
-            # K8S-POD, K8S-NODE, K8S-SERVICE, K8S-WORKLOAD
-            # return cls.get_k8s_target(data_dimensions, strategy["bk_biz_id"])
+            elif "bcs_cluster_id" in data_dimensions:
+                # 容器场景目标解析
+                # K8S-POD, K8S-NODE, K8S-SERVICE, K8S-WORKLOAD
+                return cls.get_k8s_target(data_dimensions, strategy["bk_biz_id"])
+            # 从告警维度或告警策略标签中获取到 service_name 即为 APM 场景 (注：使用海象运算符，为后续其他场景留出扩展点)
+            elif (target := ApmAlertHelper.get_target(strategy, data_dimensions)) and target.get("service_name"):
+                return cls.get_apm_target(data_dimensions, target)
 
         except KeyError:
             return EventTargetType.EMPTY, None, data_dimensions
@@ -275,13 +281,13 @@ class MonitorEventAdapter:
                 # 将丰富的维度信息补充到 event 的 extra_info 中，后续 alert 丰富使用
                 if additional_dimensions:
                     dimensions["__additional_dimensions"] = additional_dimensions
-                return "K8S-POD", pod, dimensions
+                return K8STargetType.POD, pod, dimensions
             else:
                 # Pod 存在但查询不到实例，仍然按 Pod 处理，避免错误分类
                 # 检查 namespace 是否存在，Pod 是命名空间级别的资源
                 if namespace is None:
                     return EventTargetType.EMPTY, None, dimensions
-                return "K8S-POD", pod, dimensions
+                return K8STargetType.POD, pod, dimensions
 
         workload_kind = dimensions.get("workload_kind")
         workload_name = dimensions.get("workload_name")
@@ -289,18 +295,49 @@ class MonitorEventAdapter:
             # workload 对象，需要 namespace
             if namespace is None:
                 return EventTargetType.EMPTY, None, dimensions
-            return "K8S-WORKLOAD", f"{workload_kind}:{workload_name}", dimensions
+            return K8STargetType.WORKLOAD, f"{workload_kind}:{workload_name}", dimensions
 
         node = dimensions.get("node") or dimensions.get("node_name")
         if node:
             # node 对象，Node 是集群级别资源，不需要 namespace
-            return "K8S-NODE", node, dimensions
+            return K8STargetType.NODE, node, dimensions
 
         service = dimensions.get("service") or dimensions.get("service_name")
         if service:
             # service 对象，需要 namespace
             if namespace is None:
                 return EventTargetType.EMPTY, None, dimensions
-            return "K8S-SERVICE", service, dimensions
+            return K8STargetType.SERVICE, service, dimensions
 
         return EventTargetType.EMPTY, None, dimensions
+
+    @classmethod
+    def get_apm_target(
+        cls, dimensions: dict[str, Any], apm_target: dict[str, str | None]
+    ) -> tuple[str, str | None, dict]:
+        """
+        获取 APM 场景的目标信息
+
+        :param dimensions: 维度字典
+        :param apm_target: APM 目标信息字典，包含 app_name 和 service_name
+        :return: 返回元组 (target_type, target, dimensions)
+                 - target_type: "APM-SERVICE" 或 空字符串
+                 - target: {app_name}:{service_name}格式化后的值 或 None
+                 - dimensions: 处理后的维度字典
+        """
+        app_name_tag: str = CommonMetricTag.APP_NAME.value
+        service_name_tag: str = CommonMetricTag.SERVICE_NAME.value
+        app_name: str | None = apm_target.get(app_name_tag)
+        service_name: str | None = apm_target.get(service_name_tag)
+
+        if not app_name or not service_name:
+            return EventTargetType.EMPTY, None, dimensions
+
+        dimensions["__additional_dimensions"] = dict()
+        # 补充后续可用被丰富的 app_name 和 service_name 维度字段
+        if app_name_tag not in dimensions:
+            dimensions["__additional_dimensions"][app_name_tag] = app_name
+        if service_name_tag not in dimensions:
+            dimensions["__additional_dimensions"][service_name_tag] = service_name
+
+        return APMTargetType.SERVICE, f"{app_name}:{service_name}", dimensions

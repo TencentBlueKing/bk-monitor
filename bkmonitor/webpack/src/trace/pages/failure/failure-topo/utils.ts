@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { toRaw } from 'vue';
+
 import type { IEntity, ITopoNode } from './types';
 import type { ITargetInfo } from 'monitor-ui/chart-plugins/plugins/caller-line-chart/use-custom';
 
@@ -377,6 +379,64 @@ export const typeToLinkHandle = {
         from: data.start_time.toString() || 'now-30d',
         to: endTime.toString() || 'now',
         targets: encodeURIComponent(JSON.stringify(targets)),
+      };
+    },
+  },
+  // 跳转trace检索-trace视角-trace详情侧滑/trace详情侧滑中的span详情侧滑
+  TraceExplore: {
+    title: 'trace检索页',
+    path: () => '/trace/home',
+    beforeJumpVerify: () => true,
+    query: (entity: IEntity, type: string) => {
+      const { rca_trace_info, observe_time_rage } = entity;
+      const query: Record<string, number | string> = {};
+
+      const incidentQuery = {
+        trace_id: rca_trace_info?.abnormal_traces[0].trace_id || '',
+        span_id: rca_trace_info?.abnormal_traces[0].span_id || '',
+        type,
+      };
+      if (observe_time_rage && Object.keys(observe_time_rage).length > 0) {
+        query.start_time = observe_time_rage.start_at;
+        query.end_time = observe_time_rage.end_at;
+      }
+      return {
+        app_name: rca_trace_info?.abnormal_traces_query.app_name,
+        refreshInterval: '-1',
+        filterMode: 'queryString',
+        query: rca_trace_info.abnormal_traces_query.query,
+        sceneMode: 'trace',
+        incident_query: encodeURIComponent(JSON.stringify(incidentQuery)),
+        ...query,
+      };
+    },
+  },
+  // 跳转trace检索-span视角-对应trace侧滑
+  SpanExplore: {
+    title: 'trace检索页',
+    path: () => '/trace/home',
+    beforeJumpVerify: () => true,
+    query: (entity: IEntity, type: string) => {
+      const { rca_trace_info, observe_time_rage } = entity;
+      const timestamp: Record<string, number | string> = {};
+
+      if (observe_time_rage && Object.keys(observe_time_rage).length > 0) {
+        timestamp.start_time = observe_time_rage.start_at;
+        timestamp.end_time = observe_time_rage.end_at;
+      }
+      const incidentQuery = {
+        trace_id: rca_trace_info?.abnormal_traces[0].trace_id || '',
+        span_id: rca_trace_info?.abnormal_traces[0].span_id || '',
+        type,
+      };
+      const where = rca_trace_info?.abnormal_traces_query.where || [];
+      return {
+        app_name: rca_trace_info?.abnormal_traces_query.app_name,
+        filterMode: 'ui',
+        sceneMode: 'span',
+        where: JSON.stringify(toRaw(where)),
+        incident_query: encodeURIComponent(JSON.stringify(incidentQuery)),
+        ...timestamp,
       };
     },
   },

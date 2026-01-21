@@ -34,7 +34,7 @@ import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/c
  */
 import VueJsonPretty from 'vue-json-pretty';
 
-import { toBcsDetail, toPerformanceDetail } from '../../../common/go-link';
+import { toBcsDetail, toCollectDetail, toPerformanceDetail } from '../../../common/go-link';
 import EventDetail from '../../../store/modules/event-detail';
 import { getOperatorDisabled } from '../utils';
 
@@ -57,7 +57,14 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
   cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
-  ipMap = ['bk_target_ip', 'ip', 'bk_host_id', 'tags.bcs_cluster_id'];
+  ipMap = [
+    'bk_target_ip',
+    'ip',
+    'bk_host_id',
+    'tags.bcs_cluster_id',
+    'tags.bk_collect_config_id', // 采集配置ID
+    'bk_collect_config_id', // 采集配置ID
+  ];
   operateDesc = null;
   showReason = false;
   get bizList() {
@@ -159,7 +166,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   handleToShield() {
     if (!this.basicInfo.shield_id?.[0]) return;
     window.open(
-      `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}/#/trace/alarm-shield/edit/${this.basicInfo.shield_id[0]}`
+      `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}#/trace/alarm-shield/edit/${this.basicInfo.shield_id[0]}`
     );
   }
   /** 不同情况下的跳转逻辑 */
@@ -180,6 +187,10 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       /** 跳转到主机监控 */
       case 'bk_host_id':
         toPerformanceDetail(basicInfo.bk_biz_id, item.value);
+        break;
+      case 'bk_collect_config_id':
+      case 'tags.bk_collect_config_id':
+        toCollectDetail(basicInfo.bk_biz_id, item.value);
         break;
 
       default: {
@@ -270,45 +281,48 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       cancelText: this.$t('关闭'),
       extCls: 'event-relation-dialog',
       title: this.$t('关联日志'),
-      subHeader: h(
-        'div',
-        { class: 'json-view-content' },
-        [
-          h('i', {
-            class: 'icon-monitor icon-mc-copy',
-            directives: [
-              {
-                name: 'bk-tooltips',
-                value: this.$t('复制'),
-                arg: 'distance',
-                modifiers: { '5': true },
-              },
-            ],
-            on: {
-              click: () => this.handleCopy(relationInfo),
+      subHeader: h('div', { class: 'json-view-content' }, [
+        h('i', {
+          class: 'icon-monitor icon-mc-copy',
+          directives: [
+            {
+              name: 'bk-tooltips',
+              value: this.$t('复制'),
+              arg: 'distance',
+              modifiers: { '5': true },
             },
-          }),
-          h(VueJsonPretty, {
-            props: {
-              collapsedOnClickBrackets: false,
-              data: relationInfo,
-              deep: 5,
-              showIcon: true,
+          ],
+          on: {
+            click: () => this.handleCopy(relationInfo),
+          },
+        }),
+        h(VueJsonPretty, {
+          props: {
+            collapsedOnClickBrackets: false,
+            data: relationInfo,
+            deep: 5,
+            showIcon: true,
+          },
+          scopedSlots: {
+            nodeValue: ({ node, defaultValue }) => {
+              // value是url时 增加跳转功能
+              if (node.content?.startsWith('http')) {
+                return (
+                  <a
+                    class='vjs-value vjs-value-string'
+                    href={xssFilter(node.content)}
+                    rel='noopener noreferrer'
+                    target='_blank'
+                  >
+                    "{xssFilter(node.content)}"
+                  </a>
+                );
+              }
+              return defaultValue;
             },
-            scopedSlots: {
-              nodeValue: ({node, defaultValue}) => {
-                // value是url时 增加跳转功能
-                if (node.content?.startsWith('http')) {
-                  return (
-                    <a class='vjs-value vjs-value-string' href={xssFilter(node.content)} target='_blank' rel='noopener noreferrer'>"{xssFilter(node.content)}"</a>
-                  );
-                }
-                return defaultValue;
-              },
-            }
-          }),
-        ]
-      ),
+          },
+        }),
+      ]),
     });
   }
 

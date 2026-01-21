@@ -61,7 +61,7 @@ def mysetting(request):
         "LOGIN_URL": ConfFixture.LOGIN_URL,
         "LOGIN_SERVICE_URL": ConfFixture.LOGIN_URL,
         # 'LOGOUT_URL': settings.LOGOUT_URL,
-        "BK_PASS_API_HOST": settings.PAAS_API_HOST,
+        "BK_PAAS_API_HOST": settings.PAAS_API_HOST,
         "BK_PAAS_HOST": f"{settings.BK_PAAS_HOST}/app/list/",
         "BK_PLAT_HOST": settings.BK_PAAS_HOST
         if not bool(request.headers.get("Is-External", "false"))
@@ -92,7 +92,7 @@ def mysetting(request):
         "ES_STORAGE_CAPACITY": str(settings.ES_STORAGE_CAPACITY),
         "TAM_AEGIS_KEY": settings.TAM_AEGIS_KEY,
         "BK_LOGIN_URL": f"{settings.PAAS_API_HOST}/api/bk-user-web/prod"
-        if settings.ENABLE_MULTI_TENANT_MODE
+        if settings.USE_APIGW
         else f"{bk_login_url_prefix}/api/c/compapi/v2/usermanage/fs_list_users/",
         "MENU_LOGO_URL": f"{settings.STATIC_URL}{settings.MENU_LOGO_URL}",
         "BK_DOC_DATA_URL": settings.BK_DOC_DATA_URL,
@@ -104,4 +104,6 @@ def mysetting(request):
         "BCS_WEB_CONSOLE_DOMAIN": settings.BCS_WEB_CONSOLE_DOMAIN,
         "BK_SHARED_RES_URL": settings.BK_SHARED_RES_URL,
         "VERSION": settings.VERSION,
+        "BK_USER_URL": settings.BK_USER_HOST,
+        "BK_IAM_URL": settings.BK_IAM_SAAS_HOST,
     }

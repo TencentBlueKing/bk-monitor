@@ -445,7 +445,7 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
  * @param {Number | String | Date} val
  * @return {String}
  */
-export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
+export function formatDate(val, isTimzone = false, formatMilliseconds = false) {
   try {
     const date = new Date(val);
     if (isNaN(date.getTime())) {
@@ -474,7 +474,10 @@ export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
       const date = dayjs.tz(timestamp);
 
       // 如果毫秒部分不为 000，展示毫秒精度的时间
-      const formatStr = formatMilliseconds && milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
+      const formatStr = formatMilliseconds && milliseconds !== 0
+        ? 'YYYY-MM-DD HH:mm:ss.SSSZZ'
+        : 'YYYY-MM-DD HH:mm:ssZZ';
+
       return date.format(formatStr);
     }
 
@@ -492,10 +495,10 @@ export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
 /**
  * 将ISO 8601格式 2024-04-09T13:02:11.502064896Z 转换成 普通日期格式 2024-04-09 13:02:11.502064896
  */
-export function formatDateNanos(val) {
+export function formatDateNanos(val, isTimzone = true) {
   const strVal = `${val}`;
   if (/^\d+$/.test(strVal)) {
-    return formatDate(Number(val), true, `${val}`.length > 10);
+    return formatDate(Number(val), isTimzone, `${val}`.length > 10);
   }
 
   if (/null|undefined/.test(strVal) || strVal === '') {
@@ -929,12 +932,12 @@ export const parseTableRowData = (
     }
 
     if (fieldType === 'date' && /^\d+$/.test(formatData)) {
-      formatValue = formatDate(Number(formatData)) || data || emptyCharacter;
+      formatValue = formatDate(Number(formatData), false) || data || emptyCharacter;
     }
 
     // 处理纳秒精度的UTC时间格式
     if (fieldType === 'date_nanos') {
-      formatValue = formatDateNanos(formatData) || emptyCharacter;
+      formatValue = formatDateNanos(formatData, false) || emptyCharacter;
     }
 
     if (isMark) {
@@ -1026,6 +1029,8 @@ export const calculateTableColsWidth = (field, list) => {
     if (['ip', 'serverIp'].includes(field.field_name)) return [124, minWidth];
     if (field.field_name === 'dtEventTimeStamp') return [256, minWidth];
     if (/time/i.test(field.field_name)) return [256, minWidth];
+    if ('date' === field.field_type) return [256, minWidth];
+
     // 去掉高亮标签 保证不影响实际展示长度计算
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')
@@ -1111,7 +1116,13 @@ export const flatObjTypeFiledKeys = (currentObject = {}, newFlatObj, previousKey
 
 export const TABLE_LOG_FIELDS_SORT_REGULAR = /^[_]{1,2}|[_]{1,2}/g;
 
-export const utcFormatDate = (val) => {
+/**
+ * 格式化时间戳为日期时间格式
+ * @param {Number} val 时间戳
+ * @param {Boolean} formatTimezone 是否格式化时区
+ * @returns {String} 日期时间格式
+ */
+export const utcFormatDate = (val, formatTimezone = false) => {
   const date = new Date(val);
 
   if (isNaN(date.getTime())) {
@@ -1119,7 +1130,7 @@ export const utcFormatDate = (val) => {
     return val;
   }
 
-  return formatDate(date.getTime());
+  return formatDate(date.getTime(), formatTimezone);
 };
 
 // 首次加载设置表格默认宽度自适应
@@ -1127,16 +1138,25 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
   try {
     if (tableData.length && visibleFields.length) {
       visibleFields.forEach((field) => {
-        const [fieldWidth, minWidth] = calculateTableColsWidth(field, tableData);
-        let width = fieldWidth < minWidth ? minWidth : fieldWidth;
-        if (catchFieldsWidthObj) {
-          const catchWidth = catchFieldsWidthObj[field.field_name];
-          width = catchWidth ?? fieldWidth;
+        const targetList = [field];
+        if (field.alias_mapping_field && !targetList.includes(field.alias_mapping_field)) {
+          targetList.push(field.alias_mapping_field);
         }
 
-        set(field, 'width', width);
-        set(field, 'minWidth', minWidth);
+        targetList.forEach((item) => {
+          const [fieldWidth, minWidth] = calculateTableColsWidth(item, tableData);
+          let width = fieldWidth < minWidth ? minWidth : fieldWidth;
+          if (catchFieldsWidthObj) {
+            const catchWidth = catchFieldsWidthObj[item.field_name];
+            width = catchWidth ?? fieldWidth;
+          }
+
+          set(item, 'width', width);
+          set(item, 'minWidth', minWidth);
+        });
       });
+
+
       const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
       const tableElem = document.querySelector('.original-log-panel');
 

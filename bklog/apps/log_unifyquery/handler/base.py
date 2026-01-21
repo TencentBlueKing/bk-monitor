@@ -15,7 +15,7 @@ from typing import Any
 import arrow
 from django.conf import settings
 
-from apps.api import UnifyQueryApi
+from apps.api import UnifyQueryApi, BcsApi
 from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE
 from apps.log_clustering.models import ClusteringConfig
@@ -190,6 +190,8 @@ class UnifyQueryHandler:
             time_field_info = SearchHandler.init_time_field(self.index_set_ids[0])
             if time_field_info:
                 self.time_field = time_field_info[0]
+
+        self.log_bcs_cluster_name_dict = dict()
 
     @staticmethod
     def query_ts(search_dict, raise_exception=True):
@@ -618,7 +620,7 @@ class UnifyQueryHandler:
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
             "down_sample_range": "",
-            "timezone": self.search_params.get("time_zone") or get_local_param("time_zone", settings.TIME_ZONE),
+            "timezone": get_local_param("time_zone", settings.TIME_ZONE),
             "bk_biz_id": self.bk_biz_id,
         }
 
@@ -641,6 +643,7 @@ class UnifyQueryHandler:
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
+            log = self._add_bcs_cluster_fields(log)
             # 联合索引 增加索引集id信息
             log.update({"__index_set_id__": int(self.search_params["index_set_ids"][0])})
             if self.export_fields:
@@ -932,6 +935,42 @@ class UnifyQueryHandler:
             return_data["aggs"]["group_by_histogram"]["buckets"].append(tmp)
 
         return return_data
+
+    def _add_bcs_cluster_fields(self, log):
+        """
+        添加 BCS 集群有关内置字段内容
+        """
+        ext_fields = log.get("__ext")
+        if not ext_fields or not isinstance(ext_fields, dict):
+            return log
+        bcs_cluster_id = ext_fields.get("bk_bcs_cluster_id")
+
+        if bcs_cluster_id:
+            bcs_cluster_name = self._get_bcs_cluster_name(bcs_cluster_id)
+            log["__bcs_cluster_name__"] = bcs_cluster_name
+
+        return log
+
+    def _get_bcs_cluster_name(self, bcs_cluster_id):
+        """
+        获取 BCS 集群名称
+        """
+        bcs_cluster_id = bcs_cluster_id.upper()
+
+        if bcs_cluster_id in self.log_bcs_cluster_name_dict:
+            return self.log_bcs_cluster_name_dict.get(bcs_cluster_id)
+
+        bcs_cluster_name = ""
+
+        try:
+            bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id})
+            bcs_cluster_name = bcs_cluster_info.get("clusterName", "")
+        except Exception as e:
+            logger.exception("get cluster info by cluster id error: %s, cluster_id: %s", e, bcs_cluster_id)
+
+        self.log_bcs_cluster_name_dict.update({bcs_cluster_id: bcs_cluster_name})
+
+        return bcs_cluster_name
 
     def _date_histogram_unify_query(self, interval, group_field, params):
         """

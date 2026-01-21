@@ -31,6 +31,7 @@ import { formatFileSize } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import useUtils from '@/hooks/use-utils';
 import { InfoBox, Message } from 'bk-magic-vue';
 
 import RestoreSlider from './restore-slider.tsx';
@@ -143,14 +144,16 @@ export default defineComponent({
           },
         });
         const { data } = res;
+        const { formatResponseListTimeZoneString } = useUtils();
         restoreIds.value = [];
         pagination.count = data.total;
-        for (const row of data.list) {
+        const formattedList = formatResponseListTimeZoneString(data.list || [], {}, ['expired_time', 'created_at', 'updated_at']);
+        for (const row of formattedList) {
           row.status = '';
           row.status_name = '';
           restoreIds.value.push(row.restore_config_id);
         }
-        dataList.value.splice(0, dataList.value.length, ...data.list);
+        dataList.value.splice(0, dataList.value.length, ...formattedList);
         return res;
       } catch (error) {
         console.warn('获取回溯列表失败:', error);
@@ -415,7 +418,7 @@ export default defineComponent({
             />
             <bk-table-column
               label={t('时间范围')}
-              min-width='240'
+              width='360'
               renderHeader={renderHeader}
               scopedSlots={{ default: (props: any) => `${props.row.start_time} - ${props.row.end_time}` }}
             />
@@ -427,7 +430,7 @@ export default defineComponent({
             />
             <bk-table-column
               label={t('过期时间')}
-              min-width='120'
+              width='190'
               renderHeader={renderHeader}
               scopedSlots={{ default: (props: any) => props.row.expired_time }}
             />
