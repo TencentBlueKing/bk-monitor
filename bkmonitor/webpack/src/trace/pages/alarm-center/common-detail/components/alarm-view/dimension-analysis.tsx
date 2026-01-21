@@ -182,7 +182,9 @@ export default defineComponent({
     const handleDrillDown = (item: any) => {
       console.log(item);
     };
+
     const handleTableDrillDown = async (obj: { dimension: string; where: any[] }) => {
+      console.log(obj);
       const existingKeys = new Set(obj.where.map(item => item.key));
       where.value = [...where.value.filter(item => !existingKeys.has(item.key)), ...obj.where];
       selectedDimension.value = [obj.dimension];
@@ -202,6 +204,7 @@ export default defineComponent({
 
     const handleDimensionSelectChange = (val: string[]) => {
       selectedDimension.value = val;
+      graphDrillDownData();
     };
 
     const handleRemoveCondition = (index: number) => {
@@ -299,8 +302,10 @@ export default defineComponent({
                 />
               ) : (
                 <DimensionTreeMapCharts
+                  chartData={this.tableData}
                   dimensionList={this.dimensionList}
-                  onDrillDown={this.handleDrillDown}
+                  displayDimensions={this.selectedDimension}
+                  onDrillDown={this.handleTableDrillDown}
                 />
               )}
             </div>

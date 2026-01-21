@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, nextTick, shallowRef, useTemplateRef } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, shallowRef, useTemplateRef } from 'vue';
 
 import VueEcharts from 'vue-echarts';
 
 import DrillDownOptions from '../components/drill-down-options';
+import EmptyStatus from '@/components/empty-status/empty-status';
 
+import type { IGraphDrillDown } from '../../../typing';
 import type { TooltipComponentOption } from 'echarts';
 
 import './dimension-tree-map-charts.scss';
@@ -37,13 +39,23 @@ import './dimension-tree-map-charts.scss';
 export default defineComponent({
   name: 'DimensionTreeMapCharts',
   props: {
+    /** 维度列表 */
     dimensionList: {
-      type: Array,
+      type: Array as PropType<{ id: string; name: string }[]>,
+      default: () => [],
+    },
+    /** 图表数据 */
+    chartData: {
+      type: Array as PropType<IGraphDrillDown[]>,
+      default: () => [],
+    },
+    displayDimensions: {
+      type: Array as PropType<string[]>,
       default: () => [],
     },
   },
   emits: ['drillDown'],
-  setup(_, { emit }) {
+  setup(props, { emit }) {
     const showMenu = shallowRef(false);
     const menuInfo = shallowRef({
       x: 0,
@@ -52,8 +64,7 @@ export default defineComponent({
     });
     const menuContainerRef = useTemplateRef<InstanceType<typeof DrillDownOptions>>('menuContainer');
 
-    const total = shallowRef(100);
-
+    /** 图表tooltips展示 */
     const tooltipFormatter: TooltipComponentOption['formatter'] = params => {
       return `<div class="monitor-chart-tooltips">
               <ul class="tooltips-content">
@@ -63,84 +74,74 @@ export default defineComponent({
                   </span>
                   <span class="item-name" style="color: #fafbfd;">${params.name}:</span>
                   <span class="item-value tag" style="color: #fafbfd;">
-                   ${params.value}（${((params.value / total.value) * 100).toFixed(2)}%）
+                   ${params.value}（${params.data?.row_data?.percentage}%）
                   </span>
                   </li>
               </ul>
               </div>`;
     };
 
-    const options = {
-      tooltip: {
-        transitionDuration: 0,
-        alwaysShowContent: false,
-        backgroundColor: 'rgba(54,58,67,.88)',
-        borderWidth: 0,
-        textStyle: {
-          fontSize: 12,
-          color: '#BEC0C6',
-        },
-        extraCssText: 'border-radius: 4px',
-        appendToBody: true,
-        formatter: tooltipFormatter,
-      },
-      color: [
-        '#7EC2BD',
-        '#EB768F',
-        '#3754B0',
-        '#3FA8CA',
-        '#A563A3',
-        '#F68772',
-        '#FCB391',
-        '#56D1A2',
-        '#6289CE',
-        '#F3CE88',
-        '#83C2EA',
-      ],
-      series: [
-        {
-          name: 'dimension-analysis',
-          type: 'treemap',
-          top: 0,
-          left: 8,
-          right: 8,
-          bottom: 0,
-          breadcrumb: {
-            show: false,
+    /** 图表配置 */
+    const options = computed(() => {
+      return {
+        tooltip: {
+          transitionDuration: 0,
+          alwaysShowContent: false,
+          backgroundColor: 'rgba(54,58,67,.88)',
+          borderWidth: 0,
+          textStyle: {
+            fontSize: 12,
+            color: '#BEC0C6',
           },
-          itemStyle: {
-            gapWidth: 2,
-            borderRadius: 2,
-          },
-          roam: false,
-          nodeClick: false,
-          data: [
-            { name: 'SayHello', value: 20 },
-            { name: 'Tencent-Hello', value: 15 },
-            { name: 'handle', value: 10 },
-            { name: '/404', value: 9 },
-            { name: '/500', value: 8 },
-            { name: '/placeholder', value: 7 },
-            { name: '/name', value: 6 },
-          ],
+          extraCssText: 'border-radius: 4px',
+          appendToBody: true,
+          formatter: tooltipFormatter,
         },
-      ],
-    };
+        series: [
+          {
+            name: 'dimension-analysis',
+            type: 'treemap',
+            top: 0,
+            left: 8,
+            right: 8,
+            bottom: 0,
+            breadcrumb: {
+              show: false,
+            },
+            itemStyle: {
+              gapWidth: 2,
+              borderRadius: 2,
+            },
+            roam: false,
+            nodeClick: false,
+            data: props.chartData.map(item => ({
+              name: item.dimensions[props.displayDimensions[0]],
+              value: item.value,
+              itemStyle: {
+                color: item.color,
+              },
+              row_data: item,
+            })),
+          },
+        ],
+      };
+    });
 
+    /** 图表点击事件 */
     const handleChartClick = params => {
       // 原生 MouseEvent
       const e = params.event.event;
       e.preventDefault();
       e.stopPropagation();
-
       // 只处理 treemap 的矩形
       if (params.componentType !== 'series' || params.seriesType !== 'treemap') {
         closeTreeMapMenu();
         return;
       }
-      showTreeMapMenu(e.clientX + 5, e.clientY, {});
+      showTreeMapMenu(e.clientX + 5, e.clientY, params.data?.row_data);
     };
 
+    /** 展示下钻功能菜单 */
     const showTreeMapMenu = (x: number, y: number, data: any) => {
       showMenu.value = true;
       menuInfo.value = { x, y, data };
@@ -159,6 +160,7 @@ export default defineComponent({
       });
     };
 
+    /** 关闭菜单 */
     const closeTreeMapMenu = () => {
       showMenu.value = false;
       menuInfo.value = {
@@ -169,8 +171,18 @@ export default defineComponent({
       document.removeEventListener('click', closeTreeMapMenu);
     };
 
-    const handleMenuItemClick = (item: any) => {
-      emit('drillDown', item);
+    const handleMenuItemClick = (dimension: string) => {
+      emit('drillDown', {
+        dimension,
+        where: props.displayDimensions.map(id => {
+          return {
+            method: 'eq',
+            value: menuInfo.value.data?.dimensions?.[id] || '',
+            condition: 'and',
+            key: id,
+          };
+        }),
+      });
       closeTreeMapMenu();
     };
 
@@ -190,12 +202,17 @@ export default defineComponent({
           ref='chartRef'
           class='echart-container'
         >
-          <VueEcharts
-            ref='echart'
-            option={this.options}
-            autoresize
-            onClick={this.handleChartClick}
-          />
+          {this.chartData.length ? (
+            <VueEcharts
+              ref='echart'
+              option={this.options}
+              autoresize
+              onClick={this.handleChartClick}
+            />
+          ) : (
+            <EmptyStatus type='empty' />
+          )}
+
           <DrillDownOptions
             ref='menuContainer'
             style={{
@@ -203,8 +220,8 @@ export default defineComponent({
               left: `${this.menuInfo.x}px`,
               top: `${this.menuInfo.y}px`,
             }}
-            active={''}
-            dimensions={this.dimensionList as any[]}
+            active={this.displayDimensions?.[0] || ''}
+            dimensions={this.dimensionList}
             hasTitle={true}
             isFixed={true}
             onSelect={this.handleMenuItemClick}
