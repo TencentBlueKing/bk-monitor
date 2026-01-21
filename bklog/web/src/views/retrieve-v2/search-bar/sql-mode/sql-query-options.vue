@@ -623,7 +623,7 @@ watch(activeIndex, () => {
             <span class="value">{{ $t('AI 解析') }}</span>
           </div>
         </div>
-        <span v-if="showAiAssistant" class="ai-parse-value">{{ aiPreviewText }}</span>
+        <!-- <span v-if="showAiAssistant" class="ai-parse-value">{{ aiPreviewText }}</span> -->
         <div
           class="sql-syntax-link"
           @click="handleSQLReadmeClick"
