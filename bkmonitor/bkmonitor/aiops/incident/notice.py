@@ -62,7 +62,11 @@ class IncidentNoticeHelper:
         # 计算故障持续时间
         # 对于观察通知，从 kwargs 中获取 last_minutes（已在 operation.py 中计算好）
         # 对于其他通知，使用正常的持续时间计算
-        observe_duration_info = None
+        observe_duration_info = {
+            "duration_msg": "",
+            "duration_range": [],
+            "duration_range_msg": "",
+        }
         if operation_type == IncidentOperationType.OBSERVE:
             last_minutes = kwargs.get("last_minutes")
             if last_minutes is not None:
