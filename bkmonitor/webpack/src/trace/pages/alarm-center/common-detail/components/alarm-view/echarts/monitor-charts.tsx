@@ -84,7 +84,7 @@ export default defineComponent({
       default: true,
     },
   },
-  emits: ['dataZoomChange', 'durationChange', 'restore', 'click', 'menuClick'],
+  emits: ['dataZoomChange', 'durationChange', 'restore', 'click', 'menuClick', 'zrClick'],
   setup(props, { emit }) {
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const instance = getCurrentInstance();
@@ -141,6 +141,25 @@ export default defineComponent({
       emit('click', params);
     };
 
+    /**
+     * @description 处理空白处点击事件(zr:click)
+     */
+    const handleZrClick = params => {
+      const pointInPixel = [params.offsetX, params.offsetY];
+      // x轴数据的索引值
+      const pointInGrid = chartInstance.value.convertFromPixel({ seriesIndex: 0 }, pointInPixel);
+      // 所点击点的X轴坐标点所在X轴data的下标
+      const xIndex = pointInGrid[0];
+      // 使用getOption() 获取图表的option
+      const op = chartInstance.value.getOption();
+      // 获取到x轴的索引值和option之后，我们就可以获取我们需要的任意数据。
+      // 点击点的X轴对应坐标的名称
+      const xAxis = op.xAxis[0].data[xIndex];
+      // 点击点的series -- data对应的值
+      const yAxis = op.series[0].data[xIndex]?.value;
+      emit('zrClick', { ...params, xAxis, yAxis });
+    };
+
     const handleCustomMenuClick = (item: IMenuItem) => {
       if (props.customMenuClick?.includes(item.id)) {
         emit('menuClick', item);
@@ -188,6 +207,7 @@ export default defineComponent({
       handleSelectLegend,
       handleDataZoom,
       handleClick,
+      handleZrClick,
     };
   },
   render() {
@@ -227,6 +247,7 @@ export default defineComponent({
                 autoresize
                 onClick={this.handleClick}
                 onDatazoom={e => this.handleDataZoom(e, this.options)}
+                onZr:click={this.handleZrClick}
               />
 
               {this.showRestore && (
