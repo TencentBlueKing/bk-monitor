@@ -100,9 +100,9 @@ const showAiAssistant = computed(() => {
  * @description AI 预览文本
  * @returns {string}
  */
-const aiPreviewText = computed(() => {
-  return props.value;
-});
+// const aiPreviewText = computed(() => {
+//   return props.value;
+// });
 
 /** 所有字段的字段名 */
 const totalFieldsNameList = computed(() => {
