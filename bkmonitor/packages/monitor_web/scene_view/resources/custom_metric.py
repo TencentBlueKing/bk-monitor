@@ -368,6 +368,7 @@ class GetCustomTsGraphConfig(Resource):
                                 "query_configs": [query_config],
                                 "function": function,
                                 "metric": {"name": metric["name"], "alias": metric.get("alias", "")},
+                                "unit": metric.get("unit", ""),
                             }
                         ],
                     }
@@ -468,6 +469,7 @@ class GetCustomTsGraphConfig(Resource):
                             "alias": "",
                             "query_configs": [query_config],
                             "metric": {"name": metric["name"], "alias": metric.get("alias", "")},
+                            "unit": metric.get("unit", ""),
                         }
                     )
                 # 计算图表标题
@@ -621,6 +623,7 @@ class GetCustomTsGraphConfig(Resource):
                         "dimensions": dimensions,
                         "aggregate_method": field_config.get("aggregate_method", "AVG"),
                         "function": field_config.get("function", []),
+                        "unit": field_config.get("unit", ""),
                     }
                 )
 
