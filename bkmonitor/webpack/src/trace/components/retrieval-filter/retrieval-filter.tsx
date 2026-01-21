@@ -32,6 +32,7 @@ import { useResizeObserver } from '@vueuse/core';
 import { Message, Popover } from 'bkui-vue';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import { MODE_LIST } from 'monitor-pc/components/retrieval-filter/utils';
+import overflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
 import { transformFieldName } from '../../pages/trace-explore/components/trace-explore-table/constants';
@@ -56,6 +57,9 @@ import './retrieval-filter.scss';
 
 export default defineComponent({
   name: 'RetrievalFilter',
+  directives: {
+    overflowTips,
+  },
   props: RETRIEVAL_FILTER_PROPS,
   emits: RETRIEVAL_FILTER_EMITS,
   setup(props, { emit }) {

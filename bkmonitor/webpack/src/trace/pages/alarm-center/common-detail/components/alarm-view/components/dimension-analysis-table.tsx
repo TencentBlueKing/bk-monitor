@@ -31,6 +31,7 @@ import { useI18n } from 'vue-i18n';
 import { useTippy } from 'vue-tippy';
 
 import DrillDownOptions from './drill-down-options';
+import { getValueFormatFn, handleGetMinPrecisionFn } from './utils';
 
 import './dimension-analysis-table.scss';
 
@@ -53,20 +54,7 @@ export default defineComponent({
     },
     tableData: {
       type: Array as PropType<any[]>,
-      default: () =>
-        new Array(10).fill(null).map((_, index) => ({
-          dimensions: new Array(10).fill(null).reduce((prev, _, _index) => {
-            prev[`dimension_0${_index}`] = `维度值-${index}`;
-            return prev;
-          }, {} as any),
-          '0s': 116551,
-          growth_rates: {
-            '0s': 0,
-          },
-          proportions: {
-            '0s': 5.75,
-          },
-        })),
+      default: () => [],
     },
   },
   emits: {
@@ -118,6 +106,30 @@ export default defineComponent({
       });
       destroyPopoverInstance();
     };
+    const renderPercentage = (row: any) => {
+      if (row.percentage === undefined || row.percentage === null) {
+        return '--';
+      }
+      return <span>{row.percentage}%</span>;
+    };
+    const renderValue = (row: any, prop: string) => {
+      console.log(row);
+      if (row[prop] === undefined || row[prop] === null) {
+        return '--';
+      }
+      const precision = handleGetMinPrecisionFn(
+        props.tableData.map(item => item[prop]).filter((set: any) => typeof set === 'number'),
+        getValueFormatFn(row.unit),
+        row.unit
+      );
+      const unitFormatter = getValueFormatFn(row.unit);
+      const set: any = unitFormatter(row[prop], row.unit !== 'none' && precision < 1 ? 2 : precision);
+      return (
+        <span>
+          {set.text} {set.suffix}
+        </span>
+      );
+    };
     const columns = computed<TdPrimaryTableProps['columns']>(
       () =>
         [
@@ -129,7 +141,10 @@ export default defineComponent({
               cell: (_h, { row }) => {
                 return (
                   <div class='dimension-value'>
-                    <span class='color-rect' />
+                    <span
+                      style={{ background: row?.color || '#7EC7E7' }}
+                      class='color-rect'
+                    />
                     {row?.dimensions?.[dimension] || '--'}
                   </div>
                 );
@@ -162,8 +177,8 @@ export default defineComponent({
             width: 100,
             sorter: true,
             fixed: 'right',
-            cell: (_h, { _row }) => {
-              return <div>占比</div>;
+            cell: (_h, { row }) => {
+              return renderPercentage(row);
             },
           },
           {
@@ -171,8 +186,8 @@ export default defineComponent({
             title: t('当前值'),
             width: 100,
             fixed: 'right',
-            cell: (_h, { _row }) => {
-              return <div>当前值</div>;
+            cell: (_h, { row }) => {
+              return renderValue(row, 'value');
             },
           },
         ] as any

@@ -141,11 +141,11 @@ export const shortcuts = [
     value: ['now-1d/d', 'now-1d/d'],
   },
   {
-    text: window.i18n.tc('前天'),
+    text: window.i18n.t('前天'),
     value: ['now-2d/d', 'now-2d/d'],
   },
   {
-    text: window.i18n.tc('本周'),
+    text: window.i18n.t('本周'),
     value: ['now/w', 'now/w'],
   },
 ];
