@@ -972,7 +972,6 @@ class ClusterConfig(models.Model):
             "spec": {
                 "host": cluster.domain_name,
                 "port": cluster.port,
-                "streamToId": cluster.gse_stream_to_id,
                 "role": "outer",
             },
         }

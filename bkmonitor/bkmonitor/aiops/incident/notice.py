@@ -12,14 +12,19 @@ import logging
 import time
 from datetime import datetime
 
+import arrow
 from django.conf import settings
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.incident import IncidentDocument
 from bkmonitor.utils.send import IncidentSender
 from constants.action import NoticeWay
+from constants.alert import EventStatus
 from bkm_space.api import SpaceApi
-from constants.incident import IncidentStatus, IncidentLevel
+from constants.incident import IncidentStatus, IncidentLevel, IncidentOperationType
+from core.errors.alert import AlertNotFoundError
 
 logger = logging.getLogger("incident.notice")
 
@@ -29,36 +34,56 @@ class IncidentNoticeHelper:
 
     @classmethod
     def get_incident_context(
-        cls,
-        incident: IncidentDocument,
-        title: str = None,
-        is_update: bool = False,
+        cls, incident: IncidentDocument, title: str = None, operation_type: IncidentOperationType = None, **kwargs
     ) -> dict:
         """
         构建故障通知的上下文
 
         :param incident: 故障文档对象
         :param title: 通知标题
-        :param is_update: 是否为更新通知
+        :param operation_type: 通知类型
         :return: 通知上下文字典
         """
 
         # 获取业务名称
         try:
             space = SpaceApi.get_space_detail(bk_biz_id=int(incident.bk_biz_id))
-            business_name = space.space_name
+            business_name = f"[{int(incident.bk_biz_id)}]{space.space_name}"
         except Exception as e:
             business_name = str(incident.bk_biz_id)
             logger.warning(f"获取业务名称失败: {e}")
 
+        # 属性状态变化（提前获取，用于后续逻辑判断）
+        incident_key = kwargs.get("incident_key")
+        from_value = kwargs.get("from_value") or "null"
+        to_value = kwargs.get("to_value") or "null"
+        incident_key_alias = kwargs.get("incident_key_alias") or incident_key
+
         # 计算故障持续时间
-        duration = cls._format_duration(incident.create_time, incident.end_time)
+        # 对于观察通知，计算观察时长（当前时间到end_time的差值）
+        # 对于其他通知，使用正常的持续时间计算
+        observe_duration_info = None
+        if operation_type == IncidentOperationType.OBSERVE and incident.end_time:
+            # 观察通知：计算已观察时长（当前时间 - end_time，因为end_time在观察状态下表示观察开始时间）
+            observe_duration_info = cls._format_observe_duration(incident.end_time)
+        end_time_for_duration = incident.end_time if incident.end_time else None
+        duration_info = cls._format_duration(incident.begin_time, end_time_for_duration)
+
+        # 获取告警统计信息
+        alert_stats = cls._get_alert_stats(incident)
 
         # 获取故障根因
         incident_reason = cls._get_incident_reason(incident)
 
         # 获取故障状态
-        status = IncidentStatus(incident.status).alias if incident.status else _("未知")
+        # 如果是状态更新通知，优先使用新状态值
+        if operation_type == IncidentOperationType.UPDATE and incident_key == "status" and to_value:
+            try:
+                status = IncidentStatus(to_value).alias
+            except (ValueError, AttributeError):
+                status = IncidentStatus(incident.status).alias if incident.status else _("未知")
+        else:
+            status = IncidentStatus(incident.status).alias if incident.status else _("未知")
 
         # 获取故障级别
         level = IncidentLevel(incident.level).alias if incident.level else _("未知")
@@ -72,23 +97,52 @@ class IncidentNoticeHelper:
         # 通知时间
         notify_time = datetime.fromtimestamp(int(time.time())).strftime("%Y-%m-%d %H:%M:%S")
 
+        # 故障合并信息
+        link_incident_name = kwargs.get("link_incident_name")
+
         # 默认标题
+        subtitle = ""
         if not title:
-            if is_update:
-                title = _("故障更新通知")
-            else:
-                title = _("故障生成通知")
+            # 根据操作类型确定通知标题
+            title_map = {
+                IncidentOperationType.CREATE: "故障生成",
+                IncidentOperationType.OBSERVE: "故障通知",
+                IncidentOperationType.RECOVER: "故障恢复",
+                IncidentOperationType.REOPEN: "故障重新打开",
+                IncidentOperationType.UPDATE: "故障更新",
+                IncidentOperationType.MERGE: "故障合并",
+                IncidentOperationType.MERGE_TO: "故障合并",
+            }
+            subtitle_map = {
+                IncidentOperationType.CREATE: f"【{duration_info['duration_range'][0]}】发生【{incident.incident_name}】",
+                IncidentOperationType.OBSERVE: f"故障当前状态 观察中，已观察【{observe_duration_info['duration_msg']}】",
+                IncidentOperationType.RECOVER: f"【{incident.incident_name}】故障已恢复",
+                IncidentOperationType.REOPEN: "故障在观察期间重新打开",
+                IncidentOperationType.UPDATE: f"【{incident_key_alias}】原始值：{from_value} → 最新值：{to_value}"
+                if incident_key
+                else "故障状态更新",
+                IncidentOperationType.MERGE: f"故障【{link_incident_name}】合并入当前故障"
+                if link_incident_name
+                else "故障合并",
+                IncidentOperationType.MERGE_TO: f"当前故障合并到【{link_incident_name}】"
+                if link_incident_name
+                else "故障合并",
+            }
+            title = title_map.get(operation_type, "故障通知")
+            subtitle = subtitle_map.get(operation_type, "")
 
         context = {
             "title": title,
+            "subtitle": subtitle,
             "incident_name": incident.incident_name or _("未命名故障"),
             "level": level,
+            "begin_time": duration_info["duration_range"][0],
             "notify_time": notify_time,
             "business_name": business_name,
             "incident_reason": incident_reason,
             "status": status,
-            "duration": duration,
-            "number": incident.alert_count or 0,
+            "duration": f"{duration_info['duration_msg']}{duration_info['duration_range_msg']}",
+            "number": alert_stats,
             "assignees": assignees,
             "url": url,
             "bk_biz_id": incident.bk_biz_id,
@@ -98,37 +152,135 @@ class IncidentNoticeHelper:
         return context
 
     @classmethod
-    def _format_duration(cls, create_time: int, end_time: int = None) -> str:
+    def _format_observe_duration(cls, observe_start_time: int) -> dict:
         """
-        格式化故障持续时间
+        格式化观察时长（从观察开始时间到当前时间）
 
-        :param create_time: 创建时间戳
-        :param end_time: 结束时间戳
-        :return: 格式化的持续时间字符串
+        :param observe_start_time: 观察开始时间戳
+        :return: 格式化的观察时长字典
         """
-        if not create_time:
-            return _("未知")
+        if not observe_start_time:
+            return {"duration_msg": _("未知"), "duration_range": ["", ""], "duration_range_msg": ""}
 
-        end = end_time if end_time else int(time.time())
-        duration_seconds = end - create_time
+        current_time = int(time.time())
+        duration_seconds = current_time - observe_start_time
+
+        # 将时间戳转换为本地时区的格式化字符串
+        tz_name = timezone.get_current_timezone().zone
+        observe_start_str = arrow.get(observe_start_time).to(tz_name).strftime("%Y-%m-%d %H:%M:%S")
+        current_time_str = arrow.get(current_time).to(tz_name).strftime("%Y-%m-%d %H:%M:%S")
 
         if duration_seconds < 60:
-            return _("{}秒").format(duration_seconds)
+            duration_msg = _("{}秒").format(duration_seconds)
         elif duration_seconds < 3600:
             minutes = duration_seconds // 60
-            return _("{}分钟").format(minutes)
+            duration_msg = _("{}分钟").format(minutes)
         elif duration_seconds < 86400:
             hours = duration_seconds // 3600
             minutes = (duration_seconds % 3600) // 60
             if minutes > 0:
-                return _("{}小时{}分钟").format(hours, minutes)
-            return _("{}小时").format(hours)
+                duration_msg = _("{}小时{}分钟").format(hours, minutes)
+            else:
+                duration_msg = _("{}小时").format(hours)
         else:
             days = duration_seconds // 86400
             hours = (duration_seconds % 86400) // 3600
             if hours > 0:
-                return _("{}天{}小时").format(days, hours)
-            return _("{}天").format(days)
+                duration_msg = _("{}天{}小时").format(days, hours)
+            else:
+                duration_msg = _("{}天").format(days)
+
+        return {
+            "duration_msg": duration_msg,
+            "duration_range": [observe_start_str, current_time_str],
+            "duration_range_msg": f"({observe_start_str} 至 {current_time_str})",
+        }
+
+    @classmethod
+    def _format_duration(cls, begin_time: int, end_time: int = None) -> dict:
+        """
+        格式化故障持续时间
+
+        :param begin_time: 故障开始时间戳
+        :param end_time: 结束时间戳
+        :return: 格式化的持续时间字符串
+        """
+        if not begin_time:
+            return _("未知")
+
+        end = end_time if end_time else int(time.time())
+        duration_seconds = end - begin_time
+
+        # 将时间戳转换为本地时区的格式化字符串
+        tz_name = timezone.get_current_timezone().zone
+        begin_time_str = arrow.get(begin_time).to(tz_name).strftime("%Y-%m-%d %H:%M:%S")
+        end_time_str = arrow.get(end).to(tz_name).strftime("%Y-%m-%d %H:%M:%S")
+
+        if duration_seconds < 60:
+            duration_msg = _("{}秒").format(duration_seconds)
+        elif duration_seconds < 3600:
+            minutes = duration_seconds // 60
+            duration_msg = _("{}分钟").format(minutes)
+        elif duration_seconds < 86400:
+            hours = duration_seconds // 3600
+            minutes = (duration_seconds % 3600) // 60
+            if minutes > 0:
+                duration_msg = _("{}小时{}分钟").format(hours, minutes)
+            else:
+                duration_msg = _("{}小时").format(hours)
+        else:
+            days = duration_seconds // 86400
+            hours = (duration_seconds % 86400) // 3600
+            if hours > 0:
+                duration_msg = _("{}天{}小时").format(days, hours)
+            else:
+                duration_msg = _("{}天").format(days)
+        return {
+            "duration_msg": duration_msg,
+            "duration_range": [begin_time_str, end_time_str],
+            "duration_range_msg": f"({begin_time_str} 至 {end_time_str})",
+        }
+
+    @classmethod
+    def _get_alert_stats(cls, incident: IncidentDocument) -> str:
+        """
+        获取告警统计信息
+
+        :param incident: 故障文档对象
+        :return: 格式化的告警统计字符串，如"共100条告警（未恢复10条）"
+        """
+        if not incident.snapshot or not incident.snapshot.content:
+            total_count = incident.alert_count or 0
+            return f"共{total_count}条告警"
+
+        # 获取快照中的所有告警信息
+        incident_alerts = incident.snapshot.content.incident_alerts
+        total_count = len(incident_alerts)
+        abnormal_count = 0
+
+        # 统计未恢复的告警数量
+        for item in incident_alerts:
+            # 优先使用 incident_alerts 中的 alert_status 字段
+            if "alert_status" in item and item["alert_status"]:
+                if item["alert_status"] == EventStatus.ABNORMAL:
+                    abnormal_count += 1
+            else:
+                # 如果没有 alert_status 字段，则查询 AlertDocument
+                try:
+                    alert_doc = AlertDocument.get(item["id"])
+                    if alert_doc.status == EventStatus.ABNORMAL:
+                        abnormal_count += 1
+                except AlertNotFoundError:
+                    logger.warning(f"Alert document not found: {item['id']}, skip counting")
+                    continue
+                except Exception as e:
+                    logger.error(f"Failed to get alert document {item['id']}: {e}")
+                    continue
+
+        if abnormal_count > 0:
+            return f"共{total_count}条告警（未恢复{abnormal_count}条）"
+        else:
+            return f"共{total_count}条告警"
 
     @classmethod
     def _get_incident_reason(cls, incident: IncidentDocument) -> str:
@@ -138,22 +290,7 @@ class IncidentNoticeHelper:
         :param incident: 故障文档对象
         :return: 故障根因字符串
         """
-        # TODO: 根据实际的故障快照数据结构获取根因信息
-        # 这里需要根据实际的数据结构来实现
-        if incident.snapshot and incident.snapshot.content:
-            # 尝试从快照中获取根因信息
-            try:
-                content = incident.snapshot.content
-                if hasattr(content, "incident_root"):
-                    return str(content.incident_root)
-                elif hasattr(content, "rca_summary"):
-                    rca_summary = content.rca_summary
-                    if isinstance(rca_summary, dict) and "root_cause" in rca_summary:
-                        return str(rca_summary["root_cause"])
-            except Exception as e:
-                logger.warning(f"Failed to get incident reason: {e}")
-
-        return _("分析中...")
+        return incident.incident_reason or incident.incident_name
 
     @classmethod
     def _get_incident_url(cls, incident: IncidentDocument) -> str:
@@ -164,7 +301,7 @@ class IncidentNoticeHelper:
         :return: 故障详情URL
         """
         # 构建故障详情页面URL
-        site_url = settings.SITE_URL.rstrip("/")
+        site_url = settings.BK_MONITOR_HOST.rstrip("/")
         return f"{site_url}/?bizId={incident.bk_biz_id}#/trace/incident/detail/{incident.id}"
 
     @classmethod
@@ -174,7 +311,8 @@ class IncidentNoticeHelper:
         chat_ids: list[str] = None,
         user_ids: list[str] = None,
         title: str = None,
-        is_update: bool = False,
+        operation_type: IncidentOperationType = None,
+        **kwargs,
     ) -> dict[str, dict]:
         """
         发送故障通知（支持多种通知方式）
@@ -183,7 +321,7 @@ class IncidentNoticeHelper:
         :param chat_ids: 企业微信群ID列表（用于群机器人通知）
         :param user_ids: 用户ID列表（用于个人通知）
         :param title: 通知标题
-        :param is_update: 是否为更新通知
+        :param operation_type: 操作类型
         :return: 发送结果，格式: {notice_way: {receiver: {result, message}}}
         """
         all_results = {}
@@ -191,10 +329,7 @@ class IncidentNoticeHelper:
         # 1. 发送企业微信群机器人通知
         if chat_ids:
             wxwork_bot_result = cls._send_wxwork_bot_notice(
-                incident=incident,
-                chat_ids=chat_ids,
-                title=title,
-                is_update=is_update,
+                incident=incident, chat_ids=chat_ids, title=title, operation_type=operation_type, **kwargs
             )
             if wxwork_bot_result:
                 all_results[NoticeWay.WX_BOT] = wxwork_bot_result
@@ -210,7 +345,8 @@ class IncidentNoticeHelper:
                     user_ids=user_ids,
                     notice_way=notice_way,
                     title=title,
-                    is_update=is_update,
+                    operation_type=operation_type,
+                    **kwargs,
                 )
                 if personal_result:
                     all_results[notice_way] = personal_result
@@ -223,7 +359,8 @@ class IncidentNoticeHelper:
         incident: IncidentDocument,
         chat_ids: list[str],
         title: str = None,
-        is_update: bool = False,
+        operation_type: IncidentOperationType = None,
+        **kwargs,
     ) -> dict:
         """
         发送企业微信群机器人通知
@@ -244,7 +381,7 @@ class IncidentNoticeHelper:
 
         try:
             # 构建通知上下文
-            context = cls.get_incident_context(incident, title, is_update)
+            context = cls.get_incident_context(incident, title, operation_type, **kwargs)
 
             # 创建发送器
             sender = IncidentSender(
@@ -274,7 +411,8 @@ class IncidentNoticeHelper:
         user_ids: list[str],
         notice_way: str,
         title: str = None,
-        is_update: bool = False,
+        operation_type: IncidentOperationType = None,
+        **kwargs,
     ) -> dict:
         """
         发送个人通知（企业微信、邮件、短信等）
@@ -292,7 +430,7 @@ class IncidentNoticeHelper:
 
         try:
             # 构建通知上下文
-            context = cls.get_incident_context(incident, title, is_update)
+            context = cls.get_incident_context(incident, title, operation_type, **kwargs)
 
             # 根据通知方式选择模板
             if notice_way == NoticeWay.MAIL:
