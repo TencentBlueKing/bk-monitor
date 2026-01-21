@@ -7,6 +7,7 @@ from typing import Any
 from django.core.management import BaseCommand, CommandError
 from django.db import transaction
 
+from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.utils.local import activate_request
@@ -160,6 +161,8 @@ class OverseasMigrateTool:
             for data in container_collector_config_file_datas
         ]
 
+        collector_config_id_name_dict = {}
+
         # 遍历索引集数据，进行迁移操作
         for data in index_set_file_datas:
             if self.bk_biz_id and (
@@ -185,7 +188,11 @@ class OverseasMigrateTool:
                 collector_config_data = collector_config_file_data_dict.get(index_set_id, {})
 
                 if collector_config_data:
-                    collector_config_id = collector_config_data.pop("collector_config_id")
+                    collector_config_id = collector_config_data.get("collector_config_id")
+
+                    collector_config_id_name_dict[collector_config_id] = collector_config_data.get(
+                        "collector_config_name"
+                    )
 
                     container_collector_config_datas = container_collector_config_file_data_dict.get(
                         collector_config_id, []
@@ -256,6 +263,17 @@ class OverseasMigrateTool:
 
         activate_request(generate_request("admin"))
         self.db.close()
+
+        for collector_config_id, collector_config_name in collector_config_id_name_dict.items():
+            try:
+                CollectorHandler.get_instance(collector_config_id).start()
+            except Exception as e:
+                Prompt.error(
+                    msg="采集项 [{collector_config_id}] {collector_config_name} 重新启用失败, 错误信息: {error}",
+                    collector_config_id=collector_config_id,
+                    collector_config_name=collector_config_name,
+                    error=str(e),
+                )
 
     @transaction.atomic
     def remove_id_except_index_set_id_migrate(self):
@@ -405,7 +423,7 @@ class OverseasMigrateTool:
         打印迁移失败日志
         """
         Prompt.error(
-            msg="索引集[{index_set_id}] {index_set_name}迁移失败, 错误信息: {error}",
+            msg="索引集 [{index_set_id}] {index_set_name} 迁移失败, 错误信息: {error}",
             index_set_id=data.get("index_set_id", "no index set id"),
             index_set_name=data.get("index_set_name", "no index set name"),
             error=migrate_record["details"],
