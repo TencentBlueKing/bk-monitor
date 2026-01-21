@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import json
 import os
 import socket
 
@@ -42,6 +43,26 @@ HOSTNAME = socket.gethostname()
 STAGE = os.getenv("BKPAAS_ENVIRONMENT", "dev")
 
 
+def get_from_request_param(request, key, default=None):
+    """
+    从请求参数中获取指定的参数值
+    """
+    # 优先从 GET 和 POST 参数中获取
+    value = request.GET.get(key) or request.POST.get(key)
+    if value:
+        return value
+
+    # 如果 GET/POST 参数为空，尝试从 JSON 请求体中获取
+    if request.content_type == "application/json":
+        try:
+            body_data = json.loads(request.body) if request.body else {}
+            value = body_data.get(key)
+        except Exception:
+            pass
+
+    return value or default
+
+
 class UserLocalMiddleware(MiddlewareMixin):
     """
     国际化中间件，从BK_LOGIN获取个人配置的时区
@@ -62,17 +83,7 @@ class UserLocalMiddleware(MiddlewareMixin):
             return None
 
         # 从请求参数中获取时区（支持GET和POST参数）
-        param_timezone = request.GET.get("time_zone") or request.POST.get("time_zone")
-        # 如果 POST 参数为空，尝试从 JSON 请求体中获取（适用于 Content-Type: application/json）
-        if not param_timezone and request.method == "POST":
-            import json
-
-            try:
-                body_data = json.loads(request.body.decode("utf-8")) if request.body else {}
-                param_timezone = body_data.get("time_zone")
-            except Exception:
-                pass
-
+        param_timezone = get_from_request_param(request, "time_zone")
         user_info = self._get_user_info(user=request.user.username)
         tzname = param_timezone or user_info.get("time_zone", settings.TIME_ZONE)
         set_local_param("time_zone", tzname)
