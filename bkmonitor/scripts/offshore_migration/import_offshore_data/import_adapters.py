@@ -63,6 +63,10 @@ class TimestampImportAdapter(BaseImportAdapter):
 class BizIDImportAdapter(BaseImportAdapter):
     """
     业务ID导入适配器，处理业务ID映射
+    
+    说明：
+    - 如果数据有 _biz_id_mapping_required 标记，说明 Export 时没有映射，需要在此处映射
+    - 如果数据没有标记，说明 Export 时已经映射过了，直接使用即可
     """
     
     def __init__(self, config: dict):
@@ -75,11 +79,13 @@ class BizIDImportAdapter(BaseImportAdapter):
     def adapt(self, data: Any) -> Any:
         """
         处理业务ID映射
+        
+        只处理标记了 _biz_id_mapping_required 的数据
         """
         if not isinstance(data, dict):
             return data
         
-        # 检查是否需要业务ID映射
+        # 只有当数据被标记为需要映射时才处理
         if data.get("_biz_id_mapping_required"):
             original_biz_id = data.get("bk_biz_id")
             if original_biz_id is not None:
@@ -90,69 +96,32 @@ class BizIDImportAdapter(BaseImportAdapter):
                         f"请在配置文件的 biz_id_mapping.mapping 中添加映射。"
                     )
                 data["bk_biz_id"] = new_biz_id
+            
+            # 移除标记字段
+            data.pop("_biz_id_mapping_required", None)
         
-        # 无论什么情况都移除标记字段（确保不会传递到模型创建）
-        data.pop("_biz_id_mapping_required", None)
-        
+        # 如果没有标记，说明已经在 Export 时映射过了，不做任何处理
         return data
 
 
 class UserInfoImportAdapter(BaseImportAdapter):
     """
     用户信息导入适配器
+    
+    说明：用户信息已经在 Export 阶段根据配置处理过了，Import 阶段不需要重复处理。
+    保留此类只是为了接口一致性。
     """
     
     def __init__(self, config: dict):
         super().__init__(config)
-        user_config = config.get("user_mapping", {})
-        self.strategy = user_config.get("strategy", "keep")
-        self.default_user = user_config.get("default_user", "admin")
     
     def adapt(self, data: Any) -> Any:
         """
-        处理用户字段
+        不做任何处理，直接返回数据
+        
+        用户信息已在 Export 阶段处理，这里无需重复操作
         """
-        if not isinstance(data, dict):
-            return data
-        
-        user_fields = ["create_user", "update_user", "created_by", "updated_by"]
-        
-        for field in user_fields:
-            if field in data:
-                if self.strategy == "replace":
-                    data[field] = self.default_user
-                elif self.strategy == "remove":
-                    data[field] = ""
-                # strategy == "keep" 时不做处理
-        
         return data
-
-
-class DomainImportAdapter(BaseImportAdapter):
-    """
-    域名导入适配器（通常不需要，但保留接口）
-    """
-    
-    def __init__(self, config: dict):
-        super().__init__(config)
-        self.domain_mapping = config.get("domain_mapping", {})
-    
-    def adapt(self, data: Any) -> Any:
-        """
-        替换域名（如果需要反向替换）
-        """
-        if not self.domain_mapping:
-            return data
-        
-        def replace_domain(value):
-            if isinstance(value, str):
-                # 反向替换：新域名 -> 旧域名（如果需要）
-                for new_domain, old_domain in self.domain_mapping.items():
-                    if new_domain in value:
-                        value = value.replace(new_domain, old_domain)
-            return value
-        
-        return recursive_process(data, replace_domain)
 
 
 class ImportAdapterManager:
@@ -168,24 +137,20 @@ class ImportAdapterManager:
     def _initialize_adapters(self):
         """
         初始化适配器
+        
+        说明：
+        - TimestampImportAdapter: 必需，反序列化时间戳
+        - BizIDImportAdapter: 处理标记为需要映射的业务ID
+        - 其他转换（域名、用户）已在 Export 阶段完成，不需要重复处理
         """
         adapters_config = self.config.get("adapters", {})
         
-        # 1. 时间戳适配器（必需）
+        # 1. 时间戳适配器（必需，反序列化）
         self.adapters.append(TimestampImportAdapter(adapters_config))
         
-        # 2. 业务ID适配器（如果配置了映射）
+        # 2. 业务ID适配器（处理带标记的数据）
         if adapters_config.get("biz_id_mapping", {}).get("mapping"):
             self.adapters.append(BizIDImportAdapter(adapters_config))
-        
-        # 3. 用户信息适配器（如果配置了策略）
-        user_mapping = adapters_config.get("user_mapping", {})
-        if user_mapping.get("strategy") in ["replace", "remove"]:
-            self.adapters.append(UserInfoImportAdapter(adapters_config))
-        
-        # 4. 域名适配器（通常不需要，但保留）
-        if adapters_config.get("domain_mapping"):
-            self.adapters.append(DomainImportAdapter(adapters_config))
     
     def apply_adapters(self, data: Any) -> Any:
         """

@@ -16,19 +16,29 @@ from typing import Any
 
 def serialize_datetime(value: Any) -> Any:
     """
-    将 datetime 对象转换为时间戳
+    递归将 datetime 对象转换为时间戳
+    支持处理嵌套在 dict、list 中的 datetime 对象（如 JSONField 的值）
     """
     if isinstance(value, datetime):
         return int(value.timestamp())
+    elif isinstance(value, dict):
+        return {k: serialize_datetime(v) for k, v in value.items()}
+    elif isinstance(value, (list, tuple)):
+        return [serialize_datetime(item) for item in value]
     return value
 
 
 def serialize_decimal(value: Any) -> Any:
     """
-    将 Decimal 对象转换为 float
+    递归将 Decimal 对象转换为 float
+    支持处理嵌套在 dict、list 中的 Decimal 对象（如 JSONField 的值）
     """
     if isinstance(value, Decimal):
         return float(value)
+    elif isinstance(value, dict):
+        return {k: serialize_decimal(v) for k, v in value.items()}
+    elif isinstance(value, (list, tuple)):
+        return [serialize_decimal(item) for item in value]
     return value
 
 

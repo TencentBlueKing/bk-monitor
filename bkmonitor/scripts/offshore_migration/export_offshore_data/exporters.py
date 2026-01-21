@@ -177,32 +177,71 @@ class CollectConfigExporter(BaseExporter, RelationMixin):
     resource_type = "collect_config"
     model_class = CollectConfigMeta
     
+    def _export_plugin_version(self, plugin_version) -> dict:
+        """
+        导出插件版本及其关联的 config 和 info
+        """
+        from monitor_web.models.plugin import CollectorPluginConfig, CollectorPluginInfo
+        
+        version_data = model_to_dict(plugin_version)
+        if hasattr(self, 'apply_adapters'):
+            version_data = self.apply_adapters(version_data)
+        
+        # 导出关联的 config (CollectorPluginConfig)
+        config_id = plugin_version.config_id
+        if config_id:
+            config_obj = CollectorPluginConfig.objects.filter(id=config_id).first()
+            if config_obj:
+                config_data = model_to_dict(config_obj)
+                if hasattr(self, 'apply_adapters'):
+                    config_data = self.apply_adapters(config_data)
+                version_data["_config"] = config_data
+        
+        # 导出关联的 info (CollectorPluginInfo)
+        info_id = plugin_version.info_id
+        if info_id:
+            info_obj = CollectorPluginInfo.objects.filter(id=info_id).first()
+            if info_obj:
+                info_data = model_to_dict(info_obj)
+                if hasattr(self, 'apply_adapters'):
+                    info_data = self.apply_adapters(info_data)
+                version_data["_info"] = info_data
+        
+        return version_data
+    
     def export_relations(self, obj, data: dict) -> dict:
         """
-        导出关联的采集插件信息和部署配置
+        导出关联的部署配置（DeploymentConfigVersion 及其嵌套数据）
+        
+        注意：CollectorPluginMeta 已作为独立资源类型导出，这里不再重复导出
+        只导出 DeploymentConfigVersion 及其嵌套的非独立资源：
+        - deployment_config: DeploymentConfigVersion（未注册为独立资源）
+          - _plugin_version: PluginVersionHistory
+            - _config: CollectorPluginConfig
+            - _info: CollectorPluginInfo
         """
+        from monitor_web.models.collecting import DeploymentConfigVersion
+        from monitor_web.models.plugin import PluginVersionHistory
+        
         relations = {}
         
-        # 导出采集插件信息
-        try:
-            plugin = CollectorPluginMeta.objects.get(
-                plugin_id=obj.plugin_id,
-                bk_tenant_id=obj.bk_tenant_id
-            )
-            plugin_data = model_to_dict(plugin)
-            if hasattr(self, 'apply_adapters'):
-                plugin_data = self.apply_adapters(plugin_data)
-            relations["plugin"] = plugin_data
-        except CollectorPluginMeta.DoesNotExist:
-            logger.warning(f"Plugin {obj.plugin_id} not found for collect config {obj.id}")
-        
-        # 导出部署配置（解决循环依赖问题）
-        if obj.deployment_config:
-            from monitor_web.models.collecting import DeploymentConfigVersion
-            deployment_config_data = model_to_dict(obj.deployment_config)
-            if hasattr(self, 'apply_adapters'):
-                deployment_config_data = self.apply_adapters(deployment_config_data)
-            relations["deployment_config"] = deployment_config_data
+        # 导出部署配置（包含完整嵌套数据，因为 DeploymentConfigVersion 未作为独立资源导出）
+        deployment_config_id = obj.deployment_config_id
+        if deployment_config_id:
+            deployment_config = DeploymentConfigVersion.objects.filter(id=deployment_config_id).first()
+            if deployment_config:
+                deployment_config_data = model_to_dict(deployment_config)
+                if hasattr(self, 'apply_adapters'):
+                    deployment_config_data = self.apply_adapters(deployment_config_data)
+                
+                # 导出关联的 plugin_version (PluginVersionHistory)
+                plugin_version_id = deployment_config.plugin_version_id
+                if plugin_version_id:
+                    plugin_version = PluginVersionHistory.objects.filter(id=plugin_version_id).first()
+                    if plugin_version:
+                        deployment_config_data["_plugin_version"] = self._export_plugin_version(plugin_version)
+                
+                relations["deployment_config"] = deployment_config_data
         
         if relations:
             data["_relations"] = relations

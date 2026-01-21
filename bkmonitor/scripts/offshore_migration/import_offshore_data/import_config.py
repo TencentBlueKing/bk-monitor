@@ -22,9 +22,11 @@ from scripts.offshore_migration.import_offshore_data.importers import IMPORTER_R
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    force=True  # 强制重新配置，避免重复添加 handler
 )
 logger = logging.getLogger(__name__)
+logger.propagate = False  # 禁用日志传播，避免重复输出
 
 
 class ConfigImporter:
@@ -61,7 +63,8 @@ class ConfigImporter:
             "success": 0,
             "failed": 0,
             "skipped": 0,
-            "total": 0
+            "total": 0,
+            "by_resource": {}  # 按资源类型统计
         }
     
     def _load_export_file(self, export_file: str) -> dict:
@@ -107,12 +110,11 @@ class ConfigImporter:
     
     def _get_default_config(self) -> dict:
         """
-        获取默认配置
+        获取默认配置（完整迁移模式）
         """
         return {
             "import": {
-                "resources": [],
-                "conflict_strategy": "skip",
+                "conflict_strategy": "skip",  # skip, overwrite, rename
                 "validate": True,
             },
             "adapters": {
@@ -123,51 +125,97 @@ class ConfigImporter:
     
     def import_all(self) -> dict:
         """
-        执行完整导入
+        执行完整导入（全量迁移模式）
         
         Returns:
             导入结果摘要
         """
-        logger.info("Starting import...")
+        logger.info("=" * 80)
+        logger.info("开始完整迁移导入...")
+        logger.info("=" * 80)
         
         resources_data = self.export_data.get("resources", {})
         
-        # 按照依赖顺序确定要导入的资源类型
-        resources_to_import = self.config.get("import", {}).get("resources", []) or list(resources_data.keys())
-        ordered_resources = [r for r in EXPORT_ORDER if r in resources_to_import]
-        ordered_resources.extend([r for r in resources_to_import if r not in ordered_resources])
+        # 完整迁移：导入所有导出的资源，按依赖顺序
+        ordered_resources = [r for r in EXPORT_ORDER if r in resources_data]
+        ordered_resources.extend([r for r in resources_data.keys() if r not in ordered_resources])
+        
+        total_objects = sum(len(resources_data.get(r, [])) for r in ordered_resources)
+        logger.info(f"待导入: {len(ordered_resources)} 种资源类型, 共 {total_objects} 个对象")
+        logger.info("=" * 80)
         
         # 遍历每一类资源，调用对应的导入器进行数据导入
         for resource_type in ordered_resources:
             if resource_type not in resources_data:
-                logger.info(f"Skipping {resource_type} (not in export data)")
                 continue
             
             try:
                 importer_class = IMPORTER_REGISTRY.get(resource_type)
                 if not importer_class:
-                    logger.warning(f"No importer found for {resource_type}, skipping")
+                    logger.warning(f"未找到 {resource_type} 的导入器，跳过")
                     continue
                 
-                importer = importer_class(self.config, self.adapter_manager, self.id_mapper)
+                importer = importer_class(self.config.get("import", {}), self.adapter_manager, self.id_mapper)
                 data_list = resources_data[resource_type]
                 
-                if data_list:
-                    logger.info(f"Importing {len(data_list)} {resource_type} objects...")
-                    results = importer.import_all(data_list)
-                    
-                    # 更新统计
-                    self.import_summary["total"] += len(data_list)
-                    self.import_summary["success"] += len(results)
-                    logger.info(f"Successfully imported {len(results)}/{len(data_list)} {resource_type} objects")
+                if not data_list:
+                    continue
+                
+                # 导入资源
+                results = importer.import_all(data_list)
+                
+                # 计算本次导入的统计
+                success_count = len(results)
+                total_count = len(data_list)
+                failed_count = total_count - success_count
+                
+                # 更新总体统计
+                self.import_summary["total"] += total_count
+                self.import_summary["success"] += success_count
+                self.import_summary["failed"] += failed_count
+                
+                # 更新按资源类型的统计
+                self.import_summary["by_resource"][resource_type] = {
+                    "success": success_count,
+                    "failed": failed_count,
+                    "total": total_count
+                }
+                
+                # 输出本资源类型的导入结果
+                if failed_count > 0:
+                    logger.warning(f"[{resource_type}] 完成: {success_count}/{total_count} 成功, {failed_count} 失败")
                 else:
-                    logger.info(f"No {resource_type} objects to import")
+                    logger.info(f"[{resource_type}] 完成: {success_count}/{total_count} 全部成功")
                     
             except Exception as e:
-                logger.error(f"Failed to import {resource_type}: {e}", exc_info=True)
-                self.import_summary["failed"] += len(resources_data.get(resource_type, []))
+                resource_count = len(resources_data.get(resource_type, []))
+                logger.error(f"[{resource_type}] 导入失败: {e}", exc_info=True)
+                self.import_summary["failed"] += resource_count
+                self.import_summary["total"] += resource_count
+                self.import_summary["by_resource"][resource_type] = {
+                    "success": 0,
+                    "failed": resource_count,
+                    "total": resource_count
+                }
         
-        logger.info("Import completed!")
+        # 输出最终汇总
+        logger.info("=" * 80)
+        logger.info(f"导入完成汇总:")
+        logger.info(f"  ✓ 成功: {self.import_summary['success']}")
+        logger.info(f"  ✗ 失败: {self.import_summary['failed']}")
+        logger.info(f"  ⊙ 总计: {self.import_summary['total']}")
+        if self.import_summary['total'] > 0:
+            success_rate = self.import_summary['success'] * 100 // self.import_summary['total']
+            logger.info(f"  成功率: {success_rate}%")
+        logger.info("=" * 80)
+        
+        # 如果有失败，输出失败资源类型详情
+        if self.import_summary["failed"] > 0:
+            logger.warning("失败资源类型详情:")
+            for resource_type, stats in self.import_summary["by_resource"].items():
+                if stats["failed"] > 0:
+                    logger.warning(f"  - {resource_type}: {stats['failed']}/{stats['total']} 失败")
+        
         return self.get_import_summary()
     
     def get_import_summary(self) -> dict:
@@ -179,6 +227,7 @@ class ConfigImporter:
             "failed": self.import_summary["failed"],
             "skipped": self.import_summary["skipped"],
             "total": self.import_summary["total"],
+            "by_resource": self.import_summary["by_resource"],
             "id_mapping": self.id_mapper.to_dict()
         }
 
@@ -195,11 +244,23 @@ def main():
     # 执行导入
     summary = importer.import_all()
     
-    print(f"\n✓ Import completed!")
+    print(f"\n{'='*60}")
+    print(f"✓ Import completed!")
+    print(f"{'='*60}")
+    print(f"\nOverall Summary:")
+    print(f"  Total: {summary['total']}")
     print(f"  Success: {summary['success']}")
     print(f"  Failed: {summary['failed']}")
     print(f"  Skipped: {summary['skipped']}")
-    print(f"  Total: {summary['total']}")
+    
+    if summary.get('by_resource'):
+        print(f"\nDetailed Summary by Resource Type:")
+        for resource_type, stats in summary['by_resource'].items():
+            print(f"  {resource_type}:")
+            print(f"    - Success: {stats['success']}/{stats['total']}")
+            print(f"    - Failed: {stats['failed']}")
+    
+    print(f"{'='*60}\n")
 
 
 if __name__ == "__main__":

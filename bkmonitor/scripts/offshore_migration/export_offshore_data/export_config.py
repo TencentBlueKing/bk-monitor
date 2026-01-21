@@ -52,12 +52,11 @@ class ConfigExporter:
     
     def _get_default_config(self) -> dict:
         """
-        获取默认配置
+        获取默认配置（完整导出模式）
         """
         return {
             "export": {
-                "bk_biz_ids": [],
-                "resources": [],
+                "bk_biz_ids": [],  # 空列表表示导出所有业务
                 "output_dir": "./export_data",
             },
             "adapters": {
@@ -69,14 +68,21 @@ class ConfigExporter:
         }
     
     def export_all(self) -> dict:
-        logger.info("Starting export...")
+        logger.info("=" * 80)
+        logger.info("开始完整迁移导出...")
+        logger.info("=" * 80)
 
-        # 按照依赖顺序, 确定要导出的资源类型【对用户的导出顺序进行调整】
-        resources_to_export = self.config.get("export", {}).get("resources", []) or list(EXPORTER_REGISTRY.keys())
-        ordered_resources = [r for r in EXPORT_ORDER if r in resources_to_export]
-        ordered_resources.extend([r for r in resources_to_export if r not in ordered_resources])
+        # 完整导出：导出所有已注册的资源类型，按依赖顺序
+        all_resources = list(EXPORTER_REGISTRY.keys())
+        ordered_resources = [r for r in EXPORT_ORDER if r in all_resources]
+        ordered_resources.extend([r for r in all_resources if r not in ordered_resources])
+        
+        logger.info(f"准备导出 {len(ordered_resources)} 种资源类型")
+        logger.info("=" * 80)
         
         resources_data = {}
+        export_summary = {"total": 0, "success": 0, "failed": 0}
+        
         # 遍历每一类资源，调用对应的导出器进行数据导出
         for resource_type in ordered_resources:
             try:
@@ -85,9 +91,14 @@ class ConfigExporter:
                 data = exporter.export(self.config.get("export", {}).get("bk_biz_ids"))
                 if data:
                     resources_data[resource_type] = data
-                    logger.info(f"Exported {len(data)} {resource_type} objects")
+                    export_summary["total"] += len(data)
+                    export_summary["success"] += 1
+                    logger.info(f"[{resource_type}] 导出 {len(data)} 个对象")
+                else:
+                    logger.info(f"[{resource_type}] 无数据")
             except Exception as e:
-                logger.error(f"Failed to export {resource_type}: {e}", exc_info=True)
+                export_summary["failed"] += 1
+                logger.error(f"[{resource_type}] 导出失败: {e}", exc_info=True)
         
         self.export_results = {
             "version": "1.0",
@@ -99,6 +110,15 @@ class ConfigExporter:
                 "adapters_applied": self.adapter_manager.get_applied_adapter_names()
             }
         }
+        
+        # 输出导出汇总
+        logger.info("=" * 80)
+        logger.info(f"导出完成汇总:")
+        logger.info(f"  ✓ 成功: {export_summary['success']} 种资源类型")
+        logger.info(f"  ⊙ 总计: {export_summary['total']} 个对象")
+        if export_summary['failed'] > 0:
+            logger.warning(f"  ✗ 失败: {export_summary['failed']} 种资源类型")
+        logger.info("=" * 80)
         
         return self.export_results
     

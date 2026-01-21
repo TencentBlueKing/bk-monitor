@@ -8,7 +8,55 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import hashlib
+from datetime import date, datetime
 from typing import Any, Optional
+
+
+def generate_import_hash(data: dict) -> str:
+    """
+    生成导入标记哈希值（用于识别已导入的数据，避免重复导入）
+    基于原始ID和导出时间生成唯一标识
+    
+    Args:
+        data: 包含 _metadata 的数据字典
+    
+    Returns:
+        MD5 哈希值字符串
+    
+    Example:
+        >>> data = {"_metadata": {"original_id": 123, "export_time": "2024-01-01"}}
+        >>> hash_value = generate_import_hash(data)
+        >>> # 可以将 hash_value 存储到模型的某个字段中，用于后续检查是否已导入
+    """
+    original_id = data.get("_metadata", {}).get("original_id")
+    export_time = data.get("_metadata", {}).get("export_time", "")
+    
+    # 使用 original_id + export_time 生成唯一标识
+    unique_str = f"import_{original_id}_{export_time}"
+    return hashlib.md5(unique_str.encode()).hexdigest()
+
+
+def convert_datetime_to_string(data: Any) -> Any:
+    """
+    递归遍历数据结构，将所有 datetime 和 date 对象转换为 ISO 格式字符串
+    
+    Args:
+        data: 任意数据结构（dict、list、datetime、date 或其他）
+    
+    Returns:
+        转换后的数据结构
+    """
+    if isinstance(data, datetime):
+        return data.isoformat()
+    elif isinstance(data, date):
+        return data.isoformat()
+    elif isinstance(data, dict):
+        return {k: convert_datetime_to_string(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_datetime_to_string(item) for item in data]
+    else:
+        return data
 
 
 class ImportIDMapper:

@@ -9,38 +9,13 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from datetime import datetime, date
 from typing import Any, List, Optional
 
 from django.db import transaction
 from django.db.models import Model
 
 from .import_adapters import ImportAdapterManager
-from .import_utils import ImportIDMapper
-
-
-def convert_datetime_to_string(data):
-    """
-    递归转换数据中的 datetime 对象为 ISO 格式字符串
-    
-    Args:
-        data: 任意数据类型
-    
-    Returns:
-        转换后的数据
-    """
-    if isinstance(data, datetime):
-        return data.isoformat()
-    elif isinstance(data, date):
-        return data.isoformat()
-    elif isinstance(data, dict):
-        return {k: convert_datetime_to_string(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [convert_datetime_to_string(item) for item in data]
-    elif isinstance(data, tuple):
-        return tuple(convert_datetime_to_string(item) for item in data)
-    else:
-        return data
+from .import_utils import ImportIDMapper, convert_datetime_to_string
 
 logger = logging.getLogger(__name__)
 
@@ -73,12 +48,10 @@ class BaseImporter:
     
     def should_import(self) -> bool:
         """
-        判断是否需要导入此资源
+        判断是否需要导入此资源（完整迁移模式：始终返回True）
         """
-        resources = self.import_config.get("resources", [])
-        if not resources:
-            return True
-        return self.resource_type in resources
+        # 完整迁移模式：导入所有资源
+        return True
     
     def _get_primary_key_field(self, model_class):
         """
@@ -127,11 +100,14 @@ class BaseImporter:
         Returns:
             处理后的对象
         """
+        # 使用通用的主键获取方式，而不是硬编码 .id
+        existing_pk = self._get_primary_key_value(existing_obj)
+        
         if self.conflict_strategy == "skip":
-            logger.info(f"Skipping {self.resource_type} {existing_obj.id} (already exists)")
+            logger.info(f"Skipping {self.resource_type} {existing_pk} (already exists)")
             return existing_obj
         elif self.conflict_strategy == "overwrite":
-            logger.info(f"Overwriting {self.resource_type} {existing_obj.id}")
+            logger.info(f"Overwriting {self.resource_type} {existing_pk}")
             # 更新现有对象
             for key, value in data.items():
                 if key not in ["id", "_metadata", "_relations"]:
@@ -161,37 +137,44 @@ class BaseImporter:
         # 获取主键字段名
         pk_field = self._get_primary_key_field(self.model_class)
         
-        # 获取模型的所有字段名（包括外键）
-        model_field_names = {f.name for f in self.model_class._meta.get_fields()}
+        # 获取原始主键值
+        original_pk = data.get(pk_field)
         
-        # 移除元数据、关联数据、主键字段和所有以 _ 开头的内部字段
-        # 同时过滤掉模型不存在的字段（如属性、方法等）
-        import_data = {}
-        for k, v in data.items():
-            if k.startswith("_"):
-                continue
-            if k == pk_field:
-                continue
-            # 只保留模型实际存在的字段
-            if k in model_field_names:
-                import_data[k] = v
+        # 尝试保持原始 ID（如果数据库中不存在该 ID）
+        use_original_pk = False
+        if original_pk is not None:
+            try:
+                # 检查该 ID 是否已存在
+                existing = self.model_class.objects.filter(**{pk_field: original_pk}).exists()
+                if not existing:
+                    # ID 不存在，可以使用原始 ID
+                    use_original_pk = True
+                    logger.debug(f"Using original {pk_field}={original_pk} for {self.resource_type}")
+                else:
+                    logger.debug(f"Original {pk_field}={original_pk} already exists, will generate new ID")
+            except Exception as e:
+                logger.debug(f"Error checking {pk_field} existence: {e}")
         
-        # 处理外键字段：将ID转换为 _id 后缀形式（Django推荐方式）
+        # 准备导入数据
+        if use_original_pk:
+            # 保留原始主键
+            import_data = {k: v for k, v in data.items() if not k.startswith("_")}
+        else:
+            # 移除主键字段，让数据库自动生成新的主键
+            import_data = {k: v for k, v in data.items() if not k.startswith("_") and k != pk_field}
+        
+        # 处理 JSONField 的 null 值问题：如果字段是 JSONField 且值为 None，使用模型的默认值
         for field in self.model_class._meta.get_fields():
-            if hasattr(field, 'related_model') and field.related_model:
+            if hasattr(field, 'get_internal_type') and field.get_internal_type() == 'JSONField':
                 field_name = field.name
-                if field_name in import_data and import_data[field_name] is not None:
-                    # 如果值是整数或可转换为整数的字符串，使用 _id 后缀形式
-                    try:
-                        fk_id = int(import_data[field_name])
-                        # 使用 _id 后缀形式，Django会自动处理
-                        import_data[f"{field_name}_id"] = fk_id
-                        del import_data[field_name]
-                    except (ValueError, TypeError):
-                        # 如果不是数字，可能是对象实例或其他类型，保持原样
-                        pass
+                if field_name in import_data and import_data[field_name] is None:
+                    # 获取字段的默认值
+                    if field.has_default():
+                        default = field.get_default()
+                        import_data[field_name] = default
+                        logger.debug(f"Field {field_name} is null, using default value: {default}")
         
-        # 转换 datetime 对象为字符串（避免 JSON 序列化错误）
+        # 转换 datetime 对象为字符串，避免 JSON 序列化错误
         import_data = convert_datetime_to_string(import_data)
         
         # 创建对象
@@ -308,7 +291,7 @@ class BaseImporter:
     
     def import_all(self, resources_data: List[dict]) -> List[Model]:
         """
-        导入所有资源
+        导入所有资源（使用savepoint处理错误，避免整体回滚）
         
         Args:
             resources_data: 资源数据列表
@@ -316,23 +299,32 @@ class BaseImporter:
         Returns:
             导入的对象列表
         """
-        if not self.should_import():
-            logger.info(f"Skipping import for {self.resource_type}")
+        if not resources_data:
             return []
         
-        logger.info(f"Importing {self.resource_type}...")
-        
         results = []
+        failed_count = 0
+        
         with transaction.atomic():
-            for data in resources_data:
+            for i, data in enumerate(resources_data, 1):
+                # 使用 savepoint 确保单个对象失败不影响其他对象
+                sid = transaction.savepoint()
                 try:
                     obj = self.import_single(data)
                     results.append(obj)
+                    transaction.savepoint_commit(sid)
+                        
                 except Exception as e:
+                    transaction.savepoint_rollback(sid)
+                    failed_count += 1
                     original_id = data.get("_metadata", {}).get("original_id", "unknown")
-                    logger.error(f"Failed to import {self.resource_type} {original_id}: {e}", exc_info=True)
+                    # 只记录第一个错误的详细堆栈，其他错误简略记录
+                    if failed_count == 1:
+                        logger.error(f"[{self.resource_type}] Failed to import {original_id}: {e}", exc_info=True)
+                    else:
+                        logger.debug(f"[{self.resource_type}] Failed to import {original_id}: {e}")
         
-        logger.info(f"Successfully imported {len(results)}/{len(resources_data)} {self.resource_type} objects")
+        # 返回统计结果供上层汇总
         return results
 
 
@@ -377,7 +369,7 @@ class RelationImportMixin:
             # 解析其他外键（关联到其他资源）
             item_data = self._resolve_foreign_keys_for_model(item_data, model_class)
             
-            # 转换 datetime 对象为字符串（避免 JSON 序列化错误）
+            # 转换 datetime 对象为字符串，避免 JSON 序列化错误
             item_data = convert_datetime_to_string(item_data)
             
             # 创建关联对象

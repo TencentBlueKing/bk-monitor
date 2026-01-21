@@ -46,12 +46,10 @@ class BaseExporter:
     
     def should_export(self) -> bool:
         """
-        判断是否需要导出此资源
+        判断是否需要导出此资源（完整导出模式：始终返回True）
         """
-        resources = self.export_config.get("resources", [])
-        if not resources:
-            return True
-        return self.resource_type in resources
+        # 完整导出模式：导出所有资源
+        return True
     
     def query_objects(self, bk_biz_ids: list[int]|None = None) -> QuerySet:
         """
