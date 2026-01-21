@@ -27,6 +27,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as SlzValidationError
 
+from apps.api import TransferApi
 from apps.exceptions import ValidationError
 from apps.generic import DataModelSerializer
 from apps.log_commons.serializers import BkIpSerializer
@@ -649,7 +650,8 @@ class StorageCreateSerializer(serializers.Serializer):
     创建集群序列化
     """
 
-    cluster_name = serializers.CharField(label=_("集群名称"), required=True)
+    cluster_name = serializers.RegexField(label=_("集群英文名称"), regex=CLUSTER_NAME_EN_REGEX, required=True)
+    display_name = serializers.CharField(label=_("集群名称"), required=True)
     domain_name = serializers.CharField(label=_("集群域名"), required=True)
     port = serializers.IntegerField(label=_("集群端口"), required=True)
     schema = serializers.CharField(label=_("集群协议"), required=True)
@@ -671,22 +673,37 @@ class StorageCreateSerializer(serializers.Serializer):
     create_bkbase_cluster = serializers.BooleanField(label=_("是否同步到数据平台"), required=False)
     cluster_namespace = serializers.CharField(label=_("命名空间"), required=False)
     bkbase_tags = serializers.ListField(label=_("标签"), required=False, child=serializers.CharField())
-    bkbase_cluster_en_name = serializers.RegexField(
-        label=_("集群英文名称"), regex=CLUSTER_NAME_EN_REGEX, required=False
-    )
     option = serializers.JSONField(label=_("第三方平台配置"), required=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
+        cluster_info_list = TransferApi.get_cluster_info({"cluster_type": "elasticsearch"})
+
+        exist_cluster_name_list = set()
+        exist_display_name_list = set()
+
+        for item in cluster_info_list:
+            cluster_config = item.get("cluster_config", {})
+            if cluster_config.get("cluster_name"):
+                exist_cluster_name_list.add(cluster_config.get("cluster_name"))
+            if cluster_config.get("display_name"):
+                exist_display_name_list.add(cluster_config.get("display_name"))
+
+        if attrs.get("cluster_name") in exist_cluster_name_list:
+            raise ValidationError(_("该集群英文名称已存在"))
+
+        if attrs.get("display_name") in exist_display_name_list:
+            raise ValidationError(_("该集群名称已存在"))
+
         if not attrs["enable_hot_warm"]:
             return attrs
+
         if not all(
             [attrs["hot_attr_name"], attrs["hot_attr_value"], attrs["warm_attr_name"], attrs["warm_attr_value"]]
         ):
             raise ValidationError(_("当冷热数据处于开启状态时，冷热节点属性配置不能为空"))
-        if attrs.get("create_bkbase_cluster") and not attrs.get("bkbase_cluster_en_name"):
-            raise ValidationError(_("同步到数据平台需要提供集群英文名"))
+
         return attrs
 
 
@@ -720,7 +737,9 @@ class StorageBatchDetectSerializer(serializers.Serializer):
 
 
 class StorageUpdateSerializer(serializers.Serializer):
-    cluster_name = serializers.CharField(label=_("集群名称"), required=False)
+    cluster_id = serializers.IntegerField(label=_("集群ID"), required=True)
+    cluster_name = serializers.RegexField(label=_("集群英文名称"), regex=CLUSTER_NAME_EN_REGEX, required=False)
+    display_name = serializers.CharField(label=_("集群名称"), required=True)
     domain_name = serializers.CharField(label=_("集群域名"), required=True)
     port = serializers.IntegerField(label=_("端口"), required=True)
     schema = serializers.CharField(label=_("集群协议"), required=True)
@@ -746,12 +765,30 @@ class StorageUpdateSerializer(serializers.Serializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
+        cluster_info_list = TransferApi.get_cluster_info({"cluster_type": "elasticsearch"})
+
+        exist_display_name_list = set()
+
+        for item in cluster_info_list:
+            cluster_config = item.get("cluster_config", {})
+            if cluster_config.get("cluster_id") == attrs.get("cluster_id"):
+                continue
+            if cluster_config.get("display_name"):
+                exist_display_name_list.add(cluster_config.get("display_name"))
+
+        if attrs.get("display_name") in exist_display_name_list:
+            raise ValidationError(_("该集群名称已存在"))
+
+        attrs.pop("cluster_name")
+
         if not attrs["enable_hot_warm"]:
             return attrs
+
         if not all(
             [attrs["hot_attr_name"], attrs["hot_attr_value"], attrs["warm_attr_name"], attrs["warm_attr_value"]]
         ):
             raise ValidationError(_("当冷热数据处于开启状态时，冷热节点属性配置不能为空"))
+
         return attrs
 
 
