@@ -44,6 +44,7 @@ export const queryConfigToPromql = request('POST', 'rest/v2/grafana/query_config
 export const promqlToQueryConfig = request('POST', 'rest/v2/grafana/promql_to_query_config/');
 export const graphPromqlQuery = request('POST', 'query-api/rest/v2/grafana/graph_promql_query/');
 export const dimensionPromqlQuery = request('POST', 'query-api/rest/v2/grafana/dimension_promql_query/');
+export const getDrillDimensions = request('POST', 'rest/v2/grafana/get_drill_dimensions/');
 export const convertGrafanaPromqlDashboard = request('POST', 'rest/v2/grafana/convert_grafana_promql_dashboard/');
 export const graphTraceQuery = request('POST', 'rest/v2/grafana/time_series/unify_trace_query/');
 export const updateMetricListByBiz = request('POST', 'rest/v2/grafana/update_metric_list_by_biz/');
@@ -108,6 +109,7 @@ export default {
   promqlToQueryConfig,
   graphPromqlQuery,
   dimensionPromqlQuery,
+  getDrillDimensions,
   convertGrafanaPromqlDashboard,
   graphTraceQuery,
   updateMetricListByBiz,

@@ -44,7 +44,7 @@ export class K8sCapacityPromqlGenerator extends K8sBasePromqlGenerator {
       case 'node_cpu_capacity_ratio': // 节点CPU装箱率
         return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(sum by (${context.groupByField},pod) (kube_pod_container_resource_requests{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD",resource="cpu"})
  /
- on (pod) group_left() count by (pod)(kube_pod_status_phase{bcs_cluster_id="${clusterId}",phase!="Evicted"}))
+ on (pod) group_left() count(count by (pod)(kube_pod_status_phase{bcs_cluster_id="${clusterId}",phase!="Evicted"})) by(pod))
 /
 ${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (kube_node_status_allocatable{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD",resource="cpu"})`;
       case 'node_cpu_usage_ratio': // 节点CPU使用率
@@ -60,7 +60,7 @@ ${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (kube_node_status_al
       case 'node_memory_capacity_ratio': // 节点内存装箱率
         return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (sum by (${context.groupByField},pod) (kube_pod_container_resource_requests{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD",resource="memory"})
  /
- on (pod) group_left() count by (pod)(kube_pod_status_phase{bcs_cluster_id="${clusterId}",phase!="Evicted"}))
+ on (pod) group_left() count(count by (pod)(kube_pod_status_phase{bcs_cluster_id="${clusterId}",phase!="Evicted"})) by(pod))
 /
 ${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}  (kube_node_status_allocatable{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD",resource="memory"})`;
       case 'node_memory_usage_ratio': // 节点内存使用率

@@ -25,8 +25,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, provide, reactive, ref, watch } from 'vue';
-import { shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, provide, reactive, ref, shallowRef, watch } from 'vue';
 
 import { Button, Exception, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
@@ -61,6 +60,7 @@ import {
 import { downFile } from '../../utils';
 import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
+import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 import DecodeDialog from '@/components/decode-dialog/decode-dialog';
@@ -100,6 +100,8 @@ export default defineComponent({
   emits: ['show', 'prevNextClicked'],
   setup(props, { emit }) {
     const store = useTraceStore();
+    /** 当前基础信息默认展开的项 */
+    const basicInfoExpand = shallowRef([]);
     const spanDetailQueryStore = useSpanDetailQueryStore();
     const { t } = useI18n();
     /* 侧栏show */
@@ -255,6 +257,16 @@ export default defineComponent({
       { immediate: true, deep: true }
     );
 
+    const getSpanDetailExpandUserConfig = () => {
+      const res = window.localStorage.getItem(TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY);
+      /** 默认展开事件 */
+      basicInfoExpand.value = res ? JSON.parse(res) : [EListItemType.events];
+    };
+
+    onMounted(() => {
+      getSpanDetailExpandUserConfig();
+    });
+
     /** 获取 span 类型描述 */
     function getTypeText() {
       const { kind, source, ebpf_kind: ebpfKind, is_virtual: isVirtual } = props.spanDetails;
@@ -381,7 +393,7 @@ export default defineComponent({
       if (attributes?.length) {
         info.list.push({
           type: EListItemType.tags,
-          isExpan: true,
+          isExpan: basicInfoExpand.value.includes(EListItemType.tags),
           title: 'Attributes',
           [EListItemType.tags]: {
             list:
@@ -403,7 +415,7 @@ export default defineComponent({
         const active = stage_duration[stage_duration.target].type;
         info.list.push({
           type: EListItemType.stageTime,
-          isExpan: true,
+          isExpan: basicInfoExpand.value.includes(EListItemType.stageTime),
           title: t('阶段耗时 (同步)'),
           [EListItemType.stageTime]: {
             active,
@@ -474,10 +486,10 @@ export default defineComponent({
       /** process信息 */
       if (processTags.length) {
         info.list.push({
-          type: EListItemType.tags,
-          isExpan: true,
+          type: EListItemType.resource,
+          isExpan: basicInfoExpand.value.includes(EListItemType.resource),
           title: 'Resource',
-          [EListItemType.tags]: {
+          [EListItemType.resource]: {
             list:
               processTags.map((item: { key: any; query_key: string; query_value: any; type: string; value: any }) => ({
                 label: item.key,
@@ -523,7 +535,7 @@ export default defineComponent({
         );
         info.list.push({
           type: EListItemType.events,
-          isExpan: true,
+          isExpan: basicInfoExpand.value.includes(EListItemType.events),
           title: 'Events',
           [EListItemType.events]: {
             list: eventList,
@@ -580,6 +592,10 @@ export default defineComponent({
     /* 展开收起 */
     const handleExpanChange = (isExpan: boolean, index: number) => {
       info.list[index].isExpan = !isExpan;
+      window.localStorage.setItem(
+        TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY,
+        JSON.stringify(info.list.filter(item => item.isExpan).map(item => item.type))
+      );
     };
 
     const handleSmallExpanChange = (isExpan: boolean, index: number, childIndex: number) => {
@@ -719,8 +735,8 @@ export default defineComponent({
     }
 
     /* 折叠 */
-    const expanItem = (
-      isExpan: boolean,
+    const expandItem = (
+      isExpand: boolean,
       title: string | undefined,
       content: any,
       subTitle: any = '',
@@ -729,13 +745,13 @@ export default defineComponent({
       <div class='expan-item'>
         <div
           class='expan-item-head'
-          onClick={() => expanChange(isExpan)}
+          onClick={() => expanChange(isExpand)}
         >
-          <span class={['icon-monitor icon-mc-arrow-down', { active: isExpan }]} />
+          <span class={['icon-monitor icon-mc-arrow-down', { active: isExpand }]} />
           <span class='expan-item-title'>{title}</span>
           {subTitle || undefined}
         </div>
-        <div class={['expan-item-content', { active: isExpan }]}>{content}</div>
+        <div class={['expan-item-content', { active: isExpand }]}>{content}</div>
       </div>
     );
 
@@ -1376,9 +1392,12 @@ export default defineComponent({
                     }}
                   >
                     {info.list.map((item, index) => {
-                      if (item.type === EListItemType.tags && activeTab.value === 'BasicInfo') {
-                        const content = item[EListItemType.tags];
-                        return expanItem(
+                      if (
+                        (item.type === EListItemType.tags || item.type === EListItemType.resource) &&
+                        activeTab.value === 'BasicInfo'
+                      ) {
+                        const content = item[item.type];
+                        return expandItem(
                           item.isExpan,
                           item.title,
                           tagsTemplate(content.list),
@@ -1389,10 +1408,10 @@ export default defineComponent({
                         );
                       }
                       if (item.type === EListItemType.events && activeTab.value === 'BasicInfo') {
-                        const content = item[EListItemType.events];
+                        const content = item[item.type];
                         const isException =
                           content?.list.some(val => val.header?.name === 'exception') && props.spanDetails?.error;
-                        return expanItem(
+                        return expandItem(
                           item.isExpan,
                           item.title,
                           <div>
@@ -1457,8 +1476,8 @@ export default defineComponent({
                         );
                       }
                       if (item.type === EListItemType.stageTime && activeTab.value === 'BasicInfo') {
-                        const content = item[EListItemType.stageTime];
-                        return expanItem(
+                        const content = item[item.type];
+                        return expandItem(
                           item.isExpan,
                           item.title,
                           stageTimeTemplate(
