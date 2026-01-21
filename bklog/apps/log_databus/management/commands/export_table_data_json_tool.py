@@ -136,7 +136,7 @@ class ExportTableDataJsonTool:
                     )
 
     @staticmethod
-    def get_conditions_and_values_by_fields(
+    def get_conditions_and_values_by_query_fields(
         table_fields: set, query_condition_dict: dict, query_fields: list = None
     ) -> tuple[list, list]:
         if not query_condition_dict or not table_fields or not query_fields:
