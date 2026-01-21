@@ -25,6 +25,12 @@
  */
 
 import { type PropType, defineComponent, provide, shallowRef, toRef } from 'vue';
+import { watch } from 'vue';
+
+import dayjs from 'dayjs';
+import { request } from 'monitor-api/base';
+import { graphDrillDown } from 'monitor-api/modules/scene_view';
+import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants/charts';
 
 import { useDimensionChartPanel } from '../../../composables/use-dimension-chart-panel';
 import DimensionAnalysisTable from './components/dimension-analysis-table';
@@ -32,10 +38,12 @@ import DimensionSelector from './components/dimension-selector';
 import DimensionTreeMapCharts from './echarts/dimension-tree-map-charts';
 import MonitorCharts from './echarts/monitor-charts';
 
-import type { AlarmDetail, IGraphPanel } from '../../../typings';
+import type { IGraphPanel } from '../../../typings';
 import type { TimeRangeType } from './../../../../../components/time-range/utils';
+import type { AlarmDetail } from 'trace/pages/alarm-center/typings/detail';
 
 import './dimension-analysis.scss';
+export const getDrillDimensions = request('POST', 'rest/v2/grafana/get_drill_dimensions/');
 
 const TYPE_ENUM = {
   TABLE: 'table',
@@ -85,14 +93,9 @@ export default defineComponent({
     /** 选中的维度 */
     const selectedDimension = shallowRef<string[]>([dimensionList.value[0].id]);
     /** 下钻条件 */
-    const where = shallowRef([
-      {
-        method: 'eq',
-        value: ['test'],
-        condition: 'and',
-        key: 'test',
-      },
-    ]);
+    const where = shallowRef([]);
+    // 表格数据
+    const tableData = shallowRef([]);
 
     const {
       panel,
@@ -110,13 +113,80 @@ export default defineComponent({
     });
     provide('timeRange', viewerTimeRange);
 
+    const getDrillDimensionsData = async () => {
+      const res = await getDrillDimensions({
+        bk_biz_id: props.detail.bk_biz_id,
+        query_configs:
+          props.detail.extra_info?.strategy?.items?.[0]?.query_configs?.map(queryConfig => ({
+            result_table_id: queryConfig.result_table_id,
+            metric_field: queryConfig.metric_field,
+            configured_dimensions: queryConfig.agg_dimension || [],
+          })) || [],
+      }).catch(() => ['hostname', 'ip']);
+      return res;
+    };
+
+    const graphDrillDownData = async () => {
+      const res = await graphDrillDown({
+        bk_biz_id: props.detail.bk_biz_id,
+        alert_id: props.detail.id,
+        aggregation_method: 'avg',
+        expression: props.detail.extra_info?.strategy?.items?.[0]?.expression || 'a',
+        query_configs: props.detail.graph_panel?.targets?.[0]?.data?.query_configs?.map(queryConfig => {
+          return {
+            metrics: queryConfig.metrics || [],
+            interval: queryConfig.interval || 60,
+            table: queryConfig.table,
+            data_source_label: queryConfig.data_source_label,
+            data_type_label: queryConfig.data_type_label,
+            where: queryConfig.where || [],
+            filter_dict: where.value.length
+              ? {
+                  drill_filter: where.value.reduce((prev, cur) => {
+                    prev[cur.key] = cur.value;
+                    return prev;
+                  }, {}),
+                }
+              : {},
+          };
+        }),
+        start_time: dayjs(viewerTimeRange.value[0]).unix(),
+        end_time: dayjs(viewerTimeRange.value[1]).unix(),
+        group_by: selectedDimension.value,
+      }).catch(() => []);
+      tableData.value = res.map((item, index) => {
+        return {
+          ...item,
+          color: COLOR_LIST[index % COLOR_LIST.length],
+        };
+      });
+      return res;
+    };
+
+    watch(
+      () => props.detail,
+      async newVal => {
+        if (newVal) {
+          const dimensionsData = await getDrillDimensionsData();
+          dimensionList.value = dimensionsData.map(item => ({ id: item, name: item }));
+          selectedDimension.value = dimensionList.value.length ? [dimensionList.value[0].id] : [];
+          console.log(dimensionsData);
+          await graphDrillDownData();
+        }
+      },
+      {
+        immediate: true,
+      }
+    );
+
     const handleDrillDown = (item: any) => {
       console.log(item);
     };
-    const handleTableDrillDown = (obj: { dimension: string; where: any[] }) => {
+    const handleTableDrillDown = async (obj: { dimension: string; where: any[] }) => {
       const existingKeys = new Set(obj.where.map(item => item.key));
       where.value = [...where.value.filter(item => !existingKeys.has(item.key)), ...obj.where];
       selectedDimension.value = [obj.dimension];
+      await graphDrillDownData();
     };
 
     const handleShowTypeChange = (val: string) => {
@@ -146,6 +216,7 @@ export default defineComponent({
       where,
       panel,
       showRestore,
+      tableData,
       formatterChartData,
       handleDrillDown,
       handleTableDrillDown,
@@ -223,6 +294,7 @@ export default defineComponent({
                 <DimensionAnalysisTable
                   dimensions={this.dimensionList}
                   displayDimensions={this.selectedDimension}
+                  tableData={this.tableData}
                   onDrillDown={this.handleTableDrillDown}
                 />
               ) : (
