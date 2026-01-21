@@ -569,6 +569,10 @@ class GraphDrillDownResource(Resource):
         function = serializers.DictField(label="图表函数", required=False, default=dict)
 
         group_by = serializers.ListField(label="下钻维度列表", allow_empty=False)
+        alert_id = serializers.IntegerField(label="告警事件ID", required=False, allow_null=True)
+        aggregation_method = serializers.ChoiceField(
+            label="聚合方法", choices=["sum", "avg", "max", "min"], required=False
+        )
 
     class ResponseSerializer(serializers.Serializer):
         dimensions = serializers.DictField(label="维度值", allow_null=True)
@@ -587,9 +591,21 @@ class GraphDrillDownResource(Resource):
 
     def get_value(self, params: dict, datapoints: list[tuple[float | None, int]]) -> float:
         """
-        计算平均值
+        计算聚合值
         """
-        method = params["query_configs"][0]["metrics"][0]["method"].lower()
+        # 获取聚合方法
+        aggregation_method = params.get("aggregation_method")
+        alert_id = params.get("alert_id")
+        if aggregation_method:
+            # 显式传入了聚合方法，使用指定的方法
+            method = aggregation_method.lower()
+        elif alert_id:
+            # 传了 alert_id 但未传 aggregation_method，使用 avg
+            method = "avg"
+        else:
+            # 都未传，使用第一个指标的方法（向后兼容）
+            method = params["query_configs"][0]["metrics"][0]["method"].lower()
+
         values = [point[0] for point in datapoints if point[0] is not None]
 
         if not values:

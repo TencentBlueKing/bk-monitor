@@ -1245,8 +1245,8 @@ export default {
   集群备注: 'Cluster Remarks',
   '搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人':
     'Task ID, Name, OpenID, Create Method, Status, Stage, Creator',
-  'Alert 文案占位，用于说明如果用 SDK 上报。':
-    'The alert text placeholder is used to explain how to report using the SDK.',
+  '使用本功能，需要在您的项目中集成并初始化相应的软件开发工具包（SDK），点击查看。':
+    'To use this feature, you need to integrate and initialize the corresponding Software Development Kit (SDK) in your project. Click to view.',
   '暂无下载链接，请在任务完成后点击下载':
     'No download link available. Please click download after completing the task.',
   灰度业务: 'Gray scale business',

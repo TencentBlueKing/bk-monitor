@@ -30,7 +30,7 @@ import { incidentAlertView } from 'monitor-api/modules/incident';
 import { useI18n } from 'vue-i18n';
 
 import ExceptionComp from '../../../components/exception';
-import DashboardPanel from '../../../plugins/components/flex-dashboard-panel';
+import DashboardPanel from '../../../plugins/components/flex-virtual-dashboard-panel';
 import { useIncidentInject } from '../utils';
 import MetricsCollapse from './metrics-collapse';
 

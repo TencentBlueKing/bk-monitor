@@ -30,6 +30,7 @@ import { urlArgs } from './store/default-values';
 import { BK_LOG_STORAGE } from './store/store.type';
 import BkUserDisplayName from '@blueking/bk-user-display-name';
 import { tenantManager } from './views/retrieve-core/tenant-manager';
+import { updateBuiltInInitHiddenList } from './const';
 window.__VUE_PROD_HYDRATION_MISMATCH_DETAILS__ = false;
 
 /** 外部版根据空间授权权限显示菜单 */
@@ -119,10 +120,18 @@ export default ({
               [BK_LOG_STORAGE.BK_BIZ_ID]: resp.data.bk_biz_id,
               [BK_LOG_STORAGE.BK_SPACE_UID]: resp.data.space_uid,
             });
+
+            return resp.data;
           }
+
+          return null;
+        })
+        .catch((e) => {
+          console.error('getSpaceByIndexId失败', e);
+          return null;
         });
     }
-    return Promise.resolve(true);
+    return Promise.resolve(undefined);
   };
 
   /**
@@ -138,13 +147,27 @@ export default ({
   };
 
   /**
+   * 获取业务ID
+   * @returns bk_biz_id
+   */
+  const getBkBizId = () => {
+    if (urlArgs.bizId) {
+      return urlArgs.bizId;
+    }
+
+    return store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
+  };
+
+  /**
    * 空间列表请求参数
    */
   const getSpaceRequestData = () => {
     const SPACE_UID = getSpaceUid();
+    const BK_BIZ_ID = getBkBizId();
     return {
       query: {
         space_uid: SPACE_UID,
+        bk_biz_id: BK_BIZ_ID,
         has_permission: SPACE_UID ? undefined : 1,
         page: 1,
         page_size: 1,
@@ -268,6 +291,11 @@ export default ({
    * 获取全局配置
    */
   const globalsRequest = http.request('collect/globals').then((res) => {
+    if ((res.data.log_built_in_field ?? []).length > 0) {
+      // 使用新的更新函数动态更新内置隐藏字段列表
+      updateBuiltInInitHiddenList(res.data.log_built_in_field);
+    }
+
     store.commit('globals/setGlobalsData', res.data);
     return res.data;
   });

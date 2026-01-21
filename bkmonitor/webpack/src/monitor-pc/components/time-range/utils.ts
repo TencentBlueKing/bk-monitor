@@ -42,13 +42,13 @@ export class TimeRange {
   }
 
   /** 格式化时间范围 */
-  format(str = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType {
+  format(str = 'YYYY-MM-DD HH:mm:ssZZ'): TimeRangeType {
     return this.value.map(item => item?.format?.(str) || null) as TimeRangeType;
   }
 
   /** 初始化时间对象 */
   init(times: TimeRangeType) {
-    this.dateRange = new DateRange(times, 'YYYY-MM-DD HH:mm:ss', window.timezone);
+    this.dateRange = new DateRange(times, 'YYYY-MM-DD HH:mm:ssZZ', window.timezone);
     this.value = [this.dateRange.startDate, this.dateRange.endDate];
   }
   /** 格式化成秒 */
@@ -63,10 +63,10 @@ export const intTimestampStr = (str): null | number => {
   return isTimestamp ? Number.parseInt(str, 10) : str;
 };
 
-/** 将格式为 ['now-1d', 'now'] 转换为 ['YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DD HH:mm:ss'] */
+/** 将格式为 ['now-1d', 'now'] 转换为 ['YYYY-MM-DD HH:mm:ssZZ', 'YYYY-MM-DD HH:mm:ssZZ'] */
 export const handleTransformTime = (value: TimeRangeType): TimeRangeType => {
   const timeRange = new TimeRange(value);
-  return timeRange.format('YYYY-MM-DD HH:mm:ss');
+  return timeRange.format('YYYY-MM-DD HH:mm:ssZZ');
 };
 
 /** 转换成秒 */
@@ -80,9 +80,9 @@ export const handleTransformToTimestamp = (value: TimeRangeType): TimestampsType
 export function timestampTransformStr(value: number[]): TimeRangeType {
   return value.map(v => {
     if (String(v).length > 10) {
-      return dayjs(Number(v)).format('YYYY-MM-DD HH:mm:ss');
+      return dayjs(Number(v)).format('YYYY-MM-DD HH:mm:ssZZ');
     }
-    return dayjs(Number(v) * 1000).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs(Number(v) * 1000).format('YYYY-MM-DD HH:mm:ssZZ');
   }) as TimeRangeType;
 }
 
@@ -181,9 +181,9 @@ export const DEFAULT_TIME_RANGE: TimeRangeType = ['now-1h', 'now'];
 
 /*  */
 export const getTimeDisplay = timeRange => {
-  return new DateRange(timeRange, 'YYYY-MM-DD HH:mm:ss', window.timezone).toDisplayString();
+  return new DateRange(timeRange, 'YYYY-MM-DD HH:mm:ssZZ', window.timezone).toDisplayString();
 };
 
 export const getDateRange = timeRange => {
-  return new DateRange(timeRange, 'YYYY-MM-DD HH:mm:ss', window.timezone);
+  return new DateRange(timeRange, 'YYYY-MM-DD HH:mm:ssZZ', window.timezone);
 };

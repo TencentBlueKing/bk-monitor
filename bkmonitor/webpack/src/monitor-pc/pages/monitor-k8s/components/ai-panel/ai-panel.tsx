@@ -225,7 +225,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
           value,
           id: `${metric.data_source_label}.${metric.data_type_label}.${metric.result_table_id}.${metric.metric_field}`,
           score: +info.score.toFixed(4),
-          dtEventTime: dayjs.tz(info.dtEventTime).format('YYYY-MM-DD HH:mm:ss'),
+          dtEventTime: dayjs.tz(info.dtEventTime).format('YYYY-MM-DD HH:mm:ssZZ'),
         };
       });
     } else {

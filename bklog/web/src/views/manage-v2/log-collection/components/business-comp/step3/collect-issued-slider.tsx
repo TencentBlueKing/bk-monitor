@@ -104,7 +104,7 @@ export default defineComponent({
     },
     config: {
       type: Object,
-      default: () => {},
+      default: () => { },
     },
     collectorConfigId: {
       type: Number,

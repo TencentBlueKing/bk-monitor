@@ -24,7 +24,6 @@ from metadata import models
 from metadata.models import (
     InfluxDBClusterInfo,
     InfluxDBStorage,
-    SpaceTypeToResultTableFilterAlias,
     Space,
     BkBaseResultTable,
 )
@@ -543,7 +542,6 @@ def delete_databases():
     ResultTableField.objects.filter(table_id__in=rt_ids).delete()
     ResultTableOption.objects.filter(table_id__in=rt_ids).delete()
     DataSourceResultTable.objects.filter(bk_data_id__in=bk_data_ids).delete()
-    SpaceTypeToResultTableFilterAlias.objects.filter(table_id__in=rt_ids).delete()
     # 删除influxdb存储
     InfluxDBStorage.objects.filter(table_id__in=rt_ids).delete()
     ESStorage.objects.filter(table_id__in=rt_ids).delete()

@@ -544,10 +544,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           value: filter[key],
         };
       });
+      const start = dayjs(from ?? '');
+      const end = dayjs(to ?? '');
       window.open(
         location.href.replace(
           location.hash,
-          `#/trace/home?app_name=${app_name}&where=${encodeURIComponent(JSON.stringify(conditionList))}&start_time=${from}&end_time=${to}&sceneMode=span&filterMode=ui`
+          `#/trace/home?app_name=${app_name}&where=${encodeURIComponent(JSON.stringify(conditionList))}&start_time=${start.isValid() ? start.valueOf() : from}&end_time=${end.isValid() ? end.valueOf() : to}&sceneMode=span&filterMode=ui`
         )
       );
       return;
@@ -833,7 +835,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             scopedSlots={{
               default: a => {
                 if (item.value === 'code') return this.renderCodeColumn(item, a.row);
-                const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ss') : '--';
+                const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ssZZ') : '--';
                 const txt = item.value === 'time' && !a.row?.isTotal ? timeTxt : a.row[item.value];
                 return (
                   <span

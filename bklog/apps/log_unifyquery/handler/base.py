@@ -620,7 +620,7 @@ class UnifyQueryHandler:
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
             "down_sample_range": "",
-            "timezone": self.search_params.get("time_zone") or get_local_param("time_zone", settings.TIME_ZONE),
+            "timezone": get_local_param("time_zone", settings.TIME_ZONE),
             "bk_biz_id": self.bk_biz_id,
         }
 
@@ -940,7 +940,10 @@ class UnifyQueryHandler:
         """
         添加 BCS 集群有关内置字段内容
         """
-        bcs_cluster_id = log.get("__ext", dict()).get("bk_bcs_cluster_id")
+        ext_fields = log.get("__ext")
+        if not ext_fields or not isinstance(ext_fields, dict):
+            return log
+        bcs_cluster_id = ext_fields.get("bk_bcs_cluster_id")
 
         if bcs_cluster_id:
             bcs_cluster_name = self._get_bcs_cluster_name(bcs_cluster_id)

@@ -46,6 +46,7 @@
 | options.start_time           | string | 是  | 生效开始时间（格式：00:00:00）  |
 | options.end_time             | string | 是  | 生效结束时间（格式：23:59:59)  |
 | config                       | string | 是  |                      |
+| config.voice_notice          | string | 否  | 语音通知模式，可选值：parallel(并行，默认值)、serial(串行)  |
 | config.template              | list   | 是  | 通知模板配置               |
 | config.template.signal       | string | 是  | 触发信号，NOTICE_SIGNAL单选 |
 | config.template.message_tmpl | string | 否  | 通知信息模板               |

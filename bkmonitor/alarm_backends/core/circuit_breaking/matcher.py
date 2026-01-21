@@ -7,7 +7,9 @@
 
 import logging
 from typing import Any
-from django.db.models.sql import AND, OR
+
+from django.db.models.sql.where import AND, OR
+
 from bkmonitor.utils.range import load_condition_instance
 
 logger = logging.getLogger("circuit_breaking.matcher")
@@ -97,9 +99,9 @@ class CircuitBreakingMatcher:
                 and_cond.append(condition_obj)
             elif connector_upper == OR:
                 # 遇到 OR 时，将当前的 and_cond 加入 or_cond，开始新的 and_cond
-                    if and_cond:
-                        or_cond.append(and_cond)
-                    and_cond = [condition_obj]
+                if and_cond:
+                    or_cond.append(and_cond)
+                and_cond = [condition_obj]
             else:
                 logger.warning(f"[circuit breaking] Unsupported connector: {connector}, using AND instead")
                 and_cond.append(condition_obj)

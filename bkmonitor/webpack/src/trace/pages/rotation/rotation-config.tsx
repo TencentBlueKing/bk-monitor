@@ -30,6 +30,8 @@ import dayjs from 'dayjs';
 import { createDutyRule, retrieveDutyRule, updateDutyRule } from 'monitor-api/modules/model';
 import { getReceiver } from 'monitor-api/modules/notice_group';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
+import TimezoneTips from 'trace/components/timezone-tips/timezone-tips';
+import { useAppStore } from 'trace/store/modules/app';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -65,7 +67,9 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const router = useRouter();
+    const appStore = useAppStore();
     const route = useRoute();
+    const spaceTimezone = computed(() => appStore.spaceTimezone);
     const id = computed(() => route.params.id);
     /* 路由 */
     const navList = computed(() => {
@@ -76,7 +80,7 @@ export default defineComponent({
       labels: [],
       enabled: true,
       effective: {
-        startTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+        startTime: dayjs().format('YYYY-MM-DD HH:mm:ssZZ'),
         endTime: '',
       },
     });
@@ -109,7 +113,7 @@ export default defineComponent({
     /** 禁止选择今天以前的日期 */
     function disabledDateFn(v) {
       const time = new Date(v).getTime();
-      const curTime = new Date().getTime() - 24 * 60 * 60 * 1000;
+      const curTime = Date.now() - 24 * 60 * 60 * 1000;
       return time < curTime;
     }
 
@@ -117,8 +121,10 @@ export default defineComponent({
     function handleDatePickerOpen(state: boolean) {
       if (state) {
         const ele = effectiveEndRef.value.$el.querySelector('.bk-picker-confirm-action a');
-        ele.innerText = t('永久');
-        ele.setAttribute('class', 'confirm');
+        if (ele) {
+          ele.innerText = t('永久');
+          ele.setAttribute('class', 'confirm');
+        }
       }
     }
 
@@ -149,8 +155,8 @@ export default defineComponent({
     function resetEffectiveStartTime() {
       if (id.value) {
         // 编辑状态下 且 生效结束时间大于此时此刻（永久）， 将生效起始时间修改为此时此刻
-        if (!formData.effective.endTime || new Date(formData.effective.endTime).getTime() > new Date().getTime()) {
-          formData.effective.startTime = dayjs().format('YYYY-MM-DD HH:mm:ss');
+        if (!formData.effective.endTime || new Date(formData.effective.endTime).getTime() > Date.now()) {
+          formData.effective.startTime = dayjs().format('YYYY-MM-DD HH:mm:ssZZ');
         }
       }
     }
@@ -228,7 +234,10 @@ export default defineComponent({
     function validate(_type: 'preview' | 'submit' = 'submit') {
       let valid = true;
       // 清空错误信息
-      Object.keys(errMsg).forEach(key => (errMsg[key] = ''));
+      for (const key in errMsg) {
+        errMsg[key] = '';
+      }
+
       // 轮值类型
       const rotationValid = validRotationRule();
       if (rotationValid.err) {
@@ -289,7 +298,7 @@ export default defineComponent({
     }
 
     function getParams() {
-      let dutyArranges;
+      let dutyArranges = [];
       // 轮值类型数据转化
       if (rotationType.value === RotationTabTypeEnum.REGULAR) {
         dutyArranges = fixedRotationTransform(rotationTypeData.regular, 'params');
@@ -304,8 +313,8 @@ export default defineComponent({
         labels,
         enabled,
         duty_arranges: dutyArranges,
-        effective_time: effective.startTime,
-        end_time: effective.endTime,
+        effective_time: effective.startTime ? dayjs(effective.startTime).format('YYYY-MM-DD HH:mm:ssZZ') : '',
+        end_time: effective.endTime ? dayjs(effective.endTime).format('YYYY-MM-DD HH:mm:ssZZ') : '',
       };
       return params;
     }
@@ -332,8 +341,10 @@ export default defineComponent({
         formData.name = res.name;
         formData.labels = res.labels;
         formData.enabled = res.enabled;
-        formData.effective.startTime = res.effective_time || '';
-        formData.effective.endTime = res.end_time || '';
+        formData.effective.startTime = res.effective_time
+          ? dayjs(res.effective_time).format('YYYY-MM-DD HH:mm:ssZZ')
+          : '';
+        formData.effective.endTime = res.end_time ? dayjs(res.end_time).format('YYYY-MM-DD HH:mm:ssZZ') : '';
         if (res.category === 'regular') {
           rotationTypeData.regular = fixedRotationTransform(res.duty_arranges, 'data');
         } else {
@@ -362,7 +373,7 @@ export default defineComponent({
                 user.value.length && orderIndex.push(user.orderIndex);
               } else {
                 value.forEach(user => {
-                  user.value.forEach((item, ind) => {
+                  user.value.forEach((_item, ind) => {
                     // 自动分组，需要把每个人员的索引加上orderIndex再存入
                     orderIndex.push(user.orderIndex + ind);
                   });
@@ -449,6 +460,7 @@ export default defineComponent({
       handleBack,
       handleBackPage,
       disabledDateFn,
+      spaceTimezone,
     };
   },
   render() {
@@ -575,6 +587,12 @@ export default defineComponent({
               clearable
               onChange={val => this.handleEffectiveChange(val, 'endTime')}
               onOpen-change={this.handleDatePickerOpen}
+            />
+            <TimezoneTips
+              style={{
+                marginLeft: '8px',
+              }}
+              timezone={this.spaceTimezone || window.timezone}
             />
           </FormItem>
           <FormItem

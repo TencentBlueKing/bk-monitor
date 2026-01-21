@@ -36,8 +36,14 @@ from bkmonitor.utils.time_tools import (
     utc2_str,
     utc2localtime,
 )
-from constants.action import ActionPluginType, ActionSignal, ConvergeType
-from constants.alert import EVENT_STATUS_DICT, CMDB_TARGET_DIMENSIONS, EventStatus, EventTargetType, AlertRedirectType
+from constants.action import ActionPluginType, ActionSignal, ConvergeType, NoticeWay
+from constants.alert import (
+    AlertRedirectType,
+    CMDB_TARGET_DIMENSIONS,
+    EVENT_STATUS_DICT,
+    EventStatus,
+    EventTargetType,
+)
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 from constants.apm import ApmAlertHelper
 from core.errors.alert import AIOpsFunctionAccessedError
@@ -53,6 +59,20 @@ class Alarm(BaseContextObject):
     """
     告警信息对象
     """
+
+    @cached_property
+    def _is_sms_notice(self) -> bool:
+        """
+        判断是否为短信通知
+
+        短信通知时需要过滤 URL，因为短信内容长度有限且 URL 不便于点击使用。
+
+        注意：self.parent.notice_way 已经过 get_notice_channel() 解析，
+        通道前缀（如 "bkchat|sms"）已被去除，此处直接比较纯通知方式即可。
+
+        :return: True 表示短信通知，False 表示其他通知方式
+        """
+        return getattr(self.parent, "notice_way", None) == NoticeWay.SMS
 
     @cached_property
     def id(self):
@@ -423,6 +443,9 @@ class Alarm(BaseContextObject):
         """
         告警详情链接, 告警url
         """
+        # 短信通知时不返回 URL
+        if self._is_sms_notice:
+            return None
         if self.parent.is_external_channel:
             # 如果有channel信息，并且不是内部渠道，直接忽略链接
             return None
@@ -440,6 +463,9 @@ class Alarm(BaseContextObject):
     @cached_property
     def example_detail_url(self):
         """代表单个告警的url"""
+        # 短信通知时不返回 URL
+        if self._is_sms_notice:
+            return None
         if self.parent.is_external_channel:
             # 如果有channel信息，并且不是内部渠道，直接忽略链接
             return None
@@ -468,9 +494,8 @@ class Alarm(BaseContextObject):
 
     @cached_property
     def quick_ack_url(self):
-        if self.operate_allowed:
-            return f"{self.detail_url}&batchAction=ack"
-        return None
+        detail_url = self.detail_url
+        return f"{detail_url}&batchAction=ack" if self.operate_allowed and detail_url else None
 
     @cached_property
     def quick_shield_url(self):
@@ -480,7 +505,8 @@ class Alarm(BaseContextObject):
         if self.collect_count > 1:
             # 当有汇总的告警多余1个的时候，直接返回空
             return None
-        return f"{self.detail_url}&batchAction=shield"
+        detail_url = self.detail_url
+        return f"{detail_url}&batchAction=shield" if detail_url else None
 
     @cached_property
     def notice_from(self):
@@ -730,6 +756,9 @@ class Alarm(BaseContextObject):
 
     @cached_property
     def strategy_url(self):
+        # 短信通知时不返回 URL
+        if self._is_sms_notice:
+            return None
         if self.parent.is_external_channel:
             return None
 
@@ -811,6 +840,9 @@ class Alarm(BaseContextObject):
 
     @cached_property
     def assign_detail(self):
+        # 短信通知时不返回 URL
+        if self._is_sms_notice:
+            return None
         if not self.latest_assign_group:
             # 最近一次没有的话，表示没有命中分派
             return None
@@ -961,115 +993,62 @@ class Alarm(BaseContextObject):
         # 按 url_getters 顺序，最多同时给出三个场景的下钻链接。
         return redirect_infos[:3]
 
-    @cached_property
-    def apm_trace_url(self) -> str | None:
-        alert: AlertDocument = self.parent.alert
-        if not alert.strategy:
+    def _build_redirect_short_url(self, redirect_type: str, check_in_redirect_types: bool = False) -> str | None:
+        """
+        构建告警重定向短链接
+
+        通用的短链接生成方法，根据不同的重定向类型生成对应的短链接。
+        短链接格式为 `{detail_url}&type={redirect_type}`，点击按钮后由 event_center_proxy 视图进行重定向，最终跳转到实际的目标页面。
+
+        :param redirect_type: 重定向类型，对应 AlertRedirectType 枚举值
+        :param check_in_redirect_types: 是否检查 redirect_type 在 self.redirect_types 中，默认 False
+        :return: 短链接 URL，若无法生成则返回 None
+        """
+        # 如果需要检查重定向类型，且类型不在允许列表中，则返回 None
+        if check_in_redirect_types and redirect_type not in self.redirect_types:
             return None
 
-        return ApmAlertHelper.get_trace_url(
-            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, alert.event.time, self.duration
-        )
+        url: str | None = self.detail_url
+        if not url:
+            return None
+
+        return f"{url}&type={redirect_type}"
+
+    @cached_property
+    def apm_trace_url(self) -> str | None:
+        """Tracing 检索跳转链接（短链接格式）"""
+        return self._build_redirect_short_url(AlertRedirectType.APM_TRACE.value)
 
     @cached_property
     def apm_rpc_url(self) -> str | None:
-        alert: AlertDocument = self.parent.alert
-        if not alert.strategy:
-            return None
-
-        return ApmAlertHelper.get_rpc_url(
-            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, alert.event.time, self.duration
-        )
+        """调用分析跳转链接（短链接格式）"""
+        return self._build_redirect_short_url(AlertRedirectType.APM_RPC.value)
 
     @cached_property
-    def log_search_url(self):
-        # 日志检索前5min(可配置) 到 当前时刻，最多1h
-        if AlertRedirectType.LOG_SEARCH.value in self.redirect_types:
-            url = self.detail_url
-            return f"{url}&type=log_search"
-        return None
+    def log_search_url(self) -> str | None:
+        """
+        日志检索跳转链接（短链接格式）
+
+        通过短链接重定向到日志平台检索页面，时间范围为告警前 5 分钟(可配置) 到当前时刻，最多 1 小时。
+        """
+        return self._build_redirect_short_url(AlertRedirectType.LOG_SEARCH.value, check_in_redirect_types=True)
 
     @cached_property
     def event_explore_url(self) -> str | None:
-        """事件检索跳转链接生成"""
-        alert: AlertDocument = self.parent.alert
-        if not alert.strategy or not alert.strategy.get("items"):
-            return None
-
-        try:
-            query_config: dict[str, Any] = alert.strategy["items"][0]["query_configs"][0]
-        except (KeyError, IndexError):
-            return None
-
-        # 构建检索条件
-        query_filter: dict[str, Any] = {
-            "result_table_id": query_config["result_table_id"],
-            "data_source_label": query_config["data_source_label"],
-            "data_type_label": query_config["data_type_label"],
-            "query_string": query_config.get("query_string", ""),
-        }
-
-        # 使用告警策略配置的汇聚条件作为初始 where 条件，当配置告警的维度字段与汇聚条件中的字段一样时，再去更新 where 条件
-        where: list[dict[str, Any]] = query_config.get("agg_condition") or []
-        # 构建一个 key → 索引位置 的映射字典，方便后续更新替换
-        agg_condition_index: dict[str, int] = {condition["key"]: idx for idx, condition in enumerate(where)}
-
-        # 需排除的经 CMDB 丰富的维度字段（由 CMDBEnricher 类添加）
-        cmdb_enrich_fields: set[str] = {
-            "bk_topo_node",
-            "bk_host_id",
-            "ipv6",
-            # 内网IP（注：使用 bk_target_ip 原始维度即可）
-            "ip",
-            # 云区域ID（注：使用 bk_target_cloud_id 原始维度即可）
-            "bk_cloud_id",
-            # 服务实例ID（注：使用bk_target_service_instance_id 原始维度即可）
-            "bk_service_instance_id",
-        }
-        for key, value in self.origin_dimensions.items():
-            if key in cmdb_enrich_fields or value is None:
-                continue
-
-            condition: dict[str, Any] = {
-                "key": key,
-                "method": "eq",
-                "value": value if isinstance(value, list) else [value or ""],
-                "condition": "and",
-            }
-            # 如果该维度已存在于汇聚条件中，则更新替换；否则添加为新过滤条件
-            if key in agg_condition_index:
-                where[agg_condition_index[key]] = condition
-            else:
-                where.append(condition)
-
-        query_filter["where"] = where
-
-        offset: int = 5 * 60 * 1000
-        create_timestamp: int = alert.event.time
-        params: dict[str, Any] = {
-            "targets": json.dumps([{"data": {"query_configs": [query_filter]}}]),
-            "from": create_timestamp * 1000 - self.duration * 1000 - offset,
-            "to": create_timestamp * 1000 + offset,
-        }
-
-        encoded_params: str = urllib.parse.urlencode(params)
-        return urllib.parse.urljoin(
-            settings.BK_MONITOR_HOST, f"?bizId={self.parent.business.bk_biz_id}#/event-explore?{encoded_params}"
-        )
+        """事件检索跳转链接（短链接格式）"""
+        return self._build_redirect_short_url(AlertRedirectType.EVENT_EXPLORE.value)
 
     @cached_property
-    def query_url(self):
-        # 数据检索基于数据点的前1小时+后1小时
-        if AlertRedirectType.QUERY.value in self.redirect_types:
-            url = self.detail_url
-            return f"{url}&type=query"
-        return None
+    def query_url(self) -> str | None:
+        """
+        数据检索跳转链接（短链接格式）
+
+        通过短链接重定向到数据检索页面，基于告警数据点的前后 1 小时时间范围。
+        """
+        return self._build_redirect_short_url(AlertRedirectType.QUERY.value, check_in_redirect_types=True)
 
     @cached_property
-    def apm_query_url(self):
-        """APM 自定义指标检索跳转链接生成"""
+    def apm_query_url(self) -> str | None:
+        """APM 自定义指标检索跳转链接（短链接格式）"""
         # TODO 后续 APM 实现自定义指标功能后，再更新为跳转到自定义指标检索页面
-        url: str | None = self.detail_url
-        if url:
-            return f"{url}&type=query"
-        return None
+        return self._build_redirect_short_url(AlertRedirectType.QUERY.value)
