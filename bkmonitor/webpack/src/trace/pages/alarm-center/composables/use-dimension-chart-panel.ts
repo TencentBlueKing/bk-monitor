@@ -42,12 +42,12 @@ export interface UseDimensionChartPanelOptions {
   bizId?: MaybeRef<number>;
   /** 默认时间范围 */
   defaultTimeRange?: MaybeRef<TimeRangeType>;
-  /** 下钻过滤条件 */
-  filterBy?: MaybeRef<Record<string, string>>;
   /** 查询配置 */
   graphPanel?: MaybeRef<IGraphPanel>;
   /** 下钻维度 */
   groupBy?: MaybeRef<string[]>;
+  /** 下钻过滤条件 */
+  where?: any;
 }
 
 /**
@@ -56,7 +56,7 @@ export interface UseDimensionChartPanelOptions {
  * @param {UseDimensionChartPanelOptions} options 维度分析图表面板hook选项
  */
 export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) => {
-  const { alertId, bizId, defaultTimeRange, filterBy, graphPanel, groupBy } = options;
+  const { alertId, bizId, defaultTimeRange, where, graphPanel, groupBy } = options;
   /** 图表执行 dataZoom 框线缩放后的时间范围 */
   const dataZoomTimeRange = shallowRef(null);
   /** 视图所使用的时间范围 */
@@ -74,9 +74,12 @@ export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) =
       queryConfigs = queryConfigs.map(config => ({
         ...config,
         group_by: get(groupBy) ?? [],
-        filter_dict: get(filterBy)
+        filter_dict: get(where)?.length
           ? {
-              drill_filter: get(filterBy),
+              drill_filter: get(where).reduce((prev, cur) => {
+                prev[cur.key] = cur.value;
+                return prev;
+              }, {}),
             }
           : {},
       }));
@@ -116,6 +119,9 @@ export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) =
       series: data.series.map(item => {
         return {
           ...item,
+          thresholds: [],
+          markPoints: [],
+          markTimeRange: [],
           alias: item?.dimensions?.[dimensionKey] || item.target,
         };
       }),

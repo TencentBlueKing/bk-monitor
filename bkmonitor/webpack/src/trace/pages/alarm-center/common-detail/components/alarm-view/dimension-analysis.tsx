@@ -96,6 +96,8 @@ export default defineComponent({
     const where = shallowRef([]);
     // 表格数据
     const tableData = shallowRef([]);
+    /** 图表点击事件对象 */
+    const chartClickPointEvent = shallowRef<{ xAxis: number; yAxis: number }>(null);
 
     const {
       panel,
@@ -110,6 +112,7 @@ export default defineComponent({
       defaultTimeRange: toRef(props, 'defaultTimeRange'),
       groupBy: selectedDimension,
       graphPanel: toRef(props, 'graphPanel'),
+      where,
     });
     provide('timeRange', viewerTimeRange);
 
@@ -211,6 +214,15 @@ export default defineComponent({
       where.value = [...where.value.slice(0, index), ...where.value.slice(index + 1)];
     };
 
+    /**
+     * @description 处理图表空白处点击事件(zrClick)
+     */
+    const handleChartZrClick = (event: { xAxis: number; yAxis: number }) => {
+      if (!event) return;
+      const { xAxis, yAxis } = event;
+      chartClickPointEvent.value = { xAxis, yAxis };
+    };
+
     return {
       isMulti,
       showTypeActive,
@@ -229,6 +241,7 @@ export default defineComponent({
       handleRemoveCondition,
       handleDataZoomTimeRangeChange,
       handleChartRestore,
+      handleChartZrClick,
     };
   },
   render() {
@@ -241,15 +254,12 @@ export default defineComponent({
             }}
             customOptions={{
               formatterData: this.formatterChartData,
-              options: options => {
-                options.grid.top = 24;
-                return options;
-              },
             }}
             panel={this.panel}
             showRestore={this.showRestore}
             onDataZoomChange={this.handleDataZoomTimeRangeChange}
             onRestore={this.handleChartRestore}
+            onZrClick={this.handleChartZrClick}
           />
         </div>
         <div class='dimension-analysis-table-view'>
