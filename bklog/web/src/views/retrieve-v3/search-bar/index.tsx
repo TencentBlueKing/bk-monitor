@@ -312,60 +312,6 @@ export default defineComponent({
       // );
     };
 
-    /**
-     * 处理请求响应
-     * @param resp {FetchResponse<T>}
-     */
-    const handleRequestResponse = (resp?: any) => {
-      const content = resp?.choices[0]?.delta?.content ?? '{}';
-      try {
-        const contentObj: AiQueryContent = JSON.parse(content);
-        const {
-          end_time: endTime,
-          start_time: startTime,
-          query_string: queryString = '',
-          parse_result: parseResult,
-          explain = '',
-        } = contentObj;
-
-        const queryParams = { search_mode: 'sql' };
-        let needReplace = false;
-        if (startTime && endTime) {
-          const results = handleTransformToTimestamp([startTime, endTime], formatValue.value);
-          Object.assign(queryParams, { start_time: results[0], end_time: results[1] });
-          store.commit('updateIndexItemParams', { datePickerValue: [startTime, endTime] });
-          aiQueryResult.value.startTime = startTime;
-          aiQueryResult.value.endTime = endTime;
-          needReplace = true;
-        }
-
-        if (queryString !== undefined && queryString !== null) {
-          Object.assign(queryParams, { keyword: queryString });
-          needReplace = true;
-          aiQueryResult.value.queryString = queryString;
-        }
-
-        if (needReplace) {
-          store.commit('updateIndexItemParams', queryParams);
-          store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
-
-          const { start_time, end_time } = queryParams as any;
-          setRouteParamsByKeywordAndAddition({ start_time, end_time }).then(() => {
-            RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
-            store.dispatch('requestIndexSetQuery');
-          });
-        }
-
-        aiQueryResult.value.parseResult = parseResult;
-        aiQueryResult.value.explain = explain;
-      } catch (e) {
-        console.error(e);
-        bkMessage({
-          theme: 'error',
-          message: e.message,
-        });
-      }
-    };
 
     /**
      * 处理请求响应

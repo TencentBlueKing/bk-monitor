@@ -94,24 +94,6 @@ export default defineComponent({
       limitList: [10, 20, 50, 100],
     });
 
-    // 获取索引集ID
-    const getIndexSetId = async () => {
-      try {
-        const params = {
-          query: {
-            bk_biz_id: store.state.bkBizId,
-          },
-        };
-
-        const response = await http.request('collect/getTaskIndexSetId', params);
-        if (response.data && response.data.index_set_id) {
-          indexSetId.value = String(response.data.index_set_id);
-        }
-      } catch (error) {
-        console.warn('获取索引集ID失败:', error);
-      }
-    };
-
     // 获取tab数量
     const getTgpaCount = async () => {
       try {
