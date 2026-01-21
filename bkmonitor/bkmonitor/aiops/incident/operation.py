@@ -122,17 +122,33 @@ class IncidentOperationManager:
         :param kwargs: 额外参数
         """
         try:
-            # 获取配置的通知接收人
-            chat_ids = getattr(settings, "BK_INCIDENT_BUILTIN_CONFIG", {}).get("builtin_chat_ids", [])
-            user_ids = getattr(settings, "BK_INCIDENT_BUILTIN_CONFIG", {}).get("builtin_user_ids", [])
+            # 获取配置的通知接收人（字典格式：{bk_biz_id: [ids]}）
+            builtin_config = getattr(settings, "BK_INCIDENT_BUILTIN_CONFIG", {})
+            builtin_chat_ids_dict = builtin_config.get("builtin_chat_ids", {})
+            builtin_user_ids_dict = builtin_config.get("builtin_user_ids", {})
 
-            if not chat_ids and not user_ids:
+            if not builtin_chat_ids_dict and not builtin_user_ids_dict:
                 logger.debug(f"No receivers configured for incident {incident_id}, skip sending notice")
                 return
 
             # 获取故障文档（带重试机制，应对 ES 索引延迟）
             incident_document = cls._get_incident_document_with_retry(incident_id, sleep_time=0.5)
             if not incident_document:
+                return
+
+            # 根据故障的业务ID从字典中获取对应的接收人
+            bk_biz_id = incident_document.bk_biz_id
+            chat_ids = builtin_chat_ids_dict.get(bk_biz_id, [])
+            user_ids = builtin_user_ids_dict.get(bk_biz_id, [])
+            # 接收人，使用内置的admin接收人，管理员组
+            admin_ids = builtin_chat_ids_dict.get("admin", [])
+            if admin_ids:
+                chat_ids.extend(admin_ids)
+
+            if not chat_ids and not user_ids:
+                logger.debug(
+                    f"No receivers configured for incident {incident_id} (bk_biz_id={bk_biz_id}), skip sending notice"
+                )
                 return
 
             # 延迟导入避免循环依赖
