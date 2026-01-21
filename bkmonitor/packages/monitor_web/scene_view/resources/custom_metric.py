@@ -353,7 +353,7 @@ class GetCustomTsGraphConfig(Resource):
                     "group_by": list(set(non_split_dimensions) & all_metric_dimensions),
                     # TODO: 考虑也按指标的维度过滤
                     "where": params.get("where", []),
-                    "functions": functions,
+                    "functions": functions + metric.get("functions", []),
                     # 只使用指标的维度
                     "filter_dict": filter_dict,
                 }
@@ -458,7 +458,7 @@ class GetCustomTsGraphConfig(Resource):
                         "group_by": [],
                         # TODO: 考虑也按指标的维度过滤
                         "where": params.get("where", []),
-                        "functions": functions,
+                        "functions": functions + metric.get("functions", []),
                         # 只使用指标的维度
                         "filter_dict": filter_dict,
                     }
@@ -620,6 +620,7 @@ class GetCustomTsGraphConfig(Resource):
                         "alias": field_config.get("alias", ""),
                         "dimensions": dimensions,
                         "aggregate_method": field_config.get("aggregate_method", "AVG"),
+                        "function": field_config.get("function", []),
                     }
                 )
 
