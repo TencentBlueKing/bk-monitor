@@ -936,4 +936,5 @@ export default {
   自然语言转查询语句: 'Natural language to search statement',
   聚类下载: 'Clustering Download',
   '输入查询内容，“帮我查询近 3 天的错误日志”，Tab 切换为普通模式': 'Enter search content, "help me query the error log in the past 3 days", Tab to switch to normal mode',
+  集群英文名称: 'Cluster English Name',
 };
