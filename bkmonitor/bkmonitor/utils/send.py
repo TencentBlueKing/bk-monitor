@@ -225,7 +225,7 @@ class BaseSender:
         try:
             get_template(lang_template_path)
         except TemplateDoesNotExist:
-            logger.info(f"use default template because language template file {lang_template_path} load fail")
+            logger.debug(f"use default template because language template file {lang_template_path} load fail")
             return template_path
         logger.info(f"use special language template {lang_template_path} for notice")
         return lang_template_path
