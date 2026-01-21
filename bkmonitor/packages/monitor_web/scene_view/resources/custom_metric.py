@@ -337,7 +337,7 @@ class GetCustomTsGraphConfig(Resource):
 
                 # 如果是 APM 场景，补充 service_name 和 scope_name
                 if params.get("is_apm_scenario"):
-                    filter_dict["app_name"] = params["apm_app_name"]
+                    filter_dict["scope_name"] = metric["scope_name"]
                     filter_dict["service_name"] = params["apm_service_name"]
 
                 query_config = {
@@ -438,7 +438,7 @@ class GetCustomTsGraphConfig(Resource):
 
                     # 如果是 APM 场景，补充 service_name 和 scope_name
                     if params.get("is_apm_scenario"):
-                        filter_dict["app_name"] = params["apm_app_name"]
+                        filter_dict["scope_name"] = metric["scope_name"]
                         filter_dict["service_name"] = params["apm_service_name"]
 
                     query_config = {
