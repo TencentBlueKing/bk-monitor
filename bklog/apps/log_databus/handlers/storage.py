@@ -1140,6 +1140,7 @@ class StorageHandler:
             repository.update(
                 {
                     "cluster_name": cluster_info_by_id[repository["cluster_id"]]["storage_cluster_name"],
+                    "display_name": cluster_info_by_id[repository["cluster_id"]]["storage_display_name"],
                     "cluster_source_name": EsSourceType.get_choice_label(
                         cluster_info_by_id[repository["cluster_id"]].get("source_type")
                     ),
