@@ -569,7 +569,7 @@ export default defineComponent({
                       return (
                         <span class='detail-text'>
                           {this.t('每天的')}&nbsp;
-                          <span class='item-highlight'>{`${detailOfFormatWithTimezone(this.detail.beginTime, this.spaceTimezone)} ~ ${detailOfFormatWithTimezone(this.detail.endTime, this.spaceTimezone)}`}</span>
+                          <span class='item-highlight'>{`${this.detail.cycleConfig.startTime} ~ ${this.detail.cycleConfig.endTime}`}</span>
                           &nbsp;
                           {this.t('进行告警屏蔽')}
                         </span>
@@ -581,7 +581,7 @@ export default defineComponent({
                           {this.t('每周')}&nbsp;
                           <span class='item-highlight'>{this.detail.cycleConfig.weekList}</span>&nbsp;
                           {this.t('的')}&nbsp;
-                          <span class='item-highlight'>{`${detailOfFormatWithTimezone(this.detail.beginTime, this.spaceTimezone)} ~ ${detailOfFormatWithTimezone(this.detail.endTime, this.spaceTimezone)}`}</span>
+                          <span class='item-highlight'>{`${this.detail.cycleConfig.startTime} ~ ${this.detail.cycleConfig.endTime}`}</span>
                           &nbsp;{this.t('进行告警屏蔽')}
                         </span>
                       );
