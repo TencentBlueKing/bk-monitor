@@ -977,10 +977,10 @@ class ClusterConfig(models.Model):
             config["metadata"]["annotations"]["StreamToId"] = str(cluster.gse_stream_to_id)
             config["spec"]["streamToId"] = cluster.gse_stream_to_id
 
-        default_settings = cast(dict[str, Any], cluster.default_settings)
-        if default_settings.get("v3_channel_id"):
+        default_settings = cast(dict[str, Any] | None, cluster.default_settings)
+        if default_settings and default_settings.get("v3_channel_id"):
             config["spec"]["v3ChannelId"] = default_settings["v3_channel_id"]
-        if default_settings.get("version"):
+        if default_settings and default_settings.get("version"):
             config["spec"]["version"] = default_settings["version"]
 
         if cluster.is_auth or cluster.username:

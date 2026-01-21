@@ -158,9 +158,9 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
 
         try:
             data_id_config = get_data_id_v2(
+                bk_tenant_id=bk_tenant_id,
                 data_name=ds.data_name,
                 is_base=is_base,
-                bk_biz_id=bk_biz_id,
                 namespace=namespace,
                 with_detail=with_detail,
             )
