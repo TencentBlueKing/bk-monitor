@@ -590,7 +590,6 @@ class GetCustomTsGraphConfig(Resource):
         for scope_data in metadata_result:
             metric_list = scope_data.get("metric_list", [])
             dimension_config = scope_data.get("dimension_config", {})
-            scope_name = scope_data.get("scope_name", "")
 
             # 收集维度名称
             for dimension_name, dim_config in dimension_config.items():
@@ -601,6 +600,7 @@ class GetCustomTsGraphConfig(Resource):
             for metric_data in metric_list:
                 metric_name = metric_data.get("metric_name", "")
                 field_config = metric_data.get("field_config", {})
+                scope_name = metric_data.get("field_scope", "")
 
                 # 只处理请求的指标
                 if metric_name not in requested_metrics:
@@ -616,6 +616,10 @@ class GetCustomTsGraphConfig(Resource):
                     for dimension_name in metric_data.get("tag_list", [])
                     if not dimension_config.get(dimension_name, {}).get("hidden", False)
                 ]
+
+                # 去除 scope_prefix 前缀
+                if params.get("scope_prefix") and scope_name.startswith(params["scope_prefix"]):
+                    scope_name = scope_name[len(params["scope_prefix"]) :]
 
                 metrics_list.append(
                     {
