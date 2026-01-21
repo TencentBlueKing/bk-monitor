@@ -28,7 +28,8 @@ import { type PropType, computed, defineComponent, inject, ref, watch } from 'vu
 import { Button, Loading, Sideslider } from 'bkui-vue';
 import { retrieveDutyRule } from 'monitor-api/modules/model';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
-import { formatWithTimezone, getTimezone } from 'monitor-common/utils/timezone';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
+import TimezoneTips from 'trace/components/timezone-tips/timezone-tips';
 import { useAppStore } from 'trace/store/modules/app';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
@@ -119,7 +120,7 @@ export default defineComponent({
       previewLoading.value = true;
       const params = {
         // 生效时间需要转换为业务时区
-        ...getPreviewParams(detailData.value.effective_time, spaceTimezone.value || window.timezone),
+        ...getPreviewParams(detailData.value.effective_time, spaceTimezone.value),
         source_type: 'DB',
         id: props.id,
       };
@@ -174,6 +175,7 @@ export default defineComponent({
       previewData,
       authority,
       previewLoading,
+      spaceTimezone,
       renderUserLogo,
       handleClosed,
       t,
@@ -321,9 +323,15 @@ export default defineComponent({
                   hasColon={true}
                   label={this.t('生效时间')}
                 >
-                  <span class='detail-text'>{`${formatWithTimezone(this.detailData?.effective_time)} - ${
-                    formatWithTimezone(this.detailData?.end_time) || this.t('永久')
+                  <span class='detail-text'>{`${this.detailData?.effective_time} - ${
+                    this.detailData?.end_time || this.t('永久')
                   }`}</span>
+                  <TimezoneTips
+                    style={{
+                      marginLeft: '8px',
+                    }}
+                    timezone={this.spaceTimezone}
+                  />
                 </FormItem>
                 <FormItem
                   hasColon={true}
@@ -332,7 +340,7 @@ export default defineComponent({
                   <Loading loading={this.previewLoading}>
                     <RotationCalendarPreview
                       class='width-806'
-                      timezone={getTimezone()}
+                      timezone={this.spaceTimezone}
                       value={this.previewData}
                     />
                   </Loading>

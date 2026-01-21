@@ -83,15 +83,7 @@ export default defineComponent({
     watch(
       () => props.value,
       v => {
-        curCalendarData.value.users = v.map(u => {
-          if (props.timezone) {
-            return {
-              ...u,
-              timeRange: u.timeRange.map(t => dayjs(t).tz(props.timezone).format('YYYY-MM-DD HH:mm')),
-            };
-          }
-          return u;
-        });
+        curCalendarData.value.users = v;
         init();
       },
       {

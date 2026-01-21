@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import dayjs from 'dayjs';
+import { editOfFormatWithTimezone } from 'monitor-common/utils/timezone';
 
 import { randomColor } from '../utils';
 
@@ -284,7 +284,7 @@ export function getPreviewParams(effectiveTime: string, timezone?: string) {
     });
   });
   return {
-    begin_time: timezone ? dayjs(beginTime).tz(timezone).format('YYYY-MM-DD HH:mm:ss') : beginTime,
+    begin_time: timezone ? editOfFormatWithTimezone(beginTime, timezone) : beginTime,
     days: max - indexNum,
   };
 }
