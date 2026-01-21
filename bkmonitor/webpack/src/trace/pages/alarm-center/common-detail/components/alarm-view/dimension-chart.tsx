@@ -23,15 +23,57 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { type PropType, defineComponent, provide, shallowRef, toRef } from 'vue';
+
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+
+import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../components/time-range/utils';
+import MonitorCharts from './echarts/monitor-charts';
 
 import './dimension-chart.scss';
 export default defineComponent({
   name: 'DimensionChart',
-  setup() {
-    return {};
+  props: {
+    /** 下钻维度 */
+    groupBy: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    /** 下钻过滤条件 */
+    filterBy: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    /** 图表需要请求的数据的开始时间 */
+    timeRange: {
+      type: Array as PropType<TimeRangeType>,
+      default: () => DEFAULT_TIME_RANGE,
+    },
+    /** 是否展示复位按钮 */
+    showRestore: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: ['dataZoomChange', 'restore'],
+  setup(props) {
+    /** 面板数据配置 */
+    const panel = shallowRef(new PanelModel({}));
+
+    provide('timeRange', toRef(props, 'timeRange'));
+
+    return { panel };
   },
   render() {
-    return <div class='alarm-dimension-chart'>DimensionChart</div>;
+    return (
+      <div class='alarm-dimension-chart'>
+        <MonitorCharts
+          panel={this.panel}
+          showRestore={this.showRestore}
+          onDataZoomChange={(timeRange: [number, number]) => this.$emit('dataZoomChange', timeRange)}
+          onRestore={() => this.$emit('restore')}
+        />
+      </div>
+    );
   },
 });

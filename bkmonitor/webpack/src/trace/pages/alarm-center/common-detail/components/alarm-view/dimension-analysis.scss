@@ -1,4 +1,10 @@
 .alarm-view-panel-dimension-analysis-wrap {
+  .alarm-dimension-chart {
+    width: 100%;
+    height: 240px;
+    background-color: #fff;
+  }
+
   .dimension-analysis-table-view {
     position: relative;
     display: flex;

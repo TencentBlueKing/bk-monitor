@@ -33,6 +33,7 @@ import {
   onUnmounted,
   provide,
   shallowRef,
+  toRef,
   useTemplateRef,
 } from 'vue';
 
@@ -40,16 +41,15 @@ import dayjs from 'dayjs';
 import { transformDataKey } from 'monitor-common/utils';
 import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
-import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
-import { useAlarmCenterDetailStore } from '../../../../../../store/modules/alarm-center-detail';
+import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../../components/time-range/utils';
 import { useChartOperation } from '../../../../../trace-explore/components/explore-chart/use-chart-operation';
 import { type AlarmDetail, type AlertScatterClickEvent, AlertLevelEnum } from '../../../../typings';
 import AlarmChartEventDetail from './alarm-chart-event-detail';
 import MonitorCharts from './monitor-charts';
 
-import type { IDataQuery, ILegendItem } from '../../../../../../plugins/typings';
+import type { ChartTitleMenuType, IDataQuery, ILegendItem, IMenuItem } from '../../../../../../plugins/typings';
 import type { ExploreTableRequestParams } from 'monitor-pc/pages/event-explore/typing';
 import type { LegendActionType } from 'monitor-ui/chart-plugins/typings/chart-legend';
 
@@ -116,6 +116,15 @@ export default defineComponent({
       type: Object as PropType<AlarmDetail>,
       default: () => ({}),
     },
+    /** 业务ID */
+    bizId: {
+      type: Number,
+    },
+    /** 默认时间范围 */
+    defaultTimeRange: {
+      type: Object as PropType<TimeRangeType>,
+      default: () => DEFAULT_TIME_RANGE,
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -128,9 +137,9 @@ export default defineComponent({
     const eventDetailPopupPosition = shallowRef({ left: 0, top: 0 });
     /** 散点点击事件的详情数据 */
     const scatterClickEventData = shallowRef<AlertScatterClickEvent>({});
-
-    const { timeRange: defaultTimeRange, bizId } = storeToRefs(useAlarmCenterDetailStore());
-    const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation(defaultTimeRange);
+    const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation(
+      toRef(props, 'defaultTimeRange')
+    );
     provide('timeRange', timeRange);
 
     /** 图表请求参数（框选时间范围） */
@@ -178,6 +187,14 @@ export default defineComponent({
           },
         ],
       });
+    });
+
+    /** 图表菜单功能 */
+    const menuList = computed<ChartTitleMenuType[]>(() => {
+      if (isEventOrLogAlarm.value) {
+        return ['screenshot'];
+      }
+      return ['screenshot', 'explore'];
     });
 
     /**
@@ -533,7 +550,7 @@ export default defineComponent({
         top: event.event.clientY + 12,
       };
       scatterClickEventData.value = {
-        bizId: bizId.value,
+        bizId: props.bizId,
         alert_id: props.detail?.id,
         start_time: Number(name) / 1000,
         query_config: eventQueryConfig.value,
@@ -554,10 +571,34 @@ export default defineComponent({
       });
     };
 
+    /** 菜单点击事件 */
+    const handleMenuClick = (item: IMenuItem) => {
+      switch (item.id) {
+        case 'explore': {
+          const targets = props.detail.graph_panel?.targets;
+          if (targets) {
+            // 表达式和表达因子都存在的时，默认隐藏表达因子 display: false
+            if (targets[0]?.data?.query_configs && targets[0]?.data?.expression?.length > 1) {
+              targets[0].data.query_configs = targets[0].data.query_configs.map(item => ({
+                ...item,
+                display: false,
+              }));
+            }
+            const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
+              props.detail.bk_biz_id
+            }#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(targets))}`;
+            window.open(url, '_blank');
+          }
+          break;
+        }
+      }
+    };
+
     onMounted(() => document.addEventListener('mousedown', handleCloseEventDetailPopup));
     onUnmounted(() => document.removeEventListener('mousedown', handleCloseEventDetailPopup));
 
     return {
+      menuList,
       monitorChartPanel,
       showRestore,
       handleDataZoomChange,
@@ -570,6 +611,7 @@ export default defineComponent({
       handleScatterClick,
       eventDetailPopupPosition,
       scatterClickEventData,
+      handleMenuClick,
     };
   },
   render() {
@@ -585,11 +627,14 @@ export default defineComponent({
             options: this.formatterOptions,
             series: this.formatterSeries,
           }}
-          menuList={['screenshot', 'explore']}
+          customMenuClick={['explore']}
+          menuList={this.menuList}
           panel={this.monitorChartPanel}
+          showAddMetric={false}
           showRestore={this.showRestore}
           onClick={this.handleScatterClick}
           onDataZoomChange={this.handleDataZoomChange}
+          onMenuClick={this.handleMenuClick}
           onRestore={this.handleRestore}
         />
 

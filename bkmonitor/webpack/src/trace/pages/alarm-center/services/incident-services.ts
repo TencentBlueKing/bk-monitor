@@ -35,6 +35,7 @@ import {
   type IncidentTableItem,
   type QuickFilterItem,
   type TableColumnItem,
+  AlarmLevelIconMap,
   IncidentIconMap,
 } from '../typings';
 import { AlarmService } from './base';
@@ -400,13 +401,38 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
     return data;
   }
 
+  async getIncidentLevelList(params: Partial<CommonFilterParams>) {
+    const data = await incidentList({
+      ...params,
+      show_overview: false, // 是否展示概览
+      show_aggs: true, // 是否展示聚合
+    })
+      .then(({ aggs }) => {
+        return aggs.map(item => {
+          if (item.id === 'level') {
+            return {
+              ...item,
+              children: item.children.map(child => ({
+                ...child,
+                ...AlarmLevelIconMap[child.id],
+              })),
+            };
+          }
+          return item;
+        });
+      })
+      .catch(() => []);
+    return data;
+  }
+
   async getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]> {
+    const level = await this.getIncidentLevelList(params);
     const data = await incidentOverview({
       ...params,
       show_overview: true, // 是否展示概览
       show_aggs: true, // 是否展示聚合
     })
-      .then(({ aggs, overview }) => {
+      .then(({ overview }) => {
         const myIncidentList = [];
         const incidentLevelList = [];
         for (const item of overview?.children || []) {
@@ -417,7 +443,9 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
             });
             continue;
           }
-          incidentLevelList.push({ ...item, ...IncidentIconMap[item.id] });
+          if (IncidentIconMap[item.id]) {
+            incidentLevelList.push({ ...item, ...IncidentIconMap[item.id] });
+          }
         }
         return [
           {
@@ -425,16 +453,16 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
             name: window.i18n.t('与我相关'),
             children: myIncidentList,
           },
+          ...level,
           {
             id: 'INCIDENT_LEVEL',
             name: window.i18n.t('状态'),
             children: incidentLevelList,
           },
-          ...(aggs || []),
         ];
       })
       .catch(() => []);
-    console.info('IncidentService getQuickFilterList', data, '==========');
+
     return data;
   }
 

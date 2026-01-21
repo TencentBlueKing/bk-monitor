@@ -168,7 +168,6 @@ export default defineComponent({
             clearable
             onBlur={this.handleQueryStringChange}
             onClear={this.handleQueryStringChange}
-            onEnter={this.handleQueryStringChange}
           />
         </div>
 
