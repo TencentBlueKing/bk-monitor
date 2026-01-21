@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -12,9 +11,9 @@ specific language governing permissions and limitations under the License.
 import datetime
 import re
 import time
-from typing import Union
 
 import arrow
+import pytz
 import six
 from django.conf import settings
 from django.utils import timezone
@@ -47,12 +46,13 @@ def localtime(value):
 
 def utc2localtime(utc_time):
     """
-    to local time
-    :param utc_time: 时间戳
-    :return: 返回带本地(业务)时区的datetime对象
+    将UTC时间戳转换为Django业务时区的datetime对象
+    :param utc_time: UTC时间戳(Unix timestamp)
+    :return: 返回带Django业务时区的aware datetime对象
     """
-    datetime_value = datetime.datetime.fromtimestamp(utc_time)
-    return localtime(datetime_value)
+    # 先将时间戳转换为UTC时区的aware datetime，再转换为Django当前激活的业务时区
+    utc_datetime = datetime.datetime.fromtimestamp(utc_time, tz=pytz.UTC)
+    return timezone.localtime(utc_datetime)
 
 
 def timestamp2datetime(timestamp):
@@ -255,7 +255,7 @@ def get_datetime_range(period, distance, now=None, rounding=True):
             begin = begin.ceil("hour")
             end = end.ceil("hour")
     else:
-        raise TypeError("invalid period: %r" % period)
+        raise TypeError(f"invalid period: {period!r}")
 
     if settings.USE_TZ:
         return begin.datetime, end.datetime
@@ -269,7 +269,7 @@ def get_datetime_list(begin_time, end_time, period):
     elif period == "hour":
         timedelta = "hours"
     else:
-        raise TypeError("invalid period: %r" % period)
+        raise TypeError(f"invalid period: {period!r}")
 
     datetime_list = []
     item = begin_time
@@ -326,12 +326,12 @@ def hms_string(sec_elapsed, display_num=2, day_unit="d", hour_unit="h", minute_u
             continue
 
         index += 1
-        time_str += "{}{} ".format(unit[0], unit[1])
+        time_str += f"{unit[0]}{unit[1]} "
         if index >= display_num:
             return time_str.strip()
 
     if not time_str:
-        return "{}{}".format(s, second_unit)
+        return f"{s}{second_unit}"
 
     return time_str.strip()
 
@@ -339,13 +339,13 @@ def hms_string(sec_elapsed, display_num=2, day_unit="d", hour_unit="h", minute_u
 TIME_ABBREVIATION_MATCH = re.compile(r"^[-+]?[0-9]*\.?[0-9]+[smhdwMy]")
 
 
-def parse_time_compare_abbreviation(time_offset: Union[int, str]) -> int:
+def parse_time_compare_abbreviation(time_offset: int | str) -> int:
     """
     时间对比解析(h/d/w/M/y)
     :param time_offset: 1d / 0.5m / -5w
     :return: 返回一个整数，以秒为单位。 int (unit: s)
     """
-    if isinstance(time_offset, (int, float)):
+    if isinstance(time_offset, int | float):
         return time_offset
 
     time_offset = str(time_offset).strip()

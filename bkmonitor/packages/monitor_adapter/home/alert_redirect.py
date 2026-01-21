@@ -18,7 +18,12 @@ from django.conf import settings
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.models import ActionInstance
 from bkmonitor.utils import time_tools
-from bkmonitor.utils.alert_drilling import merge_dimensions_into_conditions
+from bkmonitor.utils.alert_drilling import (
+    build_log_search_condition,
+    get_alert_dimensions,
+    get_alert_query_config_or_none,
+    merge_dimensions_into_conditions,
+)
 from constants.apm import ApmAlertHelper
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
@@ -33,9 +38,8 @@ class AlertRedirectInfo:
     """告警重定向所需信息数据类"""
 
     alert: AlertDocument
-    origin_dimensions: dict
+    dimensions: dict
     query_config: dict
-    dimension_fields: list
     duration: int
 
 
@@ -59,17 +63,10 @@ def _get_alert_redirect_info(action_id: str) -> AlertRedirectInfo | None:
     if not alert.strategy:
         return None
 
-    # 获取告警策略数据查询配置
-    try:
-        query_config: dict[str, Any] = alert.strategy["items"][0]["query_configs"][0]
-    except (KeyError, IndexError, TypeError):
+    # 获取告警策略的查询配置
+    query_config: dict[str, Any] | None = get_alert_query_config_or_none(alert)
+    if not query_config:
         return None
-
-    alert_data: dict[str, Any] = alert.origin_alarm.get("data", {})
-    # 获取原始维度信息
-    origin_dimensions: dict[str, str | None] = alert_data.get("dimensions", {})
-    # 获取告警策略配置的维度字段
-    dimension_fields: list[str] = alert_data.get("dimension_fields", [])
 
     # 获取持续时间
     duration: int = alert.duration or 60
@@ -77,8 +74,7 @@ def _get_alert_redirect_info(action_id: str) -> AlertRedirectInfo | None:
     return AlertRedirectInfo(
         alert=alert,
         query_config=query_config,
-        origin_dimensions=origin_dimensions,
-        dimension_fields=dimension_fields,
+        dimensions=get_alert_dimensions(alert),
         duration=duration,
     )
 
@@ -120,17 +116,19 @@ def generate_log_search_url(bk_biz_id, collect_id):
         end_time = start_time + 60 * 60
         start_time_str = time_tools.utc2biz_str(start_time)
         end_time_str = time_tools.utc2biz_str(end_time)
-        addition = [
-            {"field": dimension_field, "operator": "=", "value": dimension_value}
-            for dimension_field, dimension_value in redirect_info.origin_dimensions.items()
-            if dimension_field in query_config.get("agg_dimension", [])
-        ]
+
+        # 构造日志查询过滤条件
+        log_search_condition: dict[str, Any] = build_log_search_condition(
+            query_config=query_config,
+            dimensions=redirect_info.dimensions,
+        )
+
         params = {
             "bizId": alert.event.bk_biz_id or bk_biz_id,
-            "addition": json.dumps(addition),
+            "addition": json.dumps(log_search_condition["addition"]),
             "start_time": start_time_str,
             "end_time": end_time_str,
-            "keyword": query_config["query_string"],
+            "keyword": log_search_condition["keyword"],
         }
         # 如果为指定不截断原始关联信息，则拼接查询链接
         bklog_link = f"{settings.BKLOGSEARCH_HOST}#/retrieve/{index_set_id}?{urlencode(params)}"
@@ -146,7 +144,7 @@ def generate_apm_rpc_url(bk_biz_id: int, collect_id: str) -> str | None:
     return ApmAlertHelper.get_rpc_url(
         bk_biz_id,
         redirect_info.alert.strategy,
-        redirect_info.origin_dimensions,
+        redirect_info.dimensions,
         redirect_info.alert.event.time,
         redirect_info.duration,
     )
@@ -161,7 +159,7 @@ def generate_apm_trace_url(bk_biz_id: int, collect_id: str) -> str | None:
     return ApmAlertHelper.get_trace_url(
         bk_biz_id,
         redirect_info.alert.strategy,
-        redirect_info.origin_dimensions,
+        redirect_info.dimensions,
         redirect_info.alert.event.time,
         redirect_info.duration,
     )
@@ -185,8 +183,7 @@ def generate_event_explore_url(bk_biz_id: int, collect_id: str) -> str | None:
     # 添加 where 过滤条件
     query_filter["where"] = merge_dimensions_into_conditions(
         agg_condition=query_config.get("agg_condition"),
-        dimensions=redirect_info.origin_dimensions,
-        dimension_fields=redirect_info.dimension_fields,
+        dimensions=redirect_info.dimensions,
     )
 
     offset: int = 5 * 60 * 1000

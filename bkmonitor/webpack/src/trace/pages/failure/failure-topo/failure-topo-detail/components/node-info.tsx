@@ -100,12 +100,12 @@ export default defineComponent({
       emit('FeedBack', node);
     };
 
-    /** 跳转trace详情页，高亮对应span */
+    /** 跳转trace检索-span视角-trace详情 */
     const handleViewSpan = node => {
       emit('toTracePage', node.entity, 'traceDetail');
     };
 
-    /** 跳转trace详情页，打开对应span详情 */
+    /** 跳转trace检索-span视角-对应trace侧滑中的span详情 */
     const handleViewSpanDetail = node => {
       emit('toTracePage', node.entity, 'spanDetail');
     };
