@@ -631,6 +631,18 @@ class GetCustomTsGraphConfig(Resource):
         else:
             raise ValueError(f"Invalid compare config type: {compare_config.get('type')}")
 
+        from constants.apm import ApmMetricProcessor
+
+        table_info = {"data_label": data_label, "table_id": result_table_id}
+
+        # 根据匹配结果决定是否保留 data_label 字段
+        if ApmMetricProcessor.is_match_data_label(table_info) and ApmMetricProcessor.is_match_table_id(table_info):
+            for group in groups:
+                for panel in group.get("panels", []):
+                    for target in panel.get("targets", []):
+                        for query_config in target.get("query_configs", []):
+                            query_config.pop("data_label")
+
         return {"groups": groups}
 
 
