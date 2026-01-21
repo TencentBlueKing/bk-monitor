@@ -590,6 +590,7 @@ class GetCustomTsGraphConfig(Resource):
         for scope_data in metadata_result:
             metric_list = scope_data.get("metric_list", [])
             dimension_config = scope_data.get("dimension_config", {})
+            scope_name = scope_data.get("scope_name", "")
 
             # 收集维度名称
             for dimension_name, dim_config in dimension_config.items():
@@ -624,6 +625,7 @@ class GetCustomTsGraphConfig(Resource):
                         "aggregate_method": field_config.get("aggregate_method", "AVG"),
                         "function": field_config.get("function", []),
                         "unit": field_config.get("unit", ""),
+                        "scope_name": scope_name,
                     }
                 )
 
