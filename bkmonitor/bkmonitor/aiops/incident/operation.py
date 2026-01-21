@@ -94,6 +94,9 @@ class IncidentOperationManager:
         else:
             operator = None
 
+        # 从 kwargs 中提取 incident_document（不存入 extra_info）
+        incident_document = kwargs.pop("incident_document", None)
+
         IncidentOperationDocument.bulk_create(
             [
                 IncidentOperationDocument(
@@ -111,14 +114,21 @@ class IncidentOperationManager:
         notice_enabled = getattr(settings, "ENABLE_BK_INCIDENT_NOTICE", False)
         if notice_enabled:
             if operation_type in cls.NOTICE_TRIGGER_OPERATIONS:
-                cls._send_incident_notice(incident_id, operation_type, **kwargs)
+                cls._send_incident_notice(incident_id, operation_type, incident_document=incident_document, **kwargs)
 
     @classmethod
-    def _send_incident_notice(cls, incident_id: int, operation_type: IncidentOperationType, **kwargs) -> None:
+    def _send_incident_notice(
+        cls,
+        incident_id: int,
+        operation_type: IncidentOperationType,
+        incident_document: IncidentDocument = None,
+        **kwargs,
+    ) -> None:
         """发送故障通知（支持多种通知方式）
 
         :param incident_id: 故障ID
         :param operation_type: 操作类型
+        :param incident_document: 故障文档对象（可选，如果传入则直接使用，避免 ES 查询延迟）
         :param kwargs: 额外参数
         """
         try:
@@ -131,10 +141,13 @@ class IncidentOperationManager:
                 logger.debug(f"No receivers configured for incident {incident_id}, skip sending notice")
                 return
 
-            # 获取故障文档（带重试机制，应对 ES 索引延迟）
-            incident_document = cls._get_incident_document_with_retry(incident_id, sleep_time=0.5)
+            # 优先使用传入的 incident_document，避免 ES 索引延迟导致查询失败
+            # 这对于 CREATE 事件尤为重要，因为文档刚写入 ES 时可能还未被索引
             if not incident_document:
-                return
+                incident_document = cls._get_incident_document_with_retry(incident_id, sleep_time=0.5)
+                if not incident_document:
+                    logger.warning(f"Failed to get incident document for incident {incident_id}, skip sending notice")
+                    return
 
             # 根据故障的业务ID从字典中获取对应的接收人
             bk_biz_id = incident_document.bk_biz_id
@@ -216,7 +229,12 @@ class IncidentOperationManager:
 
     @classmethod
     def record_create_incident(
-        cls, incident_id: int, operate_time: int, alert_count: int, assignees: list[str]
+        cls,
+        incident_id: int,
+        operate_time: int,
+        alert_count: int,
+        assignees: list[str],
+        incident_document: IncidentDocument = None,
     ) -> IncidentOperationDocument:
         """记录生成故障
         文案: 生成故障，包含{alert_count}个告警，负责人为{handlers}
@@ -225,10 +243,16 @@ class IncidentOperationManager:
         :param operate_time: 流转生成时间
         :param alert_count: 告警数量
         :param assignees: 故障负责人
+        :param incident_document: 故障文档对象（可选，传入后可直接用于发送通知，避免 ES 查询延迟）
         :return: 故障流转记录
         """
         return cls.record_operation(
-            incident_id, IncidentOperationType.CREATE, operate_time, alert_count=alert_count, assignees=assignees
+            incident_id,
+            IncidentOperationType.CREATE,
+            operate_time,
+            alert_count=alert_count,
+            assignees=assignees,
+            incident_document=incident_document,
         )
 
     @classmethod

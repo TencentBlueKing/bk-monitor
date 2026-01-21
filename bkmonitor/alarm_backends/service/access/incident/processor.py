@@ -179,6 +179,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 operate_time=incident_info["create_time"],
                 alert_count=len(sync_info["scope"]["alerts"]),
                 assignees=incident_document.assignees,
+                incident_document=incident_document,  # 直接传入文档，避免 ES 查询延迟
             )
             self.generate_alert_operations(
                 snapshot_alerts,
