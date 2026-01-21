@@ -7,6 +7,7 @@ from django.conf import settings
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata.models import ClusterInfo
+from metadata.models.data_link.data_link_configs import ClusterConfig
 from metadata.task.bkbase import sync_bkbase_cluster_info
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.sync_space import sync_bkcc_space
@@ -44,6 +45,9 @@ def _init_kafka_cluster(bk_tenant_id: str):
         )
 
         logger.info("Kafka cluster created for tenant %s", bk_tenant_id)
+
+    # 同步集群配置
+    ClusterConfig.sync_cluster_config(cluster)
 
     # 注册到GSE
     KafkaGseSyncer.register_to_gse(mq_cluster=cluster)
@@ -87,6 +91,7 @@ def _init_es_cluster(bk_tenant_id: str):
         default_es.username = es_username
         default_es.password = es_password
         default_es.save()
+        ClusterConfig.sync_cluster_config(default_es)
         logger.info(f"es7 default cluster tenant({bk_tenant_id}) is init with {es_host}:{es_port}")
         return True
 
@@ -96,7 +101,7 @@ def _init_es_cluster(bk_tenant_id: str):
     )
 
     # 2. 需要创建一个新的ES7配置，写入ES7的域名密码等
-    ClusterInfo.objects.create(
+    cluster = ClusterInfo.objects.create(
         bk_tenant_id=bk_tenant_id,
         cluster_name="es7_cluster",
         cluster_type=ClusterInfo.TYPE_ES,
@@ -108,6 +113,7 @@ def _init_es_cluster(bk_tenant_id: str):
         password=es_password,
         version="7.2",
     )
+    ClusterConfig.sync_cluster_config(cluster)
     logger.info(f"es7 cluster for tenant({bk_tenant_id}) is added to default cluster.")
 
 
