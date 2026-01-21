@@ -55,17 +55,30 @@ class ExportTableDataJsonTool:
         """
         批量导出
         """
-        where_condition_dict = {}
+        query_condition_dict = {}
+        query_fields = []
 
         if self.bk_biz_id:
-            where_condition_dict["bk_biz_id"] = {"condition": "bk_biz_id = %s", "param": self.bk_biz_id}
+            query_fields.append("bk_biz_id")
+            query_condition_dict["bk_biz_id"] = {
+                "operator": "eq",
+                "condition": "bk_biz_id = %s",
+                "param": self.bk_biz_id,
+            }
 
         if self.space_uid:
-            where_condition_dict["space_uid"] = {"condition": "space_uid = %s", "param": self.space_uid}
+            query_fields.append("space_uid")
+            query_condition_dict["space_uid"] = {
+                "operator": "eq",
+                "condition": "space_uid = %s",
+                "param": self.space_uid,
+            }
 
         if self.index_set_ids_set:
+            query_fields.append("index_set_id")
             placeholders = ", ".join(["%s"] * len(self.index_set_ids_set))
-            where_condition_dict["index_set_id"] = {
+            query_condition_dict["index_set_id"] = {
+                "operator": "in",
                 "condition": f"index_set_id IN ({placeholders})",
                 "param": list(self.index_set_ids_set),
             }
@@ -82,21 +95,12 @@ class ExportTableDataJsonTool:
             query_sql = f"SELECT * FROM {table_name}"
 
             # 拼接查询条件
-            where_conditions = []
-            params = []
-            if where_condition_dict:
-                if "bk_biz_id" in table_fields and "bk_biz_id" in where_condition_dict:
-                    where_conditions.append(where_condition_dict.get("bk_biz_id").get("condition"))
-                    params.append(where_condition_dict.get("bk_biz_id").get("param"))
-                if "space_uid" in table_fields and "space_uid" in where_condition_dict:
-                    where_conditions.append(where_condition_dict.get("space_uid").get("condition"))
-                    params.append(where_condition_dict.get("space_uid").get("param"))
-                if "index_set_id" in table_fields and "index_set_id" in where_condition_dict:
-                    where_conditions.append(where_condition_dict.get("index_set_id").get("condition"))
-                    params.extend(where_condition_dict.get("index_set_id").get("param"))
+            conditions, params = self.get_conditions_and_values_by_fields(
+                table_fields, query_condition_dict, query_fields
+            )
 
-            if where_conditions:
-                query_sql += f" WHERE {' AND '.join(where_conditions)}"
+            if conditions:
+                query_sql += f" WHERE {' AND '.join(conditions)}"
 
             data = []
             query_success = True
@@ -130,6 +134,32 @@ class ExportTableDataJsonTool:
                     Prompt.error(
                         msg="导出 {table_name} json 文件失败, 错误信息: {error}", table_name=table_name, error=str(e)
                     )
+
+    @staticmethod
+    def get_conditions_and_values_by_fields(
+        table_fields: set, query_condition_dict: dict, query_fields: list = None
+    ) -> tuple[list, list]:
+        if not query_condition_dict or not table_fields or not query_fields:
+            return [], []
+
+        conditions = []
+        params = []
+
+        for field in query_fields:
+            if field in table_fields and field in query_condition_dict:
+                field_query_condition_dict = query_condition_dict.get(field)
+
+                if field_query_condition_dict:
+                    conditions.append(field_query_condition_dict.get("condition"))
+
+                    operator = field_query_condition_dict.get("operator", "eq")
+
+                    if operator == "eq":
+                        params.append(field_query_condition_dict.get("param"))
+                    elif operator == "in":
+                        params.extend(field_query_condition_dict.get("param"))
+
+        return conditions, params
 
 
 class DateTimeEncoder(json.JSONEncoder):
