@@ -117,6 +117,11 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
           statusQuickFilter.push(...filter.value);
           isStatus = true;
         }
+      } else if (alarmType.value === AlarmType.INCIDENT) {
+        if (filter.key === 'INCIDENT_LEVEL' || filter.key === 'MINE') {
+          statusQuickFilter.push(...filter.value);
+          isStatus = true;
+        }
       }
       if (!isStatus) {
         otherQuickFilter.push(filter);
