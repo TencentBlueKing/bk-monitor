@@ -95,7 +95,7 @@ class ExportTableDataJsonTool:
             query_sql = f"SELECT * FROM {table_name}"
 
             # 拼接查询条件
-            conditions, params = self.get_conditions_and_values_by_fields(
+            conditions, params = self.get_conditions_and_values_by_query_fields(
                 table_fields, query_condition_dict, query_fields
             )
 
