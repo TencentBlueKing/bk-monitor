@@ -68,13 +68,9 @@ class IncidentNoticeHelper:
             "duration_range_msg": "",
         }
         if operation_type == IncidentOperationType.OBSERVE:
-            last_minutes = kwargs.get("last_minutes")
-            if last_minutes is not None:
-                # 使用已计算好的观察时长（分钟数）
-                observe_duration_info = cls._format_duration_from_minutes(last_minutes)
-            elif incident.end_time:
-                # 兜底：如果没有 last_minutes，尝试从 end_time 计算
-                observe_duration_info = cls._format_observe_duration(incident.end_time)
+            operation_start_time = incident.end_time or None
+            # 直接从 end_time（观察开始时间）计算到当前时间的观察时长
+            observe_duration_info = cls._format_observe_duration(observe_start_time=operation_start_time)
 
         end_time_for_duration = incident.end_time if incident.end_time else None
         duration_info = cls._format_duration(incident.begin_time, end_time_for_duration)
@@ -162,40 +158,6 @@ class IncidentNoticeHelper:
         return context
 
     @classmethod
-    def _format_duration_from_minutes(cls, minutes: int) -> dict:
-        """
-        从分钟数格式化时长描述
-
-        :param minutes: 时长（分钟）
-        :return: 格式化的时长字典
-        """
-        if minutes < 0:
-            minutes = 0
-
-        if minutes < 60:
-            duration_msg = _("{}分钟").format(minutes)
-        elif minutes < 1440:  # 小于24小时
-            hours = minutes // 60
-            remaining_minutes = minutes % 60
-            if remaining_minutes > 0:
-                duration_msg = _("{}小时{}分钟").format(hours, remaining_minutes)
-            else:
-                duration_msg = _("{}小时").format(hours)
-        else:  # 大于等于24小时
-            days = minutes // 1440
-            remaining_hours = (minutes % 1440) // 60
-            if remaining_hours > 0:
-                duration_msg = _("{}天{}小时").format(days, remaining_hours)
-            else:
-                duration_msg = _("{}天").format(days)
-
-        return {
-            "duration_msg": duration_msg,
-            "duration_range": ["", ""],  # 分钟数格式不需要时间范围
-            "duration_range_msg": "",
-        }
-
-    @classmethod
     def _format_observe_duration(cls, observe_start_time: int) -> dict:
         """
         格式化观察时长（从观察开始时间到当前时间）
@@ -203,10 +165,10 @@ class IncidentNoticeHelper:
         :param observe_start_time: 观察开始时间戳
         :return: 格式化的观察时长字典
         """
-        if not observe_start_time:
-            return {"duration_msg": _("未知"), "duration_range": ["", ""], "duration_range_msg": ""}
 
         current_time = int(time.time())
+        if not observe_start_time:
+            observe_start_time = current_time + 3600
         duration_seconds = current_time - observe_start_time
 
         # 将时间戳转换为本地时区的格式化字符串

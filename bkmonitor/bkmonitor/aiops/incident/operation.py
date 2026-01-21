@@ -256,18 +256,15 @@ class IncidentOperationManager:
         )
 
     @classmethod
-    def record_observe_incident(
-        cls, incident_id: int, operate_time: int, last_minutes: int = 60
-    ) -> IncidentOperationDocument:
+    def record_observe_incident(cls, incident_id: int, operate_time: int) -> IncidentOperationDocument:
         """记录故障状态转为观察中
-        文案: 故障观察中，剩余观察时间{last_minutes}分钟
+        文案: 故障观察中
 
         :param incident_id: 故障ID
         :param operate_time: 流转生成时间
-        :param last_minutes: 观察剩余分钟数
         :return: 故障流转记录
         """
-        return cls.record_operation(incident_id, IncidentOperationType.OBSERVE, operate_time, last_minutes=last_minutes)
+        return cls.record_operation(incident_id, IncidentOperationType.OBSERVE, operate_time)
 
     @classmethod
     def record_recover_incident(cls, incident_id: int, operate_time: int) -> IncidentOperationDocument:
@@ -328,22 +325,8 @@ class IncidentOperationManager:
             if to_value == IncidentStatus.RECOVERED.value:
                 return cls.record_recover_incident(incident_id=incident_id, operate_time=operate_time)
             if to_value == IncidentStatus.RECOVERING.value:
-                # 观察中事件：计算观察时长（从 end_time 到当前时间的分钟数）
-                last_minutes = kwargs.get("last_minutes")
-                if last_minutes is None and "incident_document" in kwargs:
-                    # 如果未传入 last_minutes，则从 incident_document 的 end_time 计算
-                    incident_doc = kwargs.get("incident_document")
-                    if incident_doc and hasattr(incident_doc, "end_time") and incident_doc.end_time:
-                        observe_duration_seconds = int(time.time()) - incident_doc.end_time
-                        last_minutes = observe_duration_seconds // 60  # 转换为分钟
-                        logger.debug(
-                            f"Calculated last_minutes={last_minutes} for incident {incident_id} "
-                            f"from end_time={incident_doc.end_time}"
-                        )
-                last_minutes = last_minutes or 60
-                return cls.record_observe_incident(
-                    incident_id=incident_id, operate_time=operate_time, last_minutes=last_minutes
-                )
+                # 观察中事件：观察时长由 notice.py 中的 _format_observe_duration 从 end_time 实时计算
+                return cls.record_observe_incident(incident_id=incident_id, operate_time=operate_time)
             # 故障重新打开：从观察中（RECOVERING）变为异常（ABNORMAL）
             if to_value == IncidentStatus.ABNORMAL.value and from_value == IncidentStatus.RECOVERING.value:
                 return cls.record_reopen_incident(incident_id=incident_id, operate_time=operate_time)

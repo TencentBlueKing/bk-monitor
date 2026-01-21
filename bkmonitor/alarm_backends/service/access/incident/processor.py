@@ -326,6 +326,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                     # 对状态流转做处理， 补充end_time属性
                     if incident_key == "status":
                         if update_info["to"] in (IncidentStatus.RECOVERING.value, IncidentStatus.MERGED.value):
+                            # 结束状态下，end_time就是这次事件的update_time
                             incident_document.end_time = incident_info["update_time"]
                         elif update_info["to"] == IncidentStatus.ABNORMAL.value:
                             incident_document.end_time = None
