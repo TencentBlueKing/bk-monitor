@@ -16,7 +16,6 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
 django.setup()
 
 from scripts.offshore_migration.import_offshore_data.import_adapters import ImportAdapterManager
-from scripts.offshore_migration.import_offshore_data.import_utils import ImportIDMapper
 from scripts.offshore_migration.export_offshore_data.export_utils import EXPORT_ORDER, safe_json_loads
 from scripts.offshore_migration.import_offshore_data.importers import IMPORTER_REGISTRY
 
@@ -52,11 +51,6 @@ class ConfigImporter:
         
         # 初始化组件
         self.adapter_manager = ImportAdapterManager(self.config)
-        self.id_mapper = ImportIDMapper()
-        
-        # 从导出文件的 metadata 初始化 ID 映射表
-        if "metadata" in self.export_data:
-            self.id_mapper.from_dict(self.export_data["metadata"])
         
         # 导入统计
         self.import_summary = {
@@ -155,7 +149,7 @@ class ConfigImporter:
                     logger.warning(f"未找到 {resource_type} 的导入器，跳过")
                     continue
                 
-                importer = importer_class(self.config.get("import", {}), self.adapter_manager, self.id_mapper)
+                importer = importer_class(self.config.get("import", {}), self.adapter_manager)
                 data_list = resources_data[resource_type]
                 
                 if not data_list:
@@ -227,8 +221,7 @@ class ConfigImporter:
             "failed": self.import_summary["failed"],
             "skipped": self.import_summary["skipped"],
             "total": self.import_summary["total"],
-            "by_resource": self.import_summary["by_resource"],
-            "id_mapping": self.id_mapper.to_dict()
+            "by_resource": self.import_summary["by_resource"]
         }
 
 

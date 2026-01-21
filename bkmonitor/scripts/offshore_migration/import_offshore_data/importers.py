@@ -73,98 +73,19 @@ class UserGroupImporter(BaseImporter, RelationImportMixin):
     
     def import_relations(self, obj, relations: dict):
         """
-        导入关联的轮值规则和轮班配置
-        """
-        from scripts.offshore_migration.import_offshore_data.import_utils import generate_import_hash
+        导入关联的轮班配置（从属资源）
         
-        # 导入轮班配置
+        注意：duty_rules 是 JSONField，存储 DutyRule 的 ID 列表。
+        DutyRule 已在前序步骤（duty_rule 导入阶段）导入，无需在此处理。
+        全量迁移模式下，ID 保持不变，UserGroup.duty_rules 字段直接使用原始 ID。
+        """
+        # 导入轮班配置（从属资源）
         if "duty_arranges" in relations:
             self.import_related_queryset(
                 obj, "duty_arranges", relations["duty_arranges"], DutyArrange, "user_group_id"
             )
         
-        # 导入轮值规则（通过 duty_rules 字段关联）
-        if "duty_rules" in relations:
-            # duty_rules 是 JSONField，需要更新 obj.duty_rules
-            duty_rule_data = relations["duty_rules"]
-            duty_rule_ids = []
-            for rule_data in duty_rule_data:
-                # 获取原始 ID
-                original_id = rule_data.get("_metadata", {}).get("original_id")
-                
-                # 生成导入标记（与 DutyRuleImporter 保持一致）
-                import_hash = generate_import_hash(rule_data)
-                
-                # 1. 优先通过导入标记查找已存在的 duty_rule
-                existing_rule = None
-                if import_hash:
-                    try:
-                        existing_rule = DutyRule.objects.get(hash=import_hash)
-                        duty_rule_ids.append(existing_rule.id)
-                        logger.debug(f"Found existing duty_rule {existing_rule.id} by import hash for user_group {obj.id}")
-                        continue
-                    except DutyRule.DoesNotExist:
-                        pass
-                
-                # 2. 尝试从 ID 映射中获取新的 duty_rule_id
-                new_duty_rule_id = None
-                if original_id is not None:
-                    new_duty_rule_id = self.id_mapper.get_new_id("duty_rule", original_id)
-                
-                # 如果找到了映射的 ID，说明 duty_rule 已经被导入过了
-                if new_duty_rule_id is not None:
-                    duty_rule_ids.append(new_duty_rule_id)
-                    logger.debug(f"Using existing duty_rule {new_duty_rule_id} (original_id={original_id}) for user_group {obj.id}")
-                    continue
-                
-                # 3. 尝试通过 name + bk_biz_id 查找已存在的 duty_rule
-                name = rule_data.get("name")
-                bk_biz_id = rule_data.get("bk_biz_id")
-                if name and bk_biz_id is not None:
-                    try:
-                        existing_rule = DutyRule.objects.filter(
-                            name=name, 
-                            bk_biz_id=bk_biz_id
-                        ).order_by('-create_time').first()
-                        
-                        if existing_rule:
-                            duty_rule_ids.append(existing_rule.id)
-                            # 记录 ID 映射
-                            if original_id is not None:
-                                self.id_mapper.add_mapping("duty_rule", original_id, existing_rule.id)
-                            logger.debug(f"Found existing duty_rule {existing_rule.id} (name={name}) for user_group {obj.id}")
-                            continue
-                    except Exception as e:
-                        logger.debug(f"Error finding existing duty_rule: {e}")
-                
-                # 4. 如果都没找到，则创建新的 duty_rule
-                # 移除元数据、主键字段和所有以 _ 开头的内部字段
-                rule_data = {k: v for k, v in rule_data.items() if not k.startswith("_") and k != "id"}
-                
-                # 应用适配器
-                rule_data = self.adapter_manager.apply_adapters(rule_data)
-                # 解析外键
-                rule_data = self._resolve_foreign_keys_for_model(rule_data, DutyRule)
-                
-                # 添加导入标记到 hash 字段
-                if import_hash and 'hash' not in rule_data:
-                    rule_data['hash'] = import_hash
-                
-                # 创建轮值规则
-                try:
-                    rule = DutyRule.objects.create(**rule_data)
-                    duty_rule_ids.append(rule.id)
-                    # 记录 ID 映射
-                    if original_id is not None:
-                        self.id_mapper.add_mapping("duty_rule", original_id, rule.id)
-                    logger.info(f"Created new duty_rule {rule.id} (name={rule.name}) for user_group {obj.id}")
-                except Exception as e:
-                    logger.error(f"Failed to import duty_rule for user_group {obj.id}: {e}", exc_info=True)
-            
-            # 更新 user_group 的 duty_rules 字段
-            if duty_rule_ids:
-                obj.duty_rules = duty_rule_ids
-                obj.save()
+        # duty_rules（独立资源）已在前序步骤导入，无需处理
 
 
 class DutyRuleImporter(BaseImporter):
@@ -174,55 +95,8 @@ class DutyRuleImporter(BaseImporter):
     resource_type = "duty_rule"
     model_class = DutyRule
     
-    def _check_conflict(self, data: dict):
-        """
-        检查轮值规则冲突
-        优先使用导入标记（hash字段）检查，避免重复导入
-        """
-        from scripts.offshore_migration.import_offshore_data.import_utils import generate_import_hash
-        
-        # 1. 首先检查是否已经通过导入标记导入过
-        import_hash = generate_import_hash(data)
-        if import_hash:
-            try:
-                existing = self.model_class.objects.get(hash=import_hash)
-                logger.debug(f"Found existing {self.resource_type} by import hash: {existing.id}")
-                return existing
-            except self.model_class.DoesNotExist:
-                pass
-        
-        # 2. 其次使用 name + bk_biz_id 检查（兼容旧数据）
-        name = data.get("name")
-        bk_biz_id = data.get("bk_biz_id")
-        
-        if name and bk_biz_id is not None:
-            try:
-                # 查找最近创建的同名记录（可能是刚导入的）
-                existing = self.model_class.objects.filter(
-                    name=name,
-                    bk_biz_id=bk_biz_id
-                ).order_by('-create_time').first()
-                
-                if existing:
-                    logger.debug(f"Found existing {self.resource_type} by name+biz_id: {existing.id}")
-                    return existing
-            except Exception as e:
-                logger.debug(f"Error checking conflict by name+biz_id: {e}")
-        
-        return None
-    
-    def _create_object(self, data: dict):
-        """
-        创建对象（添加导入标记）
-        """
-        from scripts.offshore_migration.import_offshore_data.import_utils import generate_import_hash
-        
-        # 生成导入标记并添加到 hash 字段
-        import_hash = generate_import_hash(data)
-        if import_hash and 'hash' not in data:
-            data['hash'] = import_hash
-        
-        return super()._create_object(data)
+    # 使用基类的 _check_conflict() 方法（优先通过主键ID检查）
+    # 无需重写
 
 
 class ActionConfigImporter(BaseImporter):
@@ -239,6 +113,34 @@ class ActionPluginImporter(BaseImporter):
     """
     resource_type = "action_plugin"
     model_class = ActionPlugin
+    
+    def _check_conflict(self, data: dict):
+        """
+        检查插件冲突（优先使用主键ID，其次使用 plugin_type）
+        
+        ActionPlugin 通常是内置插件（notice、webhook、job、sops、common 等）。
+        在全量迁移模式下，优先使用主键ID检查；如果ID不存在，再使用 plugin_type 检查。
+        """
+        # 1. 优先通过主键ID检查（全量迁移模式）
+        original_id = data.get("_metadata", {}).get("original_id")
+        if original_id is not None:
+            try:
+                existing = self.model_class.objects.get(id=original_id)
+                logger.debug(f"Found existing {self.resource_type} by id: {original_id}")
+                return existing
+            except self.model_class.DoesNotExist:
+                pass
+        
+        # 2. 通过 plugin_type 检查（兼容模式，避免重复创建内置插件）
+        plugin_type = data.get("plugin_type")
+        if plugin_type:
+            # 使用 filter().first() 避免 MultipleObjectsReturned 异常
+            existing = self.model_class.objects.filter(plugin_type=plugin_type).first()
+            if existing:
+                logger.debug(f"Found existing {self.resource_type} by plugin_type: {plugin_type} (id={existing.id})")
+                return existing
+        
+        return None
 
 
 class AlertAssignImporter(BaseImporter, RelationImportMixin):
@@ -339,10 +241,6 @@ class CollectConfigImporter(BaseImporter, RelationImportMixin):
         if existing_obj:
             # 如果对象已存在，直接处理
             obj = self._handle_conflict(data, existing_obj)
-            # 记录ID映射
-            new_id = self._get_primary_key_value(obj)
-            if original_id is not None:
-                self.id_mapper.add_mapping(self.resource_type, original_id, new_id)
             return obj
         
         # 6. 先创建 DeploymentConfigVersion（如果存在）
@@ -416,12 +314,7 @@ class CollectConfigImporter(BaseImporter, RelationImportMixin):
         deployment_config.config_meta_id = obj.id
         deployment_config.save(update_fields=["config_meta_id"])
         
-        # 9. 记录ID映射
-        new_id = self._get_primary_key_value(obj)
-        if original_id is not None:
-            self.id_mapper.add_mapping(self.resource_type, original_id, new_id)
-        
-        # 10. 导入关联数据（plugin 等）
+        # 9. 导入关联数据（plugin 等）
         relations = data.get("_relations", {})
         if relations:
             self.import_relations(obj, relations)
@@ -638,30 +531,20 @@ class CustomTSTableImporter(BaseImporter, RelationImportMixin):
     
     def _check_conflict(self, data: dict):
         """
-        检查冲突（使用多种方式检查）
-        1. 优先使用映射后的 time_series_group_id 检查
-        2. 其次使用 name + bk_biz_id 检查
-        
-        注意：当找到已存在的对象时，立即建立 ID 映射，避免后续重复创建
+        检查冲突（优先使用主键ID检查）
         """
+        # 1. 通过 time_series_group_id 检查
         original_ts_group_id = data.get("time_series_group_id")
         
-        # 1. 通过 time_series_group_id 检查（如果已经映射过）
         if original_ts_group_id is not None:
-            # 尝试从 ID 映射中获取新的 time_series_group_id
-            new_ts_group_id = self.id_mapper.get_new_id("custom_ts_group", original_ts_group_id)
-            if new_ts_group_id is not None:
-                try:
-                    existing = self.model_class.objects.get(time_series_group_id=new_ts_group_id)
-                    logger.debug(f"Found existing {self.resource_type} by mapped time_series_group_id: {new_ts_group_id}")
-                    # 建立 custom_ts_table 的 ID 映射（使用 time_series_group_id 作为主键）
-                    if original_ts_group_id != new_ts_group_id:
-                        self.id_mapper.add_mapping(self.resource_type, original_ts_group_id, new_ts_group_id)
-                    return existing
-                except self.model_class.DoesNotExist:
-                    pass
+            try:
+                existing = self.model_class.objects.get(time_series_group_id=original_ts_group_id)
+                logger.debug(f"Found existing {self.resource_type} by time_series_group_id: {existing.time_series_group_id}")
+                return existing
+            except self.model_class.DoesNotExist:
+                pass
         
-        # 2. 通过 name + bk_biz_id 检查
+        # 2. 通过 name + bk_biz_id 检查（兼容）
         name = data.get("name")
         bk_biz_id = data.get("bk_biz_id")
         
@@ -672,12 +555,7 @@ class CustomTSTableImporter(BaseImporter, RelationImportMixin):
                     bk_biz_id=bk_biz_id
                 ).first()
                 if existing:
-                    existing_ts_group_id = existing.time_series_group_id
-                    logger.debug(f"Found existing {self.resource_type} by name+biz_id: {existing_ts_group_id}")
-                    # 立即建立 ID 映射（custom_ts_group 和 custom_ts_table 都需要）
-                    if original_ts_group_id is not None:
-                        self.id_mapper.add_mapping("custom_ts_group", original_ts_group_id, existing_ts_group_id)
-                        self.id_mapper.add_mapping(self.resource_type, original_ts_group_id, existing_ts_group_id)
+                    logger.debug(f"Found existing {self.resource_type} by name+biz_id: {existing.time_series_group_id}")
                     return existing
             except Exception as e:
                 logger.debug(f"Error checking conflict by name+biz_id: {e}")
@@ -686,72 +564,38 @@ class CustomTSTableImporter(BaseImporter, RelationImportMixin):
     
     def _create_object(self, data: dict):
         """
-        创建对象，特殊处理 time_series_group_id（既是主键也是外键）
-        CustomTSTable 的主键 time_series_group_id 需要与 TimeSeriesGroup 保持一致
+        创建对象（CustomTSTable 的主键 time_series_group_id 需要与 TimeSeriesGroup 保持一致）
         """
         from .import_utils import convert_datetime_to_string
         
-        # time_series_group_id 是主键，也是外键，需要从ID映射中获取
+        # time_series_group_id 是主键，也是外键
+        # 在全量迁移模式下，直接使用原始ID
         original_ts_group_id = data.get("time_series_group_id")
         
-        # 尝试从 ID 映射中获取新的 time_series_group_id
-        new_ts_group_id = self.id_mapper.get_new_id("custom_ts_group", original_ts_group_id)
-        
-        if new_ts_group_id is None:
-            # 如果没有找到映射，检查是否可以使用原始 ID
-            # 1. 先检查原始 ID 是否已存在
-            if original_ts_group_id is not None:
-                try:
-                    existing = self.model_class.objects.filter(time_series_group_id=original_ts_group_id).exists()
-                    if not existing:
-                        # 原始 ID 不存在，可以直接使用
-                        new_ts_group_id = original_ts_group_id
-                        logger.debug(f"Using original time_series_group_id={original_ts_group_id} for {self.resource_type}")
-                except Exception as e:
-                    logger.debug(f"Error checking time_series_group_id existence: {e}")
-            
-            # 2. 如果还是没有确定 ID，尝试通过业务逻辑查找对应的 TimeSeriesGroup
-            if new_ts_group_id is None:
-                bk_data_id = data.get("bk_data_id")
-                bk_biz_id = data.get("bk_biz_id")
-                
-                if bk_data_id and bk_biz_id is not None:
-                    try:
-                        # 尝试通过 bk_data_id 查找对应的 TimeSeriesGroup
-                        from packages.monitor_web.models.custom_report import TimeSeriesGroup
-                        ts_group = TimeSeriesGroup.objects.filter(
-                            bk_data_id=bk_data_id,
-                            bk_biz_id=bk_biz_id
-                        ).first()
-                        
-                        if ts_group:
-                            new_ts_group_id = ts_group.time_series_group_id
-                            # 记录 ID 映射
-                            self.id_mapper.add_mapping("custom_ts_group", original_ts_group_id, new_ts_group_id)
-                            logger.debug(f"Found TimeSeriesGroup {new_ts_group_id} by bk_data_id={bk_data_id}")
-                    except Exception as e:
-                        logger.debug(f"Error finding TimeSeriesGroup by bk_data_id: {e}")
-            
-            # 如果还是没找到，抛出错误
-            if new_ts_group_id is None:
-                raise ValueError(
-                    f"Cannot find or map time_series_group_id for custom_ts_table: "
-                    f"original_id={original_ts_group_id}, bk_data_id={bk_data_id}. "
-                    f"Please ensure custom_ts_group is imported first."
-                )
+        if original_ts_group_id is None:
+            raise ValueError(
+                f"Cannot create {self.resource_type}: time_series_group_id is required. "
+                f"Please ensure custom_ts_group is imported first."
+            )
         
         # 移除元数据、关联数据和所有以 _ 开头的内部字段
         import_data = {k: v for k, v in data.items() if not k.startswith("_")}
-        
-        # 设置主键（使用映射后的新ID或原始ID）
-        import_data["time_series_group_id"] = new_ts_group_id
         
         # 转换 datetime 对象为字符串
         import_data = convert_datetime_to_string(import_data)
         
         # 创建对象
-        obj = self.model_class.objects.create(**import_data)
-        return obj
+        try:
+            obj = self.model_class.objects.create(**import_data)
+            logger.debug(f"Created {self.resource_type} with time_series_group_id={original_ts_group_id}")
+            return obj
+        except Exception as e:
+            error_msg = (
+                f"Failed to create {self.resource_type} with time_series_group_id={original_ts_group_id}: {e}. "
+                f"This usually means the object already exists but _check_conflict() didn't detect it."
+            )
+            logger.error(error_msg)
+            raise
     
     def import_relations(self, obj, relations: dict):
         """
@@ -817,25 +661,20 @@ class CustomTSGroupImporter(BaseImporter):
     
     def _check_conflict(self, data: dict):
         """
-        检查时序分组冲突
-        1. 优先使用 time_series_group_id 检查（如果已存在）
-        2. 其次使用 time_series_group_name + bk_biz_id 作为唯一标识
-        
-        注意：当找到已存在的对象时，立即建立 ID 映射，避免后续重复创建
+        检查时序分组冲突（优先使用主键ID检查）
         """
+        # 1. 优先通过 time_series_group_id 检查
         original_ts_group_id = data.get("time_series_group_id")
         
-        # 1. 优先通过 time_series_group_id 检查
         if original_ts_group_id is not None:
             try:
                 existing = self.model_class.objects.get(time_series_group_id=original_ts_group_id)
                 logger.debug(f"Found existing {self.resource_type} by time_series_group_id: {existing.time_series_group_id}")
-                # ID 相同，无需映射
                 return existing
             except self.model_class.DoesNotExist:
                 pass
         
-        # 2. 通过 time_series_group_name + bk_biz_id 检查
+        # 2. 通过 time_series_group_name + bk_biz_id 检查（兼容）
         name = data.get("time_series_group_name")
         bk_biz_id = data.get("bk_biz_id")
         
@@ -845,17 +684,49 @@ class CustomTSGroupImporter(BaseImporter):
                     time_series_group_name=name,
                     bk_biz_id=bk_biz_id
                 )
-                existing_ts_group_id = existing.time_series_group_id
-                logger.debug(f"Found existing {self.resource_type} by name+biz_id: {existing_ts_group_id}")
-                # 立即建立 ID 映射，供后续 custom_ts_table 使用
-                if original_ts_group_id is not None and original_ts_group_id != existing_ts_group_id:
-                    self.id_mapper.add_mapping(self.resource_type, original_ts_group_id, existing_ts_group_id)
-                    logger.debug(f"Mapped {self.resource_type} ID: {original_ts_group_id} -> {existing_ts_group_id}")
+                logger.debug(f"Found existing {self.resource_type} by name+biz_id: {existing.time_series_group_id}")
                 return existing
             except self.model_class.DoesNotExist:
                 pass
         
         return None
+    
+    def _create_object(self, data: dict):
+        """
+        创建对象（过滤掉不属于模型字段的数据）
+        
+        TimeSeriesGroup 导出的数据可能包含动态属性（如 metric_group_dimensions），
+        这些属性不是数据库字段，需要在创建对象前过滤掉。
+        """
+        from .import_utils import convert_datetime_to_string
+        
+        # 获取模型的所有字段名
+        model_field_names = {f.name for f in self.model_class._meta.fields}
+        
+        # 移除元数据、关联数据和所有以 _ 开头的内部字段
+        import_data = {k: v for k, v in data.items() if not k.startswith("_")}
+        
+        # 过滤掉不属于模型字段的数据（如 metric_group_dimensions）
+        invalid_fields = set(import_data.keys()) - model_field_names
+        if invalid_fields:
+            logger.debug(f"Filtering out non-model fields for {self.resource_type}: {invalid_fields}")
+            import_data = {k: v for k, v in import_data.items() if k in model_field_names}
+        
+        # 转换 datetime 对象为字符串
+        import_data = convert_datetime_to_string(import_data)
+        
+        # 创建对象
+        try:
+            obj = self.model_class.objects.create(**import_data)
+            logger.debug(f"Created {self.resource_type} with time_series_group_id={obj.time_series_group_id}")
+            return obj
+        except Exception as e:
+            error_msg = (
+                f"Failed to create {self.resource_type}: {e}. "
+                f"Data keys: {list(import_data.keys())}"
+            )
+            logger.error(error_msg)
+            raise
 
 
 # 导入器注册表

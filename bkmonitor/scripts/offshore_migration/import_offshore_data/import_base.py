@@ -31,18 +31,16 @@ class BaseImporter:
     # Model 类
     model_class = None
     
-    def __init__(self, config: dict, adapter_manager: ImportAdapterManager, id_mapper: ImportIDMapper):
+    def __init__(self, config: dict, adapter_manager: ImportAdapterManager):
         """
         初始化导入器
         
         Args:
             config: 配置字典
             adapter_manager: 导入适配器管理器
-            id_mapper: ID 映射器
         """
         self.config = config
         self.adapter_manager = adapter_manager
-        self.id_mapper = id_mapper
         self.import_config = config.get("import", {})
         self.conflict_strategy = self.import_config.get("conflict_strategy", "skip")
     
@@ -68,7 +66,11 @@ class BaseImporter:
     
     def _check_conflict(self, data: dict) -> Optional[Model]:
         """
-        检查是否存在冲突
+        检查是否存在冲突（优先使用主键ID检查）
+        
+        在全量迁移到新环境的场景下：
+        1. 优先通过主键ID检查（如果ID已存在，说明对象已被导入过）
+        2. 子类可以重写此方法添加额外的业务唯一标识检查
         
         Args:
             data: 导入数据
@@ -76,17 +78,20 @@ class BaseImporter:
         Returns:
             如果存在冲突，返回已存在的对象；否则返回 None
         """
-        # 默认使用 name + bk_biz_id 作为唯一标识
-        # 子类可以重写此方法
-        name = data.get("name")
-        bk_biz_id = data.get("bk_biz_id")
+        # 1. 优先通过主键ID检查（避免重复创建）
+        pk_field = self._get_primary_key_field(self.model_class)
+        original_pk = data.get(pk_field)
         
-        if name and bk_biz_id is not None:
+        if original_pk is not None:
             try:
-                return self.model_class.objects.get(name=name, bk_biz_id=bk_biz_id)
+                existing = self.model_class.objects.get(**{pk_field: original_pk})
+                logger.debug(f"Found existing {self.resource_type} by {pk_field}={original_pk}")
+                return existing
             except self.model_class.DoesNotExist:
                 pass
         
+        # 2. 子类可以重写此方法添加额外的业务唯一标识检查
+        # 例如：name + bk_biz_id、plugin_type 等
         return None
     
     def _handle_conflict(self, data: dict, existing_obj: Model) -> Model:
@@ -126,64 +131,63 @@ class BaseImporter:
     
     def _create_object(self, data: dict) -> Model:
         """
-        创建对象
+        创建对象（全量迁移模式：直接使用原始主键ID）
+        
+        在全量迁移到新环境的场景下：
+        1. 直接使用原始主键ID创建对象（保持ID不变）
+        2. 如果ID已存在，说明_check_conflict()有问题，抛出错误
         
         Args:
             data: 导入数据（已处理适配器）
         
         Returns:
             创建的对象
+        
+        Raises:
+            ValueError: 如果主键ID已存在（说明对象已被导入过，但_check_conflict()未检测到）
         """
         # 获取主键字段名
         pk_field = self._get_primary_key_field(self.model_class)
-        
-        # 获取原始主键值
         original_pk = data.get(pk_field)
         
-        # 尝试保持原始 ID（如果数据库中不存在该 ID）
-        use_original_pk = False
-        if original_pk is not None:
-            try:
-                # 检查该 ID 是否已存在
-                existing = self.model_class.objects.filter(**{pk_field: original_pk}).exists()
-                if not existing:
-                    # ID 不存在，可以使用原始 ID
-                    use_original_pk = True
-                    logger.debug(f"Using original {pk_field}={original_pk} for {self.resource_type}")
-                else:
-                    logger.debug(f"Original {pk_field}={original_pk} already exists, will generate new ID")
-            except Exception as e:
-                logger.debug(f"Error checking {pk_field} existence: {e}")
+        # 准备导入数据（保留原始主键ID）
+        import_data = {k: v for k, v in data.items() if not k.startswith("_")}
         
-        # 准备导入数据
-        if use_original_pk:
-            # 保留原始主键
-            import_data = {k: v for k, v in data.items() if not k.startswith("_")}
-        else:
-            # 移除主键字段，让数据库自动生成新的主键
-            import_data = {k: v for k, v in data.items() if not k.startswith("_") and k != pk_field}
-        
-        # 处理 JSONField 的 null 值问题：如果字段是 JSONField 且值为 None，使用模型的默认值
+        # 处理 JSONField 的 null 值问题
         for field in self.model_class._meta.get_fields():
             if hasattr(field, 'get_internal_type') and field.get_internal_type() == 'JSONField':
                 field_name = field.name
                 if field_name in import_data and import_data[field_name] is None:
-                    # 获取字段的默认值
                     if field.has_default():
                         default = field.get_default()
                         import_data[field_name] = default
                         logger.debug(f"Field {field_name} is null, using default value: {default}")
         
-        # 转换 datetime 对象为字符串，避免 JSON 序列化错误
+        # 转换 datetime 对象为字符串
         import_data = convert_datetime_to_string(import_data)
         
-        # 创建对象
-        obj = self.model_class.objects.create(**import_data)
-        return obj
+        # 创建对象（使用原始主键ID）
+        try:
+            obj = self.model_class.objects.create(**import_data)
+            logger.debug(f"Created {self.resource_type} with {pk_field}={original_pk}")
+            return obj
+        except Exception as e:
+            # 如果创建失败（通常是主键冲突），说明对象已存在但_check_conflict()未检测到
+            error_msg = (
+                f"Failed to create {self.resource_type} with {pk_field}={original_pk}: {e}. "
+                f"This usually means the object already exists but _check_conflict() didn't detect it. "
+                f"Please check the _check_conflict() implementation."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg) from e
     
     def _resolve_foreign_keys(self, data: dict) -> dict:
         """
-        解析外键字段，将原始ID转换为新ID
+        解析外键字段（全量迁移模式：外键ID保持不变，无需映射）
+        
+        在全量迁移到新环境的场景下：
+        1. 外键ID保持不变（因为关联对象的ID也保持不变）
+        2. 只需验证外键引用的对象是否存在（可选）
         
         Args:
             data: 导入数据
@@ -191,33 +195,8 @@ class BaseImporter:
         Returns:
             处理后的数据
         """
-        # 获取模型的所有字段
-        fields = self.model_class._meta.get_fields()
-        pk_field = self._get_primary_key_field(self.model_class)
-        
-        for field in fields:
-            # 检查是否是外键字段
-            if hasattr(field, 'related_model') and field.related_model:
-                field_name = field.name
-                if field_name in data and data[field_name] is not None:
-                    # 尝试推断资源类型（通过字段名和关联模型）
-                    related_model = field.related_model
-                    resource_type = self._infer_resource_type(related_model)
-                    
-                    if resource_type:
-                        original_id = data[field_name]
-                        new_id = self.id_mapper.get_new_id(resource_type, original_id)
-                        if new_id is not None:
-                            data[field_name] = new_id
-                            logger.debug(f"Mapped {field_name}: {original_id} -> {new_id}")
-                        elif field_name == pk_field:
-                            # 如果主键字段映射失败，抛出错误
-                            raise ValueError(
-                                f"Failed to map {field_name} (primary key) for {self.resource_type}: "
-                                f"original_id={original_id}, resource_type={resource_type}. "
-                                f"Make sure {resource_type} is imported before {self.resource_type}."
-                            )
-        
+        # 全量迁移模式：外键ID保持不变，无需映射
+        # 子类可以重写此方法添加外键验证逻辑
         return data
     
     def _infer_resource_type(self, model_class) -> Optional[str]:
@@ -241,7 +220,7 @@ class BaseImporter:
     
     def import_single(self, data: dict) -> Model:
         """
-        导入单个对象
+        导入单个对象（全量迁移模式：保持原始ID）
         
         Args:
             data: 导入数据（包含 _metadata 和 _relations）
@@ -249,29 +228,22 @@ class BaseImporter:
         Returns:
             导入的对象
         """
-        # 获取原始ID
-        original_id = data.get("_metadata", {}).get("original_id")
-        
         # 1. 应用导入适配器
         data = self.adapter_manager.apply_adapters(data)
         
-        # 2. 解析外键字段（将原始ID转换为新ID）
+        # 2. 解析外键字段（全量迁移模式：外键ID保持不变）
         data = self._resolve_foreign_keys(data)
         
-        # 3. 检查冲突
+        # 3. 检查冲突（优先通过主键ID检查）
         existing_obj = self._check_conflict(data)
         if existing_obj:
+            # 对象已存在，根据冲突策略处理
             obj = self._handle_conflict(data, existing_obj)
         else:
-            # 4. 创建对象
+            # 4. 创建对象（使用原始主键ID）
             obj = self._create_object(data)
         
-        # 5. 记录ID映射
-        new_id = self._get_primary_key_value(obj)
-        if original_id is not None:
-            self.id_mapper.add_mapping(self.resource_type, original_id, new_id)
-        
-        # 6. 导入关联数据
+        # 5. 导入关联数据
         relations = data.get("_relations", {})
         if relations:
             self.import_relations(obj, relations)
@@ -357,6 +329,9 @@ class RelationImportMixin:
         
         # 导入每个关联对象
         for item_data in relation_data:
+            # 保存原始主键ID（用于冲突检查）
+            original_pk = item_data.get(related_pk_field)
+            
             # 移除主键字段和所有以 _ 开头的内部字段（让数据库自动生成新的主键）
             item_data = {k: v for k, v in item_data.items() if not k.startswith("_") and k != related_pk_field}
             
@@ -372,6 +347,19 @@ class RelationImportMixin:
             # 转换 datetime 对象为字符串，避免 JSON 序列化错误
             item_data = convert_datetime_to_string(item_data)
             
+            # ✅ 检查关联对象是否已存在（通过原始主键ID检查）
+            existing_obj = None
+            if original_pk is not None:
+                try:
+                    existing_obj = model_class.objects.get(**{related_pk_field: original_pk})
+                    logger.debug(f"Related {model_class.__name__} {original_pk} already exists, skipping")
+                except model_class.DoesNotExist:
+                    pass
+            
+            # 如果对象已存在，跳过创建
+            if existing_obj:
+                continue
+            
             # 创建关联对象
             try:
                 model_class.objects.create(**item_data)
@@ -380,23 +368,11 @@ class RelationImportMixin:
     
     def _resolve_foreign_keys_for_model(self, data: dict, model_class) -> dict:
         """
-        为特定模型解析外键字段
+        为特定模型解析外键字段（全量迁移模式：外键ID保持不变）
+        
+        在全量迁移到新环境的场景下，外键ID保持不变，无需映射
         """
-        fields = model_class._meta.get_fields()
-        
-        for field in fields:
-            if hasattr(field, 'related_model') and field.related_model:
-                field_name = field.name
-                if field_name in data and data[field_name] is not None:
-                    related_model = field.related_model
-                    resource_type = self._infer_resource_type(related_model)
-                    
-                    if resource_type:
-                        original_id = data[field_name]
-                        new_id = self.id_mapper.get_new_id(resource_type, original_id)
-                        if new_id is not None:
-                            data[field_name] = new_id
-        
+        # 全量迁移模式：外键ID保持不变，无需映射
         return data
     
     def _infer_resource_type(self, model_class) -> Optional[str]:

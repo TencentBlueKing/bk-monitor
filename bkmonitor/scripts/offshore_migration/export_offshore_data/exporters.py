@@ -74,20 +74,19 @@ class UserGroupExporter(BaseExporter, RelationMixin):
     
     def export_relations(self, obj, data: dict) -> dict:
         """
-        导出关联的轮值规则和轮班配置
+        导出关联的轮班配置（从属资源）
+        
+        注意：duty_rules 是 JSONField，存储 DutyRule 的 ID 列表。
+        DutyRule 已作为独立资源导出（resources.duty_rule），无需在 _relations 中重复导出。
+        全量迁移模式下，ID 保持不变，可直接使用。
         """
         data["_relations"] = {}
         
-        # 导出轮班配置
+        # 导出轮班配置（从属资源）
         duty_arranges = DutyArrange.objects.filter(user_group_id=obj.id)
         data["_relations"]["duty_arranges"] = self.export_related_queryset(duty_arranges)
         
-        # 导出轮值规则（通过 duty_rules 字段关联）
-        if hasattr(obj, "duty_rules") and obj.duty_rules:
-            duty_rule_ids = obj.duty_rules
-            if isinstance(duty_rule_ids, list) and duty_rule_ids:
-                duty_rules = DutyRule.objects.filter(id__in=duty_rule_ids)
-                data["_relations"]["duty_rules"] = self.export_related_queryset(duty_rules)
+        # duty_rules（独立资源）已在 resources.duty_rule 中导出，无需重复
         
         return data
 

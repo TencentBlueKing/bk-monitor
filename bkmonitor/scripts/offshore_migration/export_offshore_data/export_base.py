@@ -30,18 +30,16 @@ class BaseExporter:
     # Model 类
     model_class = None
     
-    def __init__(self, config: dict, adapter_manager: AdapterManager, id_mapper: IDMapper):
+    def __init__(self, config: dict, adapter_manager: AdapterManager):
         """
         初始化导出器
         
         Args:
             config: 配置字典
             adapter_manager: 适配器管理器
-            id_mapper: ID 映射器
         """
         self.config = config
         self.adapter_manager = adapter_manager
-        self.id_mapper = id_mapper
         self.export_config = config.get("export", {})
     
     def should_export(self) -> bool:
@@ -163,9 +161,6 @@ class BaseExporter:
             "resource_type": self.resource_type,
             "original_id": pk_value,
         }
-        
-        # 6. 记录 ID 映射
-        self.id_mapper.add_mapping(self.resource_type, pk_value)
         
         return data
     

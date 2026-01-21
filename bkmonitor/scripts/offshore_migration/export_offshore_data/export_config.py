@@ -18,7 +18,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
 django.setup()
 
 from scripts.offshore_migration.export_offshore_data.export_adapters import AdapterManager
-from scripts.offshore_migration.export_offshore_data.export_utils import IDMapper, EXPORT_ORDER, safe_json_dumps
+from scripts.offshore_migration.export_offshore_data.export_utils import EXPORT_ORDER, safe_json_dumps
 from scripts.offshore_migration.export_offshore_data.exporters import EXPORTER_REGISTRY
 
 logging.basicConfig(
@@ -38,7 +38,6 @@ class ConfigExporter:
             self.config = self._get_default_config()
         
         self.adapter_manager = AdapterManager(self.config)
-        self.id_mapper = IDMapper()
         self.export_results = {}
     
     def _load_config(self, config_file: str) -> dict:
@@ -87,7 +86,7 @@ class ConfigExporter:
         for resource_type in ordered_resources:
             try:
                 exporter_class = EXPORTER_REGISTRY[resource_type]
-                exporter = exporter_class(self.config, self.adapter_manager, self.id_mapper)
+                exporter = exporter_class(self.config, self.adapter_manager)
                 data = exporter.export(self.config.get("export", {}).get("bk_biz_ids"))
                 if data:
                     resources_data[resource_type] = data
@@ -106,7 +105,10 @@ class ConfigExporter:
             "source_env": os.environ.get("BKAPP_DEPLOY_ENV", "unknown"),
             "resources": resources_data,
             "metadata": {
-                **self.id_mapper.to_dict(),
+                "export_summary": {
+                    resource_type: len(data) 
+                    for resource_type, data in resources_data.items()
+                },
                 "adapters_applied": self.adapter_manager.get_applied_adapter_names()
             }
         }
