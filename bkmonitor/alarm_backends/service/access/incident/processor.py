@@ -322,6 +322,16 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         try:
             for incident_key, update_info in sync_info["update_attributes"].items():
                 if update_info["from"]:
+                    # 对状态流转做处理， 补充end_time属性
+                    if incident_key == "status":
+                        if update_info["to"] in (IncidentStatus.RECOVERING.value, IncidentStatus.MERGED.value):
+                            incident_document.end_time = incident_info["update_time"]
+                        elif update_info["to"] == IncidentStatus.ABNORMAL.value:
+                            incident_document.end_time = None
+                        api.bkdata.update_incident_detail(
+                            incident_id=sync_info["incident_id"],
+                            end_time=incident_document.end_time,
+                        )
                     IncidentOperationManager.record_update_incident(
                         incident_id=sync_info["incident_id"],
                         operate_time=incident_info["update_time"],
@@ -329,16 +339,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                         from_value=update_info["from"],
                         to_value=update_info["to"],
                         merge_info=merge_info,
+                        incident_document=incident_document,  # 传递 incident_document 用于计算观察时长
                     )
-                    if incident_key == "status":
-                        if update_info["to"] in (IncidentStatus.RECOVERING.value, IncidentStatus.MERGED.value):
-                            incident_document.end_time = int(time.time())
-                        elif update_info["to"] == IncidentStatus.ABNORMAL.value:
-                            incident_document.end_time = None
-                        api.bkdata.update_incident_detail(
-                            incident_id=sync_info["incident_id"],
-                            end_time=incident_document.end_time,
-                        )
                 setattr(incident_document, incident_key, update_info["to"])
 
             incident_document.status_order = IncidentStatus(incident_document.status).order

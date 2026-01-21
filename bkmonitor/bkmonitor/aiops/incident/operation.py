@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from bkmonitor.documents.incident import IncidentDocument
 import logging
 import time
 from typing import Any
@@ -38,6 +39,51 @@ class IncidentOperationManager:
         IncidentOperationType.MERGE,
         IncidentOperationType.MERGE_TO,
     ]
+
+    @classmethod
+    def _get_incident_document_with_retry(
+        cls, incident_id: int, max_retries: int = 3, retry_delay: float = 0.5, sleep_time=0.5
+    ):
+        """
+        通过 incident_id 查询故障文档，带重试机制
+
+        由于 ES 的 Near Real-Time 特性，文档写入后需要等待 refresh（默认1秒）才能被搜索到。
+        此方法添加重试机制以应对查询延迟问题。
+
+        :param incident_id: 故障ID
+        :param max_retries: 最大重试次数，默认3次
+        :param retry_delay: 每次重试间隔（秒），默认0.5秒
+        :param sleep_time: 首次前置等待时间（秒），默认0.5秒
+        :return: IncidentDocument 对象，如果未找到则返回 None
+        """
+
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+        for retry in range(max_retries):
+            try:
+                search = IncidentDocument.search()
+                search = search.filter("term", incident_id=incident_id)
+                results = search.execute()
+
+                if results:
+                    logger.debug(f"Found incident document for incident_id {incident_id} on retry {retry + 1}")
+                    return results[0]
+
+                if retry < max_retries - 1:
+                    logger.debug(
+                        f"Incident document not found for incident_id {incident_id}, "
+                        f"retry {retry + 1}/{max_retries} after {retry_delay}s"
+                    )
+                    time.sleep(retry_delay)
+            except Exception as e:
+                logger.error(
+                    f"Error querying incident document for incident_id {incident_id} on retry {retry + 1}: {e}"
+                )
+                if retry < max_retries - 1:
+                    time.sleep(retry_delay)
+
+        logger.warning(f"Incident document not found for incident_id {incident_id} after {max_retries} retries")
+        return None
 
     @classmethod
     def record_operation(
@@ -84,22 +130,9 @@ class IncidentOperationManager:
                 logger.debug(f"No receivers configured for incident {incident_id}, skip sending notice")
                 return
 
-            # 延迟导入避免循环依赖
-            from bkmonitor.documents.incident import IncidentDocument
-
-            # 获取故障文档
-            try:
-                # 根据incident_id查询故障文档
-                # 由于IncidentDocument的id是 {create_time}{incident_id}，需要通过查询获取
-                search = IncidentDocument.search()
-                search = search.filter("term", incident_id=incident_id)
-                results = search.execute()
-                if not results:
-                    logger.warning(f"Incident document not found for incident_id {incident_id}")
-                    return
-                incident_document = results[0]
-            except Exception as e:
-                logger.error(f"Failed to get incident document for incident_id {incident_id}: {e}")
+            # 获取故障文档（带重试机制，应对 ES 索引延迟）
+            incident_document = cls._get_incident_document_with_retry(incident_id, sleep_time=0.5)
+            if not incident_document:
                 return
 
             # 延迟导入避免循环依赖
@@ -255,10 +288,19 @@ class IncidentOperationManager:
             if to_value == IncidentStatus.RECOVERED.value:
                 return cls.record_recover_incident(incident_id=incident_id, operate_time=operate_time)
             if to_value == IncidentStatus.RECOVERING.value:
-                # 观察中事件：尽量使用上游传入的 last_minutes，否则使用 record_observe_incident 的默认值
+                # 观察中事件：计算观察时长（从 end_time 到当前时间的分钟数）
                 last_minutes = kwargs.get("last_minutes")
-                if last_minutes is None:
-                    return cls.record_observe_incident(incident_id=incident_id, operate_time=operate_time)
+                if last_minutes is None and "incident_document" in kwargs:
+                    # 如果未传入 last_minutes，则从 incident_document 的 end_time 计算
+                    incident_doc = kwargs.get("incident_document")
+                    if incident_doc and hasattr(incident_doc, "end_time") and incident_doc.end_time:
+                        observe_duration_seconds = int(time.time()) - incident_doc.end_time
+                        last_minutes = observe_duration_seconds // 60  # 转换为分钟
+                        logger.debug(
+                            f"Calculated last_minutes={last_minutes} for incident {incident_id} "
+                            f"from end_time={incident_doc.end_time}"
+                        )
+                last_minutes = last_minutes or 60
                 return cls.record_observe_incident(
                     incident_id=incident_id, operate_time=operate_time, last_minutes=last_minutes
                 )
