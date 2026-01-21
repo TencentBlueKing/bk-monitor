@@ -291,8 +291,8 @@ class SearchAttrSerializer(serializers.Serializer):
     ip_chooser = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default="")
 
-    start_time = serializers.IntegerField(required=False)
-    end_time = serializers.IntegerField(required=False)
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
     time_range = serializers.CharField(required=False, default=None)
     time_zone = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     from_favorite_id = serializers.IntegerField(required=False, default=0)
@@ -340,8 +340,8 @@ class OriginalSearchAttrSerializer(serializers.Serializer):
 
 
 class SearchFieldsSerializer(serializers.Serializer):
-    start_time = DateTimeFieldWithEpoch(label=_("开始时间"), required=False)
-    end_time = DateTimeFieldWithEpoch(label=_("结束时间"), required=False)
+    start_time = serializers.IntegerField(label=_("开始时间"), required=False)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=False)
     scope = serializers.ChoiceField(
         label=_("类型"), choices=SearchScopeEnum.get_choices(), default=SearchScopeEnum.DEFAULT.value
     )

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import os
 import socket
 
@@ -61,8 +61,20 @@ class UserLocalMiddleware(MiddlewareMixin):
             request.session["bluking_timezone"] = settings.TIME_ZONE
             return None
 
+        # 从请求参数中获取时区（支持GET和POST参数）
+        param_timezone = request.GET.get("time_zone") or request.POST.get("time_zone")
+        # 如果 POST 参数为空，尝试从 JSON 请求体中获取（适用于 Content-Type: application/json）
+        if not param_timezone and request.method == "POST":
+            import json
+
+            try:
+                body_data = json.loads(request.body.decode("utf-8")) if request.body else {}
+                param_timezone = body_data.get("time_zone")
+            except Exception:
+                pass
+
         user_info = self._get_user_info(user=request.user.username)
-        tzname = user_info.get("time_zone", settings.TIME_ZONE)
+        tzname = param_timezone or user_info.get("time_zone", settings.TIME_ZONE)
         set_local_param("time_zone", tzname)
         timezone.activate(pytz.timezone(tzname))
         request.session["bluking_timezone"] = tzname
