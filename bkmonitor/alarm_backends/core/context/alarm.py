@@ -35,6 +35,7 @@ from bkmonitor.utils.time_tools import (
     timestamp2datetime,
     utc2_str,
     utc2localtime,
+    format_user_time,
 )
 from constants.action import ActionPluginType, ActionSignal, ConvergeType, NoticeWay
 from constants.alert import (
@@ -392,12 +393,20 @@ class Alarm(BaseContextObject):
     @cached_property
     def time(self):
         if self.parent.alert:
-            return utc2localtime(self.parent.alert.create_time)
+            create_datetime = utc2localtime(self.parent.alert.create_time)
+            # 使用用户时区格式化时间
+            timezone_name = self.parent.user_timezone
+            return format_user_time(create_datetime, timezone_name=timezone_name)
         return "--"
 
     @cached_property
     def begin_time(self):
-        return time_tools.utc2localtime(self.parent.alert.begin_time) if self.parent.alert else "--"
+        if self.parent.alert:
+            begin_datetime = time_tools.utc2localtime(self.parent.alert.begin_time)
+            # 使用用户时区格式化时间
+            timezone_name = self.parent.user_timezone
+            return format_user_time(begin_datetime, timezone_name=timezone_name)
+        return "--"
 
     @cached_property
     def begin_timestamp(self):
