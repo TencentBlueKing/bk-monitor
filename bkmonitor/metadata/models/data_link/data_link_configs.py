@@ -405,14 +405,11 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
-    def compose_config(self,
-            whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None,
-            bk_data_id=None
-        ) -> dict[str, Any]:
+    def compose_config(
+        self, whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None, bk_data_id: int | str | None = None
+    ) -> dict[str, Any]:
         """
         组装VM存储配置，与结果表相关联
-        @param metric_group_dimensions: 指标分组维度列表，可选
-        @param dd_version: 数据定义版本
         """
         tpl = """
             {
