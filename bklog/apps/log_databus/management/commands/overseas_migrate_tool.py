@@ -165,8 +165,8 @@ class OverseasMigrateTool:
 
         # 遍历索引集数据，进行迁移操作
         for data in index_set_file_datas:
-            if self.bk_biz_id and (
-                data.get("space_uid") != self.space_uid or data.get("index_set_id") not in self.index_set_ids_set
+            if (self.bk_biz_id and data.get("space_uid") != self.space_uid) or (
+                self.index_set_ids_set and data.get("index_set_id") not in self.index_set_ids_set
             ):
                 continue
 
@@ -305,8 +305,8 @@ class OverseasMigrateTool:
 
         # 遍历索引集数据，进行迁移操作
         for data in index_set_file_datas:
-            if self.bk_biz_id and (
-                data.get("space_uid") != self.space_uid or data.get("index_set_id") not in self.index_set_ids_set
+            if (self.bk_biz_id and data.get("space_uid") != self.space_uid) or (
+                self.index_set_ids_set and data.get("index_set_id") not in self.index_set_ids_set
             ):
                 continue
 
