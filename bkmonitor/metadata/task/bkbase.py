@@ -383,7 +383,7 @@ def sync_bkbase_cluster_info(
                 registered_system=models.ClusterInfo.BKDATA_REGISTERED_SYSTEM,
                 registered_to_bkbase=True,
                 version=version,
-                gse_stream_to_id=stream_to_id,
+                gse_stream_to_id=stream_to_id or -1,
             )
             logger.info(f"sync_bkbase_cluster_info: created new {cluster_type} cluster: {cluster_name}")
 
