@@ -1263,4 +1263,5 @@ export default {
   停用采集配置: 'Disable Collection Configuration',
   '采集项停用后，在有效期内，您仍可检索历史日志。':
     'After the collection item is disabled, you can still search historical logs within the validity period.',
+  '支持字母、数字、下划线': 'Supports letters, numbers, and underscores',
 };
