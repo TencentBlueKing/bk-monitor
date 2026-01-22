@@ -222,13 +222,13 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
         if (routerName === 'alarm-shield-detail') {
           return {
             ...item,
-            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/trace/alarm-shield/edit/${params?.shieldId}`,
+            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}#/trace/alarm-shield/edit/${params?.shieldId}`,
           };
         }
         if (routerName === 'alarm-dispatch') {
           return {
             ...item,
-            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/alarm-dispatch?group_id=${params?.groupId}`,
+            url: `${location.origin}${location.pathname}?bizId=${params?.bizId}#/alarm-dispatch?group_id=${params?.groupId}`,
           };
         }
       } else if (item?.url) {
@@ -238,7 +238,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
           if (id) {
             return {
               ...item,
-              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}/#/trace/alarm-shield/edit/${id}`,
+              url: `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}#/trace/alarm-shield/edit/${id}`,
             };
           }
         }
@@ -325,9 +325,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
         <span class='item-title-icon'>
           <i class={['icon-monitor', item.logIcon]} />
         </span>
-        <span class='item-title-date'>
-          {item.expand ? formatWithTimezone(item.time) : formatWithTimezone(item.expandTime)}
-        </span>
+        <span class='item-title-date'>{item.expand ? formatWithTimezone(item.time) : item.expandTime}</span>
       </div>
     );
   }
@@ -348,7 +346,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
             }}
             v-bk-tooltips={{
               placement: 'top',
-              content: showTip ? `${this.$t('数据时间')}：${item.sourceTime}` : '',
+              content: showTip ? `${this.$t('数据时间')}：${formatWithTimezone(item.sourceTime)}` : '',
               disabled: !showTip,
               allowHTML: false,
             }}
@@ -376,7 +374,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
             class={{ 'tip-dashed': item.operate === 'CREATE' || item.operate === 'CONVERGE' }}
             v-bk-tooltips={{
               placement: 'top',
-              content: item.sourceTime ? `${this.$t('数据时间')}：${item.sourceTime}` : '',
+              content: item.sourceTime ? `${this.$t('数据时间')}：${formatWithTimezone(item.sourceTime)}` : '',
               disabled: !item.sourceTime,
               allowHTML: false,
             }}

@@ -72,7 +72,6 @@ INSTALLED_APPS += (
     "apps.bk_log_admin",
     "apps.grafana",
     "apps.ai_assistant",
-    "apps.tgpa",
     "bk_monitor",
     "home_application",
     "console",
@@ -94,6 +93,9 @@ INSTALLED_APPS += (
     "bk_notice_sdk",
     "apigw_manager.apigw",
 )
+
+if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":
+    INSTALLED_APPS += ("apps.tgpa",)
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
 BKAPP_IS_BKLOG_API = os.environ.get("BKAPP_IS_BKLOG_API", 0)
@@ -417,6 +419,8 @@ BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
 BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
+
+BK_USER_HOST = os.getenv("BKAPP_BKUSER_HOST", BK_BKLOG_HOST.replace("bklog", "bkuser"))
 
 # ===============================================================================
 # 企业版登录重定向

@@ -120,10 +120,18 @@ export default ({
               [BK_LOG_STORAGE.BK_BIZ_ID]: resp.data.bk_biz_id,
               [BK_LOG_STORAGE.BK_SPACE_UID]: resp.data.space_uid,
             });
+
+            return resp.data;
           }
+
+          return null;
+        })
+        .catch((e) => {
+          console.error('getSpaceByIndexId失败', e);
+          return null;
         });
     }
-    return Promise.resolve(true);
+    return Promise.resolve(undefined);
   };
 
   /**

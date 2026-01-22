@@ -243,4 +243,5 @@ export default {
   提醒告警时段: 'Reminder alarm time period',
   预警告警时段: 'Pre-alarm time period',
   致命告警时段: 'Fatal alarm time period',
+  缩放: 'DataZoom',
 };

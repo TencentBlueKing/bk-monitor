@@ -61,6 +61,7 @@ ADVANCED_OPTIONS = OrderedDict(
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
         ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
+        ("BK_INCIDENT_BUILTIN_CONFIG", slz.DictField(label="故障分析内置通知配置", default={})),
         ("BK_DATA_PROJECT_ID", slz.IntegerField(label="监控在计算平台使用的公共项目ID", default=1)),
         ("BK_DATA_BK_BIZ_ID", slz.IntegerField(label="监控在计算平台使用的公共业务ID", default=2)),
         (
@@ -287,6 +288,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ACCESS_DATA_TIME_DELAY", slz.IntegerField(label="access数据拉取延迟时间(s)", default=10)),
         ("ACCESS_LATENCY_INTERVAL_FACTOR", slz.IntegerField(label="access数据源延迟上报周期因子", default=1)),
         ("ACCESS_LATENCY_THRESHOLD_CONSTANT", slz.IntegerField(label="access数据源延迟上报常量阈值", default=180)),
+        ("ACCESS_DETECT_MERGE_STRATEGY_IDS", slz.ListField(label="access合并detect策略列表", default=[])),
         ("KAFKA_AUTO_COMMIT", slz.BooleanField(label="kafka是否自动提交", default=True)),
         ("MAX_BUILD_EVENT_NUMBER", slz.IntegerField(label="单次告警生成任务处理的event数量", default=0)),
         ("HOST_DYNAMIC_FIELDS", slz.ListField(label="主机动态属性", default=[])),
@@ -432,10 +434,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
-        (
-            "ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME",
-            slz.BooleanField(label="是否开启dataid注册时能够指定集群名称", default=False),
-        ),
     ]
 )
 
@@ -558,6 +556,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
         ("APM_TRPC_APPS", slz.DictField(label=_("APM TRPC 应用标记"), default={})),
+        ("APM_APP_STORAGE_ROUTES", slz.ListField(label=_("APM 应用存储路由"), default=[])),
         (
             "APM_RESOURCE_FILTER_METRICS_ENABLED_APPS",
             slz.DictField(label=_("APM metrics维度补充功能应用白名单"), default={}),
@@ -567,7 +566,7 @@ STANDARD_CONFIGS = OrderedDict(
             slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0),
         ),
         ("APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID", slz.ListField(label=_("APM 创建虚拟指标业务列表"), default=[])),
-        ("APM_BMW_TASK_QUEUES", slz.ListField(label=_("APM BMW 任务能够使用的队列名称"), default=[])),
+        ("APM_BMW_TASK_QUEUES", slz.ListField(label=_("APM BMW 任务能够使用的队列名称"), default=["apm-01"])),
         ("PER_ROUND_SPAN_MAX_SIZE", slz.IntegerField(label=_("拓扑发现允许的最大 Span 数量"), default=1000)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),

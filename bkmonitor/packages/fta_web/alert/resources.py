@@ -20,8 +20,8 @@ from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from functools import reduce
 from io import StringIO
-from typing import Any
 from itertools import chain
+from typing import Any
 
 from django.conf import settings
 from django.core.cache import cache
@@ -53,6 +53,7 @@ from bkmonitor.models import (
     ActionInstance,
     AlertAssignGroup,
     AlgorithmModel,
+    ItemModel,
     MetricListCache,
     StrategyModel,
 )
@@ -1448,12 +1449,6 @@ class AlertGraphQueryResource(ApiAuthResource):
             return result
 
         point = [alert.origin_alarm["data"]["value"], threshold_band["from"]]
-        point_time_list = [point[1] for point in data[0]["datapoints"]]
-        first_anomaly_in_time_range = start_time <= threshold_band["from"] <= end_time
-        if threshold_band["from"] not in point_time_list and first_anomaly_in_time_range:
-            position = bisect.bisect(point_time_list, threshold_band["from"])
-            data[0]["datapoints"].insert(position, point)
-
         mark_points = [point]
 
         # 离群检测算法特殊处理
@@ -1464,13 +1459,25 @@ class AlertGraphQueryResource(ApiAuthResource):
             # 离群检测算法不需要异常点
             mark_points = []
 
-            # 离群检测所有维度都需要区域
-            for data_item in data:
-                data_item["markTimeRange"] = [threshold_band]
+        # 遍历所有 series，给 time_offset 为 current 的 series 添加标记
+        for series in data:
+            time_offset = series.get("time_offset", "current")
+            if time_offset != "current":
+                continue
 
-        data[0]["markTimeRange"] = [threshold_band]
-        data[0]["markPoints"] = mark_points
-        data[0]["thresholds"] = threshold_line
+            # 添加异常时间范围标记
+            series["markTimeRange"] = [threshold_band]
+
+            # 插入异常点到数据点列表中
+            point_time_list = [point[1] for point in series["datapoints"]]
+            first_anomaly_in_time_range = start_time <= threshold_band["from"] <= end_time
+            if threshold_band["from"] not in point_time_list and first_anomaly_in_time_range:
+                position = bisect.bisect(point_time_list, threshold_band["from"])
+                series["datapoints"].insert(position, point)
+
+            # 所有当前时间的 series 都添加异常点标记和阈值线
+            series["markPoints"] = mark_points
+            series["thresholds"] = threshold_line
 
         return result
 
@@ -1943,10 +1950,14 @@ class ExportActionResource(Resource):
 
     class RequestSerializer(ActionSearchSerializer):
         ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
 
     def perform_request(self, validated_request_data):
         handler = ActionQueryHandler(**validated_request_data)
-        return resource.export_import.export_package(list_data=handler.export())
+        return resource.export_import.export_package(
+            list_data=handler.export(),
+            bk_biz_id=validated_request_data["bk_biz_id"],
+        )
 
 
 class AlertExtendFields(Resource):
@@ -3227,3 +3238,54 @@ class GetAlertDataRetrievalResource(Resource):
             result = {}
 
         return result
+
+
+class EditDataMeaningResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        alert_id = serializers.CharField(required=True, label="告警ID")
+        data_meaning = serializers.CharField(required=True, label="数据含义")
+
+    def perform_request(self, request_data):
+        alert_id = request_data["alert_id"]
+        data_meaning = request_data["data_meaning"]
+
+        alert = AlertDocument.get(alert_id)
+
+        alert_dict = alert.to_dict()
+        extra_info = alert_dict.setdefault("extra_info", {})
+        strategy = extra_info.setdefault("strategy", {})
+        items = strategy.setdefault("items", [])
+
+        item_id = None
+        if not items:
+            # items为空,创建新的item
+            strategy["items"] = [{"name": data_meaning}]
+        else:
+            name = items[0].get("name")
+            item_id = items[0].get("id")
+
+            if name == data_meaning:
+                return {"alert_id": alert_id, "data_meaning": data_meaning}
+
+            items[0]["name"] = data_meaning
+
+        # 执行ES文档更新
+        AlertDocument.bulk_create(
+            [AlertDocument(id=alert_id, extra_info=extra_info)],
+            action=BulkActionType.UPDATE,
+        )
+
+        # 同步更新ItemModel(如果存在)
+        if item_id:
+            # 使用原子性update避免并发覆盖
+            updated_count = ItemModel.objects.filter(id=item_id).update(name=data_meaning)
+            if updated_count == 0:
+                logger.error(f"ItemModel with id {item_id} does not exist for alert {alert_id}")
+        else:
+            # ES中的strategy.items[0]缺少id字段
+            logger.warning(f"alert {alert_id}: extra_info.strategy.items[0].id does not exist")
+
+        return {
+            "alert_id": alert_id,
+            "data_meaning": data_meaning,
+        }

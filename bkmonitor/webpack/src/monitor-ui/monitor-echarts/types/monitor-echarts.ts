@@ -35,6 +35,9 @@ import {
 } from 'echarts/charts';
 import {
   BrushComponent,
+  DataZoomComponent,
+  DataZoomInsideComponent,
+  DataZoomSliderComponent,
   GeoComponent,
   GraphicComponent,
   GridComponent,
@@ -53,6 +56,7 @@ import { CanvasRenderer } from 'echarts/renderers';
 import type { BarSeriesOption, LineSeriesOption, PieSeriesOption } from 'echarts/charts';
 import type {
   DatasetComponentOption,
+  DataZoomComponentOption,
   GridComponentOption,
   LegendComponentOption,
   MarkAreaComponentOption,
@@ -66,6 +70,7 @@ import type { ComposeOption } from 'echarts/core';
 export type MonitorEchartOptions = ComposeOption<
   | BarSeriesOption
   | DatasetComponentOption
+  | DataZoomComponentOption
   | GridComponentOption
   | LegendComponentOption
   | LineSeriesOption
@@ -99,6 +104,9 @@ echarts.use([
   GeoComponent,
   VisualMapComponent,
   BrushComponent,
+  DataZoomComponent,
+  DataZoomInsideComponent,
+  DataZoomSliderComponent,
 ]);
 
 export { echarts };

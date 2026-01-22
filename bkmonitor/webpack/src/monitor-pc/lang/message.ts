@@ -484,6 +484,7 @@ export default {
   暂无告警视图: 'No views',
   观察中: 'Under observation',
   已解决: 'Resolved',
+  已合并: 'Merged',
   暂无更多数据: 'No more data',
   '采集下发中， 请耐心等待': 'Collection issuance in progress, please wait patiently',
   已成功下发采集配置: 'Successfully issued collection configuration',
