@@ -1774,11 +1774,11 @@ AIOPS_SERVER_KPI_URL = os.getenv("BKAPP_AIOPS_SERVER_KPI_URL", "http://bk-aiops-
 # 离群检测远程访问地址
 AIOPS_SERVER_ACD_URL = os.getenv("BKAPP_AIOPS_SERVER_ACD_URL", "http://bk-aiops-serving-acd:8000")
 # SDK执行预测逻辑接口
-AIOPS_PREDICT_SDK = os.getenv("BKAPP_AIOPS_PREDICT_SDK", "/aiops/serving/default/")
+AIOPS_PREDICT_SDK = os.getenv("BKAPP_AIOPS_PREDICT_SDK", "/api/aiops/default/")
 # SDK初始化历史依赖接口
-AIOPS_INIT_DEPEND_SDK = os.getenv("BKAPP_AIOPS_INIT_DEPEND_SDK", "/aiops/serving/init_depend/")
+AIOPS_INIT_DEPEND_SDK = os.getenv("BKAPP_AIOPS_INIT_DEPEND_SDK", "/api/aiops/init_depend/")
 # SDK执行分组预测逻辑接口
-AIOPS_GROUP_PREDICT_SDK = os.getenv("BKAPP_AIOPS_GROUP_PREDICT_SDK", "/aiops/serving/group_predict/")
+AIOPS_GROUP_PREDICT_SDK = os.getenv("BKAPP_AIOPS_GROUP_PREDICT_SDK", "/api/aiops/group_predict/")
 # bkfara apigew地址
 BKFARA_AIOPS_SERVICE_USE_APIGW = bool(str(os.getenv("BKFARA_AIOPS_SERVICE_USE_APIGW", False)).lower() == "true")
 BKFARA_AIOPS_SERVICE_APIGW_HOST = os.getenv("BKFARA_AIOPS_SERVICE_APIGW_HOST", "")
