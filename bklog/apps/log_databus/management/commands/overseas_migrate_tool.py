@@ -86,7 +86,8 @@ class Command(BaseCommand):
             port = os.environ.get("DB_PORT", None)
 
             try:
-                port = int(port)
+                if port:
+                    port = int(port)
             except Exception as e:
                 raise Exception(f"数据库默认配置 port 异常：{str(e)}") from e
 
