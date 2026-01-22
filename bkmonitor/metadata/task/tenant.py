@@ -117,19 +117,20 @@ def _init_bkbase_cluster(bk_tenant_id: str):
     """
     # 遍历所有存储配置
     for storage_config in BKBASE_V4_KIND_STORAGE_CONFIGS:
-        clusters: list[dict[str, Any]] = api.bkdata.list_data_bus_raw_data(
+        clusters: list[dict[str, Any]] = api.bkdata.list_data_link(
             bk_tenant_id=bk_tenant_id, namespace=storage_config["namespace"], kind=storage_config["kind"]
         )
         if clusters:
             logger.info(
                 f"sync bkbase cluster info for tenant({bk_tenant_id}) with {storage_config['kind']}, found {len(clusters)} clusters."
             )
-            sync_bkbase_cluster_info(
-                bk_tenant_id=bk_tenant_id,
-                cluster_list=clusters,
-                field_mappings=storage_config["field_mappings"],
-                cluster_type=storage_config["cluster_type"],
-            )
+            for cluster in clusters:
+                sync_bkbase_cluster_info(
+                    bk_tenant_id=bk_tenant_id,
+                    cluster_data=cluster,
+                    field_mappings=storage_config["field_mappings"],
+                    cluster_type=storage_config["cluster_type"],
+                )
 
     # 检查并设置vm默认集群
     vm_clusters = ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_VM)

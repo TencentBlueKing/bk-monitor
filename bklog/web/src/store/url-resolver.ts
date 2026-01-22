@@ -43,7 +43,7 @@ class RouteUrlResolver {
   constructor({ route, resolveFieldList }: { route: Route; resolveFieldList?: string[] }) {
     this.route = route;
     // eslint-disable-next-line
-    this.resolver = new Map<string, ((_str: string) => unknown)>();
+    this.resolver = new Map<string, (_str: string) => unknown>();
     this.resolveFieldList = resolveFieldList ?? this.getDefaultResolveFieldList();
     this.setDefaultResolver();
   }
@@ -58,6 +58,10 @@ class RouteUrlResolver {
 
   public setResolver(key: string, fn: (_str: string) => unknown) {
     this.resolver.set(key, fn);
+
+    if (!this.resolveFieldList.includes(key)) {
+      this.resolveFieldList.push(key);
+    }
   }
 
   /**

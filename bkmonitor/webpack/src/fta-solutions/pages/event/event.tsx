@@ -201,20 +201,25 @@ const commonActionFieldMap = {
 const commonIncidentFieldMap = {
   status: [
     {
-      id: isEn ? 'ABNORMAL' : '未恢复',
+      // 原en模式下为全大写，现改为全小写
+      id: isEn ? 'abnormal' : '未恢复',
       name: window.i18n.tc('未恢复'),
     },
     {
-      id: isEn ? 'RECOVERING' : '观察中',
+      id: isEn ? 'recovering' : '观察中',
       name: window.i18n.tc('观察中'),
     },
     {
-      id: isEn ? 'RECOVERED' : '已恢复',
+      id: isEn ? 'recovered' : '已恢复',
       name: window.i18n.tc('已恢复'),
     },
     {
-      id: isEn ? 'CLOSED' : '已解决',
+      id: isEn ? 'closed' : '已解决',
       name: window.i18n.tc('已解决'),
+    },
+    {
+      id: isEn ? 'merged' : '已合并',
+      name: window.i18n.tc('已合并'),
     },
   ],
   level: [
@@ -308,6 +313,10 @@ const filterIconMap = {
     color: '#989CA7',
     icon: 'icon-mc-solved',
   },
+  merged: {
+    color: '#979BA5',
+    icon: 'icon-yihebing',
+  },
 };
 @Component({
   name: 'Event',
@@ -395,6 +404,15 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   alertChartMap: Record<string, number> = { ABNORMAL: 1, RECOVERED: 2, CLOSED: 3 };
   actionChartMap: Record<string, number> = { success: 1, failure: 2, running: 3, skipped: 4, shield: 5 };
   queryString = '';
+  /** 故障列表：表格“故障状态”列的筛选 */
+  incidentTableStatusQueryString = '';
+  /**
+   * 故障列表 query_string 来源：
+   * - base：顶部搜索框
+   * - table：表格「故障状态」列筛选
+   * 两者不做拼接合并；当两者同时存在时，以最后一次交互来源为准。
+   */
+  incidentQueryStringSource: 'base' | 'table' = 'base';
   valueMap: Record<Partial<AnlyzeField>, ICommonItem[]> = null;
 
   filterWidth = 320;
@@ -567,7 +585,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     !this.isSplitEventPanel && window.addEventListener('popstate', this.handlePopstate);
   }
 
-  beforeRouteEnter(to, from, next) {
+  beforeRouteEnter(_to, _fromm, next) {
     next(async (vm: Event) => {
       vm.routeStateKeyList = [];
       const params = vm.handleUrl2Params();
@@ -625,7 +643,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       }
     });
   }
-  beforeRouteLeave(to, from, next) {
+  beforeRouteLeave(_to, _fromm, next) {
     this.detailInfo.isShow = false;
     destroyTimezone();
     next();
@@ -734,8 +752,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         : `action_id : ${defaultData.actionId}`;
       const time = +defaultData.actionId.toString().slice(0, 10) * 1000;
       defaultData.timeRange = [
-        dayjs.tz(time).add(-30, 'd').format('YYYY-MM-DD HH:mm:ss'),
-        dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss'),
+        dayjs.tz(time).add(-30, 'd').format('YYYY-MM-DD HH:mm:ssZZ'),
+        dayjs.tz(time).format('YYYY-MM-DD HH:mm:ssZZ'),
       ];
     }
     /** 移动端带collectId跳转事件中心 */
@@ -769,7 +787,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   async handlePopstate() {
     if (this.isSplitEventPanel) return;
     let params = this.handleUrl2Params();
-    const index = this.routeStateKeyList.findIndex(key => key === this.$route.query.key);
+    const index = this.routeStateKeyList.indexOf(this.$route.query.key);
     params = index === -1 ? this.handleGetDefaultRouteData() : params;
     if (this.$route.name === 'event-center') {
       Object.keys(params).forEach(key => {
@@ -795,10 +813,27 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     }
     // const { startTime, endTime } = this.handleGetTimeRange();
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const activeStatus =
+      !onlyOverview && this.activeFilterId && this.searchType !== this.activeFilterId ? [this.activeFilterId] : [];
+
+    const baseQueryString = !onlyOverview ? this.replaceSpecialCondition(this.queryString) : '';
+    const tableQueryString = !onlyOverview && this.searchType === 'incident' ? this.incidentTableStatusQueryString : '';
+
+    /**
+     * 故障：顶部搜索与表格「故障状态」筛选分开。
+     * - 仅使用一种 query_string，不做拼接。
+     * - 两者同时存在时，以最后一次交互来源（`incidentQueryStringSource`）为准。
+     * - 若顶部搜索为空但表格筛选存在，则使用表格筛选。
+     */
+    const useTableQueryString =
+      this.searchType === 'incident' &&
+      !!tableQueryString &&
+      (!baseQueryString || (baseQueryString && this.incidentQueryStringSource === 'table'));
+    const queryString = useTableQueryString ? tableQueryString : baseQueryString;
+
     let params: any = {
       bk_biz_ids: this.bizIds.includes(hasDataBizId) ? [] : this.bizIds,
-      status:
-        !onlyOverview && this.activeFilterId && this.searchType !== this.activeFilterId ? [this.activeFilterId] : [],
+      status: activeStatus,
       // 状态，可选 MINE, ABNORMAL, CLOSED, RECOVERED
       conditions: !onlyOverview
         ? Object.keys(this.condition)
@@ -809,7 +844,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         : [], // 过滤条件，二维数组
       // 在查询前，将 queryString 中查询 通知人 为空的语句进行替换。
       // 为什么不在 input 框（queryString）上替换，会有意料之外的bug，也符合操作直觉。
-      query_string: !onlyOverview ? this.replaceSpecialCondition(this.queryString) : '', // 查询字符串
+      query_string: queryString, // 查询字符串
       start_time: startTime, // 开始时间
       end_time: endTime, // 结束时间
     };
@@ -1418,11 +1453,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         this.noDataType = '500';
         this.noDataString = '';
       } else {
-        this.noDataType = this.hasSearchParams
-          ? 'search-empty'
-          : this.searchType === 'incident'
-            ? 'incidentEmpty'
-            : 'empty';
+        const hasSearchParams =
+          this.hasSearchParams || (this.searchType === 'incident' && !!this.incidentTableStatusQueryString);
+        this.noDataType = hasSearchParams ? 'search-empty' : this.searchType === 'incident' ? 'incidentEmpty' : 'empty';
         /**
          * 故障错误信息展示
          * 1. 有权限空间/与我的故障 无数据则根据当前人员是否有开启灰度空间，有：展示当前有多少空间权限， 无：提示开启灰度
@@ -1603,8 +1636,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       });
     if (from) {
       this.timeRange = [
-        dayjs.tz(params.start_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
-        dayjs.tz(params.end_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
+        dayjs.tz(params.start_time * 1000).format('YYYY-MM-DD HH:mm:ssZZ'),
+        dayjs.tz(params.end_time * 1000).format('YYYY-MM-DD HH:mm:ssZZ'),
       ];
       this.handleGetFilterData();
       this.pagination.current = 1;
@@ -1799,6 +1832,31 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   handleSortChange(v: string) {
     this.sortOrder = v;
     this.handleGetTableData(false, true, false);
+  }
+
+  /**
+   * @description: 故障列表表格筛选变更（使用 incidentList 服务端筛选）
+   */
+  handleIncidentTableFilterChange(filters: Record<string, string[]>) {
+    // incident-table.tsx 的 filters.status 是 abnormal/recovering/...（小写）
+    const statusMap: Record<string, string> = {
+      abnormal: isEn ? 'abnormal' : '未恢复',
+      recovering: isEn ? 'recovering' : '观察中',
+      recovered: isEn ? 'recovered' : '已恢复',
+      closed: isEn ? 'closed' : '已解决',
+      merged: isEn ? 'merged' : '已合并',
+    };
+    const key = isEn ? 'status' : '故障状态';
+    const statusQueryList = (filters?.status || [])
+      .map(v => statusMap[String(v).toLowerCase()])
+      .filter(Boolean)
+      .map(v => `${key} : ${v}`);
+
+    // 这里不改动用户输入框的 queryString。
+    this.incidentQueryStringSource = 'table';
+    this.incidentTableStatusQueryString = statusQueryList.join(' OR ');
+    this.pagination.current = 1;
+    this.handleGetTableData(false, true);
   }
   /**
    * @description: 点击导出数据时触发
@@ -2082,6 +2140,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const isChange = v !== this.queryString;
     if (isChange) {
       this.queryString = v;
+      if (this.searchType === 'incident') {
+        this.incidentQueryStringSource = 'base';
+      }
       this.pagination.current = 1;
       const validate = await this.handleValidateQueryString();
       if (!validate) return;
@@ -2441,6 +2502,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     }
     if (val === 'clear-filter') {
       this.queryString = '';
+      this.incidentQueryStringSource = 'base';
+      this.incidentTableStatusQueryString = '';
       for (const [key, val] of Object.entries(this.condition)) {
         if (val.length) {
           this.condition[key] = [];
@@ -2466,6 +2529,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         onAlertConfirm={this.handleAlertConfirm}
         onBatchSet={this.handleBatchAlert}
         onChatGroup={this.handleChatGroup}
+        onFilterChange={this.handleIncidentTableFilterChange}
         onLimitChange={this.handleTableLimitChange}
         onManualProcess={this.handleManualProcess}
         onPageChange={this.handleTabelPageChange}
@@ -2729,7 +2793,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                   ))}
                 </bk-tab>
               )}
-              {!this.tableData.length ? (
+              {!this.tableData.length &&
+              !(
+                this.searchType === 'incident' &&
+                !!this.incidentTableStatusQueryString &&
+                (!this.queryString || this.incidentQueryStringSource === 'table') &&
+                !['403', '500', 'incidentNotEnabled'].includes(this.noDataType)
+              ) ? (
                 (() => {
                   if (this.tableLoading) {
                     return (

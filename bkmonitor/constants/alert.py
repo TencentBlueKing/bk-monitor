@@ -43,6 +43,12 @@ K8S_RESOURCE_TYPE = {
 class APMTargetType:
     SERVICE = "APM-SERVICE"
 
+    @staticmethod
+    def parse_target(target: str) -> tuple[str, str]:
+        """解析 APM 场景的 target 目标格式"""
+        app_name, service_name = target.split(":", 1)
+        return app_name, service_name
+
 
 EVENT_EXTRA_TARGET_TYPE = (
     K8STargetType.POD,

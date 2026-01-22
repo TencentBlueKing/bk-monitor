@@ -10,7 +10,6 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import jsCookie from 'js-cookie';
 
-import PopInstanceUtil from '@/global/pop-instance-util';
 import IPSelector from '../components/ip-selector';
 import { operatorMapping, translateKeys } from '../utils/const-values';
 import {
@@ -35,14 +34,6 @@ const store = useStore();
 const { t } = useLocale();
 const popoverRefs = ref(new Map());
 const morePopoverRefs = ref([]);
-
-const refChoiceList = ref(null);
-
-const choicePopInstanceUtil = new PopInstanceUtil({ refContent: () => refChoiceList.value,
-  arrow: false,
-  newInstance: true,
-  tippyOptions: { placement: 'bottom-start', appendTo: document.body },
-});
 
 const language = (jsCookie.get('blueking_language') || 'zh-cn');
 const aiSpanPadding = ({
@@ -71,12 +62,12 @@ const setMorePopoverRef = (el, index) => {
   }
 };
 const inputValueLength = ref(0);
-// 当前选中的选择项索引：0=全文检索，1=AI 搜索
-const selectedChoiceIndex = ref(0);
+
 // 动态设置placeHolder
 const inputPlaceholder = computed(() => {
   if (inputValueLength.value === 0) {
-    return `${t('请输入检索内容')}, / ${t('唤起')}，${t('Tab 切换为 AI 模式')}`;
+    // return `${t('请输入检索内容')}, / ${t('唤起')} ...`;
+    return ` / ${t('唤起')}，${t('输入检索内容')}（${t('Tab 可切换为 AI 模式')}）`;
   }
 
   return '';
@@ -164,17 +155,20 @@ const setSearchInputValue = (val) => {
 const handleWrapperClickCapture = (e, { getTippyInstance }) => {
   const instance = getTippyInstance();
   const reference = instance?.reference;
+  const clickTarget = e.target;
+  const container = refUlRoot.value;
 
   const target = refSearchInput.value?.closest('.search-item');
+
   if (reference) {
     // 如果当前是input focus激活的弹出提示
     // 判定当前是否为点击 ui 搜索框
     if (reference === target) {
-      return e.target === refUlRoot.value;
+      return clickTarget === container;
     }
 
     // 判定当前点击是否为某一个条件选项
-    return reference.contains(e.target);
+    return reference.contains(clickTarget);
   }
 
   return false;
@@ -210,23 +204,37 @@ const {
   },
   handleWrapperClick: handleWrapperClickCapture,
   onInputFocus: () => {
+    // 清除 blur 定时器，避免 blur 事件延迟执行导致 isInputTextFocus 被错误设置为 false
+    if (delayBlurTimer) {
+      clearTimeout(delayBlurTimer);
+      delayBlurTimer = null;
+    }
     queryItem.value = '';
     activeIndex.value = null;
   },
   tippyOptions: {
     hideOnClick: true,
     placement: 'top',
+    delay: [0, 300],
     onHide: () => {
       refPopInstance.value?.beforeHideFn?.();
     },
   },
-  showPopoverOnClick: false,
+  showPopoverOnClick: true,
 });
+
+const debounceShowInstance = () => {
+  const target = refSearchInput.value?.closest(".search-item");
+  if (target) {
+    delayShowInstance(target);
+  }
+};
 
 const closeTippyInstance = () => {
   setIsDocumentMousedown(false);
   hideTippyInstance();
 };
+
 
 /**
  * 执行点击弹出操作项方法
@@ -370,19 +378,6 @@ const handleInputValueEnter = (e) => {
     return;
   }
 
-  // 如果选择列表弹出框显示，处理选择列表的回车键
-  if (choicePopInstanceUtil.isShown()) {
-    e.preventDefault();
-    const type = selectedChoiceIndex.value === 0 ? 'fulltext' : 'ai';
-    choicePopInstanceUtil?.hide();
-
-    if (type === 'ai') {
-      handleChoiceItemClick(type);
-      selectedChoiceIndex.value = 0;
-      return;
-    }
-  }
-
   // 正常处理输入框的回车键
   if (!isGlobalKeyEnter.value) {
     handleSaveQueryClick(undefined);
@@ -418,90 +413,18 @@ const handleFullTextInputBlur = (e) => {
     e.target.style.setProperty('width', '12px');
     e.target.value = '';
     queryItem.value = '';
-    // 重置选中状态
-    selectedChoiceIndex.value = 0;
-    // 隐藏弹出框
-    if (choicePopInstanceUtil.isShown()) {
-      choicePopInstanceUtil?.hide();
-    }
   }, 300);
 };
 
 
-const handleFullTextInputFocus = (e) => {
-  inputValueLength.value = e.target.value.length;
-  if (!choicePopInstanceUtil.isShown()) {
-    choicePopInstanceUtil?.show(e.target);
-    selectedChoiceIndex.value = 0;
-  }
-  queryItem.value = e.target.value;
-};
 
 const handleInputValueChange = (e) => {
   const currentLength = e.target.value.length;
   inputValueLength.value = currentLength;
-
-  if (!choicePopInstanceUtil.isShown()) {
-      choicePopInstanceUtil?.show(e.target);
-      selectedChoiceIndex.value = 0;
-    }
   queryItem.value = e.target.value;
-};
 
-/**
- * 点击全文检索或 AI 搜索
- * @param type fulltext or ai
- */
-const handleChoiceItemClick = (type) => {
-  choicePopInstanceUtil?.hide();
-  selectedChoiceIndex.value = 0; // 重置选中状态
-  if (type === 'fulltext') {
-    modelValue.value.push({ field: '*', operator: FulltextOperator, value: refSearchInput.value?.value, disabled: false });
-    emitChange(modelValue.value);
-    return;
-  }
-
-  if (type === 'ai') {
-    delayBlurTimer && clearTimeout(delayBlurTimer);
-    emit('text-to-query', refSearchInput.value?.value);
-    return;
-  }
-};
-
-/**
- * 处理提示项点击
- * @param text 提示文本
- */
-const handlePromptClick = (text) => {
-  choicePopInstanceUtil?.hide();
-  if (refSearchInput.value) {
-    refSearchInput.value.value = text;
-    inputValueLength.value = text.length;
-    emit('text-to-query', text);
-  }
-};
-
-/**
- * 处理选择列表的键盘事件（仅处理上下键）
- * @param e 键盘事件
- */
-const handleChoiceListKeydown = (e) => {
-  // 如果弹出框未显示，不做任何操作
-  if (!choicePopInstanceUtil.isShown()) {
-    return;
-  }
-
-  // 处理上下键切换选中项
-  if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    selectedChoiceIndex.value = selectedChoiceIndex.value === 0 ? 1 : 0;
-    return;
-  }
-
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    selectedChoiceIndex.value = selectedChoiceIndex.value === 1 ? 0 : 1;
-    return;
+  if (currentLength > 0) {
+    debounceShowInstance();
   }
 };
 
@@ -785,7 +708,6 @@ const handleBatchInputChange = (isShow) => {
         @blur.stop="handleFullTextInputBlur"
         @focus.stop="handleFullTextInputFocus"
         @input="handleInputValueChange"
-        @keydown="handleChoiceListKeydown"
         @keyup.delete="handleDeleteItem"
         @keydown.enter.stop="handleInputValueEnter"
         @compositionstart="handleCompositionStart"
@@ -802,61 +724,6 @@ const handleBatchInputChange = (isShow) => {
       />
     </li>
     <div style="display: none">
-      <div
-        ref="refChoiceList"
-        class="v3-bklog-search-bar-choice-list"
-      >
-      <template v-if="inputValueLength === 0">
-        <div class="first-use-guide">
-          <div class="guide-header">
-            <div class="guide-text">
-              {{ t('可直接输入,进行全文检索;') }}
-            </div>
-            <div class="guide-text">
-              {{ t('或描述检索需求,使用') }}<span class="ai-search-text">{{ t('AI 搜索') }}</span>:
-            </div>
-          </div>
-          <div class="guide-prompts">
-            <div
-              class="prompt-item"
-              @click="handlePromptClick('查询近 30 分钟的错误日志')"
-            >
-              <i class="bklog-icon bklog-prompt"></i>
-              <span class="prompt-text">{{ t('查询近 30 分钟的错误日志') }}</span>
-              <i class="bklog-icon bklog-goto-bold"></i>
-            </div>
-            <div
-              class="prompt-item"
-              @click="handlePromptClick('查询今天的错误日志')"
-            >
-              <i class="bklog-icon bklog-prompt"></i>
-              <span class="prompt-text">{{ t('查询今天的错误日志') }}</span>
-              <i class="bklog-icon bklog-goto-bold"></i>
-            </div>
-          </div>
-        </div>
-      </template>
-      <template v-else>
-        <div
-          :class="[
-            'v3-bklog-search-bar-choice-list-item',
-            { 'is-selected': selectedChoiceIndex === 0 }
-          ]"
-          @click="handleChoiceItemClick('fulltext')"
-        >
-          {{ t('全文检索') }}
-        </div>
-        <div
-          :class="[
-            'v3-bklog-search-bar-choice-list-item',
-            { 'is-selected': selectedChoiceIndex === 1 }
-          ]"
-          @click="handleChoiceItemClick('ai')"
-        >
-          {{ t('AI 搜索') }}
-        </div>
-        </template>
-      </div>
       <UiInputOptions
         ref="refPopInstance"
         :is-input-focus="isInputTextFocus"
@@ -997,27 +864,27 @@ const handleBatchInputChange = (isShow) => {
 
   .first-use-guide {
     padding: 16px;
+    margin-top: -4px;
     background-image: radial-gradient(circle at 50% 0%, #F5F1FF 0%, #FFFFFF 48%);
     border-radius: 2px;
-    margin-top: -4px;
 
     .guide-header {
       margin-bottom: 12px;
 
       .guide-text {
+        margin-bottom: 4px;
         font-size: 12px;
         line-height: 20px;
         color: #4d4f56;
-        margin-bottom: 4px;
 
         .ai-search-text {
           display: inline-block;
           padding: 0 4px;
-          background-image: linear-gradient(128deg, #235DFA 0%, #E28BED 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
           font-weight: 500;
+          background-image: linear-gradient(128deg, #235DFA 0%, #E28BED 100%);
+          background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
         }
       }
     }
@@ -1032,12 +899,12 @@ const handleBatchInputChange = (isShow) => {
         align-items: center;
         height: 32px;
         padding: 0 12px;
-        background: #F0F3FA;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.2s;
         font-size: 12px;
         color: #4D4F56;
+        cursor: pointer;
+        background: #F0F3FA;
+        border-radius: 4px;
+        transition: background-color 0.2s;
 
         &:hover {
           background: #E1E6F0;
@@ -1058,9 +925,9 @@ const handleBatchInputChange = (isShow) => {
 
         .prompt-text {
           flex: 1;
+          overflow: hidden;
           font-size: 12px;
           color: #313238;
-          overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
         }

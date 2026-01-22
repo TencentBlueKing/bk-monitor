@@ -326,34 +326,34 @@ export const useCollectList = () => {
       isAllowed: () => boolean;
       buildApplyData: () => IAuthApplyDataParams;
     }> = [
-      {
-        match: _t => _t === 'add',
-        isAllowed: () => Boolean(isAllowedCreate.value),
-        buildApplyData: () => buildSpaceCreateApplyData(),
-      },
-      {
-        match: _t => _t === 'view',
-        isAllowed: () => Boolean(row.permission?.[authorityMap.VIEW_COLLECTION_AUTH]),
-        buildApplyData: () => buildCollectionApplyData(authorityMap.VIEW_COLLECTION_AUTH, row.collector_config_id),
-      },
-      {
-        match: _t => _t === 'search',
-        isAllowed: () => Boolean(row.permission?.[authorityMap.SEARCH_LOG_AUTH]),
-        buildApplyData: () => buildIndicesApplyData(authorityMap.SEARCH_LOG_AUTH, row.index_set_id),
-      },
-      {
-        match: _t => _t === 'edit',
-        isAllowed: () => Boolean(row.permission?.[editKey]),
-        buildApplyData: () =>
-          isBkDataOrEs ? buildIndicesApplyData(editKey, editId) : buildCollectionApplyData(editKey, editId),
-      },
-      {
-        // 原逻辑：除 add/view/search 外，统一按“管理权限”兜底
-        match: _t => !['add', 'view', 'search'].includes(String(_t)),
-        isAllowed: () => Boolean(row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]),
-        buildApplyData: () => buildCollectionApplyData(authorityMap.MANAGE_COLLECTION_AUTH, row.collector_config_id),
-      },
-    ];
+        {
+          match: _t => _t === 'add',
+          isAllowed: () => Boolean(isAllowedCreate.value),
+          buildApplyData: () => buildSpaceCreateApplyData(),
+        },
+        {
+          match: _t => _t === 'view',
+          isAllowed: () => Boolean(row.permission?.[authorityMap.VIEW_COLLECTION_AUTH]),
+          buildApplyData: () => buildCollectionApplyData(authorityMap.VIEW_COLLECTION_AUTH, row.collector_config_id),
+        },
+        {
+          match: _t => _t === 'search',
+          isAllowed: () => Boolean(row.permission?.[authorityMap.SEARCH_LOG_AUTH]),
+          buildApplyData: () => buildIndicesApplyData(authorityMap.SEARCH_LOG_AUTH, row.index_set_id),
+        },
+        {
+          match: _t => _t === 'edit',
+          isAllowed: () => Boolean(row.permission?.[editKey]),
+          buildApplyData: () =>
+            isBkDataOrEs ? buildIndicesApplyData(editKey, editId) : buildCollectionApplyData(editKey, editId),
+        },
+        {
+          // 原逻辑：除 add/view/search 外，统一按“管理权限”兜底
+          match: _t => !['add', 'view', 'search'].includes(String(_t)),
+          isAllowed: () => Boolean(row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]),
+          buildApplyData: () => buildCollectionApplyData(authorityMap.MANAGE_COLLECTION_AUTH, row.collector_config_id),
+        },
+      ];
 
     for (const guard of guards) {
       if (!guard.match(operateType)) continue;

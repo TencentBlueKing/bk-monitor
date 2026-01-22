@@ -66,6 +66,42 @@ class DateTimeField(serializers.CharField):
                 raise ValidationError(detail=_("当前输入非日期时间格式，请按格式[年-月-日 时:分:秒]填写"))
 
 
+class TimezoneAwareDateTimeField(serializers.CharField):
+    """
+    支持带时区的时间格式字段
+    兼容格式：
+    1. 不带时区: "2026-01-12 11:00:08"
+    2. 带时区: "2026-01-12 11:00:08+0800" 或 "2026-01-12 11:00:08+08:00"
+    """
+
+    def to_internal_value(self, data):
+        # 先进行字符串验证
+        data = super().to_internal_value(data)
+
+        # 如果值为空字符串 and 只允许blank，返回空字符串（兼容CharField）
+        if data == "" and getattr(self, "allow_blank", False):
+            return ""
+
+        if data:
+            # 尝试解析带时区或不带时区的时间格式
+            try:
+                # 尝试使用 arrow 解析（支持多种格式，包括带时区的）
+                parsed_time = arrow.get(data)
+                # 转换为标准格式（不带时区）
+                return parsed_time.format("YYYY-MM-DD HH:mm:ss")
+            except (arrow.parser.ParserError, ValueError):
+                # 如果 arrow 解析失败，尝试传统格式
+                try:
+                    datetime.strptime(data, "%Y-%m-%d %H:%M:%S")
+                    return data
+                except ValueError:
+                    raise ValidationError(
+                        detail=_("当前输入非日期时间格式，请按格式[年-月-日 时:分:秒]或[年-月-日 时:分:秒+时区]填写")
+                    )
+
+        return data
+
+
 class HandOffSettingsSerializer(serializers.Serializer):
     rotation_type = serializers.ChoiceField(required=True, choices=RotationType.ROTATION_TYPE_CHOICE)
     date = serializers.IntegerField(required=False, label="交接日期")
@@ -173,8 +209,8 @@ class DutyTimeSerializer(serializers.Serializer):
 
 class BackupSerializer(serializers.Serializer):
     users = serializers.ListField(required=True, child=UserSerializer())
-    begin_time = DateTimeField(label="配置生效时间", required=True)
-    end_time = DateTimeField(label="配置生效时间", required=True)
+    begin_time = TimezoneAwareDateTimeField(label="配置生效时间", required=True)
+    end_time = TimezoneAwareDateTimeField(label="配置生效时间", required=True)
     duty_time = DutyTimeSerializer(label="工作时间段", required=True)
     exclude_settings = serializers.ListField(label="被删除的代班", child=ExcludeSettingsSerializer())
 
@@ -275,7 +311,7 @@ class DutyArrangeSlz(DutyBaseInfoSlz):
     group_number = serializers.IntegerField(required=False)
 
     # 配置生效时间
-    effective_time = serializers.DateTimeField(label="配置生效时间", required=False, allow_null=True)
+    effective_time = TimezoneAwareDateTimeField(label="配置生效时间", required=False, allow_null=True)
     # handoff_time: {"date": 1, "time": "10:00"  } 根据rotation_type进行切换
     handoff_time = HandOffField(label="轮班交接时间安排", required=False)
     # duty_time: [{"work_type": "daily|month|week", "work_days":[1,2,3], "work_time"}]
@@ -401,8 +437,8 @@ class DutyRuleSlz(serializers.ModelSerializer):
     name = serializers.CharField(label="轮值规则名称", required=True)
     labels = serializers.ListField(label="轮值规则标签", required=False, default=list)
     enabled = serializers.BooleanField(label="是否开启", default=False)
-    effective_time = DateTimeField(label="规则生效时间", required=True)
-    end_time = DateTimeField(label="规则结束时间", required=False, allow_blank=True)
+    effective_time = TimezoneAwareDateTimeField(label="规则生效时间", required=True)
+    end_time = TimezoneAwareDateTimeField(label="规则结束时间", required=False, allow_blank=True)
     category = serializers.ChoiceField(
         label="类型",
         choices=(
@@ -552,7 +588,7 @@ class PreviewSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
     id = serializers.IntegerField(required=False, label="规则组ID")
-    begin_time = DateTimeField(required=False, label="预览生效开始时间", default="")
+    begin_time = TimezoneAwareDateTimeField(required=False, label="预览生效开始时间", default="")
     days = serializers.IntegerField(required=False, label="预览天数", default=30)
     timezone = serializers.CharField(required=False, default="Asia/Shanghai")
     resource_type = serializers.ChoiceField(
@@ -695,7 +731,7 @@ class UserGroupSlz(serializers.ModelSerializer):
         active_rules = DutyRule.objects.filter(
             enabled=True,
             effective_time__lte=now,
-        ).filter(Q(end_time__gte=now) | Q(end_time__isnull=True) | Q(end_time__isnull=""))
+        ).filter(Q(end_time__gte=now) | Q(end_time__isnull=True) | Q(end_time=""))
 
         # 关联查询对应的 DutyArrange
         active_arranges = DutyArrange.objects.filter(

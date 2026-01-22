@@ -69,13 +69,13 @@ interface ITableRowData {
   daily_usage?: number;
   total_usage?: number;
   bk_data_name?: string;
-  parent_index_sets?: Array<{ index_set_name: string; [key: string]: unknown }>;
+  parent_index_sets?: Array<{ index_set_name: string;[key: string]: unknown }>;
   scenario_id?: string;
   scenario_name?: string;
   collector_scenario_id?: string;
   collector_scenario_name?: string;
   retention?: number;
-  tags?: Array<{ name: string; [key: string]: unknown }>;
+  tags?: Array<{ name: string;[key: string]: unknown }>;
   created_by?: string;
   created_at?: string;
   updated_by?: string;
@@ -943,7 +943,7 @@ export default defineComponent({
      * @param items - 过滤选项数组
      * @returns 用户ID数组
      */
-    const extractUserIds = (items: Array<{ key?: string; [key: string]: unknown }>): string[] => {
+    const extractUserIds = (items: Array<{ key?: string;[key: string]: unknown }>): string[] => {
       return (items || []).map(item => item.key).filter(Boolean) as string[];
     };
 
@@ -954,7 +954,7 @@ export default defineComponent({
      * @returns 处理后的过滤选项数组
      */
     const processFilterItemsWithUserInfo = (
-      items: Array<{ key?: string; label?: string; [key: string]: unknown }>,
+      items: Array<{ key?: string; label?: string;[key: string]: unknown }>,
       userInfoMap: Map<string, { display_name: string }>,
     ) => {
       return (items || []).map(item => ({

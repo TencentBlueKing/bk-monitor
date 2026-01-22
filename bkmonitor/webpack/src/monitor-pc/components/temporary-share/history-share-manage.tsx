@@ -347,7 +347,7 @@ export default class HistoryShareManage extends tsc<IProps> {
     row.isShowAccess = true;
     this.accessDetail = row.access_info.data.map(item => ({
       user: item.visitor,
-      time: dayjs.tz(item.last_time).format('YYYY-MM-DD HH:mm:ss'),
+      time: dayjs.tz(item.last_time).format('YYYY-MM-DD HH:mm:ssZZ'),
     }));
     this.handleShowPop(event, this.accessDetailRef);
   }
@@ -362,7 +362,7 @@ export default class HistoryShareManage extends tsc<IProps> {
         : [timeRangeItem.start_time * 1000, timeRangeItem.end_time * 1000];
       const timeRangeStr =
         this.shortcutsMap.get(range.join(' -- ')) ||
-        new DateRange(range, 'YYYY-MM-DD HH:mm:ss', window.timezone).toDisplayString();
+        new DateRange(range, 'YYYY-MM-DD HH:mm:ssZZ', window.timezone).toDisplayString();
       this.variableDetail = [
         { name: this.$tc('时间选择'), isUpdate: !timeRangeItem.lock_search, timeRange: timeRangeStr },
       ];
@@ -701,7 +701,7 @@ export default class HistoryShareManage extends tsc<IProps> {
                           width={150}
                           scopedSlots={{
                             default: ({ row }: { row: ITableItem }) => (
-                              <span>{dayjs.tz(row.create_time).format('YYYY-MM-DD HH:mm:ss')}</span>
+                              <span>{dayjs.tz(row.create_time).format('YYYY-MM-DD HH:mm:ssZZ')}</span>
                             ),
                           }}
                           label={this.$t('产生时间')}

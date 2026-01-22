@@ -669,9 +669,16 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     };
     return copyDashboardToFolder(params)
       .then(res => {
-        const url = res?.imported_url
-          ? `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#${res.imported_url}`
-          : '';
+        const importedUrl = res?.imported_url || '';
+        const siteUrl = (window.site_url || '').replace(/\/+$/, '');
+        let hashPath = importedUrl;
+        if (siteUrl && hashPath.startsWith(siteUrl)) {
+          hashPath = hashPath.slice(siteUrl.length);
+        }
+        if (hashPath && !hashPath.startsWith('/')) {
+          hashPath = `/${hashPath}`;
+        }
+        const url = hashPath ? `${location.origin}${window.site_url}?bizId=${this.$store.getters.bizId}#${hashPath}` : '';
         url && window.open(url, '_blank');
         return true;
       })

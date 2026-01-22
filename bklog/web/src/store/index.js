@@ -62,11 +62,13 @@ import {
   urlArgs,
 } from './default-values.ts';
 import globals from './globals.js';
-import { getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper.ts';
+import { formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper.ts';
 import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
+import { formatTimeZoneString } from '@/global/utils/time';
+
 if (pinyin.isSupported() && patcher56L.shouldPatch(pinyin.genToken)) {
   pinyin.patchDict(patcher56L);
 }
@@ -192,8 +194,8 @@ const stateTpl = {
   bizIdMap: new Map(),
   aiMode: {
     active: false,
-    filterList: []
-  }
+    filterList: [],
+  },
 };
 
 const store = new Vuex.Store({
@@ -259,7 +261,7 @@ const store = new Vuex.Store({
       const filterAddition = addition
         .filter(item => item.field !== '_ip-select_')
         .map(({ field, operator, value, hidden_values, disabled }) => {
-          const addition = {
+          const target = {
             field,
             operator,
             value,
@@ -267,11 +269,11 @@ const store = new Vuex.Store({
             disabled,
           };
 
-          if (['is true', 'is false'].includes(addition.operator)) {
-            addition.value = [''];
+          if (['is true', 'is false'].includes(target.operator)) {
+            target.value = [''];
           }
 
-          return addition;
+          return target;
         });
 
       // 格式化 addition value
@@ -306,7 +308,15 @@ const store = new Vuex.Store({
       } = state.indexItem;
 
       const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
-      const searchParams = searchMode === 'sql' ? { keyword, addition: [] } : { addition: getters.originAddition, keyword: '*' };
+      const searchParams = searchMode === 'sql'
+        ? { keyword, addition: [] }
+        : { addition: getters.originAddition, keyword: '*' };
+
+      if (state.aiMode.active) {
+        searchParams.keyword = [...state.aiMode.filterList, searchParams.keyword]
+          .filter(f => !/^\s*\*?\s*$/.test(f))
+          .join(' AND ');
+      }
 
       if (state.aiMode.active) {
         searchParams.keyword = [...state.aiMode.filterList, searchParams.keyword].filter(f => !/^\s*\*?\s*$/.test(f)).join(' AND ');
@@ -865,9 +875,17 @@ const store = new Vuex.Store({
       // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
       const filterList = (isVersion2Payload ? payload.displayFieldNames : payload || displayFields)
         ?? state.indexFieldInfo.display_fields;
+
+      // 性能优化：使用 Map 缓存字段查找，从 O(n*m) 降到 O(n+m)
+      // 当字段数量很大（如1500个）时，能显著提升性能
+      const fieldsMap = new Map();
+      state.indexFieldInfo.fields.forEach(field => {
+        fieldsMap.set(field.field_name, field);
+      });
+
       const visibleFields = filterList
         .map((displayName) => {
-          const field = state.indexFieldInfo.fields.find(field => field.field_name === displayName);
+          const field = fieldsMap.get(displayName);
           if (field) {
             return field;
           }
@@ -1279,7 +1297,7 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        addition: [...requestAddition, ...getCommonFilterAdditionWithValues(state)],
+        addition: formatAdditionalFields(state, [...requestAddition, ...getCommonFilterAdditionWithValues(state)]),
         sort_list: dateFieldSortList ?? (state.localSort ? otherPrams.sort_list : getters.custom_sort_list),
       };
 
@@ -1491,10 +1509,11 @@ const store = new Vuex.Store({
       const queryData = {
         keyword: '*',
         fields,
-        addition: payload?.addition ?? [],
+        addition: formatAdditionalFields(state, payload?.addition ?? []),
         start_time: formatDate(startTime),
         end_time: formatDate(endTime),
         size: payload?.size ?? 100,
+        bk_biz_id: state.bkBizId,
       };
 
       if (state.indexItem.isUnionIndex) {
@@ -1538,6 +1557,8 @@ const store = new Vuex.Store({
           const results = (resp.data || []).map((item) => {
             item.favorites?.forEach((sub) => {
               sub.full_name = `${item.group_name}/${sub.name}`;
+              sub.created_at = formatTimeZoneString(sub.created_at, state.userMeta.time_zone);
+              sub.updated_at = formatTimeZoneString(sub.updated_at, state.userMeta.time_zone);
             });
             return item;
           });
@@ -1692,11 +1713,7 @@ const store = new Vuex.Store({
               operator,
               value,
             });
-            if (targetField?.is_virtual_obj_node) {
-              newSearchValue = Object.assign({ field: '*', value }, { operator: mapOperator });
-            } else {
-              newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
-            }
+            newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
           }
           if (searchMode === 'sql') {
             if (targetField?.is_virtual_obj_node) {
@@ -1781,7 +1798,10 @@ const store = new Vuex.Store({
               index_set_ids: state.indexItem.ids,
               start_time: startTime,
               end_time: endTime,
-              addition: [...getters.requestAddition, ...getCommonFilterAdditionWithValues(state)],
+              addition: formatAdditionalFields(state, [
+                ...getters.requestAddition,
+                ...getCommonFilterAdditionWithValues(state),
+              ]),
             },
           },
           {
