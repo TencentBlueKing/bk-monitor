@@ -27,12 +27,15 @@
 import { type PropType, computed, defineComponent, shallowRef, useTemplateRef } from 'vue';
 
 import { type SortInfo, type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
+import EmptyStatus from 'trace/components/empty-status/empty-status';
 import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';
 import { useTippy } from 'vue-tippy';
 
 import DrillDownOptions from './drill-down-options';
 import { getValueFormatFn, handleGetMinPrecisionFn } from './utils';
+
+import type { IGraphDrillDown } from '../../../typing';
 
 import './dimension-analysis-table.scss';
 
@@ -54,7 +57,7 @@ export default defineComponent({
       default: () => [],
     },
     tableData: {
-      type: Array as PropType<any[]>,
+      type: Array as PropType<IGraphDrillDown[]>,
       default: () => [],
     },
     loading: {
@@ -237,7 +240,11 @@ export default defineComponent({
             resizable={true}
             tableLayout='fixed'
             onSortChange={this.handleSortChange as any}
-          />
+          >
+            {{
+              empty: () => <EmptyStatus type={'empty'} />,
+            }}
+          </PrimaryTable>
         )}
         <div
           style={{
