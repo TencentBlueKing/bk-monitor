@@ -24,13 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, provide, shallowRef, toRef } from 'vue';
+import { type PropType, computed, defineComponent, provide, shallowRef, toRef } from 'vue';
 import { watch } from 'vue';
 
 import dayjs from 'dayjs';
-import { request } from 'monitor-api/base';
+import { getDrillDimensions } from 'monitor-api/modules/grafana';
 import { graphDrillDown } from 'monitor-api/modules/scene_view';
+import { detailOfFormatWithTimezone } from 'monitor-common/utils/timezone';
 import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants/charts';
+import { useAppStore } from 'trace/store/modules/app';
 import { useI18n } from 'vue-i18n';
 
 import { useDimensionChartPanel } from '../../../composables/use-dimension-chart-panel';
@@ -44,7 +46,6 @@ import type { TimeRangeType } from './../../../../../components/time-range/utils
 import type { AlarmDetail } from 'trace/pages/alarm-center/typings/detail';
 
 import './dimension-analysis.scss';
-export const getDrillDimensions = request('POST', 'rest/v2/grafana/get_drill_dimensions/');
 
 const TYPE_ENUM = {
   TABLE: 'table',
@@ -86,6 +87,8 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    const appStore = useAppStore();
+    const spaceTimezone = computed(() => appStore.spaceTimezone);
     const showTypeActive = shallowRef(TYPE_ENUM.TABLE);
     const dimensionList = shallowRef([]);
     const dimensionListLoading = shallowRef(false);
@@ -249,6 +252,7 @@ export default defineComponent({
       tableDataLoading,
       dimensionListLoading,
       chartClickPointEvent,
+      spaceTimezone,
       formatterChartData,
       handleDrillDown,
       handleTableDrillDown,
@@ -311,7 +315,10 @@ export default defineComponent({
                   <div class='condition-item'>
                     {this.t('时间')}
                     <span class='method'>=</span>
-                    {dayjs(this.chartClickPointEvent.xAxis).format('YYYY-MM-DD HH:mm:ssZZ')}
+                    {detailOfFormatWithTimezone(
+                      dayjs(this.chartClickPointEvent.xAxis).format('YYYY-MM-DD HH:mm:ss'),
+                      this.spaceTimezone
+                    )}
                     <span
                       class='icon-monitor icon-mc-close'
                       onClick={() => this.handleRemoveTimeCondition()}

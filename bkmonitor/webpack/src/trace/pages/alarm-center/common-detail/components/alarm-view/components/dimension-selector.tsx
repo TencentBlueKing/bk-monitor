@@ -27,6 +27,7 @@
 import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { Checkbox, Input } from 'bkui-vue';
+import EmptyStatus from 'trace/components/empty-status/empty-status';
 import { useI18n } from 'vue-i18n';
 
 import './dimension-selector.scss';
@@ -124,78 +125,89 @@ export default defineComponent({
           />
         </div>
         <div class='dimension-list'>
-          {this.loading
-            ? new Array(8).fill(null).map((_, index) => {
-                return (
-                  <div
-                    key={index}
-                    style={{ padding: '0 8px' }}
-                    class='dimension-list-item'
-                  >
-                    <div
-                      style={{ height: '22px' }}
-                      class='skeleton-element'
-                    />
-                  </div>
-                );
-              })
-            : this.filteredDimensions.map((item, index) => (
+          {this.loading ? (
+            new Array(8).fill(null).map((_, index) => {
+              return (
                 <div
                   key={index}
-                  class={[
-                    'dimension-list-item',
-                    this.isMulti ? 'multi-type' : 'single-type',
-                    {
-                      active: this.selected.includes(item.id),
-                    },
-                  ]}
-                  onClick={() => {
-                    if (!this.isMulti) {
-                      this.handleSelect(item);
-                    }
-                  }}
+                  style={{ padding: '0 8px' }}
+                  class='dimension-list-item'
                 >
-                  {this.isMulti ? (
-                    <>
-                      <Checkbox
-                        modelValue={this.selected.includes(item.id)}
-                        onChange={v => this.handleCheck(v, item)}
-                      >
-                        <span v-overflow-tips>{item.name}</span>
-                      </Checkbox>
-                      {/* {index > 5 && (
-                    <span
-                      class='suspicious-tag'
-                      v-bk-tooltips={{
-                        content: <div>可疑可疑</div>,
-                      }}
-                    >
-                      <span>{this.t('可疑')}</span>
-                    </span>
-                  )} */}
-                    </>
-                  ) : (
-                    <>
-                      <span
-                        class='item-label'
-                        v-overflow-tips
-                      >
-                        {item.name}
-                      </span>
-                      {/* {index > 5 && (
-                    <span
-                      class='suspicious-tag'
-                      v-bk-tooltips={{
-                        content: <div>可疑可疑</div>,
-                      }}
-                    >
-                      <span>{this.t('可疑')}</span>
-                    </span>
-                  )} */}
-                    </>
-                  )}
+                  <div
+                    style={{ height: '22px' }}
+                    class='skeleton-element'
+                  />
                 </div>
-              ))}
+              );
+            })
+          ) : this.filteredDimensions.length ? (
+            this.filteredDimensions.map((item, index) => (
+              <div
+                key={index}
+                class={[
+                  'dimension-list-item',
+                  this.isMulti ? 'multi-type' : 'single-type',
+                  {
+                    active: this.selected.includes(item.id),
+                  },
+                ]}
+                onClick={() => {
+                  if (!this.isMulti) {
+                    this.handleSelect(item);
+                  }
+                }}
+              >
+                {this.isMulti ? (
+                  <>
+                    <Checkbox
+                      modelValue={this.selected.includes(item.id)}
+                      onChange={v => this.handleCheck(v, item)}
+                    >
+                      <span v-overflow-tips>{item.name}</span>
+                    </Checkbox>
+                    {/* {index > 5 && (
+                    <span
+                      class='suspicious-tag'
+                      v-bk-tooltips={{
+                        content: <div>可疑可疑</div>,
+                      }}
+                    >
+                      <span>{this.t('可疑')}</span>
+                    </span>
+                  )} */}
+                  </>
+                ) : (
+                  <>
+                    <span
+                      class='item-label'
+                      v-overflow-tips
+                    >
+                      {item.name}
+                    </span>
+                    {/* {index > 5 && (
+                    <span
+                      class='suspicious-tag'
+                      v-bk-tooltips={{
+                        content: <div>可疑可疑</div>,
+                      }}
+                    >
+                      <span>{this.t('可疑')}</span>
+                    </span>
+                  )} */}
+                  </>
+                )}
+              </div>
+            ))
+          ) : (
+            <EmptyStatus
+              type={this.searchValue ? 'search-empty' : 'empty'}
+              onOperation={val => {
+                if (val === 'clear-filter') {
+                  this.handleSearch('');
+                }
+              }}
+            />
+          )}
         </div>
       </div>
     );
