@@ -85,8 +85,8 @@ class Command(BaseCommand):
         可用的模板变量：
         {{ target.business.bk_biz_name        }} -> '蓝鲸'
         {{ target.business.bk_alarm_rvc_man   }} -> ['admin', 'operator']
-        {{ alert.alert_name                   }} -> '磁盘空间不足'
-        {{ alert.dimensions                   }} -> {'ip': '10.0.0.1', 'bk_cloud_id': '0'}
+        {{ alarm.alert_name                   }} -> '磁盘空间不足'
+        {{ alarm.dimensions                   }} -> {'ip': '10.0.0.1', 'bk_cloud_id': '0'}
         总计 156 个可用变量
 
     2. 查询指定模板变量的值::
@@ -99,7 +99,7 @@ class Command(BaseCommand):
 
         python manage.py context_preview 12345 --variable "strategy.item.query_configs[0]"
         python manage.py context_preview 12345 --variable "strategy.item.query_configs.0"  # 等价于 [0]
-        python manage.py context_preview 12345 --variable "alert.dimensions[0].key"
+        python manage.py context_preview 12345 --variable "alarm.dimensions['ip'].display_value"
     """
 
     def add_arguments(self, parser):
