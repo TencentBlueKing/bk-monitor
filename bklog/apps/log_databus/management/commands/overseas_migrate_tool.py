@@ -286,7 +286,14 @@ class OverseasMigrateTool:
                 migrate_record.setdefault("status", MigrateStatus.FAIL)
                 migrate_record.setdefault("details", json.dumps({"error": "unknown error"}))
 
-                self.record(migrate_record)
+                try:
+                    self.record(migrate_record)
+                except Exception as e:
+                    Prompt.error(
+                        msg="迁移操作记录失败, 索引集 ID: {index_set_id}, 错误信息: {error}",
+                        index_set_id=index_set_id,
+                        error=str(e),
+                    )
 
         activate_request(generate_request("admin"))
         self.db.close()
@@ -432,6 +439,8 @@ class OverseasMigrateTool:
                 )
                 migrate_record.update({"status": MigrateStatus.FAIL, "details": details})
                 self.fail(data=data, migrate_record=migrate_record)
+
+                raise e
             finally:
                 migrate_record.setdefault("bk_biz_id", 0)
                 migrate_record.setdefault("space_uid", "")
