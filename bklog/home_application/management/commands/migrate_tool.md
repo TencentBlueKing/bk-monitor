@@ -60,5 +60,5 @@ CREATE TABLE `bk_log_search_resource_mapping` (
 
 ## 使用示例
 ```bash
-python manage.py migrate_tool --env=env_name --collector_config_data=log_databus_collectorconfig_save.json --mysql_host=127.0.0.1 --mysql_password=mysql_password
+python manage.py migrate_tool --env=env_name --collector_config_data=log_databus_collectorconfig.json --mysql_host=127.0.0.1 --mysql_password=mysql_password
 ```
