@@ -340,8 +340,8 @@ class OriginalSearchAttrSerializer(serializers.Serializer):
 
 
 class SearchFieldsSerializer(serializers.Serializer):
-    start_time = serializers.IntegerField(label=_("开始时间"), required=False)
-    end_time = serializers.IntegerField(label=_("结束时间"), required=False)
+    start_time = DateTimeFieldWithEpoch(label=_("开始时间"), required=False)
+    end_time = DateTimeFieldWithEpoch(label=_("结束时间"), required=False)
     scope = serializers.ChoiceField(
         label=_("类型"), choices=SearchScopeEnum.get_choices(), default=SearchScopeEnum.DEFAULT.value
     )
