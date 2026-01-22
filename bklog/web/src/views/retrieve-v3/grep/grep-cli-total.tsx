@@ -35,8 +35,6 @@ import './grep-cli-total.scss';
  * Props:
  * - total: number - 总结果数
  * - text: string - 自定义完整文案模板，支持使用 {total} 占位符
- * - prefix: string - 自定义前缀文案
- * - suffix: string - 自定义后缀文案
  * - loading: boolean - 加载状态，为 true 时不渲染内容
  *
  * 行为:
@@ -50,18 +48,14 @@ import './grep-cli-total.scss';
  * <GrepCliTotal total={234} />
  * 输出：- 共检索出 234 条结果 -
  *
- * 方式2：自定义前缀和后缀
- * <GrepCliTotal total={100} prefix="总共" suffix="项" />
- * 输出：总共 100 项
- *
- * 方式3：使用完整文案模板
+ * 方式2：使用完整文案模板
  * <GrepCliTotal total={50} text="搜索到 {total} 条匹配记录" />
  * 输出：搜索到 50 条匹配记录
  *
- * 方式4：total为0时不渲染
+ * 方式3：total为0时不渲染
  * <GrepCliTotal total={0} />
  *
- * 方式5：加载中时不渲染
+ * 方式4：加载中时不渲染
  * <GrepCliTotal total={100} loading={true} />
  */
 
@@ -76,14 +70,6 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    prefix: {
-      type: String,
-      default: '',
-    },
-    suffix: {
-      type: String,
-      default: '',
-    },
     loading: {
       type: Boolean,
       default: false,
@@ -92,11 +78,6 @@ export default defineComponent({
   setup(props) {
     const { t } = useLocale();
 
-    // 获取国际化文案
-    const defaultPrefix = computed(() => props.prefix || `- ${t('共检索出')}`);
-    const defaultSuffix = computed(() => props.suffix || `${t('条结果')} -`);
-
-    // 渲染带样式的文本内容
     const renderTextWithTotal = () => {
       if (!props.text) return null;
 
@@ -109,9 +90,9 @@ export default defineComponent({
       // 将文本分割后，中间插入带样式的 total
       return (
         <span>
-          {parts[0]}
+          {t(parts[0])}
           <span class='total-box'>{props.total}</span>
-          {parts[1]}
+          {t(parts[1])}
         </span>
       );
     };
@@ -122,22 +103,12 @@ export default defineComponent({
         return null;
       }
 
-      // 根据total决定是否渲染（移到渲染函数内部，确保响应式更新）
+      // 根据total决定是否渲染
       if (props.total === 0 || props.total === null || props.total === undefined) {
         return null;
       }
 
-      return (
-        <div class='grep-cli-total-main'>
-          {props.text ? (
-            renderTextWithTotal()
-          ) : (
-            <div>
-              {defaultPrefix.value} <span class='total-box'>{props.total}</span> {defaultSuffix.value}
-            </div>
-          )}
-        </div>
-      );
+      return <div class='grep-cli-total-main'>{renderTextWithTotal()}</div>;
     };
   },
 });

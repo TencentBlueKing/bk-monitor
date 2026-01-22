@@ -327,6 +327,7 @@ export default defineComponent({
         <GrepCliTotal
           total={searchListTotal.value}
           loading={grepRequestResult.value.is_loading}
+          text={'共检索出{total}条结果'}
         />
         <GrepCliResult
           fieldName={field.value}
