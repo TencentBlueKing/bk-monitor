@@ -159,20 +159,23 @@ class DashboardImporter(BaseImporter):
 class CollectConfigImporter(BaseImporter, RelationImportMixin):
     """
     数据采集配置导入器
+
+    处理流程：
+    1. 先创建 DeploymentConfigVersion（config_meta_id 设为临时值）
+    2. 再创建 CollectConfigMeta（设置 deployment_config）
+    3. 最后更新 DeploymentConfigVersion.config_meta_id（完成循环依赖）
     """
 
     resource_type = "collect_config"
     model_class = CollectConfigMeta
 
+    # 用于处理循环依赖的临时ID值
+    TEMP_CONFIG_META_ID = 0
+
     def import_single(self, data: dict):
         """
         导入单个对象，特殊处理 deployment_config 的循环依赖
-
-        1. 先创建 DeploymentConfigVersion（config_meta_id 设为 None 或临时值）
-        2. 再创建 CollectConfigMeta（设置 deployment_config）
-        3. 最后更新 DeploymentConfigVersion.config_meta_id
         """
-        from monitor_web.models.collecting import DeploymentConfigVersion
 
         # 获取原始ID
         original_id = data.get("_metadata", {}).get("original_id")
@@ -180,138 +183,120 @@ class CollectConfigImporter(BaseImporter, RelationImportMixin):
         # 1. 应用导入适配器
         data = self.adapter_manager.apply_adapters(data)
 
-        # 2. 处理 deployment_config（从 _relations 中获取）
+        # 2. 提取 deployment_config 数据（从 _relations 中获取）
         deployment_config_data = None
         if "_relations" in data and "deployment_config" in data["_relations"]:
             deployment_config_data = data["_relations"].pop("deployment_config")
 
-        # 3. 移除 deployment_config 字段  ????
+        # 3. 移除主数据中的 deployment_config 字段
+        # 原因：deployment_config 会在后续步骤中重新创建并设置，避免字段冲突
         data.pop("deployment_config", None)
         data.pop("deployment_config_id", None)
 
-        # 5. 检查冲突
+        # 4. 检查冲突
         existing_obj = self._check_conflict(data)
         if existing_obj:
-            # 如果对象已存在，直接处理
             obj = self._handle_conflict(data, existing_obj)
             return obj
 
-        # 6. 先创建 DeploymentConfigVersion（如果存在）
-        deployment_config = None
-        if deployment_config_data:
-            # 移除元数据和主键
-            deployment_config_data = {k: v for k, v in deployment_config_data.items() if k not in ["_metadata", "id"]}
-
-            # config_meta_id 先设为 0（临时值，稍后更新）
-            # 因为 config_meta_id 是 IntegerField 不是 ForeignKey，所以可以设置临时值
-            deployment_config_data.pop("config_meta_id", None)
-            deployment_config_data.pop("config_meta", None)
-            deployment_config_data["config_meta_id"] = 0  # 临时值
-
-            # 处理 plugin_version：先导入 _plugin_version 数据，然后使用 plugin_version_id
-            plugin_version_data = deployment_config_data.pop("_plugin_version", None)
-            plugin_version_id = deployment_config_data.pop("plugin_version", None)
-
-            if plugin_version_data:
-                # 在创建 PluginVersionHistory 之前，先确保 CollectorPluginMeta 已存在
-                # 因为 PluginVersionHistory.save() 会查找关联的 CollectorPluginMeta
-                self._ensure_plugin_exists(data, plugin_version_data)
-                # 导入 PluginVersionHistory 数据
-                plugin_version_id = self._import_plugin_version(plugin_version_data, original_id)
-
-            if plugin_version_id:
-                # 使用 plugin_version_id 字段（Django 外键的 _id 后缀字段）可以直接设置整数值
-                deployment_config_data["plugin_version_id"] = plugin_version_id
-
-            # 应用适配器
-            deployment_config_data = self.adapter_manager.apply_adapters(deployment_config_data)
-
-            # 创建 DeploymentConfigVersion
-            try:
-                deployment_config = DeploymentConfigVersion.objects.create(**deployment_config_data)
-            except Exception as e:
-                logger.error(f"Failed to create deployment_config for collect_config {original_id}: {e}", exc_info=True)
-                raise
+        # 5. 先创建 DeploymentConfigVersion（处理循环依赖的第一步）
+        deployment_config = self._create_deployment_config(deployment_config_data, data, original_id)
 
         if not deployment_config:
-            # 如果没有 deployment_config，记录警告并跳过此采集配置
-            logger.warning(
-                f"Cannot import collect_config {original_id}: deployment_config is required but not provided in export data. Skipping."
-            )
+            logger.warning(f"Cannot import collect_config {original_id}: deployment_config is required. Skipping.")
             return None
 
-        # 7. 创建 CollectConfigMeta（设置 deployment_config）
-        # 获取主键字段名
+        # 6. 创建 CollectConfigMeta（处理循环依赖的第二步）
         pk_field = self._get_primary_key_field(self.model_class)
-
-        # 移除元数据、关联数据、主键字段
         import_data = {k: v for k, v in data.items() if not k.startswith("_") and k != pk_field}
-
-        # 设置 deployment_config
         import_data["deployment_config"] = deployment_config
-
-        # 创建对象
         obj = self.model_class.objects.create(**import_data)
 
-        # 8. 更新 DeploymentConfigVersion.config_meta_id
+        # 7. 更新 DeploymentConfigVersion.config_meta_id（完成循环依赖）
         deployment_config.config_meta_id = obj.id
         deployment_config.save(update_fields=["config_meta_id"])
 
-        # 9. 导入关联数据（plugin 等）
+        # 8. 导入其他关联数据
         relations = data.get("_relations", {})
         if relations:
             self.import_relations(obj, relations)
 
         return obj
 
+    def _create_deployment_config(self, deployment_config_data: dict | None, data: dict, original_id):
+        """
+        创建 DeploymentConfigVersion 对象
+
+        Args:
+            deployment_config_data: deployment_config 数据（可能为 None）
+            data: 主数据（用于获取 plugin 信息）
+            original_id: 原始ID（用于日志）
+
+        Returns:
+            创建的 DeploymentConfigVersion 对象，如果数据不存在则返回 None
+        """
+        from monitor_web.models.collecting import DeploymentConfigVersion
+
+        if not deployment_config_data:
+            return None
+
+        # 移除元数据和主键
+        deployment_config_data = {k: v for k, v in deployment_config_data.items() if k not in ["_metadata", "id"]}
+
+        # 设置临时的 config_meta_id（稍后会更新为真实ID）
+        deployment_config_data.pop("config_meta_id", None)
+        deployment_config_data.pop("config_meta", None)
+        deployment_config_data["config_meta_id"] = self.TEMP_CONFIG_META_ID
+
+        # 处理 plugin_version
+        plugin_version_data = deployment_config_data.pop("_plugin_version", None)
+        plugin_version_id = deployment_config_data.pop("plugin_version", None)
+
+        if plugin_version_data:
+            # 确保 CollectorPluginMeta 存在（PluginVersionHistory 依赖它）
+            self._ensure_plugin_exists(data, plugin_version_data)
+            # 导入 PluginVersionHistory
+            plugin_version_id = self._import_plugin_version(plugin_version_data, original_id)
+
+        if plugin_version_id:
+            deployment_config_data["plugin_version_id"] = plugin_version_id
+
+        # 应用适配器
+        deployment_config_data = self.adapter_manager.apply_adapters(deployment_config_data)
+
+        # 创建对象
+        try:
+            return DeploymentConfigVersion.objects.create(**deployment_config_data)
+        except Exception as e:
+            logger.error(f"Failed to create deployment_config for collect_config {original_id}: {e}", exc_info=True)
+            raise
+
     def import_relations(self, obj, relations: dict):
         """
-        导入关联的采集插件信息
+        导入关联的采集插件信息（如果尚未创建）
         """
         if "plugin" in relations:
             plugin_data = relations["plugin"]
-            # 移除元数据
-            plugin_data = {k: v for k, v in plugin_data.items() if k != "_metadata"}
-
-            # 应用适配器
-            plugin_data = self.adapter_manager.apply_adapters(plugin_data)
-
-            # 检查插件是否已存在
-            plugin_id = plugin_data.get("plugin_id")
-            bk_tenant_id = plugin_data.get("bk_tenant_id")
-
-            if plugin_id and bk_tenant_id:
-                try:
-                    CollectorPluginMeta.objects.get(plugin_id=plugin_id, bk_tenant_id=bk_tenant_id)
-                    logger.info(f"Plugin {plugin_id} already exists, skipping import")
-                except CollectorPluginMeta.DoesNotExist:
-                    # 创建插件
-                    try:
-                        CollectorPluginMeta.objects.create(**plugin_data)
-                        logger.info(f"Created plugin {plugin_id}")
-                    except Exception as e:
-                        logger.error(f"Failed to import plugin {plugin_id}: {e}", exc_info=True)
+            self._create_plugin_if_not_exists(plugin_data)
 
     def _ensure_plugin_exists(self, data: dict, plugin_version_data: dict):
         """
-        确保 CollectorPluginMeta 已存在（在创建 PluginVersionHistory 之前调用）
+        确保 CollectorPluginMeta 已存在（在创建 PluginVersionHistory 之前必须调用）
 
-        PluginVersionHistory.save() 方法会通过 plugin 属性查找关联的 CollectorPluginMeta，
-        如果 CollectorPluginMeta 不存在会报错，所以需要先确保它存在。
+        PluginVersionHistory.save() 会查找关联的 CollectorPluginMeta，
+        如果不存在会报错，所以需要提前创建。
         """
-
-        # 从 plugin_version_data 中获取 plugin_id 和 bk_tenant_id
         plugin_id = plugin_version_data.get("plugin_id")
         bk_tenant_id = plugin_version_data.get("bk_tenant_id")
 
         if not plugin_id or not bk_tenant_id:
             return
 
-        # 检查是否已存在
+        # 如果已存在，直接返回
         if CollectorPluginMeta.objects.filter(plugin_id=plugin_id, bk_tenant_id=bk_tenant_id).exists():
             return
 
-        # 从 _relations.plugin 中获取插件数据
+        # 从 _relations 中获取 plugin 数据
         plugin_data = None
         if "_relations" in data and "plugin" in data["_relations"]:
             plugin_data = data["_relations"].get("plugin")
@@ -320,16 +305,38 @@ class CollectConfigImporter(BaseImporter, RelationImportMixin):
             logger.warning(f"Plugin {plugin_id} not found in _relations, cannot create")
             return
 
-        # 准备插件数据
+        # 创建插件
+        self._create_plugin_if_not_exists(plugin_data)
+
+    def _create_plugin_if_not_exists(self, plugin_data: dict):
+        """
+        创建插件（如果不存在）
+
+        统一的插件创建逻辑，避免代码重复。
+        """
+        # 移除元数据
         plugin_data = {k: v for k, v in plugin_data.items() if not k.startswith("_") and k != "id"}
+
+        # 应用适配器
         plugin_data = self.adapter_manager.apply_adapters(plugin_data)
 
-        # 创建插件
+        # 检查是否已存在
+        plugin_id = plugin_data.get("plugin_id")
+        bk_tenant_id = plugin_data.get("bk_tenant_id")
+
+        if not plugin_id or not bk_tenant_id:
+            return
+
         try:
-            CollectorPluginMeta.objects.create(**plugin_data)
-            logger.info(f"Pre-created plugin {plugin_id} for PluginVersionHistory")
-        except Exception as e:
-            logger.error(f"Failed to pre-create plugin {plugin_id}: {e}", exc_info=True)
+            CollectorPluginMeta.objects.get(plugin_id=plugin_id, bk_tenant_id=bk_tenant_id)
+            logger.debug(f"Plugin {plugin_id} already exists, skipping")
+        except CollectorPluginMeta.DoesNotExist:
+            # 创建插件
+            try:
+                CollectorPluginMeta.objects.create(**plugin_data)
+                logger.info(f"Created plugin {plugin_id}")
+            except Exception as e:
+                logger.error(f"Failed to create plugin {plugin_id}: {e}", exc_info=True)
 
     def _import_plugin_version(self, plugin_version_data: dict, collect_config_id) -> int:
         """
