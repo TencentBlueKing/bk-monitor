@@ -26,9 +26,8 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-// import { copyText } from 'monitor-common/utils/utils'
-import dayjs from 'dayjs';
 import { tailEventPluginData } from 'monitor-api/modules/event_plugin';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { copyText } from 'monitor-common/utils/utils';
 import MonacoEditor from 'monitor-pc/components/editors/monaco-editor.vue';
 
@@ -117,7 +116,7 @@ export default class RulesViewer extends tsc<IDataStatus> {
       default: ({ column, $index, row }) => {
         const prop = column.property;
         if (prop === 'number') return $index + 1;
-        if (prop === 'bkIngestTime') return dayjs.tz(row.bk_ingest_time * 1000).format('YYYY-MM-DD HH:mm:ss');
+        if (prop === 'bkIngestTime') return formatWithTimezone(row.bk_ingest_time * 1000);
         if (prop === 'handle') {
           return (
             <div>

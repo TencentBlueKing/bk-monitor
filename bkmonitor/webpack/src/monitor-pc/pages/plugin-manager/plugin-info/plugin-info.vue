@@ -422,6 +422,7 @@
 <script>
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { retrieveCollectorPlugin } from 'monitor-api/modules/model';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import Viewer from 'monitor-ui/markdown-editor/viewer.tsx';
 import { mapActions, mapGetters } from 'vuex';
 
@@ -691,9 +692,9 @@ export default {
       }
       this.updateInfo = [
         { label: this.$t('创建人'), value: data.create_user || '--' },
-        { label: this.$t('创建时间'), value: data.create_time || '--' },
+        { label: this.$t('创建时间'), value: formatWithTimezone(data.create_time) || '--' },
         { label: this.$t('最近更新人'), value: data.update_user || '--' },
-        { label: this.$t('修改时间'), value: data.update_time || '--' },
+        { label: this.$t('修改时间'), value: formatWithTimezone(data.update_time) || '--' },
       ];
       this.labels.forEach(item => {
         const obj = item.children.find(v => v.id === data.label);
@@ -775,7 +776,7 @@ export default {
   margin-bottom: 8px;
   color: #63656e;
   background: #fff;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 10%);
   transition: height 0.5s;
 
   .num-blod {
@@ -1084,7 +1085,7 @@ export default {
       }
 
       .remote-checkbox {
-        margin-bottom: 0px;
+        margin-bottom: 0;
       }
     }
 

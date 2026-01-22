@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,9 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
-from typing import Dict, List
 
 from django.utils.translation import gettext as _
 
@@ -62,7 +59,7 @@ class CorefileEvent(GSEBaseAlarmEventRecord):
     TITLE = _("Corefile产生-GSE")
 
     def __init__(self, raw_data, strategies):
-        super(CorefileEvent, self).__init__(raw_data, strategies)
+        super().__init__(raw_data, strategies)
 
     def clean_anomaly_message(self):
         raw = self.raw_data["_title_"]
@@ -84,7 +81,7 @@ class CorefileEvent(GSEBaseAlarmEventRecord):
         return _("产生corefile：{}".format(corefile))
 
     @property
-    def filter_dimensions(self) -> Dict:
+    def filter_dimensions(self) -> dict:
         return {
             "corefile": self.raw_data["_extra_"].get("corefile", ""),
             "executable_path": self.raw_data["_extra_"].get("executable_path", ""),
@@ -97,9 +94,15 @@ class CorefileEvent(GSEBaseAlarmEventRecord):
             if self.raw_data["_extra_"].get(k):
                 self.raw_data["dimensions"][k] = self.raw_data["_extra_"][k]
 
+        # 将 corefile 作为补充维度添加，用于告警展示和检索，但不参与 dedupe_keys 去重计算
+        # 这样可以保证：同一主机产生不同 corefile 文件时，仍然关联到同一个告警
+        corefile = self.raw_data["_extra_"].get("corefile")
+        if corefile:
+            self.raw_data["dimensions"]["__additional_dimensions"] = {"corefile": corefile}
+
         return self.raw_data["dimensions"]
 
-    def clean_dimension_fields(self) -> List[str]:
+    def clean_dimension_fields(self) -> list[str]:
         dimension_fields = super().clean_dimension_fields()
         dimension_fields.extend(["executable_path", "executable", "signal"])
         return dimension_fields

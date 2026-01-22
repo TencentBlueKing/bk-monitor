@@ -31,7 +31,7 @@ from bkcrypto.contrib.django.fields import SymmetricTextField
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models.fields import DateTimeField
-from django.db.transaction import atomic
+from django.db.transaction import atomic, on_commit
 from django.utils import timezone as django_timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
@@ -485,7 +485,8 @@ class ClusterInfo(models.Model):
         new_cluster.cluster_init()
 
         # 同步集群配置到bkbase
-        ClusterConfig.sync_cluster_config(cluster=new_cluster)
+        if new_cluster.cluster_type == ClusterInfo.TYPE_ES:
+            ClusterConfig.sync_cluster_config(cluster=new_cluster)
 
         return new_cluster
 
@@ -569,8 +570,9 @@ class ClusterInfo(models.Model):
         self.save()
         logger.info(f"cluster->[{self.cluster_name}] update success.")
 
-        # 同步集群配置到bkbase
-        ClusterConfig.sync_cluster_config(cluster=self)
+        # 同步集群配置到bkbase（目前仅支持ES集群）
+        if self.cluster_type == ClusterInfo.TYPE_ES:
+            ClusterConfig.sync_cluster_config(cluster=self)
 
         return True
 
@@ -2031,7 +2033,9 @@ class ESStorage(models.Model, StorageResultTable):
         else:
             from metadata.task import tasks
 
-            tasks.create_es_storage_index.delay(table_id=table_id)
+            on_commit(
+                lambda: tasks.create_es_storage_index.delay(table_id=table_id), using=config.DATABASE_CONNECTION_NAME
+            )
             logger.info(f"result_table->[{table_id}] create async with celery task")
 
     @classmethod
@@ -2172,17 +2176,21 @@ class ESStorage(models.Model, StorageResultTable):
         )
         if new_record.need_create_index:  # 如果需要,则创建索引
             logger.info(
-                "create_table: table_id->[%s] under bk_tenant_id->[%s] need_create_index", table_id, bk_tenant_id
+                "create_table: table_id->[%s] under bk_tenant_id->[%s] need_create_index,is_sync_db->[%s]",
+                table_id,
+                bk_tenant_id,
+                is_sync_db,
             )
             try:
-                new_record.create_index_and_aliases()
+                new_record.create_es_index(is_sync_db)
             except Exception as e:  # pylint: disable=broad-except
                 logger.error(
-                    "create_table: table_id->[%s] under bk_tenant_id->[%s] create_index_and_aliases failed,error->[%s]",
+                    "create_table: table_id->[%s] under bk_tenant_id->[%s] create_es_index failed,error->[%s]",
                     table_id,
                     bk_tenant_id,
                     e,
                 )
+                raise e
 
         # 针对单个结果表推送数据很快，不用异步处理
         try:

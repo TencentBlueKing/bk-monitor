@@ -135,7 +135,11 @@ class EventLogsResource(EventBaseResource):
         for processor in processors:
             events = processor.process(events)
 
-        return {"list": sort_fields(events, processed_sort_fields, extractor=lambda item: item.get("origin_data"))}
+        return {
+            "list": sort_fields(events, processed_sort_fields, extractor=lambda item: item.get("origin_data")),
+            # 返回查询配置，用于检索跳转。
+            "query_config": validated_request_data,
+        }
 
     @classmethod
     def process_sort_fields(cls, fields):

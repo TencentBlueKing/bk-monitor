@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { BK_LOG_STORAGE } from "./store.type";
+
 export const isFeatureToggleOn = (key: string, value: string | string[]) => {
   const featureToggle = window.FEATURE_TOGGLE?.[key];
   if (featureToggle === 'debug') {
@@ -167,4 +169,24 @@ export const clearStorageCommonFilterAddition = state => {
       sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(allStorage));
     }
   }
+};
+
+/**
+ * 格式化 addition 字段
+ * 如果 showFieldAlias 为 true，则将 addition 字段替换为 query_alias
+ * @param state
+ * @returns addition
+ */
+export const formatAdditionalFields = (state: any, addition: Record<string, any>[]) => {
+  const copyAddition = structuredClone(addition);
+  if (state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
+    copyAddition.forEach((item) => {
+      const result = (state.indexFieldInfo?.fields ?? []).find(f => f.field_name === item.field);
+      if (result?.query_alias) {
+        item.field = result.query_alias;
+      }
+    });
+  }
+
+  return copyAddition;
 };

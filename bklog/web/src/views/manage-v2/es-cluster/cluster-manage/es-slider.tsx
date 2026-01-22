@@ -78,7 +78,8 @@ export default defineComponent({
 
     // 连通性测试表单
     const formData = ref<any>({
-      cluster_name: '', // 集群名称
+      cluster_name: '', // 集群英文名称
+      display_name: '', // 集群名称
       source_type: '', // 来源
       source_name: '',
       domain_name: '', // 地址
@@ -116,7 +117,8 @@ export default defineComponent({
 
     // 基本信息表单
     const basicFormData = ref<any>({
-      cluster_name: '', // 集群名
+      cluster_name: '', // 集群英文名称
+      display_name: '', // 集群名称
       source_type: '', // 来源
       source_name: '',
       domain_name: '', // 地址
@@ -131,7 +133,15 @@ export default defineComponent({
     // 表单校验规则
     const basicRules = ref<any>({
       source_type: [{ required: true, trigger: 'blur' }],
-      cluster_name: [{ required: true, trigger: 'blur' }],
+      cluster_name: [
+        { required: true, trigger: 'blur' },
+        {
+          validator: (val: string) => new RegExp(/^[A-Za-z0-9_]+$/).test(val),
+          message: t('只支持输入字母，数字，下划线'),
+          trigger: 'blur',
+        },
+      ],
+      display_name: [{ required: true, trigger: 'blur' }],
       domain_name: [{ required: true, trigger: 'blur' }],
       port: [{ required: true, trigger: 'blur' }],
     });
@@ -225,6 +235,7 @@ export default defineComponent({
         // 回填 basicFormData.value
         Object.assign(basicFormData.value, {
           cluster_name: res.data.cluster_config.cluster_name,
+          display_name: res.data.cluster_config.display_name,
           source_type: res.data.cluster_config.custom_option?.source_type || '',
           source_name:
             res.data.cluster_config.custom_option?.source_type === 'other'
@@ -290,6 +301,7 @@ export default defineComponent({
           enable_assessment: res.data.cluster_config.custom_option?.enable_assessment,
           // 合并 basicFormData.value 的基础属性
           cluster_name: basicFormData.value.cluster_name,
+          display_name: basicFormData.value.display_name,
           source_type: basicFormData.value.source_type,
           source_name: basicFormData.value.source_name,
           domain_name: basicFormData.value.domain_name,
@@ -321,6 +333,7 @@ export default defineComponent({
         const postData: any = {
           bk_biz_id: bkBizId.value,
           cluster_name: basicFormData.value.cluster_name,
+          display_name: basicFormData.value.display_name,
           domain_name: basicFormData.value.domain_name,
           port: basicFormData.value.port,
           schema: basicFormData.value.schema,
@@ -707,6 +720,7 @@ export default defineComponent({
         } else {
           Object.assign(formData.value, {
             cluster_name: '',
+            display_name: '',
             source_type: '',
             source_name: '',
             domain_name: '',
@@ -738,6 +752,7 @@ export default defineComponent({
           });
           Object.assign(basicFormData.value, {
             cluster_name: '',
+            display_name: '',
             source_type: '',
             source_name: '',
             domain_name: '',
@@ -846,16 +861,30 @@ export default defineComponent({
                   {/* 基础信息标题 */}
                   <div class='add-collection-title'>{t('基础信息')}</div>
 
-                  {/* 数据源名称 */}
+                  {/* 集群名称 */}
                   <bk-form-item
-                    label={t('数据源名称')}
-                    property='cluster_name'
+                    label={t('集群名称')}
+                    property='display_name'
                     required
                   >
                     <bk-input
                       data-test-id='esAccessFromBox_input_fillName'
                       maxlength={50}
+                      value={basicFormData.value.display_name}
+                      onChange={(val: string) => (basicFormData.value.display_name = val)}
+                    />
+                  </bk-form-item>
+
+                  {/* 集群英文名称 */}
+                  <bk-form-item
+                    label={t('集群英文名称')}
+                    property='cluster_name'
+                    required
+                  >
+                    <bk-input
+                      maxlength={50}
                       readonly={isEdit.value}
+                      placeholder={t('支持字母、数字、下划线')}
                       value={basicFormData.value.cluster_name}
                       onChange={(val: string) => (basicFormData.value.cluster_name = val)}
                     />
