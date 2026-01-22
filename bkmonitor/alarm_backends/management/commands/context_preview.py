@@ -72,7 +72,7 @@ class Command(BaseCommand):
            - 或使用更简单的点号语法：``--variable "path.to[0].key"``
 
     :param depth: 递归深度（可选，默认为2，最大为3）
-    :param format: 输出格式（可选，template=模板风格[默认]，tree=树形结构，json=JSON格式）
+    :param format: 输出格式（可选，template=模板风格[默认]，json=JSON格式）
 
     示例
     ----
@@ -111,9 +111,7 @@ class Command(BaseCommand):
             help="指定要查询的模板变量，支持完整 Jinja2 格式：'var.path'、'list[0]'、'dict[\"key\"]'",
         )
         parser.add_argument("--depth", type=int, default=2, help="递归深度（默认2，最大3）")
-        parser.add_argument(
-            "--format", type=str, default="template", choices=["template", "tree", "json"], help="输出格式"
-        )
+        parser.add_argument("--format", type=str, default="template", choices=["template", "json"], help="输出格式")
 
     def handle(self, alert_id, *args, **options):
         action_id = options.get("action_id")
@@ -152,8 +150,6 @@ class Command(BaseCommand):
 
             if output_format == "json":
                 self._output_json_format(context_dict, depth)
-            elif output_format == "tree":
-                self._output_tree_format(context_dict, depth)
             else:  # template
                 self._output_template_format(context_dict, depth)
 
@@ -253,113 +249,6 @@ class Command(BaseCommand):
         self.stdout.write(f"动作实例 ID: {action_instance.id}")
         self.stdout.write(f"关联告警数: {alert_count}")
         self.stdout.write("\n" + "-" * 80 + "\n")
-
-    def _output_tree_format(self, context_dict, max_depth):
-        """树形格式输出"""
-
-        def get_object_info(obj, depth=0, prefix="", var_name=""):
-            """递归获取对象信息"""
-            if depth >= max_depth:
-                return []
-
-            lines = []
-            indent = "  " * depth
-
-            # 基本类型
-            if isinstance(obj, str | int | float | bool | type(None)):
-                value_str = repr(obj)[:100]
-                lines.append(f"{indent}└─ {var_name}: {type(obj).__name__} = {value_str}")
-                return lines
-
-            # 字典类型
-            if isinstance(obj, dict):
-                items = list(obj.items())[:15]  # 最多15个
-                for i, (key, value) in enumerate(items):
-                    is_last = i == len(items) - 1
-                    connector = "└─" if is_last else "├─"
-                    value_type = type(value).__name__
-
-                    if isinstance(value, str | int | float | bool | type(None)):
-                        value_str = repr(value)[:60]
-                        lines.append(f"{indent}{connector} {key}: {value_type} = {value_str}")
-                    else:
-                        lines.append(f"{indent}{connector} {key}: {value_type}")
-                        sub_indent = "  " if is_last else "│ "
-                        lines.extend(get_object_info(value, depth + 1, prefix + sub_indent, key))
-
-                if len(obj) > 15:
-                    lines.append(f"{indent}└─ ... ({len(obj) - 15} more items)")
-                return lines
-
-            # 列表类型
-            if isinstance(obj, list | tuple):
-                if len(obj) == 0:
-                    lines.append(f"{indent}└─ (empty list)")
-                    return lines
-
-                first_item = obj[0]
-                is_simple = isinstance(first_item, str | int | float | bool | type(None))
-
-                if is_simple:
-                    # 简单类型列表，显示前5个值
-                    for i, item in enumerate(obj[:5]):
-                        lines.append(f"{indent}└─ [{i}]: {type(item).__name__} = {repr(item)[:60]}")
-                    if len(obj) > 5:
-                        lines.append(f"{indent}└─ ... ({len(obj) - 5} more items, total: {len(obj)})")
-                else:
-                    # 复杂类型列表，显示第一个元素的结构
-                    lines.append(f"{indent}└─ [0]: {type(first_item).__name__}")
-                    lines.extend(get_object_info(first_item, depth + 1, prefix, "[0]"))
-                    if len(obj) > 1:
-                        lines.append(f"{indent}└─ ... ({len(obj) - 1} more items, total: {len(obj)})")
-                return lines
-
-            # 对象类型
-            try:
-                attrs = [attr for attr in dir(obj) if not attr.startswith("_")]
-                properties = []
-                for attr in attrs[:20]:
-                    try:
-                        value = getattr(obj, attr)
-                        if not callable(value):
-                            properties.append((attr, value))
-                    except Exception:
-                        pass
-
-                for i, (attr, value) in enumerate(properties[:15]):
-                    is_last = (i == len(properties) - 1) or (i == 14)
-                    connector = "└─" if is_last else "├─"
-                    value_type = type(value).__name__
-
-                    if isinstance(value, str | int | float | bool | type(None)):
-                        value_str = repr(value)[:60]
-                        lines.append(f"{indent}{connector} {attr}: {value_type} = {value_str}")
-                    else:
-                        lines.append(f"{indent}{connector} {attr}: {value_type}")
-                        if depth < max_depth - 1:
-                            sub_indent = "  " if is_last else "│ "
-                            lines.extend(get_object_info(value, depth + 1, prefix + sub_indent, attr))
-
-                if len(properties) > 15:
-                    lines.append(f"{indent}└─ ... ({len(properties) - 15} more attributes)")
-            except Exception:
-                pass
-
-            return lines
-
-        # 输出所有顶层变量
-        for key in sorted(context_dict.keys()):
-            value = context_dict[key]
-            value_type = type(value).__name__
-
-            self.stdout.write(self.style.SUCCESS(f"\n{{{{ {key} }}}}: {value_type}"))
-            info_lines = get_object_info(value, depth=0, prefix="", var_name=key)
-            for line in info_lines[:30]:
-                self.stdout.write(line)
-            if len(info_lines) > 30:
-                self.stdout.write(f"  ... ({len(info_lines) - 30} more lines)")
-
-        self.stdout.write("\n" + "=" * 80 + "\n")
 
     def _output_json_format(self, context_dict, max_depth):
         """JSON格式输出"""
@@ -679,96 +568,129 @@ class Command(BaseCommand):
 
             return current, None
 
-        def format_detailed_value(obj, indent=0):
-            """详细格式化值"""
+        def format_detailed_value(obj, indent=0, max_depth=5):
+            """详细格式化值 - 完全展开，不省略任何元素
+
+            :param obj: 要格式化的对象
+            :param indent: 当前缩进级别
+            :param max_depth: 最大递归深度（防止无限递归）
+            """
             prefix = "  " * indent
             lines = []
+
+            # 防止无限递归
+            if indent >= max_depth:
+                lines.append(f"{prefix}<max depth reached>")
+                return lines
 
             # 基本类型
             if isinstance(obj, str | int | float | bool | type(None)):
                 lines.append(f"{prefix}{repr(obj)}")
                 return lines
 
-            # 列表类型
+            # 列表类型 - 完全展开所有元素
             if isinstance(obj, list | tuple):
                 if len(obj) == 0:
                     lines.append(f"{prefix}[]")
                     return lines
 
                 lines.append(f"{prefix}[")
-                # 显示前10个元素
-                for i, item in enumerate(obj[:10]):
+                # 显示所有元素，不省略
+                for i, item in enumerate(obj):
                     if isinstance(item, str | int | float | bool | type(None)):
                         lines.append(f"{prefix}  {repr(item)},")
                     elif isinstance(item, dict):
-                        # 字典元素：显示摘要
+                        # 字典元素：递归展开
                         if len(item) == 0:
                             lines.append(f"{prefix}  {{}},")
                         else:
-                            # 显示前3个键值对
-                            dict_pairs = []
-                            for k, v in list(item.items())[:3]:
-                                v_repr = (
-                                    repr(v)
-                                    if isinstance(v, str | int | float | bool | type(None))
-                                    else f"<{type(v).__name__}>"
-                                )
-                                if len(v_repr) > 30:
-                                    v_repr = v_repr[:27] + "..."
-                                dict_pairs.append(f"'{k}': {v_repr}")
-
-                            if len(item) > 3:
-                                dict_pairs.append(f"... +{len(item) - 3} more")
-
-                            lines.append(f"{prefix}  {{{', '.join(dict_pairs)}}},")
+                            lines.append(f"{prefix}  {{")
+                            # 递归显示所有键值对
+                            for k, v in item.items():
+                                if isinstance(v, str | int | float | bool | type(None)):
+                                    lines.append(f"{prefix}    '{k}': {repr(v)},")
+                                else:
+                                    # 递归格式化嵌套结构
+                                    nested_lines = format_detailed_value(v, indent + 2, max_depth)
+                                    # 将第一行的键名合并
+                                    if nested_lines:
+                                        first_line = nested_lines[0].lstrip()
+                                        lines.append(f"{prefix}    '{k}': {first_line}")
+                                        # 添加其余行（调整缩进）
+                                        for nested_line in nested_lines[1:]:
+                                            lines.append(f"{prefix}      {nested_line.lstrip()}")
+                                    else:
+                                        lines.append(f"{prefix}    '{k}': <{type(v).__name__}>,")
+                            lines.append(f"{prefix}  }},")
                     elif isinstance(item, list | tuple):
-                        # 嵌套列表
-                        lines.append(f"{prefix}  [{len(item)} items],")
+                        # 嵌套列表：递归展开
+                        nested_lines = format_detailed_value(item, indent + 1, max_depth)
+                        if nested_lines:
+                            # 嵌套列表的第一行已经有正确的缩进（indent + 1），直接添加
+                            # 最后一行如果是 `]` 或 `总计:`，需要添加逗号
+                            for idx, nested_line in enumerate(nested_lines):
+                                if idx == len(nested_lines) - 1:
+                                    # 最后一行：如果是 `]` 或 `总计:`，添加逗号
+                                    stripped = nested_line.strip()
+                                    if stripped.endswith("]") or stripped.startswith("总计"):
+                                        lines.append(nested_line + ",")
+                                    else:
+                                        lines.append(nested_line)
+                                else:
+                                    lines.append(nested_line)
+                        else:
+                            # 空列表
+                            lines.append(f"{prefix}  [],")
                     else:
                         lines.append(f"{prefix}  <{type(item).__name__}>,")
 
-                if len(obj) > 10:
-                    lines.append(f"{prefix}  ... ({len(obj) - 10} more items)")
                 lines.append(f"{prefix}]")
                 lines.append(f"{prefix}总计: {len(obj)} 个元素")
                 return lines
 
-            # 字典类型
+            # 字典类型 - 完全展开所有键值对
             if isinstance(obj, dict):
                 if len(obj) == 0:
                     lines.append(f"{prefix}{{}}")
                     return lines
 
                 lines.append(f"{prefix}{{")
-                for i, (key, value) in enumerate(list(obj.items())[:10]):
+                # 显示所有键值对，不省略
+                for key, value in obj.items():
                     # 格式化值
                     if isinstance(value, str | int | float | bool | type(None)):
                         value_repr = repr(value)
+                        if len(value_repr) > 100:
+                            value_repr = value_repr[:97] + "..."
+                        lines.append(f"{prefix}  {key}: {value_repr}")
                     elif isinstance(value, dict):
-                        if len(value) == 0:
-                            value_repr = "{}"
+                        # 嵌套字典：递归展开
+                        nested_lines = format_detailed_value(value, indent + 2, max_depth)
+                        if nested_lines:
+                            # 第一行是 `{`，需要加上 key 前缀
+                            first_line = nested_lines[0].lstrip()
+                            lines.append(f"{prefix}  {key}: {first_line}")
+                            # 添加其余行
+                            for nested_line in nested_lines[1:]:
+                                lines.append(nested_line)
                         else:
-                            # 显示前2个键
-                            keys = list(value.keys())[:2]
-                            key_str = ", ".join(f"'{k}'" for k in keys)
-                            if len(value) > 2:
-                                value_repr = f"{{{len(value)} items: {key_str}, ...}}"
-                            else:
-                                value_repr = f"{{{len(value)} items: {key_str}}}"
+                            lines.append(f"{prefix}  {key}: {{}}")
                     elif isinstance(value, list | tuple):
-                        if len(value) == 0:
-                            value_repr = "[]"
+                        # 嵌套列表：递归展开
+                        nested_lines = format_detailed_value(value, indent + 2, max_depth)
+                        if nested_lines:
+                            # 第一行是 `[`，需要加上 key 前缀
+                            first_line = nested_lines[0].lstrip()
+                            lines.append(f"{prefix}  {key}: {first_line}")
+                            # 添加其余行
+                            for nested_line in nested_lines[1:]:
+                                lines.append(nested_line)
                         else:
-                            value_repr = f"[{len(value)} items]"
+                            lines.append(f"{prefix}  {key}: []")
                     else:
                         value_repr = f"<{type(value).__name__}>"
+                        lines.append(f"{prefix}  {key}: {value_repr}")
 
-                    if len(value_repr) > 60:
-                        value_repr = value_repr[:57] + "..."
-                    lines.append(f"{prefix}  {key}: {value_repr}")
-
-                if len(obj) > 10:
-                    lines.append(f"{prefix}  ... ({len(obj) - 10} more items)")
                 lines.append(f"{prefix}}}")
                 return lines
 
@@ -776,18 +698,19 @@ class Command(BaseCommand):
             lines.append(f"{prefix}<{type(obj).__name__}>")
             try:
                 attrs = [attr for attr in dir(obj) if not attr.startswith("_")]
-                for attr in attrs[:10]:
+                # 显示所有属性，不省略
+                for attr in attrs:
                     try:
                         value = getattr(obj, attr)
                         if not callable(value):
-                            value_repr = (
-                                repr(value)
-                                if isinstance(value, str | int | float | bool | type(None))
-                                else f"<{type(value).__name__}>"
-                            )
-                            if len(value_repr) > 60:
-                                value_repr = value_repr[:57] + "..."
-                            lines.append(f"{prefix}  .{attr}: {value_repr}")
+                            if isinstance(value, str | int | float | bool | type(None)):
+                                value_repr = repr(value)
+                                if len(value_repr) > 100:
+                                    value_repr = value_repr[:97] + "..."
+                                lines.append(f"{prefix}  .{attr}: {value_repr}")
+                            else:
+                                # 对于复杂类型，显示类型信息
+                                lines.append(f"{prefix}  .{attr}: <{type(value).__name__}>")
                     except Exception:
                         pass
             except Exception:
