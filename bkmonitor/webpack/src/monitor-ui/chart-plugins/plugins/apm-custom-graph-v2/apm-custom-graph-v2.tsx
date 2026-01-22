@@ -39,6 +39,7 @@ import {
 import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import MetricManage from './components/metric-manage';
 
 import './apm-custom-graph-v2.scss';
 
@@ -62,6 +63,8 @@ export default class ApmViewContent extends tsc<any, any> {
   metricTimeRange: TimeRangeType = [this.startTime, this.endTime];
   dimenstionParams: GetSceneViewParams | null = null;
   loading = true;
+  isShowMetricManage = false;
+  metricManageTab: 'metric' | 'dimension' = 'metric';
 
   get metricGroupList() {
     return customEscalationViewStore.metricGroupList;
@@ -195,8 +198,10 @@ export default class ApmViewContent extends tsc<any, any> {
     }, []);
   }
 
+  // 打开指标管理抽屉
   handleMetricManage(tab: 'dimension' | 'metric') {
-    // 打开指标管理抽屉
+    this.metricManageTab = tab;
+    this.isShowMetricManage = true;
   }
 
   // 刷新指标和分组的数据
@@ -227,6 +232,15 @@ export default class ApmViewContent extends tsc<any, any> {
           onDimensionParamsChange={this.handleDimensionParamsChange}
           onMetricManage={this.handleMetricManage}
           onResetMetricsSelect={this.handleMetricsSelectReset}
+        />
+        <MetricManage
+          isShow={this.isShowMetricManage}
+          tab={this.metricManageTab}
+          onCancel={() => {
+            this.isShowMetricManage = false;
+          }}
+          onAliasChange={this.handleRefreshGroupData}
+          onGroupListChange={this.handleRefreshGroupData}
         />
       </div>
     );

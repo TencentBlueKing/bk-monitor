@@ -71,7 +71,7 @@ export default class AutoGroup extends tsc<any> {
         <bk-alert
           type='info'
           style='margin-bottom: 12px;'
-          title={this.$t('根据分组规则自动发现并分组指标。')}
+          title={this.$t('根据规则自动发现未来新指标，存量指标不生效。')}
         />
         <div class='regex-list-main'>
           {this.regexList.map(item => (

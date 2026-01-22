@@ -1,12 +1,14 @@
 .manual-group-main {
   .search-input-main {
     margin: 8px 0;
+
+    .bk-form-input {
+      border-color: #c4c6cc !important;
+      border-right: none;
+    }
   }
 
-  .bk-form-input {
-    border-color: #c4c6cc !important;
-    border-right: none;
-  }
+
 
   .search-append-main {
     display: flex;

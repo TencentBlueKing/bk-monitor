@@ -40,3 +40,15 @@ export const execCopy = (value: string) => {
   }
   document.body.removeChild(textarea);
 };
+
+/* 匹配规则通过正则匹配 */
+export const matchRuleFn = (str: string, matchStr: string) => {
+  let isMatch = false;
+  try {
+    const regex = new RegExp(matchStr);
+    isMatch = regex.test(str);
+  } catch (_) {
+    isMatch = false;
+  }
+  return isMatch;
+};

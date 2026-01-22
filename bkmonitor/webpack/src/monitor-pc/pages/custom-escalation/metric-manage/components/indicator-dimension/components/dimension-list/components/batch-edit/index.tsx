@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import _ from 'lodash';
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce, deepClone } from 'monitor-common/utils';
@@ -34,6 +34,7 @@ import type { ICustomTsFields } from '../../../../../../../service';
 import {
   type IColumnConfig,
   type PopoverChildRef,
+  type RequestHandlerMap,
   ALL_OPTION,
   CheckboxStatus,
   CHECKED_OPTION,
@@ -86,6 +87,8 @@ export default class DimensionTableSlide extends tsc<IProps, IEmits> {
   @Prop({ type: Boolean, default: false }) isShow: IProps['isShow'];
   /** 维度表格数据 */
   @Prop({ default: () => [] }) dimensionTable: IProps['dimensionTable'];
+
+  @InjectReactive('requestHandlerMap') readonly requestHandlerMap: RequestHandlerMap;
 
   /** 表格配置 */
   fieldsSettings: Record<string, IColumnConfig> = {
@@ -222,10 +225,6 @@ export default class DimensionTableSlide extends tsc<IProps, IEmits> {
       // 并行执行所有验证
       const validationResults = newRows.map(row => {
         const isValid = this.validateName(row);
-        if (!isValid) {
-          // TODO: 错误反馈
-          // this.$bkMessage({ message: row.error, theme: 'error' });
-        }
         return isValid;
       });
       // 检查全局有效性
@@ -770,6 +769,7 @@ export default class DimensionTableSlide extends tsc<IProps, IEmits> {
           <div class='slider-search'>
             <bk-input
               v-model={this.search}
+              clearable
               placeholder={this.$t('搜索 名称、别名')}
               right-icon='bk-icon icon-search'
               on-change={this.handleSearchChange}

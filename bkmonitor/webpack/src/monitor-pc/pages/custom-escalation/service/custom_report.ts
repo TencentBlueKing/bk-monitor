@@ -47,6 +47,7 @@ export interface ICustomTimeSeriesDetail {
   time_series_group_id: number;
   update_time: string;
   update_user: string;
+  last_time?: string;
   metric_json: {
     fields: {
       aggregate_method: string;
@@ -246,7 +247,17 @@ export const createOrUpdateGroupingRule = CustomReportApi.createOrUpdateGrouping
     scope_id?: number;
     time_series_group_id?: number;
   },
-  null
+  {
+    scope_id: number;
+    name: string;
+    metric_count: number;
+    create_from: 'data' | 'user';
+    metric_list: {
+      field_id: number;
+      metric_name: string;
+    }[];
+    auto_rules: string[];
+  }
 >;
 
 /** 获取分组规则列表 rest/v2/custom_metric_report/custom_ts_grouping_rule_list/ */

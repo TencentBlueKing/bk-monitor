@@ -28,8 +28,14 @@
     }
   }
 
-  .preview-btn {
+  .preview-btn-main {
+    display: flex;
+    align-items: center;
     margin: 8px 0;
+
+    .icon-tishi {
+      margin: 0 2px 0 6px;
+    }
   }
 
   .list-preview-main {

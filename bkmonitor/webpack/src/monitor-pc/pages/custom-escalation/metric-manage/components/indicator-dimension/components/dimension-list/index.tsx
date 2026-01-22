@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, InjectReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import DimensionBatchEdit from './components/batch-edit';
-import infoSrc from '@/static/images/png/dimension-guide.png';
+import infoSrc from '../../../../../../../static/images/png/dimension-guide.png';
 import { fuzzyMatch } from '../../../../utils';
-import { modifyCustomTsFields, type ICustomTsFields } from '../../../../../service';
 import { NULL_LABEL } from '../../../../type';
+import type { ICustomTsFields } from '../../../../../service';
+import type { RequestHandlerMap } from '../../../../type';
 
 import './index.scss';
 
@@ -39,6 +40,8 @@ import './index.scss';
 interface IProps {
   /** 选中的分组信息，包含分组ID和名称 */
   selectedGroupInfo: { id: number; name: string };
+  /** 表格加载状态 */
+  loading: boolean;
   /** 维度表格数据列表 */
   dimensionTable: DimensionDetail[];
 }
@@ -49,6 +52,8 @@ interface IProps {
 interface IEmits {
   /** 刷新事件，当数据更新后触发 */
   onRefresh: () => void;
+  /** 别名变化事件 */
+  onAliasChange: () => void;
 }
 
 /**
@@ -67,6 +72,14 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
   @Prop({ default: () => {} }) selectedGroupInfo: IProps['selectedGroupInfo'];
   /** 维度表格数据列表 */
   @Prop({ default: () => [] }) dimensionTable: IProps['dimensionTable'];
+  /** 表格加载状态 */
+  @Prop({ default: false }) loading: IProps['loading'];
+
+  @InjectReactive('requestHandlerMap') readonly requestHandlerMap: RequestHandlerMap;
+  @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
+  @InjectReactive('isAPM') readonly isAPM: boolean;
+  @InjectReactive('appName') readonly appName: string;
+  @InjectReactive('serviceName') readonly serviceName: string;
 
   /** 编辑时临时保存的别名，用于在失焦时判断是否需要更新 */
   copyAlias = '';
@@ -85,6 +98,11 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
     return this.dimensionTable.filter(item => {
       return fuzzyMatch(item.name, this.search) || fuzzyMatch(item.config.alias, this.search);
     });
+  }
+
+  @Watch('selectedGroupInfo', { immediate: true })
+  handleSelectedGroupInfoChange() {
+    this.search = '';
   }
 
   /**
@@ -108,10 +126,11 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
    * 当别名输入框失焦时，如果别名有变化则更新到服务器
    * @param row 当前编辑的维度数据
    */
-  handleEditDescription(row: DimensionDetail) {
+  async handleEditDescription(row: DimensionDetail) {
     if (this.copyAlias === row.config.alias) return;
-    this.updateDimensionField(row, 'alias', this.copyAlias);
-    this.$set(row, 'description', this.copyAlias);
+    row.config.alias = this.copyAlias;
+    await this.updateDimensionField(row, 'alias', this.copyAlias);
+    this.$emit('aliasChange');
   }
 
   /**
@@ -130,7 +149,7 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
    * @param val 是否设置为常用维度
    */
   async handleCommonChange(row: DimensionDetail, val: boolean) {
-    this.$set(row, 'common', val);
+    row.config.common = val;
     await this.updateDimensionField(row, 'common', val);
   }
 
@@ -155,12 +174,19 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
       delete updateField.config;
     }
     try {
-      await modifyCustomTsFields({
-        time_series_group_id: Number(this.$route.params.id),
+      const params = {
+        time_series_group_id: this.timeSeriesGroupId,
         update_fields: [updateField],
-      });
+      };
+      if (this.isAPM) {
+        delete params.time_series_group_id;
+        Object.assign(params, {
+          app_name: this.appName,
+          service_name: this.serviceName,
+        });
+      }
+      await this.requestHandlerMap.modifyCustomTsFields(params);
       this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
-      this.$emit('refresh');
     } catch (e) {
       console.error('Update dimension failed:', e);
       this.$bkMessage({
@@ -207,6 +233,9 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
                 value={props.row.config.alias}
                 onBlur={() => {
                   this.editingIndex = -1;
+                  this.handleEditDescription(props.row);
+                }}
+                onEnter={() => {
                   this.handleEditDescription(props.row);
                 }}
                 onChange={v => {
@@ -306,12 +335,21 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
    */
   async handleSaveSliderInfo(updateArray: any[], delArray: any[] = []): Promise<void> {
     this.isShowDimensionSlider = false;
-    await modifyCustomTsFields({
-      time_series_group_id: Number(this.$route.params.id),
+    const params = {
+      time_series_group_id: this.timeSeriesGroupId,
       update_fields: updateArray,
       delete_fields: delArray,
-    });
+    };
+    if (this.isAPM) {
+      delete params.time_series_group_id;
+      Object.assign(params, {
+        app_name: this.appName,
+        service_name: this.serviceName,
+      });
+    }
+    await this.requestHandlerMap.modifyCustomTsFields(params);
     this.$emit('refresh');
+    this.$emit('aliasChange');
     this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
   }
 
@@ -335,7 +373,10 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
             right-icon='icon-monitor icon-mc-search'
           />
         </div>
-        <div class='table-container'>
+        <div
+          class='table-container'
+          v-bkloading={{ isLoading: this.loading }}
+        >
           <bk-table
             class='dimension-table'
             data={this.tableData}
@@ -345,14 +386,10 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
             {this.columnConfigs.map(config => (
               <bk-table-column
                 key={config.id}
+                prop={config.id}
                 width={config.width}
                 minWidth={config.minWidth}
-                renderHeader={() => {
-                  if (config?.renderHeaderFn) {
-                    return config?.renderHeaderFn(config);
-                  }
-                  return <div> {this.$t(config.label as string)} </div>;
-                }}
+                renderHeader={config?.renderHeaderFn ? () => config.renderHeaderFn(config) : undefined}
                 label={config.label}
                 scopedSlots={config.scopedSlots}
               />

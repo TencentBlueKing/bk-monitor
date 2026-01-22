@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 import _ from 'lodash';
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+
+import { Component, Emit, Prop, Watch, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
@@ -32,12 +33,13 @@ import { Debounce, deepClone } from 'monitor-common/utils';
 import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 import ColumnCheck from '../../../../../../../../performance/column-check/column-check.vue';
 
-import { METHOD_LIST } from '@/constant/constant';
-import FunctionSelect from '@/pages/strategy-config/strategy-config-set-new/monitor-data/function-select';
-import { modifyCustomTsFields, type ICustomTsFields, type IUnitItem } from '../../../../../../../service';
+import { METHOD_LIST } from '../../../../../../../../../constant/constant';
+import FunctionSelect from '../../../../../../../../strategy-config/strategy-config-set-new/monitor-data/function-select';
+import type { ICustomTsFields, IUnitItem } from '../../../../../../../service';
 import {
   type IColumnConfig,
   type PopoverChildRef,
+  type RequestHandlerMap,
   ALL_OPTION,
   CheckboxStatus,
   CHECKED_OPTION,
@@ -102,6 +104,13 @@ export default class BatchEdit extends tsc<IProps> {
   @Prop({ default: () => [] }) dimensionTable: IProps['dimensionTable'];
   /** 侧边栏宽度 */
   sliderWidth = window.innerWidth * 0.9 > 1280 ? window.innerWidth * 0.9 : 1280;
+
+  @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
+  @InjectReactive('requestHandlerMap') readonly requestHandlerMap: RequestHandlerMap;
+  @InjectReactive('isAPM') readonly isAPM: boolean;
+  @InjectReactive('appName') readonly appName: string;
+  @InjectReactive('serviceName') readonly serviceName: string;
+
   /** 本地表格数据（用于编辑） */
   localTable: IMetricItem[] = [];
   /** 当前页码 */
@@ -390,11 +399,19 @@ export default class BatchEdit extends tsc<IProps> {
           updateFields.push(row);
         }
       }
-      await modifyCustomTsFields({
-        time_series_group_id: Number(this.$route.params.id),
+      const params = {
+        time_series_group_id: this.timeSeriesGroupId,
         update_fields: updateFields,
         delete_fields: this.delArray,
-      } as any);
+      };
+      if (this.isAPM) {
+        delete params.time_series_group_id;
+        Object.assign(params, {
+          app_name: this.appName,
+          service_name: this.serviceName,
+        });
+      }
+      await this.requestHandlerMap.modifyCustomTsFields(params as any);
       this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
       this.$emit('editSuccess');
     } finally {

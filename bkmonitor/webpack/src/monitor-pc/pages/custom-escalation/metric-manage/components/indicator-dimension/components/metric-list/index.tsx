@@ -23,21 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Watch, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Watch, Prop, Ref, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { Debounce } from 'monitor-common/utils';
 
-import EmptyStatus from '@/components/empty-status/empty-status';
-import type { EmptyStatusType } from '@/components/empty-status/types';
-import TableSkeleton from '@/components/skeleton/table-skeleton';
-import { METHOD_LIST } from '@/constant/constant';
-import ColumnCheck from '@/pages/performance/column-check/column-check.vue';
-import { matchRuleFn } from '../../../../../group-manage-dialog';
-import { modifyCustomTsFields, type ICustomTsFields, type IUnitItem } from '../../../../../service';
-import { DEFAULT_HEIGHT_OFFSET, type IGroupListItem, NULL_LABEL } from '../../../../type';
+import EmptyStatus from '../../../../../../../components/empty-status/empty-status';
+import type { EmptyStatusType } from '../../../../../../../components/empty-status/types';
+import TableSkeleton from '../../../../../../../components/skeleton/table-skeleton';
+import { METHOD_LIST } from '../../../../../../../constant/constant';
+import ColumnCheck from '../../../../../../performance/column-check/column-check.vue';
+import { matchRuleFn } from '../../../../utils';
+import type { ICustomTsFields, IUnitItem } from '../../../../../service';
+import { DEFAULT_HEIGHT_OFFSET, type IGroupListItem, NULL_LABEL, type RequestHandlerMap } from '../../../../type';
 import BatchEdit from './components/batch-edit';
 import MetricDetail from './components/metric-detail';
 import type { IMetricGroupMapItem } from '../../index';
@@ -58,6 +58,8 @@ interface IProps {
   groupSelectList: { id: number; name: string }[];
   /** 维度表格数据 */
   dimensionTable: ICustomTsFields['dimensions'];
+  /** 表格加载状态 */
+  loading: boolean;
   /** 所有数据预览 */
   // allDataPreview: Record<string, any>;
   /** 分组映射表，key为分组名称，value为分组信息 */
@@ -78,20 +80,28 @@ interface IEmits {
   onRowCheck: () => void;
   onUpdateAllSelection: (v: boolean) => void;
   onSearchChange: (list: any[]) => void;
+  onAliasChange: () => void;
 }
 
 @Component
-export default class IndicatorTable extends tsc<IProps, IEmits> {
+export default class MetricList extends tsc<IProps, IEmits> {
   @Prop({ default: () => {} }) selectedGroupInfo: IProps['selectedGroupInfo'];
   @Prop({ default: () => [] }) metricTable: IProps['metricTable'];
   @Prop({ default: () => [] }) unitList: IProps['unitList'];
   @Prop({ default: () => [] }) groupSelectList: IProps['groupSelectList'];
   @Prop({ default: () => [] }) dimensionTable: IProps['dimensionTable'];
+  @Prop({ default: false }) loading: IProps['loading'];
   // @Prop({ default: () => {} }) allDataPreview: IProps['allDataPreview'];
   @Prop({ default: 0 }) allCheckValue: IProps['allCheckValue'];
   @Prop({ default: () => {} }) defaultGroupInfo: IProps['defaultGroupInfo'];
   @Prop({ default: () => new Map() }) groupsMap: IProps['groupsMap'];
   @Prop({ default: () => new Map() }) metricGroupsMap: IProps['metricGroupsMap'];
+
+  @InjectReactive('isAPM') readonly isAPM: boolean;
+  @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
+  @InjectReactive('requestHandlerMap') readonly requestHandlerMap: RequestHandlerMap;
+  @InjectReactive('appName') readonly appName: string;
+  @InjectReactive('serviceName') readonly serviceName: string;
 
   /** 批量添加分组弹窗引用 */
   @Ref() readonly batchAddGroupPopover!: HTMLInputElement;
@@ -105,17 +115,13 @@ export default class IndicatorTable extends tsc<IProps, IEmits> {
   /** 表格数据配置 */
   table = {
     data: [],
-    loading: false,
     select: [],
   };
 
   /** 别名编辑时的备份值，用于判断是否有修改 */
-  copyDescription = '';
+  copyAlias = '';
   /** 是否显示确认关闭对话框 */
   isShowDialog = false;
-
-  /** 表格加载状态 */
-  loading = false;
 
   /** 字段设置数据，控制表格列的显示/隐藏 */
   fieldSettingData: any = {};
@@ -207,12 +213,6 @@ export default class IndicatorTable extends tsc<IProps, IEmits> {
         multiple: false,
         children: this.unitList,
       },
-      // {
-      //   name: this.$t('函数'),
-      //   id: 'func',
-      //   multiple: false,
-      //   children: this.metricFunctions,
-      // },
       {
         name: this.$t('汇聚方法'),
         id: 'aggregate',
@@ -239,6 +239,7 @@ export default class IndicatorTable extends tsc<IProps, IEmits> {
   @Watch('selectedGroupInfo', { immediate: true })
   handleSelectedGroupInfoChange() {
     this.tableInstance.page = 1;
+    this.search = [];
   }
 
   /** 监听指标数据变化，当数据为空时关闭详情面板 */
@@ -489,7 +490,7 @@ export default class IndicatorTable extends tsc<IProps, IEmits> {
               this.handleEditDescription(props.row);
             }}
             onChange={v => {
-              this.copyDescription = v;
+              this.copyAlias = v;
             }}
           />
         </div>
@@ -527,9 +528,9 @@ export default class IndicatorTable extends tsc<IProps, IEmits> {
         ref='tableBoxRef'
       >
         <bk-table
-          v-bkloading={{ isLoading: this.table.loading }}
+          v-bkloading={{ isLoading: this.loading }}
           empty-text={this.$t('无数据')}
-          max-height={window.innerHeight - 610}
+          max-height={this.isAPM ? window.innerHeight - 220 : window.innerHeight - 610}
           on-header-dragend={(newWidth, _, col) => {
             if (col.property === 'group') {
               this.groupWidth = newWidth;
@@ -726,10 +727,18 @@ export default class IndicatorTable extends tsc<IProps, IEmits> {
       if (!isConfigKey) {
         updateField[k] = v;
       }
-      await modifyCustomTsFields({
-        time_series_group_id: Number(this.$route.params.id),
+      const params = {
+        time_series_group_id: this.timeSeriesGroupId,
         update_fields: [updateField],
-      });
+      };
+      if (this.isAPM) {
+        delete params.time_series_group_id;
+        Object.assign(params, {
+          app_name: this.appName,
+          service_name: this.serviceName,
+        });
+      }
+      await this.requestHandlerMap.modifyCustomTsFields(params);
       if (showMsg) {
         this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
       }
@@ -747,13 +756,14 @@ export default class IndicatorTable extends tsc<IProps, IEmits> {
    * @param metricInfo 指标信息对象
    */
   async handleEditDescription(metricInfo) {
-    if (this.copyDescription === metricInfo.config.alias) {
-      this.copyDescription = '';
+    if (this.copyAlias === metricInfo.config.alias) {
+      this.copyAlias = '';
       return;
     }
-    const currentDescription = this.copyDescription; // 防止编辑时点击其他input后触发blur 导致copyDescription变化赋值错误
-    metricInfo.config.alias = currentDescription;
-    await this.updateCustomFields('alias', currentDescription, metricInfo, true);
+    const currentAlias = this.copyAlias; // 防止编辑时点击其他input后触发blur 导致copyAlias变化赋值错误
+    metricInfo.config.alias = currentAlias;
+    await this.updateCustomFields('alias', currentAlias, metricInfo, true);
+    this.$emit('aliasChange');
   }
 
   /**
@@ -761,7 +771,7 @@ export default class IndicatorTable extends tsc<IProps, IEmits> {
    * @param props 表格行属性对象
    */
   handleDescFocus(props) {
-    this.copyDescription = props.row.config.alias;
+    this.copyAlias = props.row.config.alias;
     this.editingIndex = props.$index;
   }
 
@@ -883,6 +893,7 @@ export default class IndicatorTable extends tsc<IProps, IEmits> {
     this.isShowMetricSlider = false;
     this.updateAllSelection();
     this.$emit('refresh');
+    this.$emit('aliasChange');
   }
 
   render() {
@@ -969,7 +980,10 @@ export default class IndicatorTable extends tsc<IProps, IEmits> {
           {this.loading ? (
             <TableSkeleton type={2} />
           ) : (
-            <div class='table-box'>
+            <div
+              class='table-box'
+              v-bkloading={{ isLoading: this.loading }}
+            >
               {[
                 this.getTableComponent(),
                 this.metricTableVal?.length ? (

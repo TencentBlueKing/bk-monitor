@@ -29,19 +29,25 @@ import { Debounce } from 'monitor-common/utils';
 import MonitorImport from '../../../../../components/monitor-import/monitor-import.vue';
 import DimensionList from './components/dimension-list';
 import MetricList from './components/metric-list';
-import { ALL_LABEL, NULL_LABEL, type IGroupListItem } from '../../type';
-import { fuzzyMatch } from '../../utils';
-import { customTsGroupingRuleList, importCustomTimeSeriesFields, type IUnitItem } from '../../../service';
-import type { IDetailData } from '../../../../../types/custom-escalation/custom-escalation-detail';
+import { ALL_LABEL, NULL_LABEL, type IGroupListItem, type RequestHandlerMap } from '../../type';
+import { fuzzyMatch, matchRuleFn } from '../../utils';
+import {
+  getUnitList,
+  getCustomTsFields,
+  deleteGroupingRule,
+  previewGroupingRule,
+  modifyCustomTsFields,
+  customTsGroupingRuleList,
+  importCustomTimeSeriesFields,
+  createOrUpdateGroupingRule,
+  exportCustomTimeSeriesFields,
+} from '../../../service';
 import { downCsvFile } from '../../../../view-detail/utils';
-import { matchRuleFn } from '../../../group-manage-dialog';
 import dayjs from 'dayjs';
 import { getFunctions } from 'monitor-api/modules/grafana';
 import GroupList from './components/group-list';
 import type { ICustomTsFields } from '../../index';
 import type { IMetricItem } from './components/metric-list';
-
-import { createOrUpdateGroupingRule, exportCustomTimeSeriesFields, deleteGroupingRule } from '../../../service';
 
 import './index.scss';
 
@@ -49,16 +55,11 @@ import './index.scss';
  * 组件 Props 接口
  */
 interface IProps {
-  /** 详情数据 */
-  detailData: IDetailData;
-  /** 单位列表 */
-  unitList: IUnitItem[];
-  /** 维度列表 */
-  dimensions: ICustomTsFields['dimensions'];
-  /** 指标列表 */
-  metricList: ICustomTsFields['metrics'];
-  /** 所有数据预览 */
-  // allDataPreview: Record<string, any>;
+  /** 时间序列分组 ID */
+  metricId?: number;
+  /** 是否为 APM 页面 */
+  isAPMPage?: boolean;
+  tab?: 'metric' | 'dimension';
 }
 
 /**
@@ -89,29 +90,39 @@ export interface IMetricGroupMapItem {
   matchType: Record<string, string[]>;
 }
 
-/**
- * 组件事件接口
- */
-interface IEmits {
-  /** 刷新事件 */
-  onRefresh: () => void;
-}
-
 /** 创建或更新分组规则的参数类型 */
 type CreateOrUpdateGroupingRuleParams = ServiceParameters<typeof createOrUpdateGroupingRule>;
 
 @Component({
   inheritAttrs: false,
 })
-export default class IndicatorDimension extends tsc<IProps, IEmits> {
-  @Prop({ default: () => ({}) }) detailData: IProps['detailData'];
-  @Prop({ default: () => [] }) unitList: IProps['unitList'];
-  @Prop({ default: () => [] }) dimensions: IProps['dimensions'];
-  @Prop({ default: () => [] }) metricList: IProps['metricList'];
+export default class IndicatorDimension extends tsc<IProps, any> {
+  @Prop({ default: 0 }) metricId: IProps['metricId'];
+  @Prop({ default: '' }) metricName: string;
+  @Prop({ default: false }) isAPMPage: boolean;
+  @Prop({ default: 'metric' }) tab: IProps['tab'];
+  @Prop({
+    default: () => ({
+      createOrUpdateGroupingRule,
+      exportCustomTimeSeriesFields,
+      previewGroupingRule,
+      deleteGroupingRule,
+      importCustomTimeSeriesFields,
+      customTsGroupingRuleList,
+      modifyCustomTsFields,
+      getCustomTsFields,
+      getFunctions,
+      getUnitList,
+    }),
+  })
+  requestMap: RequestHandlerMap;
 
-  // @Prop({ default: () => {} }) allDataPreview: IProps['allDataPreview'];
+  @ProvideReactive('timeSeriesGroupId') timeSeriesGroupId: IProps['metricId'];
+  @ProvideReactive('isAPM') isAPM: boolean;
+  @ProvideReactive('requestHandlerMap') requestHandlerMap: RequestHandlerMap & { getFunctions?: () => Promise<any[]> };
   @ProvideReactive('metricFunctions') metricFunctions: any[] = [];
-
+  @ProvideReactive('appName') appName = this.$route.query['filter-app_name'] as string;
+  @ProvideReactive('serviceName') serviceName = this.$route.query['filter-service_name'] as string;
   /** 分组列表组件的引用 */
   @Ref('customGroupingListRef') readonly customGroupingListRef!: InstanceType<typeof GroupList>;
 
@@ -153,6 +164,17 @@ export default class IndicatorDimension extends tsc<IProps, IEmits> {
   activeTab = this.tabs[0].id;
   /** 是否显示右侧帮助栏 */
   isShowRightWindow = true;
+  /** 单位列表，用于指标单位的展示和选择 */
+  unitList: ServiceReturnType<typeof this.requestHandlerMap.getUnitList> = [];
+  /** 维度列表，包含所有自定义时序指标的维度信息 */
+  dimensions: ICustomTsFields['dimensions'] = [];
+  /** 所有指标的数据预览，以字段ID为key存储最新的数据值 */
+  // allDataPreview: Record<string, any> = {};
+
+  /** 指标维度数据，包含指标列表和额外的选择状态、监控类型等信息 */
+  metricList: (ICustomTsFields['metrics'][number] & { selection: boolean })[] = [];
+  /** 分组列表加载状态 */
+  groupListloading = false;
 
   /**
    * 获取分组选择列表，用于下拉选择组件
@@ -180,15 +202,6 @@ export default class IndicatorDimension extends tsc<IProps, IEmits> {
       id: group?.scopeId || 0,
       name: group?.name || '',
     };
-  }
-
-  /**
-   * 组件创建时的生命周期钩子
-   * 从路由参数中获取激活的标签页，如果没有则使用默认的第一个标签页
-   */
-  created() {
-    this.activeTab = this.$route.params.activeTab || this.tabs[0].id;
-    this.handleGetMetricFunctions();
   }
 
   /**
@@ -250,15 +263,64 @@ export default class IndicatorDimension extends tsc<IProps, IEmits> {
     return this.metricList.length;
   }
 
-  /**
-   * 监听详情数据中的时间序列分组 ID 变化
-   * 当 ID 存在时，重新获取分组列表
-   * @param newVal 新的时间序列分组 ID
-   */
-  @Watch('detailData.time_series_group_id', { immediate: true })
-  onDetailDataTimeSeriesGroupIdChange(newVal: number) {
-    if (newVal) {
+  @Watch('tab', { immediate: true })
+  onTabChange(newVal: IProps['tab']) {
+    this.activeTab = newVal;
+  }
+
+  @Watch('requestMap', { immediate: true })
+  onRequestMapChange(newVal: RequestHandlerMap) {
+    this.requestHandlerMap = newVal;
+  }
+
+  @Watch('isAPMPage', { immediate: true })
+  @Watch('metricId', { immediate: true })
+  onMetricIdChange() {
+    this.isAPM = this.isAPMPage;
+    if (this.metricId || this.isAPM) {
+      this.timeSeriesGroupId = this.metricId;
+      this.handleGetCustomTsFields();
       this.getGroupList();
+    }
+  }
+
+  /**
+   * 组件创建时的生命周期钩子
+   * 从路由参数中获取激活的标签页，如果没有则使用默认的第一个标签页
+   */
+  created() {
+    this.handleGetMetricFunctions();
+    this.handleGetUnitList();
+  }
+
+  async handleGetCustomTsFields(): Promise<void> {
+    const params = {
+      time_series_group_id: this.timeSeriesGroupId,
+    };
+    if (this.isAPM) {
+      delete params.time_series_group_id;
+      Object.assign(params, {
+        app_name: this.appName,
+        service_name: this.serviceName,
+      });
+    }
+    const data = await this.requestHandlerMap.getCustomTsFields(params);
+    this.dimensions = data.dimensions;
+    this.metricList = data.metrics.map(item => ({
+      ...item,
+      selection: false,
+    }));
+  }
+
+  /**
+   * 加载静态数据（单位列表）
+   */
+  async handleGetUnitList(): Promise<void> {
+    try {
+      const unitList = await this.requestHandlerMap.getUnitList();
+      this.unitList = unitList;
+    } catch (error) {
+      console.error('加载静态数据失败:', error);
     }
   }
 
@@ -266,18 +328,26 @@ export default class IndicatorDimension extends tsc<IProps, IEmits> {
    * 获取指标函数列表
    */
   async handleGetMetricFunctions(): Promise<void> {
-    this.metricFunctions = await getFunctions().catch(() => []);
+    this.metricFunctions = await this.requestHandlerMap.getFunctions().catch(() => []);
   }
 
   /**
    * 处理导出指标数据
    */
   async handleExportMetric() {
-    const template = await exportCustomTimeSeriesFields({
-      time_series_group_id: this.detailData.time_series_group_id,
-    });
+    const params = {
+      time_series_group_id: this.timeSeriesGroupId,
+    };
+    if (this.isAPM) {
+      delete params.time_series_group_id;
+      Object.assign(params, {
+        app_name: this.appName,
+        service_name: this.serviceName,
+      });
+    }
+    const template = await this.requestHandlerMap.exportCustomTimeSeriesFields(params);
     // 生成动态文件名
-    const fileName = `自定义指标-${this.detailData.name}-${dayjs.tz().format('YYYY-MM-DD_HH-mm-ss')}.json`;
+    const fileName = `自定义指标-${this.isAPM ? this.appName : this.metricName}-${dayjs.tz().format('YYYY-MM-DD_HH-mm-ss')}.json`;
 
     // 执行下载
     downCsvFile(JSON.stringify(template, null, 2), fileName);
@@ -291,10 +361,18 @@ export default class IndicatorDimension extends tsc<IProps, IEmits> {
     if (!jsonData) {
       return;
     }
-    await importCustomTimeSeriesFields({
-      time_series_group_id: this.detailData.time_series_group_id, // this.$route.params.id,
+    const params = {
+      time_series_group_id: this.timeSeriesGroupId,
       ...JSON.parse(jsonData),
-    });
+    };
+    if (this.isAPM) {
+      delete params.time_series_group_id;
+      Object.assign(params, {
+        app_name: this.appName,
+        service_name: this.serviceName,
+      });
+    }
+    await this.requestHandlerMap.importCustomTimeSeriesFields(params);
     this.updateInfoSuccess();
   }
 
@@ -388,17 +466,25 @@ export default class IndicatorDimension extends tsc<IProps, IEmits> {
    * @param name 分组名称
    */
   async handleDelGroup(name: string): Promise<void> {
-    await deleteGroupingRule({
-      time_series_group_id: Number(this.$route.params.id),
+    const params = {
+      time_series_group_id: this.timeSeriesGroupId,
       name,
-    });
+    };
+    if (this.isAPM) {
+      delete params.time_series_group_id;
+      Object.assign(params, {
+        app_name: this.appName,
+        service_name: this.serviceName,
+      });
+    }
+    await this.requestHandlerMap.deleteGroupingRule(params);
     this.$bkMessage({ theme: 'success', message: this.$t('删除成功') });
     await this.getGroupList();
     // 如果当前选中的是被删除的分组，则重置筛选条件
     if (this.groupFilterList[0] === name) {
       this.changeGroupFilterList({ id: 0, name: ALL_LABEL });
     }
-    this.$emit('refresh');
+    this.handleGetCustomTsFields();
   }
 
   /**
@@ -432,19 +518,38 @@ export default class IndicatorDimension extends tsc<IProps, IEmits> {
    * @param config 分组配置
    */
   async submitGroupInfo(config: CreateOrUpdateGroupingRuleParams): Promise<void> {
-    await createOrUpdateGroupingRule({
-      time_series_group_id: this.detailData.time_series_group_id,
+    const params = {
+      time_series_group_id: this.timeSeriesGroupId,
       ...config,
-    });
+    };
+    if (this.isAPM) {
+      delete params.time_series_group_id;
+      Object.assign(params, {
+        app_name: this.appName,
+        service_name: this.serviceName,
+      });
+    }
+    await this.requestHandlerMap.createOrUpdateGroupingRule(params);
   }
 
   /**
    * 获取分组管理数据
    */
   async getGroupList(): Promise<void> {
-    const data = await customTsGroupingRuleList({
-      time_series_group_id: this.detailData.time_series_group_id,
-    }).catch(() => [] as ServiceReturnType<typeof customTsGroupingRuleList>);
+    this.groupListloading = true;
+    const params = {
+      time_series_group_id: this.timeSeriesGroupId,
+    };
+    if (this.isAPM) {
+      delete params.time_series_group_id;
+      Object.assign(params, {
+        app_name: this.appName,
+        service_name: this.serviceName,
+      });
+    }
+    const data = await this.requestHandlerMap
+      .customTsGroupingRuleList(params)
+      .catch(() => [] as ServiceReturnType<typeof customTsGroupingRuleList>);
 
     this.groupList = data.map(item => ({
       name: item.name,
@@ -454,6 +559,7 @@ export default class IndicatorDimension extends tsc<IProps, IEmits> {
       createFrom: item.create_from,
     }));
     this.groupsDataTidy();
+    this.groupListloading = false;
   }
 
   /**
@@ -555,7 +661,7 @@ export default class IndicatorDimension extends tsc<IProps, IEmits> {
    * 触发刷新事件并重新获取分组列表
    */
   updateInfoSuccess() {
-    this.$emit('refresh');
+    this.handleGetCustomTsFields();
     this.getGroupList();
   }
 
@@ -579,14 +685,22 @@ export default class IndicatorDimension extends tsc<IProps, IEmits> {
     });
     if (isCreate) {
       this.customGroupingListRef.scrollListToBottom();
+      this.$emit('groupListChange');
     }
-    this.$emit('refresh');
+    this.handleGetCustomTsFields();
+  }
+
+  handleAliasChange() {
+    this.$emit('aliasChange');
   }
 
   render() {
     return (
       <div class='timeseries-detail-page'>
-        <div class={{ left: true, active: this.isShowRightWindow }}>
+        <div
+          class={{ left: true, active: this.isShowRightWindow }}
+          v-bkloading={{ isLoading: this.groupListloading }}
+        >
           <div
             class={'right-button'}
             onClick={() => {
@@ -611,7 +725,10 @@ export default class IndicatorDimension extends tsc<IProps, IEmits> {
             onGroupDelByName={this.handleDelGroup}
           />
         </div>
-        <div class='timeseries-detail-page-content'>
+        <div
+          class='timeseries-detail-page-content'
+          style={{ height: this.isAPM ? 'calc(100vh - 52px)' : 'calc(100vh - 430px)' }}
+        >
           <div class='list-header'>
             <div class='head'>
               <div class='tabs'>
@@ -650,6 +767,7 @@ export default class IndicatorDimension extends tsc<IProps, IEmits> {
             <MetricList
               selectedGroupInfo={this.selectedGroupInfo}
               allCheckValue={this.allCheckValue}
+              loading={this.groupListloading}
               metricTable={this.metricTable}
               groupsMap={this.groupsMap}
               metricGroupsMap={this.metricGroupsMap}
@@ -664,12 +782,15 @@ export default class IndicatorDimension extends tsc<IProps, IEmits> {
               onHandleBatchAddGroup={this.handleBatchAddGroup}
               onRefresh={this.updateInfoSuccess}
               onShowAddGroup={this.handleShowAddGroup}
+              onAliasChange={this.handleAliasChange}
             />
           ) : (
             <DimensionList
               selectedGroupInfo={this.selectedGroupInfo}
               dimensionTable={this.dimensionTable}
+              loading={this.groupListloading}
               onRefresh={this.updateInfoSuccess}
+              onAliasChange={this.handleAliasChange}
             />
           )}
         </div>

@@ -27,6 +27,14 @@
   .dimension-table {
     transition: width 0.5s;
 
+    th {
+      &:hover {
+        .bk-table-header-label {
+          background-color: rgb(240 241 245) !important;
+        }
+      }
+    }
+
     .common-title {
       display: flex;
       align-items: center;
