@@ -46,6 +46,10 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     multiChange: (_val: boolean) => true,
@@ -112,38 +116,54 @@ export default defineComponent({
         </div>
         <div class='search-wrap'>
           <Input
+            clearable={true}
             modelValue={this.searchValue}
             placeholder={`${this.t('搜索')} ${this.t('维度')}`}
             type='search'
-            onChange={this.handleSearch}
+            onUpdate:modelValue={this.handleSearch}
           />
         </div>
         <div class='dimension-list'>
-          {this.filteredDimensions.map((item, index) => (
-            <div
-              key={index}
-              class={[
-                'dimension-list-item',
-                this.isMulti ? 'multi-type' : 'single-type',
-                {
-                  active: this.selected.includes(item.id),
-                },
-              ]}
-              onClick={() => {
-                if (!this.isMulti) {
-                  this.handleSelect(item);
-                }
-              }}
-            >
-              {this.isMulti ? (
-                <>
-                  <Checkbox
-                    modelValue={this.selected.includes(item.id)}
-                    onChange={v => this.handleCheck(v, item)}
+          {this.loading
+            ? new Array(8).fill(null).map((_, index) => {
+                return (
+                  <div
+                    key={index}
+                    style={{ padding: '0 8px' }}
+                    class='dimension-list-item'
                   >
-                    <span>{item.name}</span>
-                  </Checkbox>
-                  {index > 5 && (
+                    <div
+                      style={{ height: '22px' }}
+                      class='skeleton-element'
+                    />
+                  </div>
+                );
+              })
+            : this.filteredDimensions.map((item, index) => (
+                <div
+                  key={index}
+                  class={[
+                    'dimension-list-item',
+                    this.isMulti ? 'multi-type' : 'single-type',
+                    {
+                      active: this.selected.includes(item.id),
+                    },
+                  ]}
+                  onClick={() => {
+                    if (!this.isMulti) {
+                      this.handleSelect(item);
+                    }
+                  }}
+                >
+                  {this.isMulti ? (
+                    <>
+                      <Checkbox
+                        modelValue={this.selected.includes(item.id)}
+                        onChange={v => this.handleCheck(v, item)}
+                      >
+                        <span v-overflow-tips>{item.name}</span>
+                      </Checkbox>
+                      {/* {index > 5 && (
                     <span
                       class='suspicious-tag'
                       v-bk-tooltips={{
@@ -152,12 +172,17 @@ export default defineComponent({
                     >
                       <span>{this.t('可疑')}</span>
                     </span>
-                  )}
-                </>
-              ) : (
-                <>
-                  <span class='item-label'>{item.name}</span>
-                  {index > 5 && (
+                  )} */}
+                    </>
+                  ) : (
+                    <>
+                      <span
+                        class='item-label'
+                        v-overflow-tips
+                      >
+                        {item.name}
+                      </span>
+                      {/* {index > 5 && (
                     <span
                       class='suspicious-tag'
                       v-bk-tooltips={{
@@ -166,11 +191,11 @@ export default defineComponent({
                     >
                       <span>{this.t('可疑')}</span>
                     </span>
+                  )} */}
+                    </>
                   )}
-                </>
-              )}
-            </div>
-          ))}
+                </div>
+              ))}
         </div>
       </div>
     );

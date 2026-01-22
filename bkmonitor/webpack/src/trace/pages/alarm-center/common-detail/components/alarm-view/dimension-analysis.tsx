@@ -31,6 +31,7 @@ import dayjs from 'dayjs';
 import { request } from 'monitor-api/base';
 import { graphDrillDown } from 'monitor-api/modules/scene_view';
 import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants/charts';
+import { useI18n } from 'vue-i18n';
 
 import { useDimensionChartPanel } from '../../../composables/use-dimension-chart-panel';
 import DimensionAnalysisTable from './components/dimension-analysis-table';
@@ -84,18 +85,19 @@ export default defineComponent({
     change: (_val: any) => true,
   },
   setup(props) {
+    const { t } = useI18n();
     const showTypeActive = shallowRef(TYPE_ENUM.TABLE);
-    const dimensionList = shallowRef(
-      new Array(10).fill(null).map((_, index) => ({ id: `dimension_0${index}`, name: `维度${index}` }))
-    );
+    const dimensionList = shallowRef([]);
+    const dimensionListLoading = shallowRef(false);
     /** 是否多选 */
     const isMulti = shallowRef(false);
     /** 选中的维度 */
-    const selectedDimension = shallowRef<string[]>([dimensionList.value[0].id]);
+    const selectedDimension = shallowRef<string[]>([]);
     /** 下钻条件 */
     const where = shallowRef([]);
     // 表格数据
     const tableData = shallowRef([]);
+    const tableDataLoading = shallowRef(false);
     /** 图表点击事件对象 */
     const chartClickPointEvent = shallowRef<{ xAxis: number; yAxis: number }>(null);
 
@@ -117,6 +119,7 @@ export default defineComponent({
     provide('timeRange', viewerTimeRange);
 
     const getDrillDimensionsData = async () => {
+      dimensionListLoading.value = true;
       const res = await getDrillDimensions({
         bk_biz_id: props.detail.bk_biz_id,
         query_configs:
@@ -126,34 +129,34 @@ export default defineComponent({
             configured_dimensions: queryConfig.agg_dimension || [],
           })) || [],
       }).catch(() => ['hostname', 'ip']);
+      dimensionListLoading.value = false;
       return res;
     };
 
     const graphDrillDownData = async () => {
+      tableDataLoading.value = true;
       const res = await graphDrillDown({
         bk_biz_id: props.detail.bk_biz_id,
         alert_id: props.detail.id,
         aggregation_method: 'avg',
-        expression: props.detail.extra_info?.strategy?.items?.[0]?.expression || 'a',
+        expression: props.detail.graph_panel?.targets?.[0]?.data?.expression || 'a',
         query_configs: props.detail.graph_panel?.targets?.[0]?.data?.query_configs?.map(queryConfig => {
           return {
-            metrics: queryConfig.metrics || [],
-            interval: queryConfig.interval || 60,
-            table: queryConfig.table,
-            data_source_label: queryConfig.data_source_label,
-            data_type_label: queryConfig.data_type_label,
-            where: queryConfig.where || [],
-            filter_dict: where.value.length
-              ? {
-                  drill_filter: where.value.reduce((prev, cur) => {
-                    prev[cur.key] = cur.value;
-                    return prev;
-                  }, {}),
-                }
-              : {},
+            ...queryConfig,
+            filter_dict: {
+              ...(queryConfig.filter_dict || {}),
+              ...(where.value.length
+                ? {
+                    drill_filter: where.value.reduce((prev, cur) => {
+                      prev[cur.key] = cur.value;
+                      return prev;
+                    }, {}),
+                  }
+                : {}),
+            },
           };
         }),
-        start_time: dayjs(viewerTimeRange.value[0]).unix(),
+        start_time: dayjs(chartClickPointEvent.value?.xAxis || viewerTimeRange.value[0]).unix(),
         end_time: dayjs(viewerTimeRange.value[1]).unix(),
         group_by: selectedDimension.value,
       }).catch(() => []);
@@ -163,6 +166,7 @@ export default defineComponent({
           color: COLOR_LIST[index % COLOR_LIST.length],
         };
       });
+      tableDataLoading.value = false;
       return res;
     };
 
@@ -170,6 +174,8 @@ export default defineComponent({
       () => props.detail,
       async newVal => {
         if (newVal) {
+          dimensionListLoading.value = true;
+          tableDataLoading.value = true;
           const dimensionsData = await getDrillDimensionsData();
           dimensionList.value = dimensionsData.map(item => ({ id: item, name: item }));
           selectedDimension.value = dimensionList.value.length ? [dimensionList.value[0].id] : [];
@@ -198,20 +204,22 @@ export default defineComponent({
       showTypeActive.value = val;
     };
 
-    const handleMultiChange = (val: boolean) => {
+    const handleMultiChange = async (val: boolean) => {
       isMulti.value = val;
       if (!val) {
         selectedDimension.value = selectedDimension.value.length ? [selectedDimension.value[0]] : [];
+        await graphDrillDownData();
       }
     };
 
-    const handleDimensionSelectChange = (val: string[]) => {
+    const handleDimensionSelectChange = async (val: string[]) => {
       selectedDimension.value = val;
       graphDrillDownData();
     };
 
     const handleRemoveCondition = (index: number) => {
       where.value = [...where.value.slice(0, index), ...where.value.slice(index + 1)];
+      graphDrillDownData();
     };
 
     /**
@@ -221,6 +229,12 @@ export default defineComponent({
       if (!event) return;
       const { xAxis, yAxis } = event;
       chartClickPointEvent.value = { xAxis, yAxis };
+      graphDrillDownData();
+    };
+
+    const handleRemoveTimeCondition = () => {
+      chartClickPointEvent.value = null;
+      graphDrillDownData();
     };
 
     return {
@@ -232,6 +246,9 @@ export default defineComponent({
       panel,
       showRestore,
       tableData,
+      tableDataLoading,
+      dimensionListLoading,
+      chartClickPointEvent,
       formatterChartData,
       handleDrillDown,
       handleTableDrillDown,
@@ -242,6 +259,8 @@ export default defineComponent({
       handleDataZoomTimeRangeChange,
       handleChartRestore,
       handleChartZrClick,
+      handleRemoveTimeCondition,
+      t,
     };
   },
   render() {
@@ -267,6 +286,7 @@ export default defineComponent({
             <DimensionSelector
               dimensions={this.dimensionList}
               isMulti={this.isMulti}
+              loading={this.dimensionListLoading}
               selected={this.selectedDimension}
               onChange={this.handleDimensionSelectChange}
               onMultiChange={this.handleMultiChange}
@@ -284,16 +304,28 @@ export default defineComponent({
                 </div>
               ))}
             </div>
-            {this.where.length > 0 && (
+
+            {(this.where.length > 0 || !!this.chartClickPointEvent) && (
               <div class='conditions-wrap'>
+                {!!this.chartClickPointEvent && (
+                  <div class='condition-item'>
+                    {this.t('时间')}
+                    <span class='method'>=</span>
+                    {dayjs(this.chartClickPointEvent.xAxis).format('YYYY-MM-DD HH:mm:ssZZ')}
+                    <span
+                      class='icon-monitor icon-mc-close'
+                      onClick={() => this.handleRemoveTimeCondition()}
+                    />
+                  </div>
+                )}
                 {this.where.map((item, index) => (
                   <div
                     key={index}
                     class='condition-item'
                   >
                     {item.key}
-                    <span class='method'>等于</span>
-                    {item.value}
+                    <span class='method'>=</span>
+                    {item.value || '--'}
                     <span
                       class='icon-monitor icon-mc-close'
                       onClick={() => this.handleRemoveCondition(index)}
@@ -307,6 +339,7 @@ export default defineComponent({
                 <DimensionAnalysisTable
                   dimensions={this.dimensionList}
                   displayDimensions={this.selectedDimension}
+                  loading={this.tableDataLoading}
                   tableData={this.tableData}
                   onDrillDown={this.handleTableDrillDown}
                 />
