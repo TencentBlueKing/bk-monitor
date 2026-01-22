@@ -7,6 +7,7 @@ from typing import Any
 from django.core.management import BaseCommand, CommandError
 from django.db import transaction
 
+from apps.log_databus.exceptions import MySqlConfigException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import LogIndexSet, LogIndexSetData
@@ -60,11 +61,12 @@ class Command(BaseCommand):
             help="需要导入的容器采集项数据, 默认为: log_databus_containercollectorconfig.json",
             default=os.path.join(PROJECT_PATH, "log_databus_containercollectorconfig.json"),
         )
-        parser.add_argument("--mysql_host", type=str, help="公共数据库地址", required=True)
-        parser.add_argument("--mysql_port", help="公共数据库端口", type=int, default=3306)
-        parser.add_argument("--mysql_db", help="公共数据库名称", type=str, required=True)
-        parser.add_argument("--mysql_user", help="公共数据库用户", type=str, default="root")
-        parser.add_argument("--mysql_password", type=str, help="公共数据库密码", required=True)
+        parser.add_argument("--mysql_config_source", type=str, help="公共数据库配置来源", default=None)
+        parser.add_argument("--mysql_host", help="公共数据库地址", type=str, default=None)
+        parser.add_argument("--mysql_port", help="公共数据库端口", type=int, default=None)
+        parser.add_argument("--mysql_db", help="公共数据库名称", type=str, default=None)
+        parser.add_argument("--mysql_user", help="公共数据库用户", type=str, default=None)
+        parser.add_argument("--mysql_password", help="公共数据库密码", type=str, default=None)
 
     def handle(self, *args, **options):
         json_filepath_dict = {
@@ -80,13 +82,29 @@ class Command(BaseCommand):
             if not json_filepath.endswith(".json"):
                 raise CommandError(f"文件格式错误(.json)：{json_filepath}")
 
-        mysql_config = {
-            "host": options["mysql_host"],
-            "port": options["mysql_port"],
-            "db": options["mysql_db"],
-            "user": options["mysql_user"],
-            "password": options["mysql_password"],
-        }
+        if options["mysql_config_source"] == "default":
+            port = os.environ.get("DB_PORT", None)
+
+            try:
+                port = int(port)
+            except Exception as e:
+                raise Exception(f"数据库默认配置 port 异常：{str(e)}") from e
+
+            mysql_config = {
+                "host": os.environ.get("DB_HOST"),
+                "port": port,
+                "db": os.environ.get("DB_NAME"),
+                "user": os.environ.get("DB_USERNAME"),
+                "password": os.environ.get("DB_PASSWORD"),
+            }
+        else:
+            mysql_config = {
+                "host": options["mysql_host"],
+                "port": options["mysql_port"],
+                "db": options["mysql_db"],
+                "user": options["mysql_user"],
+                "password": options["mysql_password"],
+            }
 
         OverseasMigrateTool(
             json_filepath_dict=json_filepath_dict,
@@ -108,6 +126,14 @@ class OverseasMigrateTool:
     ):
         self.filepath_dict = json_filepath_dict
         self.result_table_name = BK_LOG_SEARCH_OVERSEAS_MIGRATE_RESULT_TABLE
+
+        for key, config in mysql_config.items():
+            if key == "password":
+                continue
+
+            if not config:
+                raise MySqlConfigException()
+
         self.db = Database(**mysql_config)
         self.db.connect()
         self.create_table_if_not_exists()
