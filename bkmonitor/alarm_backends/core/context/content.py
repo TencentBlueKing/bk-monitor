@@ -616,8 +616,8 @@ class MultiStrategyCollectContent(DefaultContent):
 
         # 使用用户时区格式化时间范围
         timezone_name = self.parent.user_timezone
-        min_time_str = format_user_time(max(source_times), timezone_name=timezone_name)
-        max_time_str = format_user_time(min(source_times), timezone_name=timezone_name)
+        min_time_str = format_user_time(min(source_times), timezone_name=timezone_name)
+        max_time_str = format_user_time(max(source_times), timezone_name=timezone_name)
         time_range = f"{min_time_str} ~ {max_time_str}"
         return time_range
 
