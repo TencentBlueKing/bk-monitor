@@ -248,7 +248,7 @@ class OverseasMigrateTool:
 
                     details = json.dumps(
                         {
-                            "log_index_set_data_ids": [item.id for item in log_index_set_data_objs],
+                            "log_index_set_data_ids": [item.index_id for item in log_index_set_data_objs],
                             "container_collector_config_ids": [item.id for item in container_collector_config_objs],
                         }
                     )
@@ -265,7 +265,7 @@ class OverseasMigrateTool:
 
                     details = json.dumps(
                         {
-                            "log_index_set_data_ids": [item.id for item in log_index_set_data_objs],
+                            "log_index_set_data_ids": [item.index_id for item in log_index_set_data_objs],
                         }
                     )
                     migrate_record.update({"status": MigrateStatus.SUCCESS, "details": details})
@@ -374,7 +374,7 @@ class OverseasMigrateTool:
 
                     index_set_data_creates = []
                     for item in index_set_data_datas:
-                        item.pop("id", None)
+                        item.pop("index_id", None)
                         index_set_data_creates.append(LogIndexSetData(**item))
 
                     container_collector_config_creates = []
@@ -398,7 +398,7 @@ class OverseasMigrateTool:
 
                     details = json.dumps(
                         {
-                            "log_index_set_data_ids": [item.id for item in log_index_set_data_objs],
+                            "log_index_set_data_ids": [item.index_id for item in log_index_set_data_objs],
                             "container_collector_config_ids": [item.id for item in container_collector_config_objs],
                         }
                     )
@@ -406,7 +406,7 @@ class OverseasMigrateTool:
                 else:
                     index_set_data_creates = []
                     for item in index_set_data_datas:
-                        item.pop("id", None)
+                        item.pop("index_id", None)
                         index_set_data_creates.append(LogIndexSetData(**item))
 
                     LogIndexSet.objects.create(**data)
@@ -418,7 +418,7 @@ class OverseasMigrateTool:
 
                     details = json.dumps(
                         {
-                            "log_index_set_data_ids": [item.id for item in log_index_set_data_objs],
+                            "log_index_set_data_ids": [item.index_id for item in log_index_set_data_objs],
                         }
                     )
                     migrate_record.update({"status": MigrateStatus.SUCCESS, "details": details})
