@@ -44,7 +44,31 @@ class ApmGetCustomTsFields(ScopeQueryFilterMixin, GetCustomTsFields):
 
     @scope_prefix_handler(output_field=["dimensions.scope.name", "metrics.scope.name"])
     def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
-        return super().perform_request(params)
+        result = super().perform_request(params)
+
+        # 过滤内置指标及其专有维度
+        if not result.get("metrics"):
+            return result
+
+        # 过滤内置指标（以 apm_ 或 bk_apm_ 开头）
+        filtered_metrics = []
+        for metric in result["metrics"]:
+            metric_name = str(metric["name"])
+            if not (metric_name.startswith("apm_") or metric_name.startswith("bk_apm_")):
+                filtered_metrics.append(metric)
+
+        result["metrics"] = filtered_metrics
+
+        # 收集过滤后指标使用的所有维度名称
+        used_dimension_names = set()
+        for metric in filtered_metrics:
+            if metric.get("dimensions"):
+                used_dimension_names.update(metric["dimensions"])
+
+        # 只保留被使用的维度配置
+        result["dimensions"] = [d for d in result.get("dimensions", []) if d["name"] in used_dimension_names]
+
+        return result
 
 
 class ApmModifyCustomTsFields(DefaultScopeNameMixin, ModifyCustomTsFields):

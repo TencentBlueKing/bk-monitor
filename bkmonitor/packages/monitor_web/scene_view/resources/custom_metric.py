@@ -76,6 +76,13 @@ class GetCustomTsMetricGroups(Resource):
             # 构建指标列表
             metrics = []
             for metric_data in metric_list:
+                metric_name = metric_data.get("metric_name", "")
+                # 过滤内置指标（APM 场景）
+                if params.get("is_apm_scenario") and any(
+                    [str(metric_name).startswith("apm_"), str(metric_name).startswith("bk_apm_")]
+                ):
+                    continue
+
                 field_config = metric_data.get("field_config", {})
                 # 如果指标隐藏或禁用，则不展示
                 if field_config.get("hidden", False) or field_config.get("disabled", False):
@@ -93,7 +100,7 @@ class GetCustomTsMetricGroups(Resource):
                 metrics.append(
                     {
                         "field_id": metric_data.get("field_id"),
-                        "metric_name": metric_data.get("metric_name", ""),
+                        "metric_name": metric_name,
                         "alias": field_config.get("alias", ""),
                         "dimensions": dimensions,
                     }
@@ -556,6 +563,21 @@ class GetCustomTsGraphConfig(Resource):
         if not params["metrics"]:
             return {"groups": []}
 
+        is_apm_scenario = params.get("is_apm_scenario")
+        if is_apm_scenario:
+            result_table_id = params["result_table_id"]
+            data_label = "APM"
+        else:
+            result_table_id, data_label = (
+                CustomTSTable.objects.filter(
+                    models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+                    pk=params["time_series_group_id"],
+                    bk_tenant_id=get_request_tenant_id(),
+                )
+                .values_list("table_id", "data_label")
+                .first()
+            )
+
         # 从 metadata 获取指标分组列表
         request_params = {
             "group_id": params["time_series_group_id"],
@@ -617,27 +639,6 @@ class GetCustomTsGraphConfig(Resource):
                         "scope_name": scope_name,
                     }
                 )
-
-        is_apm_scenario = params.get("is_apm_scenario")
-        if is_apm_scenario:
-            result_table_id = params["result_table_id"]
-            data_label = "APM"
-            # 过滤内置指标
-            metrics_list = [
-                metric
-                for metric in metrics_list
-                if not any([str(metric["name"]).startswith("apm_"), str(metric["name"]).startswith("bk_apm_")])
-            ]
-        else:
-            result_table_id, data_label = (
-                CustomTSTable.objects.filter(
-                    models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
-                    pk=params["time_series_group_id"],
-                    bk_tenant_id=get_request_tenant_id(),
-                )
-                .values_list("table_id", "data_label")
-                .first()
-            )
 
         compare_config = params.get("compare", {})
         if not compare_config or compare_config.get("type") == "time":
