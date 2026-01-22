@@ -487,7 +487,7 @@ ENABLED_NOTICE_WAYS = ["weixin", "mail", "sms", "voice"]
 BK_MONITOR_PROXY_LISTEN_PORT = 10205
 
 # 日期格式
-DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S%z"
 
 # 自定义上报服务器IP
 CUSTOM_REPORT_DEFAULT_PROXY_IP = []
@@ -580,7 +580,7 @@ APM_TRPC_APPS = {}
 APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
-APM_BMW_TASK_QUEUES = []
+APM_BMW_TASK_QUEUES = ["apm-01"]
 # APM V4 链路 metric data status 配置
 APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 # APM 自定义指标 SDK 映射配置
@@ -1272,6 +1272,10 @@ MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 BK_INCIDENT_APIGW_URL = os.getenv("BKAPP_INCIDENT_APIGW_URL", "")
 # 是否开启故障分析功能，默认不开启
 ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lower() == "true"
+# 是否打开故障通知
+ENABLE_BK_INCIDENT_NOTICE = os.getenv("ENABLE_BK_INCIDENT_NOTICE", "false").lower() == "true"
+# 内置故障通知配置(动态变量)
+BK_INCIDENT_BUILTIN_CONFIG = {}
 
 # IAM
 BK_IAM_SYSTEM_ID = "bk_monitorv3"
@@ -1554,10 +1558,6 @@ ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK
 ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
 # 是否开启空间内置数据链路初始化
 ENABLE_SPACE_BUILTIN_DATA_LINK = os.getenv("ENABLE_SPACE_BUILTIN_DATA_LINK", "false").lower() == "true"
-# 是否开启dataid注册时能够指定集群名称，默认关闭
-ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME = (
-    os.getenv("ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME", "false").lower() == "true"
-)
 
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
@@ -1766,6 +1766,19 @@ ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH = False
 SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS = int(os.getenv("SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS", 1))
 SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS = int(os.getenv("SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS", 0))
 
+# AIOPS 接口地址
+# 时序预测远程访问地址
+AIOPS_SERVER_TF_URL = os.getenv("BKAPP_AIOPS_SERVER_TF_URL", "http://bk-aiops-serving-tf:8000")
+# 智能异常检测远程访问地址
+AIOPS_SERVER_KPI_URL = os.getenv("BKAPP_AIOPS_SERVER_KPI_URL", "http://bk-aiops-serving-kpi:8000")
+# 离群检测远程访问地址
+AIOPS_SERVER_ACD_URL = os.getenv("BKAPP_AIOPS_SERVER_ACD_URL", "http://bk-aiops-serving-acd:8000")
+# SDK执行预测逻辑接口
+AIOPS_PREDICT_SDK = os.getenv("BKAPP_AIOPS_PREDICT_SDK", "/aiops/serving/default/")
+# SDK初始化历史依赖接口
+AIOPS_INIT_DEPEND_SDK = os.getenv("BKAPP_AIOPS_INIT_DEPEND_SDK", "/aiops/serving/init_depend/")
+# SDK执行分组预测逻辑接口
+AIOPS_GROUP_PREDICT_SDK = os.getenv("BKAPP_AIOPS_GROUP_PREDICT_SDK", "/aiops/serving/group_predict/")
 # bkfara apigew地址
 BKFARA_AIOPS_SERVICE_USE_APIGW = bool(str(os.getenv("BKFARA_AIOPS_SERVICE_USE_APIGW", False)).lower() == "true")
 BKFARA_AIOPS_SERVICE_APIGW_HOST = os.getenv("BKFARA_AIOPS_SERVICE_APIGW_HOST", "")

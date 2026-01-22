@@ -89,3 +89,40 @@ export const formatWithTimezone = (date: Date | number | string, format?: string
     return date;
   }
 };
+
+/**
+ * @description 创建数据时有提示为业务时区，需以下方式格式化数据
+ * @param date 时间 格式为YYYY-MM-DD HH:mm:ss
+ * @param timezone 时区
+ * @returns
+ */
+export const createOfFormatWithTimezone = (date: string, timezone: string) => {
+  return dayjs(date).format(`YYYY-MM-DD HH:mm:ss${dayjs().tz(timezone).format('ZZ')}`);
+};
+/**
+ * @description 编辑页展示时，需要根据时区格式化时间
+ * @param date 时间 格式为YYYY-MM-DD HH:mm:ssZZ
+ * @param timezone 时区
+ * @returns
+ */
+export const editOfFormatWithTimezone = (date: string, timezone: string) => {
+  const tzRegex = /([+-]\d{2}:?\d{2}|Z)$/;
+  if (!tzRegex.test(date)) {
+    return date;
+  }
+  return dayjs(date).tz(timezone).format('YYYY-MM-DD HH:mm:ss');
+};
+
+/**
+ * @description 详情页展示时，需要根据时区格式化时间
+ * @param date 时间 格式为YYYY-MM-DD HH:mm:ssZZ
+ * @param timezone 时区
+ * @returns
+ */
+export const detailOfFormatWithTimezone = (date: string, timezone: string) => {
+  const tzRegex = /([+-]\d{2}:?\d{2}|Z)$/;
+  if (!tzRegex.test(date)) {
+    return createOfFormatWithTimezone(date, timezone);
+  }
+  return dayjs(date).tz(timezone).format('YYYY-MM-DD HH:mm:ssZZ');
+};

@@ -1139,6 +1139,10 @@ class IncidentOperationsResource(IncidentBaseResource):
             order_by="-create_time",
         )
         operations = [operation.to_dict() for operation in operations]
+        # 过滤掉内部操作类型（如 SEND_MESSAGE），这些类型仅用于内部记录，不在前端展示
+        operations = [
+            operation for operation in operations if not IncidentOperationType(operation["operation_type"]).is_internal
+        ]
         for operation in operations:
             operation["operation_class"] = IncidentOperationType(operation["operation_type"]).operation_class.value
         return operations
@@ -1187,7 +1191,12 @@ class IncidentOperationTypesResource(IncidentBaseResource):
             validated_request_data["incident_id"],
             order_by="-create_time",
         )
-        incident_operation_types = {operation.operation_type for operation in operations}
+        # 过滤掉内部操作类型
+        incident_operation_types = {
+            operation.operation_type
+            for operation in operations
+            if not IncidentOperationType(operation.operation_type).is_internal
+        }
 
         operation_types = {
             operation_class: {
@@ -1199,6 +1208,9 @@ class IncidentOperationTypesResource(IncidentBaseResource):
         }
 
         for operation_type in IncidentOperationType.__members__.values():
+            # 跳过内部操作类型
+            if operation_type.is_internal:
+                continue
             if operation_type.value in incident_operation_types:
                 operation_types[operation_type.operation_class]["operation_types"].append(
                     {
@@ -1451,7 +1463,7 @@ class IncidentResultsResource(IncidentBaseResource):
         if not content:
             return False
         if isinstance(content, dict):
-            return all([sub_content for sub_content in content.values()]) and content.get("is_show", True)
+            return all([sub_content for sub_content in content.values()])
         return True
 
     def perform_request(self, validated_request_data: dict) -> dict:
@@ -1489,7 +1501,8 @@ class IncidentResultsResource(IncidentBaseResource):
                     "status": sub_panel["status"],
                     "message": sub_panel["message"] if sub_panel.get("message") else "",
                     "enabled": True
-                    if sub_panel.get("status") == "running" or self._content_valid(sub_panel.get("content"))
+                    if sub_panel.get("status") == "running"
+                    or (sub_panel.get("is_show", True) and self._content_valid(sub_panel.get("content")))
                     else False,
                 }
             self.set_upper_status(diagnosis_result, sub_key="sub_panels")
