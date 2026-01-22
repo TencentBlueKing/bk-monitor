@@ -273,6 +273,10 @@ export default defineComponent({
             }}
             customOptions={{
               formatterData: this.formatterChartData,
+              options: options => {
+                options.color = COLOR_LIST;
+                return options;
+              },
             }}
             panel={this.panel}
             showRestore={this.showRestore}
