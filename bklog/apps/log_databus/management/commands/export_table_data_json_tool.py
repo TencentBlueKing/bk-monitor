@@ -84,13 +84,18 @@ class ExportTableDataJsonTool:
             }
 
         for table_name in self.table_names_set:
+            table_fields = set()
+            json_fields = []
             try:
                 with connection.cursor() as cursor:
                     cursor.execute(f"DESCRIBE {table_name}")
-                    table_fields = {row[0] for row in cursor.fetchall()}
+                    table_desc = cursor.fetchall()
+                    table_fields = {row[0] for row in table_desc}
+                    json_fields = [
+                        row[0] for row in table_desc if row[1].lower() in ["longtext", "text", "json", "jsonb"]
+                    ]
             except DatabaseError as e:
                 Prompt.error(msg="查询表 {table_name} 结构失败, 错误信息: {error}", table_name=table_name, error=str(e))
-                table_fields = set()
 
             query_sql = f"SELECT * FROM {table_name}"
 
@@ -110,6 +115,17 @@ class ExportTableDataJsonTool:
                     cursor.execute(query_sql, params)
                     columns = [col[0] for col in cursor.description]
                     data = [dict(zip(columns, row)) for row in cursor.fetchall()]
+                    for row in data:
+                        clean_row = {k: v for k, v in row.items() if v is not None}
+                        for field in json_fields:
+                            if field in clean_row:
+                                try:
+                                    if clean_row[field]:
+                                        clean_row[field] = json.loads(clean_row[field])
+                                except (json.JSONDecodeError, TypeError):
+                                    pass
+                        row.clear()
+                        row.update(clean_row)
             except DatabaseError as e:
                 Prompt.error(msg="查询表 {table_name} 失败, 错误信息: {error}", table_name=table_name, error=str(e))
                 query_success = False
@@ -129,7 +145,7 @@ class ExportTableDataJsonTool:
 
                 try:
                     with open(file_path, "w", encoding="utf-8") as f:
-                        json.dump(data, f, cls=DateTimeEncoder, ensure_ascii=False, indent=2)
+                        json.dump(data, f, cls=DateTimeEncoder, ensure_ascii=False)
                 except OSError as e:
                     Prompt.error(
                         msg="导出 {table_name} json 文件失败, 错误信息: {error}", table_name=table_name, error=str(e)

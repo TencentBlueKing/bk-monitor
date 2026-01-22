@@ -13,7 +13,7 @@ from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.utils.local import activate_request
 from apps.utils.thread import generate_request
-from bkm_space.utils import bk_biz_id_to_space_uid
+from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 from home_application.management.commands.migrate_tool import (
     parse_str_int_list,
     Database,
@@ -198,13 +198,25 @@ class OverseasMigrateTool:
                 continue
 
             index_set_id = data.get("index_set_id")
+            space_uid = data.get("space_uid", "")
+            bk_biz_id = space_uid_to_bk_biz_id(space_uid)
 
             # 构建初始迁移记录
             migrate_record = {
-                "bk_biz_id": data.get("bk_biz_id"),
-                "space_uid": data.get("space_uid"),
+                "bk_biz_id": bk_biz_id,
+                "space_uid": space_uid,
                 "index_set_id": index_set_id,
             }
+
+            # 清洗 tag_ids 格式
+            tag_ids = data.get("tag_ids", "")
+            if tag_ids:
+                tag_ids = tag_ids.strip(",")
+                no_bulk_tag_ids = [tag_id for tag_id in tag_ids.split(",") if tag_id.strip()]
+                tag_ids = ",".join(no_bulk_tag_ids)
+            else:
+                tag_ids = None
+            data["tag_ids"] = tag_ids
 
             try:
                 # 赋值原创建人
@@ -220,13 +232,25 @@ class OverseasMigrateTool:
                     collector_config_id_name_dict[collector_config_id] = collector_config_data.get(
                         "collector_config_name"
                     )
+                    migrate_record["origin_collector_config_id"] = collector_config_id
+                    migrate_record["collector_config_id"] = collector_config_id
+
+                    task_id_list = collector_config_data.get("task_id_list", "")
+
+                    if task_id_list:
+                        task_id_list = task_id_list.strip(",")
+                        no_bulk_task_ids = [task_id for task_id in task_id_list.split(",") if task_id.strip()]
+                        task_id_list = ",".join(no_bulk_task_ids)
+                    else:
+                        task_id_list = None
+
+                    collector_config_data["task_id_list"] = task_id_list
+
+                    CollectorConfig.objects.create(**collector_config_data)
 
                     container_collector_config_datas = container_collector_config_file_data_dict.get(
                         collector_config_id, []
                     )
-
-                    migrate_record["origin_collector_config_id"] = collector_config_id
-                    migrate_record["collector_config_id"] = collector_config_id
 
                     index_set_data_creates = [LogIndexSetData(**item) for item in index_set_data_datas]
                     container_collector_config_creates = [
@@ -345,13 +369,25 @@ class OverseasMigrateTool:
                 continue
 
             index_set_id = data.get("index_set_id")
+            space_uid = data.get("space_uid", "")
+            bk_biz_id = space_uid_to_bk_biz_id(space_uid)
 
             # 构建初始迁移记录
             migrate_record = {
-                "bk_biz_id": data.get("bk_biz_id"),
-                "space_uid": data.get("space_uid"),
+                "bk_biz_id": bk_biz_id,
+                "space_uid": space_uid,
                 "index_set_id": index_set_id,
             }
+
+            # 清洗 tag_ids 格式
+            tag_ids = data.get("tag_ids", "")
+            if tag_ids:
+                tag_ids = tag_ids.strip(",")
+                no_bulk_tag_ids = [tag_id for tag_id in tag_ids.split(",") if tag_id.strip()]
+                tag_ids = ",".join(no_bulk_tag_ids)
+            else:
+                tag_ids = None
+            data["tag_ids"] = tag_ids
 
             try:
                 # 赋值原创建人
@@ -369,6 +405,16 @@ class OverseasMigrateTool:
                     )
 
                     migrate_record["origin_collector_config_id"] = origin_collector_config_id
+
+                    # 清洗 task_id_list 格式
+                    task_id_list = collector_config_data.get("task_id_list", "")
+                    if task_id_list:
+                        task_id_list = task_id_list.strip(",")
+                        no_bulk_task_id_list = [task_id for task_id in task_id_list.split(",") if task_id.strip()]
+                        task_id_list = ",".join(no_bulk_task_id_list)
+                    else:
+                        task_id_list = None
+                    collector_config_data["task_id_list"] = task_id_list
 
                     # 插入 collector_config 表数据，获取新 collector_config_id
                     collector_config_obj = CollectorConfig.objects.create(**collector_config_data)
@@ -448,7 +494,14 @@ class OverseasMigrateTool:
                 migrate_record.setdefault("status", MigrateStatus.FAIL)
                 migrate_record.setdefault("details", json.dumps({"error": "unknown error"}))
 
-                self.record(migrate_record)
+                try:
+                    self.record(migrate_record)
+                except Exception as e:
+                    Prompt.error(
+                        msg="迁移操作记录失败, 索引集 ID: {index_set_id}, 错误信息: {error}",
+                        index_set_id=index_set_id,
+                        error=str(e),
+                    )
 
         activate_request(generate_request("admin"))
         self.db.close()
