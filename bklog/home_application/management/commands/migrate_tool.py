@@ -129,7 +129,7 @@ def parse_str_list(str_list: str) -> list[str]:
             return []
         return str_list.split(",")
     except Exception:
-        raise Exception(f"解析失败: {str_list}, 请输入逗号分隔的数字")
+        raise Exception(f"解析失败: {str_list}, 请输入逗号分隔的字符")
 
 
 class Database:
