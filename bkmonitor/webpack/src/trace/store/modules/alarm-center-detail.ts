@@ -28,7 +28,7 @@ import { computed, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { defineStore } from 'pinia';
 
-import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { handleTransformToTimestampMs } from '../../components/time-range/utils';
 import { AlarmType } from '../../pages/alarm-center/typings';
 import { createAutoTimeRange } from '../../plugins/charts/failure-chart/failure-alarm-chart';
 import { useAppStore } from './app';
@@ -36,6 +36,7 @@ import { fetchActionDetail, fetchAlarmDetail } from '@/pages/alarm-center/servic
 
 import type { AlarmDetail } from '../../pages/alarm-center/typings/detail';
 import type { ActionDetail } from '@/pages/alarm-center/typings/action-detail';
+import type { DateValue } from '@blueking/date-picker';
 
 export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => {
   /** 告警详情 */
@@ -55,14 +56,14 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   const interval = computed(
     () => alarmDetail.value.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60
   );
-  /** 时间范围 */
-  const timeRange = computed(() => {
+  /** 时间范围(毫秒级时间戳格式) */
+  const timeRange = computed<DateValue>(() => {
     const { startTime, endTime } = createAutoTimeRange(
       alarmDetail.value.begin_time,
       alarmDetail.value.end_time,
       interval.value
     );
-    return startTime && endTime ? [startTime, endTime] : DEFAULT_TIME_RANGE;
+    return handleTransformToTimestampMs([startTime, endTime]);
   });
   const bizId = computed(() => {
     return alarmDetail.value?.bk_biz_id || (window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined;

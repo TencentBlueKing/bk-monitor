@@ -27,13 +27,13 @@
 import { type MaybeRef, computed, shallowRef } from 'vue';
 
 import { get } from '@vueuse/core';
-import dayjs from 'dayjs';
 import { transformDataKey } from 'monitor-common/utils';
 import { type IDataQuery, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 
 import type { IGraphPanel } from '../typings';
+import type { DateValue } from '@blueking/date-picker';
 
 export interface UseDimensionChartPanelOptions {
   /** 告警ID */
@@ -41,7 +41,7 @@ export interface UseDimensionChartPanelOptions {
   /** 业务ID */
   bizId?: MaybeRef<number>;
   /** 默认时间范围 */
-  defaultTimeRange?: MaybeRef<TimeRangeType>;
+  defaultTimeRange?: MaybeRef<DateValue>;
   /** 查询配置 */
   graphPanel?: MaybeRef<IGraphPanel>;
   /** 下钻维度 */
@@ -108,11 +108,22 @@ export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) =
   });
 
   /**
+   * @description: 格式化series别名
+   * @param {any} item series数据
+   */
+  const formatSeriesAlias = item => {
+    if (!get(groupBy)?.length) return item.target;
+    if (get(groupBy)?.length === 1) return item.dimensions[get(groupBy)[0]];
+    return get(groupBy)
+      .map(key => `${key}=${item.dimensions[key]}`)
+      .join('|');
+  };
+
+  /**
    * @description: 格式化图表数据
    * @param {any} data 图表接口返回的series数据
    */
-  const formatterChartData = (data: any, target: IDataQuery) => {
-    const dimensionKey = get(groupBy)?.[0];
+  const formatterChartData = (data, target: IDataQuery) => {
     return {
       ...data,
       query_config: data?.query_config || target.data,
@@ -122,7 +133,7 @@ export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) =
           thresholds: [],
           markPoints: [],
           markTimeRange: [],
-          alias: item?.dimensions?.[dimensionKey] || item.target,
+          alias: formatSeriesAlias(item),
         };
       }),
     };
@@ -137,9 +148,7 @@ export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) =
       dataZoomTimeRange.value = null;
       return;
     }
-    const startTime = dayjs.tz(e?.[0]).format('YYYY-MM-DD HH:mm:ss');
-    const endTime = dayjs.tz(e?.[1]).format('YYYY-MM-DD HH:mm:ss');
-    dataZoomTimeRange.value = startTime && endTime ? [startTime, endTime] : null;
+    dataZoomTimeRange.value = e;
   };
 
   return {

@@ -40,6 +40,8 @@ import K8SCustomChart from './components/k8s-custom-chart/k8s-custom-chart';
 import K8sSceneSelector from './components/k8s-scene-selector/k8s-scene-selector';
 import K8sTargetSelector from './components/k8s-target-selector/k8s-target-selector';
 
+import type { DateValue } from '@blueking/date-picker';
+
 import './index.scss';
 
 export default defineComponent({
@@ -59,9 +61,9 @@ export default defineComponent({
       bizId,
     });
     /** 图表执行 dataZoom 框线缩放后的时间范围 */
-    const dataZoomTimeRange = shallowRef(null);
+    const dataZoomTimeRange = shallowRef<DateValue>(null);
     /** 当前图表视图的时间范围 */
-    const viewerTimeRange = computed(() => get(dataZoomTimeRange) ?? get(timeRange));
+    const viewerTimeRange = computed<DateValue>(() => get(dataZoomTimeRange) ?? get(timeRange));
     /** 是否能够跳转容器监控页面 */
     const canLinkTok8s = computed(() => get(currentTarget) && get(scene));
 
@@ -87,7 +89,7 @@ export default defineComponent({
     const handleToK8s = () => {
       if (!get(canLinkTok8s)) return;
       const url = commOpenUrl('#/k8s-new/', get(bizId));
-      const [startTime, endTime] = handleTransformToTimestampMs(get(timeRange));
+      const [startTime, endTime] = handleTransformToTimestampMs(get(timeRange) as DateValue);
       // @ts-expect-error
       const { bcs_cluster_id: cluster, ...target } = get(currentTarget) ?? {};
 
@@ -112,9 +114,7 @@ export default defineComponent({
         dataZoomTimeRange.value = null;
         return;
       }
-      const startTime = dayjs.tz(e?.[0]).format('YYYY-MM-DD HH:mm:ss');
-      const endTime = dayjs.tz(e?.[1]).format('YYYY-MM-DD HH:mm:ss');
-      dataZoomTimeRange.value = startTime && endTime ? [startTime, endTime] : null;
+      dataZoomTimeRange.value = e;
     };
 
     /**
@@ -201,7 +201,7 @@ export default defineComponent({
             }}
             dashboards={this.dashboards}
             loading={this.k8sDashboardLoading}
-            showRestore={this.dataZoomTimeRange}
+            showRestore={!!this.dataZoomTimeRange}
             timeRange={this.viewerTimeRange}
             onDataZoomChange={this.handleDataZoomTimeRangeChange}
             onRestore={this.handleDataZoomTimeRangeChange}

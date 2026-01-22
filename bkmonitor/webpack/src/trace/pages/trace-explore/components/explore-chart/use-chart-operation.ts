@@ -28,13 +28,13 @@ import { type MaybeRef, shallowRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 
-import { type TimeRangeType } from '../../../../components/time-range/utils';
+import type { DateValue } from '@blueking/date-picker';
 
 /**
  * @description 图表相关操作
  * 1. 框选，复位
  */
-export const useChartOperation = (defaultTimeRange: MaybeRef<TimeRangeType>) => {
+export const useChartOperation = (defaultTimeRange: MaybeRef<DateValue>) => {
   const showRestore = shallowRef(false);
   const timeRange = shallowRef(null);
   const cacheTimeRange = shallowRef(null);
@@ -64,7 +64,7 @@ export const useChartOperation = (defaultTimeRange: MaybeRef<TimeRangeType>) => 
    * @description 初始化默认时间范围
    * @param defaultTimeRange 默认时间范围
    */
-  const initDefaultTimeRange = (defaultTimeRange: string[]) => {
+  const initDefaultTimeRange = (defaultTimeRange: DateValue) => {
     timeRange.value = defaultTimeRange;
     cacheTimeRange.value = defaultTimeRange;
     showRestore.value = false;

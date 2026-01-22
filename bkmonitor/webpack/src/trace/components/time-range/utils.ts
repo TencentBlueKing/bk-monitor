@@ -78,8 +78,8 @@ export const handleTransformToTimestamp = (value: TimeRangeType): TimestampsType
 };
 
 /** 转换成毫秒 */
-export const handleTransformToTimestampMs = (value: TimeRangeType): TimestampsType => {
-  const timeRange = new TimeRange(value);
+export const handleTransformToTimestampMs = (value: DateValue): TimestampsType => {
+  const timeRange = new TimeRange(value as TimeRangeType);
   return timeRange.unix().map(item => item * 1000) as TimestampsType;
 };
 

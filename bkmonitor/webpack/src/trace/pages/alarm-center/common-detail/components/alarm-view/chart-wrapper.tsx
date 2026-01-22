@@ -25,7 +25,6 @@
  */
 import { type PropType, defineComponent } from 'vue';
 
-import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../components/time-range/utils';
 import AlarmCharts from './echarts/alarm-charts';
 // import AiopsCharts from './echarts/aiops-charts';
 // import IntelligenceScene from './echarts/intelligence-scene';
@@ -34,6 +33,7 @@ import AlarmCharts from './echarts/alarm-charts';
 // import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import type { AlarmDetail } from '@/pages/alarm-center/typings';
+import type { DateValue } from '@blueking/date-picker';
 
 import './chart-wrapper.scss';
 
@@ -57,8 +57,7 @@ export default defineComponent({
     },
     /** 默认时间范围 */
     defaultTimeRange: {
-      type: Object as PropType<TimeRangeType>,
-      default: () => DEFAULT_TIME_RANGE,
+      type: Array as unknown as PropType<DateValue>,
     },
   },
   setup(props) {

@@ -43,13 +43,13 @@ import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { useI18n } from 'vue-i18n';
 
-import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../../components/time-range/utils';
 import { useChartOperation } from '../../../../../trace-explore/components/explore-chart/use-chart-operation';
 import { type AlarmDetail, type AlertScatterClickEvent, AlertLevelEnum } from '../../../../typings';
 import AlarmChartEventDetail from './alarm-chart-event-detail';
 import MonitorCharts from './monitor-charts';
 
 import type { ChartTitleMenuType, IDataQuery, ILegendItem, IMenuItem } from '../../../../../../plugins/typings';
+import type { DateValue } from '@blueking/date-picker';
 import type { ExploreTableRequestParams } from 'monitor-pc/pages/event-explore/typing';
 import type { LegendActionType } from 'monitor-ui/chart-plugins/typings/chart-legend';
 
@@ -122,8 +122,7 @@ export default defineComponent({
     },
     /** 默认时间范围 */
     defaultTimeRange: {
-      type: Object as PropType<TimeRangeType>,
-      default: () => DEFAULT_TIME_RANGE,
+      type: Array as unknown as PropType<DateValue>,
     },
   },
   setup(props) {
