@@ -395,7 +395,7 @@ class NewMetricChart extends CommonSimpleChart {
         z: 4,
         smooth: 0,
         unitFormatter,
-        precision: this.panel.options?.precision || 2,
+        precision: this.panel.options?.precision || precision,
         lineStyle: {
           width: 2,
         },
@@ -661,7 +661,7 @@ class NewMetricChart extends CommonSimpleChart {
                 formatter: seriesList.every(item => item.unit === seriesList[0].unit)
                   ? v => {
                       if (seriesList[0].unit !== 'none') {
-                        const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
+                        const obj = getValueFormat(seriesList[0].unit)(v - this.minBase, seriesList[0].precision);
                         return this.removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
                       }
                       return v;
@@ -671,7 +671,6 @@ class NewMetricChart extends CommonSimpleChart {
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
               max: 'dataMax',
-              min: 0,
               scale: false,
             },
             xAxis: {
