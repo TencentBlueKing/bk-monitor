@@ -30,12 +30,12 @@ import { toRef } from 'vue';
 import { random } from 'monitor-common/utils';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
-import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../components/time-range/utils';
 import AlarmMetricsDashboard from '../alarm-metrics-dashboard/alarm-metrics-dashboard';
 import ChartSkeleton from '@/components/skeleton/chart-skeleton';
 
 import type { LegendCustomOptions } from '../../../trace-explore/components/explore-chart/use-chart-legend';
 import type { CustomOptions } from '../../../trace-explore/components/explore-chart/use-echarts';
+import type { DateValue } from '@blueking/date-picker';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './alarm-dashboard-group.scss';
@@ -48,8 +48,7 @@ export default defineComponent({
     },
     /** 图表需要请求的数据的开始时间 */
     timeRange: {
-      type: Array as PropType<TimeRangeType>,
-      default: () => DEFAULT_TIME_RANGE,
+      type: Array as unknown as PropType<DateValue>,
     },
     /** 是否开启图表联动 */
     enabledChartConnect: {

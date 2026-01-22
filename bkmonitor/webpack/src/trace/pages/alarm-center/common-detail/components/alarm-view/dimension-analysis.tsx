@@ -42,7 +42,7 @@ import DimensionTreeMapCharts from './echarts/dimension-tree-map-charts';
 import MonitorCharts from './echarts/monitor-charts';
 
 import type { IGraphPanel } from '../../../typings';
-import type { TimeRangeType } from './../../../../../components/time-range/utils';
+import type { DateValue } from '@blueking/date-picker';
 import type { AlarmDetail } from 'trace/pages/alarm-center/typings/detail';
 
 import './dimension-analysis.scss';
@@ -76,7 +76,7 @@ export default defineComponent({
     },
     /** 默认时间范围 */
     defaultTimeRange: {
-      type: Array as PropType<TimeRangeType>,
+      type: Array as unknown as PropType<DateValue>,
     },
     graphPanel: {
       type: Object as PropType<IGraphPanel>,
@@ -277,6 +277,10 @@ export default defineComponent({
             }}
             customOptions={{
               formatterData: this.formatterChartData,
+              options: options => {
+                options.color = COLOR_LIST;
+                return options;
+              },
             }}
             panel={this.panel}
             showRestore={this.showRestore}

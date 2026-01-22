@@ -26,7 +26,6 @@
 import { type PropType, computed, defineComponent, shallowRef, toRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
-import dayjs from 'dayjs';
 import { storeToRefs } from 'pinia';
 
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
@@ -37,6 +36,7 @@ import { useHostSceneView } from '../../../composables/use-host-scene-view';
 import PanelHostSelector from './components/panel-host-selector/panel-host-selector';
 
 import type { IDataQuery } from '../../../../../plugins/typings';
+import type { DateValue } from '@blueking/date-picker';
 
 import './index.scss';
 
@@ -51,9 +51,9 @@ export default defineComponent({
     const { currentTarget, targetList, loading } = useAlertHost(toRef(props, 'alertId'));
     const { hostDashboards, loading: sceneViewLoading } = useHostSceneView(bizId);
     /** 图表执行 dataZoom 框线缩放后的时间范围 */
-    const dataZoomTimeRange = shallowRef(null);
+    const dataZoomTimeRange = shallowRef<DateValue>(null);
     /** 当前图表视图的时间范围 */
-    const viewerTimeRange = computed(() => get(dataZoomTimeRange) ?? get(timeRange));
+    const viewerTimeRange = computed<DateValue>(() => get(dataZoomTimeRange) ?? get(timeRange));
     /** 图表请求参数变量 */
     const viewOptions = computed(() => {
       const target = {
@@ -129,9 +129,7 @@ export default defineComponent({
         dataZoomTimeRange.value = null;
         return;
       }
-      const startTime = dayjs.tz(e?.[0]).format('YYYY-MM-DD HH:mm:ss');
-      const endTime = dayjs.tz(e?.[1]).format('YYYY-MM-DD HH:mm:ss');
-      dataZoomTimeRange.value = startTime && endTime ? [startTime, endTime] : null;
+      dataZoomTimeRange.value = e;
     };
 
     /**
@@ -205,7 +203,7 @@ export default defineComponent({
             }}
             dashboards={this.hostDashboards}
             loading={this.sceneViewLoading}
-            showRestore={this.dataZoomTimeRange}
+            showRestore={!!this.dataZoomTimeRange}
             timeRange={this.viewerTimeRange}
             viewOptions={this.viewOptions}
             onDataZoomChange={this.handleDataZoomTimeRangeChange}

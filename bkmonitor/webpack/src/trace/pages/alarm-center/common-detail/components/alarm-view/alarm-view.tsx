@@ -27,13 +27,13 @@ import { type PropType, defineComponent, KeepAlive, shallowRef } from 'vue';
 
 import { Tab } from 'bkui-vue';
 
-import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../components/time-range/utils';
 import AlarmRecords from './alarm-records';
 import ChartWrapper from './chart-wrapper';
 import DimensionAnalysis from './dimension-analysis';
 import { ALARM_CENTER_VIEW_TAB_MAP } from '@/pages/alarm-center/utils/constant';
 
 import type { AlarmDetail } from '../../../typings/detail';
+import type { DateValue } from '@blueking/date-picker';
 
 import './alarm-view.scss';
 export default defineComponent({
@@ -49,8 +49,7 @@ export default defineComponent({
     },
     /** 默认时间范围 */
     defaultTimeRange: {
-      type: Object as PropType<TimeRangeType>,
-      default: () => DEFAULT_TIME_RANGE,
+      type: Array as unknown as PropType<DateValue>,
     },
   },
   emits: {
