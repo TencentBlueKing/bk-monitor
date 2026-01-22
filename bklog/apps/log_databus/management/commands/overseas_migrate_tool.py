@@ -208,15 +208,9 @@ class OverseasMigrateTool:
                 "index_set_id": index_set_id,
             }
 
-            # 清洗 tag_ids 格式
-            tag_ids = data.get("tag_ids", "")
-            if tag_ids:
-                tag_ids = tag_ids.strip(",")
-                no_bulk_tag_ids = [tag_id for tag_id in tag_ids.split(",") if tag_id.strip()]
-                tag_ids = ",".join(no_bulk_tag_ids)
-            else:
-                tag_ids = None
-            data["tag_ids"] = tag_ids
+            # 格式化数据为原格式
+            data["tag_ids"] = self.format_multi_str_split_by_comma_field_back(data.get("tag_ids", ""))
+            data["view_roles"] = self.format_multi_str_split_by_comma_field_back(data.get("view_roles", ""))
 
             try:
                 # 赋值原创建人
@@ -235,16 +229,10 @@ class OverseasMigrateTool:
                     migrate_record["origin_collector_config_id"] = collector_config_id
                     migrate_record["collector_config_id"] = collector_config_id
 
-                    task_id_list = collector_config_data.get("task_id_list", "")
-
-                    if task_id_list:
-                        task_id_list = task_id_list.strip(",")
-                        no_bulk_task_ids = [task_id for task_id in task_id_list.split(",") if task_id.strip()]
-                        task_id_list = ",".join(no_bulk_task_ids)
-                    else:
-                        task_id_list = None
-
-                    collector_config_data["task_id_list"] = task_id_list
+                    # 格式化为 task_id_list 原格式
+                    collector_config_data["task_id_list"] = self.format_multi_str_split_by_comma_field_back(
+                        collector_config_data.get("task_id_list", "")
+                    )
 
                     CollectorConfig.objects.create(**collector_config_data)
 
@@ -379,15 +367,9 @@ class OverseasMigrateTool:
                 "index_set_id": index_set_id,
             }
 
-            # 清洗 tag_ids 格式
-            tag_ids = data.get("tag_ids", "")
-            if tag_ids:
-                tag_ids = tag_ids.strip(",")
-                no_bulk_tag_ids = [tag_id for tag_id in tag_ids.split(",") if tag_id.strip()]
-                tag_ids = ",".join(no_bulk_tag_ids)
-            else:
-                tag_ids = None
-            data["tag_ids"] = tag_ids
+            # 格式化数据为原格式
+            data["tag_ids"] = self.format_multi_str_split_by_comma_field_back(data.get("tag_ids", ""))
+            data["view_roles"] = self.format_multi_str_split_by_comma_field_back(data.get("view_roles", ""))
 
             try:
                 # 赋值原创建人
@@ -400,21 +382,16 @@ class OverseasMigrateTool:
                 if collector_config_data:
                     origin_collector_config_id = collector_config_data.pop("collector_config_id", None)
 
+                    migrate_record["origin_collector_config_id"] = origin_collector_config_id
+
+                    # 格式化为 task_id_list 原格式
+                    collector_config_data["task_id_list"] = self.format_multi_str_split_by_comma_field_back(
+                        collector_config_data.get("task_id_list", "")
+                    )
+
                     container_collector_config_datas = container_collector_config_file_data_dict.get(
                         origin_collector_config_id, []
                     )
-
-                    migrate_record["origin_collector_config_id"] = origin_collector_config_id
-
-                    # 清洗 task_id_list 格式
-                    task_id_list = collector_config_data.get("task_id_list", "")
-                    if task_id_list:
-                        task_id_list = task_id_list.strip(",")
-                        no_bulk_task_id_list = [task_id for task_id in task_id_list.split(",") if task_id.strip()]
-                        task_id_list = ",".join(no_bulk_task_id_list)
-                    else:
-                        task_id_list = None
-                    collector_config_data["task_id_list"] = task_id_list
 
                     # 插入 collector_config 表数据，获取新 collector_config_id
                     collector_config_obj = CollectorConfig.objects.create(**collector_config_data)
@@ -505,6 +482,20 @@ class OverseasMigrateTool:
 
         activate_request(generate_request("admin"))
         self.db.close()
+
+    @staticmethod
+    def format_multi_str_split_by_comma_field_back(values_str):
+        if values_str:
+            # 去除前后 ,
+            values_str = values_str.strip(",")
+            # 根据 , 分割为列表、去除空值
+            no_bulk_values = [value for value in values_str.split(",") if value.strip()]
+            # 重新按 , 拼接回字符串
+            values_str = ",".join(no_bulk_values)
+        else:
+            values_str = None
+
+        return values_str
 
     @staticmethod
     def fail(data: dict[str, Any], migrate_record: dict[str, Any]) -> None:
