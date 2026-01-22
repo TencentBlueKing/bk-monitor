@@ -26,7 +26,8 @@
 
 import { type PropType, computed, defineComponent, shallowRef, useTemplateRef } from 'vue';
 
-import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
+import { type SortInfo, type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
+import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';
 import { useTippy } from 'vue-tippy';
 
@@ -56,6 +57,10 @@ export default defineComponent({
       type: Array as PropType<any[]>,
       default: () => [],
     },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     drillDown: (_val: { dimension: string; where: any[] }) => true,
@@ -65,6 +70,18 @@ export default defineComponent({
     const selectorRef = useTemplateRef<InstanceType<typeof DrillDownOptions>>('selector');
     const popoverInstance = shallowRef(null);
     const currentRow = shallowRef<any>(null);
+    const sort = shallowRef<SortInfo>(null);
+    const filterTableData = computed(() => {
+      return [...props.tableData].sort((a, b) => {
+        if (sort.value?.sortBy === tableColumnKey.percentage) {
+          return sort.value?.descending ? b.percentage - a.percentage : a.percentage - b.percentage;
+        }
+        if (sort.value?.sortBy === tableColumnKey.currentValue) {
+          return sort.value?.descending ? b.value - a.value : a.value - b.value;
+        }
+        return 0;
+      });
+    });
     const destroyPopoverInstance = () => {
       popoverInstance.value?.hide();
       popoverInstance.value?.destroy();
@@ -113,7 +130,6 @@ export default defineComponent({
       return <span>{row.percentage}%</span>;
     };
     const renderValue = (row: any, prop: string) => {
-      console.log(row);
       if (row[prop] === undefined || row[prop] === null) {
         return '--';
       }
@@ -185,6 +201,7 @@ export default defineComponent({
             colKey: tableColumnKey.currentValue,
             title: t('当前值'),
             width: 100,
+            sorter: true,
             fixed: 'right',
             cell: (_h, { row }) => {
               return renderValue(row, 'value');
@@ -193,24 +210,35 @@ export default defineComponent({
         ] as any
     );
 
+    const handleSortChange = (value: SortInfo) => {
+      sort.value = value;
+    };
+
     return {
       columns,
+      filterTableData,
+      handleSortChange,
       handleSelectDimension,
     };
   },
   render() {
     return (
       <>
-        <PrimaryTable
-          class='dimension-analysis-data-table'
-          columns={this.columns}
-          data={this.tableData}
-          horizontalScrollAffixedBottom={true}
-          hover={true}
-          needCustomScroll={false}
-          resizable={true}
-          tableLayout='fixed'
-        />
+        {this.loading ? (
+          <TableSkeleton type={1} />
+        ) : (
+          <PrimaryTable
+            class='dimension-analysis-data-table'
+            columns={this.columns}
+            data={this.filterTableData}
+            horizontalScrollAffixedBottom={true}
+            hover={true}
+            needCustomScroll={false}
+            resizable={true}
+            tableLayout='fixed'
+            onSortChange={this.handleSortChange as any}
+          />
+        )}
         <div
           style={{
             display: 'none',

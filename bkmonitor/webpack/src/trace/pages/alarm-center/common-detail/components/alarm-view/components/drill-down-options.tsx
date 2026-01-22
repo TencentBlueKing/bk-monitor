@@ -85,8 +85,13 @@ export default defineComponent({
                   }
                 }}
               >
-                <span class='selector-item-name'>{item.name}</span>
-                {index > 5 && (
+                <span
+                  class='selector-item-name'
+                  v-overflow-tips
+                >
+                  {item.name}
+                </span>
+                {/* {index > 5 && (
                   <span
                     class='suspicious-tag'
                     v-bk-tooltips={{
@@ -95,7 +100,7 @@ export default defineComponent({
                   >
                     <span>{this.t('可疑')}</span>
                   </span>
-                )}
+                )} */}
               </div>
             );
           })}
