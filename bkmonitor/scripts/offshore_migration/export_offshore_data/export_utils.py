@@ -23,7 +23,7 @@ def serialize_datetime(value: Any) -> Any:
         return int(value.timestamp())
     elif isinstance(value, dict):
         return {k: serialize_datetime(v) for k, v in value.items()}
-    elif isinstance(value, (list, tuple)):
+    elif isinstance(value, list | tuple):
         return [serialize_datetime(item) for item in value]
     return value
 
@@ -37,7 +37,7 @@ def serialize_decimal(value: Any) -> Any:
         return float(value)
     elif isinstance(value, dict):
         return {k: serialize_decimal(v) for k, v in value.items()}
-    elif isinstance(value, (list, tuple)):
+    elif isinstance(value, list | tuple):
         return [serialize_decimal(item) for item in value]
     return value
 
@@ -45,57 +45,57 @@ def serialize_decimal(value: Any) -> Any:
 def model_to_dict(instance) -> dict:
     """
     将 Django Model 实例转换为字典
-    
+
     Args:
         instance: Django Model 实例
-    
+
     Returns:
         字典表示的模型数据
     """
     data = {}
     opts = instance._meta
-    
+
     for field in opts.fields:
         field_name = field.name
-        
+
         value = getattr(instance, field_name, None)
-        
+
         # 处理外键字段：导出ID而不是对象
-        if hasattr(field, 'related_model') and field.related_model:
+        if hasattr(field, "related_model") and field.related_model:
             if value is not None:
                 # 获取外键对象的ID
-                value = value.pk if hasattr(value, 'pk') else value
+                value = value.pk if hasattr(value, "pk") else value
             data[field_name] = value
             continue
-        
+
         # 处理 None 值
         if value is None:
             data[field_name] = None
             continue
-        
+
         # 处理特殊类型
         value = serialize_datetime(value)
         value = serialize_decimal(value)
-        
+
         data[field_name] = value
-    
+
     return data
 
 
 def recursive_process(data: Any, processor_func) -> Any:
     """
     递归处理数据结构，对所有值应用处理函数
-    
+
     Args:
         data: 要处理的数据
         processor_func: 处理函数，接收单个值并返回处理后的值
-    
+
     Returns:
         处理后的数据
     """
     if isinstance(data, dict):
         return {key: recursive_process(value, processor_func) for key, value in data.items()}
-    elif isinstance(data, (list, tuple)):
+    elif isinstance(data, list | tuple):
         return [recursive_process(item, processor_func) for item in data]
     else:
         return processor_func(data)
@@ -105,6 +105,7 @@ def safe_json_dumps(data: Any, **kwargs) -> str:
     """
     安全地序列化 JSON，处理特殊类型
     """
+
     class CustomEncoder(json.JSONEncoder):
         def default(self, obj):
             if isinstance(obj, datetime):
@@ -115,15 +116,15 @@ def safe_json_dumps(data: Any, **kwargs) -> str:
                 return list(obj)
             if isinstance(obj, bytes):
                 try:
-                    return obj.decode('utf-8')
-                except:
+                    return obj.decode("utf-8")
+                except UnicodeDecodeError:
                     return str(obj)
             # 处理其他不可序列化的对象
             try:
                 return str(obj)
-            except:
+            except Exception:
                 return None
-    
+
     return json.dumps(data, cls=CustomEncoder, **kwargs)
 
 
@@ -137,66 +138,23 @@ def safe_json_loads(json_str: str) -> Any:
         raise ValueError(f"Invalid JSON string: {e}")
 
 
-class IDMapper:
-    """
-    ID 映射器，用于记录导出时的原始 ID 和导入时的新 ID 映射关系
-    防止数据关联时， 由于id变化导致的错误
-    
-    @deprecated: 在全量迁移模式下，ID 保持不变，此类已不再使用。
-    保留此类定义仅为向后兼容，新代码不应使用。
-    """
-    
-    def __init__(self):
-        self.mappings: dict[str, dict[str, Any]] = {}
-    
-    def add_mapping(self, resource_type: str, original_id: Any):
-        """
-        添加 ID 映射
-        
-        Args:
-            resource_type: 资源类型
-            original_id: 原始 ID
-        """
-        if resource_type not in self.mappings:
-            self.mappings[resource_type] = {}
-        self.mappings[resource_type][str(original_id)] = None
-    
-    def get_mappings(self) -> dict:
-        """
-        获取所有映射关系
-        """
-        return self.mappings
-    
-    def to_dict(self) -> dict:
-        """
-        转换为字典格式
-        """
-        return {
-            "id_mapping": self.mappings
-        }
-
-
 # 资源导出顺序定义（按依赖关系排序）
 EXPORT_ORDER = [
     # 基础资源（无依赖）
     "action_plugin",
     "collector_plugin",
     "duty_rule",
-    
     # 告警处理相关
     "user_group",
     "action_config",
-    
     # 数据采集相关
     "custom_ts_group",
     "custom_ts_table",
     "collect_config",
-    
     # 告警配置相关
     "strategy",
     "shield",
     "alert_assign_group",
-    
     # 仪表盘
     "dashboard",
 ]
