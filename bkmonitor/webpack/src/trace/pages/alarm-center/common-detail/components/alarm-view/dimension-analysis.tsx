@@ -128,7 +128,7 @@ export default defineComponent({
             metric_field: queryConfig.metric_field,
             configured_dimensions: queryConfig.agg_dimension || [],
           })) || [],
-      }).catch(() => ['hostname', 'ip']);
+      }).catch(() => []);
       dimensionListLoading.value = false;
       return res;
     };
