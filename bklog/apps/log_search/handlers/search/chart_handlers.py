@@ -695,7 +695,7 @@ class SQLChartHandler(ChartHandler):
         )
         return {"list": log_list, "total": result["total_records"], "took": result["time_taken"]}
 
-    def fetch_grep_query_count(self, params):
+    def fetch_grep_query_total(self, params):
         """
         查询grep匹配的总数
         :param params: 查询相关参数
