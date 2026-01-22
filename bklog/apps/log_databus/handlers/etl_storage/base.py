@@ -176,6 +176,8 @@ class EtlStorage:
             "yyyyMMddHHmmss": {"format": "%Y%m%d%H%M%S", "zone": 0},
             "yyyyMMdd HHmmss": {"format": "%Y%m%d %H%M%S", "zone": 0},
             "yyyyMMdd HHmmss.SSS": {"format": "%Y%m%d %H%M%S.%3f", "zone": 0},
+            "yyyyMMdd HH:mm:ss.SSSSSS": {"format": "%Y%m%d %H:%M:%S.%6f", "zone": 0},
+            "YYYYMMdd HH:mm:ss.SSSSSS": {"format": "%Y%m%d %H:%M:%S.%6f", "zone": 0},
             "dd/MMM/yyyy:HH:mm:ss": {"format": "%d/%b/%Y:%H:%M:%S", "zone": 0},
             "dd/MMM/yyyy:HH:mm:ssZ": {"format": "%d/%b/%Y:%H:%M:%S%:z", "zone": None},
             "dd/MMM/yyyy:HH:mm:ss Z": {"format": "%d/%b/%Y:%H:%M:%S %:z", "zone": None},
@@ -276,6 +278,11 @@ class EtlStorage:
             v3_time_format = time_field.get("option", {}).get("time_format", "yyyy-MM-dd HH:mm:ss")
             v4_time_parsing = self._convert_v3_to_v4_time_format(v3_time_format)
 
+            # 检查是否为纳秒级时间格式，参考transfer清洗的dtEventTimeStampNanos处理逻辑
+            time_fmts = array_group(FieldDateFormatEnum.get_choices_list_dict(), "id", True)
+            time_fmt = time_fmts.get(v3_time_format, {})
+            is_nanos = time_fmt.get("es_format", "epoch_millis") == "strict_date_optional_time_nanos"
+
             rules.append(
                 {
                     "input_id": "json_data",
@@ -295,6 +302,16 @@ class EtlStorage:
                     },
                 }
             )
+
+            # 如果是纳秒级时间格式，记录需要生成dtEventTimeStampNanos字段
+            # 注意：dtEventTimeStampNanos规则需要在bk_separator_object之后生成，因为用户指定的时间字段在bk_separator_object中
+            # 这里只记录is_nanos状态，实际的规则生成在_build_nanos_time_field_v4方法中
+            if is_nanos:
+                # 将纳秒时间字段信息存储到built_in_config中，供后续使用
+                built_in_config["_nanos_time_field"] = {
+                    "time_alias_name": time_alias_name,
+                    "v3_time_format": v3_time_format,
+                }
 
         return rules
 
@@ -338,6 +355,44 @@ class EtlStorage:
                 )
                 break
 
+        return rules
+
+    def _build_nanos_time_field_v4(self, built_in_config: dict) -> list:
+        """
+        构建V4版本的dtEventTimeStampNanos字段规则（从bk_separator_object提取用户指定的时间字段）
+        :param built_in_config: 内置配置，包含_nanos_time_field信息
+        :return: dtEventTimeStampNanos字段规则列表
+        """
+        rules = []
+        nanos_time_field = built_in_config.get("_nanos_time_field")
+        if nanos_time_field:
+            time_alias_name = nanos_time_field["time_alias_name"]
+            v3_time_format = nanos_time_field["v3_time_format"]
+
+            # 获取纳秒级时间格式的V4配置
+            nanos_v4_time_parsing = self._convert_v3_to_v4_time_format(v3_time_format)
+            # 纳秒级时间解析的输出应为nanos
+            nanos_v4_time_parsing["to"] = "nanos"
+
+            rules.append(
+                {
+                    "input_id": self.separator_node_name,
+                    "output_id": "dtEventTimeStampNanos",
+                    "operator": {
+                        "type": "assign",
+                        "key_index": time_alias_name,
+                        "alias": "dtEventTimeStampNanos",
+                        "desc": "纳秒级时间戳",
+                        "input_type": None,
+                        "output_type": "long",
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": nanos_v4_time_parsing,
+                        "default_value": None,
+                    },
+                }
+            )
         return rules
 
     def _build_extra_json_field_v4(self, etl_params: dict, fields: list) -> list:
