@@ -465,9 +465,6 @@ class OverseasMigrateTool:
 
                 raise e
             finally:
-                migrate_record.setdefault("bk_biz_id", 0)
-                migrate_record.setdefault("space_uid", "")
-                migrate_record.setdefault("index_set_id", 0)
                 migrate_record.setdefault("status", MigrateStatus.FAIL)
                 migrate_record.setdefault("details", json.dumps({"error": "unknown error"}))
 
