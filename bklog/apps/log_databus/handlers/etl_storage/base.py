@@ -306,36 +306,38 @@ class EtlStorage:
         """
         rules = []
         built_in_fields = built_in_config.get("fields", [])
-        
+
         # 查找iterationIndex字段（flat_field为True的字段）
         for field in built_in_fields:
             if field.get("field_name") == "iterationIndex" and field.get("flat_field", False):
                 alias_name = field.get("alias_name", "iterationindex")
-                
+
                 # 优先使用es_type确定output_type
                 # iterationIndex的field_type可能是float，但es_type是integer，需映射为long
                 field_type = field.get("option", {}).get("es_type") or field.get("field_type")
                 output_type = self._get_output_type(field_type)
-                
-                rules.append({
-                    "input_id": "iter_item",
-                    "output_id": "iterationIndex",
-                    "operator": {
-                        "type": "assign",
-                        "key_index": alias_name,
-                        "alias": "iterationIndex",
-                        "desc": field.get("description"),
-                        "input_type": None,
-                        "output_type": output_type,
-                        "fixed_value": None,
-                        "is_time_field": None,
-                        "time_format": None,
-                        "in_place_time_parsing": None,
-                        "default_value": None,
-                    },
-                })
+
+                rules.append(
+                    {
+                        "input_id": "iter_item",
+                        "output_id": "iterationIndex",
+                        "operator": {
+                            "type": "assign",
+                            "key_index": alias_name,
+                            "alias": "iterationIndex",
+                            "desc": field.get("description"),
+                            "input_type": None,
+                            "output_type": output_type,
+                            "fixed_value": None,
+                            "is_time_field": None,
+                            "time_format": None,
+                            "in_place_time_parsing": None,
+                            "default_value": None,
+                        },
+                    }
+                )
                 break
-        
+
         return rules
 
     def _build_extra_json_field_v4(self, etl_params: dict, fields: list) -> list:
@@ -1153,7 +1155,7 @@ class EtlStorage:
     def _to_bkdata_conf(self, time_field):
         return {
             "output_field_name": "timestamp",
-            "time_format": time_field["option"]["time_format"],
+            "time_format": time_field["option"]["time_format"].replace("YY", "yy").replace("DD", "dd"),
             "timezone": time_field["option"]["time_zone"],
             "encoding": "UTF-8",
             "timestamp_len": 0,
