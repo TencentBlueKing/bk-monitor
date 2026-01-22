@@ -628,7 +628,7 @@ class SQLChartHandler(ChartHandler):
                     alias_mappings=alias_mappings,
                 )
             )
-        # 将grep查询条件转换为WHERE子句
+        # 将grep语句转换为WHERE子句
         if grep_query and grep_field:
             grep_nodes = grep_parser(grep_query)
             grep_where_clause = self.get_grep_condition(
