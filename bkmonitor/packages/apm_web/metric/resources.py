@@ -835,7 +835,7 @@ class ServiceListResource(PageListResource):
             choices=VIEW_MODE_CHOICES,
             default=VIEW_MODE_SERVICES,
         )
-        is_contain_data_status = serializers.BooleanField(label=_("是否包含数据状态"), default=False)
+        include_data_status = serializers.BooleanField(label=_("是否包含数据状态"), default=False)
 
         def validate(self, attrs):
             res = super().validate(attrs)
@@ -1095,9 +1095,7 @@ class ServiceListResource(PageListResource):
         data_status_mapping = {}
         # 如果存在数据状态相关的filter筛选, 加载data_status数据
         field_condition_keys = {condition.get("key") for condition in validate_data["field_conditions"]}
-        if validate_data["is_contain_data_status"] or not field_condition_keys.isdisjoint(
-            {"apply_module", "have_data"}
-        ):
+        if validate_data["include_data_status"] or not field_condition_keys.isdisjoint({"apply_module", "have_data"}):
             data_status_list = (
                 ServiceListAsyncResource()
                 .perform_request(

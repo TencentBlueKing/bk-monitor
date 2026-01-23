@@ -4,21 +4,21 @@
 
 ### 请求参数
 
-| 字段                     | 类型         | 必选 | 描述                                                                |
-|------------------------|------------|----|-------------------------------------------------------------------|
-| bk_biz_id              | int        | 是  | 业务 ID                                                             |
-| app_name               | string     | 是  | 应用名称                                                              |
-| start_time             | int        | 是  | 数据开始时间（Unix 时间戳，秒）                                                |
-| end_time               | int        | 是  | 数据结束时间（Unix 时间戳，秒）                                                |
-| keyword                | string     | 否  | 查询关键词，用于模糊搜索服务名称                                                  |
-| page                   | int        | 否  | 页码，默认为 1                                                          |
-| page_size              | int        | 否  | 每页条数，默认为 10                                                       |
-| sort                   | string     | 否  | 排序方式，格式为 `字段名` 或 `-字段名`（降序）                                       |
-| filter                 | string     | 否  | 分类过滤条件，默认 `all`，可选值见下文                                            |
-| filter_dict            | dict       | 否  | 筛选条件字典                                                            |
-| field_conditions       | List[dict] | 否  | OR 条件列表，用于多条件组合筛选                                                 |
-| view_mode              | string     | 否  | 展示模式，可选 `page_home`（首页）、`page_services`（服务列表页），默认 `page_services` |
-| is_contain_data_status | bool       | 否  | 是否包含数据状态信息，默认 `false`                                             |
+| 字段                  | 类型         | 必选 | 描述                                                                |
+|---------------------|------------|----|-------------------------------------------------------------------|
+| bk_biz_id           | int        | 是  | 业务 ID                                                             |
+| app_name            | string     | 是  | 应用名称                                                              |
+| start_time          | int        | 是  | 数据开始时间（Unix 时间戳，秒）                                                |
+| end_time            | int        | 是  | 数据结束时间（Unix 时间戳，秒）                                                |
+| keyword             | string     | 否  | 查询关键词，用于模糊搜索服务名称                                                  |
+| page                | int        | 否  | 页码，默认为 1                                                          |
+| page_size           | int        | 否  | 每页条数，默认为 10                                                       |
+| sort                | string     | 否  | 排序方式，格式为 `字段名` 或 `-字段名`（降序）                                       |
+| filter              | string     | 否  | 分类过滤条件，默认 `all`，可选值见下文                                            |
+| filter_dict         | dict       | 否  | 筛选条件字典                                                            |
+| field_conditions    | List[dict] | 否  | OR 条件列表，用于多条件组合筛选                                                 |
+| view_mode           | string     | 否  | 展示模式，可选 `page_home`（首页）、`page_services`（服务列表页），默认 `page_services` |
+| include_data_status | bool       | 否  | 是否包含数据状态信息，默认 `false`                                             |
 
 #### filter 枚举值说明
 
@@ -405,7 +405,7 @@
                     "value": "bkm.web",
                     "url": "/service/?filter-service_name=bkm.web&filter-app_name=trpc-cluster-access-demo",
                     "key": "",
-                    "icon": "data:image/svg+xml;base64,PHN2ZyBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCI+PHBhdGggZD0iTTYwMS4wMjQgOTkuNTg0YTMyIDMyIDAgMCAwLTguMDY0IDYzLjQ4OCAzODAuMzUyIDM4MC4zNTIgMCAwIDEgMTc1LjY4IDY5Ljk1MkM2NTIuODY0IDI1OS4zOTIgNjE3LjcyOCAzMzkuMDcyIDYxMC4zMDQgNDA4Yy0xMC43NTIgOTkuNzEyIDYwLjIyNCAxNTIgMTA3LjIgMTg2LjU2IDE2LjQ0OCAxMi4xNiA0MS4zNDQgMzAuNTkyIDQyLjQ5NiAzOS4xNjguMTI4IDEuMjE2LS45NiA1LjM3Ni02LjUyOCAxMi40MTYtNjEuMDU2IDc2LjkyOC04My44NCAxNDAuOC02Ny41ODQgMTg5Ljg4OCA0LjkyOCAxNC45MTIgMTUuMjk2IDMyLjg5NiAzNi4yODggNDcuODcyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSA1NDQgOTI4Yy0zLjAwOCAwLTUuOTUyLS4zMi04Ljk2LS40NDggNDAuMTI4LTY3LjM5MiAyNS43MjgtMTE4LjI3MiAzLjQ1Ni0xNTEuMDQtNTQuMDgtNzkuNDg4LTEzNC45MTItMTA0LjEyOC0yMTEuMDcyLTY0LjE5Mi01LjI0OCAyLjgxNi05LjYgMS42NjQtMzQuMzY4LTIxLjY5Ni0yNC40NDgtMjMuMDQtNjMuMjMyLTU4Ljg4LTEyMC4wNjQtNDguMzItNS4wNTYtMTkuMi04Ljk2LTM4Ljg0OC0xMS4wMDgtNTkuMmEzMiAzMiAwIDAgMC02My43NDQgNi40QTQ0Ni41MjggNDQ2LjUyOCAwIDAgMCA1NDQgOTkyLjA2NGMyNDcuMDQgMCA0NDgtMjAwLjk2IDQ0OC00NDhDOTkyIDMxOS4wNCA4MjMuOTM2IDEyOCA2MDEuMDI0IDk5LjY0OHpNMTk1LjA3MiA3MDQuMzJjMTguMzY4LjcwNCAzMy4xNTIgMTMuMTg0IDU0LjA4IDMyLjg5NiAyNCAyMi42NTYgNjAuMzUyIDU2LjcwNCAxMDguMDMyIDMxLjc0NCA2My4yOTYtMzMuMjggMTA3LjU4NCAxMi45OTIgMTI4LjMyIDQzLjUyIDguMTI4IDExLjkwNCAyOC45MjggNDIuNTYtMjIuNCAxMDYuNzUyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSAxOTUuMDcyIDcwNC4zMnptNTg5LjM3NiAxMzguNjI0Yy0yMS4wNTYtNS45NTItMzMuODU2LTE1LjA0LTM3LjgyNC0yNy4wMDgtOC41NzYtMjUuNzkyIDEyLjY3Mi03NC40MzIgNTYuODk2LTEzMC4wNDggMTUuODcyLTE5Ljk2OCAyMi41OTItNDAuMzg0IDE5Ljg0LTYwLjYwOC00LjczNi0zNS41ODQtMzUuMzkyLTU4LjI0LTY3Ljk2OC04Mi4xNzYtNDMuMzkyLTMyLTg4LjMyLTY1LjA4OC04MS41MzYtMTI4LjE5MiA1LjU2OC01MS4yNjQgMjguMzUyLTExOC4zMzYgMTU2LjczNi0xMjYuMDhhMzgzLjIzMiAzODMuMjMyIDAgMCAxLTQ2LjE0NCA1NTQuMTc2ek0yNjYuNDk2IDU5OS42OGEzMiAzMiAwIDAgMCA0My4wNzIgMEM0NTYuNTEyIDQ2Ni4wNDggNTI4IDM1OC44NDggNTI4IDI3MkEyNDAuMjU2IDI0MC4yNTYgMCAwIDAgMjg4IDMyIDI0MC4yNTYgMjQwLjI1NiAwIDAgMCA0OCAyNzJjMCA4Ni43ODQgNzEuNDg4IDE5NC4wNDggMjE4LjQzMiAzMjcuNjh6TTI4OCA5NmExNzYuMTkyIDE3Ni4xOTIgMCAwIDEgMTc2IDE3NmMwIDQzLjkwNC0zMS4yMzIgMTI0LjE2LTE3NiAyNjAuNDE2QzE0My4yMzIgMzk2LjA5NiAxMTIgMzE1Ljg0IDExMiAyNzJBMTc2LjE5MiAxNzYuMTkyIDAgMCAxIDI4OCA5NnptLTgwIDE3NmE4MCA4MCAwIDEgMCAxNjAgMCA4MCA4MCAwIDAgMC0xNjAgMHoiIGZpbGw9IiM2MzY1NkUiLz48L3N2Zz4=",
+                    "icon": "xxx",
                     "syncTime": true
                 },
                 "type": "远程调用",
@@ -415,348 +415,6 @@
                         "target": "self",
                         "value": "配置",
                         "url": "/service-config?app_name=trpc-cluster-access-demo&service_name=bkm.web",
-                        "key": "",
-                        "icon": ""
-                    }
-                ],
-                "category": "rpc",
-                "kind": "service",
-                "labels": [],
-                "metric_data_status": {
-                    "icon": "normal"
-                },
-                "log_data_status": {
-                    "icon": "normal"
-                },
-                "trace_data_status": {
-                    "icon": "normal"
-                },
-                "profiling_data_status": {
-                    "icon": "no_data"
-                },
-                "request_count": {
-                    "datapoints": null,
-                    "unit": null
-                },
-                "error_rate": {
-                    "datapoints": null,
-                    "unit": "percentunit"
-                },
-                "avg_duration": {
-                    "datapoints": null,
-                    "unit": "ns"
-                }
-            },
-            {
-                "app_name": "trpc-cluster-access-demo",
-                "collect": {
-                    "is_collect": false,
-                    "api": "apm_metric.collectService",
-                    "params": {
-                        "service_name": "bkm.user",
-                        "app_name": "trpc-cluster-access-demo"
-                    }
-                },
-                "service_name": {
-                    "target": "self",
-                    "value": "bkm.user",
-                    "url": "/service/?filter-service_name=bkm.user&filter-app_name=trpc-cluster-access-demo",
-                    "key": "",
-                    "icon": "data:image/svg+xml;base64,PHN2ZyBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCI+PHBhdGggZD0iTTYwMS4wMjQgOTkuNTg0YTMyIDMyIDAgMCAwLTguMDY0IDYzLjQ4OCAzODAuMzUyIDM4MC4zNTIgMCAwIDEgMTc1LjY4IDY5Ljk1MkM2NTIuODY0IDI1OS4zOTIgNjE3LjcyOCAzMzkuMDcyIDYxMC4zMDQgNDA4Yy0xMC43NTIgOTkuNzEyIDYwLjIyNCAxNTIgMTA3LjIgMTg2LjU2IDE2LjQ0OCAxMi4xNiA0MS4zNDQgMzAuNTkyIDQyLjQ5NiAzOS4xNjguMTI4IDEuMjE2LS45NiA1LjM3Ni02LjUyOCAxMi40MTYtNjEuMDU2IDc2LjkyOC04My44NCAxNDAuOC02Ny41ODQgMTg5Ljg4OCA0LjkyOCAxNC45MTIgMTUuMjk2IDMyLjg5NiAzNi4yODggNDcuODcyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSA1NDQgOTI4Yy0zLjAwOCAwLTUuOTUyLS4zMi04Ljk2LS40NDggNDAuMTI4LTY3LjM5MiAyNS43MjgtMTE4LjI3MiAzLjQ1Ni0xNTEuMDQtNTQuMDgtNzkuNDg4LTEzNC45MTItMTA0LjEyOC0yMTEuMDcyLTY0LjE5Mi01LjI0OCAyLjgxNi05LjYgMS42NjQtMzQuMzY4LTIxLjY5Ni0yNC40NDgtMjMuMDQtNjMuMjMyLTU4Ljg4LTEyMC4wNjQtNDguMzItNS4wNTYtMTkuMi04Ljk2LTM4Ljg0OC0xMS4wMDgtNTkuMmEzMiAzMiAwIDAgMC02My43NDQgNi40QTQ0Ni41MjggNDQ2LjUyOCAwIDAgMCA1NDQgOTkyLjA2NGMyNDcuMDQgMCA0NDgtMjAwLjk2IDQ0OC00NDhDOTkyIDMxOS4wNCA4MjMuOTM2IDEyOCA2MDEuMDI0IDk5LjY0OHpNMTk1LjA3MiA3MDQuMzJjMTguMzY4LjcwNCAzMy4xNTIgMTMuMTg0IDU0LjA4IDMyLjg5NiAyNCAyMi42NTYgNjAuMzUyIDU2LjcwNCAxMDguMDMyIDMxLjc0NCA2My4yOTYtMzMuMjggMTA3LjU4NCAxMi45OTIgMTI4LjMyIDQzLjUyIDguMTI4IDExLjkwNCAyOC45MjggNDIuNTYtMjIuNCAxMDYuNzUyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSAxOTUuMDcyIDcwNC4zMnptNTg5LjM3NiAxMzguNjI0Yy0yMS4wNTYtNS45NTItMzMuODU2LTE1LjA0LTM3LjgyNC0yNy4wMDgtOC41NzYtMjUuNzkyIDEyLjY3Mi03NC40MzIgNTYuODk2LTEzMC4wNDggMTUuODcyLTE5Ljk2OCAyMi41OTItNDAuMzg0IDE5Ljg0LTYwLjYwOC00LjczNi0zNS41ODQtMzUuMzkyLTU4LjI0LTY3Ljk2OC04Mi4xNzYtNDMuMzkyLTMyLTg4LjMyLTY1LjA4OC04MS41MzYtMTI4LjE5MiA1LjU2OC01MS4yNjQgMjguMzUyLTExOC4zMzYgMTU2LjczNi0xMjYuMDhhMzgzLjIzMiAzODMuMjMyIDAgMCAxLTQ2LjE0NCA1NTQuMTc2ek0yNjYuNDk2IDU5OS42OGEzMiAzMiAwIDAgMCA0My4wNzIgMEM0NTYuNTEyIDQ2Ni4wNDggNTI4IDM1OC44NDggNTI4IDI3MkEyNDAuMjU2IDI0MC4yNTYgMCAwIDAgMjg4IDMyIDI0MC4yNTYgMjQwLjI1NiAwIDAgMCA0OCAyNzJjMCA4Ni43ODQgNzEuNDg4IDE5NC4wNDggMjE4LjQzMiAzMjcuNjh6TTI4OCA5NmExNzYuMTkyIDE3Ni4xOTIgMCAwIDEgMTc2IDE3NmMwIDQzLjkwNC0zMS4yMzIgMTI0LjE2LTE3NiAyNjAuNDE2QzE0My4yMzIgMzk2LjA5NiAxMTIgMzE1Ljg0IDExMiAyNzJBMTc2LjE5MiAxNzYuMTkyIDAgMCAxIDI4OCA5NnptLTgwIDE3NmE4MCA4MCAwIDEgMCAxNjAgMCA4MCA4MCAwIDAgMC0xNjAgMHoiIGZpbGw9IiM2MzY1NkUiLz48L3N2Zz4=",
-                    "syncTime": true
-                },
-                "type": "远程调用",
-                "language": "go",
-                "operation": [
-                    {
-                        "target": "self",
-                        "value": "配置",
-                        "url": "/service-config?app_name=trpc-cluster-access-demo&service_name=bkm.user",
-                        "key": "",
-                        "icon": ""
-                    }
-                ],
-                "category": "rpc",
-                "kind": "service",
-                "labels": [],
-                "metric_data_status": {
-                    "icon": "normal"
-                },
-                "log_data_status": {
-                    "icon": "normal"
-                },
-                "trace_data_status": {
-                    "icon": "normal"
-                },
-                "profiling_data_status": {
-                    "icon": "no_data"
-                },
-                "request_count": {
-                    "datapoints": null,
-                    "unit": null
-                },
-                "error_rate": {
-                    "datapoints": null,
-                    "unit": "percentunit"
-                },
-                "avg_duration": {
-                    "datapoints": null,
-                    "unit": "ns"
-                }
-            },
-            {
-                "app_name": "trpc-cluster-access-demo",
-                "collect": {
-                    "is_collect": true,
-                    "api": "apm_metric.collectService",
-                    "params": {
-                        "service_name": "bkm.review",
-                        "app_name": "trpc-cluster-access-demo"
-                    }
-                },
-                "service_name": {
-                    "target": "self",
-                    "value": "bkm.review",
-                    "url": "/service/?filter-service_name=bkm.review&filter-app_name=trpc-cluster-access-demo",
-                    "key": "",
-                    "icon": "data:image/svg+xml;base64,PHN2ZyBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCI+PHBhdGggZD0iTTYwMS4wMjQgOTkuNTg0YTMyIDMyIDAgMCAwLTguMDY0IDYzLjQ4OCAzODAuMzUyIDM4MC4zNTIgMCAwIDEgMTc1LjY4IDY5Ljk1MkM2NTIuODY0IDI1OS4zOTIgNjE3LjcyOCAzMzkuMDcyIDYxMC4zMDQgNDA4Yy0xMC43NTIgOTkuNzEyIDYwLjIyNCAxNTIgMTA3LjIgMTg2LjU2IDE2LjQ0OCAxMi4xNiA0MS4zNDQgMzAuNTkyIDQyLjQ5NiAzOS4xNjguMTI4IDEuMjE2LS45NiA1LjM3Ni02LjUyOCAxMi40MTYtNjEuMDU2IDc2LjkyOC04My44NCAxNDAuOC02Ny41ODQgMTg5Ljg4OCA0LjkyOCAxNC45MTIgMTUuMjk2IDMyLjg5NiAzNi4yODggNDcuODcyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSA1NDQgOTI4Yy0zLjAwOCAwLTUuOTUyLS4zMi04Ljk2LS40NDggNDAuMTI4LTY3LjM5MiAyNS43MjgtMTE4LjI3MiAzLjQ1Ni0xNTEuMDQtNTQuMDgtNzkuNDg4LTEzNC45MTItMTA0LjEyOC0yMTEuMDcyLTY0LjE5Mi01LjI0OCAyLjgxNi05LjYgMS42NjQtMzQuMzY4LTIxLjY5Ni0yNC40NDgtMjMuMDQtNjMuMjMyLTU4Ljg4LTEyMC4wNjQtNDguMzItNS4wNTYtMTkuMi04Ljk2LTM4Ljg0OC0xMS4wMDgtNTkuMmEzMiAzMiAwIDAgMC02My43NDQgNi40QTQ0Ni41MjggNDQ2LjUyOCAwIDAgMCA1NDQgOTkyLjA2NGMyNDcuMDQgMCA0NDgtMjAwLjk2IDQ0OC00NDhDOTkyIDMxOS4wNCA4MjMuOTM2IDEyOCA2MDEuMDI0IDk5LjY0OHpNMTk1LjA3MiA3MDQuMzJjMTguMzY4LjcwNCAzMy4xNTIgMTMuMTg0IDU0LjA4IDMyLjg5NiAyNCAyMi42NTYgNjAuMzUyIDU2LjcwNCAxMDguMDMyIDMxLjc0NCA2My4yOTYtMzMuMjggMTA3LjU4NCAxMi45OTIgMTI4LjMyIDQzLjUyIDguMTI4IDExLjkwNCAyOC45MjggNDIuNTYtMjIuNCAxMDYuNzUyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSAxOTUuMDcyIDcwNC4zMnptNTg5LjM3NiAxMzguNjI0Yy0yMS4wNTYtNS45NTItMzMuODU2LTE1LjA0LTM3LjgyNC0yNy4wMDgtOC41NzYtMjUuNzkyIDEyLjY3Mi03NC40MzIgNTYuODk2LTEzMC4wNDggMTUuODcyLTE5Ljk2OCAyMi41OTItNDAuMzg0IDE5Ljg0LTYwLjYwOC00LjczNi0zNS41ODQtMzUuMzkyLTU4LjI0LTY3Ljk2OC04Mi4xNzYtNDMuMzkyLTMyLTg4LjMyLTY1LjA4OC04MS41MzYtMTI4LjE5MiA1LjU2OC01MS4yNjQgMjguMzUyLTExOC4zMzYgMTU2LjczNi0xMjYuMDhhMzgzLjIzMiAzODMuMjMyIDAgMCAxLTQ2LjE0NCA1NTQuMTc2ek0yNjYuNDk2IDU5OS42OGEzMiAzMiAwIDAgMCA0My4wNzIgMEM0NTYuNTEyIDQ2Ni4wNDggNTI4IDM1OC44NDggNTI4IDI3MkEyNDAuMjU2IDI0MC4yNTYgMCAwIDAgMjg4IDMyIDI0MC4yNTYgMjQwLjI1NiAwIDAgMCA0OCAyNzJjMCA4Ni43ODQgNzEuNDg4IDE5NC4wNDggMjE4LjQzMiAzMjcuNjh6TTI4OCA5NmExNzYuMTkyIDE3Ni4xOTIgMCAwIDEgMTc2IDE3NmMwIDQzLjkwNC0zMS4yMzIgMTI0LjE2LTE3NiAyNjAuNDE2QzE0My4yMzIgMzk2LjA5NiAxMTIgMzE1Ljg0IDExMiAyNzJBMTc2LjE5MiAxNzYuMTkyIDAgMCAxIDI4OCA5NnptLTgwIDE3NmE4MCA4MCAwIDEgMCAxNjAgMCA4MCA4MCAwIDAgMC0xNjAgMHoiIGZpbGw9IiM2MzY1NkUiLz48L3N2Zz4=",
-                    "syncTime": true
-                },
-                "type": "远程调用",
-                "language": "go",
-                "operation": [
-                    {
-                        "target": "self",
-                        "value": "配置",
-                        "url": "/service-config?app_name=trpc-cluster-access-demo&service_name=bkm.review",
-                        "key": "",
-                        "icon": ""
-                    }
-                ],
-                "category": "rpc",
-                "kind": "service",
-                "labels": [],
-                "metric_data_status": {
-                    "icon": "normal"
-                },
-                "log_data_status": {
-                    "icon": "normal"
-                },
-                "trace_data_status": {
-                    "icon": "normal"
-                },
-                "profiling_data_status": {
-                    "icon": "no_data"
-                },
-                "request_count": {
-                    "datapoints": null,
-                    "unit": null
-                },
-                "error_rate": {
-                    "datapoints": null,
-                    "unit": "percentunit"
-                },
-                "avg_duration": {
-                    "datapoints": null,
-                    "unit": "ns"
-                }
-            },
-            {
-                "app_name": "trpc-cluster-access-demo",
-                "collect": {
-                    "is_collect": false,
-                    "api": "apm_metric.collectService",
-                    "params": {
-                        "service_name": "bkm.product",
-                        "app_name": "trpc-cluster-access-demo"
-                    }
-                },
-                "service_name": {
-                    "target": "self",
-                    "value": "bkm.product",
-                    "url": "/service/?filter-service_name=bkm.product&filter-app_name=trpc-cluster-access-demo",
-                    "key": "",
-                    "icon": "data:image/svg+xml;base64,PHN2ZyBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCI+PHBhdGggZD0iTTYwMS4wMjQgOTkuNTg0YTMyIDMyIDAgMCAwLTguMDY0IDYzLjQ4OCAzODAuMzUyIDM4MC4zNTIgMCAwIDEgMTc1LjY4IDY5Ljk1MkM2NTIuODY0IDI1OS4zOTIgNjE3LjcyOCAzMzkuMDcyIDYxMC4zMDQgNDA4Yy0xMC43NTIgOTkuNzEyIDYwLjIyNCAxNTIgMTA3LjIgMTg2LjU2IDE2LjQ0OCAxMi4xNiA0MS4zNDQgMzAuNTkyIDQyLjQ5NiAzOS4xNjguMTI4IDEuMjE2LS45NiA1LjM3Ni02LjUyOCAxMi40MTYtNjEuMDU2IDc2LjkyOC04My44NCAxNDAuOC02Ny41ODQgMTg5Ljg4OCA0LjkyOCAxNC45MTIgMTUuMjk2IDMyLjg5NiAzNi4yODggNDcuODcyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSA1NDQgOTI4Yy0zLjAwOCAwLTUuOTUyLS4zMi04Ljk2LS40NDggNDAuMTI4LTY3LjM5MiAyNS43MjgtMTE4LjI3MiAzLjQ1Ni0xNTEuMDQtNTQuMDgtNzkuNDg4LTEzNC45MTItMTA0LjEyOC0yMTEuMDcyLTY0LjE5Mi01LjI0OCAyLjgxNi05LjYgMS42NjQtMzQuMzY4LTIxLjY5Ni0yNC40NDgtMjMuMDQtNjMuMjMyLTU4Ljg4LTEyMC4wNjQtNDguMzItNS4wNTYtMTkuMi04Ljk2LTM4Ljg0OC0xMS4wMDgtNTkuMmEzMiAzMiAwIDAgMC02My43NDQgNi40QTQ0Ni41MjggNDQ2LjUyOCAwIDAgMCA1NDQgOTkyLjA2NGMyNDcuMDQgMCA0NDgtMjAwLjk2IDQ0OC00NDhDOTkyIDMxOS4wNCA4MjMuOTM2IDEyOCA2MDEuMDI0IDk5LjY0OHpNMTk1LjA3MiA3MDQuMzJjMTguMzY4LjcwNCAzMy4xNTIgMTMuMTg0IDU0LjA4IDMyLjg5NiAyNCAyMi42NTYgNjAuMzUyIDU2LjcwNCAxMDguMDMyIDMxLjc0NCA2My4yOTYtMzMuMjggMTA3LjU4NCAxMi45OTIgMTI4LjMyIDQzLjUyIDguMTI4IDExLjkwNCAyOC45MjggNDIuNTYtMjIuNCAxMDYuNzUyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSAxOTUuMDcyIDcwNC4zMnptNTg5LjM3NiAxMzguNjI0Yy0yMS4wNTYtNS45NTItMzMuODU2LTE1LjA0LTM3LjgyNC0yNy4wMDgtOC41NzYtMjUuNzkyIDEyLjY3Mi03NC40MzIgNTYuODk2LTEzMC4wNDggMTUuODcyLTE5Ljk2OCAyMi41OTItNDAuMzg0IDE5Ljg0LTYwLjYwOC00LjczNi0zNS41ODQtMzUuMzkyLTU4LjI0LTY3Ljk2OC04Mi4xNzYtNDMuMzkyLTMyLTg4LjMyLTY1LjA4OC04MS41MzYtMTI4LjE5MiA1LjU2OC01MS4yNjQgMjguMzUyLTExOC4zMzYgMTU2LjczNi0xMjYuMDhhMzgzLjIzMiAzODMuMjMyIDAgMCAxLTQ2LjE0NCA1NTQuMTc2ek0yNjYuNDk2IDU5OS42OGEzMiAzMiAwIDAgMCA0My4wNzIgMEM0NTYuNTEyIDQ2Ni4wNDggNTI4IDM1OC44NDggNTI4IDI3MkEyNDAuMjU2IDI0MC4yNTYgMCAwIDAgMjg4IDMyIDI0MC4yNTYgMjQwLjI1NiAwIDAgMCA0OCAyNzJjMCA4Ni43ODQgNzEuNDg4IDE5NC4wNDggMjE4LjQzMiAzMjcuNjh6TTI4OCA5NmExNzYuMTkyIDE3Ni4xOTIgMCAwIDEgMTc2IDE3NmMwIDQzLjkwNC0zMS4yMzIgMTI0LjE2LTE3NiAyNjAuNDE2QzE0My4yMzIgMzk2LjA5NiAxMTIgMzE1Ljg0IDExMiAyNzJBMTc2LjE5MiAxNzYuMTkyIDAgMCAxIDI4OCA5NnptLTgwIDE3NmE4MCA4MCAwIDEgMCAxNjAgMCA4MCA4MCAwIDAgMC0xNjAgMHoiIGZpbGw9IiM2MzY1NkUiLz48L3N2Zz4=",
-                    "syncTime": true
-                },
-                "type": "远程调用",
-                "language": "go",
-                "operation": [
-                    {
-                        "target": "self",
-                        "value": "配置",
-                        "url": "/service-config?app_name=trpc-cluster-access-demo&service_name=bkm.product",
-                        "key": "",
-                        "icon": ""
-                    }
-                ],
-                "category": "rpc",
-                "kind": "service",
-                "labels": [],
-                "metric_data_status": {
-                    "icon": "normal"
-                },
-                "log_data_status": {
-                    "icon": "normal"
-                },
-                "trace_data_status": {
-                    "icon": "normal"
-                },
-                "profiling_data_status": {
-                    "icon": "no_data"
-                },
-                "request_count": {
-                    "datapoints": null,
-                    "unit": null
-                },
-                "error_rate": {
-                    "datapoints": null,
-                    "unit": "percentunit"
-                },
-                "avg_duration": {
-                    "datapoints": null,
-                    "unit": "ns"
-                }
-            },
-            {
-                "app_name": "trpc-cluster-access-demo",
-                "collect": {
-                    "is_collect": false,
-                    "api": "apm_metric.collectService",
-                    "params": {
-                        "service_name": "bkm.pay",
-                        "app_name": "trpc-cluster-access-demo"
-                    }
-                },
-                "service_name": {
-                    "target": "self",
-                    "value": "bkm.pay",
-                    "url": "/service/?filter-service_name=bkm.pay&filter-app_name=trpc-cluster-access-demo",
-                    "key": "",
-                    "icon": "data:image/svg+xml;base64,PHN2ZyBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCI+PHBhdGggZD0iTTYwMS4wMjQgOTkuNTg0YTMyIDMyIDAgMCAwLTguMDY0IDYzLjQ4OCAzODAuMzUyIDM4MC4zNTIgMCAwIDEgMTc1LjY4IDY5Ljk1MkM2NTIuODY0IDI1OS4zOTIgNjE3LjcyOCAzMzkuMDcyIDYxMC4zMDQgNDA4Yy0xMC43NTIgOTkuNzEyIDYwLjIyNCAxNTIgMTA3LjIgMTg2LjU2IDE2LjQ0OCAxMi4xNiA0MS4zNDQgMzAuNTkyIDQyLjQ5NiAzOS4xNjguMTI4IDEuMjE2LS45NiA1LjM3Ni02LjUyOCAxMi40MTYtNjEuMDU2IDc2LjkyOC04My44NCAxNDAuOC02Ny41ODQgMTg5Ljg4OCA0LjkyOCAxNC45MTIgMTUuMjk2IDMyLjg5NiAzNi4yODggNDcuODcyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSA1NDQgOTI4Yy0zLjAwOCAwLTUuOTUyLS4zMi04Ljk2LS40NDggNDAuMTI4LTY3LjM5MiAyNS43MjgtMTE4LjI3MiAzLjQ1Ni0xNTEuMDQtNTQuMDgtNzkuNDg4LTEzNC45MTItMTA0LjEyOC0yMTEuMDcyLTY0LjE5Mi01LjI0OCAyLjgxNi05LjYgMS42NjQtMzQuMzY4LTIxLjY5Ni0yNC40NDgtMjMuMDQtNjMuMjMyLTU4Ljg4LTEyMC4wNjQtNDguMzItNS4wNTYtMTkuMi04Ljk2LTM4Ljg0OC0xMS4wMDgtNTkuMmEzMiAzMiAwIDAgMC02My43NDQgNi40QTQ0Ni41MjggNDQ2LjUyOCAwIDAgMCA1NDQgOTkyLjA2NGMyNDcuMDQgMCA0NDgtMjAwLjk2IDQ0OC00NDhDOTkyIDMxOS4wNCA4MjMuOTM2IDEyOCA2MDEuMDI0IDk5LjY0OHpNMTk1LjA3MiA3MDQuMzJjMTguMzY4LjcwNCAzMy4xNTIgMTMuMTg0IDU0LjA4IDMyLjg5NiAyNCAyMi42NTYgNjAuMzUyIDU2LjcwNCAxMDguMDMyIDMxLjc0NCA2My4yOTYtMzMuMjggMTA3LjU4NCAxMi45OTIgMTI4LjMyIDQzLjUyIDguMTI4IDExLjkwNCAyOC45MjggNDIuNTYtMjIuNCAxMDYuNzUyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSAxOTUuMDcyIDcwNC4zMnptNTg5LjM3NiAxMzguNjI0Yy0yMS4wNTYtNS45NTItMzMuODU2LTE1LjA0LTM3LjgyNC0yNy4wMDgtOC41NzYtMjUuNzkyIDEyLjY3Mi03NC40MzIgNTYuODk2LTEzMC4wNDggMTUuODcyLTE5Ljk2OCAyMi41OTItNDAuMzg0IDE5Ljg0LTYwLjYwOC00LjczNi0zNS41ODQtMzUuMzkyLTU4LjI0LTY3Ljk2OC04Mi4xNzYtNDMuMzkyLTMyLTg4LjMyLTY1LjA4OC04MS41MzYtMTI4LjE5MiA1LjU2OC01MS4yNjQgMjguMzUyLTExOC4zMzYgMTU2LjczNi0xMjYuMDhhMzgzLjIzMiAzODMuMjMyIDAgMCAxLTQ2LjE0NCA1NTQuMTc2ek0yNjYuNDk2IDU5OS42OGEzMiAzMiAwIDAgMCA0My4wNzIgMEM0NTYuNTEyIDQ2Ni4wNDggNTI4IDM1OC44NDggNTI4IDI3MkEyNDAuMjU2IDI0MC4yNTYgMCAwIDAgMjg4IDMyIDI0MC4yNTYgMjQwLjI1NiAwIDAgMCA0OCAyNzJjMCA4Ni43ODQgNzEuNDg4IDE5NC4wNDggMjE4LjQzMiAzMjcuNjh6TTI4OCA5NmExNzYuMTkyIDE3Ni4xOTIgMCAwIDEgMTc2IDE3NmMwIDQzLjkwNC0zMS4yMzIgMTI0LjE2LTE3NiAyNjAuNDE2QzE0My4yMzIgMzk2LjA5NiAxMTIgMzE1Ljg0IDExMiAyNzJBMTc2LjE5MiAxNzYuMTkyIDAgMCAxIDI4OCA5NnptLTgwIDE3NmE4MCA4MCAwIDEgMCAxNjAgMCA4MCA4MCAwIDAgMC0xNjAgMHoiIGZpbGw9IiM2MzY1NkUiLz48L3N2Zz4=",
-                    "syncTime": true
-                },
-                "type": "远程调用",
-                "language": "go",
-                "operation": [
-                    {
-                        "target": "self",
-                        "value": "配置",
-                        "url": "/service-config?app_name=trpc-cluster-access-demo&service_name=bkm.pay",
-                        "key": "",
-                        "icon": ""
-                    }
-                ],
-                "category": "rpc",
-                "kind": "service",
-                "labels": [],
-                "metric_data_status": {
-                    "icon": "normal"
-                },
-                "log_data_status": {
-                    "icon": "normal"
-                },
-                "trace_data_status": {
-                    "icon": "normal"
-                },
-                "profiling_data_status": {
-                    "icon": "no_data"
-                },
-                "request_count": {
-                    "datapoints": null,
-                    "unit": null
-                },
-                "error_rate": {
-                    "datapoints": null,
-                    "unit": "percentunit"
-                },
-                "avg_duration": {
-                    "datapoints": null,
-                    "unit": "ns"
-                }
-            },
-            {
-                "app_name": "trpc-cluster-access-demo",
-                "collect": {
-                    "is_collect": false,
-                    "api": "apm_metric.collectService",
-                    "params": {
-                        "service_name": "bkm.order",
-                        "app_name": "trpc-cluster-access-demo"
-                    }
-                },
-                "service_name": {
-                    "target": "self",
-                    "value": "bkm.order",
-                    "url": "/service/?filter-service_name=bkm.order&filter-app_name=trpc-cluster-access-demo",
-                    "key": "",
-                    "icon": "data:image/svg+xml;base64,PHN2ZyBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCI+PHBhdGggZD0iTTYwMS4wMjQgOTkuNTg0YTMyIDMyIDAgMCAwLTguMDY0IDYzLjQ4OCAzODAuMzUyIDM4MC4zNTIgMCAwIDEgMTc1LjY4IDY5Ljk1MkM2NTIuODY0IDI1OS4zOTIgNjE3LjcyOCAzMzkuMDcyIDYxMC4zMDQgNDA4Yy0xMC43NTIgOTkuNzEyIDYwLjIyNCAxNTIgMTA3LjIgMTg2LjU2IDE2LjQ0OCAxMi4xNiA0MS4zNDQgMzAuNTkyIDQyLjQ5NiAzOS4xNjguMTI4IDEuMjE2LS45NiA1LjM3Ni02LjUyOCAxMi40MTYtNjEuMDU2IDc2LjkyOC04My44NCAxNDAuOC02Ny41ODQgMTg5Ljg4OCA0LjkyOCAxNC45MTIgMTUuMjk2IDMyLjg5NiAzNi4yODggNDcuODcyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSA1NDQgOTI4Yy0zLjAwOCAwLTUuOTUyLS4zMi04Ljk2LS40NDggNDAuMTI4LTY3LjM5MiAyNS43MjgtMTE4LjI3MiAzLjQ1Ni0xNTEuMDQtNTQuMDgtNzkuNDg4LTEzNC45MTItMTA0LjEyOC0yMTEuMDcyLTY0LjE5Mi01LjI0OCAyLjgxNi05LjYgMS42NjQtMzQuMzY4LTIxLjY5Ni0yNC40NDgtMjMuMDQtNjMuMjMyLTU4Ljg4LTEyMC4wNjQtNDguMzItNS4wNTYtMTkuMi04Ljk2LTM4Ljg0OC0xMS4wMDgtNTkuMmEzMiAzMiAwIDAgMC02My43NDQgNi40QTQ0Ni41MjggNDQ2LjUyOCAwIDAgMCA1NDQgOTkyLjA2NGMyNDcuMDQgMCA0NDgtMjAwLjk2IDQ0OC00NDhDOTkyIDMxOS4wNCA4MjMuOTM2IDEyOCA2MDEuMDI0IDk5LjY0OHpNMTk1LjA3MiA3MDQuMzJjMTguMzY4LjcwNCAzMy4xNTIgMTMuMTg0IDU0LjA4IDMyLjg5NiAyNCAyMi42NTYgNjAuMzUyIDU2LjcwNCAxMDguMDMyIDMxLjc0NCA2My4yOTYtMzMuMjggMTA3LjU4NCAxMi45OTIgMTI4LjMyIDQzLjUyIDguMTI4IDExLjkwNCAyOC45MjggNDIuNTYtMjIuNCAxMDYuNzUyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSAxOTUuMDcyIDcwNC4zMnptNTg5LjM3NiAxMzguNjI0Yy0yMS4wNTYtNS45NTItMzMuODU2LTE1LjA0LTM3LjgyNC0yNy4wMDgtOC41NzYtMjUuNzkyIDEyLjY3Mi03NC40MzIgNTYuODk2LTEzMC4wNDggMTUuODcyLTE5Ljk2OCAyMi41OTItNDAuMzg0IDE5Ljg0LTYwLjYwOC00LjczNi0zNS41ODQtMzUuMzkyLTU4LjI0LTY3Ljk2OC04Mi4xNzYtNDMuMzkyLTMyLTg4LjMyLTY1LjA4OC04MS41MzYtMTI4LjE5MiA1LjU2OC01MS4yNjQgMjguMzUyLTExOC4zMzYgMTU2LjczNi0xMjYuMDhhMzgzLjIzMiAzODMuMjMyIDAgMCAxLTQ2LjE0NCA1NTQuMTc2ek0yNjYuNDk2IDU5OS42OGEzMiAzMiAwIDAgMCA0My4wNzIgMEM0NTYuNTEyIDQ2Ni4wNDggNTI4IDM1OC44NDggNTI4IDI3MkEyNDAuMjU2IDI0MC4yNTYgMCAwIDAgMjg4IDMyIDI0MC4yNTYgMjQwLjI1NiAwIDAgMCA0OCAyNzJjMCA4Ni43ODQgNzEuNDg4IDE5NC4wNDggMjE4LjQzMiAzMjcuNjh6TTI4OCA5NmExNzYuMTkyIDE3Ni4xOTIgMCAwIDEgMTc2IDE3NmMwIDQzLjkwNC0zMS4yMzIgMTI0LjE2LTE3NiAyNjAuNDE2QzE0My4yMzIgMzk2LjA5NiAxMTIgMzE1Ljg0IDExMiAyNzJBMTc2LjE5MiAxNzYuMTkyIDAgMCAxIDI4OCA5NnptLTgwIDE3NmE4MCA4MCAwIDEgMCAxNjAgMCA4MCA4MCAwIDAgMC0xNjAgMHoiIGZpbGw9IiM2MzY1NkUiLz48L3N2Zz4=",
-                    "syncTime": true
-                },
-                "type": "远程调用",
-                "language": "go",
-                "operation": [
-                    {
-                        "target": "self",
-                        "value": "配置",
-                        "url": "/service-config?app_name=trpc-cluster-access-demo&service_name=bkm.order",
-                        "key": "",
-                        "icon": ""
-                    }
-                ],
-                "category": "rpc",
-                "kind": "service",
-                "labels": [],
-                "metric_data_status": {
-                    "icon": "normal"
-                },
-                "log_data_status": {
-                    "icon": "normal"
-                },
-                "trace_data_status": {
-                    "icon": "normal"
-                },
-                "profiling_data_status": {
-                    "icon": "no_data"
-                },
-                "request_count": {
-                    "datapoints": null,
-                    "unit": null
-                },
-                "error_rate": {
-                    "datapoints": null,
-                    "unit": "percentunit"
-                },
-                "avg_duration": {
-                    "datapoints": null,
-                    "unit": "ns"
-                }
-            },
-            {
-                "app_name": "trpc-cluster-access-demo",
-                "collect": {
-                    "is_collect": false,
-                    "api": "apm_metric.collectService",
-                    "params": {
-                        "service_name": "bkm.cart",
-                        "app_name": "trpc-cluster-access-demo"
-                    }
-                },
-                "service_name": {
-                    "target": "self",
-                    "value": "bkm.cart",
-                    "url": "/service/?filter-service_name=bkm.cart&filter-app_name=trpc-cluster-access-demo",
-                    "key": "",
-                    "icon": "data:image/svg+xml;base64,PHN2ZyBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCI+PHBhdGggZD0iTTYwMS4wMjQgOTkuNTg0YTMyIDMyIDAgMCAwLTguMDY0IDYzLjQ4OCAzODAuMzUyIDM4MC4zNTIgMCAwIDEgMTc1LjY4IDY5Ljk1MkM2NTIuODY0IDI1OS4zOTIgNjE3LjcyOCAzMzkuMDcyIDYxMC4zMDQgNDA4Yy0xMC43NTIgOTkuNzEyIDYwLjIyNCAxNTIgMTA3LjIgMTg2LjU2IDE2LjQ0OCAxMi4xNiA0MS4zNDQgMzAuNTkyIDQyLjQ5NiAzOS4xNjguMTI4IDEuMjE2LS45NiA1LjM3Ni02LjUyOCAxMi40MTYtNjEuMDU2IDc2LjkyOC04My44NCAxNDAuOC02Ny41ODQgMTg5Ljg4OCA0LjkyOCAxNC45MTIgMTUuMjk2IDMyLjg5NiAzNi4yODggNDcuODcyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSA1NDQgOTI4Yy0zLjAwOCAwLTUuOTUyLS4zMi04Ljk2LS40NDggNDAuMTI4LTY3LjM5MiAyNS43MjgtMTE4LjI3MiAzLjQ1Ni0xNTEuMDQtNTQuMDgtNzkuNDg4LTEzNC45MTItMTA0LjEyOC0yMTEuMDcyLTY0LjE5Mi01LjI0OCAyLjgxNi05LjYgMS42NjQtMzQuMzY4LTIxLjY5Ni0yNC40NDgtMjMuMDQtNjMuMjMyLTU4Ljg4LTEyMC4wNjQtNDguMzItNS4wNTYtMTkuMi04Ljk2LTM4Ljg0OC0xMS4wMDgtNTkuMmEzMiAzMiAwIDAgMC02My43NDQgNi40QTQ0Ni41MjggNDQ2LjUyOCAwIDAgMCA1NDQgOTkyLjA2NGMyNDcuMDQgMCA0NDgtMjAwLjk2IDQ0OC00NDhDOTkyIDMxOS4wNCA4MjMuOTM2IDEyOCA2MDEuMDI0IDk5LjY0OHpNMTk1LjA3MiA3MDQuMzJjMTguMzY4LjcwNCAzMy4xNTIgMTMuMTg0IDU0LjA4IDMyLjg5NiAyNCAyMi42NTYgNjAuMzUyIDU2LjcwNCAxMDguMDMyIDMxLjc0NCA2My4yOTYtMzMuMjggMTA3LjU4NCAxMi45OTIgMTI4LjMyIDQzLjUyIDguMTI4IDExLjkwNCAyOC45MjggNDIuNTYtMjIuNCAxMDYuNzUyQTM4MS44MjQgMzgxLjgyNCAwIDAgMSAxOTUuMDcyIDcwNC4zMnptNTg5LjM3NiAxMzguNjI0Yy0yMS4wNTYtNS45NTItMzMuODU2LTE1LjA0LTM3LjgyNC0yNy4wMDgtOC41NzYtMjUuNzkyIDEyLjY3Mi03NC40MzIgNTYuODk2LTEzMC4wNDggMTUuODcyLTE5Ljk2OCAyMi41OTItNDAuMzg0IDE5Ljg0LTYwLjYwOC00LjczNi0zNS41ODQtMzUuMzkyLTU4LjI0LTY3Ljk2OC04Mi4xNzYtNDMuMzkyLTMyLTg4LjMyLTY1LjA4OC04MS41MzYtMTI4LjE5MiA1LjU2OC01MS4yNjQgMjguMzUyLTExOC4zMzYgMTU2LjczNi0xMjYuMDhhMzgzLjIzMiAzODMuMjMyIDAgMCAxLTQ2LjE0NCA1NTQuMTc2ek0yNjYuNDk2IDU5OS42OGEzMiAzMiAwIDAgMCA0My4wNzIgMEM0NTYuNTEyIDQ2Ni4wNDggNTI4IDM1OC44NDggNTI4IDI3MkEyNDAuMjU2IDI0MC4yNTYgMCAwIDAgMjg4IDMyIDI0MC4yNTYgMjQwLjI1NiAwIDAgMCA0OCAyNzJjMCA4Ni43ODQgNzEuNDg4IDE5NC4wNDggMjE4LjQzMiAzMjcuNjh6TTI4OCA5NmExNzYuMTkyIDE3Ni4xOTIgMCAwIDEgMTc2IDE3NmMwIDQzLjkwNC0zMS4yMzIgMTI0LjE2LTE3NiAyNjAuNDE2QzE0My4yMzIgMzk2LjA5NiAxMTIgMzE1Ljg0IDExMiAyNzJBMTc2LjE5MiAxNzYuMTkyIDAgMCAxIDI4OCA5NnptLTgwIDE3NmE4MCA4MCAwIDEgMCAxNjAgMCA4MCA4MCAwIDAgMC0xNjAgMHoiIGZpbGw9IiM2MzY1NkUiLz48L3N2Zz4=",
-                    "syncTime": true
-                },
-                "type": "远程调用",
-                "language": "go",
-                "operation": [
-                    {
-                        "target": "self",
-                        "value": "配置",
-                        "url": "/service-config?app_name=trpc-cluster-access-demo&service_name=bkm.cart",
                         "key": "",
                         "icon": ""
                     }
@@ -861,7 +519,7 @@
 
 4. **异步数据加载**：
     - 部分字段（如 `request_count`、`error_rate`、`avg_duration`、数据状态、策略数、告警状态）为异步加载，首次请求可能不包含这些数据，需要通过异步接口单独获取。
-    - 数据状态信息可通过 `is_contain_data_status` 参数控制是否返回数据状态信息
+    - 数据状态信息可通过 `include_data_status` 参数控制是否返回数据状态信息
 
 5. **展示模式**：
     - `page_home`：首页模式，返回的 `filter` 包含所有筛选维度
