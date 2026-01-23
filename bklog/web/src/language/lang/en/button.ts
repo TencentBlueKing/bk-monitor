@@ -230,4 +230,6 @@ export default {
   点击加载更多: 'Click to load more',
   批量上传: 'Batch Upload',
   测试匹配: 'Test Match',
+  权限中心: 'Permission Center',
+  个人中心: 'Personal Center',
 };

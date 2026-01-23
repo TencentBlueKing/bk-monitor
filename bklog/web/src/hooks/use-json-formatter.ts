@@ -164,12 +164,14 @@ export default class UseJsonFormatter {
     if (!value.toString() || value === '--') {
       return;
     }
-    const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
-    const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;
-    traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
 
     const valueElement = (e.target as HTMLElement).closest('.field-value') as HTMLElement;
     const fieldName = valueElement?.getAttribute('data-field-name');
+    const fieldType = valueElement?.getAttribute('data-field-type');
+
+    const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
+    const traceView = content.value.querySelector('[data-item-id="trace-view"]') as HTMLElement;
+    traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
 
     // 从点击的元素获取预计算的匹配配置
     const clickedElement = e.target as HTMLElement;
@@ -178,6 +180,23 @@ export default class UseJsonFormatter {
     // 动态内容处理
     const dynamicOptions = this.getDynamicOptions(value, fieldName, matchedConfigsAttr);
     UseSegmentPropInstance.setDynamicContent(dynamicOptions);
+
+    // 根据字段信息隐藏虚拟字段相关的选项
+    const isVirtualField = fieldType === '__virtual__';
+    const virtualFieldHiddenItems = ['is', 'not', 'new-search-page-is']; // 需要隐藏的选项
+
+    virtualFieldHiddenItems.forEach((itemId) => {
+      const element = content.value.querySelector(`[data-item-id="${itemId}"]`) as HTMLElement;
+      element?.style.setProperty('display', isVirtualField ? 'none' : 'inline-flex');
+    });
+
+    // 这里的动态样式用于只显示"添加到本次检索"、"从本次检索中排除"
+    const hasSegmentLightStyle = document.getElementById('dynamic-segment-light-style') !== null;
+
+    // 若是应用了动态样式(实时日志/上下文)，且是虚拟字段，则不显示弹窗(弹窗无内容)
+    if (hasSegmentLightStyle && isVirtualField) {
+      return;
+    }
 
     const { offsetX, offsetY } = getClickTargetElement(e);
     const target = setPointerCellClickTargetHandler(e, { offsetX, offsetY });
@@ -515,6 +534,7 @@ export default class UseJsonFormatter {
         const vlaues = this.getSplitList(field, text);
         element?.setAttribute('data-has-word-split', '1');
         element?.setAttribute('data-field-name', fieldName);
+        element?.setAttribute('data-field-type', field?.field_type);
 
         if (element.hasAttribute('data-with-intersection')) {
           (element as HTMLElement).style.setProperty('min-height', `${(element as HTMLElement).offsetHeight}px`);

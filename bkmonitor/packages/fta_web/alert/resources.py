@@ -20,8 +20,8 @@ from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from functools import reduce
 from io import StringIO
-from typing import Any
 from itertools import chain
+from typing import Any
 
 from django.conf import settings
 from django.core.cache import cache
@@ -1449,12 +1449,6 @@ class AlertGraphQueryResource(ApiAuthResource):
             return result
 
         point = [alert.origin_alarm["data"]["value"], threshold_band["from"]]
-        point_time_list = [point[1] for point in data[0]["datapoints"]]
-        first_anomaly_in_time_range = start_time <= threshold_band["from"] <= end_time
-        if threshold_band["from"] not in point_time_list and first_anomaly_in_time_range:
-            position = bisect.bisect(point_time_list, threshold_band["from"])
-            data[0]["datapoints"].insert(position, point)
-
         mark_points = [point]
 
         # 离群检测算法特殊处理
@@ -1465,13 +1459,25 @@ class AlertGraphQueryResource(ApiAuthResource):
             # 离群检测算法不需要异常点
             mark_points = []
 
-            # 离群检测所有维度都需要区域
-            for data_item in data:
-                data_item["markTimeRange"] = [threshold_band]
+        # 遍历所有 series，给 time_offset 为 current 的 series 添加标记
+        for series in data:
+            time_offset = series.get("time_offset", "current")
+            if time_offset != "current":
+                continue
 
-        data[0]["markTimeRange"] = [threshold_band]
-        data[0]["markPoints"] = mark_points
-        data[0]["thresholds"] = threshold_line
+            # 添加异常时间范围标记
+            series["markTimeRange"] = [threshold_band]
+
+            # 插入异常点到数据点列表中
+            point_time_list = [point[1] for point in series["datapoints"]]
+            first_anomaly_in_time_range = start_time <= threshold_band["from"] <= end_time
+            if threshold_band["from"] not in point_time_list and first_anomaly_in_time_range:
+                position = bisect.bisect(point_time_list, threshold_band["from"])
+                series["datapoints"].insert(position, point)
+
+            # 所有当前时间的 series 都添加异常点标记和阈值线
+            series["markPoints"] = mark_points
+            series["thresholds"] = threshold_line
 
         return result
 
@@ -1944,10 +1950,14 @@ class ExportActionResource(Resource):
 
     class RequestSerializer(ActionSearchSerializer):
         ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
 
     def perform_request(self, validated_request_data):
         handler = ActionQueryHandler(**validated_request_data)
-        return resource.export_import.export_package(list_data=handler.export())
+        return resource.export_import.export_package(
+            list_data=handler.export(),
+            bk_biz_id=validated_request_data["bk_biz_id"],
+        )
 
 
 class AlertExtendFields(Resource):
