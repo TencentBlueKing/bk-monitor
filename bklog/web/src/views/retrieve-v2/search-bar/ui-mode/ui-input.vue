@@ -216,6 +216,7 @@ const {
     hideOnClick: true,
     placement: 'top',
     delay: [0, 300],
+    appendTo: document.body,
     onHide: () => {
       refPopInstance.value?.beforeHideFn?.();
     },
@@ -881,7 +882,6 @@ const handleBatchInputChange = (isShow) => {
           padding: 0 4px;
           font-weight: 500;
           background-image: linear-gradient(128deg, #235DFA 0%, #E28BED 100%);
-          background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
         }

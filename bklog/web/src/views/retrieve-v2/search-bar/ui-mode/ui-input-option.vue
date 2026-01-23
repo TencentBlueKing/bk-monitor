@@ -545,7 +545,14 @@ const handleFieldItemClick = (item, index, activeCondition = true) => {
   }
 
   if (!isValidateEgges(item)) {
-    conditionValueInstance.hide(100);
+    // 如果是全文检索字段，等待 DOM 更新完成后再隐藏弹窗
+    if (item.field_name === '*') {
+      nextTick(() => {
+        conditionValueInstance.hide(0);
+      });
+    } else {
+      conditionValueInstance.hide(100);
+    }
   }
 
   setFullTextFocus();
