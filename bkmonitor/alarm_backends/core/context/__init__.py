@@ -27,6 +27,7 @@ from bkmonitor.models import (
     GlobalConfig,
 )
 from bkmonitor.utils.common_utils import count_md5
+from bkmonitor.utils.time_tools import get_user_timezone
 from constants import alert as alert_constants
 from constants.action import (
     ActionSignal,
@@ -75,6 +76,7 @@ class ActionContext:
         "action_instance",
         "action_instance_content",
         "collect_ctx",
+        "user_timezone",
     ]
 
     DEFAULT_TITLE_TEMPLATE = alert_constants.DEFAULT_TITLE_TEMPLATE
@@ -133,6 +135,9 @@ class ActionContext:
         )
         # 是否强制使用缓存
         self.use_alert_snap = use_alert_snap
+
+        # 初始化用户时区相关属性
+        self._user_timezone = None
 
     def get_notice_channel(self):
         """
@@ -207,6 +212,51 @@ class ActionContext:
     @cached_property
     def notice_title(self):
         return GlobalConfig.get("NOTICE_TITLE", _("蓝鲸监控"))
+
+    @cached_property
+    def user_timezone(self):
+        """
+        获取用户时区名称
+        优先从action中获取接收人,然后获取其时区
+        如果获取失败,使用业务时区
+        """
+        # 获取接收人用户名
+        username = self._get_primary_username()
+        if not username:
+            # 没有明确用户,返回None,使用业务时区
+            self._user_timezone = None
+            return self._user_timezone
+
+        # 获取用户时区
+        tz_obj = get_user_timezone(username)
+        if tz_obj:
+            self._user_timezone = str(tz_obj)
+        else:
+            self._user_timezone = None
+
+        return self._user_timezone
+
+    def _get_primary_username(self):
+        """
+        获取主要接收人用户名
+        优先从action的notice_receiver获取
+        """
+        # 从action中获取接收人
+        if hasattr(self, "notice_receiver") and self.notice_receiver:
+            receiver = self.notice_receiver
+            # notice_receiver可能是字符串或列表
+            if isinstance(receiver, list):
+                return receiver[0] if receiver else None
+            return receiver
+
+        # 从action实例获取
+        if self.action:
+            context = self.action.get_context()
+            receivers = context.get("notice_receiver", [])
+            if receivers:
+                return receivers[0] if isinstance(receivers, list) else receivers
+
+        return None
 
     @cached_property
     def related_actions(self):
