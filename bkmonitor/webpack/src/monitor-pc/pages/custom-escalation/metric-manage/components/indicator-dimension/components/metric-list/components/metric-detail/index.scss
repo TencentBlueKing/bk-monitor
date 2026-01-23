@@ -190,6 +190,10 @@ $border-color: #d9d9d9;
             width: 100%;
             border: 1px solid transparent;
 
+            &.is-disabled {
+              background-color: transparent !important;
+            }
+
             .icon-angle-down {
               display: none;
             }

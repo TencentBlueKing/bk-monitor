@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, InjectReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { ALL_LABEL, NULL_LABEL, type IGroupListItem } from '../../../../type';
 import EditGroupDialog from '../edit-group';
-import { createOrUpdateGroupingRule, type IGroupingRule } from '../../../../../service';
+import type { IGroupingRule } from '../../../../../service';
+import type { RequestHandlerMap } from '../../../../type';
 
 import './index.scss';
 
@@ -57,6 +58,12 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
   @Prop({ default: 0 }) nonGroupNum: IProps['nonGroupNum'];
   @Prop({ default: false }) isSearchMode: IProps['isSearchMode'];
   @Prop({ default: () => new Map() }) groupsMap: IProps['groupsMap'];
+
+  @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
+  @InjectReactive('requestHandlerMap') readonly requestHandlerMap: RequestHandlerMap;
+  @InjectReactive('isAPM') readonly isAPM: boolean;
+  @InjectReactive('appName') readonly appName: string;
+  @InjectReactive('serviceName') readonly serviceName: string;
 
   @Ref('editGroupDialogRef') readonly editGroupDialogRef!: InstanceType<typeof EditGroupDialog>;
   @Ref('groupListRef') readonly groupListRef!: HTMLDivElement;
@@ -124,6 +131,19 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
   handleGroupListChange(list: IGroupListItem[]) {
     if (list.length > 0 && !this.isInit) {
       this.isInit = true;
+      if (this.isAPM) {
+        const viewPayload = JSON.parse(this.$route.query.viewPayload as string);
+        const { metrics } = viewPayload;
+        if (metrics.length > 0) {
+          const [firstMetric] = metrics;
+          const activeGroup = this.groupList.find(item => item.name === firstMetric.scope_name);
+          this.changeSelectedLabel({
+            id: activeGroup?.scopeId || 0,
+            name: activeGroup?.name || '',
+          });
+        }
+        return;
+      }
       this.changeSelectedLabel(
         {
           id: -1,
@@ -166,7 +186,7 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
   // @Emit('groupListOrder')
   // saveGroupRuleOrder(tab) {
   //   this.$store.dispatch('custom-escalation/saveGroupingRuleOrder', {
-  //     time_series_group_id: this.$route.params.id,
+  //     time_series_group_id: this.timeSeriesGroupId,
   //     group_names: tab.map(item => item.name),
   //   });
   //   return tab;
@@ -208,10 +228,21 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
    * 提交分组配置（新增或更新）
    * @param config 分组配置信息
    */
-  async handleSubmitGroup(config: ServiceParameters<typeof createOrUpdateGroupingRule>) {
-    await createOrUpdateGroupingRule({
+  async handleSubmitGroup(config: ServiceParameters<typeof this.requestHandlerMap.createOrUpdateGroupingRule>) {
+    const params = {
+      time_series_group_id: this.timeSeriesGroupId,
       ...config,
-      time_series_group_id: Number(this.$route.params.id),
+    };
+    if (this.isAPM) {
+      delete params.time_series_group_id;
+      Object.assign(params, {
+        app_name: this.appName,
+        service_name: this.serviceName,
+      });
+    }
+    const data = await this.requestHandlerMap.createOrUpdateGroupingRule(params);
+    Object.assign(config, {
+      scope_id: data.scope_id,
     });
     this.showAddGroupDialog = false;
     this.$emit('editGroupSuccess', config, !this.isEdit);

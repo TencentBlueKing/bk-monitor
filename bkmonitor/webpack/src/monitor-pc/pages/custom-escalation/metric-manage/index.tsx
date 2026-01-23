@@ -28,10 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import {
   customTimeSeriesDetail,
-  getCustomTsFields,
-  // getCustomTimeSeriesLatestDataByFields,
-  getUnitList,
+  type getCustomTsFields,
   modifyCustomTimeSeries,
+  type ICustomTimeSeriesDetail,
 } from '../service';
 
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
@@ -39,8 +38,6 @@ import IndicatorDimension from './components/indicator-dimension';
 
 import BasicInfo from './components/basic-info';
 import HelpInfo from './components/help-info';
-
-import type { IDetailData } from '../../../types/custom-escalation/custom-escalation-detail';
 
 import './index.scss';
 
@@ -62,7 +59,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   isShowHelpPanel = (localStorage.getItem(this.helpPanelStorageKey) ?? 'true') === 'true';
 
   // 详情数据
-  detailData: IDetailData = {
+  detailData = {
+    time_series_group_id: 0,
     bk_data_id: 0,
     access_token: '',
     name: '',
@@ -73,40 +71,12 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     protocol: '',
     last_time: '',
     auto_discover: false,
-  };
-
-  /** 单位列表，用于指标单位的展示和选择 */
-  unitList: ServiceReturnType<typeof getUnitList> = [];
-
-  /** 指标列表，包含所有自定义时序指标的配置信息 */
-  metricList: ICustomTsFields['metrics'] = [];
-
-  /** 维度列表，包含所有自定义时序指标的维度信息 */
-  dimensions: ICustomTsFields['dimensions'] = [];
-
-  /** 所有指标的数据预览，以字段ID为key存储最新的数据值 */
-  // allDataPreview: Record<string, any> = {};
-
-  /** 指标维度数据，包含指标列表和额外的选择状态、监控类型等信息 */
-  metricData: (ICustomTsFields['metrics'][number] & { selection: boolean; monitor_type: string })[] = [];
-
-  /**
-   * 加载静态数据（单位列表）
-   */
-  async loadStaticData(): Promise<void> {
-    try {
-      const unitList = await getUnitList();
-      this.unitList = unitList;
-    } catch (error) {
-      console.error('加载静态数据失败:', error);
-    }
-  }
+  } as ICustomTimeSeriesDetail;
 
   /**
    * 组件创建时的初始化
    */
   async created(): Promise<void> {
-    await this.loadStaticData();
     await this.getDetailData();
   }
 
@@ -117,66 +87,19 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   async getDetailData(needLoading = true): Promise<void> {
     this.loading = needLoading;
     try {
-      const [detailData, metricData] = await Promise.all([
-        customTimeSeriesDetail({
-          with_metrics: false, // 不获取指标数据，用 get ts fields 获取
-          time_series_group_id: Number(this.$route.params.id),
-        }),
-        getCustomTsFields({
-          time_series_group_id: Number(this.$route.params.id),
-        }),
-      ]);
+      const detailData = await customTimeSeriesDetail({
+        with_metrics: false, // 不获取指标数据，用 get ts fields 获取
+        time_series_group_id: Number(this.$route.params.id),
+      });
 
       this.detailData = detailData || this.detailData;
-
-      // 处理指标函数数据
-      for (const item of metricData?.metrics || []) {
-        if (!item?.config.function?.[0]) {
-          item.config.function = [];
-        }
-      }
-
-      this.metricList = metricData?.metrics || [];
-      this.dimensions = metricData?.dimensions || [];
-
-      // await this.getAllDataPreview(metricData.metrics, this.detailData.table_id);
-      this.handleDetailData();
+      this.copyIsPlatform = this.detailData.is_platform ?? false;
     } catch (error) {
       console.error('获取详情数据失败:', error);
     } finally {
       this.loading = false;
     }
   }
-
-  /**
-   * 处理详情数据
-   * 将指标列表转换为包含选择状态和监控类型的指标数据，并更新平台标识
-   */
-  handleDetailData() {
-    this.metricData = this.metricList.map(item => ({
-      ...item,
-      selection: false,
-      // descReValue: false,
-      monitor_type: 'metric',
-    }));
-    this.copyIsPlatform = this.detailData.is_platform ?? false;
-  }
-
-  /**
-   * 获取所有指标的数据预览数据
-   * @param fields 指标字段列表
-   * @param tableId 结果表ID，用于查询数据
-   */
-  // async getAllDataPreview(fields: ICustomTsFields['metrics'], tableId) {
-  //   const data = await getCustomTimeSeriesLatestDataByFields({
-  //     result_table_id: tableId,
-  //     metric_list: fields.map(item => ({
-  //       field_id: item.id,
-  //       metric_name: item.name,
-  //     })),
-  //   });
-  //   this.allDataPreview = data?.fields_value || {};
-  // }
 
   /**
    * 编辑字段通用方法
@@ -274,19 +197,12 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
             {/* 指标/维度列表 */}
             <div class='custom-detail-page-table'>
               <IndicatorDimension
-                class='detail-information detail-list'
-                detailData={this.detailData}
-                // allDataPreview={this.allDataPreview}
-                dimensions={this.dimensions}
-                metricList={this.metricData}
-                unitList={this.unitList}
-                onRefresh={() => {
-                  this.getDetailData(false);
-                }}
+                isAPMPage={false}
+                metricId={this.detailData.time_series_group_id}
+                metricName={this.detailData.name}
               />
             </div>
           </div>
-
           {/* 右侧帮助面板 */}
           <HelpInfo
             detailData={this.detailData}

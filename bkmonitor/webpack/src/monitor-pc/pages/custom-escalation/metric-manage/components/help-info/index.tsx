@@ -26,8 +26,7 @@
 import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { IDetailData } from '../../../../../types/custom-escalation/custom-escalation-detail';
-import { proxyHostInfo } from '../../../service';
+import { proxyHostInfo, type ICustomTimeSeriesDetail } from '../../../service';
 
 import './index.scss';
 
@@ -38,7 +37,7 @@ interface IProps {
   /** 是否显示帮助面板 */
   isShow: boolean;
   /** 详情数据，包含数据通道ID、访问令牌等信息 */
-  detailData: IDetailData;
+  detailData: ICustomTimeSeriesDetail;
 }
 @Component
 export default class HelpInfo extends tsc<IProps> {
@@ -88,7 +87,7 @@ export default class HelpInfo extends tsc<IProps> {
    * @param detailData 详情数据对象
    */
   @Watch('detailData', { immediate: true })
-  handleDetailDataChange(detailData: IDetailData): void {
+  handleDetailDataChange(detailData: ICustomTimeSeriesDetail): void {
     // 生成指标部分的JSON字符串模板
     const str = `# ${this.$t('指标，必需项')}
         "metrics": {
@@ -305,7 +304,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             <div class='content-example'>
               {this.proxyInfo.map((item, index) => (
                 <div key={index}>
-                  {this.$t('管控区域')} {item.bk_cloud_id}
+                  {this.$t('管控区域')} {item.bkCloudId}
                   <span style={{ marginLeft: '10px' }}>{item.ip}</span>
                 </div>
               ))}

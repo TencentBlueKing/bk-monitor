@@ -1,18 +1,17 @@
-import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
+import { Component, Ref, Prop, Watch, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import TableSkeleton from '@/components/skeleton/table-skeleton';
-import EmptyStatus from '@/components/empty-status/empty-status';
-import { getCustomTsFields } from '@/pages/custom-escalation/service';
-import CommonTable from '@/pages/monitor-k8s/components/common-table';
-import type { EmptyStatusType } from '@/components/empty-status/types';
+import TableSkeleton from '../../../../../../../../../../../components/skeleton/table-skeleton';
+import EmptyStatus from '../../../../../../../../../../../components/empty-status/empty-status';
+import CommonTable from '../../../../../../../../../../../pages/monitor-k8s/components/common-table';
+import type { EmptyStatusType } from '../../../../../../../../../../../components/empty-status/types';
 import type { IListItem } from '../result-preview';
 import { Debounce } from 'monitor-common/utils';
-import type { IGroupingRule } from '../../../../../../../../../service';
-import { NULL_LABEL } from '../../../../../../../../type';
+import type { IGroupingRule, ICustomTsFields } from '../../../../../../../../../service';
+import { NULL_LABEL, type RequestHandlerMap } from '../../../../../../../../type';
 
 import './index.scss';
 
-export type ITableRowData = ServiceReturnType<typeof getCustomTsFields>['metrics'][number];
+export type ITableRowData = ICustomTsFields['metrics'][number];
 
 @Component({
   name: 'ManualGroup',
@@ -24,6 +23,12 @@ export default class ManualGroup extends tsc<any> {
   @Prop() groupInfo: IGroupingRule;
   /** 已手动选择的指标列表 */
   @Prop({ default: () => [] }) manualList: IListItem[];
+
+  @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
+  @InjectReactive('isAPM') readonly isAPM: boolean;
+  @InjectReactive('requestHandlerMap') readonly requestHandlerMap: RequestHandlerMap;
+  @InjectReactive('appName') readonly appName: string;
+  @InjectReactive('serviceName') readonly serviceName: string;
 
   /** 表格组件引用 */
   @Ref('tableRef') readonly tableRef!: InstanceType<typeof CommonTable>;
@@ -50,7 +55,9 @@ export default class ManualGroup extends tsc<any> {
     { id: 'regex', name: this.$t('正则匹配') },
   ];
   /** 标识是否正在执行分页操作，用于避免分页时的选择变化触发事件 */
-  isPageChange: boolean = false;
+  isPageChange = false;
+  /** 标识是否正在执行搜索操作 */
+  isSearchChange = false;
   /** 表格配置数据 */
   tableData = {
     checkable: false,
@@ -149,6 +156,7 @@ export default class ManualGroup extends tsc<any> {
       (this.tableData.pagination.current - 1) * this.tableData.pagination.limit,
       this.tableData.pagination.current * this.tableData.pagination.limit
     );
+    this.tableData.pagination.count = filteredMetrics.length;
     this.$nextTick(() => {
       this.handleManualListChange();
     });
@@ -236,9 +244,18 @@ export default class ManualGroup extends tsc<any> {
    */
   initTableData() {
     this.tableData.loading = true;
-    getCustomTsFields({
-      time_series_group_id: Number(this.$route.params.id),
-    })
+    const params = {
+      time_series_group_id: this.timeSeriesGroupId,
+    };
+    if (this.isAPM) {
+      delete params.time_series_group_id;
+      Object.assign(params, {
+        app_name: this.appName,
+        service_name: this.serviceName,
+      });
+    }
+    this.requestHandlerMap
+      .getCustomTsFields(params)
       .then(res => {
         const filteredMetrics = res.metrics.filter(
           item => item.scope.name === NULL_LABEL || item.scope.id === this.groupInfo.scope_id
@@ -269,6 +286,7 @@ export default class ManualGroup extends tsc<any> {
    */
   @Debounce(500)
   handleSearchInput() {
+    this.isSearchChange = true;
     this.tableData.pagination.current = 1;
     this.updateTableData();
   }
@@ -279,8 +297,9 @@ export default class ManualGroup extends tsc<any> {
    * @return {*}
    */
   handleSelectChange(selectList: ITableRowData[]) {
-    if (this.isPageChange) {
+    if (this.isPageChange || this.isSearchChange) {
       this.isPageChange = false;
+      this.isSearchChange = false;
       return;
     }
 
@@ -336,7 +355,6 @@ export default class ManualGroup extends tsc<any> {
           v-model={this.searchValue}
           clearable={false}
           placeholder={this.$t('搜索 指标名、别名')}
-          // right-icon='bk-icon icon-search'
           onInput={this.handleSearchInput}
         >
           <div

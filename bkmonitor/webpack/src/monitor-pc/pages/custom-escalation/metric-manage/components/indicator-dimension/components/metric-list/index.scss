@@ -111,11 +111,6 @@ $border-color: #d9d9d9;
 
     .table-box {
       flex: 1;
-
-      // min-width: 0;
-
-      // height: 508px;
-      height: calc(100vh - 545px) !important;
       overflow: -moz-scrollbars-none; /* Firefox */
       overflow: hidden;
       scrollbar-width: none; /* Firefox 64+ */

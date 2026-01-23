@@ -23,18 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { Debounce, deepClone } from 'monitor-common/utils';
 import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 
-import { METHOD_LIST } from '@/constant/constant';
-import FunctionSelect from '@/pages/strategy-config/strategy-config-set-new/monitor-data/function-select';
-import { matchRuleFn } from '../../../../../../../group-manage-dialog';
-import { modifyCustomTsFields, type ICustomTsFields, type IUnitItem } from '../../../../../../../service';
-import { DEFAULT_HEIGHT_OFFSET, type IGroupListItem, NULL_LABEL } from '../../../../../../type';
+import { METHOD_LIST } from '../../../../../../../../../constant/constant';
+import FunctionSelect from '../../../../../../../../strategy-config/strategy-config-set-new/monitor-data/function-select';
+import { matchRuleFn } from '../../../../../../utils';
+import type { ICustomTsFields, IUnitItem } from '../../../../../../../service';
+import { DEFAULT_HEIGHT_OFFSET, type IGroupListItem, NULL_LABEL, type RequestHandlerMap } from '../../../../../../type';
 
 import './index.scss';
 
@@ -68,6 +68,13 @@ export default class MetricDetail extends tsc<IProps, any> {
   // @Prop({ default: () => {} }) allDataPreview: IProps['allDataPreview'];
   @Prop({ default: () => new Map(), type: Map }) groupsMap: IProps['groupsMap'];
   @Prop({ default: () => {} }) defaultGroupInfo: IProps['defaultGroupInfo'];
+
+  @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
+  @InjectReactive('requestHandlerMap') readonly requestHandlerMap: RequestHandlerMap;
+  @InjectReactive('isAPM') readonly isAPM: boolean;
+  @InjectReactive('appName') readonly appName: string;
+  @InjectReactive('serviceName') readonly serviceName: string;
+
   /** 别名输入框引用 */
   @Ref() readonly descriptionInput!: HTMLInputElement;
   /** 汇聚方法选择器引用 */
@@ -189,10 +196,18 @@ export default class MetricDetail extends tsc<IProps, any> {
       updateField.scope = v;
     }
     try {
-      await modifyCustomTsFields({
-        time_series_group_id: Number(this.$route.params.id),
+      const params = {
+        time_series_group_id: this.timeSeriesGroupId,
         update_fields: [updateField],
-      });
+      };
+      if (this.isAPM) {
+        delete params.time_series_group_id;
+        Object.assign(params, {
+          app_name: this.appName,
+          service_name: this.serviceName,
+        });
+      }
+      await this.requestHandlerMap.modifyCustomTsFields(params);
       this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
       if (k === 'scope') {
         this.$emit('refresh');
@@ -336,6 +351,7 @@ export default class MetricDetail extends tsc<IProps, any> {
         key={row.name}
         clearable={false}
         value={row.scope.id}
+        disabled={!row.movable}
         displayTag
         searchable
         onChange={(v: number) => this.handleGroupSelectToggle(v, row)}

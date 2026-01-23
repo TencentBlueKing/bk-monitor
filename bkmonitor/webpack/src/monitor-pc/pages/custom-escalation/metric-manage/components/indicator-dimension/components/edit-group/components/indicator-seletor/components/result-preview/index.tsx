@@ -122,6 +122,9 @@ export default class ResultPreview extends tsc<any> {
       this.localManualList.push(...deletedItems);
     }
     this.localManualListTotalList = _.cloneDeep(this.localManualList);
+    if (this.isOnlyShowChanged) {
+      this.handleOnlyShowChangedChange(true);
+    }
   }
 
   /**
@@ -261,7 +264,7 @@ export default class ResultPreview extends tsc<any> {
             ext-cls='collapse-main'
           >
             <bk-collapse-item name='auto'>
-              <span>{this.$t('自动匹配规则')}：</span>
+              <span>{this.$t('自动发现规则')}：</span>
               <i18n path='{0} 个表达式'>
                 <span style='font-weight: 700;color: #3A84FF'>{this.validSelectedAutoListCount}</span>
               </i18n>

@@ -1,9 +1,9 @@
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Watch, InjectReactive, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { previewGroupingRule } from '../../../../../../../../../../../service';
 
 import './index.scss';
 import type { IListItem } from '../../../result-preview';
+import type { RequestHandlerMap } from '../../../../../../../../../../type';
 
 @Component({
   name: 'RegexOperation',
@@ -11,6 +11,12 @@ import type { IListItem } from '../../../result-preview';
 export default class RegexOperation extends tsc<any> {
   /** 列表项数据 */
   @Prop({ default: () => {} }) data: IListItem;
+
+  @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
+  @InjectReactive('requestHandlerMap') readonly requestHandlerMap: RequestHandlerMap;
+  @InjectReactive('isAPM') readonly isAPM: boolean;
+  @InjectReactive('appName') readonly appName: string;
+  @InjectReactive('serviceName') readonly serviceName: string;
 
   /** 正则表达式的值 */
   regexValue = '';
@@ -67,10 +73,18 @@ export default class RegexOperation extends tsc<any> {
   async handlePreview() {
     this.previewLoading = true;
     try {
-      const { auto_metrics: autoMetrics } = await previewGroupingRule({
-        time_series_group_id: Number(this.$route.params.id),
+      const params = {
+        time_series_group_id: this.timeSeriesGroupId,
         auto_rules: [this.regexValue],
-      });
+      };
+      if (this.isAPM) {
+        delete params.time_series_group_id;
+        Object.assign(params, {
+          app_name: this.appName,
+          service_name: this.serviceName,
+        });
+      }
+      const { auto_metrics: autoMetrics } = await this.requestHandlerMap.previewGroupingRule(params);
       this.matchedMetrics = autoMetrics[0]?.metrics || [];
     } finally {
       this.previewLoading = false;
@@ -176,17 +190,21 @@ export default class RegexOperation extends tsc<any> {
           onBlur={this.handleRegexBlur}
           onEnter={this.handleRegexEnter}
         />
-        <bk-button
-          size='small'
-          class='preview-btn'
-          theme='primary'
-          loading={this.previewLoading}
-          disabled={!this.regexValue}
-          outline
-          onClick={this.handlePreview}
-        >
-          {this.$t('预览')}
-        </bk-button>
+        <div class='preview-btn-main'>
+          <bk-button
+            size='small'
+            class='preview-btn'
+            theme='primary'
+            loading={this.previewLoading}
+            disabled={!this.regexValue}
+            outline
+            onClick={this.handlePreview}
+          >
+            {this.$t('预览')}
+          </bk-button>
+          <span class='icon-monitor icon-tishi' />
+          <span class='tip-text'>{this.$t('以下指标不会被加入到分组，仅用来规则测试。')}</span>
+        </div>
         {this.generatePreviewResult()}
       </div>
     );

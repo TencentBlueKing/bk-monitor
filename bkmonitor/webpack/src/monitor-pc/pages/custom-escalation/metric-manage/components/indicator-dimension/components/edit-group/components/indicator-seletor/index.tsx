@@ -36,7 +36,7 @@ export default class IndicatorSelector extends tsc<any> {
       id: 'manual',
     },
     {
-      name: this.$t('自动匹配'),
+      name: this.$t('自动发现'),
       id: 'auto',
     },
   ];

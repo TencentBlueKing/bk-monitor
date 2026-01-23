@@ -26,9 +26,8 @@
 import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import VerifyInput from '@/components/verify-input/verify-input.vue';
-import { validateCustomTsGroupName, validateCustomTsGroupLabel } from '../../../service';
 import { execCopy } from '../../utils';
-import type { IDetailData } from '@/types/custom-escalation/custom-escalation-detail';
+import { validateCustomTsGroupName, validateCustomTsGroupLabel, type ICustomTimeSeriesDetail } from '../../../service';
 
 import './index.scss';
 
@@ -37,7 +36,7 @@ import './index.scss';
  */
 interface IProps {
   /** 详情数据 */
-  detailData: IDetailData;
+  detailData: ICustomTimeSeriesDetail;
   /** 是否为平台级别（用于判断作用范围） */
   copyIsPlatform: boolean;
 }
@@ -109,10 +108,10 @@ export default class BasicInfo extends tsc<IProps, IEmits> {
 
   /**
    * 监听详情数据变化，同步更新临时编辑值
-   * @param {IDetailData} newVal - 新的详情数据
+   * @param {ICustomTimeSeriesDetail} newVal - 新的详情数据
    */
   @Watch('detailData', { immediate: true })
-  handleDetailDataChange(newVal: IDetailData) {
+  handleDetailDataChange(newVal: ICustomTimeSeriesDetail) {
     this.copyName = newVal.name;
     this.copyDataLabel = newVal.data_label;
     this.copyDescribe = newVal.desc;

@@ -24,6 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+import type * as apiMap from '../service';
+
+type RequestHandlerKey = keyof typeof apiMap;
+
+export type RequestHandlerMap = {
+  [K in RequestHandlerKey]: (typeof apiMap)[K];
+};
+
 /** 全量 */
 export const ALL_OPTION = 'allOption';
 /** 勾选项 */

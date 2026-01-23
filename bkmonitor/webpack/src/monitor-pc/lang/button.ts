@@ -274,6 +274,9 @@ export default {
   前往选择监控目标: 'Go to Select Targets',
   采集器安装前往节点管理: 'Go to NodeMan',
   手动选择: 'Manual Selection',
+  自动发现: 'Automatic Discovery',
+  自动发现规则: 'Automatic Discovery Rules',
+  恢复: 'Recover',
 
   // - Tool Text：工具栏文本，用于描述工具栏按钮的作用，例如“新建”、“保存”等。
   // 图表操作类

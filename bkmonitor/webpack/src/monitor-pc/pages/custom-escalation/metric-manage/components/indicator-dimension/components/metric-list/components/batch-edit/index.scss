@@ -64,8 +64,9 @@
       }
 
       .hover-row {
-        .func-item {
-          background-color: #f5f7fa;
+        .func-item,
+        .init-add-input {
+          background: #f5f7fa;
         }
       }
 
@@ -110,6 +111,10 @@
           &:hover {
             border: 1px solid #ff5656;
           }
+        }
+
+        &:has(.dimension-input) {
+          padding: 0;
         }
 
         &:has(.slider-select) {
@@ -281,7 +286,9 @@
 
               .tag-list {
                 width: 100%;
+                min-height: 38px;
                 max-height: 10000px;
+                padding-top: 3px;
                 padding-left: 15px;
                 border: none;
               }
@@ -289,8 +296,6 @@
               &.active {
                 .tag-list {
                   height: auto;
-                  min-height: 32px;
-                  margin-top: 4px;
                   border: 1px solid #3a84ff;
                 }
               }

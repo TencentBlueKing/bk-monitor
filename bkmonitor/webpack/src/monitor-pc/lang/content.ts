@@ -414,4 +414,6 @@ export default {
   选择指标: 'Select metrics',
   模糊搜索: 'Fuzzy search',
   正则表达式: 'Regular expression',
+  '根据规则自动发现未来新指标，存量指标不生效。':
+    'Automatically discover new metrics according to rules, existing metrics do not take effect.',
 };
