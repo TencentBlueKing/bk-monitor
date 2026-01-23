@@ -432,7 +432,7 @@ export default class UseJsonFormatter {
 
       container.childNodes.forEach((node) => {
         if (node.nodeType === Node.TEXT_NODE) {
-        // 普通文本节点直接添加
+          // 普通文本节点直接添加
           wrapper.appendChild(document.createTextNode(node.textContent));
         } else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'MARK') {
           // mark 元素节点

@@ -708,6 +708,13 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 用于在时间点限制后，清理被丢弃时间点的去重缓存
         self.dup_obj = dup_obj
 
+        # 保存到实例变量，供 push 方法使用
+        self.max_queried_data_time = max_queried_data_time
+
+        # 保存 Duplicate 对象，供 push 方法使用
+        # 用于在时间点限制后，清理被丢弃时间点的去重缓存
+        self.dup_obj = dup_obj
+
         # 如果当前数据延迟超过一定值，则上报延迟埋点
         # 对于非batch的数据，有可能存在数据稀疏的情况，因此在filter duplicate后再进行延迟统计
         if max_data_time > 0 and not self.batch_timestamp and self.until_timestamp:
