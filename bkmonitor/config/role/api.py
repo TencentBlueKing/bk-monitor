@@ -139,6 +139,7 @@ TEMPLATES = [
 
 ROOT_URLCONF = "kernel_api.urls"
 MIDDLEWARE = (
+    "corsheaders.middleware.CorsMiddleware",
     "bkmonitor.middlewares.prometheus.MetricsBeforeMiddleware",  # 必须放到最前面
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
