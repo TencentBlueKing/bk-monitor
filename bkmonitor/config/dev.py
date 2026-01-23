@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community
 Edition) available.
@@ -10,6 +9,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from blueapps.conf.validators import EnvValidator
 
 from config import RUN_VER
@@ -64,11 +64,3 @@ DATABASES = {
         "PORT": "3306",
     },
 }
-
-# 前后端开发模式下支持跨域配置
-if FRONTEND_BACKEND_SEPARATION:
-    INSTALLED_APPS += ("corsheaders",)
-    # 该跨域中间件需要放在前面
-    MIDDLEWARE = ("corsheaders.middleware.CorsMiddleware",) + MIDDLEWARE
-    CORS_ALLOW_ALL_ORIGINS = True
-    CORS_ALLOW_CREDENTIALS = True

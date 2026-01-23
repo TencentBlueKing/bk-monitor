@@ -8,7 +8,19 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from .default import *  # noqa
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from kernel_api.resource.relation import (
+    QueryMultiResourceRelationResource,
+    QueryMultiResourceRelationRangeResource,
+)
 
-# 预发布环境
-RUN_MODE = "STAGING"
+
+class RelationViewSet(ResourceViewSet):
+    """
+    关联关系查询服务
+    """
+
+    resource_routes = [
+        ResourceRoute("POST", QueryMultiResourceRelationResource, endpoint="query_multi_resource_relation"),
+        ResourceRoute("POST", QueryMultiResourceRelationRangeResource, endpoint="query_multi_resource_relation_range"),
+    ]
