@@ -243,7 +243,10 @@ class RetrieveHelper extends RetrieveBase {
     // 检查按下的键是否是斜杠 "/"（需兼容不同键盘布局）
     const isSlashKey = event.key === '/' || event.keyCode === 191;
 
-    if ((isSlashKey && target.tagName === 'INPUT') || target.tagName === 'TEXTAREA') {
+    // 判断是否是 CodeMirror 编辑器
+    const isCodeMirrorEditor = target.classList.contains('cm-editor') || target.closest('.cm-editor');
+
+    if ((isSlashKey && target.tagName === 'INPUT') || target.tagName === 'TEXTAREA' || isCodeMirrorEditor) {
       return;
     }
 
