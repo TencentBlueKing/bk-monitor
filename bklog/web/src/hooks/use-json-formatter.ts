@@ -193,8 +193,8 @@ export default class UseJsonFormatter {
     // 这里的动态样式用于只显示"添加到本次检索"、"从本次检索中排除"
     const hasSegmentLightStyle = document.getElementById('dynamic-segment-light-style') !== null;
 
-    // 若是应用了动态样式(实时日志/上下文)，且是虚拟字段，则不显示弹窗(弹窗无内容)
-    if (hasSegmentLightStyle && isVirtualField) {
+    // 若是应用了动态样式(实时日志/上下文)，且是虚拟字段，并且没有设置自定义跳转内容，此时弹窗无内容，不显示弹窗
+    if (hasSegmentLightStyle && isVirtualField && dynamicOptions === null) {
       return;
     }
 
@@ -218,7 +218,9 @@ export default class UseJsonFormatter {
    * @param fieldName 字段名
    * @param matchedConfigsAttr 预计算的匹配配置（从 DOM 属性获取）
    */
-  getDynamicOptions(value: string, fieldName: string, matchedConfigsAttr?: string | null): DynamicContentOption[] | null {
+  getDynamicOptions(
+    value: string, fieldName: string, matchedConfigsAttr?: string | null,
+  ): DynamicContentOption[] | null {
     const options: DynamicContentOption[] = [];
 
     const personalizationSettings: FormData[] = store.
