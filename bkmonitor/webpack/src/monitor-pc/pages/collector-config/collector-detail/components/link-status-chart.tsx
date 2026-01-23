@@ -27,11 +27,12 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TimeRange, { type DateValue, type TimeRangeType } from '../../../../components/time-range/time-range';
-import { DEFAULT_TIME_RANGE, shortcuts } from '../../../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, shortcuts } from '../../../../components/time-range/utils';
 
 import type { MonitorEchartOptions, MonitorEchartSeries } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
@@ -128,6 +129,16 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
   width = 0;
   resizeObserver: ResizeObserver;
 
+  // 选择的日期区间 是否间隔24小时以上
+  get isDifferentDay() {
+    if (this.timeRange) {
+      const oneDayInMilliseconds = 24 * 60 * 60;
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange)
+      return endTime - startTime > oneDayInMilliseconds;
+    }
+    return false;
+  }
+
   get options(): MonitorEchartOptions {
     const minute: MonitorEchartSeries = {
       name: this.$tc('分钟数据量'),
@@ -149,6 +160,16 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
     };
     return {
       ...this.defaultOption,
+      // 时间间隔24小时以上，X轴变为展示日期
+      xAxis: {
+        ...this.defaultOption.xAxis,
+        axisLabel: {
+          ...this.defaultOption.xAxis.axisLabel,
+          formatter: value => {
+            return this.isDifferentDay ? dayjs.tz(value).format('MM-DD') : dayjs.tz(value).format('HH:mm')
+          },
+        },
+      },
       series: [this.type === 'minute' ? minute : hour],
     };
   }

@@ -235,11 +235,12 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         :param sync_info: 同步内容
         """
         logger.info(f"[UPDATE]Access incident[{sync_info['incident_id']}], sync_info: {json.dumps(sync_info)}")
-        snapshot = None
+
         # 更新故障归档记录
         try:
             incident_info = sync_info["incident_info"]
             incident_info["incident_id"] = sync_info["incident_id"]
+            merge_info = incident_info.pop("merge_info", None) or {}
             incident_document = IncidentDocument.get(
                 f"{incident_info['create_time']}{incident_info['incident_id']}", fetch_remote=False
             )
@@ -327,9 +328,10 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                         incident_key=incident_key,
                         from_value=update_info["from"],
                         to_value=update_info["to"],
+                        merge_info=merge_info,
                     )
                     if incident_key == "status":
-                        if update_info["to"] == IncidentStatus.RECOVERING.value:
+                        if update_info["to"] in (IncidentStatus.RECOVERING.value, IncidentStatus.MERGED.value):
                             incident_document.end_time = int(time.time())
                         elif update_info["to"] == IncidentStatus.ABNORMAL.value:
                             incident_document.end_time = None

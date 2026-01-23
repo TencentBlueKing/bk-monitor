@@ -1698,19 +1698,18 @@ class ApmAlertHelper:
         return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"?bizId={bk_biz_id}#/apm/service?{encoded_params}")
 
     @classmethod
-    def _get_rpc_trace_url(
-        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], timestamp: int, duration: int
-    ) -> str | None:
-        """获取调用分析调用链跳转链接"""
+    def _build_rpc_trace_filters(
+        cls, strategy: dict[str, Any], dimensions: dict[str, Any]
+    ) -> list[dict[str, Any]] | None:
+        """构建 RPC 场景下的 Trace 过滤条件。
+
+        :param strategy: 告警策略配置
+        :param dimensions: 告警维度信息
+        :return: filters 条件列表
+        """
+
         if not cls.is_rpc_system(strategy):
             return None
-
-        target: dict[str, str | None] = cls.get_target(strategy, dimensions)
-        if not target.get("app_name"):
-            return None
-
-        if target.get("service_name"):
-            dimensions = {**dimensions, "service_name": target["service_name"]}
 
         # 判断主调/被调类型
         kind: str = cls._get_rpc_kind(strategy)
@@ -1741,33 +1740,101 @@ class ApmAlertHelper:
             }
         )
 
+        return where
+
+    @classmethod
+    def _build_default_trace_filters(
+        cls, strategy: dict[str, Any] | None, dimensions: dict[str, Any]
+    ) -> list[dict[str, Any]] | None:
+        """构造默认 Trace 过滤条件。
+
+        :param strategy: 告警策略配置
+        :param dimensions: 告警维度信息
+        :return: filters 条件列表
+        """
+        service_name: str = dimensions.get(CommonMetricTag.SERVICE_NAME.value) or ""
+        if not service_name:
+            return []
+
+        return [
+            {
+                "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
+                "operator": "equal",
+                "value": [dimensions[CommonMetricTag.SERVICE_NAME.value] or ""],
+            }
+        ]
+
+    @classmethod
+    def build_trace_filters(
+        cls, strategy: dict[str, Any] | None, target: dict[str, str | None], dimensions: dict[str, Any]
+    ) -> list[dict[str, Any]] | None:
+        """构建 Trace 过滤条件。
+
+        :param strategy: 告警策略配置，可为 None
+        :param target: 告警目标信息
+        :param dimensions: 告警维度信息
+        :return: where 条件列表
+        """
+
+        if target.get("service_name"):
+            dimensions = {**dimensions, "service_name": target["service_name"]}
+
+        # 目前只有 RPC 场景能明确跳转调用链，其他场景统一增加服务过滤，后续可根据需要扩展更多场景。
+        filter_builders: list[Callable[..., list[dict[str, Any]] | None]] = [
+            cls._build_rpc_trace_filters,
+            cls._build_default_trace_filters,
+        ]
+        for builder in filter_builders:
+            filters: list[dict[str, Any]] | None = builder(strategy, dimensions)
+            if filters:
+                return filters
+        return None
+
+    @classmethod
+    def build_trace_query_params(
+        cls,
+        target: dict[str, str | None],
+        filters: list[dict[str, Any]],
+        timestamp: int,
+        duration: int,
+        encode_filters: bool = True,
+    ) -> dict[str, Any]:
+        """构建 Trace 页面查询参数。
+
+        :param target: 告警目标信息
+        :param filters: 查询条件
+        :param timestamp: 告警时间戳
+        :param duration: 告警持续时间（秒）
+        :param encode_filters: 是否对 filters 进行 JSON 编码，默认为 True
+        :return: 查询参数字典
+        """
         offset: int = FIVE_MIN_SECONDS * 1000
-        params: dict[str, str] = {
+        params: dict[str, Any] = {
             "app_name": target["app_name"],
             "sceneMode": "span",
-            "where": json.dumps(where),
+            "where": json.dumps(filters) if encode_filters else filters,
             # Trace 数据量较大，duration 最长只支持 1 小时。
             "start_time": timestamp * 1000 - min(duration, 3600) * 1000 - offset,
             "end_time": timestamp * 1000 + offset,
-            # 按status_code降序排序
+            # 按 status_code 降序排序
             "sortBy": OtlpKey.STATUS_CODE,
             "descending": "true",
         }
-        encoded_params: str = urllib.parse.urlencode(params)
-        return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"/?bizId={bk_biz_id}/#/trace/home/?{encoded_params}")
+        return params
 
     @classmethod
     def get_trace_url(
         cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], timestamp: int, duration: int
     ) -> str | None:
         """获取调用链跳转链接"""
-        # 目前只有 RPC 场景能明确跳转调用链，后续有其他场景再补充。
-        getters: list[Callable[..., str | None]] = [cls._get_rpc_trace_url]
-        for getter in getters:
-            url: str | None = getter(bk_biz_id, strategy, dimensions, timestamp, duration)
-            if url:
-                return url
-        return None
+        target: dict[str, str | None] = cls.get_target(strategy, dimensions)
+        if not target.get("app_name"):
+            return None
+
+        filters: list[dict[str, Any]] | None = cls.build_trace_filters(strategy, target, dimensions)
+        params: dict[str, Any] = cls.build_trace_query_params(target, filters or [], timestamp, duration)
+        encoded_params: str = urllib.parse.urlencode(params)
+        return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"/?bizId={bk_biz_id}/#/trace/home/?{encoded_params}")
 
 
 class OtlpProtocol:

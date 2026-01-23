@@ -601,53 +601,25 @@ class SQLChartHandler(ChartHandler):
             )
         return data
 
-    def fetch_grep_query_data(self, params):
+    def generate_grep_query_sql(self, params, select_clause="*", with_order_by=True, with_pagination=True):
         """
+        生成grep查询的SQL语句
         :param params: 查询相关参数
+        :param select_clause: SELECT子句内容，默认为 "*"，可传入 "COUNT(*)" 等
+        :param with_order_by: 是否包含ORDER BY子句
+        :param with_pagination: 是否包含分页条件（LIMIT/OFFSET）
+        :return: 生成的SQL语句字符串
         """
-        if not self.data.support_doris:
-            raise IndexSetDorisQueryException()
         alias_mappings = params["alias_mappings"]
-
         grep_field = params.get("grep_field")
         grep_query = params.get("grep_query")
-        grep_nodes = []
-        grep_where_clause = ""
+        bk_biz_id = space_uid_to_bk_biz_id(self.data.space_uid)
 
-        if grep_query and grep_field:
-            grep_nodes = grep_parser(grep_query)
-            grep_where_clause = self.get_grep_condition(
-                grep_nodes=grep_nodes,
-                grep_field=grep_field,
-                alias_mappings=alias_mappings,
-            )
-
-        order_by_clause = self.get_order_by_clause(
-            index_set_id=self.index_set_id,
-            sort_list=params.get("sort_list", []),
-            alias_mappings=alias_mappings,
-        )
-        # 加上排序条件
-        grep_where_clause += order_by_clause
-        # 加上分页条件
-        grep_where_clause += f" LIMIT {params['size']} OFFSET {params['begin']}"
-        try:
-            bk_biz_id = space_uid_to_bk_biz_id(self.data.space_uid)
-            if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
-                params["index_set_ids"] = [self.index_set_id]
-                params["bk_biz_id"] = bk_biz_id
-                if grep_nodes:
-                    sql = f"SELECT * WHERE {grep_where_clause}"
-                else:
-                    sql = f"SELECT * {grep_where_clause}"
-
-                params["sql"] = sql
-                trace_params = {"sql": sql}
-                # 执行UnifyQuery
-                query_handler = UnifyQueryChartHandler(params)
-                result = query_handler.get_chart_data()
-            else:
-                where_clause = self.generate_sql(
+        where_conditions = []
+        # 非 UnifyQuery，需要将查询条件转换为WHERE子句
+        if not FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+            where_conditions.append(
+                self.generate_sql(
                     addition=params["addition"],
                     start_time=params["start_time"],
                     end_time=params["end_time"],
@@ -655,13 +627,62 @@ class SQLChartHandler(ChartHandler):
                     action=SQLGenerateMode.WHERE_CLAUSE.value,
                     alias_mappings=alias_mappings,
                 )
-                if grep_nodes:
-                    where_clause += f" AND {grep_where_clause}"
-                else:
-                    where_clause += f" {grep_where_clause}"
-                sql = f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}"
-                trace_params = {"sql": sql}
-                # 执行doris查询
+            )
+        # 将grep语句转换为WHERE子句
+        if grep_query and grep_field:
+            grep_nodes = grep_parser(grep_query)
+            grep_where_clause = self.get_grep_condition(
+                grep_nodes=grep_nodes,
+                grep_field=grep_field,
+                alias_mappings=alias_mappings,
+            )
+            where_conditions.append(grep_where_clause)
+
+        # 生成最终的SQL语句，非 UnifyQuery 需要加上FROM子句
+        sql_str = f"SELECT {select_clause}"
+        if not FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+            sql_str += f" FROM {self.data.doris_table_id}"
+        if where_conditions:
+            sql_str += f" WHERE {' AND '.join(where_conditions)}"
+        if with_order_by:
+            order_by_clause = self.get_order_by_clause(
+                index_set_id=self.index_set_id,
+                sort_list=params.get("sort_list", []),
+                alias_mappings=alias_mappings,
+            )
+            sql_str += order_by_clause
+        if with_pagination:
+            pagination_clause = f" LIMIT {params['size']} OFFSET {params['begin']}"
+            sql_str += pagination_clause
+
+        return sql_str
+
+    def fetch_grep_query_data(self, params):
+        """
+        :param params: 查询相关参数
+        """
+        if not self.data.support_doris:
+            raise IndexSetDorisQueryException()
+        alias_mappings = params["alias_mappings"]
+        grep_field = params.get("grep_field")
+        grep_query = params.get("grep_query")
+        grep_nodes = []
+        if grep_query and grep_field:
+            grep_nodes = grep_parser(grep_query)
+
+        sql = self.generate_grep_query_sql(params)
+        trace_params = {"sql": sql}
+        try:
+            bk_biz_id = space_uid_to_bk_biz_id(self.data.space_uid)
+            if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+                params["index_set_ids"] = [self.index_set_id]
+                params["bk_biz_id"] = bk_biz_id
+                params["sql"] = sql
+                # 执行 UnifyQuery 查询
+                query_handler = UnifyQueryChartHandler(params)
+                result = query_handler.get_chart_data()
+            else:
+                # 执行 doris 查询
                 result = self.fetch_query_data(sql)
             trace_params.update({"total_records": result["total_records"], "time_taken": result["time_taken"]})
         finally:
@@ -673,3 +694,42 @@ class SQLChartHandler(ChartHandler):
             grep_nodes=grep_nodes,
         )
         return {"list": log_list, "total": result["total_records"], "took": result["time_taken"]}
+
+    def fetch_grep_query_total(self, params):
+        """
+        查询grep匹配的总数
+        :param params: 查询相关参数
+        :return: dict，包含总数和耗时
+        """
+        if not self.data.support_doris:
+            raise IndexSetDorisQueryException()
+
+        sql = self.generate_grep_query_sql(
+            params,
+            select_clause="COUNT(*) AS total",
+            with_order_by=False,
+            with_pagination=False,
+        )
+        trace_params = {"sql": sql}
+
+        try:
+            bk_biz_id = space_uid_to_bk_biz_id(self.data.space_uid)
+            if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+                params["index_set_ids"] = [self.index_set_id]
+                params["bk_biz_id"] = bk_biz_id
+                params["sql"] = sql
+                # 执行 UnifyQuery 查询
+                query_handler = UnifyQueryChartHandler(params)
+                result = query_handler.get_chart_data()
+                total = result["list"][0]["total"] if result["list"] else 0
+                time_taken = result["time_taken"]
+            else:
+                # 执行 doris 查询
+                result = self.fetch_query_data(sql)
+                total = result["list"][0]["total"] if result["list"] else 0
+                time_taken = result["time_taken"]
+            trace_params.update({"time_taken": time_taken})
+        finally:
+            self.add_doris_query_trace(**trace_params)
+
+        return {"total": total, "took": time_taken}
