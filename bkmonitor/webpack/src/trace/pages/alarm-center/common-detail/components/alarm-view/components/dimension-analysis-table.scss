@@ -24,8 +24,14 @@
       min-width: 10px;
       height: 2px;
       margin-right: 6px;
-      background: #7EC7E7;
+      background: #7ec7e7;
+    }
+
+    .dimension-value-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #4d4f56;
+      white-space: nowrap;
     }
   }
 }
-
