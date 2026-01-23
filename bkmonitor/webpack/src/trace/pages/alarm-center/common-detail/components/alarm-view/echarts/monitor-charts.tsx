@@ -232,7 +232,11 @@ export default defineComponent({
             onMenuClick={this.handleCustomMenuClick}
             onMetricClick={this.handleMetricClick}
             onSelectChild={({ child }) => this.handleCustomMenuClick(child)}
-          />
+          >
+            {{
+              customTools: this.$slots?.customTools,
+            }}
+          </ChartTitle>
         )}
 
         {this.loading ? (

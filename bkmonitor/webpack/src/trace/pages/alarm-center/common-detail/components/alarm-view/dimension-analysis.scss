@@ -3,6 +3,19 @@
     width: 100%;
     height: 240px;
     background-color: #fff;
+
+    .dimension-chart {
+      .custom-tools-wrapper {
+        .dimension-chart-fullscreen {
+          margin-right: 6px;
+          cursor: pointer;
+
+          &:hover {
+            color: #3a84ff;
+          }
+        }
+      }
+    }
   }
 
   .dimension-analysis-table-view {
@@ -87,6 +100,34 @@
 
       .dimension-analysis-data {
         flex: 1;
+      }
+    }
+  }
+}
+
+.alarm-dimension-chart-full-dialog.bk-dialog {
+  .bk-modal-wrapper {
+    .bk-modal-content {
+      & > div {
+        height: 100%;
+
+        .bk-dialog-content {
+          height: 100%;
+          margin-top: 0;
+          margin-bottom: 0;
+
+          .view-wrap {
+            height: 100%;
+
+            .dimension-fullscreen-chart {
+              .chart-skeleton {
+                .h-20 {
+                  height: 16%;
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

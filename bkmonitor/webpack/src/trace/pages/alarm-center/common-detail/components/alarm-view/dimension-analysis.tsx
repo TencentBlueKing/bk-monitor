@@ -27,6 +27,7 @@
 import { type PropType, computed, defineComponent, provide, shallowRef, toRef } from 'vue';
 import { watch } from 'vue';
 
+import { Dialog, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { getDrillDimensions } from 'monitor-api/modules/grafana';
 import { graphDrillDown } from 'monitor-api/modules/scene_view';
@@ -103,6 +104,8 @@ export default defineComponent({
     const tableDataLoading = shallowRef(false);
     /** 图表点击事件对象 */
     const chartClickPointEvent = shallowRef<{ xAxis: number; yAxis: number }>(null);
+    /** 是否查看大图 */
+    const chartIsFullscreen = shallowRef(false);
 
     const {
       panel,
@@ -227,6 +230,7 @@ export default defineComponent({
 
     /**
      * @description 处理图表空白处点击事件(zrClick)
+     * @param event 图表空白处点击事件对象
      */
     const handleChartZrClick = (event: { xAxis: number; yAxis: number }) => {
       if (!event) return;
@@ -235,9 +239,67 @@ export default defineComponent({
       graphDrillDownData();
     };
 
+    /**
+     * @description 维度分析图表 查看大图 icon 点击回调
+     * @param {MouseEvent} event 事件对象
+     */
+    const handleFullscreen = (event: MouseEvent) => {
+      event.stopPropagation();
+      chartIsFullscreen.value = true;
+    };
+
     const handleRemoveTimeCondition = () => {
       chartClickPointEvent.value = null;
       graphDrillDownData();
+    };
+
+    /**
+     * @description 渲染图表
+     * @param {boolean} isFullscreen 渲染的图表是否为大图状态下的图表
+     */
+    const renderChart = (isFullscreen = false) => {
+      const specialProps = !isFullscreen
+        ? {
+            class: 'dimension-chart',
+            customLegendOptions: {
+              legendData: () => [],
+            },
+            onZrClick: handleChartZrClick,
+          }
+        : {
+            class: 'dimension-fullscreen-chart',
+          };
+      const slots = !isFullscreen
+        ? {
+            customTools: () => (
+              <Popover content={t('查看大图')}>
+                <i
+                  class='icon-monitor icon-fullscreen dimension-chart-fullscreen'
+                  onClick={handleFullscreen}
+                />
+              </Popover>
+            ),
+          }
+        : {};
+      return (
+        <MonitorCharts
+          v-slots={{
+            ...slots,
+          }}
+          customOptions={{
+            formatterData: formatterChartData,
+            options: options => {
+              options.color = COLOR_LIST;
+              return options;
+            },
+          }}
+          panel={panel.value}
+          showRestore={showRestore.value}
+          onDataZoomChange={handleDataZoomTimeRangeChange}
+          onRestore={handleChartRestore}
+          {...specialProps}
+        />
+      );
     };
 
     return {
@@ -253,6 +315,7 @@ export default defineComponent({
       dimensionListLoading,
       chartClickPointEvent,
       spaceTimezone,
+      chartIsFullscreen,
       formatterChartData,
       handleDrillDown,
       handleTableDrillDown,
@@ -264,31 +327,15 @@ export default defineComponent({
       handleChartRestore,
       handleChartZrClick,
       handleRemoveTimeCondition,
+      handleFullscreen,
+      renderChart,
       t,
     };
   },
   render() {
     return (
       <div class='alarm-view-panel-dimension-analysis-wrap'>
-        <div class='alarm-dimension-chart'>
-          <MonitorCharts
-            customLegendOptions={{
-              legendData: () => [],
-            }}
-            customOptions={{
-              formatterData: this.formatterChartData,
-              options: options => {
-                options.color = COLOR_LIST;
-                return options;
-              },
-            }}
-            panel={this.panel}
-            showRestore={this.showRestore}
-            onDataZoomChange={this.handleDataZoomTimeRangeChange}
-            onRestore={this.handleChartRestore}
-            onZrClick={this.handleChartZrClick}
-          />
-        </div>
+        <div class='alarm-dimension-chart'>{this.renderChart()}</div>
         <div class='dimension-analysis-table-view'>
           <div class='dimension-analysis-left'>
             <DimensionSelector
@@ -365,6 +412,21 @@ export default defineComponent({
             </div>
           </div>
         </div>
+        <Dialog
+          class='alarm-dimension-chart-full-dialog'
+          dialog-type='if'
+          draggable={false}
+          header-align='center'
+          is-show={this.chartIsFullscreen}
+          title={this.t('查看大图')}
+          zIndex={8004}
+          fullscreen
+          onClosed={() => {
+            this.chartIsFullscreen = false;
+          }}
+        >
+          <div class='view-wrap'>{this.renderChart(true)}</div>
+        </Dialog>
       </div>
     );
   },
