@@ -121,8 +121,8 @@
 | id          | string      | 列标识，对应 `data.data` 中的字段名                            |
 | name        | string      | 列显示名称                                               |
 | sortable    | bool/string | 是否可排序，可选 `false`、`true`、`custom`（自定义排序）             |
-| disabled    | bool        | 是否禁用（不可隐藏）                                          |
-| checked     | bool        | 是否默认显示                                              |
+| disabled    | bool        | 是否禁用，禁用后该列不可被隐藏(强制显示)                               |
+| checked     | bool        | 是否默认显示，disabled 为 `true` 时，此设置无效                    |
 | type        | string      | 列类型，如 `link`、`datapoints`、`data_status`、`collect` 等 |
 | width       | int/null    | 列宽度（像素）                                             |
 | min_width   | int/null    | 最小列宽度（像素）                                           |
@@ -139,7 +139,7 @@
 |-----------------------|--------------|-------------------------------------|
 | app_name              | string       | 应用名称                                |
 | service_name          | dict         | 服务名称（复杂对象，见下文详细说明）                  |
-| type                  | string       | 服务类型（分类的中文名称）                       |
+| type                  | string       | 服务类型（已做国际化处理）                       |
 | language              | string       | 编程语言                                |
 | category              | string       | 服务分类（英文标识）                          |
 | kind                  | string       | 服务类型标识                              |
@@ -186,9 +186,9 @@
 
 **4. metric_data_status / log_data_status / trace_data_status / profiling_data_status 字段（数据状态对象）**
 
-| 字段   | 类型     | 描述                                                    |
-|------|--------|-------------------------------------------------------|
-| icon | string | 状态图标标识，可选 `normal`（正常）、`no_data`（无数据）、`disabled`（已禁用） |
+| 字段   | 类型     | 描述                                                                  |
+|------|--------|---------------------------------------------------------------------|
+| icon | string | 状态图标标识，可选 `normal`（正常）、`no_data`（无数据）、`disabled`（已禁用），异步加载时为 `null` |
 
 **5. operation 字段（操作列表）**
 
