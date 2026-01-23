@@ -228,6 +228,8 @@ ACTION_TASK_CRONTAB = [
     ("bkmonitor.management.commands.clean_aiflow.run_clean", "30 2 * * *", "global"),
     # aiops sdk策略历史依赖管理
     ("alarm_backends.service.preparation.tasks.maintain_all_aiops_sdk_depend_data", "45 * * * *", "global"),
+    # 触发业务告警降噪
+    ("alarm_backends.service.fta_action.tasks.alert_denoise.trigger_biz_alert_denoise", "* * * * *", "global"),
 ]
 
 DEFAULT_CRONTAB += [

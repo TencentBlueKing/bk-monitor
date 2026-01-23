@@ -412,6 +412,26 @@ def time_interval_align(timestamp: int, interval: int):
     return timestamp
 
 
+def split_time_range(start_timestamp, end_timestamp, time_step):
+    """
+    将时间范围按步长划分为多个小时间段。
+
+    :param start_timestamp: 开始时间的 UNIX 时间戳
+    :param end_timestamp: 结束时间的 UNIX 时间戳
+    :param time_step: 步长，单位为秒
+    :return: 列表，每个元素是一个 (start, end) 时间范围的元组
+    """
+    ranges = []
+    current = start_timestamp
+
+    while current < end_timestamp:
+        next_point = min(current + time_step, end_timestamp)
+        ranges.append((current, next_point))
+        current = next_point
+
+    return ranges
+
+
 MAX_DATETIME_STR = datetime2str(datetime.datetime.max)
 
 

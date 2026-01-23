@@ -30,7 +30,7 @@ from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.control.item import gen_condition_matcher
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.lock.service_lock import service_lock
-from alarm_backends.service.fta_action.tasks import create_actions
+from alarm_backends.service.fta_action.tasks import create_actions, create_alert_denoise_action
 from bkmonitor.documents import AlertLog
 from bkmonitor.strategy.expression import AlertExpressionValue, parse_expression
 from bkmonitor.utils.common_utils import count_md5
@@ -193,6 +193,9 @@ class CompositeProcessor:
                 )
                 if not is_qos:
                     create_actions.delay(**action)
+                    # 因为降噪检测是默认逻辑，目前担心通过上面actions来进行降噪会导致生成巨量没有意义的action_instance
+                    # 所以暂时直接通过异步任务来进行降噪检测
+                    create_alert_denoise_action(alert_id=self.alert.id, bk_biz_id=self.alert.bk_biz_id)
                     success_actions += 1
                 else:
                     # 达到阈值之后，触发流控

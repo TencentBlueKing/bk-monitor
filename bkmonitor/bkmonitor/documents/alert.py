@@ -98,6 +98,10 @@ class AlertDocument(BaseDocument):
     next_status = field.Keyword()
     next_status_time = Date(format=BaseDocument.DATE_FORMAT)
 
+    # 告警降噪信息
+    is_noise = field.Boolean()
+    denoise_embedding = field.Text()
+
     # 某个告警只会属于某一个故障，不可能同属于多个故障（否则这多个故障也应该属于一个故障）
     incident_id = field.Keyword()
 
