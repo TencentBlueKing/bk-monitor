@@ -816,6 +816,7 @@ export default {
   主分片: 'Primary Shard',
   副本分片: 'Replica Shard',
   URI源: 'URI Source',
+  APM服务: 'APM Service',
 
   IMAP端口: 'IMAP Port',
   实例数: 'Instances',
@@ -1967,6 +1968,10 @@ export default {
   非空数据占比: 'Proportion of non-empty data',
   添加方式: 'Add method',
   数据含义: 'Data meaning',
+  'K8S-POD': 'K8S-POD',
+  'K8S-NODE': 'K8S-NODE',
+  'K8S-SERVICE': 'K8S-SERVICE',
+  'K8S-WORKLOAD': 'K8S-WORKLOAD',
 
   // 查询模板
   '模板名称:': 'Template name:',
