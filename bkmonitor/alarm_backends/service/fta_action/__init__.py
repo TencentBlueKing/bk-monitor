@@ -60,8 +60,6 @@ from .utils import (
     get_notice_display_mapping,
     need_poll,
 )
-from alarm_backends.core.circuit_breaking.manager import ActionCircuitBreakingManager
-from ...core.cache.circuit_breaking import NOTICE_PLUGIN_TYPES
 
 logger = logging.getLogger("fta_action.run")
 
@@ -175,182 +173,6 @@ class BaseActionProcessor:
         :return:
         """
         raise NotImplementedError
-
-    @property
-    def plugin_key(self):
-        """
-        获取plugin_key(plugin_type)
-        """
-        plugin_key = self.action.action_plugin.get("plugin_key")
-        if not plugin_key:
-            plugin_key = self.action.action_plugin.get("plugin_type")
-        return plugin_key
-
-    def can_func_call(self):
-        """
-        检查是否可以调用
-        """
-        plugin_type = self.plugin_key
-        # 检查是否命中熔断规则
-        logger.debug(
-            f"[circuit breaking] [{plugin_type}] begin action({self.action.id}) strategy({self.action.strategy_id})"
-        )
-        can_continue = not self._check_circuit_breaking()
-        logger.debug(
-            f"[circuit breaking] [{plugin_type}] end action({self.action.id}) strategy({self.action.strategy_id})"
-        )
-
-        return can_continue
-
-    def _check_circuit_breaking(self, plugin_type=None, skip_notice_check=True):
-        """
-        检查是否命中熔断规则
-
-        :param plugin_type: 插件类型，默认使用 action 的插件类型
-        :param skip_notice_check: 是否跳过通知类型检查，默认 True（执行阶段），False（通知阶段）
-        :return: True 表示命中熔断规则，False 表示未命中
-        """
-        plugin_type = plugin_type or self.plugin_key
-
-        # message_queue 类型在创建阶段已经检查过熔断，这里跳过
-        if plugin_type == ActionPluginType.MESSAGE_QUEUE:
-            return False
-
-        # 通知在后续消息发送阶段进行熔断判断（仅在执行阶段跳过）
-        if skip_notice_check and plugin_type in NOTICE_PLUGIN_TYPES:
-            return False
-
-        # 执行熔断检查
-        try:
-            is_circuit_breaking = self._do_circuit_breaking_check(plugin_type)
-
-            if is_circuit_breaking:
-                # 执行阶段熔断处理
-                try:
-                    self._handle_execution_circuit_breaking(plugin_type)
-                    logger.info(
-                        f"[circuit breaking] [{plugin_type}] action({self.action.id}) strategy({self.action.strategy_id}) "
-                        f"execution circuit breaking"
-                    )
-                except Exception as e:
-                    logger.exception(
-                        f"[circuit breaking] [{plugin_type}] handle execution circuit breaking failed for "
-                        f"action({self.action.id}) strategy({self.action.strategy_id}): {e}"
-                    )
-                return True
-
-            return False
-        except Exception as e:
-            logger.exception(
-                f"[circuit breaking] [{plugin_type}] circuit breaking check failed for "
-                f"action({self.action.id}) strategy({self.action.strategy_id}): {e}"
-            )
-            return False
-
-    def _do_circuit_breaking_check(self, plugin_type=None):
-        """
-        执行纯粹的熔断检查逻辑（不包含执行阶段处理）
-
-        :param plugin_type: 插件类型，默认使用 action 的插件类型
-        :return: True 表示命中熔断规则，False 表示未命中
-        """
-        plugin_type = plugin_type or self.plugin_key
-
-        # 创建熔断管理器实例
-        circuit_breaking_manager = ActionCircuitBreakingManager()
-
-        if not circuit_breaking_manager:
-            return False
-
-        # 构建熔断检查的上下文信息
-        context = {
-            "strategy_id": self.action.strategy_id,
-            "bk_biz_id": self.action.bk_biz_id,
-            "plugin_type": plugin_type,
-        }
-
-        data_source_label = ""
-        data_type_label = ""
-        # 从策略配置中获取数据源信息
-        if self.action.strategy and self.action.strategy.get("items"):
-            query_config = self.action.strategy["items"][0]["query_configs"][0]
-            data_source_label = query_config.get("data_source_label", "")
-            data_type_label = query_config.get("data_type_label", "")
-        context["data_source_label"] = data_source_label
-        context["data_type_label"] = data_type_label
-
-        # 检查是否命中熔断规则
-        return circuit_breaking_manager.is_circuit_breaking(**context)
-
-    def check_circuit_breaking_for_notice(self):
-        """
-        检查是否命中熔断规则（通知阶段）
-
-        :return: True 表示命中熔断规则，False 表示未命中
-        """
-        plugin_type = self.plugin_key
-
-        # message_queue 类型在创建阶段已经检查过熔断，这里跳过
-        if plugin_type == ActionPluginType.MESSAGE_QUEUE:
-            return False
-
-        try:
-            is_circuit_breaking = self._do_circuit_breaking_check(plugin_type)
-
-            if is_circuit_breaking:
-                logger.info(
-                    f"[circuit breaking] [{plugin_type}] action({self.action.id}) strategy({self.action.strategy_id}) "
-                    f"notice circuit breaking"
-                )
-
-            return is_circuit_breaking
-        except Exception as e:
-            logger.exception(
-                f"[circuit breaking] [{plugin_type}] circuit breaking check failed for "
-                f"action({self.action.id}) strategy({self.action.strategy_id}): {e}"
-            )
-            return False
-
-    def _handle_execution_circuit_breaking(self, plugin_type: str):
-        """
-        处理执行阶段的熔断
-        除去 message_queue, notice, collect 外，其他插件熔断处理流程
-        :param plugin_type: 动作插件类型
-        """
-
-        # 更新动作状态为熔断
-        self.is_finished = True
-        self.update_action_status(
-            to_status=ActionStatus.BLOCKED,
-            end_time=datetime.now(tz=timezone.utc),
-            need_poll=False,
-            ex_data={
-                "message": "套餐执行被熔断",
-                "circuit_breaking": True,
-            },
-        )
-
-        # 记录 action 执行日志
-        self.insert_action_log(
-            step_name=_("套餐执行熔断"),
-            action_log=_("执行被熔断: 套餐执行被熔断"),
-            level=ActionLogLevel.INFO,
-        )
-
-        # 插入熔断告警流水记录
-        try:
-            action_name = self.action_config.get("name", "")
-            plugin_type = self.action.action_plugin.get("plugin_type", "")
-            self.action.insert_alert_log(description=f"处理套餐{action_name}执行被熔断")
-            logger.info(
-                f"[circuit breaking] [{plugin_type}] created alert log for circuit breaking: "
-                f"action({self.action.id}) strategy({self.action.strategy_id})"
-            )
-        except Exception as e:
-            logger.exception(
-                f"[circuit breaking] [{plugin_type}] create circuit breaking alert log failed: "
-                f"action({self.action.id}) strategy({self.action.strategy_id}): {e}"
-            )
 
     def wait_callback(self, callback_func, kwargs=None, delta_seconds=0):
         """
@@ -512,7 +334,7 @@ class BaseActionProcessor:
             # 开始执行任务的通知，仅在开始执行的时候发送
             try:
                 if (
-                    self.plugin_key
+                    self.action.action_plugin.get("plugin_type")
                     not in [
                         ActionPluginType.NOTICE,
                         ActionPluginType.WEBHOOK,
@@ -598,12 +420,13 @@ class BaseActionProcessor:
 
         return self.business_rule_validate(outputs, success_rule)
 
-    def business_rule_validate(self, params, rule):
-        """
+    @staticmethod
+    def business_rule_validate(params, rule):
+        """ "
         条件判断
         """
 
-        logger.info("[action(%s)] business rule validate params %s, rule %s", self.action.id, params, rule)
+        logger.info("business rule validate params %s, rule %s", params, rule)
 
         if rule["method"] == "equal":
             return jmespath.search(rule["key"], params) == rule["value"]
@@ -677,7 +500,7 @@ class BaseActionProcessor:
 
         self.action.insert_alert_log(notice_way_display=getattr(self, "notice_way_display", ""))
 
-        if self.plugin_key != ActionPluginType.NOTICE:
+        if self.action.action_plugin.get("plugin_type") != ActionPluginType.NOTICE:
             notify_result = self.notify(STATUS_NOTIFY_DICT.get(to_status), need_update_context=True)
             if notify_result:
                 execute_notify_result = self.action.outputs.get("execute_notify_result") or {}

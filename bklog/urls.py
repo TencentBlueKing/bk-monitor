@@ -29,7 +29,6 @@ Class-based views
 Including another URLconf
     1. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-import os
 
 from bk_notice_sdk import config as notice_config
 from django.conf import settings
@@ -72,11 +71,6 @@ urlpatterns = [
     re_path(r"^api/v1/search_module/", include("bkm_search_module.urls")),
     re_path(rf"^{notice_config.ENTRANCE_URL}", include(("bk_notice_sdk.urls", "notice"), namespace="notice")),
 ]
-
-if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":
-    urlpatterns.extend(
-        [re_path(r"^api/v1/", include("apps.tgpa.urls"))]
-    )
 
 if settings.IS_K8S_DEPLOY_MODE:
     urlpatterns.extend(

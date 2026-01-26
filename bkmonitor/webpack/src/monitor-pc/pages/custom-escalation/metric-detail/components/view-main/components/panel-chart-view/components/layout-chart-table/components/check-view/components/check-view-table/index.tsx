@@ -176,7 +176,7 @@ export default class CheckViewTable extends tsc<object, object> {
       this.timeData = [];
       const timeList = series[0]?.datapoints || [];
       this.timeData = timeList.map(item => ({
-        time: dayjs(item[1]).format('YYYY-MM-DD HH:mm:ssZZ'),
+        time: dayjs(item[1]).format('YYYY-MM-DD HH:mm:ss'),
         date: item[1],
         rowKey: item[1],
       }));

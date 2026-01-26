@@ -23,10 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { type PropType, defineComponent, onMounted, ref, watch } from 'vue';
 
 import { Popover } from 'bkui-vue';
-import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
 import { type ICalendarData, type ICalendarDataUser, calendarDataConversion, getCalendarNew } from './calendar-preview';
@@ -39,10 +38,6 @@ export default defineComponent({
     value: {
       type: Array as PropType<ICalendarDataUser[]>,
       default: () => [],
-    },
-    timezone: {
-      type: String,
-      default: '',
     },
   },
   setup(props) {
@@ -60,10 +55,6 @@ export default defineComponent({
     const weekList = ref([t('周日'), t('周一'), t('周二'), t('周三'), t('周四'), t('周五'), t('周六')]);
     /* 当前容器宽度 */
     const containerWidth = ref(1000);
-
-    const getTimezoneOffset = computed(() => {
-      return props.timezone ? dayjs().tz(props.timezone).format('ZZ') : '';
-    });
     const observer = new ResizeObserver(entries => {
       entries.forEach(entry => {
         const { width } = entry.contentRect;
@@ -96,7 +87,6 @@ export default defineComponent({
       weekList,
       contentRef,
       containerWidth,
-      getTimezoneOffset,
       t,
     };
   },
@@ -146,7 +136,7 @@ export default defineComponent({
               {item.data.map((data, _index) => (
                 <Popover
                   key={`${index}${_index}`}
-                  width={data.other.time.length > 30 ? 262 : 192}
+                  width={data.other.time.length > 30 ? 230 : 160}
                   extCls={'rotation-calendar-preview-component-user-item-pop'}
                   arrow={true}
                   placement='top'
@@ -199,9 +189,7 @@ export default defineComponent({
                       ),
                     content: () => (
                       <div class='user-item'>
-                        <div class='time'>
-                          {this.getTimezoneOffset ? `(${data.other.time})${this.getTimezoneOffset}` : data.other.time}
-                        </div>
+                        <div class='time'>{data.other.time}</div>
                         <div class='users'>
                           {data.users.map((u, index, arr) => [
                             <bk-user-display-name

@@ -41,8 +41,6 @@ export interface IChildrenHiddenStore {
 }
 
 export interface IFocusMatchesStore {
-  /** 外部触发的定位/高亮目标（比如从span视角表格点击打开 Trace 侧滑,高亮对应span id所在行） */
-  externalActiveSpanId: Ref<string>;
   findMatchesIDs: Ref<any>;
   focusMatchesId: Ref<string>;
   focusMatchesIdIndex: Ref<number>;

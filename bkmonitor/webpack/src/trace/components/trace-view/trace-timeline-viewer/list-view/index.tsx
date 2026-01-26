@@ -172,6 +172,8 @@ export default defineComponent({
     const spanBarCurrentStore = useSpanBarCurrentInject();
     const focusMatchesStore = useFocusMatchesInject();
     const childrenHiddenStore = useChildrenHiddenInject();
+    const span_id = ref('');
+
     const wrapperElm = ref<HTMLElement | TNil>(null);
     const itemHolderElm = ref<HTMLElement | TNil>(null);
     const knownHeights = ref(new Map());
@@ -449,13 +451,12 @@ export default defineComponent({
       if (!trace) {
         return null;
       }
-      const highlightSpanId = focusMatchesStore?.externalActiveSpanId.value || '';
+      const highlightSpanId = span_id.value;
       const isCollapsed = childrenHiddenStore?.childrenHiddenIds.value.has(spanID);
       const isDetailExpanded = detailStates?.has(spanID);
-      const isActiveMatching = spanID === props.activeSpanId;
-      const isFocusMatching = spanID === focusMatchesStore?.focusMatchesId.value || spanID === highlightSpanId;
-      // 点击定位/自动定位时，让该行拥有“匹配高亮”效果
-      const isMatchingFilter = (focusMatchesStore?.findMatchesIDs.value?.has(spanID) ?? false) || isFocusMatching;
+      const isMatchingFilter = focusMatchesStore?.findMatchesIDs.value?.has(spanID) ?? false;
+      const isFocusMatching = spanID === focusMatchesStore?.focusMatchesId.value;
+      const isActiveMatching = spanID === props.activeSpanId || spanID === highlightSpanId;
       const isHaveRead = haveReadSpanIds.includes(spanID);
       const showErrorIcon = isErrorSpan(span) || (isCollapsed && spanContainsErredSpan(spans.value, spanIndex));
       const attributes = { ...attrs, id: spanID };
@@ -527,59 +528,20 @@ export default defineComponent({
       emit('itemClick', itemKey);
     }
 
-    const getScrollContainer = (): HTMLElement | null => {
-      if (props.windowScroller) {
-        return document.querySelector('.trace-detail-wrapper') as HTMLElement | null;
-      }
-      return wrapperElm.value as HTMLElement | null;
-    };
-
-    const tryScrollToSpan = (spanId: string, retry = 0, cachedIndex?: number) => {
-      if (!spanId) return;
-      // 适用于虚拟列表场景：目标行未渲染时，先滚到对应的 y 位置附近，促使其进入渲染窗口
-      let index = cachedIndex;
-      if (!index || index < 0) {
-        index = getIndexFromKey(`${spanId}--bar`);
-      }
-      if (index > -1) {
-        const container = getScrollContainer();
-        if (container) {
-          const { y } = getRowPosition(index);
-          container.scrollTo({ top: y, behavior: retry === 0 ? 'smooth' : 'auto' });
-          return;
-        }
-      }
-
-      // 有限次重试
-      if (retry < 20) {
-        setTimeout(() => tryScrollToSpan(spanId, retry + 1, index), 200);
-      }
-    };
-
-    watch(
-      () => focusMatchesStore?.externalActiveSpanId.value,
-      spanId => {
-        if (!spanId) return;
-        // 触发一次滚动定位：如果目标在列表底部且数据很大，这里会先滚动到索引附近，再完成精确定位
-        setTimeout(() => tryScrollToSpan(spanId), 0);
-      },
-      { immediate: true }
-    );
-
-    // 从故障页跳转过来, 打开trace侧滑,能定位到指定span所在行并打开span详情侧滑
     watch(
       () => route.query,
       () => {
         if (!route.query.incident_query) return;
         const spanInfo = JSON.parse(decodeURIComponent((route.query.incident_query as string) || '{}'));
         if (Object.keys(spanInfo).length > 0) {
+          span_id.value = spanInfo.span_id;
+          // 打开span详情抽屉
           if (spanInfo.type === 'spanDetail') {
-            const rowIndex = getRowStates.value.findIndex(f => f.span.spanID === spanInfo.span_id);
-            const data = rowIndex > -1 ? getRowStates.value[rowIndex] : null;
+            const data = getRowStates.value.find(f => f.span.id === spanInfo.span_id);
             if (data) {
-              // 滚动定位至高亮span所在行
-              setTimeout(() => tryScrollToSpan(spanInfo.span_id, 0, rowIndex), 0);
-              // 打开span详情侧滑
+              setTimeout(() => {
+                document.getElementById(spanInfo.span_id)?.scrollIntoView({ behavior: 'smooth' });
+              }, 50);
               emit('itemClick', data.span, true);
             }
           }

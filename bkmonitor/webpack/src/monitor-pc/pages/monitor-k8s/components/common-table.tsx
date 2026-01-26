@@ -1,3 +1,12 @@
+import { Component, Emit, Inject, InjectReactive, Prop, Ref } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import dayjs from 'dayjs';
+import { connect, disconnect } from 'echarts/core';
+import bus from 'monitor-common/utils/event-bus';
+import { random } from 'monitor-common/utils/utils';
+import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mini-time-series';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,16 +32,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import { Component, Emit, Inject, InjectReactive, Prop, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import { connect, disconnect } from 'echarts/core';
-import bus from 'monitor-common/utils/event-bus';
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
-import { random } from 'monitor-common/utils/utils';
-import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
-import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mini-time-series';
 import JsonViewer from 'vue-json-viewer';
 
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
@@ -296,9 +295,9 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   // 时间格式化
   timeFormatter(time: ITableItem<'time'>) {
     if (!time) return '--';
-    if (typeof time !== 'number') return formatWithTimezone(time);
-    if (time.toString().length < 13) return formatWithTimezone(time * 1000);
-    return formatWithTimezone(time);
+    if (typeof time !== 'number') return time;
+    if (time.toString().length < 13) return dayjs.tz(time * 1000).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss');
   }
   // list类型格式化
   listFormatter(val: ITableItem<'list'>) {

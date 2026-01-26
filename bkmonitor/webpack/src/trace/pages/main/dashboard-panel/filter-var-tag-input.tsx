@@ -56,11 +56,11 @@ export default defineComponent({
     const startTimeMinusOneHour = dayjs
       .tz(startTime.value || undefined)
       .subtract(1, 'hour')
-      .format('YYYY-MM-DD HH:mm:ssZZ');
+      .format('YYYY-MM-DD HH:mm:ss');
     const endTimeMinusOneHour = dayjs
       .tz(endTime.value || undefined)
       .add(1, 'hour')
-      .format('YYYY-MM-DD HH:mm:ssZZ');
+      .format('YYYY-MM-DD HH:mm:ss');
     const timeRange = ref([startTimeMinusOneHour, endTimeMinusOneHour]);
     const viewOptions = useViewOptionsInject();
 

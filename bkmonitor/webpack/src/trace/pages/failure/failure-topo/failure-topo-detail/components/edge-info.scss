@@ -202,6 +202,10 @@
     &_main {
       height: calc(100% - 35px);
       overflow: auto;
+
+      .metric-wrap {
+        margin-top: -5px;
+      }
     }
   }
 }

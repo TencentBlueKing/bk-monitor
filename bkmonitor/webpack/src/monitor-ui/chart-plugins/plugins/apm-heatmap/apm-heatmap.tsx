@@ -218,10 +218,10 @@ class ApmHeatmap extends CommonSimpleChart {
             };
             return `<div class="monitor-chart-tooltips">
             <p class="tooltips-header">
-                ${dayjs.tz(+xPreValue).format('YYYY-MM-DD HH:mm:ssZZ')}
+                ${dayjs.tz(+xPreValue).format('YYYY-MM-DD HH:mm:ss')}
             </p>
             <p class="tooltips-header">
-              ${dayjs.tz(+xValue).format('YYYY-MM-DD HH:mm:ssZZ')}
+              ${dayjs.tz(+xValue).format('YYYY-MM-DD HH:mm:ss')}
             </p>
             <ul class="tooltips-content">
               <li class="tooltips-content-item">

@@ -25,7 +25,6 @@ from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from fta_web.alert.serializers import AlertIDField
 from kernel_api.resource.qos import FailurePublishResource, FailureRecoveryResource
-from kernel_api.resource.alert import ListAlertResource
 
 logger = logging.getLogger("kernel_api")
 
@@ -48,7 +47,6 @@ class SearchAlertViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute("POST", resource.alert.search_alert, endpoint="search_alert"),
-        ResourceRoute("POST", ListAlertResource, endpoint="list_alert"),
     ]
 
 

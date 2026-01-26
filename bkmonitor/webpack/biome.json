@@ -71,11 +71,7 @@
       "correctness": {
         "useJsxKeyInIterable": "error",
         "noUnusedVariables": "error",
-        "noUnusedImports": "error",
-        "noUnusedFunctionParameters": {
-          "fix": "none",
-          "level": "error"
-        }
+        "noUnusedImports": "error"
       }
     }
   },

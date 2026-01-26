@@ -91,7 +91,7 @@
               <div class="fields-setting-container">
                 <fields-setting
                   :field-alias-map="fieldAliasMap"
-                  :is-show="showFieldsSetting"
+                  :is-show="true"
                   :retrieve-params="retrieveParams"
                   config-type="list"
                   @cancel="cancelModifyFields"
@@ -125,7 +125,7 @@ import BkLogPopover from '../../../../components/bklog-popover/index';
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ResultStorage from '../../components/result-storage/index';
 import FieldsSetting from '../../result-comp/update/fields-setting';
-import bklogTagChoice from '../../search-bar/components/bklog-tag-choice';
+import bklogTagChoice from '../../search-bar/bklog-tag-choice';
 import TableLog from './log-result.vue';
 
 let logResultResizeObserver;
@@ -175,9 +175,6 @@ export default {
         maxWidth: 1200,
         arrow: false,
         hideOnClick: false,
-        onShow: () => {
-          this.showFieldsSetting = true;
-        },
       },
     };
   },
@@ -293,7 +290,6 @@ export default {
         return false;
       }
 
-      this.showFieldsSetting = false;
       return true;
     },
     handleTagRender(item, index) {
@@ -324,11 +320,7 @@ export default {
       this.closeDropdown();
     },
     closeDropdown() {
-      if (!this.showFieldsSetting) {
-        return;
-      }
       this.$refs.refFieldsSettingPopper?.hide();
-      this.showFieldsSetting = false;
     },
 
     handleAddNewConfig() {

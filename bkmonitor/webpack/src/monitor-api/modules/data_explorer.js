@@ -25,9 +25,9 @@ export default {
   eventTotal,
   eventViewConfig,
   eventTimeSeries,
+  eventDownloadTopK,
   eventStatisticsInfo,
   eventStatisticsGraph,
   eventTagDetail,
   eventGenerateQueryString,
-  eventDownloadTopK,
 };

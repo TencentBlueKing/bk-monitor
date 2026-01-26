@@ -241,7 +241,6 @@
 
 <script>
   import EmptyStatus from '@/components/empty-status';
-  import useUtils from '@/hooks/use-utils';
 
   import DownloadUrl from './download-url';
   import ListBox from './list-box';
@@ -339,8 +338,7 @@
           }, []);
           // 获取displayName
           await this.queryDisplayName(allIpList);
-          const { formatResponseListTimeZoneString } = useUtils();
-          this.taskList = formatResponseListTimeZoneString(res.data.list || [], {}, ['created_at', 'updated_at']);
+          this.taskList = res.data.list;
           this.timeout = res.data.timeout || 10;
           this.pollingTaskStatus();
         } catch (e) {

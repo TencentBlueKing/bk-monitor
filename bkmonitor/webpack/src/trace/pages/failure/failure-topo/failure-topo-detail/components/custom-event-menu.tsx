@@ -24,15 +24,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, ref as deepRef, defineComponent, watch } from 'vue';
+import { type PropType, computed, defineComponent, ref, watch } from 'vue';
 
-import { Progress } from 'bkui-vue';
+import { Exception, Progress } from 'bkui-vue';
 import dayjs from 'dayjs';
 import base64Svg from 'monitor-common/svg/base64';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import ExceptionComp from '../../../../../components/exception';
 import { handleToEventPage } from '../../utils';
 import { getIncidentEventTagDetails } from '../use-custom';
 
@@ -67,10 +66,10 @@ export default defineComponent({
     const route = useRoute();
     const router = useRouter();
 
-    const warningData = deepRef<ICustomEventDetail>({});
-    const allData = deepRef<ICustomEventDetail>({});
-    const activeTab = deepRef<EventTab>(EventTab.Warning);
-    const loading = deepRef(false);
+    const warningData = ref<ICustomEventDetail>({});
+    const allData = ref<ICustomEventDetail>({});
+    const activeTab = ref<EventTab>(EventTab.Warning);
+    const loading = ref(false);
 
     const menuData = computed(() => (activeTab.value === EventTab.Warning ? warningData.value : allData.value));
 
@@ -284,7 +283,7 @@ export default defineComponent({
               style='color: #979BA5;'
               class='detail-btn'
             >
-              {dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ssZZ')}
+              {dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ss')}
             </span>
           </div>
         );
@@ -411,12 +410,13 @@ export default defineComponent({
         );
       }
       return (
-        <ExceptionComp
-          imgHeight={100}
-          isDarkTheme={true}
-          isError={false}
-          title={this.t('暂无数据')}
-        />
+        <Exception
+          class='no-data'
+          scene='part'
+          type='empty'
+        >
+          {this.t('暂无数据')}
+        </Exception>
       );
     };
 

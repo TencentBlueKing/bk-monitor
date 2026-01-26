@@ -50,7 +50,7 @@ export default () => {
   /**
    * 自动补全提示接口请求任务
    */
-  const requestFieldEgges = (field: any, value?: string, callback?: (_resp: any) => void, finallyFn?: () => void) => {
+  const requestFieldEgges = (field: any, value?: string, callback?: (resp: any) => void, finallyFn?: () => void) => {
     /**
      * 检测字段是否为 flattened 字段
      */
@@ -60,7 +60,7 @@ export default () => {
     }
 
     if (
-      taskPool.some((task) => {
+      taskPool.some(task => {
         return task.fields[0] === field && task.query_value === value && task.pending;
       })
     ) {
@@ -70,7 +70,7 @@ export default () => {
 
     const getConditionValue = () => {
       if (['keyword'].includes(field.field_type)) {
-        return [`${value}`];
+        return [`*${value}*`];
       }
       setIsRequesting(false);
       return [];
@@ -88,15 +88,15 @@ export default () => {
 
       const addition = value
         ? [
-          {
-            field: field.field_name,
-            operator: 'contains',
-            value: getConditionValue(),
-          },
-        ].map((val) => {
-          const instance = new ConditionOperator(val);
-          return instance.getRequestParam();
-        })
+            {
+              field: field.field_name,
+              operator: '=~',
+              value: getConditionValue(),
+            },
+          ].map(val => {
+            const instance = new ConditionOperator(val);
+            return instance.getRequestParam();
+          })
         : [];
 
       const taskArgs = {
@@ -118,13 +118,13 @@ export default () => {
       taskPool.push(taskArgs);
       store
         .dispatch('requestIndexSetValueList', taskArgs)
-        .then((resp) => {
+        .then(resp => {
           if (taskArgs.pending) {
             store.commit('updateIndexFieldEggsItems', resp.data?.aggs_items ?? {});
             callback?.(resp);
           }
         })
-        .catch((err) => {
+        .catch(err => {
           if (err.code === 'ERR_CANCELED') {
             console.log('取消请求');
           }

@@ -73,7 +73,6 @@ export interface IEntity {
   alert_all_recorved: boolean;
   anomaly_score: number;
   anomaly_type: string;
-  component_type?: string;
   dimensions: Record<string, any>;
   entity_id: string;
   entity_name: string;

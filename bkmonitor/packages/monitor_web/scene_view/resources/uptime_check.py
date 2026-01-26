@@ -375,7 +375,7 @@ class GetUptimeCheckVarListResource(ApiAuthResource):
             .distinct()
         )
         if validated_request_data["var_type"] == "location":
-            var_list = [{"id": item["city"], "name": item["city"]} for item in var_list if item.get("city")]
+            var_list = [{"id": item["city"], "name": item["city"]} for item in var_list if item["city"]]
         else:
             var_list = [{"id": item, "name": NODE_IP_TYPE_DICT.get(item, item)} for item in var_list if item]
         if validated_request_data["var_type"] != "ip_type":

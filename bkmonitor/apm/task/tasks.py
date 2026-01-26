@@ -41,9 +41,7 @@ from apm.models import (
     QpsConfig,
 )
 from apm.utils.report_event import EventReportHelper
-from bkmonitor.utils.tenant import set_local_tenant_id
 from constants.apm import TelemetryDataType
-from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.errors.alarm_backends import LockError
 
@@ -316,7 +314,6 @@ def bmw_task_cron():
     """
     定时检测所有应用的 BMW 预计算任务是否正常运行
     """
-    set_local_tenant_id(DEFAULT_TENANT_ID)
     unopened_mapping, running_mapping, removed_tasks = PreCalculateCheck.get_application_info_mapping()
     distribution = PreCalculateCheck.calculate_distribution(running_mapping, unopened_mapping)
     PreCalculateCheck.distribute(distribution)

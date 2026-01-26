@@ -39,7 +39,6 @@ import {
   stop,
 } from 'monitor-api/modules/apm_meta';
 import { getFieldOptionValues } from 'monitor-api/modules/apm_trace';
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { deepClone, typeTools } from 'monitor-common/utils/utils';
 import ChangeRcord from 'monitor-pc/components/change-record/change-record';
 // import CycleInput from '../../../components/cycle-input/cycle-input';
@@ -477,13 +476,7 @@ export default class BasicInfo extends tsc<IProps> {
     this.showInstanceSelector = !show;
     if (show) {
       if (!this.logAsciiList.length && this.isShowLog2TracesFormItem) this.fetchEncodingList();
-      const {
-        app_alias: appAlias,
-        description,
-        plugin_config,
-        application_sampler_config,
-        is_enabled_tail_sampling,
-      } = this.appInfo;
+      const { app_alias: appAlias, description, plugin_config, application_sampler_config, is_enabled_tail_sampling } = this.appInfo;
       const apdexConfig = this.appInfo.application_apdex_config || {};
       let samplerConfig = {};
       // 如果is_enabled_tail_sampling关闭，不设置sampler_type=tail的相关配置
@@ -492,7 +485,7 @@ export default class BasicInfo extends tsc<IProps> {
           sampler_percentage: application_sampler_config.sampler_percentage || 0,
         });
       }
-
+      
       Object.assign(this.formData, apdexConfig, samplerConfig, {
         app_alias: appAlias,
         description,
@@ -622,7 +615,7 @@ export default class BasicInfo extends tsc<IProps> {
 
     if (this.isShowLog2TracesFormItem) {
       plugin_config.bk_data_id = this.appInfo.plugin_config.bk_data_id;
-      // @ts-expect-error
+      // @ts-ignore
       params.plugin_config = plugin_config;
     }
     return params;
@@ -1242,7 +1235,7 @@ export default class BasicInfo extends tsc<IProps> {
                   formType='input'
                   label={this.$t('创建时间')}
                   showEditable={false}
-                  value={formatWithTimezone(this.appInfo.create_time)}
+                  value={this.appInfo.create_time}
                 />
                 <EditableFormItem
                   authority={this.authority.MANAGE_AUTH}
@@ -2233,9 +2226,7 @@ export default class BasicInfo extends tsc<IProps> {
           <div
             class='history-btn'
             v-bk-tooltips={{ content: this.$t('变更记录'), allowHTML: false }}
-            onClick={() => {
-              this.record.show = true;
-            }}
+            onClick={() => (this.record.show = true)}
           >
             <i class='icon-monitor icon-lishijilu' />
           </div>
@@ -2275,9 +2266,7 @@ export default class BasicInfo extends tsc<IProps> {
         <ChangeRcord
           recordData={this.record.data}
           show={this.record.show}
-          onUpdateShow={v => {
-            this.record.show = v;
-          }}
+          onUpdateShow={v => (this.record.show = v)}
         />
 
         {this.isShowLog2TracesFormItem && (
@@ -2287,9 +2276,7 @@ export default class BasicInfo extends tsc<IProps> {
             objectType={this.formData.plugin_config.target_object_type}
             showDialog={this.selectorDialog.isShow}
             onChange={this.handleSelectorChange}
-            onCloseDialog={v => {
-              this.selectorDialog.isShow = v;
-            }}
+            onCloseDialog={v => (this.selectorDialog.isShow = v)}
           />
         )}
 

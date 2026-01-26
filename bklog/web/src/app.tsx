@@ -37,7 +37,6 @@ import { useRoute } from 'vue-router/composables';
 
 import useLocale from './hooks/use-locale';
 import useStore from './hooks/use-store';
-import { join } from '@/global/utils/path';
 
 import '@blueking/notice-component-vue2/dist/style.css';
 import './app.scss';
@@ -96,15 +95,8 @@ export default defineComponent({
 
       // 更新全局操作列表
       const isShowSettingList = logDesensitize !== 'off';
-      // 自定义菜单项
-      const customItems = [
-        { id: 'my-applied', name: $t('我申请的') },
-        { id: 'my-report', name: $t('我的订阅') },
-      ];
-      // 脱敏菜单项
-      const maskingItems = isShowSettingList ? [{ id: 'masking-setting', name: $t('全局脱敏') }] : [];
       store.commit('updateState', {
-        globalSettingList: [...customItems, ...maskingItems],
+        globalSettingList: isShowSettingList ? [{ id: 'masking-setting', name: $t('全局脱敏') }] : [],
       });
     };
 
@@ -128,7 +120,7 @@ export default defineComponent({
         return (
           <NoticeComponent
             ref='refNoticeComponent'
-            api-url={join((window as any).SITE_URL, '/notice/announcements/')}
+            api-url='/notice/announcements/'
             on-show-alert-change={showAlertChange}
           />
         );
@@ -220,14 +212,15 @@ export default defineComponent({
 
     onMounted(() => {
       const platform = window.navigator.platform.toLowerCase();
-      const fontFamily =        platform.indexOf('win') === 0
-        ? 'Microsoft Yahei, pingFang-SC, Helvetica, Aria, sans-serif'
-        : 'pingFang-SC, Microsoft Yahei, Helvetica, Aria, sans-serif';
+      const fontFamily =
+        platform.indexOf('win') === 0
+          ? 'Microsoft Yahei, pingFang-SC-Regular, Helvetica, Aria, sans-serif'
+          : 'pingFang-SC-Regular, Microsoft Yahei, Helvetica, Aria, sans-serif';
       document.body.style['font-family'] = fontFamily;
       store.commit('updateState', { runVersion: window.RUN_VER || '' });
 
       const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
-      store.commit('updateState', { isEnLanguage });
+      store.commit('updateState', { isEnLanguage: isEnLanguage });
       const languageClassName = isEnLanguage ? 'language-en' : 'language-zh';
       document.body.classList.add(languageClassName);
       // 初始化脱敏灰度相关的代码

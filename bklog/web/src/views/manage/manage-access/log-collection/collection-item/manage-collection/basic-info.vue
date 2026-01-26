@@ -447,7 +447,7 @@
           ];
           this.createAndTimeData = createAndTimeData.map(item => {
             if (item.key === 'created_at' || item.key === 'updated_at') {
-              item.value = utcFormatDate(collectorData[item.key], true);
+              item.value = utcFormatDate(collectorData[item.key]);
             } else {
               item.value = collectorData[item.key];
             }
@@ -484,14 +484,12 @@
         const params = {};
         params.collectorId = this.$route.params.collectorId;
         const routeName = this.isCustomReport ? 'custom-report-edit' : 'collectEdit';
-        // 根据当前路由动态设置backRoute
-        const backRoute = this.isCustomReport ? this.$route.name : 'manage-collection';
         this.$router.push({
           name: routeName,
           params,
           query: {
             spaceUid: this.$store.state.spaceUid,
-            backRoute,
+            backRoute: 'manage-collection',
             type: 'basicInfo',
           },
         });

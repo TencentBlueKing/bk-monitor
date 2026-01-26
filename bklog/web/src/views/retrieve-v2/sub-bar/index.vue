@@ -9,7 +9,7 @@ import { isEqual } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import IndexSetChoice from '../components/index-set-choice/index';
-import { getInputQueryIpSelectItem } from '../search-bar/utils/const.common';
+import { getInputQueryIpSelectItem } from '../search-bar/const.common';
 // #if MONITOR_APP !== 'trace'
 import QueryHistory from './query-history';
 // #else
@@ -23,7 +23,7 @@ import BarGlobalSetting from './bar-global-setting.tsx';
 import MoreSetting from './more-setting.vue';
 import TimeSetting from './time-setting';
 import WarningSetting from './warning-setting.vue';
-import AutoRefresh from './auto-refresh-new.tsx';
+import AutoRefresh from './auto-refresh.vue';
 // #else
 // #code const TimeSetting = () => null;
 // #code const FieldSetting = () => null;

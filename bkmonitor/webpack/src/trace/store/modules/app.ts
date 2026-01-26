@@ -35,14 +35,8 @@ export interface IAppState {
   extraDocLinkMap: Record<string, IDocLinkData>;
   navId: string;
   siteUrl: string;
-  spaceTimezone: string;
   userName: string;
 }
-
-const getSpaceTimezone = () => {
-  const spaceTimezone = window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.time_zone || '';
-  return spaceTimezone;
-};
 
 export const useAppStore = defineStore('app', {
   state: (): IAppState => ({
@@ -54,7 +48,6 @@ export const useAppStore = defineStore('app', {
     siteUrl: window.site_url,
     bkUrl: window.bk_url,
     extraDocLinkMap: {},
-    spaceTimezone: getSpaceTimezone(),
   }),
   actions: {
     /**

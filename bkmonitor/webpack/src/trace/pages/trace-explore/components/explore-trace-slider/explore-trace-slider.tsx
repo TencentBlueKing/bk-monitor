@@ -71,7 +71,6 @@ export default defineComponent({
           getTraceDetails();
         } else if (!val) {
           searchCancelFn?.();
-          store.clearExternalLocateSpan();
           store.setTraceData(JSON.parse(JSON.stringify(DEFAULT_TRACE_DATA)));
         }
       },
@@ -126,7 +125,6 @@ export default defineComponent({
     function handleSliderClose() {
       emit('sliderClose');
       fullscreen.value = false;
-      store.clearExternalLocateSpan();
     }
 
     return {

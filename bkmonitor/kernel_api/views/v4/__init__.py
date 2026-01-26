@@ -28,7 +28,6 @@ from .metrics import *  # noqa
 from .new_report import *  # noqa
 from .notice_group import *  # noqa
 from .plugin import *  # noqa
-from .relation import *  # noqa
 from .shield import *  # noqa
 from .strategy import *  # noqa
 from .strategy_v2 import *  # noqa
@@ -37,5 +36,3 @@ from .event_v2 import *  # noqa
 from .gse import *  # noqa
 from .log_search import *  # noqa
 from .subscribe import *  # noqa
-from .ai_repo import *  # noqa
-from .alert_v2 import *  # noqa

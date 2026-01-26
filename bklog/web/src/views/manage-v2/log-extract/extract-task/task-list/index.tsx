@@ -31,7 +31,6 @@ import useLocale from '@/hooks/use-locale';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
 import useStore from '@/hooks/use-store';
-import useUtils from '@/hooks/use-utils';
 
 import DownloadUrl from './download-url.tsx';
 import ListBox from './list-box.tsx';
@@ -123,8 +122,7 @@ export default defineComponent({
         }, []);
         // 获取displayName
         await queryDisplayName(allIpList);
-        const { formatResponseListTimeZoneString } = useUtils();
-        taskList.value = formatResponseListTimeZoneString(res.data.list || [], {}, ['created_at', 'updated_at']);
+        taskList.value = res.data.list;
         timeout.value = res.data.timeout || 10;
         pollingTaskStatus();
       } catch (e) {
@@ -436,7 +434,7 @@ export default defineComponent({
           {/* 创建时间列 */}
           <bk-table-column
             label={t('创建时间')}
-            width='190'
+            min-width='120'
             prop='created_at'
             renderHeader={renderHeader}
           />

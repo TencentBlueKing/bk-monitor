@@ -195,7 +195,6 @@
   import { formatFileSize } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import { mapGetters } from 'vuex';
-  import useUtils from '@/hooks/use-utils';
 
   import * as authorityMap from '../../../../common/authority-map';
   import RestoreSlider from './restore-slider';
@@ -311,17 +310,15 @@
             })
             .then(res => {
               const { data } = res;
-              const { formatResponseListTimeZoneString } = useUtils();
               this.restoreIds = [];
               this.pagination.count = data.total;
               this.restoreIds = [];
-              const formattedList = formatResponseListTimeZoneString(data.list || [], { }, ['expired_time', 'created_at', 'updated_at']);
-              formattedList.forEach(row => {
+              data.list.forEach(row => {
                 row.status = '';
                 row.status_name = '';
                 this.restoreIds.push(row.restore_config_id);
               });
-              this.dataList.splice(0, this.dataList.length, ...formattedList);
+              this.dataList.splice(0, this.dataList.length, ...data.list);
               resolve(res);
             })
             .catch(err => {

@@ -83,11 +83,7 @@
                   <verify-input
                     v-else
                     :key="index"
-                    :class="{
-                      'params-item': true,
-                      'params-item-code': item.type === 'code',
-                      'params-item-custom': item.type === 'custom',
-                    }"
+                    :class="{ 'params-item': true, 'params-item-code': item.type === 'code' }"
                     :show-validate.sync="item.validate.isValidate"
                     :validator="item.validate"
                     position="right"
@@ -110,7 +106,7 @@
                         >
                           <div
                             class="group-text"
-                            :class="{ 'tag-list-text': item.type === 'tag_list', required: item.required }"
+                            :class="{ 'tag-list-text': item.type === 'tag_list' }"
                           >
                             {{ item.alias || item.name }}
                           </div>
@@ -338,16 +334,6 @@ export default {
         content: '',
         isValidate: false,
       };
-
-      if (item.required) {
-        if (item.type === 'custom') {
-          validate.content = item.default.length ? '' : this.$t('必填项');
-          validate.isValidate = item.default.length === 0;
-        } else {
-          validate.content = item.default ? '' : this.$t('必填项');
-          validate.isValidate = !item.default;
-        }
-      }
       const fnMap = {
         port: v => {
           const isPass = /^([1-9]\d{0,4}|[1-5]\d{5}|6[0-4]\d{4}|65[0-4]\d{3}|655[0-2]\d{2}|6553[0-5])$/.test(v);
@@ -470,9 +456,6 @@ export default {
       item.validate.isValidate = !!msg;
     },
     validateParams() {
-      for (const item of this.configJson) {
-        item.validate = this.validateItem(item);
-      }
       return this.configJson.every(item => !item.validate.isValidate);
     },
     configJsonFileChange(file, item) {
@@ -486,9 +469,8 @@ export default {
 .dialog-update {
   display: flex;
   width: 850px;
-
   //   height: 480px;
-  margin: -33px -24px -26px;
+  margin: -33px -24px -26px -24px;
   font-size: 12px;
   background: #fafbfd;
 
@@ -615,8 +597,8 @@ export default {
         position: relative;
         padding: 0 20px;
         overflow: hidden;
-        text-overflow: ellipsis;
         line-height: 30px;
+        text-overflow: ellipsis;
         white-space: nowrap;
         background: #f2f4f8;
         border: 1px solid#c4c6cc;
@@ -641,7 +623,7 @@ export default {
     background: #fafbfd;
 
     .right-title {
-      margin: 22px 0 18px;
+      margin: 22px 0 18px 0px;
       font-size: 14px;
       font-weight: bold;
       color: #63656e;
@@ -702,35 +684,22 @@ export default {
 }
 </style>
 <style lang="scss">
-.params-item-code,
-.params-item-custom {
+.params-item-code {
   align-items: flex-start;
 
   .group-text {
     position: relative;
     padding: 0 20px;
     overflow: hidden;
-    text-overflow: ellipsis;
     line-height: 30px;
+    text-overflow: ellipsis;
     white-space: nowrap;
     background: #f2f4f8;
     border: 1px solid#c4c6cc;
   }
 
   .code-select-editor {
-    margin-top: 0;
-  }
-}
-
-.group-text {
-  &.required::after {
-    position: absolute;
-    top: 0;
-    right: 0;
-    padding: 0 4px;
-    font-size: 12px;
-    color: red;
-    content: '*';
+    margin-top: 0px;
   }
 }
 </style>

@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/** biome-ignore-all lint/suspicious/useIterableCallbackReturn: <explanation> */
 
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
@@ -136,6 +135,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   created() {
     this.curDimensionKey = 'request_total';
   }
+
   /** 是否需要展示百分号 */
   hasPrefix(fieldName: string) {
     return this.prefix.some(pre => fieldName.startsWith(pre));
@@ -248,13 +248,14 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Watch('tableListData', { immediate: true })
   handleListData(_val: IListItem[]) {
     this.filterOpt = {};
+    // console.log(val, 'tableListData');
   }
 
   get showTableList() {
     const { limit, current } = this.pagination;
     const groupByList = this.dimensionList.filter(item => item.active);
     if (this.totalList.length > 0) {
-      groupByList.forEach((item, ind) => {
+      groupByList.map((item, ind) => {
         Object.assign(this.totalList[0], {
           isTotal: true,
           [item.value]: ind === 0 ? '汇总' : '  ',
@@ -466,7 +467,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Emit('drill')
   chooseSelect(option: IListItem, row: IDataItem) {
     this.drillValue = option.value;
-    this.pagination.current = 1;
     return { option, row };
   }
   copyValue(text) {
@@ -531,11 +531,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         kind: tagTraceMapping[kind].value,
         'resource.service.name': [service_name],
       };
-      for (const item of groupBy) {
+      groupBy.map(item => {
         if (row[item]) {
           filter[tagTraceMapping[item].field] = [row[item]];
         }
-      }
+      });
 
       const conditionList = Object.keys(filter).map(key => {
         return {
@@ -544,12 +544,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           value: filter[key],
         };
       });
-      const start = dayjs(from ?? '');
-      const end = dayjs(to ?? '');
       window.open(
         location.href.replace(
           location.hash,
-          `#/trace/home?app_name=${app_name}&where=${encodeURIComponent(JSON.stringify(conditionList))}&start_time=${start.isValid() ? start.valueOf() : from}&end_time=${end.isValid() ? end.valueOf() : to}&sceneMode=span&filterMode=ui`
+          `#/trace/home?app_name=${app_name}&where=${encodeURIComponent(JSON.stringify(conditionList))}&start_time=${from}&end_time=${to}&sceneMode=span&filterMode=ui`
         )
       );
       return;
@@ -648,22 +646,22 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         {remark && <span class='remark-text'>{remark}</span>}
         {!data?.isTotal && data[item.value] && (
           <i
+            v-bk-tooltips={{content: this.$t('复制')}}
             class='icon-monitor icon-mc-copy tab-row-icon'
-            v-bk-tooltips={{ content: this.$t('复制') }}
             onClick={() => this.copyValue(data[item.value])}
           />
         )}
         {data[item.value] && (
           <i
+            v-bk-tooltips={{content: this.$t('返回码重定义')}}
             class='icon-monitor icon-zhongdingyi tab-row-icon'
-            v-bk-tooltips={{ content: this.$t('返回码重定义') }}
             onClick={this.handleCodeRedefine}
           />
         )}
         {data[item.value] && (
           <i
+            v-bk-tooltips={{content: this.$t('备注')}}
             class='icon-monitor icon-beizhu1 tab-row-icon'
-            v-bk-tooltips={{ content: this.$t('备注') }}
             onClick={() => this.handleEditCodeRemark(data[item.value])}
           />
         )}
@@ -835,7 +833,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             scopedSlots={{
               default: a => {
                 if (item.value === 'code') return this.renderCodeColumn(item, a.row);
-                const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ssZZ') : '--';
+                const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ss') : '--';
                 const txt = item.value === 'time' && !a.row?.isTotal ? timeTxt : a.row[item.value];
                 return (
                   <span
@@ -853,8 +851,8 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                     </span>
                     {!a.row?.isTotal && a.row[item.value] && (
                       <i
+                        v-bk-tooltips={{content: this.$tc('复制')}}
                         class='icon-monitor icon-mc-copy tab-row-icon'
-                        v-bk-tooltips={{ content: this.$tc('复制') }}
                         onClick={() => this.copyValue(a.row[item.value])}
                       />
                     )}

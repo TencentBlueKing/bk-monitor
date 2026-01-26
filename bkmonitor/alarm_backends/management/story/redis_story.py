@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -7,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 import time
 
 from alarm_backends.core.cache.key import DATA_SIGNAL_KEY
@@ -49,15 +49,16 @@ class RedisEvictedKeys(CheckStep):
                 self.story.warning(f"[{node_name}] redis info stats did not return evicted_keys metric")
                 continue
             if evicted_keys > 0:
-                time.sleep(0.5)
+                time.sleep(5)
                 if not self.story.bulk_send_client("info", "stats")[node_name].get("evicted_keys") == evicted_keys:
                     p = RedisMemoryProblem(
-                        f"[{node_name}]redis memory is not enough, {evicted_keys} keys is evicted, and still growing",  # noqa
+                        f"[{node_name}]redis memory is not enough, {evicted_keys}"
+                        f" keys is evicted, and still growing",  # noqa
                         self.story,
                     )
                     p_list.append(p)
                     continue
-            self.story.info(f"[{node_name}]redis history redis_evicted_keys: {evicted_keys}, now evicted_keys: 0")
+            self.story.info(f"[{node_name}]redis redis_evicted_keys: {evicted_keys}")
         return p_list
 
 

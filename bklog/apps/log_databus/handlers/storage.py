@@ -173,8 +173,7 @@ class StorageHandler(object):
                 "index_count": i["index_count"],
                 "biz_count": i["biz_count"],
                 "storage_cluster_id": i["cluster_config"].get("cluster_id"),
-                "storage_cluster_name": i["cluster_config"].get("display_name") or
-                                        i["cluster_config"].get("cluster_name"),
+                "storage_cluster_name": i["cluster_config"].get("cluster_name"),
                 "storage_version": i["cluster_config"].get("version"),
                 "storage_type": STORAGE_CLUSTER_TYPE,
                 "priority": i["priority"],
@@ -479,8 +478,6 @@ class StorageHandler(object):
             cluster_info = self._get_cluster_detail_info(cluster_info)
         cluster_groups = self.filter_cluster_groups(cluster_info, bk_biz_id, is_default, enable_archive)
         for cluster_info in cluster_groups:
-            if cluster_info["cluster_config"].get("display_name"):
-                cluster_info["cluster_config"]["cluster_name"] = cluster_info["cluster_config"]["display_name"]
             cluster_info["is_platform"] = self.is_platform_cluster(
                 cluster_info["cluster_config"]["custom_option"]["visible_config"]["visible_type"]
             )
@@ -640,9 +637,6 @@ class StorageHandler(object):
             bkbase_cluster_id = self.sync_es_cluster(params)
             params["custom_option"]["bkbase_cluster_id"] = bkbase_cluster_id
 
-        if params.get("cluster_name"):
-            params["display_name"] = params.pop("cluster_name")
-
         bk_biz_id = int(params["custom_option"]["bk_biz_id"])
         es_source_id = TransferApi.create_cluster_info(params)
         username = get_request_username()
@@ -660,7 +654,7 @@ class StorageHandler(object):
 
         Permission().grant_creator_action(
             resource=ResourceEnum.ES_SOURCE.create_simple_instance(
-                es_source_id, attribute={"name": params.get("display_name") or params.get("cluster_name")}
+                es_source_id, attribute={"name": params["cluster_name"]}
             )
         )
 
@@ -733,9 +727,6 @@ class StorageHandler(object):
             params["custom_option"]["option"] = params["option"]
         elif raw_custom_option.get("option"):
             params["custom_option"]["option"] = raw_custom_option["option"]
-
-        if params.get("cluster_name"):
-            params["display_name"] = params.pop("cluster_name")
 
         cluster_obj = TransferApi.modify_cluster_info(params)
         cluster_obj["auth_info"]["password"] = ""

@@ -34,7 +34,6 @@ import {
 } from 'monitor-api/modules/custom_report';
 import { checkAllowedByActionIds, getAuthorityDetail } from 'monitor-api/modules/iam';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { deepClone } from 'monitor-common/utils/utils';
 // import LeftPanel from './left-panel.vue';
 import { debounce } from 'throttle-debounce';
@@ -681,7 +680,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                         class='col-change-author'
                         user-id={row.create_user}
                       />
-                      <span>{formatWithTimezone(row.create_time)}</span>
+                      <span>{row.create_time}</span>
                     </div>
                   ),
                   update: (row: IEventItem) =>
@@ -691,7 +690,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                           class='col-change-author'
                           user-id={row.update_user}
                         />
-                        <span>{formatWithTimezone(row.update_time)}</span>
+                        <span>{row.update_time}</span>
                       </div>
                     ) : (
                       <div>--</div>

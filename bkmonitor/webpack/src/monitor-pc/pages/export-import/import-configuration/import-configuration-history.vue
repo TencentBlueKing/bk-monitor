@@ -54,11 +54,10 @@
         :data="tableData"
         @row-click="handleRowClick"
       >
-        <bk-table-column :label="$t('导入时间')">
-          <template #default="{ row }">
-            <span>{{ formatWithTimezone(row.createTime) }}</span>
-          </template>
-        </bk-table-column>
+        <bk-table-column
+          :label="$t('导入时间')"
+          prop="createTime"
+        />
         <bk-table-column
           :label="$t('操作人')"
           prop="createUser"
@@ -115,7 +114,6 @@
   </article>
 </template>
 <script>
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { mapActions } from 'vuex';
 
 import { importConfigMixin } from '../../../common/mixins';
@@ -151,9 +149,6 @@ export default {
   },
   methods: {
     ...mapActions('import', ['getHistoryList']),
-    formatWithTimezone(time) {
-      return formatWithTimezone(time);
-    },
     updateNavData(name = '') {
       this.$store.commit(`app/${SET_NAV_ROUTE_LIST}`, [{ name, id: '' }]);
     },
@@ -162,7 +157,7 @@ export default {
       // 判断提示信息是否过期
       if (window.localStorage) {
         const expireTime = window.localStorage.getItem('__import-history-tip__');
-        this.tipShow = Date.now() > expireTime;
+        this.tipShow = new Date().getTime() > expireTime;
       }
       this.tableData = await this.getHistoryList();
       this.handleSetRuningQueue();
@@ -203,7 +198,7 @@ export default {
     },
     handleHideTips() {
       if (window.localStorage) {
-        const dateTime = Date.now() + this.expire;
+        const dateTime = new Date().getTime() + this.expire;
         window.localStorage.setItem('__import-history-tip__', dateTime);
         this.tipShow = false;
       }
@@ -238,7 +233,6 @@ $emptyTipColor: #979ba5;
 
 .config-history {
   min-height: 100%;
-  margin: 24px;
 
   :deep(.bk-table-row) {
     cursor: pointer;

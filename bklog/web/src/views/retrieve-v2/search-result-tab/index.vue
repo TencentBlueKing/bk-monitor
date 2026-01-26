@@ -5,7 +5,6 @@ import useStore from '@/hooks/use-store';
 import { computed, defineEmits, defineProps, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router/composables';
 import DashboardDialog from './components/dashboard-dialog.vue';
-
 const props = defineProps({
   value: {
     type: String,
@@ -61,24 +60,17 @@ const panelList = computed(() => {
   return [
     { name: 'origin', label: $t('原始日志'), disabled: false },
     { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
-    { name: 'graph_analysis', label: $t('图表分析'), disabled: !isChartEnable.value },
+    { name: 'graphAnalysis', label: $t('图表分析'), disabled: !isChartEnable.value },
     { name: 'grep', label: $t('Grep模式'), disabled: !isGrepEnable.value },
   ];
 });
 
 const renderPanelList = computed(() => panelList.value.filter(item => !item.disabled));
 
-// 标准化 tab 值，将旧值转换为新值
-const normalizeTabValue = (tabValue) => {
-  return tabValue === 'graphAnalysis' ? 'graph_analysis' : tabValue;
-};
-
-const normalizedValue = computed(() => normalizeTabValue(props.value));
-
 const tabClassList = computed(() => {
   return renderPanelList.value.map((item, index) => {
-    const isActive = normalizedValue.value === item.name;
-    const isPreItemActive = renderPanelList.value[index - 1]?.name === normalizedValue.value;
+    const isActive = props.value === item.name;
+    const isPreItemActive = renderPanelList.value[index - 1]?.name === props.value;
 
     if (isActive || index === 0 || isPreItemActive) {
       return [];
@@ -136,8 +128,7 @@ const handleAddAlertDashboard = async () => {
   showDialog.value = true;
 };
 const handleActive = (panel) => {
-  // 标准化比较，确保旧值也能正确判断是否为当前激活的 tab
-  if (normalizedValue.value === panel) return;
+  if (props.value === panel) return;
 
   emit('input', panel, panel === 'origin');
 };
@@ -145,12 +136,10 @@ const handleActive = (panel) => {
 watch(
   () => [isGrepEnable.value, isChartEnable.value, isAiopsToggle.value],
   ([grepEnable, graphEnable, aiopsEnable]) => {
-    // graphAnalysis: 兼容旧版本 graphAnalysis
-    if (['clustering', 'graphAnalysis', 'grep', 'graph_analysis'].includes(route.query.tab)) {
+    if (['clustering', 'graphAnalysis', 'grep'].includes(route.query.tab)) {
       if (
         (!grepEnable && route.query.tab === 'grep')
-        || (!graphEnable && route.query.tab === 'graphAnalysis'
-        || route.query.tab === 'graph_analysis')
+        || (!graphEnable && route.query.tab === 'graphAnalysis')
         || (!aiopsEnable && route.query.tab === 'clustering')
       ) {
         handleActive('origin');
@@ -160,7 +149,7 @@ watch(
 );
 
 onMounted(() => {
-  const tabName = normalizeTabValue(route.query.tab) ?? 'origin';
+  const tabName = route.query.tab ?? 'origin';
   if (panelList.value.find(item => item.name === tabName)?.disabled ?? true) {
     handleActive(panelList.value[0].name);
   }
@@ -172,7 +161,7 @@ onMounted(() => {
       <span
         v-for="(item, index) in renderPanelList"
         :key="item.label"
-        :class="['retrieve-panel', { active: normalizedValue === item.name }, ...tabClassList[index]]"
+        :class="['retrieve-panel', { active: value === item.name }, ...tabClassList[index]]"
         @click="handleActive(item.name)"
       >{{ item.label }}</span>
     </div>

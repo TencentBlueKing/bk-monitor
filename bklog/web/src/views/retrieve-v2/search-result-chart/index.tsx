@@ -33,7 +33,7 @@ import useLocale from '@/hooks/use-locale';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
 import useTrendChart from '@/hooks/use-trend-chart';
-import { formatAdditionalFields, getCommonFilterAddition } from '@/store/helper';
+import { getCommonFilterAddition } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { throttle } from 'lodash-es';
@@ -265,10 +265,7 @@ export default defineComponent({
         const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
         const queryData = {
           ...retrieveParams.value,
-          addition: formatAdditionalFields(store.state, [
-            ...requestAddition.value,
-            ...getCommonFilterAddition(store.state),
-          ]),
+          addition: [...requestAddition.value, ...getCommonFilterAddition(store.state)],
           time_range: 'customized',
           interval: runningInterval,
           start_time: startTime,

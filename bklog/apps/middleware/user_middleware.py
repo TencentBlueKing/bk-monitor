@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -18,7 +19,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 import os
 import socket
 
@@ -42,20 +42,6 @@ HOSTNAME = socket.gethostname()
 STAGE = os.getenv("BKPAAS_ENVIRONMENT", "dev")
 
 
-def get_timezone_from_headers(request):
-    """
-    从请求头中获取时区
-    """
-    tz_name = request.META.get("HTTP_X_BKLOG_TIMEZONE", None)
-    # 验证时区是否有效
-    if tz_name:
-        try:
-            pytz.timezone(tz_name)
-        except Exception:
-            return None
-    return tz_name
-
-
 class UserLocalMiddleware(MiddlewareMixin):
     """
     国际化中间件，从BK_LOGIN获取个人配置的时区
@@ -75,9 +61,8 @@ class UserLocalMiddleware(MiddlewareMixin):
             request.session["bluking_timezone"] = settings.TIME_ZONE
             return None
 
-        timezone_from_headers = get_timezone_from_headers(request)
         user_info = self._get_user_info(user=request.user.username)
-        tzname = timezone_from_headers or user_info.get("time_zone", settings.TIME_ZONE)
+        tzname = user_info.get("time_zone", settings.TIME_ZONE)
         set_local_param("time_zone", tzname)
         timezone.activate(pytz.timezone(tzname))
         request.session["bluking_timezone"] = tzname

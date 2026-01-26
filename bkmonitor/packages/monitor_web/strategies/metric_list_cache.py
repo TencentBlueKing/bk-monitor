@@ -1095,10 +1095,9 @@ class CustomEventCacheManager(BaseMetricCacheManager):
             space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
             if space_uid.startswith(SpaceTypeEnum.BKCI.value):
                 space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
-                if space:
-                    custom_event_result += api.metadata.query_event_group.request.refresh(
-                        bk_tenant_id=self.bk_tenant_id, bk_biz_id=space.bk_biz_id
-                    )
+                custom_event_result += api.metadata.query_event_group.request.refresh(
+                    bk_tenant_id=self.bk_tenant_id, bk_biz_id=space.bk_biz_id
+                )
         # 3.k8s 事件
         # 1. 先拿业务下的集群列表
         # 区分 custom_event 和 k8s_event (来自metadata的设计)

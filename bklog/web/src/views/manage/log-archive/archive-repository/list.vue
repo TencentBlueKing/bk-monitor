@@ -188,7 +188,6 @@
   import { clearTableFilter } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import { mapGetters } from 'vuex';
-  import useUtils from '@/hooks/use-utils';
 
   import * as authorityMap from '../../../../common/authority-map';
   import RepositorySlider from './repository-slider.vue';
@@ -295,14 +294,12 @@
           })
           .then(res => {
             const { data } = res;
-            const { formatResponseListTimeZoneString } = useUtils();
             if (!data.length) {
               return;
             }
-            const formattedData = formatResponseListTimeZoneString(data || [], {}, ['create_time', 'created_at', 'updated_at']);
-            this.tableDataOrigin = formattedData;
-            this.tableDataSearched = formattedData;
-            this.pagination.count = formattedData.length;
+            this.tableDataOrigin = data;
+            this.tableDataSearched = data;
+            this.pagination.count = data.length;
             this.computePageData();
           })
           .catch(err => {

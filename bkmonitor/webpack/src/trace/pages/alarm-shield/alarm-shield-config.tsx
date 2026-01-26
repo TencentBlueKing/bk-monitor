@@ -30,7 +30,6 @@ import dayjs from 'dayjs';
 import { getNoticeWay, getReceiver } from 'monitor-api/modules/notice_group';
 import { addShield, editShield, frontendCloneInfo, frontendShieldDetail } from 'monitor-api/modules/shield';
 import { deepClone, random } from 'monitor-common/utils';
-import { createOfFormatWithTimezone, editOfFormatWithTimezone } from 'monitor-common/utils/timezone';
 import { getDefaultUserGroupListSync } from 'monitor-pc/components/user-selector/user-group';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -77,7 +76,6 @@ export default defineComponent({
     const { t } = useI18n();
     const userApi = `${location.origin}${location.pathname || '/'}rest/v2/commons/user/list_users/`;
     const store = useAppStore();
-    const spaceTimezone = computed(() => store.spaceTimezone);
     const router = useRouter();
     const route = useRoute();
     const bizList = shallowRef(store.bizList.filter(item => +item.bk_biz_id === +store.bizId));
@@ -247,13 +245,9 @@ export default defineComponent({
       noticeDate.value.shieldCycle = type;
       noticeDate.value[type] = {
         list: [...cycleConfig.day_list, ...cycleConfig.week_list],
-        range: isSingle
-          ? [data.begin_time, data.end_time].map(t => editOfFormatWithTimezone(t, spaceTimezone.value))
-          : [cycleConfig.begin_time, cycleConfig.end_time],
+        range: isSingle ? [data.begin_time, data.end_time] : [cycleConfig.begin_time, cycleConfig.end_time],
       };
-      noticeDate.value.dateRange = isSingle
-        ? []
-        : ([data.begin_time, data.end_time].map(t => editOfFormatWithTimezone(t, spaceTimezone.value)) as string[]);
+      noticeDate.value.dateRange = isSingle ? [] : [data.begin_time, data.end_time];
       noticeDate.value.key = random(8);
       /* 屏蔽原因 */
       formData.desc = data.description;
@@ -324,8 +318,8 @@ export default defineComponent({
       const isSingle = noticeDate.value.shieldCycle === EShieldCycle.single;
       const dateRange = [];
       if (!isSingle) {
-        dateRange[0] = dayjs(noticeDate.value.dateRange[0]).format('YYYY-MM-DD 00:00:00');
-        dateRange[1] = dayjs(noticeDate.value.dateRange[1]).format('YYYY-MM-DD 23:59:59');
+        dateRange[0] = dayjs.tz(noticeDate.value.dateRange[0]).format('YYYY-MM-DD 00:00:00');
+        dateRange[1] = dayjs.tz(noticeDate.value.dateRange[1]).format('YYYY-MM-DD 23:59:59');
       }
       const cycleDate = noticeDate.value[noticeDate.value.shieldCycle];
       const cycleMap = {
@@ -335,8 +329,8 @@ export default defineComponent({
         [EShieldCycle.month]: 4,
       };
       const cycleParams = {
-        begin_time: createOfFormatWithTimezone(isSingle ? cycleDate.range[0] : dateRange[0], spaceTimezone.value),
-        end_time: createOfFormatWithTimezone(isSingle ? cycleDate.range[1] : dateRange[1], spaceTimezone.value),
+        begin_time: isSingle ? cycleDate.range[0] : dateRange[0],
+        end_time: isSingle ? cycleDate.range[1] : dateRange[1],
         cycle_config: {
           begin_time: isSingle ? '' : cycleDate.range[0],
           end_time: isSingle ? '' : cycleDate.range[1],
@@ -573,43 +567,39 @@ export default defineComponent({
                 isEdit={this.isEdit}
                 show={this.tabData.active === EShieldType.Strategy}
                 value={this.strategyShieldData}
-                onChange={v => {
-                  this.strategyShieldData = v;
-                }}
+                onChange={v => (this.strategyShieldData = v)}
               />
               <AlarmShieldConfigScope
                 ref='scopeRef'
                 isEdit={this.isEdit}
                 show={this.tabData.active === EShieldType.Scope}
                 value={this.scopeData}
-                onChange={v => {
-                  this.scopeData = v;
-                }}
+                onChange={v => (this.scopeData = v)}
               />
               <AlarmShieldConfigDimension
                 ref='dimensionRef'
                 isEdit={this.isEdit}
                 show={this.tabData.active === EShieldType.Dimension}
                 value={this.dimensionShieldData}
-                onChange={v => {
-                  this.dimensionShieldData = v;
-                }}
+                onChange={v => (this.dimensionShieldData = v)}
               />
               {this.tabData.active === EShieldType.Event && (
-                <FormItem
-                  class='mt24'
-                  label={this.t('告警内容')}
-                  require={true}
-                >
-                  <div class='event-detail-content'>
-                    <FormItem label={`${this.t('维度信息')}:`}>
-                      <span class='detail-text'>{this.eventShieldData.dimensions}</span>
-                    </FormItem>
-                    <FormItem label={`${this.t('检测算法')}:`}>
-                      <span class='detail-text'>{this.eventShieldData.eventMessage}</span>
-                    </FormItem>
-                  </div>
-                </FormItem>
+                <>
+                  <FormItem
+                    class='mt24'
+                    label={this.t('告警内容')}
+                    require={true}
+                  >
+                    <div class='event-detail-content'>
+                      <FormItem label={`${this.t('维度信息')}:`}>
+                        <span class='detail-text'>{this.eventShieldData.dimensions}</span>
+                      </FormItem>
+                      <FormItem label={`${this.t('检测算法')}:`}>
+                        <span class='detail-text'>{this.eventShieldData.eventMessage}</span>
+                      </FormItem>
+                    </div>
+                  </FormItem>
+                </>
               )}
               {this.tabData.active !== EShieldType.Event && (
                 <ScopeDateConfig
@@ -628,9 +618,7 @@ export default defineComponent({
                   modelValue={this.formData.desc}
                   rows={3}
                   type='textarea'
-                  onUpdate:modelValue={v => {
-                    this.formData.desc = v;
-                  }}
+                  onUpdate:modelValue={v => (this.formData.desc = v)}
                 />
               </FormItem>
               <FormItem

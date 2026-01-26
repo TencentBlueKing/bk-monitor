@@ -68,10 +68,7 @@ BkMonitorQuerySchema = Schema(
                 Optional("variables", default=lambda: {}): dict,
             }
         ],
-        Optional("target"): {
-            "type": Or("host", "topo", "set_template", "service_template", "dynamic_group"),
-            "nodes": [str],
-        },
+        Optional("target"): {"type": Or("host", "topo", "set_template", "service_template"), "nodes": [str]},
     },
     ignore_extra_keys=True,
 )

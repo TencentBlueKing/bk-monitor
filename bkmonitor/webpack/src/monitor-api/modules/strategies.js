@@ -40,13 +40,6 @@ export const getIntelligentDetectAccessStatus = request('GET', 'rest/v2/strategi
 export const updateMetricListByBiz = request('POST', 'rest/v2/strategies/update_metric_list_by_biz/');
 export const multivariateAnomalyScenes = request('GET', 'rest/v2/strategies/multivariate_anomaly_scenes/');
 export const dashboardPanelToQueryConfig = request('POST', 'rest/v2/strategies/dashboard_panel_to_query_config/');
-export const getDevopsStrategyList = request('GET', 'rest/v2/strategies/get_devops_strategy_list/');
-export const saveStrategySubscribe = request('POST', 'rest/v2/strategies/subscribe/save/');
-export const deleteStrategySubscribe = request('POST', 'rest/v2/strategies/subscribe/delete/');
-export const listStrategySubscribe = request('GET', 'rest/v2/strategies/subscribe/list/');
-export const detailStrategySubscribe = request('GET', 'rest/v2/strategies/subscribe/detail/');
-export const bulkSaveStrategySubscribe = request('POST', 'rest/v2/strategies/subscribe/bulk_save/');
-export const bulkDeleteStrategySubscribe = request('POST', 'rest/v2/strategies/subscribe/bulk_delete/');
 
 export default {
   getScenarioList,
@@ -89,11 +82,4 @@ export default {
   updateMetricListByBiz,
   multivariateAnomalyScenes,
   dashboardPanelToQueryConfig,
-  getDevopsStrategyList,
-  saveStrategySubscribe,
-  deleteStrategySubscribe,
-  listStrategySubscribe,
-  detailStrategySubscribe,
-  bulkSaveStrategySubscribe,
-  bulkDeleteStrategySubscribe,
 };

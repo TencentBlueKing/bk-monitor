@@ -26,7 +26,6 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 
 import PanelItem from '../../../../components/panel-item/panel-item';
@@ -102,11 +101,8 @@ export default class Metric extends tsc<IProps> {
                 prop={'created_by'}
               />
               <bk-table-column
-                width={180}
-                scopedSlots={{
-                  default: scope => <span>{formatWithTimezone(scope.row.created_at)}</span>,
-                }}
                 label={this.$t('创建时间')}
+                prop={'created_at'}
               />
             </bk-table>
           )}

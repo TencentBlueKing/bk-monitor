@@ -60,7 +60,7 @@ class BKBaseCollectorPluginHandler(CollectorPluginHandler):
                 allocation_min_days=self.collector_plugin.allocation_min_days,
                 storage_replies=self.collector_plugin.storage_replies,
                 fields=self.collector_plugin.fields,
-                etl_params=self.collector_plugin.etl_params or {},
+                etl_params=self.collector_plugin.etl_params,
                 es_version=cluster_info["cluster_config"]["version"],
                 hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
                 es_shards=self.collector_plugin.storage_shards_nums,

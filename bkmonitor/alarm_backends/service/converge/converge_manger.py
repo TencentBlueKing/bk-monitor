@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -37,7 +38,7 @@ from constants.action import (
 logger = logging.getLogger("fta_action.converge")
 
 
-class ConvergeManager:
+class ConvergeManager(object):
     def __init__(
         self,
         converge_config,
@@ -88,10 +89,11 @@ class ConvergeManager:
         if self.converge_instance:
             # 当前存在同维度的汇总内容，直接返回收敛
             logger.info(
-                "%s|converge(%s) skipped because converge(%s) dimension existed already",
+                "%s|converge(%s) skipped because converge instance of dimension(%s｜%s) existed already",
                 self.instance_type,
                 self.instance.id,
                 self.converge_instance.id,
+                self.dimension,
             )
             return True
 
@@ -100,18 +102,14 @@ class ConvergeManager:
 
         if not self.converge_instance and matched_count >= int(self.converge_config["count"]):
             # create converge_instance record
-            logger.info("[create_converge_instance] begin to create converge by %s", self.instance.id)
+            logger.info("__begin to create converge_instance by %s __", self.instance.id)
             try:
                 self.create_converge_instance(self.start_time)
             except Exception as error:
-                logger.exception(
-                    "[create_converge_instance] create converge by instance(%s) failed：%s", self.instance.id, error
-                )
+                logger.exception("create converge_instance by instance(%s) failed：%s", self.instance.id, error)
                 return False
 
-            logger.info(
-                "[create_converge_instance] end create converge(%s) by %s ", self.converge_instance.id, self.instance.id
-            )
+            logger.info("__end create converge_instance(%s) by %s __ ", self.converge_instance.id, self.instance.id)
 
         if not self.converge_instance or matched_count == 0:
             logger.info("$%s no matched_count , return!!", self.instance.id)
@@ -211,7 +209,7 @@ class ConvergeManager:
         self.insert_converge_instance()
         if start_time and self.converge_instance.create_time < start_time:
             logger.info(
-                "converge(%s) end by start_time (%s < %s)",
+                "incident end by start_time %s (%s < %s)",
                 self.converge_instance.id,
                 self.converge_instance.create_time,
                 start_time,
@@ -222,7 +220,7 @@ class ConvergeManager:
 
     @classmethod
     def get_fixed_dimension(cls, dimension):
-        return f"{dimension} fixed at {int(datetime.now().timestamp())} {random.randint(100, 999)}"
+        return "{} fixed at {} {}".format(dimension, int(datetime.now().timestamp()), random.randint(100, 999))
 
     @classmethod
     def end_converge_by_id(cls, converge_id, conv_instance=None):
@@ -239,7 +237,7 @@ class ConvergeManager:
                 "related_id", flat=True
             ):
                 cls.end_converge_by_id(conv_id)
-        logger.info("converge(%s) already end at %s", converge_id, conv_instance.end_time)
+        logger.info("conv_instance %s already end at %s", converge_id, conv_instance.end_time)
 
     def insert_converge_instance(self):
         try:
@@ -269,7 +267,7 @@ class ConvergeManager:
                 is_visible=True,
             )
         except BaseException as error:
-            logger.error("[create converge] insert_converge_instance error %s", str(error))
+            logger.error("insert_converge_instance error %s", str(error))
             self.is_created = False
             self.converge_instance = self.get_converge_instance()
 
@@ -284,7 +282,7 @@ class ConvergeManager:
         if converge_instance and start_time and converge_instance.create_time < start_time:
             # 如果存在收敛并且不在当前收敛期的，直接关闭
             logger.info(
-                "[do_converge] converge(%s) end by start_time (%s < %s)",
+                "incident end by start_time %s (%s < %s)",
                 converge_instance.id,
                 converge_instance.create_time,
                 start_time,
@@ -297,7 +295,6 @@ class ConvergeManager:
     def connect_converge(self, status=ConvergeStatus.SKIPPED):
         """关联告警"""
         try:
-            # 判断当前实例是否为主要实例：如果是新创建的收敛实例则为主要实例，否则为关联实例
             is_primary = True if self.is_created else False
             if is_primary:
                 converge_status = ConvergeStatus.EXECUTED
@@ -353,8 +350,59 @@ class ConvergeManager:
 
         ConvergeInstance.objects.filter(id=self.converge_instance.id).update(description=description)
 
+    def count_instance(self):
+        return ConvergeRelationManager.count(converge_id=self.converge_instance.id)
 
-class ConvergeRelationManager:
+    def converge(self, conv_instance_id=None):
+        # 设置收敛有效性
+        hide_converge_instances, show_converge_instances = self.get_related_converge_instances(conv_instance_id)
+        self.trigger_converge(hide_converge_instances, is_visible=False)
+        self.trigger_converge(show_converge_instances, is_visible=True)
+
+    def get_related_converge_instances(self, converge_id):
+        converge_id = converge_id
+        same_converge_instances = [converge_id]
+        hide_converge_instances = []
+        show_converge_instances = []
+        related_ids = ConvergeRelation.objects.filter(converge_id=converge_id).values_list("related_id", flat=True)
+        logger.info("$%s related_ids: %s", converge_id, related_ids)
+        related_instances = ConvergeRelation.objects.filter(related_id__in=related_ids, related_type=self.instance_type)
+        converge_instances = {}
+        for inst in related_instances:
+            converge_instances.setdefault(inst.converge_id, set()).add(inst.related_id)
+        logger.info("$found converge_instances from %s: %s", converge_id, converge_instances.keys())
+        if converge_id in converge_instances:
+            std_alarms = converge_instances.pop(converge_id)
+        else:
+            std_alarms = set(related_ids)
+        for other_inc, target_alarms in converge_instances.items():
+            # 真子集的情况下, 不判断状态和先后, 直接隐藏子集
+            if std_alarms > target_alarms:
+                hide_converge_instances.append(other_inc)
+                show_converge_instances.append(converge_id)
+            elif std_alarms == target_alarms:
+                # 全等的情况下, 放在一起全部比较，优先隐藏后面建立的
+                same_converge_instances.append(other_inc)
+        same_converge_instances = sorted(set(same_converge_instances))
+        # 没有显示的收敛，则取全等的收敛最先建立的显示
+        if same_converge_instances and not show_converge_instances:
+            show_converge_instances.append(same_converge_instances[0])
+            hide_converge_instances.extend(same_converge_instances[1:])
+        # 否则隐藏相等的收敛
+        else:
+            hide_converge_instances.extend(same_converge_instances)
+        logger.info("incident hide %s | show %s", set(hide_converge_instances), set(show_converge_instances))
+        return hide_converge_instances, show_converge_instances
+
+    @classmethod
+    def trigger_converge(cls, converge_instances, is_visible):
+        converge_instances = sorted(list(set(map(int, converge_instances))))
+        if not converge_instances:
+            return
+        ConvergeInstance.objects.filter(id__in=converge_instances).update(is_visible=is_visible)
+
+
+class ConvergeRelationManager(object):
     @staticmethod
     def count(converge_id):
         return ConvergeRelation.objects.filter_by(converge_id=converge_id).count()
@@ -395,4 +443,4 @@ class ConvergeRelationManager:
         ]
         ConvergeRelation.objects.ignore_blur_create(converge_relations)
 
-        logger.info("converge(%s) connect: instance_id(%s) len(%s)", converge_id, instance_id, len(related_ids))
+        logger.info("$converge connect %s :instance_id(%s) len(%s)", converge_id, instance_id, len(related_ids))

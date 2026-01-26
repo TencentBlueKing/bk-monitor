@@ -242,17 +242,10 @@ export default {
 };
 
 export const getSeriesData = ({ data, name, color }) => ({
-  data: data.map((item) => {
-    // 将数据值为0的项转换为null，避免显示barMinHeight
-    if (Array.isArray(item) && item.length >= 2 && item[1] === 0) {
-      return [item[0], null, item[2]];
-    }
-    return item;
-  }),
+  data,
   name,
   type: 'bar',
   stack: 'total',
-  barMinHeight: 3,
   z: 4,
   markLine: {},
   markArea: {},

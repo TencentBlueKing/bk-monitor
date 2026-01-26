@@ -192,7 +192,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     const query = this.queryParams?.query_configs?.[0] || {};
     return {
       ...query,
-      // @ts-expect-error
+      // @ts-ignore
       result_table_id: query?.table,
     };
   }
@@ -345,7 +345,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
 
   updateTablePointEvents(val: 'auto' | 'none') {
     if (this.$el) {
-      // @ts-expect-error
+      // @ts-ignore
       this.$el.style.pointerEvents = val;
     }
   }
@@ -370,7 +370,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         id: 'time',
         name: this.$t('时间'),
         type: TIME,
-        width: 180,
+        width: 150,
         sortable: true,
       },
       this.source === APIType.APM

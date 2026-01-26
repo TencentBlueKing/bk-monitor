@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -18,7 +19,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 from rest_framework.response import Response
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
@@ -150,9 +150,7 @@ class ResultTablesViewSet(APIViewSet):
         data = self.params_valid(ResultTableDetailSerializer)
         result_table_id = kwargs.get("result_table_id")
         return Response(
-            ResultTableHandler(
-                data["scenario_id"], data.get("storage_cluster_id"), bk_biz_id=data.get("bk_biz_id")
-            ).retrieve(result_table_id)
+            ResultTableHandler(data["scenario_id"], data.get("storage_cluster_id")).retrieve(result_table_id)
         )
 
     @list_route(methods=["POST"], url_path="adapt")
@@ -210,9 +208,9 @@ class ResultTablesViewSet(APIViewSet):
                     raise FieldsDateTypeNotSameException()
 
         return Response(
-            ResultTableHandler(
-                data["scenario_id"], data.get("storage_cluster_id"), bk_biz_id=data.get("bk_biz_id")
-            ).adapt(basic_indices_index, append_index["index"])
+            ResultTableHandler(data["scenario_id"], data.get("storage_cluster_id")).adapt(
+                basic_indices_index, append_index["index"]
+            )
         )
 
     @list_route(methods=["POST"], url_path="trace_fields_match")
@@ -254,7 +252,7 @@ class ResultTablesViewSet(APIViewSet):
         }
         """
         data = self.params_valid(ResultTableTraceMatchSerializer)
-        result = ResultTableHandler(
-            data.get("scenario_id"), data.get("storage_cluster_id"), bk_biz_id=data.get("bk_biz_id")
-        ).trace_fields_match(data.get("indices"))
+        result = ResultTableHandler(data.get("scenario_id"), data.get("storage_cluster_id")).trace_fields_match(
+            data.get("indices")
+        )
         return Response(result)

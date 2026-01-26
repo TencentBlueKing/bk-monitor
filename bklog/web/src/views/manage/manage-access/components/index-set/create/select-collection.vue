@@ -385,7 +385,6 @@
           }else{
             const data = {
               scenario_id: this.scenarioId,
-              bk_biz_id: this.bkBizId,
               basic_indices: this.parentData.indexes.map(item => ({
                 index: item.result_table_id,
               })),

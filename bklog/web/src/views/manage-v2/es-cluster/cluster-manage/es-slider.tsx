@@ -239,30 +239,35 @@ export default defineComponent({
           },
         });
 
-        // 先回填业务属性标签，避免设置 visible_config 时 watch 触发清空数据
-        // 确保 bizParentList 已经有值，如果没有则等待
-        if (!bizParentList.value.length) {
-          await getBizPropertyId();
-        }
-        const visibleConfig = res.data.cluster_config.custom_option?.visible_config || {};
-        bkBizLabelsList.value = Object.entries(
-          visibleConfig.bk_biz_labels || {},
-        ).reduce((pre: any[], cur) => {
-          const propertyName = bizParentList.value.find(item => item.id === cur[0]);
-          const obj = {
-            name: propertyName?.name || cur[0], // 如果找不到名称，使用 ID 作为名称
-            id: cur[0],
-            values: (Array.isArray(cur[1]) ? cur[1] : []).map((item: string) => ({ id: item, name: item })),
-          };
-          pre.push(obj);
-          return pre;
-        }, []);
-        cacheBkBizLabelsList.value = JSON.parse(JSON.stringify(bkBizLabelsList.value));
+        // 回填 formData.value
+        Object.assign(formData.value, {
+          enable_hot_warm: res.data.cluster_config.enable_hot_warm,
+          hot_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_name || '',
+          hot_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_value || '',
+          warm_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_name || '',
+          warm_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_value || '',
+          setup_config: res.data.cluster_config.custom_option?.setup_config || {},
+          admin: res.data.cluster_config.custom_option?.admin || [],
+          description: res.data.cluster_config.custom_option?.description || '',
+          enable_archive: res.data.cluster_config.custom_option?.enable_archive,
+          enable_assessment: res.data.cluster_config.custom_option?.enable_assessment,
+          visible_config: res.data.cluster_config.custom_option?.visible_config || {},
+          // 合并 basicFormData.value 的基础属性
+          cluster_name: basicFormData.value.cluster_name,
+          source_type: basicFormData.value.source_type,
+          source_name: basicFormData.value.source_name,
+          domain_name: basicFormData.value.domain_name,
+          port: basicFormData.value.port,
+          schema: basicFormData.value.schema,
+          auth_info: basicFormData.value.auth_info,
+        });
+
+        initSidebarFormData();
 
         // 回填多业务选择
         visibleList.value = [];
         cacheVisibleList.value = [];
-        for (const val of visibleConfig.visible_bk_biz ?? []) {
+        for (const val of res.data.cluster_config.custom_option.visible_config?.visible_bk_biz ?? []) {
           const target = mySpaceList.value.find(project => project.bk_biz_id === String(val.bk_biz_id));
           if (target) {
             target.is_use = val.is_use;
@@ -276,32 +281,20 @@ export default defineComponent({
           }
         }
 
-        // 回填 formData.value（最后设置 visible_config，避免 watch 触发时数据还未准备好）
-        Object.assign(formData.value, {
-          enable_hot_warm: res.data.cluster_config.enable_hot_warm,
-          hot_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_name || '',
-          hot_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_value || '',
-          warm_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_name || '',
-          warm_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_value || '',
-          setup_config: res.data.cluster_config.custom_option?.setup_config || {},
-          admin: res.data.cluster_config.custom_option?.admin || [],
-          description: res.data.cluster_config.custom_option?.description || '',
-          enable_archive: res.data.cluster_config.custom_option?.enable_archive,
-          enable_assessment: res.data.cluster_config.custom_option?.enable_assessment,
-          // 合并 basicFormData.value 的基础属性
-          cluster_name: basicFormData.value.cluster_name,
-          source_type: basicFormData.value.source_type,
-          source_name: basicFormData.value.source_name,
-          domain_name: basicFormData.value.domain_name,
-          port: basicFormData.value.port,
-          schema: basicFormData.value.schema,
-          auth_info: basicFormData.value.auth_info,
-        });
-        
-        // 最后设置 visible_config，此时 bkBizLabelsList 和 cacheBkBizLabelsList 已经准备好
-        formData.value.visible_config = visibleConfig;
-
-        initSidebarFormData();
+        // 回填业务属性标签
+        bkBizLabelsList.value = Object.entries(
+          res.data.cluster_config.custom_option.visible_config?.bk_biz_labels || {},
+        ).reduce((pre: any[], cur) => {
+          const propertyName = bizParentList.value.find(item => item.id === cur[0]);
+          const obj = {
+            name: `${propertyName?.name}`,
+            id: cur[0],
+            values: (Array.isArray(cur[1]) ? cur[1] : []).map((item: string) => ({ id: item, name: item })),
+          };
+          pre.push(obj);
+          return pre;
+        }, []);
+        cacheBkBizLabelsList.value = JSON.parse(JSON.stringify(bkBizLabelsList.value));
 
         // 若为编辑状态，则打开侧边栏后直接联通测试，通过则展开ES集群管理
         setTimeout(() => {
@@ -691,11 +684,8 @@ export default defineComponent({
     // 监听：侧滑显示/隐藏
     watch(
       () => props.showSlider,
-      async val => {
+      val => {
         if (val) {
-          // 先获取业务属性列表，确保在编辑模式下回填数据时 bizParentList 已经有值
-          await getBizPropertyId();
-          
           if (isEdit.value) {
             isShowManagement.value = true;
             editDataSource();
@@ -704,6 +694,7 @@ export default defineComponent({
             initSidebarFormData();
           }
           updateDaysList();
+          getBizPropertyId();
         } else {
           Object.assign(formData.value, {
             cluster_name: '',
@@ -1062,7 +1053,7 @@ export default defineComponent({
                             remote-method={handleRemoteMethod}
                             show-condition={false}
                             show-popover-tag-change={false}
-                            values={bkBizLabelsList.value}
+                            value={bkBizLabelsList.value}
                             clearable
                             onChange={(val: any[]) => {
                               bkBizLabelsList.value = val;

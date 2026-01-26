@@ -29,7 +29,7 @@ import TextHighlight from 'vue-text-highlight';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-// import { BK_LOG_STORAGE } from '@/store/store.type';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import BkUserSelector from '@blueking/user-selector';
 import { bkMessage } from 'bk-magic-vue';
 import tippy from 'tippy.js';
@@ -130,13 +130,13 @@ export default defineComponent({
     const remarkTipsRef = ref<any>(null);
     const tableWraperRef = ref<HTMLElement>();
     const currentRowId = ref(0);
-    // const cacheExpandStr = ref<any[]>([]); // 展示pattern按钮数组
+    const cacheExpandStr = ref<any[]>([]); // 展示pattern按钮数组
 
     const groupState = computed(() => props.groupListState);
     const showYOY = computed(() => props.requestData?.year_on_year_hour >= 1);
-    // const isLimitExpandView = computed(
-    //   () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW],
-    // );
+    const isLimitExpandView = computed(
+      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW],
+    );
 
     /** 获取当前编辑操作的数据 */
     const currentRowValue = computed(() =>
@@ -283,10 +283,10 @@ export default defineComponent({
       emit('show-origin-log');
     };
 
-    // const getLimitState = (index: number) => {
-    //   if (isLimitExpandView.value) return false;
-    //   return !cacheExpandStr.value.includes(index);
-    // };
+    const getLimitState = (index: number) => {
+      if (isLimitExpandView.value) return false;
+      return !cacheExpandStr.value.includes(index);
+    };
 
     /** 将分组的数组改成对像 */
     const getGroupsValue = (group) => {
@@ -601,6 +601,7 @@ export default defineComponent({
             <div
               class={[
                 'pattern-content',
+                { 'is-limit': getLimitState(row.index) },
               ]}
             >
               <ClusterEventPopover

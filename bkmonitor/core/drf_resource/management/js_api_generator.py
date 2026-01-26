@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -7,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 """
 生成前端API调用函数
 """
@@ -322,7 +322,7 @@ def generate_js_api():
                 "rest/v2/grafana/bk_log_search/grafana/dimension/",
                 "rest/v2/grafana/bk_log_search/grafana/get_variable_value/",
             ]:
-                resource["request_url"] = f"query-api/{resource['request_url']}"
+                resource["request_url"] = f'query-api/{resource["request_url"]}'
 
     generate_new_js_api(resource_modules, models)
 
@@ -334,10 +334,10 @@ def _generate_js_api_by_module(views, app_name=""):
     resource_api = []
     model_api = []
     for attr, val in list(views.__dict__.items()):
-        if attr.startswith("_") or attr[0].islower():
+        if attr[0].islower():
             continue
         if isinstance(val, type):
-            if issubclass(val, ResourceViewSet | OldResourceViewSet):
+            if issubclass(val, (ResourceViewSet, OldResourceViewSet)):
                 resource_api += ResourceViewSetParser.parse(val, app_name)
             elif issubclass(val, GenericViewSet) and val not in [GenericViewSet, ModelViewSet]:
                 model_api.append(GenericViewSetParser.parse(val, app_name))
@@ -360,7 +360,7 @@ class BaseParser(six.with_metaclass(abc.ABCMeta, object)):
         "destroy": ViewFunction("DELETE", True),
     }
 
-    class ViewNameFormat:
+    class ViewNameFormat(object):
         default_list_route = "{basename}-list"
         custom_list_route = "{basename}-{methodnamehyphen}"
         default_detail_route = "{basename}-detail"
@@ -417,7 +417,7 @@ class ResourceViewSetParser(BaseParser):
             url_name = cls.replace_methodname(url_name_format, viewset_name, route.endpoint)
 
             if app_name:
-                url_name = f"{app_name}:{url_name}"
+                url_name = "{}:{}".format(app_name, url_name)
             kwargs = {}
             pk_placeholder = uniqid()
             if route.pk_field:
@@ -480,7 +480,7 @@ class GenericViewSetParser(BaseParser):
             url_name = cls.replace_methodname(url_name_format, viewset_name, methodname)
 
             if app_name:
-                url_name = f"{app_name}:{url_name}"
+                url_name = "{}:{}".format(app_name, url_name)
 
             kwargs = {}
             pk_placeholder = uniqid()

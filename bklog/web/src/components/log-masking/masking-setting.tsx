@@ -32,12 +32,12 @@ import { Alert, Button, Input, Table, TableColumn, Tag, Switcher, TableSettingCo
 
 import $http from '../../api';
 import * as authorityMap from '../../common/authority-map';
+import { utcFormatDate } from '../../common/util';
 import i18n from '../../language/i18n';
 import EmptyStatus from '../empty-status/index.vue';
 import MaskingAddRule from './masking-add-rule';
 
 import './masking-setting.scss';
-import useUtils from '@/hooks/use-utils';
 
 interface IProps {
   isPublicList: boolean;
@@ -252,17 +252,17 @@ export default class MaskingSetting extends tsc<IProps> {
   get authorityData() {
     return this.isPublicList
       ? {
-        action_ids: [authorityMap.MANAGE_GLOBAL_DESENSITIZE_RULE],
-      }
+          action_ids: [authorityMap.MANAGE_GLOBAL_DESENSITIZE_RULE],
+        }
       : {
-        action_ids: [authorityMap.MANAGE_DESENSITIZE_RULE],
-        resources: [
-          {
-            type: 'space',
-            id: this.spaceUid,
-          },
-        ],
-      };
+          action_ids: [authorityMap.MANAGE_DESENSITIZE_RULE],
+          resources: [
+            {
+              type: 'space',
+              id: this.spaceUid,
+            },
+          ],
+        };
   }
 
   created() {
@@ -279,8 +279,7 @@ export default class MaskingSetting extends tsc<IProps> {
         params,
       });
       const updateSourceFiltersSet = new Set();
-      const { formatResponseListTimeZoneString } = useUtils();
-      this.tableList = formatResponseListTimeZoneString(res.data, {}, ['updated_at'])
+      this.tableList = res.data
         .map(item => {
           if (!updateSourceFiltersSet.has(item.updated_by)) {
             updateSourceFiltersSet.add(item.updated_by);
@@ -573,7 +572,7 @@ export default class MaskingSetting extends tsc<IProps> {
   async getOptionApplyData() {
     try {
       const res = await this.$store.dispatch('getApplyData', this.authorityData);
-      this.$store.commit('updateState', { 'authDialogData': res.data });
+      this.$store.commit('updateState', { 'authDialogData': res.data});
     } catch (err) {
       console.warn(err);
     }
@@ -862,7 +861,7 @@ export default class MaskingSetting extends tsc<IProps> {
                     class='overflow-tips'
                     v-bk-overflow-tips
                   >
-                    {row.updatedAt}
+                    {utcFormatDate(row.updatedAt)}
                   </span>,
                 ],
               }}

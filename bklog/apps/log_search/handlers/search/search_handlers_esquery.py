@@ -348,8 +348,6 @@ class SearchHandler:
 
         self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
 
-        self.log_bcs_cluster_name_dict = dict()
-
     def _enhance(self):
         """
         语法增强
@@ -864,10 +862,9 @@ class SearchHandler:
                 data = search_func(params)
                 # 把shards中的failures信息解析后raise异常出来
                 if data.get("_shards", {}).get("failed"):
-                    # 找到第一个有失败原因的 shards，抛出异常
-                    for shard in data["_shards"]["failures"]:
-                        if shard["reason"]["reason"]:
-                            raise LogSearchException(shard["reason"]["reason"])
+                    errors = data["_shards"]["failures"][0]["reason"]["reason"]
+                    raise LogSearchException(errors)
+
                 return data
             except Exception as e:
                 raise handle_es_query_error(e)
@@ -2190,42 +2187,6 @@ class SearchHandler:
 
         return highlight
 
-    def _add_bcs_cluster_fields(self, log):
-        """
-        添加 BCS 集群有关内置字段内容
-        """
-        ext_fields = log.get("__ext")
-        if not ext_fields or not isinstance(ext_fields, dict):
-            return log
-        bcs_cluster_id = ext_fields.get("bk_bcs_cluster_id")
-
-        if bcs_cluster_id:
-            bcs_cluster_name = self._get_bcs_cluster_name(bcs_cluster_id)
-            log["__bcs_cluster_name__"] = bcs_cluster_name
-
-        return log
-
-    def _get_bcs_cluster_name(self, bcs_cluster_id):
-        """
-        获取 BCS 集群名称
-        """
-        bcs_cluster_id = bcs_cluster_id.upper()
-
-        if bcs_cluster_id in self.log_bcs_cluster_name_dict:
-            return self.log_bcs_cluster_name_dict.get(bcs_cluster_id)
-
-        bcs_cluster_name = ""
-
-        try:
-            bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id})
-            bcs_cluster_name = bcs_cluster_info.get("clusterName", "")
-        except Exception as e:
-            logger.exception("get cluster info by cluster id error: %s, cluster_id: %s", e, bcs_cluster_id)
-
-        self.log_bcs_cluster_name_dict.update({bcs_cluster_id: bcs_cluster_name})
-
-        return bcs_cluster_name
-
     def _add_cmdb_fields(self, log):
         if not self.search_dict.get("bk_biz_id"):
             return log
@@ -2303,7 +2264,6 @@ class SearchHandler:
             # 联合检索补充索引集信息
             log["__index_set_id__"] = self.index_set_id
             log = self._add_cmdb_fields(log)
-            log = self._add_bcs_cluster_fields(log)
             if self.export_fields:
                 new_origin_log = {}
                 for _export_field in self.export_fields:

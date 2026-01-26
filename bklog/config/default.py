@@ -18,7 +18,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 import os
 import sys
 
@@ -93,9 +92,6 @@ INSTALLED_APPS += (
     "bk_notice_sdk",
     "apigw_manager.apigw",
 )
-
-if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":
-    INSTALLED_APPS += ("apps.tgpa",)
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
 BKAPP_IS_BKLOG_API = os.environ.get("BKAPP_IS_BKLOG_API", 0)
@@ -230,9 +226,6 @@ CELERY_IMPORTS = (
     "apps.log_clustering.tasks.subscription",
     "apps.log_extract.tasks.extract",
 )
-
-if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":
-    CELERY_IMPORTS += ("apps.tgpa.tasks",)
 
 # bk crypto sdk配置
 BKPAAS_BK_CRYPTO_KEY = os.getenv("BKPAAS_BK_CRYPTO_KEY")
@@ -392,7 +385,7 @@ BK_BKLOG_HOST = os.environ.get("BK_BKLOG_HOST", f"{BK_PAAS_HOST}/o/bk_log_search
 BK_BKLOG_API_HOST = os.getenv("BKAPP_BKLOG_API_HOST", "http://bk-log-search-api")
 
 # 网关管理员
-APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split(','))}]"
+APIGW_MANAGERS = f'[{",".join(os.getenv("BKAPP_APIGW_MANAGERS", "admin").split(","))}]'
 # 网关名称
 BK_APIGW_NAME = os.getenv("BKAPP_APIGW_NAME", "bk-log-search")
 # APIGW 接口地址模板
@@ -419,8 +412,6 @@ BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
 BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
-
-BK_USER_HOST = os.getenv("BKAPP_BKUSER_HOST", BK_BKLOG_HOST.replace("bklog", "bkuser"))
 
 # ===============================================================================
 # 企业版登录重定向
@@ -605,8 +596,6 @@ FEATURE_TOGGLE = {
     "trace": os.environ.get("BKAPP_FEATURE_TRACE", "off"),
     # 日志脱敏
     "log_desensitize": os.environ.get("BKAPP_FEATURE_DESENSITIZE", "on"),
-    # 客户端日志
-    "tgpa_task": os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off"),
 }
 
 SAAS_MONITOR = "bk_monitorv3"
@@ -649,12 +638,7 @@ MENUS = [
                 "keyword": _("仪表盘"),
                 "children": [
                     {"id": "default_dashboard", "name": _("默认仪表盘"), "feature": "on", "icon": "block-shape"},
-                    {
-                        "id": "create_dashboard",
-                        "name": _("新建仪表盘"),
-                        "feature": "on",
-                        "icon": "log-plus-circle-shape",
-                    },
+                    {"id": "create_dashboard", "name": _("新建仪表盘"), "feature": "on", "icon": "log-plus-circle-shape"},
                     {"id": "create_folder", "name": _("新建目录"), "feature": "on", "icon": "folder-fill"},
                     {"id": "import_dashboard", "name": _("导入仪表盘"), "feature": "on", "icon": "topping-fill"},
                 ],
@@ -680,12 +664,6 @@ MENUS = [
                         "feature": "on",
                         "scenes": "scenario_log",
                         "icon": "document",
-                    },
-                    {
-                        "id": "tgpa_task",
-                        "name": _("客户端日志"),
-                        "feature": FEATURE_TOGGLE["tgpa_task"],
-                        "icon": "client-log",
                     },
                     {
                         "id": "bk_data_collection",
@@ -768,12 +746,7 @@ MENUS = [
                 "children": [
                     {"id": "manage_log_extract", "name": _("日志提取配置"), "feature": "on", "icon": "cc-log"},
                     {"id": "log_extract_task", "name": _("日志提取任务"), "feature": "on", "icon": "audit-fill"},
-                    {
-                        "id": "extract_link_manage",
-                        "name": _("提取链路管理"),
-                        "feature": "on",
-                        "icon": "assembly-line-fill",
-                    },
+                    {"id": "extract_link_manage", "name": _("提取链路管理"), "feature": "on", "icon": "assembly-line-fill"},
                 ],
             },
             {
@@ -820,9 +793,7 @@ MENUS = [
                 "feature": "on",
                 "icon": "",
                 "keyword": _("集群"),
-                "children": [
-                    {"id": "es_cluster_manage", "name": _("集群管理"), "feature": "on", "icon": "cc-influxdb"}
-                ],
+                "children": [{"id": "es_cluster_manage", "name": _("集群管理"), "feature": "on", "icon": "cc-influxdb"}],
             },
             {
                 "id": "report",
@@ -1299,21 +1270,13 @@ ALL_TENANT_SET_ID = 1
 INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 # 兼容非多租户模式
 APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or 'test' in sys.argv)
-USE_APIGW = os.getenv("BKAPP_USE_APIGW", "false").lower() == "true"
+USE_APIGW = os.getenv("USE_APIGW", "false").lower() == "true"
 
 # 预查询时间, 默认6h小时, 0代表禁用
 try:
     PRE_SEARCH_SECONDS = int(os.getenv("BKAPP_PRE_SEARCH_SECONDS", 6 * 60 * 60))
 except ValueError:
     PRE_SEARCH_SECONDS = 6 * 60 * 60
-
-# TGPA
-TGPA_TASK_APIGW_ROOT = os.getenv("BKAPP_TGPA_TASK_APIGATEWAY_ROOT", "")
-TGPA_TASK_QCLOUD_SECRET_ID = os.getenv("BKAPP_TGPA_TASK_QCLOUD_SECRET_ID", "")
-TGPA_TASK_QCLOUD_SECRET_KEY = os.getenv("BKAPP_TGPA_TASK_QCLOUD_SECRET_KEY", "")
-TGPA_TASK_QCLOUD_COS_REGION = os.getenv("BKAPP_TGPA_TASK_QCLOUD_COS_REGION", "")
-TGPA_TASK_QCLOUD_COS_BUCKET = os.getenv("BKAPP_TGPA_TASK_QCLOUD_COS_BUCKET", "")
-TGPA_TASK_QCLOUD_COS_DOMAIN = os.getenv("BKAPP_TGPA_TASK_QCLOUD_DOMAIN", "")
 
 """
 以下为框架代码 请勿修改

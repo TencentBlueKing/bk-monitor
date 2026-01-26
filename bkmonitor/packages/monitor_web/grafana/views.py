@@ -128,7 +128,6 @@ class GrafanaViewSet(ResourceViewSet):
         # PromQL原生查询
         ResourceRoute("POST", resource.grafana.graph_promql_query, endpoint="graph_promql_query"),
         ResourceRoute("POST", resource.grafana.dimension_promql_query, endpoint="dimension_promql_query"),
-        ResourceRoute("POST", resource.grafana.get_drill_dimensions, endpoint="get_drill_dimensions"),
         ResourceRoute(
             "POST", resource.grafana.convert_grafana_promql_dashboard, endpoint="convert_grafana_promql_dashboard"
         ),

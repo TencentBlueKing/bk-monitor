@@ -15,7 +15,7 @@ import time
 from alarm_backends.constants import DEFAULT_DEDUPE_FIELDS
 from bkmonitor.documents import EventDocument
 from bkmonitor.utils.common_utils import count_md5
-from constants.alert import EventStatus, EventTargetType, EVENT_EXTRA_TARGET_TYPE
+from constants.alert import EventStatus, EventTargetType
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import LABEL_ORDER_LIST, DataTypeLabel, ResultTableLabelObj
 
@@ -206,12 +206,6 @@ class Event:
         self._dedupe_values = []
         for key in self.dedupe_keys:
             value = self.get_field(key)
-            if self.data["target_type"] in EVENT_EXTRA_TARGET_TYPE:
-                # 兼容告警目标扩展前后 告警 MD5 指纹连贯性
-                if key == "target":
-                    value = None
-                if key == "target_type":
-                    value = ""
             self._dedupe_values.append(value)
 
         self.data["dedupe_md5"] = count_md5(self._dedupe_values)

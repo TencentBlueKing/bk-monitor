@@ -132,9 +132,6 @@ export default defineComponent({
               <vue-draggable
                 {...dragOptions}
                 value={displayFieldNames.value}
-                onInput={(newValue: string[]) => {
-                  displayFieldNames.value = newValue;
-                }}
               >
                 <transition-group>
                   {displayFieldNames.value.map((field, index) => (

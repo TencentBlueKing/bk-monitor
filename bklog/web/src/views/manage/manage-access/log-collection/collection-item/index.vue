@@ -782,7 +782,6 @@
         ],
         filterStorageLabelList: [],
         currentRowCollectorConfigId: '',
-        isDestroyed: false,
       };
     },
     computed: {
@@ -860,7 +859,6 @@
       !this.authGlobalInfo && this.requestData();
     },
     beforeDestroy() {
-      this.isDestroyed = true;
       this.isShouldPollCollect = false;
       this.stopStatusPolling();
     },
@@ -1108,7 +1106,6 @@
         }
       },
       requestCollectStatus(isPrivate) {
-        if (this.isDestroyed) return; // 组件已销毁，直接返回
         this.$http
           .request('collect/getCollectStatus', {
             query: {
@@ -1116,7 +1113,6 @@
             },
           })
           .then(res => {
-            if (this.isDestroyed) return; // 再次检查组件状态
             this.statusHandler(res.data || []);
             if (this.isShouldPollCollect) this.startStatusPolling();
             if (!isPrivate) this.loadingStatus = true;

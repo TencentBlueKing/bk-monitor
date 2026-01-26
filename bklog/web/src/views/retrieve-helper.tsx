@@ -492,7 +492,7 @@ class RetrieveHelper extends RetrieveBase {
         }
       }
 
-      if (tabValue === RouteQueryTab.GRAPH_ANALYSIS || tabValue === RouteQueryTab.GRAPH_ANALYSIS_LEGACY) {
+      if (tabValue === RouteQueryTab.GRAPH_ANALYSIS) {
         if (!isChartEnable()) {
           return { tab: RouteQueryTab.ORIGIN };
         }

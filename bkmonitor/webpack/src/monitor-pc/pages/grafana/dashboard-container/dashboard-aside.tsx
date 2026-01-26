@@ -214,10 +214,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   get isCopyDashboard() {
     return this.curFormType === MoreType.copy;
   }
-  /** 是否开启AI智能助手 */
-  get isEnableAiAssistant() {
-    return aiWhaleStore.enableAiAssistant;
-  }
+
   /** 目录列表 */
   get dirList() {
     return this.grafanaList.reduce((total, item) => {
@@ -669,16 +666,9 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     };
     return copyDashboardToFolder(params)
       .then(res => {
-        const importedUrl = res?.imported_url || '';
-        const siteUrl = (window.site_url || '').replace(/\/+$/, '');
-        let hashPath = importedUrl;
-        if (siteUrl && hashPath.startsWith(siteUrl)) {
-          hashPath = hashPath.slice(siteUrl.length);
-        }
-        if (hashPath && !hashPath.startsWith('/')) {
-          hashPath = `/${hashPath}`;
-        }
-        const url = hashPath ? `${location.origin}${window.site_url}?bizId=${this.$store.getters.bizId}#${hashPath}` : '';
+        const url = res?.imported_url
+          ? `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#${res.imported_url}`
+          : '';
         url && window.open(url, '_blank');
         return true;
       })
@@ -955,7 +945,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             class='dashboard-add-dialog-footer'
             slot='footer'
           >
-            {this.isDashboard && this.isEnableAiAssistant && (
+            {this.isDashboard && (
               <div
                 class='ai-add-dashboard'
                 onClick={this.handleAddDashboardWithAI}

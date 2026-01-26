@@ -60,8 +60,6 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
     def post_handle(self):
         # 释放主机信息本地内存
         clear_mem_cache("host_cache")
-        # 释放服务实例信息本地内存
-        clear_mem_cache("service_instance_cache")
 
     def pull(self):
         """

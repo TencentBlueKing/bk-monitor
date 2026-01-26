@@ -256,19 +256,19 @@ export default defineComponent({
 
       if (state.bk_tenant_id) {
         const url = join(
-          (window as any).BK_PAAS_API_HOST,
+          (window as any).BK_PASS_API_HOST,
           '/api/bk-user-web/prod/api/v3/open-web/tenant/current-user/language/',
         );
-        requestJson({ url, params: { language: value }, method: 'PUT', headers: { 'X-Bk-Tenant-Id': state.bk_tenant_id } })
-          .catch((err) => {
+        requestJson({ url, params: { language: value }, headers: { 'X-Bk-Tenant-Id': state.bk_tenant_id } }).catch(
+          (err) => {
             bkMessage({
               message: err.message,
               theme: 'error',
+            }).finally(() => {
+              location.reload();
             });
-          })
-          .finally(() => {
-            location.reload();
-          });
+          },
+        );
 
         return;
       }
@@ -343,25 +343,6 @@ export default defineComponent({
     }
 
     /**
-     * 跳转到权限中心
-     */
-    function handleGoToPermissionCenter() {
-      const url = (window as any).BK_IAM_URL;
-      url && window.open(url);
-    }
-
-    /**
-     * 跳转到个人中心
-     */
-    function handleGoToPersonalCenter() {
-      const baseUrl = (window as any).BK_USER_URL;
-      if (baseUrl) {
-        const url = join(baseUrl, '/personal-center');
-        window.open(url);
-      }
-    }
-
-    /**
      * 退出登录
      */
     function handleQuit() {
@@ -372,14 +353,6 @@ export default defineComponent({
      * 打开全局设置弹窗
      */
     function handleClickGlobalDialog(id: string) {
-      if (id === 'my-applied') {
-        handleGoToMyApplication();
-        return;
-      }
-      if (id === 'my-report') {
-        handleGoToMyReport();
-        return;
-      }
       store.commit('updateState', { globalActiveLabel: id });
       store.commit('updateState', { isShowGlobalDialog: true });
     }
@@ -593,8 +566,8 @@ export default defineComponent({
               ),
               'dropdown-content': () => (
                 <ul class='bk-dropdown-list'>
-                  <li>{renderDropdownLink(t('权限中心'), handleGoToPermissionCenter)}</li>
-                  <li>{renderDropdownLink(t('个人中心'), handleGoToPersonalCenter)}</li>
+                  <li>{renderDropdownLink(t('我申请的'), handleGoToMyApplication)}</li>
+                  <li>{renderDropdownLink(t('我的订阅'), handleGoToMyReport)}</li>
                   <li>{renderDropdownLink(t('退出登录'), handleQuit)}</li>
                 </ul>
               ),

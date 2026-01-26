@@ -31,7 +31,6 @@ def create_or_delete_records(mocker):
         data_link_name="bkm_test_data_link",
         namespace="bkmonitor",
         data_link_strategy="bk_standard_v2_time_series",
-        table_ids=["1001_bkm_time_series_test.__default__"],
     )
 
     models.DataIdConfig.objects.create(namespace="bkmonitor", name="bkm_test_data_link")
