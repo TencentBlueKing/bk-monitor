@@ -2,7 +2,6 @@
 import { computed, ref, set } from 'vue';
 
 import {
-  formatDateTimeField,
   getOperatorKey,
 } from '@/common/util';
 import useFieldNameHook from '@/hooks/use-field-name';
@@ -20,6 +19,7 @@ import {
 } from '../utils/const.common';
 import useFocusInput from '../utils/use-focus-input';
 import UiInputOptions from './ui-input-option.vue';
+import RetrieveHelper from '@/views/retrieve-helper';
 
 const props = defineProps({
   value: {
@@ -216,6 +216,7 @@ const {
     hideOnClick: true,
     placement: 'top',
     delay: [0, 300],
+    appendTo: document.body,
     onHide: () => {
       refPopInstance.value?.beforeHideFn?.();
     },
@@ -514,6 +515,11 @@ const handleBatchInputChange = (isShow) => {
     instance.setProps({ hideOnClick: !isShow });
   }
 };
+
+const formatDateTimeField = (value, fieldType) => {
+  const timezone = store.state.indexItem.timezone;
+  return RetrieveHelper.formatTimeZoneValue(value, fieldType, timezone);
+}
 </script>
 
 <template>
@@ -881,7 +887,6 @@ const handleBatchInputChange = (isShow) => {
           padding: 0 4px;
           font-weight: 500;
           background-image: linear-gradient(128deg, #235DFA 0%, #E28BED 100%);
-          background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
         }

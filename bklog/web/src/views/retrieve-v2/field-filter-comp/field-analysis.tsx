@@ -38,6 +38,7 @@ import { formatNumberWithRegex } from '../../../common/util';
 import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
 import { lineColor } from '../../../store/constant';
 import AggChart from './agg-chart';
+import RetrieveHelper from '@/views/retrieve-helper';
 
 import './field-analysis.scss';
 
@@ -130,8 +131,9 @@ export default class FieldAnalysis extends Vue {
   get pillarQueryTime() {
     const { start_time: startTime, end_time: endTime } = this.queryParams;
     if (startTime && endTime && this.isPillarChart) {
-      const pillarFormatStr = 'YYYY-MM-DD HH:mm:ss';
-      return `${window.mainComponent.$t('查询时段')}: ${dayjs(startTime).format(pillarFormatStr)} - ${dayjs(endTime).format(pillarFormatStr)}`;
+      // const pillarFormatStr = 'YYYY-MM-DD HH:mm:ss';
+      const timezone = store.state.indexItem.timezone;
+      return `${window.mainComponent.$t('查询时段')}: ${RetrieveHelper.formatTimeZoneValue(startTime, this.queryParams?.field_type, timezone)} - ${RetrieveHelper.formatTimeZoneValue(endTime, this.queryParams?.field_type, timezone)}`;
     }
     return '';
   }

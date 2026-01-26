@@ -566,7 +566,7 @@ requires-dist = [
     { name = "dill", specifier = "==0.3.7" },
     { name = "django", specifier = "==4.2.27" },
     { name = "django-celery-beat", specifier = "==2.7.0" },
-    { name = "django-celery-results", specifier = "==2.0.0" },
+    { name = "django-celery-results", specifier = "==2.6.0" },
     { name = "django-cors-headers", specifier = "==4.9.0" },
     { name = "django-db-connection-pool", specifier = "==1.2.5" },
     { name = "django-elasticsearch-dsl", specifier = "==7.4" },
@@ -1168,14 +1168,15 @@ wheels = [
 
 [[package]]
 name = "django-celery-results"
-version = "2.0.0"
+version = "2.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
+    { name = "django" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3f/49/25cef1dd8fe7343463c9e0057f5ffcd7b178bdc081c0b2f5197852e1e4d9/django_celery_results-2.0.0.tar.gz", hash = "sha256:754e01f22f70fddee5f2ca95c18f183fccee42ad98f9803577bffa717d45ac5d", size = 65771, upload-time = "2020-11-19T11:04:41.036Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a6/b5/9966c28e31014c228305e09d48b19b35522a8f941fe5af5f81f40dc8fa80/django_celery_results-2.6.0.tar.gz", hash = "sha256:9abcd836ae6b61063779244d8887a88fe80bbfaba143df36d3cb07034671277c", size = 83985, upload-time = "2025-04-10T08:23:52.677Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/03/cc/cd2762666c99c4c39ab8a8ca8f46b798657845b61e458724ec4ad376664a/django_celery_results-2.0.0-py2.py3-none-any.whl", hash = "sha256:f82280a9a25c44048b9e64ae4d47ade7d522c8221304b0e25388080021b95468", size = 23679, upload-time = "2020-11-19T11:04:36.613Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/da/70f0f3c5364735344c4bc89e53413bcaae95b4fc1de4e98a7a3b9fb70c88/django_celery_results-2.6.0-py3-none-any.whl", hash = "sha256:b9ccdca2695b98c7cbbb8dea742311ba9a92773d71d7b4944a676e69a7df1c73", size = 38351, upload-time = "2025-04-10T08:23:49.965Z" },
 ]
 
 [[package]]
