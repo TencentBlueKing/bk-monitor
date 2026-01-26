@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import datetime
 
@@ -20,7 +18,6 @@ import bkmonitor.utils.db.fields
 
 
 class Migration(migrations.Migration):
-
     dependencies = []
 
     operations = [
@@ -493,85 +490,6 @@ class Migration(migrations.Migration):
             options={
                 "db_table": "global_setting",
                 "verbose_name": "\u52a8\u6001\u914d\u7f6e\u4fe1\u606f",
-            },
-        ),
-        migrations.CreateModel(
-            name="HealthzMetricConfig",
-            fields=[
-                ("id", models.AutoField(verbose_name="ID", serialize=False, auto_created=True, primary_key=True)),
-                ("node_name", models.CharField(max_length=32, verbose_name="\u8282\u70b9\u540d\u79f0")),
-                ("description", models.CharField(max_length=1024, verbose_name="\u6307\u6807\u63cf\u8ff0")),
-                (
-                    "category",
-                    models.CharField(
-                        max_length=32,
-                        verbose_name="\u6307\u6807\u5206\u7c7b",
-                        choices=[
-                            ("redis", "Redis"),
-                            ("kafka", "Kafka"),
-                            ("beanstalk", "Beanstalk"),
-                            ("mysql", "Mysql"),
-                            ("consul", "Consul"),
-                            ("rabbitmq", "RabbitMQ"),
-                            ("celery", "Celery"),
-                            ("system", "System"),
-                            ("supervisor", "Supervisor"),
-                            ("gse_data", "Gse_Data"),
-                            ("pre_kafka", "Pre_kafka"),
-                            ("etl", "Etl"),
-                            ("post_kafka", "Post_kafka"),
-                            ("shipper", "Shipper"),
-                            ("tsdb_proxy", "Tsdb_proxy"),
-                            ("influxdb", "Influxdb"),
-                            ("graph_exporter", "Graph_exporter"),
-                        ],
-                    ),
-                ),
-                ("collect_metric", models.CharField(max_length=128, verbose_name="\u91c7\u96c6\u6307\u6807")),
-                ("collect_args", models.TextField(verbose_name="\u91c7\u96c6\u53c2\u6570")),
-                (
-                    "collect_type",
-                    models.TextField(
-                        verbose_name="\u91c7\u96c6\u7c7b\u578b", choices=[("saas", "saas"), ("backend", "\u540e\u53f0")]
-                    ),
-                ),
-                ("collect_interval", models.IntegerField(default=60, verbose_name="\u91c7\u96c6\u5468\u671f")),
-                (
-                    "metric_alias",
-                    models.CharField(unique=True, max_length=128, verbose_name="\u6307\u6807\u522b\u540d"),
-                ),
-                ("solution", models.TextField(default="", verbose_name="\u89e3\u51b3\u65b9\u6848")),
-            ],
-            options={
-                "db_table": "healthz_metric_config",
-            },
-        ),
-        migrations.CreateModel(
-            name="HealthzMetricRecord",
-            fields=[
-                ("id", models.AutoField(verbose_name="ID", serialize=False, auto_created=True, primary_key=True)),
-                ("metric_alias", models.CharField(max_length=128, verbose_name="\u6307\u6807\u522b\u540d")),
-                ("result", models.TextField(verbose_name="\u91c7\u96c6\u7ed3\u679c")),
-                ("last_update", models.DateTimeField(verbose_name="\u6700\u540e\u66f4\u65b0")),
-                ("server_ip", models.GenericIPAddressField(verbose_name="\u670d\u52a1\u5668ip")),
-            ],
-            options={
-                "db_table": "healthz_metric_record",
-            },
-        ),
-        migrations.CreateModel(
-            name="HealthzTopoNode",
-            fields=[
-                (
-                    "node_name",
-                    models.CharField(
-                        max_length=32, serialize=False, verbose_name="\u8282\u70b9\u540d\u79f0", primary_key=True
-                    ),
-                ),
-                ("node_description", models.CharField(max_length=256, verbose_name="\u8282\u70b9\u63cf\u8ff0")),
-            ],
-            options={
-                "db_table": "healthz_topo_node",
             },
         ),
         migrations.CreateModel(

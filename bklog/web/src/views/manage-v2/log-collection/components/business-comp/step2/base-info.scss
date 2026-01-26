@@ -1,0 +1,14 @@
+.base-info-box {
+    width: 100%;
+    height: 100%;
+    .category-form-item {
+        width: 100% !important;
+    }
+    .auto-convert {
+        position: absolute;
+        right: -80px;
+        font-size: 14px;
+        color: #3a84ff;
+        cursor: pointer;
+    }
+}

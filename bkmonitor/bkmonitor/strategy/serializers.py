@@ -147,7 +147,24 @@ class NewSeriesSerializer(serializers.Serializer):
     detect_range = serializers.IntegerField(label="检测范围", required=True)
 
 
-class IntelligentDetectSerializer(serializers.Serializer):
+class AIServiceControlMixin(serializers.Serializer):
+    """
+    AI服务控制参数Mixin
+    用于管理与AI服务相关的通用控制参数（如灰度、服务选择等）
+
+    这些参数不属于算法配置本身，而是用于控制API调用行为
+    所有需要调用AI服务的算法序列化器都应该继承此Mixin
+    """
+
+    service_name = serializers.CharField(
+        label="service环境选择", required=False, default="default", help_text="指定AI服务的环境名称，用于多环境部署场景"
+    )
+    grey_to_bkfara = serializers.BooleanField(
+        label="是否迁移到bkfara", required=False, default=False, help_text="是否使用新的bkfara服务，用于灰度发布控制"
+    )
+
+
+class IntelligentDetectSerializer(AIServiceControlMixin, serializers.Serializer):
     """
     智能异常检测算法serializer
     """
@@ -157,7 +174,6 @@ class IntelligentDetectSerializer(serializers.Serializer):
     visual_type = serializers.ChoiceField(
         default=VisualType.NONE, choices=[VisualType.NONE, VisualType.SCORE, VisualType.BOUNDARY]
     )
-    service_name = serializers.CharField(label="service环境选择", required=False, default="default")
 
 
 class TimeSeriesForecastingSerializer(serializers.Serializer):

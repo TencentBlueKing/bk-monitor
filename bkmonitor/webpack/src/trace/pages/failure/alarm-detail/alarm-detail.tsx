@@ -38,16 +38,17 @@ import {
 } from 'vue';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
-import { Exception, Loading, Message, Popover } from 'bkui-vue';
+import { Loading, Message, Popover } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
-import dayjs from 'dayjs';
 import {
   feedbackIncidentRoot,
   incidentAlertList,
   incidentRecordOperation,
   incidentValidateQueryString,
 } from 'monitor-api/modules/incident';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { random } from 'monitor-common/utils/utils.js';
+import { type CheckboxGroupValue } from 'tdesign-vue-next';
 import { useI18n } from 'vue-i18n';
 
 import ExceptionComp from '../../../components/exception';
@@ -55,13 +56,14 @@ import SetMealAdd from '../../../store/modules/set-meal-add';
 import StatusTag from '../components/status-tag';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
 import { useIncidentInject } from '../utils';
-import { replaceSpecialCondition } from '../utils';
+import { checkIsRoot, replaceSpecialCondition } from '../utils';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
 import ChatGroup from './chat-group/chat-group';
 import Collapse from './collapse';
 import ManualProcess from './manual-process';
 import QuickShield from './quick-shield';
+import useTableChangeSetting from './useTableChangeSetting';
 
 import type { IFilterSearch, IIncident } from '../types';
 
@@ -113,6 +115,7 @@ export default defineComponent({
       errorMsg: '',
     });
     const bkzIds = inject<Ref<string[]>>('bkzIds');
+    const settingCheckedList = shallowRef<CheckboxGroupValue>([]);
     const setMealAddModule = SetMealAdd();
     onBeforeMount(async () => await setMealAddModule.getVariableDataList());
     const scrollLoading = deepRef(false);
@@ -123,7 +126,7 @@ export default defineComponent({
     const currentData = deepRef({});
     const currentIds = deepRef([]);
     const currentBizIds = deepRef([]);
-    const disableKey = ['serial-number', 'project', 'category_display'];
+    const disableKey = ['serial-number', 'project', 'index', 'category_display'];
     const dialog = reactive({
       quickShield: {
         show: false,
@@ -180,6 +183,7 @@ export default defineComponent({
       assignee: [],
       alertIds: [],
     });
+    const randomKey = deepRef('');
     const collapseId = deepRef('');
     const moreItems = deepRef<HTMLDivElement>();
     const popoperOperateInstance = deepRef<PopoverInstance>(null);
@@ -190,7 +194,6 @@ export default defineComponent({
     const enableCreateChatGroup = deepRef(window.enable_create_chat_group || false);
     const alertIdsData = deepRef(props.alertIdsObject);
     const alarmDetailRef = deepRef(null);
-    const alarmDetailHeight = deepRef(0);
     if (enableCreateChatGroup.value) {
       tableToolList.value.push({
         id: 'chat',
@@ -201,8 +204,8 @@ export default defineComponent({
     const formatterTime = (time: number | string): string => {
       if (!time) return '--';
       if (typeof time !== 'number') return time;
-      if (time.toString().length < 13) return dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ss');
-      return dayjs(time).format('YYYY-MM-DD HH:mm:ss');
+      if (time.toString().length < 13) return formatWithTimezone(time * 1000) as string;
+      return formatWithTimezone(time) as string;
     };
     const handleQuickShield = v => {
       setDialogData(v);
@@ -335,12 +338,14 @@ export default defineComponent({
       }
       return `${ackOperator || ''}${t('已确认')}`;
     };
+
     const columns = shallowRef<TableColumn[]>([
       {
         title: '#',
         type: 'seq',
         colKey: 'serial-number',
-        minWidth: 40,
+        minWidth: 48,
+        width: 48,
         disabled: true,
         checked: true,
       },
@@ -357,21 +362,30 @@ export default defineComponent({
         disabled: true,
         cell: (_, { row: data }) => {
           return (
-            <div
-              class='name-column'
-              v-bk-tooltips={{
-                content: data.id,
-                delay: 200,
-                boundary: 'window',
-                extCls: 'alarm-detail-table-tooltip',
-              }}
-            >
+            <div class='id-column-wrapper'>
               <span
                 class={`event-status status-${data.severity} id-column`}
+                v-bk-tooltips={{
+                  content: data.id,
+                  delay: 200,
+                  boundary: 'window',
+                  extCls: 'alarm-detail-table-tooltip',
+                }}
                 onClick={() => handleShowDetail(data)}
               >
                 {data.id}
               </span>
+              {data.is_current_primary && (
+                <span
+                  class='new-badge'
+                  v-bk-tooltips={{
+                    content: t('最新一次分析中使用的告警'),
+                    delay: 200,
+                    boundary: 'window',
+                    extCls: 'alarm-detail-table-tooltip',
+                  }}
+                ></span>
+              )}
             </div>
           );
         },
@@ -388,7 +402,8 @@ export default defineComponent({
         },
         cell: (_, { row: data }) => {
           const { entity } = data;
-          const isRoot = entity?.is_root || data.is_feedback_root;
+          const isRoot = checkIsRoot(entity);
+          const showRoot = isRoot || data.is_feedback_root;
           return (
             <div
               class='name-column'
@@ -399,8 +414,54 @@ export default defineComponent({
                 extCls: 'alarm-detail-table-tooltip',
               }}
             >
-              <span class={`name-info ${isRoot ? 'name-info-root' : ''}`}>{data.alert_name}</span>
-              {isRoot && <span class={`${entity.is_root ? 'root-cause' : 'root-feed'}`}>{t('根因')}</span>}
+              <span class={`name-info ${showRoot ? 'name-info-root' : ''}`}>{data.alert_name}</span>
+              {showRoot && <span class={`${isRoot ? 'root-cause' : 'root-feed'}`}>{t('根因')}</span>}
+            </div>
+          );
+        },
+      },
+      {
+        title: t('维度'),
+        colKey: 'dimensions',
+        minWidth: 134,
+        fixed: 'left',
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        cell: (_, { row: data }) => {
+          const isEmpty = !data?.dimensions?.length;
+          if (isEmpty) return '--';
+          const key = random(10);
+          const content = (
+            <div
+              id={key}
+              class='tag-column'
+            >
+              {data.dimensions.map(item => (
+                <div
+                  key={item.id}
+                  class='tag-item set-item'
+                >
+                  {item.display_key} = {item.display_value}
+                </div>
+              ))}
+            </div>
+          );
+          return (
+            <div class='tag-column-wrap'>
+              <Popover
+                extCls='tag-column-popover'
+                v-slots={{
+                  default: () => content,
+                  content: () => content,
+                }}
+                arrow={true}
+                maxWidth={400}
+                placement='top'
+                theme='light common-table'
+              />
             </div>
           );
         },
@@ -593,6 +654,19 @@ export default defineComponent({
         },
       },
     ]);
+
+    const { changeTableSetting } = useTableChangeSetting(settingCheckedList);
+
+    // 当前正在展示的表格columns
+    const showColumns = computed(() => {
+      const Columns = columns.value
+        .filter(({ colKey }) =>
+          settingCheckedList.value.length > 0 ? settingCheckedList.value.includes(colKey) : !disableKey.includes(colKey)
+        )
+        .map(column => column.colKey);
+
+      return Columns;
+    });
 
     const getMoreOperate = () => {
       const { status, is_ack: isAck, ack_operator: ackOperator } = opetateRow.value;
@@ -794,10 +868,24 @@ export default defineComponent({
       // const list = alertData.value.find(item => item.alerts.length > 0);
       // collapseId.value = list ? list.id : '';n
     };
-    onMounted(() => {
-      if (alarmDetailRef.value) {
-        alarmDetailHeight.value = alarmDetailRef.value.offsetHeight;
+
+    // 表格最大高度
+    const tableMaxHeight = computed(() => {
+      if (!alarmDetailRef.value) return 0;
+
+      if (alertData.value.length > 1) {
+        const total = alertData.value.filter(f => f.alerts.length > 0).length;
+        // 273px: 固定的静态高度，150px: 每个折叠项的最小高度
+        const staticHeight = 273;
+        const itemHeight = 162;
+        return `calc(100vh - ${staticHeight}px - ${(total - 1) * itemHeight}px)`;
+      } else {
+        // 外层父容器高度
+        return alarmDetailRef.value.offsetHeight - 100;
       }
+    });
+
+    onMounted(() => {
       document.body.addEventListener('click', handleHideMoreOperate);
     });
     onUnmounted(() => {
@@ -840,7 +928,7 @@ export default defineComponent({
 
     watch(
       () => bkzIds.value,
-      (newVal, oldVal) => {
+      (newVal, _oldVal) => {
         // 当 bkzIds 有值并发生变化，且searchValidate为true时，重新请求数据
         if (newVal && newVal.length > 0 && props.searchValidate) {
           handleGetTable();
@@ -886,9 +974,11 @@ export default defineComponent({
       currentIds,
       currentBizIds,
       refresh,
-      disableKey,
+      showColumns,
       alarmDetailRef,
-      alarmDetailHeight,
+      tableMaxHeight,
+      randomKey,
+      changeTableSetting,
     };
   },
   render() {
@@ -979,18 +1069,19 @@ export default defineComponent({
               >
                 <div class='alarm-detail-table'>
                   <PrimaryTable
-                    key={item.id}
+                    key={`${item.id}-${this.randomKey}`}
                     bkUiSettings={{
-                      checked: this.columns
-                        .filter(item => !this.disableKey.includes(item.colKey))
-                        .map(item => item.colKey),
+                      checked: this.showColumns,
                     }}
-                    // autoResize={true}
-                    // bordered={true}
                     columns={this.columns}
                     data={item.alerts}
-                    maxHeight={alertData.length > 1 ? 616 : this.alarmDetailHeight - 100}
+                    maxHeight={this.tableMaxHeight}
+                    scroll={{ type: 'virtual' }}
                     tooltip-config={{ showAll: false }}
+                    onDisplayColumnsChange={value => {
+                      this.changeTableSetting(value);
+                      this.randomKey = random(6);
+                    }}
                     onRowMouseenter={this.handleEnter}
                     onRowMouseleave={() => {
                       this.hoverRowIndex = -1;

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import re
@@ -22,13 +22,14 @@ from django.utils.translation import gettext_lazy as _lazy
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import ConvergeInstance, ConvergeRelation
 from bkmonitor.utils.template import Jinja2Renderer, NoticeRowRenderer
-from bkmonitor.utils.time_tools import hms_string, strftime_local
+from bkmonitor.utils.time_tools import hms_string, format_user_time
 from constants.action import (
     ACTION_DISPLAY_STATUS_DICT,
     ActionPluginType,
     ActionStatus,
     ConvergeStatus,
     ConvergeType,
+    NoticeWay,
 )
 
 from . import BaseContextObject
@@ -84,7 +85,9 @@ class ActionInstanceContext(BaseContextObject):
         创建任务时间
         :return:
         """
-        return strftime_local(self.parent.action.create_time)
+        # 使用用户时区格式化时间
+        timezone_name = self.parent.user_timezone
+        return format_user_time(self.parent.action.create_time, timezone_name=timezone_name)
 
     @cached_property
     def end_time(self):
@@ -93,7 +96,11 @@ class ActionInstanceContext(BaseContextObject):
         :return:
         """
         end_time = self.parent.action.end_time
-        return strftime_local(end_time) if end_time else "--"
+        if end_time:
+            # 使用用户时区格式化时间
+            timezone_name = self.parent.user_timezone
+            return format_user_time(end_time, timezone_name=timezone_name)
+        return "--"
 
     @cached_property
     def duration(self):
@@ -241,7 +248,18 @@ class ActionInstanceContext(BaseContextObject):
         return self.parent.DEFAULT_ACTION_TEMPLATE
 
     @cached_property
+    def _is_sms_notice(self) -> bool:
+        """
+        判断是否为短信通知
+        短信通知时需要过滤 URL，因为短信内容长度有限且 URL 不便于点击使用
+        """
+        return getattr(self.parent, "notice_way", None) == NoticeWay.SMS
+
+    @cached_property
     def detail_url(self):
+        # 短信通知时不返回 URL（短信内容长度有限且 URL 不便于点击使用）
+        if self._is_sms_notice:
+            return None
         if self.parent.is_external_channel:
             return None
         return settings.ACTION_DETAIL_URL.format(
@@ -252,13 +270,13 @@ class ActionInstanceContext(BaseContextObject):
     @cached_property
     def action_id(self):
         """ES存储的处理记录id"""
-        return "{}{}".format(int(self.parent.action.create_time.timestamp()), self.parent.action.id)
+        return f"{int(self.parent.action.create_time.timestamp())}{self.parent.action.id}"
 
     @cached_property
     def detail_link(self):
         if self.parent.is_external_channel:
             return None
-        return '<a target="_blank" href="{detail_url}">{detail_url}<a>'.format(detail_url=self.detail_url)
+        return f'<a target="_blank" href="{self.detail_url}">{self.detail_url}<a>'
 
     @cached_property
     def opt_content_markdown(self):
@@ -316,14 +334,14 @@ class ActionInstanceContent(ActionInstanceContext):
             if content_type in settings.MD_SUPPORTED_NOTICE_WAYS:
                 # 所有支持markdown语法的通知方式，默认用markdown格式
                 content_type = "markdown"
-            if hasattr(self, "{}_{}".format(item, content_type)):
-                value = object.__getattribute__(self, "{}_{}".format(item, content_type))
+            if hasattr(self, f"{item}_{content_type}"):
+                value = object.__getattribute__(self, f"{item}_{content_type}")
             else:
-                value = super(ActionInstanceContent, self).__getattribute__(item)
+                value = super().__getattribute__(item)
 
             if value is None:
                 return ""
             else:
                 return NoticeRowRenderer.format(content_type, self.Labels[item][content_type], value)
 
-        return super(ActionInstanceContent, self).__getattribute__(item)
+        return super().__getattribute__(item)

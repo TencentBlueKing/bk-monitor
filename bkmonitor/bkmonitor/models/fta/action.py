@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import inspect
 import json
 import logging
 import time
@@ -40,6 +41,7 @@ from constants.action import (
     ConvergeType,
     NoticeWay,
     UserGroupType,
+    VoiceNoticeMode,
 )
 from constants.alert import EVENT_SEVERITY, EventSeverity
 from core.errors.api import BKAPIError
@@ -194,7 +196,6 @@ class ActionPlugin(AbstractRecordModel):
         "itsm_v4_api_url": settings.BK_ITSM_V4_API_URL.rstrip("/"),
         "itsm_v4_system_id": settings.BK_ITSM_V4_SYSTEM_ID,
         "incident_saas_site_url": settings.BK_INCIDENT_SAAS_HOST.rstrip("/"),  # 故障分析SaaS URL
-
     }
 
     @staticmethod
@@ -381,6 +382,23 @@ class ActionInstance(AbstractRecordModel):
             if notice_way in exclude_notice_ways:
                 # 当前的通知方式被排除，不创建对应的具体通知
                 continue
+            if notice_way == NoticeWay.VOICE:
+                # 判断通知模式
+                voice_notice_mode = self.inputs.get("voice_notice_mode", VoiceNoticeMode.PARALLEL)
+                if voice_notice_mode == VoiceNoticeMode.SERIAL:
+                    # 串行通知，将通知人员列表的列表 合并为一个通知人员列表 为单个列表(并去重)创建子任务
+                    # [["user1", "user2"], ["user3", "user2"]] -> [["user1", "user2", "user3"]]
+                    combined = [user for sublist in notice_receivers if isinstance(sublist, list) for user in sublist]
+                    if combined:
+                        notice_receivers = [list(dict.fromkeys(combined))]
+                    else:
+                        # 如果合并后没有有效用户，记录日志并跳过语音通知
+                        logger.warning(
+                            f"[create_sub_actions] action({self.id}) alerts({self.alerts}) "
+                            f"no valid users found after merging, notice_receivers: {notice_receivers}"
+                        )
+                        continue
+
             for notice_receiver in notice_receivers:
                 if not notice_receiver:
                     continue
@@ -631,6 +649,79 @@ class ActionInstance(AbstractRecordModel):
             queryset = queryset.filter(update_time__gte=end_time)
 
         return queryset.values("action_config_id").annotate(dcount=models.Count("action_config_id")).order_by("dcount")
+
+    def replay_blocked_notice(self):
+        """
+        重新发送被熔断的通知
+
+        :return: 重放结果列表，每个元素包含 success 和 error 信息
+        """
+        retry_params_list = self.ex_data.get("retry_params", [])
+        if not retry_params_list:
+            logger.warning(f"[replay blocked notice] action({self.id}) no retry_params found")
+            return []
+
+        results = []
+        for retry_param in retry_params_list:
+            api_module_path = retry_param["api_module"]
+            resource_name = retry_param["resource"]
+            try:
+                args = retry_param.get("args", ())
+                kwargs = retry_param.get("kwargs", {})
+
+                # 核心逻辑：动态导入模块，获取类或方法，然后调用
+                ret = None
+
+                # 方式1：尝试将 api_module_path 作为完整模块路径导入
+                # 例如：api_module_path="api.cmsi.default", resource_name="SendVoice"
+                try:
+                    api_module = import_module(api_module_path)
+                    resource = getattr(api_module, resource_name, None)
+                    if resource is not None:
+                        # 如果是类，实例化后调用；如果是函数，直接调用
+                        if inspect.isclass(resource):
+                            ret = resource()(*args, **kwargs)
+                        else:
+                            ret = resource(*args, **kwargs)
+                except ImportError:
+                    # 导入失败，尝试方式2
+                    pass
+
+                # 方式2：如果方式1失败，尝试将最后一个点号后的部分作为类名
+                # 例如：api_module_path="bkmonitor.utils.send.Sender", resource_name="send_wxwork_layouts"
+                if ret is None and "." in api_module_path:
+                    try:
+                        module_path, class_name = api_module_path.rsplit(".", 1)
+                        api_module = import_module(module_path)
+                        api_class = getattr(api_module, class_name, None)
+                        if api_class and inspect.isclass(api_class):
+                            func = getattr(api_class, resource_name, None)
+                            if func is not None:
+                                # 尝试直接通过类调用（类方法/静态方法）
+                                try:
+                                    ret = func(*args, **kwargs)
+                                except TypeError:
+                                    # 如果是实例方法，需要先实例化
+                                    ret = getattr(api_class(), resource_name)(*args, **kwargs)
+                    except (ImportError, AttributeError, TypeError):
+                        pass
+
+                if ret is None:
+                    raise ImportError(f"Cannot import module or class: {api_module_path}")
+
+                logger.info(
+                    f"[replay blocked notice] action({self.id}) strategy({self.strategy_id}) "
+                    f"replay success: {api_module_path}.{resource_name}, result: {ret}"
+                )
+                results.append({"success": True, "result": ret, "api": f"{api_module_path}.{resource_name}"})
+            except Exception as e:
+                logger.exception(
+                    f"[replay blocked notice] action({self.id}) strategy({self.strategy_id}) "
+                    f"replay failed: {api_module_path}.{resource_name}, error: {e}"
+                )
+                results.append({"success": False, "error": str(e), "api": f"{api_module_path}.{resource_name}"})
+
+        return results
 
 
 class ActionInstanceLog(models.Model):

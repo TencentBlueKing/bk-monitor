@@ -16,6 +16,7 @@ __pycache__/
 *.so
 
 .codebuddy
+.docs
 
 # Distribution / packaging
 .Python
@@ -242,3 +243,9 @@ ai_agent
 
 # ai code editor
 CLAUDE.local.md
+.cursorignore
+# spec-kit 规范目录
+.specify/
+
+# bk-monitor-base config file
+bk-monitor-base-config.yaml

@@ -27,7 +27,7 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import dayjs from 'dayjs';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 
 import { random } from '../../../monitor-common/utils/utils';
 import { transformLogUrlQuery } from '../../../monitor-pc/utils';
@@ -78,6 +78,7 @@ interface IEventTableEvent {
   onAlertConfirm?: IIncidentItem;
   onBatchSet: string;
   onChatGroup?: IIncidentItem;
+  onFilterChange: Record<string, string[]>;
   onLimitChange: number;
   onManualProcess?: IIncidentItem;
   onPageChange: number;
@@ -207,10 +208,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           props: {
             width: 110,
             filters: this.eventStatusList,
-            'filter-method': (value: string, row, column) => {
-              const { property } = column;
-              return row[property].toLowerCase() === value;
-            },
+            'filter-method': () => true,
             'filter-multiple': true,
           },
         },
@@ -375,6 +373,12 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         name: this.$t('已解决'),
         icon: 'icon-mc-solved',
       },
+      merged: {
+        color: '#979ba5',
+        bgColor: '#f0f1f5',
+        name: this.$t('已合并'),
+        icon: 'icon-yihebing',
+      },
       ABNORMAL: {
         color: '#EA3536',
         bgColor: '#FEEBEA',
@@ -410,6 +414,10 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
       {
         value: 'closed',
         text: this.$t('已解决'),
+      },
+      {
+        value: 'merged',
+        text: this.$t('已合并'),
       },
     ];
     this.extendInfoMap = {
@@ -492,6 +500,14 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   handleSelectChange(selectList: IIncidentItem[]) {
     this.selectedCount = selectList?.length || 0;
     return selectList.map(item => item.id);
+  }
+
+  @Emit('filterChange')
+  handleFilterChange(filters: Record<string, string[]>) {
+    // 将故障状态筛选抛给父组件处理
+    return {
+      status: Object.values(filters)[0],
+    };
   }
 
   @Emit('alarmDispatch')
@@ -675,8 +691,8 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   formatterTime(time: number | string): string {
     if (!time) return '--';
     if (typeof time !== 'number') return time;
-    if (time.toString().length < 13) return dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ss');
-    return dayjs(time).format('YYYY-MM-DD HH:mm:ss');
+    if (time.toString().length < 13) return formatWithTimezone(time * 1000) as string;
+    return formatWithTimezone(time) as string;
   }
 
   handleDescEnter(e: MouseEvent, dimensions, description) {
@@ -886,6 +902,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           pagination={this.pagination}
           row-class-name={this.tableClickCurrentInstance.getClassNameByCurrentIndex()}
           size={this.tableSize}
+          on-filter-change={this.handleFilterChange}
           on-page-change={this.handlePageChange}
           on-page-limit-change={this.handlePageLimitChange}
           on-row-click={this.tableClickCurrentInstance.tableRowClick()}
