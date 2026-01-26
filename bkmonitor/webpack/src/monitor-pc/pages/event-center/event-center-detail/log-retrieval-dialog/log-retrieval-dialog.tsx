@@ -118,8 +118,8 @@ export default class LogRetrievalDialog extends tsc<LogRetrievalDialogProps, Log
     this.refForm.validate().then(
       () => {
         // 验证成功
-        const startTime = encodeURIComponent(dayjs.tz(this.data.time[0]).format('YYYY-MM-DD HH:mm:ss'));
-        const endTime = encodeURIComponent(dayjs.tz(this.data.time[1]).format('YYYY-MM-DD HH:mm:ss'));
+        const startTime = encodeURIComponent(dayjs.tz(this.data.time[0]).format('YYYY-MM-DD HH:mm:ssZZ'));
+        const endTime = encodeURIComponent(dayjs.tz(this.data.time[1]).format('YYYY-MM-DD HH:mm:ssZZ'));
         const host = window.bk_log_search_url || window.bklogsearch_host;
         const url = `${host}#/retrieve/${this.data.indexSet}?bizId=${
           this.bizId || this.$store.getters.bizId

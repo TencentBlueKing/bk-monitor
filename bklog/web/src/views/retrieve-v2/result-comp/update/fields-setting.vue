@@ -244,6 +244,10 @@ import { isEqual } from 'lodash-es';
         return (this.$store.getters.visibleFields ?? []).map(e => e.field_name);
       },
       shadowSort() {
+        // 如果是模板配置模式，使用当前选中配置的 sort_list
+        if (this.isTemplateConfig) {
+          return this.currentClickConfigData?.sort_list ?? [];
+        }
         if (!this.isTemplateConfig && this.catchFieldCustomSortList?.length) {
           return this.catchFieldCustomSortList;
         }
@@ -376,8 +380,12 @@ import { isEqual } from 'lodash-es';
             if (this.currentClickConfigData.id !== this.filedSettingConfigID) {
               await this.submitFieldsSet(this.currentClickConfigData.id);
             }
+            // 模板配置模式下，只更新模板，不同步到个人配置
+            this.cancelModifyFields();
+            return;
           }
 
+          // 个人配置模式下的保存逻辑
           this.cancelModifyFields();
           this.$store.commit('updateState', { 'localSort': false});
           this.$store.commit('updateIsSetDefaultTableColumn', false);
@@ -422,13 +430,6 @@ import { isEqual } from 'lodash-es';
           });
       },
       cancelModifyFields() {
-        // 取消时恢复缓存数据，使用深拷贝
-        if (!this.isTemplateConfig) {
-          // 只更新父组件的数据，子组件会通过 props 自动更新
-          this.shadowVisible = structuredClone(this.cachedVisibleFields);
-          // this.shadowSort = structuredClone(this.cachedSortFields);
-          this.cachedSortFields = structuredClone(this.shadowSort);
-        }
         this.$emit('cancel');
         this.isSortFieldChanged = false;
       },
@@ -587,16 +588,21 @@ import { isEqual } from 'lodash-es';
           this.newConfigStr = '';
           if (this.filedSettingConfigID === configID) {
             this.currentClickConfigID = this.configTabPanels[0].id;
-            const { display_fields } = this.configTabPanels[0];
-            this.$store.commit('resetVisibleFields', display_fields);
-            this.$store.dispatch('requestIndexSetQuery');
-            this.cancelModifyFields();
+            // 切换应用到第一个模板，不修改个人配置数据
+            await this.submitFieldsSet(this.currentClickConfigID);
           }
         }
       },
       /** 初始化显示字段 */
       initShadowFields(configData) {
         this.activeConfigTab = this.currentClickConfigData?.name;
+
+        // 为当前配置创建独立的排序数据副本
+        const currentSortList = structuredClone(this.shadowSort);
+
+        // 更新缓存，传递给子组件
+        this.cachedSortFields = currentSortList;
+
         this.shadowTotal.forEach(fieldInfo => {
           this.shadowSort.forEach(item => {
             if (fieldInfo.field_name === item[0]) {
@@ -605,7 +611,7 @@ import { isEqual } from 'lodash-es';
           });
         });
         // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
-        this.shadowVisible =
+        const newShadowVisible =
           configData ||
           this.currentClickConfigData.display_fields
             ?.map(displayName => {
@@ -618,6 +624,12 @@ import { isEqual } from 'lodash-es';
             })
             ?.filter(Boolean) ||
           [];
+
+        // 触发响应式更新：先清空再赋值
+        this.shadowVisible = [];
+        this.$nextTick(() => {
+          this.shadowVisible = newShadowVisible;
+        });
       },
       /** 获取配置列表 */
       async getFiledConfigList() {

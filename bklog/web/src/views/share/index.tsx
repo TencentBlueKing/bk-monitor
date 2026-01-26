@@ -31,6 +31,8 @@ import useStore from '@/hooks/use-store';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import './index.scss';
+import { SET_APP_STATE } from '@/store';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 
 export default defineComponent({
   setup() {
@@ -50,12 +52,17 @@ export default defineComponent({
       errorMessage.value = '正在解析地址, 请稍候 ...';
       http
         .request('retrieve/getShareParams', { query: { token: linkId } }, { catchIsShowMessage: false })
-        .then(resp => {
+        .then((resp) => {
           if (resp.result) {
             const data = resp.data.data;
             const { storage, indexItem, catchFieldCustomConfig } = data.store;
             store.commit('updateStorage', storage);
             store.commit('updateIndexItem', indexItem);
+            store.commit(SET_APP_STATE, {
+              bkBizId: storage[BK_LOG_STORAGE.BK_BIZ_ID],
+              spaceUid: storage[BK_LOG_STORAGE.BK_SPACE_UID],
+            });
+
             store.commit('retrieve/updateCatchFieldCustomConfig', catchFieldCustomConfig);
             router.push({ ...data.route });
             return;
@@ -63,7 +70,7 @@ export default defineComponent({
 
           errorMessage.value = resp.message || '获取分享链接参数失败，请稍后重试！';
         })
-        .catch(err => {
+        .catch((err) => {
           errorMessage.value = err.message || err || '获取分享链接参数失败，请稍后重试！';
         });
     };

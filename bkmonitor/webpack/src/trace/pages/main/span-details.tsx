@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+/** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -24,8 +25,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, provide, reactive, ref, watch } from 'vue';
-import { shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, provide, reactive, ref, shallowRef, watch } from 'vue';
 
 import { Button, Exception, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
@@ -60,6 +60,7 @@ import {
 import { downFile } from '../../utils';
 import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
+import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 import DecodeDialog from '@/components/decode-dialog/decode-dialog';
@@ -99,6 +100,8 @@ export default defineComponent({
   emits: ['show', 'prevNextClicked'],
   setup(props, { emit }) {
     const store = useTraceStore();
+    /** 当前基础信息默认展开的项 */
+    const basicInfoExpand = shallowRef([]);
     const spanDetailQueryStore = useSpanDetailQueryStore();
     const { t } = useI18n();
     /* 侧栏show */
@@ -169,17 +172,17 @@ export default defineComponent({
           // span 的 end_time 在当前一小时内
           if (Math.abs(diff2) <= 60 * 60 * 1000)
             return [
-              dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
-              dayjs().format('YYYY-MM-DD HH:mm:ss'),
+              dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
+              dayjs().format('YYYY-MM-DD HH:mm:ssZZ'),
             ];
           return [
-            dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
-            dayjs(spanEndTime.value).add(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+            dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
+            dayjs(spanEndTime.value).add(1, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
           ];
         }
         return [
-          dayjs(spanEndTime.value).subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ss'),
-          dayjs(spanEndTime.value).format('YYYY-MM-DD HH:mm:ss'),
+          dayjs(spanEndTime.value).subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ssZZ'),
+          dayjs(spanEndTime.value).format('YYYY-MM-DD HH:mm:ssZZ'),
         ];
       }
       return [];
@@ -253,6 +256,18 @@ export default defineComponent({
       },
       { immediate: true, deep: true }
     );
+
+    const getSpanDetailExpandUserConfig = () => {
+      const res = window.localStorage.getItem(TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY);
+      /** 默认展开所有 */
+      basicInfoExpand.value = res
+        ? JSON.parse(res)
+        : [EListItemType.tags, EListItemType.stageTime, EListItemType.resource, EListItemType.events];
+    };
+
+    onMounted(() => {
+      getSpanDetailExpandUserConfig();
+    });
 
     /** 获取 span 类型描述 */
     function getTypeText() {
@@ -336,8 +351,8 @@ export default defineComponent({
           // { label: '日志', content: logs.length ? '有日志' :  '无日志' },
           {
             label: t('开始时间'),
-            content: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
-            title: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
+            content: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ssZZ'),
+            title: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ssZZ'),
           },
           {
             label: t('来源'),
@@ -380,7 +395,7 @@ export default defineComponent({
       if (attributes?.length) {
         info.list.push({
           type: EListItemType.tags,
-          isExpan: true,
+          isExpan: basicInfoExpand.value.includes(EListItemType.tags),
           title: 'Attributes',
           [EListItemType.tags]: {
             list:
@@ -402,7 +417,7 @@ export default defineComponent({
         const active = stage_duration[stage_duration.target].type;
         info.list.push({
           type: EListItemType.stageTime,
-          isExpan: true,
+          isExpan: basicInfoExpand.value.includes(EListItemType.stageTime),
           title: t('阶段耗时 (同步)'),
           [EListItemType.stageTime]: {
             active,
@@ -473,10 +488,10 @@ export default defineComponent({
       /** process信息 */
       if (processTags.length) {
         info.list.push({
-          type: EListItemType.tags,
-          isExpan: true,
+          type: EListItemType.resource,
+          isExpan: basicInfoExpand.value.includes(EListItemType.resource),
           title: 'Resource',
-          [EListItemType.tags]: {
+          [EListItemType.resource]: {
             list:
               processTags.map((item: { key: any; query_key: string; query_value: any; type: string; value: any }) => ({
                 label: item.key,
@@ -522,7 +537,7 @@ export default defineComponent({
         );
         info.list.push({
           type: EListItemType.events,
-          isExpan: true,
+          isExpan: basicInfoExpand.value.includes(EListItemType.events),
           title: 'Events',
           [EListItemType.events]: {
             list: eventList,
@@ -539,28 +554,25 @@ export default defineComponent({
     }
 
     /** 递归检测符合json格式的字符串并转化 */
-    function handleFormatJson(obj: Record<string, any>) {
+    function handleFormatJson(obj: unknown) {
       try {
-        const newData: Record<string, any> = {};
-        Object.keys(obj).forEach(item => {
-          if (Object.prototype.toString.call(obj[item]) === '[object Object]') {
-            // 对象 遍历属性
-            newData[item] = handleFormatJson(obj[item]);
-          } else if (Object.prototype.toString.call(obj[item]) === '[object Array]') {
-            // 数组对象
-            newData[item] = obj[item].map((arrItme: Record<string, any>) => {
-              if (typeof arrItme === 'string') {
-                return arrItme;
+        const newData: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(JSON.parse(JSON.stringify(obj)))) {
+          if (Object.prototype.toString.call(value) === '[object Object]') {
+            newData[key] = handleFormatJson(value);
+          } else if (Object.prototype.toString.call(value) === '[object Array]') {
+            newData[key] = (value as unknown[]).map(item => {
+              if (!item || typeof item !== 'object') {
+                return item;
               }
-              return handleFormatJson(arrItme);
+              return handleFormatJson(item);
             });
-          } else if (typeof obj[item] === 'string' && isJson(obj[item])) {
-            // 符合json格式的字符串
-            newData[item] = handleFormatJson(JSON.parse(obj[item]));
+          } else if (typeof value === 'string' && isJson(value)) {
+            newData[key] = handleFormatJson(JSON.parse(value));
           } else {
-            newData[item] = obj[item];
+            newData[key] = value;
           }
-        });
+        }
         return newData;
       } catch {
         return obj;
@@ -582,6 +594,10 @@ export default defineComponent({
     /* 展开收起 */
     const handleExpanChange = (isExpan: boolean, index: number) => {
       info.list[index].isExpan = !isExpan;
+      window.localStorage.setItem(
+        TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY,
+        JSON.stringify(info.list.filter(item => item.isExpan).map(item => item.type))
+      );
     };
 
     const handleSmallExpanChange = (isExpan: boolean, index: number, childIndex: number) => {
@@ -721,8 +737,8 @@ export default defineComponent({
     }
 
     /* 折叠 */
-    const expanItem = (
-      isExpan: boolean,
+    const expandItem = (
+      isExpand: boolean,
       title: string | undefined,
       content: any,
       subTitle: any = '',
@@ -731,13 +747,13 @@ export default defineComponent({
       <div class='expan-item'>
         <div
           class='expan-item-head'
-          onClick={() => expanChange(isExpan)}
+          onClick={() => expanChange(isExpand)}
         >
-          <span class={['icon-monitor icon-mc-arrow-down', { active: isExpan }]} />
+          <span class={['icon-monitor icon-mc-arrow-down', { active: isExpand }]} />
           <span class='expan-item-title'>{title}</span>
           {subTitle || undefined}
         </div>
-        <div class={['expan-item-content', { active: isExpan }]}>{content}</div>
+        <div class={['expan-item-content', { active: isExpand }]}>{content}</div>
       </div>
     );
 
@@ -1378,9 +1394,12 @@ export default defineComponent({
                     }}
                   >
                     {info.list.map((item, index) => {
-                      if (item.type === EListItemType.tags && activeTab.value === 'BasicInfo') {
-                        const content = item[EListItemType.tags];
-                        return expanItem(
+                      if (
+                        (item.type === EListItemType.tags || item.type === EListItemType.resource) &&
+                        activeTab.value === 'BasicInfo'
+                      ) {
+                        const content = item[item.type];
+                        return expandItem(
                           item.isExpan,
                           item.title,
                           tagsTemplate(content.list),
@@ -1391,10 +1410,10 @@ export default defineComponent({
                         );
                       }
                       if (item.type === EListItemType.events && activeTab.value === 'BasicInfo') {
-                        const content = item[EListItemType.events];
+                        const content = item[item.type];
                         const isException =
                           content?.list.some(val => val.header?.name === 'exception') && props.spanDetails?.error;
-                        return expanItem(
+                        return expandItem(
                           item.isExpan,
                           item.title,
                           <div>
@@ -1459,8 +1478,8 @@ export default defineComponent({
                         );
                       }
                       if (item.type === EListItemType.stageTime && activeTab.value === 'BasicInfo') {
-                        const content = item[EListItemType.stageTime];
-                        return expanItem(
+                        const content = item[item.type];
+                        return expandItem(
                           item.isExpan,
                           item.title,
                           stageTimeTemplate(

@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { editOfFormatWithTimezone } from 'monitor-common/utils/timezone';
+
 import { randomColor } from '../utils';
 
 export interface ICalendarData {
@@ -259,7 +261,7 @@ export function getDateStrAndRange(timeRange: number[], totalRange: number[]) {
 }
 
 /* 获取预览接口的生效时间及查询天数 */
-export function getPreviewParams(effectiveTime: string) {
+export function getPreviewParams(effectiveTime: string, timezone?: string) {
   const list = getCalendarNew();
   const startDate = list[0][0];
   let beginTime = `${startDate.year}-${startDate.month + 1}-${startDate.day} 00:00:00`;
@@ -282,7 +284,7 @@ export function getPreviewParams(effectiveTime: string) {
     });
   });
   return {
-    begin_time: beginTime,
+    begin_time: timezone ? editOfFormatWithTimezone(beginTime, timezone) : beginTime,
     days: max - indexNum,
   };
 }

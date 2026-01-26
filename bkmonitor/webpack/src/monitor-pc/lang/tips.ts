@@ -442,4 +442,5 @@ export default {
     'The results of manual selection or filtering are used as the grouping object',
   请先选择指标: 'Please select the metric first',
   自动匹配规则: 'Automatic matching rules',
+  当前业务时区: 'Current business time zone',
 };
