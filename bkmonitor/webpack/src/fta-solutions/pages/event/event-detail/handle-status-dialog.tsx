@@ -83,7 +83,7 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
       id: item.id,
       name: `${this.$t('第 {n} 次', { n: this.total - index })}（${dayjs
         .tz(item.create_time * 1000)
-        .format('YYYY-MM-DD HH:mm:ss')}）`,
+        .format('YYYY-MM-DD HH:mm:ssZZ')}）`,
     }));
   }
 

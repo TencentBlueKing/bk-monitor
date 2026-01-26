@@ -9,33 +9,31 @@
         'is-json': formatJson,
         'is-hidden': !isRowIntersecting && isResolved,
         'show-all-word': showAllWords,
-        'is-single-line':
-          typeof props.limitRow === 'number'
-          && props.limitRow === 1
-          && !formatJson
-          && !isLimitExpandText,
       },
     ]"
     :style="rootElementStyle"
   >
     <template v-for="item in rootList">
       <span
-        :key="item.name"
         class="bklog-root-field"
+        :key="item.name"
       >
         <span
           class="field-name"
           :data-is-virtual-root="item.__is_virtual_root__"
-        ><span
-          class="black-mark"
-          :data-field-name="item.name"
-        >{{ getFieldName(item.name) }}</span></span>
+          ><span
+            class="black-mark"
+            :data-field-name="item.name"
+            >{{ getFieldName(item.name) }}</span
+          ></span
+        >
         <span
-          :ref="item.formatter.ref"
           class="field-value"
           :data-with-intersection="true"
           :data-field-name="item.name"
-        >{{ item.formatter.stringValue }}</span>
+          :ref="item.formatter.ref"
+          >{{ item.formatter.stringValue }}</span
+        >
       </span>
     </template>
     <template v-if="showMoreTextAction && hasScrollY">
@@ -50,304 +48,303 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, ref, watch, onBeforeUnmount, onMounted, inject } from 'vue';
+  import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-// @ts-ignore
-import { getRowFieldValue } from '@/common/util';
-import useFieldNameHook from '@/hooks/use-field-name';
+  // @ts-ignore
+  import { getRowFieldValue } from '@/common/util';
+  import useFieldNameHook from '@/hooks/use-field-name';
 
-import useJsonRoot from '../hooks/use-json-root';
-import useStore from '../hooks/use-store';
-import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
-import { BK_LOG_STORAGE } from '../store/store.type';
-import { debounce, isEmpty } from 'lodash-es';
-import JSONBig from 'json-bigint';
-import useLocale from '@/hooks/use-locale';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
+  import useLocale from '@/hooks/use-locale';
+  import useRetrieveEvent from '@/hooks/use-retrieve-event';
+  import JSONBig from 'json-bigint';
+  import { debounce, isEmpty } from 'lodash-es';
+  import useJsonRoot from '../hooks/use-json-root';
+  import useStore from '../hooks/use-store';
+  import { BK_LOG_STORAGE } from '../store/store.type';
+  import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
 
-const emit = defineEmits(['menu-click']);
-const store = useStore();
-const { $t } = useLocale();
+  const emit = defineEmits(['menu-click']);
+  const store = useStore();
+  const { $t } = useLocale();
 
-const props = defineProps({
-  jsonValue: {
-    type: [Object, String, Number, Boolean],
-    default: () => ({}),
-  },
-  fields: {
-    type: [Array, Object],
-    default: () => [],
-  },
+  const props = defineProps({
+    jsonValue: {
+      type: [Object, String, Number, Boolean],
+      default: () => ({}),
+    },
+    fields: {
+      type: [Array, Object],
+      default: () => [],
+    },
 
-  limitRow: {
-    type: [Number, String, null],
-    default: 3,
-  },
-});
+    limitRow: {
+      type: [Number, String, null],
+      default: 3,
+    },
+  });
 
-const bigJson = JSONBig({ useNativeBigInt: true });
-const formatCounter = ref(0);
-const refJsonFormatterCell = ref();
-const showAllText = ref(false);
-const hasScrollY = ref(false);
-const isRowIntersecting = inject('isRowIntersecting', ref(false));
-const isResolved = ref(isRowIntersecting.value);
+  const bigJson = JSONBig({ useNativeBigInt: true });
+  const formatCounter = ref(0);
+  const refJsonFormatterCell = ref();
+  const showAllText = ref(false);
+  const hasScrollY = ref(false);
+  const isRowIntersecting = inject('isRowIntersecting', ref(false));
+  const isResolved = ref(isRowIntersecting.value);
 
-const isFormatDateField = computed(() => store.state.isFormatDate);
-const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
-const isLimitExpandText = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
-const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
+  const isFormatDateField = computed(() => store.state.isFormatDate);
+  const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
+  const isLimitExpandText = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
+  const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
 
-const isCurrentCellExpandText = computed(() => {
-  if (isLimitExpandText.value) {
-    return true;
-  }
+  const isCurrentCellExpandText = computed(() => {
+    if (isLimitExpandText.value) {
+      return true;
+    }
 
-  return showAllText.value;
-});
+    return showAllText.value;
+  });
 
-const rootElementStyle = computed(() => {
-  if (formatJson.value) {
+  const rootElementStyle = computed(() => {
+    if (formatJson.value) {
+      return {
+        maxHeight: undefined,
+      };
+    }
+
+    if (isCurrentCellExpandText.value) {
+      return {
+        maxHeight: '50vh',
+      };
+    }
+
+    if (typeof props.limitRow === 'number') {
+      return {
+        maxHeight: `${20 * props.limitRow}px`,
+      };
+    }
+
     return {
       maxHeight: undefined,
     };
-  }
+  });
 
-  if (isCurrentCellExpandText.value) {
-    return {
-      maxHeight: '50vh',
-    };
-  }
-
-  if (typeof props.limitRow === 'number') {
-    // 如果是1行，不设置 maxHeight，由样式类 is-single-line 处理单行溢出
-    if (props.limitRow === 1) {
-      return {};
+  const fieldList = computed(() => {
+    if (Array.isArray(props.fields)) {
+      return props.fields;
     }
-    // 如果是3行或其他，使用多行限制
-    return {
-      maxHeight: `${20 * props.limitRow}px`,
-    };
-  }
 
-  return {
-    maxHeight: undefined,
-  };
-});
+    return [Object.assign({}, props.fields, { __is_virtual_root__: true })];
+  });
 
-const fieldList = computed(() => {
-  if (Array.isArray(props.fields)) {
-    return props.fields;
-  }
+  const showMoreTextAction = computed(() => {
+    if (typeof props.limitRow === 'number' && !formatJson.value && !isLimitExpandText.value) {
+      return true;
+    }
 
-  return [Object.assign({}, props.fields, { __is_virtual_root__: true })];
-});
-
-const showMoreTextAction = computed(() => {
-  // 单行溢出不需要显示"更多"按钮
-  if (typeof props.limitRow === 'number' && props.limitRow === 1) {
     return false;
-  }
-  if (typeof props.limitRow === 'number' && !formatJson.value && !isLimitExpandText.value) {
-    return true;
-  }
+  });
 
-  return false;
-});
+  const showAllWords = computed(() => {
+    return !showMoreTextAction.value || showAllText.value;
+  });
 
-const showAllWords = computed(() => {
-  return !showMoreTextAction.value || showAllText.value;
-});
+  const btnText = computed(() => {
+    if (showAllText.value) {
+      return ` ...${$t('收起')}`;
+    }
 
-const btnText = computed(() => {
-  if (showAllText.value) {
-    return ` ...${$t('收起')}`;
-  }
+    return ` ...${$t('更多')}`;
+  });
 
-  return ` ...${$t('更多')}`;
-});
+  let mousedownItem = null;
+  const handleMouseDown = e => {
+    mousedownItem = e.target;
+  };
 
-let mousedownItem = null;
-const handleMouseDown = (e) => {
-  mousedownItem = e.target;
-};
+  const handleMouseUp = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (mousedownItem === e.target) {
+      showAllText.value = !showAllText.value;
+    }
 
-const handleMouseUp = (e) => {
-  e.stopPropagation();
-  e.preventDefault();
-  e.stopImmediatePropagation();
-  if (mousedownItem === e.target) {
-    showAllText.value = !showAllText.value;
-  }
+    mousedownItem = null;
+  };
 
-  mousedownItem = null;
-};
+  const onSegmentClick = args => {
+    emit('menu-click', args);
+  };
+  const { updateRootFieldOperator, setExpand, setEditor, destroy } = useJsonRoot({
+    fields: fieldList.value,
+    onSegmentClick,
+  });
 
-const onSegmentClick = (args) => {
-  emit('menu-click', args);
-};
-const { updateRootFieldOperator, setExpand, setEditor, destroy } = useJsonRoot({
-  fields: fieldList.value,
-  onSegmentClick,
-});
+  const convertToObject = val => {
+    if (typeof val === 'string' && formatJson.value) {
+      if (/^(\{|\[)/.test(val)) {
+        try {
+          return bigJson.parse(val);
+        } catch (e) {
+          if (/<mark>(-?\d+\.?\d*)<\/mark>/.test(val)) {
+            console.warn(`${e.name}: ${e.message}; `, e);
 
-const convertToObject = (val) => {
-  if (typeof val === 'string' && formatJson.value) {
-    if (/^(\{|\[)/.test(val)) {
-      try {
-        return bigJson.parse(val);
-      } catch (e) {
-        if (/<mark>(-?\d+\.?\d*)<\/mark>/.test(val)) {
-          console.warn(`${e.name}: ${e.message}; `, e);
-
-          return convertToObject(val.replace(/<mark>(-?\d+\.?\d*)<\/mark>/gim, '$1'));
+            return convertToObject(val.replace(/<mark>(-?\d+\.?\d*)<\/mark>/gim, '$1'));
+          }
+          return val;
         }
-        return val;
       }
     }
-  }
 
-  return val;
-};
+    return val;
+  };
 
-const getDateFieldValue = (field, content, formatDate) => {
-  if (formatDate) {
-    return RetrieveHelper.formatDateValue(content, field.field_type);
-  }
+  const getDateFieldValue = (field, content, formatDate) => {
+    if (formatDate && ['date_nanos', 'date'].includes(field.field_type)) {
+      const timezone = store.state.indexItem.timezone;
+      return RetrieveHelper.formatTimeZoneValue(content, field.field_type, timezone);
+    }
 
-  return content;
-};
+    return content || '--';
+  };
 
-const getFieldValue = (field) => {
-  if (formatJson.value) {
-    if (typeof props.jsonValue === 'string') {
-      return [convertToObject(props.jsonValue), props.jsonValue];
+  const getFieldValue = field => {
+    if (formatJson.value) {
+      if (typeof props.jsonValue === 'string') {
+        return [convertToObject(props.jsonValue), props.jsonValue];
+      }
+
+      if (typeof props.jsonValue === 'object') {
+        const fieldValue = getRowFieldValue(props.jsonValue, field);
+        return [convertToObject(fieldValue), fieldValue];
+      }
+
+      return [props.jsonValue, props.jsonValue];
     }
 
     if (typeof props.jsonValue === 'object') {
       const fieldValue = getRowFieldValue(props.jsonValue, field);
-      return [convertToObject(fieldValue), fieldValue];
+      return [fieldValue, fieldValue];
     }
 
     return [props.jsonValue, props.jsonValue];
-  }
-
-  if (typeof props.jsonValue === 'object') {
-    const fieldValue = getRowFieldValue(props.jsonValue, field);
-    return [fieldValue, fieldValue];
-  }
-
-  return [props.jsonValue, props.jsonValue];
-};
-
-const getCellRender = (val: unknown) => {
-  if (typeof val === 'object') {
-    try {
-      return JSON.stringify(val, null, 2);
-    } catch (e) {
-      console.warn(`JSON.stringify error: ${e.name}: ${e.message}; `, e);
-      return String(val);
-    }
-  }
-
-  return val;
-};
-
-const formatEmptyObject = (val: unknown) => {
-  if (typeof val === 'object') {
-    return isEmpty(val) ? '--' : val;
-  }
-
-  return val;
-};
-
-const getFieldFormatter = (field, formatDate) => {
-  const [objValue, val] = getFieldValue(field);
-  const strVal = getDateFieldValue(field, getCellRender(val), formatDate);
-  return {
-    ref: ref(),
-    isJson: typeof objValue === 'object' && objValue !== undefined,
-    value: formatEmptyObject(getDateFieldValue(field, objValue, formatDate)),
-    stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
-    field,
   };
-};
 
-const getFieldName = (field) => {
-  const { getFieldName } = useFieldNameHook({ store });
-  return getFieldName(field);
-};
+  const getCellRender = (val: unknown) => {
+    if (typeof val === 'object') {
+      try {
+        return JSON.stringify(val, null, 2);
+      } catch (e) {
+        console.warn(`JSON.stringify error: ${e.name}: ${e.message}; `, e);
+        return String(val);
+      }
+    }
 
-const rootList = computed(() => {
-  formatCounter.value += 1;
-  return fieldList.value.map((f: any) => ({
-    name: f.field_name,
-    type: f.field_type,
-    formatter: getFieldFormatter(f, isFormatDateField.value && !!f.__is_virtual_root__),
-    __is_virtual_root__: !!f.__is_virtual_root__,
-  }));
-});
+    return val;
+  };
 
-const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
+  const formatEmptyObject = (val: unknown) => {
+    if (typeof val === 'object') {
+      return isEmpty(val) ? '--' : val;
+    }
 
-const debounceUpdate = debounce(() => {
-  updateRootFieldOperator(rootList.value as any, depth.value);
-  setEditor(depth.value);
-  isResolved.value = true;
-  setTimeout(() => {
-    RetrieveHelper.highlightElement(refJsonFormatterCell.value);
+    return val;
+  }
+
+  const getFieldFormatter = (field, formatDate) => {
+    const [objValue, val] = getFieldValue(field);
+    const strVal = getDateFieldValue(field, getCellRender(val), formatDate);
+    return {
+      ref: ref(),
+      isJson: typeof objValue === 'object' && objValue !== undefined,
+      value: formatEmptyObject(getDateFieldValue(field, objValue, formatDate)),
+      stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
+      field,
+    };
+  };
+
+  const getFieldName = field => {
+    const { getFieldName } = useFieldNameHook({ store });
+    return getFieldName(field);
+  };
+
+  const rootList = computed(() => {
+    formatCounter.value++;
+    return fieldList.value.map((f: any) => ({
+      name: f.field_name,
+      type: f.field_type,
+      formatter: getFieldFormatter(f, isFormatDateField.value && !!f.__is_virtual_root__),
+      __is_virtual_root__: !!f.__is_virtual_root__,
+    }));
+  });
+
+  const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
+
+  const debounceUpdate = debounce(() => {
+    updateRootFieldOperator(rootList.value as any, depth.value);
+    setEditor(depth.value);
+    isResolved.value = true;
+    setTimeout(() => {
+      RetrieveHelper.highlightElement(refJsonFormatterCell.value);
+      setIsOverflowY();
+    });
+  });
+
+  const setIsOverflowY = () => {
+    if (refJsonFormatterCell.value) {
+      const { offsetHeight, scrollHeight } = refJsonFormatterCell.value;
+      hasScrollY.value = offsetHeight > 0 && scrollHeight > offsetHeight;
+      return;
+    }
+
+    hasScrollY.value = false;
+  };
+
+  watch(() => [props.limitRow], () => {
+    showAllText.value = false;
+    nextTick(() => {
+      setIsOverflowY();
+    });
+  });
+
+  watch(
+    () => [isRowIntersecting.value],
+    () => {
+      if (isRowIntersecting.value && !isResolved.value) {
+        debounceUpdate();
+      }
+    },
+  );
+
+  watch(
+    () => [formatCounter.value],
+    () => {
+      if (isResolved.value) {
+        debounceUpdate();
+      }
+    },
+    {
+      immediate: true,
+    },
+  );
+
+  watch(
+    () => [depth.value],
+    () => {
+      setExpand(depth.value);
+    },
+  );
+
+  const { addEvent } = useRetrieveEvent();
+  addEvent(RetrieveEvent.RESULT_ROW_BOX_RESIZE, setIsOverflowY);
+
+  onMounted(() => {
     setIsOverflowY();
   });
-});
 
-const setIsOverflowY = () => {
-  if (refJsonFormatterCell.value) {
-    const { offsetHeight, scrollHeight } = refJsonFormatterCell.value;
-    hasScrollY.value = offsetHeight > 0 && scrollHeight > offsetHeight;
-    return;
-  }
-
-  hasScrollY.value = false;
-};
-
-watch(
-  () => [isRowIntersecting.value],
-  () => {
-    if (isRowIntersecting.value && !isResolved.value) {
-      debounceUpdate();
-    }
-  },
-);
-
-watch(
-  () => [formatCounter.value],
-  () => {
-    if (isResolved.value) {
-      debounceUpdate();
-    }
-  },
-  {
-    immediate: true,
-  },
-);
-
-watch(
-  () => [depth.value],
-  () => {
-    setExpand(depth.value);
-  },
-);
-
-const { addEvent } = useRetrieveEvent();
-addEvent(RetrieveEvent.RESULT_ROW_BOX_RESIZE, setIsOverflowY);
-
-onMounted(() => {
-  setIsOverflowY();
-});
-
-onBeforeUnmount(() => {
-  destroy();
-});
+  onBeforeUnmount(() => {
+    destroy();
+  });
 </script>
 <style lang="scss">
   @import '../global/json-view/index.scss';
@@ -394,6 +391,8 @@ onBeforeUnmount(() => {
     .bklog-root-field {
       margin-right: 4px;
       line-height: 20px;
+      display: inline-block; // 修复内联元素基线对齐导致的 1px 差异
+      vertical-align: top; // 确保顶部对齐，避免基线对齐问题
 
       .bklog-json-view-row {
         word-break: break-all;
@@ -404,10 +403,6 @@ onBeforeUnmount(() => {
         font-size: var(--table-fount-size);
         color: var(--table-fount-color);
         white-space: pre-wrap;
-      }
-
-      .field-value {
-        word-break: break-all;
       }
 
       &:not(:first-child) {
@@ -522,6 +517,7 @@ onBeforeUnmount(() => {
     &.is-inline {
       .bklog-root-field {
         display: inline-flex;
+        vertical-align: top; // 确保顶部对齐，避免基线对齐问题
         word-break: break-all;
 
         .segment-content {
@@ -544,78 +540,6 @@ onBeforeUnmount(() => {
 
         .field-value {
           word-break: break-all;
-        }
-      }
-    }
-
-    &.is-single-line {
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-      white-space: nowrap !important;
-      max-width: 100%;
-      width: 100%;
-      display: block;
-      box-sizing: border-box;
-
-      .bklog-root-field {
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        white-space: nowrap !important;
-        display: flex;
-        align-items: center;
-        max-width: 100%;
-        width: 100%;
-        box-sizing: border-box;
-
-        .field-name {
-          display: inline-block;
-          white-space: nowrap !important;
-          flex-shrink: 0;
-
-          &[data-is-virtual-root='true'] {
-            display: none !important;
-          }
-        }
-
-        .field-value {
-          overflow: hidden !important;
-          text-overflow: ellipsis !important;
-          white-space: nowrap !important;
-          display: inline-block;
-          flex: 1;
-          min-width: 0;
-          word-break: normal !important;
-          box-sizing: border-box;
-
-          .segment-content,
-          .bklog-scroll-cell,
-          .segment-content.bklog-scroll-cell {
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            white-space: nowrap !important;
-            display: inline-block;
-            max-width: 100%;
-            word-break: normal !important;
-
-            span {
-              white-space: nowrap !important;
-              display: inline;
-            }
-          }
-        }
-
-        // 当字段名被隐藏时，字段值占据全部宽度
-        .field-name[data-is-virtual-root='true'] + .field-value {
-          flex: 1 1 100%;
-          max-width: 100%;
-        }
-
-        [data-with-intersection] {
-          white-space: nowrap !important;
-          overflow: hidden !important;
-          text-overflow: ellipsis !important;
-          max-width: 100%;
-          display: inline-block;
         }
       }
     }

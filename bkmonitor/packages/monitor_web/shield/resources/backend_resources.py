@@ -11,13 +11,18 @@ specific language governing permissions and limitations under the License.
 import operator
 import time
 from collections import defaultdict
+from datetime import datetime
 from functools import reduce
 from typing import Any
 
+import arrow
+from dateutil import parser as dateutil_parser
+from django.conf import settings
 from django.db.models import Q
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
+from bkm_space.api import SpaceApi
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.iam.action import ActionEnum
@@ -27,10 +32,8 @@ from bkmonitor.utils.common_utils import logger
 from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
 from bkmonitor.utils.time_tools import (
     DEFAULT_FORMAT,
-    localtime,
     now,
     parse_time_range,
-    str2datetime,
     strftime_local,
     utc2biz_str,
 )
@@ -365,13 +368,15 @@ class AddShieldResource(Resource, EventDimensionMixin):
             ]
 
         # 处理时间数据
-        time_result = handle_shield_time(data["begin_time"], data["end_time"], data["cycle_config"])
+        begin_time, end_time = handle_shield_time(
+            data["bk_biz_id"], data["begin_time"], data["end_time"], data["cycle_config"]
+        )
         shield_obj = Shield.objects.create(
             bk_biz_id=data["bk_biz_id"],
             category=data["category"],
-            begin_time=time_result["begin_time"],
-            end_time=time_result["end_time"],
-            failure_time=time_result["end_time"],
+            begin_time=begin_time,
+            end_time=end_time,
+            failure_time=end_time,
             scope_type=data["dimension_config"].get("scope_type", ""),
             cycle_config=data.get("cycle_config", {}),
             dimension_config=dimension_config,
@@ -481,7 +486,9 @@ class BulkAddAlertShieldResource(AddShieldResource):
                 "{}#{}".format(item["type"], item["id"]) for item in data["notice_config"]["notice_receiver"]
             ]
         # 处理时间数据
-        time_result = handle_shield_time(data["begin_time"], data["end_time"], data["cycle_config"])
+        begin_time, end_time = handle_shield_time(
+            data["bk_biz_id"], data["begin_time"], data["end_time"], data["cycle_config"]
+        )
         source = data.get("source", "")
         shields = []
         shield_operator = get_request_username()
@@ -496,9 +503,9 @@ class BulkAddAlertShieldResource(AddShieldResource):
                     category=data["category"],
                     create_user=shield_operator,
                     update_user=shield_operator,
-                    begin_time=time_result["begin_time"],
-                    end_time=time_result["end_time"],
-                    failure_time=time_result["end_time"],
+                    begin_time=begin_time,
+                    end_time=end_time,
+                    failure_time=end_time,
                     scope_type=scope_type,
                     cycle_config=data.get("cycle_config", {}),
                     dimension_config=dimension_config,
@@ -537,10 +544,12 @@ class EditShieldResource(Resource):
             raise ShieldNotExist({"msg": data["id"]})
 
         # 处理时间数据
-        time_result = handle_shield_time(data["begin_time"], data["end_time"], data["cycle_config"])
-        shield.begin_time = time_result["begin_time"]
-        shield.end_time = time_result["end_time"]
-        shield.failure_time = time_result["end_time"]
+        begin_time, end_time = handle_shield_time(
+            data["bk_biz_id"], data["begin_time"], data["end_time"], data["cycle_config"]
+        )
+        shield.begin_time = begin_time
+        shield.end_time = end_time
+        shield.failure_time = end_time
 
         # 如果是策略屏蔽，因为会设置屏蔽等级，生成新的dimension_config
         if shield.category == ShieldCategory.STRATEGY:
@@ -623,12 +632,41 @@ class DisableShieldResource(Resource):
         return "success"
 
 
-def handle_shield_time(begin_time_str, end_time_str, cycle_config):
-    if cycle_config.get("type", 1) != 1:
-        begin_time_str = "{} {}".format(begin_time_str[0:10].strip(), cycle_config.get("begin_time"))
-        end_time_str = "{} {}".format(end_time_str[0:10].strip(), cycle_config.get("end_time"))
+def handle_shield_time(
+    bk_biz_id: int, begin_time_str: str, end_time_str: str, cycle_config: dict[str, Any]
+) -> tuple[datetime, datetime]:
+    """处理屏蔽时间，将时间统一转换为业务时区处理
 
-    return {
-        "begin_time": localtime(str2datetime(begin_time_str)),
-        "end_time": localtime(str2datetime(end_time_str)),
-    }
+    :param bk_biz_id: 业务id
+    :param begin_time_str: 屏蔽开始时间
+    :param end_time_str: 屏蔽结束时间
+    :param cycle_config: 周期配置
+    """
+
+    # 获取业务时区
+    space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+    if not space:
+        raise ValidationError({"space": "业务空间不存在"})
+
+    # 获取业务时区，如果空间时区不存在，则使用默认时区
+    timezone = space.time_zone or settings.TIME_ZONE
+
+    # 判定时间字符串是否带有时区，如果带有时区则转换到业务时区，否则按业务时区解释
+    def _parse_with_timezone(value: str) -> arrow.Arrow:
+        parsed = dateutil_parser.parse(value)
+        has_tz = parsed.tzinfo is not None and parsed.tzinfo.utcoffset(parsed) is not None
+        if has_tz:
+            return arrow.get(parsed).to(timezone)
+        return arrow.get(parsed).replace(tzinfo=timezone)
+
+    begin_time = _parse_with_timezone(begin_time_str)
+    end_time = _parse_with_timezone(end_time_str)
+
+    # 如果是需要使用时间段的周期，只取日期部分，拼接上周期的时间
+    if cycle_config.get("type", 1) != 1:
+        begin_hour, begin_minute, begin_second = map(int, cycle_config.get("begin_time", "00:00:00").split(":"))
+        begin_time = begin_time.replace(hour=begin_hour, minute=begin_minute, second=begin_second)
+        end_hour, end_minute, end_second = map(int, cycle_config.get("end_time", "23:59:59").split(":"))
+        end_time = end_time.replace(hour=end_hour, minute=end_minute, second=end_second)
+
+    return begin_time.datetime, end_time.datetime

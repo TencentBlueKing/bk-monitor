@@ -194,7 +194,7 @@ export default class CustomEventMenu extends tsc<IProps> {
             style='color: #979BA5;'
             class='detail-btn'
           >
-            {dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ss')}
+            {dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ssZZ')}
           </span>
         </div>
       );

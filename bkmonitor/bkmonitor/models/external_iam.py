@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -41,6 +40,12 @@ class ExternalPermission(AbstractRecordModel):
     bk_biz_id = models.IntegerField(verbose_name="业务ID", db_index=True)
     authorized_user = models.CharField("被授权人", max_length=64)
     action_id = models.CharField("操作类型", max_length=32, choices=ACTION_CHOICES, db_index=True)
+    # 资源列表，支持以下格式:
+    # 1. dashboard: "{org_id}|{uid}" 格式（推荐，与 IAM 一致）或纯 "{uid}" 格式
+    #    例如: "1|abc123" 或 "abc123"
+    # 2. folder: "folder:{org_id}|{folder_id}" 格式
+    #    例如: "folder:1|123"
+    # 注: _parse_resource_id 方法会自动处理两种 dashboard 格式
     resources = models.JSONField("资源列表", default=list)
     expire_time = models.DateTimeField("过期时间", null=True, default=None)
 

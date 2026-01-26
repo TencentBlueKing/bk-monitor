@@ -25,7 +25,6 @@ from django.utils.translation import gettext as _
 from alarm_backends.constants import CONST_ONE_DAY
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.i18n import i18n
-from alarm_backends.service.scheduler.tasks.image_exporter import render_html_string_to_graph
 from bkmonitor.browser import get_browser, get_or_create_eventloop
 from bkmonitor.utils import time_tools
 from constants.data_source import DataTypeLabel
@@ -73,23 +72,19 @@ def get_chart_image(chart_data) -> str:
         template = get_template("image_exporter/graph.html")
         html_string = template.render({"context": json.dumps(chart_data)})
 
-        # 使用pyppeteer渲染
-        if settings.ALARM_GRAPH_RENDER_MODE == "pyppeteer":
-            return render_html_string_to_graph(html_string)
-        else:
-            # 将html写入临时文件，并使用浏览器渲染
-            with tempfile.NamedTemporaryFile(prefix="tmp_chart_image_", dir=template_path, suffix=".html") as f:
-                f.write(html_string.encode("utf-8"))
-                f.flush()
+        # 将html写入临时文件，并使用浏览器渲染（Chrome/pyppeteer）
+        with tempfile.NamedTemporaryFile(prefix="tmp_chart_image_", dir=template_path, suffix=".html") as f:
+            f.write(html_string.encode("utf-8"))
+            f.flush()
 
-                loop = get_or_create_eventloop()
-                img_bytes = loop.run_until_complete(render_html(f.name))
-                if not img_bytes:
-                    return ""
+            loop = get_or_create_eventloop()
+            img_bytes = loop.run_until_complete(render_html(f.name))
+            if not img_bytes:
+                return ""
 
-                # 转换为base64
-                img_base64 = base64.b64encode(img_bytes).decode("utf-8")
-                return img_base64
+            # 转换为base64
+            img_base64 = base64.b64encode(img_bytes).decode("utf-8")
+            return img_base64
     except Exception as e:
         logger.exception(f"[render_alarm_graph] get_chart_image fail: {e}")
         return ""

@@ -473,6 +473,7 @@ export default {
   分派成功: 'Dispatched successfully',
 
   取消反馈成功: 'Feedback canceled successfully',
+  最新一次分析中使用的告警: 'Latest Analysis Alerts',
   '当前业务下没有可使用的处理套餐，请前往{0}页面配置':
     'There are no available handling packages under the current business, please go to the {0} page for configuration',
   '按通知次数的指数递增，依次按N，2N，4N，8N,依次类推执行，最大24小时':
@@ -480,6 +481,7 @@ export default {
   暂无告警视图: 'No views',
   观察中: 'Under observation',
   已解决: 'Resolved',
+  已合并: 'Merged',
   暂无更多数据: 'No more data',
   '采集下发中， 请耐心等待': 'Collection issuance in progress, please wait patiently',
   已成功下发采集配置: 'Successfully issued collection configuration',

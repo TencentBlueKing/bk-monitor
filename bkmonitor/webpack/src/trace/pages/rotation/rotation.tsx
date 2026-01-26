@@ -24,13 +24,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, provide, reactive, shallowRef } from 'vue';
+import { computed, defineComponent, provide, reactive, shallowRef } from 'vue';
 import { shallowReactive } from 'vue';
 
 import { type FilterValue, type SortInfo, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { Button, InfoBox, Message, Pagination, Popover, SearchSelect, Switcher, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { detailOfFormatWithTimezone } from 'monitor-common/utils/timezone';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -62,16 +63,11 @@ enum EColumn {
   type = 'type',
 }
 
-function getTimeStr(time: string) {
+function getTimeStr(time: string, timezone: string) {
   if (time === 'null' || !time) {
     return window.i18n.t('永久');
   }
-  const date = new Date(time);
-  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ${
-    date.getHours() < 10 ? `${0}${date.getHours()}` : date.getHours()
-  }:${date.getMinutes() < 10 ? `${0}${date.getMinutes()}` : date.getMinutes()}:${
-    date.getSeconds() < 10 ? `${0}${date.getSeconds()}` : date.getSeconds()
-  }`;
+  return detailOfFormatWithTimezone(time, timezone);
 }
 
 export default defineComponent({
@@ -80,6 +76,7 @@ export default defineComponent({
     const { t } = useI18n();
     const router = useRouter();
     const appStore = useAppStore();
+    const spaceTimezone = computed(() => appStore.spaceTimezone);
     const authorityStore = useAuthorityStore();
     const authority = reactive<IAuthority>({
       map: authMap,
@@ -144,6 +141,7 @@ export default defineComponent({
         field: EColumn.scope,
         title: t('生效时间范围'),
         minWidth: 330,
+        width: 330,
         disabled: false,
         checked: true,
         sortable: true,
@@ -151,7 +149,7 @@ export default defineComponent({
       {
         field: EColumn.enabled,
         title: t('启/停'),
-        width: 100,
+        width: 80,
         disabled: true,
         checked: true,
       },
@@ -160,6 +158,7 @@ export default defineComponent({
         title: t('操作'),
         disabled: true,
         checked: true,
+        width: 80,
       },
     ]);
     const tableData = shallowRef([]);
@@ -550,7 +549,9 @@ export default defineComponent({
           );
         }
         case EColumn.scope: {
-          return <span>{`${getTimeStr(row.effective_time)} - ${getTimeStr(row.end_time)}`}</span>;
+          return (
+            <span>{`${getTimeStr(row.effective_time, spaceTimezone.value)} - ${getTimeStr(row.end_time, spaceTimezone.value)}`}</span>
+          );
         }
         case EColumn.enabled: {
           return (
@@ -569,7 +570,9 @@ export default defineComponent({
                     size='small'
                     theme='primary'
                     value={row.enabled}
-                    onChange={v => (row.enabled = v)}
+                    onChange={v => {
+                      row.enabled = v;
+                    }}
                   />
                 ),
                 content: () => <span>{t('存在关联的告警组')}</span>,
@@ -723,6 +726,8 @@ export default defineComponent({
                           }
                         : undefined,
                       sorter: column.sortable,
+                      width: column.width,
+                      minWidth: column.minWidth,
                     }))}
                     pagination={{
                       total: this.tablePagination.count,
@@ -758,7 +763,9 @@ export default defineComponent({
         <RotationDetail
           id={this.detailData.id}
           show={this.detailData.show}
-          onShowChange={v => (this.detailData.show = v)}
+          onShowChange={v => {
+            this.detailData.show = v;
+          }}
         />
       </div>
     );

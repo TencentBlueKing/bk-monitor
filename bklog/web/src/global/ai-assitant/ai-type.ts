@@ -128,7 +128,7 @@ export const AI_BLUEKING_QUERY_STRING = [
         fillBack: true,
         required: true,
         hide: true,
-        placeholder: window.$t('index_set_id'),
+        placeholder: 'index_set_id',
         default: '',
       },
       {
