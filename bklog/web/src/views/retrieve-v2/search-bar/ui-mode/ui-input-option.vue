@@ -794,7 +794,7 @@ const handleDeleteTagItem = (index) => {
 
 // 清空检索内容
 const handleClearBtnClick = () => {
-  condition.value.value = [];
+  condition.value.value.splice(0);
 };
 
 const handleOperatorBtnClick = () => {
