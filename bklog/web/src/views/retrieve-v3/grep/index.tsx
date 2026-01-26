@@ -326,7 +326,7 @@ export default defineComponent({
           data,
         })
         .then(res => {
-          searchListTotal.value = res.data?.total || 0;
+          searchListTotal.value = res?.data?.total || 0;
         })
         .catch(err => {
           searchListTotal.value = 0;
