@@ -131,7 +131,7 @@ class TGPAFileHandler:
         iteration_count = 0
         while iteration_count < EXTRACT_FILE_MAX_ITERATIONS:
             iteration_count += 1
-            zip_files = list(Path(extract_dir).rglob("*.zip"))
+            zip_files = [f for f in Path(extract_dir).rglob("*.zip") if f.is_file() and zipfile.is_zipfile(f)]
             if not zip_files:
                 break
 
