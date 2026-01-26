@@ -30,6 +30,7 @@ import { promiseTimeout, useDebounceFn, useEventListener } from '@vueuse/core';
 import { Button, Checkbox, Input, Radio, Select } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { detectOperatingSystem } from 'monitor-common/utils/navigator';
+import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../empty-status/empty-status';
@@ -64,6 +65,9 @@ export default defineComponent({
   name: 'UiSelectorOptions',
   props: UI_SELECTOR_OPTIONS_PROPS,
   emits: UI_SELECTOR_OPTIONS_EMITS,
+  directive: {
+    OverflowTips,
+  },
   setup(props, { emit }) {
     const { t } = useI18n();
     const elRef = useTemplateRef<HTMLDivElement>('el');

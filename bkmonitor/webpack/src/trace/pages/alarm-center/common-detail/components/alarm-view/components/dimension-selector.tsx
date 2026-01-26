@@ -28,6 +28,7 @@ import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { Checkbox, Input } from 'bkui-vue';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
+import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
 import './dimension-selector.scss';
@@ -55,6 +56,9 @@ export default defineComponent({
   emits: {
     multiChange: (_val: boolean) => true,
     change: (_val: string[]) => true,
+  },
+  directive: {
+    OverflowTips,
   },
   setup(props, { emit }) {
     const { t } = useI18n();

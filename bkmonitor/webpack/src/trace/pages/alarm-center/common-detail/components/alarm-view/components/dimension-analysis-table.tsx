@@ -29,6 +29,7 @@ import { type PropType, computed, defineComponent, shallowRef, useTemplateRef } 
 import { type SortInfo, type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import TableSkeleton from 'trace/components/skeleton/table-skeleton';
+import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 import { useTippy } from 'vue-tippy';
 
@@ -67,6 +68,9 @@ export default defineComponent({
   },
   emits: {
     drillDown: (_val: { dimension: string; where: any[] }) => true,
+  },
+  directive: {
+    OverflowTips,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -164,7 +168,15 @@ export default defineComponent({
                       style={{ background: row?.color || '#7EC7E7' }}
                       class='color-rect'
                     />
-                    {row?.dimensions?.[dimension] || '--'}
+                    <span
+                      class='dimension-value-text'
+                      v-overflow-tips={{
+                        text: row?.dimensions?.[dimension] || '--',
+                        placement: 'top',
+                      }}
+                    >
+                      {row?.dimensions?.[dimension] || '--'}
+                    </span>
                   </div>
                 );
               },
