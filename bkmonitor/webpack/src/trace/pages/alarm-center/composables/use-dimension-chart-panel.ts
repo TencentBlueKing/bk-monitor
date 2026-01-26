@@ -63,7 +63,7 @@ export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) =
   const viewerTimeRange = computed(() => get(dataZoomTimeRange) ?? get(defaultTimeRange) ?? DEFAULT_TIME_RANGE);
   /** 维度图表 panel 配置数据 */
   const panel = computed<PanelModel>(() => {
-    if (!get(alertId) || !get(graphPanel)) return null;
+    if (!get(alertId) || !get(graphPanel) || !get(groupBy)?.length) return null;
 
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const { query_configs, expression } = get(graphPanel).targets?.[0]?.data ?? {};

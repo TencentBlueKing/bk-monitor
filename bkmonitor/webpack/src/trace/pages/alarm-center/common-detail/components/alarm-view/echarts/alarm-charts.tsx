@@ -388,6 +388,7 @@ export default defineComponent({
       if (eventSeriesIndex === -1) return options;
 
       const eventSeries = options.series[eventSeriesIndex];
+      const hasEventData = eventSeries.datapoints.some(e => e[0] > 0);
       const shouldCreateNewXAxis = eventSeries.xAxisIndex === 0;
 
       // 为事件散点图创建独立的x轴
@@ -400,17 +401,35 @@ export default defineComponent({
       }
       options.yAxis.push({
         scale: true,
-        show: true,
+        show: hasEventData,
         position: 'right',
         max: 'dataMax',
         min: 0,
         splitNumber: 2,
         minInterval: 1,
+        z: 3,
         splitLine: { show: false },
       });
 
       eventSeries.xAxisIndex = shouldCreateNewXAxis ? options.xAxis.length - 1 : eventSeries.xAxisIndex;
       eventSeries.yAxisIndex = options.yAxis.length - 1;
+
+      // 为x轴添加刻度线
+      Object.assign(options.xAxis[0], {
+        boundaryGap: false,
+        axisTick: { show: true, alignWithLabel: true },
+        axisLine: { show: true },
+        splitLine: { show: true },
+        axisLabel: { ...options.xAxis[0].axisLabel, align: 'center', showMinLabel: true, showMaxLabel: true },
+      });
+      // 为y轴添加刻度线
+      for (const [index, item] of options.yAxis.entries()) {
+        Object.assign(item, {
+          axisTick: { show: true },
+          axisLine: { show: true },
+          ...(index === 0 && { splitLine: { show: true } }),
+        });
+      }
 
       return options;
     };
