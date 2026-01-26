@@ -383,6 +383,7 @@ export default defineComponent({
     const formatterOptions = options => {
       options.color = COLOR_LIST;
       options.grid.top = 24;
+      const isBar = options.series[0].type === 'bar';
 
       const eventSeriesIndex = options.series.findIndex(item => item.alias === 'alertEventTs');
       if (eventSeriesIndex === -1) return options;
@@ -416,10 +417,10 @@ export default defineComponent({
 
       // 为x轴添加刻度线
       Object.assign(options.xAxis[0], {
-        boundaryGap: false,
+        boundaryGap: isBar,
         axisTick: { show: true, alignWithLabel: true },
         axisLine: { show: true },
-        splitLine: { show: true },
+        splitLine: { show: true, alignWithLabel: isBar },
         axisLabel: { ...options.xAxis[0].axisLabel, align: 'center', showMinLabel: true, showMaxLabel: true },
       });
       // 为y轴添加刻度线
