@@ -51,6 +51,9 @@ class RedirectDashboardView(ProxyView):
     仪表盘跳转
     """
 
+    # Grafana 内置参数列表
+    BUILTIN_PARAM_NAMES: list[str] = ["from", "to", "viewPanel"]
+
     @method_decorator(escape_exempt)
     def dispatch(self, request, *args, **kwargs):
         org_name = request.GET.get("bizId")
@@ -98,8 +101,10 @@ class RedirectDashboardView(ProxyView):
             return redirect(route_path + f"?orgName={org_name}&bizId={org_name}")
 
         route_path = f"#{route_path}"
-        # 透传仪表盘参数
-        params = {k: v for k, v in request.GET.items() if k.startswith("var-")}
+        # 透传仪表盘参数，包括两部分：
+        # - 自定义变量参数：以 var- 开头。
+        # - 内置参数：BUILTIN_PARAM_NAMES。
+        params = {k: v for k, v in request.GET.items() if k.startswith("var-") or k in self.BUILTIN_PARAM_NAMES}
         params["bizId"] = org_name
         redirect_url = "/?{params}{route_path}"
         return redirect(redirect_url.format(params=urlencode(params), route_path=route_path))
@@ -110,22 +115,38 @@ class GrafanaSwitchOrgView(SwitchOrgView):
 
     @staticmethod
     def is_allowed_external_request(request):
+        """
+        检查外部用户是否有权限访问当前请求的资源
+        支持 folder 权限自动展开为 dashboard 权限
+        """
         if not request.org_name:
             return True
 
-        filter_resources = ["home"]
+        # 收集所有允许的 dashboard uids（包括 folder 展开后的）
+        allowed_dashboard_uids = set(["home"])
+        org_id = get_or_create_org(request.org_name)["id"]
+
         for external_permission in ExternalPermission.objects.filter(
             authorized_user=request.external_user,
             bk_biz_id=int(request.org_name),
             action_id="view_grafana",
             expire_time__gt=timezone.now(),
         ):
-            filter_resources.extend(external_permission.resources)
+            # 展开资源（dashboard 和 folder）为 dashboard uids
+            dashboard_uids = DashboardPermission.expand_resources_to_dashboard_uids(
+                org_id, external_permission.resources
+            )
+            allowed_dashboard_uids.update(dashboard_uids)
 
         if "d/" in request.path or "dashboards/" in request.path:
-            for resource in filter_resources:
-                if resource in request.path:
-                    return True
+            # 将path按"/"分段，使用集合加速匹配（O(1)查找）
+            # 这样可以确保访问的一定是dashboard相关资源，避免误匹配
+            # 注意: Django的request.path不包含查询参数（query string），只包含路径部分
+            path_segments = set(request.path.split("/"))
+            # 使用集合交集检查是否有匹配的uid（更高效）
+            if allowed_dashboard_uids & path_segments:
+                return True
+            # 如果没有匹配到uid，拒绝访问
             return False
         else:
             return True
@@ -250,20 +271,33 @@ class ApiProxyView(GrafanaProxyView):
         return response
 
     def filter_external_resource(self, request, response):
-        filter_resources = []
+        """
+        过滤外部用户可访问的资源列表
+        支持 folder 权限自动展开为 dashboard 权限
+        """
         org_name = self.get_org_name(request)
         if request and getattr(request, "external_user", None) and org_name:
+            # 收集所有允许的 dashboard uids（包括 folder 展开后的）
+            allowed_dashboard_uids = set()
+            org_id = get_or_create_org(org_name)["id"]
+
             for external_permission in ExternalPermission.objects.filter(
                 authorized_user=request.external_user,
                 bk_biz_id=int(org_name),
                 action_id="view_grafana",
                 expire_time__gt=timezone.now(),
             ):
-                filter_resources.extend(external_permission.resources)
+                # 展开资源（dashboard 和 folder）为 dashboard uids
+                dashboard_uids = DashboardPermission.expand_resources_to_dashboard_uids(
+                    org_id, external_permission.resources
+                )
+                allowed_dashboard_uids.update(dashboard_uids)
+
+            # 过滤结果
             result = json.loads(response.content)
             result = [
                 record
                 for record in result
-                if record.get("type", "") == "dash-db" and record.get("uid", "") in filter_resources
+                if record.get("type", "") == "dash-db" and record.get("uid", "") in allowed_dashboard_uids
             ]
             response.content = json.dumps(result)

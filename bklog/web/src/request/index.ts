@@ -52,7 +52,7 @@ const getCookie = (name: string): string | null => {
 const buildRequestConfig = (
   url: string,
   params?: any,
-  method: 'POST' | 'GET' = 'POST',
+  method: 'POST' | 'GET' | 'PUT' = 'POST',
   appendHeaders?: Record<string, string>,
   signal?: AbortSignal,
 ) => {
@@ -121,7 +121,7 @@ const buildRequestConfig = (
 export const request = (args: {
   url: string;
   params?: any;
-  method?: 'POST' | 'GET';
+  method?: 'POST' | 'GET' | 'PUT';
   headers?: Record<string, string>;
   signal?: AbortSignal;
 }) => {
@@ -134,7 +134,7 @@ export const request = (args: {
  * @description 请求 API
  * @param url string
  * @param params any
- * @param method 'POST' | 'GET'
+ * @param method 'POST' | 'GET' | 'PUT'
  * @returns {Promise<FetchResponse<T>>}
  */
 export const requestJson = <T = any>(args: Parameters<typeof request>[0]): Promise<FetchResponse<T>> => {
@@ -147,7 +147,7 @@ export const requestJson = <T = any>(args: Parameters<typeof request>[0]): Promi
  * @description 请求 API
  * @param url string
  * @param params any
- * @param method 'POST' | 'GET'
+ * @param method 'POST' | 'GET' | 'PUT'
  * @returns {Promise<string>}
  */
 export const requestText = (args: Parameters<typeof request>[0]): Promise<string> => {

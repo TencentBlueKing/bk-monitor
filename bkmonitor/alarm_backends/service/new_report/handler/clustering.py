@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,16 +7,17 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import csv
 import io
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
 from urllib.parse import urlencode
 
 from django.conf import settings
 from django.utils.translation import gettext as _
+from django.utils import timezone
 from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from alarm_backends.core.context import logger
@@ -26,6 +26,7 @@ from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.models import Report
 from bkmonitor.report.utils import get_data_range
+from bkmonitor.utils.time_tools import format_user_time
 from constants.new_report import (
     LogColShowTypeEnum,
     YearOnYearChangeEnum,
@@ -44,7 +45,7 @@ class ClusteringReportHandler(BaseReportHandler):
     AGGS_FIELD_PREFIX = "__dist"
 
     def __init__(self, report: Report):
-        super(ClusteringReportHandler, self).__init__(report)
+        super().__init__(report)
         self.log_prefix = (
             f"[clustering_report] bk_biz_id: {self.report.bk_biz_id}"
             f" index_set_id: {self.report.scenario_config['index_set_id']}"
@@ -202,10 +203,19 @@ class ClusteringReportHandler(BaseReportHandler):
         csv_buffer = io.StringIO()
         csv_writer = csv.writer(csv_buffer)
         rows = []
-        log_col_show_type = context['log_col_show_type']
-        group_by = context['group_by']
+        log_col_show_type = context["log_col_show_type"]
+        group_by = context["group_by"]
         if context["show_year_on_year"]:
-            title_headers = [_("序号"), _("是否新增"), _("数据指纹"), _("数量"), _("占比"), _("同比数量"), _("同比变化"), log_col_show_type]
+            title_headers = [
+                _("序号"),
+                _("是否新增"),
+                _("数据指纹"),
+                _("数量"),
+                _("占比"),
+                _("同比数量"),
+                _("同比变化"),
+                log_col_show_type,
+            ]
         else:
             title_headers = [_("序号"), _("是否新增"), _("数据指纹"), _("数量"), _("占比"), log_col_show_type]
         title_headers.extend(group_by)
@@ -251,7 +261,7 @@ class ClusteringReportHandler(BaseReportHandler):
         try:
             result = self.query_patterns(time_config)
             if not result:
-                logger.info("[{}] Query pattern is empty.".format(self.log_prefix))
+                logger.info(f"[{self.log_prefix}] Query pattern is empty.")
         except Exception as e:
             logger.exception(f"{self.log_prefix} query pattern error: {e}")
             raise e
@@ -279,7 +289,14 @@ class ClusteringReportHandler(BaseReportHandler):
             space = SpaceApi.get_space_detail(bk_biz_id=self.report.bk_biz_id)
             space_name = space.space_name
         except Exception as e:  # pylint:disable=broad-except
-            logger.exception("get space info error: {}".format(e))
+            logger.exception(f"get space info error: {e}")
+
+        # 获取业务时区，用于格式化生成时间
+        # 对于报表订阅，生成时间使用业务时区，确保同一业务下所有订阅者看到一致的时间
+        from alarm_backends.core.i18n import i18n
+
+        i18n.set_biz(self.report.bk_biz_id)
+        timezone_name = i18n.get_timezone()
 
         render_params = {
             "bk_biz_id": self.report.bk_biz_id,
@@ -295,7 +312,7 @@ class ClusteringReportHandler(BaseReportHandler):
             "group_by": scenario_config.get("group_by", []),
             "percentage": 1 or round(max([i["percentage"] for i in result]), 2),
             "clustering_fields": clustering_config["clustering_fields"],
-            "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "time": format_user_time(timezone.now(), timezone_name=timezone_name, _format="%Y-%m-%d %H:%M%z"),
             "is_link_enabled": content_config.get("is_link_enabled", True),
             "generate_attachment": scenario_config.get("generate_attachment", False),
             "is_show_new_pattern": scenario_config.get("is_show_new_pattern", False),

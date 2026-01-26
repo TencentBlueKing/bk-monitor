@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
-from typing import List
 
 from alarm_backends.core.alert import Alert, Event
 from alarm_backends.core.alert.alert import AlertKey
@@ -40,12 +39,12 @@ INSTALLED_CHECKERS = (
 
 
 class AlertManager(BaseAlertProcessor):
-    def __init__(self, alert_keys: List[AlertKey]):
-        super(AlertManager, self).__init__()
+    def __init__(self, alert_keys: list[AlertKey]):
+        super().__init__()
         self.logger = logging.getLogger("alert.manager")
         self.alert_keys = alert_keys
 
-    def fetch_alerts(self) -> List[Alert]:
+    def fetch_alerts(self) -> list[Alert]:
         # 1. 根据告警ID，从ES拉出数据
         alerts = Alert.mget(self.alert_keys)
 
@@ -133,6 +132,7 @@ class AlertManager(BaseAlertProcessor):
 
         # 8. 清理内存缓存
         clear_mem_cache("host_cache")
+        clear_mem_cache("service_instance_cache")
         # #### 需要检测的告警，处理结束
 
         if alerts_to_update_directly:
@@ -140,7 +140,7 @@ class AlertManager(BaseAlertProcessor):
             self.logger.info("[refresh alert es] refresh ES directly: %s", alerts_to_update_directly)
             self.save_alerts(alerts_to_update_directly, action=BulkActionType.UPSERT, force_save=True)
 
-    def handle(self, alerts: List[Alert]):
+    def handle(self, alerts: list[Alert]):
         # #### 需要检测的告警，处理开始
         # 2. 再处理 DB 和 Redis 缓存中存在的告警
         for checker_cls in INSTALLED_CHECKERS:

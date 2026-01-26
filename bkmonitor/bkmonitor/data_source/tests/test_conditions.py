@@ -18,7 +18,7 @@ def test_agg_condition_compile():
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
 
-    c = SQLCompiler(Query(), 2, 3)
+    c = SQLCompiler(Query(using="default"), 2, 3)
     c.query.agg_condition = [
         {"key": "a", "method": "eq", "value": [1]},
         {"condition": "and", "key": "a", "method": "eq", "value": [1, 2]},

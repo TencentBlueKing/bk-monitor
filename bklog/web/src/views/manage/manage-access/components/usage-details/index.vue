@@ -79,7 +79,7 @@
           min-width="10"
         >
           <template #default="{ row }">
-            {{ utcFormatDate(row.created_at) }}
+            {{ utcFormatDate(row.created_at, true) }}
           </template>
         </bk-table-column>
         <bk-table-column
@@ -132,6 +132,7 @@
 
   import { utcFormatDate } from '../../../../../common/util';
   import { updateTimezone } from '../../../../../language/dayjs';
+  import useUtils from '@/hooks/use-utils';
   import ChartComponent from './chart-component';
 
   export default {
@@ -265,8 +266,9 @@
               pagesize: this.pagination.limit,
             },
           });
+          const { formatResponseListTimeZoneString } = useUtils();
           this.pagination.count = res.data.total;
-          this.tableData = res.data.list;
+          this.tableData = formatResponseListTimeZoneString(res.data.list || [], {}, ['created_at', 'updated_at']);
         } catch (e) {
           console.warn(e);
           this.pagination.current = 1;

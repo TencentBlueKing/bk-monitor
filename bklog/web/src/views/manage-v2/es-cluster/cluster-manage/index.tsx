@@ -706,7 +706,7 @@ export default defineComponent({
                 key='create_time'
                 class-name='filter-column'
                 label={t('创建时间')}
-                min-width='170'
+                width='190'
                 prop='cluster_config.create_time'
                 renderHeader={renderHeader}
                 sortable

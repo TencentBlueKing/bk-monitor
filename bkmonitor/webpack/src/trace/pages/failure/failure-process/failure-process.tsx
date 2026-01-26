@@ -27,8 +27,8 @@ import { type Ref, computed, defineComponent, inject, nextTick, onMounted, ref, 
 
 import { Exception, Input, Loading, Popover, Tree } from 'bkui-vue';
 import { CogShape } from 'bkui-vue/lib/icon';
-import dayjs from 'dayjs';
 import { incidentOperationTypes } from 'monitor-api/modules/incident';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { useI18n } from 'vue-i18n';
 
 import { useIncidentInject } from '../utils';
@@ -37,6 +37,18 @@ import { renderMap } from './process';
 import type { IIncident } from '../types';
 
 import './failure-process.scss';
+
+type ExceptionData = {
+  desc: string;
+  // 是否为接口错误态
+  isError: boolean;
+  // 是否展示 `Exception`
+  isShow: boolean;
+  // 是否展示“清空筛选条件”按钮
+  showClear: boolean;
+  title: string;
+  type: '500' | 'empty';
+};
 
 export default defineComponent({
   name: 'FailureProcess',
@@ -47,15 +59,16 @@ export default defineComponent({
     },
   },
   emits: ['chooseOperation', 'changeTab'],
-  setup(props, { emit }) {
+  setup(_props, { emit }) {
     const { t } = useI18n();
     const failureProcessListRef = ref<HTMLDivElement>();
     const renderStep = () => {};
     const handleSetting = () => {};
     const queryString = ref<string>('');
     const hidePopover = ref<boolean>(false);
-    // const operations = ref([]);
     const operationsList = inject<Ref>('operationsList');
+    // 故障流转列表接口返回错误详情
+    const operationsFailDetail = inject<Ref>('operationsFailDetail');
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const operationsLoading = inject<Ref<boolean>>('operationsLoading');
     const operationTypes = ref([]);
@@ -65,16 +78,44 @@ export default defineComponent({
     const operationId = ref<string>('');
     const incidentId = useIncidentInject();
     // 错误状态/空状态
-    const exceptionData = shallowRef({
-      isError: false,
-      msg: '',
+    const exceptionData = computed<ExceptionData>(() => {
+      const isError = Boolean(operationsFailDetail.value);
+      if (isError) {
+        return {
+          isShow: true,
+          isError: true,
+          type: '500',
+          title: t('查询异常'),
+          desc: operationsFailDetail.value,
+          showClear: false,
+        };
+      }
+      // 当展示类型“全选”时，筛选不到数据，展示“暂无数据”
+      const allOperationTypeIds = operationTypes.value
+        .flatMap(item => item?.operation_types?.map(type => type?.id) ?? [])
+        .filter(Boolean);
+      const checkedNodeIdSet = new Set(checkedNodes.value);
+      const isAllChecked = allOperationTypeIds.length > 0 && allOperationTypeIds.every(id => checkedNodeIdSet.has(id));
+
+      // 是否有筛选条件/搜索关键字
+      const hasSearchCondition = queryString.value !== '' || (checkedNodes.value.length > 0 && !isAllChecked);
+      const isEmpty = searchOperations.value.length === 0;
+
+      return {
+        isShow: isEmpty,
+        isError: false,
+        type: 'empty',
+        title: hasSearchCondition ? t('搜索数据为空') : t('暂无数据'),
+        desc: '',
+        showClear: hasSearchCondition,
+      };
     });
     /** 时间过滤 */
     const formatterTime = (time: number | string): string => {
       if (!time) return '--';
       if (typeof time !== 'number') return time;
-      if (time.toString().length < 13) return dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ss');
-      return dayjs(time).format('YYYY-MM-DD HH:mm:ss');
+      if (time.toString().length < 13) return formatWithTimezone(time * 1000) as string;
+      return formatWithTimezone(time) as string;
     };
     const handleHide = () => {
       hidePopover.value = true;
@@ -106,9 +147,6 @@ export default defineComponent({
 
     const getIncidentOperationTypes = () => {
       tableLoading.value = true;
-      // 重置异常状态
-      exceptionData.value.isError = false;
-      exceptionData.value.msg = '';
 
       incidentOperationTypes(
         {
@@ -139,9 +177,6 @@ export default defineComponent({
         })
         .catch(err => {
           console.log(err);
-          // 异常状态赋值
-          exceptionData.value.isError = true;
-          exceptionData.value.msg = err.message || '';
         })
         .finally(() => {
           tableLoading.value = false;
@@ -279,22 +314,16 @@ export default defineComponent({
           </Popover>
         </div>
         <Loading loading={this.operationsLoading || this.tableLoading}>
-          {!this.searchOperations.length || this.exceptionData.isError ? (
+          {this.exceptionData.isShow ? (
             <Exception
               class='failure-process-exception'
-              type={this.exceptionData.isError ? '500' : 'empty'}
+              type={this.exceptionData.type}
             >
-              <div class='exception-title'>
-                {this.exceptionData.isError
-                  ? this.t('查询异常')
-                  : this.checkedNodes.length || this.queryString !== ''
-                    ? this.t('搜索数据为空')
-                    : this.t('暂无数据')}
-              </div>
-              {this.exceptionData.isError && <div class='exception-desc'>{this.exceptionData.msg}</div>}
-              {(this.checkedNodes.length || this.queryString !== '') && (
+              <div class='exception-title'>{this.exceptionData.title}</div>
+              {!!this.exceptionData.desc && <div class='exception-desc'>{this.exceptionData.desc}</div>}
+              {this.exceptionData.showClear && (
                 <div
-                  class='link cursor'
+                  class='clear-btn cursor'
                   onClick={this.handleClearSearch}
                 >
                   {this.t('清空筛选条件')}

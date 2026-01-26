@@ -9,6 +9,7 @@ export const getAuthorityApplyInfo = request('POST', 'rest/v2/iam/get_authority_
 export const test = request('GET', 'rest/v2/iam/test/');
 export const getExternalPermissionList = request('GET', 'rest/v2/external/get_external_permission_list/');
 export const getByAction = request('GET', 'rest/v2/external/get_resource_by_action/');
+export const getResourceByAction = request('GET', 'rest/v2/external/get_resource_by_action/');
 export const createOrUpdateExternalPermission = request('POST', 'rest/v2/external/create_or_update_external_permission/');
 export const deleteExternalPermission = request('POST', 'rest/v2/external/delete_external_permission/');
 export const createOrUpdateAuthorizer = request('POST', 'rest/v2/external/create_or_update_authorizer/');
@@ -26,7 +27,7 @@ export default {
   getAuthorityApplyInfo,
   test,
   getExternalPermissionList,
-  getByAction,
+  getResourceByAction,
   createOrUpdateExternalPermission,
   deleteExternalPermission,
   createOrUpdateAuthorizer,
@@ -34,4 +35,5 @@ export default {
   getAuthorizerList,
   getApplyRecordList,
   callback,
+  getByAction,
 };

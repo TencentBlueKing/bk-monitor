@@ -74,9 +74,17 @@ export default defineComponent({
 
     const exceptionMap = {
       space: () => [
-        <span>当前无可用业务信息，请联系管理员申请（空间UID：{route.query.spaceUid}，业务ID：{route.query.bizId}）</span>,
+        <span>
+          当前无可用业务信息，请联系管理员申请（空间UID：{route.query.spaceUid}，业务ID：
+          {route.query.bkBizId ?? route.query.bizId}）
+        </span>,
         <span>或者移除业务参数重试</span>,
-        <span style={{ color: '#3a84ff', cursor: 'pointer' }} onClick={handleRetry}>重试</span>,
+        <span
+          style={{ color: '#3a84ff', cursor: 'pointer' }}
+          onClick={handleRetry}
+        >
+          重试
+        </span>,
       ],
       indexset: () => [
         <span>业务下无采集项，请按照指引完成接入，或联系管理员申请</span>,

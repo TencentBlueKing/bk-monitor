@@ -23,7 +23,7 @@ from bkmonitor.utils.common_utils import fetch_biz_id_from_request, safe_int
 from bkmonitor.utils.request import get_request_tenant_id
 from common.log import logger
 from constants.common import DEFAULT_TENANT_ID
-from core.drf_resource import resource
+from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 
 
@@ -102,6 +102,16 @@ def json_formatter(context: dict[str, Any]):
 
 
 def get_core_context(request):
+    username = request.user.username
+
+    # 获取用户时区
+    user_time_zone = ""
+    if username:
+        try:
+            user_time_zone = api.bk_login.get_user_info(id=username).get("time_zone", "")
+        except Exception as e:
+            logger.error(f"Get user {username} time zone failed: {e}")
+
     return {
         # healthz 自监控引用
         "PLATFORM": Platform,
@@ -126,6 +136,8 @@ def get_core_context(request):
         "CE_URL": settings.CE_URL,
         "BKLOGSEARCH_HOST": settings.BKLOGSEARCH_HOST,
         "BK_NODEMAN_HOST": settings.BK_NODEMAN_HOST,
+        # 用户管理站点（用于个人中心跳转等）
+        "BK_USER_SITE_URL": settings.BK_USER_SITE_URL,
         "TAM_ID": settings.TAM_ID,
         # 用于切换中英文用户管理 cookie
         "BK_COMPONENT_API_URL": settings.BK_COMPONENT_API_URL_FRONTEND,
@@ -137,6 +149,7 @@ def get_core_context(request):
         # 国际化
         "gettext": _,
         "_": _,
+        "USER_TIME_ZONE": user_time_zone,
         "LANGUAGE_CODE": request.LANGUAGE_CODE,
         "LANGUAGES": settings.LANGUAGES,
         # 页面title

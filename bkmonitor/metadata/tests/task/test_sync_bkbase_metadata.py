@@ -395,7 +395,7 @@ def test_sync_bkbase_clusters(create_or_delete_records):
             },
         }
     ]
-    with patch("core.drf_resource.api.bkdata.list_data_bus_raw_data") as mock_api:
+    with patch("core.drf_resource.api.bkdata.list_data_link") as mock_api:
         mock_api.side_effect = [mock_es_data, mock_vm_data, mock_doris_data]
         sync_all_bkbase_cluster_info()
 

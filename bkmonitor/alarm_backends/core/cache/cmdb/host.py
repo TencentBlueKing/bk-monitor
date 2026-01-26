@@ -179,7 +179,9 @@ class HostManager(CMDBCacheManager):
             # 打印日志以便查看穿透请求情况
             logger.info("[HostManager] get host(%s) by api start", host_key)
             try:
-                host_page = api.cmdb.get_host_without_biz_v2(ips=[ip], bk_cloud_id=[bk_cloud_id], limit=1)
+                host_page = api.cmdb.get_host_without_biz_v2(
+                    bk_tenant_id=bk_tenant_id, ips=[ip], bk_cloud_id=[bk_cloud_id], limit=1
+                )
                 host = Host(host_page["hosts"][0])
                 cls.fill_attr_to_hosts(host.bk_biz_id, [host])
             except IndexError:

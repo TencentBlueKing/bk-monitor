@@ -39,7 +39,7 @@ import { parseBigNumberList, readBlobRespToJson } from '@/common/util';
 import { requestBlob } from '@/request';
 import { getCommonFilterAdditionWithValues } from '../../../../../store/helper';
 import RetrieveHelper, { RetrieveEvent } from '../../../../retrieve-helper';
-import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
+import BookmarkPop from '../../../search-bar/components/bookmark-pop.vue';
 import useEditor from './use-editor';
 
 import './index.scss';
@@ -116,6 +116,11 @@ export default defineComponent({
       };
 
       emit('error', { code: 200, message: '请求中', result: true });
+
+      RetrieveHelper.reportLog({
+        trigger_source: 'graph_analysis',
+        action: 'request',
+      }, store.state);
 
       return requestBlob({
         url: `/search/index_set/${indexSetId.value}/chart/`,
