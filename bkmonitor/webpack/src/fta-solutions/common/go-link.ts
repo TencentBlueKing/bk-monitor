@@ -55,16 +55,6 @@ const toPerformanceDetail: PerformanceDetailFunction = (bizId, id) => {
 };
 
 /**
- * 跳转到采集配置详情
- * @param bizId
- * @param id
- */
-export const toCollectDetail: PerformanceDetailFunction = (bizId, id) => {
-  window.open(
-    `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/collect-config/detail/${id}`
-  );
-};
-/**
  * 跳转到策略详情
  * @param bizId
  * @param id

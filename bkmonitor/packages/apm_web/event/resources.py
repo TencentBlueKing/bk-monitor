@@ -123,17 +123,17 @@ class EventGetTagConfigResource(Resource):
         # 序列化器已做存在性判断，此处直接使用。
         app_event_config: dict[str, Any] = app.event_config
 
-        service_tag_config: dict[str, Any] = {}
-        service_config: ApmMetaConfig | None = ApmMetaConfig.get_service_config_value(
+        servie_tag_config: dict[str, Any] = {}
+        servie_config: ApmMetaConfig | None = ApmMetaConfig.get_service_config_value(
             bk_biz_id, app_name, service_name, self.process_key(validated_request_data["key"])
         )
-        if service_config:
-            service_tag_config = service_config.config_value
+        if servie_config:
+            servie_tag_config = servie_config.config_value
 
         return {
             "columns": self.generate_field_columns({"type": {"enum": EventType}, "source": {"enum": EventSource}}),
             # 配置优先级：默认 > App > Service
-            "config": {**self.DEFAULT_TAG_CONFIG, **app_event_config, **service_tag_config},
+            "config": {**self.DEFAULT_TAG_CONFIG, **app_event_config, **servie_tag_config},
         }
 
 

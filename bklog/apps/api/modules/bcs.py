@@ -22,7 +22,6 @@ the project delivered to anyone in the future.
 from django.conf import settings
 
 from apps.api.base import DataAPI
-from apps.api.constants import CACHE_TIME_FIVE_MINUTES
 from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter
 from config.domains import BCS_APIGATEWAY_ROOT
 
@@ -60,7 +59,6 @@ class _BcsApi:
             header_keys=["Authorization"],
             before_request=bcs_before_request,
             url_keys=["cluster_id"],
-            cache_time=CACHE_TIME_FIVE_MINUTES,
         )
         self.list_project = DataAPI(
             method="GET",

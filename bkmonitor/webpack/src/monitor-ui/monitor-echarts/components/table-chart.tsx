@@ -54,7 +54,7 @@ export default class TableChart extends tsc<TableChartProps> {
         const obj: any = {};
         this.tableColumn?.forEach((column, index) => {
           if (column.type === 'time') {
-            obj[column.text] = dayjs.tz(String(item[index])).format('YYYY-MM-DD HH:mm:ssZZ');
+            obj[column.text] = dayjs.tz(String(item[index])).format('YYYY-MM-DD HH:mm:ss');
           } else {
             obj[column.text] = item[index];
           }

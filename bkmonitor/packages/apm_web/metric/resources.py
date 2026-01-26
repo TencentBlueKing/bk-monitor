@@ -122,7 +122,6 @@ from monitor_web.scene_view.table_format import (
     StringLabelTableFormat,
     StringTableFormat,
     SyncTimeLinkTableFormat,
-    TimeTableFormat,
 )
 
 logger = logging.getLogger(__name__)
@@ -819,23 +818,25 @@ class ServiceListResource(PageListResource):
             key = serializers.CharField()
             value = serializers.ListField(child=serializers.CharField(), min_length=1)
 
-        bk_biz_id = serializers.IntegerField(label=_("业务id"))
-        app_name = serializers.CharField(label=_("应用名称"))
-        keyword = serializers.CharField(required=False, label=_("查询关键词"), allow_blank=True)
-        start_time = serializers.IntegerField(label=_("数据开始时间"))
-        end_time = serializers.IntegerField(label=_("数据结束时间"))
-        page = serializers.IntegerField(required=False, label=_("页码"))
-        page_size = serializers.IntegerField(required=False, label=_("每页条数"))
-        sort = serializers.CharField(required=False, label=_("排序方式"), allow_blank=True)
-        filter = serializers.CharField(label=_("分类过滤条件"), default="all", allow_blank=True)
-        filter_dict = serializers.DictField(label=_("筛选条件"), default={})
-        field_conditions = serializers.ListField(default=[], label=_("or 条件列表"), child=FieldConditionSerializer())
+        bk_biz_id = serializers.IntegerField(label="业务id")
+        app_name = serializers.CharField(label="应用名称")
+        keyword = serializers.CharField(required=False, label="查询关键词", allow_blank=True)
+        start_time = serializers.IntegerField(required=True, label="数据开始时间")
+        end_time = serializers.IntegerField(required=True, label="数据结束时间")
+        page = serializers.IntegerField(required=False, label="页码")
+        page_size = serializers.IntegerField(required=False, label="每页条数")
+        sort = serializers.CharField(required=False, label="排序方式", allow_blank=True)
+        filter = serializers.CharField(required=False, label="分类过滤条件", default="all", allow_blank=True)
+        filter_dict = serializers.DictField(required=False, label="筛选条件", default={})
+        field_conditions = serializers.ListField(
+            required=False, default=[], label="or 条件列表", child=FieldConditionSerializer()
+        )
         view_mode = serializers.ChoiceField(
-            label=_("展示模式"),
+            required=False,
+            label="展示模式",
             choices=VIEW_MODE_CHOICES,
             default=VIEW_MODE_SERVICES,
         )
-        include_data_status = serializers.BooleanField(label=_("是否包含数据状态"), default=False)
 
         def validate(self, attrs):
             res = super().validate(attrs)
@@ -1095,7 +1096,7 @@ class ServiceListResource(PageListResource):
         data_status_mapping = {}
         # 如果存在数据状态相关的filter筛选, 加载data_status数据
         field_condition_keys = {condition.get("key") for condition in validate_data["field_conditions"]}
-        if validate_data["include_data_status"] or not field_condition_keys.isdisjoint({"apply_module", "have_data"}):
+        if not field_condition_keys.isdisjoint({"apply_module", "have_data"}):
             data_status_list = (
                 ServiceListAsyncResource()
                 .perform_request(
@@ -1634,8 +1635,8 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                 min_width=120,
             ),
             service_format,
-            TimeTableFormat(id="first_time", name=_lazy("首次出现时间"), checked=True),
-            TimeTableFormat(id="last_time", name=_lazy("最新出现时间"), checked=True),
+            StringTableFormat(id="first_time", name=_lazy("首次出现时间"), checked=True),
+            StringTableFormat(id="last_time", name=_lazy("最新出现时间"), checked=True),
             CustomProgressTableFormat(
                 id="error_count",
                 name=_lazy("错误次数"),
@@ -1745,8 +1746,8 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
 
     def compare_time(self, times: list):
         times.sort()
-        # 将毫秒时间戳转换为秒级时间戳
-        return int(times[0]) // 1000, int(times[-1]) // 1000
+        max_length = len(times)
+        return self.format_time(times[0]), self.format_time(times[max_length - 1])
 
     def has_events(self, events):
         for event in events:
@@ -3171,8 +3172,8 @@ class ErrorListByTraceIdsResource(PageListResource):
                 url_format="/service/?filter-service_name={service_name}&filter-app_name={app_name}",
                 sortable=True,
             ),
-            TimeTableFormat(id="first_time", name=_lazy("首次出现时间"), checked=True, sortable=True),
-            TimeTableFormat(id="last_time", name=_lazy("最新出现时间"), checked=True, sortable=True),
+            StringTableFormat(id="first_time", name=_lazy("首次出现时间"), checked=True, sortable=True),
+            StringTableFormat(id="last_time", name=_lazy("最新出现时间"), checked=True, sortable=True),
             NumberTableFormat(id="error_count", name=_lazy("错误次数"), checked=True, sortable=True),
             LinkListTableFormat(
                 id="operations",

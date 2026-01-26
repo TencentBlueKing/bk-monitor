@@ -138,8 +138,6 @@ class CollectorMetaSerializer(serializers.ModelSerializer, CollectorPluginMixin)
     class Meta:
         model = CollectorPluginMeta
         fields = "__all__"
-        # 去除插件ID+租户ID的唯一性校验，后续在保存时通过数据库约束进行校验
-        validators = []
 
 
 class ExporterSerializer(CollectorMetaSerializer):

@@ -5,11 +5,16 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
     Any,
+    Callable,
     ClassVar,
+    Dict,
+    List,
     Optional,
+    Set,
+    Tuple,
+    Type,
     TypeVar,
 )
-from collections.abc import Callable
 from uuid import UUID
 from weakref import ReferenceType
 from weakref import ref as weak_ref
@@ -66,9 +71,9 @@ class MemberContainer:
     config: TreeBuildingConfig
     valid: bool = False
     min_valid_members: int = 2
-    _members: list["SpanNode"] = field(default_factory=list)
-    _member_ids: list[str] = field(default_factory=list)
-    candidates: list["SpanNode"] = field(default_factory=list)
+    _members: List["SpanNode"] = field(default_factory=list)
+    _member_ids: List[str] = field(default_factory=list)
+    candidates: List["SpanNode"] = field(default_factory=list)
 
     should_add: ClassVar[Callable[["SpanNode"], bool]]
 
@@ -80,16 +85,16 @@ class MemberContainer:
         return self.members[0]
 
     @property
-    def members(self) -> list["SpanNode"]:
+    def members(self) -> List["SpanNode"]:
         return self._members
 
     @members.setter
-    def members(self, value: list["SpanNode"]):
+    def members(self, value: List["SpanNode"]):
         self._members = value
         self._member_ids = [m.id for m in value]
 
     @property
-    def member_ids(self) -> list[str]:
+    def member_ids(self) -> List[str]:
         return self._member_ids
 
     @classmethod
@@ -201,7 +206,7 @@ class Group(UUIDGenerator, MemberContainer):
         return sum([m.details[self.value_field] for m in self.members])
 
     @property
-    def start_and_end(self) -> tuple[int, int]:
+    def start_and_end(self) -> Tuple[int, int]:
         """Start and end timestamp of the group."""
         start = min([m.details[OtlpKey.START_TIME] for m in self.members])
         end = max([m.details[OtlpKey.END_TIME] for m in self.members])
@@ -264,8 +269,8 @@ class Parallel(UUIDGenerator, MemberContainer):
 @dataclass
 class AbstractAggregation(UUIDGenerator):
     name: str
-    members: list["SpanNode"] = field(default_factory=list)
-    member_ids: set[str] = field(default_factory=set)
+    members: List["SpanNode"] = field(default_factory=list)
+    member_ids: Set[str] = field(default_factory=set)
 
     agg_display_name: ClassVar[str]
 
@@ -371,7 +376,7 @@ class SpanNode:
     details: dict = field(default_factory=dict)
 
     is_root: bool = False
-    children: list["SpanNode"] = field(default_factory=list)
+    children: List["SpanNode"] = field(default_factory=list)
     parent: Optional["SpanNode"] = None
     # used to determine index in siblings
     index_refer: int = -1
@@ -385,20 +390,20 @@ class SpanNode:
     # whether children have error
     children_have_error: bool = False
 
-    parallel: Parallel | None = None
+    parallel: Optional[Parallel] = None
     # parallels in children
-    children_parallels: list[Parallel] = field(default_factory=list)
-    _children_parallel_candidate: Parallel | None = None
+    children_parallels: List[Parallel] = field(default_factory=list)
+    _children_parallel_candidate: Optional[Parallel] = None
 
     # extra info, injected by upper level
     extra_info: dict = field(default_factory=dict)
 
-    group: Group | None = None
+    group: Optional[Group] = None
     # groups in children
-    children_groups: list[Group] = field(default_factory=list)
-    _children_group_candidates: list[Group] = field(default_factory=list)
+    children_groups: List[Group] = field(default_factory=list)
+    _children_group_candidates: List[Group] = field(default_factory=list)
 
-    _children_maps: dict[tuple, list["SpanNode"]] = field(default_factory=lambda: defaultdict(list))
+    _children_maps: Dict[tuple, List["SpanNode"]] = field(default_factory=lambda: defaultdict(list))
 
     def __repr__(self):
         return f"{self.details[OtlpKey.SPAN_NAME]}-{self.details[OtlpKey.RESOURCE][ResourceAttributes.SERVICE_NAME]}"
@@ -427,7 +432,7 @@ class SpanNode:
         return self.parent.children.index(self)
 
     @property
-    def parallel_path(self) -> list[Parallel]:
+    def parallel_path(self) -> List[Parallel]:
         """Parallel path from root to current node."""
         adding = [self.parallel] if self.parallel else []
 
@@ -449,7 +454,7 @@ class SpanNode:
         return self.details[OtlpKey.ELAPSED_TIME]
 
     @property
-    def start_and_end(self) -> tuple[int, int]:
+    def start_and_end(self) -> Tuple[int, int]:
         """Start and end timestamp of the group."""
         if not self.children:
             return self.details[OtlpKey.START_TIME], self.details[OtlpKey.END_TIME]
@@ -493,7 +498,7 @@ class SpanNode:
         return self.details[OtlpKey.STATUS]["code"] == StatusCode.ERROR.value
 
     @property
-    def descendants(self) -> list["SpanNode"]:
+    def descendants(self) -> List["SpanNode"]:
         """descendants.
 
         Only call after tree is ready because it will cache the result.
@@ -565,13 +570,7 @@ class SpanNode:
             # so search the index from the end of the list
             # TODO: too many parallels would cause performance issue
             for i in range(len(self.children) - 1, -1, -1):
-                # Q: Why use <= here?
-                # A: When the span duration is 0, start_time == end_time.
-                #    Using < would cause the "virtual return node" to be inserted before the original span,
-                #    which breaks the original call-return order.
-                # R: Changing the operator to <= ensures that in the case of equal timestamps,
-                #    the "virtual return node" is always placed after the original span node.
-                if self.children[i].index_refer <= virtual_return_child.index_refer:
+                if self.children[i].index_refer < virtual_return_child.index_refer:
                     virtual_index = i + 1
                     break
                 else:
@@ -599,13 +598,13 @@ class SpanNode:
                 self._children_parallel_candidate = Parallel.from_parent(self, self.config)
                 self._children_parallel_candidate.try_add_and_validate(child)
 
-    def grouping(self, child: "SpanNode", group_class: type | None = None):
+    def grouping(self, child: "SpanNode", group_class: Optional[Type] = None):
         if self.config.group_ignore_sequence:
             self._grouping_without_sequence(child, group_class)
         else:
             self._grouping_in_sequence(child, group_class)
 
-    def _grouping_in_sequence(self, child: "SpanNode", group_class: type[Group] | None = None):
+    def _grouping_in_sequence(self, child: "SpanNode", group_class: Optional[Type[Group]] = None):
         """Grouping spans in sequence."""
         group_class = group_class or Group
         if not self._children_group_candidates:
@@ -634,7 +633,7 @@ class SpanNode:
             new_candidate.try_add_and_validate(child)
             self._children_group_candidates = [new_candidate]
 
-    def _grouping_without_sequence(self, child: "SpanNode", group_class: type | None = None):
+    def _grouping_without_sequence(self, child: "SpanNode", group_class: Optional[Type] = None):
         """Grouping spans without sequence."""
         group_class = group_class or Group
         added_to_existed = False
@@ -690,21 +689,21 @@ class TraceTree:
     """A trace tree with multiple roots."""
 
     config: TreeBuildingConfig = field(default_factory=TreeBuildingConfig.default)
-    roots: list[SpanNode] = field(default_factory=list)
-    _roots_map: dict[tuple, list[SpanNode]] = field(default_factory=lambda: defaultdict(list))
+    roots: List[SpanNode] = field(default_factory=list)
+    _roots_map: Dict[tuple, List[SpanNode]] = field(default_factory=lambda: defaultdict(list))
 
     # id -> node, for quick access
-    nodes_map: dict[str, SpanNode] = field(default_factory=dict)
+    nodes_map: Dict[str, SpanNode] = field(default_factory=dict)
     # parallel id -> parallel, for quick access
-    parallels_map: dict[str, Parallel] = field(default_factory=dict)
+    parallels_map: Dict[str, Parallel] = field(default_factory=dict)
 
     # Aggregations
-    names_map: dict[str, SpanNameAgg] = field(default_factory=dict)
-    services_map: dict[str, ServiceAgg] = field(default_factory=dict)
-    sources_map: dict[str, SourceAgg] = field(default_factory=dict)
-    kinds_map: dict[str, KindAgg] = field(default_factory=dict)
+    names_map: Dict[str, SpanNameAgg] = field(default_factory=dict)
+    services_map: Dict[str, ServiceAgg] = field(default_factory=dict)
+    sources_map: Dict[str, SourceAgg] = field(default_factory=dict)
+    kinds_map: Dict[str, KindAgg] = field(default_factory=dict)
 
-    _aggregations: dict[str, tuple[dict, type[AbstractAggregation]]] = field(default_factory=dict)
+    _aggregations: Dict[str, Tuple[dict, Type[AbstractAggregation]]] = field(default_factory=dict)
 
     def __post_init__(self):
         self._aggregations = {
@@ -731,7 +730,7 @@ class TraceTree:
     def create_node(
         self,
         span: dict,
-        all_spans_map: dict[str, dict],
+        all_spans_map: Dict[str, dict],
         config: TreeBuildingConfig,
     ) -> SpanNode:
         """[Deprecated] Create a node from a span.
@@ -760,7 +759,7 @@ class TraceTree:
 
         return node
 
-    def create_nodes(self, all_spans_map: dict[str, dict], config: TreeBuildingConfig):
+    def create_nodes(self, all_spans_map: Dict[str, dict], config: TreeBuildingConfig):
         """Create nodes from spans."""
         needing_parents = defaultdict(list)
         for span in all_spans_map.values():
@@ -809,7 +808,7 @@ class TraceTree:
 
     @classmethod
     def from_raw(
-        cls, traces: list[dict], config: TreeBuildingConfig = TreeBuildingConfig.default(), force_sort: bool = False
+        cls, traces: List[Dict], config: TreeBuildingConfig = TreeBuildingConfig.default(), force_sort: bool = False
     ) -> "TraceTree":
         """Build a FlameTree from trace data."""
         if not traces:
@@ -820,7 +819,7 @@ class TraceTree:
         if force_sort:
             traces.sort(key=lambda x: x[OtlpKey.START_TIME])
 
-        all_spans_map: dict[str, dict] = {}
+        all_spans_map: Dict[str, dict] = {}
         for span in traces:
             all_spans_map[span[OtlpKey.SPAN_ID]] = span
 
@@ -890,7 +889,7 @@ class TraceTree:
             virtual_return_child.parent = self
             self.roots.insert(virtual_index, virtual_return_child)
 
-    def build_extras(self, return_as_list: bool = True) -> list | None:
+    def build_extras(self, return_as_list: bool = True) -> Optional[list]:
         """Build extras for the tree by travelling the tree.
 
         Q: Why do we build extras by travelling instead build them during building of tree ?
@@ -930,14 +929,14 @@ class TraceTree:
     # ------
     # Accesses
     # ------
-    def get_node_by_id(self, span_id: str) -> SpanNode | None:
+    def get_node_by_id(self, span_id: str) -> Optional[SpanNode]:
         """Get node by span id."""
         return self.nodes_map.get(span_id)
 
     # ------
     # Travels
     # ------
-    def _to_pre_order_tree_list(self, node: SpanNode) -> list[SpanNode]:
+    def _to_pre_order_tree_list(self, node: SpanNode) -> List[SpanNode]:
         """Convert to pre-order tree list internally."""
 
         result = []
@@ -954,7 +953,7 @@ class TraceTree:
 
         return result
 
-    def to_pre_order_tree_list(self) -> list[SpanNode]:
+    def to_pre_order_tree_list(self) -> List[SpanNode]:
         """Convert to pre-order tree list."""
 
         result = []

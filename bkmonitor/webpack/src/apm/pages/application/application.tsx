@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, InjectReactive, Mixins, Prop, Ref } from 'vue-property-decorator';
 
 import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
 import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
+import authorityMixinCreate from 'monitor-pc/mixins/authorityMixin';
 import CommonAlert from 'monitor-pc/pages/monitor-k8s/components/common-alert';
 import CommonPage, { type SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
 
@@ -40,7 +40,6 @@ import ApmCommonNavBar, {
 } from '../../components/apm-common-nav-bar/apm-common-nav-bar';
 import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import applicationStore from '../../store/modules/application';
-import authorityStore from '../../store/modules/authority';
 import AppAddForm from '../home/app-add-form';
 import ServiceAddSide from '../service/service-add-side';
 import * as authorityMap from './../home/authority-map';
@@ -53,19 +52,12 @@ import './application.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class Application extends tsc<undefined> {
+export default class Application extends Mixins(authorityMixinCreate(authorityMap)) {
   @Prop({ type: String, default: '' }) id: string;
 
   @Ref() commonPageRef: CommonPage;
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
-  @ProvideReactive('authority') authority: { [propsName: string]: boolean } = {};
-  @Provide('authorityMap') authorityMap = authorityMap;
-  // 显示申请权限的详情
-  @Provide('handleShowAuthorityDetail')
-  handleShowAuthorityDetail(actionId?: string) {
-    authorityStore.getAuthorityDetail(actionId || this.$route.meta.authority?.map?.MANAGE_AUTH);
-  }
   sceneType: SceneType = 'overview';
 
   backToOverviewKey = random(8);
@@ -293,7 +285,6 @@ export default class Application extends tsc<undefined> {
 
     if (data) {
       this.appInfo = data;
-      this.authority = data.permission ?? {};
       this.viewHasNoData = this.appInfo.trace_data_status === 'no_data';
       this.isReady = true;
     }

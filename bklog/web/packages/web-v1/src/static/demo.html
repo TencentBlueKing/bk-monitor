@@ -1,0 +1,2643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./iconcool.js"></script>
+  <style>
+    html,
+    body,
+    ul,
+    li {
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      margin: 0 auto;
+      padding: 50px;
+      width: 980px;
+    }
+    .container .page-title {
+      margin: 0;
+      padding: 0;
+    }
+    .container .page-title .logo {
+      height: 50px;
+    }
+    .tab-wrapper {
+      padding-top: 26px;
+      border-bottom: 1px solid #dcdee5;
+      overflow: hidden;
+    }
+    .tab-wrapper .tab-panel {
+      float: left;
+      padding: 9px;
+      min-width: 124px;
+      font-size: 16px;
+      color: #979ba5;
+      text-align: center;
+      cursor: pointer;
+    }
+    .tab-wrapper .tab-panel.active {
+      color: #313238;
+      border-bottom: 3px solid #361ec6;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .icon-list .icon-item {
+      display: inline-block;
+      margin-top: 20px;
+      width: 116px;
+      color: #313238;
+      text-align: center;
+      vertical-align: top;
+      overflow: hidden;
+      list-style: none;
+    }
+    .icon-list .icon-item .icon {
+      display: inline-block;
+      height: 92px;
+      line-height: 92px;
+      font-size: 44px;
+    }
+    .icon-list .icon-text {
+      margin: 0;
+      font-size: 14px;
+      word-break: break-all;
+    }
+    .icon-list .colorful-icon {
+      display: inline-block;
+      margin-top: 20px;
+      width: 116px;
+      text-align: center;
+      vertical-align: top;
+      overflow: hidden;
+      list-style: none;
+    }
+    .icon-list .colorful-icon .icon {
+      display: block;
+      margin: 0 auto;
+      width: 1em;
+      height: 92px;
+      font-size: 44px;
+    }
+    .describe-title {
+      margin: 60px 0 0;
+      padding-bottom: 10px;
+      font-size: 20px;
+      font-weight: normal;
+      color: #313238;
+      border-bottom: 1px solid #dcdee5;
+    }
+    .use-describe {
+      padding-left: 20px;
+    }
+    .use-describe li {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #313238;
+      line-height: 20px;
+    }
+  </style>
+  <title>Icon Cool</title>
+</head>
+<body>
+  <div class="container">
+    <h2 class="page-title">
+      <img class="logo" src="data:image/svg+xml;base64,PHN2ZyBpZD0i5Zu+5bGCXzEiIGRhdGEtbmFtZT0i5Zu+5bGCIDEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDMzMSA2NCI+PGRlZnM+PHN0eWxlPi5jbHMtMXtmaWxsOiNlNWVlZmY7fS5jbHMtMntmaWxsOiMzNjFlYzY7fS5jbHMtM3tmaWxsOiNiNWNiZmY7fS5jbHMtNHtmaWxsOiNkY2U5ZmY7fTwvc3R5bGU+PC9kZWZzPjx0aXRsZT5pY29uIGNvb2wgbG9nbzwvdGl0bGU+PHBvbHlnb24gY2xhc3M9ImNscy0xIiBwb2ludHM9IjI2LjkgNjIuOTQgMC42OCA0Ny4yMSAwLjY4IDE1LjczIDI2LjkgMzEuNDcgMjYuOSA2Mi45NCIvPjxwb2x5Z29uIGNsYXNzPSJjbHMtMiIgcG9pbnRzPSIyMC4zNCA1MS4xNCA3LjIzIDQzLjI3IDcuMjMgMjcuNTQgMjAuMzQgMzUuNCAyMC4zNCA1MS4xNCIvPjxwb2x5Z29uIGNsYXNzPSJjbHMtMyIgcG9pbnRzPSIyNi45IDYyLjk0IDUzLjEzIDQ3LjIxIDUzLjEzIDE1LjczIDI2LjkgMzEuNDcgMjYuOSA2Mi45NCIvPjxwb2x5Z29uIGNsYXNzPSJjbHMtNCIgcG9pbnRzPSIyNi45IDAgMC42OCAxNS43MyAyNi45IDMxLjQ3IDUzLjEzIDE1LjczIDI2LjkgMCIvPjxlbGxpcHNlIGNsYXNzPSJjbHMtMiIgY3g9IjI2LjkiIGN5PSIxNS43NCIgcng9IjEwLjQ5IiByeT0iNS44MyIvPjxwb2x5Z29uIGNsYXNzPSJjbHMtMiIgcG9pbnRzPSIzNC4yMyA1MS4xNCA0OC4xOCA0Mi43NyA0MS4zMSAzOS4zNCAzNC4yMyA1MS4xNCIvPjxwb2x5Z29uIGNsYXNzPSJjbHMtMiIgcG9pbnRzPSI0OC4xOCAyNy41NCAzNC4yMyAzNS45MSA0MS4xIDM5LjM0IDQ4LjE4IDI3LjU0Ii8+PHBhdGggZD0iTTcxLjIzLDE4LjU0aDkuOTRWMTUuOGgzLjg5djIuNzRoOC42N1YxNS44aDMuOXYyLjc0aDkuNjd2My4zMUg5Ny42M3YyaC0zLjl2LTJIODUuMDZ2MS45M0g4MS4xN1YyMS44NUg3MS4yM1ptMCwyOS4xSDc1VjM4LjI3aDI4LjY0djkuMzdoMy43VjUxSDcxLjIzWm0yLjg1LTIyaDMuN1YzNi4zNWgtMy43Wm01LDIyaDQuNDNWNDEuNDdINzkuMDlabTIuODUtMjNIODUuOHYxMkg4MS45NFptNC41OSw5LjgzYTI3LjI2LDI3LjI2LDAsMCwwLDUuMzktMTBsMy45LjU3TDk1LDI3LjI1aDExLjY3djMuMjhIOTMuNThhMzcuMjIsMzcuMjIsMCwwLDEtMy44NSw2LjEyQzg4LjgsMzYsODcuNjUsMzUuMTksODYuNTMsMzQuNVptLjU4LDEzLjE0aDQuNDNWNDEuNDdIODcuMTFabTcuMzYtMTQuNDksMi4yNy0yLjI4YzIuMzEsMS40Nyw0LjE2LDIuNyw2LjQsNC4yOGwtMi40MywyLjU0Qzk4LjY3LDM2LjExLDk2Ljc4LDM0LjczLDk0LjQ3LDMzLjE1Wm0uNjEsOC4zMnY2LjE3aDQuNDdWNDEuNDdaIi8+PHBhdGggZD0iTTEwOS4zNCwyNS40YTM2LjgzLDM2LjgzLDAsMCwwLDUuMzYtOS42M2wzLjUxLjVjLS40MywxLS44MSwxLjkyLTEuMjQsMi44MWg2djNsLTIuMiw0LjA5aDMuNTFWNDMuNTlIMTExLjEyVjI4LjUybC0uMzEuMzlBMzcuMTQsMzcuMTQsMCwwLDAsMTA5LjM0LDI1LjRaTTEyNCw0OC4xNGMwLC4zNSwwLC42OSwwLDEuMDgtNS4xMi40Mi05LjgyLjg1LTE0LDEuMzVsLS40Ny0zLjUxYzQuMDUtLjI3LDkuMjEtLjY5LDE0LjQ5LTEuMjMsMCwuNzMsMCwxLjM1LDAsMmE1NSw1NSwwLDAsMCw0Ljc0LTcuNTFsMywxLjYyYy0xLjc3LDMtMy4zMSw1LjQ3LTUuMiw4LjE3QzEyNS43Miw0OS4zNywxMjUsNDguNzksMTI0LDQ4LjE0Wm0tOC42OC0yNS44NmEzOS44MSwzOS44MSwwLDAsMS0yLjUsMy45M2g0LjU1bDIuMTktMy45M1ptLTEuNDIsMTEuMjFoMi41OFYyOS4xOGgtMi41OFptMCw3LjFoMi41OFYzNi4yN2gtMi41OFpNMTE5LDI5LjE4djQuMzFoMi41OFYyOS4xOFptMCwxMS40MWgyLjU4VjM2LjI3SDExOVpNMTI1LjQ1LDIwaDguMzdjLS40My0xLjI3LS44OS0yLjYyLTEuMzItMy43N2w0LjA5LS41Yy40NiwxLjM4LjkyLDIuODUsMS4zNSw0LjI3SDE0NlYyMy40SDEyNS40NVpNMTI5LDQ4LjFjMSwuMDgsMi4xMi4xMiwzLjEyLjEyLDEuMzUsMCwxLjg1LS41NCwxLjg1LTEuODV2LThoLTYuNzVWMjYuNTZoMTYuNjFWMzguMzVoLTYuMjR2OS4yMWMwLDIuNjYtMSw0LTMuNjYsNC4xMi0xLjE2LDAtMi43OC4wOC00LjE2LjA4QzEyOS41OCw1MC41MywxMjkuMzEsNDkuMjYsMTI5LDQ4LjFabTEuNzMtMTNoOS42VjI5LjgzaC05LjZaTTEzOSw0MS43OCwxNDIsNDAuMzVjMS42OSwyLjc4LDIuOTMsNSw0LjQ3LDcuNzlMMTQzLjMsNDkuOEMxNDIsNDcuMSwxNDAuNjgsNDQuNzEsMTM5LDQxLjc4WiIvPjxwYXRoIGQ9Ik0xNjAuNDUsMTcuNDR2NC43N2gtNVYxNy40NFptMCw5LjIyVjUyLjNoLTVWMjYuNjZaIi8+PHBhdGggZD0iTTE4MS41Miw0Mi43NWg1cTAsNC44OS0xLjMyLDYuODJhNi4xNiw2LjE2LDAsMCwxLTMuMzIsMi4zNywyMywyMywwLDAsMS02LjQxLjY4LDI0Ljc1LDI0Ljc1LDAsMCwxLTUuNDUtLjQ4LDguMjgsOC4yOCwwLDAsMS0zLjM4LTEuNTgsNy4yMiw3LjIyLDAsMCwxLTIuMjYtMy44OCwzMS4yMiwzMS4yMiwwLDAsMS0uNjYtNy4zOSwyNCwyNCwwLDAsMSwuODgtNy42Nyw3LjE2LDcuMTYsMCwwLDEsMy42My00LjEzcTIuMy0xLjE1LDcuMDgtMS4xNWExOSwxOSwwLDAsMSw2LjcxLjk0LDUuNzIsNS43MiwwLDAsMSwzLjMyLDMsMTMsMTMsMCwwLDEsLjc3LDUuMWgtNWE3LDcsMCwwLDAtLjUzLTMuMjcsMi44MywyLjgzLDAsMCwwLTEuNzQtMS4zLDEzLjIsMTMuMiwwLDAsMC0zLjcxLS4zOWMtMi41MywwLTQuMjEuNDMtNSwxLjMxcy0xLjIzLDMuNTEtMS4yMyw3LjgzcTAsNS44MiwxLjI2LDcuNTksMSwxLjQsNS42OCwxLjRjMi40MywwLDQtLjM1LDQuNjUtMVMxODEuNTIsNDUuMjQsMTgxLjUyLDQyLjc1WiIvPjxwYXRoIGQ9Ik0yMDAuMjUsMjYuMzRhMjQuMTMsMjQuMTMsMCwwLDEsNi40OS42Miw2LjY5LDYuNjksMCwwLDEsNC43OCw1LjEyLDI5Ljc1LDI5Ljc1LDAsMCwxLC41OSw2Ljg3cTAsNi0uODYsOC41NWE2LjQ2LDYuNDYsMCwwLDEtMy4zMSw0cS0yLjMzLDEuMDgtNy42MywxLjA4YTE5LjY5LDE5LjY5LDAsMCwxLTcuMTEtLjk0LDYuMzEsNi4zMSwwLDAsMS0yLjM5LTEuNjIsNy42NCw3LjY0LDAsMCwxLTEuNDQtMi43NSwzMC41LDMwLjUsMCwwLDEtLjc2LTguMjMsMzMuMjIsMzMuMjIsMCwwLDEsLjQ5LTYuNDEsOC4zOCw4LjM4LDAsMCwxLDEuNjEtMy43LDYuNDQsNi40NCwwLDAsMSwzLjM2LTJBMjQuNjEsMjQuNjEsMCwwLDEsMjAwLjI1LDI2LjM0Wm0uMDgsNC4wNXEtNC41LDAtNS40NywxLjUzdC0xLDcuMzJhNDIuNTQsNDIuNTQsMCwwLDAsLjI0LDUuMjYsNS45LDUuOSwwLDAsMCwuODYsMi42MnExLDEuNDYsNS41MiwxLjQ1LDMuOTIsMCw1LjA3LTEuMTVhNC44MSw0LjgxLDAsMCwwLDEuMDktMi42LDM3LjQzLDM3LjQzLDAsMCwwLC4zLTUuNTVxMC02LTEuMTItNy41MVEyMDQuNzYsMzAuNCwyMDAuMzMsMzAuMzlaIi8+PHBhdGggZD0iTTIxNS4zOSwyNi42Nmg1LjA1bC0uMTYsMi4xNmMxLjMxLTIuMTksNC0yLjQ4LDguMzEtMi40OHM3LDEuMSw4LjI5LDMuM3EuODgsMS41Ljg4LDUuNThWNTIuM2gtNVYzNi40MmExMC4zOSwxMC4zOSwwLDAsMC0uNTQtNC4xMywyLjc0LDIuNzQsMCwwLDAtMS42MS0xLjQsOS40OCw5LjQ4LDAsMCwwLTMuMTktLjQycS0zLjY3LDAtNS4zMSwxLjUzdC0xLjYzLDVWNTIuM2gtNS4wNVoiLz48cGF0aCBkPSJNMjY0LjQ4LDQyLjc1aDVjMCwzLjI2LS40Miw1LjUzLTEuMzIsNi44MmE2LjE2LDYuMTYsMCwwLDEtMy4zMiwyLjM3LDIzLDIzLDAsMCwxLTYuNDEuNjgsMjQuNzUsMjQuNzUsMCwwLDEtNS40NS0uNDgsOC4yOCw4LjI4LDAsMCwxLTMuMzgtMS41OCw3LjI5LDcuMjksMCwwLDEtMi4yNi0zLjg4LDMxLjIyLDMxLjIyLDAsMCwxLS42Ni03LjM5LDI0LDI0LDAsMCwxLC44OS03LjY3LDcuMTEsNy4xMSwwLDAsMSwzLjYyLTQuMTNxMi4yOS0xLjE1LDcuMDgtMS4xNWExOSwxOSwwLDAsMSw2LjcxLjk0LDUuNzIsNS43MiwwLDAsMSwzLjMyLDMsMTMsMTMsMCwwLDEsLjc3LDUuMWgtNWE3LjEsNy4xLDAsMCwwLS41NC0zLjI3LDIuODMsMi44MywwLDAsMC0xLjc0LTEuMywxMy4yLDEzLjIsMCwwLDAtMy43MS0uMzljLTIuNTMsMC00LjIxLjQzLTUsMS4zMXMtMS4yMywzLjUxLTEuMjMsNy44M3EwLDUuODIsMS4yNiw3LjU5Yy42NC45MywyLjU0LDEuNCw1LjY4LDEuNCwyLjQzLDAsNC0uMzUsNC42Ni0xUzI2NC40OCw0NS4yNCwyNjQuNDgsNDIuNzVaIi8+PHBhdGggZD0iTTI4My4yMSwyNi4zNGEyNC4xMywyNC4xMywwLDAsMSw2LjQ5LjYyLDYuNjksNi42OSwwLDAsMSw0Ljc4LDUuMTIsMjkuNzUsMjkuNzUsMCwwLDEsLjU5LDYuODdxMCw2LS44Niw4LjU1YTYuNDYsNi40NiwwLDAsMS0zLjMxLDRxLTIuMzIsMS4wOC03LjYzLDEuMDhhMTkuNjksMTkuNjksMCwwLDEtNy4xMS0uOTQsNi4zMSw2LjMxLDAsMCwxLTIuMzktMS42Miw3LjY0LDcuNjQsMCwwLDEtMS40NC0yLjc1LDMwLjYxLDMwLjYxLDAsMCwxLS43NS04LjIzLDMzLjM2LDMzLjM2LDAsMCwxLC40OC02LjQxLDguMzgsOC4zOCwwLDAsMSwxLjYxLTMuNyw2LjQ4LDYuNDgsMCwwLDEsMy4zNi0yQTI0LjYxLDI0LjYxLDAsMCwxLDI4My4yMSwyNi4zNFptLjA5LDQuMDVjLTMsMC00LjgzLjUxLTUuNDgsMS41M3MtMSwzLjUzLTEsNy4zMkE0Mi41NCw0Mi41NCwwLDAsMCwyNzcsNDQuNWE1LjksNS45LDAsMCwwLC44NiwyLjYycTEsMS40Niw1LjUyLDEuNDUsMy45MiwwLDUuMDctMS4xNWE0LjgxLDQuODEsMCwwLDAsMS4wOS0yLjYsMzcuMTMsMzcuMTMsMCwwLDAsLjMxLTUuNTVxMC02LTEuMTMtNy41MVEyODcuNzIsMzAuNCwyODMuMywzMC4zOVoiLz48cGF0aCBkPSJNMzA5LjE2LDI2LjM0YTI0LjEzLDI0LjEzLDAsMCwxLDYuNDkuNjIsNi42OSw2LjY5LDAsMCwxLDQuNzgsNS4xMkEyOS43NSwyOS43NSwwLDAsMSwzMjEsMzlxMCw2LS44Niw4LjU1YTYuNDYsNi40NiwwLDAsMS0zLjMxLDRxLTIuMzMsMS4wOC03LjYzLDEuMDhhMTkuNjksMTkuNjksMCwwLDEtNy4xMS0uOTQsNi4zMSw2LjMxLDAsMCwxLTIuMzktMS42Miw3LjgsNy44LDAsMCwxLTEuNDUtMi43NSwzMC42MSwzMC42MSwwLDAsMS0uNzUtOC4yMywzMi40NCwzMi40NCwwLDAsMSwuNDktNi40MSw4LjI2LDguMjYsMCwwLDEsMS42MS0zLjcsNi40NCw2LjQ0LDAsMCwxLDMuMzYtMkEyNC42MSwyNC42MSwwLDAsMSwzMDkuMTYsMjYuMzRabS4wOCw0LjA1cS00LjUsMC01LjQ3LDEuNTNjLS43LDEuMDktMSwzLjUzLTEsNy4zMkE0Mi41NCw0Mi41NCwwLDAsMCwzMDMsNDQuNWE1Ljc3LDUuNzcsMCwwLDAsLjg2LDIuNjJxMSwxLjQ2LDUuNTIsMS40NSwzLjkxLDAsNS4wNy0xLjE1YTQuODEsNC44MSwwLDAsMCwxLjA5LTIuNiwzNy40MywzNy40MywwLDAsMCwuMy01LjU1cTAtNi0xLjEyLTcuNTFRMzEzLjY3LDMwLjQsMzA5LjI0LDMwLjM5WiIvPjxwYXRoIGQ9Ik0zMjkuMzQsMTUuNjlWNTIuM2gtNVYxNS42OVoiLz48L3N2Zz4=">
+    </h2>
+    <div class="tab-wrapper">
+      <div class="tab-panel active" data-type="singleColor">单色图标</div>
+      <div class="tab-panel"  data-type="multipleColor">彩色图标</div>
+    </div>
+    <section class="tab-content single-color active" data-type="singleColor">
+      <ul class="icon-list">
+        <li class="icon-item" title="app-store">
+          <span class="icon bklog-icon bklog-app-store"></span>
+          <p class="icon-text">app-store</p>
+        </li>
+        <li class="icon-item" title="folder-open">
+          <span class="icon bklog-icon bklog-folder-open"></span>
+          <p class="icon-text">folder-open</p>
+        </li>
+        <li class="icon-item" title="jump">
+          <span class="icon bklog-icon bklog-jump"></span>
+          <p class="icon-text">jump</p>
+        </li>
+        <li class="icon-item" title="assembly-line-fill">
+          <span class="icon bklog-icon bklog-assembly-line-fill"></span>
+          <p class="icon-text">assembly-line-fill</p>
+        </li>
+        <li class="icon-item" title="calculation-fill">
+          <span class="icon bklog-icon bklog-calculation-fill"></span>
+          <p class="icon-text">calculation-fill</p>
+        </li>
+        <li class="icon-item" title="up">
+          <span class="icon bklog-icon bklog-up"></span>
+          <p class="icon-text">up</p>
+        </li>
+        <li class="icon-item" title="down">
+          <span class="icon bklog-icon bklog-down"></span>
+          <p class="icon-text">down</p>
+        </li>
+        <li class="icon-item" title="topping-fill">
+          <span class="icon bklog-icon bklog-topping-fill"></span>
+          <p class="icon-text">topping-fill</p>
+        </li>
+        <li class="icon-item" title="info-fill">
+          <span class="icon bklog-icon bklog-info-fill"></span>
+          <p class="icon-text">info-fill</p>
+        </li>
+        <li class="icon-item" title="eye">
+          <span class="icon bklog-icon bklog-eye"></span>
+          <p class="icon-text">eye</p>
+        </li>
+        <li class="icon-item" title="eye-slash">
+          <span class="icon bklog-icon bklog-eye-slash"></span>
+          <p class="icon-text">eye-slash</p>
+        </li>
+        <li class="icon-item" title="dimens">
+          <span class="icon bklog-icon bklog-dimens"></span>
+          <p class="icon-text">dimens</p>
+        </li>
+        <li class="icon-item" title="email-shape">
+          <span class="icon bklog-icon bklog-email-shape"></span>
+          <p class="icon-text">email-shape</p>
+        </li>
+        <li class="icon-item" title="lc-star-shape">
+          <span class="icon bklog-icon bklog-lc-star-shape"></span>
+          <p class="icon-text">lc-star-shape</p>
+        </li>
+        <li class="icon-item" title="double-arrow">
+          <span class="icon bklog-icon bklog-double-arrow"></span>
+          <p class="icon-text">double-arrow</p>
+        </li>
+        <li class="icon-item" title="drag-dots">
+          <span class="icon bklog-icon bklog-drag-dots"></span>
+          <p class="icon-text">drag-dots</p>
+        </li>
+        <li class="icon-item" title="filled-right-arrow">
+          <span class="icon bklog-icon bklog-filled-right-arrow"></span>
+          <p class="icon-text">filled-right-arrow</p>
+        </li>
+        <li class="icon-item" title="audit">
+          <span class="icon bklog-icon bklog-audit"></span>
+          <p class="icon-text">audit</p>
+        </li>
+        <li class="icon-item" title="icon-help-document-fill">
+          <span class="icon bklog-icon bklog-icon-help-document-fill"></span>
+          <p class="icon-text">icon-help-document-fill</p>
+        </li>
+        <li class="icon-item" title="chinese">
+          <span class="icon bklog-icon bklog-chinese"></span>
+          <p class="icon-text">chinese</p>
+        </li>
+        <li class="icon-item" title="copy">
+          <span class="icon bklog-icon bklog-copy"></span>
+          <p class="icon-text">copy</p>
+        </li>
+        <li class="icon-item" title="english">
+          <span class="icon bklog-icon bklog-english"></span>
+          <p class="icon-text">english</p>
+        </li>
+        <li class="icon-item" title="full-screen-log">
+          <span class="icon bklog-icon bklog-full-screen-log"></span>
+          <p class="icon-text">full-screen-log</p>
+        </li>
+        <li class="icon-item" title="index-set">
+          <span class="icon bklog-icon bklog-index-set"></span>
+          <p class="icon-text">index-set</p>
+        </li>
+        <li class="icon-item" title="play-log">
+          <span class="icon bklog-icon bklog-play-log"></span>
+          <p class="icon-text">play-log</p>
+        </li>
+        <li class="icon-item" title="search-log-logo">
+          <span class="icon bklog-icon bklog-search-log-logo"></span>
+          <p class="icon-text">search-log-logo</p>
+        </li>
+        <li class="icon-item" title="stop-log">
+          <span class="icon bklog-icon bklog-stop-log"></span>
+          <p class="icon-text">stop-log</p>
+        </li>
+        <li class="icon-item" title="log-download">
+          <span class="icon bklog-icon bklog-log-download"></span>
+          <p class="icon-text">log-download</p>
+        </li>
+        <li class="icon-item" title="log-refresh">
+          <span class="icon bklog-icon bklog-log-refresh"></span>
+          <p class="icon-text">log-refresh</p>
+        </li>
+        <li class="icon-item" title="log-setting">
+          <span class="icon bklog-icon bklog-log-setting"></span>
+          <p class="icon-text">log-setting</p>
+        </li>
+        <li class="icon-item" title="download-icon">
+          <span class="icon bklog-icon bklog-download-icon"></span>
+          <p class="icon-text">download-icon</p>
+        </li>
+        <li class="icon-item" title="refresh-icon">
+          <span class="icon bklog-icon bklog-refresh-icon"></span>
+          <p class="icon-text">refresh-icon</p>
+        </li>
+        <li class="icon-item" title="set-icon">
+          <span class="icon bklog-icon bklog-set-icon"></span>
+          <p class="icon-text">set-icon</p>
+        </li>
+        <li class="icon-item" title="plus">
+          <span class="icon bklog-icon bklog-plus"></span>
+          <p class="icon-text">plus</p>
+        </li>
+        <li class="icon-item" title="xiazai">
+          <span class="icon bklog-icon bklog-xiazai"></span>
+          <p class="icon-text">xiazai</p>
+        </li>
+        <li class="icon-item" title="camera-fill">
+          <span class="icon bklog-icon bklog-camera-fill"></span>
+          <p class="icon-text">camera-fill</p>
+        </li>
+        <li class="icon-item" title="cc-cabinet">
+          <span class="icon bklog-icon bklog-cc-cabinet"></span>
+          <p class="icon-text">cc-cabinet</p>
+        </li>
+        <li class="icon-item" title="cc-create-business">
+          <span class="icon bklog-icon bklog-cc-create-business"></span>
+          <p class="icon-text">cc-create-business</p>
+        </li>
+        <li class="icon-item" title="cc-influxdb">
+          <span class="icon bklog-icon bklog-cc-influxdb"></span>
+          <p class="icon-text">cc-influxdb</p>
+        </li>
+        <li class="icon-item" title="cc-log">
+          <span class="icon bklog-icon bklog-cc-log"></span>
+          <p class="icon-text">cc-log</p>
+        </li>
+        <li class="icon-item" title="locale">
+          <span class="icon bklog-icon bklog-locale"></span>
+          <p class="icon-text">locale</p>
+        </li>
+        <li class="icon-item" title="bar">
+          <span class="icon bklog-icon bklog-bar"></span>
+          <p class="icon-text">bar</p>
+        </li>
+        <li class="icon-item" title="collapse-small">
+          <span class="icon bklog-icon bklog-collapse-small"></span>
+          <p class="icon-text">collapse-small</p>
+        </li>
+        <li class="icon-item" title="expand-small">
+          <span class="icon bklog-icon bklog-expand-small"></span>
+          <p class="icon-text">expand-small</p>
+        </li>
+        <li class="icon-item" title="new-_empty-fill">
+          <span class="icon bklog-icon bklog-new-_empty-fill"></span>
+          <p class="icon-text">new-_empty-fill</p>
+        </li>
+        <li class="icon-item" title="audit-fill">
+          <span class="icon bklog-icon bklog-audit-fill"></span>
+          <p class="icon-text">audit-fill</p>
+        </li>
+        <li class="icon-item" title="field-fill">
+          <span class="icon bklog-icon bklog-field-fill"></span>
+          <p class="icon-text">field-fill</p>
+        </li>
+        <li class="icon-item" title="folder-fill">
+          <span class="icon bklog-icon bklog-folder-fill"></span>
+          <p class="icon-text">folder-fill</p>
+        </li>
+        <li class="icon-item" title="data-copy">
+          <span class="icon bklog-icon bklog-data-copy"></span>
+          <p class="icon-text">data-copy</p>
+        </li>
+        <li class="icon-item" title="history-fill">
+          <span class="icon bklog-icon bklog-history-fill"></span>
+          <p class="icon-text">history-fill</p>
+        </li>
+        <li class="icon-item" title="namespace-fill">
+          <span class="icon bklog-icon bklog-namespace-fill"></span>
+          <p class="icon-text">namespace-fill</p>
+        </li>
+        <li class="icon-item" title="withdraw-fill">
+          <span class="icon bklog-icon bklog-withdraw-fill"></span>
+          <p class="icon-text">withdraw-fill</p>
+        </li>
+        <li class="icon-item" title="date-picker">
+          <span class="icon bklog-icon bklog-date-picker"></span>
+          <p class="icon-text">date-picker</p>
+        </li>
+        <li class="icon-item" title="help">
+          <span class="icon bklog-icon bklog-help"></span>
+          <p class="icon-text">help</p>
+        </li>
+        <li class="icon-item" title="lianjie">
+          <span class="icon bklog-icon bklog-lianjie"></span>
+          <p class="icon-text">lianjie</p>
+        </li>
+        <li class="icon-item" title="auto-refresh">
+          <span class="icon bklog-icon bklog-auto-refresh"></span>
+          <p class="icon-text">auto-refresh</p>
+        </li>
+        <li class="icon-item" title="no-refresh">
+          <span class="icon bklog-icon bklog-no-refresh"></span>
+          <p class="icon-text">no-refresh</p>
+        </li>
+        <li class="icon-item" title="copy-2">
+          <span class="icon bklog-icon bklog-copy-2"></span>
+          <p class="icon-text">copy-2</p>
+        </li>
+        <li class="icon-item" title="table">
+          <span class="icon bklog-icon bklog-table"></span>
+          <p class="icon-text">table</p>
+        </li>
+        <li class="icon-item" title="number">
+          <span class="icon bklog-icon bklog-number"></span>
+          <p class="icon-text">number</p>
+        </li>
+        <li class="icon-item" title="string">
+          <span class="icon bklog-icon bklog-string"></span>
+          <p class="icon-text">string</p>
+        </li>
+        <li class="icon-item" title="text">
+          <span class="icon bklog-icon bklog-text"></span>
+          <p class="icon-text">text</p>
+        </li>
+        <li class="icon-item" title="unkown">
+          <span class="icon bklog-icon bklog-unkown"></span>
+          <p class="icon-text">unkown</p>
+        </li>
+        <li class="icon-item" title="info-fill--2">
+          <span class="icon bklog-icon bklog-info-fill--2"></span>
+          <p class="icon-text">info-fill--2</p>
+        </li>
+        <li class="icon-item" title="equal">
+          <span class="icon bklog-icon bklog-equal"></span>
+          <p class="icon-text">equal</p>
+        </li>
+        <li class="icon-item" title="and">
+          <span class="icon bklog-icon bklog-and"></span>
+          <p class="icon-text">and</p>
+        </li>
+        <li class="icon-item" title="value">
+          <span class="icon bklog-icon bklog-value"></span>
+          <p class="icon-text">value</p>
+        </li>
+        <li class="icon-item" title="field">
+          <span class="icon bklog-icon bklog-field"></span>
+          <p class="icon-text">field</p>
+        </li>
+        <li class="icon-item" title="time">
+          <span class="icon bklog-icon bklog-time"></span>
+          <p class="icon-text">time</p>
+        </li>
+        <li class="icon-item" title="inform">
+          <span class="icon bklog-icon bklog-inform"></span>
+          <p class="icon-text">inform</p>
+        </li>
+        <li class="icon-item" title="teminal">
+          <span class="icon bklog-icon bklog-teminal"></span>
+          <p class="icon-text">teminal</p>
+        </li>
+        <li class="icon-item" title="document">
+          <span class="icon bklog-icon bklog-document"></span>
+          <p class="icon-text">document</p>
+        </li>
+        <li class="icon-item" title="zidongchaxun">
+          <span class="icon bklog-icon bklog-zidongchaxun"></span>
+          <p class="icon-text">zidongchaxun</p>
+        </li>
+        <li class="icon-item" title="shoudongchaxun">
+          <span class="icon bklog-icon bklog-shoudongchaxun"></span>
+          <p class="icon-text">shoudongchaxun</p>
+        </li>
+        <li class="icon-item" title="xiangji">
+          <span class="icon bklog-icon bklog-xiangji"></span>
+          <p class="icon-text">xiangji</p>
+        </li>
+        <li class="icon-item" title="elasticsearch">
+          <span class="icon bklog-icon bklog-elasticsearch"></span>
+          <p class="icon-text">elasticsearch</p>
+        </li>
+        <li class="icon-item" title="tongbu">
+          <span class="icon bklog-icon bklog-tongbu"></span>
+          <p class="icon-text">tongbu</p>
+        </li>
+        <li class="icon-item" title="moban">
+          <span class="icon bklog-icon bklog-moban"></span>
+          <p class="icon-text">moban</p>
+        </li>
+        <li class="icon-item" title="daoru">
+          <span class="icon bklog-icon bklog-daoru"></span>
+          <p class="icon-text">daoru</p>
+        </li>
+        <li class="icon-item" title="shijian">
+          <span class="icon bklog-icon bklog-shijian"></span>
+          <p class="icon-text">shijian</p>
+        </li>
+        <li class="icon-item" title="chart">
+          <span class="icon bklog-icon bklog-chart"></span>
+          <p class="icon-text">chart</p>
+        </li>
+        <li class="icon-item" title="zhuanhuan">
+          <span class="icon bklog-icon bklog-zhuanhuan"></span>
+          <p class="icon-text">zhuanhuan</p>
+        </li>
+        <li class="icon-item" title="liebiao">
+          <span class="icon bklog-icon bklog-liebiao"></span>
+          <p class="icon-text">liebiao</p>
+        </li>
+        <li class="icon-item" title="boolean">
+          <span class="icon bklog-icon bklog-boolean"></span>
+          <p class="icon-text">boolean</p>
+        </li>
+        <li class="icon-item" title="block-shape">
+          <span class="icon bklog-icon bklog-block-shape"></span>
+          <p class="icon-text">block-shape</p>
+        </li>
+        <li class="icon-item" title="menu-custom">
+          <span class="icon bklog-icon bklog-menu-custom"></span>
+          <p class="icon-text">menu-custom</p>
+        </li>
+        <li class="icon-item" title="qiyeweixin">
+          <span class="icon bklog-icon bklog-qiyeweixin"></span>
+          <p class="icon-text">qiyeweixin</p>
+        </li>
+        <li class="icon-item" title="tiaozhuan">
+          <span class="icon bklog-icon bklog-tiaozhuan"></span>
+          <p class="icon-text">tiaozhuan</p>
+        </li>
+        <li class="icon-item" title="ext">
+          <span class="icon bklog-icon bklog-ext"></span>
+          <p class="icon-text">ext</p>
+        </li>
+        <li class="icon-item" title="share">
+          <span class="icon bklog-icon bklog-share"></span>
+          <p class="icon-text">share</p>
+        </li>
+        <li class="icon-item" title="star-line">
+          <span class="icon bklog-icon bklog-star-line"></span>
+          <p class="icon-text">star-line</p>
+        </li>
+        <li class="icon-item" title="lishijilu">
+          <span class="icon bklog-icon bklog-lishijilu"></span>
+          <p class="icon-text">lishijilu</p>
+        </li>
+        <li class="icon-item" title="bofang">
+          <span class="icon bklog-icon bklog-bofang"></span>
+          <p class="icon-text">bofang</p>
+        </li>
+        <li class="icon-item" title="jiansuo">
+          <span class="icon bklog-icon bklog-jiansuo"></span>
+          <p class="icon-text">jiansuo</p>
+        </li>
+        <li class="icon-item" title="shixiao">
+          <span class="icon bklog-icon bklog-shixiao"></span>
+          <p class="icon-text">shixiao</p>
+        </li>
+        <li class="icon-item" title="zanting">
+          <span class="icon bklog-icon bklog-zanting"></span>
+          <p class="icon-text">zanting</p>
+        </li>
+        <li class="icon-item" title="zhedie">
+          <span class="icon bklog-icon bklog-zhedie"></span>
+          <p class="icon-text">zhedie</p>
+        </li>
+        <li class="icon-item" title="zhankai">
+          <span class="icon bklog-icon bklog-zhankai"></span>
+          <p class="icon-text">zhankai</p>
+        </li>
+        <li class="icon-item" title="brush">
+          <span class="icon bklog-icon bklog-brush"></span>
+          <p class="icon-text">brush</p>
+        </li>
+        <li class="icon-item" title="wholesale-editor">
+          <span class="icon bklog-icon bklog-wholesale-editor"></span>
+          <p class="icon-text">wholesale-editor</p>
+        </li>
+        <li class="icon-item" title="ellipsis-more">
+          <span class="icon bklog-icon bklog-ellipsis-more"></span>
+          <p class="icon-text">ellipsis-more</p>
+        </li>
+        <li class="icon-item" title="position">
+          <span class="icon bklog-icon bklog-position"></span>
+          <p class="icon-text">position</p>
+        </li>
+        <li class="icon-item" title="log-delete">
+          <span class="icon bklog-icon bklog-log-delete"></span>
+          <p class="icon-text">log-delete</p>
+        </li>
+        <li class="icon-item" title="masking">
+          <span class="icon bklog-icon bklog-masking"></span>
+          <p class="icon-text">masking</p>
+        </li>
+        <li class="icon-item" title="fix-line">
+          <span class="icon bklog-icon bklog-fix-line"></span>
+          <p class="icon-text">fix-line</p>
+        </li>
+        <li class="icon-item" title="fix-shape">
+          <span class="icon bklog-icon bklog-fix-shape"></span>
+          <p class="icon-text">fix-shape</p>
+        </li>
+        <li class="icon-item" title="log-loading">
+          <span class="icon bklog-icon bklog-log-loading"></span>
+          <p class="icon-text">log-loading</p>
+        </li>
+        <li class="icon-item" title="log-remark">
+          <span class="icon bklog-icon bklog-log-remark"></span>
+          <p class="icon-text">log-remark</p>
+        </li>
+        <li class="icon-item" title="back2">
+          <span class="icon bklog-icon bklog-back2"></span>
+          <p class="icon-text">back2</p>
+        </li>
+        <li class="icon-item" title="circle-add">
+          <span class="icon bklog-icon bklog-circle-add"></span>
+          <p class="icon-text">circle-add</p>
+        </li>
+        <li class="icon-item" title="close">
+          <span class="icon bklog-icon bklog-close"></span>
+          <p class="icon-text">close</p>
+        </li>
+        <li class="icon-item" title="correct">
+          <span class="icon bklog-icon bklog-correct"></span>
+          <p class="icon-text">correct</p>
+        </li>
+        <li class="icon-item" title="edit">
+          <span class="icon bklog-icon bklog-edit"></span>
+          <p class="icon-text">edit</p>
+        </li>
+        <li class="icon-item" title="help">
+          <span class="icon bklog-icon bklog-help"></span>
+          <p class="icon-text">help</p>
+        </li>
+        <li class="icon-item" title="more">
+          <span class="icon bklog-icon bklog-more"></span>
+          <p class="icon-text">more</p>
+        </li>
+        <li class="icon-item" title="collapse">
+          <span class="icon bklog-icon bklog-collapse"></span>
+          <p class="icon-text">collapse</p>
+        </li>
+        <li class="icon-item" title="download">
+          <span class="icon bklog-icon bklog-download"></span>
+          <p class="icon-text">download</p>
+        </li>
+        <li class="icon-item" title="invisible">
+          <span class="icon bklog-icon bklog-invisible"></span>
+          <p class="icon-text">invisible</p>
+        </li>
+        <li class="icon-item" title="jump">
+          <span class="icon bklog-icon bklog-jump"></span>
+          <p class="icon-text">jump</p>
+        </li>
+        <li class="icon-item" title="organization">
+          <span class="icon bklog-icon bklog-organization"></span>
+          <p class="icon-text">organization</p>
+        </li>
+        <li class="icon-item" title="overview-table">
+          <span class="icon bklog-icon bklog-overview-table"></span>
+          <p class="icon-text">overview-table</p>
+        </li>
+        <li class="icon-item" title="overview1">
+          <span class="icon bklog-icon bklog-overview1"></span>
+          <p class="icon-text">overview1</p>
+        </li>
+        <li class="icon-item" title="sort-2">
+          <span class="icon bklog-icon bklog-sort-2"></span>
+          <p class="icon-text">sort-2</p>
+        </li>
+        <li class="icon-item" title="visible">
+          <span class="icon bklog-icon bklog-visible"></span>
+          <p class="icon-text">visible</p>
+        </li>
+        <li class="icon-item" title="circle-alert-filled">
+          <span class="icon bklog-icon bklog-circle-alert-filled"></span>
+          <p class="icon-text">circle-alert-filled</p>
+        </li>
+        <li class="icon-item" title="circle-correct-filled">
+          <span class="icon bklog-icon bklog-circle-correct-filled"></span>
+          <p class="icon-text">circle-correct-filled</p>
+        </li>
+        <li class="icon-item" title="circle-minus-filled">
+          <span class="icon bklog-icon bklog-circle-minus-filled"></span>
+          <p class="icon-text">circle-minus-filled</p>
+        </li>
+        <li class="icon-item" title="import">
+          <span class="icon bklog-icon bklog-import"></span>
+          <p class="icon-text">import</p>
+        </li>
+        <li class="icon-item" title="setting-line">
+          <span class="icon bklog-icon bklog-setting-line"></span>
+          <p class="icon-text">setting-line</p>
+        </li>
+        <li class="icon-item" title="configuration">
+          <span class="icon bklog-icon bklog-configuration"></span>
+          <p class="icon-text">configuration</p>
+        </li>
+        <li class="icon-item" title="refresh2">
+          <span class="icon bklog-icon bklog-refresh2"></span>
+          <p class="icon-text">refresh2</p>
+        </li>
+        <li class="icon-item" title="save">
+          <span class="icon bklog-icon bklog-save"></span>
+          <p class="icon-text">save</p>
+        </li>
+        <li class="icon-item" title="subnode">
+          <span class="icon bklog-icon bklog-subnode"></span>
+          <p class="icon-text">subnode</p>
+        </li>
+        <li class="icon-item" title="log-plus-circle-shape">
+          <span class="icon bklog-icon bklog-log-plus-circle-shape"></span>
+          <p class="icon-text">log-plus-circle-shape</p>
+        </li>
+        <li class="icon-item" title="log-trend">
+          <span class="icon bklog-icon bklog-log-trend"></span>
+          <p class="icon-text">log-trend</p>
+        </li>
+        <li class="icon-item" title="new-alarm">
+          <span class="icon bklog-icon bklog-new-alarm"></span>
+          <p class="icon-text">new-alarm</p>
+        </li>
+        <li class="icon-item" title="sudden-increase">
+          <span class="icon bklog-icon bklog-sudden-increase"></span>
+          <p class="icon-text">sudden-increase</p>
+        </li>
+        <li class="icon-item" title="overview">
+          <span class="icon bklog-icon bklog-overview"></span>
+          <p class="icon-text">overview</p>
+        </li>
+        <li class="icon-item" title="setting">
+          <span class="icon bklog-icon bklog-setting"></span>
+          <p class="icon-text">setting</p>
+        </li>
+        <li class="icon-item" title="saoba">
+          <span class="icon bklog-icon bklog-saoba"></span>
+          <p class="icon-text">saoba</p>
+        </li>
+        <li class="icon-item" title="jincheng">
+          <span class="icon bklog-icon bklog-jincheng"></span>
+          <p class="icon-text">jincheng</p>
+        </li>
+        <li class="icon-item" title="qiehuanbanben">
+          <span class="icon bklog-icon bklog-qiehuanbanben"></span>
+          <p class="icon-text">qiehuanbanben</p>
+        </li>
+        <li class="icon-item" title="shaixuan">
+          <span class="icon bklog-icon bklog-shaixuan"></span>
+          <p class="icon-text">shaixuan</p>
+        </li>
+        <li class="icon-item" title="yingshe">
+          <span class="icon bklog-icon bklog-yingshe"></span>
+          <p class="icon-text">yingshe</p>
+        </li>
+        <li class="icon-item" title="arrow-down-filled">
+          <span class="icon bklog-icon bklog-arrow-down-filled"></span>
+          <p class="icon-text">arrow-down-filled</p>
+        </li>
+        <li class="icon-item" title="*">
+          <span class="icon bklog-icon bklog-*"></span>
+          <p class="icon-text">*</p>
+        </li>
+        <li class="icon-item" title="buer">
+          <span class="icon bklog-icon bklog-buer"></span>
+          <p class="icon-text">buer</p>
+        </li>
+        <li class="icon-item" title="number-2">
+          <span class="icon bklog-icon bklog-number-2"></span>
+          <p class="icon-text">number-2</p>
+        </li>
+        <li class="icon-item" title="ext-2">
+          <span class="icon bklog-icon bklog-ext-2"></span>
+          <p class="icon-text">ext-2</p>
+        </li>
+        <li class="icon-item" title="object">
+          <span class="icon bklog-icon bklog-object"></span>
+          <p class="icon-text">object</p>
+        </li>
+        <li class="icon-item" title="str-2">
+          <span class="icon bklog-icon bklog-str-2"></span>
+          <p class="icon-text">str-2</p>
+        </li>
+        <li class="icon-item" title="text-2">
+          <span class="icon bklog-icon bklog-text-2"></span>
+          <p class="icon-text">text-2</p>
+        </li>
+        <li class="icon-item" title="time-2">
+          <span class="icon bklog-icon bklog-time-2"></span>
+          <p class="icon-text">time-2</p>
+        </li>
+        <li class="icon-item" title="ai">
+          <span class="icon bklog-icon bklog-ai"></span>
+          <p class="icon-text">ai</p>
+        </li>
+        <li class="icon-item" title="-celve">
+          <span class="icon bklog-icon bklog--celve"></span>
+          <p class="icon-text">-celve</p>
+        </li>
+        <li class="icon-item" title="gaojing-filled">
+          <span class="icon bklog-icon bklog-gaojing-filled"></span>
+          <p class="icon-text">gaojing-filled</p>
+        </li>
+        <li class="icon-item" title="gaojing-line">
+          <span class="icon bklog-icon bklog-gaojing-line"></span>
+          <p class="icon-text">gaojing-line</p>
+        </li>
+        <li class="icon-item" title="ketuodong">
+          <span class="icon bklog-icon bklog-ketuodong"></span>
+          <p class="icon-text">ketuodong</p>
+        </li>
+        <li class="icon-item" title="lianxiang">
+          <span class="icon bklog-icon bklog-lianxiang"></span>
+          <p class="icon-text">lianxiang</p>
+        </li>
+        <li class="icon-item" title="paixu">
+          <span class="icon bklog-icon bklog-paixu"></span>
+          <p class="icon-text">paixu</p>
+        </li>
+        <li class="icon-item" title="shangxiawen">
+          <span class="icon bklog-icon bklog-shangxiawen"></span>
+          <p class="icon-text">shangxiawen</p>
+        </li>
+        <li class="icon-item" title="qingkong">
+          <span class="icon bklog-icon bklog-qingkong"></span>
+          <p class="icon-text">qingkong</p>
+        </li>
+        <li class="icon-item" title="shezhi">
+          <span class="icon bklog-icon bklog-shezhi"></span>
+          <p class="icon-text">shezhi</p>
+        </li>
+        <li class="icon-item" title="shishirizhi">
+          <span class="icon bklog-icon bklog-shishirizhi"></span>
+          <p class="icon-text">shishirizhi</p>
+        </li>
+        <li class="icon-item" title="shoucangjia">
+          <span class="icon bklog-icon bklog-shoucangjia"></span>
+          <p class="icon-text">shoucangjia</p>
+        </li>
+        <li class="icon-item" title="shouqi">
+          <span class="icon bklog-icon bklog-shouqi"></span>
+          <p class="icon-text">shouqi</p>
+        </li>
+        <li class="icon-item" title="qiehuan-2">
+          <span class="icon bklog-icon bklog-qiehuan-2"></span>
+          <p class="icon-text">qiehuan-2</p>
+        </li>
+        <li class="icon-item" title="tuichu">
+          <span class="icon bklog-icon bklog-tuichu"></span>
+          <p class="icon-text">tuichu</p>
+        </li>
+        <li class="icon-item" title="xinjianwenjianjia">
+          <span class="icon bklog-icon bklog-xinjianwenjianjia"></span>
+          <p class="icon-text">xinjianwenjianjia</p>
+        </li>
+        <li class="icon-item" title="xinjianchaxun">
+          <span class="icon bklog-icon bklog-xinjianchaxun"></span>
+          <p class="icon-text">xinjianchaxun</p>
+        </li>
+        <li class="icon-item" title="yingshe-2">
+          <span class="icon bklog-icon bklog-yingshe-2"></span>
+          <p class="icon-text">yingshe-2</p>
+        </li>
+        <li class="icon-item" title="yibiaopan">
+          <span class="icon bklog-icon bklog-yibiaopan"></span>
+          <p class="icon-text">yibiaopan</p>
+        </li>
+        <li class="icon-item" title="arrow-down-filled-2">
+          <span class="icon bklog-icon bklog-arrow-down-filled-2"></span>
+          <p class="icon-text">arrow-down-filled-2</p>
+        </li>
+        <li class="icon-item" title="yujumoshi">
+          <span class="icon bklog-icon bklog-yujumoshi"></span>
+          <p class="icon-text">yujumoshi</p>
+        </li>
+        <li class="icon-item" title="backtotop">
+          <span class="icon bklog-icon bklog-backtotop"></span>
+          <p class="icon-text">backtotop</p>
+        </li>
+        <li class="icon-item" title="chart-2">
+          <span class="icon bklog-icon bklog-chart-2"></span>
+          <p class="icon-text">chart-2</p>
+        </li>
+        <li class="icon-item" title="copy-3">
+          <span class="icon bklog-icon bklog-copy-3"></span>
+          <p class="icon-text">copy-3</p>
+        </li>
+        <li class="icon-item" title="file-close">
+          <span class="icon bklog-icon bklog-file-close"></span>
+          <p class="icon-text">file-close</p>
+        </li>
+        <li class="icon-item" title="file-open">
+          <span class="icon bklog-icon bklog-file-open"></span>
+          <p class="icon-text">file-open</p>
+        </li>
+        <li class="icon-item" title="file-personal">
+          <span class="icon bklog-icon bklog-file-personal"></span>
+          <p class="icon-text">file-personal</p>
+        </li>
+        <li class="icon-item" title="goto">
+          <span class="icon bklog-icon bklog-goto"></span>
+          <p class="icon-text">goto</p>
+        </li>
+        <li class="icon-item" title="table-2">
+          <span class="icon bklog-icon bklog-table-2"></span>
+          <p class="icon-text">table-2</p>
+        </li>
+        <li class="icon-item" title="ui-moshi">
+          <span class="icon bklog-icon bklog-ui-moshi"></span>
+          <p class="icon-text">ui-moshi</p>
+        </li>
+        <li class="icon-item" title="shangxia-2">
+          <span class="icon bklog-icon bklog-shangxia-2"></span>
+          <p class="icon-text">shangxia-2</p>
+        </li>
+        <li class="icon-item" title="enter">
+          <span class="icon bklog-icon bklog-enter"></span>
+          <p class="icon-text">enter</p>
+        </li>
+        <li class="icon-item" title="esc">
+          <span class="icon bklog-icon bklog-esc"></span>
+          <p class="icon-text">esc</p>
+        </li>
+        <li class="icon-item" title="history-2">
+          <span class="icon bklog-icon bklog-history-2"></span>
+          <p class="icon-text">history-2</p>
+        </li>
+        <li class="icon-item" title="weixian">
+          <span class="icon bklog-icon bklog-weixian"></span>
+          <p class="icon-text">weixian</p>
+        </li>
+        <li class="icon-item" title="jiankangdu">
+          <span class="icon bklog-icon bklog-jiankangdu"></span>
+          <p class="icon-text">jiankangdu</p>
+        </li>
+        <li class="icon-item" title="lianjiefu">
+          <span class="icon bklog-icon bklog-lianjiefu"></span>
+          <p class="icon-text">lianjiefu</p>
+        </li>
+        <li class="icon-item" title="yunsuanfu">
+          <span class="icon bklog-icon bklog-yunsuanfu"></span>
+          <p class="icon-text">yunsuanfu</p>
+        </li>
+        <li class="icon-item" title="key">
+          <span class="icon bklog-icon bklog-key"></span>
+          <p class="icon-text">key</p>
+        </li>
+        <li class="icon-item" title="value-2">
+          <span class="icon bklog-icon bklog-value-2"></span>
+          <p class="icon-text">value-2</p>
+        </li>
+        <li class="icon-item" title="shanchu">
+          <span class="icon bklog-icon bklog-shanchu"></span>
+          <p class="icon-text">shanchu</p>
+        </li>
+        <li class="icon-item" title="copy-4">
+          <span class="icon bklog-icon bklog-copy-4"></span>
+          <p class="icon-text">copy-4</p>
+        </li>
+        <li class="icon-item" title="yuju1">
+          <span class="icon bklog-icon bklog-yuju1"></span>
+          <p class="icon-text">yuju1</p>
+        </li>
+        <li class="icon-item" title="ui1">
+          <span class="icon bklog-icon bklog-ui1"></span>
+          <p class="icon-text">ui1</p>
+        </li>
+        <li class="icon-item" title="vim1">
+          <span class="icon bklog-icon bklog-vim1"></span>
+          <p class="icon-text">vim1</p>
+        </li>
+        <li class="icon-item" title="yuju2">
+          <span class="icon bklog-icon bklog-yuju2"></span>
+          <p class="icon-text">yuju2</p>
+        </li>
+        <li class="icon-item" title="vm2">
+          <span class="icon bklog-icon bklog-vm2"></span>
+          <p class="icon-text">vm2</p>
+        </li>
+        <li class="icon-item" title="zhankai-2">
+          <span class="icon bklog-icon bklog-zhankai-2"></span>
+          <p class="icon-text">zhankai-2</p>
+        </li>
+        <li class="icon-item" title="dingyueguanli">
+          <span class="icon bklog-icon bklog-dingyueguanli"></span>
+          <p class="icon-text">dingyueguanli</p>
+        </li>
+        <li class="icon-item" title="guidangcangku">
+          <span class="icon bklog-icon bklog-guidangcangku"></span>
+          <p class="icon-text">guidangcangku</p>
+        </li>
+        <li class="icon-item" title="guidanghuisu">
+          <span class="icon bklog-icon bklog-guidanghuisu"></span>
+          <p class="icon-text">guidanghuisu</p>
+        </li>
+        <li class="icon-item" title="guidangliebiao">
+          <span class="icon bklog-icon bklog-guidangliebiao"></span>
+          <p class="icon-text">guidangliebiao</p>
+        </li>
+        <li class="icon-item" title="jiqun">
+          <span class="icon bklog-icon bklog-jiqun"></span>
+          <p class="icon-text">jiqun</p>
+        </li>
+        <li class="icon-item" title="jisuanpingtai">
+          <span class="icon bklog-icon bklog-jisuanpingtai"></span>
+          <p class="icon-text">jisuanpingtai</p>
+        </li>
+        <li class="icon-item" title="qingxiliebiao">
+          <span class="icon bklog-icon bklog-qingxiliebiao"></span>
+          <p class="icon-text">qingxiliebiao</p>
+        </li>
+        <li class="icon-item" title="qingximoban">
+          <span class="icon bklog-icon bklog-qingximoban"></span>
+          <p class="icon-text">qingximoban</p>
+        </li>
+        <li class="icon-item" title="rizhicaiji">
+          <span class="icon bklog-icon bklog-rizhicaiji"></span>
+          <p class="icon-text">rizhicaiji</p>
+        </li>
+        <li class="icon-item" title="rizhitiqupeizhi">
+          <span class="icon bklog-icon bklog-rizhitiqupeizhi"></span>
+          <p class="icon-text">rizhitiqupeizhi</p>
+        </li>
+        <li class="icon-item" title="rizhitiqurenwu">
+          <span class="icon bklog-icon bklog-rizhitiqurenwu"></span>
+          <p class="icon-text">rizhitiqurenwu</p>
+        </li>
+        <li class="icon-item" title="suoyinxiang">
+          <span class="icon bklog-icon bklog-suoyinxiang"></span>
+          <p class="icon-text">suoyinxiang</p>
+        </li>
+        <li class="icon-item" title="zidingyishangbao">
+          <span class="icon bklog-icon bklog-zidingyishangbao"></span>
+          <p class="icon-text">zidingyishangbao</p>
+        </li>
+        <li class="icon-item" title="es-2">
+          <span class="icon bklog-icon bklog-es-2"></span>
+          <p class="icon-text">es-2</p>
+        </li>
+        <li class="icon-item" title="yishixiao">
+          <span class="icon bklog-icon bklog-yishixiao"></span>
+          <p class="icon-text">yishixiao</p>
+        </li>
+        <li class="icon-item" title="buer-2">
+          <span class="icon bklog-icon bklog-buer-2"></span>
+          <p class="icon-text">buer-2</p>
+        </li>
+        <li class="icon-item" title="object-2">
+          <span class="icon bklog-icon bklog-object-2"></span>
+          <p class="icon-text">object-2</p>
+        </li>
+        <li class="icon-item" title="ai-mofabang">
+          <span class="icon bklog-icon bklog-ai-mofabang"></span>
+          <p class="icon-text">ai-mofabang</p>
+        </li>
+        <li class="icon-item" title="consola">
+          <span class="icon bklog-icon bklog-consola"></span>
+          <p class="icon-text">consola</p>
+        </li>
+        <li class="icon-item" title="highlight">
+          <span class="icon bklog-icon bklog-highlight"></span>
+          <p class="icon-text">highlight</p>
+        </li>
+        <li class="icon-item" title="suoyin-mulu">
+          <span class="icon bklog-icon bklog-suoyin-mulu"></span>
+          <p class="icon-text">suoyin-mulu</p>
+        </li>
+        <li class="icon-item" title="suoyin-ronghe">
+          <span class="icon bklog-icon bklog-suoyin-ronghe"></span>
+          <p class="icon-text">suoyin-ronghe</p>
+        </li>
+        <li class="icon-item" title="all">
+          <span class="icon bklog-icon bklog-all"></span>
+          <p class="icon-text">all</p>
+        </li>
+        <li class="icon-item" title="ab">
+          <span class="icon bklog-icon bklog-ab"></span>
+          <p class="icon-text">ab</p>
+        </li>
+        <li class="icon-item" title="daxiaoxie">
+          <span class="icon bklog-icon bklog-daxiaoxie"></span>
+          <p class="icon-text">daxiaoxie</p>
+        </li>
+        <li class="icon-item" title="tongpeifu">
+          <span class="icon bklog-icon bklog-tongpeifu"></span>
+          <p class="icon-text">tongpeifu</p>
+        </li>
+        <li class="icon-item" title="share-link">
+          <span class="icon bklog-icon bklog-share-link"></span>
+          <p class="icon-text">share-link</p>
+        </li>
+        <li class="icon-item" title="zhengze">
+          <span class="icon bklog-icon bklog-zhengze"></span>
+          <p class="icon-text">zhengze</p>
+        </li>
+        <li class="icon-item" title="jiebang">
+          <span class="icon bklog-icon bklog-jiebang"></span>
+          <p class="icon-text">jiebang</p>
+        </li>
+        <li class="icon-item" title="--2">
+          <span class="icon bklog-icon bklog---2"></span>
+          <p class="icon-text">--2</p>
+        </li>
+        <li class="icon-item" title="down-4">
+          <span class="icon bklog-icon bklog-down-4"></span>
+          <p class="icon-text">down-4</p>
+        </li>
+        <li class="icon-item" title="up-2">
+          <span class="icon bklog-icon bklog-up-2"></span>
+          <p class="icon-text">up-2</p>
+        </li>
+        <li class="icon-item" title="fllatend">
+          <span class="icon bklog-icon bklog-fllatend"></span>
+          <p class="icon-text">fllatend</p>
+        </li>
+        <li class="icon-item" title="tuzenggaojing">
+          <span class="icon bklog-icon bklog-tuzenggaojing"></span>
+          <p class="icon-text">tuzenggaojing</p>
+        </li>
+        <li class="icon-item" title="xinleigaojing">
+          <span class="icon bklog-icon bklog-xinleigaojing"></span>
+          <p class="icon-text">xinleigaojing</p>
+        </li>
+        <li class="icon-item" title="enter-2">
+          <span class="icon bklog-icon bklog-enter-2"></span>
+          <p class="icon-text">enter-2</p>
+        </li>
+        <li class="icon-item" title="fengefu">
+          <span class="icon bklog-icon bklog-fengefu"></span>
+          <p class="icon-text">fengefu</p>
+        </li>
+        <li class="icon-item" title="json-fanxuliehua">
+          <span class="icon bklog-icon bklog-json-fanxuliehua"></span>
+          <p class="icon-text">json-fanxuliehua</p>
+        </li>
+        <li class="icon-item" title="zhengzetiqu">
+          <span class="icon bklog-icon bklog-zhengzetiqu"></span>
+          <p class="icon-text">zhengzetiqu</p>
+        </li>
+        <li class="icon-item" title="weiguishu">
+          <span class="icon bklog-icon bklog-weiguishu"></span>
+          <p class="icon-text">weiguishu</p>
+        </li>
+        <li class="icon-item" title="all2">
+          <span class="icon bklog-icon bklog-all2"></span>
+          <p class="icon-text">all2</p>
+        </li>
+        <li class="icon-item" title="sousuo-">
+          <span class="icon bklog-icon bklog-sousuo-"></span>
+          <p class="icon-text">sousuo-</p>
+        </li>
+        <li class="icon-item" title="sousuo-">
+          <span class="icon bklog-icon bklog-sousuo-"></span>
+          <p class="icon-text">sousuo-</p>
+        </li>
+        <li class="icon-item" title="rizhituomin">
+          <span class="icon bklog-icon bklog-rizhituomin"></span>
+          <p class="icon-text">rizhituomin</p>
+        </li>
+        <li class="icon-item" title="group">
+          <span class="icon bklog-icon bklog-group"></span>
+          <p class="icon-text">group</p>
+        </li>
+      </ul>
+      <h3 class="describe-title">为什么使用</h3>
+      <ul class="use-describe">
+        <li>弹性，在网页或者 app 上，展示字体是很便捷的。用字体图标可以很方便的改变 icon 的颜色，或者加入一些其他的效果</li>
+        <li>可缩放，可以很方便的改变图标的大小</li>
+        <li>矢量，字体图标是矢量的并且具有独立的分辨率，不管在高分辨率还是低分辨率，不管是在网页还是手机端，都具有很好的展示效果，不会出现锯齿或者马赛克模糊</li>
+        <li>节省加载时间，字体图标很小，每个小图标只有几 kb，大大节省了加载时间</li>
+      </ul>
+      <h3 class="describe-title">如何使用</h3>
+      <ul class="use-describe">
+        <li>将整个目录复制到您的项目里</li>
+        <li>引入 style.css</li>
+        <li>挑选相应图标并获取类名，如 .bk-icon .icon-demo</li>
+      </ul>
+    </section>
+    <section class="tab-content multiple-color"  data-type="multipleColor">
+      <ul class="icon-list">
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-app-store"></use>
+          </svg>
+          <p class="icon-text">app-store</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-folder-open"></use>
+          </svg>
+          <p class="icon-text">folder-open</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-jump"></use>
+          </svg>
+          <p class="icon-text">jump</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-assembly-line-fill"></use>
+          </svg>
+          <p class="icon-text">assembly-line-fill</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-calculation-fill"></use>
+          </svg>
+          <p class="icon-text">calculation-fill</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-up"></use>
+          </svg>
+          <p class="icon-text">up</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-down"></use>
+          </svg>
+          <p class="icon-text">down</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-topping-fill"></use>
+          </svg>
+          <p class="icon-text">topping-fill</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-info-fill"></use>
+          </svg>
+          <p class="icon-text">info-fill</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-eye"></use>
+          </svg>
+          <p class="icon-text">eye</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-eye-slash"></use>
+          </svg>
+          <p class="icon-text">eye-slash</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-dimens"></use>
+          </svg>
+          <p class="icon-text">dimens</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-email-shape"></use>
+          </svg>
+          <p class="icon-text">email-shape</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-lc-star-shape"></use>
+          </svg>
+          <p class="icon-text">lc-star-shape</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-double-arrow"></use>
+          </svg>
+          <p class="icon-text">double-arrow</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-drag-dots"></use>
+          </svg>
+          <p class="icon-text">drag-dots</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-filled-right-arrow"></use>
+          </svg>
+          <p class="icon-text">filled-right-arrow</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-audit"></use>
+          </svg>
+          <p class="icon-text">audit</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-icon-help-document-fill"></use>
+          </svg>
+          <p class="icon-text">icon-help-document-fill</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-chinese"></use>
+          </svg>
+          <p class="icon-text">chinese</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-copy"></use>
+          </svg>
+          <p class="icon-text">copy</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-english"></use>
+          </svg>
+          <p class="icon-text">english</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-full-screen-log"></use>
+          </svg>
+          <p class="icon-text">full-screen-log</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-index-set"></use>
+          </svg>
+          <p class="icon-text">index-set</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-play-log"></use>
+          </svg>
+          <p class="icon-text">play-log</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-search-log-logo"></use>
+          </svg>
+          <p class="icon-text">search-log-logo</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-stop-log"></use>
+          </svg>
+          <p class="icon-text">stop-log</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-log-download"></use>
+          </svg>
+          <p class="icon-text">log-download</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-log-refresh"></use>
+          </svg>
+          <p class="icon-text">log-refresh</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-log-setting"></use>
+          </svg>
+          <p class="icon-text">log-setting</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-download-icon"></use>
+          </svg>
+          <p class="icon-text">download-icon</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-refresh-icon"></use>
+          </svg>
+          <p class="icon-text">refresh-icon</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-set-icon"></use>
+          </svg>
+          <p class="icon-text">set-icon</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-plus"></use>
+          </svg>
+          <p class="icon-text">plus</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-xiazai"></use>
+          </svg>
+          <p class="icon-text">xiazai</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-camera-fill"></use>
+          </svg>
+          <p class="icon-text">camera-fill</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-cc-cabinet"></use>
+          </svg>
+          <p class="icon-text">cc-cabinet</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-cc-create-business"></use>
+          </svg>
+          <p class="icon-text">cc-create-business</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-cc-influxdb"></use>
+          </svg>
+          <p class="icon-text">cc-influxdb</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-cc-log"></use>
+          </svg>
+          <p class="icon-text">cc-log</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-locale"></use>
+          </svg>
+          <p class="icon-text">locale</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-bar"></use>
+          </svg>
+          <p class="icon-text">bar</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-collapse-small"></use>
+          </svg>
+          <p class="icon-text">collapse-small</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-expand-small"></use>
+          </svg>
+          <p class="icon-text">expand-small</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-new-_empty-fill"></use>
+          </svg>
+          <p class="icon-text">new-_empty-fill</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-audit-fill"></use>
+          </svg>
+          <p class="icon-text">audit-fill</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-field-fill"></use>
+          </svg>
+          <p class="icon-text">field-fill</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-folder-fill"></use>
+          </svg>
+          <p class="icon-text">folder-fill</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-data-copy"></use>
+          </svg>
+          <p class="icon-text">data-copy</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-history-fill"></use>
+          </svg>
+          <p class="icon-text">history-fill</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-namespace-fill"></use>
+          </svg>
+          <p class="icon-text">namespace-fill</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-withdraw-fill"></use>
+          </svg>
+          <p class="icon-text">withdraw-fill</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-date-picker"></use>
+          </svg>
+          <p class="icon-text">date-picker</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-help"></use>
+          </svg>
+          <p class="icon-text">help</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-lianjie"></use>
+          </svg>
+          <p class="icon-text">lianjie</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-auto-refresh"></use>
+          </svg>
+          <p class="icon-text">auto-refresh</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-no-refresh"></use>
+          </svg>
+          <p class="icon-text">no-refresh</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-copy-2"></use>
+          </svg>
+          <p class="icon-text">copy-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-table"></use>
+          </svg>
+          <p class="icon-text">table</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-number"></use>
+          </svg>
+          <p class="icon-text">number</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-string"></use>
+          </svg>
+          <p class="icon-text">string</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-text"></use>
+          </svg>
+          <p class="icon-text">text</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-unkown"></use>
+          </svg>
+          <p class="icon-text">unkown</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-info-fill--2"></use>
+          </svg>
+          <p class="icon-text">info-fill--2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-equal"></use>
+          </svg>
+          <p class="icon-text">equal</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-and"></use>
+          </svg>
+          <p class="icon-text">and</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-value"></use>
+          </svg>
+          <p class="icon-text">value</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-field"></use>
+          </svg>
+          <p class="icon-text">field</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-time"></use>
+          </svg>
+          <p class="icon-text">time</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-inform"></use>
+          </svg>
+          <p class="icon-text">inform</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-teminal"></use>
+          </svg>
+          <p class="icon-text">teminal</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-document"></use>
+          </svg>
+          <p class="icon-text">document</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-zidongchaxun"></use>
+          </svg>
+          <p class="icon-text">zidongchaxun</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-shoudongchaxun"></use>
+          </svg>
+          <p class="icon-text">shoudongchaxun</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-xiangji"></use>
+          </svg>
+          <p class="icon-text">xiangji</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-elasticsearch"></use>
+          </svg>
+          <p class="icon-text">elasticsearch</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-tongbu"></use>
+          </svg>
+          <p class="icon-text">tongbu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-moban"></use>
+          </svg>
+          <p class="icon-text">moban</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-daoru"></use>
+          </svg>
+          <p class="icon-text">daoru</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-shijian"></use>
+          </svg>
+          <p class="icon-text">shijian</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-chart"></use>
+          </svg>
+          <p class="icon-text">chart</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-zhuanhuan"></use>
+          </svg>
+          <p class="icon-text">zhuanhuan</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-liebiao"></use>
+          </svg>
+          <p class="icon-text">liebiao</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-boolean"></use>
+          </svg>
+          <p class="icon-text">boolean</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-block-shape"></use>
+          </svg>
+          <p class="icon-text">block-shape</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-menu-custom"></use>
+          </svg>
+          <p class="icon-text">menu-custom</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-qiyeweixin"></use>
+          </svg>
+          <p class="icon-text">qiyeweixin</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-tiaozhuan"></use>
+          </svg>
+          <p class="icon-text">tiaozhuan</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-ext"></use>
+          </svg>
+          <p class="icon-text">ext</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-share"></use>
+          </svg>
+          <p class="icon-text">share</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-star-line"></use>
+          </svg>
+          <p class="icon-text">star-line</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-lishijilu"></use>
+          </svg>
+          <p class="icon-text">lishijilu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-bofang"></use>
+          </svg>
+          <p class="icon-text">bofang</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-jiansuo"></use>
+          </svg>
+          <p class="icon-text">jiansuo</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-shixiao"></use>
+          </svg>
+          <p class="icon-text">shixiao</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-zanting"></use>
+          </svg>
+          <p class="icon-text">zanting</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-zhedie"></use>
+          </svg>
+          <p class="icon-text">zhedie</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-zhankai"></use>
+          </svg>
+          <p class="icon-text">zhankai</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-brush"></use>
+          </svg>
+          <p class="icon-text">brush</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-wholesale-editor"></use>
+          </svg>
+          <p class="icon-text">wholesale-editor</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-ellipsis-more"></use>
+          </svg>
+          <p class="icon-text">ellipsis-more</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-position"></use>
+          </svg>
+          <p class="icon-text">position</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-log-delete"></use>
+          </svg>
+          <p class="icon-text">log-delete</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-masking"></use>
+          </svg>
+          <p class="icon-text">masking</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-fix-line"></use>
+          </svg>
+          <p class="icon-text">fix-line</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-fix-shape"></use>
+          </svg>
+          <p class="icon-text">fix-shape</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-log-loading"></use>
+          </svg>
+          <p class="icon-text">log-loading</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-log-remark"></use>
+          </svg>
+          <p class="icon-text">log-remark</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-back2"></use>
+          </svg>
+          <p class="icon-text">back2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-circle-add"></use>
+          </svg>
+          <p class="icon-text">circle-add</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-close"></use>
+          </svg>
+          <p class="icon-text">close</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-correct"></use>
+          </svg>
+          <p class="icon-text">correct</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-edit"></use>
+          </svg>
+          <p class="icon-text">edit</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-help"></use>
+          </svg>
+          <p class="icon-text">help</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-more"></use>
+          </svg>
+          <p class="icon-text">more</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-collapse"></use>
+          </svg>
+          <p class="icon-text">collapse</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-download"></use>
+          </svg>
+          <p class="icon-text">download</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-invisible"></use>
+          </svg>
+          <p class="icon-text">invisible</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-jump"></use>
+          </svg>
+          <p class="icon-text">jump</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-organization"></use>
+          </svg>
+          <p class="icon-text">organization</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-overview-table"></use>
+          </svg>
+          <p class="icon-text">overview-table</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-overview1"></use>
+          </svg>
+          <p class="icon-text">overview1</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-sort-2"></use>
+          </svg>
+          <p class="icon-text">sort-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-visible"></use>
+          </svg>
+          <p class="icon-text">visible</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-circle-alert-filled"></use>
+          </svg>
+          <p class="icon-text">circle-alert-filled</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-circle-correct-filled"></use>
+          </svg>
+          <p class="icon-text">circle-correct-filled</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-circle-minus-filled"></use>
+          </svg>
+          <p class="icon-text">circle-minus-filled</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-import"></use>
+          </svg>
+          <p class="icon-text">import</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-setting-line"></use>
+          </svg>
+          <p class="icon-text">setting-line</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-configuration"></use>
+          </svg>
+          <p class="icon-text">configuration</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-refresh2"></use>
+          </svg>
+          <p class="icon-text">refresh2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-save"></use>
+          </svg>
+          <p class="icon-text">save</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-subnode"></use>
+          </svg>
+          <p class="icon-text">subnode</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-log-plus-circle-shape"></use>
+          </svg>
+          <p class="icon-text">log-plus-circle-shape</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-log-trend"></use>
+          </svg>
+          <p class="icon-text">log-trend</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-new-alarm"></use>
+          </svg>
+          <p class="icon-text">new-alarm</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-sudden-increase"></use>
+          </svg>
+          <p class="icon-text">sudden-increase</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-overview"></use>
+          </svg>
+          <p class="icon-text">overview</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-setting"></use>
+          </svg>
+          <p class="icon-text">setting</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-saoba"></use>
+          </svg>
+          <p class="icon-text">saoba</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-jincheng"></use>
+          </svg>
+          <p class="icon-text">jincheng</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-qiehuanbanben"></use>
+          </svg>
+          <p class="icon-text">qiehuanbanben</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-shaixuan"></use>
+          </svg>
+          <p class="icon-text">shaixuan</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-yingshe"></use>
+          </svg>
+          <p class="icon-text">yingshe</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-arrow-down-filled"></use>
+          </svg>
+          <p class="icon-text">arrow-down-filled</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-*"></use>
+          </svg>
+          <p class="icon-text">*</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-buer"></use>
+          </svg>
+          <p class="icon-text">buer</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-number-2"></use>
+          </svg>
+          <p class="icon-text">number-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-ext-2"></use>
+          </svg>
+          <p class="icon-text">ext-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-object"></use>
+          </svg>
+          <p class="icon-text">object</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-str-2"></use>
+          </svg>
+          <p class="icon-text">str-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-text-2"></use>
+          </svg>
+          <p class="icon-text">text-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-time-2"></use>
+          </svg>
+          <p class="icon-text">time-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-ai"></use>
+          </svg>
+          <p class="icon-text">ai</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog--celve"></use>
+          </svg>
+          <p class="icon-text">-celve</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-gaojing-filled"></use>
+          </svg>
+          <p class="icon-text">gaojing-filled</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-gaojing-line"></use>
+          </svg>
+          <p class="icon-text">gaojing-line</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-ketuodong"></use>
+          </svg>
+          <p class="icon-text">ketuodong</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-lianxiang"></use>
+          </svg>
+          <p class="icon-text">lianxiang</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-paixu"></use>
+          </svg>
+          <p class="icon-text">paixu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-shangxiawen"></use>
+          </svg>
+          <p class="icon-text">shangxiawen</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-qingkong"></use>
+          </svg>
+          <p class="icon-text">qingkong</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-shezhi"></use>
+          </svg>
+          <p class="icon-text">shezhi</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-shishirizhi"></use>
+          </svg>
+          <p class="icon-text">shishirizhi</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-shoucangjia"></use>
+          </svg>
+          <p class="icon-text">shoucangjia</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-shouqi"></use>
+          </svg>
+          <p class="icon-text">shouqi</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-qiehuan-2"></use>
+          </svg>
+          <p class="icon-text">qiehuan-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-tuichu"></use>
+          </svg>
+          <p class="icon-text">tuichu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-xinjianwenjianjia"></use>
+          </svg>
+          <p class="icon-text">xinjianwenjianjia</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-xinjianchaxun"></use>
+          </svg>
+          <p class="icon-text">xinjianchaxun</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-yingshe-2"></use>
+          </svg>
+          <p class="icon-text">yingshe-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-yibiaopan"></use>
+          </svg>
+          <p class="icon-text">yibiaopan</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-arrow-down-filled-2"></use>
+          </svg>
+          <p class="icon-text">arrow-down-filled-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-yujumoshi"></use>
+          </svg>
+          <p class="icon-text">yujumoshi</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-backtotop"></use>
+          </svg>
+          <p class="icon-text">backtotop</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-chart-2"></use>
+          </svg>
+          <p class="icon-text">chart-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-copy-3"></use>
+          </svg>
+          <p class="icon-text">copy-3</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-file-close"></use>
+          </svg>
+          <p class="icon-text">file-close</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-file-open"></use>
+          </svg>
+          <p class="icon-text">file-open</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-file-personal"></use>
+          </svg>
+          <p class="icon-text">file-personal</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-goto"></use>
+          </svg>
+          <p class="icon-text">goto</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-table-2"></use>
+          </svg>
+          <p class="icon-text">table-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-ui-moshi"></use>
+          </svg>
+          <p class="icon-text">ui-moshi</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-shangxia-2"></use>
+          </svg>
+          <p class="icon-text">shangxia-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-enter"></use>
+          </svg>
+          <p class="icon-text">enter</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-esc"></use>
+          </svg>
+          <p class="icon-text">esc</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-history-2"></use>
+          </svg>
+          <p class="icon-text">history-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-weixian"></use>
+          </svg>
+          <p class="icon-text">weixian</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-jiankangdu"></use>
+          </svg>
+          <p class="icon-text">jiankangdu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-lianjiefu"></use>
+          </svg>
+          <p class="icon-text">lianjiefu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-yunsuanfu"></use>
+          </svg>
+          <p class="icon-text">yunsuanfu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-key"></use>
+          </svg>
+          <p class="icon-text">key</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-value-2"></use>
+          </svg>
+          <p class="icon-text">value-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-shanchu"></use>
+          </svg>
+          <p class="icon-text">shanchu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-copy-4"></use>
+          </svg>
+          <p class="icon-text">copy-4</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-yuju1"></use>
+          </svg>
+          <p class="icon-text">yuju1</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-ui1"></use>
+          </svg>
+          <p class="icon-text">ui1</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-vim1"></use>
+          </svg>
+          <p class="icon-text">vim1</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-yuju2"></use>
+          </svg>
+          <p class="icon-text">yuju2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-vm2"></use>
+          </svg>
+          <p class="icon-text">vm2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-zhankai-2"></use>
+          </svg>
+          <p class="icon-text">zhankai-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-dingyueguanli"></use>
+          </svg>
+          <p class="icon-text">dingyueguanli</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-guidangcangku"></use>
+          </svg>
+          <p class="icon-text">guidangcangku</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-guidanghuisu"></use>
+          </svg>
+          <p class="icon-text">guidanghuisu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-guidangliebiao"></use>
+          </svg>
+          <p class="icon-text">guidangliebiao</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-jiqun"></use>
+          </svg>
+          <p class="icon-text">jiqun</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-jisuanpingtai"></use>
+          </svg>
+          <p class="icon-text">jisuanpingtai</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-qingxiliebiao"></use>
+          </svg>
+          <p class="icon-text">qingxiliebiao</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-qingximoban"></use>
+          </svg>
+          <p class="icon-text">qingximoban</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-rizhicaiji"></use>
+          </svg>
+          <p class="icon-text">rizhicaiji</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-rizhitiqupeizhi"></use>
+          </svg>
+          <p class="icon-text">rizhitiqupeizhi</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-rizhitiqurenwu"></use>
+          </svg>
+          <p class="icon-text">rizhitiqurenwu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-suoyinxiang"></use>
+          </svg>
+          <p class="icon-text">suoyinxiang</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-zidingyishangbao"></use>
+          </svg>
+          <p class="icon-text">zidingyishangbao</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-es-2"></use>
+          </svg>
+          <p class="icon-text">es-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-yishixiao"></use>
+          </svg>
+          <p class="icon-text">yishixiao</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-buer-2"></use>
+          </svg>
+          <p class="icon-text">buer-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-object-2"></use>
+          </svg>
+          <p class="icon-text">object-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-ai-mofabang"></use>
+          </svg>
+          <p class="icon-text">ai-mofabang</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-consola"></use>
+          </svg>
+          <p class="icon-text">consola</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-highlight"></use>
+          </svg>
+          <p class="icon-text">highlight</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-suoyin-mulu"></use>
+          </svg>
+          <p class="icon-text">suoyin-mulu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-suoyin-ronghe"></use>
+          </svg>
+          <p class="icon-text">suoyin-ronghe</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-all"></use>
+          </svg>
+          <p class="icon-text">all</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-ab"></use>
+          </svg>
+          <p class="icon-text">ab</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-daxiaoxie"></use>
+          </svg>
+          <p class="icon-text">daxiaoxie</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-tongpeifu"></use>
+          </svg>
+          <p class="icon-text">tongpeifu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-share-link"></use>
+          </svg>
+          <p class="icon-text">share-link</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-zhengze"></use>
+          </svg>
+          <p class="icon-text">zhengze</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-jiebang"></use>
+          </svg>
+          <p class="icon-text">jiebang</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog---2"></use>
+          </svg>
+          <p class="icon-text">--2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-down-4"></use>
+          </svg>
+          <p class="icon-text">down-4</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-up-2"></use>
+          </svg>
+          <p class="icon-text">up-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-fllatend"></use>
+          </svg>
+          <p class="icon-text">fllatend</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-tuzenggaojing"></use>
+          </svg>
+          <p class="icon-text">tuzenggaojing</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-xinleigaojing"></use>
+          </svg>
+          <p class="icon-text">xinleigaojing</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-enter-2"></use>
+          </svg>
+          <p class="icon-text">enter-2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-fengefu"></use>
+          </svg>
+          <p class="icon-text">fengefu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-json-fanxuliehua"></use>
+          </svg>
+          <p class="icon-text">json-fanxuliehua</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-zhengzetiqu"></use>
+          </svg>
+          <p class="icon-text">zhengzetiqu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-weiguishu"></use>
+          </svg>
+          <p class="icon-text">weiguishu</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-all2"></use>
+          </svg>
+          <p class="icon-text">all2</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-sousuo-"></use>
+          </svg>
+          <p class="icon-text">sousuo-</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-sousuo-"></use>
+          </svg>
+          <p class="icon-text">sousuo-</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-rizhituomin"></use>
+          </svg>
+          <p class="icon-text">rizhituomin</p>
+        </li>
+        <li class="colorful-icon">
+          <svg class="icon svg-icon">
+            <use xlink:href="#bklog-group"></use>
+          </svg>
+          <p class="icon-text">group</p>
+        </li>
+      </ul>
+      <h3 class="describe-title">为什么使用</h3>
+      <ul class="use-describe">
+          <li>支持彩色图标</li>
+          <li>跨 SVG 使用，使用 use 可调用文档中加载的所有 SVG 图标 </li>
+      </ul>
+      <h3 class="describe-title">如何使用</h3>
+      <ul class="use-describe">
+        <li>将下载的资源文件中 iconcool.js 文件外部资源通过 script 标签引入</li>
+        <li>在 html 模板文件中挑选对应的对应图标的名称使用，例如：
+          <pre>
+    &lt;svg aria-hidden="true"&gt;
+      &lt;use xlink:href="#icon-xxx"&gt;&lt;/use&gt;
+    &lt;/svg&gt;
+          </pre>
+        </li>
+      </ul>
+      </section>
+    </section>
+  </div>
+  <script>
+    document.addEventListener('click', function (e) {
+      if (event.target.classList.contains('tab-panel')) {
+        const type = event.target.dataset.type
+        const tabPanels = document.querySelectorAll('.tab-panel')
+        const tabContents = document.querySelectorAll('.tab-content')
+
+        tabPanels.forEach(function(item) {
+          item.classList.remove('active')
+        })
+
+        e.target.classList.add('active')
+        
+        tabContents.forEach(function (item) {
+          const contentType = item.dataset.type
+          if (contentType === type) {
+            item.classList.add('active')
+          } else {
+            item.classList.remove('active')
+          }
+        })
+      }
+      
+    })
+  </script>
+</body>
+</html>

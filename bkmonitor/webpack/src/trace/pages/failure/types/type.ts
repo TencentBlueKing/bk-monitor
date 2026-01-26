@@ -388,7 +388,6 @@ export interface IContentList {
   logs_analysis?: Record<string, ILogAnalysis[]>;
   suggestion?: string;
   summary?: string;
-  trace_analysis?: ITraceAnalysis[];
 }
 export type ICurrentISnapshot = ISnapshot;
 
@@ -403,6 +402,7 @@ export interface IDetail {
     name?: string;
   };
 }
+
 export interface IDimensionConfig {
   alert_ids: string[];
   dimensions?: { [key: string]: string[] };
@@ -452,10 +452,10 @@ export interface IEventsAnalysis {
   type?: string; // 事件所属类型
   unit?: string; // 事件主标题单位
 }
-
 export interface IEventsContentsData {
   [key: string]: string;
 }
+
 export interface IFilterSearch {
   aggregate_bys: string[];
   bk_biz_id: number;
@@ -510,11 +510,11 @@ export interface IncidentNameTemplate {
   elements: Array<[string, string] | string>;
   template: string;
 }
+
 export interface IncidentPropagationGraph {
   edges: IEdge[];
   entities: IEntityData[];
 }
-
 export interface ISnapshot {
   alerts: number[];
   bk_biz_id: number[];
@@ -529,7 +529,6 @@ export interface ISnapshot {
   status: string;
   update_time?: any;
 }
-
 export interface ISnapshotContent {
   alerts: number;
   anomaly_time: number;
@@ -609,10 +608,10 @@ export interface IStrategyMapItem {
   strategy_id?: number;
   strategy_name?: string;
 }
+
 export interface ISummaryList {
   events_analysis?: string;
   logs_analysis?: string;
-  trace_analysis?: string;
 }
 export interface ITagInfoType {
   bk_biz_id: number;
@@ -620,17 +619,10 @@ export interface ITagInfoType {
   isCheck: boolean;
 }
 
-export interface ITraceAnalysis {
-  [key: string]: number | string; // span表格映射key-value
-  log_count: number;
-  pattern: string;
-}
 export interface IUserName {
   id: string;
   name: string;
 }
-
-export type OverflowPopType = 'demo_log' | 'log_pattern' | 'trace_pattern';
 
 interface IncidentRoot {
   rca_trace_info: {

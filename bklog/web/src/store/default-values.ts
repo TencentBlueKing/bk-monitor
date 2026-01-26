@@ -259,7 +259,6 @@ export const IndexItem = {
   items: [],
   catchUnionBeginList: [],
   selectIsUnionSearch: urlArgs.unionList?.length ?? false,
-  pid: Array.isArray((urlArgs as any).pid) ? (urlArgs as any).pid : (urlArgs as any).pid ? [(urlArgs as any).pid] : [],
   chart_params: {
     activeGraphCategory: 'table',
     chartActiveType: 'table',
@@ -393,6 +392,7 @@ export const getStorageOptions = (values?: any) => {
     [BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]: false,
     [BK_LOG_STORAGE.SHOW_FIELD_ALIAS]: true,
     [BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR]: 'end',
+    [BK_LOG_STORAGE.RESULT_DISPLAY_LINES]: 3,
     [BK_LOG_STORAGE.SEARCH_TYPE]: 0,
     [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
     [BK_LOG_STORAGE.FAVORITE_ID]: urlArgs[BK_LOG_STORAGE.FAVORITE_ID],
@@ -404,7 +404,6 @@ export const getStorageOptions = (values?: any) => {
     [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {},
     [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: [],
     [BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]: false,
-    [BK_LOG_STORAGE.RESULT_DISPLAY_LINES]: 3,
     ...storage,
   };
 };

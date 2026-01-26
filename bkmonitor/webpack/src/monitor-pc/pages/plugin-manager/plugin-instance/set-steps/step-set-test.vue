@@ -198,19 +198,6 @@
                   @change="val => validInsertValue(val, item)"
                 />
               </div>
-              <!-- 自定义 -->
-              <div
-                v-else-if="item.type === 'custom'"
-                class="dms-insert-wrap"
-              >
-                <bk-tag-input
-                  :value="Object.entries(item.default).map(item => item.join(':'))"
-                  allow-create
-                  has-delete-icon
-                  @blur="(input, val) => validInsertValue(val, item)"
-                  @change="val => validInsertValue(val, item)"
-                />
-              </div>
               <div
                 v-else
                 class="item-param-content"
@@ -727,7 +714,7 @@ export default {
     validInsertValue(tags, item) {
       const len = tags.length;
       const keys = [];
-      if (len === 0 && item.required) {
+      if (len === 0) {
         item.isError = true;
         item.errorMessage = this.$t('必填项');
         item.default = {};
@@ -1545,7 +1532,7 @@ export default {
         line-height: 32px;
         text-align: right;
 
-        &.item-required::after {
+        &.item-required:after {
           position: relative;
           margin: 2px -7px 0 2px;
           font-size: 12px;
@@ -1609,7 +1596,7 @@ export default {
             .verify-name {
               white-space: nowrap;
 
-              &::after {
+              &:after {
                 position: relative;
                 margin: 2px -7px 0 2px;
                 font-size: 12px;
@@ -1625,11 +1612,11 @@ export default {
 
           &-input {
             height: 26px;
-            margin: 1px 6px 6px;
+            margin: 1px 6px 6px 6px;
           }
 
           &:hover {
-            box-shadow: 0 2px 4px 0 rgb(0 0 0 / 6%);
+            box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.06);
           }
 
           :deep(.bk-form-input) {
@@ -1654,7 +1641,7 @@ export default {
             text-align: center;
             white-space: nowrap;
 
-            &.param-label-required::after {
+            &.param-label-required:after {
               position: relative;
               margin: 2px -2px 0 2px;
               font-size: 12px;
@@ -1738,7 +1725,6 @@ export default {
         .cycle-select {
           width: 180px;
         }
-
         // 选择调试目标
         .host-container {
           display: flex;
@@ -1785,7 +1771,6 @@ export default {
             cursor: pointer;
           }
         }
-
         // 调试进度
         .debug-container {
           width: 940px;
@@ -1810,7 +1795,7 @@ export default {
                 position: relative;
                 background: #fff;
 
-                &::after {
+                &:after {
                   position: absolute;
                   top: -1px;
                   left: -1px;
@@ -1938,7 +1923,7 @@ export default {
                     align-items: flex-start;
                     justify-content: space-between;
                     height: 10px;
-                    font-size: 0;
+                    font-size: 0px;
                   }
 
                   &-bar {

@@ -62,11 +62,8 @@ class Command(BaseCommand):
             f"data_id: {bk_data_id}, kafka_name: {kafka_name} use bkbase_data_name: {bkbase_data_name} to access bkbase"
         )
         # 创建DataId实例（计算平台侧）
-        data_id_ins, _ = models.DataIdConfig.objects.update_or_create(
-            bk_tenant_id=datasource.bk_tenant_id,
-            namespace="bkmonitor",
-            name=bkbase_data_name,
-            defaults={"bk_biz_id": bk_biz_id, "bk_data_id": datasource.bk_data_id},
+        data_id_ins, _ = models.DataIdConfig.objects.get_or_create(
+            name=bkbase_data_name, namespace="bkmonitor", bk_biz_id=bk_biz_id
         )
         # 组装DataId Config
         config = self.compose_data_id_config(

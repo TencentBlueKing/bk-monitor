@@ -9,14 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from kernel_api.resource.log_search import (
-    GetIndexSetFieldListResource,
-    GetIndexSetListResource,
-    SearchLogResource,
-    SearchIndexSetContextResource,
-    FieldAnalyzeResource,
-    SearchLogClusteringPatternResource,
-)
+from kernel_api.resource.log_search import GetIndexSetFieldListResource, GetIndexSetListResource, SearchLogResource
 
 
 class LogSearchViewSet(ResourceViewSet):
@@ -28,7 +21,4 @@ class LogSearchViewSet(ResourceViewSet):
         ResourceRoute("GET", GetIndexSetListResource, endpoint="get_index_set_list"),
         ResourceRoute("GET", GetIndexSetFieldListResource, endpoint="get_index_set_field_list"),
         ResourceRoute("POST", SearchLogResource, endpoint="search_log"),
-        ResourceRoute("POST", FieldAnalyzeResource, endpoint="field_analyze"),
-        ResourceRoute("POST", SearchIndexSetContextResource, endpoint="search_index_set_context"),
-        ResourceRoute("POST", SearchLogClusteringPatternResource, endpoint="search_log_clustering_pattern"),
     ]

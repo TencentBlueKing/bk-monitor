@@ -26,7 +26,6 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 
 import type { IPluginDetail, OperateType } from './content-group-item';
@@ -175,28 +174,26 @@ export default class List extends tsc<IListProps, IListEvents> {
           label={this.$t('热度')}
         />
         <bk-table-column
-          width={180}
           scopedSlots={{
             default: ({ row }: { row: IPluginDetail }) => (
               <div>
                 <div>
                   <bk-user-display-name user-id={row.create_user} />
                 </div>
-                <div>{formatWithTimezone(row.create_time)}</div>
+                <div>{row.create_time}</div>
               </div>
             ),
           }}
           label={this.$t('创建记录')}
         />
         <bk-table-column
-          width={180}
           scopedSlots={{
             default: ({ row }: { row: IPluginDetail }) => (
               <div>
                 <div>
                   <bk-user-display-name user-id={row.update_user} />
                 </div>
-                <div>{formatWithTimezone(row.update_time)}</div>
+                <div>{row.update_time}</div>
               </div>
             ),
           }}

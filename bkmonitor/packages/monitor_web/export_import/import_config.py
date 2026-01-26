@@ -249,13 +249,6 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
         duty_rule.hash: duty_rule for duty_rule in DutyRule.objects.filter(bk_biz_id=bk_biz_id, hash__isnull=False)
     }
 
-    # 已经存在的轮值规则名
-    existed_rule_names = (
-        set(DutyRule.objects.filter(bk_biz_id=bk_biz_id).values_list("name", flat=True))
-        if not is_overwrite_mode
-        else set()
-    )
-
     # 已经创建了轮值规则的hash
     created_hash_of_rule = set()
 
@@ -284,26 +277,14 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
             # 创建用户组关联的 duty_rules 及规则关联的 duty_arranges
             for name, group_detail in imported_user_groups_dict.items():
                 rule_id_mapping = {}
-
                 for rule_info in group_detail.get("duty_rules_info") or []:
                     # 优先沿用 hash 相同的旧 duty_rule 记录
                     rule = existed_hash_to_rule.get(rule_info["hash"])
-
-                    # 避免重复创建
+                    # 避免重复创建轮值规则
                     if rule_info["hash"] in created_hash_of_rule:
                         rule_id_mapping[rule_info["id"]] = rule.id
                         continue
 
-                    # 非覆盖模式下，如果需要创建新规则（rule为None），则处理重名问题
-                    if not is_overwrite_mode and rule is None:
-                        # 处理重名：添加 _clone 后缀直到名称不重复
-                        while rule_info["name"] in existed_rule_names:
-                            rule_info["name"] = f"{rule_info['name']}_clone"
-                        # 记录到已存在名称集合中，避免本次导入中出现重复
-                        existed_rule_names.add(rule_info["name"])
-
-                    # 创建或更新轮值规则（如果rule不为None则更新，否则创建）
-                    rule_info["bk_biz_id"] = bk_biz_id
                     rule_serializer = DutyRuleDetailSlz(instance=rule, data=rule_info)
                     rule_serializer.is_valid(raise_exception=True)
                     new_rule = rule_serializer.save()
@@ -549,11 +530,6 @@ def get_strategy_config(bk_biz_id: int, strategy_ids: list[int]) -> list[dict]:
                         rf"\b{query_config['result_table_id']}\b", data_label, query_config["metric_id"]
                     )
                     query_config["result_table_id"] = data_label
-
-        # 去掉不必要的排班计划信息
-        for item_action in result_data.get("actions", []):
-            for user_group in item_action.get("user_group_list", []):
-                user_group.pop("duty_plans", None)
 
     return strategy_configs
 

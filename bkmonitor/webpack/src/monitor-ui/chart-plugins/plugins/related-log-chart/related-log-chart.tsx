@@ -29,7 +29,6 @@ import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
@@ -356,7 +355,7 @@ class RelatedLogChart extends CommonSimpleChart {
                           padding: [8, 8, 8, 8],
                           transitionDuration: 0,
                           formatter: params => {
-                            const time = dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ssZZ');
+                            const time = dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss');
                             const value = params[0].value[1];
                             return `
                     <div class="time-text">${time}</div>
@@ -396,8 +395,8 @@ class RelatedLogChart extends CommonSimpleChart {
     try {
       this.unregisterObserver();
 
-      let startTime = null;
-      let endTime = null;
+      let startTime;
+      let endTime;
       if (this.isScrollLoadTableData) {
         // 分页请求
         [startTime, endTime] = this.localTimeRange;
@@ -430,22 +429,11 @@ class RelatedLogChart extends CommonSimpleChart {
               },
             })
             .then(data => {
-              const dateFormatFn = list => {
-                return list.map(l => {
-                  if (l.date) {
-                    return {
-                      ...l,
-                      date: formatWithTimezone(l.date),
-                    };
-                  }
-                  return l;
-                });
-              };
               if (this.isScrollLoadTableData) {
-                this.tableData.push(...dateFormatFn(data.data));
+                this.tableData.push(...data.data);
               } else {
                 this.tableRenderKey = random(6);
-                this.tableData.splice(0, this.tableData.length, ...dateFormatFn(data.data));
+                this.tableData.splice(0, this.tableData.length, ...data.data);
                 this.columns = data.columns;
                 this.pagination.count = data.total;
               }
@@ -455,9 +443,7 @@ class RelatedLogChart extends CommonSimpleChart {
               this.handleLoadingChange(false);
             })
         );
-    } catch (err) {
-      console.error(err);
-    }
+    } catch {}
   }
   /** 滚动至底部分页加载 */
   handleScrollEnd() {

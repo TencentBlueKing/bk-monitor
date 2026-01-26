@@ -1,11 +1,13 @@
 .search-bar-wrapper {
-  box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.0784313725);
+  position: sticky;
+  top: 0px;
+  z-index: 4;
 
   .search-bar-container {
     display: flex;
     background-color: #fff;
     border-radius: 2px;
-    // box-shadow: 0 2px 4px 0 #19192914;
+    box-shadow: 0 2px 4px 0 #19192914;
 
     .search-options {
       display: flex;
@@ -65,18 +67,6 @@
         }
       }
 
-
-
-      @keyframes ai-progress-animation {
-        0% {
-          width: 0%;
-        }
-
-        100% {
-          width: 100%;
-        }
-      }
-
       .search-tool {
         // position: absolute;
         // top: 0;
@@ -96,7 +86,7 @@
           align-items: center;
           justify-content: space-around;
           // width: 60px;
-          // padding-right: 4px;
+          padding-right: 4px;
           // right: 48px;
           color: #4d4f56;
 
@@ -153,7 +143,7 @@
             }
           }
 
-          >div {
+          > div {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -192,8 +182,6 @@
           align-items: center;
           justify-content: center;
           width: 48px;
-          min-width: 48px;
-          max-width: 48px;
           font-size: 14px;
           color: #ffffff;
           cursor: pointer;
@@ -264,7 +252,7 @@
         }
       }
 
-      &:hover>span {
+      &:hover > span {
         color: #3a84ff;
       }
 
@@ -286,16 +274,16 @@
       justify-content: end;
     }
 
-    .ai-progress-bar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      height: 4px;
-      width: 100%;
-      background-image: linear-gradient(90deg, #FFFFFF 0%, #DEB2F3 63%, #7C90E1 100%);
-      border-radius: 2px;
-      animation: ai-progress-animation 2s linear infinite;
-    }
+    // &::before {
+    //   position: absolute;
+    //   top: 0;
+    //   right: 0;
+    //   left: 0;
+    //   height: 50px;
+    //   content: '';
+    //   background-color: #f4f7fa;
+    //   transform: translateY(-100%);
+    // }
 
     &.readonly {
       &::after {

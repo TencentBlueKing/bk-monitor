@@ -24,8 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
-
 import type { IBaseInfo, TPluginTypeObj, TScenaris } from '../types';
 
 import './detail-header.scss';
@@ -138,7 +136,7 @@ const HeaderFunctional = ctx => {
                 <bk-user-display-name user-id={updateUser} />
               </td>
               <td class='label right'>{i18n.t('最近更新时间')}</td>
-              <td class='value'>{formatWithTimezone(updateTime)}</td>
+              <td class='value'>{updateTime}</td>
             </tr>
             <tr>
               <td

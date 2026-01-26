@@ -99,7 +99,7 @@ class GetDirectoryTree(Resource):
         if not result:
             raise GetFolderOrDashboardError(**result)
 
-        # 获取仪表盘权限 （包含 folder 展开后的 Dashboard）
+        # 获取仪表盘权限
         _, role, dashboard_permissions = DashboardPermission.has_permission(
             request, None, params["bk_biz_id"], force_check=True
         )
@@ -139,14 +139,6 @@ class GetDirectoryTree(Resource):
                 record.pop("folderTitle", None)
                 record.pop("folderUrl", None)
                 folders[folder_id]["dashboards"].append(record)
-
-        # 判断目录权限
-        for folder_id, folder_data in folders.items():
-            dashboards = folder_data["dashboards"]
-            # 目录权限 = 角色权限 或 拥有当前目录下所有仪表盘权限
-            folder_data["has_folder_permission"] = role >= GrafanaRole.Viewer or (
-                len(dashboards) > 0 and all(d.get("has_permission", False) for d in dashboards)
-            )
 
         # 清理空目录
         if filter_no_permission:

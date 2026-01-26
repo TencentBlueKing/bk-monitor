@@ -70,34 +70,14 @@ const getRoutes = (spaceId, bkBizId) => {
     {
       path: '',
       redirect: (to) => {
-        // 从原始URL中获取完整的查询参数，防止redirect时丢失参数
-        let fullQuery = { ...(to?.query || {}) };
-        try {
-          // 优先使用 iframeParent.location（iframe 环境），否则使用 window.location
-          const location = (window.iframeParent && window.iframeParent.location) || window.location;
-          const currentHash = location.hash.replace(/^#/, '');
-          if (currentHash && currentHash.includes('?')) {
-            const hashParts = currentHash.split('?');
-            const queryString = hashParts.slice(1).join('?');
-            const urlParams = new URLSearchParams(queryString);
-            // 合并URL中的所有参数，确保不丢失
-            urlParams.forEach((value, key) => {
-              fullQuery[key] = value;
-            });
-          }
-        } catch (e) {
-          console.warn('[router redirect] 解析URL参数时出错:', e);
-        }
-        
         const targetRoute = {
           name: 'retrieve',
           query: {
-            ...fullQuery,
+            ...(to?.query || {}),
             spaceUid: spaceId,
             bizId: bkBizId,
           },
         };
-        
         return targetRoute;
       },
       meta: { title: '检索', navId: 'retrieve' },
@@ -146,7 +126,6 @@ export function getRouteConfigById(id, spaceUid, bkBizId, externalMenu) {
 
 // 5.创建并返回 VueRouter 实例，包含路由守卫和路由日志上报
 export default (spaceId, bkBizId, externalMenu) => {
-
   const routes = getRoutes(spaceId, bkBizId, externalMenu);
   const router = new VueRouter({
     routes,
@@ -199,8 +178,7 @@ export default (spaceId, bkBizId, externalMenu) => {
   // }
 
   // 路由后置钩子：每次路由切换后上报路由日志
-  router.afterEach((to, from) => {
-    
+  router.afterEach((to) => {
     sendIframeMessage({
       query: to.query,
       params: to.params,

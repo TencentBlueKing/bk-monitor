@@ -732,16 +732,16 @@ export default defineComponent({
             selectedSpanType.value = selectedType;
             break;
         }
-
-        // 打开trace详情侧滑
         if (!route.query.incident_query) return;
         const spanInfo = JSON.parse(decodeURIComponent((route.query.incident_query as string) || '{}'));
         if (spanInfo.trace_id !== '') {
+          // 打开trace详情侧滑
           nextTick(() => {
             isFullscreen.value = true;
             getTraceDetails(spanInfo.trace_id);
             setTimeout(() => {
               document.getElementById(spanInfo.span_id)?.scrollIntoView({ behavior: 'smooth' });
+              console.log(spanInfo, document.getElementById(spanInfo.span_id));
             }, 2000);
           });
         }
@@ -848,6 +848,7 @@ export default defineComponent({
       isFullscreen.value = false;
       curTraceId.value = '';
       curTraceIndex.value = -1;
+      console.log('handleDialogClose');
       // TODO: 开发模式下会卡一下，这里设置一秒后执行可以减缓这种情况。
       store.setTraceDetail(false);
 

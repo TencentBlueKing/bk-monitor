@@ -1706,11 +1706,11 @@ class GetKubernetesClusterChoices(KubernetesResource):
         if bk_biz_id < 0:
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
             cluster_id_list = []
-            clusters = self.get_cluster_by_space_uid(space_uid)
+            clusters = api.kubernetes.get_cluster_info_from_bcs_space({"space_uid": space_uid})
             for cluster_id in clusters:
-                # if clusters[cluster_id].get("namespace_list"):
-                #     # 共享集群暂时排除，后续针对共享集群进行二次处理
-                #     continue
+                if clusters[cluster_id].get("namespace_list"):
+                    # 共享集群暂时排除，后续针对共享集群进行二次处理
+                    continue
                 cluster_id_list.append(cluster_id)
             cluster_list = BCSCluster.objects.filter(bcs_cluster_id__in=cluster_id_list).values(
                 "bcs_cluster_id", "name"

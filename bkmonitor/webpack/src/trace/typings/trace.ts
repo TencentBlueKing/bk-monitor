@@ -29,7 +29,6 @@ import type { Process, Span } from '../components/trace-view/typings';
 export enum EListItemType {
   events = 'Events',
   process = 'Process',
-  resource = 'Resource',
   stageTime = 'StageTime',
   tags = 'Tags',
 }
@@ -102,7 +101,6 @@ export interface IInfo {
 export interface IListItem {
   [EListItemType.events]?: IEventsItem;
   [EListItemType.process]?: IProcessItem;
-  [EListItemType.resource]?: ITagsItem;
   [EListItemType.stageTime]?: IStageTimeItem;
   [EListItemType.tags]?: ITagsItem;
   isExpan: boolean;

@@ -76,14 +76,14 @@ class EventServiceRelation(ServiceBase):
             },
         ]
         """
-        service_table_options_map: dict[tuple[str, str], dict[str, Any]] = {}
-        service_table_relations_map: dict[tuple[str, str], list[dict[str, Any]]] = {
-            (service_name, EventCategory.SYSTEM_EVENT.value): [] for service_name in service_names
+        service_table_options_map: dict[str, dict[str, Any]] = {}
+        service_table_relations_map: dict[str, list[dict[str, Any]]] = {
+            f"{service_name}:{EventCategory.SYSTEM_EVENT.value}": [] for service_name in service_names
         }
         for relation in EventServiceRelation.objects.filter(
             bk_biz_id=bk_biz_id, app_name=app_name, service_name__in=service_names
         ).values("service_name", "table", "relations", "options"):
-            key: tuple[str, str] = (relation["service_name"], relation["table"])
+            key: str = f"{relation['service_name']}:{relation['table']}"
             service_table_options_map[key] = relation["options"]
             service_table_relations_map.setdefault(key, []).extend(relation["relations"])
 
@@ -94,7 +94,7 @@ class EventServiceRelation(ServiceBase):
 
         service_relations: dict[str, list[dict[str, Any]]] = {}
         for key, relations in service_table_relations_map.items():
-            service_name, table = key
+            service_name, table = key.split(":", 1)
             service_relations.setdefault(service_name, []).append(
                 {"table": table, "relations": relations, "options": service_table_options_map.get(key) or {}}
             )
@@ -156,7 +156,3 @@ class CodeRedefinedConfigRelation(ServiceBase):
                 "kind",
             ]
         ]
-
-    def is_callee(self) -> bool:
-        """判断是否为被调类型"""
-        return self.kind == "callee"

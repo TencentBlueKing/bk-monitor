@@ -63,7 +63,6 @@ from metadata.models.data_link.utils import (
     get_bkbase_raw_data_name_for_v3_datalink,
     get_data_source_related_info,
 )
-from metadata.models.result_table import ResultTableOption
 from metadata.models.space.constants import SPACE_UID_HYPHEN, EtlConfigs, SpaceTypes
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.service.data_source import (
@@ -533,34 +532,18 @@ class ModifyResultTableResource(Resource):
         bk_data_id = models.DataSourceResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id).bk_data_id
         ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
 
-        # 如果数据源没有接入BKDATA，则不需要通知bkdata
-        if ds.created_from != DataIdCreatedFromSystem.BKDATA.value:
-            return
-
-        # 如果是主动配置的V4链路，不再需要通知bkdata
-        # bklog需要存在rtoption，并且option中存在 OPTION_ENABLE_V4_LOG_DATA_LINK且值为True
-        # custom_event需要存在rtoption，并且option中存在 OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK且值为True
-        v4_option_names = [
-            ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
-            ResultTableOption.OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK,
-        ]
-        options = models.ResultTableOption.objects.filter(
-            table_id=table_id, bk_tenant_id=bk_tenant_id, name__in=v4_option_names
-        )
-        if options and any(option.get_value() for option in options):
-            return
-
-        try:
-            result_table.notify_bkdata_log_data_id_changed(data_id=bk_data_id)
-            logger.info(
-                "ModifyResultTableResource: notify bkdata successfully,table_id->[%s],data_id->[%s]",
-                table_id,
-                bk_data_id,
-            )
-        except RetryError as e:
-            logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e.__cause__)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
+        if ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
+            try:
+                result_table.notify_bkdata_log_data_id_changed(data_id=bk_data_id)
+                logger.info(
+                    "ModifyResultTableResource: notify bkdata successfully,table_id->[%s],data_id->[%s]",
+                    table_id,
+                    bk_data_id,
+                )
+            except RetryError as e:
+                logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e.__cause__)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
     def _push_es_route(self, result_table: models.ResultTable, bk_tenant_id: str) -> None:
         """推送ES路由信息"""
@@ -1747,22 +1730,6 @@ class ListBCSClusterInfoResource(Resource):
             clusters = clusters.filter(cluster_id__in=validated_request_data["cluster_ids"])
 
         return [cluster.to_json() for cluster in clusters]
-
-
-class ListBCSClusterInfoByBizResource(Resource):
-    """
-    查询指定业务下的bcs集群信息,用于用户查询
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-
-    def perform_request(self, validated_request_data):
-        clusters = BCSClusterInfo.objects.filter(
-            bk_tenant_id=validated_request_data["bk_tenant_id"], bk_biz_id=validated_request_data["bk_biz_id"]
-        )
-        return [cluster.to_json_for_user() for cluster in clusters]
 
 
 class ApplyYamlToBCSClusterResource(Resource):

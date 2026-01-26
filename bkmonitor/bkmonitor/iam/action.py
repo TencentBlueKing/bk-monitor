@@ -115,7 +115,7 @@ class ActionEnum:
         related_actions=[VIEW_BUSINESS.id],
         version=1,
     )
-
+    
     USING_LOG_MCP = ActionMeta(
         id="using_log_mcp",
         name=_("使用日志MCP"),
@@ -125,31 +125,11 @@ class ActionEnum:
         related_actions=[VIEW_BUSINESS.id],
         version=1,
     )
-
-    USING_METADATA_MCP = ActionMeta(
-        id="using_metadata_mcp",
-        name=_("使用元数据MCP"),
-        name_en="Using Metadata MCP",
-        type="view",
-        related_resource_types=[SPACE_RESOURCE],
-        related_actions=[VIEW_BUSINESS.id],
-        version=1,
-    )
-
+    
     USING_ALARM_MCP = ActionMeta(
         id="using_alarm_mcp",
         name=_("使用告警MCP"),
         name_en="Using Alarm MCP",
-        type="view",
-        related_resource_types=[SPACE_RESOURCE],
-        related_actions=[VIEW_BUSINESS.id],
-        version=1,
-    )
-
-    USING_APM_MCP = ActionMeta(
-        id="using_apm_mcp",
-        name=_("使用APM MCP"),
-        name_en="Using APM MCP",
         type="view",
         related_resource_types=[SPACE_RESOURCE],
         related_actions=[VIEW_BUSINESS.id],

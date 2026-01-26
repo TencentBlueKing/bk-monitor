@@ -30,76 +30,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger("access.data")
 
 
-def _is_proc_port_value_exist(value) -> bool:
-    """
-    判断进程端口值是否存在
-    """
-    if isinstance(value, str):
-        if not value or not value[1:-1]:
-            return False
-    return True
-
-
-def calculate_record_id(raw_data: dict, item: "Item") -> tuple[str, int]:
-    """
-    根据原始数据计算 record_id
-
-    Args:
-        raw_data: 原始数据 dict
-        item: Item 对象，用于获取维度信息
-
-    Returns:
-        tuple[str, int]: (record_id, time)
-    """
-    # 获取时间
-    record_time = raw_data.get("_time_") or raw_data.get("time")
-
-    # 提取原始维度
-    dimensions = {}
-    if item.query.dimensions is None:
-        for k, value in raw_data.items():
-            if k not in ["_time_", "_result_"] and not k.startswith("bk_task_index_"):
-                dimensions[k] = value
-    else:
-        for field in item.query.dimensions:
-            field_value = raw_data.get(field)
-            if field in SYSTEM_PROC_PORT_DYNAMIC_DIMENSIONS:
-                if not _is_proc_port_value_exist(field_value):
-                    continue
-            dimensions[field] = field_value
-
-    # 处理进程端口特殊情况
-    if SYSTEM_PROC_PORT_METRIC_ID in item.metric_ids:
-        dimensions = {
-            field: value
-            for field, value in list(dimensions.items())
-            if field not in SYSTEM_PROC_PORT_DYNAMIC_DIMENSIONS
-        }
-
-    # 计算 MD5
-    md5_dimension = count_md5(dimensions)
-    record_id = f"{md5_dimension}.{record_time}"
-
-    return record_id, record_time
-
-
-def get_value_from_raw_data(raw_data: dict, item: "Item"):
-    """
-    从原始数据中获取 value
-
-    Args:
-        raw_data: 原始数据 dict
-        item: Item 对象
-
-    Returns:
-        value 或 None
-    """
-    if item.query.metrics[0].get("method", "").upper() == "REAL_TIME":
-        return raw_data.get(item.query.metrics[0]["field"])
-    else:
-        return raw_data.get("_result_")
-
-
 class DataRecord(base.BaseRecord):
     """
     raw_data:
@@ -208,8 +138,17 @@ class DataRecord(base.BaseRecord):
         """
         记录ID=维度+时间(使用原始数据维度，计算MD5)
         """
-        record_id, _ = calculate_record_id(self.raw_data, self._item)
-        return record_id
+        origin_dimensions = self._origin_dimension()
+        if SYSTEM_PROC_PORT_METRIC_ID in self._item.metric_ids:
+            # 进程端口的指标特殊处理，去掉部分动态维度(随着状态值不同，维度会发生变化)
+            origin_dimensions = {
+                field: value
+                for field, value in list(origin_dimensions.items())
+                if field not in SYSTEM_PROC_PORT_DYNAMIC_DIMENSIONS
+            }
+
+        md5_dimension = count_md5(origin_dimensions)
+        return f"{md5_dimension}.{self.time}"
 
     def clean(self):
         """

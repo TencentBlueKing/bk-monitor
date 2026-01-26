@@ -297,7 +297,6 @@
 
 | 字段名                  | 类型     | 是否必选 | 描述     |
 |----------------------|--------|------|--------|
-| voice_notice         | string | 否    | 语音通知模式，可选值：parallel(并行，默认值)、serial(串行) |
 | template             | object | 否    | 通知模板配置 |
 | need_poll            | bool   | 否    | 是否需要轮询 |
 | notify_interval      | int    | 否    | 通知间隔   |
@@ -473,7 +472,6 @@
         "config": {
             "interval_notify_mode": "standard",
             "notify_interval": 7200,
-            "voice_notice": "parallel",
             "template": [
                 {
                     "signal": "abnormal",
@@ -876,7 +874,6 @@
                 "need_poll": true,
                 "notify_interval": 7200,
                 "interval_notify_mode": "standard",
-                "voice_notice": "parallel",
                 "template": [
                     {
                         "signal": "abnormal",

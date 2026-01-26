@@ -64,7 +64,7 @@ interface IHomeAlarmChartProps {
 
 const handleSetTooltip = params => {
   // 获取时间并格式化
-  const pointTime = dayjs.tz(Number(params[0].axisValue)).format('YYYY-MM-DD HH:mm:ssZZ');
+  const pointTime = dayjs.tz(Number(params[0].axisValue)).format('YYYY-MM-DD HH:mm:ss');
 
   // 构建每个数据点的 HTML 列表项
   const liHtmlList = params

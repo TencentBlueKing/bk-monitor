@@ -632,9 +632,9 @@ export default {
       }
       if (this.right.dateRange.join('').length) {
         params.time_range =
-          `${dayjs.tz(this.right.dateRange[0]).format('YYYY-MM-DD HH:mm:ssZZ')}` +
+          `${dayjs.tz(this.right.dateRange[0]).format('YYYY-MM-DD HH:mm:ss')}` +
           '--' +
-          `${dayjs.tz(this.right.dateRange[1]).format('YYYY-MM-DD HH:mm:ssZZ')} `;
+          `${dayjs.tz(this.right.dateRange[1]).format('YYYY-MM-DD HH:mm:ss')} `;
       }
       const data = await frontendShieldList(params).catch(() => {
         this.emptyType = '500';
@@ -832,7 +832,7 @@ export default {
         let queryStringObj = null;
         try {
           queryStringObj = JSON.parse(queryString);
-        } catch (_err) {
+        } catch (err) {
           this.$router
             .replace({
               ...this.$route,
@@ -927,7 +927,7 @@ export default {
       align-items: center;
       justify-content: flex-start;
       padding: 0;
-      margin: 0 0 16px;
+      margin: 0 0 16px 0;
       font-size: 14px;
       line-height: 42px;
       background: #fafbfd;

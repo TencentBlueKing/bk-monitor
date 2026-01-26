@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from multiprocessing.pool import ThreadPool
@@ -11,7 +12,6 @@ WRITE_CMDB_LIMIT = 500
 QUERY_CMDB_MODULE_LIMIT = 500
 QUERY_CLOUD_LIMIT = 200
 CONCURRENT_NUMBER = 10
-BK_MODULE_IDS_COUNT_ERROR = 5000
 
 
 def format_params(params, get_count, func):

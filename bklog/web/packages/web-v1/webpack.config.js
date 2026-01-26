@@ -36,7 +36,7 @@ const { createMonitorConfig } = require('./scripts/create-monitor');
 const HtmlToManifestPlugin = require('./webpack/html-to-manifest-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const devPort = 8002;
+const devPort = 8001;
 
 let devConfig = {
   port: devPort,

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -7,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 import copy
 from abc import ABC
 from datetime import datetime
@@ -24,9 +24,6 @@ from apm_web.profile.resources import (  # noqa
     ListApplicationServicesResource,
     QueryServicesDetailResource,
 )
-
-# 导出 trace 接口给告警中心使用
-from apm_web.trace.resources import ListFlattenSpanResource, ListFlattenTraceResource  # noqa
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import OverviewDataTableFormat
@@ -292,4 +289,6 @@ class ServiceAndComponentCompatibleResource(SidebarPageListResource):
                     "service_name": i["service"],
                 }
             )
-        return super().get_pagination_data(origin_data, params, column_type, in_place=True)
+        return super(ServiceAndComponentCompatibleResource, self).get_pagination_data(
+            origin_data, params, column_type, in_place=True
+        )

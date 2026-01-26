@@ -32,7 +32,6 @@ import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { destroyUserGroup, listDutyRule, listUserGroup } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -156,7 +155,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 220,
       props: {},
-      formatter: row => (row.update_time ? formatWithTimezone(row.update_time) : '--'),
+      formatter: row => (row.update_time ? dayjs(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--'),
     },
     {
       label: i18n.t('配置来源'),
@@ -297,7 +296,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     return (
       <div class='col-name'>
         <div class='col-name-label'>{row.update_user || '--'}</div>
-        <div>{dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ssZZ') || '--'}</div>
+        <div>{dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') || '--'}</div>
       </div>
     );
   }

@@ -75,11 +75,6 @@ export default defineComponent({
         icon: 'mc-solved',
         color: '#979BA5',
       },
-      /** 已合并  */
-      merged: {
-        icon: 'yihebing',
-        color: '#979BA5',
-      },
     };
     const incidentId = useIncidentInject();
     /** 一键拉群弹窗 */

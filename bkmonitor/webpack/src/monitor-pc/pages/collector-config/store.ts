@@ -23,8 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
-
 export default class TableStore {
   public data: any[];
   public keyword: string;
@@ -109,7 +107,7 @@ export default class TableStore {
         pluginId: item.plugin_id,
         serviceLabel: item.label,
         updateUser: item.update_user,
-        updateTime: formatWithTimezone(item.update_time),
+        updateTime: item.update_time,
         updateParams: {
           id: item.id,
           pluginId: item.plugin_id,

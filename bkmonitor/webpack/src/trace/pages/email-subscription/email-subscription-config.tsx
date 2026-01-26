@@ -296,7 +296,7 @@ export default defineComponent({
           title: `${t('发送时间')}`,
           colKey: 'send_time',
           cell: (_, { row: data }) => {
-            return <span>{dayjs(data.send_time).format('YYYY-MM-DD HH:mm:ssZZ')}</span>;
+            return <span>{dayjs(data.send_time).format('YYYY-MM-DD HH:mm:ss')}</span>;
           },
         },
         {
@@ -928,7 +928,7 @@ export default defineComponent({
                 'gray-text': isGrayText,
               }}
             >
-              {row.last_send_time ? dayjs(row.last_send_time).format('YYYY-MM-DD HH:mm:ssZZ') : t('未发送')}
+              {row.last_send_time ? dayjs(row.last_send_time).format('YYYY-MM-DD HH:mm:ss') : t('未发送')}
             </span>
           );
         }
@@ -970,7 +970,7 @@ export default defineComponent({
           );
         }
         case 'create_time': {
-          return <span>{dayjs(row.create_time).format('YYYY-MM-DD HH:mm:ssZZ')}</span>;
+          return <span>{dayjs(row.create_time).format('YYYY-MM-DD HH:mm:ss')}</span>;
         }
         case 'action': {
           return (
@@ -1551,14 +1551,14 @@ export default defineComponent({
                                     <bk-user-display-name user-id={this.subscriptionDetail.update_user} />
                                   </div>
                                   <div>{`${this.t('更新时间')}: ${dayjs(this.subscriptionDetail.update_time).format(
-                                    'YYYY-MM-DD HH:mm:ssZZ'
+                                    'YYYY-MM-DD HH:mm:ss'
                                   )}`}</div>
                                   <div>
                                     <span>{`${this.t('创建人')}: `}</span>
                                     <bk-user-display-name user-id={this.subscriptionDetail.create_user} />
                                   </div>
                                   <div>{`${this.t('创建时间')}: ${dayjs(this.subscriptionDetail.create_time).format(
-                                    'YYYY-MM-DD HH:mm:ssZZ'
+                                    'YYYY-MM-DD HH:mm:ss'
                                   )}`}</div>
                                 </div>
                               );

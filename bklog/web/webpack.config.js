@@ -80,9 +80,6 @@ const logPluginConfig = {
       window.BCS_WEB_CONSOLE_DOMAIN = '\${BCS_WEB_CONSOLE_DOMAIN}'
       window.VERSION = '\${VERSION}'
       window.BK_SHARED_RES_URL = '\${BK_SHARED_RES_URL}'
-      window.BK_PAAS_API_HOST = '\${BK_PAAS_API_HOST}'
-      window.BK_USER_URL = '\${BK_USER_URL}'
-      window.BK_IAM_URL = '\${BK_IAM_URL}'
     </script>`,
 };
 if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {

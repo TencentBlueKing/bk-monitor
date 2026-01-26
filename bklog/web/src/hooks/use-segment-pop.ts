@@ -107,28 +107,24 @@ class UseSegmentProp {
   createSegmentContent(refName: Ref) {
     const eventBoxList = [
       {
-        id: 'copy',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'copy'),
         iconName: 'icon bklog-icon bklog-copy-3',
         text: this.$t('复制'),
         disabled: false,
       },
       {
-        id: 'highlight',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'highlight'),
         iconName: 'icon bklog-icon bklog-highlight',
         text: this.$t('高亮'),
         disabled: !this.highlightEnabled,
       },
       {
-        id: 'add-to-ai',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'add-to-ai'),
         svg: AiSvg,
         text: this.$t('引用至小鲸'),
         disabled: !this.delineate || !this.aiBluekingEnabled,
       },
       {
-        id: 'is',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'is'),
         iconName: 'icon bk-icon icon-plus-circle',
         text: this.$t('添加到本次检索'),
@@ -143,7 +139,6 @@ class UseSegmentProp {
         },
       },
       {
-        id: 'not',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'not'),
         iconName: 'icon bk-icon icon-minus-circle',
         text: this.$t('从本次检索中排除'),
@@ -158,7 +153,6 @@ class UseSegmentProp {
         },
       },
       {
-        id: 'new-search-page-is',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'new-search-page-is', true),
         iconName: 'icon bk-icon icon-plus-circle',
         text: this.$t('新建检索'),
@@ -168,7 +162,6 @@ class UseSegmentProp {
         },
       },
       {
-        id: 'trace-view',
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'trace-view', true),
         iconName: 'bklog-icon bklog-jincheng bklog-trace-view',
         text: this.$t('关联Trace检索'),
@@ -199,9 +192,6 @@ class UseSegmentProp {
         'div',
         {
           class: 'segment-event-box',
-          attrs: {
-            'data-item-id': item.id,
-          },
           on: {
             click: item.onClick,
           },

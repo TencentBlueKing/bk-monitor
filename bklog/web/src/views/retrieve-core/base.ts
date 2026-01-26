@@ -31,9 +31,6 @@ import StaticUtil from './static.util';
 import type OptimizedHighlighter from './optimized-highlighter';
 import type RetrieveEvent from './retrieve-events';
 import { EventEmitter } from './event';
-import { reportRouteLog } from '@/store/modules/report-helper.ts';
-import { formatTimeZoneString } from '@/global/utils/time';
-
 
 export default class extends EventEmitter<RetrieveEvent> {
   // 滚动条查询条件
@@ -91,29 +88,24 @@ export default class extends EventEmitter<RetrieveEvent> {
 
   isSearching = false;
 
-  // 上报日志
-  reportLog: typeof reportRouteLog;
-
   constructor() {
     super();
     this.randomTrendGraphClassName = `random-${random(12)}`;
     this.logRowsContainerId = `result_container_key_${random(12)}`;
     this.RGBA_LIST = getRGBAColors(0.3);
     this.jsonFormatter = new JsonFormatter();
-    this.reportLog = reportRouteLog;
   }
 
   /**
    * 格式化时间戳
    * @param data 时间戳
    * @param fieldType 字段类型
-   * @param timezoneFormat 是否进行时区格式化，默认为 false
    * @returns 格式化后的时间戳
    */
-  formatDateValue(data: string, fieldType: string, timezoneFormat = false) {
+  formatDateValue(data: string, fieldType: string) {
     const formatFn = {
-      date: (val: number | string | Date) => formatDate(val, timezoneFormat),
-      date_nanos: (val: string | number) => formatDateNanos(val, timezoneFormat),
+      date: formatDate,
+      date_nanos: formatDateNanos,
     };
 
     if (formatFn[fieldType]) {
@@ -133,43 +125,6 @@ export default class extends EventEmitter<RetrieveEvent> {
       return formatFn[fieldType](data) || data || '--';
     }
     return data;
-  }
-
-  /**
-   * 格式化时间戳，支持时区转换
-   * @param data 时间戳或时间字符串（支持 ISO 8601 格式，如 2024-11-01T08:56:24.274552Z）
-   * @param fieldType 字段类型，date 或 date_nanos
-   * @param timezone 时区
-   * @returns 格式化后的时间戳
-   */
-  formatTimeZoneValue(data: number | string, fieldType: string, timezone: string = 'Asia/Shanghai') {
-
-    let format = 'YYYY-MM-DD HH:mm:ss';
-
-    if (fieldType === 'date_nanos') {
-      const milliseconds = `${data}`.toString().split('.')[1]?.length ?? 0;
-      if (milliseconds > 0) {
-        format = `YYYY-MM-DD HH:mm:ss.${'S'.repeat(milliseconds)}`;
-      } else {
-        format = 'YYYY-MM-DD HH:mm:ss.SSS';
-      }
-    }
-
-    if (`${data}`.startsWith('<mark>')) {
-      const value = `${data}`.replace(/^<mark>/i, '').replace(/<\/mark>$/i, '');
-
-      if (/^\d+$/.test(value)) {
-        return `<mark>${formatTimeZoneString(Number(value), timezone, format, false)}</mark>`;
-      }
-
-      return `<mark>${formatTimeZoneString(value, timezone, format, false)}</mark>`;
-    }
-
-    if (/^\d+$/.test(`${data}`)) {
-      return formatTimeZoneString(Number(data), timezone, format, false) || data || '--';
-    }
-
-    return formatTimeZoneString(data, timezone, format, false) || data || '--';
   }
 
 

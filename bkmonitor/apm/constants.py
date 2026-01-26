@@ -546,10 +546,6 @@ class ConfigTypes:
     ATTRIBUTES_CONFIG_LOGS = "attributes_config_logs"
     CODE_RELABEL_CONFIG = "code_relabel_config"
 
-    ALL_APP_CONFIG = "all_app_config"
-    ALL_SERVICE_CONFIG = "all_service_config"
-    ALL_INSTANCE_CONFIG = "all_instance_config"
-
     @classmethod
     def choices(cls):
         return [
@@ -561,9 +557,6 @@ class ConfigTypes:
             (cls.DB_CONFIG, _("db配置")),
             (cls.ATTRIBUTES_CONFIG_LOGS, _("attributes 配置(logs)")),
             (cls.CODE_RELABEL_CONFIG, _("返回码重定义配置")),
-            (cls.ALL_APP_CONFIG, _("app全量配置")),
-            (cls.ALL_SERVICE_CONFIG, _("service全量配置")),
-            (cls.ALL_INSTANCE_CONFIG, _("instance全量配置")),
         ]
 
 

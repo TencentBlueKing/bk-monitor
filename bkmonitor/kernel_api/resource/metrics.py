@@ -15,8 +15,6 @@ from rest_framework import serializers
 from bkmonitor.utils.request import get_request_tenant_id
 from core.drf_resource.base import Resource, logger
 from metadata.models import DataSource, TimeSeriesGroup
-from core.drf_resource import resource
-from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
 
 
 class TimeSeriesGroupListResource(Resource):
@@ -93,12 +91,3 @@ class TimeSeriesGroupListResource(Resource):
             )
 
         return {"list": result_list, "total": total}
-
-
-class ExecuteRangeQueryResource(Resource):
-    """执行范围查询接口 (用于 AI MCP 请求)"""
-
-    RequestSerializer = TimeSpanValidationPassThroughSerializer
-
-    def perform_request(self, validated_request_data):
-        return resource.grafana.graph_promql_query(**validated_request_data)

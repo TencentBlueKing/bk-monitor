@@ -553,7 +553,6 @@
                 index_set_id: this.routerIndexSet,
               },
               data: {
-                bk_biz_id: this.bkBizId,
                 addition,
                 size,
                 keyword,

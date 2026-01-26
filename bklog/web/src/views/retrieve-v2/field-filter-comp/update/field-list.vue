@@ -32,7 +32,6 @@
   import { useRoute } from 'vue-router/composables';
 
   import FieldsSetting from '../../result-comp/update/fields-setting';
-  import BkLogPopover from '@/components/bklog-popover';
   import $http from '@/api';
 
   const store = useStore();
@@ -54,8 +53,8 @@
   const popoverTrigger = ref(null);
   /** 字段模版下拉菜单容器实例 */
   const dropdownRef = ref(null);
-  /** 字段设置弹窗 BkLogPopover 组件引用 */
-  const settingPopoverRef = ref(null);
+  /** 字段配置管理 组件实例  */
+  const settingRef = ref(null);
   /** 考虑字段配置管理内容较多，增加简易的懒加载机制 */
   const popoverLazyLoaded = ref({
     dropdown: false,
@@ -84,29 +83,6 @@
       return name.includes(searchKeyword.value);
     });
   });
-
-  /** 字段设置 popover 配置 */
-  const settingTippyOptions = {
-    placement: 'top-start',
-    arrow: false,
-    hideOnClick: false,
-    maxWidth: 1200,
-    offset: [-16, -40],
-    zIndex: 3000,
-    appendTo: document.body,
-  };
-
-  /**
-   * @description 字段设置弹窗隐藏前的钩子
-   */
-  function handleSettingBeforeHide(e) {
-    // 点击弹窗内部元素时不关闭
-    if (e.target?.closest?.('.bklog-v3-popover-tag')) {
-      return false;
-    }
-    showFieldsSetting.value = false;
-    return true;
-  }
 
   /**
    * @description 打开字段模板 menu popover
@@ -149,17 +125,34 @@
    */
   async function handleFieldSettingPopoverShow() {
     if (popoverInstance) {
-      popoverInstance?.hide?.();
-      emit('handle-popover-hide');
+      handlePopoverHide();
     }
     if (!popoverLazyLoaded.value.setting) {
       popoverLazyLoaded.value.setting = true;
       await nextTick();
     }
-
-    // 使用 BkLogPopover 组件打开字段设置弹窗
-    settingPopoverRef.value?.show?.(popoverTrigger.value);
+    popoverInstance = $bkPopover(popoverTrigger.value, {
+      content: settingRef.value,
+      trigger: 'click',
+      animation: 'slide-toggle',
+      animateFill: false,
+      placement: 'top-start',
+      theme: 'light bk-select-dropdown field-template-menu',
+      arrow: false,
+      interactive: true,
+      boundary: 'viewport',
+      hideOnClick: true,
+      zIndex: 3000,
+      offset:"-16px,-40px",
+      onHidden: () => {
+        showFieldsSetting.value = false;
+        popoverInstance?.destroy?.();
+        popoverInstance = null;
+      },
+    });
+    await nextTick();
     showFieldsSetting.value = true;
+    popoverInstance?.show();
   }
 
   /**
@@ -181,8 +174,7 @@
     if (!showFieldsSetting.value) {
       return;
     }
-    settingPopoverRef.value?.hide?.();
-    showFieldsSetting.value = false;
+    handlePopoverHide();
   }
 
   const getFiledConfigList = async () => {
@@ -282,29 +274,25 @@
           </span>
         </div>
       </div>
-      <!-- 字段设置弹窗使用 BkLogPopover -->
-      <BkLogPopover
+      <div
         v-if="popoverLazyLoaded.setting"
-        ref="settingPopoverRef"
-        :options="settingTippyOptions"
-        :before-hide="handleSettingBeforeHide"
+        class="fields-setting-container"
+        :ref="
+          vm => {
+            settingRef = vm;
+          }
+        "
+        :class="{ 'is-start-text-ellipsis': isStartTextEllipsis }"
       >
-        <template #content>
-          <div
-            class="fields-setting-container"
-            :class="{ 'is-start-text-ellipsis': isStartTextEllipsis }"
-          >
-            <fields-setting
-              :field-alias-map="fieldAliasMap"
-              :is-show="showFieldsSetting"
-              :retrieve-params="retrieveParams"
-              config-type="template"
-              @cancel="handleFieldsSettingHide"
-              @set-popper-instance="() => {}"
-            />
-          </div>
-        </template>
-      </BkLogPopover>
+        <fields-setting
+          :field-alias-map="fieldAliasMap"
+          :is-show="showFieldsSetting"
+          :retrieve-params="retrieveParams"
+          config-type="template"
+          @cancel="handleFieldsSettingHide"
+          @set-popper-instance="() => {}"
+        />
+      </div>
     </div>
   </div>
 </template>

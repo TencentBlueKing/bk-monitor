@@ -349,7 +349,7 @@ export default class App extends tsc<object> {
   handleToggle(v: boolean) {
     this.menuToggle = v;
   }
-  handleHeaderMenuClick(_id: string, route: string) {
+  handleHeaderMenuClick(id: string, route: string) {
     if (this.$route.name !== route) {
       this.$router.push({ name: route });
     }
@@ -756,7 +756,7 @@ export default class App extends tsc<object> {
       >
         {process.env.NODE_ENV !== 'development' && (
           <notice-component
-            apiUrl={`${window.site_url}/notice/announcements/`.replace(/\/\//g, '/')}
+            apiUrl='/notice/announcements/'
             on-show-alert-change={this.showAlertChange}
           />
         )}

@@ -46,7 +46,6 @@ class Command(BaseCommand):
                     "bk_biz_id": str(biz.bk_biz_id),
                     "bk_biz_name": biz.bk_biz_name,
                     "bk_tenant_id": options["bk_tenant_id"],
-                    "time_zone": biz.time_zone,
                 }
                 for biz in biz_list
             ]

@@ -1732,16 +1732,7 @@ msgid "业务访问"
 msgstr "Business Visit"
 
 msgid "指标检索"
-msgstr "Metrics"
-
-msgid "日志检索"
-msgstr "Logs"
-
-msgid "事件检索"
-msgstr "Events"
-
-msgid "Tracing 检索"
-msgstr "Traces"
+msgstr "Metric Search"
 
 msgid "拨测查看"
 msgstr "Dial and check"

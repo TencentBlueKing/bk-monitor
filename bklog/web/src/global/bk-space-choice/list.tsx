@@ -109,6 +109,23 @@ export default defineComponent({
     const defaultSpace = ref<IListItem | null>(null); // 当前弹窗中选中的业务
     const isSetBizIdDefault = ref(true); // 设为默认or取消默认
     const defaultBizId = computed(() => store.getters.defaultBizId); // 当前默认业务ID
+    // const defaultBizIdApiId = computed(() => store.getters.defaultBizIdApiId); // 当前默认业务的API ID
+
+    // 获取用户配置的默认业务ID
+    // const getUserConfigId = () => {
+    //   userConfigMixin
+    //     .handleGetUserConfig(DEFAULT_BIZ_ID)
+    //     .then((res: number) => {
+    //       if (res) {
+    //         store.commit('SET_APP_STATE', {
+    //           defaultBizIdApiId: userConfigMixin.storeId,
+    //         });
+    //       }
+    //     })
+    //     .catch(e => {
+    //       console.log(e);
+    //     });
+    // };
 
     // 点击设置/取消默认
     const handleDefaultBizIdDialog = (e: MouseEvent, data: IListItem, isSetDefault: boolean) => {
@@ -126,6 +143,11 @@ export default defineComponent({
     const handleSelected = (item: IListItem) => {
       emit('handleClickMenuItem', item);
     };
+
+    // 初始化时获取用户配置ID
+    // if (!defaultBizIdApiId.value) {
+    //   getUserConfigId();
+    // }
 
     // 判断当前项是否被键盘选中
     const isKeyboardSelected = (item: IListItem) => {

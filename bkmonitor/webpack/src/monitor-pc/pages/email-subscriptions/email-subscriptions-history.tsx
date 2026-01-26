@@ -27,7 +27,6 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { statusList } from 'monitor-api/modules/report';
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
 import TableSkeleton from '../../components/skeleton/table-skeleton';
@@ -147,43 +146,29 @@ export default class EmailSubscriptionsHistory extends tsc<object> {
                 on-page-change={this.handlePageChange}
                 on-page-limit-change={this.handleLimitChange}
               >
-                {this.tableColumnsMap.map((item, index) => {
-                  if (item.key === 'createTime') {
-                    return (
-                      <bk-table-column
-                        key={index}
-                        scopedSlots={{
-                          default: scope => <span>{formatWithTimezone(scope.row.createTime)}</span>,
-                        }}
-                        label={this.$t('发送时间')}
-                      />
-                    );
-                  }
-                  if (item.key === 'isSuccess') {
-                    return (
-                      <bk-table-column
-                        key={index}
-                        scopedSlots={{
-                          default: scope => (
-                            <span class={scope.row.isSuccess ? 'is-success' : 'is-fail'}>
-                              {scope.row.isSuccess ? this.$t('成功') : this.$t('失败')}
-                            </span>
-                          ),
-                        }}
-                        label={this.$t('发送状态')}
-                        prop='isSuccess'
-                      />
-                    );
-                  }
-                  return (
+                {this.tableColumnsMap.map((item, index) =>
+                  item.key === 'isSuccess' ? (
+                    <bk-table-column
+                      key={index}
+                      scopedSlots={{
+                        default: scope => (
+                          <span class={scope.row.isSuccess ? 'is-success' : 'is-fail'}>
+                            {scope.row.isSuccess ? this.$t('成功') : this.$t('失败')}
+                          </span>
+                        ),
+                      }}
+                      label={this.$t('发送状态')}
+                      prop='isSuccess'
+                    />
+                  ) : (
                     <bk-table-column
                       key={index}
                       formatter={item.formatter}
                       label={item.label}
                       prop={item.key}
                     />
-                  );
-                })}
+                  )
+                )}
               </bk-table>
             )}
           </div>

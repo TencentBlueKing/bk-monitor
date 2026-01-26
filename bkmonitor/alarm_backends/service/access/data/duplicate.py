@@ -8,8 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections import defaultdict
-
 from alarm_backends.core.cache import key
 
 
@@ -52,91 +50,6 @@ class Duplicate:
         )
         self.record_ids_cache.setdefault(dup_key, set()).add(record.record_id)
         self.pending_to_add.setdefault(dup_key, set()).add(record.record_id)
-
-    def preload_duplicate_cache(self, points: list[dict]) -> None:
-        """
-        预加载所有时间点的去重缓存
-
-        提取数据中的所有唯一时间点，使用 Redis pipeline 批量查询并缓存结果，
-        避免后续逐个时间点查询 Redis。
-
-        Args:
-            points: 原始数据点列表
-        """
-        # 1. 提取所有唯一时间点
-        unique_times = set()
-        for point in points:
-            t = point.get("_time_") or point.get("time")
-            if t is not None:
-                unique_times.add(t)
-
-        if not unique_times:
-            return
-
-        # 2. 批量构建 dup_key 并查询 Redis
-        pipeline = self.client.pipeline(transaction=False)
-        dup_keys = []
-        for t in unique_times:
-            dup_key = key.ACCESS_DUPLICATE_KEY.get_key(strategy_group_key=self.strategy_group_key, dt_event_time=t)
-            if self.strategy_id is not None:
-                dup_key.strategy_id = self.strategy_id
-            pipeline.smembers(dup_key)
-            dup_keys.append(dup_key)
-
-        # 3. 执行并缓存结果
-        results = pipeline.execute()
-        for dup_key, record_ids in zip(dup_keys, results):
-            self.record_ids_cache[dup_key] = record_ids
-
-    def is_duplicate_by_id(self, record_id: str, time: int) -> bool:
-        """
-        根据 record_id 判断是否重复
-
-        Args:
-            record_id: 记录 ID
-            time: 时间戳
-
-        Returns:
-            bool: 是否重复
-        """
-        record_ids = self.get_record_ids(time)
-        return str(record_id) in record_ids
-
-    def add_record_by_id(self, record_id: str, time: int) -> None:
-        """
-        根据 record_id 添加到去重缓存
-
-        Args:
-            record_id: 记录 ID
-            time: 时间戳
-        """
-        dup_key = key.ACCESS_DUPLICATE_KEY.get_key(strategy_group_key=self.strategy_group_key, dt_event_time=time)
-        if self.strategy_id is not None:
-            dup_key.strategy_id = self.strategy_id
-        self.record_ids_cache.setdefault(dup_key, set()).add(record_id)
-        self.pending_to_add.setdefault(dup_key, set()).add(record_id)
-
-    def add_records_batch(self, records: list) -> None:
-        """
-        批量添加 record 到去重缓存
-
-        按时间点分组后批量更新内存缓存，减少重复的 dict 查找操作。
-
-        Args:
-            records: DataRecord 列表
-        """
-        # 按时间点分组
-        time_to_record_ids = defaultdict(list)
-        for record in records:
-            time_to_record_ids[record.time].append(record.record_id)
-
-        # 批量更新内存缓存
-        for t, record_ids in time_to_record_ids.items():
-            dup_key = key.ACCESS_DUPLICATE_KEY.get_key(strategy_group_key=self.strategy_group_key, dt_event_time=t)
-            if self.strategy_id is not None:
-                dup_key.strategy_id = self.strategy_id
-            self.record_ids_cache.setdefault(dup_key, set()).update(record_ids)
-            self.pending_to_add.setdefault(dup_key, set()).update(record_ids)
 
     def refresh_cache(self):
         # Q1：access 已经是按 item + 拉取周期拆分处理的，为什么这里要推一次 Redis

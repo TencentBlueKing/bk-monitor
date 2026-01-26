@@ -712,7 +712,7 @@
         "workflow_keys": "{{template_id}}"
       },
       "resource_class": "CommonBaseResource",
-      "resource_data": "response.items[].form_canvas_data.form_data.layout[].list[].{key: key, desc: desc, name: title.value,default:defaultValue,required:verification.required.value}",
+      "resource_data": "response.items[].form_canvas_data.form_data.layout[].list[].{key: key, desc: desc, name: tips,default:defaultValue,required:verification.required.value}",
       "resource_module": "api.common.default"
     },
     "plugin_url": {
@@ -834,7 +834,7 @@
 },
       {
         "id": 110,
-        "name": "分析处置平台",
+        "name": "标准排障",
         "is_builtin": true,
         "is_deleted": false,
         "is_peripheral": true,
@@ -842,7 +842,7 @@
         "plugin_type": "bk_incident",
         "plugin_key": "bk_incident",
         "has_child": true,
-        "description": "分析处置平台是通过可视化的图形界面进行故障排查流程编排和执行的系统，是腾讯蓝鲸产品体系中一款轻量级的调度编排类 SaaS 产品。<a href=\"{plugin_url}\" target=\"_blank\">前往分析处置平台</a>\\n\\n* 在分析处置平台中创建一个流程\\n* 流程里可以添加包括智能体在内的各种原子\\n* 处理套餐中可以上下文传参，可以在分析处置平台流程中设置为 **全局变量**",
+        "description": "标准排障是通过可视化的图形界面进行故障排查流程编排和执行的系统，是腾讯蓝鲸产品体系中一款轻量级的调度编排类 SaaS 产品。<a href=\"{plugin_url}\" target=\"_blank\">前往标准排障</a>\\n\\n* 在标准排障中创建一个流程\\n* 流程里可以添加包括智能体在内的各种原子\\n* 处理套餐中可以上下文传参，可以在标准排障流程中设置为 **全局变量**",
         "config_schema": {
             "template": {
                 "resource_class": "GetTemplateListResource",
@@ -858,7 +858,7 @@
             "plugin_url": {
                 "mapping": {
                     "url": "{{incident_saas_site_url}}",
-                    "tips": "前往分析处置平台"
+                    "tips": "前往标准排障"
                 }
             },
             "detail": {
@@ -875,13 +875,13 @@
                     "value": "{{value.default or value or ''}}"
                 }
             },
-            "content_template_with_url": "分析处置平台任务【{{action_name}}】处理{{status_display}}，点击$查看任务详情$",
-            "content_template": "分析处置平台任务【{{action_name}}】处理{{status_display}}, 请关注！！"
+            "content_template_with_url": "标准排障任务【{{action_name}}】处理{{status_display}}，点击$查看任务详情$",
+            "content_template": "标准排障任务【{{action_name}}】处理{{status_display}}, 请关注！！"
         },
         "backend_config": [
             {
                 "function": "create_task",
-                "name": "创建分析处置平台任务",
+                "name": "创建标准排障任务",
                 "resource_class": "CreateTaskResource",
                 "resource_module": "api.bk_incident.default",
                 "inputs": [
@@ -924,7 +924,7 @@
                 ],
                 "next_function": "start_task",
                 "need_insert_log": true,
-                "log_template": "成功创建分析处置平台任务【{{action_name}}】，点击$查看任务详情$"
+                "log_template": "成功创建标准排障任务【{{action_name}}】，点击$查看任务详情$"
             },
             {
                 "function": "start_task",

@@ -22,7 +22,6 @@ import tarfile
 import time
 from collections import namedtuple
 from distutils.version import StrictVersion
-from pathlib import Path
 from uuid import uuid4
 
 import yaml
@@ -92,6 +91,7 @@ from monitor_web.plugin.serializers import (
     SNMPTrapSerializer,
 )
 from monitor_web.plugin.signature import Signature
+from pathlib import Path
 from utils import count_md5
 
 logger = logging.getLogger(__name__)
@@ -345,28 +345,11 @@ class PluginRegisterResource(Resource):
             md5 = self.get_file_md5(tar_name)
             if (
                 settings.USE_CEPH
-                and os.getenv(
-                    "UPLOAD_PLUGIN_VIA_COS",
-                    os.getenv("BKAPP_UPLOAD_PLUGIN_VIA_COS", ""),
-                )
-                == "true"
+                and os.getenv("UPLOAD_PLUGIN_VIA_COS", os.getenv("BKAPP_UPLOAD_PLUGIN_VIA_COS", "")) == "true"
             ):
-                # Django 4.2+ 的 validate_file_name 不允许绝对路径，需要转换为相对路径
-                # 直接从绝对路径中提取 plugin/ 之后的部分，如：/app/code/USERRES/plugin/xxx/xxx.tgz -> plugin/xxx/xxx.tgz
-                if os.path.isabs(tar_name):
-                    plugin_index = tar_name.find("plugin/")
-                    if plugin_index != -1:
-                        relative_path = tar_name[plugin_index:]
-                    else:
-                        # 如果不在 plugin/ 下，只使用文件名
-                        relative_path = os.path.basename(tar_name)
-                else:
-                    relative_path = tar_name
-                default_storage.save(relative_path, tf)
+                default_storage.save(tar_name, tf)
                 result = api.node_man.upload_cos(
-                    file_name=os.path.basename(tar_name),
-                    download_url=default_storage.url(relative_path),
-                    md5=md5,
+                    file_name=tf.name.split("/")[-1], download_url=default_storage.url(tar_name), md5=md5
                 )
             else:
                 result = api.node_man.upload(package_file=tf, md5=md5, module="bkmonitor")
@@ -882,10 +865,11 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
         # 避免节点管理存在，数据库不存在时报错
         if self.current_version:
             # 判断插件id是否在table_id，不在的话，抛错提示
-            tables = PluginDataAccessor(self.current_version, operator=operator).contrast_rt()[1]
+            tables = PluginDataAccessor(self.current_version, operator=operator).tables_info
             # 避免插件id大写引起的问题
             if self.create_params["plugin_id"].lower() not in list(tables.keys())[0]:
                 raise ExportImportError({"msg": "导入插件id与table_id不一致"})
+
         if self.create_params["logo"]:
             self.create_params["logo"] = ",".join(["data:image/png;base64", self.create_params["logo"].decode("utf8")])
         self.create_params["signature"] = self.create_params["signature"].decode("utf8")

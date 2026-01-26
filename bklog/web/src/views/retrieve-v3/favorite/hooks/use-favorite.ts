@@ -207,7 +207,7 @@ export const useFavorite = () => {
     });
 
     Object.assign(query, resolver.resolveParamsToUrl(), {
-      tab: item?.favorite_type === 'chart' ? 'graph_analysis' : 'origin',
+      tab: item?.favorite_type === 'chart' ? 'graphAnalysis' : 'origin',
     });
 
     router.replace({ params, query });

@@ -153,9 +153,7 @@ class CollectorViewSet(ModelViewSet):
         if self.request.query_params.get(BKDATA_OPEN) and settings.FEATURE_TOGGLE["scenario_bkdata"] == "off":
             qs = qs.filter(Q(etl_config=EtlConfig.BK_LOG_TEXT) | Q(etl_config__isnull=True))
         if self.request.query_params.get(NOT_CUSTOM):
-            qs = qs.exclude(
-                collector_scenario_id__in=[CollectorScenarioEnum.CUSTOM.value, CollectorScenarioEnum.CLIENT.value]
-            )
+            qs = qs.exclude(collector_scenario_id=CollectorScenarioEnum.CUSTOM.value)
         if self.request.query_params.get(IGNORE_DISPLAY_CONFIG):
             return qs.all()
         return qs.filter(is_display=True)

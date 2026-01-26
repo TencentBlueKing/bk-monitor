@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -18,6 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
+from typing import Dict, List, Union
 
 from django.utils.translation import gettext_lazy as _
 from iam import Action
@@ -43,7 +46,7 @@ class ActionMeta(Action):
         description: str = "",
         description_en: str = "",
     ):
-        super().__init__(id)
+        super(ActionMeta, self).__init__(id)
         self.name = name
         self.name_en = name_en
         self.type = type
@@ -214,31 +217,11 @@ class ActionEnum:
         version=1,
     )
 
-    DOWNLOAD_CLIENT_LOG = ActionMeta(
-        id="download_client_log",
-        name=_("客户端日志下载"),
-        name_en="Download Client Log",
-        type="view",
-        related_resource_types=[ResourceEnum.BUSINESS],
-        related_actions=[VIEW_BUSINESS.id],
-        version=1,
-    )
-
-    CREATE_CLIENT_LOG_TASK = ActionMeta(
-        id="create_client_log_task",
-        name=_("客户端日志采集任务创建"),
-        name_en="Create Client Log Task",
-        type="manage",
-        related_resource_types=[ResourceEnum.BUSINESS],
-        related_actions=[VIEW_BUSINESS.id],
-        version=1,
-    )
-
 
 _all_actions = {action.id: action for action in ActionEnum.__dict__.values() if isinstance(action, ActionMeta)}
 
 
-def get_action_by_id(action_id: str | ActionMeta) -> ActionMeta:
+def get_action_by_id(action_id: Union[str, ActionMeta]) -> ActionMeta:
     """
     根据动作ID获取动作实例
     """
@@ -252,7 +235,7 @@ def get_action_by_id(action_id: str | ActionMeta) -> ActionMeta:
     return _all_actions[action_id]
 
 
-def fetch_related_actions(actions: list[ActionMeta | str]) -> dict[str, ActionMeta]:
+def fetch_related_actions(actions: List[Union[ActionMeta, str]]) -> Dict[str, ActionMeta]:
     """
     递归获取 action 动作依赖列表
     """
@@ -280,7 +263,7 @@ def fetch_related_actions(actions: list[ActionMeta | str]) -> dict[str, ActionMe
     return related_actions
 
 
-def generate_all_actions_json() -> list:
+def generate_all_actions_json() -> List:
     """
     生成migrations的json配置
     """

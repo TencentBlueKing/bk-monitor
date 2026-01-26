@@ -178,7 +178,6 @@
   import EmptyStatus from '@/components/empty-status';
   import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
   import { mapGetters } from 'vuex';
-  import useUtils from '@/hooks/use-utils';
 
   import * as authorityMap from '../../../../common/authority-map';
   import DirectoryManage from './directory-manage';
@@ -244,8 +243,7 @@
           const res = await this.$http.request('extractManage/getStrategyList', {
             query: { bk_biz_id: this.$store.state.bkBizId },
           });
-          const { formatResponseListTimeZoneString } = useUtils();
-          this.strategyList = formatResponseListTimeZoneString(res.data || []);
+          this.strategyList = res.data;
         } catch (e) {
           console.warn(e);
           this.emptyType = '500';

@@ -521,64 +521,6 @@
                 "description_en":""
             }
         },
-        {
-            "operation":"upsert_action",
-            "data":{
-                "id":"download_client_log",
-                "name":"客户端日志下载",
-                "name_en":"Download Client Log",
-                "type":"view",
-                "version":1,
-                "related_resource_types":[
-                    {
-                        "system_id":"bk_monitorv3",
-                        "id":"space",
-                        "selection_mode":"instance",
-                        "related_instance_selections":[
-                            {
-                                "system_id":"bk_monitorv3",
-                                "id":"space_list"
-                            }
-                        ],
-                        "ignore_iam_path":true
-                    }
-                ],
-                "related_actions":[
-                    "view_business_v2"
-                ],
-                "description":"",
-                "description_en":""
-            }
-        },
-        {
-            "operation":"upsert_action",
-            "data":{
-                "id":"create_client_log_task",
-                "name":"客户端日志采集任务创建",
-                "name_en":"Create Client Log Task",
-                "type":"manage",
-                "version":1,
-                "related_resource_types":[
-                    {
-                        "system_id":"bk_monitorv3",
-                        "id":"space",
-                        "selection_mode":"instance",
-                        "related_instance_selections":[
-                            {
-                                "system_id":"bk_monitorv3",
-                                "id":"space_list"
-                            }
-                        ],
-                        "ignore_iam_path":true
-                    }
-                ],
-                "related_actions":[
-                    "view_business_v2"
-                ],
-                "description":"",
-                "description_en":""
-            }
-        },
 
         {
             "operation":"upsert_action_groups",
@@ -652,18 +594,6 @@
                             "actions":[
                                 {
                                     "id":"manage_extract_config_v2"
-                                }
-                            ]
-                        },
-                        {
-                            "name":"客户端日志",
-                            "name_en":"Client Log",
-                            "actions":[
-                                {
-                                    "id":"download_client_log"
-                                },
-                                {
-                                    "id":"create_client_log_task"
                                 }
                             ]
                         },
@@ -782,12 +712,6 @@
                             "id":"manage_extract_config_v2"
                         },
                         {
-                            "id":"download_client_log"
-                        },
-                        {
-                            "id":"create_client_log_task"
-                        },
-                        {
                             "id":"manage_desensitize_rule"
                         }
                     ]
@@ -807,9 +731,6 @@
                         },
                         {
                             "id":"view_dashboard_v2"
-                        },
-                        {
-                            "id":"download_client_log"
                         }
                     ]
                 }

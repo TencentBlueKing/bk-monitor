@@ -203,7 +203,7 @@
         </bk-table-column>
         <!-- 操作时间 -->
         <bk-table-column
-          width="240"
+          width="150"
           :label="$t('操作时间')"
           align="center"
           header-align="center"
@@ -487,7 +487,7 @@
         return this.exportStatusList[status];
       },
       getFormatDate(time) {
-        return formatDate(new Date(time).getTime(), true);
+        return formatDate(new Date(time).getTime());
       },
       handleRetrieve($row) {
         const { spaceUid } = this.$store.state;

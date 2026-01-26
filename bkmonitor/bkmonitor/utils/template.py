@@ -272,7 +272,7 @@ class AlarmNoticeTemplate:
         try:
             return cls.get_template_source(template_path)
         except TemplateDoesNotExist:
-            logger.debug(f"use empty template because {template_path} not exists")
+            logger.info(f"use empty template because {template_path} not exists")
         except Exception as e:
             logger.info(f"use default template because {template_path} load fail, {e}")
         template_path = cls.get_default_path(template_path, language_suffix)
@@ -280,7 +280,7 @@ class AlarmNoticeTemplate:
         try:
             return cls.get_template_source(template_path)
         except TemplateDoesNotExist:
-            logger.debug(f"use empty template because {template_path} not exists")
+            logger.info(f"use empty template because {template_path} not exists")
         except Exception as e:
             logger.info(f"use empty template because {template_path} load fail, {e}")
         return ""

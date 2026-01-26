@@ -228,7 +228,7 @@
 <style lang="scss" scoped>
   .sub-nav-container {
     position: fixed;
-    top: 52px;
+    top: 51px;
     z-index: 9;
     display: flex;
     align-items: center;

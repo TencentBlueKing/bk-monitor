@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -7,9 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 from copy import deepcopy
 from functools import lru_cache
+from typing import Dict, Optional
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -22,7 +23,7 @@ from monitor_web.models.custom_report import CustomEventGroup
 
 
 @lru_cache(maxsize=1000)
-def get_org_id(bk_biz_id: int) -> int | None:
+def get_org_id(bk_biz_id: int) -> Optional[int]:
     """
     获取业务对应的Grafana组织ID
     :param bk_biz_id: 业务
@@ -107,6 +108,12 @@ def patch_home_panels():
 </div>
 <br>
 <div>
+    <a href="{settings.SITE_URL}grafana/dashboards/folder/new"><H3>"""
+                + _("你可以通过创建目录来管理仪表盘。")
+                + f"""</H3></a>
+</div>
+<br>
+<div>
     <a href="{settings.SITE_URL}grafana/dashboard/import"><H3>"""
                 + _("你可以直接导入，如果本地有仪表盘文件")
                 + f"""</H3></a>
@@ -134,7 +141,7 @@ def patch_home_panels():
     return panels
 
 
-def get_cookies_filter() -> dict | None:
+def get_cookies_filter() -> Optional[Dict]:
     """
     解析Cookies过滤字段
     HTTP_KEEPCOOKIES可能为空
@@ -195,13 +202,13 @@ def remove_all_conditions(where_list: list) -> list:
 def convert_to_microseconds(time_str: str) -> int:
     # 定义单位转换关系
     time_multipliers = {
-        "ns": 1e-3,  # 纳秒到微秒
-        "us": 1,  # 微秒到微秒
-        "µs": 1,  # 微秒到微秒 (有些地方会用µs表示)
-        "ms": 1e3,  # 毫秒到微秒
-        "s": 1e6,  # 秒到微秒
-        "m": 60 * 1e6,  # 分钟到微秒
-        "h": 3600 * 1e6,  # 小时到微秒
+        'ns': 1e-3,  # 纳秒到微秒
+        'us': 1,  # 微秒到微秒
+        'µs': 1,  # 微秒到微秒 (有些地方会用µs表示)
+        'ms': 1e3,  # 毫秒到微秒
+        's': 1e6,  # 秒到微秒
+        'm': 60 * 1e6,  # 分钟到微秒
+        'h': 3600 * 1e6,  # 小时到微秒
     }
 
     # 提取数字部分和单位部分
@@ -213,7 +220,7 @@ def convert_to_microseconds(time_str: str) -> int:
     raise ValueError("Unsupported time format")
 
 
-def is_global_k8s_event(params: dict, bk_biz_id: int) -> bool:
+def is_global_k8s_event(params: Dict, bk_biz_id: int) -> bool:
     """
     判断是否是全局k8s事件
     """

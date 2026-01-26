@@ -36,8 +36,6 @@ export const typeTextMap = {
   incident_recover: '故障已恢复',
   incident_notice: '故障通知已发送（接收人：{receivers}）',
   incident_merge: '故障{merged_incident_name}被合并入当前故障',
-  incident_merge_new: '故障【{link_incident_name}】合并入当前故障',
-  incident_merge_to: '当前故障合并到【{link_incident_name}】',
   incident_update: '{operator}故障属性{incident_key_alias}: 从{from_value}被修改为{to_value}',
   alert_trigger: '检测到新告警（{alert_name}）',
   alert_recover: '告警已恢复（{alert_name}）',
@@ -86,26 +84,6 @@ export const handleFun = (data, callback) => {
   const node = JSON.parse(JSON.stringify({ ...data }));
   node.id = data.alert_id;
   window.__BK_WEWEB_DATA__?.showDetailSlider?.(node);
-};
-
-/** 故障合并相关渲染函数 */
-export const handleLinkIncident = (data, bizId) => {
-  const { origin, pathname } = window.location;
-  const { action } = data;
-  return (
-    <span
-      class='link cursor'
-      onClick={() => {
-        // 点击跳转另一个故障详情页
-        window.open(
-          `${origin}${pathname}?bizId=${bizId}#/trace/${action.target}/detail/${data[action.params[0]]}`,
-          '_blank'
-        );
-      }}
-    >
-      {data.link_incident_name}
-    </span>
-  );
 };
 
 /** 点击跳转到告警tab */
@@ -220,35 +198,13 @@ export const renderMap = reactive({
       />
     );
   },
-  incident_merge: ({ extra_info }, id, bizId, callback) => {
-    const { action } = extra_info;
-    if (!action) {
-      return (
-        <i18n-t
-          v-slots={{
-            merged_incident_name: <span>{extra_info?.merged_incident_name || ''}</span>,
-          }}
-          keypath={typeTextMap.incident_merge}
-        />
-      );
-    }
+  incident_merge: ({ extra_info }) => {
     return (
       <i18n-t
         v-slots={{
-          link_incident_name: () => handleLinkIncident(extra_info, bizId),
+          merged_incident_name: <span>{extra_info?.merged_incident_name || ''}</span>,
         }}
-        keypath={typeTextMap.incident_merge_new}
-      />
-    );
-  },
-  incident_merge_to: ({ extra_info }, id, bizId, callback) => {
-    if (!extra_info?.action) return;
-    return (
-      <i18n-t
-        v-slots={{
-          link_incident_name: () => handleLinkIncident(extra_info, bizId),
-        }}
-        keypath={typeTextMap.incident_merge_to}
+        keypath={typeTextMap.incident_merge}
       />
     );
   },

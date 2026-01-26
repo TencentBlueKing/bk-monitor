@@ -312,7 +312,7 @@ export default defineComponent({
         console.warn('VueFlow element not found');
         return;
       }
-      const fileName = `${dayjs.tz().format('YYYY-MM-DD HH:mm:ssZZ')}`;
+      const fileName = `${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`;
       capture(vueFlowRef.value, { shouldDownload: true, fileName });
     }
     /**

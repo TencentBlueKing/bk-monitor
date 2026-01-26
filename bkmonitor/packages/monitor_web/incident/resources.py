@@ -52,9 +52,9 @@ from fta_web.alert.handlers.incident import (
 from fta_web.alert.resources import BaseTopNResource
 from fta_web.alert.serializers import AlertSearchSerializer
 from fta_web.models.alert import SearchHistory, SearchType
-from monitor_web.incident.events.resources import IncidentEventsDetailResource, IncidentEventsSearchResource  # noqa
-from monitor_web.incident.metrics.resources import IncidentMetricsSearchResource  # noqa
 from monitor_web.incident.serializers import IncidentSearchSerializer
+from monitor_web.incident.metrics.resources import IncidentMetricsSearchResource  # noqa
+from monitor_web.incident.events.resources import IncidentEventsSearchResource, IncidentEventsDetailResource  # noqa
 
 
 class IncidentBaseResource(Resource):
@@ -405,7 +405,6 @@ class ExportIncidentResource(Resource):
     """
 
     class RequestSerializer(IncidentSearchSerializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
         level = serializers.ListField(required=False, label="故障级别", default=[])
         assignee = serializers.ListField(required=False, label="故障负责人", default=[])
         handler = serializers.ListField(required=False, label="故障处理人", default=[])
@@ -413,7 +412,7 @@ class ExportIncidentResource(Resource):
     def perform_request(self, validated_request_data):
         handler = IncidentQueryHandler(**validated_request_data)
         incidents = handler.export()
-        return resource.export_import.export_package(list_data=incidents, bk_biz_id=validated_request_data["bk_biz_id"])
+        return resource.export_import.export_package(list_data=incidents)
 
 
 class IncidentOverviewResource(IncidentBaseResource):
@@ -552,13 +551,6 @@ class IncidentTopologyResource(IncidentBaseResource):
                 limit,
             )
             incident_snapshots = sorted(incident_snapshots, key=lambda x: x["create_time"])
-
-        # 过滤不需要的snapshots
-        incident_snapshots = [
-            snapshot
-            for snapshot in incident_snapshots
-            if all([snapshot.fpp_snapshot_id != "fpp:None", not snapshot.fpp_snapshot_id.endswith(":llm_summary")])
-        ]
 
         # 根据实体加入的时间生成实体ID到时间的映射
         entities_orders = self.generate_entities_orders(incident_snapshots)
@@ -1139,10 +1131,6 @@ class IncidentOperationsResource(IncidentBaseResource):
             order_by="-create_time",
         )
         operations = [operation.to_dict() for operation in operations]
-        # 过滤掉内部操作类型（如 SEND_MESSAGE），这些类型仅用于内部记录，不在前端展示
-        operations = [
-            operation for operation in operations if not IncidentOperationType(operation["operation_type"]).is_internal
-        ]
         for operation in operations:
             operation["operation_class"] = IncidentOperationType(operation["operation_type"]).operation_class.value
         return operations
@@ -1191,12 +1179,7 @@ class IncidentOperationTypesResource(IncidentBaseResource):
             validated_request_data["incident_id"],
             order_by="-create_time",
         )
-        # 过滤掉内部操作类型
-        incident_operation_types = {
-            operation.operation_type
-            for operation in operations
-            if not IncidentOperationType(operation.operation_type).is_internal
-        }
+        incident_operation_types = {operation.operation_type for operation in operations}
 
         operation_types = {
             operation_class: {
@@ -1208,9 +1191,6 @@ class IncidentOperationTypesResource(IncidentBaseResource):
         }
 
         for operation_type in IncidentOperationType.__members__.values():
-            # 跳过内部操作类型
-            if operation_type.is_internal:
-                continue
             if operation_type.value in incident_operation_types:
                 operation_types[operation_type.operation_class]["operation_types"].append(
                     {
@@ -1315,9 +1295,6 @@ class IncidentAlertListResource(IncidentBaseResource):
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
         alerts = self.get_snapshot_alerts(snapshot, **validated_request_data)
 
-        # 获取故障的当前版本ID
-        incident_version_id = incident.extra_info.to_dict().get("version_id") if incident.extra_info else None
-
         incident_alerts = resource.commons.get_label()
         for category in incident_alerts:
             category["alerts"] = []
@@ -1331,11 +1308,6 @@ class IncidentAlertListResource(IncidentBaseResource):
                 if alert_entity
                 else False
             )
-            # 使用 extra_info 中的 version_id 判断告警是否与当前故障更新是同一批次
-            alert_version_id = (
-                alert.get("extra_info", {}).get("incident_version_id") if alert.get("extra_info") else None
-            )
-            alert["is_current_primary"] = incident_version_id is not None and alert_version_id == incident_version_id
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     category["alerts"].append(alert)
@@ -1366,9 +1338,6 @@ class IncidentAlertViewResource(IncidentBaseResource):
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
         alerts = self.get_snapshot_alerts(snapshot, **validated_request_data)
 
-        # 获取故障的当前版本ID
-        incident_version_id = incident.extra_info.to_dict().get("version_id") if incident.extra_info else None
-
         incident_alerts = resource.commons.get_label()
         for category in incident_alerts:
             category["alerts"] = []
@@ -1382,11 +1351,6 @@ class IncidentAlertViewResource(IncidentBaseResource):
                 if alert_entity
                 else False
             )
-            # 使用 extra_info 中的 version_id 判断告警是否与当前故障更新是同一批次
-            alert_version_id = (
-                alert.get("extra_info", {}).get("incident_version_id") if alert.get("extra_info") else None
-            )
-            alert["is_current_primary"] = incident_version_id is not None and alert_version_id == incident_version_id
             alert_doc = AlertDocument(**alert)
             # 检索得到的alert详情不包含event信息，只有event_id，这里默认当前告警时间的extra_info跟event相同
             alert_doc.event.extra_info = alert_doc.extra_info
@@ -1449,7 +1413,7 @@ class AlertIncidentDetailResource(IncidentDetailResource):
 
 INCIDENT_ANALYSIS_MAPPING_CONFIG = {
     "anomaly_analysis": {"content_key": "dimension_drill_result", "display_panel_name": "anomaly_analysis"},
-    "alerts_analysis": {"content_key": "dimension_drill", "display_panel_name": "alerts_analysis"},
+    "alerts_analysis": {"content_key": "dimension_drill", "display_panel_name": "anomaly_analysis"},
 }
 
 
@@ -1501,8 +1465,7 @@ class IncidentResultsResource(IncidentBaseResource):
                     "status": sub_panel["status"],
                     "message": sub_panel["message"] if sub_panel.get("message") else "",
                     "enabled": True
-                    if sub_panel.get("status") == "running"
-                    or (sub_panel.get("is_show", True) and self._content_valid(sub_panel.get("content")))
+                    if sub_panel.get("status") == "running" or self._content_valid(sub_panel.get("content"))
                     else False,
                 }
             self.set_upper_status(diagnosis_result, sub_key="sub_panels")

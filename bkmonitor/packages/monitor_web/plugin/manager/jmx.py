@@ -29,23 +29,13 @@ class JMXPluginManager(PluginManager):
     def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
         collector_data = param["collector"]
         plugin_data = param["plugin"]
-        ssl_enabled = plugin_data.get("ssl_enabled", "false")
         context = {
             "config.yaml": {
                 "username": plugin_data.pop("username"),
                 "password": plugin_data.pop("password"),
                 "jmx_url": plugin_data.pop("jmx_url"),
-                "ssl_enabled": ssl_enabled,
             },
-            "env.yaml": {
-                "host": collector_data["host"],
-                "port": collector_data["port"],
-                "ssl_enabled": ssl_enabled,
-                "ssl_trust_store": plugin_data.get("ssl_trust_store", ""),
-                "ssl_trust_store_password": plugin_data.get("ssl_trust_store_password", ""),
-                "ssl_key_store": plugin_data.get("ssl_key_store", ""),
-                "ssl_key_store_password": plugin_data.get("ssl_key_store_password", ""),
-            },
+            "env.yaml": {"host": collector_data["host"], "port": collector_data["port"]},
             "bkmonitorbeat_debug.yaml": {
                 "host": collector_data["host"],
                 "port": collector_data["port"],

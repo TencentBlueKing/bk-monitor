@@ -394,7 +394,6 @@ export default defineComponent({
                 finger-operate-data={fingerOperateData.value}
                 request-data={requestData.value}
                 total-fields={totalFields.value}
-                log-table-ref={logTableRef}
                 on-handle-finger-operate={handleFingerOperate}
                 on-close-group-tag={handleCloseGroupTag}
                 on-close-year-tag={handleCloseYearTag}

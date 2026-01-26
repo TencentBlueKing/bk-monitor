@@ -154,11 +154,6 @@ export default defineComponent({
         });
       }
 
-      RetrieveHelper.reportLog({
-        trigger_source: 'grep',
-        action: 'request',
-      }, store.state);
-
       return axiosInstance(params)
         .then((resp: any) => {
           if (resp.data && !resp.message) {

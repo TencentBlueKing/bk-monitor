@@ -1,0 +1,88 @@
+@import '@/scss/mixins/flex.scss';
+
+.field-filter-container {
+  font-size: 12px;
+  line-height: 20px;
+  color: #63656e;
+
+  .is-selected {
+    border-bottom: 1px solid #e1ecff;
+  }
+
+  .form-container {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    margin-top: 15px;
+
+    .king-input {
+      width: 100%;
+    }
+
+    .gap {
+      flex-shrink: 0;
+      width: 1px;
+      height: 100%;
+      margin: 0 16px;
+      background-color: #f0f1f5;
+    }
+
+    :deep(.bk-tooltip) {
+      flex-shrink: 0;
+    }
+
+    .filter-popover-trigger {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      margin-left: 16px;
+      font-size: 12px;
+      line-height: 18px;
+      color: #3a84ff;
+      cursor: pointer;
+
+      &:active {
+        color: #2761dd;
+      }
+
+      &:hover {
+        color: #699df4;
+      }
+
+      .text {
+        min-width: 65px;
+        margin: 0 4px 0 2px;
+      }
+
+      .count {
+        min-width: 18px;
+        height: 18px;
+        text-align: center;
+        background-color: #e1ecff;
+        border-radius: 50%;
+      }
+    }
+  }
+
+  .fields-container {
+    margin-top: 20px;
+
+    .title {
+      @include flex-align();
+    }
+
+    .all-field-item {
+      display: inline-block;
+      height: 26px;
+      margin: 0 0 7px 20px;
+      line-height: 26px;
+      color: #63656e;
+    }
+
+    .expand-all {
+      margin-left: 22px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+}

@@ -1429,7 +1429,6 @@ const store = new Vuex.Store({
         start_time: formatDate(startTime),
         end_time: formatDate(endTime),
         size: payload?.size ?? 100,
-        bk_biz_id: state.bkBizId,
       };
 
       if (state.indexItem.isUnionIndex) {

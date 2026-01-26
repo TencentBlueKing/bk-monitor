@@ -408,8 +408,8 @@ export default {
     },
     validateDateRange(val) {
       this.commonDateData.hasDateRange = !!val.join('');
-      const startTime = dayjs.tz(this.noticeDate.single.range[0]).format('YYYY-MM-DD HH:mm:ssZZ');
-      const endTime = dayjs.tz(this.noticeDate.single.range[1]).format('YYYY-MM-DD HH:mm:ssZZ');
+      const startTime = dayjs.tz(this.noticeDate.single.range[0]).format('YYYY-MM-DD HH:mm:ss');
+      const endTime = dayjs.tz(this.noticeDate.single.range[1]).format('YYYY-MM-DD HH:mm:ss');
       if (startTime.includes('00:00:00') && endTime.includes('00:00:00')) {
         this.noticeDate.single.range[1].setHours(23, 59, 59);
         this.noticeDate.single.range = [this.noticeDate.single.range[0], this.noticeDate.single.range[1]];
@@ -467,7 +467,7 @@ export default {
       Object.keys(this.noticeDate).forEach(key => {
         if (key === 'single') {
           this.noticeDate[key].range = this.noticeDate[key].range.map(item =>
-            dayjs.tz(item).format('YYYY-MM-DD HH:mm:ssZZ')
+            dayjs.tz(item).format('YYYY-MM-DD HH:mm:ss')
           );
         }
       });
@@ -557,7 +557,6 @@ export default {
       .bk-date-picker {
         width: 413px;
         margin-right: 10px;
-
         // :deep(.bk-date-picker-editor) {
         //     padding-left: 12px;
         // }
@@ -673,8 +672,8 @@ export default {
     line-height: 32px;
     color: #63656e;
     text-align: center;
-    cursor: pointer;
     list-style: none;
+    cursor: pointer;
 
     &:hover {
       background: #f0f1f5;

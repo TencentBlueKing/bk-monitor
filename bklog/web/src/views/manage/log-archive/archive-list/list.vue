@@ -200,7 +200,6 @@
   import { formatFileSize, clearTableFilter } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import { mapGetters } from 'vuex';
-  import useUtils from '@/hooks/use-utils';
 
   import * as authorityMap from '../../../../common/authority-map';
   import RestoreSlider from '../archive-restore/restore-slider.vue';
@@ -296,9 +295,8 @@
           })
           .then(res => {
             const { data } = res;
-            const { formatResponseListTimeZoneString } = useUtils();
             this.pagination.count = data.total;
-            this.dataList = formatResponseListTimeZoneString(data.list || []);
+            this.dataList = data.list;
           })
           .catch(err => {
             console.warn(err);

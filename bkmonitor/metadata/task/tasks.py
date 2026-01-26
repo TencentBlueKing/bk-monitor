@@ -19,14 +19,14 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import gettext as _
-from tenacity import RetryError, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
-from metadata.models import BkBaseResultTable, ClusterInfo, DataSource
+from metadata.models import BkBaseResultTable, DataSource
 from metadata.models.constants import (
     BASE_EVENT_RESULT_TABLE_FIELD_MAP,
     BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP,
@@ -35,17 +35,11 @@ from metadata.models.constants import (
     SYSTEM_PROC_DATA_LINK_CONFIGS,
     DataIdCreatedFromSystem,
 )
-from metadata.models.data_link.constants import (
-    BASEREPORT_SOURCE_SYSTEM,
-    BASEREPORT_USAGES,
-    BKBASE_NAMESPACE_BK_MONITOR,
-    DataLinkResourceStatus,
-)
+from metadata.models.data_link.constants import BASEREPORT_SOURCE_SYSTEM, BASEREPORT_USAGES, DataLinkResourceStatus
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.service import get_data_link_component_status
 from metadata.models.space.constants import EtlConfigs, SpaceTypes
 from metadata.models.space.space import Space
-from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.models.vm.record import AccessVMRecord
 from metadata.models.vm.utils import (
     create_fed_bkbase_data_link,
@@ -111,24 +105,16 @@ def create_full_cmdb_level_data_flow(table_id, bk_tenant_id=DEFAULT_TENANT_ID):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-@retry(
-    stop=stop_after_attempt(4),
-    wait=wait_exponential(multiplier=1, min=1, max=10),
-    retry=retry_if_exception_type(models.ESStorage.DoesNotExist),  # 目前只针对预设异常进行重试
-    reraise=True,  # 重试失败后，抛出原始异常
-)
 def create_es_storage_index(table_id):
     """
     异步创建es索引
-    由于异步触发时ESStorage可能还没就绪，添加重试机制
-    最多重试4次，等待时间间隔呈指数增长：1s -> 2s -> 4s -> 8s (最大10s)
     """
     logger.info("table_id: %s start to create es index", table_id)
     try:
         es_storage = models.ESStorage.objects.get(table_id=table_id)
     except models.ESStorage.DoesNotExist:
-        logger.error("table_id->[%s] not exists, will retry", table_id)
-        raise models.ESStorage.DoesNotExist(f"table_id->[{table_id}] not exists")
+        logger.info("table_id->[%s] not exists", table_id)
+        return
 
     if not es_storage.index_exist():
         es_storage.create_index_and_aliases(es_storage.slice_gap)
@@ -510,7 +496,6 @@ def _access_bkdata_vm(
     table_id: str,
     data_id: int,
     allow_access_v2_data_link: bool | None = False,
-    force_update: bool = False,
 ):
     """接入计算平台 VM 任务
     NOTE: 根据环境变量判断是否启用新版vm链路
@@ -520,13 +505,7 @@ def _access_bkdata_vm(
     # NOTE：只有当allow_access_v2_data_link为True，即单指标单表时序指标数据时，才允许接入V4链路
     if settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link:
         logger.info("_access_bkdata_vm: start to access v2 bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
-        access_v2_bkdata_vm(
-            bk_tenant_id=bk_tenant_id,
-            bk_biz_id=bk_biz_id,
-            table_id=table_id,
-            data_id=data_id,
-            force_update=force_update,
-        )
+        access_v2_bkdata_vm(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
     else:
         logger.info("_access_bkdata_vm: start to access bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
         access_bkdata(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
@@ -539,7 +518,6 @@ def access_bkdata_vm(
     table_id: str,
     data_id: int,
     allow_access_v2_data_link: bool = False,
-    force_update: bool = False,
 ):
     """接入计算平台 VM 任务"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
@@ -550,7 +528,6 @@ def access_bkdata_vm(
             table_id=table_id,
             data_id=data_id,
             allow_access_v2_data_link=allow_access_v2_data_link,
-            force_update=force_update,
         )
     except RetryError as e:
         logger.error(
@@ -1223,13 +1200,13 @@ def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         bk_biz_id,
         data_name,
     )
-    data_link_ins, created = models.DataLink.objects.update_or_create(
-        bk_tenant_id=bk_tenant_id,
+    data_link_ins, created = models.DataLink.objects.get_or_create(
         data_link_name=data_name,
         namespace="bkmonitor",
         data_link_strategy=models.DataLink.BASEREPORT_TIME_SERIES_V1,
-        defaults={"bk_data_id": data_source.bk_data_id, "table_ids": result_table_ids},
+        bk_tenant_id=bk_tenant_id,
     )
+
     # 2. 申请数据链路配置 VmResultTable, VmResultTableBinding, DataBus, ConditionalSink
     try:
         data_link_ins.apply_data_link(
@@ -1459,12 +1436,10 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
                     slice_size=500,
                     slice_gap=1440,
                     retention=30,
-                    index_settings=json.dumps(
-                        {
-                            "number_of_shards": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS,
-                            "number_of_replicas": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS,
-                        }
-                    ),
+                    index_settings=json.dumps({
+                        "number_of_shards": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS,
+                        "number_of_replicas": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS,
+                    }),
                     mapping_settings='{"dynamic_templates":[{"discover_dimension":{"path_match":"dimensions.*","mapping":{"type":"keyword"}}}]}',
                     source_type="log",
                     need_create_index=True,
@@ -1494,11 +1469,11 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         bk_biz_id,
         data_name,
     )
-    data_link_ins, _ = models.DataLink.objects.update_or_create(
-        bk_tenant_id=bk_tenant_id,
+    data_link_ins, _ = models.DataLink.objects.get_or_create(
         data_link_name=data_name,
         data_link_strategy=models.DataLink.BASE_EVENT_V1,
-        defaults={"namespace": "bklog", "bk_data_id": data_source.bk_data_id, "table_ids": [table_id]},
+        bk_tenant_id=bk_tenant_id,
+        defaults={"namespace": "bklog"},
     )
 
     # 2. 申请数据链路配置 ResultTableConfig,ESStorageBindingConfig,DataBusConfig
@@ -1791,12 +1766,11 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
             models.ResultTableField.objects.bulk_create(result_table_field_to_create)
 
         # 创建数据链路
-        data_link_ins, _ = models.DataLink.objects.update_or_create(
-            bk_tenant_id=bk_tenant_id,
+        data_link_ins, _ = models.DataLink.objects.get_or_create(
             data_link_name=data_name,
             namespace="bkmonitor",
             data_link_strategy=data_name_to_data_link_strategy[data_link_type],
-            defaults={"bk_data_id": data_source.bk_data_id, "table_ids": [table_id]},
+            bk_tenant_id=bk_tenant_id,
         )
 
         # 申请数据链路配置
@@ -1896,205 +1870,3 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
                     task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
 
     logger.info("check_bkcc_space_builtin_datalink: check bkcc space builtin datalink success")
-
-
-def create_single_tenant_system_datalink(
-    data_bk_biz_id: int | None = None, kafka_cluster_name: str = "kafka_outer_default"
-):
-    """创建单租户系统数据链路
-
-    Note: 单租户全新部署的情况下，将1001指定为BKDATA来源的数据源，并将内置结果表指向固定的vmrt。
-          清洗配置和vmrt内置生成
-
-    Args:
-        bk_biz_id: 业务ID
-        kafka_cluster_name: 消息队列集群名称，默认使用kafka_outer_default
-    """
-
-    # 如果开启了多租户模式，则跳过
-    if settings.ENABLE_MULTI_TENANT_MODE:
-        logger.info("create_single_tenant_system_datalink: multi tenant mode is enabled,return!")
-        return
-
-    # 如果未指定业务ID，则使用默认业务ID
-    if data_bk_biz_id is None:
-        bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
-    else:
-        bk_biz_id = data_bk_biz_id
-
-    datasource = DataSource.objects.get(bk_data_id=settings.SNAPSHOT_DATAID)
-
-    # 如果数据源创建来源不是BKDATA，则更新为BKDATA，停止transfer任务
-    if datasource.created_from != DataIdCreatedFromSystem.BKDATA.value:
-        datasource.created_from = DataIdCreatedFromSystem.BKDATA.value
-        # 获取BKDATA使用的消息队列
-        try:
-            bkdata_mq_cluster = ClusterInfo.objects.get(
-                cluster_type=ClusterInfo.TYPE_KAFKA, cluster_name=kafka_cluster_name
-            )
-        except ClusterInfo.DoesNotExist:
-            logger.error(
-                f"create_single_tenant_system_datalink: Kafka cluster with name '{kafka_cluster_name}' does not exist, aborting."
-            )
-            return
-        datasource.mq_cluster_id = bkdata_mq_cluster.cluster_id
-        # 删除consul配置
-        datasource.delete_consul_config()
-        # 注册到BKDATA
-        datasource.register_to_bkbase(bk_biz_id=bk_biz_id, bkbase_data_name="basereport")
-        datasource.save()
-
-    # 获取默认的VM集群
-    vm_cluster = ClusterInfo.objects.get(
-        bk_tenant_id=datasource.bk_tenant_id, is_default_cluster=True, cluster_type=ClusterInfo.TYPE_VM
-    )
-
-    # 创建内置结果表对应的AccessVMRecord
-    table_ids: list[str] = []
-    for table in BASEREPORT_USAGES:
-        table_id = f"system.{table}"
-        table_ids.append(table_id)
-        AccessVMRecord.objects.update_or_create(
-            bk_tenant_id=datasource.bk_tenant_id,
-            result_table_id=table_id,
-            defaults={
-                "data_type": AccessVMRecord.ACCESS_VM,
-                "storage_cluster_id": vm_cluster.cluster_id,
-                "bk_base_data_id": datasource.bk_data_id,
-                "bk_base_data_name": datasource.data_name,
-                "vm_result_table_id": f"{bk_biz_id}_sys_{table}",
-            },
-        )
-
-    # 创建数据链路
-    data_link_ins, _ = DataLink.objects.update_or_create(
-        data_link_name="basereport",
-        defaults={
-            "data_link_strategy": DataLink.BASEREPORT_TIME_SERIES_V1,
-            "namespace": BKBASE_NAMESPACE_BK_MONITOR,
-            "bk_tenant_id": datasource.bk_tenant_id,
-            "bk_data_id": datasource.bk_data_id,
-            "table_ids": table_ids,
-        },
-    )
-    data_link_ins.apply_data_link(
-        data_source=datasource,
-        storage_cluster_name=vm_cluster.cluster_name,
-        bk_biz_id=bk_biz_id,
-        source=BASEREPORT_SOURCE_SYSTEM,
-        prefix=BASEREPORT_SOURCE_SYSTEM,
-    )
-
-    # 刷新查询路由表数据
-    SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_ids, is_publish=True)
-    SpaceTableIDRedis().push_multi_space_table_ids(
-        spaces=list(Space.objects.filter(space_type_id=SpaceTypes.BKCC.value)),
-        is_publish=True,
-    )
-
-
-def create_single_tenant_system_proc_datalink(
-    data_bk_biz_id: int | None = None, kafka_cluster_name: str = "kafka_outer_default"
-):
-    """创建单租户系统进程数据链路
-
-    Note: 单租户全新部署的情况下，将1007/1013指定为BKDATA来源的数据源，并将内置结果表指向固定的vmrt。
-          清洗配置和vmrt内置生成
-
-    Args:
-        bk_biz_id: 业务ID
-        kafka_cluster_name: 消息队列集群名称，默认使用kafka_outer_default
-    """
-
-    # 如果开启了多租户模式，则跳过
-    if settings.ENABLE_MULTI_TENANT_MODE:
-        logger.info("create_single_tenant_system_proc_datalink: multi tenant mode is enabled,return!")
-        return
-
-    # 如果未指定业务ID，则使用默认业务ID
-    if data_bk_biz_id is None:
-        bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
-    else:
-        bk_biz_id = data_bk_biz_id
-
-    # 获取默认的VM集群
-    vm_cluster = ClusterInfo.objects.get(is_default_cluster=True, cluster_type=ClusterInfo.TYPE_VM)
-
-    # 获取kafka集群
-    try:
-        bkdata_mq_cluster = ClusterInfo.objects.get(
-            cluster_type=ClusterInfo.TYPE_KAFKA, cluster_name=kafka_cluster_name
-        )
-    except ClusterInfo.DoesNotExist:
-        logger.error(
-            f"create_single_tenant_system_proc_datalink: Kafka cluster with name '{kafka_cluster_name}' does not exist, aborting."
-        )
-        return
-
-    # 数据ID到BKDATA数据源名称、数据链路策略的映射
-    data_ids = [settings.PROCESS_PERF_DATAID, settings.PROCESS_PORT_DATAID]
-    data_id_to_table_id = {
-        settings.PROCESS_PERF_DATAID: "system.proc",
-        settings.PROCESS_PORT_DATAID: "system.proc_port",
-    }
-    data_id_to_bkbase_data_name = {
-        settings.PROCESS_PERF_DATAID: "system_proc_perf",
-        settings.PROCESS_PORT_DATAID: "system_proc_port",
-    }
-    data_id_to_data_link_strategy = {
-        settings.PROCESS_PERF_DATAID: DataLink.SYSTEM_PROC_PERF,
-        settings.PROCESS_PORT_DATAID: DataLink.SYSTEM_PROC_PORT,
-    }
-
-    for data_id in data_ids:
-        datasource = DataSource.objects.get(bk_data_id=data_id)
-        if datasource.created_from != DataIdCreatedFromSystem.BKDATA.value:
-            datasource.created_from = DataIdCreatedFromSystem.BKDATA.value
-            # 切换到BKDATA使用的消息队列
-            datasource.mq_cluster_id = bkdata_mq_cluster.cluster_id
-            # 删除consul配置
-            datasource.delete_consul_config()
-            # 注册到BKDATA
-            datasource.register_to_bkbase(bk_biz_id=bk_biz_id, bkbase_data_name=data_id_to_bkbase_data_name[data_id])
-            datasource.save()
-
-        # 创建内置结果表对应的AccessVMRecord
-        AccessVMRecord.objects.update_or_create(
-            bk_tenant_id=datasource.bk_tenant_id,
-            result_table_id=data_id_to_table_id[data_id],
-            defaults={
-                "data_type": AccessVMRecord.ACCESS_VM,
-                "storage_cluster_id": vm_cluster.cluster_id,
-                "bk_base_data_id": datasource.bk_data_id,
-                "bk_base_data_name": datasource.data_name,
-                "vm_result_table_id": f"{bk_biz_id}_{data_id_to_bkbase_data_name[data_id]}",
-            },
-        )
-
-        # 创建数据链路
-        data_link_ins, _ = DataLink.objects.update_or_create(
-            data_link_name=data_id_to_bkbase_data_name[data_id],
-            defaults={
-                "data_link_strategy": data_id_to_data_link_strategy[data_id],
-                "namespace": BKBASE_NAMESPACE_BK_MONITOR,
-                "bk_tenant_id": datasource.bk_tenant_id,
-                "bk_data_id": datasource.bk_data_id,
-                "table_ids": [data_id_to_table_id[data_id]],
-            },
-        )
-        data_link_ins.apply_data_link(
-            data_source=datasource,
-            storage_cluster_name=vm_cluster.cluster_name,
-            bk_biz_id=bk_biz_id,
-            table_id=data_id_to_table_id[data_id],
-            prefix="",
-        )
-
-    # 刷新查询路由表数据
-    SpaceTableIDRedis().push_table_id_detail(
-        bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=list(data_id_to_table_id.values()), is_publish=True
-    )
-    SpaceTableIDRedis().push_multi_space_table_ids(
-        spaces=list(Space.objects.filter(space_type_id=SpaceTypes.BKCC.value)),
-        is_publish=True,
-    )

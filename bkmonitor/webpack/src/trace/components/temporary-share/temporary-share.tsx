@@ -38,7 +38,7 @@ import { type TimeRangeType, TimeRange } from '../time-range/utils';
 
 import './temporary-share.scss';
 
-const MomentFormater = 'YYYY-MM-DD HH:mm:ssZZ';
+const MomentFormater = 'YYYY-MM-DD HH:mm:ss';
 export default defineComponent({
   directives: {
     bkTooltips,
