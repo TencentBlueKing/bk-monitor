@@ -39,6 +39,7 @@ import GrepCliResult from './grep-cli-result';
 import GrepCliTotal from './grep-cli-total';
 import type { GrepRequestResult } from './types';
 import { axiosInstance } from '@/api';
+import http from '@/api/index';
 
 import './grep-cli.scss';
 
@@ -114,7 +115,6 @@ export default defineComponent({
     };
 
     const requestGrepList = debounce(() => {
-      console.log('requestGrepList called, current offset:', 1);
       if (!grepRequestResult.value.has_more) {
         return;
       }
@@ -175,7 +175,6 @@ export default defineComponent({
               if (result) {
                 grepRequestResult.value.has_more = data.list.length === 100;
                 grepRequestResult.value.list.push(...data.list);
-                searchListTotal.value = data.total.toNumber?.() ?? data.total;
                 setTimeout(() => {
                   RetrieveHelper.highLightKeywords([searchValue.value], true);
                 });
@@ -233,7 +232,8 @@ export default defineComponent({
           grep_field: v,
         },
       });
-      requestGrepList();
+
+      reloadGrepDataAndTotal();
     };
 
     // 处理grep enter
@@ -251,8 +251,7 @@ export default defineComponent({
       if (field.value === '') {
         return;
       }
-
-      requestGrepList();
+      reloadGrepDataAndTotal();
     };
 
     const handleLoadMore = () => {
@@ -271,7 +270,8 @@ export default defineComponent({
         }
 
         resetGrepRequestResult();
-        requestGrepList();
+
+        reloadGrepDataAndTotal();
       }
     };
 
@@ -290,7 +290,7 @@ export default defineComponent({
     const handleParamsChange = ({ isParamsChange, option }: { isParamsChange: boolean; option: any }) => {
       if (isParamsChange) {
         resetGrepRequestResult();
-        requestGrepList();
+        reloadGrepDataAndTotal();
       }
 
       if (option.operation === 'highlight') {
@@ -298,14 +298,55 @@ export default defineComponent({
         searchValue.value = option.value;
       }
     };
+    /**
+     * 初始化获取 grep 检索总条数
+     */
+    const initGetGrepResultTotal = () => {
+      searchListTotal.value = 0;
+      if (!field.value) {
+        return;
+      }
+      const { start_time, end_time, keyword, addition } = store.state.indexItem;
+      const { alias_settings: aliasSettings, sort_list: sortList } = useFieldAliasRequestParams();
+      const data = {
+        start_time,
+        end_time,
+        keyword,
+        addition,
+        grep_query: grepQuery.value,
+        grep_field: field.value,
+        sort_list: sortList.value,
+        alias_settings: aliasSettings.value,
+      };
+      http
+        .request('retrieve/getGrepResultTotal', {
+          params: {
+            index_set_id: store.state.indexId,
+          },
+          data,
+        })
+        .then(res => {
+          searchListTotal.value = res.data?.total || 0;
+        })
+        .catch(err => {
+          searchListTotal.value = 0;
+          window.mainComponent?.$bkMessage({ message: err?.message, theme: 'error' });
+        });
+    };
+    /**
+     * 重新加载检索总条数 和 检索的数据
+     */
+    const reloadGrepDataAndTotal = () => {
+      requestGrepList();
+      initGetGrepResultTotal();
+    };
 
     onMounted(() => {
       RetrieveHelper.setMarkInstance();
 
       resetGrepRequestResult();
       setDefaultFieldValue();
-
-      requestGrepList();
+      // requestGrepList();
     });
 
     onBeforeUnmount(() => {
@@ -326,8 +367,7 @@ export default defineComponent({
         />
         <GrepCliTotal
           total={searchListTotal.value}
-          loading={grepRequestResult.value.is_loading}
-          text={'共检索出{total}条结果'}
+          text={'- 共检索出{total}条结果 -'}
         />
         <GrepCliResult
           fieldName={field.value}
