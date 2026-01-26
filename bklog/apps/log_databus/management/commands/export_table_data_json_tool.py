@@ -136,7 +136,7 @@ class ExportTableDataJsonTool:
                         msg="表 {table_name} 未查询出数据",
                         table_name=table_name,
                     )
-                    continue
+                    data = []
 
                 os.makedirs(self.save_path, exist_ok=True)
 
