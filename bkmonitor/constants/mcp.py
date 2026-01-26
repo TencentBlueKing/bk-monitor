@@ -35,6 +35,7 @@ MCP_SERVER_NAME_TO_PERMISSION_ACTION = {
     "bkmonitorv3-prod-metrics-query": "using_metrics_mcp",
     "bkmonitorv3-prod-event-query": "using_log_mcp",
     "bkmonitorv3-prod-alarm": "using_alarm_mcp",
+    "bkmonitorv3-prod-relation-query": "using_metrics_mcp",
     # SSE协议 MCP Server
     "bkmonitorv3-prod-event": "using_log_mcp",
     "bkmonitorv3-prod-log": "using_log_mcp",
