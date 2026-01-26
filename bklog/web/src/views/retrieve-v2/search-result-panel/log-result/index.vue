@@ -91,7 +91,7 @@
               <div class="fields-setting-container">
                 <fields-setting
                   :field-alias-map="fieldAliasMap"
-                  :is-show="true"
+                  :is-show="showFieldsSetting"
                   :retrieve-params="retrieveParams"
                   config-type="list"
                   @cancel="cancelModifyFields"
@@ -175,6 +175,9 @@ export default {
         maxWidth: 1200,
         arrow: false,
         hideOnClick: false,
+        onShow: () => {
+          this.showFieldsSetting = true;
+        },
       },
     };
   },
@@ -290,6 +293,7 @@ export default {
         return false;
       }
 
+      this.showFieldsSetting = false;
       return true;
     },
     handleTagRender(item, index) {
@@ -320,7 +324,11 @@ export default {
       this.closeDropdown();
     },
     closeDropdown() {
+      if (!this.showFieldsSetting) {
+        return;
+      }
       this.$refs.refFieldsSettingPopper?.hide();
+      this.showFieldsSetting = false;
     },
 
     handleAddNewConfig() {
