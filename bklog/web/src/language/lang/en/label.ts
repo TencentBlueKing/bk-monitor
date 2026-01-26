@@ -950,4 +950,6 @@ export default {
   系统类型: 'System type',
   上传状态: 'Upload status',
   未上传: 'Not uploaded',
+  英文名称: 'English name',
+  '搜索名称、英文名称、地址、创建人': 'Search by name, English name, address, or creator',
 };
