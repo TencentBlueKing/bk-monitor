@@ -100,9 +100,9 @@ const showAiAssistant = computed(() => {
  * @description AI 预览文本
  * @returns {string}
  */
-const aiPreviewText = computed(() => {
-  return props.value;
-});
+// const aiPreviewText = computed(() => {
+//   return props.value;
+// });
 
 /** 所有字段的字段名 */
 const totalFieldsNameList = computed(() => {
@@ -623,7 +623,7 @@ watch(activeIndex, () => {
             <span class="value">{{ $t('AI 解析') }}</span>
           </div>
         </div>
-        <span v-if="showAiAssistant" class="ai-parse-value">{{ aiPreviewText }}</span>
+        <!-- <span v-if="showAiAssistant" class="ai-parse-value">{{ aiPreviewText }}</span> -->
         <div
           class="sql-syntax-link"
           @click="handleSQLReadmeClick"

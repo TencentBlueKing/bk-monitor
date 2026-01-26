@@ -1134,6 +1134,7 @@ export default {
      * @description: 发起搜索请求
      */
     handleKeywordChange() {
+      this.pagination.page = 1;
       this.getCollectionConfigList(false, true);
     },
     handleTableWrapperChange() {

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -62,10 +61,12 @@ class PushgatewayPluginManager(PluginManager):
                 # 维度注入参数，更新至labels的模板中
                 for dms_key, dms_value in list(param_value.items()):
                     if param["type"] == "host":
-                        dms_insert_params[dms_key] = "{{ " + f"cmdb_instance.host.{dms_value} or '-'" + " }}"
+                        dms_insert_params[dms_key] = (
+                            "{{ " + f"cmdb_instance.host.{dms_value} or '{dms_value}' or '-'" + " }}"
+                        )
                     elif param["type"] == "service":
                         dms_insert_params[dms_key] = (
-                            "{{ " + f"cmdb_instance.service.labels['{dms_value}'] or '-'" + " }}"
+                            "{{ " + f"cmdb_instance.service.labels['{dms_value}'] or '{dms_value}' or '-'" + " }}"
                         )
                     elif param["type"] == "custom":
                         # 自定义维度k， v 注入

@@ -129,7 +129,7 @@
               >
                 <template #default="{ row }">
                   <div>
-                    {{ formatDate(row.first_anomaly_time) }}
+                    {{ formatDate(row.first_anomaly_time, true) }}
                   </div>
                 </template>
               </bk-table-column>
@@ -482,7 +482,7 @@
       (res?.data || []).forEach(element => {
         strategyList.value.push(
           Object.assign({}, element, {
-            latest_time_format: element.latest_time ? formatDate(element.latest_time) : '--',
+            latest_time_format: element.latest_time ? formatDate(element.latest_time, true) : '--',
           }),
         );
       });

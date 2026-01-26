@@ -435,14 +435,19 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     // 格式化tooltip
     options.tooltip.formatter = (params) => {
       // 获取开始时间
-      const timeStart = dayjs(params[0].value[0]).format('MM-DD HH:mm:ss');
+      // const timeStart = dayjs(params[0].value[0]).format('MM-DD HH:mm:ss');
+
+      const timezone = store.state.indexItem.timezone;
       // const timeStart = formatTimeZoneString(params[0].value[0], timezone.value, 'MM-DD HH:mm:ssZZ');
 
       // 计算结束时间：起始时间 + runningInterval
       const startTimestamp = params[0].value[0]; // 时间戳
+      const timeStart = RetrieveHelper.formatTimeZoneValue(startTimestamp, 'date', timezone);
+
       const intervalSeconds = getIntervalValue(runningInterval);
       const endTimestamp = startTimestamp + intervalSeconds * 1000; // 转换为毫秒
-      const timeEnd = dayjs(endTimestamp).format('MM-DD HH:mm:ss');
+      // const timeEnd = dayjs(endTimestamp).format('MM-DD HH:mm:ss');
+      const timeEnd = RetrieveHelper.formatTimeZoneValue(endTimestamp, 'date', timezone);
       // const timeEnd = formatTimeZoneString(endTimestamp, timezone.value, 'MM-DD HH:mm:ssZZ');
 
       // 多 series 展示

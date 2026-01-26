@@ -221,8 +221,8 @@ export default defineComponent({
     onMounted(() => {
       const platform = window.navigator.platform.toLowerCase();
       const fontFamily =        platform.indexOf('win') === 0
-        ? 'Microsoft Yahei, pingFang-SC-Regular, Helvetica, Aria, sans-serif'
-        : 'pingFang-SC-Regular, Microsoft Yahei, Helvetica, Aria, sans-serif';
+        ? 'Microsoft Yahei, pingFang-SC, Helvetica, Aria, sans-serif'
+        : 'pingFang-SC, Microsoft Yahei, Helvetica, Aria, sans-serif';
       document.body.style['font-family'] = fontFamily;
       store.commit('updateState', { runVersion: window.RUN_VER || '' });
 

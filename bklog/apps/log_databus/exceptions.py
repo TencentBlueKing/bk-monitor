@@ -38,6 +38,13 @@ class BaseCollectorPluginException(BaseException):
     MESSAGE = _("采集插件模块异常")
 
 
+class MySqlConfigException(BaseException):
+    MODULE_CODE = "500"
+    MESSAGE = _(
+        "公共数据库配置异常, 请确认是否携带完整参数: [--mysql_host, --mysql_port, --mysql_db, --mysql_user, --mysql_password]"
+    )
+
+
 class CollectorConfigNotExistException(BaseCollectorConfigException):
     ERROR_CODE = "001"
     MESSAGE = _("采集配置不存在")

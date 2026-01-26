@@ -12,11 +12,14 @@ dayjs.extend(timezone);
  * @param time 时间戳或时间字符串（支持 ISO 8601 格式，如 2024-11-01T08:56:24.274552Z）
  * @returns 格式化后的时间字符串，格式：2025-11-04 21:44:38+0800
  */
-export const formatTimeZoneString = (time: number | string, timezone: string = 'Asia/Shanghai', format?) => {
+export const formatTimeZoneString = (time: number | string,
+  timezone: string = 'Asia/Shanghai',
+  format: string = 'YYYY-MM-DD HH:mm:ssZZ',
+  fixFormat = true) => {
 
   let formatString = format || 'YYYY-MM-DD HH:mm:ssZZ';
 
-  if (!/ZZ$/.test(formatString)) {
+  if (fixFormat && !/ZZ$/.test(formatString)) {
     formatString += 'ZZ';
   }
 

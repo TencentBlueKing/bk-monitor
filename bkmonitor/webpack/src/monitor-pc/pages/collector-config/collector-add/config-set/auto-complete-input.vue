@@ -29,7 +29,7 @@
     :class="['auto-complete-input', { 'password-input': isPasswordInput }]"
   >
     <!-- 文本类型 -->
-    <template v-if="!['file', 'boolean', 'list', 'switch', 'tag_list', 'code'].includes($attrs.type)">
+    <template v-if="!['file', 'boolean', 'list', 'switch', 'tag_list', 'code', 'custom'].includes($attrs.type)">
       <!-- 新增判断是否为密码框，若为密码框则不显示密码，根据密码的有无显示placeholder为"已配置/未配置" -->
       <bk-input
         ref="input"
@@ -138,6 +138,19 @@
           @change="handleSwitchChange"
         />
       </div>
+    </div>
+    <div
+      v-else-if="$attrs.type === 'custom'"
+      class="auto-complete-input-select custom-select"
+    >
+      <slot name="prepend" />
+      <bk-tag-input
+        v-model="customTypeParams"
+        allow-create
+        has-delete-icon
+        @blur="(input, val) => emitData(val)"
+        @change="val => emitData(val)"
+      />
     </div>
     <template v-else-if="$attrs.type === 'code'">
       <div class="auto-complete-input-select code-select">
@@ -257,6 +270,9 @@ export default class StrategySetTarget extends Vue {
   // 对外输出参数
   params = '';
 
+  /** 自定义类型的值 */
+  customTypeParams = [];
+
   authPriv = '';
 
   allConfig = {};
@@ -321,6 +337,8 @@ export default class StrategySetTarget extends Vue {
       this.allConfig = v;
       if (v.type === 'file') {
         this.params = v.default.filename;
+      } else if (v.type === 'custom') {
+        this.customTypeParams = Object.entries(v.default).map(item => item.join(':'));
       } else {
         if (this.isPasswordInput) {
           // 密码输入框的情况下无需显示密码内容
@@ -568,7 +586,7 @@ export default class StrategySetTarget extends Vue {
 </style>
 
 <style lang="scss" scoped>
-@import '../../../../theme/mixin.scss';
+@import '../../../../theme/mixin';
 
 .password-input {
   display: flex;
@@ -579,6 +597,12 @@ export default class StrategySetTarget extends Vue {
 
   .code-select {
     align-items: flex-start;
+  }
+
+  .custom-select {
+    .bk-tag-selector {
+      flex: 1;
+    }
   }
 
   .temp-span {
@@ -641,6 +665,7 @@ export default class StrategySetTarget extends Vue {
       flex-shrink: 0;
       height: 30px;
       line-height: 30px;
+
       // padding: 0 20px;
       background-color: #f2f4f8;
     }

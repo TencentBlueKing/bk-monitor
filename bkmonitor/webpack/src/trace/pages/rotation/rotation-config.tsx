@@ -30,6 +30,7 @@ import dayjs from 'dayjs';
 import { createDutyRule, retrieveDutyRule, updateDutyRule } from 'monitor-api/modules/model';
 import { getReceiver } from 'monitor-api/modules/notice_group';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
+import { createOfFormatWithTimezone, editOfFormatWithTimezone } from 'monitor-common/utils/timezone';
 import TimezoneTips from 'trace/components/timezone-tips/timezone-tips';
 import { useAppStore } from 'trace/store/modules/app';
 import { useI18n } from 'vue-i18n';
@@ -80,7 +81,7 @@ export default defineComponent({
       labels: [],
       enabled: true,
       effective: {
-        startTime: dayjs().format('YYYY-MM-DD HH:mm:ssZZ'),
+        startTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
         endTime: '',
       },
     });
@@ -156,7 +157,7 @@ export default defineComponent({
       if (id.value) {
         // 编辑状态下 且 生效结束时间大于此时此刻（永久）， 将生效起始时间修改为此时此刻
         if (!formData.effective.endTime || new Date(formData.effective.endTime).getTime() > Date.now()) {
-          formData.effective.startTime = dayjs().format('YYYY-MM-DD HH:mm:ssZZ');
+          formData.effective.startTime = dayjs().format('YYYY-MM-DD HH:mm:ss');
         }
       }
     }
@@ -313,8 +314,8 @@ export default defineComponent({
         labels,
         enabled,
         duty_arranges: dutyArranges,
-        effective_time: effective.startTime ? dayjs(effective.startTime).format('YYYY-MM-DD HH:mm:ssZZ') : '',
-        end_time: effective.endTime ? dayjs(effective.endTime).format('YYYY-MM-DD HH:mm:ssZZ') : '',
+        effective_time: effective.startTime ? createOfFormatWithTimezone(effective.startTime, spaceTimezone.value) : '',
+        end_time: effective.endTime ? createOfFormatWithTimezone(effective.endTime, spaceTimezone.value) : '',
       };
       return params;
     }
@@ -342,9 +343,9 @@ export default defineComponent({
         formData.labels = res.labels;
         formData.enabled = res.enabled;
         formData.effective.startTime = res.effective_time
-          ? dayjs(res.effective_time).format('YYYY-MM-DD HH:mm:ssZZ')
+          ? editOfFormatWithTimezone(res.effective_time, spaceTimezone.value)
           : '';
-        formData.effective.endTime = res.end_time ? dayjs(res.end_time).format('YYYY-MM-DD HH:mm:ssZZ') : '';
+        formData.effective.endTime = res.end_time ? editOfFormatWithTimezone(res.end_time, spaceTimezone.value) : '';
         if (res.category === 'regular') {
           rotationTypeData.regular = fixedRotationTransform(res.duty_arranges, 'data');
         } else {
@@ -592,7 +593,7 @@ export default defineComponent({
               style={{
                 marginLeft: '8px',
               }}
-              timezone={this.spaceTimezone || window.timezone}
+              timezone={this.spaceTimezone}
             />
           </FormItem>
           <FormItem
@@ -602,6 +603,7 @@ export default defineComponent({
           >
             <RotationCalendarPreview
               class='min-width-974'
+              timezone={this.spaceTimezone}
               value={this.previewData}
             />
           </FormItem>

@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, inject, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, inject, ref, watch } from 'vue';
 
 import { Button, Loading, Sideslider } from 'bkui-vue';
 import { retrieveDutyRule } from 'monitor-api/modules/model';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
+import TimezoneTips from 'trace/components/timezone-tips/timezone-tips';
+import { useAppStore } from 'trace/store/modules/app';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -66,6 +68,8 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    const appStore = useAppStore();
+    const spaceTimezone = computed(() => appStore.spaceTimezone);
     const router = useRouter();
     const authority = inject<IAuthority>('authority');
 
@@ -115,7 +119,8 @@ export default defineComponent({
     function getPreviewData() {
       previewLoading.value = true;
       const params = {
-        ...getPreviewParams(detailData.value.effective_time),
+        // 生效时间需要转换为业务时区
+        ...getPreviewParams(detailData.value.effective_time, spaceTimezone.value),
         source_type: 'DB',
         id: props.id,
       };
@@ -170,6 +175,7 @@ export default defineComponent({
       previewData,
       authority,
       previewLoading,
+      spaceTimezone,
       renderUserLogo,
       handleClosed,
       t,
@@ -237,17 +243,36 @@ export default defineComponent({
                   </span>
                 </FormItem>
                 <FormItem label={this.type === RotationTabTypeEnum.REGULAR ? this.t('值班规则') : this.t('轮值规则')}>
-                  {this.rules.map(rule => (
-                    <div class='rule-item-wrap'>
+                  {this.rules.map((rule, index) => (
+                    <div
+                      key={index}
+                      class='rule-item-wrap'
+                    >
                       {rule.ruleTime.map((time, ind) => (
-                        <div class='rule-item'>
+                        <div
+                          key={ind}
+                          class='rule-item'
+                        >
                           {rule.ruleTime.length > 1 && [
-                            <span class='rule-item-index'>{this.t('第 {num} 班', { num: ind + 1 })}</span>,
-                            <div class='col-separate' />,
+                            <span
+                              key={'01'}
+                              class='rule-item-index'
+                            >
+                              {this.t('第 {num} 班', { num: ind + 1 })}
+                            </span>,
+                            <div
+                              key={'02'}
+                              class='col-separate'
+                            />,
                           ]}
                           <span class='rule-item-title'>{time.day}</span>
-                          {time.timer.map(item => (
-                            <div class='rule-item-time-tag'>{item}</div>
+                          {time.timer.map((item, tIndex) => (
+                            <div
+                              key={tIndex}
+                              class='rule-item-time-tag'
+                            >
+                              {item}
+                            </div>
                           ))}
                           {time.periodSettings && <span class='rule-item-period'>{time.periodSettings}</span>}
                         </div>
@@ -260,19 +285,25 @@ export default defineComponent({
                         </div>
                       )}
                       <div class='notice-user-list'>
-                        {rule.ruleUser.map(item => (
-                          <div class={['notice-user-item', rule.isAuto && 'no-pl']}>
+                        {rule.ruleUser.map((item, rIndex) => (
+                          <div
+                            key={rIndex}
+                            class={['notice-user-item', rule.isAuto && 'no-pl']}
+                          >
                             {!rule.isAuto && (
                               <div
                                 style={{ background: randomColor(item.orderIndex) }}
                                 class='has-color'
                               />
                             )}
-                            {item.users.map((user, ind) => (
-                              <div class='personnel-choice'>
+                            {item.users.map((user, uIndex) => (
+                              <div
+                                key={uIndex}
+                                class='personnel-choice'
+                              >
                                 {rule.isAuto && (
                                   <span
-                                    style={{ 'background-color': randomColor(item.orderIndex + ind) }}
+                                    style={{ 'background-color': randomColor(item.orderIndex + uIndex) }}
                                     class='user-color'
                                   />
                                 )}
@@ -292,9 +323,15 @@ export default defineComponent({
                   hasColon={true}
                   label={this.t('生效时间')}
                 >
-                  <span class='detail-text'>{`${formatWithTimezone(this.detailData?.effective_time)} - ${
-                    formatWithTimezone(this.detailData?.end_time) || this.t('永久')
+                  <span class='detail-text'>{`${this.detailData?.effective_time} - ${
+                    this.detailData?.end_time || this.t('永久')
                   }`}</span>
+                  <TimezoneTips
+                    style={{
+                      marginLeft: '8px',
+                    }}
+                    timezone={this.spaceTimezone}
+                  />
                 </FormItem>
                 <FormItem
                   hasColon={true}
@@ -303,6 +340,7 @@ export default defineComponent({
                   <Loading loading={this.previewLoading}>
                     <RotationCalendarPreview
                       class='width-806'
+                      timezone={this.spaceTimezone}
                       value={this.previewData}
                     />
                   </Loading>

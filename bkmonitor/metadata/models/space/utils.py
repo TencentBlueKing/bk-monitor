@@ -808,6 +808,7 @@ def create_bkcc_spaces(biz_list: list[dict], create_builtin_data_link_delay: boo
                 space_id=str(biz["bk_biz_id"]),
                 space_name=biz["bk_biz_name"],
                 bk_tenant_id=biz["bk_tenant_id"],
+                time_zone=biz["time_zone"],
             )
         )
 

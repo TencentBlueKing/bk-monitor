@@ -122,6 +122,16 @@ def parse_str_int_list(str_list: str) -> list[int]:
         raise Exception(f"解析失败: {str_list}, 请输入逗号分隔的数字")
 
 
+def parse_str_list(str_list: str) -> list[str]:
+    """解析字符串为字符串列表"""
+    try:
+        if not str_list:
+            return []
+        return str_list.split(",")
+    except Exception:
+        raise Exception(f"解析失败: {str_list}, 请输入逗号分隔的字符")
+
+
 class Database:
     def __init__(
         self, db: str, host: str, port: int = 3306, user: str = "root", password: str = "", charset: str = "utf8"

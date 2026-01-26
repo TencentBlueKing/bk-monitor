@@ -29,6 +29,7 @@ import {
   defineAsyncComponent,
   defineComponent,
   KeepAlive,
+  nextTick,
   shallowRef,
   toRef,
   useTemplateRef,
@@ -38,6 +39,7 @@ import {
 import { Checkbox } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 const ExploreSpanSlider = defineAsyncComponent(() => import('../explore-span-slider/explore-span-slider'));
 const ExploreTraceSlider = defineAsyncComponent(() => import('../explore-trace-slider/explore-trace-slider'));
 import BackTop from '../../../../components/back-top/back-top';
@@ -96,9 +98,10 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    const route = useRoute();
+    const router = useRouter();
     const store = useTraceExploreStore();
     const backTopRef = useTemplateRef<InstanceType<typeof BackTop>>('backTopRef');
-
     /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
     /** 打开抽屉所需的数据Id(traceId/spanId) */
@@ -150,6 +153,19 @@ export default defineComponent({
     };
 
     /**
+     * @description 关闭 trace 侧滑触发的回调
+     */
+    const handleTraceSliderClose = () => {
+      handleSliderShowChange('', '');
+
+      // 关闭 trace 侧滑时清理 `incident_query`，避免一直保留导致重复触发自动打开逻辑
+      if (!route.query.incident_query) return;
+      const nextQuery = { ...route.query };
+      delete nextQuery.incident_query;
+      router.replace({ query: nextQuery });
+    };
+
+    /**
      * @description table上方快捷筛选操作区域（ "包含" 区域中的 复选框组） 渲染方法
      *
      */
@@ -190,6 +206,23 @@ export default defineComponent({
       );
     };
 
+    // 通过故障页面跳转到 trace 检索页：自动打开 trace 详情侧滑
+    watch(
+      () => route.query.incident_query,
+      incidentQuery => {
+        if (!incidentQuery) return;
+
+        const spanInfo = JSON.parse(decodeURIComponent(String(incidentQuery || '{}')));
+        if (spanInfo?.trace_id) {
+          nextTick(() => {
+            // 打开trace详情侧滑
+            handleSliderShowChange('trace', spanInfo.trace_id);
+          });
+        }
+      },
+      { immediate: true }
+    );
+
     watch(
       () => props.showSlideDetail,
       val => {
@@ -220,6 +253,7 @@ export default defineComponent({
       handleTableSortChange,
       filtersCheckBoxGroupRender,
       handleSliderShowChange,
+      handleTraceSliderClose,
       t,
     };
   },
@@ -262,7 +296,7 @@ export default defineComponent({
                 appName={this.appName}
                 isShow={this.sliderMode === 'trace'}
                 traceId={this.activeSliderId}
-                onSliderClose={() => this.handleSliderShowChange('', '')}
+                onSliderClose={this.handleTraceSliderClose}
               />
             )}
             {this.sliderMode === 'span' && (

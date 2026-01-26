@@ -76,6 +76,7 @@ import {
   getNodeAttrs,
   handleToLink,
   truncateText,
+  typeToLinkHandle,
 } from './utils';
 
 import type { IEdge, IEntity, IncidentDetailData, ITopoData, ITopoNode } from './types';
@@ -2677,34 +2678,23 @@ export default defineComponent({
       const rootNode = topoRawData.nodes.find(node => node.entity.is_root);
       rootNode && goToTracePage(rootNode.entity, 'traceDetail');
     };
-    const goToTracePage = (entity: IEntity, type) => {
-      const { rca_trace_info, observe_time_rage } = entity;
-      const query: Record<string, number | string> = {};
-      const incidentQuery = {
-        trace_id: rca_trace_info?.abnormal_traces[0].trace_id || '',
-        span_id: rca_trace_info?.abnormal_traces[0].span_id || '',
-        type,
-      };
-      if (observe_time_rage && Object.keys(observe_time_rage).length > 0) {
-        query.start_time = observe_time_rage.start_at;
-        query.end_time = observe_time_rage.end_at;
-      }
+
+    /** 跳转trace检索页 */
+    const goToTracePage = (entity: IEntity, type: string) => {
       const { origin, pathname } = window.location;
       const baseUrl = bkzIds.value[0] ? `${origin}${pathname}?bizId=${bkzIds.value[0]}` : '';
-      const newPage = router.resolve({
-        path: '/trace/home',
-        query: {
-          app_name: rca_trace_info?.abnormal_traces_query.app_name,
-          refreshInterval: '-1',
-          filterMode: 'queryString',
-          query: rca_trace_info.abnormal_traces_query.query,
-          sceneMode: 'trace',
-          incident_query: encodeURIComponent(JSON.stringify(incidentQuery)),
-          ...query,
-        },
-      });
-      window.open(baseUrl + newPage.href, '_blank');
+
+      // 选择对应的链接处理器
+      const linkHandleByType = typeToLinkHandle.SpanExplore;
+      // 获取查询参数
+      const query = linkHandleByType.query(entity, type);
+
+      const queryString = Object.keys(query)
+        .map(key => `${key}=${query[key]}`)
+        .join('&');
+      window.open(`${baseUrl}#${linkHandleByType.path()}?${queryString}`, '_blank');
     };
+
     const handleToDetailTab = node => {
       const { alert_display, alert_ids } = node;
       const name = alert_display?.alert_name || '';
@@ -2715,6 +2705,7 @@ export default defineComponent({
       };
       emit('toDetailTab', alertObj);
     };
+
     const refresh = () => {
       emit('refresh');
     };

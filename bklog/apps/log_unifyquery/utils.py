@@ -8,13 +8,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import pytz
 from dateutil import parser
+from django.conf import settings
 from rest_framework.exceptions import PermissionDenied
 
 from apps.constants import ApiTokenAuthType
 from apps.log_commons.models import ApiAuthToken
 from apps.log_search.constants import OperatorEnum
 from apps.log_unifyquery.constants import ADVANCED_OP_MAP
+from apps.utils.local import get_local_param
 from bkm_space.utils import bk_biz_id_to_space_uid
 
 
@@ -51,8 +54,14 @@ def deal_time_format(start_time, end_time):
     if isinstance(start_time, int) and isinstance(end_time, int):
         return start_time, end_time
 
+    default_tz = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
     dt1 = parser.parse(start_time)
     dt2 = parser.parse(end_time)
+    if dt1.tzinfo is None:
+        dt1 = default_tz.localize(dt1)
+    if dt2.tzinfo is None:
+        dt2 = default_tz.localize(dt2)
+
     start_time = int(dt1.timestamp() * 1000)
     end_time = int(dt2.timestamp() * 1000)
     return start_time, end_time

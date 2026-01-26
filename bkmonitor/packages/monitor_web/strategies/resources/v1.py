@@ -873,7 +873,7 @@ class StrategyConfigListResource(Resource):
 
             table_ids = [metric.result_table_id for metric in metrics.only("result_table_id")]
             if table_ids:
-                strategy_ids = (
+                strategy_ids = list(
                     QueryConfigModel.objects.filter(strategy_id__in=strategy_ids)
                     .filter(reduce(lambda x, y: x | y, (Q(config__result_table_id=table_id) for table_id in table_ids)))
                     .values_list("strategy_id", flat=True)

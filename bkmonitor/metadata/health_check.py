@@ -23,7 +23,7 @@ specific language governing permissions and limitations under the License.
 import enum
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 import arrow
 from django.conf import settings
@@ -87,6 +87,34 @@ class DataIdStatus(BaseModel):
     message: str = Field(description="消息", default="")
 
 
+DATA_RECORD_TYPE = dict[str, Any] | list["DATA_RECORD_TYPE"]
+
+
+def get_data_record_time_value(origin_data_record: DATA_RECORD_TYPE) -> datetime | None:
+    """获取数据记录时间
+
+    Args:
+        data_record: 数据记录
+
+    Returns:
+        datetime | None: 数据记录时间
+    """
+    # 如果data_record是列表，则取列表中的第一个元素，直到取到非列表为止
+    while isinstance(origin_data_record, list) and origin_data_record:
+        origin_data_record = origin_data_record[0]
+
+    if not origin_data_record:
+        return None
+
+    data_record = cast(dict[str, Any], origin_data_record)
+
+    time_value = data_record.get("timestamp") or data_record.get("utctime")
+    if time_value:
+        return arrow.get(time_value).datetime
+
+    return get_data_record_time_value(data_record.get("data", {}))
+
+
 def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_detail: bool = False) -> DataIdStatus:
     """获取数据id状态
 
@@ -130,9 +158,9 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
 
         try:
             data_id_config = get_data_id_v2(
+                bk_tenant_id=bk_tenant_id,
                 data_name=ds.data_name,
                 is_base=is_base,
-                bk_biz_id=bk_biz_id,
                 namespace=namespace,
                 with_detail=with_detail,
             )
@@ -154,17 +182,7 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
         data_id_status.message = str(e)
         return data_id_status
     data_id_status.kafka_data_exists = bool(result)
-    if isinstance(result, list) and len(result) > 0:
-        data_record = result[0]
-
-        if isinstance(data_record, list):
-            data_record = data_record[0]
-
-        time_info = (
-            data_record.get("timestamp") or data_record.get("data", {}).get("utctime") or data_record.get("utctime")
-        )
-        if time_info:
-            data_id_status.kafka_latest_time = arrow.get(time_info).datetime
+    data_id_status.kafka_latest_time = get_data_record_time_value(result)
 
     if with_detail:
         data_id_status.kafka_latest_data = result
@@ -314,19 +332,21 @@ def get_query_router_status(
 
         # 检查结果表是否存在与data_label结果表中
         if result_table.data_label:
-            data_label_key = (
-                f"{result_table.data_label}|{bk_tenant_id}"
-                if settings.ENABLE_MULTI_TENANT_MODE
-                else result_table.data_label
-            )
-            data_label_result_table_ids = RedisTools.hget(DATA_LABEL_TO_RESULT_TABLE_KEY, data_label_key)
-            data_label_result_table_ids = json.loads(data_label_result_table_ids) if data_label_result_table_ids else []
-            if result_table.table_id in data_label_result_table_ids:
-                query_router_status.data_label_exists = True
-            else:
-                query_router_status.messages.append(
-                    f"结果表 {result_table.table_id} 在数据标签 {result_table.data_label} 中不存在"
+            data_labels = result_table.data_label.split(",")
+            data_label_exists = True
+            for data_label in data_labels:
+                data_label_key = f"{data_label}|{bk_tenant_id}" if settings.ENABLE_MULTI_TENANT_MODE else data_label
+                data_label_result_table_ids = RedisTools.hget(DATA_LABEL_TO_RESULT_TABLE_KEY, data_label_key)
+                data_label_result_table_ids = (
+                    json.loads(data_label_result_table_ids) if data_label_result_table_ids else []
                 )
+                if result_table.table_id not in data_label_result_table_ids:
+                    data_label_exists = False
+                    query_router_status.messages.append(
+                        f"结果表 {result_table.table_id} 在数据标签 {data_label} 中不存在"
+                    )
+            if data_label_exists:
+                query_router_status.data_label_exists = True
         else:
             # 如果结果表没有data_label，则默认存在
             query_router_status.data_label_exists = True

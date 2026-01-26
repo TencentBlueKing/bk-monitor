@@ -218,11 +218,12 @@ class BkLogJsonEtlStorage(EtlStorage):
                 }
             })
 
-        # 6.1. 处理ext_json字段
+        # 6.1. 处理dtEventTimeStampNanos字段（从用户指定的时间字段提取）
+        rules.extend(self._build_nanos_time_field_v4(built_in_config))
+
+        # 6.2. 处理ext_json字段
         rules.extend(self._build_extra_json_field_v4(etl_params, fields))
 
-        # 6.2. 处理清洗失败标记字段
-        rules.extend(self._build_parse_failure_field_v4(etl_params))
 
         # 7. Path字段处理（根据separator_configs配置）
         separator_configs = built_in_config.get("option", {}).get("separator_configs", [])

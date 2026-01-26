@@ -96,7 +96,7 @@
   import { TABLE_LOG_FIELDS_SORT_REGULAR, copyMessage } from '@/common/util';
   import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
-  import { perfMeasure, perfStart, perfEnd } from '@/utils/performance-monitor';
+  import { perfMeasure } from '@/utils/performance-monitor';
 
   import KvList from '../../result-comp/kv-list.vue';
 

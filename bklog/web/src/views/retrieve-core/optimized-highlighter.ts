@@ -341,7 +341,7 @@ export default class OptimizedHighlighter {
   private hasSpecialChars(keyword: string): boolean {
     // 检查是否包含可能被 mark.js 当作单词边界处理的字符
     // 包括 : - _ 等，这些字符可能导致关键字被拆分成多个部分
-    return /[:;_-]/.test(keyword);
+    return /[:;_-|]/.test(keyword);
   }
 
   /**
@@ -500,10 +500,7 @@ export default class OptimizedHighlighter {
           }
 
           // 更新最佳方案：优先匹配数量，其次评分
-          if (
-            newMatchedCount > best.matchedCount
-            || (newMatchedCount === best.matchedCount && newScore > best.score)
-          ) {
+          if (newMatchedCount > best.matchedCount || (newMatchedCount === best.matchedCount && newScore > best.score)) {
             best = {
               groups: newGroups,
               matchedCount: newMatchedCount,

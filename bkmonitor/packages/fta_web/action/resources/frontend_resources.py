@@ -565,7 +565,7 @@ class CreateChatGroupResource(Resource):
                 message_template = AlarmNoticeTemplate.get_template_source(template_path)
             except TemplateDoesNotExist:
                 # 不存在直接用告警模板
-                logger.info("notice template does not exist， use user content")
+                logger.debug("notice template does not exist， use user content")
                 message_template = "{{user_content}}"
 
         notice_title = _(GlobalConfig.get("NOTICE_TITLE", "蓝鲸监控"))

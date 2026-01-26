@@ -197,10 +197,11 @@ class MonitorEventAdapter:
         data_dimensions = copy.deepcopy(dimensions)
 
         # 将真正用于去重的维度过滤出来
+        # 注意：__additional_dimensions 需要保留，不参与去重但需要传递到 adapt() 方法
         data_dimensions = {
             key: value
             for key, value in data_dimensions.items()
-            if key in agg_dimensions or key == NO_DATA_TAG_DIMENSION
+            if key in agg_dimensions or key == NO_DATA_TAG_DIMENSION or key == "__additional_dimensions"
         }
         # 将维度中的 tags. 前缀去掉（后续 duplicate_keys 中会统一将维度加上 tags.的前缀）
         to_be_pop = []

@@ -13,7 +13,7 @@ import time
 from typing import Any
 
 from django.conf import settings
-
+from constants.incident import IncidentStatus
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.incident import IncidentOperationDocument
 from bkmonitor.utils.request import get_request_username
@@ -33,7 +33,10 @@ class IncidentOperationManager:
         IncidentOperationType.CREATE,
         IncidentOperationType.OBSERVE,
         IncidentOperationType.RECOVER,
+        IncidentOperationType.REOPEN,
         IncidentOperationType.UPDATE,
+        IncidentOperationType.MERGE,
+        IncidentOperationType.MERGE_TO,
     ]
 
     @classmethod
@@ -59,7 +62,7 @@ class IncidentOperationManager:
         )
 
         # 根据操作类型决定是否发送通知
-        notice_enabled = getattr(settings, "INCIDENT_NOTICE_ENABLED", False)
+        notice_enabled = getattr(settings, "ENABLE_BK_INCIDENT_NOTICE", False)
         if notice_enabled:
             if operation_type in cls.NOTICE_TRIGGER_OPERATIONS:
                 cls._send_incident_notice(incident_id, operation_type, **kwargs)
@@ -74,8 +77,8 @@ class IncidentOperationManager:
         """
         try:
             # 获取配置的通知接收人
-            chat_ids = getattr(settings, "INCIDENT_NOTICE_CHAT_IDS", [])
-            user_ids = getattr(settings, "INCIDENT_NOTICE_USER_IDS", [])
+            chat_ids = getattr(settings, "BK_INCIDENT_BUILTIN_CONFIG", {}).get("builtin_chat_ids", [])
+            user_ids = getattr(settings, "BK_INCIDENT_BUILTIN_CONFIG", {}).get("builtin_user_ids", [])
 
             if not chat_ids and not user_ids:
                 logger.debug(f"No receivers configured for incident {incident_id}, skip sending notice")
@@ -102,22 +105,14 @@ class IncidentOperationManager:
             # 延迟导入避免循环依赖
             from bkmonitor.aiops.incident.notice import IncidentNoticeHelper
 
-            # 根据操作类型确定通知标题
-            title_map = {
-                IncidentOperationType.CREATE: "故障生成通知",
-                IncidentOperationType.OBSERVE: "故障观察中通知",
-                IncidentOperationType.RECOVER: "故障恢复通知",
-                IncidentOperationType.UPDATE: "故障更新通知",
-            }
-            title = title_map.get(operation_type, "故障通知")
-
             # 发送通知（支持多种方式）
             all_results = IncidentNoticeHelper.send_incident_notice(
                 incident=incident_document,
                 chat_ids=chat_ids,
                 user_ids=user_ids,
-                title=title,
-                is_update=(operation_type != IncidentOperationType.CREATE),
+                title=None,
+                operation_type=operation_type,
+                **kwargs,
             )
 
             # 记录通知操作
@@ -147,7 +142,9 @@ class IncidentOperationManager:
     def _record_notice_without_trigger(
         cls, incident_id: int, operate_time: int, receivers: list[str]
     ) -> IncidentOperationDocument:
-        """记录故障通知（不触发通知发送）
+        """记录通知发送流水（不触发通知发送，仅记录）
+
+        使用 SEND_MESSAGE 类型，该类型为内部操作类型，不在故障流转记录查询中展示
 
         :param incident_id: 故障ID
         :param operate_time: 流转生成时间
@@ -160,7 +157,7 @@ class IncidentOperationManager:
                 IncidentOperationDocument(
                     incident_id=incident_id,
                     operator=operator,
-                    operation_type=IncidentOperationType.NOTICE.value,
+                    operation_type=IncidentOperationType.SEND_MESSAGE.value,
                     create_time=operate_time,
                     extra_info={"receivers": receivers},
                 )
@@ -187,7 +184,7 @@ class IncidentOperationManager:
 
     @classmethod
     def record_observe_incident(
-        cls, incident_id: int, operate_time: int, last_minutes: int
+        cls, incident_id: int, operate_time: int, last_minutes: int = 60
     ) -> IncidentOperationDocument:
         """记录故障状态转为观察中
         文案: 故障观察中，剩余观察时间{last_minutes}分钟
@@ -211,6 +208,17 @@ class IncidentOperationManager:
         return cls.record_operation(incident_id, IncidentOperationType.RECOVER, operate_time)
 
     @classmethod
+    def record_reopen_incident(cls, incident_id: int, operate_time: int) -> IncidentOperationDocument:
+        """记录故障重新打开
+        文案: 故障在观察期间重新打开
+
+        :param incident_id: 故障ID
+        :param operate_time: 流转生成时间
+        :return: 故障流转记录
+        """
+        return cls.record_operation(incident_id, IncidentOperationType.REOPEN, operate_time)
+
+    @classmethod
     def record_notice_incident(
         cls, incident_id: int, operate_time: int, receivers: list[str]
     ) -> IncidentOperationDocument:
@@ -226,8 +234,8 @@ class IncidentOperationManager:
 
     @classmethod
     def record_update_incident(
-        cls, incident_id: int, operate_time: int, incident_key: str, from_value: Any, to_value: Any
-    ) -> IncidentOperationDocument:
+        cls, incident_id: int, operate_time: int, incident_key: str, from_value: Any, to_value: Any, **kwargs
+    ):
         """记录故障修改属性
         文案: 故障属性{incident_key}: 从{from_value}被修改为{to_value}
 
@@ -238,6 +246,26 @@ class IncidentOperationManager:
         :param to_value: 属性修改后的值
         :return: 故障流转记录
         """
+        # status 变更属于高频、强语义事件：若存在对应的专用事件类型，则优先写入专用事件
+        # 以避免同一次变更重复产生 UPDATE(status) 与专用事件两条通知。
+        if incident_key == "status":
+            if to_value == IncidentStatus.MERGED.value:
+                merge_info = kwargs.get("merge_info")
+                return cls.record_merge_incident(operate_time, merge_info=merge_info)
+            if to_value == IncidentStatus.RECOVERED.value:
+                return cls.record_recover_incident(incident_id=incident_id, operate_time=operate_time)
+            if to_value == IncidentStatus.RECOVERING.value:
+                # 观察中事件：尽量使用上游传入的 last_minutes，否则使用 record_observe_incident 的默认值
+                last_minutes = kwargs.get("last_minutes")
+                if last_minutes is None:
+                    return cls.record_observe_incident(incident_id=incident_id, operate_time=operate_time)
+                return cls.record_observe_incident(
+                    incident_id=incident_id, operate_time=operate_time, last_minutes=last_minutes
+                )
+            # 故障重新打开：从观察中（RECOVERING）变为异常（ABNORMAL）
+            if to_value == IncidentStatus.ABNORMAL.value and from_value == IncidentStatus.RECOVERING.value:
+                return cls.record_reopen_incident(incident_id=incident_id, operate_time=operate_time)
+
         enum_class = INCIDENT_ATTRIBUTE_VALUE_ENUMS.get(incident_key)
         return cls.record_operation(
             incident_id,
@@ -250,20 +278,67 @@ class IncidentOperationManager:
         )
 
     @classmethod
-    def record_merge_incident(
-        cls, incident_id: int, operate_time: int, merged_incident_name: str
-    ) -> IncidentOperationDocument:
+    def record_merge_incident(cls, operate_time: int, merge_info: dict = None):
         """记录故障合并
-        文案: 故障{merged_incident_name}被合并入当前故障
+        文案:
+        - MERGE_TO: 故障被合并到{target_incident_name}
+        - MERGE: 故障{origin_incident_name}被合并入当前故障
 
-        :param incident_id: 故障ID
         :param operate_time: 流转生成时间
-        :param merged_incident_name: 被合并的故障名称
+        :param merge_info: 故障合并的信息
+            "origin_incident_id": 被合并的故障id,
+            "origin_incident_name": 被合并的故障name
+            "origin_created_at": 被合并的故障create_time
+            "target_incident_id": 合并到的目标故障id,
+            "target_incident_name": 合并到的目标故障name
+            "target_created_at": 合并到的目标故障create_time
         :return: 故障流转记录
         """
-        return cls.record_operation(
-            incident_id, IncidentOperationType.MERGE, operate_time, merged_incident_name=merged_incident_name
+        merge_info = merge_info if isinstance(merge_info, dict) else {}
+        origin_incident_id = merge_info.get("origin_incident_id")
+        target_incident_id = merge_info.get("target_incident_id")
+        origin_incident_name = merge_info.get("origin_incident_name", "")
+        target_incident_name = merge_info.get("target_incident_name", "")
+        origin_created_at = merge_info.get("origin_created_at")
+        target_created_at = merge_info.get("target_created_at")
+
+        if not all([origin_incident_id, target_incident_id]) or origin_incident_id == target_incident_id:
+            logger.warning(
+                f"Invalid merge info: origin_incident_id={origin_incident_id}, target_incident_id={target_incident_id}"
+            )
+            return False
+
+        origin_incident_id = int(origin_incident_id)
+        target_incident_id = int(target_incident_id)
+
+        # 构建故障文档ID，用于链接跳转
+        # IncidentDocument的id格式为: {create_time}{incident_id}
+        origin_incident_doc_id = f"{origin_created_at}{origin_incident_id}" if origin_created_at else None
+        target_incident_doc_id = f"{target_created_at}{target_incident_id}" if target_created_at else None
+
+        # 给被合并故障，记录 incident_merge_to 记录
+        cls.record_operation(
+            origin_incident_id,
+            IncidentOperationType.MERGE_TO,
+            operate_time,
+            link_incident_name=target_incident_name,
+            link_incident_id=target_incident_id,
+            link_incident_doc_id=target_incident_doc_id,
+            action={"type": "link", "target": "incident", "params": ["link_incident_doc_id"]},
         )
+
+        # 给合并目标故障，记录 incident_merge 记录
+        cls.record_operation(
+            target_incident_id,
+            IncidentOperationType.MERGE,
+            operate_time,
+            link_incident_name=origin_incident_name,
+            link_incident_id=origin_incident_id,
+            link_incident_doc_id=origin_incident_doc_id,
+            action={"type": "link", "target": "incident", "params": ["link_incident_doc_id"]},
+        )
+
+        return True
 
     @classmethod
     def record_incident_alert_trigger(

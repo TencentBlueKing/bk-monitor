@@ -31,7 +31,7 @@ from bkcrypto.contrib.django.fields import SymmetricTextField
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models.fields import DateTimeField
-from django.db.transaction import atomic
+from django.db.transaction import atomic, on_commit
 from django.utils import timezone as django_timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
@@ -2033,7 +2033,9 @@ class ESStorage(models.Model, StorageResultTable):
         else:
             from metadata.task import tasks
 
-            tasks.create_es_storage_index.delay(table_id=table_id)
+            on_commit(
+                lambda: tasks.create_es_storage_index.delay(table_id=table_id), using=config.DATABASE_CONNECTION_NAME
+            )
             logger.info(f"result_table->[{table_id}] create async with celery task")
 
     @classmethod

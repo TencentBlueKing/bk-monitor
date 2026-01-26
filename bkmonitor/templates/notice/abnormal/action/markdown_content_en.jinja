@@ -4,5 +4,8 @@
 {% if notice_way == "wxwork-bot" and mentioned_users %}--mention-users--{% endif %}
 
 {% if alarm.detail_url and not alarm.link_layouts %}
-[Detail]({{alarm.detail_url}}){{"    [Ack alarm](%s)" % alarm.quick_ack_url if alarm.quick_ack_url else ""}}   {{"[Shield alarm](%s)" % alarm.quick_shield_url if alarm.quick_shield_url else ""}}    {% if alarm.query_url %}[Query]({{alarm.query_url}}){% endif %}{% if alarm.log_search_url %}[Query]({{alarm.log_search_url}}){% endif %}
+[Detail]({{alarm.detail_url}})
+{{- "    [Ack alarm](%s)" % alarm.quick_ack_url if alarm.quick_ack_url else "" -}}
+{{- "    [Shield alarm](%s)" % alarm.quick_shield_url if alarm.quick_shield_url else "" -}}
+{%- for info in alarm.redirect_infos[1:] %}    [{{ info.text }}]({{ info.url }}){% endfor %}
 {% endif %}

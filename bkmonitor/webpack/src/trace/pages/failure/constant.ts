@@ -151,6 +151,12 @@ export const STATUS_LIST = {
     label: '已解决',
     icon: 'mc-solved',
   },
+  merged: {
+    color: '#979ba5',
+    bgColor: '#f0f1f5',
+    label: '已合并',
+    icon: 'yihebing',
+  },
   RECOVERED: {
     color: '#14A568',
     bgColor: '#E4FAF0',
@@ -176,7 +182,7 @@ export const STATUS_LIST = {
     label: '观察中',
     key: 'recovering',
     icon: 'mc-visual',
-  },
+  }, 
   已恢复: {
     color: '#1CAB88',
     bgColor: '#E8FFF5',

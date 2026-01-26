@@ -52,16 +52,16 @@
 
   // @ts-ignore
   import { getRowFieldValue } from '@/common/util';
-import useFieldNameHook from '@/hooks/use-field-name';
+  import useFieldNameHook from '@/hooks/use-field-name';
 
   import useLocale from '@/hooks/use-locale';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
-import JSONBig from 'json-bigint';
-import { debounce, isEmpty } from 'lodash-es';
-import useJsonRoot from '../hooks/use-json-root';
-import useStore from '../hooks/use-store';
-import { BK_LOG_STORAGE } from '../store/store.type';
-import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
+  import useRetrieveEvent from '@/hooks/use-retrieve-event';
+  import JSONBig from 'json-bigint';
+  import { debounce, isEmpty } from 'lodash-es';
+  import useJsonRoot from '../hooks/use-json-root';
+  import useStore from '../hooks/use-store';
+  import { BK_LOG_STORAGE } from '../store/store.type';
+  import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -200,11 +200,12 @@ import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
   };
 
   const getDateFieldValue = (field, content, formatDate) => {
-    if (formatDate) {
-      return RetrieveHelper.formatDateValue(content, field.field_type);
+    if (formatDate && ['date_nanos', 'date'].includes(field.field_type)) {
+      const timezone = store.state.indexItem.timezone;
+      return RetrieveHelper.formatTimeZoneValue(content, field.field_type, timezone);
     }
 
-    return content;
+    return content || '--';
   };
 
   const getFieldValue = field => {

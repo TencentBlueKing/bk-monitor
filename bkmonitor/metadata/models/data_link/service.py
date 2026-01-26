@@ -14,7 +14,6 @@ from django.conf import settings
 from django.db.transaction import atomic
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import api
 from metadata import config
 from metadata.models.data_link import DataIdConfig, utils
@@ -68,8 +67,8 @@ def apply_data_id_v2(
 
 
 def get_data_id_v2(
+    bk_tenant_id: str,
     data_name: str,
-    bk_biz_id: int,
     namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
     is_base: bool = False,
     with_detail: bool = False,
@@ -82,8 +81,6 @@ def get_data_id_v2(
         data_id_name = data_name
     else:  # 用户自定义数据源，需要进行二次处理，主要为避免超过meta长度限制和特殊字符
         data_id_name = utils.compose_bkdata_data_id_name(data_name)
-
-    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
 
     data_id_config = api.bkdata.get_data_link(
         kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value),

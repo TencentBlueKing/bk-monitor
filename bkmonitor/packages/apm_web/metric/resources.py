@@ -819,25 +819,23 @@ class ServiceListResource(PageListResource):
             key = serializers.CharField()
             value = serializers.ListField(child=serializers.CharField(), min_length=1)
 
-        bk_biz_id = serializers.IntegerField(label="业务id")
-        app_name = serializers.CharField(label="应用名称")
-        keyword = serializers.CharField(required=False, label="查询关键词", allow_blank=True)
-        start_time = serializers.IntegerField(required=True, label="数据开始时间")
-        end_time = serializers.IntegerField(required=True, label="数据结束时间")
-        page = serializers.IntegerField(required=False, label="页码")
-        page_size = serializers.IntegerField(required=False, label="每页条数")
-        sort = serializers.CharField(required=False, label="排序方式", allow_blank=True)
-        filter = serializers.CharField(required=False, label="分类过滤条件", default="all", allow_blank=True)
-        filter_dict = serializers.DictField(required=False, label="筛选条件", default={})
-        field_conditions = serializers.ListField(
-            required=False, default=[], label="or 条件列表", child=FieldConditionSerializer()
-        )
+        bk_biz_id = serializers.IntegerField(label=_("业务id"))
+        app_name = serializers.CharField(label=_("应用名称"))
+        keyword = serializers.CharField(required=False, label=_("查询关键词"), allow_blank=True)
+        start_time = serializers.IntegerField(label=_("数据开始时间"))
+        end_time = serializers.IntegerField(label=_("数据结束时间"))
+        page = serializers.IntegerField(required=False, label=_("页码"))
+        page_size = serializers.IntegerField(required=False, label=_("每页条数"))
+        sort = serializers.CharField(required=False, label=_("排序方式"), allow_blank=True)
+        filter = serializers.CharField(label=_("分类过滤条件"), default="all", allow_blank=True)
+        filter_dict = serializers.DictField(label=_("筛选条件"), default={})
+        field_conditions = serializers.ListField(default=[], label=_("or 条件列表"), child=FieldConditionSerializer())
         view_mode = serializers.ChoiceField(
-            required=False,
-            label="展示模式",
+            label=_("展示模式"),
             choices=VIEW_MODE_CHOICES,
             default=VIEW_MODE_SERVICES,
         )
+        include_data_status = serializers.BooleanField(label=_("是否包含数据状态"), default=False)
 
         def validate(self, attrs):
             res = super().validate(attrs)
@@ -1097,7 +1095,7 @@ class ServiceListResource(PageListResource):
         data_status_mapping = {}
         # 如果存在数据状态相关的filter筛选, 加载data_status数据
         field_condition_keys = {condition.get("key") for condition in validate_data["field_conditions"]}
-        if not field_condition_keys.isdisjoint({"apply_module", "have_data"}):
+        if validate_data["include_data_status"] or not field_condition_keys.isdisjoint({"apply_module", "have_data"}):
             data_status_list = (
                 ServiceListAsyncResource()
                 .perform_request(
