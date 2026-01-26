@@ -81,4 +81,22 @@ class Migration(migrations.Migration):
                 "unique_together": {("group_id", "scope_name")},
             },
         ),
+        migrations.RunSQL(
+            sql=[
+                # 为 TimeSeriesMetric 表的 field_scope 字段设置默认值
+                "ALTER TABLE metadata_timeseriesmetric ALTER COLUMN field_scope SET DEFAULT 'default'",
+                # 为已存在的记录更新 field_scope 字段
+                "UPDATE metadata_timeseriesmetric SET field_scope = 'default' WHERE field_scope IS NULL OR field_scope = ''",
+                # 为已存在的记录更新 field_config 字段 (JSON类型,MySQL不支持设置默认值)
+                "UPDATE metadata_timeseriesmetric SET field_config = '{}' WHERE field_config IS NULL",
+                # 为已存在的记录更新 metric_group_dimensions 字段 (JSON类型,MySQL不支持设置默认值)
+                "UPDATE metadata_timeseriesgroup SET metric_group_dimensions = '[]' WHERE metric_group_dimensions IS NULL",
+                # 为 TimeSeriesScope 表的 create_from 字段设置默认值
+                "ALTER TABLE metadata_timeseriesscope ALTER COLUMN create_from SET DEFAULT 'data'",
+            ],
+            reverse_sql=[
+                "ALTER TABLE metadata_timeseriesmetric ALTER COLUMN field_scope DROP DEFAULT",
+                "ALTER TABLE metadata_timeseriesscope ALTER COLUMN create_from DROP DEFAULT",
+            ],
+        ),
     ]
