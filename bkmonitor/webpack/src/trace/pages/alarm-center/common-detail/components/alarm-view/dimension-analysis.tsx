@@ -112,6 +112,7 @@ export default defineComponent({
       viewerTimeRange,
       showRestore,
       formatterChartData,
+      formatterOptions,
       handleDataZoomTimeRangeChange,
       handleChartRestore,
     } = useDimensionChartPanel({
@@ -258,46 +259,41 @@ export default defineComponent({
      * @param {boolean} isFullscreen 渲染的图表是否为大图状态下的图表
      */
     const renderChart = (isFullscreen = false) => {
-      const specialProps = !isFullscreen
+      const chartConfig = isFullscreen
         ? {
-            class: 'dimension-chart',
-            customLegendOptions: {
-              legendData: () => [],
-            },
-            onZrClick: handleChartZrClick,
+            props: { class: 'dimension-fullscreen-chart' },
+            slots: {},
           }
         : {
-            class: 'dimension-fullscreen-chart',
+            props: {
+              class: 'dimension-chart',
+              customLegendOptions: { legendData: () => [] },
+              onZrClick: handleChartZrClick,
+            },
+            slots: {
+              customTools: () => (
+                <Popover content={t('查看大图')}>
+                  <i
+                    class='icon-monitor icon-fullscreen dimension-chart-fullscreen'
+                    onClick={handleFullscreen}
+                  />
+                </Popover>
+              ),
+            },
           };
-      const slots = !isFullscreen
-        ? {
-            customTools: () => (
-              <Popover content={t('查看大图')}>
-                <i
-                  class='icon-monitor icon-fullscreen dimension-chart-fullscreen'
-                  onClick={handleFullscreen}
-                />
-              </Popover>
-            ),
-          }
-        : {};
+
       return (
         <MonitorCharts
-          v-slots={{
-            ...slots,
-          }}
+          v-slots={chartConfig.slots}
           customOptions={{
             formatterData: formatterChartData,
-            options: options => {
-              options.color = COLOR_LIST;
-              return options;
-            },
+            options: formatterOptions,
           }}
           panel={panel.value}
           showRestore={showRestore.value}
           onDataZoomChange={handleDataZoomTimeRangeChange}
           onRestore={handleChartRestore}
-          {...specialProps}
+          {...chartConfig.props}
         />
       );
     };

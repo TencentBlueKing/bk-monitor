@@ -28,6 +28,7 @@ import { type MaybeRef, computed, shallowRef } from 'vue';
 
 import { get } from '@vueuse/core';
 import { transformDataKey } from 'monitor-common/utils';
+import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants/charts';
 import { type IDataQuery, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
@@ -140,6 +141,43 @@ export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) =
   };
 
   /**
+   * @description: 格式化图表options配置
+   * @param {any} options echarts配置项
+   */
+  const formatterOptions = (options: any) => {
+    options.color = COLOR_LIST;
+    options.grid.right = 20;
+
+    // 为x轴添加刻度线
+    Object.assign(options.xAxis[0], {
+      boundaryGap: false,
+      axisTick: { show: true, alignWithLabel: true },
+      axisLine: { show: true },
+      splitLine: { show: true },
+      axisLabel: { ...options.xAxis[0].axisLabel, align: 'center', showMinLabel: true, showMaxLabel: true },
+    });
+    // 为y轴添加刻度线
+    for (const item of options.yAxis) {
+      Object.assign(item, {
+        axisTick: { show: true },
+        axisLine: { show: true },
+        splitLine: { show: true },
+      });
+    }
+    // 添加右侧y轴边框线
+    options.yAxis.push({
+      show: true,
+      position: 'right',
+      axisTick: { show: false },
+      axisLine: { show: true },
+      axisLabel: { show: false },
+      splitLine: { show: false },
+      z: 3,
+    });
+    return options;
+  };
+
+  /**
    * @description 数据时间范围 值改变后回调
    * @param {[number, number]} e 时间范围
    */
@@ -156,6 +194,7 @@ export const useDimensionChartPanel = (options: UseDimensionChartPanelOptions) =
     viewerTimeRange,
     showRestore: dataZoomTimeRange,
     formatterChartData,
+    formatterOptions,
     handleDataZoomTimeRangeChange,
     handleChartRestore: () => handleDataZoomTimeRangeChange(),
   };
