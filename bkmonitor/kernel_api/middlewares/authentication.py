@@ -261,7 +261,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         @param username: 用户名
         @param status: 调用状态 (accessed/permission_denied/invalid_params/error/exempt)
         @param permission_action: 权限动作ID
-        @param mcp_server_name: MCP服务器名称
+        @param mcp_server_name: MCP服务名称
         """
         try:
             # 标签值处理，避免空值
@@ -294,7 +294,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         logger.info("MCPAuthentication: Handling MCP authentication")
 
-        # 提取MCP服务器名称（用于指标上报）
+        # 提取MCP服务名称（用于指标上报）
         mcp_server_name = request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", "")
 
         # 提取工具名称，检查是否在豁免白名单中
