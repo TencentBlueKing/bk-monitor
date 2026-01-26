@@ -582,8 +582,8 @@ const getManageRoutes = () => [
           },
           // 新增清洗
           {
-            path: 'create',
-            name: 'clean-create',
+            path: 'old-create',
+            name: 'old-clean-create',
             meta: {
               title: '日志清洗',
               needBack: true,
@@ -594,8 +594,8 @@ const getManageRoutes = () => [
           },
           // 编辑清洗
           {
-            path: 'edit/:collectorId',
-            name: 'clean-edit',
+            path: 'old-edit/:collectorId',
+            name: 'old-clean-edit',
             meta: {
               title: '日志清洗',
               needBack: true,
@@ -606,7 +606,7 @@ const getManageRoutes = () => [
           },
           // ------- 新版采集管理重构 - 新建清洗 --------
           {
-            path: 'v2-create',
+            path: 'create',
             name: 'clean-create',
             meta: {
               title: '日志清洗',
@@ -618,7 +618,7 @@ const getManageRoutes = () => [
           },
           // 编辑清洗
           {
-            path: 'v2-edit/:collectorId',
+            path: 'edit/:collectorId',
             name: 'clean-edit',
             meta: {
               title: '日志清洗',
@@ -649,8 +649,8 @@ const getManageRoutes = () => [
           },
           // 新建模板
           {
-            path: 'create',
-            name: 'clean-template-create',
+            path: 'old-create',
+            name: 'old-clean-template-create',
             meta: {
               title: '日志清洗',
               needBack: true,
@@ -661,8 +661,8 @@ const getManageRoutes = () => [
           },
           // 编辑模板
           {
-            path: 'edit/:templateId',
-            name: 'clean-template-edit',
+            path: 'old-edit/:templateId',
+            name: 'old-clean-template-edit',
             meta: {
               title: '日志清洗',
               needBack: true,
@@ -674,7 +674,7 @@ const getManageRoutes = () => [
 
           // ------- 新版采集管理重构 - 新建模板 --------
           {
-            path: 'v2-create',
+            path: 'create',
             name: 'clean-template-create',
             meta: {
               title: '日志清洗',
@@ -686,7 +686,7 @@ const getManageRoutes = () => [
           },
           // 编辑模板
           {
-            path: 'v2-edit/:templateId',
+            path: 'edit/:templateId',
             name: 'clean-template-edit',
             meta: {
               title: '日志清洗',
