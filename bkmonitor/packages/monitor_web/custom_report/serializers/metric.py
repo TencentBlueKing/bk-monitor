@@ -50,7 +50,7 @@ class CustomTSTableSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class BaseCustomTSSerializer(serializers.Serializer):
+class BaseCustomTSTableSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
     time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"))
 
@@ -62,6 +62,11 @@ class BaseCustomTSSerializer(serializers.Serializer):
                 _("自定义时序表不存在, bk_biz_id: {bk_biz_id}, time_series_group_id: {time_series_group_id}")
             )
         return super().validate(attrs)
+
+
+class BaseCustomTSSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+    time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"))
 
 
 class CustomTSScopeRequestSerializer(serializers.Serializer):

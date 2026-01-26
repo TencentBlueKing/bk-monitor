@@ -236,11 +236,13 @@ class ScopeQueryConverter(BaseQueryConverter):
         scope_list: list[dict[str, Any]] = api.metadata.create_or_update_time_series_scope(**request_params)
         return [ScopeCUResponseDTO.from_response_dict(scope_dict) for scope_dict in scope_list]
 
-    def get_default_scope_obj(self, include_metrics=True) -> ScopeQueryResponseDTO:
-        scope_objs = self.query_time_series_scope(scope_name=UNGROUP_SCOPE_NAME, include_metrics=include_metrics)
+    def get_default_scope_obj(
+        self, default_scope_name=UNGROUP_SCOPE_NAME, include_metrics=True
+    ) -> ScopeQueryResponseDTO:
+        scope_objs = self.query_time_series_scope(scope_name=default_scope_name, include_metrics=include_metrics)
         default_scope_obj: ScopeQueryResponseDTO | None = None
         for scope_obj in scope_objs:
-            if scope_obj.name == UNGROUP_SCOPE_NAME:
+            if scope_obj.name == default_scope_name:
                 default_scope_obj = scope_obj
                 break
         if not default_scope_obj:
