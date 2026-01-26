@@ -238,14 +238,29 @@ export const AlertTargetTypeMap = {
     alias: window.i18n.t('主机'),
   },
   SERVICE: {
-    prefixIcon: 'alert-target-icon icon-monitor icon-APM',
+    prefixIcon: 'alert-target-icon icon-monitor icon-fuwumokuai',
     alias: window.i18n.t('服务'),
   },
-  // TODO 待确认icon
-  // INSTANCE: {
-  //   prefixIcon: 'target-icon icon-monitor icon-zidingyizhibiao',
-  //   alias: window.i18n.t('自定义指标'),
-  // },
+  'K8S-POD': {
+    prefixIcon: 'alert-target-icon icon-monitor icon-mc-pod',
+    alias: window.i18n.t('K8S-POD'),
+  },
+  'K8S-NODE': {
+    prefixIcon: 'alert-target-icon icon-monitor icon-mc-bcs-node',
+    alias: window.i18n.t('K8S-NODE'),
+  },
+  'K8S-SERVICE': {
+    prefixIcon: 'alert-target-icon icon-monitor icon-mc-bcs-service',
+    alias: window.i18n.t('K8S-SERVICE'),
+  },
+  'K8S-WORKLOAD': {
+    prefixIcon: 'alert-target-icon icon-monitor icon-mc-bcs-workload',
+    alias: window.i18n.t('K8S-WORKLOAD'),
+  },
+  'APM-SERVICE': {
+    prefixIcon: 'alert-target-icon icon-monitor icon-APM',
+    alias: window.i18n.t('APM服务'),
+  },
 };
 
 export const ActionLevelIconMap = {
