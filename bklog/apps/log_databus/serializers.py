@@ -1799,6 +1799,7 @@ class GrokUpdateSerializer(serializers.Serializer):
     Grok模式更新
     """
 
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     name = serializers.CharField(label=_("规则名称"))
     pattern = serializers.CharField(label=_("表达式"))
     sample = serializers.CharField(label=_("样例"), required=False, allow_null=True, allow_blank=True)
