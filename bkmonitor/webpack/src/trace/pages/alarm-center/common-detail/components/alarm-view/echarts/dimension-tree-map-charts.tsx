@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, nextTick, shallowRef, useTemplateRef } from 'vue';
+import { type PropType, defineComponent, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
 
+import { random } from 'monitor-common/utils';
 import VueEcharts from 'vue-echarts';
 
 import DrillDownOptions from '../components/drill-down-options';
@@ -81,51 +82,69 @@ export default defineComponent({
               </div>`;
     };
 
-    /** 图表配置 */
-    const options = computed(() => {
-      return {
-        tooltip: {
-          transitionDuration: 0,
-          alwaysShowContent: false,
-          backgroundColor: 'rgba(54,58,67,.88)',
-          borderWidth: 0,
-          textStyle: {
-            fontSize: 12,
-            color: '#BEC0C6',
-          },
-          extraCssText: 'border-radius: 4px',
-          appendToBody: true,
-          formatter: tooltipFormatter,
+    const commonOptions = {
+      tooltip: {
+        transitionDuration: 0,
+        alwaysShowContent: false,
+        backgroundColor: 'rgba(54,58,67,.88)',
+        borderWidth: 0,
+        textStyle: {
+          fontSize: 12,
+          color: '#BEC0C6',
         },
-        series: [
-          {
-            name: 'dimension-analysis',
-            type: 'treemap',
-            top: 0,
-            left: 8,
-            right: 8,
-            bottom: 0,
-            breadcrumb: {
-              show: false,
-            },
-            itemStyle: {
-              gapWidth: 2,
-              borderRadius: 2,
-            },
-            roam: false,
-            nodeClick: false,
-            data: props.chartData.map(item => ({
-              name: item.dimensions[props.displayDimensions[0]],
-              value: item.value,
-              itemStyle: {
-                color: item.color,
-              },
-              row_data: item,
-            })),
-          },
-        ],
-      };
+        extraCssText: 'border-radius: 4px',
+        appendToBody: true,
+        formatter: tooltipFormatter,
+      },
+    };
+
+    const options = shallowRef({
+      ...commonOptions,
+      series: [],
     });
+
+    watch(
+      () => props.chartData,
+      () => {
+        console.log(props.chartData, 'chartData');
+        options.value = {
+          ...commonOptions,
+          series: [
+            {
+              name: random(8),
+              type: 'treemap',
+              top: 0,
+              left: 8,
+              right: 8,
+              bottom: 0,
+              breadcrumb: {
+                show: false,
+              },
+              itemStyle: {
+                gapWidth: 2,
+                borderRadius: 2,
+              },
+              label: {
+                overflow: 'break',
+              },
+              roam: false,
+              nodeClick: false,
+              data: props.chartData.map(item => ({
+                name: props.displayDimensions.map(id => item.dimensions[id]).join(' | '),
+                value: item.value,
+                itemStyle: {
+                  color: item.color,
+                },
+                row_data: item,
+              })),
+            },
+          ],
+        };
+      },
+      {
+        immediate: true,
+      }
+    );
 
     /** 图表点击事件 */
     const handleChartClick = params => {
