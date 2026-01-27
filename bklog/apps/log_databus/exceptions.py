@@ -437,4 +437,14 @@ class SubscriptionStatisticException(BaseException):
 
 class GrokCircularReferenceException(BaseException):
     ERROR_CODE = "912"
-    MESSAGE = _("Grok模式存在循环引用：{path}")
+    MESSAGE = _("Grok 模式存在循环引用：{path}")
+
+
+class GrokReferencedException(BaseException):
+    ERROR_CODE = "913"
+    MESSAGE = _("Grok 模式已被其他模式引用")
+
+
+class GrokPatternNotFoundException(BaseException):
+    ERROR_CODE = "914"
+    MESSAGE = _("Grok 模式不存在：{pattern_name}")

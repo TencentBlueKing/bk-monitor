@@ -46,23 +46,38 @@ class GrokViewSet(APIViewSet):
         return [ViewBusinessPermission()]
 
     def list(self, request, *args, **kwargs):
+        """
+        @api {get} /log_databus/grok/
+        """
         params = self.params_valid(GrokListSerializer)
         return Response(GrokHandler.list_grok_info(params))
 
     def create(self, request, *args, **kwargs):
+        """
+        @api {post} /log_databus/grok/
+        """
         params = self.params_valid(GrokCreateSerializer)
-        return Response(GrokHandler.create_grok_info(params))
+        return Response(GrokHandler(params.pop("bk_biz_id")).create_grok_info(params))
 
     def update(self, request, grok_info_id):
+        """
+        @api {put} /log_databus/grok/$grok_info_id/
+        """
         params = self.params_valid(GrokUpdateSerializer)
         params["id"] = grok_info_id
-        return Response(GrokHandler.update_grok_info(params))
+        return Response(GrokHandler(params.pop("bk_biz_id")).update_grok_info(params))
 
     def destroy(self, request, grok_info_id):
+        """
+        @api {delete} /log_databus/grok/$grok_info_id/
+        """
         return Response(GrokHandler.delete_grok_info(grok_info_id))
 
     @list_route(methods=["GET"], url_path="updated_by_list")
     def get_updated_by_list(self, request, *args, **kwargs):
+        """
+        @api {put} /log_databus/grok/updated_by_list/
+        """
         params = self.params_valid(GrokUpdatedByListSerializer)
         updated_by_list = (
             GrokInfo.objects.filter(bk_biz_id=params["bk_biz_id"]).values_list("updated_by", flat=True).distinct()
@@ -71,5 +86,8 @@ class GrokViewSet(APIViewSet):
 
     @list_route(methods=["POST"], url_path="debug")
     def debug(self, request, *args, **kwargs):
+        """
+        @api {post} /log_databus/grok/debug/
+        """
         params = self.params_valid(GrokDebugSerializer)
-        return Response(GrokHandler.debug(params))
+        return Response(GrokHandler(params.pop("bk_biz_id")).debug(params))
