@@ -19,7 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import hashlib
+import random
 
 import arrow
 from blueapps.contrib.celery_tools.periodic import periodic_task
@@ -251,21 +251,20 @@ def periodic_sync_tgpa_reports():
         return
     bk_biz_id_list = feature_toggle.biz_id_white_list or []
 
-    # 同步百分比配置格式: {"tgpa_report_sync_percent": {"bk_biz_id": sync_percent, ...}}
-    # sync_percent 为 1-100 的整数，表示同步百分比
+    # 采样率配置格式: {"report_sample_rate": {"bk_biz_id": sample_rate , ...}}
     feature_config = feature_toggle.feature_config or {}
-    sync_percent_config = feature_config.get("tgpa_report_sync_percent", {})
+    report_sample_rate = feature_config.get("report_sample_rate", {})
 
     for bk_biz_id in bk_biz_id_list:
-        # 获取该业务的同步百分比，默认为 0（不处理），范围 1-100
-        sync_percent = sync_percent_config.get(str(bk_biz_id), 0)
-        if not isinstance(sync_percent, int) or not (1 <= sync_percent <= 100):
+        # 获取该业务的采样率，默认为 0（不处理），范围 1-100
+        sample_rate = report_sample_rate.get(str(bk_biz_id), 0)
+        if not isinstance(sample_rate, int) or not (1 <= sample_rate <= 100):
             logger.warning(
-                "Invalid sync percent for business: %s, sync_percent: %s (should be 1-100)", bk_biz_id, sync_percent
+                "Invalid sample rate for business: %s, sample_rate: %s (should be 1-100)", bk_biz_id, sample_rate
             )
             continue
 
-        logger.info("Begin periodic sync tgpa reports for business: %s, sync_percent: %s", bk_biz_id, sync_percent)
+        logger.info("Begin periodic sync tgpa reports for business: %s, sample_rate: %s", bk_biz_id, sample_rate)
         # 获取上一次同步记录
         last_sync_record = (
             TGPAReportSyncRecord.objects.filter(bk_biz_id=bk_biz_id, created_by="periodic_task")
@@ -297,21 +296,20 @@ def periodic_sync_tgpa_reports():
             processed_count = 0
             skipped_count = 0
             for report in report_list:
-                # 计算标识符的 MD5 哈希值，取前8位转换为整数
-                hash_value = int(hashlib.md5(report["file_name"].encode()).hexdigest()[:8], 16)
-                # 将哈希值映射到 0-99 的范围，判断是否小于覆盖百分比
-                if (hash_value % 100) >= sync_percent:
+                # 使用随机数进行采样，生成 0-99 的随机整数，如果随机值大于等于采样率，则跳过该记录
+                if random.randint(0, 99) >= sample_rate:
                     skipped_count += 1
                     continue
-
                 process_single_report.delay(report_info=report, record_id=current_sync_record.id)
                 processed_count += 1
 
             logger.info(
-                "Finished periodic sync tgpa reports for business: %s, processed: %s, skipped: %s",
+                "Finished periodic sync tgpa reports for business: %s, processed: %s, skipped: %s, start_time: %s, end_time: %s",
                 bk_biz_id,
                 processed_count,
                 skipped_count,
+                arrow.get(start_time).format(),
+                arrow.get(end_time).format(),
             )
         except Exception as e:
             logger.exception("Failed to periodic sync tgpa reports for business: %s", bk_biz_id)
