@@ -8,21 +8,24 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 from typing import Any
 
 from django.apps import apps
 from django.db import transaction
 from django.utils.translation import gettext as _
+from opentelemetry import trace
 from rest_framework import serializers
 
 from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource
 from core.errors.metadata import EntityNotFoundError, UnsupportedKindError
 from metadata.models import EntityMeta
-from metadata.service.relation_redis import push_and_publish_entity
+from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
+tracer = trace.get_tracer(__name__)
 
 
 class EntityHandler:
@@ -87,12 +90,8 @@ class EntityHandler:
 
         # 同步到 Redis
         result = entity.to_json()
-        push_and_publish_entity(
-            kind=self.model_class.get_kind(),
-            namespace=namespace,
-            name=name,
-            data=result,
-        )
+        kind = self.model_class.get_kind()
+        EntityHandlerFactory.push_to_redis(kind=kind, namespace=namespace, name=name, data=result)
 
         return result
 
@@ -155,15 +154,23 @@ class EntityHandler:
         except self.model_class.DoesNotExist:
             raise EntityNotFoundError(context={"namespace": namespace, "name": name})
 
+        # 先删除数据库记录
         entity.delete()
+
+        # 再从 Redis 中删除并发布通知
+        kind = self.model_class.get_kind()
+        EntityHandlerFactory.delete_from_redis(kind=kind, namespace=namespace, name=name)
 
 
 class EntityHandlerFactory:
     """
     实体处理器工厂，自动发现所有继承自 EntityMeta 的模型
+    统一管理实体的处理器创建和 Redis 同步
     """
 
     _model_kind_map: dict[str, type[EntityMeta]] = {}
+
+    REDIS_KEY_PREFIX = "bkmonitorv3:entity"
 
     @classmethod
     def _discover_entity_models(cls):
@@ -200,6 +207,105 @@ class EntityHandlerFactory:
             raise UnsupportedKindError(context={"kind": kind})
 
         return EntityHandler(model_class=model_class)
+
+    @classmethod
+    def get_redis_key(cls, kind: str) -> str:
+        """
+        获取 Redis Key
+
+        Args:
+            kind: 实体类型，即模型类名 (如 CustomRelationStatus)
+
+        Returns:
+            Redis Key，格式: bkmonitorv3:entity:{kind}
+        """
+        return f"{cls.REDIS_KEY_PREFIX}:{kind}"
+
+    @classmethod
+    def get_redis_channel(cls, kind: str) -> str:
+        """
+        获取 Redis Pub/Sub Channel
+
+        Args:
+            kind: 实体类型
+
+        Returns:
+            Redis Channel，格式: bkmonitorv3:entity:{kind}:channel
+        """
+        return f"{cls.REDIS_KEY_PREFIX}:{kind}:channel"
+
+    @classmethod
+    def push_to_redis(cls, kind: str, namespace: str, name: str, data: dict):
+        """
+        推送并发布实体数据到 Redis
+
+        Args:
+            kind: 实体类型，即模型类名 (如 CustomRelationStatus)
+            namespace: 命名空间
+            name: 资源名称
+            data: 实体数据 (to_json() 的结果)
+        """
+        with tracer.start_as_current_span("entity_handler_factory.push_to_redis") as span:
+            span.set_attribute("entity.kind", kind)
+            span.set_attribute("entity.namespace", namespace)
+            span.set_attribute("entity.name", name)
+
+            redis_key = cls.get_redis_key(kind)
+            redis_channel = cls.get_redis_channel(kind)
+            field = f"{namespace}:{name}"
+
+            # 1. 组装数据
+            redis_value = {field: json.dumps(data)}
+            span.set_attribute("redis.key", redis_key)
+            span.set_attribute("redis.field", field)
+
+            # 2. 写入 Redis (使用 Hash 结构，key: kind, field: namespace:name)
+            RedisTools.hmset_to_redis(redis_key, redis_value)
+
+            # 3. 发布变更通知到 unify-query
+            RedisTools.publish(redis_channel, [field])
+            span.set_attribute("redis.channel", redis_channel)
+
+            logger.info(
+                "entity synced to redis, kind: %s, namespace: %s, name: %s, redis_key: %s",
+                kind,
+                namespace,
+                name,
+                redis_key,
+            )
+
+    @classmethod
+    def delete_from_redis(cls, kind: str, namespace: str, name: str):
+        """
+        从 Redis 删除实体数据并发布通知
+
+        Args:
+            kind: 实体类型
+            namespace: 命名空间
+            name: 资源名称
+        """
+        with tracer.start_as_current_span("entity_handler_factory.delete_from_redis") as span:
+            span.set_attribute("entity.kind", kind)
+            span.set_attribute("entity.namespace", namespace)
+            span.set_attribute("entity.name", name)
+
+            redis_key = cls.get_redis_key(kind)
+            redis_channel = cls.get_redis_channel(kind)
+            field = f"{namespace}:{name}"
+
+            # 1. 从 Redis Hash 中删除字段
+            RedisTools.hdel(redis_key, [field])
+
+            # 2. 发布删除通知到 unify-query
+            RedisTools.publish(redis_channel, [field])
+
+            logger.info(
+                "entity deleted from redis, kind: %s, namespace: %s, name: %s, redis_key: %s",
+                kind,
+                namespace,
+                name,
+                redis_key,
+            )
 
 
 class ApplyEntityResource(Resource):
