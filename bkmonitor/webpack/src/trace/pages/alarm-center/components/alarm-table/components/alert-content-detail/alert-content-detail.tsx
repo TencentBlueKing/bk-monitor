@@ -155,10 +155,7 @@ export default defineComponent({
                   text={true}
                   onClick={this.handleSave}
                 >
-                  <i
-                    class='icon-monitor icon-mc-check-small'
-                    onClick={this.handleSave}
-                  />
+                  <i class='icon-monitor icon-mc-check-small' />
                 </Button>
                 <Button
                   loading={this.loading}
@@ -167,19 +164,8 @@ export default defineComponent({
                   text={true}
                   onClick={() => this.toggleEditMode(false)}
                 >
-                  <i
-                    class='icon-monitor icon-mc-close'
-                    onClick={() => this.toggleEditMode(false)}
-                  />
+                  <i class='icon-monitor icon-mc-close' />
                 </Button>
-                {/* <i
-                  class='icon-monitor icon-mc-check-small'
-                  onClick={this.handleSave}
-                />
-                <i
-                  class='icon-monitor icon-mc-close'
-                  onClick={() => this.toggleEditMode(false)}
-                /> */}
               </div>
             </div>
           ) : (
