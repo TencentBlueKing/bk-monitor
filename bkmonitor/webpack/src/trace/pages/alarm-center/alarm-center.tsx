@@ -62,6 +62,7 @@ import { useQuickFilter } from './composables/use-quick-filter';
 import { useAlarmTableColumns } from './composables/use-table-columns';
 import {
   type AlertAllActionEnum,
+  type AlertContentNameEditInfo,
   type AlertTableItem,
   type CommonCondition,
   AlarmType,
@@ -77,6 +78,10 @@ const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
 import { Message } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
+
+import { saveAlertContentName } from './services/alert-services';
+
+import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
 import './alarm-center.scss';
 export default defineComponent({
@@ -515,6 +520,39 @@ export default defineComponent({
       window.open(`${href}?favorite_id=${data.id}`, '_blank');
     };
 
+    /**
+     * @description 保存告警内容数据含义
+     * @param {AlertContentNameEditInfo} saveInfo 保存接口参数信息
+     * @param {AlertSavePromiseEvent['promiseEvent']} savePromiseEvent.promiseEvent Promise 对象，用于告诉 操作发起者 接口请求状态
+     * @param {AlertSavePromiseEvent['errorCallback']} savePromiseEvent.errorCallback Promise.reject 方法，用于告诉 操作发起者 接口请求失败
+     * @param {AlertSavePromiseEvent['successCallback']} savePromiseEvent.successCallback Promise.resolve 方法，用于告诉 操作发起者 接口请求成功
+     */
+    const handleSaveAlertContentName = (
+      saveInfo: AlertContentNameEditInfo,
+      savePromiseEvent: AlertSavePromiseEvent
+    ) => {
+      saveAlertContentName(saveInfo)
+        .then(() => {
+          savePromiseEvent?.successCallback?.();
+          const targetRow = data.value.find(item => item.id === saveInfo.alert_id) as AlertTableItem;
+          const alertContent = targetRow?.items?.[0];
+          if (alertContent) {
+            alertContent.name = saveInfo.data_meaning;
+          }
+          Message({
+            message: t('更新成功'),
+            theme: 'success',
+          });
+        })
+        .catch(() => {
+          savePromiseEvent?.errorCallback?.();
+          Message({
+            message: t('更新失败'),
+            theme: 'error',
+          });
+        });
+    };
+
     watch(
       () => data.value,
       () => {
@@ -593,6 +631,7 @@ export default defineComponent({
       handleEditFavoriteShow,
       handleFavoriteChange,
       handleFavoriteOpenBlank,
+      handleSaveAlertContentName,
     };
   },
   render() {
@@ -695,6 +734,7 @@ export default defineComponent({
                           }}
                           onOpenAlertDialog={this.handleAlertDialogShow}
                           onPageSizeChange={this.handlePageSizeChange}
+                          onSaveAlertContentName={this.handleSaveAlertContentName}
                           onSelectionChange={this.handleSelectedRowKeysChange}
                           onShowActionDetail={this.handleShowActionDetail}
                           onShowAlertDetail={this.handleShowAlertDetail}

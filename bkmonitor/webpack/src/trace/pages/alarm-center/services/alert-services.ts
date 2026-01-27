@@ -26,11 +26,13 @@
 
 import { isEn } from '@/i18n/i18n';
 
+import { editDataMeaning } from 'monitor-api/modules/alert';
 import { alertTopN, searchAlert } from 'monitor-api/modules/alert_v2';
 import { getMethodIdForLowerCase } from 'monitor-pc/pages/query-template/components/utils/utils';
 import { MetricDetailV2, QueryConfig } from 'monitor-pc/pages/query-template/typings';
 
 import {
+  type AlertContentNameEditInfo,
   type AlertTableItem,
   type AnalysisFieldAggItem,
   type AnalysisTopNDataResponse,
@@ -935,3 +937,12 @@ export class AlertService extends AlarmService {
     return data;
   }
 }
+
+/**
+ * @description 保存告警内容数据含义
+ * @param {AlertContentNameEditInfo} saveInfo 保存接口参数信息
+ * @returns {Promise<boolean>} 是否保存成功
+ */
+export const saveAlertContentName = async (saveInfo: AlertContentNameEditInfo) => {
+  return await editDataMeaning(saveInfo);
+};

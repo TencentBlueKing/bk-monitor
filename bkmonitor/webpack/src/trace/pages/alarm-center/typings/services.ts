@@ -157,6 +157,12 @@ export interface AlertContentItem {
   origin_sql: string;
   query_configs: QueryConfig[];
 }
+/** 告警 -- 告警内容详情 -- 数据含义修改事件对象 */
+export type AlertContentNameEditInfo = {
+  alert_id: AlertTableItem['id'];
+  data_meaning: AlertContentItem['name'];
+};
+
 /** 告警 -- 关联事件数接口返回数据类型 */
 export type AlertEventCountResult = Record<string, number>;
 
