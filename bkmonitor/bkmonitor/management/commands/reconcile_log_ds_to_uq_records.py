@@ -19,13 +19,13 @@ specific language governing permissions and limitations under the License.
 使用方法::
 
     # 对指定业务进行对账（多个业务 ID 用逗号分隔）
-    python manage.py reconcile_log_ds_to_uq_records --biz_ids=2,3,5
+    python manage.py reconcile_log_ds_to_uq_records --biz_ids=1,2,3
 
     # 指定查询时间范围（分钟），默认 30 分钟
-    python manage.py reconcile_log_ds_to_uq_records --biz_ids=2 --time_range=60
+    python manage.py reconcile_log_ds_to_uq_records --biz_ids=1 --time_range=30
 
     # 指定输出文件路径
-    python manage.py reconcile_log_ds_to_uq_records --biz_ids=2 --output=/tmp/reconciliation_result.csv
+    python manage.py reconcile_log_ds_to_uq_records --biz_ids=1 --output=/tmp/reconciliation_result.csv
 """
 
 import csv
@@ -355,7 +355,8 @@ def run_reconciliation(
                         has_data = True
                         actual_time_range = time_range_minutes
                         break
-                    stdout.write(f"    在 {time_range_minutes} 分钟内未查询到有效数据，尝试更大范围")
+                    if time_range_minutes != time_ranges[-1]:
+                        stdout.write(f"    在 {time_range_minutes} 分钟内未查询到有效数据，尝试更大范围")
 
                 if not has_data:
                     stdout.write("    所有时间范围均未查询到有效数据")
@@ -386,7 +387,7 @@ def run_reconciliation(
                         "bk_biz_name": bk_biz_name,
                         "strategy_id": strategy.id,
                         "strategy_name": strategy.name,
-                        "strategy_url": f"{base_url}/?bizId={bk_biz_id}#/strategy-config/detail/{strategy.id}",
+                        "strategy_url": f"{base_url}?bizId={bk_biz_id}#/strategy-config/detail/{strategy.id}",
                         "data_type_label": data_type_label,
                         "is_consistent": "是" if is_consistent else "否",
                         "has_data": "是" if has_data else "否",
