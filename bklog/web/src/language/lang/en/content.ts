@@ -1266,4 +1266,5 @@ export default {
   '已上传成功，请直接检索': 'Uploaded successfully, please search directly',
   '搜索 openID、文件名称': 'Search by OpenID, file name',
   请先勾选任务: 'Please check the task first',
+  '支持字母、数字、下划线': 'Supports letters, numbers, and underscores',
 };
