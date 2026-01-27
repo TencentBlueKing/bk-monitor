@@ -13,72 +13,54 @@ import logging
 
 from opentelemetry import trace
 
-from metadata.models import RelationDefinition, ResourceDefinition
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
 tracer = trace.get_tracer(__name__)
 
-# Redis Key 和 Channel 常量
-RESOURCE_DEFINITION_KEY = "bkmonitorv3:relation:resource_definition"
-RESOURCE_DEFINITION_CHANNEL = "bkmonitorv3:relation:resource_definition:channel"
-RELATION_DEFINITION_KEY = "bkmonitorv3:relation:relation_definition"
-RELATION_DEFINITION_CHANNEL = "bkmonitorv3:relation:relation_definition:channel"
+# Redis Key 前缀
+REDIS_KEY_PREFIX = "bkmonitorv3:relation"
 
 
-def push_and_publish_resource_definition(name: str):
-    """推送并发布资源定义"""
-    with tracer.start_as_current_span("push_and_publish_resource_definition") as span:
-        span.set_attribute("resource_definition.name", name)
-
-        try:
-            resource_def = ResourceDefinition.objects.get(name=name)
-        except ResourceDefinition.DoesNotExist:
-            logger.error("resource definition not found: %s", name)
-            span.set_attribute("error", True)
-            span.set_attribute("error.message", f"resource definition not found: {name}")
-            return
-
-        # 1. 组装数据
-        redis_value = {name: json.dumps(resource_def.to_json())}
-        span.set_attribute("redis.key", RESOURCE_DEFINITION_KEY)
-        span.set_attribute("redis.field", name)
-
-        # 2. 写入 Redis
-        RedisTools.hmset_to_redis(RESOURCE_DEFINITION_KEY, redis_value)
-
-        # 3. 发布变更通知
-        RedisTools.publish(RESOURCE_DEFINITION_CHANNEL, [name])
-        span.set_attribute("redis.channel", RESOURCE_DEFINITION_CHANNEL)
-
-        logger.info("push and publish resource definition, name: %s", name)
+def get_redis_key(kind: str) -> str:
+    """获取 Redis Key"""
+    return f"{REDIS_KEY_PREFIX}:{kind}"
 
 
-def push_and_publish_relation_definition(namespace: str, name: str):
-    """推送并发布关联定义"""
-    with tracer.start_as_current_span("push_and_publish_relation_definition") as span:
-        span.set_attribute("relation_definition.namespace", namespace)
-        span.set_attribute("relation_definition.name", name)
+def get_redis_channel(kind: str) -> str:
+    """获取 Redis Pub/Sub Channel"""
+    return f"{REDIS_KEY_PREFIX}:{kind}:channel"
 
-        try:
-            relation_def = RelationDefinition.objects.get(namespace=namespace, name=name)
-        except RelationDefinition.DoesNotExist:
-            logger.error("relation definition not found: namespace=%s, name=%s", namespace, name)
-            span.set_attribute("error", True)
-            span.set_attribute("error.message", f"relation definition not found: namespace={namespace}, name={name}")
-            return
 
-        # 1. 组装数据
+def push_and_publish_entity(kind: str, namespace: str, name: str, data: dict):
+    """
+    推送并发布实体数据到 Redis
+
+    Args:
+        kind: 实体类型 (如 CustomRelationStatus, ResourceDefinition 等)
+        namespace: 命名空间
+        name: 资源名称
+        data: 实体数据 (to_json() 的结果)
+    """
+    with tracer.start_as_current_span("push_and_publish_entity") as span:
+        span.set_attribute("entity.kind", kind)
+        span.set_attribute("entity.namespace", namespace)
+        span.set_attribute("entity.name", name)
+
+        redis_key = get_redis_key(kind)
+        redis_channel = get_redis_channel(kind)
         field = f"{namespace}:{name}"
-        redis_value = {field: json.dumps(relation_def.to_json())}
-        span.set_attribute("redis.key", RELATION_DEFINITION_KEY)
+
+        # 1. 组装数据
+        redis_value = {field: json.dumps(data)}
+        span.set_attribute("redis.key", redis_key)
         span.set_attribute("redis.field", field)
 
         # 2. 写入 Redis
-        RedisTools.hmset_to_redis(RELATION_DEFINITION_KEY, redis_value)
+        RedisTools.hmset_to_redis(redis_key, redis_value)
 
         # 3. 发布变更通知
-        RedisTools.publish(RELATION_DEFINITION_CHANNEL, [field])
-        span.set_attribute("redis.channel", RELATION_DEFINITION_CHANNEL)
+        RedisTools.publish(redis_channel, [field])
+        span.set_attribute("redis.channel", redis_channel)
 
-        logger.info("push and publish relation definition, namespace: %s, name: %s", namespace, name)
+        logger.info("push and publish entity, kind: %s, namespace: %s, name: %s", kind, namespace, name)

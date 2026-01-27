@@ -20,6 +20,7 @@ from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource
 from core.errors.metadata import EntityNotFoundError, UnsupportedKindError
 from metadata.models import EntityMeta
+from metadata.service.relation_redis import push_and_publish_entity
 
 logger = logging.getLogger("metadata")
 
@@ -84,7 +85,16 @@ class EntityHandler:
                 entity.generation += 1
                 entity.save()
 
-        return entity.to_json()
+        # 同步到 Redis
+        result = entity.to_json()
+        push_and_publish_entity(
+            kind=self.model_class.get_kind(),
+            namespace=namespace,
+            name=name,
+            data=result,
+        )
+
+        return result
 
     def get(self, namespace: str, name: str) -> dict[str, Any]:
         """
