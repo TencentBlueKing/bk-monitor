@@ -58,7 +58,7 @@ def register_alarm_cache_bmw_task():
     cache_redis_conf = settings.REDIS_CACHE_CONF
     if os.getenv("REDIS_CACHE_CMDB_URL"):
         cmdb_redis_conf: dict[str, Any] = parse_url(os.getenv("REDIS_CACHE_CMDB_URL"))
-        hosts = cmdb_redis_conf["hostname"].split(";")
+        hosts = [host.strip() for host in cmdb_redis_conf["hostname"].split(";") if host.strip()]
         addrs = [f"{host}:{cmdb_redis_conf['port']}" for host in hosts]
         redis_options = {
             "addrs": addrs,
@@ -69,7 +69,7 @@ def register_alarm_cache_bmw_task():
             "sentinel_password": cmdb_redis_conf["virtual_host"],
         }
     else:
-        hosts = cache_redis_conf["host"].split(";")
+        hosts = [host.strip() for host in cache_redis_conf["host"].split(";") if host.strip()]
         addrs = [f"{host}:{cache_redis_conf['port']}" for host in hosts]
         redis_options = {
             "addrs": addrs,
@@ -79,6 +79,9 @@ def register_alarm_cache_bmw_task():
             "password": cache_redis_conf.get("password"),
             "sentinel_password": cache_redis_conf.get("sentinel_password"),
         }
+
+    if not addrs:
+        raise ValueError("redis addrs is empty for alarm cache task registration")
 
     # 参数准备
     task_kind_params: dict[str, Any] = {
