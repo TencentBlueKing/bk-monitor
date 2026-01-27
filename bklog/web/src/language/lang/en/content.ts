@@ -33,6 +33,8 @@ export default {
   待选项列表: 'Unselected item',
   已选项列表: 'Selected item',
   查询无数据: 'No query results',
+  '- 共检索出': '- Retrieved',
+  '条结果 -': 'results -',
   数据源配置: 'Data source configuration',
   请输入组名: 'Please enter group name',
   搜索收藏名: 'Search collection name',
