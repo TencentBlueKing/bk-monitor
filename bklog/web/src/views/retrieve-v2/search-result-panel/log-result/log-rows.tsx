@@ -231,12 +231,16 @@ export default defineComponent({
           resize: false,
           minWidth: timeFieldType.value === 'date_nanos' ? 250 : 200,
           renderBodyCell: ({ row }) => {
+            const timezone = store.state.indexItem.timezone;
+            const fieldType = timeFieldType.value;
+            const formatValue = RetrieveHelper.formatTimeZoneValue(row[timeField.value], fieldType, timezone);
+
             return h(
               'span',
               {
                 class: 'time-field',
                 domProps: {
-                  innerHTML: xssFilter(RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value)),
+                  innerHTML: xssFilter(formatValue),
                 },
               },
               [],

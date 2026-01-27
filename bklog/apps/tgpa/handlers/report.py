@@ -258,6 +258,9 @@ class TGPAReportHandler:
         更新文件处理状态
         """
         record_obj = TGPAReportSyncRecord.objects.get(id=record_id)
+        if record_obj.status in [TGPAReportSyncStatusEnum.SUCCESS.value, TGPAReportSyncStatusEnum.FAILED.value]:
+            return
+
         status_list = TGPAReport.objects.filter(record_id=record_id).values_list("process_status", flat=True).distinct()
         status_set = set(status_list)
 
