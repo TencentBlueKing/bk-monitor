@@ -7,6 +7,7 @@ from typing import Any
 from django.core.management import BaseCommand, CommandError
 from django.db import transaction
 
+from apps.log_clustering.models import AiopsModel, AiopsModelExperiment, AiopsSignatureAndPattern, SampleSet
 from apps.log_databus.exceptions import MySqlConfigException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
@@ -36,30 +37,11 @@ class Command(BaseCommand):
             "--index_set_ids", help="需要导入的索引集 ID, 不传时导入所有的索引集, 例如: 1,2,3", type=str, default=""
         )
         parser.add_argument(
-            "-is",
-            "--index_set",
-            help="需要导入的索引集数据, 默认为: log_search_logindexset.json",
-            default=os.path.join(PROJECT_PATH, "log_search_logindexset.json"),
-        )
-        parser.add_argument(
-            "-isd",
-            "--index_set_data",
-            help="需要导入的索引集审批数据, 默认为: log_search_logindexsetdata.json",
-            default=os.path.join(PROJECT_PATH, "log_search_logindexsetdata.json"),
-        )
-        parser.add_argument(
-            "-cc",
-            "--collector_config",
+            "-dp",
+            "--dir_path",
             type=str,
-            help="需要导入的采集项数据, 默认为: log_databus_collectorconfig.json",
-            default=os.path.join(PROJECT_PATH, "log_databus_collectorconfig.json"),
-        )
-        parser.add_argument(
-            "-ccc",
-            "--container_collector_config",
-            type=str,
-            help="需要导入的容器采集项数据, 默认为: log_databus_containercollectorconfig.json",
-            default=os.path.join(PROJECT_PATH, "log_databus_containercollectorconfig.json"),
+            help="存放 json 文件的文件夹路径",
+            default=PROJECT_PATH,
         )
         parser.add_argument("--mysql_config_source", type=str, help="公共数据库配置来源", default=None)
         parser.add_argument("--mysql_host", help="公共数据库地址", type=str, default=None)
@@ -69,18 +51,38 @@ class Command(BaseCommand):
         parser.add_argument("--mysql_password", help="公共数据库密码", type=str, default=None)
 
     def handle(self, *args, **options):
+        dir_path = options["dir_path"]
+
         json_filepath_dict = {
-            "index_set": options["index_set"],
-            "index_set_data": options["index_set_data"],
-            "collector_config": options["collector_config"],
-            "container_collector_config": options["container_collector_config"],
+            "index_set": os.path.join(dir_path, "log_search_logindexset.json"),
+            "index_set_data": os.path.join(dir_path, "log_search_logindexsetdata.json"),
+            "collector_config": os.path.join(dir_path, "log_databus_collectorconfig.json"),
+            "container_collector_config": os.path.join(dir_path, "log_databus_containercollectorconfig.json"),
+            "aiops_model": os.path.join(dir_path, "log_clustering_aiopsmodel.json"),
+            "aiops_model_experiment": os.path.join(dir_path, "log_clustering_aiopsmodelexperiment.json"),
+            "aiops_signature_and_pattern": os.path.join(dir_path, "log_clustering_aiopssignatureandpattern.json"),
+            "clustering_config": os.path.join(dir_path, "log_clustering_clusteringconfig.json"),
+            "clustering_remark": os.path.join(dir_path, "log_clustering_clusteringremark.json"),
+            "clustering_subscription": os.path.join(dir_path, "log_clustering_clusteringsubscription.json"),
+            "notice_group": os.path.join(dir_path, "log_clustering_noticegroup.json"),
+            "regex_template": os.path.join(dir_path, "log_clustering_regextemplate.json"),
+            "sample_set": os.path.join(dir_path, "log_clustering_sampleset.json"),
+            "signature_strategy_settings": os.path.join(dir_path, "log_clustering_signaturestrategysettings.json"),
         }
 
-        for json_filepath in json_filepath_dict.values():
+        json_content_dict = {}
+
+        for key, json_filepath in json_filepath_dict.items():
             if not os.path.exists(json_filepath):
-                raise CommandError(f"json 文件不存在：{json_filepath}")
+                raise CommandError(f"json 文件不存在: {json_filepath}")
             if not json_filepath.endswith(".json"):
-                raise CommandError(f"文件格式错误(.json)：{json_filepath}")
+                raise CommandError(f"文件格式错误(.json): {json_filepath}")
+            try:
+                json_content = JsonFile.read(json_filepath)
+            except Exception as e:
+                error_msg = f"读取 json 文件失败: {json_filepath}\n错误原因：{str(e)}"
+                raise Exception(error_msg) from e
+            json_content_dict[key] = json_content
 
         if options["mysql_config_source"] == "default":
             port = os.environ.get("DB_PORT", None)
@@ -89,7 +91,7 @@ class Command(BaseCommand):
                 if port:
                     port = int(port)
             except Exception as e:
-                raise Exception(f"数据库默认配置 port 异常：{str(e)}") from e
+                raise Exception(f"公共数据库默认配置错误, port 类型转换失败: {str(e)}") from e
 
             mysql_config = {
                 "host": os.environ.get("DB_HOST"),
@@ -108,7 +110,7 @@ class Command(BaseCommand):
             }
 
         OverseasMigrateTool(
-            json_filepath_dict=json_filepath_dict,
+            json_content_dict=json_content_dict,
             mysql_config=mysql_config,
             bk_biz_id=options["bk_biz_id"],
             index_set_ids_str=options["index_set_ids"],
@@ -120,12 +122,12 @@ class OverseasMigrateTool:
 
     def __init__(
         self,
-        json_filepath_dict: dict,
+        json_content_dict: dict,
         mysql_config: dict,
         bk_biz_id: int = 0,
         index_set_ids_str: str = "",
     ):
-        self.filepath_dict = json_filepath_dict
+        self.content_dict = json_content_dict
         self.result_table_name = BK_LOG_SEARCH_OVERSEAS_MIGRATE_RESULT_TABLE
 
         for key, config in mysql_config.items():
@@ -142,7 +144,7 @@ class OverseasMigrateTool:
         self.space_uid = ""
         if self.bk_biz_id:
             self.space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
-        self.index_set_ids_set = set(parse_str_int_list(index_set_ids_str))
+        self.index_set_id_set = set(parse_str_int_list(index_set_ids_str))
 
     def create_table_if_not_exists(self) -> None:
         """创建日志平台海外迁移结果表"""
@@ -166,34 +168,60 @@ class OverseasMigrateTool:
         """
         原数据迁移
         """
-        # 获取文件路径
-        index_set_filepath = self.filepath_dict.get("index_set")
-        index_set_data_filepath = self.filepath_dict.get("index_set_data")
-        collector_config_filepath = self.filepath_dict.get("collector_config")
-        container_collector_config_filepath = self.filepath_dict.get("container_collector_config")
+        # 无外键关联, 直接迁移
+        self.file_datas_save_db(AiopsModel, self.content_dict.get("aiops_model", []))
+        self.file_datas_save_db(AiopsModelExperiment, self.content_dict.get("aiops_model_experiment", []))
+        self.file_datas_save_db(AiopsSignatureAndPattern, self.content_dict.get("aiops_signature_and_pattern", []))
+        self.file_datas_save_db(SampleSet, self.content_dict.get("sample_set", []))
 
-        # 获取文件数据
-        index_set_file_datas = JsonFile.read(index_set_filepath)
-        index_set_data_file_datas = JsonFile.read(index_set_data_filepath)
-        collector_config_file_datas = JsonFile.read(collector_config_filepath)
-        container_collector_config_file_datas = JsonFile.read(container_collector_config_filepath)
-
+        # 有外键关联, 需关联迁移
         # 创建数据字典，方便后续取值
-        index_set_data_file_data_dict = defaultdict(list)
-        [index_set_data_file_data_dict[data["index_set_id"]].append(data) for data in index_set_data_file_datas]
-        collector_config_file_data_dict = {data.get("index_set_id"): data for data in collector_config_file_datas}
-        container_collector_config_file_data_dict = defaultdict(list)
-        [
-            container_collector_config_file_data_dict[data["collector_config_id"]].append(data)
-            for data in container_collector_config_file_datas
-        ]
+        collector_config_file_data_dict = {
+            data.get("index_set_id"): data for data in self.content_dict.get("collector_config", [])
+        }
+        index_set_data_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
+            "index_set_id", self.content_dict.get("index_set_data", []), index_set_id_set=self.index_set_id_set or None
+        )
+        container_collector_config_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
+            "collector_config_id", self.content_dict.get("container_collector_config", [])
+        )
+        # clustering_config_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
+        #     "index_set_id",
+        #     self.content_dict.get("clustering_config", []),
+        #     index_set_id_set=self.index_set_id_set or None,
+        # )
+        # clustering_remark_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
+        #     "bk_biz_id",
+        #     self.content_dict.get("clustering_remark", []),
+        #     bk_biz_id_set={self.bk_biz_id} or None
+        # )
+        # clustering_subscription_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
+        #     "index_set_id",
+        #     self.content_dict.get("clustering_subscription", []),
+        #     index_set_id_set=self.index_set_id_set or None,
+        # )
+        # notice_group_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
+        #     "index_set_id",
+        #     self.content_dict.get("notice_group", []),
+        #     index_set_id_set=self.index_set_id_set or None
+        # )
+        # regex_template_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
+        #     "space_uid",
+        #     self.content_dict.get("regex_template", []),
+        #     space_uid_set={self.space_uid} or None
+        # )
+        # signature_strategy_settings_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
+        #     "index_set_id",
+        #     self.content_dict.get("signature_strategy_settings", []),
+        #     index_set_id_set=self.index_set_id_set or None,
+        # )
 
         collector_config_id_name_dict = {}
 
         # 遍历索引集数据，进行迁移操作
-        for data in index_set_file_datas:
+        for data in self.content_dict.get("index_set", []):
             if (self.bk_biz_id and data.get("space_uid") != self.space_uid) or (
-                self.index_set_ids_set and data.get("index_set_id") not in self.index_set_ids_set
+                self.index_set_id_set and data.get("index_set_id") not in self.index_set_id_set
             ):
                 continue
 
@@ -217,7 +245,7 @@ class OverseasMigrateTool:
                 activate_request(generate_request(data["created_by"]))
 
                 # 通过字典取出与 index_set_id 关联的其他表数据
-                index_set_data_datas = index_set_data_file_data_dict.get(index_set_id, [])
+                index_set_data_datas = index_set_data_file_datas_dict.get(index_set_id, [])
                 collector_config_data = collector_config_file_data_dict.get(index_set_id, {})
 
                 if collector_config_data:
@@ -236,7 +264,7 @@ class OverseasMigrateTool:
 
                     CollectorConfig.objects.create(**collector_config_data)
 
-                    container_collector_config_datas = container_collector_config_file_data_dict.get(
+                    container_collector_config_datas = container_collector_config_file_datas_dict.get(
                         collector_config_id, []
                     )
 
@@ -326,17 +354,11 @@ class OverseasMigrateTool:
         """
         除了 index_set_id, 其他 id 全部清除进行迁移, 自动生成新 id
         """
-        # 获取文件路径
-        index_set_filepath = self.filepath_dict.get("index_set")
-        index_set_data_filepath = self.filepath_dict.get("index_set_data")
-        collector_config_filepath = self.filepath_dict.get("collector_config")
-        container_collector_config_filepath = self.filepath_dict.get("container_collector_config")
-
-        # 获取文件数据
-        index_set_file_datas = JsonFile.read(index_set_filepath)
-        index_set_data_file_datas = JsonFile.read(index_set_data_filepath)
-        collector_config_file_datas = JsonFile.read(collector_config_filepath)
-        container_collector_config_file_datas = JsonFile.read(container_collector_config_filepath)
+        # 获取相对应 json 文件中的数据
+        index_set_file_datas = self.content_dict.get("index_set", [])
+        index_set_data_file_datas = self.content_dict.get("index_set_data", [])
+        collector_config_file_datas = self.content_dict.get("collector_config", [])
+        container_collector_config_file_datas = self.content_dict.get("container_collector_config", [])
 
         # 创建数据字典，方便后续取值
         index_set_data_file_data_dict = defaultdict(list)
@@ -352,7 +374,7 @@ class OverseasMigrateTool:
         # 遍历索引集数据，进行迁移操作
         for data in index_set_file_datas:
             if (self.bk_biz_id and data.get("space_uid") != self.space_uid) or (
-                self.index_set_ids_set and data.get("index_set_id") not in self.index_set_ids_set
+                self.index_set_id_set and data.get("index_set_id") not in self.index_set_id_set
             ):
                 continue
 
@@ -479,6 +501,49 @@ class OverseasMigrateTool:
 
         activate_request(generate_request("admin"))
         self.db.close()
+
+    @staticmethod
+    def file_datas_save_db(model, file_datas):
+        if not file_datas:
+            return
+
+        objs = [model(**data) for data in file_datas]
+
+        return model.objects.bulk_create(objs)
+
+    @staticmethod
+    def transform_dict_list_to_customization_key_dict_list_dict(
+        key,
+        dict_list: list[dict],
+        bk_biz_id_set: set[int] = None,
+        space_uid_set: set[str] = None,
+        index_set_id_set: set[int] = None,
+    ) -> dict[str : list[dict]]:
+        if not key or not dict_list:
+            return {}
+
+        condition = set()
+        if bk_biz_id_set:
+            condition = bk_biz_id_set
+        elif space_uid_set:
+            condition = space_uid_set
+        elif index_set_id_set:
+            condition = index_set_id_set
+
+        dict_list_dict = defaultdict(list)
+
+        for item in dict_list:
+            value = item.get(key)
+
+            if not value:
+                continue
+
+            if condition and value not in condition:
+                continue
+
+            dict_list_dict[value].append(item)
+
+        return dict_list_dict
 
     @staticmethod
     def format_multi_str_split_by_comma_field_back(values_str):
