@@ -168,6 +168,15 @@ class OverseasMigrateTool:
         """
         原数据迁移
         """
+        index_set_file_datas = self.content_dict.get("index_set", [])
+        if self.bk_biz_id and self.space_uid:
+            index_set_file_datas = [
+                data for data in index_set_file_datas if data.get("space_uid", "") == self.space_uid
+            ]
+            self.index_set_id_set = set(
+                [data.get("index_set_id") for data in index_set_file_datas if data.get("index_set_id")]
+            )
+
         # 无外键关联, 直接迁移
         self.file_datas_save_db(AiopsModel, self.content_dict.get("aiops_model", []))
         self.file_datas_save_db(AiopsModelExperiment, self.content_dict.get("aiops_model_experiment", []))
@@ -181,9 +190,6 @@ class OverseasMigrateTool:
         }
         index_set_data_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
             "index_set_id", self.content_dict.get("index_set_data", []), index_set_id_set=self.index_set_id_set or None
-        )
-        container_collector_config_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
-            "collector_config_id", self.content_dict.get("container_collector_config", [])
         )
         # clustering_config_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
         #     "index_set_id",
@@ -219,7 +225,7 @@ class OverseasMigrateTool:
         collector_config_id_name_dict = {}
 
         # 遍历索引集数据，进行迁移操作
-        for data in self.content_dict.get("index_set", []):
+        for data in index_set_file_datas:
             if (self.bk_biz_id and data.get("space_uid") != self.space_uid) or (
                 self.index_set_id_set and data.get("index_set_id") not in self.index_set_id_set
             ):
@@ -250,6 +256,14 @@ class OverseasMigrateTool:
 
                 if collector_config_data:
                     collector_config_id = collector_config_data.get("collector_config_id")
+
+                    container_collector_config_file_datas_dict = (
+                        self.transform_dict_list_to_customization_key_dict_list_dict(
+                            "collector_config_id",
+                            self.content_dict.get("container_collector_config", []),
+                            collector_config_id_set={collector_config_id} or None,
+                        )
+                    )
 
                     collector_config_id_name_dict[collector_config_id] = collector_config_data.get(
                         "collector_config_name"
@@ -349,159 +363,6 @@ class OverseasMigrateTool:
                     error=str(e),
                 )
 
-    @transaction.atomic
-    def remove_id_except_index_set_id_migrate(self):
-        """
-        除了 index_set_id, 其他 id 全部清除进行迁移, 自动生成新 id
-        """
-        # 获取相对应 json 文件中的数据
-        index_set_file_datas = self.content_dict.get("index_set", [])
-        index_set_data_file_datas = self.content_dict.get("index_set_data", [])
-        collector_config_file_datas = self.content_dict.get("collector_config", [])
-        container_collector_config_file_datas = self.content_dict.get("container_collector_config", [])
-
-        # 创建数据字典，方便后续取值
-        index_set_data_file_data_dict = defaultdict(list)
-        collector_config_file_data_dict = {data.get("index_set_id"): data for data in collector_config_file_datas}
-        container_collector_config_file_data_dict = defaultdict(list)
-
-        [index_set_data_file_data_dict[data["index_set_id"]].append(data) for data in index_set_data_file_datas]
-        [
-            container_collector_config_file_data_dict[data["collector_config_id"]].append(data)
-            for data in container_collector_config_file_datas
-        ]
-
-        # 遍历索引集数据，进行迁移操作
-        for data in index_set_file_datas:
-            if (self.bk_biz_id and data.get("space_uid") != self.space_uid) or (
-                self.index_set_id_set and data.get("index_set_id") not in self.index_set_id_set
-            ):
-                continue
-
-            index_set_id = data.get("index_set_id")
-            space_uid = data.get("space_uid", "")
-            bk_biz_id = space_uid_to_bk_biz_id(space_uid)
-
-            # 构建初始迁移记录
-            migrate_record = {
-                "bk_biz_id": bk_biz_id,
-                "space_uid": space_uid,
-                "index_set_id": index_set_id,
-            }
-
-            # 格式化数据为原格式
-            data["tag_ids"] = self.format_multi_str_split_by_comma_field_back(data.get("tag_ids", ""))
-            data["view_roles"] = self.format_multi_str_split_by_comma_field_back(data.get("view_roles", ""))
-
-            try:
-                # 赋值原创建人
-                activate_request(generate_request(data["created_by"]))
-
-                # 通过字典取出与 index_set_id 关联的其他表数据
-                index_set_data_datas = index_set_data_file_data_dict.get(index_set_id, [])
-                collector_config_data = collector_config_file_data_dict.get(index_set_id, {})
-
-                if collector_config_data:
-                    origin_collector_config_id = collector_config_data.pop("collector_config_id", None)
-
-                    migrate_record["origin_collector_config_id"] = origin_collector_config_id
-
-                    # 格式化为 task_id_list 原格式
-                    collector_config_data["task_id_list"] = self.format_multi_str_split_by_comma_field_back(
-                        collector_config_data.get("task_id_list", "")
-                    )
-
-                    container_collector_config_datas = container_collector_config_file_data_dict.get(
-                        origin_collector_config_id, []
-                    )
-
-                    # 插入 collector_config 表数据，获取新 collector_config_id
-                    collector_config_obj = CollectorConfig.objects.create(**collector_config_data)
-                    collector_config_id = collector_config_obj.collector_config_id
-
-                    migrate_record["collector_config_id"] = collector_config_id
-
-                    # 更新 collector_config_id
-                    data["collector_config_id"] = collector_config_id
-
-                    index_set_data_creates = []
-                    for item in index_set_data_datas:
-                        item.pop("index_id", None)
-                        index_set_data_creates.append(LogIndexSetData(**item))
-
-                    container_collector_config_creates = []
-                    for item in container_collector_config_datas:
-                        item.pop("id", None)
-                        item["collector_config_id"] = collector_config_id
-                        container_collector_config_creates.append(ContainerCollectorConfig(**item))
-
-                    LogIndexSet.objects.create(**data)
-
-                    # 插入与 index_set_id 关联的其他表数据
-                    log_index_set_data_objs = []
-                    if index_set_data_creates:
-                        log_index_set_data_objs = LogIndexSetData.objects.bulk_create(index_set_data_creates)
-
-                    container_collector_config_objs = []
-                    if container_collector_config_creates:
-                        container_collector_config_objs = ContainerCollectorConfig.objects.bulk_create(
-                            container_collector_config_creates
-                        )
-
-                    details = json.dumps(
-                        {
-                            "log_index_set_data_ids": [item.index_id for item in log_index_set_data_objs],
-                            "container_collector_config_ids": [item.id for item in container_collector_config_objs],
-                        }
-                    )
-                    migrate_record.update({"status": MigrateStatus.SUCCESS, "details": details})
-                else:
-                    index_set_data_creates = []
-                    for item in index_set_data_datas:
-                        item.pop("index_id", None)
-                        index_set_data_creates.append(LogIndexSetData(**item))
-
-                    LogIndexSet.objects.create(**data)
-
-                    # 插入与 index_set_id 关联的其他表数据
-                    log_index_set_data_objs = []
-                    if index_set_data_creates:
-                        log_index_set_data_objs = LogIndexSetData.objects.bulk_create(index_set_data_creates)
-
-                    details = json.dumps(
-                        {
-                            "log_index_set_data_ids": [item.index_id for item in log_index_set_data_objs],
-                        }
-                    )
-                    migrate_record.update({"status": MigrateStatus.SUCCESS, "details": details})
-
-            except Exception as e:
-                details = json.dumps(
-                    {
-                        "exception": str(e),
-                        "traceback": traceback.format_exc(),
-                    }
-                )
-                migrate_record.update({"status": MigrateStatus.FAIL, "details": details})
-                self.fail(data=data, migrate_record=migrate_record)
-
-                raise e
-            finally:
-                migrate_record.setdefault("status", MigrateStatus.FAIL)
-                migrate_record.setdefault("details", json.dumps({"error": "unknown error"}))
-
-                try:
-                    self.record(migrate_record)
-                except Exception as e:
-                    Prompt.error(
-                        msg="迁移操作记录失败, 索引集 ID: {index_set_id}, 错误信息: {error}",
-                        index_set_id=index_set_id,
-                        error=str(e),
-                    )
-
-        activate_request(generate_request("admin"))
-        self.db.close()
-
     @staticmethod
     def file_datas_save_db(model, file_datas):
         if not file_datas:
@@ -518,6 +379,7 @@ class OverseasMigrateTool:
         bk_biz_id_set: set[int] = None,
         space_uid_set: set[str] = None,
         index_set_id_set: set[int] = None,
+        collector_config_id_set: set[int] = None,
     ) -> dict[str : list[dict]]:
         if not key or not dict_list:
             return {}
@@ -529,6 +391,8 @@ class OverseasMigrateTool:
             condition = space_uid_set
         elif index_set_id_set:
             condition = index_set_id_set
+        elif collector_config_id_set:
+            condition = collector_config_id_set
 
         dict_list_dict = defaultdict(list)
 
