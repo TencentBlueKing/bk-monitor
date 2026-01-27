@@ -499,7 +499,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     const interval = isHasPointTime ? 60 : 0;
     const from = isHasPointTime ? (timeParams.start_time - interval) * 1000 : this.timeRange[0];
     const to = isHasPointTime ? timeParams.end_time * 1000 : this.timeRange[1];
-    console.log(from, to, 'from, to');
     const { app_name, service_name } = this.viewOptions;
     /** 主被调 */
     if (type === 'callee') {
