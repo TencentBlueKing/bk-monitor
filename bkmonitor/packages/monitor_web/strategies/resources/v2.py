@@ -1,69 +1,65 @@
-import datetime
 import logging
-import operator
 import re
 import time
 from collections import defaultdict
-from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
-from typing import Any
+from typing import Any, cast
 
 import arrow
-import pytz
+from bk_monitor_base.strategy import (
+    AlgorithmSerializer,
+    FilterCondition,
+    StrategyQueryEngine,
+    StrategySerializer,
+    delete_strategies,
+    get_metric_id,
+    get_strategy,
+    list_plain_strategy,
+    list_strategy,
+    parse_metric_id,
+    save_strategy,
+    update_partial_strategy,
+)
 from django.conf import settings
 from django.db import close_old_connections, transaction
-from django.db.models import Count, ExpressionWrapper, F, Q, QuerySet, fields
+from django.db.models import Count, Q, QuerySet
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+
 from api.cmdb.define import Host, Module, Set, TopoTree
 from bkm_ipchooser.handlers import template_handler
 from bkmonitor.action.utils import get_strategy_user_group_dict
 from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import Functions, UnifyQuery, load_data_source
-from bkmonitor.dataflow.constant import (
-    AI_SETTING_ALGORITHMS,
-    AccessStatus,
-)
+from bkmonitor.dataflow.constant import AI_SETTING_ALGORITHMS, AccessStatus
 from bkmonitor.dataflow.flow import DataFlow
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam.action import ActionEnum
 from bkmonitor.iam.permission import Permission
 from bkmonitor.models import (
     ActionConfig,
-    ActionSignal,
     AlgorithmModel,
     DetectModel,
     ItemModel,
     MetricListCache,
     QueryConfigModel,
     StrategyActionConfigRelation,
-    StrategyHistoryModel,
     StrategyLabel,
     StrategyModel,
     UserGroup,
 )
 from bkmonitor.models.strategy import AlgorithmChoiceConfig, NoticeSubscribe
-from bkmonitor.strategy.new_strategy import (
-    ActionRelation,
-    Algorithm,
-    NoticeRelation,
-    QueryConfig,
-    Strategy,
-    get_metric_id,
-    parse_metric_id,
-)
+from bkmonitor.strategy.new_strategy import QueryConfig
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username, get_source_app
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
 from constants.action import UserGroupType
-from constants.aiops import SDKDetectStatus
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
@@ -75,19 +71,12 @@ from core.drf_resource.contrib.cache import CacheResource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
 from core.errors.strategy import StrategyNameExist
 from monitor.models import ApplicationConfig
-from monitor_web.models import (
-    CollectorPluginMeta,
-    CustomEventGroup,
-    CustomTSTable,
-    DataTargetMapping,
-)
+from monitor_web.models import CustomEventGroup, CustomTSTable, DataTargetMapping
 from monitor_web.shield.utils import ShieldDetectManager
-from monitor_web.strategies.constant import (
-    DEFAULT_TRIGGER_CONFIG_MAP,
-    GLOBAL_TRIGGER_CONFIG,
-)
+from monitor_web.strategies.constant import DEFAULT_TRIGGER_CONFIG_MAP, GLOBAL_TRIGGER_CONFIG
 from monitor_web.strategies.serializers import handle_target
 from monitor_web.tasks import update_metric_list_by_biz
+from utils.strategy import fill_user_groups
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +106,6 @@ class GetStrategyListV2Resource(Resource):
         page_size = serializers.IntegerField(required=False, default=10, label="每页数量")
         with_user_group = serializers.BooleanField(default=False, label="是否补充告警组信息")
         with_user_group_detail = serializers.BooleanField(required=False, default=False, label="补充告警组详细信息")
-        convert_dashboard = serializers.BooleanField(required=False, default=True, label="是否转换仪表盘格式")
 
     @classmethod
     def filter_by_ip(cls, ips: list[dict], strategies: QuerySet, bk_biz_id: int = None) -> QuerySet:
@@ -206,528 +194,6 @@ class GetStrategyListV2Resource(Resource):
                     ip_strategy_ids.add(item.strategy_id)
 
         return strategies.filter(id__in=ip_strategy_ids)
-
-    @classmethod
-    def filter_strategy_ids_by_id(cls, filter_dict: dict, filter_strategy_ids_set: set):
-        """过滤策略ID"""
-        if filter_dict["id"]:
-            ids = set()
-            for _id in filter_dict["id"]:
-                try:
-                    ids.add(int(_id))
-                except (ValueError, TypeError):
-                    # 无效的过滤条件，查不出数据
-                    continue
-            filter_strategy_ids_set.intersection_update(ids)
-
-    @classmethod
-    def filter_strategy_ids_by_label(
-        cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: str | None = None
-    ):
-        """过滤策略标签"""
-        if filter_dict["label"]:
-            labels = [f"/{label.strip('/')}/" for label in filter_dict["label"]]
-            strategy_label_qs = StrategyLabel.objects.filter(label_name__in=labels)
-            if bk_biz_id is not None:
-                strategy_label_qs = strategy_label_qs.filter(bk_biz_id=bk_biz_id)
-            label_strategy_ids = strategy_label_qs.values_list("strategy_id", flat=True).distinct()
-            filter_strategy_ids_set.intersection_update(set(label_strategy_ids))
-
-    @classmethod
-    def filter_strategy_ids_by_data_source(cls, filter_dict: dict, filter_strategy_ids_set: set):
-        """过滤数据源"""
-        if filter_dict["data_source"]:
-            data_sources: list[tuple] = []
-            for data_source in filter_dict["data_source"]:
-                for category in DATA_CATEGORY:
-                    if data_source != category["type"]:
-                        continue
-                    data_sources.append((category["data_source_label"], category["data_type_label"]))
-                    break
-            if not data_sources:
-                filter_strategy_ids_set.intersection_update(set())
-            else:
-                data_source_strategy_ids = (
-                    QueryConfigModel.objects.filter(
-                        reduce(
-                            lambda x, y: x | y, [Q(data_source_label=ds, data_type_label=dt) for ds, dt in data_sources]
-                        ),
-                        strategy_id__in=filter_strategy_ids_set,
-                    )
-                    .values_list("strategy_id", flat=True)
-                    .distinct()
-                )
-                filter_strategy_ids_set.intersection_update(set(data_source_strategy_ids))
-
-    @classmethod
-    def filter_strategy_ids_by_result_table(cls, filter_dict: dict, filter_strategy_ids_set: set):
-        """过滤结果表"""
-        if filter_dict["result_table_id"]:
-            result_table_id_strategy_ids = []
-            for result_table_id in filter_dict["result_table_id"]:
-                result_table_id_strategy_ids.extend(
-                    list(
-                        QueryConfigModel.objects.filter(config__result_table_id=result_table_id)
-                        .values_list("strategy_id", flat=True)
-                        .distinct()
-                    )
-                )
-            filter_strategy_ids_set.intersection_update(set(result_table_id_strategy_ids))
-
-    @classmethod
-    def filter_strategy_ids_by_status(
-        cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: str | None = None
-    ):
-        """策略状态过滤"""
-        if filter_dict["strategy_status"]:
-            strategy_status_ids = []
-            for status in filter_dict["strategy_status"]:
-                filter_status_params = {"status": status}
-                if bk_biz_id is not None:
-                    filter_status_params["bk_biz_id"] = bk_biz_id
-
-                strategy_status_ids.extend(cls.filter_by_status(**filter_status_params))
-            filter_strategy_ids_set.intersection_update(set(strategy_status_ids))
-
-    @classmethod
-    def filter_strategy_ids_by_algo_type(cls, filter_dict: dict, filter_strategy_ids_set: set):
-        """算法类型过滤"""
-        if filter_dict["algorithm_type"]:
-            algorithm_strategy_ids = (
-                AlgorithmModel.objects.filter(
-                    type__in=filter_dict["algorithm_type"], strategy_id__in=filter_strategy_ids_set
-                )
-                .values_list("strategy_id", flat=True)
-                .distinct()
-            )
-            filter_strategy_ids_set.intersection_update(set(algorithm_strategy_ids))
-
-    @classmethod
-    def filter_strategy_ids_by_invalid_type(cls, filter_dict: dict, filter_strategy_ids_set: set):
-        """失效类型过滤"""
-        if filter_dict["invalid_type"]:
-            algorithm_strategy_ids = (
-                StrategyModel.objects.filter(
-                    invalid_type__in=filter_dict["invalid_type"], id__in=filter_strategy_ids_set
-                )
-                .values_list("id", flat=True)
-                .distinct()
-            )
-            filter_strategy_ids_set.intersection_update(set(algorithm_strategy_ids))
-
-    @classmethod
-    def filter_strategy_ids_by_event_group(
-        cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: str | None = None
-    ):
-        """过滤自定义事件组ID"""
-        if filter_dict["custom_event_group_id"] or filter_dict["bk_event_group_id"]:
-            event_group_id = filter_dict["custom_event_group_id"] or filter_dict["bk_event_group_id"]
-            custom_event_qs = CustomEventGroup.objects.filter(bk_event_group_id__in=event_group_id)
-            if bk_biz_id is not None:
-                custom_event_qs = custom_event_qs.filter(bk_biz_id=bk_biz_id)
-            custom_event_table_ids = custom_event_qs.values_list("table_id", flat=True)
-            custom_event_strategy_ids = []
-            if custom_event_table_ids:
-                custom_event_strategy_ids = set(
-                    QueryConfigModel.objects.filter(
-                        reduce(
-                            lambda x, y: x | y,
-                            (Q(config__result_table_id=table_id) for table_id in custom_event_table_ids),
-                        )
-                        if len(custom_event_table_ids) > 1
-                        else Q(config__result_table_id=custom_event_table_ids[0]),
-                        data_source_label=DataSourceLabel.CUSTOM,
-                        data_type_label=DataTypeLabel.EVENT,
-                    )
-                    .values_list("strategy_id", flat=True)
-                    .distinct()
-                )
-            filter_strategy_ids_set.intersection_update(set(custom_event_strategy_ids))
-
-    @classmethod
-    def filter_strategy_ids_by_series_group(
-        cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: str | None = None
-    ):
-        """过滤自定义指标ID"""
-        if filter_dict["time_series_group_id"]:
-            time_series_group_id = filter_dict["time_series_group_id"]
-            custom_ts_qs = CustomTSTable.objects.filter(time_series_group_id__in=time_series_group_id)
-            if bk_biz_id is not None:
-                custom_ts_qs = custom_ts_qs.filter(bk_biz_id=bk_biz_id)
-            custom_metric_table_ids = custom_ts_qs.values_list("table_id", flat=True)
-
-            custom_metric_strategy_ids = []
-            if custom_metric_table_ids:
-                custom_metric_strategy_ids = set(
-                    QueryConfigModel.objects.filter(
-                        reduce(
-                            lambda x, y: x | y,
-                            (Q(config__result_table_id=table_id) for table_id in custom_metric_table_ids),
-                        )
-                        if len(custom_metric_table_ids) > 1
-                        else Q(config__result_table_id=custom_metric_table_ids[0]),
-                        data_source_label=DataSourceLabel.CUSTOM,
-                        data_type_label=DataTypeLabel.TIME_SERIES,
-                    )
-                    .values_list("strategy_id", flat=True)
-                    .distinct()
-                )
-            filter_strategy_ids_set.intersection_update(set(custom_metric_strategy_ids))
-
-    @classmethod
-    def filter_strategy_ids_by_plugin_id(
-        cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: str | None = None
-    ):
-        # 无业务id，不支持搜索(RequestSerializer 明确bk_biz_id 必填)
-        if not bk_biz_id:
-            return
-
-        # 过滤插件ID
-        if filter_dict["plugin_id"]:
-            plugin_id = filter_dict["plugin_id"]
-            plugins = CollectorPluginMeta.objects.filter(
-                bk_tenant_id=get_request_tenant_id(), plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id]
-            ).values("plugin_id")
-
-            plugin_strategy_ids = []
-            query_configs = QueryConfigModel.objects.filter(strategy_id__in=filter_strategy_ids_set).only(
-                "config", "strategy_id"
-            )
-            for qc in query_configs:
-                for plugin in plugins:
-                    if f"{plugin['plugin_id']}." in qc.config.get("result_table_id", ""):
-                        plugin_strategy_ids.append(qc.strategy_id)
-                        break
-
-            filter_strategy_ids_set.intersection_update(set(plugin_strategy_ids))
-
-    @classmethod
-    def filter_strategy_ids_by_metric_id(cls, filter_dict: dict, filter_strategy_ids_set: set):
-        """过滤指标ID"""
-        if filter_dict["metric_id"]:
-            metric_strategy_ids = set(
-                QueryConfigModel.objects.filter(
-                    metric_id__in=filter_dict["metric_id"], strategy_id__in=filter_strategy_ids_set
-                )
-                .values_list("strategy_id", flat=True)
-                .distinct()
-            )
-            filter_strategy_ids_set.intersection_update(metric_strategy_ids)
-
-    @classmethod
-    def filter_strategy_ids_by_uct_id(cls, filter_dict: dict, filter_strategy_ids_set: set):
-        """过滤拨测任务ID"""
-        if filter_dict["uptime_check_task_id"]:
-            filter_dict["uptime_check_task_id"] = [str(task_id) for task_id in filter_dict["uptime_check_task_id"]]
-            uptime_check_query_configs = QueryConfigModel.objects.filter(
-                metric_id__startswith="bk_monitor.uptimecheck.", strategy_id__in=filter_strategy_ids_set
-            )
-
-            uptime_check_strategy_ids = set()
-            for query_config in uptime_check_query_configs:
-                agg_conditions = query_config.config.get("agg_condition", [])
-                for agg_condition in agg_conditions:
-                    if agg_condition["key"] == "task_id" and agg_condition["method"] == "eq":
-                        value = agg_condition["value"]
-                        if not isinstance(value, list):
-                            value = [value]
-                        value = {str(v) for v in value}
-
-                        if value & set(filter_dict["uptime_check_task_id"]):
-                            uptime_check_strategy_ids.add(query_config.strategy_id)
-
-            filter_strategy_ids_set.intersection_update(uptime_check_strategy_ids)
-
-    @classmethod
-    def filter_strategy_ids_by_level(cls, filter_dict: dict, filter_strategy_ids_set: set):
-        """过滤告警级别"""
-        if filter_dict["level"]:
-            level_strategy_ids = DetectModel.objects.filter(
-                strategy_id__in=filter_strategy_ids_set, level__in=filter_dict["level"]
-            ).values_list("strategy_id", flat=True)
-            filter_strategy_ids_set.intersection_update(set(level_strategy_ids))
-
-    @classmethod
-    def filter_strategy_ids_by_source(cls, filter_dict: dict[str, list], filter_strategy_ids_set: set) -> None:
-        """过滤来源"""
-        source_field: str | None = None
-        for key in filter_dict.keys():
-            fields = key.split("__")
-            if "source" == fields[0]:
-                source_field = key
-                break
-
-        if not source_field:
-            return
-
-        source_strategy_ids = StrategyModel.objects.filter(id__in=filter_strategy_ids_set)
-        if len(fields) == 1 or fields[1] == "in":
-            source_strategy_ids = source_strategy_ids.filter(source__in=filter_dict[source_field])
-
-        elif fields[1] == "neq":
-            source_strategy_ids = source_strategy_ids.exclude(source__in=filter_dict[source_field])
-        else:
-            # 暂不支持其他的操作
-            filter_strategy_ids_set.intersection_update(set())
-            return
-
-        filter_strategy_ids_set.intersection_update(set(source_strategy_ids.values_list("id", flat=True).distinct()))
-
-    @classmethod
-    def filter_by_conditions(cls, conditions: list[dict], strategies: QuerySet, bk_biz_id: int = None) -> QuerySet:
-        """
-        按条件进行过滤
-        - id: 策略ID
-        - name: 策略名称
-        - user_group_id: 通知组ID
-        - user_group_name: 通知组名
-        - create_user: 创建者
-        - update_user: 更新这
-        - strategy_status: 状态
-        - algorithm_type: 算法类型
-        - invalid_type: 失效类型
-        - uptime_check_task_id: 拨测任务ID
-        - metric_field: 指标
-        - metric_field_name: 指标名称
-        - custom_event_group_id: 自定义事件ID
-        - data_source: 数据源
-        - scenario：监控场景
-        - label: 监控标签
-        - query: 关键字查询
-        - ip: IP地址
-        - bk_cloud_id: 云区域
-        - result_table_id:结果表
-        """
-
-        field_mapping = {
-            "strategy_id": "id",
-            "strategy_name": "name",
-            "task_id": "uptime_check_task_id",
-            "metric_alias": "metric_field_name",
-            "metric_name": "metric_field",
-            "creators": "create_user",
-            "updaters": "update_user",
-            "data_source_list": "data_source",
-            "label_name": "label",
-        }
-
-        filter_dict = defaultdict(list)
-        for condition in conditions:
-            key = condition["key"].lower()
-            key = field_mapping.get(key, key)
-            value = condition["value"]
-            if not isinstance(value, list):
-                value = [value]
-            if len(value) == 1:
-                # 默认按list传递，多个值用 | 分割
-                value = [i.strip() for i in str(value[0]).split(" | ") if i.strip()]
-            filter_dict[key].extend(value)
-
-        filter_strategy_ids_set = set(strategies.values_list("id", flat=True).distinct())
-
-        filter_methods: list[tuple] = [
-            (cls.filter_strategy_ids_by_id, (filter_dict, filter_strategy_ids_set)),
-            (cls.filter_strategy_ids_by_label, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
-            (cls.filter_strategy_ids_by_data_source, (filter_dict, filter_strategy_ids_set)),
-            (cls.filter_strategy_ids_by_result_table, (filter_dict, filter_strategy_ids_set)),
-            (cls.filter_strategy_ids_by_status, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
-            (cls.filter_strategy_ids_by_algo_type, (filter_dict, filter_strategy_ids_set)),
-            (cls.filter_strategy_ids_by_invalid_type, (filter_dict, filter_strategy_ids_set)),
-            (cls.filter_by_user_groups, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
-            (cls.filter_by_action, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
-            (cls.filter_by_metric_field, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
-            (cls.filter_strategy_ids_by_event_group, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
-            (cls.filter_strategy_ids_by_series_group, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
-            (cls.filter_strategy_ids_by_plugin_id, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
-            (cls.filter_strategy_ids_by_metric_id, (filter_dict, filter_strategy_ids_set)),
-            (cls.filter_strategy_ids_by_uct_id, (filter_dict, filter_strategy_ids_set)),
-            (cls.filter_strategy_ids_by_level, (filter_dict, filter_strategy_ids_set)),
-            (cls.filter_strategy_ids_by_source, (filter_dict, filter_strategy_ids_set)),
-        ]
-        for filter_method, args in filter_methods:
-            filter_method(*args)
-            if not filter_strategy_ids_set:
-                return strategies.none()
-        strategies = strategies.filter(id__in=filter_strategy_ids_set)
-
-        # 过滤创建人
-        if filter_dict["create_user"]:
-            strategies = strategies.filter(create_user__in=filter_dict["create_user"])
-
-        # 过滤修改人
-        if filter_dict["update_user"]:
-            strategies = strategies.filter(update_user__in=filter_dict["update_user"])
-
-        # 关键字搜索
-        if filter_dict["query"]:
-            q = []
-            result_table_id_strategy_ids = []
-            for query in filter_dict["query"]:
-                q.append(Q(name__icontains=query))
-                try:
-                    q.append(Q(id__icontains=int(query)))
-                except (ValueError, TypeError):
-                    pass
-                try:
-                    result_table_id_strategy_ids.extend(
-                        list(
-                            QueryConfigModel.objects.filter(
-                                config__result_table_id=query, strategy_id__in=filter_strategy_ids_set
-                            )
-                            .values_list("strategy_id", flat=True)
-                            .distinct()
-                        )
-                    )
-                except (ValueError, TypeError):
-                    pass
-            if result_table_id_strategy_ids:
-                q.append(Q(id__in=set(result_table_id_strategy_ids)))
-
-            strategies = strategies.filter(reduce(lambda x, y: x | y, q))
-
-        # 策略名称搜索
-        if filter_dict["name"]:
-            q = []
-            for name in filter_dict["name"]:
-                q.append(Q(name__icontains=name))
-            strategies = strategies.filter(reduce(lambda x, y: x | y, q))
-
-        # 按监控目标过滤主机
-        if filter_dict["ip"]:
-            ips = []
-            if filter_dict["bk_cloud_id"]:
-                for ip, bk_cloud_id in product(filter_dict["ip"], filter_dict["bk_cloud_id"]):
-                    ips.append({"ip": ip, "bk_cloud_id": bk_cloud_id})
-            else:
-                ips = [{"ip": ip for ip in filter_dict["ip"]}]
-            filter_ip_params = {"ips": ips, "strategies": strategies}
-            if bk_biz_id is not None:
-                filter_ip_params["bk_biz_id"] = bk_biz_id
-            strategies = cls.filter_by_ip(**filter_ip_params)
-
-        return strategies
-
-    @staticmethod
-    def filter_by_metric_field(filter_dict, filter_strategy_ids_set: set, bk_biz_id: int = None):
-        """
-        指标相关的过滤
-        """
-        # 过滤指标别名
-        if filter_dict["metric_field_name"]:
-            metric_qs = MetricListCache.objects.filter(
-                bk_tenant_id=get_request_tenant_id(), metric_field_name__in=filter_dict["metric_field_name"]
-            )
-            if bk_biz_id is not None:
-                metric_qs = metric_qs.filter(bk_biz_id__in=[0, bk_biz_id])
-            metric_fields = metric_qs.values_list("metric_field", flat=True).distinct()
-            filter_dict["metric_field"] = (
-                list(set(filter_dict["metric_field"]) & set(metric_fields))
-                if filter_dict["metric_fields"]
-                else metric_fields
-            )
-
-        if not filter_dict["metric_field"]:
-            return
-
-        metric_strategy_ids = set(
-            QueryConfigModel.objects.filter(
-                reduce(
-                    lambda x, y: x | y,
-                    (Q(config__metric_field=metric_field) for metric_field in filter_dict["metric_field"]),
-                )
-            )
-            .values_list("strategy_id", flat=True)
-            .distinct()
-        )
-
-        filter_strategy_ids_set.intersection_update(metric_strategy_ids)
-
-    @staticmethod
-    def filter_by_user_groups(filter_dict, filter_strategy_ids_set: set, bk_biz_id: int = None):
-        """
-        根据告警组信息查询策略
-        """
-        if not filter_dict.get("user_group_id") and not filter_dict.get("user_group_name"):
-            return
-
-        filter_user_group_ids = filter_dict.get("user_group_id", [])
-        if filter_dict["user_group_name"]:
-            user_group_qs = UserGroup.objects.filter(
-                reduce(operator.or_, (Q(**{"name__contains": name}) for name in filter_dict["user_group_name"])),
-            )
-            if bk_biz_id is not None:
-                user_group_qs = user_group_qs.filter(bk_biz_id=bk_biz_id)
-            filter_user_group_ids.extend(user_group_qs.values_list("id", flat=True))
-
-        if not filter_user_group_ids:
-            filter_strategy_ids_set.intersection_update(set())
-            return
-
-        or_condition = reduce(
-            operator.or_, (Q(**{"user_groups__contains": group_id}) for group_id in set(filter_user_group_ids))
-        )
-
-        user_group_strategy_ids = set(
-            StrategyActionConfigRelation.objects.filter(or_condition).values_list("strategy_id", flat=True).distinct()
-        )
-        filter_strategy_ids_set.intersection_update(user_group_strategy_ids)
-
-    @staticmethod
-    def filter_by_action(filter_dict, filter_strategy_ids_set: set, bk_biz_id: int = None):
-        if "action_name" not in filter_dict and "action_id" not in filter_dict:
-            return
-
-        filter_strategy_ids = set()
-
-        if 0 in filter_dict.get("action_id", []) or "" in filter_dict.get("action_name", []):
-            # 如果 action_name 是个空列表，那么就检索出没有配置处理套餐的策略
-            # 先找出这个业务所有的策略
-            strategy_qs = StrategyModel.objects.all()
-            if bk_biz_id is not None:
-                strategy_qs = strategy_qs.filter(bk_biz_id=bk_biz_id)
-                strategy_ids = strategy_qs.values_list("id", flat=True)
-                # 再找出关联了处理动作的策略
-                strategy_ids_with_action = StrategyActionConfigRelation.objects.filter(
-                    strategy_id__in=strategy_ids,
-                    relate_type=StrategyActionConfigRelation.RelateType.ACTION,
-                ).values_list("strategy_id", flat=True)
-            else:
-                strategy_ids = strategy_qs.values_list("id", flat=True)
-                strategy_ids_with_action = StrategyActionConfigRelation.objects.filter(
-                    relate_type=StrategyActionConfigRelation.RelateType.ACTION,
-                ).values_list("strategy_id", flat=True)
-            # 通过差集计算出没有关联处理动作的策略
-            filter_strategy_ids = set(strategy_ids) - set(strategy_ids_with_action)
-
-        action_qs = ActionConfig.objects.exclude(plugin_id=ActionConfig.NOTICE_PLUGIN_ID)
-        if bk_biz_id is not None:
-            action_qs = action_qs.filter(bk_biz_id__in=[0, bk_biz_id])
-        action_ids = action_qs.values_list("id", flat=True)
-
-        conditions = []
-        if filter_dict.get("action_name"):
-            conditions.extend(
-                [Q(name__contains=action_name) for action_name in filter_dict["action_name"] if action_name]
-            )
-        if filter_dict.get("action_id"):
-            conditions.extend([Q(id=action_id) for action_id in filter_dict["action_id"] if action_id])
-
-        if not conditions:
-            # 如果没有其他条件，则不需要处理
-            if filter_strategy_ids:
-                filter_strategy_ids_set.intersection_update(filter_strategy_ids)
-            return
-
-        action_ids = action_ids.filter(reduce(operator.or_, conditions))
-
-        filter_strategy_ids_set.intersection_update(
-            filter_strategy_ids
-            | set(
-                StrategyActionConfigRelation.objects.filter(config_id__in=list(action_ids))
-                .values_list("strategy_id", flat=True)
-                .distinct()
-            )
-        )
 
     @classmethod
     def filter_by_status(cls, status: str, filter_strategy_ids: list = None, bk_biz_id: int = None):
@@ -1192,49 +658,329 @@ class GetStrategyListV2Resource(Resource):
 
         return target_strategy_mapping
 
+    @staticmethod
+    def _normalize_v2_condition_value(value: Any) -> list[Any]:
+        """按 v2 语义规范化条件 value。
+
+        Notes:
+            - 兼容 v2 入参：非 list -> 包装成 list
+            - 单元素 list 支持 `"a | b"` 拆分为多值
+        """
+        if not isinstance(value, list):
+            values: list[Any] = [value]
+        else:
+            values = value
+        if len(values) == 1:
+            values = [i.strip() for i in str(values[0]).split(" | ") if i.strip()]
+        return values
+
+    @classmethod
+    def _convert_v2_conditions_to_filterspec(
+        cls,
+        *,
+        bk_biz_id: int,
+        conditions: list[dict],
+    ) -> tuple[list[dict], set[str], dict[str, list[Any]]]:
+        """将 v2 `conditions=[{\"key\":...,\"value\":...}]` 转换为 base `FilterSpec` 风格条件。
+
+        Returns:
+            - engine_conditions: 可直接用于 `StrategyQueryEngine.filter_strategies` 的条件列表（不含 scenario/ip/status 等）
+            - scenario_values: 由 conditions 中的 scenario 汇总出的场景值集合（用于外层 facet/选择）
+            - heavy_values: heavy 条件原始值（用于外层先按现网逻辑解析，再降维为 id 过滤）
+        """
+        # 复用 v2 现有 field_mapping（保持与旧版 `filter_by_conditions` 一致：仅做 key 映射，不额外扩展操作符能力）
+        field_mapping = {
+            "strategy_id": "id",
+            "strategy_name": "name",
+            "task_id": "uptime_check_task_id",
+            "metric_alias": "metric_field_name",
+            "metric_name": "metric_field",
+            "creators": "create_user",
+            "updaters": "update_user",
+            "data_source_list": "data_source",
+            "label_name": "label",
+        }
+
+        # 先聚合：同一 key 的 value 合并（保持旧版 v2 “多条件可叠加”为同一维度多值”）
+        #
+        # 重要：旧版 `filter_by_conditions` 并不会通用解析 `__suffix`（例如 name__and / result_table_id__icontains），
+        # 这些后缀 key 在旧版中通常“不生效”。唯一例外是 `source` 过滤（支持 source/source__in/source__neq），
+        # 因此此处仅保留 source 的后缀语义，其余带 `__suffix` 的 key 直接忽略，避免引入新功能导致语义变化。
+        grouped: defaultdict[str, list[Any]] = defaultdict(list)
+        source_condition: tuple[str, list[Any]] | None = None  # (operator, values)
+        for condition in conditions or []:
+            raw_key = str(condition.get("key", "")).strip().lower()
+            if not raw_key:
+                continue
+
+            values = cls._normalize_v2_condition_value(condition.get("value"))
+
+            # 仅保留旧版 source 的后缀语义（source/source__in/source__neq）
+            if raw_key.startswith("source"):
+                if source_condition is not None:
+                    # 旧版实现对 source 仅会取一个 key（按字典遍历顺序的第一个），后续同类 key 不生效；
+                    # 这里也只采纳第一条 source 相关条件，避免扩展语义。
+                    continue
+                if "__" not in raw_key:
+                    source_condition = ("eq", values)
+                    continue
+                _, suffix = raw_key.split("__", 1)
+                if suffix in {"in"}:
+                    source_condition = ("eq", values)
+                    continue
+                if suffix == "neq":
+                    source_condition = ("neq", values)
+                    continue
+                # 旧版对 source 其他后缀会将候选集收敛为空（不支持的操作）
+                source_condition = ("__unsupported__", values)
+                continue
+
+            # 其它 key：带 `__suffix` 的一律忽略（旧版不支持），避免引入新功能
+            if "__" in raw_key:
+                continue
+
+            mapped_key = field_mapping.get(raw_key, raw_key)
+            grouped[mapped_key].extend(values)
+
+        scenario_values: set[str] = set()
+        heavy_values: dict[str, list[Any]] = {"ip": [], "bk_cloud_id": [], "strategy_status": []}
+        engine_conditions: list[dict] = []
+
+        # === heavy/特殊条件收集（外层解析）===
+        for k, values in list(grouped.items()):
+            if k == "scenario":
+                scenario_values.update({str(v) for v in values if str(v).strip()})
+                grouped.pop(k, None)
+            elif k in {"ip", "bk_cloud_id", "strategy_status"}:
+                heavy_values[k].extend(values)
+                grouped.pop(k, None)
+
+        # === plugin_id：转换为 result_table_id startswith `<plugin_id>.` ===
+        for k, values in list(grouped.items()):
+            if k != "plugin_id":
+                continue
+            prefixes = [f"{str(v).strip()}." for v in values if str(v).strip()]
+            if prefixes:
+                engine_conditions.append({"key": "result_table_id", "values": prefixes, "operator": "startswith"})
+            grouped.pop(k, None)
+
+        # === metric_field_name：沿用现网 MetricListCache，将别名映射为 metric_field，再降维为 metric_field 条件 ===
+        for k, values in list(grouped.items()):
+            if k != "metric_field_name":
+                continue
+            aliases = [str(v) for v in values if str(v).strip()]
+            if aliases:
+                metric_qs = MetricListCache.objects.filter(
+                    bk_tenant_id=get_request_tenant_id(),
+                    metric_field_name__in=aliases,
+                )
+                metric_qs = metric_qs.filter(bk_biz_id__in=[0, bk_biz_id])
+                metric_fields = list(metric_qs.values_list("metric_field", flat=True).distinct())
+                if metric_fields:
+                    engine_conditions.append({"key": "metric_field", "values": metric_fields, "operator": "eq"})
+                else:
+                    # 传了别名但无法解析：与 v2 “无匹配”一致，直接收敛为空
+                    engine_conditions.append({"key": "id", "values": [0], "operator": "eq"})
+            grouped.pop(k, None)
+
+        # === 自定义分组：沿用现网模型解析为 table_id，再降维为 result_table_id 条件 ===
+        # custom_event_group_id / bk_event_group_id -> CustomEventGroup.table_id
+        for group_key in ("custom_event_group_id", "bk_event_group_id"):
+            values = []
+            for k, vlist in list(grouped.items()):
+                if k == group_key:
+                    values.extend(vlist)
+                    grouped.pop(k, None)
+            group_ids = [str(v) for v in values if str(v).strip()]
+            if group_ids:
+                event_qs = CustomEventGroup.objects.filter(bk_event_group_id__in=group_ids, bk_biz_id=bk_biz_id)
+                table_ids = list(event_qs.values_list("table_id", flat=True).distinct())
+                if table_ids:
+                    engine_conditions.append({"key": "result_table_id", "values": table_ids, "operator": "eq"})
+                else:
+                    engine_conditions.append({"key": "id", "values": [0], "operator": "eq"})
+
+        # time_series_group_id -> CustomTSTable.table_id
+        values = []
+        for k, vlist in list(grouped.items()):
+            if k == "time_series_group_id":
+                values.extend(vlist)
+                grouped.pop(k, None)
+        ts_group_ids = [str(v) for v in values if str(v).strip()]
+        if ts_group_ids:
+            ts_qs = CustomTSTable.objects.filter(time_series_group_id__in=ts_group_ids, bk_biz_id=bk_biz_id)
+            table_ids = list(ts_qs.values_list("table_id", flat=True).distinct())
+            if table_ids:
+                engine_conditions.append({"key": "result_table_id", "values": table_ids, "operator": "eq"})
+            else:
+                engine_conditions.append({"key": "id", "values": [0], "operator": "eq"})
+
+        # === data_source：旧版 v2 传的是 DATA_CATEGORY.type（如 custom_time_series），需要映射为 `<ds>|<dt>` ===
+        #
+        # QueryEngine 的 data_source 解析规则是 `<data_source_label>|<data_type_label>` 或 `<ds>,<dt>`；
+        # 如果直接把 `custom_time_series` 传入，会解析失败并导致过滤异常（常见表现：无结果/不符合预期）。
+        #
+        # 这里优先按 DATA_CATEGORY 做“权威映射”；兜底支持按最后一个 `_` 拆分。
+        ds_pairs: list[str] = []
+        ds_raw_values = grouped.pop("data_source", [])
+        if ds_raw_values:
+            type_to_pair = {ds["type"]: (ds["data_source_label"], ds["data_type_label"]) for ds in DATA_CATEGORY}
+            for raw in ds_raw_values:
+                s = str(raw).strip()
+                if not s:
+                    continue
+                if "|" in s or "," in s:
+                    ds_pairs.append(s)
+                    continue
+                if s in type_to_pair:
+                    ds_label, dt_label = type_to_pair[s]
+                    ds_pairs.append(f"{ds_label}|{dt_label}")
+                    continue
+                # 兜底：按最后一个 `_` 拆分（兼容少量不在 DATA_CATEGORY 的组合值）
+                if "_" in s:
+                    left, right = s.rsplit("_", 1)
+                    if left and right:
+                        ds_pairs.append(f"{left}|{right}")
+                        continue
+                ds_pairs.append(s)
+        if ds_pairs:
+            grouped["data_source"] = ds_pairs
+
+        # === 其余条件：转换为 base FilterSpec ===
+        for key, values in grouped.items():
+            if not values:
+                continue
+
+            if key == "name":
+                # 旧版 v2：仅支持 name icontains（多值 OR）
+                engine_conditions.append({"key": "name", "values": values, "operator": "icontains"})
+                continue
+
+            if key == "user_group_name":
+                # 旧版 v2：UserGroup.name__contains，多值 OR
+                engine_conditions.append(
+                    {"key": "user_group_name", "values": [str(v) for v in values], "operator": "contains"}
+                )
+                continue
+
+            if key == "action_name":
+                # 旧版 v2：ActionConfig.name__contains，多值 OR；特殊语义（空串 => without_actions）由引擎处理
+                engine_conditions.append({"key": "action_name", "values": values, "operator": "eq"})
+                continue
+
+            # 其它字段：旧版 v2 都是精确匹配维度（IN/OR），统一交给 base 引擎按 eq 处理
+            engine_conditions.append({"key": key, "values": values, "operator": "eq"})
+
+        # source 条件（唯一保留 `__suffix` 语义的 key）
+        if source_condition is not None:
+            op, values = source_condition
+            if op == "__unsupported__":
+                engine_conditions.append({"key": "id", "values": [0], "operator": "eq"})
+            else:
+                engine_conditions.append({"key": "source", "values": values, "operator": op})
+
+        return engine_conditions, scenario_values, heavy_values
+
+    def _empty_response(self) -> dict[str, Any]:
+        """空响应"""
+        return {
+            "scenario_list": [],
+            "strategy_config_list": [],
+            "data_source_list": [],
+            "strategy_label_list": [],
+            "strategy_status_list": [],
+            "user_group_list": [],
+            "action_config_list": [],
+            "alert_level_list": [],
+            "invalid_type_list": [],
+            "algorithm_type_list": [],
+            "total": 0,
+        }
+
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
-        strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+        v2_conditions: list[dict] = params.get("conditions") or []
+        engine_conditions, scenario_values, heavy_values = self._convert_v2_conditions_to_filterspec(
+            bk_biz_id=bk_biz_id,
+            conditions=v2_conditions,
+        )
 
-        # 按条件过滤策略
-        if params["conditions"]:
-            strategies = self.filter_by_conditions(params["conditions"], strategies, bk_biz_id)
+        # 先用 base 查询引擎完成“核心条件交集”（不含 scenario/ip/status）
+        core_qs = StrategyQueryEngine.filter_strategies(
+            bk_biz_id, conditions=cast(list[FilterCondition], engine_conditions)
+        )
+        candidates = set(core_qs.values_list("id", flat=True).distinct())
+        if not candidates:
+            return self._empty_response()
 
-        # 在过滤监控对象前统计数量
+        # heavy：strategy_status（ALERT/SHIELDED/ON/OFF/INVALID）仍按现网实现解析为 id 再收敛
+        status_values = [str(v).upper() for v in heavy_values.get("strategy_status", []) if str(v).strip()]
+        if status_values:
+            status_hit: set[int] = set()
+            for s in status_values:
+                status_hit.update(self.filter_by_status(s, filter_strategy_ids=list(candidates), bk_biz_id=bk_biz_id))
+            candidates &= status_hit
+            if not candidates:
+                return self._empty_response()
+
+        # heavy：ip/bk_cloud_id 仍按现网实现解析为 id 再收敛
+        ip_values = [str(v) for v in heavy_values.get("ip", []) if str(v).strip()]
+        if ip_values:
+            bk_cloud_values: list[int] = []
+            for v in heavy_values.get("bk_cloud_id", []):
+                try:
+                    bk_cloud_values.append(int(v))
+                except (TypeError, ValueError):
+                    continue
+            ips = []
+            if bk_cloud_values:
+                for ip, bk_cloud_id in product(ip_values, bk_cloud_values):
+                    ips.append({"ip": ip, "bk_cloud_id": bk_cloud_id})
+            else:
+                ips = [{"ip": ip} for ip in ip_values]
+
+            ip_qs = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=candidates)
+            ip_qs = self.filter_by_ip(ips=ips, strategies=ip_qs, bk_biz_id=bk_biz_id)
+            candidates &= set(ip_qs.values_list("id", flat=True).distinct())
+            if not candidates:
+                return self._empty_response()
+
+        # 构造 bkmonitor 侧 queryset 以复用现网 facet 统计逻辑
+        strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=candidates)
+
+        # 在过滤监控对象前统计数量（facet）
         scenario_list = self.get_scenario_list(strategies)
 
-        # 按当前选择的监控对象过滤
-        scenarios = set(params.get("scenario", []))
-        for condition in params["conditions"]:
-            if condition["key"] != "scenario":
-                continue
-            if not isinstance(condition["value"], list):
-                values = [condition["value"]]
+        # 场景选择：来自 params.scenario 与 conditions.scenario
+        scenarios: set[str] = set()
+        scenario_param = params.get("scenario")
+        if scenario_param:
+            if isinstance(scenario_param, list):
+                scenarios.update({str(v) for v in scenario_param if str(v).strip()})
             else:
-                values = condition["value"]
-            scenarios.update(values)
-
+                scenarios.add(str(scenario_param))
+        scenarios |= scenario_values
         if scenarios:
             strategies = strategies.filter(scenario__in=scenarios)
 
-        # 统计其他分类数量
-        strategy_ids = list(strategies.values_list("id", flat=True).distinct())
+        # 统计其他分类数量（基于最终筛选结果，包含场景选择）
+        all_strategy_ids = list(strategies.values_list("id", flat=True).distinct())
 
         executor = ThreadPoolExecutor()
-        user_group_list_future = executor.submit(db_safe_wrapper(self.get_user_group_list), strategy_ids, bk_biz_id)
+        user_group_list_future = executor.submit(db_safe_wrapper(self.get_user_group_list), all_strategy_ids, bk_biz_id)
         action_config_list_future = executor.submit(
-            db_safe_wrapper(self.get_action_config_list), strategy_ids, bk_biz_id
+            db_safe_wrapper(self.get_action_config_list), all_strategy_ids, bk_biz_id
         )
-        data_source_list_future = executor.submit(db_safe_wrapper(self.get_data_source_list), strategy_ids)
+        data_source_list_future = executor.submit(db_safe_wrapper(self.get_data_source_list), all_strategy_ids)
         strategy_label_list_future = executor.submit(
-            db_safe_wrapper(self.get_strategy_label_list), strategy_ids, bk_biz_id
+            db_safe_wrapper(self.get_strategy_label_list), all_strategy_ids, bk_biz_id
         )
         strategy_status_list_future = executor.submit(
-            db_safe_wrapper(self.get_strategy_status_list), strategy_ids, bk_biz_id
+            db_safe_wrapper(self.get_strategy_status_list), all_strategy_ids, bk_biz_id
         )
-        alert_level_list_future = executor.submit(db_safe_wrapper(self.get_alert_level_list), strategy_ids)
-        invalid_type_list_future = executor.submit(db_safe_wrapper(self.get_invalid_type_list), strategy_ids)
-        algorithm_type_list_future = executor.submit(db_safe_wrapper(self.get_algorithm_type_list), strategy_ids)
+        alert_level_list_future = executor.submit(db_safe_wrapper(self.get_alert_level_list), all_strategy_ids)
+        invalid_type_list_future = executor.submit(db_safe_wrapper(self.get_invalid_type_list), all_strategy_ids)
+        algorithm_type_list_future = executor.submit(db_safe_wrapper(self.get_algorithm_type_list), all_strategy_ids)
 
         # 统计总数
         total = strategies.count()
@@ -1242,19 +988,26 @@ class GetStrategyListV2Resource(Resource):
         # 排序
         strategies = strategies.order_by("-update_time")
 
+        # Django 不支持“先 slice 再 distinct”：Cannot create distinct fields once a slice has been taken.
+        # 这里我们只需要分页后的唯一 ID 列表：先 distinct 再 slice（保持语义一致）。
+        page_strategy_id_qs = strategies.values_list("id", flat=True).distinct()
+
         # 分页
         if params.get("page") and params.get("page_size"):
-            strategies = strategies[(params["page"] - 1) * params["page_size"] : params["page"] * params["page_size"]]
+            start = (params["page"] - 1) * params["page_size"]
+            end = params["page"] * params["page_size"]
+            page_strategy_id_qs = page_strategy_id_qs[start:end]
 
-        # 生成策略配置
-        strategy_objs = Strategy.from_models(strategies)
-        for strategy_obj in strategy_objs:
-            strategy_obj.restore()
-        strategy_configs = [s.to_dict(convert_dashboard=params["convert_dashboard"]) for s in strategy_objs]
+        page_strategy_ids = list(page_strategy_id_qs)
+        # 生成策略配置（只针对分页结果）
+        strategy_configs = list_strategy(
+            bk_biz_id=bk_biz_id,
+            conditions=[{"key": "id", "values": page_strategy_ids, "operator": "eq"}],
+        )
 
         # 补充告警组信息
         if params["with_user_group"]:
-            Strategy.fill_user_groups(strategy_configs, params["with_user_group_detail"])
+            fill_user_groups(strategy_configs, params["with_user_group_detail"])
 
         # 补充AsCode字段
         for strategy_config in strategy_configs:
@@ -1337,19 +1090,11 @@ class GetStrategyV2Resource(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         id = serializers.IntegerField(required=True, label="策略ID")
 
-    def perform_request(self, params):
-        try:
-            strategy = StrategyModel.objects.get(bk_biz_id=params["bk_biz_id"], id=params["id"])
-        except StrategyModel.DoesNotExist:
-            raise ValidationError(_("策略({})不存在").format(params["id"]))
-
-        strategy_obj = Strategy.from_models([strategy])[0]
-        strategy_obj.restore()
-        config = strategy_obj.to_dict()
-
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        strategy = get_strategy(bk_biz_id=validated_request_data["bk_biz_id"], strategy_id=validated_request_data["id"])
         # 补充告警组配置
-        Strategy.fill_user_groups([config])
-        return config
+        fill_user_groups([strategy])
+        return strategy
 
 
 class PlainStrategyListV2Resource(Resource):
@@ -1382,23 +1127,18 @@ class PlainStrategyListV2Resource(Resource):
         }
 
     def perform_request(self, validated_request_data):
-        # 获取指定业务下启用的策略
-        q = Q(bk_biz_id=validated_request_data["bk_biz_id"])
-        if validated_request_data["ids"]:
-            q &= Q(id__in=validated_request_data["ids"])
-        strategies = (
-            StrategyModel.objects.filter(q)
-            .values("id", "name", "scenario", "is_enabled")
-            .order_by("-is_enabled", "-update_time")
+        strategies = list_plain_strategy(
+            bk_biz_id=validated_request_data["bk_biz_id"], strategy_ids=validated_request_data["ids"]
         )
+
         # 获取分类标签
         labels = resource.commons.get_label()
-
         strategy_list = []
-        for strategy in strategies:
+        for strategy in strategies["data"]:
             label_msg = self.get_label_msg(strategy["scenario"], labels)
             strategy.update(label_msg)
             strategy_list.append(strategy)
+
         return strategy_list
 
 
@@ -1411,14 +1151,9 @@ class DeleteStrategyV2Resource(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         ids = serializers.ListField(child=serializers.IntegerField(), required=True)
 
-    def perform_request(self, params):
-        strategy_ids = list(
-            StrategyModel.objects.filter(bk_biz_id=params["bk_biz_id"], id__in=params["ids"]).values_list(
-                "id", flat=True
-            )
-        )
-        Strategy.delete_by_strategy_ids(strategy_ids)
-        return strategy_ids
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        strategy_ids = validated_request_data["ids"]
+        return delete_strategies(validated_request_data["bk_biz_id"], strategy_ids, operator=get_request_username())
 
 
 class GetMetricListV2Resource(Resource):
@@ -1799,8 +1534,57 @@ class GetMetricListV2Resource(Resource):
             "data_type_label": data_type_label,
             "metric_field": metric_field,
         }
-        # 复用 v1 中的指标备注
-        return resource.strategies.get_metric_list.get_metric_remarks(metric)
+
+        if metric["data_type_label"] != "event" or metric["data_source_label"] != "bk_monitor":
+            return []
+
+        if metric["metric_field"] == "disk-full-gse":
+            return [
+                _("依赖bkmonitorbeat采集器, 在节点管理安装"),
+            ]
+        elif metric["metric_field"] == "disk-readonly-gse":
+            return [
+                _("依赖bkmonitorbeat采集器, 在节点管理安装"),
+                _("通过对挂载磁盘的文件状态ro进行判断，类似Linux命令：fgrep ' ro,' /proc/mounts"),
+            ]
+        elif metric["metric_field"] == "corefile-gse":
+            return [
+                _(
+                    "查看corefile生成路径：cat /proc/sys/kernel/core_pattern，确保在某一个目录下，例如 /data/corefile/core_%e_%t"
+                ),
+                _("依赖bkmonitorbeat采集器, 在节点管理安装,会自动根据core_pattern监听文件目录"),
+            ]
+        elif metric["metric_field"] == "gse_custom_event":
+            return [
+                _("【已废弃】"),
+                _("功能通过上报 自定义事件 覆盖").format(
+                    settings.LINUX_GSE_AGENT_PATH, settings.GSE_CUSTOM_EVENT_DATAID
+                ),
+            ]
+        elif metric["metric_field"] == "agent-gse":
+            return [_("gse每隔60秒检查一次agent心跳数据。"), _("心跳数据持续未更新，24小时后将不再上报失联事件。")]
+        elif metric["metric_field"] == "oom-gse":
+            return [
+                _("通过调用内核syslog接口获取系统日志，对out of memory:关键字匹配告警，应用进程触发的OOM告警"),
+                _("通过对/proc/vmstat的oom_kill计数器进行判断告警，如递增则判断产生OOM告警，操作系统触发的OOM告警"),
+            ]
+        elif metric["metric_field"] == "os_restart":
+            return [
+                _("依赖bkmonitorbeat采集器的安装 ，在节点管理进行安装"),
+                _("检测原理：通过最近2次的uptime数据对比，满足cur_uptime < pre_uptime，则判断为重启"),
+            ]
+        elif metric["metric_field"] == "ping-gse":
+            return [
+                _("依赖bk-collector采集器的安装，在节点管理进行安装"),
+                _("由监控后台部署的bk-collector去探测目标IP是否存活。"),
+            ]
+        elif metric["metric_field"] == "proc_port":
+            return [
+                _("依赖bkmonitorbeat采集器的安装，在节点管理进行安装"),
+                _("对CMDB中的进程端口存活状态判断，如不满足预定义数据状态，则产生告警"),
+            ]
+
+        return []
 
     @staticmethod
     def translate_metric(metric: dict) -> dict:
@@ -1946,16 +1730,18 @@ class GetMetricListV2Resource(Resource):
         if not strategy_ids:
             return metric_list
 
-        strategy_objs = StrategyModel.objects.filter(id__in=strategy_ids)
-        strategies = Strategy.from_models(strategy_objs)
+        strategies = list_strategy(
+            bk_biz_id=params["bk_biz_id"],
+            conditions=[{"key": "id", "values": strategy_ids, "operator": "eq"}],
+        )
         metric_id_by_strategy = {}
         for strategy in strategies:
-            for query_config in strategy.items[0].query_configs:
-                if (query_config.data_source_label, query_config.data_type_label) != (
+            for query_config in strategy["items"][0]["query_configs"]:
+                if (query_config["data_source_label"], query_config["data_type_label"]) != (
                     DataSourceLabel.BK_MONITOR_COLLECTOR,
                     DataTypeLabel.ALERT,
                 ):
-                    metric_id_by_strategy[strategy.id] = query_config.metric_id
+                    metric_id_by_strategy[strategy["id"]] = query_config["metric_id"]
 
         monitor_metrics = GetMetricListV2Resource()(
             bk_biz_id=params["bk_biz_id"],
@@ -2034,21 +1820,29 @@ class VerifyStrategyNameResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True)
         id = serializers.IntegerField(required=False, default=0)
 
-        def validate(self, params):
-            qs = StrategyModel.objects.filter(name=params["name"], bk_biz_id=params["bk_biz_id"])
-            if params["id"]:
-                qs.exclude(id=params["id"])
-            if qs.exists():
-                raise StrategyNameExist(name=params["name"])
-            return super().validate(params)
+        def validate(self, attrs: dict[str, Any]):
+            result = list_plain_strategy(bk_biz_id=attrs["bk_biz_id"], search=attrs["name"])
 
-    def perform_request(self, params):
+            # 如果策略不存在，则直接返回
+            if not result["data"]:
+                return super().validate(attrs)
+
+            strategy_id = result["data"][0]["id"]
+            strategy_name = result["data"][0]["name"]
+
+            # 如果存在同名策略且策略ID不相同，则抛出策略名称已存在异常
+            if strategy_id != attrs["id"] and strategy_name == attrs["name"]:
+                raise StrategyNameExist(name=attrs["name"])
+
+            return super().validate(attrs)
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
         return "ok"
 
 
 class BulkSwitchStrategyResource(Resource):
     """
-    批量启停策略
+    批量启停特定标签的策略(目前仅在kernel_api中使用, 为BCS内置策略专门开发)
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -2057,27 +1851,27 @@ class BulkSwitchStrategyResource(Resource):
         action = serializers.ChoiceField(required=True, label="操作类型", choices=("on", "off"))
         force = serializers.BooleanField(label="是否强制操作", default=False)
 
-    def perform_request(self, params):
-        bk_biz_id = params["bk_biz_id"]
-        # get_strategy_list_v2
-        query_set = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
-        # 是否强制覆盖已更新过的策略
-        if not params["force"]:
-            query_set = query_set.annotate(
-                time_difference=ExpressionWrapper(
-                    F("update_time") - F("create_time"), output_field=fields.DurationField()
-                )
-            ).filter(time_difference__lte=datetime.timedelta(seconds=1))
-        target_ids = set(query_set.values_list("id", flat=True).distinct())
-        filter_dict = {"label": params["labels"]}
-        # filter by label
-        resource.strategies.get_strategy_list_v2.filter_strategy_ids_by_label(filter_dict, target_ids, bk_biz_id)
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+
+        # 过滤策略标签
+        conditions: list[FilterCondition] = [
+            {"key": "label", "values": validated_request_data["labels"], "operator": "eq"},
+        ]
+
+        # 默认只更新创建后未修改过的策略
+        if not validated_request_data["force"]:
+            conditions.append({"key": "updated_after_create", "values": [False], "operator": "eq"})
+
+        qs = StrategyQueryEngine.filter_strategies(bk_biz_id, conditions=conditions)
+        target_ids = set(qs.values_list("id", flat=True).distinct())
         if not target_ids:
             return []
-        # update_partial_strategy
+
+        # 更新策略启停状态
         update_params = {
-            "ids": target_ids,
-            "edit_data": {"is_enabled": params["action"] == "on"},
+            "ids": list(target_ids),
+            "edit_data": {"is_enabled": validated_request_data["action"] == "on"},
             "bk_biz_id": bk_biz_id,
         }
         return resource.strategies.update_partial_strategy_v2(**update_params)
@@ -2088,29 +1882,29 @@ class SaveStrategyV2Resource(Resource):
     保存策略
     """
 
-    RequestSerializer = Strategy.Serializer
+    RequestSerializer = StrategySerializer
 
     @classmethod
-    def validate_cmdb_level(cls, strategy: Strategy):
+    def validate_cmdb_level(cls, strategy: dict[str, Any]):
         """
         校验cmdb节点聚合配置是否合法
         """
-        metric_count = len(strategy.items[0].query_configs)
+        metric_count = len(strategy["items"][0]["query_configs"])
 
         # 单指标一定合法
         if metric_count == 1:
             return
 
-        for item in strategy.items:
-            for query_config in item.query_configs:
-                if (query_config.data_source_label, query_config.data_type_label) != (
+        for item in strategy["items"]:
+            for query_config in item["query_configs"]:
+                if (query_config["data_source_label"], query_config["data_type_label"]) != (
                     DataSourceLabel.BK_MONITOR_COLLECTOR,
                     DataTypeLabel.TIME_SERIES,
                 ):
                     continue
 
-                used_dimensions = set(getattr(query_config, "agg_dimension", []))
-                agg_condition = getattr(query_config, "agg_condition", [])
+                used_dimensions = set(query_config.get("agg_dimension", []))
+                agg_condition = query_config.get("agg_condition", [])
 
                 for c in agg_condition:
                     used_dimensions.add(c["key"])
@@ -2119,15 +1913,15 @@ class SaveStrategyV2Resource(Resource):
                     raise CmdbLevelValidateError()
 
     @classmethod
-    def validate_realtime_kafka(cls, strategy: Strategy):
+    def validate_realtime_kafka(cls, strategy: dict[str, Any]):
         """
         校验实时策略对应插件的kafka存储是否存在
         """
         is_realtime_table_id = []
-        for item in strategy.items:
-            for query_config in item.query_configs:
-                agg_method = getattr(query_config, "agg_method", "")
-                result_table_id = getattr(query_config, "result_table_id", "")
+        for item in strategy["items"]:
+            for query_config in item["query_configs"]:
+                agg_method = query_config.get("agg_method", "")
+                result_table_id = query_config.get("result_table_id", "")
                 if agg_method == "REAL_TIME":
                     is_realtime_table_id.append(result_table_id)
 
@@ -2135,25 +1929,21 @@ class SaveStrategyV2Resource(Resource):
             api.metadata.check_or_create_kafka_storage(table_ids=is_realtime_table_id)
 
     @classmethod
-    def validate_upgrade_user_groups(cls, strategy: Strategy):
-        notice_info = strategy.notice
-        upgrade_config = notice_info.options.get("upgrade_config", {})
+    def validate_upgrade_user_groups(cls, strategy: dict[str, Any]):
+        notice_info: dict[str, Any] = strategy["notice"]
+        upgrade_config = notice_info.get("options", {}).get("upgrade_config", {})
         if not upgrade_config.get("is_enabled"):
             return
-        if set(upgrade_config["user_groups"]) & set(notice_info.user_groups):
+        if set(upgrade_config["user_groups"]) & set(notice_info["user_groups"]):
             raise ValidationError(detail=_("通知升级的用户组不能包含第一次接收告警的用户组"))
 
-    def perform_request(self, params):
-        strategy = Strategy(**params)
-        strategy.convert()
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        operator = get_request_username()
+        strategy = validated_request_data
         self.validate_realtime_kafka(strategy)
         self.validate_cmdb_level(strategy)
         self.validate_upgrade_user_groups(strategy)
-        strategy.save()
-
-        # 编辑后需要重置AsCode相关配置
-        StrategyModel.objects.filter(id=strategy.id).update(hash="", snippet="")
-        return strategy.to_dict()
+        return save_strategy(bk_biz_id=validated_request_data["bk_biz_id"], strategy_json=strategy, operator=operator)
 
 
 class UpdatePartialStrategyV2Resource(Resource):
@@ -2177,7 +1967,7 @@ class UpdatePartialStrategyV2Resource(Resource):
                 required=False, child=serializers.ListField(child=serializers.DictField(), allow_empty=True)
             )
             actions = serializers.ListField(required=False, child=serializers.DictField(), allow_empty=True)
-            algorithms = Algorithm.Serializer(many=True, required=False)
+            algorithms = AlgorithmSerializer(many=True, required=False)
 
             def validate_target(self, target):
                 if target and target[0]:
@@ -2188,447 +1978,13 @@ class UpdatePartialStrategyV2Resource(Resource):
         ids = serializers.ListField(required=True, label="批量修改的策略ID列表")
         edit_data = ConfigSerializer(required=True)
 
-    @staticmethod
-    def update_dict_recursive(src, dst):
-        """
-        递归合并字典
-        :param src: {"a": {"c": 2, "d": 1}, "b": 2}
-        :param dst: {"a": {"c": 1, "f": {"zzz": 2}}, "c": 3, }
-        :return: {'a': {'c': 1, 'd': 1, 'f': {'zzz': 2}}, 'b': 2, 'c': 3}
-        """
-        for key, value in dst.items():
-            if key not in src:
-                src[key] = value
-            else:
-                if isinstance(value, dict):
-                    UpdatePartialStrategyV2Resource.update_dict_recursive(src[key], value)
-                else:
-                    src[key] = value
-        return src
-
-    @staticmethod
-    def update_labels(strategy: Strategy, labels: dict):
-        """
-        更新策略标签，追加或者替换标签
-        :param strategy: 需要更新标签的策略对象
-        :param labels: 包含更新标签所需信息的字典
-                        -如果字典中包含 "append_keys" 键，并且其值是一个包含 "labels" 的列表，则新的标签会被追加到现有标签中
-                            例如：
-                            labels = {
-                                "labels": ["label2", "label3"],
-                                "append_keys": ["labels"]
-                            }
-                            此时，新标签 "label2", "label3" 会被追加到现有标签中
-                        -如果未传递 "append_keys" 或 "append_keys" 中不包含 "labels"，则现有标签将被新的标签完全替换
-                            例如：
-                                labels = {
-                                    "labels": ["label2", "label3"]
-                                }
-                                或者
-                                labels = {
-                                    "labels": ["label2", "label3"],
-                                    "append_keys": ["other_key"]
-                                }
-                                此时，现有标签将被新标签 "label2", "label3" 完全替换
-        """
-        old_labels: list = strategy.labels
-        # 1、如果有传append_keys，则表示要将新的标签追加到原有策略的标签中
-        if labels.get("append_keys"):
-            if "labels" in labels["append_keys"]:
-                # 将新的标签追加到旧标签中
-                updated_labels = list(set(old_labels) | set(labels.get("labels", [])))
-            else:
-                # labels["append_keys"] 追加逻辑的字段列表里没有 labels 字段则替换
-                updated_labels = labels.get("labels", [])
-        else:
-            # 2、如果没有传append_keys，则表示将原有策略的旧标签全部替换为新的标签
-            updated_labels = labels.get("labels", [])
-
-        # 3、保存策略标签
-        strategy.labels = updated_labels
-        strategy.save_labels()
-
-        return None, [], []
-
-    @staticmethod
-    def update_is_enabled(strategy: Strategy, is_enabled: bool):
-        """
-        更新策略启停状态
-        """
-        strategy.is_enabled = is_enabled
-
-        return StrategyModel, ["is_enabled"], [strategy.instance]
-
-    @staticmethod
-    def update_notice_group_list(strategy: Strategy, notice_group_list: list[int]):
-        """
-        更新告警组配置
-        """
-        for action in strategy.actions:
-            action.user_groups = notice_group_list
-
-        strategy.notice.user_groups = notice_group_list
-
-        return StrategyActionConfigRelation, ["user_groups"], [action.instance, strategy.notice.instance]
-
-    @staticmethod
-    def update_trigger_config(strategy: Strategy, trigger_config: dict):
-        """
-        更新触发条件
-        """
-        for detect in strategy.detects:
-            detect.trigger_config.update(trigger_config)
-
-        return DetectModel, ["trigger_config"], [detect.instance for detect in strategy.detects]
-
-    @staticmethod
-    def update_alarm_interval(strategy: Strategy, alarm_interval: int):
-        """
-        更新通知间隔
-        """
-        strategy.notice.config["notify_interval"] = alarm_interval * 60
-
-        return StrategyActionConfigRelation, ["config"], [strategy.notice.instance]
-
-    @staticmethod
-    def update_send_recovery_alarm(strategy: Strategy, send_recovery_alarm: bool):
-        """
-        更新恢复通知
-        """
-        if send_recovery_alarm and ActionSignal.RECOVERED not in strategy.notice.signal:
-            strategy.notice.signal.append(ActionSignal.RECOVERED)
-
-        if not send_recovery_alarm and ActionSignal.RECOVERED in strategy.notice.signal:
-            strategy.notice.signal.remove(ActionSignal.RECOVERED)
-
-        return StrategyActionConfigRelation, ["signal"], [strategy.notice.instance]
-
-    @staticmethod
-    def update_recovery_config(strategy: Strategy, recovery_config: dict):
-        """
-        更新告警恢复通知
-        """
-        for detect in strategy.detects:
-            detect.recovery_config = recovery_config
-
-        return DetectModel, ["recovery_config"], [detect.instance for detect in strategy.detects]
-
-    @staticmethod
-    def update_target(strategy: Strategy, target: list[list[dict]]):
-        """
-        更新监控目标
-        """
-        if not target or not target or not target[0][0]["value"]:
-            target = []
-
-        for item in strategy.items:
-            item.target = target
-
-        return ItemModel, ["target"], [item.instance for item in strategy.items]
-
-    @staticmethod
-    def update_algorithms(strategy: Strategy, algorithms: list[dict]):
-        """更新检测算法。"""
-        for item in strategy.items:
-            item.algorithms = [Algorithm(strategy.id, item.id, **data) for data in algorithms]
-            item.save_algorithms()
-
-        return None, [], []
-
-    @staticmethod
-    def update_message_template(strategy: Strategy, message_template: str):
-        """
-        更新通知模板
-        """
-        for template in strategy.notice.config["template"]:
-            template["message_tmpl"] = message_template
-
-        return StrategyActionConfigRelation, ["config"], [strategy.notice.instance]
-
-    @staticmethod
-    def update_no_data_config(strategy: Strategy, no_data_config: dict):
-        for item in strategy.items:
-            UpdatePartialStrategyV2Resource.update_dict_recursive(item.no_data_config, no_data_config)
-
-        return ItemModel, ["no_data_config"], [item.instance for item in strategy.items]
-
-    @staticmethod
-    def update_notice(
-        strategy: Strategy,
-        notice: dict,
-        relations: dict[int, list[StrategyActionConfigRelation]],
-        action_configs: dict[int, ActionConfig],
-    ):
-        """
-        更新告警通知
-
-        ```pyhon
-        notice["append_keys"]: List[str]  # 追加逻辑的字段
-        ```
-
-        当 append_keys 有 key 时会将 old_notice[key] 的值添加到 notice[key] 中
-        ```python
-        notice = {
-            append_keys: ["user_groups"],
-            user_groups: [1, 2, 3],
-            ...
-        }
-        old_notice: {
-            append_keys: ["user_groups"],
-            user_groups: [1, 4],
-            ...
-        }
-
-        # 追加后并删除 append_keys
-        notice = {
-            user_groups: [1, 2, 3, 4]
-        }
-        ```
-        """
-        old_notice = strategy.notice.to_dict()
-        new_notice = deepcopy(notice)
-        # 判断是否进行追加操作
-        if new_notice.get("append_keys"):
-            for key in new_notice.get("append_keys", []):
-                if new_notice.get(key):
-                    if type(new_notice[key]) is list:
-                        [new_notice[key].append(i) for i in old_notice.get(key) if i not in new_notice[key]]
-
-            new_notice.pop("append_keys")
-
-        UpdatePartialStrategyV2Resource.update_dict_recursive(old_notice, new_notice)
-        strategy.notice = NoticeRelation(strategy.id, **old_notice)
-        # 同步当前的通知时间和通知组
-        for action in strategy.actions:
-            action.user_groups = strategy.notice.user_groups
-            action.options.update(
-                {
-                    "start_time": strategy.notice.options.get("start_time", "00:00:00"),
-                    "end_time": strategy.notice.options.get("end_time", "23:59:59"),
-                }
-            )
-
-        extra_create_or_update_datas = strategy.bulk_save_notice(relations, action_configs)
-        return (
-            StrategyActionConfigRelation,
-            ["user_groups", "options"],
-            [action.instance for action in strategy.actions],
-            extra_create_or_update_datas,
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        return update_partial_strategy(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            ids=validated_request_data["ids"],
+            edit_data=validated_request_data["edit_data"],
+            operator=get_global_user() or "unknown",
         )
-
-    @staticmethod
-    def update_actions(strategy: Strategy, actions: list[dict]):
-        new_actions = []
-        for action in actions:
-            slz = ActionRelation.Serializer(data=action)
-            slz.is_valid(raise_exception=True)
-            action_data = slz.validated_data
-            action_relation = ActionRelation(strategy.id, **action_data)
-            action_relation.user_groups = strategy.notice.user_groups
-            action_relation.options.update(
-                {
-                    "start_time": strategy.notice.options.get("start_time", "00:00:00"),
-                    "end_time": strategy.notice.options.get("end_time", "23:59:59"),
-                }
-            )
-            new_actions.append(action_relation)
-
-        strategy.actions = new_actions
-
-        strategy.save_actions()
-        return None, [], []
-
-    @staticmethod
-    def get_relations(strategy_ids: list[int]):
-        action_config_ids = set()
-        relations: dict[int, list[StrategyActionConfigRelation]] = defaultdict(list)
-        related_query = StrategyActionConfigRelation.objects.filter(
-            strategy_id__in=strategy_ids, relate_type=StrategyActionConfigRelation.RelateType.NOTICE
-        )
-        for relation in related_query:
-            relations[relation.strategy_id].append(relation)
-            action_config_ids.add(relation.config_id)
-        return list(action_config_ids), relations
-
-    @staticmethod
-    def get_action_configs(action_config_ids: list[int]):
-        action_query = ActionConfig.objects.filter(id__in=action_config_ids)
-        action_configs: dict[int, ActionConfig] = {}
-        for action_config in action_query:
-            action_configs[action_config.id] = action_config
-        return action_configs
-
-    @staticmethod
-    def process_extra_data(
-        extra_create_or_update_datas: dict[str, list[dict[str, any]]],
-        key: str,
-        updates_data: defaultdict[str, dict[str, any]],
-        create_datas: defaultdict[str, dict[str, any]],
-    ):
-        extra_update_datas = extra_create_or_update_datas.get("update_data", [])
-        extra_create_datas = extra_create_or_update_datas.get("create_data", [])
-        for update_data in extra_update_datas:
-            if update_data["cls"] is ActionConfig:
-                updates_data[f"extra_{key}_config"]["cls"] = update_data["cls"]
-                updates_data[f"extra_{key}_config"]["keys"] = update_data["keys"]
-                updates_data[f"extra_{key}_config"]["objs"].extend(update_data["objs"])
-            elif update_data["cls"] is StrategyActionConfigRelation:
-                updates_data[f"extra_{key}_relation"]["cls"] = update_data["cls"]
-                updates_data[f"extra_{key}_relation"]["keys"] = update_data["keys"]
-                updates_data[f"extra_{key}_relation"]["objs"].extend(update_data["objs"])
-
-        for data in extra_create_datas:
-            if data["cls"] is ActionConfig:
-                create_datas[f"extra_{key}_config"]["cls"] = data["cls"]
-                create_datas[f"extra_{key}_config"]["objs"].extend(data["objs"])
-            elif data["cls"] is StrategyActionConfigRelation:
-                create_datas[f"extra_{key}_relation"]["cls"] = data["cls"]
-                create_datas[f"extra_{key}_relation"]["objs"].extend(data["objs"])
-
-    def perform_request(self, params):
-        bk_biz_id = params["bk_biz_id"]
-        config: dict = params["edit_data"]
-        username = get_global_user()
-        strategy_ids = params["ids"]
-        strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=strategy_ids)
-
-        action_config_ids, relations = self.get_relations(strategy_ids)
-        action_configs = self.get_action_configs(action_config_ids)
-
-        create_datas = defaultdict(lambda: {"cls": None, "objs": []})
-        updates_data = defaultdict(lambda: {"cls": None, "keys": [], "objs": []})
-        updates_data["update_time"]["cls"] = StrategyModel
-        updates_data["update_time"]["keys"] = ["update_time", "update_user"]
-        update_time = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
-        history = []
-        for strategy in Strategy.from_models(strategies):
-            affect_history_data = False
-            for key, value in config.items():
-                update_method: Callable[[Strategy, Any], None] = getattr(self, f"update_{key}", None)
-                if not update_method:
-                    continue
-                if key == "notice":
-                    (update_cls, update_keys, update_objs, extra_create_or_update_datas) = self.update_notice(
-                        strategy, value, relations, action_configs
-                    )
-                    self.process_extra_data(extra_create_or_update_datas, key, updates_data, create_datas)
-                else:
-                    update_cls, update_keys, update_objs = update_method(strategy, value)
-                if update_cls:
-                    updates_data[key]["cls"] = update_cls
-                    updates_data[key]["keys"] = update_keys
-                    updates_data[key]["objs"].extend(update_objs)
-
-                if key in ("is_enabled",):
-                    affect_history_data = True
-
-            if affect_history_data:
-                # 对于影响历史依赖的配置，如果使用的是智能监控SDK，还需要重置状态触发重新拉取历史依赖的逻辑
-                for item in strategy.items:
-                    if getattr(item.query_configs[0], "intelligent_detect", None) and item.query_configs[
-                        0
-                    ].intelligent_detect.get("use_sdk", False):
-                        item.query_configs[0].intelligent_detect["status"] = SDKDetectStatus.PREPARING
-                        item.query_configs[0].save()
-
-            strategy.instance.update_time = update_time
-            strategy.instance.update_user = username
-            updates_data["update_time"]["objs"].append(strategy.instance)
-            history.append(
-                StrategyHistoryModel(
-                    create_user=username,
-                    strategy_id=strategy.id,
-                    operate="update",
-                    content=strategy.to_dict(),
-                )
-            )
-
-        for update_data in updates_data.values():
-            update_data["cls"].objects.bulk_update(update_data["objs"], update_data["keys"])
-
-        for create_data in create_datas.values():
-            create_data["cls"].objects.bulk_create(create_data["objs"])
-
-        StrategyHistoryModel.objects.bulk_create(history)
-
-        # 编辑后需要重置AsCode相关配置
-        strategies.update(hash="", snippet="")
-
-        return params["ids"]
-
-
-class CloneStrategyV2Resource(Resource):
-    """
-    克隆策略
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        ids = serializers.ListField(required=True, child=serializers.IntegerField(), label="待克隆策略ID")
-
-    def perform_request(self, params):
-        strategies = Strategy.from_models(
-            StrategyModel.objects.filter(bk_biz_id=params["bk_biz_id"], id__in=params["ids"])
-        )
-
-        for strategy in strategies:
-            strategy.id = 0
-            strategy.name += "_copy"
-            strategy.app = ""
-            strategy.source = settings.APP_CODE
-
-            while StrategyModel.objects.filter(bk_biz_id=params["bk_biz_id"], name=strategy.name).exists():
-                strategy.name += "_copy"
-            strategy.save()
-
-        return [strategy.id for strategy in strategies]
-
-
-class GetPlainStrategyListV2Resource(Resource):
-    """
-    获取精简策略列表
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        page = serializers.IntegerField(default=1)
-        page_size = serializers.IntegerField(default=10)
-        search = serializers.CharField(required=False, default="")
-
-    def perform_request(self, params):
-        strategies = StrategyModel.objects.filter(bk_biz_id=params["bk_biz_id"])
-
-        # 检索条件
-        if params["search"]:
-            query = None
-
-            # 尝试当成策略ID查询
-            try:
-                strategy_id = int(params["search"])
-                query = Q(id=strategy_id)
-            except (ValueError, TypeError):
-                pass
-
-            # 查询策略名称
-            if query is None:
-                query = Q(name__icontains=params["search"])
-            else:
-                query |= Q(name__icontains=params["search"])
-
-            strategies = strategies.filter(query)
-
-        # 统计总数
-        count = strategies.count()
-
-        # 分页查询
-        strategies = strategies[(params["page"] - 1) * params["page_size"] : params["page"] * params["page_size"]]
-
-        return {
-            "count": count,
-            "strategy_configs": [
-                {"id": strategy.id, "name": strategy.name, "scenario": strategy.scenario} for strategy in strategies
-            ],
-        }
 
 
 class GetTargetDetailWithCache(CacheResource):
@@ -2638,9 +1994,10 @@ class GetTargetDetailWithCache(CacheResource):
     cache_user_related = False
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         strategy_id = serializers.IntegerField(required=True, label="策略ID")
 
-    def perform_request(self, validate_data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         """
         为了获取最佳的性能，在执行request()方法之前，请先执行set_mapping()方法，传入策略和监控目标的映射关系字典，以避免频繁查询数据库。
         并且请显示使用instance.request()的方式执行perform_request，而非使用instance()方式，
@@ -2652,10 +2009,11 @@ class GetTargetDetailWithCache(CacheResource):
             >>instance.request(xxx)
         """
 
-        strategy_id = validate_data["strategy_id"]
+        strategy_id = validated_request_data["strategy_id"]
+        bk_biz_id = validated_request_data["bk_biz_id"]
         if not hasattr(self, "strategy_target_mapping"):
-            bk_biz_id = StrategyModel.objects.get(id=strategy_id).bk_biz_id
-            target = ItemModel.objects.get(strategy_id=strategy_id).target
+            strategy = get_strategy(bk_biz_id=bk_biz_id, strategy_id=strategy_id)
+            target = strategy["items"][0]["target"]
             logger.warning("Please call set_mapping() before calling perform_request().")
         else:
             bk_biz_id, target = self.strategy_target_mapping[strategy_id]
@@ -2860,9 +2218,11 @@ class GetTargetDetail(Resource):
             # 使用instance.request()方式调用，而非instance()方式。
             # instance()方式执行时会重新实例化，导致先前执行的set_mapping失效
             if params["refresh"]:
-                info = get_target_detail_with_cache.request.refresh({"strategy_id": item.strategy_id})
+                info = get_target_detail_with_cache.request.refresh(
+                    {"bk_biz_id": bk_biz_id, "strategy_id": item.strategy_id}
+                )
             else:
-                info = get_target_detail_with_cache.request({"strategy_id": item.strategy_id})
+                info = get_target_detail_with_cache.request({"bk_biz_id": bk_biz_id, "strategy_id": item.strategy_id})
 
             if info:
                 result[item.strategy_id] = info
@@ -2913,7 +2273,7 @@ class SearchMetricIDResource(Resource):
     查询指标ID
     """
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         return []
 
 
@@ -3001,7 +2361,7 @@ class QueryConfigToPromql(Resource):
                 elif condition["op"] in ["req", "nreq"]:
                     condition["value"] = ["|".join(condition["value"])]
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         data_sources = []
         data_source_label = "bkmonitor"
         data_source_label_mapping = {
@@ -3010,15 +2370,19 @@ class QueryConfigToPromql(Resource):
             "bk_data": "bkdata",
             "bk_log_search": "bklog",
         }
-        for query_config in params["query_configs"]:
+        for query_config in validated_request_data["query_configs"]:
             data_source_label = data_source_label_mapping.get(query_config["data_source_label"], data_source_label)
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
             init_params = dict(query_config=query_config)
-            init_params.update({"bk_biz_id": params["bk_biz_id"]})
+            init_params.update({"bk_biz_id": validated_request_data["bk_biz_id"]})
             data_sources.append(data_source_class.init_by_query_config(**init_params))
 
         # 构造统一查询配置
-        query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=data_sources, expression=params["expression"])
+        query = UnifyQuery(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            data_sources=data_sources,
+            expression=validated_request_data["expression"],
+        )
         unify_query_config = query.get_unify_query_params()
         self.check(unify_query_config, data_source_label)
         promql = api.unify_query.struct_to_promql(unify_query_config)["promql"]
@@ -3315,7 +2679,7 @@ class ListIntelligentModelsResource(Resource):
         default_plan_id = None
         if algorithm in AI_SETTING_ALGORITHMS:
             ai_setting = AiSetting(bk_biz_id=bk_biz_id)
-            config = None
+            config: Any = None
             is_enabled = False
             # 单指标异常检测，对应监控中的智能异常检测
             if algorithm == AlgorithmModel.AlgorithmChoices.IntelligentDetect:
@@ -3327,7 +2691,7 @@ class ListIntelligentModelsResource(Resource):
                 is_enabled = config.is_enabled
 
             # 判断如果如果是开启的话，从配置中拿到默认的plan_id
-            if is_enabled:
+            if is_enabled and config:
                 default_plan_id = config.to_dict().get("default_plan_id")
 
         model_list = []
@@ -3414,7 +2778,7 @@ class GetIntelligentDetectAccessStatusResource(Resource):
 
     def perform_request(self, params):
         try:
-            strategy = StrategyModel.objects.get(bk_biz_id=params["bk_biz_id"], id=params["strategy_id"])
+            StrategyModel.objects.get(bk_biz_id=params["bk_biz_id"], id=params["strategy_id"])
         except StrategyModel.DoesNotExist:
             raise ValidationError(_("策略({})不存在)".format(params["strategy_id"])))
 
@@ -3426,18 +2790,16 @@ class GetIntelligentDetectAccessStatusResource(Resource):
             "result_table_id": "",
         }
 
-        strategy_obj = Strategy.from_models([strategy])[0]
+        strategy_config = get_strategy(params["bk_biz_id"], params["strategy_id"])
 
         if not settings.IS_ACCESS_BK_DATA:
             return result
 
-        intelligent_detect_config = None
-
-        for query_config in chain(*[item.query_configs for item in strategy_obj.items]):
+        intelligent_detect_config: dict[str, Any] = {}
+        for query_config in chain(*[item["query_configs"] for item in strategy_config["items"]]):
             if query_config.data_type_label not in (DataTypeLabel.TIME_SERIES, DataTypeLabel.EVENT, DataTypeLabel.LOG):
                 continue
-
-            intelligent_detect_config = getattr(query_config, "intelligent_detect", None)
+            intelligent_detect_config = query_config.get("intelligent_detect", {})
 
         # 使用SDK检测的策略状态默认是运行中
         if intelligent_detect_config.get("use_sdk", False):
@@ -3445,9 +2807,9 @@ class GetIntelligentDetectAccessStatusResource(Resource):
             result["status_detail"] = None
             return result
 
-        algorithm_name = None
-        for algorithm in chain(*[item.algorithms for item in strategy_obj.items]):
-            algorithm_type = algorithm.type
+        algorithm_name: str = ""
+        for algorithm in chain(*[item["algorithms"] for item in strategy_config["items"]]):
+            algorithm_type = algorithm["type"]
             if algorithm_type not in AlgorithmModel.AIOPS_ALGORITHMS:
                 continue
             algorithm_name = dict(AlgorithmModel.ALGORITHM_CHOICES)[algorithm_type]
@@ -3457,9 +2819,7 @@ class GetIntelligentDetectAccessStatusResource(Resource):
             return result
 
         result["message"] = intelligent_detect_config.get("message", "")
-
         access_status = intelligent_detect_config.get("status", "")
-
         access_status_mapping = {
             "": {
                 "status": self.Status.FAILED,
@@ -3503,9 +2863,8 @@ class GetIntelligentDetectAccessStatusResource(Resource):
         flow = api.bkdata.get_data_flow(flow_id=flow_id)
 
         flow_status = ""
-
         if flow:
-            flow_status = flow["status"]
+            flow_status: str = flow["status"]
 
         flow_status_mapping = {
             "": {
@@ -3584,10 +2943,10 @@ class GetDevopsStrategyListResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
-    def perform_request(self, params: dict[str, str]) -> dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         # bk_biz_id 必须是数字
         try:
-            bk_biz_id = int(params["bk_biz_id"])
+            bk_biz_id = int(validated_request_data["bk_biz_id"])
         except (ValueError, TypeError):
             return {"result": False, "status": 1, "data": [], "message": "bk_biz_id必须是数字"}
 
@@ -3632,19 +2991,19 @@ class SaveStrategySubscribeResource(Resource):
         )
         is_enable = serializers.BooleanField(required=False, default=True)
 
-    def perform_request(self, params):
-        sub_id = params.get("id")
-        bk_biz_id = params["bk_biz_id"]
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        sub_id = validated_request_data.get("id")
+        bk_biz_id = validated_request_data["bk_biz_id"]
         if sub_id:
             try:
                 instance = NoticeSubscribe.objects.get(id=sub_id, bk_biz_id=bk_biz_id)
-                for k, v in params.items():
+                for k, v in validated_request_data.items():
                     setattr(instance, k, v)
                 instance.save()
             except NoticeSubscribe.DoesNotExist:
                 raise ValidationError(_(f"订阅ID：{sub_id} 在业务[{bk_biz_id}] 下不存在"))
         else:
-            instance = NoticeSubscribe.objects.create(**params)
+            instance = NoticeSubscribe.objects.create(**validated_request_data)
 
         return {
             "id": instance.id,
@@ -3667,9 +3026,9 @@ class BulkSaveStrategySubscribeResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True)
         subscriptions = serializers.ListField(required=True, child=SaveStrategySubscribeResource.RequestSerializer())
 
-    def perform_request(self, params):
-        subscriptions = params["subscriptions"]
-        bk_biz_id = params["bk_biz_id"]
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        subscriptions = validated_request_data["subscriptions"]
+        bk_biz_id = validated_request_data["bk_biz_id"]
         to_be_created = []
         to_be_updated = []
         update_subs = {}
@@ -3703,10 +3062,7 @@ class BulkSaveStrategySubscribeResource(Resource):
                 update_fields = ["username", "conditions", "notice_ways", "priority", "user_type", "is_enable"]
                 NoticeSubscribe.objects.bulk_update(to_be_updated, update_fields)
 
-        return {
-            "created": len(to_be_created),
-            "updated": len(to_be_updated),
-        }
+        return {"created": len(to_be_created), "updated": len(to_be_updated)}
 
 
 class BulkDeleteStrategySubscribeResource(Resource):

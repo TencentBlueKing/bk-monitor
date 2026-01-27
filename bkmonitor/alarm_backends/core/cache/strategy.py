@@ -20,6 +20,7 @@ from operator import itemgetter
 from typing import Any
 
 import arrow
+from bk_monitor_base.strategy import parse_metric_id
 from django.conf import settings
 
 from alarm_backends.constants import CONST_ONE_DAY
@@ -37,7 +38,7 @@ from bkmonitor.models import (
     StrategyHistoryModel,
     StrategyModel,
 )
-from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
+from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.common_utils import chunks, count_md5
 from bkmonitor.utils.kubernetes import is_k8s_target
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -45,10 +46,10 @@ from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
 from constants.strategy import (
     AGG_METHOD_REAL_TIME,
-    AdvanceConditionMethod,
-    TargetFieldType,
     OS_RESTART_METRIC_ID,
     SYSTEM_PROC_PORT_METRIC_ID,
+    AdvanceConditionMethod,
+    TargetFieldType,
 )
 from core.drf_resource import api
 from core.prometheus import metrics

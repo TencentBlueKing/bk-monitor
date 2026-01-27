@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 from collections import defaultdict
 
+from bk_monitor_base.strategy import get_metric_id
 from django.conf import settings
 from django.db.models.sql.where import AND, OR
 from django.utils.functional import cached_property
@@ -19,7 +20,6 @@ from alarm_backends.core.control.mixins import CheckMixin, DetectMixin, DoubleCh
 from alarm_backends.core.detect_result import CONST_MAX_LEN_CHECK_RESULT
 from bkmonitor.data_source import load_data_source
 from bkmonitor.data_source.unify_query.query import UnifyQuery
-from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.range import load_condition_instance
 from bkmonitor.utils.range.target import TargetCondition

@@ -1,13 +1,12 @@
-# -*- coding: utf-8 -*-
 import html
 import json
 import logging
 import os
 import re
 from collections import defaultdict
-from typing import Tuple
 
 import yaml
+from bk_monitor_base.strategy import get_metric_id
 from django.conf import settings
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -16,7 +15,6 @@ from rest_framework.exceptions import ValidationError
 from bk_dataview.api import get_or_create_org
 from bkmonitor.action.serializers import UserGroupDetailSlz
 from bkmonitor.models import ActionSignal, MetricMappingConfigModel, UserGroup
-from bkmonitor.strategy.new_strategy import get_metric_id
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
@@ -42,7 +40,7 @@ class ImportBaseResource(Resource):
         return ConvertGrafanaPromqlDashboardResource.convert_metric_id(promql, [])
 
     @classmethod
-    def convert_metric_field(cls, promql: str, params: dict) -> Tuple[str, str]:
+    def convert_metric_field(cls, promql: str, params: dict) -> tuple[str, str]:
         scenario = "kubernetes"
 
         try:
@@ -103,8 +101,8 @@ class ImportGrafanaDashboard(ImportBaseResource):
 
     @classmethod
     def read(cls, name):
-        file_path = os.path.join(settings.BASE_DIR, "{}.json".format(name))
-        with open(file_path, "r") as f:
+        file_path = os.path.join(settings.BASE_DIR, f"{name}.json")
+        with open(file_path) as f:
             return json.loads(f.read())
 
     @classmethod
@@ -133,7 +131,7 @@ class ImportGrafanaDashboard(ImportBaseResource):
                 }
                 variable["definition"] = promql
 
-                if variable.get("regex" ""):
+                if variable.get("regex"):
                     variable["regex"] = cls.convert_k8s_dimension(variable["regex"])
         return templating, error_msg
 
@@ -163,7 +161,9 @@ class ImportGrafanaDashboard(ImportBaseResource):
             name = f.name
             grafana_config, variable_error_msg = self.handle_origin_config(grafana_config, validated_request_data)
             if variable_error_msg:
-                file_dict[name].append({"status": "fail", "message": _("变量转换失败：") + ", ".join(variable_error_msg)})
+                file_dict[name].append(
+                    {"status": "fail", "message": _("变量转换失败：") + ", ".join(variable_error_msg)}
+                )
             for row in grafana_config.get("rows", grafana_config.get("panels", [])):
                 new_panels = []
                 if row.get("type") == "row" or "rows" in grafana_config:
@@ -222,7 +222,9 @@ class ImportGrafanaDashboard(ImportBaseResource):
                 grafana_config.pop("id", None)
                 result = self.create_dashboard(grafana_config, validated_request_data["bk_biz_id"])
                 if result["result"]:
-                    file_dict[name].append({"status": "success", "message": _("导入仪表盘创建成功"), "json": grafana_config})
+                    file_dict[name].append(
+                        {"status": "success", "message": _("导入仪表盘创建成功"), "json": grafana_config}
+                    )
                 else:
                     file_dict[name].append(
                         {
@@ -232,7 +234,7 @@ class ImportGrafanaDashboard(ImportBaseResource):
                         }
                     )
             except Exception as e:
-                logger.exception("创建仪表盘请求异常: %s" % e)
+                logger.exception(f"创建仪表盘请求异常: {e}")
                 file_dict[name].append(
                     {"status": "fail", "message": _("创建仪表盘请求异常:{}").format(e), "json": grafana_config}
                 )
@@ -318,7 +320,7 @@ class ImportAlertRule(ImportBaseResource):
                 user_group_serializer.is_valid(raise_exception=True)
                 user_group_serializer.save()
             except ValidationError as e:
-                logger.exception("创建告警组失败: %s" % e)
+                logger.exception(f"创建告警组失败: {e}")
                 # 暂不做处理，勾选默认运维组
                 return [UserGroup.objects.get(bk_biz_id=bk_biz_id, name=_("运维")).id]
             notice_group_ids.append(UserGroup.objects.get(bk_biz_id=bk_biz_id, name=group_name).id)
@@ -429,11 +431,13 @@ class ImportAlertRule(ImportBaseResource):
                 try:
                     resource.strategies.save_strategy_v2(**strategy_config)
                 except Exception as e:
-                    logger.exception("创建策略失败: %s" % e)
+                    logger.exception(f"创建策略失败: {e}")
                     file_dict[f.name].append(
                         {
                             "status": "fail",
-                            "message": "-".join([rule.get("alertname", ""), rule.get("expr", ""), _("创建策略失败: %s") % e]),
+                            "message": "-".join(
+                                [rule.get("alertname", ""), rule.get("expr", ""), _("创建策略失败: %s") % e]
+                            ),
                         }
                     )
         return file_dict

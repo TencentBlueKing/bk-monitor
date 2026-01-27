@@ -12,6 +12,7 @@ import json
 import logging
 import re
 
+from bk_monitor_base.strategy import get_metric_id
 from django.db.models import Value
 from django.db.models.functions import Concat
 from rest_framework.exceptions import ValidationError
@@ -19,7 +20,7 @@ from rest_framework.exceptions import ValidationError
 from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import MetricListCache, StrategyModel
-from bkmonitor.strategy.new_strategy import Strategy, get_metric_id
+from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.views import serializers
 from constants.data_source import DataSourceLabel

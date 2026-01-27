@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
+from bk_monitor_base.strategy import get_metric_id
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -146,9 +147,6 @@ class QueryConfigSerializer(serializers.Serializer):
             metric_field = attrs["metrics"][0]["field"]
         except (KeyError, IndexError):
             pass
-
-        # TODO get_metric_id 下沉到 datasource 模块
-        from bkmonitor.strategy.new_strategy import get_metric_id
 
         attrs["metric_id"] = get_metric_id(
             attrs["data_source_label"],

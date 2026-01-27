@@ -48,13 +48,10 @@ class StrategiesViewSet(ResourceViewSet):
         ]:
             return [BusinessActionPermission([ActionEnum.VIEW_RULE])]
         if self.action in [
-            "get_metric_list",
             "v2/get_metric_list",
             "update_metric_list_by_biz",
         ]:
             return [BusinessActionPermission([ActionEnum.VIEW_RULE, ActionEnum.EXPLORE_METRIC])]
-        if self.action in ["v2/get_plain_strategy_list"]:
-            return [BusinessActionPermission([ActionEnum.VIEW_RULE, ActionEnum.VIEW_DOWNTIME])]
         if self.request.method in permissions.SAFE_METHODS:
             return [BusinessActionPermission([ActionEnum.VIEW_RULE])]
         return [BusinessActionPermission([ActionEnum.MANAGE_RULE])]
@@ -80,14 +77,10 @@ class StrategiesViewSet(ResourceViewSet):
         # 获取策略目标详情
         ResourceRoute("POST", resource.strategies.get_target_detail, endpoint="get_target_detail"),
         # v1 - 旧版接口
-        # 获取全部监控指标， 已下线
-        ResourceRoute("POST", resource.strategies.get_metric_list, endpoint="get_metric_list"),
         # 获取指标维度最近所上报的值
         ResourceRoute("POST", resource.strategies.get_dimension_values, endpoint="get_dimension_values"),
         # 创建、修改监控策略
         ResourceRoute("POST", resource.strategies.strategy_config, endpoint="strategy_config"),
-        # 拷贝监控策略
-        ResourceRoute("POST", resource.strategies.clone_strategy_config, endpoint="clone_strategy_config"),
         # 删除监控策略
         ResourceRoute("POST", resource.strategies.delete_strategy_config, endpoint="delete_strategy_config"),
         # 获取监控策略列表
@@ -100,12 +93,8 @@ class StrategiesViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.strategies.get_dimension_list, endpoint="get_dimension_list"),
         # 获取监控策略轻量列表
         ResourceRoute("GET", resource.strategies.plain_strategy_list, endpoint="plain_strategy_list"),
-        # 获取监控策略信息
-        ResourceRoute("GET", resource.strategies.strategy_info, endpoint="strategy_info"),
         # 获取索引列表
         ResourceRoute("GET", resource.strategies.get_index_set_list, endpoint="get_index_set_list"),
-        # 获取索引field
-        ResourceRoute("GET", resource.strategies.get_log_fields, endpoint="get_log_fields"),
         # v2 - 新版接口
         # 获取全部监控指标
         ResourceRoute("POST", resource.strategies.get_metric_list_v2, endpoint="v2/get_metric_list"),
@@ -121,10 +110,6 @@ class StrategiesViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.strategies.save_strategy_v2, endpoint="v2/save_strategy"),
         # 批量更新策略
         ResourceRoute("POST", resource.strategies.update_partial_strategy_v2, endpoint="v2/update_partial_strategy"),
-        # 克隆策略
-        ResourceRoute("POST", resource.strategies.clone_strategy_v2, endpoint="v2/clone_strategy"),
-        # 获取简版策略列表
-        ResourceRoute("GET", resource.strategies.get_plain_strategy_list_v2, endpoint="v2/get_plain_strategy_list"),
         # 查询配置转换为PromQL
         ResourceRoute("POST", resource.strategies.query_config_to_promql, endpoint="query_config_to_promql"),
         # PromQL转为查询配置

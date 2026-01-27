@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,11 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import datetime
 
+from typing import Any
+
+from bk_monitor_base.strategy import switch_strategy
 from rest_framework import exceptions, serializers
 
-from bkmonitor.models import StrategyModel
 from bkmonitor.utils.user import get_global_user
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -139,16 +139,10 @@ class SwitchStrategyResource(Resource):
         ids = serializers.ListField(child=serializers.IntegerField(), label="策略ID列表")
         is_enabled = serializers.BooleanField()
 
-    def perform_request(self, params):
-        strategies = StrategyModel.objects.filter(id__in=params["ids"])
+    def perform_request(self, validated_request_data: dict[str, Any]):
         username = get_global_user() or "unknown"
-        strategies.update(is_enabled=params["is_enabled"], update_user=username, update_time=datetime.datetime.now())
-
-        switch_ids = [strategy.id for strategy in strategies]
-
-        return {
-            "ids": switch_ids,
-        }
+        switch_strategy(validated_request_data["ids"], validated_request_data["is_enabled"], username)
+        return {"ids": validated_request_data["ids"]}
 
 
 class AlarmStrategyViewSet(ResourceViewSet):

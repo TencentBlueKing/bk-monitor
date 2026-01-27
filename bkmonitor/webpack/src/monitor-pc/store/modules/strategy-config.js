@@ -30,7 +30,6 @@ import { noticeGroupList } from 'monitor-api/modules/notice_group';
 import {
   getDimensionValues,
   getIndexSetList,
-  getLogFields,
   getScenarioList,
   getStrategyV2,
   getTargetDetail,
@@ -163,19 +162,6 @@ const actions = {
   // 获取索引集数据
   async getIndexSetList(store, params) {
     const data = await getIndexSetList(params).catch(() => null);
-    return data;
-  },
-  // 获取日志关键字维度
-  async getLogFields({ commit }, params) {
-    commit(SET_LOG_LOADING, true);
-    const data = await getLogFields(params)
-      .catch(() => ({
-        dimension: [],
-        condition: [],
-      }))
-      .finally(() => {
-        commit(SET_LOG_LOADING, false);
-      });
     return data;
   },
   // 获取策略模板变量列表
