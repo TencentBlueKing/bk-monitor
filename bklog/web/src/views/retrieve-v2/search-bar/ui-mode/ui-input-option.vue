@@ -545,7 +545,14 @@ const handleFieldItemClick = (item, index, activeCondition = true) => {
   }
 
   if (!isValidateEgges(item)) {
-    conditionValueInstance.hide(100);
+    // 如果是全文检索字段，等待 DOM 更新完成后再隐藏弹窗
+    if (item.field_name === '*') {
+      nextTick(() => {
+        conditionValueInstance.hide(0);
+      });
+    } else {
+      conditionValueInstance.hide(100);
+    }
   }
 
   setFullTextFocus();
@@ -794,7 +801,7 @@ const handleDeleteTagItem = (index) => {
 
 // 清空检索内容
 const handleClearBtnClick = () => {
-  condition.value.value = [];
+  condition.value.value.splice(0);
 };
 
 const handleOperatorBtnClick = () => {
@@ -1207,7 +1214,7 @@ const handleOptionListMouseEnter = (e, item) => {
   const { offsetWidth, scrollWidth } = e.target.lastElementChild;
   if (offsetWidth < scrollWidth) {
     fieldOptionListInstance.setContent(
-      `${item.query_alias || item.field_alias || item.field_name}(${item.field_name})`,
+      `${item.query_alias || item.field_name}(${item.field_name})`,
     );
     fieldOptionListInstance.show(e.target);
   }

@@ -16,6 +16,8 @@ from functools import reduce
 from typing import Any
 
 import arrow
+from dateutil import parser as dateutil_parser
+from django.conf import settings
 from django.db.models import Q
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
@@ -646,12 +648,19 @@ def handle_shield_time(
     if not space:
         raise ValidationError({"space": "业务空间不存在"})
 
-    # 时间预处理，将时间统一转换为业务时区处理
-    begin_time = arrow.get(begin_time_str)
-    end_time = arrow.get(end_time_str)
-    if space.time_zone:
-        begin_time = begin_time.to(space.time_zone)
-        end_time = end_time.to(space.time_zone)
+    # 获取业务时区，如果空间时区不存在，则使用默认时区
+    timezone = space.time_zone or settings.TIME_ZONE
+
+    # 判定时间字符串是否带有时区，如果带有时区则转换到业务时区，否则按业务时区解释
+    def _parse_with_timezone(value: str) -> arrow.Arrow:
+        parsed = dateutil_parser.parse(value)
+        has_tz = parsed.tzinfo is not None and parsed.tzinfo.utcoffset(parsed) is not None
+        if has_tz:
+            return arrow.get(parsed).to(timezone)
+        return arrow.get(parsed).replace(tzinfo=timezone)
+
+    begin_time = _parse_with_timezone(begin_time_str)
+    end_time = _parse_with_timezone(end_time_str)
 
     # 如果是需要使用时间段的周期，只取日期部分，拼接上周期的时间
     if cycle_config.get("type", 1) != 1:

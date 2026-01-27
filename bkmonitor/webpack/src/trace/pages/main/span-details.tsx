@@ -259,8 +259,10 @@ export default defineComponent({
 
     const getSpanDetailExpandUserConfig = () => {
       const res = window.localStorage.getItem(TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY);
-      /** 默认展开事件 */
-      basicInfoExpand.value = res ? JSON.parse(res) : [EListItemType.events];
+      /** 默认展开所有 */
+      basicInfoExpand.value = res
+        ? JSON.parse(res)
+        : [EListItemType.tags, EListItemType.stageTime, EListItemType.resource, EListItemType.events];
     };
 
     onMounted(() => {

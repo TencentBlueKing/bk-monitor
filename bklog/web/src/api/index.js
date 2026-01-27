@@ -74,6 +74,10 @@ axiosInstance.interceptors.request.use(
     const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
     config.headers.Traceparent = traceparent;
     // }
+    // 添加时区信息
+    if (store.state.indexItem?.timezone) {
+      config.headers['X-BKLOG-TIMEZONE'] = store.state.indexItem.timezone;
+    }
     return config;
   },
   error => Promise.reject(error),
