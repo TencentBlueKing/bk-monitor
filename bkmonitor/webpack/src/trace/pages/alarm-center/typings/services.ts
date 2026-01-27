@@ -160,6 +160,7 @@ export interface AlertContentItem {
 /** 告警 -- 告警内容详情 -- 数据含义修改事件对象 */
 export type AlertContentNameEditInfo = {
   alert_id: AlertTableItem['id'];
+  bk_biz_id?: number;
   data_meaning: AlertContentItem['name'];
 };
 

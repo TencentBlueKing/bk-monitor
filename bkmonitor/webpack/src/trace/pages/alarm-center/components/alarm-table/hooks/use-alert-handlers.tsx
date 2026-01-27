@@ -72,7 +72,9 @@ export const useAlertHandlers = ({
 }: UseAlertHandlersOptions) => {
   /** 告警内容详情 popover 实例 ref */
   const alertContentDetailRef = useTemplateRef<InstanceType<typeof AlertContentDetail>>('alertContentDetailRef');
-  /** 当前查看的告警内容详情 id */
+  /** 当前告警记录所处的业务 ID */
+  const activeBizId = shallowRef();
+  /** 当前查看的告警记录 id */
   const activeAlertId = shallowRef<string>('');
   /** 当前查看的告警内容详情数据 */
   const activeAlertContentDetail = shallowRef<AlertContentItem>(null);
@@ -92,10 +94,12 @@ export const useAlertHandlers = ({
   const handleAlertContentDetailShow = (e: MouseEvent, row: AlertTableItem, colKey: string) => {
     if (isSaveContentNameActive.value) return;
     activeAlertContentDetail.value = row?.items?.[0];
+    activeBizId.value = row.bk_biz_id;
     activeAlertId.value = row.id;
     clickPopoverTools.showPopover(e, () => alertContentDetailRef.value.$el, `${row.id}-${colKey}`, {
       onHide: () => (isSaveContentNameActive.value ? false : void 0),
       onHidden: () => {
+        activeBizId.value = void 0;
         activeAlertId.value = '';
         activeAlertContentDetail.value = null;
       },
@@ -144,6 +148,7 @@ export const useAlertHandlers = ({
   const renderAlertHandlerDom = () => (
     <AlertContentDetail
       ref='alertContentDetailRef'
+      bizId={activeBizId.value}
       alertId={activeAlertId.value}
       alertContentDetail={activeAlertContentDetail.value}
       onSave={handleSaveContentName}

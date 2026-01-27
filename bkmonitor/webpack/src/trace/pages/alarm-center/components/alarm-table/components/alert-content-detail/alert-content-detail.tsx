@@ -47,6 +47,10 @@ export interface AlertSavePromiseEvent {
 export default defineComponent({
   name: 'AlertMetricsConfig',
   props: {
+    /** 业务 ID */
+    bizId: {
+      type: Number,
+    },
     /** 告警 ID */
     alertId: {
       type: String,
@@ -57,7 +61,7 @@ export default defineComponent({
     },
   },
   emits: {
-    save: (saveInfo: AlertContentNameEditInfo, saveEvent: AlertSavePromiseEvent) => saveInfo && saveEvent,
+    save: (saveInfo: AlertContentNameEditInfo, savePromiseEvent: AlertSavePromiseEvent) => saveInfo && savePromiseEvent,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -108,7 +112,11 @@ export default defineComponent({
 
       emit(
         'save',
-        { alert_id: props.alertId, data_meaning: saveName },
+        {
+          alert_id: props.alertId,
+          data_meaning: saveName,
+          bk_biz_id: props.bizId || (window.bk_biz_id as number) || (window.cc_biz_id as number),
+        },
         {
           promiseEvent,
           successCallback,
