@@ -4,6 +4,10 @@
 
   .t-table__content {
     overflow: hidden;
+
+    .t-table__row-full-element {
+      padding: var(--td-comp-paddingTB-m) 0;
+    }
   }
 
   .t-table__expanded-row {

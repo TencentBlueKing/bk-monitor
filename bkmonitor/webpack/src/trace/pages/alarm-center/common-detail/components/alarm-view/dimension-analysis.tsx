@@ -31,7 +31,6 @@ import { Dialog, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { getDrillDimensions } from 'monitor-api/modules/grafana';
 import { graphDrillDown } from 'monitor-api/modules/scene_view';
-import { detailOfFormatWithTimezone } from 'monitor-common/utils/timezone';
 import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants/charts';
 import { useAppStore } from 'trace/store/modules/app';
 import { useI18n } from 'vue-i18n';
@@ -186,8 +185,7 @@ export default defineComponent({
           const dimensionsData = await getDrillDimensionsData();
           dimensionList.value = dimensionsData.map(item => ({ id: item, name: item }));
           selectedDimension.value = dimensionList.value.length ? [dimensionList.value[0].id] : [];
-          console.log(dimensionsData);
-          await graphDrillDownData();
+          graphDrillDownData();
         }
       },
       {
@@ -204,7 +202,7 @@ export default defineComponent({
       const existingKeys = new Set(obj.where.map(item => item.key));
       where.value = [...where.value.filter(item => !existingKeys.has(item.key)), ...obj.where];
       selectedDimension.value = [obj.dimension];
-      await graphDrillDownData();
+      graphDrillDownData();
     };
 
     const handleShowTypeChange = (val: string) => {
@@ -215,7 +213,7 @@ export default defineComponent({
       isMulti.value = val;
       if (!val) {
         selectedDimension.value = selectedDimension.value.length ? [selectedDimension.value[0]] : [];
-        await graphDrillDownData();
+        graphDrillDownData();
       }
     };
 
@@ -360,12 +358,12 @@ export default defineComponent({
               <div class='conditions-wrap'>
                 {!!this.chartClickPointEvent && (
                   <div class='condition-item'>
-                    {this.t('时间')}
+                    <span class='text-ellipsis'>{this.t('时间')}</span>
                     <span class='method'>=</span>
-                    {detailOfFormatWithTimezone(
-                      dayjs(this.chartClickPointEvent.xAxis).format('YYYY-MM-DD HH:mm:ss'),
-                      this.spaceTimezone
-                    )}
+                    <span class='text-ellipsis'>
+                      {dayjs(this.chartClickPointEvent.xAxis).tz(this.spaceTimezone).format('YYYY-MM-DD HH:mm:ssZZ')}
+                    </span>
+
                     <span
                       class='icon-monitor icon-mc-close'
                       onClick={() => this.handleRemoveTimeCondition()}
@@ -377,9 +375,9 @@ export default defineComponent({
                     key={index}
                     class='condition-item'
                   >
-                    {item.key}
+                    <span class='text-ellipsis'>{item.key}</span>
                     <span class='method'>=</span>
-                    {item.value || '--'}
+                    <span class='text-ellipsis'>{item.value || '--'}</span>
                     <span
                       class='icon-monitor icon-mc-close'
                       onClick={() => this.handleRemoveCondition(index)}
