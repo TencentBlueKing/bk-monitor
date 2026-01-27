@@ -25,30 +25,53 @@
  */
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
-import { Input } from 'bkui-vue';
+import { Button, Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import PromqlEditor from '../../../../../../components/promql-editor/promql-editor';
 import QueryConfigViewer from '../query-config-viewer/query-config-viewer';
 
-import type { AlertContentItem } from '../../../../typings';
+import type { AlertContentItem, AlertContentNameEditInfo } from '../../../../typings';
 
 import './alert-content-detail.scss';
+
+export interface AlertSavePromiseEvent {
+  /** 确认删除的 Promise */
+  promiseEvent: Promise<any>;
+  /** 失败回调 */
+  errorCallback: () => void;
+  /** 成功回调 */
+  successCallback: () => void;
+}
 
 export default defineComponent({
   name: 'AlertMetricsConfig',
   props: {
+    /** 业务 ID */
+    bizId: {
+      type: Number,
+    },
+    /** 告警 ID */
+    alertId: {
+      type: String,
+    },
+    /** 告警内容 */
     alertContentDetail: {
       type: Object as PropType<AlertContentItem>,
     },
   },
-  setup(props) {
+  emits: {
+    save: (saveInfo: AlertContentNameEditInfo, savePromiseEvent: AlertSavePromiseEvent) => saveInfo && savePromiseEvent,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
 
     /** 当前是否为编辑状态 */
     const isEdit = shallowRef(false);
     /** 数据含义 input 框中的值 */
     const inputValue = shallowRef('');
+    /** 是否在请求修改状态中 */
+    const loading = shallowRef(false);
 
     /**
      * @description: 切换编辑状态
@@ -67,8 +90,39 @@ export default defineComponent({
      * @description: 保存指标数据含义
      */
     const handleSave = () => {
-      console.log('指标数据含义保存逻辑-----------------');
-      toggleEditMode(false);
+      const saveName = inputValue.value?.trim?.() ?? '';
+      if (!saveName || saveName === props.alertContentDetail?.name) {
+        toggleEditMode(false);
+        return;
+      }
+      loading.value = true;
+      let successCallback = null;
+      let errorCallback = null;
+      const promiseEvent = new Promise((res, rej) => {
+        successCallback = res;
+        errorCallback = rej;
+      })
+        .then(() => {
+          loading.value = false;
+          toggleEditMode(false);
+        })
+        .catch(() => {
+          loading.value = false;
+        });
+
+      emit(
+        'save',
+        {
+          alert_id: props.alertId,
+          data_meaning: saveName,
+          bk_biz_id: props.bizId || (window.bk_biz_id as number) || (window.cc_biz_id as number),
+        },
+        {
+          promiseEvent,
+          successCallback,
+          errorCallback,
+        }
+      );
     };
 
     watch(
@@ -81,6 +135,7 @@ export default defineComponent({
     return {
       t,
       isEdit,
+      loading,
       inputValue,
       toggleEditMode,
       handleSave,
@@ -97,17 +152,28 @@ export default defineComponent({
             <div class='item-value-edit'>
               <Input
                 v-model={this.inputValue}
+                disabled={this.loading}
                 size='small'
               />
               <div class='operations'>
-                <i
-                  class='icon-monitor icon-mc-check-small'
+                <Button
+                  loading={this.loading}
+                  loading-mode='spin'
+                  size='small'
+                  text={true}
                   onClick={this.handleSave}
-                />
-                <i
-                  class='icon-monitor icon-mc-close'
+                >
+                  <i class='icon-monitor icon-mc-check-small' />
+                </Button>
+                <Button
+                  loading={this.loading}
+                  loading-mode='spin'
+                  size='small'
+                  text={true}
                   onClick={() => this.toggleEditMode(false)}
-                />
+                >
+                  <i class='icon-monitor icon-mc-close' />
+                </Button>
               </div>
             </div>
           ) : (

@@ -40,12 +40,12 @@ import { ALERT_STORAGE_KEY } from '../../services/alert-services';
 import { INCIDENT_STORAGE_KEY } from '../../services/incident-services';
 import {
   type AlertAllActionEnum,
+  type AlertContentNameEditInfo,
   type AlertTableItem,
   type TableColumnItem,
   type TablePagination,
   CONTENT_SCROLL_ELEMENT_CLASS_NAME,
 } from '../../typings';
-import AlertContentDetail from './components/alert-content-detail/alert-content-detail';
 import AlertSelectionToolbar from './components/alert-selection-toolbar/alert-selection-toolbar';
 import CommonTable from './components/common-table/common-table';
 import { useActionHandlers } from './hooks/use-action-handlers';
@@ -53,6 +53,7 @@ import { useAlertHandlers } from './hooks/use-alert-handlers';
 import { usePopover } from './hooks/use-popover';
 import { useScenarioRenderer } from './hooks/use-scenario-renderer';
 
+import type { AlertSavePromiseEvent } from './components/alert-content-detail/alert-content-detail';
 import type { ActionScenario } from './scenarios/action-scenario';
 import type { AlertScenario } from './scenarios/alert-scenario';
 import type { IncidentScenario } from './scenarios/incident-scenario';
@@ -121,6 +122,8 @@ export default defineComponent({
       ids: string | string[],
       _operationData?: AlertTableItem | AlertTableItem[]
     ) => type && ids,
+    saveAlertContentName: (saveInfo: AlertContentNameEditInfo, savePromiseEvent: AlertSavePromiseEvent) =>
+      saveInfo && savePromiseEvent,
   },
   setup(props, { emit }) {
     // const alarmStore = useAlarmCenterStore();
@@ -146,17 +149,18 @@ export default defineComponent({
 
     /** 告警场景私有交互逻辑 */
     const {
-      activeAlertContentDetail,
       handleAlertSliderShowDetail,
       handleAlertContentDetailShow,
       handleAlertOperationClick,
       handleAlertBatchSet,
+      renderAlertHandlerDom,
     } = useAlertHandlers({
       clickPopoverTools,
       selectedRowKeys: toRef(props, 'selectedRowKeys'),
       clearSelected: () => handleSelectionChange(),
       showDetailEmit: id => emit('showAlertDetail', id),
       openDialogEmit: (...args) => emit('openAlertDialog', ...args),
+      saveContentNameEmit: (saveInfo, savePromiseEvent) => emit('saveAlertContentName', saveInfo, savePromiseEvent),
     });
 
     /** 处理场景私有交互逻辑 */
@@ -254,9 +258,9 @@ export default defineComponent({
       tableEmpty,
       tableScenarioClassName,
       settings,
-      activeAlertContentDetail,
       handleSelectionChange,
       handleAlertBatchSet,
+      renderAlertHandlerDom,
     };
   },
   render() {
@@ -301,12 +305,7 @@ export default defineComponent({
           onSortChange={sort => this.$emit('sortChange', sort)}
         />
 
-        <div style='display: none;'>
-          <AlertContentDetail
-            ref='alertContentDetailRef'
-            alertContentDetail={this.activeAlertContentDetail}
-          />
-        </div>
+        <div style='display: none;'>{this.renderAlertHandlerDom()}</div>
       </div>
     );
   },

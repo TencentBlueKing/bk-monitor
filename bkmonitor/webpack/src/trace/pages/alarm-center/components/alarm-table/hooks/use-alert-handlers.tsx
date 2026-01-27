@@ -33,18 +33,28 @@ import {
   type AlertSelectBatchAction,
   type AlertTableItem,
   AlertAllActionEnum,
+  type AlertContentNameEditInfo,
 } from '../../../typings';
+import AlertContentDetail, {
+  type AlertSavePromiseEvent,
+} from '../components/alert-content-detail/alert-content-detail';
 
 import type { UseAlertDialogsReturnType } from '../../../composables/use-alert-dialogs';
-import type AlertContentDetail from '../components/alert-content-detail/alert-content-detail';
 import type { IUsePopoverTools } from './use-popover';
 
 export interface UseAlertHandlersOptions {
+  /** 点击 popover 工具栏 */
   clickPopoverTools: IUsePopoverTools;
+  /** 打开交互弹窗回调(如：告警确认、告警屏蔽、告警分派、手动处理) */
   openDialogEmit: UseAlertDialogsReturnType['handleAlertDialogShow'];
+  /** 表格选中的行 key */
   selectedRowKeys: MaybeRef<string[]>;
+  /** 清除表格选中的行 */
   clearSelected: () => void;
+  /** 显示告警详情抽屉回调 */
   showDetailEmit: (id: string) => void;
+  /** 保存告警内容数据含义回调 */
+  saveContentNameEmit: (saveInfo: AlertContentNameEditInfo, savePromiseEvent: AlertSavePromiseEvent) => void;
 }
 
 export type UseAlertHandlersReturnType = ReturnType<typeof useAlertHandlers>;
@@ -58,11 +68,18 @@ export const useAlertHandlers = ({
   clearSelected,
   showDetailEmit,
   openDialogEmit,
+  saveContentNameEmit,
 }: UseAlertHandlersOptions) => {
   /** 告警内容详情 popover 实例 ref */
   const alertContentDetailRef = useTemplateRef<InstanceType<typeof AlertContentDetail>>('alertContentDetailRef');
+  /** 当前告警记录所处的业务 ID */
+  const activeBizId = shallowRef();
+  /** 当前查看的告警记录 id */
+  const activeAlertId = shallowRef<string>('');
   /** 当前查看的告警内容详情数据 */
   const activeAlertContentDetail = shallowRef<AlertContentItem>(null);
+  /** 是否正在保存告警内容名称 */
+  const isSaveContentNameActive = shallowRef(false);
 
   /**
    * @description: 展示 告警 详情抽屉
@@ -75,12 +92,35 @@ export const useAlertHandlers = ({
    * @description 打开告警内容详情 popover
    */
   const handleAlertContentDetailShow = (e: MouseEvent, row: AlertTableItem, colKey: string) => {
+    if (isSaveContentNameActive.value) return;
     activeAlertContentDetail.value = row?.items?.[0];
+    activeBizId.value = row.bk_biz_id;
+    activeAlertId.value = row.id;
     clickPopoverTools.showPopover(e, () => alertContentDetailRef.value.$el, `${row.id}-${colKey}`, {
+      onHide: () => (isSaveContentNameActive.value ? false : void 0),
       onHidden: () => {
+        activeBizId.value = void 0;
+        activeAlertId.value = '';
         activeAlertContentDetail.value = null;
       },
     });
+  };
+
+  /**
+   * @description 保存告警内容数据含义
+   * @param {AlertContentNameEditInfo} saveInfo 保存信息
+   * @param {AlertSavePromiseEvent} savePromiseEvent 保存事件
+   */
+  const handleSaveContentName = (saveInfo: AlertContentNameEditInfo, savePromiseEvent: AlertSavePromiseEvent) => {
+    isSaveContentNameActive.value = true;
+    savePromiseEvent?.promiseEvent
+      ?.then(() => {
+        isSaveContentNameActive.value = false;
+      })
+      .catch(() => {
+        isSaveContentNameActive.value = false;
+      });
+    saveContentNameEmit(saveInfo, savePromiseEvent);
   };
 
   /**
@@ -102,11 +142,24 @@ export const useAlertHandlers = ({
     openDialogEmit(actionType, get(selectedRowKeys));
   };
 
+  /**
+   * @description 告警场景私有交互 DOM 渲染入口
+   */
+  const renderAlertHandlerDom = () => (
+    <AlertContentDetail
+      ref='alertContentDetailRef'
+      bizId={activeBizId.value}
+      alertId={activeAlertId.value}
+      alertContentDetail={activeAlertContentDetail.value}
+      onSave={handleSaveContentName}
+    />
+  );
+
   return {
-    activeAlertContentDetail,
     handleAlertSliderShowDetail,
     handleAlertContentDetailShow,
     handleAlertOperationClick,
     handleAlertBatchSet,
+    renderAlertHandlerDom,
   } as const;
 };
