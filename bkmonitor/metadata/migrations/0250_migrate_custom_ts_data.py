@@ -52,9 +52,9 @@ def migrate_custom_ts_field_to_time_series(apps, schema_editor):
         group_start = time.time()
 
         try:
-            # 只加载当前 group 的 CustomTSField 数据
+            # 只加载当前 group 的 CustomTSField 数据,使用 values 减少内存
             custom_fields = list(
-                CustomTSField.objects.filter(time_series_group_id=group_id).only(
+                CustomTSField.objects.filter(time_series_group_id=group_id).values(
                     "id", "name", "type", "description", "config", "disabled", "create_time", "update_time"
                 )
             )
@@ -66,17 +66,17 @@ def migrate_custom_ts_field_to_time_series(apps, schema_editor):
                 stats["skipped_groups"] += 1
                 continue
 
-            metric_fields = [f for f in custom_fields if f.type == METRIC_TYPE_METRIC]
-            dimension_fields = [f for f in custom_fields if f.type == METRIC_TYPE_DIMENSION]
+            metric_fields = [f for f in custom_fields if f.get("type") == METRIC_TYPE_METRIC]
+            dimension_fields = [f for f in custom_fields if f.get("type") == METRIC_TYPE_DIMENSION]
 
             logger.info(
                 f"[处理中 {idx}/{stats['total_groups']}] Group {group_id} (table_id={table_id}), "
                 f"指标: {len(metric_fields)}, 维度: {len(dimension_fields)}"
             )
 
-            # 加载当前 group 的分组规则
+            # 加载当前 group 的分组规则,使用 values 减少内存
             grouping_rules = list(
-                CustomTSGroupingRule.objects.filter(time_series_group_id=group_id).only("name", "auto_rules")
+                CustomTSGroupingRule.objects.filter(time_series_group_id=group_id).values("name", "auto_rules")
             )
 
             # 迁移 Scope 和 Metric
@@ -129,9 +129,9 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
     scope_info = {}
 
     # 收集所有需要查询的维度名称
-    dim_field_dict = {dim_field.name: dim_field for dim_field in dimension_fields}
+    dim_field_dict = {dim_field.get("name"): dim_field for dim_field in dimension_fields if dim_field.get("name")}
     all_needed_dimension_names = set(dim_field_dict.keys()) | {
-        dim for field in metric_fields for dim in field.config.get("dimensions", [])
+        dim for field in metric_fields for dim in field.get("config", {}).get("dimensions", [])
     }
 
     # 只查询需要的字段,使用 values 减少内存
@@ -150,12 +150,14 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
         config = {}
         # 如果维度在 dim_field_dict 中,提取其配置
         if dim_name in dim_field_dict:
-            config = {k: v for k, v in dim_field_dict[dim_name].config.items() if k in ["common", "hidden"]}
+            dim_field_config = dim_field_dict[dim_name].get("config", {})
+            config = {k: v for k, v in dim_field_config.items() if k in ["common", "hidden"]}
         # 添加 alias
         if description := rt_fields_dict.get(dim_name):
             config["alias"] = description
-        elif field := dim_field_dict.get(dim_name):
-            config["alias"] = field.description
+        else:
+            if field := dim_field_dict.get(dim_name):
+                config["alias"] = field.get("description", "")
 
         dim_configs[dim_name] = config
 
@@ -172,14 +174,15 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
         scope_info[scope_name]["is_default"] = scope_name == DEFAULT_DATA_SCOPE_NAME
 
         # 获取该指标使用的维度列表,并将维度配置合并进来
-        for dim_name in field.config.get("dimensions", []):
+        for dim_name in field.get("config", {}).get("dimensions", []):
             if dim_name in dim_configs:
                 scope_info[scope_name]["dim_configs"][dim_name] = dim_configs[dim_name]
 
-    # rule.name 对应 scope_name
+    # rule.get("name") 对应 scope_name
     for rule in grouping_rules:
-        if rule.name in scope_info:
-            scope_info[rule.name]["auto_rules"] = rule.auto_rules
+        rule_name = rule.get("name")
+        if rule_name and rule_name in scope_info:
+            scope_info[rule_name]["auto_rules"] = rule.get("auto_rules", [])
 
     # 批量创建所有 Scope
     scopes_to_create = [
@@ -222,25 +225,27 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
 
     for field in metric_fields:
         scope_name = get_scope_name(field, DEFAULT_DATA_SCOPE_NAME)
-        tag_list = field.config.get("dimensions", [])
+        tag_list = field.get("config", {}).get("dimensions", [])
 
         # 构建字段配置
-        field_config = {"disabled": field.disabled}
-        if field.description:
-            field_config["alias"] = field.description
+        field_config = {"disabled": field.get("disabled", False)}
+        if field_description := field.get("description"):
+            field_config["alias"] = field_description
 
+        field_config_data = field.get("config", {})
         for key in METRIC_CONFIG_FIELDS:
-            if key in field.config:
-                field_config[key] = field.config[key]
+            if key in field_config_data:
+                field_config[key] = field_config_data[key]
 
         scope_id = scope_name_to_id.get(scope_name)
-        existing = existing_metrics.get((scope_name, field.name))
+        field_name = field.get("name")
+        existing = existing_metrics.get((scope_name, field_name))
 
         if existing:
             existing.scope_id = scope_id
             existing.field_config = field_config
             existing.field_scope = DEFAULT_DATA_SCOPE_NAME
-            existing.create_time = field.create_time
+            existing.create_time = field.get("create_time")
             metrics_to_update.append(existing)
         else:
             metrics_to_create.append(
@@ -249,12 +254,12 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
                     scope_id=scope_id,
                     table_id=table_id,
                     field_scope=DEFAULT_DATA_SCOPE_NAME,
-                    field_name=field.name,
+                    field_name=field_name,
                     tag_list=tag_list,
                     field_config=field_config,
                     label="",
-                    create_time=field.create_time,
-                    last_modify_time=field.update_time,
+                    create_time=field.get("create_time"),
+                    last_modify_time=field.get("update_time"),
                 )
             )
 
@@ -273,7 +278,7 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
 
 def get_scope_name(field, default_scope):
     """获取字段的 scope 名称"""
-    labels = field.config.get("label", [])
+    labels = field.get("config", {}).get("label", [])
     return labels[0] if labels else default_scope
 
 
