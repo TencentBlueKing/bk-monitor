@@ -118,11 +118,109 @@ class EntityMeta(BaseModel):
         return serializer_class
 
 
+class ResourceDefinition(EntityMeta):
+    """
+    资源定义表
+
+    用于定义自定义资源类型及其字段结构。
+
+    示例:
+        ResourceDefinition(
+            namespace="",
+            name="git_commit",
+            fields=[
+                {"name": "git_repo", "required": True},
+                {"name": "commit_id", "required": True},
+            ]
+        )
+    """
+
+    fields = models.JSONField(
+        _("字段定义"),
+        default=list,
+        help_text=_("字段列表，格式: [{namespace, name, required}, ...]")
+    )
+
+    class Meta:
+        verbose_name = _("资源定义")
+        verbose_name_plural = _("资源定义")
+        unique_together = ("namespace", "name")
+
+    def __str__(self):
+        return f"ResourceDefinition({self.namespace}/{self.name})"
+
+    def get_required_fields(self) -> list[str]:
+        """获取必填字段名称列表（即主键字段）"""
+        return [f["name"] for f in self.fields if f.get("required")]
+
+    def get_all_field_names(self) -> list[str]:
+        """获取所有字段名称列表"""
+        return [f["name"] for f in self.fields]
+
+
+class RelationDefinition(EntityMeta):
+    """
+    关联定义表
+
+    用于定义两种资源类型之间的关联关系。
+
+    示例:
+        RelationDefinition(
+            namespace="bkcc__2",
+            name="app_version_with_git_commit",
+            from_resource="app_version",
+            to_resource="git_commit"
+        )
+    """
+
+    from_resource = models.CharField(
+        _("源资源类型"),
+        max_length=128,
+        help_text=_("关联的源资源类型名称")
+    )
+    to_resource = models.CharField(
+        _("目标资源类型"),
+        max_length=128,
+        help_text=_("关联的目标资源类型名称")
+    )
+
+    class Meta:
+        verbose_name = _("关联定义")
+        verbose_name_plural = _("关联定义")
+        unique_together = ("namespace", "name")
+
+    def __str__(self):
+        return f"RelationDefinition({self.namespace}/{self.name}: {self.from_resource} -> {self.to_resource})"
+
+
 class CustomRelationStatus(EntityMeta):
-    """自定义关联状态表"""
+    """
+    自定义关联状态表
+
+    用于存储具体的关联实例数据。
+
+    示例:
+        CustomRelationStatus(
+            namespace="bkcc__2",
+            name="unify_query_version",
+            from_resource="app_version",
+            to_resource="git_commit",
+            info={
+                "git_repo": "https://github.com/TencentBlueKing/bkmonitor-datalink.git",
+                "git_commit_id": "3c8c33d2c898b94d2d3136cecbcc58c6eb7743a7",
+                "app_name": "mirrors.tencent.com/build/blueking/unify-query",
+                "version": "3.9.3851"
+            }
+        )
+    """
 
     from_resource = models.CharField(_("源资源"), max_length=128)
     to_resource = models.CharField(_("目标资源"), max_length=128)
+    info = models.JSONField(
+        _("资源标签"),
+        default=dict,
+        help_text=_("关联实例的具体信息，包含源和目标资源的标识字段值")
+    )
 
     class Meta:
         verbose_name = _("自定义关联关系状态")
