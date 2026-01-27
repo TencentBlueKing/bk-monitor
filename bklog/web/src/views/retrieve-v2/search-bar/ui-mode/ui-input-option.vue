@@ -801,7 +801,7 @@ const handleDeleteTagItem = (index) => {
 
 // 清空检索内容
 const handleClearBtnClick = () => {
-  condition.value.value = [];
+  condition.value.value.splice(0);
 };
 
 const handleOperatorBtnClick = () => {
@@ -1214,7 +1214,7 @@ const handleOptionListMouseEnter = (e, item) => {
   const { offsetWidth, scrollWidth } = e.target.lastElementChild;
   if (offsetWidth < scrollWidth) {
     fieldOptionListInstance.setContent(
-      `${item.query_alias || item.field_alias || item.field_name}(${item.field_name})`,
+      `${item.query_alias || item.field_name}(${item.field_name})`,
     );
     fieldOptionListInstance.show(e.target);
   }

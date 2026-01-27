@@ -28,7 +28,7 @@ from config.domains import RESOURCE_CENTER_APIGATEWAY_ROOT  # noqa
 
 
 class _BkDataResourceCenterApi:
-    MODULE = _("数据平资源中心模块")
+    MODULE = _("数据平台资源中心模块")
 
     @property
     def use_apigw(self):

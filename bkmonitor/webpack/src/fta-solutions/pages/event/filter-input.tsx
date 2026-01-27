@@ -347,7 +347,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       },
       {
         id: 'assignee',
-        name: this.$t('通知人'),
+        name: this.$t('告警接收人'),
       },
       {
         id: 'follower',
