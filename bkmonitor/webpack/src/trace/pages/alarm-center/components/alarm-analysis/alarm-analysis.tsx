@@ -181,6 +181,7 @@ export default defineComponent({
               </div>
               <div class='panel-item-content'>
                 <AnalysisList
+                  field={panel.field}
                   list={panel.buckets.slice(0, 5)}
                   onConditionChange={(type, value) => handleConditionChange(type, value, panel.field)}
                 />
