@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,9 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
-from typing import Dict
 
 from django.utils.translation import gettext as _
 
@@ -64,7 +61,7 @@ class OOMEvent(GSEBaseAlarmEventRecord):
     TITLE = _("OOM产生-GSE")
 
     def __init__(self, raw_data, strategies):
-        super(OOMEvent, self).__init__(raw_data, strategies)
+        super().__init__(raw_data, strategies)
 
     def clean_anomaly_message(self):
         raw = self.raw_data["_title_"]
@@ -77,7 +74,7 @@ class OOMEvent(GSEBaseAlarmEventRecord):
         return _("发现OOM异常事件发生（进程:{}），共OOM次数{}次, 信息:{}").format(process, total, message)
 
     @property
-    def filter_dimensions(self) -> Dict[str, str]:
+    def filter_dimensions(self) -> dict[str, str]:
         dimensions = {
             "process": self.raw_data["_extra_"].get("process", ""),
             "message": self.raw_data["_extra_"].get("message", ""),
@@ -90,3 +87,14 @@ class OOMEvent(GSEBaseAlarmEventRecord):
             dimensions[field] = self.raw_data["_extra_"][field]
 
         return dimensions
+
+    def clean_dimensions(self):
+        """
+        清理和补充维度信息
+        """
+        # 将 process 作为补充维度添加，用于告警展示和检索，但不参与 dedupe_keys 去重计算
+        process = self.raw_data["_extra_"].get("process")
+        if process:
+            self.raw_data["dimensions"]["__additional_dimensions"] = {"process": process}
+
+        return super().clean_dimensions()
