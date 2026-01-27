@@ -97,9 +97,11 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
       .join('|');
 
     const DELIMITER_REGEX = new RegExp(`(${regexPattern})`);
-    const MARK_REGEX = /<mark>(.*?)<\/mark>/gis;
+    /** 匹配带属性和不带属性的 mark 标签 */
+    const MARK_REGEX = /<mark\b[^>]*>(.*?)<\/mark>/gis;
+    const MARK_SPLIT_REGEX = /(<mark\b[^>]*>.*?<\/mark>)/gi;
 
-    const segments = str.split(/(<mark>.*?<\/mark>)/gi);
+    const segments = str.split(MARK_SPLIT_REGEX);
 
     for (const segment of segments) {
       if (tokens.length >= MAX_TOKENS) {
@@ -107,24 +109,45 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
       }
       const isMark = MARK_REGEX.test(segment);
 
-      const segmengtSplitList = segment.replace(MARK_REGEX, '$1').split(DELIMITER_REGEX).filter(Boolean);
-      const normalTokens = segmengtSplitList.slice(0, MAX_TOKENS - tokens.length);
-
       if (isMark) {
-        processedLength += '<mark>'.length;
+        // 提取 mark 标签的开始标签和内容
+        const markMatch = segment.match(/<mark\b[^>]*>(.*?)<\/mark>/is);
+        if (markMatch) {
+          const [fullMatch, content] = markMatch;
+          const startTag = fullMatch.replace(`${content}</mark>`, '');
 
-        if (normalTokens.length === segmengtSplitList.length) {
-          processedLength += '</mark>'.length;
+          // 对 mark 标签内容进行分词
+          const segmengtSplitList = content.split(DELIMITER_REGEX).filter(Boolean);
+          const normalTokens = segmengtSplitList.slice(0, MAX_TOKENS - tokens.length);
+
+          // 计算 mark 标签的长度（只计算一次）
+          const markTagLength = startTag.length + '</mark>'.length;
+          processedLength += markTagLength;
+
+          for (const t of normalTokens) {
+            // 重新包裹每个分词后的内容
+            const wrappedText = `${startTag}${t}</mark>`;
+            processedLength += t.length; // 只计算内容长度
+            tokens.push({
+              text: wrappedText,
+              isMark: true,
+              isCursorText: !DELIMITER_REGEX.test(t),
+            });
+          }
         }
-      }
+      } else {
+        // 对于非 mark 内容，进行正常分词
+        const segmengtSplitList = segment.split(DELIMITER_REGEX).filter(Boolean);
+        const normalTokens = segmengtSplitList.slice(0, MAX_TOKENS - tokens.length);
 
-      for (const t of normalTokens) {
-        processedLength += t.length;
-        tokens.push({
-          text: t,
-          isMark,
-          isCursorText: !DELIMITER_REGEX.test(t),
-        });
+        for (const t of normalTokens) {
+          processedLength += t.length;
+          tokens.push({
+            text: t,
+            isMark: false,
+            isCursorText: !DELIMITER_REGEX.test(t),
+          });
+        }
       }
     }
   }
@@ -132,15 +155,19 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
   if (processedLength < str.length) {
     const remaining = str.slice(processedLength);
 
-    const segments = remaining.split(/(<mark>.*?<\/mark>)/gi);
+    /** 匹配带属性和不带属性的 mark 标签 */
+    const MARK_SPLIT_REGEX = /(<mark\b[^>]*>.*?<\/mark>)/gi;
+    const MARK_TEST_REGEX = /<mark\b[^>]*>(.*?)<\/mark>/gis;
+
+    const segments = remaining.split(MARK_SPLIT_REGEX);
     for (const segment of segments) {
-      const MARK_REGEX = /<mark>(.*?)<\/mark>/gis;
-      const isMark = MARK_REGEX.test(segment);
+      const isMark = MARK_TEST_REGEX.test(segment);
       const chunkCount = Math.ceil(segment.length / CHUNK_SIZE);
 
       if (isMark) {
+        // 保留完整的 mark 标签
         tokens.push({
-          text: segment.replace(MARK_REGEX, '$1'),
+          text: segment,
           isMark: true,
           isCursorText: false,
           isBlobWord: false,

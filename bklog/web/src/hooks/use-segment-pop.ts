@@ -65,10 +65,18 @@ export interface UseSegmentPropOptions {
   highlightEnabled?: boolean;
 }
 
+export interface DynamicContentOption {
+  text: string;
+  iconName?: string;
+  svg?: string;
+  onClick: (e: MouseEvent) => void;
+}
+
 class UseSegmentProp {
   private className = 'bklog-segment-pop-content';
   private wrapperClassName = 'bklog-pop-wrapper';
   private wrapperIdName = 'bklog_pop_wrapper';
+  private dynamicSlotClassName = 'segment-dynamic-slot';
   private refContent: Ref<HTMLElement>;
   private delineate: boolean;
   private $t: (_str: string) => string;
@@ -242,6 +250,7 @@ class UseSegmentProp {
         ],
       ),
       ),
+      h('div', { class: this.dynamicSlotClassName, attrs: { 'data-item-id': 'dynamic-slot' } }),
     ]);
   }
 
@@ -276,6 +285,69 @@ class UseSegmentProp {
     taskEventManager.appendEvent(keyRef, onSegmentEnumClick);
     taskEventManager.setActiveKey(keyRef);
     return this.refContent;
+  }
+
+  /**
+   * 设置动态内容
+   * @param options 动态选项配置
+   */
+  setDynamicContent(options: DynamicContentOption[] | null) {
+    const slotElement = this.refContent.value?.querySelector(`.${this.dynamicSlotClassName}`) as HTMLElement;
+    if (!slotElement) return;
+
+    slotElement.innerHTML = '';
+
+    if (!options || options.length === 0) {
+      slotElement.style.display = 'none';
+      return;
+    }
+
+    slotElement.style.display = 'block';
+
+    options.forEach((option) => {
+      const itemEl = this.createDynamicItem(option);
+      slotElement.appendChild(itemEl);
+    });
+  }
+
+  /**
+   * 创建单个动态选项元素
+   */
+  private createDynamicItem(option: DynamicContentOption): HTMLElement {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'segment-event-box';
+
+    const btn = document.createElement('span');
+    btn.className = 'segment-event-btn';
+
+    const left = document.createElement('span');
+    left.className = 'segment-btn-left';
+    left.style.display = 'inline-flex';
+
+    if (option.svg) {
+      const img = document.createElement('img');
+      img.src = option.svg;
+      img.style.cssText = 'width: 16px; height: 16px; margin-right: 4px;';
+      left.appendChild(img);
+    } else if (option.iconName) {
+      const icon = document.createElement('i');
+      icon.className = option.iconName;
+      left.appendChild(icon);
+    }
+
+    const text = document.createElement('span');
+    text.textContent = option.text;
+    left.appendChild(text);
+
+    btn.appendChild(left);
+    wrapper.appendChild(btn);
+
+    wrapper.addEventListener('click', (e) => {
+      e.stopPropagation();
+      option.onClick?.(e);
+    });
+
+    return wrapper;
   }
 
   /**

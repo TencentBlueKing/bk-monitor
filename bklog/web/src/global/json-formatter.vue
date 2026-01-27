@@ -258,7 +258,7 @@
       ref: ref(),
       isJson: typeof objValue === 'object' && objValue !== undefined,
       value: formatEmptyObject(getDateFieldValue(field, objValue, formatDate)),
-      stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
+      stringValue: strVal?.replace?.(/<mark\b[^>]*>/igm, '').replace(/<\/mark>/igm, '') ?? strVal,
       field,
     };
   };
@@ -292,8 +292,14 @@
 
   const setIsOverflowY = () => {
     if (refJsonFormatterCell.value) {
-      const { offsetHeight, scrollHeight } = refJsonFormatterCell.value;
-      hasScrollY.value = offsetHeight > 0 && scrollHeight > offsetHeight;
+      // 使用 requestAnimationFrame 保证获取到准确的 DOM 尺寸
+      requestAnimationFrame(() => {
+        if (!refJsonFormatterCell.value) {
+          return;
+        }
+        const { offsetHeight, scrollHeight } = refJsonFormatterCell.value;
+        hasScrollY.value = offsetHeight > 0 && scrollHeight > offsetHeight;
+      });
       return;
     }
 

@@ -24,10 +24,13 @@
  * IN THE SOFTWARE.
  */
 import RetrieveHelper from '@/views/retrieve-helper';
+import tippy from 'tippy.js';
 
 import JsonView from '../global/json-view';
 // import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
+import store from '../store/index';
+import { ActionType, MatchType, type FormData } from '@/views/retrieve-v2/search-result-tab/personalized-configuration/types';
 import {
   getClickTargetElement,
   optimizedSplit,
@@ -35,7 +38,7 @@ import {
   setScrollLoadCell,
 } from './hooks-helper';
 import LuceneSegment from './lucene.segment';
-import UseSegmentPropInstance from './use-segment-pop';
+import UseSegmentPropInstance, { type DynamicContentOption } from './use-segment-pop';
 
 import type { Ref } from 'vue';
 
@@ -49,6 +52,39 @@ export type FormatterConfig = {
 };
 
 export type SegmentAppendText = { text: string; onClick?: (..._args) => void; attributes?: Record<string, string> };
+
+/**
+ * 正则匹配范围信息
+ */
+export interface RegexMatchRange {
+  start: number;
+  end: number;
+  matchedValue: string;
+  taskName: string;
+  jumpLink: string;
+}
+
+/**
+ * 正则匹配配置（用于存储到 DOM）
+ */
+export interface RegexMatchConfig {
+  taskName: string;
+  jumpLink: string;
+  matchedValue: string;
+}
+
+/**
+ * 带匹配信息的分词结果
+ */
+export interface TokenWithMatch {
+  text: string;
+  isMark: boolean;
+  isCursorText: boolean;
+  isNotParticiple?: boolean;
+  isBlobWord?: boolean;
+  matchedConfigs?: RegexMatchConfig[];
+}
+
 export default class UseJsonFormatter {
   editor: JsonView;
   config: FormatterConfig;
@@ -137,6 +173,14 @@ export default class UseJsonFormatter {
     const traceView = content.value.querySelector('[data-item-id="trace-view"]') as HTMLElement;
     traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
 
+    // 从点击的元素获取预计算的匹配配置
+    const clickedElement = e.target as HTMLElement;
+    const matchedConfigsAttr = clickedElement?.getAttribute('data-matched-configs');
+
+    // 动态内容处理
+    const dynamicOptions = this.getDynamicOptions(value, fieldName, matchedConfigsAttr);
+    UseSegmentPropInstance.setDynamicContent(dynamicOptions);
+
     // 根据字段信息隐藏虚拟字段相关的选项
     const isVirtualField = fieldType === '__virtual__';
     const virtualFieldHiddenItems = ['is', 'not', 'new-search-page-is']; // 需要隐藏的选项
@@ -149,8 +193,8 @@ export default class UseJsonFormatter {
     // 这里的动态样式用于只显示"添加到本次检索"、"从本次检索中排除"
     const hasSegmentLightStyle = document.getElementById('dynamic-segment-light-style') !== null;
 
-    // 若是应用了动态样式(实时日志/上下文)，且是虚拟字段，则不显示弹窗(弹窗无内容)
-    if (hasSegmentLightStyle && isVirtualField) {
+    // 若是应用了动态样式(实时日志/上下文)，且是虚拟字段，并且没有设置自定义跳转内容，此时弹窗无内容，不显示弹窗
+    if (hasSegmentLightStyle && isVirtualField && dynamicOptions === null) {
       return;
     }
 
@@ -166,12 +210,156 @@ export default class UseJsonFormatter {
     segmentPopInstance.show(target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
   }
 
+  /**
+   * 获取动态选项配置
+   * 根据个性化配置判断返回需要追加的跳转选项
+   * 优先使用字段匹配，如果没有匹配内容再判断预计算的正则匹配配置
+   * @param value 点击的值
+   * @param fieldName 字段名
+   * @param matchedConfigsAttr 预计算的匹配配置（从 DOM 属性获取）
+   */
+  getDynamicOptions(
+    value: string, fieldName: string, matchedConfigsAttr?: string | null,
+  ): DynamicContentOption[] | null {
+    const options: DynamicContentOption[] = [];
+
+    const personalizationSettings: FormData[] = store.
+      state.indexFieldInfo?.custom_config?.personalization?.settings ?? [];
+
+    // 1. 优先使用字段匹配
+    const fieldJumpSettings = personalizationSettings.filter(
+      setting => setting.actionType === ActionType.JUMP && setting.matchType === MatchType.FIELD,
+    );
+
+    for (const setting of fieldJumpSettings) {
+      if (fieldName === setting.selectField) {
+        options.push({
+          text: setting.taskName,
+          iconName: 'icon bklog-icon bklog-jump',
+          onClick: () => {
+            const jumpUrl = setting.jumpLink.replace(/\{[^}]+\}/g, encodeURIComponent(value));
+            window.open(jumpUrl, '_blank');
+          },
+        });
+      }
+    }
+
+    // 2. 如果字段匹配没有结果，再使用预计算的正则匹配配置
+    if (options.length === 0 && matchedConfigsAttr) {
+      try {
+        const matchedConfigs: RegexMatchConfig[] = JSON.parse(matchedConfigsAttr);
+        for (const config of matchedConfigs) {
+          options.push({
+            text: config.taskName,
+            iconName: 'icon bklog-icon bklog-jump',
+            onClick: () => {
+              const jumpUrl = config.jumpLink.replace(/\{[^}]+\}/g, encodeURIComponent(config.matchedValue));
+              window.open(jumpUrl, '_blank');
+            },
+          });
+        }
+      } catch {
+        // JSON 解析失败，忽略
+      }
+    }
+
+    return options.length > 0 ? options : null;
+  }
+
   isTextField(field: any) {
     return field?.field_type === 'text';
   }
 
   isAnalyzed(field: any) {
     return field?.is_analyzed ?? false;
+  }
+
+  /**
+   * 获取正则匹配的范围信息
+   * 在分词前预先计算所有正则匹配的位置
+   * 对于同一位置被多个正则匹配的情况，只保留最后一次匹配的信息
+   * @param content 原始内容
+   * @returns 匹配范围数组（每个位置只保留最后一个匹配）
+   */
+  getRegexMatchedRanges(content: string): RegexMatchRange[] {
+    // 使用 Map 以 "start-end" 为 key，保证同一位置只保留最后一个匹配
+    const rangeMap = new Map<string, RegexMatchRange>();
+
+    const personalizationSettings: FormData[] = store.
+      state.indexFieldInfo?.custom_config?.personalization?.settings ?? [];
+
+    // 只处理正则匹配类型的跳转配置
+    const regexJumpSettings = personalizationSettings.filter(
+      setting => setting.actionType === ActionType.JUMP && setting.matchType === MatchType.REGEX
+    );
+
+    for (const setting of regexJumpSettings) {
+      try {
+        const regex = new RegExp(setting.regex, 'g');
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(content)) !== null) {
+          const key = `${match.index}-${match.index + match[0].length}`;
+          // 后面的匹配会覆盖前面的，保留最后一个
+          rangeMap.set(key, {
+            start: match.index,
+            end: match.index + match[0].length,
+            matchedValue: match[0],
+            taskName: setting.taskName,
+            jumpLink: setting.jumpLink,
+          });
+          // 防止零宽匹配导致无限循环
+          if (match[0].length === 0) {
+            regex.lastIndex++;
+          }
+        }
+      } catch {
+        // 正则表达式无效，跳过
+      }
+    }
+
+    return Array.from(rangeMap.values());
+  }
+
+  /**
+   * 为分词结果附加匹配信息
+   * 只有当 token 的范围完全在匹配范围内时才附加配置
+   * @param tokens 分词结果
+   * @param matchedRanges 匹配范围数组
+   * @returns 带匹配信息的分词结果
+   */
+  attachMatchInfoToTokens(tokens: TokenWithMatch[], matchedRanges: RegexMatchRange[]): TokenWithMatch[] {
+    if (matchedRanges.length === 0) {
+      return tokens;
+    }
+
+    let currentPos = 0;
+    return tokens.map(token => {
+      const tokenStart = currentPos;
+      const tokenEnd = currentPos + token.text.length;
+      currentPos = tokenEnd;
+
+      // 查找所有包含此 token 的匹配范围
+      const matchedConfigs: RegexMatchConfig[] = [];
+      for (const range of matchedRanges) {
+        // token 必须完全在匹配范围内
+        if (range.start <= tokenStart && tokenEnd <= range.end) {
+          matchedConfigs.push({
+            taskName: range.taskName,
+            jumpLink: range.jumpLink,
+            matchedValue: range.matchedValue,
+          });
+        }
+      }
+
+      if (matchedConfigs.length > 0) {
+        return {
+          ...token,
+          matchedConfigs,
+        };
+      }
+
+      return token;
+    });
   }
 
   escapeString(val: string) {
@@ -188,40 +376,91 @@ export default class UseJsonFormatter {
       : val.replace(new RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
   }
 
-  getSplitList(field: any, content: any) {
-    /** 检索高亮分词字符串 */
-    const markRegStr = '<mark>(.*?)</mark>';
+  getSplitList(field: any, content: any): TokenWithMatch[] {
+    /** 匹配带属性和不带属性的 mark 标签 */
+    const markRegStr = '<mark\\b[^>]*>(.*?)</mark>';
+
     const value = this.escapeString(`${content}`);
+
+    // 预计算正则匹配范围
+    const matchedRanges = this.getRegexMatchedRanges(value);
+
+    let tokens: TokenWithMatch[];
+
     if (this.isAnalyzed(field)) {
       if (field.tokenize_on_chars) {
         // 这里进来的都是开了分词的情况
-        return optimizedSplit(value, field.tokenize_on_chars);
+        tokens = optimizedSplit(value, field.tokenize_on_chars) as TokenWithMatch[];
+      } else {
+        tokens = LuceneSegment.split(value, 1000) as TokenWithMatch[];
       }
-
-      return LuceneSegment.split(value, 1000);
+    } else {
+      tokens = [
+        {
+          text: value,
+          isNotParticiple: this.isTextField(field),
+          isMark: new RegExp(markRegStr).test(value),
+          isCursorText: true,
+        },
+      ];
     }
 
-    return [
-      {
-        text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-        isNotParticiple: this.isTextField(field),
-        isMark: new RegExp(markRegStr).test(value),
-        isCursorText: true,
-      },
-    ];
+    // 附加匹配信息到 token
+    return this.attachMatchInfoToTokens(tokens, matchedRanges);
   }
 
-  getChildItem(item) {
+  getChildItem(item: TokenWithMatch) {
     if (item.text === '\n') {
       const brNode = document.createElement('br');
       return brNode;
     }
 
+    // 统一处理所有 mark 标签（带属性和不带属性）
     if (item.isMark) {
-      const mrkNode = document.createElement('mark');
-      mrkNode.textContent = item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
-      mrkNode.classList.add('valid-text');
-      return mrkNode;
+      const wrapper = document.createElement('span');
+      wrapper.classList.add('valid-text');
+
+      // 如果有匹配配置，存储到 data 属性
+      if (item.matchedConfigs && item.matchedConfigs.length > 0) {
+        wrapper.setAttribute('data-matched-configs', JSON.stringify(item.matchedConfigs));
+      }
+
+      // 使用 DOMParser 安全解析 HTML
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(`<div>${item.text}</div>`, 'text/html');
+      const container = doc.body.firstChild;
+
+      container.childNodes.forEach((node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          // 普通文本节点直接添加
+          wrapper.appendChild(document.createTextNode(node.textContent));
+        } else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'MARK') {
+          // mark 元素节点
+          const sourceMarkEl = node as HTMLElement;
+          const mrkNode = document.createElement('mark');
+          mrkNode.textContent = sourceMarkEl.textContent;
+
+          // 复制原有属性（style, data-tag 等）
+          Array.from(sourceMarkEl.attributes).forEach((attr) => {
+            mrkNode.setAttribute(attr.name, attr.value);
+          });
+
+          mrkNode.classList.add('valid-text');
+
+          // 如果有 data-tag，添加 tippy tooltip
+          const dataTag = sourceMarkEl.getAttribute('data-tag');
+          if (dataTag) {
+            tippy(mrkNode, {
+              content: dataTag,
+              arrow: true,
+            });
+          }
+
+          wrapper.appendChild(mrkNode);
+        }
+      });
+
+      return wrapper;
     }
 
     if (!(item.isNotParticiple || item.isBlobWord)) {
@@ -230,12 +469,24 @@ export default class UseJsonFormatter {
         validTextNode.classList.add('valid-text');
       }
       validTextNode.textContent = item.text?.length ? item.text : '""';
+
+      // 如果有匹配配置，存储到 data 属性
+      if (item.matchedConfigs && item.matchedConfigs.length > 0) {
+        validTextNode.setAttribute('data-matched-configs', JSON.stringify(item.matchedConfigs));
+      }
+
       return validTextNode;
     }
 
     const textNode = document.createElement('span');
     textNode.classList.add('others-text');
     textNode.textContent = item.text?.length ? item.text : '""';
+
+    // 如果有匹配配置，存储到 data 属性
+    if (item.matchedConfigs && item.matchedConfigs.length > 0) {
+      textNode.setAttribute('data-matched-configs', JSON.stringify(item.matchedConfigs));
+    }
+
     return textNode;
   }
 

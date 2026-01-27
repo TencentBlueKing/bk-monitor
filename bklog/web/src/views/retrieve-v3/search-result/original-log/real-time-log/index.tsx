@@ -198,7 +198,7 @@ export default defineComponent({
 
     const deepClone = (obj: any) => {
       const string = JSON.stringify(obj)
-        .replace(/<mark>/g, '')
+        .replace(/<mark\b[^>]*>/g, '')
         .replace(/<\/mark>/g, '');
       // 扁平化对象内的对象值
       const parseObj = JSON.parse(string);
