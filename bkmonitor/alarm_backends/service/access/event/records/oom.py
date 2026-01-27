@@ -92,9 +92,16 @@ class OOMEvent(GSEBaseAlarmEventRecord):
         """
         清理和补充维度信息
         """
+        # 手动添加 filter_dimensions 中除了 process 之外的维度到 dimensions
+        filter_dims = self.filter_dimensions
+        for k, v in filter_dims.items():
+            if k != "process" and v:  # 排除 process，其他维度都添加到 dimensions
+                self.raw_data["dimensions"][k] = v
+
         # 将 process 作为补充维度添加，用于告警展示和检索，但不参与 dedupe_keys 去重计算
+        # 这样可以保证：同一主机产生不同进程 OOM 时，仍然关联到同一个告警
         process = self.raw_data["_extra_"].get("process")
         if process:
             self.raw_data["dimensions"]["__additional_dimensions"] = {"process": process}
 
-        return super().clean_dimensions()
+        return self.raw_data["dimensions"]
