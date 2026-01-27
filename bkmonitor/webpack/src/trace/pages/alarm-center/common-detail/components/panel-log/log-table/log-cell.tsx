@@ -85,6 +85,9 @@ export default defineComponent({
     const handleClickMenu = (opt: { type: EClickMenuType; value: string }) => {
       props.options.onClickMenu?.({
         ...opt,
+        ...(props.field.field_type === 'date' && props.row[props.field.field_name]
+          ? { value: props.row[props.field.field_name] }
+          : {}),
         field: props.field,
       });
     };
@@ -93,7 +96,14 @@ export default defineComponent({
       if (props.row && props.field) {
         let content = props.row[props.field.field_name] ?? parseTableRowData(props.row, props.field.field_name);
         if (props.field.field_type === 'date') {
-          content = formatDate(Number(content)) || content || '--';
+          const markRegStr = '<mark>(.*?)</mark>';
+          const isMark = new RegExp(markRegStr).test(content);
+          if (isMark) {
+            content = content.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+            content = `<mark>${formatDate(Number(content)) || content || '--'}</mark>`;
+          } else {
+            content = formatDate(Number(content)) || content || '--';
+          }
         }
         // 处理纳秒精度的UTC时间格式
         if (props.field.field_type === 'date_nanos') {
@@ -161,6 +171,7 @@ export default defineComponent({
         <div class='segment-content'>
           {this.wordList.map((item, index) => {
             const canClick = item.isCursorText && item.text;
+            const isMark = item.isMark;
             return (
               <SegmentPop
                 key={index}
@@ -169,7 +180,7 @@ export default defineComponent({
                 {{
                   default: ({ onClick: handleClick }) => (
                     <span
-                      class={[canClick ? 'valid-text' : 'others-text']}
+                      class={[canClick ? 'valid-text' : 'others-text', isMark ? 'mark-text' : '']}
                       onClick={(e: MouseEvent) => {
                         if (canClick) {
                           handleClick(e, {

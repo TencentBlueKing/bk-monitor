@@ -253,7 +253,7 @@ export default defineComponent({
         <div
           ref='scrollRef'
           style={{
-            width: `${this.wrapWidth - 32}px`,
+            width: `${this.wrapWidth}px`,
             position: 'sticky',
             left: 0,
           }}
@@ -272,7 +272,7 @@ export default defineComponent({
           <TableSkeleton />
         ) : this.tableData.length ? (
           <PrimaryTable
-            class='panel-log-log-table'
+            class={'panel-log-log-table'}
             columns={[
               ...this.tableColumns,
               {
