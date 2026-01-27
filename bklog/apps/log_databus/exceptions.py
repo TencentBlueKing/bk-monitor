@@ -428,3 +428,13 @@ class NodeSettingException(BaseCollectorConfigException):
 class SubscriptionStatisticException(BaseException):
     ERROR_CODE = "911"
     MESSAGE = _("节点管理统计订阅任务数据异常: {reason}")
+
+
+# =================================================
+# Grok
+# =================================================
+
+
+class GrokCircularReferenceException(BaseException):
+    ERROR_CODE = "912"
+    MESSAGE = _("Grok模式存在循环引用：{path}")

@@ -28,12 +28,16 @@ from pygrok import Grok
 
 from apps.exceptions import ValidationError
 from apps.log_databus.constants import GrokOriginEnum
+from apps.log_databus.exceptions import GrokCircularReferenceException
 from apps.log_databus.models import GrokInfo
 
 
 class GrokHandler:
-    @classmethod
-    def list_grok_info(cls, params: dict) -> dict:
+    def __init__(self, bk_biz_id: int):
+        self.bk_biz_id = bk_biz_id
+
+    @staticmethod
+    def list_grok_info(params: dict) -> dict:
         """
         获取 Grok 模式列表
         """
@@ -49,9 +53,9 @@ class GrokHandler:
                 | Q(description__icontains=params["keyword"])
             )
 
-        ordering = params.get("ordering") or "-updated_at"
+        ordering = ["-origin", params.get("ordering") or "-updated_at"]
 
-        grok_list = GrokInfo.objects.filter(q).order_by(ordering).values()
+        grok_list = GrokInfo.objects.filter(q).order_by(*ordering).values()
         total = grok_list.count()
         if params.get("page") and params.get("pagesize"):
             grok_list = list(Paginator(grok_list, params["pagesize"]).page(params["page"]))
@@ -64,7 +68,14 @@ class GrokHandler:
         创建 Grok 模式
         """
         cls.validate_references(params["bk_biz_id"], params["pattern"])
-        cls.detect_circular_reference(params["pattern"], cls.get_custom_grok_patterns(params["bk_biz_id"]))
+        custom_patterns = cls.get_custom_grok_patterns(params["bk_biz_id"])
+        custom_patterns[params["name"]] = params["pattern"]
+        is_circular, circular_path = cls.detect_circular_reference(params["name"], custom_patterns)
+        if is_circular:
+            raise GrokCircularReferenceException(
+                GrokCircularReferenceException.MESSAGE.format(path="->".join(circular_path))
+            )
+
         grok = GrokInfo.objects.create(
             bk_biz_id=params["bk_biz_id"],
             name=params["name"],
@@ -79,10 +90,14 @@ class GrokHandler:
         """
         更新 Grok 模式
         """
-        cls.validate_references(params["bk_biz_id"], params["pattern"])
-        cls.detect_circular_reference(params["pattern"], cls.get_custom_grok_patterns(params["bk_biz_id"]))
-        grok_info = GrokInfo.objects.filter(id=params["id"]).first()
+        cls.validate_references(2, params["pattern"])
+        custom_patterns = cls.get_custom_grok_patterns(2)
+        custom_patterns[params["name"]] = params["pattern"]
+        has_circle, path = cls.detect_circular_reference(params["name"], custom_patterns)
+        if has_circle:
+            raise ValidationError(_("Grok 模式 {} 存在循环引用").format("->".join(path)))
 
+        grok_info = GrokInfo.objects.filter(id=params["id"]).first()
         update_fields = ["pattern", "sample", "description"]
         for field in update_fields:
             setattr(grok_info, field, params[field])
@@ -116,8 +131,8 @@ class GrokHandler:
         grok = Grok(params["pattern"], custom_patterns=custom_grok_map)
         return grok.match(params["sample"])
 
-    @classmethod
-    def is_grok_pattern(cls, pattern: str) -> bool:
+    @staticmethod
+    def is_grok_pattern(pattern: str) -> bool:
         """
         判断是否为 Grok 模式
         """
@@ -132,18 +147,8 @@ class GrokHandler:
         custom_grok_map = {grok["name"]: grok["pattern"] for grok in custom_grok_patterns}
         return custom_grok_map
 
-    @classmethod
-    def to_regex(cls, params) -> str:
-        """
-        将 Grok 模式转换为正则表达式
-        """
-        custom_grok_patterns = GrokInfo.objects.filter(bk_biz_id=params["bk_biz_id"]).values()
-        custom_grok_map = {grok["name"]: grok["pattern"] for grok in custom_grok_patterns}
-        grok = Grok(params["pattern"], custom_patterns=custom_grok_map)
-        return grok.regex_obj.pattern
-
-    @classmethod
-    def _extract_pattern_references(cls, pattern: str) -> set[str]:
+    @staticmethod
+    def _extract_pattern_references(pattern: str) -> set[str]:
         """
         从 Grok 模式中提取引用的其他模式名称(不包含嵌套模式)
         """
@@ -158,13 +163,14 @@ class GrokHandler:
         grok_patterns = GrokInfo.objects.filter(
             Q(bk_biz_id=bk_biz_id) | Q(origin=GrokOriginEnum.BUILTIN.value)
         ).values()
+        grok_patterns = [grok["name"] for grok in grok_patterns]
         references = cls._extract_pattern_references(pattern)
         for reference in references:
             if reference not in grok_patterns:
                 raise ValidationError(_("Grok 模式 {} 不存在").format(reference))
 
-    @classmethod
-    def expand_custom_patterns_to_regex(cls, params: dict) -> str:
+    @staticmethod
+    def expand_custom_patterns_to_regex(params: dict) -> str:
         """
         将自定义模式替换为正则表达式，内置模式保持原样
         """
@@ -219,7 +225,7 @@ class GrokHandler:
             cycle_start = path.index(pattern_name)
             return True, path[cycle_start:] + [pattern_name]
 
-        # 模式不存在或已完成处理
+        # 模式不存在/内置模式
         if pattern_name not in patterns_map:
             return False, []
 
@@ -238,3 +244,11 @@ class GrokHandler:
         visiting.remove(pattern_name)
 
         return False, []
+
+    @classmethod
+    def validate_circular_reference(cls, pattern_name, patterns_map) -> None:
+        is_circular, circular_path = cls.detect_circular_reference(pattern_name, patterns_map)
+        if is_circular:
+            raise GrokCircularReferenceException(
+                GrokCircularReferenceException.MESSAGE.format(path="->".join(circular_path))
+            )
