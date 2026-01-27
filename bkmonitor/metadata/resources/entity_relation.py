@@ -14,16 +14,14 @@ from typing import Any
 from django.apps import apps
 from django.db import transaction
 from django.utils.translation import gettext as _
-from opentelemetry import trace
 from rest_framework import serializers
 
 from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource
 from core.errors.metadata import EntityNotFoundError, UnsupportedKindError
-from metadata.models import EntityMeta, RelationDefinition, ResourceDefinition
+from metadata.models import EntityMeta
 
 logger = logging.getLogger("metadata")
-tracer = trace.get_tracer(__name__)
 
 
 class EntityHandler:
@@ -52,51 +50,41 @@ class EntityHandler:
         Returns:
             资源的 JSON 表示，包含 created 字段表示是否新建
         """
-        with tracer.start_as_current_span("entity_handler.apply") as span:
-            namespace = metadata.get("namespace", "")
-            name = metadata.get("name", "")
-            span.set_attribute("entity.kind", self.model_class.get_kind())
-            span.set_attribute("entity.namespace", namespace)
-            span.set_attribute("entity.name", name)
+        # 校验 spec
+        spec_slz_class = self.model_class.get_serializer_class()
+        spec_slz = spec_slz_class(data=spec)
+        spec_slz.is_valid(raise_exception=True)
+        cleaned_spec = spec_slz.validated_data
 
-            # 校验 spec
-            spec_slz_class = self.model_class.get_serializer_class()
-            spec_slz = spec_slz_class(data=spec)
-            spec_slz.is_valid(raise_exception=True)
-            cleaned_spec = spec_slz.validated_data
+        namespace = metadata["namespace"]
+        name = metadata["name"]
 
-            # 准备创建数据
-            create_data = cleaned_spec.copy()
+        # 准备创建数据
+        create_data = cleaned_spec.copy()
 
-            labels = metadata.get("labels", {})
-            create_data["labels"] = labels
+        labels = metadata.get("labels", {})
+        create_data["labels"] = labels
 
-            # 检查 generation 是否需要更新（当 spec 发生变化时）
-            # 这里简化处理：如果 spec 有变化，generation 会自动递增（需要在模型中处理）
-            # 或者可以在 defaults 中检查并更新
+        # 检查 generation 是否需要更新（当 spec 发生变化时）
+        # 这里简化处理：如果 spec 有变化，generation 会自动递增（需要在模型中处理）
+        # 或者可以在 defaults 中检查并更新
 
-            with transaction.atomic():
-                entity, created = self.model_class.objects.get_or_create(
-                    namespace=namespace,
-                    name=name,
-                    defaults=create_data,
-                )
+        with transaction.atomic():
+            entity, created = self.model_class.objects.get_or_create(
+                namespace=namespace,
+                name=name,
+                defaults=create_data,
+            )
 
-                # 如果 spec 发生变化，更新数据以及 generation
-                if not created and (cleaned_spec != entity.get_spec() or entity.labels != labels):
-                    for field in cleaned_spec:
-                        setattr(entity, field, cleaned_spec[field])
-                    entity.labels = labels
-                    entity.generation += 1
-                    entity.save()
-                    span.set_attribute("entity.action", "updated")
-                else:
-                    span.set_attribute("entity.action", "created" if created else "unchanged")
+            # 如果 spec 发生变化，更新数据以及 generation
+            if not created and (cleaned_spec != entity.get_spec() or entity.labels != labels):
+                for field in cleaned_spec:
+                    setattr(entity, field, cleaned_spec[field])
+                entity.labels = labels
+                entity.generation += 1
+                entity.save()
 
-            # Redis 缓存同步
-            self._sync_to_redis(entity)
-
-            return entity.to_json()
+        return entity.to_json()
 
     def get(self, namespace: str, name: str) -> dict[str, Any]:
         """
@@ -109,18 +97,12 @@ class EntityHandler:
         Returns:
             资源的 JSON 表示
         """
-        with tracer.start_as_current_span("entity_handler.get") as span:
-            span.set_attribute("entity.kind", self.model_class.get_kind())
-            span.set_attribute("entity.namespace", namespace)
-            span.set_attribute("entity.name", name)
+        try:
+            entity = self.model_class.objects.get(namespace=namespace, name=name)
+        except self.model_class.DoesNotExist:
+            raise EntityNotFoundError(context={"namespace": namespace, "name": name})
 
-            try:
-                entity = self.model_class.objects.get(namespace=namespace, name=name)
-                return entity.to_json()
-            except self.model_class.DoesNotExist:
-                span.set_attribute("error", True)
-                span.set_attribute("error.message", "entity not found")
-                raise EntityNotFoundError(context={"namespace": namespace, "name": name})
+        return entity.to_json()
 
     def list(self, namespace: str = "", name: str = "") -> list[dict[str, Any]]:
         """
@@ -132,29 +114,22 @@ class EntityHandler:
         Returns:
             资源列表的 JSON 表示
         """
-        with tracer.start_as_current_span("entity_handler.list") as span:
-            span.set_attribute("entity.kind", self.model_class.get_kind())
-            if namespace:
-                span.set_attribute("entity.namespace", namespace)
-            if name:
-                span.set_attribute("entity.name", name)
 
-            queryset = self.model_class.objects.all()
+        queryset = self.model_class.objects.all()
 
-            if namespace:
-                queryset = queryset.filter(namespace=namespace)
-            if name:
-                queryset = queryset.filter(name=name)
+        if namespace:
+            queryset = queryset.filter(namespace=namespace)
+        if name:
+            queryset = queryset.filter(name=name)
 
-            # TODO: 根据标签选择器过滤
+        # TODO: 根据标签选择器过滤
 
-            # 转换为 JSON
-            results = []
-            for entity in queryset:
-                results.append(entity.to_json())
+        # 转换为 JSON
+        results = []
+        for entity in queryset:
+            results.append(entity.to_json())
 
-            span.set_attribute("entity.count", len(results))
-            return results
+        return results
 
     def delete(self, namespace: str, name: str) -> None:
         """
@@ -165,31 +140,12 @@ class EntityHandler:
             name: 资源名称
 
         """
-        with tracer.start_as_current_span("entity_handler.delete") as span:
-            span.set_attribute("entity.kind", self.model_class.get_kind())
-            span.set_attribute("entity.namespace", namespace)
-            span.set_attribute("entity.name", name)
+        try:
+            entity = self.model_class.objects.get(namespace=namespace, name=name)
+        except self.model_class.DoesNotExist:
+            raise EntityNotFoundError(context={"namespace": namespace, "name": name})
 
-            try:
-                entity = self.model_class.objects.get(namespace=namespace, name=name)
-                entity.delete()
-            except self.model_class.DoesNotExist:
-                span.set_attribute("error", True)
-                span.set_attribute("error.message", "entity not found")
-                raise EntityNotFoundError(context={"namespace": namespace, "name": name})
-
-    def _sync_to_redis(self, entity: EntityMeta):
-        """同步实体到 Redis（调用独立函数）"""
-        from metadata.service.relation_redis import (
-            push_and_publish_relation_definition,
-            push_and_publish_resource_definition,
-        )
-
-        if isinstance(entity, ResourceDefinition):
-            push_and_publish_resource_definition(entity.name)
-        elif isinstance(entity, RelationDefinition):
-            push_and_publish_relation_definition(entity.namespace, entity.name)
-        # CustomRelationStatus 不需要同步到 Redis
+        entity.delete()
 
 
 class EntityHandlerFactory:
