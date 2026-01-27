@@ -34,7 +34,7 @@ import {
   watch,
 } from 'vue';
 
-import { tryURLDecodeParse } from 'monitor-common/utils';
+import { convertDurationArray, tryURLDecodeParse } from 'monitor-common/utils';
 import FavoriteBox, {
   type IFavorite,
   type IFavoriteGroup,
@@ -227,8 +227,14 @@ export default defineComponent({
     /** 告警分析添加条件 */
     const handleAddCondition = (condition: CommonCondition) => {
       if (alarmStore.filterMode === EMode.ui) {
-        alarmStore.conditions = mergeWhereList(alarmStore.conditions, [
-          {
+        let conditionResult: CommonCondition[] = [condition];
+        // 持续时间需要特殊处理
+        if (condition.key === 'duration') {
+          conditionResult = convertDurationArray(condition.value as string[]);
+        }
+        alarmStore.conditions = mergeWhereList(
+          alarmStore.conditions,
+          conditionResult.map(condition => ({
             key: condition.key,
             method: condition.method,
             value: condition.value.map(item => {
@@ -238,8 +244,8 @@ export default defineComponent({
               return item;
             }),
             ...(alarmStore.conditions.length > 1 ? { condition: 'and' } : {}),
-          },
-        ]);
+          }))
+        );
       } else {
         const queryString = `${alarmStore.queryString ? ' AND ' : ''}${condition.method === 'neq' ? '-' : ''}${condition.key}: ${condition.value[0]}`;
         alarmStore.queryString = queryString;

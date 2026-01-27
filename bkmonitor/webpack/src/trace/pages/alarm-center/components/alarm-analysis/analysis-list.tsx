@@ -37,6 +37,10 @@ import './analysis-list.scss';
 export default defineComponent({
   name: 'AnalysisList',
   props: {
+    field: {
+      type: String,
+      default: '',
+    },
     list: {
       type: Array as PropType<AnalysisListItemBucket[]>,
       default: () => [],
@@ -93,10 +97,12 @@ export default defineComponent({
                 class='icon-monitor icon-a-sousuo'
                 onClick={() => this.handleConditionChange('eq', item.id)}
               />
-              <i
-                class='icon-monitor icon-sousuo-'
-                onClick={() => this.handleConditionChange('neq', item.id)}
-              />
+              {this.field !== 'duration' && (
+                <i
+                  class='icon-monitor icon-sousuo-'
+                  onClick={() => this.handleConditionChange('neq', item.id)}
+                />
+              )}
             </div>
           </div>
         ))}

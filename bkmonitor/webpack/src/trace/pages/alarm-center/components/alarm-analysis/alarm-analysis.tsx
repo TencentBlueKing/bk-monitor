@@ -39,7 +39,7 @@ import AnalysisList from './analysis-list';
 import SettingDialog from './setting-dialog';
 import ChartCollapse from '@/pages/trace-explore/components/explore-chart/chart-collapse';
 
-import type { AnalysisListItem, AnalysisListItemBucket, CommonCondition } from '../../typings';
+import type { AnalysisListItem, AnalysisListItemBucket } from '../../typings';
 
 import './alarm-analysis.scss';
 
@@ -47,10 +47,8 @@ export const AlarmAnalysisCollapse = 'ALARM_ANALYSIS_COLLAPSE';
 
 export default defineComponent({
   name: 'AlarmAnalysis',
-  emits: {
-    conditionChange: (value: CommonCondition) => true,
-  },
-  setup(props, { emit }) {
+  emits: ['conditionChange'],
+  setup(_, { emit }) {
     const { t } = useI18n();
     const {
       analysisFieldTopNData,
@@ -136,12 +134,12 @@ export default defineComponent({
       if (analysisFieldTopNLoading.value) {
         return (
           <div class='skeleton-wrap'>
-            {new Array(5).fill(0).map((panel, index) => (
+            {new Array(5).fill(0).map((_, index) => (
               <div
                 key={index}
                 class='skeleton-panel-item'
               >
-                {new Array(6).fill(0).map((item, i) => (
+                {new Array(6).fill(0).map((_, i) => (
                   <div
                     key={i}
                     class={['skeleton-element', { title: i === 0 }]}
@@ -183,6 +181,7 @@ export default defineComponent({
               </div>
               <div class='panel-item-content'>
                 <AnalysisList
+                  field={panel.field}
                   list={panel.buckets.slice(0, 5)}
                   onConditionChange={(type, value) => handleConditionChange(type, value, panel.field)}
                 />
