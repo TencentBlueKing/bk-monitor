@@ -165,8 +165,8 @@ export default defineComponent({
     };
     const replaceSpecialCondition = (qs: string) => {
       // 由于验证 queryString 不允许使用单引号，为提升体验，这里单双引号的空串都会进行替换。
-      const regExp = new RegExp(`${t('通知人')}\\s*:\\s*(""|'')`, 'gi');
-      return qs.replace(regExp, `NOT ${t('通知人')} : *`);
+      const regExp = new RegExp(`${t('告警接收人')}\\s*:\\s*(""|'')`, 'gi');
+      return qs.replace(regExp, `NOT ${t('告警接收人')} : *`);
     };
     const handleValidateQueryString = async () => {
       let validate = true;
