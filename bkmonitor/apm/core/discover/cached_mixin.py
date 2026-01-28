@@ -95,7 +95,7 @@ class CachedDiscoverMixin(ABC):
 
     def instance_clear_if_overflow(self, instances: list) -> tuple[list, list]:
         """
-        数据量超过 MAX_COUNT 时，清除最旧的数据
+        数据量超过 MAX_COUNT 时,清除最旧的数据
         :param instances: 实例数据
         :return: (删除的数据, 保留的数据)
         """
@@ -103,8 +103,9 @@ class CachedDiscoverMixin(ABC):
         count = len(instances)
         if count > self.MAX_COUNT:
             delete_count = count - self.MAX_COUNT
-            # 按照 updated_at 排序，从小到大
-            instances.sort(key=lambda item: item.get("updated_at"))
+            # 按照 updated_at 排序,从小到大
+            # 将 None 值视为最新时间(使用 datetime.max),优先保留新创建的实例
+            instances.sort(key=lambda item: item.get("updated_at") or datetime.datetime.max.replace(tzinfo=pytz.UTC))
             overflow_delete_data = instances[:delete_count]
             remain_instance_data = instances[delete_count:]
         else:
@@ -125,7 +126,11 @@ class CachedDiscoverMixin(ABC):
         expired_delete_data = []
         remain_instance_data = []
         for instance in instances:
-            if instance.get("updated_at") <= boundary:
+            updated_at = instance.get("updated_at")
+            # 跳过 updated_at 为 None 的实例(新创建的实例),将其保留
+            if updated_at is None:
+                remain_instance_data.append(instance)
+            elif updated_at <= boundary:
                 expired_delete_data.append(instance)
             else:
                 remain_instance_data.append(instance)
