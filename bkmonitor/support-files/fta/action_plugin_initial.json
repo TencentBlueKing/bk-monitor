@@ -868,7 +868,7 @@
                 "request_data_mapping": {
                     "bk_template_id": "{{template_id}}"
                 },
-                "resource_data": "response.pipeline_tree.constants.*",
+                "resource_data": "response.pipeline_tree.constants.* | [?show_type == 'show']",
                 "mapping": {
                     "key": "{{key}}",
                     "name": "{{name}}",
