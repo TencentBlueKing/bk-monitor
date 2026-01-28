@@ -21,6 +21,7 @@ from apm_web.event.serializers import (
     EventTimeSeriesRequestSerializer as ApmEventTimeSeriesRequestSerializer,
     EventTagDetailRequestSerializer as ApmEventTagDetailRequestSerializer,
 )
+from apm_web.event.resources import EventTimeSeriesResource
 from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
 from monitor_web.data_explorer.event.constants import EventSource, EventType
@@ -389,7 +390,10 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
 
         # 不同数据源的数据统一聚合到响应内
         def _aggregation(req_data: dict[str, Any]):
-            resp = event_resources.EventTimeSeriesResource().perform_request(req_data)
+            if any(x['data_source_label'] == DataSourceLabel.BK_APM for x in req_data['query_configs']):
+                resp = EventTimeSeriesResource().perform_request(req_data)
+            else:
+                resp = event_resources.EventTimeSeriesResource().perform_request(req_data)
             query_config: dict = resp.get("query_config", {})
             query_config_list = query_config.get("query_configs", [])
             table = next(iter(query_config_list), {}).get("table", "")
