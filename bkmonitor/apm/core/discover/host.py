@@ -13,7 +13,7 @@ import logging
 
 from opentelemetry.semconv.trace import SpanAttributes
 
-from apm.constants import DEFAULT_HOST_EXPIRE
+from apm.constants import ApmCacheType
 from apm.core.discover.base import DiscoverBase, extract_field_value
 from apm.core.discover.cached_mixin import CachedDiscoverMixin
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
@@ -24,6 +24,11 @@ logger = logging.getLogger("apm")
 
 
 class HostDiscover(CachedDiscoverMixin, DiscoverBase):
+    """
+    Host 发现类
+    使用多继承: CachedDiscoverMixin 提供缓存功能, DiscoverBase 提供基础发现功能
+    """
+
     DISCOVERY_ALL_SPANS = True
     MAX_COUNT = 100000
     PAGE_LIMIT = 100
@@ -33,13 +38,10 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
 
     # ========== 实现 CachedDiscoverMixin 的抽象方法 ==========
 
-    def get_cache_key(self) -> str:
-        """获取 Redis 缓存的 key"""
-        return ApmCacheHandler.get_host_cache_key(self.bk_biz_id, self.app_name)
-
-    def get_cache_expire(self) -> int:
-        """获取缓存过期时间"""
-        return DEFAULT_HOST_EXPIRE
+    @classmethod
+    def get_cache_type(cls) -> str:
+        """获取缓存类型"""
+        return ApmCacheType.HOST
 
     @classmethod
     def to_instance_key(cls, object_pk_id, bk_cloud_id, bk_host_id, ip) -> str:
@@ -56,13 +58,15 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
     def query_cache_and_instance_data(self) -> tuple[dict, list]:
         """
         查询缓存数据和数据库数据
+        重写以包含 Host 特有字段
         :return: (cache_data, host_data)
         """
-        # 查询应用下的缓存数据
-        cache_key = self.get_cache_key()
+
+        # 查询缓存数据 - 直接使用容器模式
+        cache_key = ApmCacheHandler.get_cache_key(self.get_cache_type(), self.bk_biz_id, self.app_name)
         cache_data = ApmCacheHandler().get_cache_data(cache_key)
 
-        # 查询应用下的 host 数据（包含 Host 特有字段）
+        # 查询 host 数据（包含 Host 特有字段）
         filter_params = {"bk_biz_id": self.bk_biz_id, "app_name": self.app_name}
         host_data = list(
             HostInstance.objects.filter(**filter_params).values("id", "bk_cloud_id", "bk_host_id", "ip", "updated_at")

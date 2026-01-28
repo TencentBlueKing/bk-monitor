@@ -21,30 +21,22 @@ class CachedDiscoverMixin(ABC):
     为 Discover 类提供基于 Redis 的缓存管理功能
 
     使用此 Mixin 的子类需要:
-    1. 实现抽象方法: get_cache_key(), get_cache_expire(), to_instance_key(), extract_instance_key_params()
+    1. 实现抽象方法: get_cache_type(), to_instance_key(), extract_instance_key_params()
     2. 提供属性: model (Django Model), MAX_COUNT (最大数量), application (应用信息)
     3. 提供属性: bk_biz_id, app_name
     """
 
     # ========== 子类必须实现的抽象方法 ==========
 
+    @classmethod
     @abstractmethod
-    def get_cache_key(self) -> str:
+    def get_cache_type(cls) -> str:
         """
-        获取 Redis 缓存的 key
-        子类需要重写此方法
-        :return: 缓存 key
+        获取缓存类型
+        子类需要重写此方法，返回 ApmCacheType 中定义的缓存类型
+        :return: 缓存类型（如 ApmCacheType.HOST）
         """
-        raise NotImplementedError("Subclass must implement get_cache_key()")
-
-    @abstractmethod
-    def get_cache_expire(self) -> int:
-        """
-        获取缓存过期时间(秒)
-        子类需要重写此方法
-        :return: 过期时间(秒)
-        """
-        raise NotImplementedError("Subclass must implement get_cache_expire()")
+        raise NotImplementedError("Subclass must implement get_cache_type()")
 
     @classmethod
     @abstractmethod
@@ -147,8 +139,8 @@ class CachedDiscoverMixin(ABC):
         """
         from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 
-        # 查询应用下的缓存数据
-        cache_key = self.get_cache_key()
+        # 查询应用下的缓存数据 - 使用容器模式
+        cache_key = ApmCacheHandler.get_cache_key(self.get_cache_type(), self.bk_biz_id, self.app_name)
         cache_data = ApmCacheHandler().get_cache_data(cache_key)
 
         # 查询应用下的实例数据 (子类需要根据实际字段调整)
@@ -192,11 +184,14 @@ class CachedDiscoverMixin(ABC):
         :param update_instance_keys: 更新的 instance keys
         :param delete_instance_keys: 删除的 instance keys
         """
+        from apm.constants import ApmCacheConfig
         from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 
         now = int(time.time())
         old_cache_data.update({i: now for i in (create_instance_keys | update_instance_keys)})
         cache_data = {i: old_cache_data[i] for i in (set(old_cache_data.keys()) - delete_instance_keys)}
-        cache_key = self.get_cache_key()
-        cache_expire = self.get_cache_expire()
+
+        # 使用容器模式
+        cache_key = ApmCacheHandler.get_cache_key(self.get_cache_type(), self.bk_biz_id, self.app_name)
+        cache_expire = ApmCacheConfig.get_expire_time(self.get_cache_type())
         ApmCacheHandler().refresh_data(cache_key, cache_data, cache_expire)
