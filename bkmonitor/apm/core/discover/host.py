@@ -16,7 +16,6 @@ from opentelemetry.semconv.trace import SpanAttributes
 from apm.constants import ApmCacheType
 from apm.core.discover.base import DiscoverBase, extract_field_value
 from apm.core.discover.cached_mixin import CachedDiscoverMixin
-from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.models import HostInstance
 from constants.apm import OtlpKey
 
@@ -53,35 +52,29 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         """从实例字典中提取用于生成 key 的参数"""
         return instance.get("id"), instance.get("bk_cloud_id"), instance.get("bk_host_id"), instance.get("ip")
 
-    # ========== 重写 CachedDiscoverMixin 方法以适配 Host 特有字段 ==========
-
-    def query_cache_and_instance_data(self) -> tuple[dict, list]:
-        """
-        查询缓存数据和数据库数据
-        重写以包含 Host 特有字段
-        :return: (cache_data, host_data)
-        """
-
-        # 查询缓存数据
-        cache_key = ApmCacheHandler.get_cache_key(self.get_cache_type(), self.bk_biz_id, self.app_name)
-        cache_data = ApmCacheHandler().get_cache_data(cache_key)
-
-        # 查询 host 数据（包含 Host 特有字段）
-        filter_params = {"bk_biz_id": self.bk_biz_id, "app_name": self.app_name}
-        host_data = list(
-            HostInstance.objects.filter(**filter_params).values("id", "bk_cloud_id", "bk_host_id", "ip", "updated_at")
-        )
-
-        return cache_data, host_data
-
     # ========== Host 特有的业务方法 ==========
 
     def list_exists(self):
-        res = {}
+        """
+        获取已存在的 host 数据
+        返回元组: (查询字典, 实例数据列表)
+        """
         instances = HostInstance.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        res = {}
+        instance_data = []
+
         for i in instances:
+            host_dict = {
+                "id": i.id,
+                "bk_cloud_id": i.bk_cloud_id,
+                "bk_host_id": i.bk_host_id,
+                "ip": i.ip,
+                "updated_at": i.updated_at,
+            }
             res.setdefault((i.bk_cloud_id, i.bk_host_id, i.ip, i.topo_node_key), set()).add(i.id)
-        return res
+            instance_data.append(host_dict)
+
+        return res, instance_data
 
     def get_remain_data(self):
         return self.list_exists()
@@ -90,17 +83,17 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         """
         Discover host IP if user fill resource.net.host.ip when define resource in OT SDK
         """
-        exists_hosts = remain_data
-        self._do_discover(exists_hosts, origin_data)
+        exists_hosts, instance_data = remain_data
+        self._do_discover(exists_hosts, instance_data, origin_data)
 
     def discover(self, origin_data):
         """
         Discover host IP if user fill resource.net.host.ip when define resource in OT SDK
         """
-        exists_hosts = self.list_exists()
-        self._do_discover(exists_hosts, origin_data)
+        exists_hosts, instance_data = self.list_exists()
+        self._do_discover(exists_hosts, instance_data, origin_data)
 
-    def _do_discover(self, exists_hosts, origin_data):
+    def _do_discover(self, exists_hosts, instance_data, origin_data):
         find_ips = set()
 
         for span in origin_data:
@@ -139,19 +132,28 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
             ]
         )
 
-        cache_data, host_data = self.query_cache_and_instance_data()
-        delete_host_keys = self.clear_data(cache_data, host_data)
+        cache_data = self.query_cache_data()
 
-        # 找出新创建的 host 对应的 keys
-        create_host_dict = {(h[0], h[1], h[2]): h for h in need_create_instances}
-        create_host_data = [
-            h for h in host_data if (h.get("bk_cloud_id"), h.get("bk_host_id"), h.get("ip")) in create_host_dict
-        ]
-        _, create_host_keys = self.to_id_and_key(create_host_data)
-
-        # 找出更新的 host 对应的 keys
-        update_host_data = [h for h in host_data if h.get("id") in need_update_instance_ids]
+        update_host_data = [h for h in instance_data if h.get("id") in need_update_instance_ids]
         _, update_host_keys = self.to_id_and_key(update_host_data)
+
+        new_instance_data = instance_data
+        create_host_keys = set()
+        if need_create_instances:
+            new_host_data = [
+                {
+                    "id": None,
+                    "bk_cloud_id": h[0],
+                    "bk_host_id": h[1],
+                    "ip": h[2],
+                    "updated_at": None,
+                }
+                for h in need_create_instances
+            ]
+            new_instance_data = instance_data + new_host_data
+            _, create_host_keys = self.to_id_and_key(new_host_data)
+
+        delete_host_keys = self.clear_data(cache_data, new_instance_data)
 
         self.refresh_cache_data(
             old_cache_data=cache_data,

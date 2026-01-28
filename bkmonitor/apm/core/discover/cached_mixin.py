@@ -131,11 +131,10 @@ class CachedDiscoverMixin(ABC):
                 remain_instance_data.append(instance)
         return expired_delete_data, remain_instance_data
 
-    def query_cache_and_instance_data(self) -> tuple[dict, list]:
+    def query_cache_data(self) -> dict:
         """
-        查询缓存数据和数据库数据
-        子类可以重写此方法以适配特定的字段需求
-        :return: (cache_data, instance_data)
+        查询缓存数据
+        :return: cache_data
         """
         from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 
@@ -143,12 +142,7 @@ class CachedDiscoverMixin(ABC):
         cache_key = ApmCacheHandler.get_cache_key(self.get_cache_type(), self.bk_biz_id, self.app_name)
         cache_data = ApmCacheHandler().get_cache_data(cache_key)
 
-        # 查询应用下的实例数据 (子类需要根据实际字段调整)
-        filter_params = {"bk_biz_id": self.bk_biz_id, "app_name": self.app_name}
-        # 默认查询 id 和 updated_at，子类可以重写此方法添加其他字段
-        instance_data = list(self.model.objects.filter(**filter_params).values("id", "updated_at"))
-
-        return cache_data, instance_data
+        return cache_data
 
     def clear_data(self, cache_data: dict, instance_data: list) -> set:
         """
