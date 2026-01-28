@@ -185,15 +185,28 @@ class DefaultContent(BaseContextObject):
     def receivers(self):
         """
         告警接收人信息
-        优先使用 context 中的 notice_receiver（与实际发送通知时使用的 notice_receivers 一致）
-        如果 notice_receiver 不存在，则使用 alarm.receivers（从 alert.assignee 获取）
+
+        优先级（从高到低）：
+        1. context.merged_notice_receivers（合并后的所有接收人，与实际发送一致）
+        2. context.notice_receiver（单个接收人或列表）
+        3. alarm.receivers（从 alert.assignee 获取，向后兼容）
 
         注意：
         - alert 是 AlertDocument 实例，存储在 ES (Elasticsearch) 中
         - alert.assignee 字段在告警分派时设置，存储在 ES 的 AlertDocument 中
-        - notice_receiver 来自 action.inputs.get("notice_receiver") 或 action.assignee，与实际发送通知时使用的 notice_receivers 一致
+        - notice_receiver 来自 action.inputs.get("notice_receiver") 或 action.assignee
+        - merged_notice_receivers 在通知合并后设置，包含所有合并后的接收人
         """
-        # 优先使用 context 中的 notice_receiver（与实际发送通知时使用的 notice_receivers 一致）
+        # 优先级1：优先使用合并后的接收人（与实际发送一致）
+        if hasattr(self.parent, "merged_notice_receivers") and self.parent.merged_notice_receivers:
+            merged_receivers = self.parent.merged_notice_receivers
+            if isinstance(merged_receivers, list):
+                if merged_receivers:
+                    return ",".join(merged_receivers)
+            elif merged_receivers:
+                return merged_receivers if isinstance(merged_receivers, str) else str(merged_receivers)
+
+        # 优先级2：使用 context 中的 notice_receiver（与实际发送通知时使用的 notice_receivers 一致）
         if hasattr(self.parent, "notice_receiver") and self.parent.notice_receiver:
             notice_receiver = self.parent.notice_receiver
             # notice_receiver 可能是字符串或列表
@@ -203,7 +216,7 @@ class DefaultContent(BaseContextObject):
             elif notice_receiver:
                 return notice_receiver if isinstance(notice_receiver, str) else str(notice_receiver)
 
-        # 如果 notice_receiver 不存在，fallback 到 alarm.receivers（从 alert.assignee 获取）
+        # 优先级3：如果 notice_receiver 不存在，fallback 到 alarm.receivers（从 alert.assignee 获取）
         # alert 是 AlertDocument 实例，存储在 ES 中，assignee 字段在告警分派时设置
         if self.parent.alarm.receivers:
             return ",".join(self.parent.alarm.receivers)

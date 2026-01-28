@@ -114,6 +114,11 @@ class ActionProcessor(BaseActionProcessor):
 
             self.is_collect_notice = True
 
+            # 方案3：设置合并后的接收人到 context，用于模板渲染
+            # 确保模板显示与实际发送一致
+            if self.notice_receivers:
+                setattr(self.context, "merged_notice_receivers", self.notice_receivers)
+
             # 针对获取到的用户信息进行清除
             for receiver in self.notice_receivers:
                 client.hdel(collect_key, receiver)
