@@ -104,7 +104,9 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
 
         for span in origin_data:
             service_name = self.get_service_name(span)
-            ip = extract_field_value((OtlpKey.RESOURCE, SpanAttributes.NET_HOST_IP), span)
+            ip = extract_field_value((OtlpKey.RESOURCE, SpanAttributes.NET_HOST_IP), span) or extract_field_value(
+                (OtlpKey.ATTRIBUTES, SpanAttributes.NET_HOST_NAME), span
+            )
 
             if not ip or not service_name:
                 continue
