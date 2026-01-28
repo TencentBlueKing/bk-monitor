@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2025 Tencent. All rights reserved.
+Copyright (C) 2017-2026 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -32,6 +32,7 @@ import csv
 import datetime
 import json
 import math
+from argparse import ArgumentParser
 from typing import Any
 
 from django.conf import settings
@@ -39,10 +40,11 @@ from django.core.management.base import BaseCommand, OutputWrapper
 from django.core.management.color import Style
 
 from alarm_backends.core.cache.cmdb import BusinessManager
+from api.cmdb.define import Business
 from bkmonitor.data_source import load_data_source, UnifyQuery
 from bkmonitor.data_source.data_source import DataSource, LogSearchTimeSeriesDataSource
 from bkmonitor.models import StrategyModel, QueryConfigModel
-from bkmonitor.strategy.new_strategy import Strategy
+from bkmonitor.strategy.new_strategy import Strategy, Item
 from constants.data_source import DataSourceLabel
 
 
@@ -77,7 +79,7 @@ class Command(BaseCommand):
 
     help = "对账日志平台数据源切换 unify-query 前后的查询结果一致性"
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         """添加命令行参数。"""
         parser.add_argument(
             "--biz_ids", type=str, required=True, help="需要对账的业务 ID 列表，多个 ID 用逗号分隔，例如：2,3,5"
@@ -104,8 +106,8 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f"业务 ID 格式错误：{e}"))
             return
 
-        time_range: int = options["time_range"]
-        output_path: str = options["output"]
+        time_range: int = int(options["time_range"])
+        output_path: str = str(options["output"])
 
         self.stdout.write(self.style.SUCCESS(f"开始对账，业务列表：{bk_biz_ids}"))
         self.stdout.write(f"初始时间范围：{time_range} 分钟")
@@ -225,8 +227,8 @@ def compare_query_results(uq_records: list[dict[str, Any]], ds_records: list[dic
     :return: 比较结果字典，包含 is_consistent、uq_record_count、ds_record_count、diff_detail
     """
     # 过滤零值并标准化记录字段类型
-    uq_filtered = [normalize_record(r) for r in filter_zero_values(uq_records)]
-    ds_filtered = [normalize_record(r) for r in filter_zero_values(ds_records)]
+    uq_filtered: list[dict[str, Any]] = [normalize_record(r) for r in filter_zero_values(uq_records)]
+    ds_filtered: list[dict[str, Any]] = [normalize_record(r) for r in filter_zero_values(ds_records)]
 
     # 两种查询方式都无数据
     if not uq_filtered and not ds_filtered:
@@ -270,8 +272,8 @@ def compare_query_results(uq_records: list[dict[str, Any]], ds_records: list[dic
     # 相同键但值不同的记录
     value_diff_count: int = 0
     for key in common_keys:
-        uq_val = uq_map[key].get("_result_")
-        ds_val = ds_map[key].get("_result_")
+        uq_val: float | None = uq_map[key].get("_result_")
+        ds_val: float | None = ds_map[key].get("_result_")
         if uq_val is not None and ds_val is not None and not math.isclose(uq_val, ds_val):
             value_diff_count += 1
             if value_diff_count <= MAX_DIFF_DISPLAY_COUNT:
@@ -309,7 +311,7 @@ def run_reconciliation(
 
     for bk_biz_id in bk_biz_ids:
         stdout.write(f"正在处理业务：{bk_biz_id}")
-        business = BusinessManager.get(bk_biz_id)
+        business: Business | None = BusinessManager.get(bk_biz_id)
         bk_biz_name: str = business.bk_biz_name if business else str(bk_biz_id)
 
         # 获取该业务下日志平台数据源的策略
@@ -320,7 +322,9 @@ def run_reconciliation(
             .values_list("strategy_id", flat=True)
             .distinct()
         )
-        strategy_models = list(StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=strategy_ids, is_enabled=True))
+        strategy_models: list[StrategyModel] = list(
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=strategy_ids, is_enabled=True)
+        )
         if not strategy_models:
             stdout.write(f"  业务 {bk_biz_id} 下未找到日志平台数据源策略")
             continue
@@ -328,7 +332,7 @@ def run_reconciliation(
         for strategy in Strategy.from_models(strategy_models):
             stdout.write(f"  正在处理策略：{strategy.name}（ID：{strategy.id}）")
             try:
-                item = strategy.items[0]
+                item: Item = strategy.items[0]
                 query_config_dict: dict[str, Any] = item.query_configs[0].to_dict()
                 data_type_label: str = query_config_dict.get("data_type_label", "")
 
@@ -349,7 +353,7 @@ def run_reconciliation(
                         end_ts,
                         enable_gray=False,
                     )
-                    filtered_records = filter_zero_values(ds_records)
+                    filtered_records: list[dict[str, Any]] = filter_zero_values(ds_records)
                     if filtered_records:
                         stdout.write(f"    在 {time_range_minutes} 分钟内查询到 {len(filtered_records)} 条有效数据")
                         has_data = True
@@ -363,7 +367,7 @@ def run_reconciliation(
                     actual_time_range = time_ranges[-1] if time_ranges else initial_time_range
 
                 # 使用相同时间范围执行灰度查询
-                uq_records = execute_query(
+                uq_records: list[dict[str, Any]] = execute_query(
                     bk_biz_id,
                     build_data_sources(strategy),
                     item.expression,
@@ -374,7 +378,7 @@ def run_reconciliation(
                 )
 
                 # 比较结果
-                compare_result = compare_query_results(uq_records, ds_records)
+                compare_result: dict[str, Any] = compare_query_results(uq_records, ds_records)
                 is_consistent: bool = compare_result["is_consistent"]
                 stdout.write(
                     f"    一致={is_consistent}, 有数据={has_data}, "
@@ -405,7 +409,7 @@ def run_reconciliation(
 
     # 写入 CSV 文件
     with open(output_csv_path, "w", newline="", encoding="utf-8-sig") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=CSV_FIELDNAMES)
+        writer: csv.DictWriter[str] = csv.DictWriter(csvfile, fieldnames=CSV_FIELDNAMES)
         writer.writeheader()
         writer.writerows(results)
 
