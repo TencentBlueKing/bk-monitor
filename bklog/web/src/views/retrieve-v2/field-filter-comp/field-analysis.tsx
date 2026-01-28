@@ -133,7 +133,7 @@ export default class FieldAnalysis extends Vue {
     if (startTime && endTime && this.isPillarChart) {
       // const pillarFormatStr = 'YYYY-MM-DD HH:mm:ss';
       const timezone = store.state.indexItem.timezone;
-      return `${window.mainComponent.$t('查询时段')}: ${RetrieveHelper.formatTimeZoneValue(startTime, this.queryParams?.field_type, timezone)} - ${RetrieveHelper.formatTimeZoneValue(endTime, this.queryParams?.field_type, timezone)}`;
+      return `${window.mainComponent.$t('查询时段')}: ${RetrieveHelper.formatTimeZoneValue(startTime, 'date', timezone)} - ${RetrieveHelper.formatTimeZoneValue(endTime, 'date', timezone)}`;
     }
     return '';
   }
@@ -586,8 +586,8 @@ export default class FieldAnalysis extends Vue {
     }
   }
 
-  getChartsCancelFn = () => { };
-  getInfoCancelFn = () => { };
+  getChartsCancelFn = () => {};
+  getInfoCancelFn = () => {};
 
   // 添加防抖处理
   legendWheel = (event: WheelEvent) => {
