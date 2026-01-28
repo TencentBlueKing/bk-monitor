@@ -231,12 +231,16 @@ export default defineComponent({
           resize: false,
           minWidth: timeFieldType.value === 'date_nanos' ? 250 : 200,
           renderBodyCell: ({ row }) => {
+            const timezone = store.state.indexItem.timezone;
+            const fieldType = timeFieldType.value;
+            const formatValue = RetrieveHelper.formatTimeZoneValue(row[timeField.value], fieldType, timezone);
+
             return h(
               'span',
               {
                 class: 'time-field',
                 domProps: {
-                  innerHTML: xssFilter(RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value)),
+                  innerHTML: xssFilter(formatValue),
                 },
               },
               [],
@@ -1076,12 +1080,14 @@ export default defineComponent({
       const expandCell = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
 
       if (target.classList.contains('valid-text') || expandCell?.contains(target)) {
+        RetrieveHelper.setMousedownEvent(null);
         return;
       }
 
       const config: RowConfig = tableRowConfig.get(item).value;
       const isExpanding = !config.expand;
       config.expand = isExpanding;
+      RetrieveHelper.setMousedownEvent(null);
 
       // 性能监控：记录展开/收起操作的耗时
       // if (isExpanding) {

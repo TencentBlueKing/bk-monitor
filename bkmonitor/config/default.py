@@ -59,6 +59,7 @@ INSTALLED_APPS = (
     "django.contrib.messages",
     "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
+    "corsheaders",
     # account app
     "blueapps.account",
     "apigw_manager.apigw",
@@ -92,6 +93,10 @@ INSTALLED_APPS = (
 # 自定义中间件
 MIDDLEWARE += ()  # noqa
 
+# 跨域配置
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
 # 默认数据库AUTO字段类型
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
@@ -104,8 +109,6 @@ DEBUG = TEMPLATE_DEBUG = bool(os.getenv("DEBUG", "false").lower() == "true") or 
 # 允许访问的域名，默认全部放通
 ALLOWED_HOSTS = ["*"]
 
-# 前后端分离开发配置开关，设置为True时允许跨域访问
-FRONTEND_BACKEND_SEPARATION = True
 
 # CELERY 并发数，默认为 2，可以通过环境变量或者 Procfile 设置
 CELERYD_CONCURRENCY = os.getenv("BK_CELERYD_CONCURRENCY", 2)  # noqa
@@ -487,7 +490,7 @@ ENABLED_NOTICE_WAYS = ["weixin", "mail", "sms", "voice"]
 BK_MONITOR_PROXY_LISTEN_PORT = 10205
 
 # 日期格式
-DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S%z"
 
 # 自定义上报服务器IP
 CUSTOM_REPORT_DEFAULT_PROXY_IP = []
@@ -1467,6 +1470,7 @@ AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
 ENABLE_AI_RENAME = False
 # MCP权限校验豁免的工具名称白名单
 MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
+MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
 
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}
@@ -1777,11 +1781,11 @@ AIOPS_SERVER_KPI_URL = os.getenv("BKAPP_AIOPS_SERVER_KPI_URL", "http://bk-aiops-
 # 离群检测远程访问地址
 AIOPS_SERVER_ACD_URL = os.getenv("BKAPP_AIOPS_SERVER_ACD_URL", "http://bk-aiops-serving-acd:8000")
 # SDK执行预测逻辑接口
-AIOPS_PREDICT_SDK = os.getenv("BKAPP_AIOPS_PREDICT_SDK", "/aiops/serving/default/")
+AIOPS_PREDICT_SDK = os.getenv("BKAPP_AIOPS_PREDICT_SDK", "/api/aiops/default/")
 # SDK初始化历史依赖接口
-AIOPS_INIT_DEPEND_SDK = os.getenv("BKAPP_AIOPS_INIT_DEPEND_SDK", "/aiops/serving/init_depend/")
+AIOPS_INIT_DEPEND_SDK = os.getenv("BKAPP_AIOPS_INIT_DEPEND_SDK", "/api/aiops/init_depend/")
 # SDK执行分组预测逻辑接口
-AIOPS_GROUP_PREDICT_SDK = os.getenv("BKAPP_AIOPS_GROUP_PREDICT_SDK", "/aiops/serving/group_predict/")
+AIOPS_GROUP_PREDICT_SDK = os.getenv("BKAPP_AIOPS_GROUP_PREDICT_SDK", "/api/aiops/group_predict/")
 # bkfara apigew地址
 BKFARA_AIOPS_SERVICE_USE_APIGW = bool(str(os.getenv("BKFARA_AIOPS_SERVICE_USE_APIGW", False)).lower() == "true")
 BKFARA_AIOPS_SERVICE_APIGW_HOST = os.getenv("BKFARA_AIOPS_SERVICE_APIGW_HOST", "")

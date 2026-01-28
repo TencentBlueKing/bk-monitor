@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,3 +7,20 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from kernel_api.resource.relation import (
+    QueryMultiResourceRelationResource,
+    QueryMultiResourceRelationRangeResource,
+)
+
+
+class RelationViewSet(ResourceViewSet):
+    """
+    关联关系查询服务
+    """
+
+    resource_routes = [
+        ResourceRoute("POST", QueryMultiResourceRelationResource, endpoint="query_multi_resource_relation"),
+        ResourceRoute("POST", QueryMultiResourceRelationRangeResource, endpoint="query_multi_resource_relation_range"),
+    ]

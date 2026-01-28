@@ -1277,4 +1277,40 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query bk data token by id
+  /app/apm/service_list/:
+    post:
+      operationId: service_list
+      description: 【APM】应用下服务列表
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_metric_web/service_list/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "apm service list"
+  /app/apm/profile_query_export/:
+    get:
+      operationId: profile_query_export
+      description: 导出 profile 查询结果
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/apm_profile_query_web/export/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "export profile query"
 
