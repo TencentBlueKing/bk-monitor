@@ -78,7 +78,7 @@ class ApmCacheHandler:
             return
 
         self.redis_client.set(name, json.dumps(update_map), ex=ex)
-        logger.info(f"[InstanceDiscover] {name} update {len(update_map)}")
+        logger.info(f"[ApmCacheHandler] {name} update {len(update_map)}")
 
     def get_lock_key(self, lock_type: str, **kwargs) -> str:
         """
