@@ -26,10 +26,10 @@
 import { type PropType, defineComponent, shallowRef } from 'vue';
 import { computed } from 'vue';
 
-import { Button, Popover } from 'bkui-vue';
+import { Button } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import AlertMetricsConfig from '../../../components/alarm-table/components/alert-content-detail/alert-content-detail';
+// import AlertMetricsConfig from '../../../components/alarm-table/components/alert-content-detail/alert-content-detail';
 import { type AlarmDetail, AlarmStatusIconMap } from '../../../typings';
 
 import './alarm-alert.scss';
@@ -142,11 +142,11 @@ export default defineComponent({
         <div class='separator' />
         <div class='alert-content'>
           <div class='alarm-content'>
-            <Popover
+            {/* <Popover
               width={480}
               extCls='alarm-alert-monitor-data-popover'
               v-slots={{
-                default: () => <span class='alarm-title'>主调成功率:</span>,
+                default: () => <span class='alarm-title'>{this.data?.description},</span>,
                 content: () => (
                   <div class='alarm-alert-monitor-data-popover-content'>
                     <AlertMetricsConfig alertContentDetail={this.monitorDataDetail} />
@@ -156,9 +156,10 @@ export default defineComponent({
               placement='bottom'
               theme='light'
               trigger='click'
-            />
+            /> */}
 
-            <span class='alarm-value'>{'65% < 80%,'}</span>
+            {/* <span class='alarm-value'>{'65% < 80%,'}</span> */}
+            <span class='alarm-title'>{this.data?.description},</span>
           </div>
           {this.renderAlertTips()}
         </div>
