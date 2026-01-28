@@ -44,7 +44,7 @@ export const formatTimeZoneString = (
  * @returns
  */
 export const formatTimeStampZone = (timestamp: number, timezone: string, format?: string) => {
-  let formatStr = format || 'YYYY-MM-DD HH:mm:ss.SSS';
+  let formatStr = format || 'YYYY-MM-DD HH:mm:ss';
 
   if (!format) {
     const milliseconds = `${timestamp}`.toString().split('.')[1]?.length ?? 0;
