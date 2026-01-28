@@ -13,6 +13,22 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-daxiaoxie:before {
+  content: "\e84f";
+}
+
+.icon-ab:before {
+  content: "\e850";
+}
+
+.icon-tongpeifu:before {
+  content: "\e851";
+}
+
+.icon-Locate:before {
+  content: "\e84e";
+}
+
 .icon-yihebing:before {
   content: "\e852";
 }

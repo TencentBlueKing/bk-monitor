@@ -38,14 +38,10 @@ const CustomEscalationEventView = () =>
   import(/* webpackChunkName: 'CustomEscalationEventView' */ '../../pages/custom-escalation/view-detail/event-view');
 // 新版自定义指标页面
 const NewCustomEscalationView = () =>
-  import(
-    /* webpackChunkName: 'NewCustomEscalationView' */ '../../pages/custom-escalation/new-metric-view/new-metric-view'
-  );
+  import(/* webpackChunkName: 'NewCustomEscalationView' */ '../../pages/custom-escalation/metric-detail/index');
 // 新版自定义指标详情
-const CustomEscalationDetailNew = () =>
-  import(
-    /* web  packChunkName: 'CustomEscalationDetailNew' */ '../../pages/custom-escalation/custom-escalation-detail/custom-escalation-detail'
-  );
+const CustomEscalationMetricManage = () =>
+  import(/* web  packChunkName: 'CustomEscalationMetricManage' */ '../../pages/custom-escalation/metric-manage/index');
 export default [
   {
     path: '/custom-escalation-set/event',
@@ -171,7 +167,7 @@ export default [
       noCache: true,
     },
     components: {
-      noCache: CustomEscalationDetailNew,
+      noCache: CustomEscalationMetricManage,
     },
     meta: {
       title: '新版自定义详情页面',

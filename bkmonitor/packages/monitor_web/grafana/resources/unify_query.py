@@ -578,6 +578,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         unit = serializers.CharField(label="单位", default="", allow_blank=True)
         with_metric = serializers.BooleanField(label="是否返回metric信息", default=True)
         not_time_align = serializers.BooleanField(label="是否不对齐时间窗口", required=False, default=False)
+        custom_metric_methods = serializers.DictField(label="自定义统计指标方法", required=False, default=None)
 
         @classmethod
         def to_str(cls, value):
@@ -915,6 +916,10 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
     统一查询接口 (适配图表展示)
     """
 
+    CUSTOM_METRIC_METHODS = {
+        "INC": {"method": "SUM", "function": {"id": "increase", "params": [{"id": "window", "value": "1m"}]}}
+    }
+
     def get_unit(self, metrics: list[dict], params: dict) -> str:
         """
         获取单位信息
@@ -932,6 +937,20 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
                 return ""
 
         return metrics[0].get("unit", "")
+
+    @classmethod
+    def fill_custom_metric_method(cls, config):
+        """
+        替换自定义统计指标方法
+        :param config: 查询配置
+        """
+        metric_functions = {func["id"]: func for func in config.get("functions", []) if func.get("id")}
+        for metric in config.get("metrics", []):
+            if metric["method"] in cls.CUSTOM_METRIC_METHODS:
+                custom_method_config = cls.CUSTOM_METRIC_METHODS[metric["method"]]
+                metric["method"] = custom_method_config["method"]
+                metric_functions[custom_method_config["function"]["id"]] = custom_method_config["function"]
+        config["functions"] = list(metric_functions.values())
 
     def data_format(self, params, data):
         """
@@ -1127,6 +1146,10 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
         return data
 
     def perform_request(self, params):
+        # 替换自定义统计指标方法
+        for config in params["query_configs"]:
+            self.fill_custom_metric_method(config)
+
         raw_query_result = super().perform_request(params)
         points = raw_query_result["series"]
         if not points:
