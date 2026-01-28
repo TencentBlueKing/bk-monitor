@@ -387,24 +387,26 @@ import { isEqual } from 'lodash-es';
 
           // 个人配置模式下的保存逻辑
           this.cancelModifyFields();
-          this.$store.commit('updateState', { 'localSort': false});
+          this.$store.commit('updateState', { localSort: false });
           this.$store.commit('updateIsSetDefaultTableColumn', false);
-          this.$store
-            .dispatch('userFieldConfigChange', {
-              displayFields: currentVisibleList,
-              sortList: updateSortList,
-              fieldsWidth: {},
-            })
-            .then(() => {
-              this.$store.commit('resetVisibleFields', currentVisibleList);
-              this.$store.commit('updateIsSetDefaultTableColumn');
-            });
 
-            if (isSortListChanged) {
-              await this.$store.dispatch('requestIndexSetFieldInfo');
-              await this.$store.dispatch('requestIndexSetQuery');
-              RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
-            }
+          // 先等待用户配置保存完成
+          await this.$store.dispatch('userFieldConfigChange', {
+            displayFields: currentVisibleList,
+            sortList: updateSortList,
+            fieldsWidth: {},
+          });
+
+          // 更新本地显示字段状态
+          this.$store.commit('resetVisibleFields', currentVisibleList);
+          this.$store.commit('updateIsSetDefaultTableColumn');
+
+          // 如果排序有变化，再请求字段信息和查询
+          if (isSortListChanged) {
+            await this.$store.dispatch('requestIndexSetFieldInfo');
+            await this.$store.dispatch('requestIndexSetQuery');
+            RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
+          }
 
         } catch (error) {
           console.warn(error);

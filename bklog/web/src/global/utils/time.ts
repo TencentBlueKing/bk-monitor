@@ -10,6 +10,9 @@ dayjs.extend(timezone);
 /**
  * 格式化时间字符串
  * @param time 时间戳或时间字符串（支持 ISO 8601 格式，如 2024-11-01T08:56:24.274552Z）
+ * @param timezone timezone
+ * @param format format
+ * @param fixFormat 是否修复毫秒格式
  * @returns 格式化后的时间字符串，格式：2025-11-04 21:44:38+0800
  */
 export const formatTimeZoneString = (time: number | string,
@@ -29,4 +32,19 @@ export const formatTimeZoneString = (time: number | string,
   }
   // 其他格式直接解析并转换时区
   return dayjs(time).tz(timezone).format(formatString);
+}
+
+/**
+ * 时间戳根据时区进行格式话
+ * @param tiemstamp 
+ * @param timezone 
+ * @param format 
+ * @returns 
+ */
+export const formatTimeStampZone = (timestamp: number, timezone: string, format: string) => {
+  if (/^\d+(\.\d+)?$/.test(`${timestamp}`)) {
+    return dayjs.utc(Number(timestamp)).tz(timezone).format(format);
+  }
+  
+  return timestamp;
 }
