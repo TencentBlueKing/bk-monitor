@@ -168,6 +168,9 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
             update_instance_keys=update_host_keys,
             delete_instance_keys=delete_host_keys,
         )
+        logger.info(
+            f"update_host_keys: {update_host_keys}, create_host_keys: {create_host_keys}, delete_host_keys: {delete_host_keys}"
+        )
 
     def list_bk_cloud_id(self, ips: list[str]) -> dict[str, tuple[int, int]]:
         from alarm_backends.core.cache.cmdb.host import HostManager, HostIPManager
