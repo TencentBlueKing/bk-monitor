@@ -36,13 +36,25 @@ class HostDiscover(DiscoverBase):
 
         return res
 
+    def get_remain_data(self):
+        return self.list_exists()
+
+    def discover_with_remain_data(self, origin_data, remain_data):
+        """
+        Discover host IP if user fill resource.net.host.ip when define resource in OT SDK
+        """
+        exists_hosts = remain_data
+        self._do_discover(exists_hosts, origin_data)
+
     def discover(self, origin_data):
         """
         Discover host IP if user fill resource.net.host.ip when define resource in OT SDK
         """
-        find_ips = set()
-
         exists_hosts = self.list_exists()
+        self._do_discover(exists_hosts, origin_data)
+
+    def _do_discover(self, exists_hosts, origin_data):
+        find_ips = set()
 
         for span in origin_data:
             service_name = self.get_service_name(span)
