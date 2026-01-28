@@ -626,16 +626,13 @@ class ApmCacheConfig:
         return cls._EXPIRE_TIMES[cache_type]
 
 
-# ========== 向后兼容的常量定义 ==========
-# 保留旧的常量定义以保证向后兼容
-
-APM_TOPO_INSTANCE = ApmCacheConfig.get_key_template(ApmCacheType.TOPO_INSTANCE)
-APM_ENDPOINT = ApmCacheConfig.get_key_template(ApmCacheType.ENDPOINT)
+APM_TOPO_INSTANCE = "BKMONITOR_{}_{}_APM_TOPO_INSTANCE_HEARTBEAT_{}_{}"
+APM_ENDPOINT = "BKMONITOR_{}_{}_APM_ENDPOINT_HEARTBEAT_{}_{}"
 
 # 针对高频修改字段 updated_at 的过期清理时间
 DEFAULT_APM_CACHE_EXPIRE = 7 * 24 * 60 * 60
-DEFAULT_TOPO_INSTANCE_EXPIRE = ApmCacheConfig.get_expire_time(ApmCacheType.TOPO_INSTANCE)
-DEFAULT_ENDPOINT_EXPIRE = ApmCacheConfig.get_expire_time(ApmCacheType.ENDPOINT)
+DEFAULT_TOPO_INSTANCE_EXPIRE = 7 * 24 * 60 * 60
+DEFAULT_ENDPOINT_EXPIRE = 7 * 24 * 60 * 60
 
 
 class ProfileApiType:
