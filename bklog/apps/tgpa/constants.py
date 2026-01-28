@@ -155,6 +155,7 @@ TGPA_TASK_TARGET_FIELDS = ["cos_file_name", "file"]
 
 CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "file", "lineno", "cos_file_name"]
 LOG_FILE_EXPIRE_DAYS = 3
+EXTRACT_FILE_MAX_ITERATIONS = 10  # 解压文件最大迭代次数
 
 
 class TGPATaskTypeEnum(ChoicesEnum):

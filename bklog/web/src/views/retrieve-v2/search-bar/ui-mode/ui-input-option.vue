@@ -1257,7 +1257,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="ui-query-options">
+  <div class="ui-query-options" @click.stop="() => {}">
     <div class="ui-query-option-content">
       <div class="field-list">
         <div class="ui-search-input">

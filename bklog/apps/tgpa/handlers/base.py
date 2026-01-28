@@ -45,6 +45,7 @@ from apps.tgpa.constants import (
     TGPA_TASK_COLLECTOR_CONFIG_NAME,
     TGPA_TASK_SORT_FIELDS,
     TGPA_TASK_TARGET_FIELDS,
+    EXTRACT_FILE_MAX_ITERATIONS,
 )
 from apps.utils.bcs import Bcs
 from apps.utils.log import logger
@@ -121,6 +122,27 @@ class TGPAFileHandler:
                 log_entry.update(self.meta_fields)
                 output_file.write(f"{ujson.dumps(log_entry, ensure_ascii=False)}\n")
 
+    @classmethod
+    def extract_nested_zip(cls, extract_dir):
+        """
+        递归解压目录中的所有zip文件
+        :param extract_dir: 路径
+        """
+        iteration_count = 0
+        while iteration_count < EXTRACT_FILE_MAX_ITERATIONS:
+            iteration_count += 1
+            zip_files = [f for f in Path(extract_dir).rglob("*.zip") if f.is_file() and zipfile.is_zipfile(f)]
+            if not zip_files:
+                break
+
+            for zip_file in zip_files:
+                try:
+                    with zipfile.ZipFile(zip_file, "r") as zip_ref:
+                        zip_ref.extractall(zip_file.parent)
+                    os.remove(zip_file)
+                except Exception as e:
+                    logger.exception("Failed to extract zip file %s: %s", zip_file, e)
+
     def download_and_process_file(self, file_name):
         """
         下载并处理文件
@@ -129,6 +151,9 @@ class TGPAFileHandler:
         compressed_file_path = self.download_file(file_name)
         with zipfile.ZipFile(compressed_file_path, "r") as zip_ref:
             zip_ref.extractall(self.temp_dir)
+
+        # 递归解压嵌套的压缩包
+        self.extract_nested_zip(self.temp_dir)
 
         # 查找并处理日志文件，忽略异常，防止单个文件处理失败导致整个任务失败
         log_files = self.find_log_files(self.temp_dir)

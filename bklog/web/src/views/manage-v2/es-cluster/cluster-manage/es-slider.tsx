@@ -136,8 +136,8 @@ export default defineComponent({
       cluster_name: [
         { required: true, trigger: 'blur' },
         {
-          validator: (val: string) => new RegExp(/^[A-Za-z0-9_]+$/).test(val),
-          message: t('只支持输入字母，数字，下划线'),
+          validator: (val: string) => /^[_A-Za-z0-9][_A-Za-z0-9-]{0,49}$/.test(val),
+          message: t('支持字母、数字、下划线、连字符，不能以连字符开头'),
           trigger: 'blur',
         },
       ],
@@ -884,7 +884,7 @@ export default defineComponent({
                     <bk-input
                       maxlength={50}
                       readonly={isEdit.value}
-                      placeholder={t('支持字母、数字、下划线')}
+                      placeholder={t('支持字母、数字、下划线、连字符')}
                       value={basicFormData.value.cluster_name}
                       onChange={(val: string) => (basicFormData.value.cluster_name = val)}
                     />

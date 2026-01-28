@@ -114,7 +114,8 @@ module.exports = (baseConfig, { app, mobile, production, fta, log: _log, email =
 
     config.devServer = Object.assign({}, config.devServer || {}, {
       port: devConfig.port,
-      host: devConfig.host,
+      host: '0.0.0.0',
+      allowedHosts: 'all',
       open: false,
       static: [
         // 开发环境：优先直接从 node_modules 提供 log-web1-dll 资源
