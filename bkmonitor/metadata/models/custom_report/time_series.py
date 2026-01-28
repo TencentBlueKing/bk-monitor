@@ -1315,6 +1315,19 @@ class TimeSeriesScope(models.Model):
             scope_name_to_metrics[scope_name].append(metric_info)
             scope_name_to_dimensions[scope_name]["dimensions"].update(tag_list.keys())
 
+        # 检查并补充缺失的默认分组
+        checked_prefixes = set()
+        for scope_name in list(scope_name_to_dimensions.keys()):
+            prefix = cls.get_scope_name_prefix(scope_name)
+            if prefix and prefix not in checked_prefixes:
+                checked_prefixes.add(prefix)
+                default_scope_name = f"{prefix}||{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
+                if default_scope_name not in scope_name_to_dimensions:
+                    scope_name_to_dimensions[default_scope_name] = {
+                        "dimensions": set(),
+                        "create_from_default": True,
+                    }
+
         return scope_name_to_metrics, scope_name_to_dimensions
 
     @classmethod
@@ -1977,7 +1990,9 @@ class TimeSeriesMetric(models.Model):
             # 更新 is_active 字段：指标在返回列表中，标记为活跃
             if not obj.is_active:
                 logger.info(
-                    "_bulk_update_metrics: set active metrics for group_id->[%s], metric->[%s]", group_id, metric
+                    "_bulk_update_metrics: set active metrics for group_id->[%s], metric->[%s]",
+                    group_id,
+                    obj.field_name,
                 )
                 is_need_update = True
                 obj.is_active = True
@@ -1994,7 +2009,7 @@ class TimeSeriesMetric(models.Model):
         cls.objects.bulk_update(
             records,
             ["last_modify_time", "tag_list", "scope_id", "field_config", "is_active"],
-            batch_size=BULK_UPDATE_BATCH_SIZE
+            batch_size=BULK_UPDATE_BATCH_SIZE,
         )
         return need_push_router
 
@@ -2051,8 +2066,8 @@ class TimeSeriesMetric(models.Model):
             )
 
         # 处理不在返回列表中的已存在指标，设置为非活跃
-        existing_metrics_set = set(metrics_by_group_id)
-        inactive_metrics = existing_metrics_set - _metrics
+        existing_metrics_set = set(old_records)
+        inactive_metrics = existing_metrics_set - new_records
         if inactive_metrics:
             # 批量更新不在返回列表中的指标为非活跃状态
             cls.objects.filter(group_id=group_id, field_name__in=inactive_metrics, is_active=True).update(
@@ -2398,7 +2413,12 @@ class TimeSeriesMetric(models.Model):
             metrics_to_create.append(metric_data_copy)
 
         scopes_dict = {scope.id: scope for scope in TimeSeriesScope.objects.filter(group_id=group_id)}
-        scopes_dict[TimeSeriesMetric.DISABLE_SCOPE_ID] = None
+        scopes_dict[TimeSeriesMetric.DISABLE_SCOPE_ID] = TimeSeriesScope(
+            id=TimeSeriesMetric.DISABLE_SCOPE_ID,
+            group_id=-1,
+            scope_name="DISABLE_SCOPE_ID",
+            create_from=TimeSeriesScope.CREATE_FROM_DEFAULT,
+        )
 
         # 批量创建新指标
         if metrics_to_create:
