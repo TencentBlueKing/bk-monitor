@@ -24,11 +24,6 @@ logger = logging.getLogger("apm")
 
 
 class HostDiscover(CachedDiscoverMixin, DiscoverBase):
-    """
-    Host 发现类
-    使用多继承: CachedDiscoverMixin 提供缓存功能, DiscoverBase 提供基础发现功能
-    """
-
     DISCOVERY_ALL_SPANS = True
     MAX_COUNT = 100000
     PAGE_LIMIT = 100
@@ -78,7 +73,6 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
     # ========== Host 特有的业务方法 ==========
 
     def list_exists(self):
-        """查询现有的 host 实例，返回用于快速查找的字典"""
         res = {}
         instances = HostInstance.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         for i in instances:
@@ -86,12 +80,10 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         return res
 
     def get_remain_data(self):
-        """提前获取 list_exists 数据供循环复用"""
         return self.list_exists()
 
     def discover_with_remain_data(self, origin_data, remain_data):
         """
-        使用预先获取的数据进行发现
         Discover host IP if user fill resource.net.host.ip when define resource in OT SDK
         """
         exists_hosts = remain_data
@@ -105,7 +97,6 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         self._do_discover(exists_hosts, origin_data)
 
     def _do_discover(self, exists_hosts, origin_data):
-        """核心发现逻辑"""
         find_ips = set()
 
         for span in origin_data:
@@ -119,15 +110,15 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
 
         # try to get bk_cloud_id if register in bk_cmdb
         cloud_id_mapping = self.list_bk_cloud_id([i[-1] for i in find_ips])
-        need_update_host_ids = set()
-        need_create_hosts = set()
+        need_update_instance_ids = set()
+        need_create_instances = set()
 
         for service_name, ip in find_ips:
             found_key = (*(cloud_id_mapping.get(ip, (self.DEFAULT_BK_CLOUD_ID, None))), ip, service_name)
             if found_key in exists_hosts:
-                need_update_host_ids |= exists_hosts[found_key]
+                need_update_instance_ids |= exists_hosts[found_key]
             else:
-                need_create_hosts.add(found_key)
+                need_create_instances.add(found_key)
 
         # create
         HostInstance.objects.bulk_create(
@@ -140,29 +131,24 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
                     ip=i[2],
                     topo_node_key=i[3],
                 )
-                for i in need_create_hosts
+                for i in need_create_instances
             ]
         )
 
-        # query cache data and database data(with object_pk_id)
         cache_data, host_data = self.query_cache_and_instance_data()
-
-        # delete database data (使用基类的 clear_data 方法)
         delete_host_keys = self.clear_data(cache_data, host_data)
 
-        # refresh cache data
         # 找出新创建的 host 对应的 keys
-        create_host_dict = {(h[0], h[1], h[2]): h for h in need_create_hosts}
+        create_host_dict = {(h[0], h[1], h[2]): h for h in need_create_instances}
         create_host_data = [
             h for h in host_data if (h.get("bk_cloud_id"), h.get("bk_host_id"), h.get("ip")) in create_host_dict
         ]
         _, create_host_keys = self.to_id_and_key(create_host_data)
 
         # 找出更新的 host 对应的 keys
-        update_host_data = [h for h in host_data if h.get("id") in need_update_host_ids]
+        update_host_data = [h for h in host_data if h.get("id") in need_update_instance_ids]
         _, update_host_keys = self.to_id_and_key(update_host_data)
 
-        # 使用基类的 refresh_cache_data 方法
         self.refresh_cache_data(
             old_cache_data=cache_data,
             create_instance_keys=create_host_keys,
