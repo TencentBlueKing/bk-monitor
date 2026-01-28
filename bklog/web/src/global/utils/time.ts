@@ -44,18 +44,18 @@ export const formatTimeZoneString = (
  * @returns
  */
 export const formatTimeStampZone = (timestamp: number, timezone: string, format?: string) => {
+  let formatStr = format || 'YYYY-MM-DD HH:mm:ss.SSS';
+
   if (!format) {
     const milliseconds = `${timestamp}`.toString().split('.')[1]?.length ?? 0;
     if (milliseconds > 0) {
-      format = `YYYY-MM-DD HH:mm:ss.${'S'.repeat(milliseconds)}`;
-    } else {
-      format = 'YYYY-MM-DD HH:mm:ss.SSS';
+      formatStr = `YYYY-MM-DD HH:mm:ss.${'S'.repeat(milliseconds)}`;
     }
   }
 
   if (/^\d+(\.\d+)?$/.test(`${timestamp}`)) {
     return dayjs.utc(Number(timestamp)).tz(timezone)
-      .format(format);
+      .format(formatStr);
   }
 
   return timestamp;
