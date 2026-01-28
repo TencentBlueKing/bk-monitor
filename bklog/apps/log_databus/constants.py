@@ -722,6 +722,20 @@ class OTLPProxyHostConfig:
     HTTP_SCHEME = "http://"
 
 
+class GrokOriginEnum(ChoicesEnum):
+    """
+    Grok规则来源枚举
+    """
+
+    BUILTIN = "builtin"
+    CUSTOM = "custom"
+
+    _choices_labels = (
+        (BUILTIN, _("内置")),
+        (CUSTOM, _("自定义")),
+    )
+
+
 RETRIEVE_CHAIN = [
     "set_itsm_info",
     "set_split_rule",
@@ -739,20 +753,5 @@ RETRIEVE_CHAIN = [
 
 # 一次性处理集群用量数量
 BATCH_SYNC_CLUSTER_COUNT = 500
-
-
-class GrokOriginEnum(ChoicesEnum):
-    """
-    Grok规则来源枚举
-    """
-
-    BUILTIN = "builtin"
-    CUSTOM = "custom"
-
-    _choices_labels = (
-        (BUILTIN, _("内置")),
-        (CUSTOM, _("自定义")),
-    )
-
 
 MIN_FLATTENED_SUPPORT_VERSION = "7.3"
