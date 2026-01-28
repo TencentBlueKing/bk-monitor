@@ -136,7 +136,11 @@ langchain-community==0.3.28
 langchain-core==0.3.75
 langchain-mcp-adapters==0.1.9
 
+# 客户端日志
 python-magic==0.4.27
+
+# Grok
+pygrok==1.0.0
 
 # 各自环境所需的不同依赖, 通过 sites/${env}/deploy/requirements_env.txt得到
 -r requirements_env.txt

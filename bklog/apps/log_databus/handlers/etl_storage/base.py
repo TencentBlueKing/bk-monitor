@@ -930,6 +930,7 @@ class EtlStorage:
             target_fields=target_fields,
         )
         enable_v4 = getattr(instance, "enable_v4", False)
+        etl_params["bk_biz_id"] = instance.get_bk_biz_id()
         result_table_config = self.get_result_table_config(
             fields, etl_params, built_in_config, es_version=es_version, enable_v4=enable_v4
         )
