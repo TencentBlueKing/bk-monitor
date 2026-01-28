@@ -184,8 +184,27 @@ class DefaultContent(BaseContextObject):
     @cached_property
     def receivers(self):
         """
-        历史负责人 + 知会人信息
+        告警接收人信息
+        优先使用 context 中的 notice_receiver（与实际发送通知时使用的 notice_receivers 一致）
+        如果 notice_receiver 不存在，则使用 alarm.receivers（从 alert.assignee 获取）
+
+        注意：
+        - alert 是 AlertDocument 实例，存储在 ES (Elasticsearch) 中
+        - alert.assignee 字段在告警分派时设置，存储在 ES 的 AlertDocument 中
+        - notice_receiver 来自 action.inputs.get("notice_receiver") 或 action.assignee，与实际发送通知时使用的 notice_receivers 一致
         """
+        # 优先使用 context 中的 notice_receiver（与实际发送通知时使用的 notice_receivers 一致）
+        if hasattr(self.parent, "notice_receiver") and self.parent.notice_receiver:
+            notice_receiver = self.parent.notice_receiver
+            # notice_receiver 可能是字符串或列表
+            if isinstance(notice_receiver, list):
+                if notice_receiver:
+                    return ",".join(notice_receiver)
+            elif notice_receiver:
+                return notice_receiver if isinstance(notice_receiver, str) else str(notice_receiver)
+
+        # 如果 notice_receiver 不存在，fallback 到 alarm.receivers（从 alert.assignee 获取）
+        # alert 是 AlertDocument 实例，存储在 ES 中，assignee 字段在告警分派时设置
         if self.parent.alarm.receivers:
             return ",".join(self.parent.alarm.receivers)
         return None
