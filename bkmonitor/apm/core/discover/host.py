@@ -10,13 +10,12 @@ specific language governing permissions and limitations under the License.
 
 from itertools import chain
 import logging
-import time
-from datetime import datetime
 
-import pytz
 from opentelemetry.semconv.trace import SpanAttributes
 
+from apm.constants import DEFAULT_HOST_EXPIRE
 from apm.core.discover.base import DiscoverBase, extract_field_value
+from apm.core.discover.cached_mixin import CachedDiscoverMixin
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.models import HostInstance
 from constants.apm import OtlpKey
@@ -24,7 +23,12 @@ from constants.apm import OtlpKey
 logger = logging.getLogger("apm")
 
 
-class HostDiscover(DiscoverBase):
+class HostDiscover(CachedDiscoverMixin, DiscoverBase):
+    """
+    Host 发现类
+    使用多继承: CachedDiscoverMixin 提供缓存功能, DiscoverBase 提供基础发现功能
+    """
+
     DISCOVERY_ALL_SPANS = True
     MAX_COUNT = 100000
     PAGE_LIMIT = 100
@@ -32,98 +36,38 @@ class HostDiscover(DiscoverBase):
     HOST_ID_SPLIT = ":"
     model = HostInstance
 
+    # ========== 实现 CachedDiscoverMixin 的抽象方法 ==========
+
+    def get_cache_key(self) -> str:
+        """获取 Redis 缓存的 key"""
+        return ApmCacheHandler.get_host_cache_key(self.bk_biz_id, self.app_name)
+
+    def get_cache_expire(self) -> int:
+        """获取缓存过期时间"""
+        return DEFAULT_HOST_EXPIRE
+
     @classmethod
-    def to_host_key(cls, object_pk_id, bk_cloud_id, bk_host_id, ip):
+    def to_instance_key(cls, object_pk_id, bk_cloud_id, bk_host_id, ip) -> str:
         """生成 host 缓存 key"""
         return cls.HOST_ID_SPLIT.join([str(object_pk_id), str(bk_cloud_id), str(bk_host_id), str(ip)])
 
     @classmethod
-    def to_id_and_key(cls, hosts: list) -> tuple[set, set]:
-        """
-        数据提取转化
-        :param hosts: host 实例列表
-        :return: (ids, keys)
-        """
-        ids, keys = set(), set()
-        for host in hosts:
-            host_id = host.get("id")
-            host_key = cls.to_host_key(host_id, host.get("bk_cloud_id"), host.get("bk_host_id"), host.get("ip"))
-            keys.add(host_key)
-            ids.add(host_id)
-        return ids, keys
+    def extract_instance_key_params(cls, instance: dict) -> tuple:
+        """从实例字典中提取用于生成 key 的参数"""
+        return instance.get("id"), instance.get("bk_cloud_id"), instance.get("bk_host_id"), instance.get("ip")
 
-    @classmethod
-    def merge_data(cls, hosts: list, cache_data: dict) -> list:
-        """
-        更新 updated_at 字段
-        :param hosts: host 数据
-        :param cache_data: 缓存数据
-        :return: 合并后的数据
-        """
-        merge_data = []
-        for host in hosts:
-            key = cls.to_host_key(host.get("id"), host.get("bk_cloud_id"), host.get("bk_host_id"), host.get("ip"))
-            if key in cache_data:
-                host["updated_at"] = datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
-            merge_data.append(host)
-        return merge_data
+    # ========== 重写 CachedDiscoverMixin 方法以适配 Host 特有字段 ==========
 
-    def host_clear_if_overflow(self, hosts: list) -> tuple[list, list]:
+    def query_cache_and_instance_data(self) -> tuple[dict, list]:
         """
-        数据量大于100000时, 清除数据
-        :param hosts: host 数据
-        :return: (删除的数据, 保留的数据)
-        """
-        overflow_delete_data = []
-        count = len(hosts)
-        if count > self.MAX_COUNT:
-            delete_count = count - self.MAX_COUNT
-            # 按照updated_at排序，从小到大
-            hosts.sort(key=lambda item: item.get("updated_at"))
-            overflow_delete_data = hosts[:delete_count]
-            remain_host_data = hosts[delete_count:]
-        else:
-            remain_host_data = hosts
-        return overflow_delete_data, remain_host_data
-
-    def host_clear_expired(self, hosts: list) -> tuple[list, list]:
-        """
-        清除过期数据
-        :param hosts: host 数据
-        :return: (过期的数据, 保留的数据)
-        """
-        # mysql 中的 updated_at 时间字段, 它的时区是 UTC, 跟数据库保持一致
-        from datetime import timedelta
-
-        boundary = datetime.now(tz=pytz.UTC) - timedelta(days=self.application.trace_datasource.retention)
-        # 按照时间进行过滤
-        expired_delete_data = []
-        remain_host_data = []
-        for host in hosts:
-            if host.get("updated_at") <= boundary:
-                expired_delete_data.append(host)
-            else:
-                remain_host_data.append(host)
-        return expired_delete_data, remain_host_data
-
-    def list_exists(self):
-        res = {}
-        instances = HostInstance.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        for i in instances:
-            res.setdefault((i.bk_cloud_id, i.bk_host_id, i.ip, i.topo_node_key), set()).add(i.id)
-
-        return res
-
-    def query_cache_and_host_data(self) -> tuple[dict, list]:
-        """
-        缓存数据及 host 数据查询
+        查询缓存数据和数据库数据
         :return: (cache_data, host_data)
         """
         # 查询应用下的缓存数据
-        name = ApmCacheHandler.get_host_cache_key(self.bk_biz_id, self.app_name)
-        cache_data = ApmCacheHandler().get_cache_data(name)
+        cache_key = self.get_cache_key()
+        cache_data = ApmCacheHandler().get_cache_data(cache_key)
 
-        # 查询应用下的 host 数据
+        # 查询应用下的 host 数据（包含 Host 特有字段）
         filter_params = {"bk_biz_id": self.bk_biz_id, "app_name": self.app_name}
         host_data = list(
             HostInstance.objects.filter(**filter_params).values("id", "bk_cloud_id", "bk_host_id", "ip", "updated_at")
@@ -131,53 +75,23 @@ class HostDiscover(DiscoverBase):
 
         return cache_data, host_data
 
-    def clear_data(self, cache_data: dict, host_data: list) -> set:
-        """
-        数据清除
-        :param cache_data: 缓存数据
-        :param host_data: mysql 数据
-        :return: 需要删除的 host keys
-        """
-        merge_data = self.merge_data(host_data, cache_data)
-        # 过期数据
-        expired_delete_data, remain_host_data = self.host_clear_expired(merge_data)
-        # 超量数据
-        overflow_delete_data, remain_host_data = self.host_clear_if_overflow(remain_host_data)
-        delete_data = expired_delete_data + overflow_delete_data
+    # ========== Host 特有的业务方法 ==========
 
-        delete_ids, delete_keys = self.to_id_and_key(delete_data)
-        if delete_ids:
-            self.model.objects.filter(pk__in=delete_ids).delete()
-
-        return delete_keys
-
-    def refresh_cache_data(
-        self,
-        old_cache_data: dict,
-        create_host_keys: set,
-        update_host_keys: set,
-        delete_host_keys: set,
-    ):
-        """
-        刷新缓存数据
-        :param old_cache_data: 旧的缓存数据
-        :param create_host_keys: 新创建的 host keys
-        :param update_host_keys: 更新的 host keys
-        :param delete_host_keys: 删除的 host keys
-        """
-        from apm.constants import DEFAULT_HOST_EXPIRE
-
-        now = int(time.time())
-        old_cache_data.update({i: now for i in (create_host_keys | update_host_keys)})
-        cache_data = {i: old_cache_data[i] for i in (set(old_cache_data.keys()) - delete_host_keys)}
-        name = ApmCacheHandler.get_host_cache_key(self.bk_biz_id, self.app_name)
-        ApmCacheHandler().refresh_data(name, cache_data, DEFAULT_HOST_EXPIRE)
+    def list_exists(self):
+        """查询现有的 host 实例，返回用于快速查找的字典"""
+        res = {}
+        instances = HostInstance.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        for i in instances:
+            res.setdefault((i.bk_cloud_id, i.bk_host_id, i.ip, i.topo_node_key), set()).add(i.id)
+        return res
 
     def get_remain_data(self):
+        """提前获取 list_exists 数据供循环复用"""
         return self.list_exists()
 
     def discover_with_remain_data(self, origin_data, remain_data):
         """
+        使用预先获取的数据进行发现
         Discover host IP if user fill resource.net.host.ip when define resource in OT SDK
         """
         exists_hosts = remain_data
@@ -191,6 +105,7 @@ class HostDiscover(DiscoverBase):
         self._do_discover(exists_hosts, origin_data)
 
     def _do_discover(self, exists_hosts, origin_data):
+        """核心发现逻辑"""
         find_ips = set()
 
         for span in origin_data:
@@ -230,9 +145,9 @@ class HostDiscover(DiscoverBase):
         )
 
         # query cache data and database data(with object_pk_id)
-        cache_data, host_data = self.query_cache_and_host_data()
+        cache_data, host_data = self.query_cache_and_instance_data()
 
-        # delete database data
+        # delete database data (使用基类的 clear_data 方法)
         delete_host_keys = self.clear_data(cache_data, host_data)
 
         # refresh cache data
@@ -247,11 +162,12 @@ class HostDiscover(DiscoverBase):
         update_host_data = [h for h in host_data if h.get("id") in need_update_host_ids]
         _, update_host_keys = self.to_id_and_key(update_host_data)
 
+        # 使用基类的 refresh_cache_data 方法
         self.refresh_cache_data(
             old_cache_data=cache_data,
-            create_host_keys=create_host_keys,
-            update_host_keys=update_host_keys,
-            delete_host_keys=delete_host_keys,
+            create_instance_keys=create_host_keys,
+            update_instance_keys=update_host_keys,
+            delete_instance_keys=delete_host_keys,
         )
 
     def list_bk_cloud_id(self, ips: list[str]) -> dict[str, tuple[int, int]]:
