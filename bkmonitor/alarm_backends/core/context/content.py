@@ -198,8 +198,8 @@ class DefaultContent(BaseContextObject):
             notice_receiver = self.parent.notice_receiver
             # notice_receiver 可能是字符串或列表
             if isinstance(notice_receiver, list):
-                if notice_receiver:
-                    return ",".join(notice_receiver)
+                # 空列表也应该返回空字符串，而不是 fallback
+                return ",".join(notice_receiver) if notice_receiver else ""
             elif notice_receiver:
                 return notice_receiver if isinstance(notice_receiver, str) else str(notice_receiver)
 
