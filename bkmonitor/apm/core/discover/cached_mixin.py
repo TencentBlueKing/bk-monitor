@@ -139,7 +139,7 @@ class CachedDiscoverMixin(ABC):
         """
         from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 
-        # 查询应用下的缓存数据 - 使用容器模式
+        # 查询应用下的缓存数据
         cache_key = ApmCacheHandler.get_cache_key(self.get_cache_type(), self.bk_biz_id, self.app_name)
         cache_data = ApmCacheHandler().get_cache_data(cache_key)
 
@@ -177,21 +177,16 @@ class CachedDiscoverMixin(ABC):
         update_instance_keys: set,
         delete_instance_keys: set,
     ):
-        """
-        刷新 Redis 缓存数据
-        :param old_cache_data: 旧的缓存数据
-        :param create_instance_keys: 新创建的 instance keys
-        :param update_instance_keys: 更新的 instance keys
-        :param delete_instance_keys: 删除的 instance keys
-        """
+        """刷新 Redis 缓存数据"""
         from apm.constants import ApmCacheConfig
         from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 
         now = int(time.time())
-        old_cache_data.update({i: now for i in (create_instance_keys | update_instance_keys)})
-        cache_data = {i: old_cache_data[i] for i in (set(old_cache_data.keys()) - delete_instance_keys)}
 
-        # 使用容器模式
+        # 先过滤要删除的 keys，再添加新的/更新的
+        cache_data = {key: val for key, val in old_cache_data.items() if key not in delete_instance_keys}
+        cache_data.update({key: now for key in create_instance_keys | update_instance_keys})
+
         cache_key = ApmCacheHandler.get_cache_key(self.get_cache_type(), self.bk_biz_id, self.app_name)
         cache_expire = ApmCacheConfig.get_expire_time(self.get_cache_type())
         ApmCacheHandler().refresh_data(cache_key, cache_data, cache_expire)

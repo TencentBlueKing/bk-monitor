@@ -62,7 +62,7 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         :return: (cache_data, host_data)
         """
 
-        # 查询缓存数据 - 直接使用容器模式
+        # 查询缓存数据
         cache_key = ApmCacheHandler.get_cache_key(self.get_cache_type(), self.bk_biz_id, self.app_name)
         cache_data = ApmCacheHandler().get_cache_data(cache_key)
 
