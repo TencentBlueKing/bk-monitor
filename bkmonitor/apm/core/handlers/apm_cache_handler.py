@@ -7,6 +7,7 @@ from django.conf import settings
 
 from apm.constants import (
     APM_ENDPOINT,
+    APM_HOST,
     APM_TOPO_INSTANCE,
     DEFAULT_APM_CACHE_EXPIRE,
 )
@@ -58,6 +59,10 @@ class ApmCacheHandler:
     @staticmethod
     def get_endpoint_cache_key(bk_biz_id, app_name):
         return APM_ENDPOINT.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
+
+    @staticmethod
+    def get_host_cache_key(bk_biz_id, app_name):
+        return APM_HOST.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
 
     def refresh_data(self, name: str, update_map: dict, ex: int = DEFAULT_APM_CACHE_EXPIRE):
         """
