@@ -774,8 +774,6 @@ class StorageUpdateSerializer(serializers.Serializer):
         if attrs.get("display_name") in exist_display_name_list:
             raise ValidationError(_("该集群名称已存在"))
 
-        attrs.pop("cluster_name")
-
         if not attrs["enable_hot_warm"]:
             return attrs
 

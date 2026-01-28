@@ -1295,4 +1295,22 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "apm service list"
+  /app/apm/profile_query_export/:
+    get:
+      operationId: profile_query_export
+      description: 导出 profile 查询结果
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/apm_profile_query_web/export/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "export profile query"
 

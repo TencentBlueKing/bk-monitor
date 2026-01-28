@@ -37,5 +37,6 @@ from .event_v2 import *  # noqa
 from .gse import *  # noqa
 from .log_search import *  # noqa
 from .subscribe import *  # noqa
+from .utils import *  # noqa
 from .ai_repo import *  # noqa
 from .alert_v2 import *  # noqa

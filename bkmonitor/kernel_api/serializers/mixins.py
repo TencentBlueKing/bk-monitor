@@ -11,9 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 
 from rest_framework import serializers
-
-# 1 day in seconds
-ONE_DAY_SECONDS = 86400
+from django.conf import settings
 
 
 class TimeSpanValidationPassThroughSerializer(serializers.Serializer):
@@ -21,8 +19,6 @@ class TimeSpanValidationPassThroughSerializer(serializers.Serializer):
     透传序列化器，先进行常规字段验证和默认值应用，然后验证时间跨度是否超过1天。
     用于 AI MCP 请求，避免 LLM 上下文超限。
     """
-
-    max_time_span_seconds = ONE_DAY_SECONDS
 
     @staticmethod
     def _convert_timestamp_to_seconds(timestamp: int) -> float:
@@ -75,10 +71,10 @@ class TimeSpanValidationPassThroughSerializer(serializers.Serializer):
                 end_time_seconds = self._convert_timestamp_to_seconds(end_time_int)
 
                 time_span = end_time_seconds - start_time_seconds
-                if time_span > self.max_time_span_seconds:
+                if time_span > settings.MCP_MAX_TIME_SPAN_SECONDS:
                     raise serializers.ValidationError(
                         {
-                            "time_span": "Query time span exceeds 1 day. To avoid LLM context overflow, please split into batch queries."
+                            "time_span": f"Query time span exceeds the limit. To avoid LLM context overflow, please split into batch queries. The limit is {settings.MCP_MAX_TIME_SPAN_SECONDS} seconds."
                         }
                     )
             except serializers.ValidationError:
