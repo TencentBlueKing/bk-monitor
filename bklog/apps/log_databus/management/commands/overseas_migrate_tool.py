@@ -132,8 +132,6 @@ class OverseasMigrateTool:
         aiops_model_experiment_success_migrate_ids = []
         aiops_signature_and_pattern_success_migrate_ids = []
         sample_set_success_migrate_ids = []
-        clustering_remark_success_migrate_ids = []
-        regex_template_success_migrate_ids = []
         index_set_success_migrate_index_set_ids = []
         index_set_data_success_migrate_index_ids = []
         collector_config_success_migrate_collector_config_ids = []
