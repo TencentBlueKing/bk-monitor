@@ -394,7 +394,12 @@ class TopoHandler:
             )
 
         duration = (datetime.datetime.now() - start).seconds
-        logger.info(f"[{handle_type}] round discover success. span count: {len(spans)} duration: {duration}ms")
+        logger.info(
+            f"[TopoHandler] round discover success. "
+            f"bk_biz_id: {self.bk_biz_id} app_name: {self.app_name} "
+            f"discover: {str(discover)} handle_type: {handle_type} "
+            f"span count: {len(spans)} duration: {duration}ms"
+        )
 
     def _get_trace_task_splits(self):
         """根据此索引最大的结果返回数量判断每个子任务需要传递多少个traceId"""
