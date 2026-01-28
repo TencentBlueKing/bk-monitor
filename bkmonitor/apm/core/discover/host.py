@@ -43,14 +43,19 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         return ApmCacheType.HOST
 
     @classmethod
-    def to_instance_key(cls, object_pk_id, bk_cloud_id, bk_host_id, ip) -> str:
+    def to_instance_key(cls, bk_cloud_id, bk_host_id, ip, topo_node_key) -> str:
         """生成 host 缓存 key"""
-        return cls.HOST_ID_SPLIT.join([str(object_pk_id), str(bk_cloud_id), str(bk_host_id), str(ip)])
+        return cls.HOST_ID_SPLIT.join([str(bk_cloud_id), str(bk_host_id), str(ip), str(topo_node_key)])
 
     @classmethod
     def extract_instance_key_params(cls, instance: dict) -> tuple:
         """从实例字典中提取用于生成 key 的参数"""
-        return instance.get("id"), instance.get("bk_cloud_id"), instance.get("bk_host_id"), instance.get("ip")
+        return (
+            instance.get("bk_cloud_id"),
+            instance.get("bk_host_id"),
+            instance.get("ip"),
+            instance.get("topo_node_key"),
+        )
 
     # ========== Host 特有的业务方法 ==========
 
@@ -69,6 +74,7 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
                 "bk_cloud_id": i.bk_cloud_id,
                 "bk_host_id": i.bk_host_id,
                 "ip": i.ip,
+                "topo_node_key": i.topo_node_key,
                 "updated_at": i.updated_at,
             }
             res.setdefault((i.bk_cloud_id, i.bk_host_id, i.ip, i.topo_node_key), set()).add(i.id)
@@ -146,6 +152,7 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
                     "bk_cloud_id": h[0],
                     "bk_host_id": h[1],
                     "ip": h[2],
+                    "topo_node_key": h[3],
                     "updated_at": None,
                 }
                 for h in need_create_instances
