@@ -82,20 +82,28 @@ class BkLogRegexpEtlStorage(EtlStorage):
         # 判断是否为grok表达式
         pattern = etl_params["separator_regexp"]
         if GrokHandler.is_grok_pattern(pattern):
-            operator = {"type": "grok", "grok": GrokHandler(etl_params["bk_biz_id"]).replace_custom_patterns(pattern)}
+            operator = {
+                "type": "grok",
+                "grok": GrokHandler(etl_params["bk_biz_id"]).replace_custom_patterns(pattern)
+            }
         else:
             operator = {"type": "regexp", "regexp": pattern}
 
         # 组装API请求参数
         api_request = {
             "input": data,
-            "rules": [{"input_id": "__raw_data", "output_id": "bk_separator_object", "operator": operator}],
-            "filter_rules": [],
+            "rules": [
+                {
+                    "input_id": "__raw_data",
+                    "output_id": "bk_separator_object",
+                    "operator": operator
+                }
+            ],
+            "filter_rules": []
         }
 
         # 调用BkDataDatabusApi.databus_clean_debug方法
         from apps.api import BkDataDatabusApi
-
         api_response = BkDataDatabusApi.databus_clean_debug(api_request)
 
         # 解析API响应
@@ -110,7 +118,11 @@ class BkLogRegexpEtlStorage(EtlStorage):
             if key_info.get("type") == "key":
                 field_name = key_info.get("value", "")
                 field_value = values.get(field_name, "")
-                result.append({"field_index": i + 1, "field_name": field_name, "value": field_value})
+                result.append({
+                    "field_index": i + 1,
+                    "field_name": field_name,
+                    "value": field_value
+                })
 
         return result
 
@@ -120,7 +132,7 @@ class BkLogRegexpEtlStorage(EtlStorage):
         """
         # 判断字段是否都在正则表达式中定义
         for field in fields:
-            if field.get("is_config_by_user") and f"<{field['field_name']}>" not in etl_params["separator_regexp"]:
+            if field.get("is_config_by_user") and f'<{field["field_name"]}>' not in etl_params["separator_regexp"]:
                 raise ValidationError(_("字段未在正则表达式中定义：") + field["field_name"])
 
         # option
@@ -149,9 +161,7 @@ class BkLogRegexpEtlStorage(EtlStorage):
         # 检查是否启用V4数据链路
         if enable_v4:
             result_table_config["option"]["enable_log_v4_data_link"] = True
-            result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(
-                fields, etl_params, built_in_config
-            )
+            result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(fields, etl_params, built_in_config)
 
         return result_table_config
 
@@ -163,53 +173,59 @@ class BkLogRegexpEtlStorage(EtlStorage):
         rules = []
 
         # 1. JSON解析阶段（原始数据 -> json_data）
-        rules.append(
-            {
-                "input_id": "__raw_data",
-                "output_id": "json_data",
-                "operator": {"type": "json_de", "error_strategy": "drop"},
+        rules.append({
+            "input_id": "__raw_data",
+            "output_id": "json_data",
+            "operator": {
+                "type": "json_de",
+                "error_strategy": "drop"
             }
-        )
+        })
 
         # 2. 提取内置字段（从json_data提取内置字段）
         built_in_rules = self._build_built_in_fields_v4(built_in_config)
         rules.extend(built_in_rules)
 
         # 3. 提取items数组并迭代
-        rules.extend(
-            [
-                {
-                    "input_id": "json_data",
-                    "output_id": "items",
-                    "operator": {
-                        "type": "get",
-                        "key_index": [{"type": "key", "value": "items"}],
-                        "missing_strategy": None,
-                    },
-                },
-                {"input_id": "items", "output_id": "iter_item", "operator": {"type": "iter"}},
-            ]
-        )
+        rules.extend([
+            {
+                "input_id": "json_data",
+                "output_id": "items",
+                "operator": {
+                    "type": "get",
+                    "key_index": [{"type": "key", "value": "items"}],
+                    "missing_strategy": None
+                }
+            },
+            {
+                "input_id": "items",
+                "output_id": "iter_item",
+                "operator": {"type": "iter"}
+            }
+        ])
 
         # 4. 从iter_item提取data字段作为原文
-        rules.extend(
-            [
-                {
-                    "input_id": "iter_item",
-                    "output_id": "log",
-                    "operator": {"type": "assign", "key_index": "data", "alias": "log", "output_type": "string"},
-                },
-                {
-                    "input_id": "iter_item",
-                    "output_id": "iter_string",
-                    "operator": {
-                        "type": "get",
-                        "key_index": [{"type": "key", "value": "data"}],
-                        "missing_strategy": None,
-                    },
-                },
-            ]
-        )
+        rules.extend([
+            {
+                "input_id": "iter_item",
+                "output_id": "log",
+                "operator": {
+                    "type": "assign",
+                    "key_index": "data",
+                    "alias": "log",
+                    "output_type": "string"
+                }
+            },
+            {
+                "input_id": "iter_item",
+                "output_id": "iter_string",
+                "operator": {
+                    "type": "get",
+                    "key_index": [{"type": "key", "value": "data"}],
+                    "missing_strategy": None
+                }
+            }
+        ])
 
         # 4.1. 提取iterationIndex字段（从iter_item提取，参考v3的flat_field处理）
         iteration_index_rules = self._build_iteration_index_field_v4(built_in_config)
@@ -223,25 +239,27 @@ class BkLogRegexpEtlStorage(EtlStorage):
         else:
             operator = {"type": "regex", "regex": pattern}
 
-        rules.append({"input_id": "iter_string", "output_id": "bk_separator_object", "operator": operator})
+        rules.append({
+            "input_id": "iter_string",
+            "output_id": "bk_separator_object",
+            "operator": operator
+        })
 
         # 6. 字段映射
         for field in fields:
             if field.get("is_delete"):
                 continue
 
-            rules.append(
-                {
-                    "input_id": "bk_separator_object",
-                    "output_id": field["field_name"],
-                    "operator": {
-                        "type": "assign",
-                        "key_index": field["field_name"],
-                        "alias": field["field_name"],
-                        "output_type": self._get_output_type(field["field_type"]),
-                    },
+            rules.append({
+                "input_id": "bk_separator_object",
+                "output_id": field["field_name"],
+                "operator": {
+                    "type": "assign",
+                    "key_index": field["field_name"],
+                    "alias": field["field_name"],
+                    "output_type": self._get_output_type(field["field_type"])
                 }
-            )
+            })
 
         # 6.1. 处理dtEventTimeStampNanos字段（从用户指定的时间字段提取）
         rules.extend(self._build_nanos_time_field_v4(built_in_config))
@@ -253,51 +271,53 @@ class BkLogRegexpEtlStorage(EtlStorage):
             path_regexp = separator_config.get("separator_regexp", "")
             if path_regexp:
                 # 从json_data提取path字段
-                rules.append(
-                    {
-                        "input_id": "json_data",
-                        "output_id": "path",
-                        "operator": {
-                            "type": "get",
-                            "key_index": [{"type": "key", "value": "filename"}],
-                            "missing_strategy": None,
-                        },
+                rules.append({
+                    "input_id": "json_data",
+                    "output_id": "path",
+                    "operator": {
+                        "type": "get",
+                        "key_index": [
+                            {
+                                "type": "key",
+                                "value": "filename"
+                            }
+                        ],
+                        "missing_strategy": None
                     }
-                )
+                })
 
                 # 从path字段提取路径信息
-                rules.append(
-                    {
-                        "input_id": "path",
-                        "output_id": "bk_separator_object_path",
-                        "operator": {"type": "regex", "regex": path_regexp},
+                rules.append({
+                    "input_id": "path",
+                    "output_id": "bk_separator_object_path",
+                    "operator": {
+                        "type": "regex",
+                        "regex": path_regexp
                     }
-                )
+                })
 
                 # 提取路径字段
                 pattern = re.compile(path_regexp)
                 match_fields = list(pattern.groupindex.keys())
                 for field_name in match_fields:
-                    rules.append(
-                        {
-                            "input_id": "bk_separator_object_path",
-                            "output_id": field_name,
-                            "operator": {
-                                "type": "assign",
-                                "key_index": field_name,
-                                "alias": field_name,
-                                "output_type": "string",
-                            },
+                    rules.append({
+                        "input_id": "bk_separator_object_path",
+                        "output_id": field_name,
+                        "operator": {
+                            "type": "assign",
+                            "key_index": field_name,
+                            "alias": field_name,
+                            "output_type": "string"
                         }
-                    )
+                    })
 
         return {
             "clean_rules": rules,
             "es_storage_config": {
                 "unique_field_list": built_in_config["option"]["es_unique_field_list"],
-                "timezone": 8,
+                "timezone": 8
             },
-            "doris_storage_config": None,
+            "doris_storage_config": None
         }
 
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):
