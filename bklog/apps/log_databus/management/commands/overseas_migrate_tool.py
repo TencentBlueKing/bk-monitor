@@ -7,8 +7,14 @@ from typing import Any
 from django.core.management import BaseCommand, CommandError
 from django.db import transaction
 
-from apps.log_clustering.models import AiopsModel, AiopsModelExperiment, AiopsSignatureAndPattern, SampleSet
-from apps.log_databus.exceptions import MySqlConfigException
+from apps.log_clustering.models import (
+    AiopsModel,
+    AiopsModelExperiment,
+    AiopsSignatureAndPattern,
+    SampleSet,
+    RegexTemplate,
+    ClusteringRemark,
+)
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import LogIndexSet, LogIndexSetData
@@ -17,15 +23,12 @@ from apps.utils.thread import generate_request
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 from home_application.management.commands.migrate_tool import (
     parse_str_int_list,
-    Database,
     JsonFile,
     MigrateStatus,
     Prompt,
 )
 
 PROJECT_PATH = os.getcwd()
-
-BK_LOG_SEARCH_OVERSEAS_MIGRATE_RESULT_TABLE = "bk_log_search_overseas_migrate_result_table"
 
 
 class Command(BaseCommand):
@@ -43,12 +46,6 @@ class Command(BaseCommand):
             help="存放 json 文件的文件夹路径",
             default=PROJECT_PATH,
         )
-        parser.add_argument("--mysql_config_source", type=str, help="公共数据库配置来源", default=None)
-        parser.add_argument("--mysql_host", help="公共数据库地址", type=str, default=None)
-        parser.add_argument("--mysql_port", help="公共数据库端口", type=int, default=None)
-        parser.add_argument("--mysql_db", help="公共数据库名称", type=str, default=None)
-        parser.add_argument("--mysql_user", help="公共数据库用户", type=str, default=None)
-        parser.add_argument("--mysql_password", help="公共数据库密码", type=str, default=None)
 
     def handle(self, *args, **options):
         dir_path = options["dir_path"]
@@ -75,43 +72,20 @@ class Command(BaseCommand):
         for key, json_filepath in json_filepath_dict.items():
             if not os.path.exists(json_filepath):
                 raise CommandError(f"json 文件不存在: {json_filepath}")
+
             if not json_filepath.endswith(".json"):
-                raise CommandError(f"文件格式错误(.json): {json_filepath}")
+                raise CommandError(f"json 文件格式错误(.json): {json_filepath}")
+
             try:
                 json_content = JsonFile.read(json_filepath)
             except Exception as e:
-                error_msg = f"读取 json 文件失败: {json_filepath}\n错误原因：{str(e)}"
-                raise Exception(error_msg) from e
+                error_msg = f"json 文件读取失败: {json_filepath}, 错误原因：{str(e)}"
+                raise CommandError(error_msg) from e
+
             json_content_dict[key] = json_content
-
-        if options["mysql_config_source"] == "default":
-            port = os.environ.get("DB_PORT", None)
-
-            try:
-                if port:
-                    port = int(port)
-            except Exception as e:
-                raise Exception(f"公共数据库默认配置错误, port 类型转换失败: {str(e)}") from e
-
-            mysql_config = {
-                "host": os.environ.get("DB_HOST"),
-                "port": port,
-                "db": os.environ.get("DB_NAME"),
-                "user": os.environ.get("DB_USERNAME"),
-                "password": os.environ.get("DB_PASSWORD"),
-            }
-        else:
-            mysql_config = {
-                "host": options["mysql_host"],
-                "port": options["mysql_port"],
-                "db": options["mysql_db"],
-                "user": options["mysql_user"],
-                "password": options["mysql_password"],
-            }
 
         OverseasMigrateTool(
             json_content_dict=json_content_dict,
-            mysql_config=mysql_config,
             bk_biz_id=options["bk_biz_id"],
             index_set_ids_str=options["index_set_ids"],
         ).migrate()
@@ -123,104 +97,99 @@ class OverseasMigrateTool:
     def __init__(
         self,
         json_content_dict: dict,
-        mysql_config: dict,
         bk_biz_id: int = 0,
         index_set_ids_str: str = "",
     ):
-        self.content_dict = json_content_dict
-        self.result_table_name = BK_LOG_SEARCH_OVERSEAS_MIGRATE_RESULT_TABLE
-
-        for key, config in mysql_config.items():
-            if key == "password":
-                continue
-
-            if not config:
-                raise MySqlConfigException()
-
-        self.db = Database(**mysql_config)
-        self.db.connect()
-        self.create_table_if_not_exists()
+        self.json_content_dict = json_content_dict
         self.bk_biz_id = bk_biz_id
         self.space_uid = ""
         if self.bk_biz_id:
             self.space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
         self.index_set_id_set = set(parse_str_int_list(index_set_ids_str))
 
-    def create_table_if_not_exists(self) -> None:
-        """创建日志平台海外迁移结果表"""
-        sql = f"""
-            CREATE TABLE IF NOT EXISTS `{self.result_table_name}` (
-                `id` int NOT NULL AUTO_INCREMENT COMMENT 'ID',
-                `bk_biz_id` int NOT NULL COMMENT '业务 ID（迁移前后不变）',
-                `space_uid` varchar(255) NOT NULL COMMENT '蓝鲸空间 UID（迁移前后不变）',
-                `index_set_id` int NOT NULL COMMENT '索引集 ID（迁移前后不变）',
-                `origin_collector_config_id` int COMMENT '原采集项 ID（旧环境）',
-                `collector_config_id` int COMMENT '新采集项ID（新环境）',
-                `status` varchar(32) NOT NULL COMMENT '迁移状态',
-                `details` text NOT NULL COMMENT '迁移详情',
-                PRIMARY KEY (`id`)
-            ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='日志平台海外迁移结果表';
-        """
-        self.db.execute_sql(sql)
-
     @transaction.atomic
     def migrate(self):
         """
         原数据迁移
         """
-        index_set_file_datas = self.content_dict.get("index_set", [])
+        index_set_id_set = set()
         if self.bk_biz_id and self.space_uid:
             index_set_file_datas = [
-                data for data in index_set_file_datas if data.get("space_uid", "") == self.space_uid
+                data
+                for data in self.json_content_dict.get("index_set", [])
+                if data.get("space_uid", "") == self.space_uid
             ]
-            self.index_set_id_set = set(
+            index_set_id_set = set(
                 [data.get("index_set_id") for data in index_set_file_datas if data.get("index_set_id")]
             )
+        else:
+            index_set_file_datas = self.json_content_dict.get("index_set", [])
+
+        if self.index_set_id_set and index_set_id_set:
+            self.index_set_id_set = self.index_set_id_set & index_set_id_set
+        elif not self.index_set_id_set and index_set_id_set:
+            self.index_set_id_set = index_set_id_set
 
         # 无外键关联, 直接迁移
-        self.file_datas_save_db(AiopsModel, self.content_dict.get("aiops_model", []))
-        self.file_datas_save_db(AiopsModelExperiment, self.content_dict.get("aiops_model_experiment", []))
-        self.file_datas_save_db(AiopsSignatureAndPattern, self.content_dict.get("aiops_signature_and_pattern", []))
-        self.file_datas_save_db(SampleSet, self.content_dict.get("sample_set", []))
+        self.file_datas_save_db(AiopsModel, self.json_content_dict.get("aiops_model", []))
+        self.file_datas_save_db(AiopsModelExperiment, self.json_content_dict.get("aiops_model_experiment", []))
+        self.file_datas_save_db(AiopsSignatureAndPattern, self.json_content_dict.get("aiops_signature_and_pattern", []))
+        self.file_datas_save_db(SampleSet, self.json_content_dict.get("sample_set", []))
 
         # 有外键关联, 需关联迁移
         # 创建数据字典，方便后续取值
-        collector_config_file_data_dict = {
-            data.get("index_set_id"): data for data in self.content_dict.get("collector_config", [])
-        }
-        index_set_data_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
-            "index_set_id", self.content_dict.get("index_set_data", []), index_set_id_set=self.index_set_id_set or None
+        regex_template_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
+            "space_uid",
+            self.json_content_dict.get("regex_template", []),
+            space_uid_set={self.space_uid} if self.space_uid else None,
         )
+        clustering_remark_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
+            "bk_biz_id",
+            self.json_content_dict.get("clustering_remark", []),
+            bk_biz_id_set={self.bk_biz_id} if self.bk_biz_id else None,
+        )
+        index_set_data_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
+            "index_set_id",
+            self.json_content_dict.get("index_set_data", []),
+            index_set_id_set=self.index_set_id_set if self.index_set_id_set else None,
+        )
+        collector_config_file_data_dict = {
+            data.get("index_set_id"): data for data in self.json_content_dict.get("collector_config", [])
+        }
         # clustering_config_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
         #     "index_set_id",
-        #     self.content_dict.get("clustering_config", []),
-        #     index_set_id_set=self.index_set_id_set or None,
-        # )
-        # clustering_remark_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
-        #     "bk_biz_id",
-        #     self.content_dict.get("clustering_remark", []),
-        #     bk_biz_id_set={self.bk_biz_id} or None
+        #     self.json_content_dict.get("clustering_config", []),
+        #     index_set_id_set=self.index_set_id_set if self.index_set_id_set else None
         # )
         # clustering_subscription_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
         #     "index_set_id",
-        #     self.content_dict.get("clustering_subscription", []),
-        #     index_set_id_set=self.index_set_id_set or None,
+        #     self.json_content_dict.get("clustering_subscription", []),
+        #     index_set_id_set=self.index_set_id_set if self.index_set_id_set else None
         # )
         # notice_group_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
         #     "index_set_id",
-        #     self.content_dict.get("notice_group", []),
-        #     index_set_id_set=self.index_set_id_set or None
-        # )
-        # regex_template_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
-        #     "space_uid",
-        #     self.content_dict.get("regex_template", []),
-        #     space_uid_set={self.space_uid} or None
+        #     self.json_content_dict.get("notice_group", []),
+        #     index_set_id_set=self.index_set_id_set if self.index_set_id_set else None
         # )
         # signature_strategy_settings_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
         #     "index_set_id",
-        #     self.content_dict.get("signature_strategy_settings", []),
-        #     index_set_id_set=self.index_set_id_set or None,
+        #     self.json_content_dict.get("signature_strategy_settings", []),
+        #     index_set_id_set=self.index_set_id_set if self.index_set_id_set else None
         # )
+
+        regex_template_file_datas = []
+        clustering_remark_file_datas = []
+        if self.bk_biz_id and self.space_uid:
+            regex_template_file_datas = regex_template_file_datas_dict.get(self.space_uid, [])
+            clustering_remark_file_datas = clustering_remark_file_datas_dict.get(self.space_uid, [])
+        else:
+            for value in regex_template_file_datas_dict.values():
+                regex_template_file_datas.extend(value)
+            for value in clustering_remark_file_datas_dict.values():
+                clustering_remark_file_datas.extend(value)
+
+        self.file_datas_save_db(RegexTemplate, regex_template_file_datas)
+        self.file_datas_save_db(ClusteringRemark, clustering_remark_file_datas)
 
         collector_config_id_name_dict = {}
 
@@ -254,23 +223,25 @@ class OverseasMigrateTool:
                 index_set_data_datas = index_set_data_file_datas_dict.get(index_set_id, [])
                 collector_config_data = collector_config_file_data_dict.get(index_set_id, {})
 
+                details = {}
+
                 if collector_config_data:
                     collector_config_id = collector_config_data.get("collector_config_id")
-
-                    container_collector_config_file_datas_dict = (
-                        self.transform_dict_list_to_customization_key_dict_list_dict(
-                            "collector_config_id",
-                            self.content_dict.get("container_collector_config", []),
-                            collector_config_id_set={collector_config_id} or None,
-                        )
-                    )
 
                     collector_config_id_name_dict[collector_config_id] = collector_config_data.get(
                         "collector_config_name"
                     )
+
                     migrate_record["origin_collector_config_id"] = collector_config_id
                     migrate_record["collector_config_id"] = collector_config_id
 
+                    container_collector_config_file_datas_dict = (
+                        self.transform_dict_list_to_customization_key_dict_list_dict(
+                            "collector_config_id",
+                            self.json_content_dict.get("container_collector_config", []),
+                            collector_config_id_set={collector_config_id} if collector_config_id else None,
+                        )
+                    )
                     # 格式化为 task_id_list 原格式
                     collector_config_data["task_id_list"] = self.format_multi_str_split_by_comma_field_back(
                         collector_config_data.get("task_id_list", "")
@@ -282,47 +253,19 @@ class OverseasMigrateTool:
                         collector_config_id, []
                     )
 
-                    index_set_data_creates = [LogIndexSetData(**item) for item in index_set_data_datas]
-                    container_collector_config_creates = [
-                        ContainerCollectorConfig(**item) for item in container_collector_config_datas
-                    ]
-
-                    LogIndexSet.objects.create(**data)
-
-                    # 插入与 index_set_id 关联的其他表数据
-                    log_index_set_data_objs = []
-                    if index_set_data_creates:
-                        log_index_set_data_objs = LogIndexSetData.objects.bulk_create(index_set_data_creates)
-
-                    container_collector_config_objs = []
-                    if container_collector_config_creates:
-                        container_collector_config_objs = ContainerCollectorConfig.objects.bulk_create(
-                            container_collector_config_creates
-                        )
-
-                    details = json.dumps(
-                        {
-                            "log_index_set_data_ids": [item.index_id for item in log_index_set_data_objs],
-                            "container_collector_config_ids": [item.id for item in container_collector_config_objs],
-                        }
+                    container_collector_config_objs = self.file_datas_save_db(
+                        ContainerCollectorConfig, container_collector_config_datas
                     )
-                    migrate_record.update({"status": MigrateStatus.SUCCESS, "details": details})
-                else:
-                    index_set_data_creates = [LogIndexSetData(**item) for item in index_set_data_datas]
 
-                    LogIndexSet.objects.create(**data)
+                    details["container_collector_config_ids"] = [item.id for item in container_collector_config_objs]
 
-                    # 插入与 index_set_id 关联的其他表数据
-                    log_index_set_data_objs = []
-                    if index_set_data_creates:
-                        log_index_set_data_objs = LogIndexSetData.objects.bulk_create(index_set_data_creates)
+                LogIndexSet.objects.create(**data)
 
-                    details = json.dumps(
-                        {
-                            "log_index_set_data_ids": [item.index_id for item in log_index_set_data_objs],
-                        }
-                    )
-                    migrate_record.update({"status": MigrateStatus.SUCCESS, "details": details})
+                index_set_data_objs = self.file_datas_save_db(LogIndexSetData, index_set_data_datas)
+
+                details["index_set_data_index_ids"] = [item.index_id for item in index_set_data_objs]
+
+                migrate_record.update({"status": MigrateStatus.SUCCESS, "details": json.dumps(details)})
 
             except Exception as e:
                 details = json.dumps(
@@ -340,17 +283,17 @@ class OverseasMigrateTool:
                 migrate_record.setdefault("status", MigrateStatus.FAIL)
                 migrate_record.setdefault("details", json.dumps({"error": "unknown error"}))
 
-                try:
-                    self.record(migrate_record)
-                except Exception as e:
-                    Prompt.error(
-                        msg="迁移操作记录失败, 索引集 ID: {index_set_id}, 错误信息: {error}",
-                        index_set_id=index_set_id,
-                        error=str(e),
-                    )
+                # try:
+                #     self.record(migrate_record)
+                # except Exception as e:
+                #     Prompt.error(
+                #         msg="迁移操作记录失败, 索引集 ID: {index_set_id}, 错误信息: {error}",
+                #         index_set_id=index_set_id,
+                #         error=str(e),
+                #     )
 
         activate_request(generate_request("admin"))
-        self.db.close()
+        # self.db.close()
 
         for collector_config_id, collector_config_name in collector_config_id_name_dict.items():
             try:
@@ -434,9 +377,3 @@ class OverseasMigrateTool:
             index_set_name=data.get("index_set_name", "no index set name"),
             error=migrate_record["details"],
         )
-
-    def record(self, migrate_record: dict[str, Any]) -> None:
-        """
-        记录海外迁移结果
-        """
-        self.db.insert(table_name=self.result_table_name, data=migrate_record)
