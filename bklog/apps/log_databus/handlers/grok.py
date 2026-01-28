@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 import re
 
 from django.core.paginator import Paginator
+from django.db import IntegrityError
 from django.db.models import Q
 from pygrok import Grok
 
@@ -30,6 +31,7 @@ from apps.log_databus.exceptions import (
     GrokCircularReferenceException,
     GrokReferencedException,
     GrokPatternNotFoundException,
+    DuplicateGrokPatternException,
 )
 from apps.log_databus.models import GrokInfo
 
@@ -162,13 +164,17 @@ class GrokHandler:
         """
         self.validate_references_exist(params["pattern"])
         self.validate_circular_reference(params["name"], params["pattern"])
-        grok = GrokInfo.objects.create(
-            bk_biz_id=params["bk_biz_id"],
-            name=params["name"],
-            pattern=params["pattern"],
-            sample=params.get("sample"),
-            description=params.get("description"),
-        )
+        try:
+            grok = GrokInfo.objects.create(
+                bk_biz_id=self.bk_biz_id,
+                name=params["name"],
+                pattern=params["pattern"],
+                sample=params.get("sample"),
+                description=params.get("description"),
+            )
+        except IntegrityError:
+            raise DuplicateGrokPatternException
+
         return {"id": grok.id}
 
     def update_grok_info(self, params: dict):
@@ -176,12 +182,13 @@ class GrokHandler:
         更新 Grok 模式
         """
         self.validate_references_exist(params["pattern"])
-        self.validate_circular_reference(params["name"], params["pattern"])
-
         grok_info = GrokInfo.objects.filter(id=params["id"]).first()
+        self.validate_circular_reference(grok_info.name, params["pattern"])
+
         update_fields = ["pattern", "sample", "description"]
         for field in update_fields:
             setattr(grok_info, field, params[field])
+
         grok_info.save(update_fields=update_fields)
 
     @classmethod
