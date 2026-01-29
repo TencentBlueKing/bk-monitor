@@ -25,6 +25,7 @@ from rest_framework.exceptions import ValidationError
 from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
     AggregatedMethod,
+    ApmCacheType,
     ConfigTypes,
     EnabledStatisticsDimension,
     StatisticsProperty,
@@ -853,8 +854,8 @@ class QueryTopoInstanceResource(PageListResource):
 
     def merge_data(self, instance_list, validated_request_data):
         merge_data = []
-        name = ApmCacheHandler.get_topo_instance_cache_key(
-            validated_request_data["bk_biz_id"], validated_request_data["app_name"]
+        name = ApmCacheHandler.get_cache_key(
+            ApmCacheType.TOPO_INSTANCE, validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
         cache_data = ApmCacheHandler().get_cache_data(name)
         # 更新 updated_at 字段
@@ -1043,7 +1044,7 @@ class QueryEndpointResource(Resource):
             endpoints = endpoints.filter(**data["filters"])
 
         # 从Redis缓存获取端点时间信息
-        cache_name = ApmCacheHandler.get_endpoint_cache_key(data["bk_biz_id"], data["app_name"])
+        cache_name = ApmCacheHandler.get_cache_key(ApmCacheType.ENDPOINT, data["bk_biz_id"], data["app_name"])
         cache_data = ApmCacheHandler().get_cache_data(cache_name)
 
         # 构建端点数据并合并缓存时间信息，然后根据合并后的时间进行过期过滤
