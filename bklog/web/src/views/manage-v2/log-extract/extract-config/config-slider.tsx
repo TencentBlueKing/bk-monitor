@@ -158,6 +158,7 @@ export default defineComponent({
       const { operator } = store.state.userMeta;
       if (operator) {
         manageStrategyData.value.operator = operator;
+        isValidatedComputed();
         return;
       }
 
@@ -166,6 +167,7 @@ export default defineComponent({
         const res = await http.request('userInfo/getUsername');
         store.commit('updateState', { userMeta: res.data });
         manageStrategyData.value.operator = res.data.operator;
+        isValidatedComputed();
       } catch (e) {
         console.warn(e);
       } finally {
@@ -240,9 +242,6 @@ export default defineComponent({
         </div>
       ));
     };
-
-    // 侧栏打开时，校验数据
-    isValidatedComputed();
 
     // 主渲染函数
     return () => (
