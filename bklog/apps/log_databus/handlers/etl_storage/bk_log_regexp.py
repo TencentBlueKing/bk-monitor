@@ -87,7 +87,7 @@ class BkLogRegexpEtlStorage(EtlStorage):
                 "grok": GrokHandler(etl_params["bk_biz_id"]).replace_custom_patterns(pattern)
             }
         else:
-            operator = {"type": "regexp", "regexp": pattern}
+            operator = {"type": "regex", "regex": pattern}
 
         # 组装API请求参数
         api_request = {
