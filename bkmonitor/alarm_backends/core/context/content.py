@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import base64
-import datetime
 import json
 import logging
 import urllib.parse
@@ -17,7 +16,6 @@ from collections import defaultdict
 from json import JSONDecodeError
 from urllib import parse
 
-import pytz
 from django.conf import settings
 from django.db.models import Max
 from django.utils.functional import cached_property
@@ -26,7 +24,6 @@ from django.utils.translation import gettext_lazy as _lazy
 
 from bkmonitor.models import AnomalyRecord
 from bkmonitor.utils import time_tools
-from bkmonitor.utils.time_tools import format_user_time
 from bkmonitor.utils.template import NoticeRowRenderer
 from constants.alert import CMDB_TARGET_DIMENSIONS
 from constants.apm import ApmAlertHelper
@@ -102,16 +99,12 @@ class DefaultContent(BaseContextObject):
     # 最近一次时间
     @cached_property
     def time(self):
-        latest_datetime = datetime.datetime.fromtimestamp(self.parent.alert.latest_time, tz=pytz.UTC)
-        # 使用用户时区格式化时间
-        timezone_name = self.parent.user_timezone
-        return format_user_time(latest_datetime, timezone_name=timezone_name)
+        return time_tools.utc2localtime(self.parent.alert.latest_time).strftime(DATETIME_FORMAT)
 
     # 首次异常时间
     @cached_property
     def begin_time(self):
-        # alarm.begin_time 已经是用户时区格式化的字符串
-        return self.parent.alarm.begin_time
+        return self.parent.alarm.begin_time.strftime(DATETIME_FORMAT)
 
     # 持续时间
     @cached_property
@@ -614,11 +607,11 @@ class MultiStrategyCollectContent(DefaultContent):
         ).values("source_time")
         source_times = [record["source_time"] for record in latest_anomaly_records]
 
-        # 使用用户时区格式化时间范围
-        timezone_name = self.parent.user_timezone
-        min_time_str = format_user_time(min(source_times), timezone_name=timezone_name)
-        max_time_str = format_user_time(max(source_times), timezone_name=timezone_name)
-        time_range = f"{min_time_str} ~ {max_time_str}"
+        # 统计最大最小时间
+        max_time = time_tools.localtime(max(source_times))
+        min_time = time_tools.localtime(min(source_times))
+
+        time_range = f"{min_time.strftime(DATETIME_FORMAT)} ~ {max_time.strftime(DATETIME_FORMAT)}"
         return time_range
 
     @cached_property
