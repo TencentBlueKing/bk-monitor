@@ -61,8 +61,8 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
 
     def list_exists(self):
         endpoints = Endpoint.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        # 使用 Mixin 提供的通用方法处理重复数据
-        res, _ = self._process_duplicate_records(endpoints)
+        # 使用 Mixin 提供的通用方法处理重复数据，endpoint 需要删除重复记录
+        res, _ = self._process_duplicate_records(endpoints, delete_duplicates=True)
         return res
 
     def get_remain_data(self):
