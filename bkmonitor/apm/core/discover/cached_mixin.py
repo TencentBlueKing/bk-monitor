@@ -13,6 +13,8 @@ import time
 from abc import ABC, abstractmethod
 
 import pytz
+from apm.constants import ApmCacheConfig
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 
 
 class CachedDiscoverMixin(ABC):
@@ -141,13 +143,8 @@ class CachedDiscoverMixin(ABC):
         查询缓存数据
         :return: cache_data
         """
-        from apm.core.handlers.apm_cache_handler import ApmCacheHandler
-
-        # 查询应用下的缓存数据
         cache_key = ApmCacheHandler.get_cache_key(self.get_cache_type(), self.bk_biz_id, self.app_name)
-        cache_data = ApmCacheHandler().get_cache_data(cache_key)
-
-        return cache_data
+        return ApmCacheHandler().get_cache_data(cache_key)
 
     def clear_data(self, cache_data: dict, instance_data: list) -> set:
         """
@@ -177,9 +174,6 @@ class CachedDiscoverMixin(ABC):
         delete_instance_keys: set,
     ):
         """刷新 Redis 缓存数据"""
-        from apm.constants import ApmCacheConfig
-        from apm.core.handlers.apm_cache_handler import ApmCacheHandler
-
         now = int(time.time())
 
         # 先过滤要删除的 keys，再添加新的/更新的
