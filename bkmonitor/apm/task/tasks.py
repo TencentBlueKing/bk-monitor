@@ -306,6 +306,12 @@ def create_application_async(application_id, storage_config, options, cur_retry_
                 args=(application_id, storage_config, options, next_retry_times),
                 countdown=next_retry_times * 60,
             )
+        return
+
+    # 创建成功后立即下发一次配置
+    application = ApmApplication.objects.get(id=application_id)  # 这里从 DB 重新获取一次
+    # ApplicationConfig(application).refresh()   # 走节点管理的方式，这里太慢。暂时不下发，走周期的方式
+    ApplicationConfig.refresh_k8s([application])
 
     # 异步分派预计算任务
     bmw_task_cron.apply_async(countdown=60)
