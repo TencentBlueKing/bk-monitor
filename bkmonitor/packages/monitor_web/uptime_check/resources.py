@@ -53,9 +53,8 @@ from core.errors.dataapi import EmptyQueryException
 from monitor.utils import update_task_config
 from monitor_web.collecting.constant import CollectStatus
 from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
-from bk_monitor_base.domains.uptime_check.define import UptimeCheckTaskProtocol, UptimeCheckTaskStatus
+from bk_monitor_base.domains.uptime_check.define import UptimeCheckNode, UptimeCheckTaskProtocol, UptimeCheckTaskStatus
 from bk_monitor_base.domains.uptime_check.models import (
-    UptimeCheckNodeModel,
     UptimeCheckTaskModel,
 )
 from bk_monitor_base.domains.uptime_check.services import TestTaskError
@@ -907,7 +906,7 @@ class TaskGraphAndMapResource(Resource):
         return []
 
 
-def get_node_host_dict(bk_tenant_id: str, nodes: list[UptimeCheckNodeModel]):
+def get_node_host_dict(bk_tenant_id: str, nodes: list[UptimeCheckNode]):
     # 配置hostid的节点
     bk_host_ids = []
     # 配置ip的节点
@@ -1235,9 +1234,8 @@ class GenerateDefaultStrategyResource(Resource):
         pass
 
     def perform_request(self, data):
-        bk_tenant_id = get_request_tenant_id()
         try:
-            task = uptime_check_operation.get_task_by_id(bk_tenant_id=bk_tenant_id, task_id=data["task_id"])
+            task = uptime_check_operation.get_task_by_id(task_id=data["task_id"])
         except Exception:
             raise CustomException(_("不存在的任务id:%s") % data["task_id"])
 
@@ -1304,8 +1302,7 @@ class UpdateTaskRunningStatusResource(Resource):
 
     def perform_request(self, task_id: int):
         logger.info("start celery period task: update uptime check task running status")
-        bk_tenant_id = get_request_tenant_id()
-        task = uptime_check_operation.get_task_by_id(bk_tenant_id=bk_tenant_id, task_id=task_id)
+        task = uptime_check_operation.get_task_by_id(task_id=task_id)
         subscriptions = uptime_check_operation.list_subscriptions_by_task_id(task_id)
         hasFail = False
         # 遍历所有订阅，获取全部的状态
@@ -1591,7 +1588,7 @@ class ExportUptimeCheckConfResource(Resource):
         # 获取任务列表（使用 Define）
         tasks = uptime_check_operation.list_uptime_check_tasks(bk_tenant_id, bk_biz_id)
         if task_protocol:
-            tasks = [t for t in tasks if t.protocol.lower() == task_protocol.lower()]
+            tasks = [t for t in tasks if t.protocol.value.lower() == task_protocol.lower()]
         if task_ids:
             task_id_list = [int(i) for i in task_ids.split(",")]
             tasks = [t for t in tasks if t.id in task_id_list]
@@ -2531,13 +2528,13 @@ class ImportUptimeCheckTaskResource(Resource):
             )
 
         # 检查是否存在同名任务，若存在则更新所有同名任务
-        existing_tasks = uptime_check_operation.get_task_models_by_name(task_create_data["name"])
+        existing_tasks = uptime_check_operation.list_uptime_check_tasks(
+            bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id, name=task_create_data["name"]
+        )
         if existing_tasks:
             uptime_check_operation.update_task_model_by_name(task_create_data["name"], **task_create_data)
             # 更新后重新获取第一个对象以获得最新数据
-            task_obj = uptime_check_operation.get_task_model_by_name(task_create_data["name"])
-            if task_obj is None:
-                raise CustomException(_("更新任务后无法获取任务对象"))
+            task_obj = existing_tasks[0]
         else:
             if settings.ENABLE_MULTI_TENANT_MODE:
                 task_create_data["indepentent_dataid"] = True
@@ -2642,12 +2639,11 @@ class GetRecentTaskDataResource(Resource):
         type = serializers.ChoiceField(required=True, choices=["available", "task_duration"])
 
     def perform_request(self, validated_request_data):
-        bk_tenant_id = get_request_tenant_id()
         task_id = validated_request_data["task_id"]
         task_type = validated_request_data["type"]
 
         try:
-            uptime_check_task = uptime_check_operation.get_task_by_id(bk_tenant_id=bk_tenant_id, task_id=int(task_id))
+            uptime_check_task = uptime_check_operation.get_task_by_id(task_id=int(task_id))
         except Exception:
             raise CustomException(_("不存在id为%s的拨测任务") % task_id)
 
