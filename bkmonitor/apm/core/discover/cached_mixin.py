@@ -17,20 +17,17 @@ import pytz
 from apm.constants import ApmCacheConfig
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.discover.instance_data import BaseInstanceData
+from apm.models import TopoBase, ApmApplication
 
 logger = logging.getLogger("apm")
 
 
 class CachedDiscoverMixin(ABC):
-    """
-    缓存操作 Mixin 类
-    为 Discover 类提供基于 Redis 的缓存管理功能
-
-    使用此 Mixin 的子类需要:
-    1. 实现抽象方法: _get_cache_type(), _to_instance_key()
-    2. 提供属性: model (Django Model), MAX_COUNT (最大数量), application (应用信息)
-    3. 提供属性: bk_biz_id, app_name
-    """
+    bk_biz_id: int
+    app_name: str
+    model: TopoBase
+    application: ApmApplication
+    MAX_COUNT: int = 100000
 
     @classmethod
     @abstractmethod
@@ -66,7 +63,6 @@ class CachedDiscoverMixin(ABC):
     ):
         """
         处理创建实例后的缓存刷新逻辑
-        这是一个通用方法，用于在 bulk_create 之后更新缓存
 
         :param existing_instances: 已存在的实例数据列表 (从数据库查询得到)
         :param created_db_instances: 新创建的数据库对象列表 (bulk_create 返回的对象)
