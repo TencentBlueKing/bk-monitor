@@ -71,7 +71,7 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
         # 使用 Mixin 提供的通用方法处理重复数据，Instance 保留最后一个（ID 最大）
         return self._process_duplicate_records(instances, keep_last=True)
 
-    def discover(self, origin_data, exists_instances):
+    def discover(self, origin_data, exists_instances: dict[str, TopoInstanceData]):
         """
         Discover span instance
         KIND | BASE | DESC

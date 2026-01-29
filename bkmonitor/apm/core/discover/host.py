@@ -73,7 +73,7 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         # 使用 Mixin 提供的通用方法处理重复数据
         return self._process_duplicate_records(instances)
 
-    def discover(self, origin_data, exists_hosts):
+    def discover(self, origin_data, exists_hosts: dict[str, HostInstanceData]):
         """
         Discover host IP if user fill resource.net.host.ip when define resource in OT SDK
         """

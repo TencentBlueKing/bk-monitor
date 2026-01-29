@@ -24,6 +24,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
 from apm.constants import DiscoverRuleType
+from apm.core.discover.instance_data import BaseInstanceData
 from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
 from apm.utils.base import divide_biscuit
 from apm.utils.es_search import limits
@@ -254,7 +255,7 @@ class DiscoverBase(ABC):
         return res
 
     @abc.abstractmethod
-    def discover(self, origin_data, remain_data):
+    def discover(self, origin_data, remain_data: dict[str, BaseInstanceData]):
         pass
 
     @abc.abstractmethod
