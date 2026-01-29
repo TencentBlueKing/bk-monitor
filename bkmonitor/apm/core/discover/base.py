@@ -24,9 +24,6 @@ from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
 from apm.constants import DiscoverRuleType
-from apm.core.discover.endpoint import EndpointDiscover
-from apm.core.discover.host import HostDiscover
-from apm.core.discover.instance import InstanceDiscover
 from apm.core.discover.instance_data import BaseInstanceData
 from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
 from apm.utils.base import divide_biscuit
@@ -505,6 +502,11 @@ class TopoHandler:
 
     def discover(self):
         """application spans discover"""
+
+        # 延迟导入以避免循环依赖
+        from apm.core.discover.endpoint import EndpointDiscover
+        from apm.core.discover.host import HostDiscover
+        from apm.core.discover.instance import InstanceDiscover
 
         start = datetime.datetime.now()
         trace_id_count = 0
