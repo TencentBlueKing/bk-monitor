@@ -53,6 +53,12 @@ class CachedDiscoverMixin(ABC):
         """
         raise NotImplementedError("Subclass must implement to_instance_key()")
 
+    @staticmethod
+    @abstractmethod
+    def _build_instance_data(instance_obj):
+        """构建实例数据对象"""
+        raise NotImplementedError("Subclass must implement _build_instance_data()")
+
     def handle_cache_refresh_after_create(
         self,
         existing_instances: list[BaseInstanceData],
