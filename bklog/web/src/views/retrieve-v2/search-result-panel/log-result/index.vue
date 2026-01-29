@@ -59,6 +59,7 @@
               @change="handleHighlightEnter"
             />
             <MatchMode
+              v-if="!isMonitorApm"
               class="bklog-v3-match-mode"
               :border="true"
               :match-mode="matchMode"
@@ -165,6 +166,7 @@ export default {
       exportLoading: false,
       isInitActiveTab: false,
       isMonitorTrace: window.__IS_MONITOR_TRACE__,
+      isMonitorApm: window.__IS_MONITOR_APM__,
       highlightWidth: 200,
       matchMode: {
         caseSensitive: false,

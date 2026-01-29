@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -61,6 +61,7 @@ export default defineComponent({
       const isDesc = sortField.value[1] === 'desc';
       return isSortShow.value && isDesc;
     });
+    const isMonitorApm = ref(window.__IS_MONITOR_APM__);
 
     const handleStorageChange = (val, key) => {
       store.commit('updateStorage', { [key]: val });
@@ -102,26 +103,28 @@ export default defineComponent({
 
     return () => (
       <div class='bklog-v3-storage'>
-        <div class='switch-label log-sort'>
-          <span
-            class='bklog-option-item'
-            on-click={event => handleShowLogTimeChange(event, 'next')}
-          >
-            {$t('日志时间排序')}
-          </span>
-          <span class='bk-table-caret-wrapper'>
-            <i
-              class={['bk-table-sort-caret', 'ascending', { active: ascShow.value }]}
-              v-bk-tooltips={{ content: `${$t('升序')}`, placement: 'right' }}
-              on-click={event => handleShowLogTimeChange(event, 'ascending')}
-            />
-            <i
-              class={['bk-table-sort-caret', 'descending', { active: descShow.value }]}
-              v-bk-tooltips={{ content: `${$t('降序')}`, placement: 'right' }}
-              on-click={event => handleShowLogTimeChange(event, 'descending')}
-            />
-          </span>
-        </div>
+        {!isMonitorApm.value && (
+          <div class='switch-label log-sort'>
+            <span
+              class='bklog-option-item'
+              on-click={event => handleShowLogTimeChange(event, 'next')}
+            >
+              {$t('日志时间排序')}
+            </span>
+            <span class='bk-table-caret-wrapper'>
+              <i
+                class={['bk-table-sort-caret', 'ascending', { active: ascShow.value }]}
+                v-bk-tooltips={{ content: `${$t('升序')}`, placement: 'right' }}
+                on-click={event => handleShowLogTimeChange(event, 'ascending')}
+              />
+              <i
+                class={['bk-table-sort-caret', 'descending', { active: descShow.value }]}
+                v-bk-tooltips={{ content: `${$t('降序')}`, placement: 'right' }}
+                on-click={event => handleShowLogTimeChange(event, 'descending')}
+              />
+            </span>
+          </div>
+        )}
         <bk-checkbox
           style='margin: 0 12px 0 12px'
           class='bklog-option-item'
