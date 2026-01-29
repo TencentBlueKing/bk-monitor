@@ -65,7 +65,7 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
     # ========== EndpointDiscover 特有方法 ==========
 
     @staticmethod
-    def _build_endpoint_dict(endpoint_obj, include_updated_at=False):
+    def _build_endpoint_dict(endpoint_obj):
         """构建端点字典的辅助方法"""
 
         def get_attr(obj, attr_name):
@@ -74,7 +74,7 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
                 return getattr(obj, attr_name)
             return obj.get(attr_name) if isinstance(obj, dict) else None
 
-        base_dict = {
+        return {
             "id": get_attr(endpoint_obj, "id"),
             "service_name": get_attr(endpoint_obj, "service_name"),
             "endpoint_name": get_attr(endpoint_obj, "endpoint_name"),
@@ -82,12 +82,8 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
             "category_kind_key": get_attr(endpoint_obj, "category_kind_key"),
             "category_kind_value": get_attr(endpoint_obj, "category_kind_value"),
             "span_kind": get_attr(endpoint_obj, "span_kind"),
+            "updated_at": get_attr(endpoint_obj, "updated_at"),
         }
-
-        if include_updated_at:
-            base_dict["updated_at"] = get_attr(endpoint_obj, "updated_at")
-
-        return base_dict
 
     def list_exists(self):
         endpoints = Endpoint.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
@@ -103,7 +99,7 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
                     e.span_kind,
                 ),
                 [],
-            ).append(self._build_endpoint_dict(e, include_updated_at=True))
+            ).append(self._build_endpoint_dict(e))
 
         # 处理重复数据并构建最终结果
         res = {}
@@ -118,8 +114,9 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
                 need_delete_ids.extend([r["id"] for r in records[1:]])
 
             # 保留的记录 - 使用辅助方法构建字典
-            res[key] = self._build_endpoint_dict(keep_record)
-            instance_data.append(self._build_endpoint_dict(keep_record, include_updated_at=True))
+            instance = self._build_endpoint_dict(keep_record)
+            res[key] = instance
+            instance_data.append(instance)
 
         # 执行数据库删除操作
         if need_delete_ids:
