@@ -1,17 +1,21 @@
 .favorite-box-favorite-info-query {
-  background: #f0f1f5;
-  border-radius: 2px;
+  flex: 1;
+  max-height: 280px;
+  padding: 8px 12px;
+  overflow-y: auto;
   font-size: 12px;
   line-height: 18px;
-  padding: 8px 12px;
-  max-height: 280px;
-  overflow-y: auto;
+  background: #f0f1f5;
+  border-radius: 2px;
+
   .promql-box {
     display: flex;
+
     .promql-label {
       padding-right: 4px;
       word-break: keep-all;
     }
+
     .promql-val {
       word-break: break-all;
     }

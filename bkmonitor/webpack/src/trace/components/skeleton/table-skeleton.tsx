@@ -24,20 +24,22 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { computed, defineComponent } from 'vue';
 
 import './table-skeleton.scss';
+interface IConfigModel {
+  colWidths: number[];
+  config: (number | Record<string, string>)[][];
+  rowGap?: number;
+  rowHeights: number[];
+}
 
-/** 单个骨架屏元素 */
-function getSkeletonStyle(config) {
+function getSkeStyle(config) {
   if (typeof config === 'object') {
     return config;
   }
-
   return {};
 }
-
-/** 单个骨架屏容器 */
 function getWrapStyle(config) {
   if (typeof config === 'number') {
     return {
@@ -48,10 +50,33 @@ function getWrapStyle(config) {
     paddingRight: '40px',
   };
 }
-
 const config01 = {
-  colWidths: [0.05, 0.15, 0.15, 0.16, 0.31, 0.1, 0.07],
+  colWidths: [0.05, 0.15, 0.15, 0.16, 0.32, 0.1, 0.07],
   rowHeights: [20, 22, 22, 22, 22, 22, 22, 22, 22, 22],
+  config: [
+    [
+      { width: '35px' },
+      { width: '35px' },
+      { width: '35px' },
+      { width: '35px' },
+      { width: '84px' },
+      { width: '20px' },
+      { width: '20px' },
+    ],
+    [{ width: '35px' }, 40, 40, 114, 40, 40, 0],
+    [{ width: '35px' }, 40, 80, 92, 40, 40, 0],
+    [{ width: '35px' }, 40, 40, 52, 40, 40, 0],
+    [{ width: '35px' }, 40, 80, 40, 40, 40, 0],
+    [{ width: '35px' }, 40, 40, 92, 40, 40, 0],
+    [{ width: '35px' }, 40, 40, 52, 40, 40, 0],
+    [{ width: '35px' }, 40, 73, 40, 40, 40, 0],
+    [{ width: '35px' }, 40, 40, 92, 40, 40, 0],
+    [{ width: '35px' }, 40, 60, 40, 40, 40, 0],
+  ],
+};
+const config02 = {
+  colWidths: [0.05, 0.15, 0.15, 0.16, 0.32, 0.1, 0.07],
+  rowHeights: [20, 36, 36, 36, 36, 36, 36, 36, 36, 36],
   config: [
     [
       { width: '34px' },
@@ -60,7 +85,7 @@ const config01 = {
       { width: '34px' },
       { width: '81px' },
       { width: '19px' },
-      { width: '20px' },
+      { width: '19px' },
     ],
     [{ width: '34px' }, 40, 40, 114, 40, 40, 0],
     [{ width: '34px' }, 40, 80, 92, 40, 40, 0],
@@ -74,32 +99,145 @@ const config01 = {
   ],
 };
 
+const config03 = {
+  colWidths: [0.05, 0.15, 0.15, 0.16, 0.32, 0.1, 0.07],
+  rowHeights: [20, 36, 36, 36, 36, 36, 36, 36, 36, 36],
+  config: [
+    [
+      { width: '34px' },
+      { width: '34px' },
+      { width: '34px' },
+      { width: '34px' },
+      { width: '81px' },
+      { width: '19px' },
+      { width: '19px' },
+    ],
+    [{ width: '34px' }, 46, 46, 133, 46, 46, 0],
+    [{ width: '34px' }, 46, 92, 107, 46, 46, 0],
+    [{ width: '34px' }, 46, 46, 61, 46, 46, 0],
+  ],
+};
+
+const config04 = {
+  colWidths: [0.67, 0.33],
+  rowHeights: new Array(12).fill(16),
+  rowGap: 16,
+  config: [
+    [175, 0],
+    [52, 40],
+    [72, 49],
+    [96, 58],
+    [62, 45],
+    [135, 75],
+    [85, 70],
+    [68, 47],
+    [103, 60],
+    [80, 50],
+    [135, 74],
+    [171, 88],
+  ],
+};
+
+const config05 = {
+  colWidths: [0.05, 0.15, 0.15, 0.16, 0.32, 0.1, 0.07],
+  rowHeights: [20, 36, 36, 36, 36, 36, 36, 36, 36, 36],
+  config: [
+    [
+      { width: '34px' },
+      { width: '34px' },
+      { width: '34px' },
+      { width: '34px' },
+      { width: '81px' },
+      { width: '19px' },
+      { width: '19px' },
+    ],
+    [{ width: '34px' }, 40, 40, 114, 40, 40, 0],
+    [{ width: '34px' }, 40, 80, 92, 40, 40, 0],
+    [{ width: '34px' }, 40, 40, 52, 40, 40, 0],
+    [{ width: '34px' }, 40, 80, 40, 40, 40, 0],
+  ],
+};
+
+const config06 = {
+  colWidths: [0.05, 0.15, 0.15, 0.16, 0.32, 0.1, 0.07],
+  rowHeights: [20, 36, 36, 36, 36, 36, 36, 36, 36, 36],
+  config: [
+    [
+      { width: '34px' },
+      { width: '34px' },
+      { width: '34px' },
+      { width: '34px' },
+      { width: '81px' },
+      { width: '19px' },
+      { width: '19px' },
+    ],
+    [{ width: '34px' }, 40, 40, 114, 40, 40, 0],
+    [{ width: '34px' }, 40, 80, 92, 40, 40, 0],
+    [{ width: '34px' }, 40, 40, 52, 40, 40, 0],
+    [{ width: '34px' }, 40, 80, 40, 40, 40, 0],
+    [{ width: '34px' }, 40, 80, 40, 40, 40, 0],
+    [{ width: '34px' }, 40, 80, 40, 40, 40, 0],
+  ],
+};
+
 export default defineComponent({
   name: 'TableSkeleton',
-  setup() {
-    return {};
+  props: {
+    type: {
+      type: Number,
+      default: 1,
+    },
+  },
+  setup(props) {
+    const config = computed<IConfigModel>(() => {
+      if (props.type === 1) {
+        return config01;
+      }
+      if (props.type === 2) {
+        return config02;
+      }
+      if (props.type === 3) {
+        return config03;
+      }
+      if (props.type === 4) {
+        return config04;
+      }
+      if (props.type === 5) {
+        return config05;
+      }
+      if (props.type === 6) {
+        return config06;
+      }
+      return config01;
+    });
+    return {
+      config,
+    };
   },
   render() {
     return (
       <div class='common-table-skeleton-comp'>
-        {config01.config.map((item, index) => (
+        {this.config.config.map((item, index) => (
           <div
             key={index}
+            style={{
+              marginBottom: `${this.config.rowGap || 22}px`,
+            }}
             class='common-table-skeleton-row'
           >
             {item.map((pItem, pIndex) => (
               <div
                 key={`${index}_${pIndex}`}
                 style={{
-                  width: `${config01.colWidths[pIndex] * 100}%`,
-                  height: `${config01.rowHeights[index]}px`,
+                  width: `${this.config.colWidths[pIndex] * 100}%`,
+                  height: `${this.config.rowHeights[index]}px`,
                   ...getWrapStyle(pItem),
                 }}
                 class='common-table-skeleton-row-item'
               >
                 <div
                   style={{
-                    ...getSkeletonStyle(pItem),
+                    ...getSkeStyle(pItem),
                   }}
                   class='skeleton-element'
                 />

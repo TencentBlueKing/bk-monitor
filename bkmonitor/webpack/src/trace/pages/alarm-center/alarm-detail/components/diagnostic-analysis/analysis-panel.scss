@@ -1,0 +1,58 @@
+.analysis-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  grid-template-columns: 100%;
+  width: 100%;
+  padding: 12px 16px;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px 0 #1919290d;
+  transition: grid-template-rows 0.6s ease;
+
+  .analysis-panel-wrapper {
+    min-height: 20px;
+  }
+
+  .analysis-panel-wrapper-header {
+    display: flex;
+    align-items: center;
+    height: 20px;
+    margin-bottom: 12px;
+    cursor: pointer;
+
+    .arrow-icon {
+      font-size: 12px;
+      transition: transform 0.1s;
+    }
+
+    .analysis-type-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      margin: 0 4px;
+      font-size: 14px;
+      color: #fff;
+      background: #4d4f56;
+      border-radius: 50%;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #313238;
+    }
+  }
+
+  &.expand {
+    grid-template-rows: 1fr;
+
+    .analysis-panel-wrapper-header {
+      .arrow-icon {
+        transform: rotateZ(90deg);
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+.intelligence-scene-view-component {
+  padding: 0 20px 24px;
+
+  .intelligenc-scene-item {
+    height: 200px;
+    padding-right: 8px;
+    padding-left: 16px;
+    margin-bottom: 12px;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+
+    .chart-wrapper .is-error {
+      left: -18px;
+    }
+
+    .title-wrapper .chart-title .main-title .alarm-icon {
+      display: none;
+    }
+  }
+}
