@@ -61,7 +61,7 @@ RUN groupadd -r ${username}  \
 COPY --from=python-builder --chown=${username}:${username} /app/venv /app/venv
 COPY --from=node-builder --chown=${username}:${username} /app/dist/ /app/code/static/
 COPY --chown=${username}:${username} bkmonitor/ /app/code/
-COPY --chown=${username}:${username} bk-monitor-base/ /bk-monitor-base/
+# COPY --chown=${username}:${username} bk-monitor-base/ /bk-monitor-base/
 
 ARG version
 RUN echo ${version} > /app/code/VERSION && rm -r /app/code/webpack && cp /app/code/docs/api/monitor_v3.yaml /app/code/kernel_api/monitor_v3.yaml
