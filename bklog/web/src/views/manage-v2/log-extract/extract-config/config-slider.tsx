@@ -243,6 +243,9 @@ export default defineComponent({
       ));
     };
 
+    // 侧栏打开时，校验数据
+    isValidatedComputed();
+
     // 主渲染函数
     return () => (
       <div
