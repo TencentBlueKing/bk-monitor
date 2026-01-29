@@ -254,14 +254,12 @@ class DiscoverBase(ABC):
         return res
 
     @abc.abstractmethod
-    def discover(self, origin_data):
+    def discover(self, origin_data, remain_data):
         pass
 
-    def discover_with_remain_data(self, origin_data, remain_data):
-        return self.discover(origin_data)
-
-    def get_remain_data(self):
-        return None
+    @abc.abstractmethod
+    def list_exists(self):
+        pass
 
 
 class TopoHandler:
@@ -377,7 +375,7 @@ class TopoHandler:
     def _discover_handle(self, discover, spans, handle_type, remain_data):
         def _topo_handle():
             instance = discover(self.bk_biz_id, self.app_name)
-            instance.discover_with_remain_data(spans, remain_data)
+            instance.discover(spans, remain_data)
 
         def _pre_calculate_handle():
             discover.handle(spans)
@@ -456,7 +454,7 @@ class TopoHandler:
         # 提前构造topo_params结构
         topo_params_template = []
         for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
-            topo_params_template.append((c, None, "topo", c(self.bk_biz_id, self.app_name).get_remain_data()))
+            topo_params_template.append((c, None, "topo", c(self.bk_biz_id, self.app_name).list_exists()))
 
         for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:

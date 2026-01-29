@@ -72,24 +72,10 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         # 使用 Mixin 提供的通用方法处理重复数据
         return self._process_duplicate_records(instances)
 
-    def get_remain_data(self):
-        return self.list_exists()
-
-    def discover_with_remain_data(self, origin_data, remain_data):
+    def discover(self, origin_data, exists_hosts):
         """
         Discover host IP if user fill resource.net.host.ip when define resource in OT SDK
         """
-        exists_hosts, instance_data = remain_data
-        self._do_discover(exists_hosts, instance_data, origin_data)
-
-    def discover(self, origin_data):
-        """
-        Discover host IP if user fill resource.net.host.ip when define resource in OT SDK
-        """
-        exists_hosts, instance_data = self.list_exists()
-        self._do_discover(exists_hosts, instance_data, origin_data)
-
-    def _do_discover(self, exists_hosts, instance_data, origin_data):
         find_ips = set()
 
         for span in origin_data:
@@ -130,7 +116,7 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
 
         # 使用抽象方法处理缓存刷新
         self.handle_cache_refresh_after_create(
-            instance_data=instance_data,
+            instance_data=list(exists_hosts.values()),
             need_create_instances=created_instances,
             need_update_instances=need_update_instances,
         )

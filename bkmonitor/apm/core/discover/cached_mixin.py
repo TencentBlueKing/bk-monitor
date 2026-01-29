@@ -83,7 +83,7 @@ class CachedDiscoverMixin(ABC):
     @classmethod
     def _process_duplicate_records(
         cls, instances, delete_duplicates: bool = False, keep_last: bool = False
-    ) -> tuple[dict, list]:
+    ) -> dict[str, dict]:
         """
         处理重复数据的通用方法
         :param instances: 数据库查询结果（QuerySet 或列表）
@@ -103,7 +103,6 @@ class CachedDiscoverMixin(ABC):
 
         # 处理重复数据并构建最终结果
         res = {}
-        instance_data = []
         need_delete_ids = []
 
         for key, records in exists_mapping.items():
@@ -118,9 +117,7 @@ class CachedDiscoverMixin(ABC):
                     need_delete_ids.extend([r["id"] for r in records[1:]])
 
             # 保留的记录
-            instance = cls._build_instance_dict(keep_record)
-            res[key] = instance
-            instance_data.append(instance)
+            res[key] = cls._build_instance_dict(keep_record)
 
         # 执行数据库删除操作
         if need_delete_ids:
@@ -128,7 +125,7 @@ class CachedDiscoverMixin(ABC):
             cls.model.objects.filter(id__in=need_delete_ids).delete()
             logger.info(f"[{cls.__name__}] Deleted {len(need_delete_ids)} duplicate records: {need_delete_ids}")
 
-        return res, instance_data
+        return res
 
     def handle_cache_refresh_after_create(
         self, instance_data: list, need_create_instances: list, need_update_instances: list

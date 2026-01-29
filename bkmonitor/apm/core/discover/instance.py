@@ -70,20 +70,7 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
         # 使用 Mixin 提供的通用方法处理重复数据，Instance 保留最后一个（ID 最大）
         return self._process_duplicate_records(instances, keep_last=True)
 
-    def get_remain_data(self):
-        """获取预加载数据，避免在循环中重复查询"""
-        return self.list_exists()
-
-    def discover_with_remain_data(self, origin_data, remain_data):
-        """
-        使用预加载的数据进行发现，避免重复查询数据库
-        :param origin_data: span 数据
-        :param remain_data: 预加载的实例数据 (exists_instances, instance_data)
-        """
-        exists_instances, instance_data = remain_data
-        self._do_discover(exists_instances, instance_data, origin_data)
-
-    def discover(self, origin_data):
+    def discover(self, origin_data, exists_instances):
         """
         Discover span instance
         KIND | BASE | DESC
@@ -91,16 +78,6 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
         component | instance_key from rules | join with ':'
         need_update_instances -> [{"id": 243, "instance_id": "mysql:::3306"}]
         *_instance_keys -> {"243:mysql:::3306", "244:elasticsearch:::"}
-        """
-        exists_instances, instance_data = self.list_exists()
-        self._do_discover(exists_instances, instance_data, origin_data)
-
-    def _do_discover(self, exists_instances, instance_data, origin_data):
-        """
-        核心发现逻辑
-        :param exists_instances: 已存在的实例映射
-        :param instance_data: 实例数据列表
-        :param origin_data: span 数据
         """
         component_rules = self.filter_rules(ApmTopoDiscoverRule.TOPO_COMPONENT)
 
@@ -186,4 +163,6 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
         TopoInstance.objects.bulk_create(created_instances)
 
         # 使用 Mixin 的通用方法处理缓存刷新
-        self.handle_cache_refresh_after_create(instance_data, created_instances, need_update_instances)
+        self.handle_cache_refresh_after_create(
+            list(exists_instances.values()), created_instances, need_update_instances
+        )

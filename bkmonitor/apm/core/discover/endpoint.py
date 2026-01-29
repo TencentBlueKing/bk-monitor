@@ -65,28 +65,10 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         res, _ = self._process_duplicate_records(endpoints, delete_duplicates=True)
         return res
 
-    def get_remain_data(self):
-        return self.list_exists()
-
-    def discover_with_remain_data(self, origin_data, remain_data):
+    def discover(self, origin_data, exists_endpoints):
         """
         Endpoint name according to endpoint_key in discover rule
         """
-        exists_endpoints = remain_data
-        self._do_discover(exists_endpoints, origin_data)
-
-    def discover(self, origin_data):
-        """
-        Endpoint name according to endpoint_key in discover rule
-        """
-        exists_endpoints = self.list_exists()
-        self._do_discover(exists_endpoints, origin_data)
-
-    def _do_discover(
-        self,
-        exists_endpoints,
-        origin_data,
-    ):
         rules, other_rule = self.get_rules()
 
         need_update_instances = list()
