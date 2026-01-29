@@ -94,6 +94,7 @@ class CachedDiscoverMixin(ABC):
             delete_instance_keys=delete_instance_keys,
         )
         logger.info(
+            f"[{self._get_cache_type()}] "
             f"update_instance_keys: {update_instance_keys}, "
             f"create_instance_keys: {create_instance_keys}, "
             f"delete_instance_keys: {delete_instance_keys}"

@@ -259,7 +259,6 @@ class DiscoverBase(ABC):
         pass
 
     @staticmethod
-    @abc.abstractmethod
     def _build_instance_data(instance_obj) -> BaseInstanceData:
         raise NotImplementedError("Subclass must implement _build_instance_data()")
 
