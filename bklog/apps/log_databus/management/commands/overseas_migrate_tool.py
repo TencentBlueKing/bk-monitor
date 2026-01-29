@@ -2,7 +2,7 @@ import os
 from collections import defaultdict
 
 from django.core.management import BaseCommand, CommandError
-from django.db import transaction
+from django.db import transaction, IntegrityError
 
 from apps.log_clustering.models import (
     AiopsModel,
@@ -17,6 +17,7 @@ from apps.log_clustering.models import (
     SignatureStrategySettings,
 )
 from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.management.commands.export_table_data_json_tool import str_to_bool
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.utils.local import activate_request
@@ -47,7 +48,16 @@ class Command(BaseCommand):
             default=PROJECT_PATH,
         )
         parser.add_argument(
-            "--is_first_execute", type=bool, help="该环境下是否第一次执行此迁移指令, 例如: True", required=True
+            "--is_first_execute",
+            type=str_to_bool,
+            help="该环境下是否第一次执行此迁移指令, 例如: True/False、1/0、yes/no、y/n",
+            required=True,
+        )
+        parser.add_argument(
+            "--is_skip",
+            type=str_to_bool,
+            help="跳过 log_clustering_clusteringremark、log_clustering_regextemplate 表迁移",
+            default=False,
         )
 
     def handle(self, *args, **options):
@@ -88,8 +98,9 @@ class Command(BaseCommand):
             json_content_dict[key] = json_content
 
         OverseasMigrateTool(
-            json_content_dict=json_content_dict,
             is_first_execute=options["is_first_execute"],
+            is_skip=options["is_skip"],
+            json_content_dict=json_content_dict,
             bk_biz_id=options["bk_biz_id"],
             index_set_ids_str=options["index_set_ids"],
         ).migrate()
@@ -98,8 +109,16 @@ class Command(BaseCommand):
 class OverseasMigrateTool:
     """海外迁移工具类"""
 
-    def __init__(self, json_content_dict: dict, is_first_execute, bk_biz_id: int = 0, index_set_ids_str: str = ""):
+    def __init__(
+        self,
+        is_first_execute: bool,
+        is_skip: bool,
+        json_content_dict: dict,
+        bk_biz_id: int = 0,
+        index_set_ids_str: str = "",
+    ):
         self.is_first_execute = is_first_execute
+        self.is_skip = is_skip
         self.json_content_dict = json_content_dict
         self.bk_biz_id = bk_biz_id
         self.space_uid = ""
@@ -132,6 +151,8 @@ class OverseasMigrateTool:
         aiops_model_experiment_success_migrate_ids = []
         aiops_signature_and_pattern_success_migrate_ids = []
         sample_set_success_migrate_ids = []
+        clustering_remark_success_migrate_ids = []
+        regex_template_success_migrate_ids = []
         index_set_success_migrate_index_set_ids = []
         index_set_data_success_migrate_index_ids = []
         collector_config_success_migrate_collector_config_ids = []
@@ -152,14 +173,24 @@ class OverseasMigrateTool:
                     AiopsSignatureAndPattern, self.json_content_dict.get("aiops_signature_and_pattern", [])
                 )
                 sample_set_objs = self.file_datas_save_db(SampleSet, self.json_content_dict.get("sample_set", []))
+            except IntegrityError as e:
+                raise CommandError(
+                    "\n此报错原因可能为: "
+                    "\n1.该环境下不是第一次执行此迁移指令, 表 log_clustering_aiopsmodel、log_clustering_aiopsmodelexperiment、log_clustering_aiopssignatureandpattern、log_clustering_sampleset 已迁移过所有的数据 \n"
+                    "\n请增加参数 --is_first_execute False 尝试解决"
+                ) from e
             except Exception as e:
                 raise CommandError(
-                    "请检查是否为该环境下第一次执行此迁移指令, 正确填充参数 is_first_execute, 例如: True"
+                    f"表 log_clustering_aiopsmodel、log_clustering_aiopsmodelexperiment、log_clustering_aiopssignatureandpattern、log_clustering_sampleset 迁移时发生未知错误: {str(e)}"
                 ) from e
             aiops_model_success_migrate_ids = [obj.id for obj in aiops_model_objs]
             aiops_model_experiment_success_migrate_ids = [obj.id for obj in aiops_model_experiment_objs]
             aiops_signature_and_pattern_success_migrate_ids = [obj.id for obj in aiops_signature_and_pattern_objs]
             sample_set_success_migrate_ids = [obj.id for obj in sample_set_objs]
+        else:
+            Prompt.info(
+                msg="跳过表 log_clustering_aiopsmodel、log_clustering_aiopsmodelexperiment、log_clustering_aiopssignatureandpattern、log_clustering_sampleset 的迁移"
+            )
 
         # 有外键关联, 需关联迁移
         # 创建数据字典，方便后续取值
@@ -192,21 +223,36 @@ class OverseasMigrateTool:
             index_set_id_set=self.index_set_id_set,
         )
 
-        clustering_remark_file_datas = []
-        regex_template_file_datas = []
-        if self.bk_biz_id and self.space_uid:
-            clustering_remark_file_datas = clustering_remark_file_datas_dict.get(self.bk_biz_id, [])
-            regex_template_file_datas = regex_template_file_datas_dict.get(self.space_uid, [])
-        else:
-            for value in clustering_remark_file_datas_dict.values():
-                clustering_remark_file_datas.extend(value)
-            for value in regex_template_file_datas_dict.values():
-                regex_template_file_datas.extend(value)
+        if not self.is_skip:
+            try:
+                clustering_remark_file_datas = []
+                regex_template_file_datas = []
+                if self.bk_biz_id and self.space_uid:
+                    clustering_remark_file_datas = clustering_remark_file_datas_dict.get(self.bk_biz_id, [])
+                    regex_template_file_datas = regex_template_file_datas_dict.get(self.space_uid, [])
+                else:
+                    for value in clustering_remark_file_datas_dict.values():
+                        clustering_remark_file_datas.extend(value)
+                    for value in regex_template_file_datas_dict.values():
+                        regex_template_file_datas.extend(value)
 
-        clustering_remark_objs = self.file_datas_save_db(ClusteringRemark, clustering_remark_file_datas)
-        regex_template_objs = self.file_datas_save_db(RegexTemplate, regex_template_file_datas)
-        clustering_remark_success_migrate_ids = [obj.id for obj in clustering_remark_objs]
-        regex_template_success_migrate_ids = [obj.id for obj in regex_template_objs]
+                clustering_remark_objs = self.file_datas_save_db(ClusteringRemark, clustering_remark_file_datas)
+                regex_template_objs = self.file_datas_save_db(RegexTemplate, regex_template_file_datas)
+            except IntegrityError as e:
+                raise CommandError(
+                    f"\n此报错原因可能为: "
+                    f"\n1.表 log_clustering_clusteringremark、log_clustering_regextemplate 已迁移过 bk_biz_id 为 {self.bk_biz_id} 的数据"
+                    f"\n2.表 log_clustering_clusteringremark、log_clustering_regextemplate 已迁移过所有的数据"
+                    f"\n请增加参数 --is_skip True 尝试解决"
+                ) from e
+            except Exception as e:
+                raise CommandError(
+                    f"表 log_clustering_clusteringremark、log_clustering_regextemplate 迁移时发生未知错误: {str(e)}"
+                ) from e
+            clustering_remark_success_migrate_ids = [obj.id for obj in clustering_remark_objs]
+            regex_template_success_migrate_ids = [obj.id for obj in regex_template_objs]
+        else:
+            Prompt.info(msg="跳过表 log_clustering_clusteringremark、log_clustering_regextemplate 的迁移")
 
         collector_config_id_name_dict = {}
 
