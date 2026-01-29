@@ -17,6 +17,7 @@ from apm.core.discover.base import (
     get_topo_instance_key,
 )
 from apm.core.discover.cached_mixin import CachedDiscoverMixin
+from apm.core.discover.instance_data import TopoInstanceData
 from apm.models import ApmTopoDiscoverRule, TopoInstance
 from constants.apm import OtlpKey
 
@@ -35,31 +36,31 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
         return ApmCacheType.TOPO_INSTANCE
 
     @classmethod
-    def _to_instance_key(cls, instance: dict) -> str:
-        """从实例字典生成唯一的 key"""
-        object_pk_id = instance.get("id")
-        instance_id = instance.get("instance_id")
+    def _to_instance_key(cls, instance: TopoInstanceData) -> str:
+        """从实例数据对象生成唯一的 key"""
+        object_pk_id = instance.id
+        instance_id = instance.instance_id
         return cls.INSTANCE_ID_SPLIT.join([str(object_pk_id), str(instance_id)])
 
     @staticmethod
-    def _build_instance_dict(instance_obj):
-        """构建实例字典的辅助方法"""
-        return {
-            "id": CachedDiscoverMixin._get_attr_value(instance_obj, "id"),
-            "topo_node_key": CachedDiscoverMixin._get_attr_value(instance_obj, "topo_node_key"),
-            "instance_id": CachedDiscoverMixin._get_attr_value(instance_obj, "instance_id"),
-            "instance_topo_kind": CachedDiscoverMixin._get_attr_value(instance_obj, "instance_topo_kind"),
-            "component_instance_category": CachedDiscoverMixin._get_attr_value(
+    def _build_instance_data(instance_obj) -> TopoInstanceData:
+        """构建实例数据对象的辅助方法"""
+        return TopoInstanceData(
+            id=CachedDiscoverMixin._get_attr_value(instance_obj, "id"),
+            topo_node_key=CachedDiscoverMixin._get_attr_value(instance_obj, "topo_node_key"),
+            instance_id=CachedDiscoverMixin._get_attr_value(instance_obj, "instance_id"),
+            instance_topo_kind=CachedDiscoverMixin._get_attr_value(instance_obj, "instance_topo_kind"),
+            component_instance_category=CachedDiscoverMixin._get_attr_value(
                 instance_obj, "component_instance_category"
             ),
-            "component_instance_predicate_value": CachedDiscoverMixin._get_attr_value(
+            component_instance_predicate_value=CachedDiscoverMixin._get_attr_value(
                 instance_obj, "component_instance_predicate_value"
             ),
-            "sdk_name": CachedDiscoverMixin._get_attr_value(instance_obj, "sdk_name"),
-            "sdk_version": CachedDiscoverMixin._get_attr_value(instance_obj, "sdk_version"),
-            "sdk_language": CachedDiscoverMixin._get_attr_value(instance_obj, "sdk_language"),
-            "updated_at": CachedDiscoverMixin._get_attr_value(instance_obj, "updated_at"),
-        }
+            sdk_name=CachedDiscoverMixin._get_attr_value(instance_obj, "sdk_name"),
+            sdk_version=CachedDiscoverMixin._get_attr_value(instance_obj, "sdk_version"),
+            sdk_language=CachedDiscoverMixin._get_attr_value(instance_obj, "sdk_language"),
+            updated_at=CachedDiscoverMixin._get_attr_value(instance_obj, "updated_at"),
+        )
 
     def list_exists(self):
         """
@@ -140,21 +141,18 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
                         )
                     )
             for key in found_keys:
-                # found_keys 中的 key 是元组，需要先转换为字符串格式来查找
-                # 但在创建实例时仍使用元组，因此需要保存映射关系
-                # 这里我们直接构建临时字典来匹配
-                temp_dict = {
-                    "id": None,  # 新创建的实例还没有 id
-                    "topo_node_key": key[0],
-                    "instance_id": key[1],
-                    "instance_topo_kind": key[2],
-                    "component_instance_category": key[3],
-                    "component_instance_predicate_value": key[4],
-                    "sdk_name": key[5],
-                    "sdk_version": key[6],
-                    "sdk_language": key[7],
-                }
-                key_str = self._to_instance_key(temp_dict)
+                temp_data = TopoInstanceData(
+                    id=None,  # 新创建的实例还没有 id
+                    topo_node_key=key[0],
+                    instance_id=key[1],
+                    instance_topo_kind=key[2],
+                    component_instance_category=key[3],
+                    component_instance_predicate_value=key[4],
+                    sdk_name=key[5],
+                    sdk_version=key[6],
+                    sdk_language=key[7],
+                )
+                key_str = self._to_instance_key(temp_data)
                 if key_str in exists_instances:
                     need_update_instances.append(exists_instances[key_str])
                 else:
@@ -179,5 +177,7 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
 
         # 使用 Mixin 的通用方法处理缓存刷新
         self.handle_cache_refresh_after_create(
-            list(exists_instances.values()), created_instances, need_update_instances
+            existing_instances=list(exists_instances.values()),
+            created_db_instances=created_instances,
+            updated_instances=need_update_instances,
         )

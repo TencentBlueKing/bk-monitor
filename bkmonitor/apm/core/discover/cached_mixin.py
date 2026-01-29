@@ -16,6 +16,7 @@ import logging
 import pytz
 from apm.constants import ApmCacheConfig
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
+from apm.core.discover.instance_data import BaseInstanceData
 
 logger = logging.getLogger("apm")
 
@@ -26,7 +27,7 @@ class CachedDiscoverMixin(ABC):
     为 Discover 类提供基于 Redis 的缓存管理功能
 
     使用此 Mixin 的子类需要:
-    1. 实现抽象方法: get_cache_type(), to_instance_key(), _build_instance_dict()
+    1. 实现抽象方法: _get_cache_type(), _to_instance_key(), _build_instance_data()
     2. 提供属性: model (Django Model), MAX_COUNT (最大数量), application (应用信息)
     3. 提供属性: bk_biz_id, app_name
     """
@@ -45,25 +46,25 @@ class CachedDiscoverMixin(ABC):
 
     @classmethod
     @abstractmethod
-    def _to_instance_key(cls, instance: dict) -> str:
+    def _to_instance_key(cls, instance: BaseInstanceData) -> str:
         """
-        从实例字典生成唯一的 key
-        子类需要重写此方法，直接从 instance 字典中提取所需字段并生成 key
-        :param instance: 实例数据字典
+        从实例数据对象生成唯一的 key
+        子类需要重写此方法，直接从 instance 对象中提取所需字段并生成 key
+        :param instance: 实例数据对象
         :return: 实例 key
         """
         raise NotImplementedError("Subclass must implement to_instance_key()")
 
     @staticmethod
     @abstractmethod
-    def _build_instance_dict(instance_obj):
+    def _build_instance_data(instance_obj) -> BaseInstanceData:
         """
-        构建实例字典的辅助方法
-        子类需要重写此方法，定义如何从数据库对象或字典构建标准实例字典
+        构建实例数据对象的辅助方法
+        子类需要重写此方法，定义如何从数据库对象或字典构建标准实例数据对象
         :param instance_obj: 数据库对象或字典
-        :return: 实例字典
+        :return: BaseInstanceData 的子类实例
         """
-        raise NotImplementedError("Subclass must implement _build_instance_dict()")
+        raise NotImplementedError("Subclass must implement _build_instance_data()")
 
     # ========== 通用缓存操作方法 ==========
 
@@ -82,42 +83,42 @@ class CachedDiscoverMixin(ABC):
 
     @classmethod
     def _process_duplicate_records(
-        cls, instances, delete_duplicates: bool = False, keep_last: bool = False
-    ) -> dict[str, dict]:
+        cls, db_instances, delete_duplicates: bool = False, keep_last: bool = False
+    ) -> dict[str, BaseInstanceData]:
         """
         处理重复数据的通用方法
-        :param instances: 数据库查询结果（QuerySet 或列表）
+        :param db_instances: 数据库查询结果（QuerySet 或列表）
         :param delete_duplicates: 是否删除重复记录，默认为 False
         :param keep_last: 是否保留最后一条记录（ID 最大），False 则保留第一条（ID 最小），默认为 False
-        :return: (res, instance_data) - res: 去重后的字典映射, instance_data: 实例数据列表
+        :return: 去重后的字典映射，key 为实例 key，value 为 BaseInstanceData 实例
         """
         exists_mapping = {}
-        for instance in instances:
-            # 构建实例字典
-            instance_dict = cls._build_instance_dict(instance)
+        for instance in db_instances:
+            # 构建实例数据对象
+            instance_data = cls._build_instance_data(instance)
             # 获取唯一键
-            key = cls._to_instance_key(instance_dict)
+            key = cls._to_instance_key(instance_data)
             if key not in exists_mapping:
                 exists_mapping[key] = []
-            exists_mapping[key].append(instance_dict)
+            exists_mapping[key].append(instance_data)
 
         # 处理重复数据并构建最终结果
         res = {}
         need_delete_ids = []
 
         for key, records in exists_mapping.items():
-            records.sort(key=lambda x: x["id"])
+            records.sort(key=lambda x: x.id)
             keep_record = records[-1] if keep_last else records[0]
 
             # 收集需要删除的重复记录ID（仅在 delete_duplicates=True 时）
             if len(records) > 1 and delete_duplicates:
                 if keep_last:
-                    need_delete_ids.extend([r["id"] for r in records[:-1]])
+                    need_delete_ids.extend([r.id for r in records[:-1]])
                 else:
-                    need_delete_ids.extend([r["id"] for r in records[1:]])
+                    need_delete_ids.extend([r.id for r in records[1:]])
 
             # 保留的记录
-            res[key] = cls._build_instance_dict(keep_record)
+            res[key] = keep_record
 
         # 执行数据库删除操作
         if need_delete_ids:
@@ -128,32 +129,36 @@ class CachedDiscoverMixin(ABC):
         return res
 
     def handle_cache_refresh_after_create(
-        self, instance_data: list, need_create_instances: list, need_update_instances: list
+        self,
+        existing_instances: list[BaseInstanceData],
+        created_db_instances: list,
+        updated_instances: list[BaseInstanceData],
     ):
         """
         处理创建实例后的缓存刷新逻辑
         这是一个通用方法，用于在 bulk_create 之后更新缓存
 
-        :param instance_data: 现有实例数据列表
-        :param need_create_instances: 需要创建的实例对象集合
-        :param need_update_instances: 需要更新的实例列表
-        :return: (create_instance_keys, update_instance_keys, delete_instance_keys)
+        :param existing_instances: 已存在的实例数据列表 (从数据库查询得到)
+        :param created_db_instances: 新创建的数据库对象列表 (bulk_create 返回的对象)
+        :param updated_instances: 需要更新的实例数据列表
         """
         cache_data = self._query_cache_data()
 
-        # 构建新实例数据
-        new_instance_data = instance_data
+        # 将新创建的数据库对象转换为数据类对象
+        created_instance_data: list[BaseInstanceData] = []
         create_instance_keys = set()
-        if need_create_instances:
-            new_data = [self._build_instance_dict(i) for i in need_create_instances]
-            new_instance_data = instance_data + new_data
-            _, create_instance_keys = self._to_id_and_key(new_data)
+        if created_db_instances:
+            created_instance_data = [self._build_instance_data(db_obj) for db_obj in created_db_instances]
+            _, create_instance_keys = self._to_id_and_key(created_instance_data)
 
-        # 计算删除的实例
-        delete_instance_keys = self._clear_data(cache_data, new_instance_data)
+        # 合并已存在的和新创建的实例数据
+        all_instance_data: list[BaseInstanceData] = existing_instances + created_instance_data
 
-        # 计算更新的实例
-        _, update_instance_keys = self._to_id_and_key(need_update_instances)
+        # 计算需要删除的实例（过期或超量）
+        delete_instance_keys = self._clear_data(cache_data, all_instance_data)
+
+        # 计算需要更新的实例 keys
+        _, update_instance_keys = self._to_id_and_key(updated_instances)
 
         # 刷新缓存
         self._refresh_cache_data(
@@ -169,7 +174,7 @@ class CachedDiscoverMixin(ABC):
         )
 
     @classmethod
-    def _to_id_and_key(cls, instances: list) -> tuple[set, set]:
+    def _to_id_and_key(cls, instances: list[BaseInstanceData]) -> tuple[set, set]:
         """
         将实例列表转换为 id 集合和 key 集合
         :param instances: 实例列表
@@ -177,14 +182,14 @@ class CachedDiscoverMixin(ABC):
         """
         ids, keys = set(), set()
         for inst in instances:
-            inst_id = inst.get("id")
+            inst_id = inst.id
             inst_key = cls._to_instance_key(inst)
             keys.add(inst_key)
             ids.add(inst_id)
         return ids, keys
 
     @classmethod
-    def _merge_data(cls, instances: list, cache_data: dict) -> list:
+    def _merge_data(cls, instances: list[BaseInstanceData], cache_data: dict) -> list[BaseInstanceData]:
         """
         合并实例数据和缓存数据，使用缓存中的 updated_at 时间戳
         :param instances: 实例数据列表
@@ -195,11 +200,11 @@ class CachedDiscoverMixin(ABC):
         for inst in instances:
             key = cls._to_instance_key(inst)
             if key in cache_data:
-                inst["updated_at"] = datetime.datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
+                inst.updated_at = datetime.datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
             merge_data.append(inst)
         return merge_data
 
-    def _instance_clear_if_overflow(self, instances: list) -> tuple[list, list]:
+    def _instance_clear_if_overflow(self, instances: list[BaseInstanceData]) -> tuple[list, list]:
         """
         数据量超过 MAX_COUNT 时,清除最旧的数据
         :param instances: 实例数据
@@ -211,14 +216,14 @@ class CachedDiscoverMixin(ABC):
             delete_count = count - self.MAX_COUNT
             # 按照 updated_at 排序,从小到大
             # 将 None 值视为最新时间(使用 datetime.max),优先保留新创建的实例
-            instances.sort(key=lambda item: item.get("updated_at") or datetime.datetime.max.replace(tzinfo=pytz.UTC))
+            instances.sort(key=lambda item: item.updated_at or datetime.datetime.max.replace(tzinfo=pytz.UTC))
             overflow_delete_data = instances[:delete_count]
             remain_instance_data = instances[delete_count:]
         else:
             remain_instance_data = instances
         return overflow_delete_data, remain_instance_data
 
-    def _instance_clear_expired(self, instances: list) -> tuple[list, list]:
+    def _instance_clear_expired(self, instances: list[BaseInstanceData]) -> tuple[list, list]:
         """
         清除过期数据
         :param instances: 实例数据
@@ -232,7 +237,7 @@ class CachedDiscoverMixin(ABC):
         expired_delete_data = []
         remain_instance_data = []
         for instance in instances:
-            updated_at = instance.get("updated_at")
+            updated_at = instance.updated_at
             # 跳过 updated_at 为 None 的实例(新创建的实例),将其保留
             if updated_at is None:
                 remain_instance_data.append(instance)
@@ -250,7 +255,7 @@ class CachedDiscoverMixin(ABC):
         cache_key = ApmCacheHandler.get_cache_key(self._get_cache_type(), self.bk_biz_id, self.app_name)
         return ApmCacheHandler().get_cache_data(cache_key)
 
-    def _clear_data(self, cache_data: dict, instance_data: list) -> set:
+    def _clear_data(self, cache_data: dict, instance_data: list[BaseInstanceData]) -> set:
         """
         数据清除(过期 + 超量)
         :param cache_data: 缓存数据

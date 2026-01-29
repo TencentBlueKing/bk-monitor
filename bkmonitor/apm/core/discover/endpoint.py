@@ -19,6 +19,7 @@ from apm.core.discover.base import (
     get_topo_instance_key,
 )
 from apm.core.discover.cached_mixin import CachedDiscoverMixin
+from apm.core.discover.instance_data import EndpointInstanceData
 from apm.models import ApmTopoDiscoverRule, Endpoint, TraceDataSource
 from constants.apm import OtlpKey
 
@@ -35,29 +36,29 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         return ApmCacheType.ENDPOINT
 
     @classmethod
-    def _to_instance_key(cls, instance: dict) -> str:
-        """从实例字典生成实例key"""
-        endpoint_name = instance.get("endpoint_name")
-        service_name = instance.get("service_name")
-        category_id = instance.get("category_id")
-        category_kind_key = instance.get("category_kind_key")
-        category_kind_value = instance.get("category_kind_value")
-        span_kind = instance.get("span_kind")
+    def _to_instance_key(cls, instance: EndpointInstanceData) -> str:
+        """从实例数据对象生成实例key"""
+        endpoint_name = instance.endpoint_name
+        service_name = instance.service_name
+        category_id = instance.category_id
+        category_kind_key = instance.category_kind_key
+        category_kind_value = instance.category_kind_value
+        span_kind = instance.span_kind
         return f"{span_kind}:{category_kind_value}:{category_kind_key}:{category_id}:{service_name}:{endpoint_name}"
 
     @staticmethod
-    def _build_instance_dict(endpoint_obj):
-        """构建端点字典的辅助方法"""
-        return {
-            "id": CachedDiscoverMixin._get_attr_value(endpoint_obj, "id"),
-            "service_name": CachedDiscoverMixin._get_attr_value(endpoint_obj, "service_name"),
-            "endpoint_name": CachedDiscoverMixin._get_attr_value(endpoint_obj, "endpoint_name"),
-            "category_id": CachedDiscoverMixin._get_attr_value(endpoint_obj, "category_id"),
-            "category_kind_key": CachedDiscoverMixin._get_attr_value(endpoint_obj, "category_kind_key"),
-            "category_kind_value": CachedDiscoverMixin._get_attr_value(endpoint_obj, "category_kind_value"),
-            "span_kind": CachedDiscoverMixin._get_attr_value(endpoint_obj, "span_kind"),
-            "updated_at": CachedDiscoverMixin._get_attr_value(endpoint_obj, "updated_at"),
-        }
+    def _build_instance_data(endpoint_obj) -> EndpointInstanceData:
+        """构建端点数据对象的辅助方法"""
+        return EndpointInstanceData(
+            id=CachedDiscoverMixin._get_attr_value(endpoint_obj, "id"),
+            service_name=CachedDiscoverMixin._get_attr_value(endpoint_obj, "service_name"),
+            endpoint_name=CachedDiscoverMixin._get_attr_value(endpoint_obj, "endpoint_name"),
+            category_id=CachedDiscoverMixin._get_attr_value(endpoint_obj, "category_id"),
+            category_kind_key=CachedDiscoverMixin._get_attr_value(endpoint_obj, "category_kind_key"),
+            category_kind_value=CachedDiscoverMixin._get_attr_value(endpoint_obj, "category_kind_value"),
+            span_kind=CachedDiscoverMixin._get_attr_value(endpoint_obj, "span_kind"),
+            updated_at=CachedDiscoverMixin._get_attr_value(endpoint_obj, "updated_at"),
+        )
 
     def list_exists(self):
         endpoints = Endpoint.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
@@ -113,16 +114,15 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
                 )
 
             for k in found_keys:
-                # found_keys 中的 k 是元组，需要转换为字符串格式来查找
-                temp_dict = {
-                    "endpoint_name": k[0],
-                    "service_name": k[1],
-                    "category_id": k[2],
-                    "category_kind_key": k[3],
-                    "category_kind_value": k[4],
-                    "span_kind": k[5],
-                }
-                key_str = self._to_instance_key(temp_dict)
+                temp_data = EndpointInstanceData(
+                    endpoint_name=k[0],
+                    service_name=k[1],
+                    category_id=k[2],
+                    category_kind_key=k[3],
+                    category_kind_value=k[4],
+                    span_kind=k[5],
+                )
+                key_str = self._to_instance_key(temp_data)
                 if key_str in exists_endpoints:
                     need_update_instances.append(exists_endpoints[key_str])
                 else:
@@ -145,7 +145,7 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
 
         # 使用抽象方法处理缓存刷新
         self.handle_cache_refresh_after_create(
-            instance_data=list(exists_endpoints.values()),
-            need_create_instances=created_instances,
-            need_update_instances=need_update_instances,
+            existing_instances=list(exists_endpoints.values()),
+            created_db_instances=created_instances,
+            updated_instances=need_update_instances,
         )

@@ -16,6 +16,7 @@ from opentelemetry.semconv.trace import SpanAttributes
 from apm.constants import ApmCacheType
 from apm.core.discover.base import DiscoverBase, extract_field_value
 from apm.core.discover.cached_mixin import CachedDiscoverMixin
+from apm.core.discover.instance_data import HostInstanceData
 from apm.models import HostInstance
 from constants.apm import OtlpKey
 
@@ -43,25 +44,25 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         return ApmCacheType.HOST
 
     @classmethod
-    def _to_instance_key(cls, instance: dict) -> str:
-        """从实例字典生成 host 缓存 key"""
-        bk_cloud_id = instance.get("bk_cloud_id")
-        bk_host_id = instance.get("bk_host_id")
-        ip = instance.get("ip")
-        topo_node_key = instance.get("topo_node_key")
+    def _to_instance_key(cls, instance: HostInstanceData) -> str:
+        """从实例数据对象生成 host 缓存 key"""
+        bk_cloud_id = instance.bk_cloud_id
+        bk_host_id = instance.bk_host_id
+        ip = instance.ip
+        topo_node_key = instance.topo_node_key
         return cls.HOST_ID_SPLIT.join([str(bk_cloud_id), str(bk_host_id), str(ip), str(topo_node_key)])
 
     @staticmethod
-    def _build_instance_dict(host_obj):
-        """构建主机字典的辅助方法"""
-        return {
-            "id": CachedDiscoverMixin._get_attr_value(host_obj, "id"),
-            "bk_cloud_id": CachedDiscoverMixin._get_attr_value(host_obj, "bk_cloud_id"),
-            "bk_host_id": CachedDiscoverMixin._get_attr_value(host_obj, "bk_host_id"),
-            "ip": CachedDiscoverMixin._get_attr_value(host_obj, "ip"),
-            "topo_node_key": CachedDiscoverMixin._get_attr_value(host_obj, "topo_node_key"),
-            "updated_at": CachedDiscoverMixin._get_attr_value(host_obj, "updated_at"),
-        }
+    def _build_instance_data(host_obj) -> HostInstanceData:
+        """构建主机数据对象的辅助方法"""
+        return HostInstanceData(
+            id=CachedDiscoverMixin._get_attr_value(host_obj, "id"),
+            bk_cloud_id=CachedDiscoverMixin._get_attr_value(host_obj, "bk_cloud_id"),
+            bk_host_id=CachedDiscoverMixin._get_attr_value(host_obj, "bk_host_id"),
+            ip=CachedDiscoverMixin._get_attr_value(host_obj, "ip"),
+            topo_node_key=CachedDiscoverMixin._get_attr_value(host_obj, "topo_node_key"),
+            updated_at=CachedDiscoverMixin._get_attr_value(host_obj, "updated_at"),
+        )
 
     def list_exists(self):
         """
@@ -118,9 +119,9 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
 
         # 使用抽象方法处理缓存刷新
         self.handle_cache_refresh_after_create(
-            instance_data=list(exists_hosts.values()),
-            need_create_instances=created_instances,
-            need_update_instances=need_update_instances,
+            existing_instances=list(exists_hosts.values()),
+            created_db_instances=created_instances,
+            updated_instances=need_update_instances,
         )
 
     def list_bk_cloud_id(self, ips: list[str]) -> dict[str, tuple[int, int]]:
