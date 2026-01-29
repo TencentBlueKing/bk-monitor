@@ -1589,7 +1589,7 @@ class ExportUptimeCheckConfResource(Resource):
         task_conf_list = []
 
         # 获取任务列表（使用 Define）
-        tasks = uptime_check_operation.list_uptime_check_tasks_by_bk_biz_id(bk_tenant_id, bk_biz_id)
+        tasks = uptime_check_operation.list_uptime_check_tasks(bk_tenant_id, bk_biz_id)
         if task_protocol:
             tasks = [t for t in tasks if t.protocol.lower() == task_protocol.lower()]
         if task_ids:
@@ -1632,7 +1632,9 @@ class ExportUptimeCheckNodeConfResource(Resource):
         node_conf_list = []
         bk_biz_id = data["bk_biz_id"]
         node_ids = data.get("node_ids", "")
-        nodes = uptime_check_operation.list_node_models_by_bk_biz_id(bk_biz_id)
+        nodes = uptime_check_operation.list_uptime_check_nodes(
+            bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id
+        )
         if node_ids:
             node_id_list = [int(i) for i in node_ids.split(",")]
             nodes = [n for n in nodes if n.id in node_id_list]
@@ -2551,7 +2553,7 @@ class ImportUptimeCheckTaskResource(Resource):
 
             # 如果没有传入monitor_conf则生成默认配置
             if item_data.get("monitor_conf"):
-                task_obj.status = task_obj.Status.STARTING
+                task_obj.status = UptimeCheckTaskStatus.STARTING
                 task_obj.save()
                 monitor_conf_list = item_data["monitor_conf"]
                 for monitor_conf in monitor_conf_list:
@@ -2572,7 +2574,9 @@ class ImportUptimeCheckTaskResource(Resource):
                     resource.config.save_alarm_strategy(monitor_conf)
 
             # 创建下发拨测任务
-            task_obj.deploy()
+            uptime_check_operation.deploy_uptime_check_task(
+                bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id, task_id=task_obj.id
+            )
             return {"result": True, "detail": {"task_name": task_obj.name}}
         except Exception as e:
             return {"result": False, "detail": {"task_name": item_data["collector_conf"]["name"], "error_mes": str(e)}}
@@ -2612,8 +2616,8 @@ class SelectUptimeCheckNodeResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
 
         host_list = resource.commons.host_region_isp_info(bk_biz_id=bk_biz_id)
-        node_list = uptime_check_operation.list_node_models_by_bk_biz_id(
-            bk_biz_id, bk_tenant_id=get_request_tenant_id()
+        node_list = uptime_check_operation.list_uptime_check_nodes(
+            bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id
         )
         node_ip_list = [node.ip for node in node_list if not node.bk_host_id]
         node_id_list = [node.bk_host_id for node in node_list if node.bk_host_id]
