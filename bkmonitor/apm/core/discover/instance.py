@@ -72,12 +72,7 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
         )
 
     def list_exists(self):
-        """
-        获取已存在的实例数据
-        返回元组: (查询字典, 实例数据列表)
-        """
         instances = TopoInstance.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        # 使用 Mixin 提供的通用方法处理重复数据，Instance 保留最后一个（ID 最大）
         return self._process_duplicate_records(instances, keep_last=True)
 
     def discover(self, origin_data, exists_instances: dict[tuple, TopoInstanceData]):

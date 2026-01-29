@@ -278,13 +278,6 @@ class DiscoverBase(ABC):
 
     @staticmethod
     def _get_attr_value(obj, attr_name):
-        """
-        统一的属性获取方法
-        支持从 ORM 对象或字典中获取属性值
-        :param obj: ORM 对象或字典
-        :param attr_name: 属性名称
-        :return: 属性值
-        """
         if hasattr(obj, attr_name):
             return getattr(obj, attr_name)
         return obj.get(attr_name) if isinstance(obj, dict) else None

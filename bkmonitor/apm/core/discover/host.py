@@ -67,12 +67,7 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         return instance_data.bk_cloud_id, instance_data.bk_host_id, instance_data.ip, instance_data.topo_node_key
 
     def list_exists(self):
-        """
-        获取已存在的 host 数据
-        返回元组: (查询字典, 实例数据列表)
-        """
         instances = HostInstance.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        # 使用 Mixin 提供的通用方法处理重复数据
         return self._process_duplicate_records(instances)
 
     def discover(self, origin_data, exists_hosts: dict[tuple, HostInstanceData]):
