@@ -87,7 +87,7 @@ class IncidentOperationManager:
 
     @classmethod
     def record_operation(
-        cls, incident_id: int, operation_type: IncidentOperationType, operate_time=None, **kwargs
+        cls, incident_id: int, operation_type: IncidentOperationType, operate_time=None, send_notice=False, **kwargs
     ) -> IncidentOperationDocument:
         if operation_type.operation_class == IncidentOperationClass.USER:
             operator = get_request_username()
@@ -112,7 +112,7 @@ class IncidentOperationManager:
 
         # 根据操作类型决定是否发送通知
         notice_enabled = getattr(settings, "ENABLE_BK_INCIDENT_NOTICE", False)
-        if notice_enabled:
+        if notice_enabled and send_notice:
             if operation_type in cls.NOTICE_TRIGGER_OPERATIONS:
                 cls._send_incident_notice(incident_id, operation_type, incident_document=incident_document, **kwargs)
 
@@ -250,6 +250,7 @@ class IncidentOperationManager:
             incident_id,
             IncidentOperationType.CREATE,
             operate_time,
+            send_notice=True,
             alert_count=alert_count,
             assignees=assignees,
             incident_document=incident_document,
@@ -264,7 +265,7 @@ class IncidentOperationManager:
         :param operate_time: 流转生成时间
         :return: 故障流转记录
         """
-        return cls.record_operation(incident_id, IncidentOperationType.OBSERVE, operate_time)
+        return cls.record_operation(incident_id, IncidentOperationType.OBSERVE, operate_time, send_notice=True)
 
     @classmethod
     def record_recover_incident(cls, incident_id: int, operate_time: int) -> IncidentOperationDocument:
@@ -275,7 +276,7 @@ class IncidentOperationManager:
         :param operate_time: 流转生成时间
         :return: 故障流转记录
         """
-        return cls.record_operation(incident_id, IncidentOperationType.RECOVER, operate_time)
+        return cls.record_operation(incident_id, IncidentOperationType.RECOVER, operate_time, send_notice=True)
 
     @classmethod
     def record_reopen_incident(cls, incident_id: int, operate_time: int) -> IncidentOperationDocument:
@@ -286,7 +287,7 @@ class IncidentOperationManager:
         :param operate_time: 流转生成时间
         :return: 故障流转记录
         """
-        return cls.record_operation(incident_id, IncidentOperationType.REOPEN, operate_time)
+        return cls.record_operation(incident_id, IncidentOperationType.REOPEN, operate_time, send_notice=True)
 
     @classmethod
     def record_notice_incident(
@@ -386,6 +387,7 @@ class IncidentOperationManager:
             origin_incident_id,
             IncidentOperationType.MERGE_TO,
             operate_time,
+            send_notice=True,
             link_incident_name=target_incident_name,
             link_incident_id=target_incident_id,
             link_incident_doc_id=target_incident_doc_id,
@@ -397,6 +399,7 @@ class IncidentOperationManager:
             target_incident_id,
             IncidentOperationType.MERGE,
             operate_time,
+            send_notice=True,
             link_incident_name=origin_incident_name,
             link_incident_id=origin_incident_id,
             link_incident_doc_id=origin_incident_doc_id,
