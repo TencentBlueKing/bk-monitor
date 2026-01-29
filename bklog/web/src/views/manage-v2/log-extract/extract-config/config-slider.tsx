@@ -91,13 +91,12 @@ export default defineComponent({
     // 是否验证通过
     const isValidated = ref(false);
     const isValidatedComputed = () => {
-      isValidated.value =
-        manageStrategyData.value.strategy_name &&
-        manageStrategyData.value.user_list.length &&
-        manageStrategyData.value.visible_dir.every((item: string) => Boolean(validateVisibleDir(item))) &&
-        manageStrategyData.value.file_type.every((item: string) => Boolean(validateFileExtension(item))) &&
-        manageStrategyData.value.modules.length &&
-        manageStrategyData.value?.operator;
+      isValidated.value =        manageStrategyData.value.strategy_name
+        && manageStrategyData.value.user_list.length
+        && manageStrategyData.value.visible_dir.every((item: string) => Boolean(validateVisibleDir(item)))
+        && manageStrategyData.value.file_type.every((item: string) => Boolean(validateFileExtension(item)))
+        && manageStrategyData.value.modules.length
+        && manageStrategyData.value?.operator;
       console.log('isValidated = ', manageStrategyData.value);
     };
 
@@ -241,6 +240,9 @@ export default defineComponent({
         </div>
       ));
     };
+
+    // 侧栏打开时，校验数据
+    isValidatedComputed();
 
     // 主渲染函数
     return () => (

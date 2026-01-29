@@ -169,7 +169,7 @@ class IncidentNoticeHelper:
         current_time = int(time.time())
         if not observe_start_time:
             observe_start_time = current_time + 3600
-        duration_seconds = current_time - observe_start_time
+        duration_seconds = observe_start_time - current_time
 
         # 将时间戳转换为本地时区的格式化字符串
         tz_name = timezone.get_current_timezone().zone
