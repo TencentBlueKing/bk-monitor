@@ -2342,7 +2342,9 @@ class ImportUptimeCheckNodeResource(Resource):
                 raise CustomException(_("未填写业务ID,请检查配置"))
             if create_data.get("bk_host_id"):
                 node = uptime_check_operation.list_uptime_check_nodes(
-                    bk_tenant_id=bk_tenant_id, bk_biz_id=create_data["bk_biz_id"], node_ids=[create_data["bk_host_id"]]
+                    bk_tenant_id=bk_tenant_id,
+                    bk_biz_id=create_data["bk_biz_id"],
+                    bk_host_ids=[create_data["bk_host_id"]],
                 )
             else:
                 node = uptime_check_operation.list_uptime_check_nodes(
