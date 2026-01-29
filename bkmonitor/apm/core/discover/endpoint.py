@@ -167,7 +167,7 @@ class EndpointDiscover(DiscoverBase):
         return expired_delete_data, remain_instance_data
 
     def query_cache_data(self):
-        cache_name = ApmCacheHandler.get_endpoint_cache_key(self.bk_biz_id, self.app_name)
+        cache_name = ApmCacheHandler.get_cache_key(ApmCacheType.ENDPOINT, self.bk_biz_id, self.app_name)
         return ApmCacheHandler().get_cache_data(cache_name)
 
     def clear_data(self, cache_data, instance_data) -> set:
@@ -197,7 +197,7 @@ class EndpointDiscover(DiscoverBase):
 
         cache_data = {key: val for key, val in old_cache_data.items() if key not in delete_instance_keys}
         cache_data.update({key: now for key in create_instance_keys | update_instance_keys})
-        name = ApmCacheHandler.get_endpoint_cache_key(self.bk_biz_id, self.app_name)
+        name = ApmCacheHandler.get_cache_key(ApmCacheType.ENDPOINT, self.bk_biz_id, self.app_name)
         ApmCacheHandler().refresh_data(name, cache_data, ApmCacheConfig.get_expire_time(ApmCacheType.ENDPOINT))
 
     def get_remain_data(self):

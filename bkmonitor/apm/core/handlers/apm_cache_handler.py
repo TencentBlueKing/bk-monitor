@@ -5,7 +5,7 @@ from contextlib import contextmanager
 
 from django.conf import settings
 
-from apm.constants import ApmCacheConfig, ApmCacheType
+from apm.constants import ApmCacheConfig
 from bkmonitor.utils.common_utils import uniqid4
 from core.errors.alarm_backends import LockError
 
@@ -56,17 +56,6 @@ class ApmCacheHandler:
         :return: 完整的缓存 key
         """
         key_template = ApmCacheConfig.get_key_template(cache_type)
-        return key_template.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
-
-    @staticmethod
-    def get_topo_instance_cache_key(bk_biz_id, app_name):
-        """组装 key 值"""
-        key_template = ApmCacheConfig.get_key_template(ApmCacheType.TOPO_INSTANCE)
-        return key_template.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
-
-    @staticmethod
-    def get_endpoint_cache_key(bk_biz_id, app_name):
-        key_template = ApmCacheConfig.get_key_template(ApmCacheType.ENDPOINT)
         return key_template.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
 
     def refresh_data(self, name: str, update_map: dict, ex: int = DEFAULT_APM_CACHE_EXPIRE):

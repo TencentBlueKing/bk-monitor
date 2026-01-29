@@ -268,7 +268,7 @@ class InstanceDiscover(DiscoverBase):
         now = int(time.time())
         old_cache_data.update({i: now for i in (create_instance_keys | update_instance_keys)})
         cache_data = {i: old_cache_data[i] for i in (set(old_cache_data.keys()) - delete_instance_keys)}
-        name = ApmCacheHandler.get_topo_instance_cache_key(self.bk_biz_id, self.app_name)
+        name = ApmCacheHandler.get_cache_key(ApmCacheType.TOPO_INSTANCE, self.bk_biz_id, self.app_name)
         ApmCacheHandler().refresh_data(name, cache_data, ApmCacheConfig.get_expire_time(ApmCacheType.TOPO_INSTANCE))
 
     def query_cache_and_instance_data(self):
@@ -277,7 +277,7 @@ class InstanceDiscover(DiscoverBase):
         """
 
         # 查询应用下的缓存数据
-        name = ApmCacheHandler.get_topo_instance_cache_key(self.bk_biz_id, self.app_name)
+        name = ApmCacheHandler.get_cache_key(ApmCacheType.TOPO_INSTANCE, self.bk_biz_id, self.app_name)
         cache_data = ApmCacheHandler().get_cache_data(name)
 
         # 查询应用下的实例数据
