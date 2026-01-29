@@ -26,13 +26,12 @@
 import { type PropType, computed, defineComponent, shallowRef, toRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
-import dayjs from 'dayjs';
 import { K8sNewTabEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 import { storeToRefs } from 'pinia';
 
 import { handleTransformToTimestampMs } from '../../../../../components/time-range/utils';
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
-import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
+// import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import AlarmDashboardGroup from '../../../components/alarm-dashboard-group/alarm-dashboard-group';
 import { useAlertK8s } from '../../../composables/use-alert-k8s';
 import { useK8sChartPanel } from '../../../composables/use-k8s-chart-panel';
@@ -171,10 +170,10 @@ export default defineComponent({
             </div>
           </div>
           <div class='ai-hight-card-wrap'>
-            <AiHighlightCard
+            {/* <AiHighlightCard
               content={`tE monitor_web，incident，resources, fronted_resources. IncidentHandlersResource 这个 span 中，发生了一个类型为 TypeError 的异常。异常信息为'<' not supported between instances of 'str' and 'int'. 这表明在代表中存在一个比较操作。试图将字符串和整数进行比较，导致了类型错误。`}
               title={`${window.i18n.t('AI 分析结论')}：`}
-            />
+            /> */}
             {this.createSkeletonDom()}
           </div>
           <div class='k8s-scene-selector-wrap'>
