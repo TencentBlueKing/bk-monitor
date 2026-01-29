@@ -30,22 +30,19 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
     # ========== 实现 CachedDiscoverMixin 的抽象方法 ==========
 
     @classmethod
-    def get_cache_type(cls) -> str:
+    def _get_cache_type(cls) -> str:
         """获取缓存类型"""
         return ApmCacheType.TOPO_INSTANCE
 
     @classmethod
-    def to_instance_key(cls, object_pk_id, instance_id):
-        """将实例参数转换为唯一的 key"""
+    def _to_instance_key(cls, instance: dict) -> str:
+        """从实例字典生成唯一的 key"""
+        object_pk_id = instance.get("id")
+        instance_id = instance.get("instance_id")
         return cls.INSTANCE_ID_SPLIT.join([str(object_pk_id), str(instance_id)])
 
     @classmethod
-    def extract_instance_key_params(cls, instance: dict) -> tuple:
-        """从实例字典中提取用于生成 key 的参数"""
-        return (instance.get("id"), instance.get("instance_id"))
-
-    @classmethod
-    def tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
+    def _tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
         return {
             "id": None,
             "topo_node_key": tuple_data[0],

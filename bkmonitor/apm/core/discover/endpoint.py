@@ -30,31 +30,23 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
     # ========== 实现 CachedDiscoverMixin 抽象方法 ==========
 
     @classmethod
-    def get_cache_type(cls) -> str:
+    def _get_cache_type(cls) -> str:
         """获取缓存类型"""
         return ApmCacheType.ENDPOINT
 
     @classmethod
-    def extract_instance_key_params(cls, inst: dict) -> tuple:
-        """提取实例key参数"""
-        return (
-            inst.get("endpoint_name"),
-            inst.get("service_name"),
-            inst.get("category_id"),
-            inst.get("category_kind_key"),
-            inst.get("category_kind_value"),
-            inst.get("span_kind"),
-        )
-
-    @classmethod
-    def to_instance_key(
-        cls, endpoint_name, service_name, category_id, category_kind_key, category_kind_value, span_kind
-    ) -> str:
-        """基于六元组生成实例key"""
+    def _to_instance_key(cls, instance: dict) -> str:
+        """从实例字典生成实例key"""
+        endpoint_name = instance.get("endpoint_name")
+        service_name = instance.get("service_name")
+        category_id = instance.get("category_id")
+        category_kind_key = instance.get("category_kind_key")
+        category_kind_value = instance.get("category_kind_value")
+        span_kind = instance.get("span_kind")
         return f"{span_kind}:{category_kind_value}:{category_kind_key}:{category_id}:{service_name}:{endpoint_name}"
 
     @classmethod
-    def tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
+    def _tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
         """
         将元组数据转换为实例字典
         元组格式: (endpoint_name, service_name, category_id, category_kind_key, category_kind_value, span_kind)

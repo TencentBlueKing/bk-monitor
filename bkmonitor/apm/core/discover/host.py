@@ -38,27 +38,21 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
     # ========== 实现 CachedDiscoverMixin 的抽象方法 ==========
 
     @classmethod
-    def get_cache_type(cls) -> str:
+    def _get_cache_type(cls) -> str:
         """获取缓存类型"""
         return ApmCacheType.HOST
 
     @classmethod
-    def to_instance_key(cls, bk_cloud_id, bk_host_id, ip, topo_node_key) -> str:
-        """生成 host 缓存 key"""
+    def _to_instance_key(cls, instance: dict) -> str:
+        """从实例字典生成 host 缓存 key"""
+        bk_cloud_id = instance.get("bk_cloud_id")
+        bk_host_id = instance.get("bk_host_id")
+        ip = instance.get("ip")
+        topo_node_key = instance.get("topo_node_key")
         return cls.HOST_ID_SPLIT.join([str(bk_cloud_id), str(bk_host_id), str(ip), str(topo_node_key)])
 
     @classmethod
-    def extract_instance_key_params(cls, instance: dict) -> tuple:
-        """从实例字典中提取用于生成 key 的参数"""
-        return (
-            instance.get("bk_cloud_id"),
-            instance.get("bk_host_id"),
-            instance.get("ip"),
-            instance.get("topo_node_key"),
-        )
-
-    @classmethod
-    def tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
+    def _tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
         """
         将元组数据转换为实例字典
         元组格式: (bk_cloud_id, bk_host_id, ip, topo_node_key)

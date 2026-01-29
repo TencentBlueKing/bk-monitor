@@ -26,7 +26,7 @@ class CachedDiscoverMixin(ABC):
     为 Discover 类提供基于 Redis 的缓存管理功能
 
     使用此 Mixin 的子类需要:
-    1. 实现抽象方法: get_cache_type(), to_instance_key(), extract_instance_key_params()
+    1. 实现抽象方法: get_cache_type(), to_instance_key(), tuple_to_instance_dict()
     2. 提供属性: model (Django Model), MAX_COUNT (最大数量), application (应用信息)
     3. 提供属性: bk_biz_id, app_name
     """
@@ -35,7 +35,7 @@ class CachedDiscoverMixin(ABC):
 
     @classmethod
     @abstractmethod
-    def get_cache_type(cls) -> str:
+    def _get_cache_type(cls) -> str:
         """
         获取缓存类型
         子类需要重写此方法，返回 ApmCacheType 中定义的缓存类型
@@ -45,29 +45,18 @@ class CachedDiscoverMixin(ABC):
 
     @classmethod
     @abstractmethod
-    def to_instance_key(cls, *args) -> str:
+    def _to_instance_key(cls, instance: dict) -> str:
         """
-        将实例参数转换为唯一的 key
-        子类需要重写此方法
-        :param args: 实例的关键参数
+        从实例字典生成唯一的 key
+        子类需要重写此方法，直接从 instance 字典中提取所需字段并生成 key
+        :param instance: 实例数据字典
         :return: 实例 key
         """
         raise NotImplementedError("Subclass must implement to_instance_key()")
 
     @classmethod
     @abstractmethod
-    def extract_instance_key_params(cls, instance: dict) -> tuple:
-        """
-        从实例字典中提取用于生成 key 的参数
-        子类需要重写此方法
-        :param instance: 实例数据字典
-        :return: 参数元组
-        """
-        raise NotImplementedError("Subclass must implement extract_instance_key_params()")
-
-    @classmethod
-    @abstractmethod
-    def tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
+    def _tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
         """
         将元组数据转换为实例字典
         用于将 need_create_instances 中的元组转换为字典格式
@@ -79,8 +68,49 @@ class CachedDiscoverMixin(ABC):
 
     # ========== 通用缓存操作方法 ==========
 
+    def handle_cache_refresh_after_create(
+        self, instance_data: list, need_create_instances: set, need_update_instances: list
+    ):
+        """
+        处理创建实例后的缓存刷新逻辑
+        这是一个通用方法，用于在 bulk_create 之后更新缓存
+
+        :param instance_data: 现有实例数据列表
+        :param need_create_instances: 需要创建的实例元组集合
+        :param need_update_instances: 需要更新的实例列表
+        :return: (create_instance_keys, update_instance_keys, delete_instance_keys)
+        """
+        cache_data = self._query_cache_data()
+
+        # 构建新实例数据
+        new_instance_data = instance_data
+        create_instance_keys = set()
+        if need_create_instances:
+            new_data = [self._tuple_to_instance_dict(i) for i in need_create_instances]
+            new_instance_data = instance_data + new_data
+            _, create_instance_keys = self._to_id_and_key(new_data)
+
+        # 计算删除的实例
+        delete_instance_keys = self._clear_data(cache_data, new_instance_data)
+
+        # 计算更新的实例
+        _, update_instance_keys = self._to_id_and_key(need_update_instances)
+
+        # 刷新缓存
+        self._refresh_cache_data(
+            old_cache_data=cache_data,
+            create_instance_keys=create_instance_keys,
+            update_instance_keys=update_instance_keys,
+            delete_instance_keys=delete_instance_keys,
+        )
+        logger.info(
+            f"update_instance_keys: {update_instance_keys}, "
+            f"create_instance_keys: {create_instance_keys}, "
+            f"delete_instance_keys: {delete_instance_keys}"
+        )
+
     @classmethod
-    def to_id_and_key(cls, instances: list) -> tuple[set, set]:
+    def _to_id_and_key(cls, instances: list) -> tuple[set, set]:
         """
         将实例列表转换为 id 集合和 key 集合
         :param instances: 实例列表
@@ -89,13 +119,13 @@ class CachedDiscoverMixin(ABC):
         ids, keys = set(), set()
         for inst in instances:
             inst_id = inst.get("id")
-            inst_key = cls.to_instance_key(*cls.extract_instance_key_params(inst))
+            inst_key = cls._to_instance_key(inst)
             keys.add(inst_key)
             ids.add(inst_id)
         return ids, keys
 
     @classmethod
-    def merge_data(cls, instances: list, cache_data: dict) -> list:
+    def _merge_data(cls, instances: list, cache_data: dict) -> list:
         """
         合并实例数据和缓存数据，使用缓存中的 updated_at 时间戳
         :param instances: 实例数据列表
@@ -104,13 +134,13 @@ class CachedDiscoverMixin(ABC):
         """
         merge_data = []
         for inst in instances:
-            key = cls.to_instance_key(*cls.extract_instance_key_params(inst))
+            key = cls._to_instance_key(inst)
             if key in cache_data:
                 inst["updated_at"] = datetime.datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
             merge_data.append(inst)
         return merge_data
 
-    def instance_clear_if_overflow(self, instances: list) -> tuple[list, list]:
+    def _instance_clear_if_overflow(self, instances: list) -> tuple[list, list]:
         """
         数据量超过 MAX_COUNT 时,清除最旧的数据
         :param instances: 实例数据
@@ -129,7 +159,7 @@ class CachedDiscoverMixin(ABC):
             remain_instance_data = instances
         return overflow_delete_data, remain_instance_data
 
-    def instance_clear_expired(self, instances: list) -> tuple[list, list]:
+    def _instance_clear_expired(self, instances: list) -> tuple[list, list]:
         """
         清除过期数据
         :param instances: 实例数据
@@ -153,35 +183,35 @@ class CachedDiscoverMixin(ABC):
                 remain_instance_data.append(instance)
         return expired_delete_data, remain_instance_data
 
-    def query_cache_data(self) -> dict:
+    def _query_cache_data(self) -> dict:
         """
         查询缓存数据
         :return: cache_data
         """
-        cache_key = ApmCacheHandler.get_cache_key(self.get_cache_type(), self.bk_biz_id, self.app_name)
+        cache_key = ApmCacheHandler.get_cache_key(self._get_cache_type(), self.bk_biz_id, self.app_name)
         return ApmCacheHandler().get_cache_data(cache_key)
 
-    def clear_data(self, cache_data: dict, instance_data: list) -> set:
+    def _clear_data(self, cache_data: dict, instance_data: list) -> set:
         """
         数据清除(过期 + 超量)
         :param cache_data: 缓存数据
         :param instance_data: mysql 数据
         :return: 需要删除的 instance keys
         """
-        merge_data = self.merge_data(instance_data, cache_data)
+        merge_data = self._merge_data(instance_data, cache_data)
         # 过期数据
-        expired_delete_data, remain_instance_data = self.instance_clear_expired(merge_data)
+        expired_delete_data, remain_instance_data = self._instance_clear_expired(merge_data)
         # 超量数据
-        overflow_delete_data, remain_instance_data = self.instance_clear_if_overflow(remain_instance_data)
+        overflow_delete_data, remain_instance_data = self._instance_clear_if_overflow(remain_instance_data)
         delete_data = expired_delete_data + overflow_delete_data
 
-        delete_ids, delete_keys = self.to_id_and_key(delete_data)
+        delete_ids, delete_keys = self._to_id_and_key(delete_data)
         if delete_ids:
             self.model.objects.filter(pk__in=delete_ids).delete()
 
         return delete_keys
 
-    def refresh_cache_data(
+    def _refresh_cache_data(
         self,
         old_cache_data: dict,
         create_instance_keys: set,
@@ -195,47 +225,6 @@ class CachedDiscoverMixin(ABC):
         cache_data = {key: val for key, val in old_cache_data.items() if key not in delete_instance_keys}
         cache_data.update({key: now for key in create_instance_keys | update_instance_keys})
 
-        cache_key = ApmCacheHandler.get_cache_key(self.get_cache_type(), self.bk_biz_id, self.app_name)
-        cache_expire = ApmCacheConfig.get_expire_time(self.get_cache_type())
+        cache_key = ApmCacheHandler.get_cache_key(self._get_cache_type(), self.bk_biz_id, self.app_name)
+        cache_expire = ApmCacheConfig.get_expire_time(self._get_cache_type())
         ApmCacheHandler().refresh_data(cache_key, cache_data, cache_expire)
-
-    def handle_cache_refresh_after_create(
-        self, instance_data: list, need_create_instances: set, need_update_instances: list
-    ):
-        """
-        处理创建实例后的缓存刷新逻辑
-        这是一个通用方法，用于在 bulk_create 之后更新缓存
-
-        :param instance_data: 现有实例数据列表
-        :param need_create_instances: 需要创建的实例元组集合
-        :param need_update_instances: 需要更新的实例列表
-        :return: (create_instance_keys, update_instance_keys, delete_instance_keys)
-        """
-        cache_data = self.query_cache_data()
-
-        # 构建新实例数据
-        new_instance_data = instance_data
-        create_instance_keys = set()
-        if need_create_instances:
-            new_data = [self.tuple_to_instance_dict(i) for i in need_create_instances]
-            new_instance_data = instance_data + new_data
-            _, create_instance_keys = self.to_id_and_key(new_data)
-
-        # 计算删除的实例
-        delete_instance_keys = self.clear_data(cache_data, new_instance_data)
-
-        # 计算更新的实例
-        _, update_instance_keys = self.to_id_and_key(need_update_instances)
-
-        # 刷新缓存
-        self.refresh_cache_data(
-            old_cache_data=cache_data,
-            create_instance_keys=create_instance_keys,
-            update_instance_keys=update_instance_keys,
-            delete_instance_keys=delete_instance_keys,
-        )
-        logger.info(
-            f"update_instance_keys: {update_instance_keys}, "
-            f"create_instance_keys: {create_instance_keys}, "
-            f"delete_instance_keys: {delete_instance_keys}"
-        )
