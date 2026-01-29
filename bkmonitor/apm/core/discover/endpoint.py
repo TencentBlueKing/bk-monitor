@@ -207,10 +207,27 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         )
 
         cache_data = self.query_cache_data()
-        delete_instance_keys = self.clear_data(cache_data, instance_data)
 
-        # 基于六元组生成缓存key
-        create_instance_keys = {self.to_instance_key(*i) for i in need_create_instances}
+        new_instance_data = instance_data
+        create_instance_keys = set()
+        if need_create_instances:
+            new_endpoint_data = [
+                {
+                    "id": None,
+                    "endpoint_name": i[0],
+                    "service_name": i[1],
+                    "category_id": i[2],
+                    "category_kind_key": i[3],
+                    "category_kind_value": i[4],
+                    "span_kind": i[5],
+                    "updated_at": None,
+                }
+                for i in need_create_instances
+            ]
+            new_instance_data = instance_data + new_endpoint_data
+            _, create_instance_keys = self.to_id_and_key(new_endpoint_data)
+
+        delete_instance_keys = self.clear_data(cache_data, new_instance_data)
 
         _, update_instance_keys = self.to_id_and_key(need_update_instances)
         self.refresh_cache_data(
