@@ -14,7 +14,7 @@ import time
 import pytz
 from opentelemetry.semconv.resource import ResourceAttributes
 
-from apm.constants import DEFAULT_TOPO_INSTANCE_EXPIRE
+from apm.constants import ApmCacheConfig, ApmCacheType
 from apm.core.discover.base import (
     DiscoverBase,
     extract_field_value,
@@ -269,7 +269,7 @@ class InstanceDiscover(DiscoverBase):
         old_cache_data.update({i: now for i in (create_instance_keys | update_instance_keys)})
         cache_data = {i: old_cache_data[i] for i in (set(old_cache_data.keys()) - delete_instance_keys)}
         name = ApmCacheHandler.get_topo_instance_cache_key(self.bk_biz_id, self.app_name)
-        ApmCacheHandler().refresh_data(name, cache_data, DEFAULT_TOPO_INSTANCE_EXPIRE)
+        ApmCacheHandler().refresh_data(name, cache_data, ApmCacheConfig.get_expire_time(ApmCacheType.TOPO_INSTANCE))
 
     def query_cache_and_instance_data(self):
         """

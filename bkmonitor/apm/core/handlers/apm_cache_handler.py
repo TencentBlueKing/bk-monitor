@@ -5,12 +5,7 @@ from contextlib import contextmanager
 
 from django.conf import settings
 
-from apm.constants import (
-    APM_ENDPOINT,
-    APM_TOPO_INSTANCE,
-    ApmCacheConfig,
-    DEFAULT_APM_CACHE_EXPIRE,
-)
+from apm.constants import ApmCacheConfig, ApmCacheType
 from bkmonitor.utils.common_utils import uniqid4
 from core.errors.alarm_backends import LockError
 
@@ -18,6 +13,8 @@ logger = logging.getLogger("apm_topo")
 
 
 class ApmCacheHandler:
+    DEFAULT_APM_CACHE_EXPIRE = 7 * 24 * 60 * 60
+
     def __init__(self):
         self.redis_client = self.get_redis_client()
 
@@ -64,11 +61,13 @@ class ApmCacheHandler:
     @staticmethod
     def get_topo_instance_cache_key(bk_biz_id, app_name):
         """组装 key 值"""
-        return APM_TOPO_INSTANCE.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
+        key_template = ApmCacheConfig.get_key_template(ApmCacheType.TOPO_INSTANCE)
+        return key_template.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
 
     @staticmethod
     def get_endpoint_cache_key(bk_biz_id, app_name):
-        return APM_ENDPOINT.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
+        key_template = ApmCacheConfig.get_key_template(ApmCacheType.ENDPOINT)
+        return key_template.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
 
     def refresh_data(self, name: str, update_map: dict, ex: int = DEFAULT_APM_CACHE_EXPIRE):
         """

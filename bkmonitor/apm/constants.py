@@ -626,15 +626,6 @@ class ApmCacheConfig:
         return cls._EXPIRE_TIMES[cache_type]
 
 
-APM_TOPO_INSTANCE = "BKMONITOR_{}_{}_APM_TOPO_INSTANCE_HEARTBEAT_{}_{}"
-APM_ENDPOINT = "BKMONITOR_{}_{}_APM_ENDPOINT_HEARTBEAT_{}_{}"
-
-# 针对高频修改字段 updated_at 的过期清理时间
-DEFAULT_APM_CACHE_EXPIRE = 7 * 24 * 60 * 60
-DEFAULT_TOPO_INSTANCE_EXPIRE = 7 * 24 * 60 * 60
-DEFAULT_ENDPOINT_EXPIRE = 7 * 24 * 60 * 60
-
-
 class ProfileApiType:
     """Profile查询api_type参数枚举值"""
 

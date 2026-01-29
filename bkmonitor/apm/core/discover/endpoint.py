@@ -15,7 +15,7 @@ import pytz
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
-from apm.constants import DEFAULT_ENDPOINT_EXPIRE
+from apm.constants import ApmCacheConfig, ApmCacheType
 from apm.core.discover.base import (
     DiscoverBase,
     exists_field,
@@ -198,7 +198,7 @@ class EndpointDiscover(DiscoverBase):
         cache_data = {key: val for key, val in old_cache_data.items() if key not in delete_instance_keys}
         cache_data.update({key: now for key in create_instance_keys | update_instance_keys})
         name = ApmCacheHandler.get_endpoint_cache_key(self.bk_biz_id, self.app_name)
-        ApmCacheHandler().refresh_data(name, cache_data, DEFAULT_ENDPOINT_EXPIRE)
+        ApmCacheHandler().refresh_data(name, cache_data, ApmCacheConfig.get_expire_time(ApmCacheType.ENDPOINT))
 
     def get_remain_data(self):
         return self.list_exists()
