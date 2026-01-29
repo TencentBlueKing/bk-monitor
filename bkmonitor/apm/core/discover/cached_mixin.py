@@ -11,10 +11,13 @@ specific language governing permissions and limitations under the License.
 import datetime
 import time
 from abc import ABC, abstractmethod
+import logging
 
 import pytz
 from apm.constants import ApmCacheConfig
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
+
+logger = logging.getLogger("apm")
 
 
 class CachedDiscoverMixin(ABC):
@@ -61,6 +64,18 @@ class CachedDiscoverMixin(ABC):
         :return: 参数元组
         """
         raise NotImplementedError("Subclass must implement extract_instance_key_params()")
+
+    @classmethod
+    @abstractmethod
+    def tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
+        """
+        将元组数据转换为实例字典
+        用于将 need_create_instances 中的元组转换为字典格式
+        子类需要重写此方法，定义字段映射关系
+        :param tuple_data: 元组数据
+        :return: 实例字典
+        """
+        raise NotImplementedError("Subclass must implement tuple_to_instance_dict()")
 
     # ========== 通用缓存操作方法 ==========
 
@@ -183,3 +198,44 @@ class CachedDiscoverMixin(ABC):
         cache_key = ApmCacheHandler.get_cache_key(self.get_cache_type(), self.bk_biz_id, self.app_name)
         cache_expire = ApmCacheConfig.get_expire_time(self.get_cache_type())
         ApmCacheHandler().refresh_data(cache_key, cache_data, cache_expire)
+
+    def handle_cache_refresh_after_create(
+        self, instance_data: list, need_create_instances: set, need_update_instances: list
+    ):
+        """
+        处理创建实例后的缓存刷新逻辑
+        这是一个通用方法，用于在 bulk_create 之后更新缓存
+
+        :param instance_data: 现有实例数据列表
+        :param need_create_instances: 需要创建的实例元组集合
+        :param need_update_instances: 需要更新的实例列表
+        :return: (create_instance_keys, update_instance_keys, delete_instance_keys)
+        """
+        cache_data = self.query_cache_data()
+
+        # 构建新实例数据
+        new_instance_data = instance_data
+        create_instance_keys = set()
+        if need_create_instances:
+            new_data = [self.tuple_to_instance_dict(i) for i in need_create_instances]
+            new_instance_data = instance_data + new_data
+            _, create_instance_keys = self.to_id_and_key(new_data)
+
+        # 计算删除的实例
+        delete_instance_keys = self.clear_data(cache_data, new_instance_data)
+
+        # 计算更新的实例
+        _, update_instance_keys = self.to_id_and_key(need_update_instances)
+
+        # 刷新缓存
+        self.refresh_cache_data(
+            old_cache_data=cache_data,
+            create_instance_keys=create_instance_keys,
+            update_instance_keys=update_instance_keys,
+            delete_instance_keys=delete_instance_keys,
+        )
+        logger.info(
+            f"update_instance_keys: {update_instance_keys}, "
+            f"create_instance_keys: {create_instance_keys}, "
+            f"delete_instance_keys: {delete_instance_keys}"
+        )

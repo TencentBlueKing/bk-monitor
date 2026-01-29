@@ -53,6 +53,23 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         """基于六元组生成实例key"""
         return f"{span_kind}:{category_kind_value}:{category_kind_key}:{category_id}:{service_name}:{endpoint_name}"
 
+    @classmethod
+    def tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
+        """
+        将元组数据转换为实例字典
+        元组格式: (endpoint_name, service_name, category_id, category_kind_key, category_kind_value, span_kind)
+        """
+        return {
+            "id": None,
+            "endpoint_name": tuple_data[0],
+            "service_name": tuple_data[1],
+            "category_id": tuple_data[2],
+            "category_kind_key": tuple_data[3],
+            "category_kind_value": tuple_data[4],
+            "span_kind": tuple_data[5],
+            "updated_at": None,
+        }
+
     # ========== EndpointDiscover 特有方法 ==========
 
     @staticmethod
@@ -206,33 +223,9 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
             ]
         )
 
-        cache_data = self.query_cache_data()
-
-        new_instance_data = instance_data
-        create_instance_keys = set()
-        if need_create_instances:
-            new_endpoint_data = [
-                {
-                    "id": None,
-                    "endpoint_name": i[0],
-                    "service_name": i[1],
-                    "category_id": i[2],
-                    "category_kind_key": i[3],
-                    "category_kind_value": i[4],
-                    "span_kind": i[5],
-                    "updated_at": None,
-                }
-                for i in need_create_instances
-            ]
-            new_instance_data = instance_data + new_endpoint_data
-            _, create_instance_keys = self.to_id_and_key(new_endpoint_data)
-
-        delete_instance_keys = self.clear_data(cache_data, new_instance_data)
-
-        _, update_instance_keys = self.to_id_and_key(need_update_instances)
-        self.refresh_cache_data(
-            old_cache_data=cache_data,
-            create_instance_keys=create_instance_keys,
-            update_instance_keys=update_instance_keys,
-            delete_instance_keys=delete_instance_keys,
+        # 使用抽象方法处理缓存刷新
+        self.handle_cache_refresh_after_create(
+            instance_data=instance_data,
+            need_create_instances=need_create_instances,
+            need_update_instances=need_update_instances,
         )

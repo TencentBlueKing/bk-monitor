@@ -57,6 +57,21 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
             instance.get("topo_node_key"),
         )
 
+    @classmethod
+    def tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
+        """
+        将元组数据转换为实例字典
+        元组格式: (bk_cloud_id, bk_host_id, ip, topo_node_key)
+        """
+        return {
+            "id": None,
+            "bk_cloud_id": tuple_data[0],
+            "bk_host_id": tuple_data[1],
+            "ip": tuple_data[2],
+            "topo_node_key": tuple_data[3],
+            "updated_at": None,
+        }
+
     # ========== Host 特有的业务方法 ==========
 
     def list_exists(self):
@@ -140,38 +155,14 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
             ]
         )
 
-        cache_data = self.query_cache_data()
-
+        # 准备更新数据
         update_host_data = [h for h in instance_data if h.get("id") in need_update_instance_ids]
-        _, update_host_keys = self.to_id_and_key(update_host_data)
 
-        new_instance_data = instance_data
-        create_host_keys = set()
-        if need_create_instances:
-            new_host_data = [
-                {
-                    "id": None,
-                    "bk_cloud_id": h[0],
-                    "bk_host_id": h[1],
-                    "ip": h[2],
-                    "topo_node_key": h[3],
-                    "updated_at": None,
-                }
-                for h in need_create_instances
-            ]
-            new_instance_data = instance_data + new_host_data
-            _, create_host_keys = self.to_id_and_key(new_host_data)
-
-        delete_host_keys = self.clear_data(cache_data, new_instance_data)
-
-        self.refresh_cache_data(
-            old_cache_data=cache_data,
-            create_instance_keys=create_host_keys,
-            update_instance_keys=update_host_keys,
-            delete_instance_keys=delete_host_keys,
-        )
-        logger.info(
-            f"update_host_keys: {update_host_keys}, create_host_keys: {create_host_keys}, delete_host_keys: {delete_host_keys}"
+        # 使用抽象方法处理缓存刷新
+        self.handle_cache_refresh_after_create(
+            instance_data=instance_data,
+            need_create_instances=need_create_instances,
+            need_update_instances=update_host_data,
         )
 
     def list_bk_cloud_id(self, ips: list[str]) -> dict[str, tuple[int, int]]:
