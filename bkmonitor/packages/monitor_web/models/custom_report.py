@@ -19,7 +19,7 @@ from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.user import get_backend_username
 from constants.common import DEFAULT_TENANT_ID
-from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.data_source import DataSourceLabel, DataTypeLabel, METRIC_TYPE_CHOICES, MetricType
 from core.drf_resource import api
 from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import OperateRecordModelBase
@@ -75,15 +75,6 @@ class CustomTSField(models.Model):
     """
     自定义时序字段
     """
-
-    METRIC_TYPE_CHOICES = (
-        ("metric", "指标"),
-        ("dimension", "维度"),
-    )
-
-    class MetricType:
-        METRIC = "metric"
-        DIMENSION = "dimension"
 
     MetricConfigFields = ["unit", "hidden", "aggregate_method", "function", "interval", "label", "dimensions"]
     DimensionConfigFields = ["common", "hidden"]
@@ -193,14 +184,14 @@ class CustomTSTable(OperateRecordModelBase):
                 # 指标信息同步，为了向前兼容
                 dimensions = sorted([tag["field_name"] for tag in metric_info["tag_list"]])
                 metric = fields.get((metric_info["field_name"], "")) or fields.get(
-                    (metric_info["field_name"], CustomTSField.MetricType.METRIC)
+                    (metric_info["field_name"], MetricType.METRIC)
                 )
                 if not metric:
                     # 新建指标
                     metric = CustomTSField(
                         time_series_group_id=self.time_series_group_id,
                         name=metric_info["field_name"],
-                        type=CustomTSField.MetricType.METRIC,
+                        type=MetricType.METRIC,
                         config={
                             "dimensions": dimensions,
                             "unit": metric_info["unit"],
@@ -215,7 +206,7 @@ class CustomTSTable(OperateRecordModelBase):
 
                     # 指标信息同步
                     if not metric.type:
-                        metric.type = CustomTSField.MetricType.METRIC
+                        metric.type = MetricType.METRIC
                         changed = True
 
                     if not metric.config.get("unit") and metric_info.get("unit"):
@@ -243,19 +234,19 @@ class CustomTSTable(OperateRecordModelBase):
                 # 遍历维度
                 for tag in metric_info["tag_list"]:
                     # 需要补充的维度
-                    if (tag["field_name"], CustomTSField.MetricType.DIMENSION) not in fields:
+                    if (tag["field_name"], MetricType.DIMENSION) not in fields:
                         item = CustomTSField(
                             time_series_group_id=self.time_series_group_id,
                             name=tag["field_name"],
-                            type=CustomTSField.MetricType.DIMENSION,
+                            type=MetricType.DIMENSION,
                             description=tag["description"],
                         )
                         # 添加维度字段
                         need_create_fields.append(item)
-                        fields[(tag["field_name"], CustomTSField.MetricType.DIMENSION)] = item
+                        fields[(tag["field_name"], MetricType.DIMENSION)] = item
                     else:
                         # 如果存在维度别名不为空，则更新
-                        item = fields[(tag["field_name"], CustomTSField.MetricType.DIMENSION)]
+                        item = fields[(tag["field_name"], MetricType.DIMENSION)]
                         if item.description == "" and tag["description"]:
                             item.description = tag["description"]
                             need_update_fields.append(item)
@@ -267,7 +258,7 @@ class CustomTSTable(OperateRecordModelBase):
             # 对新增指标进行分组匹配
             for field in need_create_fields:
                 # 跳过维度
-                if field.type == CustomTSField.MetricType.DIMENSION:
+                if field.type == MetricType.DIMENSION:
                     continue
 
                 labels = []
@@ -294,9 +285,7 @@ class CustomTSTable(OperateRecordModelBase):
         更新指标标签
         """
         # 获取当前指标标签
-        fields = CustomTSField.objects.filter(
-            time_series_group_id=self.time_series_group_id, type=CustomTSField.MetricType.METRIC
-        )
+        fields = CustomTSField.objects.filter(time_series_group_id=self.time_series_group_id, type=MetricType.METRIC)
         updated_fields = []
         for field in fields:
             # 清空标签
@@ -333,7 +322,7 @@ class CustomTSTable(OperateRecordModelBase):
         dimension_names: dict[str, str] = {
             dimension.name: dimension.description
             for dimension in CustomTSField.objects.filter(
-                time_series_group_id=self.time_series_group_id, type=CustomTSField.MetricType.DIMENSION
+                time_series_group_id=self.time_series_group_id, type=MetricType.DIMENSION
             )
         }
 
@@ -348,7 +337,7 @@ class CustomTSTable(OperateRecordModelBase):
                 "aggregate_method": field.config.get("aggregate_method", ""),
             }
 
-            if field.type == CustomTSField.MetricType.METRIC:
+            if field.type == MetricType.METRIC:
                 field_map[field.name].update(
                     {
                         "dimension_list": [
@@ -365,7 +354,7 @@ class CustomTSTable(OperateRecordModelBase):
         查询 target 维度字段
         """
         metric = CustomTSField.objects.filter(
-            time_series_group_id=self.time_series_group_id, type=CustomTSField.MetricType.METRIC
+            time_series_group_id=self.time_series_group_id, type=MetricType.METRIC
         ).first()
         if not metric:
             return []
