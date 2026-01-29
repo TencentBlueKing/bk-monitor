@@ -669,6 +669,106 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query time series group
+  /app/metadata/query_time_series_metric/:
+    post:
+      operationId: metadata_query_time_series_metric
+      description: 查询自定义时序指标列表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v3/meta/query_time_series_metric/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query time series metric
+  /app/metadata/create_or_update_time_series_metric/:
+    post:
+      operationId: metadata_create_or_update_time_series_metric
+      description: 批量创建或更新自定义时序指标
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v3/meta/create_or_update_time_series_metric/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create or update time series metric
+  /app/metadata/create_or_update_time_series_scope/:
+    post:
+      operationId: metadata_create_or_update_time_series_scope
+      description: 批量创建或更新自定义时序指标分组
+      tags:
+        - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v3/meta/create_or_update_time_series_scope/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create or update time series scope
+  /app/metadata/delete_time_series_scope/:
+    post:
+      operationId: metadata_delete_time_series_scope
+      description: 删除自定义时序指标分组
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v3/meta/delete_time_series_scope/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete time series scope
+  /app/metadata/query_time_series_scope/:
+    post:
+      operationId: metadata_query_time_series_scope
+      description: 查询自定义时序指标分组列表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v3/meta/query_time_series_scope/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query time series scope
   /app/metadata/query_tag_values/:
     get:
       operationId: metadata_query_tag_values
