@@ -56,37 +56,36 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
             "updated_at": None,
         }
 
+    # ========== InstanceDiscover 特有方法 ==========
+
+    @staticmethod
+    def _build_instance_dict(instance_obj):
+        """构建实例字典的辅助方法"""
+        return {
+            "id": CachedDiscoverMixin._get_attr_value(instance_obj, "id"),
+            "topo_node_key": CachedDiscoverMixin._get_attr_value(instance_obj, "topo_node_key"),
+            "instance_id": CachedDiscoverMixin._get_attr_value(instance_obj, "instance_id"),
+            "instance_topo_kind": CachedDiscoverMixin._get_attr_value(instance_obj, "instance_topo_kind"),
+            "component_instance_category": CachedDiscoverMixin._get_attr_value(
+                instance_obj, "component_instance_category"
+            ),
+            "component_instance_predicate_value": CachedDiscoverMixin._get_attr_value(
+                instance_obj, "component_instance_predicate_value"
+            ),
+            "sdk_name": CachedDiscoverMixin._get_attr_value(instance_obj, "sdk_name"),
+            "sdk_version": CachedDiscoverMixin._get_attr_value(instance_obj, "sdk_version"),
+            "sdk_language": CachedDiscoverMixin._get_attr_value(instance_obj, "sdk_language"),
+            "updated_at": CachedDiscoverMixin._get_attr_value(instance_obj, "updated_at"),
+        }
+
     def list_exists(self):
         """
         获取已存在的实例数据
         返回元组: (查询字典, 实例数据列表)
         """
         instances = TopoInstance.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        res = {}
-        instance_data = []
-
-        for instance in instances:
-            instance_dict = {
-                "id": instance.id,
-                "instance_id": instance.instance_id,
-                "updated_at": instance.updated_at,
-            }
-            res.setdefault(
-                (
-                    instance.topo_node_key,
-                    instance.instance_id,
-                    instance.instance_topo_kind,
-                    instance.component_instance_category,
-                    instance.component_instance_predicate_value,
-                    instance.sdk_name,
-                    instance.sdk_version,
-                    instance.sdk_language,
-                ),
-                dict(),
-            ).update({"id": instance.id, "instance_id": instance.instance_id})
-            instance_data.append(instance_dict)
-
-        return res, instance_data
+        # 使用 Mixin 提供的通用方法处理重复数据
+        return self._process_duplicate_records(instances)
 
     def get_remain_data(self):
         """获取预加载数据，避免在循环中重复查询"""

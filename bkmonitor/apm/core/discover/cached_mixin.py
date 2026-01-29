@@ -66,7 +66,74 @@ class CachedDiscoverMixin(ABC):
         """
         raise NotImplementedError("Subclass must implement tuple_to_instance_dict()")
 
+    @staticmethod
+    @abstractmethod
+    def _build_instance_dict(instance_obj):
+        """
+        构建实例字典的辅助方法
+        子类需要重写此方法，定义如何从数据库对象或字典构建标准实例字典
+        :param instance_obj: 数据库对象或字典
+        :return: 实例字典
+        """
+        raise NotImplementedError("Subclass must implement _build_instance_dict()")
+
     # ========== 通用缓存操作方法 ==========
+
+    @staticmethod
+    def _get_attr_value(obj, attr_name):
+        """
+        统一的属性获取方法
+        支持从 ORM 对象或字典中获取属性值
+        :param obj: ORM 对象或字典
+        :param attr_name: 属性名称
+        :return: 属性值
+        """
+        if hasattr(obj, attr_name):
+            return getattr(obj, attr_name)
+        return obj.get(attr_name) if isinstance(obj, dict) else None
+
+    @classmethod
+    def _process_duplicate_records(cls, instances) -> tuple[dict, list]:
+        """
+        处理重复数据的通用方法
+        :param instances: 数据库查询结果（QuerySet 或列表）
+        :return: (res, instance_data) - res: 去重后的字典映射, instance_data: 实例数据列表
+        """
+        exists_mapping = {}
+        for instance in instances:
+            # 构建实例字典
+            instance_dict = cls._build_instance_dict(instance)
+            # 获取唯一键
+            key = cls._to_instance_key(instance_dict)
+            if key not in exists_mapping:
+                exists_mapping[key] = []
+            exists_mapping[key].append(instance_dict)
+
+        # 处理重复数据并构建最终结果
+        res = {}
+        instance_data = []
+        need_delete_ids = []
+
+        for key, records in exists_mapping.items():
+            records.sort(key=lambda x: x["id"])
+            keep_record = records[0]
+
+            # 收集需要删除的重复记录ID
+            if len(records) > 1:
+                need_delete_ids.extend([r["id"] for r in records[1:]])
+
+            # 保留的记录
+            instance = cls._build_instance_dict(keep_record)
+            res[key] = instance
+            instance_data.append(instance)
+
+        # 执行数据库删除操作
+        if need_delete_ids:
+            # 注意：这里需要子类提供 model 属性
+            cls.model.objects.filter(id__in=need_delete_ids).delete()
+            logger.info(f"[{cls.__name__}] Deleted {len(need_delete_ids)} duplicate records: {need_delete_ids}")
+
+        return res, instance_data
 
     def handle_cache_refresh_after_create(
         self, instance_data: list, need_create_instances: set, need_update_instances: list

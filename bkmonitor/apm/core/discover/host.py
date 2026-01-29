@@ -68,28 +68,26 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
 
     # ========== Host 特有的业务方法 ==========
 
+    @staticmethod
+    def _build_host_dict(host_obj):
+        """构建主机字典的辅助方法"""
+        return {
+            "id": CachedDiscoverMixin._get_attr_value(host_obj, "id"),
+            "bk_cloud_id": CachedDiscoverMixin._get_attr_value(host_obj, "bk_cloud_id"),
+            "bk_host_id": CachedDiscoverMixin._get_attr_value(host_obj, "bk_host_id"),
+            "ip": CachedDiscoverMixin._get_attr_value(host_obj, "ip"),
+            "topo_node_key": CachedDiscoverMixin._get_attr_value(host_obj, "topo_node_key"),
+            "updated_at": CachedDiscoverMixin._get_attr_value(host_obj, "updated_at"),
+        }
+
     def list_exists(self):
         """
         获取已存在的 host 数据
         返回元组: (查询字典, 实例数据列表)
         """
         instances = HostInstance.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        res = {}
-        instance_data = []
-
-        for i in instances:
-            host_dict = {
-                "id": i.id,
-                "bk_cloud_id": i.bk_cloud_id,
-                "bk_host_id": i.bk_host_id,
-                "ip": i.ip,
-                "topo_node_key": i.topo_node_key,
-                "updated_at": i.updated_at,
-            }
-            res.setdefault((i.bk_cloud_id, i.bk_host_id, i.ip, i.topo_node_key), set()).add(i.id)
-            instance_data.append(host_dict)
-
-        return res, instance_data
+        # 使用 Mixin 提供的通用方法处理重复数据
+        return self._process_duplicate_records(instances)
 
     def get_remain_data(self):
         return self.list_exists()
@@ -124,13 +122,13 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
 
         # try to get bk_cloud_id if register in bk_cmdb
         cloud_id_mapping = self.list_bk_cloud_id([i[-1] for i in find_ips])
-        need_update_instance_ids = set()
+        need_update_instances = list()
         need_create_instances = set()
 
         for service_name, ip in find_ips:
             found_key = (*(cloud_id_mapping.get(ip, (self.DEFAULT_BK_CLOUD_ID, None))), ip, service_name)
             if found_key in exists_hosts:
-                need_update_instance_ids |= exists_hosts[found_key]
+                need_update_instances.append(exists_hosts[found_key])
             else:
                 need_create_instances.add(found_key)
 
@@ -149,14 +147,11 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
             ]
         )
 
-        # 准备更新数据
-        update_host_data = [h for h in instance_data if h.get("id") in need_update_instance_ids]
-
         # 使用抽象方法处理缓存刷新
         self.handle_cache_refresh_after_create(
             instance_data=instance_data,
             need_create_instances=need_create_instances,
-            need_update_instances=update_host_data,
+            need_update_instances=need_update_instances,
         )
 
     def list_bk_cloud_id(self, ips: list[str]) -> dict[str, tuple[int, int]]:
