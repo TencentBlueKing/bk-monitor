@@ -8,106 +8,72 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import datetime
-import time
-
-import pytz
 from opentelemetry.semconv.resource import ResourceAttributes
 
-from apm.constants import ApmCacheConfig, ApmCacheType
+from apm.constants import ApmCacheType
 from apm.core.discover.base import (
     DiscoverBase,
     extract_field_value,
     get_topo_instance_key,
 )
-from apm.core.handlers.apm_cache_handler import ApmCacheHandler
+from apm.core.discover.cached_mixin import CachedDiscoverMixin
 from apm.models import ApmTopoDiscoverRule, TopoInstance
 from constants.apm import OtlpKey
 
 
-class InstanceDiscover(DiscoverBase):
+class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
     DISCOVERY_ALL_SPANS = True
     MAX_COUNT = 100000
     INSTANCE_ID_SPLIT = ":"
     model = TopoInstance
 
+    # ========== 实现 CachedDiscoverMixin 的抽象方法 ==========
+
+    @classmethod
+    def get_cache_type(cls) -> str:
+        """获取缓存类型"""
+        return ApmCacheType.TOPO_INSTANCE
+
     @classmethod
     def to_instance_key(cls, object_pk_id, instance_id):
+        """将实例参数转换为唯一的 key"""
         return cls.INSTANCE_ID_SPLIT.join([str(object_pk_id), str(instance_id)])
 
     @classmethod
-    def to_id_and_key(cls, instances: list):
-        """
-        数据提取转化
-        :param instances: 实例列表
-        :return:
-        """
-        ids, keys = set(), set()
-        for inst in instances:
-            inst_id = inst.get("id")
-            inst_key = cls.to_instance_key(inst_id, inst.get("instance_id"))
-            keys.add(inst_key)
-            ids.add(inst_id)
-        return ids, keys
+    def extract_instance_key_params(cls, instance: dict) -> tuple:
+        """从实例字典中提取用于生成 key 的参数"""
+        return (instance.get("id"), instance.get("instance_id"))
 
     @classmethod
-    def merge_data(cls, instances: list, cache_data: dict) -> list:
-        """
-        更新 updated_at 字段
-        :param instances: 实例数据
-        :param cache_data: 缓存数据
-        :return:
-        """
-        merge_data = []
-        for instance in instances:
-            key = cls.to_instance_key(instance.get("id"), instance.get("instance_id"))
-            if key in cache_data:
-                instance["updated_at"] = datetime.datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
-            merge_data.append(instance)
-        return merge_data
-
-    def instance_clear_if_overflow(self, instances: list):
-        """
-        数据量大于100000时, 清除数据
-        :param instances: 实例数据
-        :return:
-        """
-        overflow_delete_data = []
-        count = len(instances)
-        if count > self.MAX_COUNT:
-            delete_count = count - self.MAX_COUNT
-            # 按照updated_at排序，从小到大
-            instances.sort(key=lambda item: item.get("updated_at"))
-            overflow_delete_data = instances[:delete_count]
-            remain_instance_data = instances[delete_count:]
-        else:
-            remain_instance_data = instances
-        return overflow_delete_data, remain_instance_data
-
-    def instance_clear_expired(self, instances: list):
-        """
-        清除过期数据
-        :param instances: 实例数据
-        :return:
-        """
-        # mysql 中的 updated_at 时间字段, 它的时区是 UTC, 跟数据库保持一致
-        boundary = datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(
-            days=self.application.trace_datasource.retention
-        )
-        # 按照时间进行过滤
-        expired_delete_data = []
-        remain_instance_data = []
-        for instance in instances:
-            if instance.get("updated_at") <= boundary:
-                expired_delete_data.append(instance)
-            else:
-                remain_instance_data.append(instance)
-        return expired_delete_data, remain_instance_data
+    def tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
+        return {
+            "id": None,
+            "topo_node_key": tuple_data[0],
+            "instance_id": tuple_data[1],
+            "instance_topo_kind": tuple_data[2],
+            "component_instance_category": tuple_data[3],
+            "component_instance_predicate_value": tuple_data[4],
+            "sdk_name": tuple_data[5],
+            "sdk_version": tuple_data[6],
+            "sdk_language": tuple_data[7],
+            "updated_at": None,
+        }
 
     def list_exists(self):
-        res = {}
+        """
+        获取已存在的实例数据
+        返回元组: (查询字典, 实例数据列表)
+        """
         instances = TopoInstance.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        res = {}
+        instance_data = []
+
         for instance in instances:
+            instance_dict = {
+                "id": instance.id,
+                "instance_id": instance.instance_id,
+                "updated_at": instance.updated_at,
+            }
             res.setdefault(
                 (
                     instance.topo_node_key,
@@ -121,8 +87,22 @@ class InstanceDiscover(DiscoverBase):
                 ),
                 dict(),
             ).update({"id": instance.id, "instance_id": instance.instance_id})
+            instance_data.append(instance_dict)
 
-        return res
+        return res, instance_data
+
+    def get_remain_data(self):
+        """获取预加载数据，避免在循环中重复查询"""
+        return self.list_exists()
+
+    def discover_with_remain_data(self, origin_data, remain_data):
+        """
+        使用预加载的数据进行发现，避免重复查询数据库
+        :param origin_data: span 数据
+        :param remain_data: 预加载的实例数据 (exists_instances, instance_data)
+        """
+        exists_instances, instance_data = remain_data
+        self._do_discover(exists_instances, instance_data, origin_data)
 
     def discover(self, origin_data):
         """
@@ -133,12 +113,20 @@ class InstanceDiscover(DiscoverBase):
         need_update_instances -> [{"id": 243, "instance_id": "mysql:::3306"}]
         *_instance_keys -> {"243:mysql:::3306", "244:elasticsearch:::"}
         """
-        exists_instances = self.list_exists()
+        exists_instances, instance_data = self.list_exists()
+        self._do_discover(exists_instances, instance_data, origin_data)
+
+    def _do_discover(self, exists_instances, instance_data, origin_data):
+        """
+        核心发现逻辑
+        :param exists_instances: 已存在的实例映射
+        :param instance_data: 实例数据列表
+        :param origin_data: span 数据
+        """
         component_rules = self.filter_rules(ApmTopoDiscoverRule.TOPO_COMPONENT)
 
         need_update_instances = list()
         need_create_instances = set()
-        need_create_instance_ids = set()
 
         for span in origin_data:
             # service/components have different sources that can be discovered in parallel
@@ -200,7 +188,6 @@ class InstanceDiscover(DiscoverBase):
                     need_update_instances.append(exists_instances[key])
                 else:
                     need_create_instances.add(key)
-                    need_create_instance_ids.add(key[1])
 
         # create
         TopoInstance.objects.bulk_create(
@@ -220,68 +207,6 @@ class InstanceDiscover(DiscoverBase):
                 for i in need_create_instances
             ]
         )
-        # query cache data and database data(with object_pk_id)
-        cache_data, instance_data = self.query_cache_and_instance_data()
 
-        # delete database data
-        delete_instance_keys = self.clear_data(cache_data, instance_data)
-
-        # refresh cache data
-        _, create_instance_keys = self.to_id_and_key(
-            [i for i in instance_data if i.get("instance_id") in need_create_instance_ids]
-        )
-        _, update_instance_keys = self.to_id_and_key(need_update_instances)
-        self.refresh_cache_data(
-            old_cache_data=cache_data,
-            create_instance_keys=create_instance_keys,
-            update_instance_keys=update_instance_keys,
-            delete_instance_keys=delete_instance_keys,
-        )
-
-    def clear_data(self, cache_data, instance_data) -> set:
-        """
-        数据清除
-        :param cache_data: 缓存数据
-        :param instance_data: mysql 数据
-        :return:
-        """
-        merge_data = self.merge_data(instance_data, cache_data)
-        # 过期数据
-        expired_delete_data, remain_instance_data = self.instance_clear_expired(merge_data)
-        # 超量数据
-        overflow_delete_data, remain_instance_data = self.instance_clear_if_overflow(remain_instance_data)
-        delete_data = expired_delete_data + overflow_delete_data
-
-        delete_ids, delete_keys = self.to_id_and_key(delete_data)
-        if delete_ids:
-            self.model.objects.filter(pk__in=delete_ids).delete()
-
-        return delete_keys
-
-    def refresh_cache_data(
-        self,
-        old_cache_data: dict,
-        create_instance_keys: set,
-        update_instance_keys: set,
-        delete_instance_keys: set,
-    ):
-        now = int(time.time())
-        old_cache_data.update({i: now for i in (create_instance_keys | update_instance_keys)})
-        cache_data = {i: old_cache_data[i] for i in (set(old_cache_data.keys()) - delete_instance_keys)}
-        name = ApmCacheHandler.get_cache_key(ApmCacheType.TOPO_INSTANCE, self.bk_biz_id, self.app_name)
-        ApmCacheHandler().refresh_data(name, cache_data, ApmCacheConfig.get_expire_time(ApmCacheType.TOPO_INSTANCE))
-
-    def query_cache_and_instance_data(self):
-        """
-        缓存数据及实例数据查询
-        """
-
-        # 查询应用下的缓存数据
-        name = ApmCacheHandler.get_cache_key(ApmCacheType.TOPO_INSTANCE, self.bk_biz_id, self.app_name)
-        cache_data = ApmCacheHandler().get_cache_data(name)
-
-        # 查询应用下的实例数据
-        filter_params = {"bk_biz_id": self.bk_biz_id, "app_name": self.app_name}
-        instance_data = list(TopoInstance.objects.filter(**filter_params).values("id", "instance_id", "updated_at"))
-
-        return cache_data, instance_data
+        # 使用 Mixin 的通用方法处理缓存刷新
+        self.handle_cache_refresh_after_create(instance_data, need_create_instances, need_update_instances)
