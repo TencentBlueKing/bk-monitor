@@ -24,6 +24,9 @@ from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
 from apm.constants import DiscoverRuleType
+from apm.core.discover.endpoint import EndpointDiscover
+from apm.core.discover.host import HostDiscover
+from apm.core.discover.instance import InstanceDiscover
 from apm.core.discover.instance_data import BaseInstanceData
 from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
 from apm.utils.base import divide_biscuit
@@ -519,9 +522,12 @@ class TopoHandler:
         # 提前构造topo_params结构
         topo_params_template = []
         for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
-            discover = c(self.bk_biz_id, self.app_name)
-            instances = discover.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-            topo_params_template.append((c, None, "topo", discover.process_duplicate_records(instances)))
+            if c in [EndpointDiscover, HostDiscover, InstanceDiscover]:
+                discover = c(self.bk_biz_id, self.app_name)
+                instances = discover.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+                topo_params_template.append((c, None, "topo", discover.process_duplicate_records(instances)))
+            else:
+                topo_params_template.append((c, None, "topo", None))
 
         for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:
