@@ -258,10 +258,6 @@ class DiscoverBase(ABC):
     def discover(self, origin_data, remain_data: dict[tuple, BaseInstanceData]):
         pass
 
-    @abc.abstractmethod
-    def list_exists(self):
-        pass
-
     @staticmethod
     @abc.abstractmethod
     def _build_instance_data(instance_obj) -> BaseInstanceData:
@@ -282,7 +278,7 @@ class DiscoverBase(ABC):
             return getattr(obj, attr_name)
         return obj.get(attr_name) if isinstance(obj, dict) else None
 
-    def _process_duplicate_records(
+    def process_duplicate_records(
         self, db_instances, delete_duplicates: bool = False, keep_last: bool = False
     ) -> dict[tuple, BaseInstanceData]:
         """
@@ -523,7 +519,9 @@ class TopoHandler:
         # 提前构造topo_params结构
         topo_params_template = []
         for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
-            topo_params_template.append((c, None, "topo", c(self.bk_biz_id, self.app_name).list_exists()))
+            discover = c(self.bk_biz_id, self.app_name)
+            instances = discover.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+            topo_params_template.append((c, None, "topo", discover.process_duplicate_records(instances)))
 
         for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:

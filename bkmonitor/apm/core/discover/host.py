@@ -66,10 +66,6 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         """从实例数据对象生成业务唯一标识（不包含数据库ID）用于在 discover 过程中匹配已存在的实例"""
         return instance_data.bk_cloud_id, instance_data.bk_host_id, instance_data.ip, instance_data.topo_node_key
 
-    def list_exists(self):
-        instances = HostInstance.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        return self._process_duplicate_records(instances)
-
     def discover(self, origin_data, exists_hosts: dict[tuple, HostInstanceData]):
         """
         Discover host IP if user fill resource.net.host.ip when define resource in OT SDK
