@@ -28,15 +28,13 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
     INSTANCE_ID_SPLIT = ":"
     model = TopoInstance
 
-    # ========== 实现 CachedDiscoverMixin 的抽象方法 ==========
-
     @classmethod
     def _get_cache_type(cls) -> str:
         """获取缓存类型"""
         return ApmCacheType.TOPO_INSTANCE
 
     @classmethod
-    def _to_instance_key(cls, instance: TopoInstanceData) -> str:
+    def _to_cache_key(cls, instance: TopoInstanceData) -> str:
         """从实例数据对象生成唯一的 key"""
         object_pk_id = instance.id
         instance_id = instance.instance_id
@@ -46,20 +44,32 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
     def _build_instance_data(instance_obj) -> TopoInstanceData:
         """构建实例数据对象的辅助方法"""
         return TopoInstanceData(
-            id=CachedDiscoverMixin._get_attr_value(instance_obj, "id"),
-            topo_node_key=CachedDiscoverMixin._get_attr_value(instance_obj, "topo_node_key"),
-            instance_id=CachedDiscoverMixin._get_attr_value(instance_obj, "instance_id"),
-            instance_topo_kind=CachedDiscoverMixin._get_attr_value(instance_obj, "instance_topo_kind"),
-            component_instance_category=CachedDiscoverMixin._get_attr_value(
-                instance_obj, "component_instance_category"
-            ),
-            component_instance_predicate_value=CachedDiscoverMixin._get_attr_value(
+            id=DiscoverBase._get_attr_value(instance_obj, "id"),
+            topo_node_key=DiscoverBase._get_attr_value(instance_obj, "topo_node_key"),
+            instance_id=DiscoverBase._get_attr_value(instance_obj, "instance_id"),
+            instance_topo_kind=DiscoverBase._get_attr_value(instance_obj, "instance_topo_kind"),
+            component_instance_category=DiscoverBase._get_attr_value(instance_obj, "component_instance_category"),
+            component_instance_predicate_value=DiscoverBase._get_attr_value(
                 instance_obj, "component_instance_predicate_value"
             ),
-            sdk_name=CachedDiscoverMixin._get_attr_value(instance_obj, "sdk_name"),
-            sdk_version=CachedDiscoverMixin._get_attr_value(instance_obj, "sdk_version"),
-            sdk_language=CachedDiscoverMixin._get_attr_value(instance_obj, "sdk_language"),
-            updated_at=CachedDiscoverMixin._get_attr_value(instance_obj, "updated_at"),
+            sdk_name=DiscoverBase._get_attr_value(instance_obj, "sdk_name"),
+            sdk_version=DiscoverBase._get_attr_value(instance_obj, "sdk_version"),
+            sdk_language=DiscoverBase._get_attr_value(instance_obj, "sdk_language"),
+            updated_at=DiscoverBase._get_attr_value(instance_obj, "updated_at"),
+        )
+
+    @staticmethod
+    def _to_found_key(instance_data: TopoInstanceData) -> tuple:
+        """从实例数据对象生成业务唯一标识（不包含数据库ID）用于在 discover 过程中匹配已存在的实例"""
+        return (
+            instance_data.topo_node_key,
+            instance_data.instance_id,
+            instance_data.instance_topo_kind,
+            instance_data.component_instance_category,
+            instance_data.component_instance_predicate_value,
+            instance_data.sdk_name,
+            instance_data.sdk_version,
+            instance_data.sdk_language,
         )
 
     def list_exists(self):
@@ -71,7 +81,7 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
         # 使用 Mixin 提供的通用方法处理重复数据，Instance 保留最后一个（ID 最大）
         return self._process_duplicate_records(instances, keep_last=True)
 
-    def discover(self, origin_data, exists_instances: dict[str, TopoInstanceData]):
+    def discover(self, origin_data, exists_instances: dict[tuple, TopoInstanceData]):
         """
         Discover span instance
         KIND | BASE | DESC
@@ -141,20 +151,8 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
                         )
                     )
             for key in found_keys:
-                temp_data = TopoInstanceData(
-                    id=None,  # 新创建的实例还没有 id
-                    topo_node_key=key[0],
-                    instance_id=key[1],
-                    instance_topo_kind=key[2],
-                    component_instance_category=key[3],
-                    component_instance_predicate_value=key[4],
-                    sdk_name=key[5],
-                    sdk_version=key[6],
-                    sdk_language=key[7],
-                )
-                key_str = self._to_instance_key(temp_data)
-                if key_str in exists_instances:
-                    need_update_instances.append(exists_instances[key_str])
+                if key in exists_instances:
+                    need_update_instances.append(exists_instances[key])
                 else:
                     need_create_instances.add(key)
 

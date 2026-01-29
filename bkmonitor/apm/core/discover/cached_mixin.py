@@ -27,12 +27,10 @@ class CachedDiscoverMixin(ABC):
     为 Discover 类提供基于 Redis 的缓存管理功能
 
     使用此 Mixin 的子类需要:
-    1. 实现抽象方法: _get_cache_type(), _to_instance_key(), _build_instance_data()
+    1. 实现抽象方法: _get_cache_type(), _to_instance_key()
     2. 提供属性: model (Django Model), MAX_COUNT (最大数量), application (应用信息)
     3. 提供属性: bk_biz_id, app_name
     """
-
-    # ========== 子类必须实现的抽象方法 ==========
 
     @classmethod
     @abstractmethod
@@ -46,7 +44,7 @@ class CachedDiscoverMixin(ABC):
 
     @classmethod
     @abstractmethod
-    def _to_instance_key(cls, instance: BaseInstanceData) -> str:
+    def _to_cache_key(cls, instance: BaseInstanceData) -> str:
         """
         从实例数据对象生成唯一的 key
         子类需要重写此方法，直接从 instance 对象中提取所需字段并生成 key
@@ -54,79 +52,6 @@ class CachedDiscoverMixin(ABC):
         :return: 实例 key
         """
         raise NotImplementedError("Subclass must implement to_instance_key()")
-
-    @staticmethod
-    @abstractmethod
-    def _build_instance_data(instance_obj) -> BaseInstanceData:
-        """
-        构建实例数据对象的辅助方法
-        子类需要重写此方法，定义如何从数据库对象或字典构建标准实例数据对象
-        :param instance_obj: 数据库对象或字典
-        :return: BaseInstanceData 的子类实例
-        """
-        raise NotImplementedError("Subclass must implement _build_instance_data()")
-
-    # ========== 通用缓存操作方法 ==========
-
-    @staticmethod
-    def _get_attr_value(obj, attr_name):
-        """
-        统一的属性获取方法
-        支持从 ORM 对象或字典中获取属性值
-        :param obj: ORM 对象或字典
-        :param attr_name: 属性名称
-        :return: 属性值
-        """
-        if hasattr(obj, attr_name):
-            return getattr(obj, attr_name)
-        return obj.get(attr_name) if isinstance(obj, dict) else None
-
-    @classmethod
-    def _process_duplicate_records(
-        cls, db_instances, delete_duplicates: bool = False, keep_last: bool = False
-    ) -> dict[str, BaseInstanceData]:
-        """
-        处理重复数据的通用方法
-        :param db_instances: 数据库查询结果（QuerySet 或列表）
-        :param delete_duplicates: 是否删除重复记录，默认为 False
-        :param keep_last: 是否保留最后一条记录（ID 最大），False 则保留第一条（ID 最小），默认为 False
-        :return: 去重后的字典映射，key 为实例 key，value 为 BaseInstanceData 实例
-        """
-        exists_mapping = {}
-        for instance in db_instances:
-            # 构建实例数据对象
-            instance_data = cls._build_instance_data(instance)
-            # 获取唯一键
-            key = cls._to_instance_key(instance_data)
-            if key not in exists_mapping:
-                exists_mapping[key] = []
-            exists_mapping[key].append(instance_data)
-
-        # 处理重复数据并构建最终结果
-        res = {}
-        need_delete_ids = []
-
-        for key, records in exists_mapping.items():
-            records.sort(key=lambda x: x.id)
-            keep_record = records[-1] if keep_last else records[0]
-
-            # 收集需要删除的重复记录ID（仅在 delete_duplicates=True 时）
-            if len(records) > 1 and delete_duplicates:
-                if keep_last:
-                    need_delete_ids.extend([r.id for r in records[:-1]])
-                else:
-                    need_delete_ids.extend([r.id for r in records[1:]])
-
-            # 保留的记录
-            res[key] = keep_record
-
-        # 执行数据库删除操作
-        if need_delete_ids:
-            # 注意：这里需要子类提供 model 属性
-            cls.model.objects.filter(id__in=need_delete_ids).delete()
-            logger.info(f"[{cls.__name__}] Deleted {len(need_delete_ids)} duplicate records: {need_delete_ids}")
-
-        return res
 
     def handle_cache_refresh_after_create(
         self,
@@ -183,7 +108,7 @@ class CachedDiscoverMixin(ABC):
         ids, keys = set(), set()
         for inst in instances:
             inst_id = inst.id
-            inst_key = cls._to_instance_key(inst)
+            inst_key = cls._to_cache_key(inst)
             keys.add(inst_key)
             ids.add(inst_id)
         return ids, keys
@@ -198,7 +123,7 @@ class CachedDiscoverMixin(ABC):
         """
         merge_data = []
         for inst in instances:
-            key = cls._to_instance_key(inst)
+            key = cls._to_cache_key(inst)
             if key in cache_data:
                 inst.updated_at = datetime.datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
             merge_data.append(inst)

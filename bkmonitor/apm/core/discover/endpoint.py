@@ -36,7 +36,7 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         return ApmCacheType.ENDPOINT
 
     @classmethod
-    def _to_instance_key(cls, instance: EndpointInstanceData) -> str:
+    def _to_cache_key(cls, instance: EndpointInstanceData) -> str:
         """从实例数据对象生成实例key"""
         endpoint_name = instance.endpoint_name
         service_name = instance.service_name
@@ -50,14 +50,26 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
     def _build_instance_data(endpoint_obj) -> EndpointInstanceData:
         """构建端点数据对象的辅助方法"""
         return EndpointInstanceData(
-            id=CachedDiscoverMixin._get_attr_value(endpoint_obj, "id"),
-            service_name=CachedDiscoverMixin._get_attr_value(endpoint_obj, "service_name"),
-            endpoint_name=CachedDiscoverMixin._get_attr_value(endpoint_obj, "endpoint_name"),
-            category_id=CachedDiscoverMixin._get_attr_value(endpoint_obj, "category_id"),
-            category_kind_key=CachedDiscoverMixin._get_attr_value(endpoint_obj, "category_kind_key"),
-            category_kind_value=CachedDiscoverMixin._get_attr_value(endpoint_obj, "category_kind_value"),
-            span_kind=CachedDiscoverMixin._get_attr_value(endpoint_obj, "span_kind"),
-            updated_at=CachedDiscoverMixin._get_attr_value(endpoint_obj, "updated_at"),
+            id=DiscoverBase._get_attr_value(endpoint_obj, "id"),
+            service_name=DiscoverBase._get_attr_value(endpoint_obj, "service_name"),
+            endpoint_name=DiscoverBase._get_attr_value(endpoint_obj, "endpoint_name"),
+            category_id=DiscoverBase._get_attr_value(endpoint_obj, "category_id"),
+            category_kind_key=DiscoverBase._get_attr_value(endpoint_obj, "category_kind_key"),
+            category_kind_value=DiscoverBase._get_attr_value(endpoint_obj, "category_kind_value"),
+            span_kind=DiscoverBase._get_attr_value(endpoint_obj, "span_kind"),
+            updated_at=DiscoverBase._get_attr_value(endpoint_obj, "updated_at"),
+        )
+
+    @staticmethod
+    def _to_found_key(instance_data: EndpointInstanceData) -> tuple:
+        """从实例数据对象生成业务唯一标识（不包含数据库ID）用于在 discover 过程中匹配已存在的实例"""
+        return (
+            instance_data.endpoint_name,
+            instance_data.service_name,
+            instance_data.category_id,
+            instance_data.category_kind_key,
+            instance_data.category_kind_value,
+            instance_data.span_kind,
         )
 
     def list_exists(self):
@@ -65,7 +77,7 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         # 使用 Mixin 提供的通用方法处理重复数据，endpoint 需要删除重复记录
         return self._process_duplicate_records(endpoints, delete_duplicates=True)
 
-    def discover(self, origin_data, exists_endpoints: dict[str, EndpointInstanceData]):
+    def discover(self, origin_data, exists_endpoints: dict[tuple, EndpointInstanceData]):
         """
         Endpoint name according to endpoint_key in discover rule
         """
@@ -113,17 +125,8 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
                 )
 
             for k in found_keys:
-                temp_data = EndpointInstanceData(
-                    endpoint_name=k[0],
-                    service_name=k[1],
-                    category_id=k[2],
-                    category_kind_key=k[3],
-                    category_kind_value=k[4],
-                    span_kind=k[5],
-                )
-                key_str = self._to_instance_key(temp_data)
-                if key_str in exists_endpoints:
-                    need_update_instances.append(exists_endpoints[key_str])
+                if k in exists_endpoints:
+                    need_update_instances.append(exists_endpoints[k])
                 else:
                     need_create_instances.add(k)
 

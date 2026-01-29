@@ -36,15 +36,13 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
     HOST_ID_SPLIT = ":"
     model = HostInstance
 
-    # ========== 实现 CachedDiscoverMixin 的抽象方法 ==========
-
     @classmethod
     def _get_cache_type(cls) -> str:
         """获取缓存类型"""
         return ApmCacheType.HOST
 
     @classmethod
-    def _to_instance_key(cls, instance: HostInstanceData) -> str:
+    def _to_cache_key(cls, instance: HostInstanceData) -> str:
         """从实例数据对象生成 host 缓存 key"""
         bk_cloud_id = instance.bk_cloud_id
         bk_host_id = instance.bk_host_id
@@ -56,13 +54,18 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
     def _build_instance_data(host_obj) -> HostInstanceData:
         """构建主机数据对象的辅助方法"""
         return HostInstanceData(
-            id=CachedDiscoverMixin._get_attr_value(host_obj, "id"),
-            bk_cloud_id=CachedDiscoverMixin._get_attr_value(host_obj, "bk_cloud_id"),
-            bk_host_id=CachedDiscoverMixin._get_attr_value(host_obj, "bk_host_id"),
-            ip=CachedDiscoverMixin._get_attr_value(host_obj, "ip"),
-            topo_node_key=CachedDiscoverMixin._get_attr_value(host_obj, "topo_node_key"),
-            updated_at=CachedDiscoverMixin._get_attr_value(host_obj, "updated_at"),
+            id=DiscoverBase._get_attr_value(host_obj, "id"),
+            bk_cloud_id=DiscoverBase._get_attr_value(host_obj, "bk_cloud_id"),
+            bk_host_id=DiscoverBase._get_attr_value(host_obj, "bk_host_id"),
+            ip=DiscoverBase._get_attr_value(host_obj, "ip"),
+            topo_node_key=DiscoverBase._get_attr_value(host_obj, "topo_node_key"),
+            updated_at=DiscoverBase._get_attr_value(host_obj, "updated_at"),
         )
+
+    @staticmethod
+    def _to_found_key(instance_data: HostInstanceData) -> tuple:
+        """从实例数据对象生成业务唯一标识（不包含数据库ID）用于在 discover 过程中匹配已存在的实例"""
+        return instance_data.bk_cloud_id, instance_data.bk_host_id, instance_data.ip, instance_data.topo_node_key
 
     def list_exists(self):
         """
@@ -73,7 +76,7 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         # 使用 Mixin 提供的通用方法处理重复数据
         return self._process_duplicate_records(instances)
 
-    def discover(self, origin_data, exists_hosts: dict[str, HostInstanceData]):
+    def discover(self, origin_data, exists_hosts: dict[tuple, HostInstanceData]):
         """
         Discover host IP if user fill resource.net.host.ip when define resource in OT SDK
         """
@@ -96,13 +99,11 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         need_create_instances = set()
 
         for service_name, ip in find_ips:
-            found_key_tuple = (*(cloud_id_mapping.get(ip, (self.DEFAULT_BK_CLOUD_ID, None))), ip, service_name)
-            # 转换为字符串格式以匹配 exists_hosts 的键格式
-            found_key = self.HOST_ID_SPLIT.join([str(x) for x in found_key_tuple])
+            found_key = (*(cloud_id_mapping.get(ip, (self.DEFAULT_BK_CLOUD_ID, None))), ip, service_name)
             if found_key in exists_hosts:
                 need_update_instances.append(exists_hosts[found_key])
             else:
-                need_create_instances.add(found_key_tuple)
+                need_create_instances.add(found_key)
 
         created_instances = [
             HostInstance(
