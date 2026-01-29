@@ -28,8 +28,6 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
     MAX_COUNT = 100000
     model = Endpoint
 
-    # ========== 实现 CachedDiscoverMixin 抽象方法 ==========
-
     @classmethod
     def _get_cache_type(cls) -> str:
         """获取缓存类型"""
@@ -48,7 +46,6 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
 
     @staticmethod
     def _build_instance_data(endpoint_obj) -> EndpointInstanceData:
-        """构建端点数据对象的辅助方法"""
         return EndpointInstanceData(
             id=DiscoverBase._get_attr_value(endpoint_obj, "id"),
             service_name=DiscoverBase._get_attr_value(endpoint_obj, "service_name"),

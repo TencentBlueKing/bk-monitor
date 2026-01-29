@@ -265,12 +265,6 @@ class DiscoverBase(ABC):
     @staticmethod
     @abc.abstractmethod
     def _build_instance_data(instance_obj) -> BaseInstanceData:
-        """
-        构建实例数据对象的辅助方法
-        子类需要重写此方法，定义如何从数据库对象或字典构建标准实例数据对象
-        :param instance_obj: 数据库对象或字典
-        :return: BaseInstanceData 的子类实例
-        """
         raise NotImplementedError("Subclass must implement _build_instance_data()")
 
     @staticmethod

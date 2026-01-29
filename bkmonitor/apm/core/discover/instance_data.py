@@ -15,22 +15,12 @@ from datetime import datetime
 
 @dataclass
 class BaseInstanceData(ABC):
-    """
-    Discover 实例数据基类
-    所有 discover 子类返回的实例数据都应该继承此类
-    """
-
     id: int | None = None
     updated_at: datetime | None = None
 
 
 @dataclass
 class EndpointInstanceData(BaseInstanceData):
-    """
-    Endpoint 实例数据
-    对应 Endpoint 模型的字段
-    """
-
     service_name: str | None = None
     endpoint_name: str | None = None
     category_id: str | None = None
@@ -41,11 +31,6 @@ class EndpointInstanceData(BaseInstanceData):
 
 @dataclass
 class TopoInstanceData(BaseInstanceData):
-    """
-    Topo Instance 实例数据
-    对应 TopoInstance 模型的字段
-    """
-
     topo_node_key: str | None = None
     instance_id: str | None = None
     instance_topo_kind: str | None = None
@@ -58,11 +43,6 @@ class TopoInstanceData(BaseInstanceData):
 
 @dataclass
 class HostInstanceData(BaseInstanceData):
-    """
-    Host 实例数据
-    对应 HostInstance 模型的字段
-    """
-
     bk_cloud_id: int | None = None
     bk_host_id: int | None = None
     ip: str | None = None

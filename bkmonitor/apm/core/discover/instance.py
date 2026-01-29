@@ -42,7 +42,6 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
 
     @staticmethod
     def _build_instance_data(instance_obj) -> TopoInstanceData:
-        """构建实例数据对象的辅助方法"""
         return TopoInstanceData(
             id=DiscoverBase._get_attr_value(instance_obj, "id"),
             topo_node_key=DiscoverBase._get_attr_value(instance_obj, "topo_node_key"),

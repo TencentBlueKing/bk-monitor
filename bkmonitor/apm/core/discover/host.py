@@ -52,7 +52,6 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
 
     @staticmethod
     def _build_instance_data(host_obj) -> HostInstanceData:
-        """构建主机数据对象的辅助方法"""
         return HostInstanceData(
             id=DiscoverBase._get_attr_value(host_obj, "id"),
             bk_cloud_id=DiscoverBase._get_attr_value(host_obj, "bk_cloud_id"),
