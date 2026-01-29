@@ -380,27 +380,33 @@ import { isEqual } from 'lodash-es';
             if (this.currentClickConfigData.id !== this.filedSettingConfigID) {
               await this.submitFieldsSet(this.currentClickConfigData.id);
             }
+            // 模板配置模式下，只更新模板，不同步到个人配置
+            this.cancelModifyFields();
+            return;
           }
 
+          // 个人配置模式下的保存逻辑
           this.cancelModifyFields();
-          this.$store.commit('updateState', { 'localSort': false});
+          this.$store.commit('updateState', { localSort: false });
           this.$store.commit('updateIsSetDefaultTableColumn', false);
-          this.$store
-            .dispatch('userFieldConfigChange', {
-              displayFields: currentVisibleList,
-              sortList: updateSortList,
-              fieldsWidth: {},
-            })
-            .then(() => {
-              this.$store.commit('resetVisibleFields', currentVisibleList);
-              this.$store.commit('updateIsSetDefaultTableColumn');
-            });
 
-            if (isSortListChanged) {
-              await this.$store.dispatch('requestIndexSetFieldInfo');
-              await this.$store.dispatch('requestIndexSetQuery');
-              RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
-            }
+          // 先等待用户配置保存完成
+          await this.$store.dispatch('userFieldConfigChange', {
+            displayFields: currentVisibleList,
+            sortList: updateSortList,
+            fieldsWidth: {},
+          });
+
+          // 更新本地显示字段状态
+          this.$store.commit('resetVisibleFields', currentVisibleList);
+          this.$store.commit('updateIsSetDefaultTableColumn');
+
+          // 如果排序有变化，再请求字段信息和查询
+          if (isSortListChanged) {
+            await this.$store.dispatch('requestIndexSetFieldInfo');
+            await this.$store.dispatch('requestIndexSetQuery');
+            RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
+          }
 
         } catch (error) {
           console.warn(error);
@@ -426,13 +432,6 @@ import { isEqual } from 'lodash-es';
           });
       },
       cancelModifyFields() {
-        // 取消时恢复缓存数据，使用深拷贝
-        if (!this.isTemplateConfig) {
-          // 只更新父组件的数据，子组件会通过 props 自动更新
-          this.shadowVisible = structuredClone(this.cachedVisibleFields);
-          // this.shadowSort = structuredClone(this.cachedSortFields);
-          this.cachedSortFields = structuredClone(this.shadowSort);
-        }
         this.$emit('cancel');
         this.isSortFieldChanged = false;
       },
@@ -591,10 +590,8 @@ import { isEqual } from 'lodash-es';
           this.newConfigStr = '';
           if (this.filedSettingConfigID === configID) {
             this.currentClickConfigID = this.configTabPanels[0].id;
-            const { display_fields } = this.configTabPanels[0];
-            this.$store.commit('resetVisibleFields', display_fields);
-            this.$store.dispatch('requestIndexSetQuery');
-            this.cancelModifyFields();
+            // 切换应用到第一个模板，不修改个人配置数据
+            await this.submitFieldsSet(this.currentClickConfigID);
           }
         }
       },
@@ -616,7 +613,7 @@ import { isEqual } from 'lodash-es';
           });
         });
         // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
-        this.shadowVisible =
+        const newShadowVisible =
           configData ||
           this.currentClickConfigData.display_fields
             ?.map(displayName => {
@@ -629,6 +626,12 @@ import { isEqual } from 'lodash-es';
             })
             ?.filter(Boolean) ||
           [];
+
+        // 触发响应式更新：先清空再赋值
+        this.shadowVisible = [];
+        this.$nextTick(() => {
+          this.shadowVisible = newShadowVisible;
+        });
       },
       /** 获取配置列表 */
       async getFiledConfigList() {

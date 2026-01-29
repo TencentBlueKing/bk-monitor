@@ -412,6 +412,14 @@ const getShareParams = {
 };
 
 /**
+ * 请求grep检索总数
+ */
+const getGrepResultTotal = {
+  url: '/search/index_set/:index_set_id/grep_query/total/',
+  method: 'post',
+};
+
+/**
  * @api {GET} /index_set/query_by_dataid/?bk_data_id=xxx 根据 bk_data_id 获取采集项和索引集信息的接口
  * @apiDescription 根据 bk_data_id 获取采集项和索引集信息的接口
  * @apiName query_by_dataid
@@ -481,4 +489,5 @@ export {
   getShareParams,
   getIndexSetDataByDataId,
   updateFieldsAlias,
+  getGrepResultTotal,
 };

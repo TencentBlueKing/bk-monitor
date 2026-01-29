@@ -151,7 +151,7 @@ export default defineComponent({
         return;
       }
       // 检查是否按下了 Tab 键（排除 Shift+Tab）
-      if (isMouseClick || ((e.key === 'Tab' || e.keyCode === 9) && !e.shiftKey)) {
+      if (isMouseClick || ((e.key === 'Tab' || e.keyCode === 9) && !e.shiftKey && !e.ctrlKey)) {
         // 阻止默认的 Tab 行为
         e.preventDefault();
         e.stopPropagation();
