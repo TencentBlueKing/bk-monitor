@@ -41,23 +41,6 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
         instance_id = instance.get("instance_id")
         return cls.INSTANCE_ID_SPLIT.join([str(object_pk_id), str(instance_id)])
 
-    @classmethod
-    def _tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
-        return {
-            "id": None,
-            "topo_node_key": tuple_data[0],
-            "instance_id": tuple_data[1],
-            "instance_topo_kind": tuple_data[2],
-            "component_instance_category": tuple_data[3],
-            "component_instance_predicate_value": tuple_data[4],
-            "sdk_name": tuple_data[5],
-            "sdk_version": tuple_data[6],
-            "sdk_language": tuple_data[7],
-            "updated_at": None,
-        }
-
-    # ========== InstanceDiscover 特有方法 ==========
-
     @staticmethod
     def _build_instance_dict(instance_obj):
         """构建实例字典的辅助方法"""
@@ -185,24 +168,22 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
                 else:
                     need_create_instances.add(key)
 
-        # create
-        TopoInstance.objects.bulk_create(
-            [
-                TopoInstance(
-                    bk_biz_id=self.bk_biz_id,
-                    app_name=self.app_name,
-                    topo_node_key=i[0],
-                    instance_id=i[1],
-                    instance_topo_kind=i[2],
-                    component_instance_category=i[3],
-                    component_instance_predicate_value=i[4],
-                    sdk_name=i[5],
-                    sdk_version=i[6],
-                    sdk_language=i[7],
-                )
-                for i in need_create_instances
-            ]
-        )
+        created_instances = [
+            TopoInstance(
+                bk_biz_id=self.bk_biz_id,
+                app_name=self.app_name,
+                topo_node_key=i[0],
+                instance_id=i[1],
+                instance_topo_kind=i[2],
+                component_instance_category=i[3],
+                component_instance_predicate_value=i[4],
+                sdk_name=i[5],
+                sdk_version=i[6],
+                sdk_language=i[7],
+            )
+            for i in need_create_instances
+        ]
+        TopoInstance.objects.bulk_create(created_instances)
 
         # 使用 Mixin 的通用方法处理缓存刷新
-        self.handle_cache_refresh_after_create(instance_data, need_create_instances, need_update_instances)
+        self.handle_cache_refresh_after_create(instance_data, created_instances, need_update_instances)

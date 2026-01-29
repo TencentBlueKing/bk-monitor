@@ -51,25 +51,8 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         topo_node_key = instance.get("topo_node_key")
         return cls.HOST_ID_SPLIT.join([str(bk_cloud_id), str(bk_host_id), str(ip), str(topo_node_key)])
 
-    @classmethod
-    def _tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
-        """
-        将元组数据转换为实例字典
-        元组格式: (bk_cloud_id, bk_host_id, ip, topo_node_key)
-        """
-        return {
-            "id": None,
-            "bk_cloud_id": tuple_data[0],
-            "bk_host_id": tuple_data[1],
-            "ip": tuple_data[2],
-            "topo_node_key": tuple_data[3],
-            "updated_at": None,
-        }
-
-    # ========== Host 特有的业务方法 ==========
-
     @staticmethod
-    def _build_host_dict(host_obj):
+    def _build_instance_dict(host_obj):
         """构建主机字典的辅助方法"""
         return {
             "id": CachedDiscoverMixin._get_attr_value(host_obj, "id"),
@@ -132,25 +115,23 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
             else:
                 need_create_instances.add(found_key)
 
-        # create
-        HostInstance.objects.bulk_create(
-            [
-                HostInstance(
-                    bk_biz_id=self.bk_biz_id,
-                    app_name=self.app_name,
-                    bk_cloud_id=i[0],
-                    bk_host_id=i[1],
-                    ip=i[2],
-                    topo_node_key=i[3],
-                )
-                for i in need_create_instances
-            ]
-        )
+        created_instances = [
+            HostInstance(
+                bk_biz_id=self.bk_biz_id,
+                app_name=self.app_name,
+                bk_cloud_id=i[0],
+                bk_host_id=i[1],
+                ip=i[2],
+                topo_node_key=i[3],
+            )
+            for i in need_create_instances
+        ]
+        HostInstance.objects.bulk_create(created_instances)
 
         # 使用抽象方法处理缓存刷新
         self.handle_cache_refresh_after_create(
             instance_data=instance_data,
-            need_create_instances=need_create_instances,
+            need_create_instances=created_instances,
             need_update_instances=need_update_instances,
         )
 

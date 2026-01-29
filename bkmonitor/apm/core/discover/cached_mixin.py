@@ -26,7 +26,7 @@ class CachedDiscoverMixin(ABC):
     为 Discover 类提供基于 Redis 的缓存管理功能
 
     使用此 Mixin 的子类需要:
-    1. 实现抽象方法: get_cache_type(), to_instance_key(), tuple_to_instance_dict()
+    1. 实现抽象方法: get_cache_type(), to_instance_key(), _build_instance_dict()
     2. 提供属性: model (Django Model), MAX_COUNT (最大数量), application (应用信息)
     3. 提供属性: bk_biz_id, app_name
     """
@@ -53,18 +53,6 @@ class CachedDiscoverMixin(ABC):
         :return: 实例 key
         """
         raise NotImplementedError("Subclass must implement to_instance_key()")
-
-    @classmethod
-    @abstractmethod
-    def _tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
-        """
-        将元组数据转换为实例字典
-        用于将 need_create_instances 中的元组转换为字典格式
-        子类需要重写此方法，定义字段映射关系
-        :param tuple_data: 元组数据
-        :return: 实例字典
-        """
-        raise NotImplementedError("Subclass must implement tuple_to_instance_dict()")
 
     @staticmethod
     @abstractmethod
@@ -136,14 +124,14 @@ class CachedDiscoverMixin(ABC):
         return res, instance_data
 
     def handle_cache_refresh_after_create(
-        self, instance_data: list, need_create_instances: set, need_update_instances: list
+        self, instance_data: list, need_create_instances: list, need_update_instances: list
     ):
         """
         处理创建实例后的缓存刷新逻辑
         这是一个通用方法，用于在 bulk_create 之后更新缓存
 
         :param instance_data: 现有实例数据列表
-        :param need_create_instances: 需要创建的实例元组集合
+        :param need_create_instances: 需要创建的实例对象集合
         :param need_update_instances: 需要更新的实例列表
         :return: (create_instance_keys, update_instance_keys, delete_instance_keys)
         """
@@ -153,7 +141,7 @@ class CachedDiscoverMixin(ABC):
         new_instance_data = instance_data
         create_instance_keys = set()
         if need_create_instances:
-            new_data = [self._tuple_to_instance_dict(i) for i in need_create_instances]
+            new_data = [self._build_instance_dict(i) for i in need_create_instances]
             new_instance_data = instance_data + new_data
             _, create_instance_keys = self._to_id_and_key(new_data)
 

@@ -45,27 +45,8 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         span_kind = instance.get("span_kind")
         return f"{span_kind}:{category_kind_value}:{category_kind_key}:{category_id}:{service_name}:{endpoint_name}"
 
-    @classmethod
-    def _tuple_to_instance_dict(cls, tuple_data: tuple) -> dict:
-        """
-        将元组数据转换为实例字典
-        元组格式: (endpoint_name, service_name, category_id, category_kind_key, category_kind_value, span_kind)
-        """
-        return {
-            "id": None,
-            "endpoint_name": tuple_data[0],
-            "service_name": tuple_data[1],
-            "category_id": tuple_data[2],
-            "category_kind_key": tuple_data[3],
-            "category_kind_value": tuple_data[4],
-            "span_kind": tuple_data[5],
-            "updated_at": None,
-        }
-
-    # ========== EndpointDiscover 特有方法 ==========
-
     @staticmethod
-    def _build_endpoint_dict(endpoint_obj):
+    def _build_instance_dict(endpoint_obj):
         """构建端点字典的辅助方法"""
         return {
             "id": CachedDiscoverMixin._get_attr_value(endpoint_obj, "id"),
@@ -155,25 +136,24 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
                 else:
                     need_create_instances.add(k)
 
-        Endpoint.objects.bulk_create(
-            [
-                Endpoint(
-                    bk_biz_id=self.bk_biz_id,
-                    app_name=self.app_name,
-                    endpoint_name=i[0],
-                    service_name=i[1],
-                    category_id=i[2],
-                    category_kind_key=i[3],
-                    category_kind_value=i[4],
-                    span_kind=i[5],
-                )
-                for i in need_create_instances
-            ]
-        )
+        created_instances = [
+            Endpoint(
+                bk_biz_id=self.bk_biz_id,
+                app_name=self.app_name,
+                endpoint_name=i[0],
+                service_name=i[1],
+                category_id=i[2],
+                category_kind_key=i[3],
+                category_kind_value=i[4],
+                span_kind=i[5],
+            )
+            for i in need_create_instances
+        ]
+        Endpoint.objects.bulk_create(created_instances)
 
         # 使用抽象方法处理缓存刷新
         self.handle_cache_refresh_after_create(
             instance_data=list(exists_endpoints.values()),
-            need_create_instances=need_create_instances,
+            need_create_instances=created_instances,
             need_update_instances=need_update_instances,
         )
