@@ -167,7 +167,6 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_RENDERER_CLASSES": ("kernel_api.adapters.ApiRenderer",),
     "DEFAULT_AUTHENTICATION_CLASSES": ("kernel_api.middlewares.authentication.KernelSessionAuthentication",),
-    # 'DATETIME_FORMAT': "%Y-%m-%d %H:%M:%S",
     "EXCEPTION_HANDLER": "kernel_api.exceptions.api_exception_handler",
     "DEFAULT_PAGINATION_CLASS": "bkmonitor.views.pagination.MonitorAPIPagination",
     "PAGE_SIZE": 20,

@@ -36,9 +36,6 @@ from . import BaseContextObject
 logger = logging.getLogger("fta_action.run")
 
 
-DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S%z"
-
-
 class DefaultContent(BaseContextObject):
     """
     通知内容对象
@@ -99,12 +96,12 @@ class DefaultContent(BaseContextObject):
     # 最近一次时间
     @cached_property
     def time(self):
-        return time_tools.utc2localtime(self.parent.alert.latest_time).strftime(DATETIME_FORMAT)
+        return time_tools.utc2localtime(self.parent.alert.latest_time).strftime(settings.DATETIME_FORMAT)
 
     # 首次异常时间
     @cached_property
     def begin_time(self):
-        return self.parent.alarm.begin_time.strftime(DATETIME_FORMAT)
+        return self.parent.alarm.begin_time.strftime(settings.DATETIME_FORMAT)
 
     # 持续时间
     @cached_property
@@ -611,7 +608,7 @@ class MultiStrategyCollectContent(DefaultContent):
         max_time = time_tools.localtime(max(source_times))
         min_time = time_tools.localtime(min(source_times))
 
-        time_range = f"{min_time.strftime(DATETIME_FORMAT)} ~ {max_time.strftime(DATETIME_FORMAT)}"
+        time_range = f"{min_time.strftime(settings.DATETIME_FORMAT)} ~ {max_time.strftime(settings.DATETIME_FORMAT)}"
         return time_range
 
     @cached_property
