@@ -41,6 +41,7 @@ import dayjs from 'dayjs';
 import { transformDataKey } from 'monitor-common/utils';
 import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { fitPosition } from 'monitor-ui/chart-plugins/utils';
 import { useI18n } from 'vue-i18n';
 
 import { useChartOperation } from '../../../../../trace-explore/components/explore-chart/use-chart-operation';
@@ -564,16 +565,37 @@ export default defineComponent({
       if (params.seriesType !== 'scatter') return;
 
       const { name, event } = params;
-      eventDetailPopupPosition.value = {
-        left: event.event.clientX + 12,
-        top: event.event.clientY + 12,
+      const { clientX, clientY } = event.event;
+
+      // 设置初始位置（保持原有偏移逻辑）
+      const initialPosition = {
+        left: clientX + 12,
+        top: clientY + 12,
       };
+
+      // 使用 fitPosition 进行边界检测和位置调整
+      // 弹窗固定宽度720px，高度使用默认值200px进行初步计算
+      const adjustedPosition = fitPosition(initialPosition, 720, 200);
+
+      eventDetailPopupPosition.value = adjustedPosition;
       scatterClickEventData.value = {
         bizId: props.bizId,
         alert_id: props.detail?.id,
         start_time: Number(name) / 1000,
         query_config: eventQueryConfig.value,
       };
+
+      // 使用 nextTick 在DOM更新后进行精确的高度调整
+      nextTick(() => {
+        if (alertEventChartDetailRef.value?.getComponentHeight) {
+          const actualHeight = alertEventChartDetailRef.value.getComponentHeight();
+          // 如果实际高度与预估高度差异较大，重新计算位置
+          if (Math.abs(actualHeight - 200) > 50) {
+            const refinedPosition = fitPosition(initialPosition, 720, actualHeight);
+            eventDetailPopupPosition.value = refinedPosition;
+          }
+        }
+      });
     };
 
     /**
