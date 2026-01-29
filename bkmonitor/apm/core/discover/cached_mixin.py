@@ -81,11 +81,14 @@ class CachedDiscoverMixin(ABC):
         return obj.get(attr_name) if isinstance(obj, dict) else None
 
     @classmethod
-    def _process_duplicate_records(cls, instances, delete_duplicates: bool = False) -> tuple[dict, list]:
+    def _process_duplicate_records(
+        cls, instances, delete_duplicates: bool = False, keep_last: bool = False
+    ) -> tuple[dict, list]:
         """
         处理重复数据的通用方法
         :param instances: 数据库查询结果（QuerySet 或列表）
         :param delete_duplicates: 是否删除重复记录，默认为 False
+        :param keep_last: 是否保留最后一条记录（ID 最大），False 则保留第一条（ID 最小），默认为 False
         :return: (res, instance_data) - res: 去重后的字典映射, instance_data: 实例数据列表
         """
         exists_mapping = {}
@@ -105,11 +108,14 @@ class CachedDiscoverMixin(ABC):
 
         for key, records in exists_mapping.items():
             records.sort(key=lambda x: x["id"])
-            keep_record = records[0]
+            keep_record = records[-1] if keep_last else records[0]
 
             # 收集需要删除的重复记录ID（仅在 delete_duplicates=True 时）
             if len(records) > 1 and delete_duplicates:
-                need_delete_ids.extend([r["id"] for r in records[1:]])
+                if keep_last:
+                    need_delete_ids.extend([r["id"] for r in records[:-1]])
+                else:
+                    need_delete_ids.extend([r["id"] for r in records[1:]])
 
             # 保留的记录
             instance = cls._build_instance_dict(keep_record)

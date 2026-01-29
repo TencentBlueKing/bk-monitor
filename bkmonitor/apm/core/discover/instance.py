@@ -67,8 +67,8 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
         返回元组: (查询字典, 实例数据列表)
         """
         instances = TopoInstance.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        # 使用 Mixin 提供的通用方法处理重复数据
-        return self._process_duplicate_records(instances)
+        # 使用 Mixin 提供的通用方法处理重复数据，Instance 保留最后一个（ID 最大）
+        return self._process_duplicate_records(instances, keep_last=True)
 
     def get_remain_data(self):
         """获取预加载数据，避免在循环中重复查询"""
