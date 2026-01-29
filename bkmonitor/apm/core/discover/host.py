@@ -95,11 +95,13 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         need_create_instances = set()
 
         for service_name, ip in find_ips:
-            found_key = (*(cloud_id_mapping.get(ip, (self.DEFAULT_BK_CLOUD_ID, None))), ip, service_name)
+            found_key_tuple = (*(cloud_id_mapping.get(ip, (self.DEFAULT_BK_CLOUD_ID, None))), ip, service_name)
+            # 转换为字符串格式以匹配 exists_hosts 的键格式
+            found_key = self.HOST_ID_SPLIT.join([str(x) for x in found_key_tuple])
             if found_key in exists_hosts:
                 need_update_instances.append(exists_hosts[found_key])
             else:
-                need_create_instances.add(found_key)
+                need_create_instances.add(found_key_tuple)
 
         created_instances = [
             HostInstance(

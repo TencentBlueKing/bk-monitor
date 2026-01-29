@@ -62,7 +62,7 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
     def list_exists(self):
         endpoints = Endpoint.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         # 使用 Mixin 提供的通用方法处理重复数据，endpoint 需要删除重复记录
-        res, _ = self._process_duplicate_records(endpoints, delete_duplicates=True)
+        res = self._process_duplicate_records(endpoints, delete_duplicates=True)
         return res
 
     def discover(self, origin_data, exists_endpoints):
@@ -113,8 +113,18 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
                 )
 
             for k in found_keys:
-                if k in exists_endpoints:
-                    need_update_instances.append(exists_endpoints[k])
+                # found_keys 中的 k 是元组，需要转换为字符串格式来查找
+                temp_dict = {
+                    "endpoint_name": k[0],
+                    "service_name": k[1],
+                    "category_id": k[2],
+                    "category_kind_key": k[3],
+                    "category_kind_value": k[4],
+                    "span_kind": k[5],
+                }
+                key_str = self._to_instance_key(temp_dict)
+                if key_str in exists_endpoints:
+                    need_update_instances.append(exists_endpoints[key_str])
                 else:
                     need_create_instances.add(k)
 

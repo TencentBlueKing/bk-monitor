@@ -140,8 +140,23 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
                         )
                     )
             for key in found_keys:
-                if key in exists_instances:
-                    need_update_instances.append(exists_instances[key])
+                # found_keys 中的 key 是元组，需要先转换为字符串格式来查找
+                # 但在创建实例时仍使用元组，因此需要保存映射关系
+                # 这里我们直接构建临时字典来匹配
+                temp_dict = {
+                    "id": None,  # 新创建的实例还没有 id
+                    "topo_node_key": key[0],
+                    "instance_id": key[1],
+                    "instance_topo_kind": key[2],
+                    "component_instance_category": key[3],
+                    "component_instance_predicate_value": key[4],
+                    "sdk_name": key[5],
+                    "sdk_version": key[6],
+                    "sdk_language": key[7],
+                }
+                key_str = self._to_instance_key(temp_dict)
+                if key_str in exists_instances:
+                    need_update_instances.append(exists_instances[key_str])
                 else:
                     need_create_instances.add(key)
 
