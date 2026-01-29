@@ -32,7 +32,7 @@ RUN dnf install -y gcc python3-devel mysql-devel
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=bkmonitor/pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=bkmonitor/uv.lock,target=uv.lock \
-    --mount=type=bind,source=bk-monitor-base,target=/bk-monitor-base \
+    # --mount=type=bind,source=bk-monitor-base,target=/bk-monitor-base \
     uv venv venv --seed --link-mode=copy && . venv/bin/activate && uv sync --locked --no-install-project --no-dev --active
 
 # build frontend
