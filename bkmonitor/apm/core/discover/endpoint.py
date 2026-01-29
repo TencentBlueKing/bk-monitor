@@ -104,7 +104,6 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         # 处理重复数据并构建最终结果
         res = {}
         need_delete_ids = []
-        instance_data = []
 
         for key, records in exists_mapping.items():
             records.sort(key=lambda x: x["id"])
@@ -116,13 +115,12 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
             # 保留的记录 - 使用辅助方法构建字典
             instance = self._build_endpoint_dict(keep_record)
             res[key] = instance
-            instance_data.append(instance)
 
         # 执行数据库删除操作
         if need_delete_ids:
             self.model.objects.filter(id__in=need_delete_ids).delete()
 
-        return res, instance_data
+        return res
 
     def get_remain_data(self):
         return self.list_exists()
@@ -131,20 +129,19 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         """
         Endpoint name according to endpoint_key in discover rule
         """
-        exists_endpoints, instance_data = remain_data
-        self._do_discover(exists_endpoints, instance_data, origin_data)
+        exists_endpoints = remain_data
+        self._do_discover(exists_endpoints, origin_data)
 
     def discover(self, origin_data):
         """
         Endpoint name according to endpoint_key in discover rule
         """
-        exists_endpoints, instance_data = self.list_exists()
-        self._do_discover(exists_endpoints, instance_data, origin_data)
+        exists_endpoints = self.list_exists()
+        self._do_discover(exists_endpoints, origin_data)
 
     def _do_discover(
         self,
         exists_endpoints,
-        instance_data,
         origin_data,
     ):
         rules, other_rule = self.get_rules()
@@ -214,7 +211,7 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
 
         # 使用抽象方法处理缓存刷新
         self.handle_cache_refresh_after_create(
-            instance_data=instance_data,
+            instance_data=list(exists_endpoints.values()),
             need_create_instances=need_create_instances,
             need_update_instances=need_update_instances,
         )
