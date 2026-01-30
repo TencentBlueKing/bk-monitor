@@ -276,6 +276,14 @@ class IndexSetHandler(APIModel):
                     .split(",")
                 }
             )
+            _index["storage_display_name"] = ",".join(
+                {
+                    display_name
+                    for display_name in cluster_map.get(_index["storage_cluster_id"], {})
+                    .get("display_name", "")
+                    .split(",")
+                }
+            )
 
             normal_idx = [idx for idx in _index["indexes"] if idx["apply_status"] == LogIndexSetData.Status.NORMAL]
 
@@ -371,6 +379,7 @@ class IndexSetHandler(APIModel):
                 {
                     cluster_config["cluster_id"]: {
                         "cluster_name": cluster_config["cluster_name"],
+                        "display_name": cluster_config["display_name"],
                         "cluster_domain_name": cluster_config["domain_name"],
                         "cluster_port": cluster_config["port"],
                     }
