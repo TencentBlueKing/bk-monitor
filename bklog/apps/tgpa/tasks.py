@@ -35,7 +35,7 @@ from apps.tgpa.constants import (
     FEATURE_TOGGLE_TGPA_TASK,
     TGPAReportSyncStatusEnum,
     TGPA_REPORT_OFFSET_MINUTES,
-    TGPA_REPORT_MAX_DURATION,
+    TGPA_REPORT_MAX_TIME_RANGE_MINUTES,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler, TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
@@ -291,9 +291,9 @@ def periodic_sync_tgpa_reports():
 
         # 如果时间范围超过30分钟，将start_time设置为30分钟前，避免拉取大量数据
         duration_minutes = (end_time - start_time).total_seconds() / 60
-        if duration_minutes > TGPA_REPORT_MAX_DURATION:
+        if duration_minutes > TGPA_REPORT_MAX_TIME_RANGE_MINUTES:
             logger.warning("Time range too large, set start_time to 30 minutes ago for business: %s", bk_biz_id)
-            start_time = end_time.shift(minutes=-TGPA_REPORT_MAX_DURATION)
+            start_time = end_time.shift(minutes=-TGPA_REPORT_MAX_TIME_RANGE_MINUTES)
 
         # 时间偏移 1 分钟，避免数据延迟带来的影响
         start_time = int(start_time.shift(minutes=TGPA_REPORT_OFFSET_MINUTES).timestamp() * 1000)
