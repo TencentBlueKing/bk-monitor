@@ -34,6 +34,8 @@ from apps.tgpa.constants import (
     TGPATaskProcessStatusEnum,
     FEATURE_TOGGLE_TGPA_TASK,
     TGPAReportSyncStatusEnum,
+    TGPA_REPORT_OFFSET_MINUTES,
+    TGPA_REPORT_MAX_TIME_RANGE_MINUTES,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler, TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
@@ -281,11 +283,21 @@ def periodic_sync_tgpa_reports():
         # 更新上一次同步记录的状态，获取时间范围
         if last_sync_record:
             TGPAReportHandler.update_process_status(record_id=last_sync_record.id)
-            start_time = int(arrow.get(last_sync_record.created_at).timestamp() * 1000)
+            start_time = arrow.get(last_sync_record.created_at)
         else:
             # 如果没有上一次同步记录，从 5 分钟前开始同步
-            start_time = int(arrow.now().shift(minutes=-5).timestamp() * 1000)
-        end_time = int(arrow.get(current_sync_record.created_at).timestamp() * 1000)
+            start_time = arrow.now().shift(minutes=-5)
+        end_time = arrow.get(current_sync_record.created_at)
+
+        # 如果时间范围超过30分钟，将start_time设置为30分钟前，避免拉取大量数据
+        duration_minutes = (end_time - start_time).total_seconds() / 60
+        if duration_minutes > TGPA_REPORT_MAX_TIME_RANGE_MINUTES:
+            logger.warning("Time range too large, set start_time to 30 minutes ago for business: %s", bk_biz_id)
+            start_time = end_time.shift(minutes=-TGPA_REPORT_MAX_TIME_RANGE_MINUTES)
+
+        # 时间偏移 1 分钟，避免数据延迟带来的影响
+        start_time = int(start_time.shift(minutes=TGPA_REPORT_OFFSET_MINUTES).timestamp() * 1000)
+        end_time = int(end_time.shift(minutes=TGPA_REPORT_OFFSET_MINUTES).timestamp() * 1000)
 
         try:
             # 获取时间范围内的上报文件列表
