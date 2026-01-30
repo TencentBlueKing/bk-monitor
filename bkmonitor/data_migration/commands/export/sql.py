@@ -10,18 +10,30 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterator
+from dataclasses import dataclass
 from typing import Any
 
 from django.apps import apps
 from django.db import connection
 from django.db.models import Model
 
-from .handler import TABLE_HANDLER_MAPPING
 from ...utils.types import ExportBatch, RowDict, RowHandlerFn
+from .handler import TABLE_HANDLER_MAPPING
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_BATCH_SIZE = 1000
+
+
+@dataclass
+class ExportOrmDataStats:
+    """ORM 导出过程统计信息。
+
+    Attributes:
+        dropped_rows: 被 RowHandlerFn 丢弃的行数（返回 None 的数量）。
+    """
+
+    dropped_rows: int = 0
 
 
 def set_table_handler_mapping(mapping: dict[str, list[RowHandlerFn]]) -> None:
@@ -39,7 +51,11 @@ def get_model_row_handlers(model_label: str) -> list[RowHandlerFn]:
     return handlers
 
 
-def export_orm_data(model_label: str, batch_size: int = DEFAULT_BATCH_SIZE) -> Iterator[ExportBatch]:
+def export_orm_data(
+    model_label: str,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    stats: ExportOrmDataStats | None = None,
+) -> Iterator[ExportBatch]:
     """按批导出 ORM 数据"""
     model = apps.get_model(model_label)
     if model is None:
@@ -85,14 +101,18 @@ def export_orm_data(model_label: str, batch_size: int = DEFAULT_BATCH_SIZE) -> I
             last_pk = rows[-1][pk_index]
             batch = [dict(zip(columns, row)) for row in rows]
 
-        yield apply_row_handlers(batch, handlers, model_label)
+        processed_rows, batch_drop_rows_count = apply_row_handlers(batch, handlers, model_label)
+        if stats is not None:
+            stats.dropped_rows += batch_drop_rows_count
+        yield processed_rows
 
 
-def apply_row_handlers(rows: ExportBatch, handlers: list[RowHandlerFn], model_label: str) -> ExportBatch:
+def apply_row_handlers(rows: ExportBatch, handlers: list[RowHandlerFn], model_label: str) -> tuple[ExportBatch, int]:
     """顺序执行 Row Handler"""
     if not handlers:
-        return rows
+        return rows, 0
     processed_rows: list[RowDict] = []
+    drop_rows_count = 0
     for row in rows:
         try:
             current_row = row
@@ -101,12 +121,13 @@ def apply_row_handlers(rows: ExportBatch, handlers: list[RowHandlerFn], model_la
                 if current_row is None:
                     break
             if current_row is None:
-                logger.warning("Handler 丢弃数据，已跳过: %s (%s)", model_label, row)
+                logger.debug("Handler 丢弃数据，已跳过: %s (%s)", model_label, row)
+                drop_rows_count += 1
                 continue
             processed_rows.append(current_row)
         except Exception:
             logger.exception("Handler 处理失败，已跳过行: %s (%s)", model_label, row)
-    return processed_rows
+    return processed_rows, drop_rows_count
 
 
 def _resolve_export_fields(model: type[Model]) -> list[Any]:

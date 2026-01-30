@@ -135,7 +135,12 @@ BUILTIN_DATASOURCES: dict[int, str] = {
 
 
 @lru_cache(maxsize=1)
-def get_builtin_table_ids() -> set[str]:
+def _get_builtin_table_ids() -> set[str]:
+    """获取内置结果表ID
+
+    Returns:
+        内置结果表ID集合
+    """
     from metadata.models import DataSourceResultTable
 
     return set(
@@ -143,6 +148,16 @@ def get_builtin_table_ids() -> set[str]:
             "table_id", flat=True
         )
     )
+
+
+@lru_cache(maxsize=1)
+def _get_builtin_datasource_ids() -> set[int]:
+    """获取内置数据源ID
+
+    Returns:
+        内置数据源ID集合
+    """
+    return set(BUILTIN_DATASOURCES.keys())
 
 
 def filter_builtin_datasource(row: RowDict) -> RowDict | None:
@@ -154,7 +169,7 @@ def filter_builtin_datasource(row: RowDict) -> RowDict | None:
     Returns:
         如果数据源是内置数据源，则返回 None，否则返回原始数据行
     """
-    if row["bk_data_id"] in BUILTIN_DATASOURCES:
+    if row["bk_data_id"] in _get_builtin_datasource_ids():
         return None
     return row
 
@@ -168,10 +183,10 @@ def filter_builtin_result_table(row: RowDict) -> RowDict | None:
     Returns:
         如果结果表是内置结果表，则返回 None，否则返回原始数据行
     """
-    for table_field in ["table_id", "result_table_id"]:
+    for table_field in ["table_id", "result_table_id", "monitor_table_id"]:
         if table_field not in row:
             continue
-        if row[table_field] in get_builtin_table_ids():
+        if row[table_field] in _get_builtin_table_ids():
             return None
     return row
 

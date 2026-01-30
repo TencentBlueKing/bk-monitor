@@ -11,88 +11,10 @@ from pathlib import Path
 import click
 from django.apps import apps
 
+from ...config import DEFAULT_EXPORT_MODELS, EXCLUDE_EXPORT_MODELS
 from ...utils.types import RowDict
 from . import sql, writer
 from .handler import GLOBAL_HANDLERS, GlobalHandlerContext
-
-# 默认导出模型列表，支持 app_label 或 app_label.ModelName
-DEFAULT_EXPORT_MODELS: list[str] = [
-    "metadata.Label",
-    "metadata.BkAppSpaceRecord",
-    "metadata.CustomRelationStatus",
-    # space
-    "metadata.Space",
-    "metadata.SpaceType",
-    "metadata.SpaceDataSource",
-    "metadata.SpaceResource",
-    "metadata.SpaceStickyInfo",
-    "metadata.SpaceVMInfo",
-    "metadata.SpaceRelatedStorageInfo",
-    # cluster
-    "metadata.ClusterInfo",
-    # bcs
-    "metadata.BCSClusterInfo",
-    "metadata.BcsFederalClusterInfo",
-    "metadata.ServiceMonitorInfo",
-    "metadata.PodMonitorInfo",
-    "metadata.LogCollectorInfo",
-    # data source
-    "metadata.DataSource",
-    "metadata.DataSourceOption",
-    "metadata.DataSourceResultTable",
-    # result table
-    "metadata.ResultTable",
-    "metadata.ResultTableOption",
-    "metadata.ResultTableField",
-    "metadata.ResultTableFieldOption",
-    # storage
-    "metadata.ESStorage",
-    "metadata.AccessVMRecord",
-    "metadata.KafkaStorage",
-    "metadata.DorisStorage",
-    "metadata.StorageClusterRecord",
-    "metadata.KafkaTopicInfo",
-    "metadata.ESFieldQueryAliasOption",
-    # es snapshot
-    "metadata.EsSnapshot",
-    "metadata.EsSnapshotIndice",
-    "metadata.EsSnapshotRepository",
-    "metadata.EsSnapshotRestore",
-    # custom report
-    "metadata.TimeSeriesGroup",
-    "metadata.TimeSeriesMetric",
-    "metadata.EventGroup",
-    "metadata.Event",
-    "metadata.LogGroup",
-    # proxy
-    "metadata.CustomReportSubscription",
-    "metadata.CustomReportSubscriptionConfig",
-    "metadata.LogSubscriptionConfig",
-    "metadata.PingServerSubscriptionConfig",
-    # datalink
-    "metadata.BkBaseResultTable",
-    "metadata.DataLink",
-    "metadata.DataIdConfig",
-    "metadata.DataBusConfig",
-    "metadata.ClusterConfig",
-    "metadata.ResultTableConfig",
-    "metadata.ESStorageBindingConfig",
-    "metadata.VMStorageBindingConfig",
-    "metadata.DorisStorageBindingConfig",
-    "metadata.ConditionalSinkConfig",
-    # apm
-    "apm",
-    "apm_web",
-    "apm_ebpf",
-    # calendars
-    "calendars",
-    # monitor
-    "monitor",
-    "monitor_web",
-    "fta_web",
-]
-# 默认排除模型列表，支持 app_label 或 app_label.ModelName
-EXCLUDE_EXPORT_MODELS: list[str] = []
 
 
 @dataclass(frozen=True)
@@ -102,6 +24,7 @@ class ExportRecord:
     app_label: str
     model_name: str
     rows: int
+    filtered_rows: int
     duration_sec: float
     size_bytes: int
 
@@ -145,7 +68,14 @@ def create_command() -> click.Command:
         type=click.Path(path_type=Path),
         help="输出路径（目录或 .zip）",
     )
-    def export_data(models: tuple[str, ...], output_path: Path) -> None:
+    @click.option(
+        "--write-empty-file/--skip-empty-file",
+        "write_empty_file",
+        default=False,
+        show_default=True,
+        help="当数据量为 0 时是否仍生成 JSON 文件（默认跳过）",
+    )
+    def export_data(models: tuple[str, ...], output_path: Path, write_empty_file: bool) -> None:
         """导出数据"""
         model_labels = list(models) if models else list(DEFAULT_EXPORT_MODELS)
         model_labels = _expand_model_labels(model_labels)
@@ -173,6 +103,8 @@ def create_command() -> click.Command:
             in_memory_rows: dict[str, list[RowDict]] = {}
             in_memory_started_at: dict[str, float] = {}
             in_memory_meta: dict[str, tuple[str, str]] = {}
+            in_memory_sql_stats: dict[str, sql.ExportOrmDataStats] = {}
+            in_memory_pre_global_len: dict[str, int] = {}
             for model_label in model_labels:
                 model = apps.get_model(model_label)
                 if model is None:
@@ -181,7 +113,8 @@ def create_command() -> click.Command:
                 app_label = model._meta.app_label
                 model_name = model.__name__
 
-                batches = sql.export_orm_data(model_label)
+                export_stats = sql.ExportOrmDataStats()
+                batches = sql.export_orm_data(model_label, stats=export_stats)
                 started_at = time.perf_counter()
                 # 全局 handler 依赖的表：在普通 handler 处理后先收集到内存，待全局数据处理完成后再落地
                 if model_label in global_required_models:
@@ -189,8 +122,10 @@ def create_command() -> click.Command:
                     for batch in batches:
                         rows.extend(batch)
                     in_memory_rows[model_label] = rows
+                    in_memory_pre_global_len[model_label] = len(rows)
                     in_memory_started_at[model_label] = started_at
                     in_memory_meta[model_label] = (app_label, model_name)
+                    in_memory_sql_stats[model_label] = export_stats
                     continue
 
                 file_path, total, size_bytes = writer.write_export_batches(
@@ -199,6 +134,7 @@ def create_command() -> click.Command:
                     output_dir=output_dir,
                     app_label=app_label,
                     exported_at=exported_at,
+                    write_empty_file=write_empty_file,
                 )
                 duration_sec = time.perf_counter() - started_at
                 records.append(
@@ -206,6 +142,7 @@ def create_command() -> click.Command:
                         app_label=app_label,
                         model_name=model_name,
                         rows=total,
+                        filtered_rows=export_stats.dropped_rows,
                         duration_sec=duration_sec,
                         size_bytes=size_bytes,
                     )
@@ -233,6 +170,8 @@ def create_command() -> click.Command:
                     app_label, model_name = in_memory_meta[model_label]
                     started_at = in_memory_started_at[model_label]
                     rows = in_memory_rows.get(model_label, [])
+                    export_stats = in_memory_sql_stats.get(model_label, sql.ExportOrmDataStats())
+                    pre_global_len = in_memory_pre_global_len.get(model_label, len(rows))
                     batches = _iter_batches(rows, batch_size=sql.DEFAULT_BATCH_SIZE)
                     file_path, total, size_bytes = writer.write_export_batches(
                         model_label=model_label,
@@ -240,13 +179,16 @@ def create_command() -> click.Command:
                         output_dir=output_dir,
                         app_label=app_label,
                         exported_at=exported_at,
+                        write_empty_file=write_empty_file,
                     )
                     duration_sec = time.perf_counter() - started_at
+                    filtered_by_global = max(0, pre_global_len - len(rows))
                     records.append(
                         ExportRecord(
                             app_label=app_label,
                             model_name=model_name,
                             rows=total,
+                            filtered_rows=export_stats.dropped_rows + filtered_by_global,
                             duration_sec=duration_sec,
                             size_bytes=size_bytes,
                         )
@@ -315,11 +257,13 @@ def _write_export_report(exported_at: str, output_dir: Path, records: list[Expor
 
     by_app: dict[str, list[ExportRecord]] = {}
     total_rows = 0
+    total_filtered_rows = 0
     total_duration_sec = 0.0
     total_size_bytes = 0
     for record in records:
         by_app.setdefault(record.app_label, []).append(record)
         total_rows += record.rows
+        total_filtered_rows += record.filtered_rows
         total_duration_sec += record.duration_sec
         total_size_bytes += record.size_bytes
 
@@ -329,6 +273,7 @@ def _write_export_report(exported_at: str, output_dir: Path, records: list[Expor
     lines.append(f"- 导出时间: {exported_at}")
     lines.append(f"- 模型数量: {len(records)}")
     lines.append(f"- 总数据量: {total_rows}")
+    lines.append(f"- 总过滤量: {total_filtered_rows}")
     lines.append(f"- 总耗时: {total_duration_sec:.3f} s")
     lines.append(f"- 总文件大小: {_format_bytes(total_size_bytes)}")
     lines.append("")
@@ -336,19 +281,21 @@ def _write_export_report(exported_at: str, output_dir: Path, records: list[Expor
     for app_label in sorted(by_app.keys()):
         app_records = sorted(by_app[app_label], key=lambda r: r.duration_sec, reverse=True)
         app_total_rows = sum(r.rows for r in app_records)
+        app_total_filtered_rows = sum(r.filtered_rows for r in app_records)
         app_total_duration_sec = sum(r.duration_sec for r in app_records)
         app_total_size_bytes = sum(r.size_bytes for r in app_records)
 
         lines.append(f"## {app_label}")
         lines.append("")
-        lines.append("| 模型 | 数据量 | 耗时(s) | 文件大小 |")
-        lines.append("| --- | --- | --- | --- |")
+        lines.append("| 模型 | 数据量 | 过滤量 | 耗时(s) | 文件大小 |")
+        lines.append("| --- | --- | --- | --- | --- |")
         for record in app_records:
             lines.append(
-                f"| {record.model_name} | {record.rows} | {record.duration_sec:.3f} | {_format_bytes(record.size_bytes)} |"
+                f"| {record.model_name} | {record.rows} | {record.filtered_rows} | {record.duration_sec:.3f} | {_format_bytes(record.size_bytes)} |"
             )
         lines.append("")
         lines.append(f"- 小计数据量: {app_total_rows}")
+        lines.append(f"- 小计过滤量: {app_total_filtered_rows}")
         lines.append(f"- 小计耗时: {app_total_duration_sec:.3f} s")
         lines.append(f"- 小计文件大小: {_format_bytes(app_total_size_bytes)}")
         lines.append("")

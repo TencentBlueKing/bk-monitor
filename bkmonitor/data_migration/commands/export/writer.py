@@ -3,7 +3,7 @@
 设计目标:
     - 流式写入 JSON，避免将整表数据一次性加载到内存
     - 导出文件按 app_label 分目录：`<out>/<app_label>/<ModelName>.json`
-    - 若某表导出总量为 0，则跳过生成 JSON 文件
+    - 默认：若某表导出总量为 0，则跳过生成 JSON 文件（可通过参数控制是否写入空文件）
     - out 支持目录与 .zip：若为 .zip，会在临时目录写入后再打包输出
 """
 
@@ -29,6 +29,7 @@ def write_export_batches(
     output_dir: Path,
     app_label: str,
     exported_at: str,
+    write_empty_file: bool = False,
 ) -> tuple[Path | None, int, int]:
     """按批次流式写入导出文件"""
     model_name = model_label.split(".", 1)[1]
@@ -72,8 +73,11 @@ def write_export_batches(
         handle.write("}")
 
     if total == 0:
-        temp_path.unlink(missing_ok=True)
-        return None, 0, 0
+        if not write_empty_file:
+            temp_path.unlink(missing_ok=True)
+            return None, 0, 0
+        temp_path.replace(file_path)
+        return file_path, 0, file_path.stat().st_size
 
     temp_path.replace(file_path)
     return file_path, total, file_path.stat().st_size

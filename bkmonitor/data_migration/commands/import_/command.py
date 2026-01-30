@@ -7,6 +7,7 @@ from typing import Literal, cast
 
 import click
 
+from ...config import TABLE_PRIORITY_MAPPING
 from . import reader, sql
 
 
@@ -53,8 +54,13 @@ def create_command() -> click.Command:
         """导入数据"""
         strategy = cast(Literal["update", "skip"], conflict_strategy)
         with reader.prepare_input_dir(input_path) as input_dir:
-            for payload in reader.read_export_files(input_dir):
-                model_label = payload["model"]
+            file_paths = reader.iter_export_file_paths(input_dir)
+            file_paths.sort(key=lambda file_path: _get_import_sort_key(input_dir, file_path))
+
+            for file_path in file_paths:
+                inferred_model_label = reader.infer_model_label_from_path(input_dir, file_path)
+                payload = reader.read_export_file(file_path)
+                model_label = inferred_model_label or payload["model"]
                 stats = sql.import_orm_data(
                     model_label=model_label,
                     rows=payload["data"],
@@ -69,3 +75,16 @@ def create_command() -> click.Command:
                 )
 
     return import_data
+
+
+def _get_import_sort_key(input_dir: Path, file_path: Path) -> tuple[int, str, str]:
+    """导入文件排序 key
+
+    规则:
+        - 优先级越高越先导入（数字越大越先导入）
+        - 同优先级按 model_label 升序，保证稳定可复现
+    """
+    model_label = reader.infer_model_label_from_path(input_dir, file_path) or ""
+    priority = TABLE_PRIORITY_MAPPING.get(model_label, 0)
+    # Python 默认升序排序，这里将 priority 取负即可实现“高优先级先导入”
+    return (-priority, model_label, str(file_path))
