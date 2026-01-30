@@ -295,6 +295,7 @@ export default () => {
             query: {
               page_from: route.name,
               type: 'indexset',
+              from: route.query.from,
             },
           });
           return;

@@ -60,12 +60,18 @@ class IncidentNoticeHelper:
         incident_key_alias = kwargs.get("incident_key_alias") or incident_key
 
         # 计算故障持续时间
-        # 对于观察通知，计算观察时长（当前时间到end_time的差值）
+        # 对于观察通知，从 kwargs 中获取 last_minutes（已在 operation.py 中计算好）
         # 对于其他通知，使用正常的持续时间计算
-        observe_duration_info = None
-        if operation_type == IncidentOperationType.OBSERVE and incident.end_time:
-            # 观察通知：计算已观察时长（当前时间 - end_time，因为end_time在观察状态下表示观察开始时间）
-            observe_duration_info = cls._format_observe_duration(incident.end_time)
+        observe_duration_info = {
+            "duration_msg": "",
+            "duration_range": [],
+            "duration_range_msg": "",
+        }
+        if operation_type == IncidentOperationType.OBSERVE:
+            operation_start_time = incident.end_time or None
+            # 直接从 end_time（观察开始时间）计算到当前时间的观察时长
+            observe_duration_info = cls._format_observe_duration(observe_start_time=operation_start_time)
+
         end_time_for_duration = incident.end_time if incident.end_time else None
         duration_info = cls._format_duration(incident.begin_time, end_time_for_duration)
 
@@ -159,11 +165,11 @@ class IncidentNoticeHelper:
         :param observe_start_time: 观察开始时间戳
         :return: 格式化的观察时长字典
         """
-        if not observe_start_time:
-            return {"duration_msg": _("未知"), "duration_range": ["", ""], "duration_range_msg": ""}
 
         current_time = int(time.time())
-        duration_seconds = current_time - observe_start_time
+        if not observe_start_time:
+            observe_start_time = current_time + 3600
+        duration_seconds = observe_start_time - current_time
 
         # 将时间戳转换为本地时区的格式化字符串
         tz_name = timezone.get_current_timezone().zone

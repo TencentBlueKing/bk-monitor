@@ -10,14 +10,12 @@ specific language governing permissions and limitations under the License.
 
 import base64
 import copy
-import datetime
 import json
 import logging
 import urllib.parse
 from typing import Any
 from collections.abc import Callable
 
-import pytz
 from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
@@ -30,12 +28,13 @@ from bkmonitor.aiops.alert.utils import (
 from bkmonitor.aiops.utils import ReadOnlyAiSetting
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.models.aiops import AIFeatureSettings
+from bkmonitor.utils import time_tools
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.time_tools import (
     hms_string,
     timestamp2datetime,
     utc2_str,
-    format_user_time,
+    utc2localtime,
 )
 from constants.action import ActionPluginType, ActionSignal, ConvergeType, NoticeWay
 from constants.alert import (
@@ -393,20 +392,12 @@ class Alarm(BaseContextObject):
     @cached_property
     def time(self):
         if self.parent.alert:
-            create_datetime = datetime.datetime.fromtimestamp(self.parent.alert.create_time, tz=pytz.UTC)
-            # 使用用户时区格式化时间
-            timezone_name = self.parent.user_timezone
-            return format_user_time(create_datetime, timezone_name=timezone_name)
+            return utc2localtime(self.parent.alert.create_time)
         return "--"
 
     @cached_property
     def begin_time(self):
-        if self.parent.alert:
-            begin_datetime = datetime.datetime.fromtimestamp(self.parent.alert.begin_time, tz=pytz.UTC)
-            # 使用用户时区格式化时间
-            timezone_name = self.parent.user_timezone
-            return format_user_time(begin_datetime, timezone_name=timezone_name)
-        return "--"
+        return time_tools.utc2localtime(self.parent.alert.begin_time) if self.parent.alert else "--"
 
     @cached_property
     def begin_timestamp(self):
