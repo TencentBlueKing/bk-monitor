@@ -2530,13 +2530,16 @@ class ImportUptimeCheckTaskResource(Resource):
             )
 
         # 检查是否存在同名任务，若存在则更新所有同名任务
+        bk_tenant_id = get_request_tenant_id()
         existing_tasks = uptime_check_operation.list_uptime_check_tasks(
-            bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id, name=task_create_data["name"]
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, name=task_create_data["name"]
         )
         if existing_tasks:
             uptime_check_operation.update_task_model_by_name(task_create_data["name"], **task_create_data)
-            # 更新后重新获取第一个对象以获得最新数据
-            task_obj = existing_tasks[0]
+            # 更新后重新获取模型实例以进行 M2M 操作
+            task_obj = uptime_check_operation.get_task_model_by_name(
+                bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, name=task_create_data["name"]
+            )
         else:
             if settings.ENABLE_MULTI_TENANT_MODE:
                 task_create_data["indepentent_dataid"] = True
