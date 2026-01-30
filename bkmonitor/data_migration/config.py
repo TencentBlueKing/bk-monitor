@@ -112,7 +112,7 @@ DEFAULT_EXPORT_MODELS: list[str] = [
     "bkmonitor.DutyArrange",
     "bkmonitor.DutyArrangeSnap",
     # api token
-    "bkmoniotor.ApiAuthToken",
+    "bkmonitor.ApiAuthToken",
     # 默认策略
     "bkmonitor.DefaultStrategyBizAccessModel",
     # 告警中心
@@ -144,13 +144,14 @@ EXCLUDE_EXPORT_MODELS: list[str] = [
     "bkmonitor.ConvergeRelation",
     "bkmonitor.AnomalyRecord",
     "bkmonitor.AlertCollect",
-    "bkmonitor.BaseAlarm"
+    "bkmonitor.BaseAlarmbkmonitor.NoticeTemplate",
     # 导入导出历史
     "monitor_web.ImportDetail",
     "monitor_web.ImportHistory",
     "monitor_web.UserAccessRecord",
     "monitor_web.ImportParse",
-    # 废弃表
+    "monitor_web.ImportDetail",
+    "monitor_web.AlertSolution",
     "monitor_web.CustomTSItem",
     "bkmonitor.Action",
     # 指标缓存
