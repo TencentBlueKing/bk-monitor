@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import re
 
@@ -28,6 +28,7 @@ from apps.exceptions import ValidationError
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.etl_storage.utils.transfer import preview
+from apps.log_databus.handlers.grok import GrokHandler
 
 
 class BkLogRegexpEtlStorage(EtlStorage):
@@ -78,6 +79,16 @@ class BkLogRegexpEtlStorage(EtlStorage):
         if not etl_params.get("separator_regexp"):
             raise ValidationError(_("正则表达式不能为空"))
 
+        # 判断是否为grok表达式
+        pattern = etl_params["separator_regexp"]
+        if GrokHandler.is_grok_pattern(pattern):
+            operator = {
+                "type": "grok",
+                "grok": GrokHandler(etl_params["bk_biz_id"]).replace_custom_patterns(pattern)
+            }
+        else:
+            operator = {"type": "regex", "regex": pattern}
+
         # 组装API请求参数
         api_request = {
             "input": data,
@@ -85,10 +96,7 @@ class BkLogRegexpEtlStorage(EtlStorage):
                 {
                     "input_id": "__raw_data",
                     "output_id": "bk_separator_object",
-                    "operator": {
-                        "type": "regex",
-                        "regex": etl_params["separator_regexp"]
-                    }
+                    "operator": operator
                 }
             ],
             "filter_rules": []
@@ -224,13 +232,17 @@ class BkLogRegexpEtlStorage(EtlStorage):
         rules.extend(iteration_index_rules)
 
         # 5. 正则解析
+        bk_biz_id = etl_params.get("bk_biz_id")
+        pattern = etl_params.get("separator_regexp", "")
+        if bk_biz_id and GrokHandler.is_grok_pattern(pattern):
+            operator = {"type": "grok", "grok": GrokHandler(bk_biz_id).replace_custom_patterns(pattern)}
+        else:
+            operator = {"type": "regex", "regex": pattern}
+
         rules.append({
             "input_id": "iter_string",
             "output_id": "bk_separator_object",
-            "operator": {
-                "type": "regex",
-                "regex": etl_params.get("separator_regexp", "")
-            }
+            "operator": operator
         })
 
         # 6. 字段映射
