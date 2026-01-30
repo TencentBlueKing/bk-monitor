@@ -49,7 +49,7 @@ class IncidentStatus(CustomEnum):
         }
         return incident_status_order_map[self.value]
 
-
+INCIDENT_STATUS_DICT= {status.value:status.alias for status in list(IncidentStatus)}
 class IncidentLevel(CustomEnum):
     """故障级别枚举"""
 
