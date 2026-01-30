@@ -97,7 +97,9 @@ class MetricTranslator(AbstractTranslator):
                     "data_label",
                 )
             )
-        except Exception:
+        except Exception as e:
+            # 捕获并静默处理查询异常：返回空列表以跳过该指标的翻译，避免异常传播影响其他并发查询
+            logger.warning("MetricListCache query failed: %s", str(e))
             return []
 
     def translate(self, values: list[str]) -> dict:

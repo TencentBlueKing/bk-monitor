@@ -38,6 +38,7 @@ def track_site_visit(view_func):
 def db_safe_wrapper(func):
     """数据库连接安全装饰器"""
 
+    @wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
