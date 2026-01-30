@@ -1,0 +1,12 @@
+.alarm-view-chart-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: fit-content;
+  height: 300px;
+  box-shadow: 0 0 12px 0 #00000014;
+
+  .series-view-container {
+    height: 300px;
+  }
+}

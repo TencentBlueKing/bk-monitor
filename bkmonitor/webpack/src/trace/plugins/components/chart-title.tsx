@@ -332,6 +332,7 @@ export default defineComponent({
               />
             ) : undefined}
             <span class='title-center' />
+            <div class='custom-tools-wrapper'>{this.$slots?.customTools?.()}</div>
             {this.showMetricAlarm && this.metricTitleData ? (
               <Popover content={this.t('添加策略')}>
                 <i

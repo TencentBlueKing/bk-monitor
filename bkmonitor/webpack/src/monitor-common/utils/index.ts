@@ -333,6 +333,7 @@ export function tryURLDecodeParse<T>(str: string, defaultValue: T) {
 
 export * from './colorHelpers';
 export * from './constant';
+export * from './duration-converter';
 export * from './equal';
 export * from './utils';
 export * from './xss';
