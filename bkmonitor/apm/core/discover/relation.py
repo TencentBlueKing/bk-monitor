@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from collections import defaultdict
 from datetime import datetime
 
@@ -40,7 +40,6 @@ class RelationDiscover(DiscoverBase):
 
                 # priority depends on from span
                 if not relation_mapping[span[OtlpKey.PARENT_SPAN_ID]]["kind"]:
-
                     if span_kind == SpanKind.SPAN_KIND_SERVER:
                         relation_mapping[span[OtlpKey.PARENT_SPAN_ID]]["kind"] = TopoRelation.RELATION_KIND_SYNC
                     else:
@@ -240,7 +239,7 @@ class RelationDiscover(DiscoverBase):
 
         return found_keys
 
-    def discover(self, origin_data):
+    def discover(self, origin_data, remain_data=None):
         rules, other_rule = self.get_rules()
         component_rules = [r for r in rules + [other_rule] if r.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT]
 
@@ -260,7 +259,6 @@ class RelationDiscover(DiscoverBase):
                     need_create_relations.add(found_key)
 
         for relation in relation_mapping.values():
-
             if not relation["to"] and not relation["from"]:
                 continue
 
