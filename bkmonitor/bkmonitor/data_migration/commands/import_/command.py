@@ -7,7 +7,7 @@ from typing import Literal, cast
 
 import click
 
-from bkmonitor.data_migration.commands.import_ import reader, sql
+from . import reader, sql
 
 
 def create_command() -> click.Command:
@@ -28,8 +28,8 @@ def create_command() -> click.Command:
 
 \b
 示例:
-  - uv run python -m bkmonitor.data_migration.cli import --input /tmp/export_dir --conflict update
-  - uv run python -m bkmonitor.data_migration.cli import --input /tmp/export.zip --conflict skip --dry-run
+  - uv run python -m data_migration.cli import --input /tmp/export_dir --conflict update
+  - uv run python -m data_migration.cli import --input /tmp/export.zip --conflict skip --dry-run
 """
 
     @click.command("import", help=import_help_text, epilog=import_epilog_text)  # type: ignore[attr-defined]

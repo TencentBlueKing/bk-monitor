@@ -20,7 +20,7 @@ from typing import Any
 
 from django.core.serializers.json import DjangoJSONEncoder
 
-from bkmonitor.data_migration.utils.types import ExportBatch, ExportPayload
+from ...utils.types import ExportBatch, ExportPayload
 
 
 def write_export_batches(

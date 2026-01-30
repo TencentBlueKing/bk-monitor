@@ -11,9 +11,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Protocol
 
-from bkmonitor.data_migration.utils.types import RowDict, RowHandlerFn
+from ...utils.types import RowDict, RowHandlerFn
 
 # 表级别 Handler 映射
 #
@@ -90,10 +91,101 @@ def disable_enable_fields(row: RowDict) -> RowDict | None:
     return updated
 
 
-# metadata 的 ResultTable / DataSource：将 enable 全部置为 False
+# 内置数据源列表
+BUILTIN_DATASOURCES: dict[int, str] = {
+    # 监控平台运营数据
+    1100013: "2_bkm_statistics",
+    1100011: "2_custom_report_aggate_dataid",
+    1100012: "2_operation_data_custom_series",  # 已废弃
+    # bk-collector/bkm-operator
+    1100014: "2_datalink_stats",
+    # bkmonitorbeat 心跳及任务执行状态
+    1100001: "heartbeat_total",
+    1100002: "heartbeat_child",
+    1100017: "2_bkmonitorbeat_gather_up",
+    # 日志采集器
+    1100006: "bkunifylogbeat common metrics",
+    1100007: "bkunifylogbeat task metrics",
+    1100015: "2_bkunifylogbeat_k8s_common",
+    1100016: "2_bkunifylogbeat_k8s_task",
+    # 内置主机数据
+    1001: "snapshot",
+    # 内置事件
+    1100008: "gse_process_event_report",
+    1000: "base_alarm",
+    1100000: "cmd_report",
+    # 旧版内置插件
+    1002: "mysql",
+    1005: "nginx",
+    1004: "apache",
+    1003: "redis",
+    1006: "tomcat",
+    # 内置拨测数据源
+    1100005: "pingserver",
+    # 内置进程采集插件
+    1007: "process_perf",
+    1013: "process_port",
+    # 内置拨测数据源
+    1008: "uptimecheck_heartbeat",
+    1011: "uptimecheck_http",
+    1100003: "uptimecheck_icmp",
+    1009: "uptimecheck_tcp",
+    1010: "uptimecheck_udp",
+}
+
+
+@lru_cache(maxsize=1)
+def get_builtin_table_ids() -> set[str]:
+    from metadata.models import DataSourceResultTable
+
+    return set(
+        DataSourceResultTable.objects.filter(bk_data_id__in=list(BUILTIN_DATASOURCES.keys())).values_list(
+            "table_id", flat=True
+        )
+    )
+
+
+def filter_builtin_datasource(row: RowDict) -> RowDict | None:
+    """过滤内置数据源
+
+    Args:
+        row: 原始数据行
+
+    Returns:
+        如果数据源是内置数据源，则返回 None，否则返回原始数据行
+    """
+    if row["bk_data_id"] in BUILTIN_DATASOURCES:
+        return None
+    return row
+
+
+def filter_builtin_result_table(row: RowDict) -> RowDict | None:
+    """过滤内置结果表
+
+    Args:
+        row: 原始数据行
+
+    Returns:
+        如果结果表是内置结果表，则返回 None，否则返回原始数据行
+    """
+    for table_field in ["table_id", "result_table_id"]:
+        if table_field not in row:
+            continue
+        if row[table_field] in get_builtin_table_ids():
+            return None
+    return row
+
+
 TABLE_HANDLER_MAPPING.update(
     {
-        "metadata.ResultTable": [disable_enable_fields],
-        "metadata.DataSource": [disable_enable_fields],
+        "metadata.DataSource": [filter_builtin_datasource, disable_enable_fields],
+        "metadata.DataSourceOption": [filter_builtin_datasource],
+        "metadata.DataSourceResultTable": [filter_builtin_datasource],
+        "metadata.ResultTable": [filter_builtin_result_table, disable_enable_fields],
+        "metadata.ResultTableOption": [filter_builtin_result_table],
+        "metadata.ResultTableField": [filter_builtin_result_table],
+        "metadata.ResultTableFieldOption": [filter_builtin_result_table],
+        "metadata.TimeSeriesGroup": [filter_builtin_result_table],
+        "metadata.TimeSeriesMetric": [filter_builtin_result_table],
     }
 )

@@ -11,12 +11,86 @@ from pathlib import Path
 import click
 from django.apps import apps
 
-from bkmonitor.data_migration.commands.export import sql, writer
-from bkmonitor.data_migration.commands.export.handler import GLOBAL_HANDLERS, GlobalHandlerContext
-from bkmonitor.data_migration.utils.types import RowDict
+from ...utils.types import RowDict
+from . import sql, writer
+from .handler import GLOBAL_HANDLERS, GlobalHandlerContext
 
 # 默认导出模型列表，支持 app_label 或 app_label.ModelName
-DEFAULT_EXPORT_MODELS: list[str] = []
+DEFAULT_EXPORT_MODELS: list[str] = [
+    "metadata.Label",
+    "metadata.BkAppSpaceRecord",
+    "metadata.CustomRelationStatus",
+    # space
+    "metadata.Space",
+    "metadata.SpaceType",
+    "metadata.SpaceDataSource",
+    "metadata.SpaceResource",
+    "metadata.SpaceStickyInfo",
+    "metadata.SpaceVMInfo",
+    "metadata.SpaceRelatedStorageInfo",
+    # cluster
+    "metadata.ClusterInfo",
+    # bcs
+    "metadata.BCSClusterInfo",
+    "metadata.BcsFederalClusterInfo",
+    "metadata.ServiceMonitorInfo",
+    "metadata.PodMonitorInfo",
+    "metadata.LogCollectorInfo",
+    # data source
+    "metadata.DataSource",
+    "metadata.DataSourceOption",
+    "metadata.DataSourceResultTable",
+    # result table
+    "metadata.ResultTable",
+    "metadata.ResultTableOption",
+    "metadata.ResultTableField",
+    "metadata.ResultTableFieldOption",
+    # storage
+    "metadata.ESStorage",
+    "metadata.AccessVMRecord",
+    "metadata.KafkaStorage",
+    "metadata.DorisStorage",
+    "metadata.StorageClusterRecord",
+    "metadata.KafkaTopicInfo",
+    "metadata.ESFieldQueryAliasOption",
+    # es snapshot
+    "metadata.EsSnapshot",
+    "metadata.EsSnapshotIndice",
+    "metadata.EsSnapshotRepository",
+    "metadata.EsSnapshotRestore",
+    # custom report
+    "metadata.TimeSeriesGroup",
+    "metadata.TimeSeriesMetric",
+    "metadata.EventGroup",
+    "metadata.Event",
+    "metadata.LogGroup",
+    # proxy
+    "metadata.CustomReportSubscription",
+    "metadata.CustomReportSubscriptionConfig",
+    "metadata.LogSubscriptionConfig",
+    "metadata.PingServerSubscriptionConfig",
+    # datalink
+    "metadata.BkBaseResultTable",
+    "metadata.DataLink",
+    "metadata.DataIdConfig",
+    "metadata.DataBusConfig",
+    "metadata.ClusterConfig",
+    "metadata.ResultTableConfig",
+    "metadata.ESStorageBindingConfig",
+    "metadata.VMStorageBindingConfig",
+    "metadata.DorisStorageBindingConfig",
+    "metadata.ConditionalSinkConfig",
+    # apm
+    "apm",
+    "apm_web",
+    "apm_ebpf",
+    # calendars
+    "calendars",
+    # monitor
+    "monitor",
+    "monitor_web",
+    "fta_web",
+]
 # 默认排除模型列表，支持 app_label 或 app_label.ModelName
 EXCLUDE_EXPORT_MODELS: list[str] = []
 
@@ -53,8 +127,8 @@ def create_command() -> click.Command:
 
 \b
 示例:
-  - uv run python -m bkmonitor.data_migration.cli export --model metadata --out /tmp/export_dir
-  - uv run python -m bkmonitor.data_migration.cli export --model metadata.ResultTable --out /tmp/export.zip
+  - uv run python -m data_migration.cli export --model metadata --out /tmp/export_dir
+  - uv run python -m data_migration.cli export --model metadata.ResultTable --out /tmp/export.zip
 """
 
     @click.command("export", help=export_help_text, epilog=export_epilog_text)  # type: ignore[attr-defined]

@@ -16,8 +16,8 @@ from django.apps import apps
 from django.db import connection
 from django.db.models import Model
 
-from bkmonitor.data_migration.commands.export.handler import TABLE_HANDLER_MAPPING
-from bkmonitor.data_migration.utils.types import ExportBatch, RowDict, RowHandlerFn
+from .handler import TABLE_HANDLER_MAPPING
+from ...utils.types import ExportBatch, RowDict, RowHandlerFn
 
 logger = logging.getLogger(__name__)
 

@@ -10,15 +10,27 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
+from dataclasses import dataclass
 from typing import Any, Literal
 
 from django.apps import apps
 from django.db import connection, transaction
 from django.db.models import Model, UniqueConstraint
 
-from bkmonitor.data_migration.utils.types import ImportStats, RowDict
+from ...utils.types import RowDict
 
 DEFAULT_BATCH_SIZE = 1000
+
+
+@dataclass
+class ImportStats:
+    """导入统计"""
+
+    total: int = 0
+    inserted: int = 0
+    updated: int = 0
+    skipped: int = 0
+    failed: int = 0
 
 
 def import_orm_data(

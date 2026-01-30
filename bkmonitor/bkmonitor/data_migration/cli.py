@@ -8,8 +8,8 @@ import click
 import django
 import dotenv
 
-from bkmonitor.data_migration.commands.export.command import create_command as create_export_command
-from bkmonitor.data_migration.commands.import_.command import create_command as create_import_command
+from .commands.export.command import create_command as create_export_command
+from .commands.import_.command import create_command as create_import_command
 
 CLI_HELP_TEXT = """\
 \b
@@ -22,8 +22,8 @@ CLI_HELP_TEXT = """\
 
 \b
 使用方式:
-  - 导出: `python -m bkmonitor.data_migration.cli export --help`
-  - 导入: `python -m bkmonitor.data_migration.cli import --help`
+  - 导出: `python -m data_migration.cli export --help`
+  - 导入: `python -m data_migration.cli import --help`
 """
 
 

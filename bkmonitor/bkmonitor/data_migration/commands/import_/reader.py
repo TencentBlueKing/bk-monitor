@@ -16,7 +16,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from bkmonitor.data_migration.utils.types import ExportPayload
+from ...utils.types import ExportPayload
 
 
 def read_export_files(input_dir: Path) -> Iterator[ExportPayload]:
