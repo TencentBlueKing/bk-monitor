@@ -57,7 +57,7 @@ interface ICollectorListItem {
   /** 采集器配置名称 */
   collector_config_name: string;
   /** 存储集群名称 */
-  storage_cluster_name: string;
+  storage_display_name: string;
   /** 存储时长（格式化后） */
   retention: string;
   /** 采集路径（多个路径用分号分隔） */
@@ -207,7 +207,7 @@ export default defineComponent({
       },
       {
         title: t('存储集群'),
-        colKey: 'storage_cluster_name',
+        colKey: 'storage_display_name',
         ellipsis: true,
       },
       {
