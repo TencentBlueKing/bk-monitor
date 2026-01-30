@@ -80,6 +80,8 @@ class CachedDiscoverMixin(ABC):
         # 合并已存在的和新创建的实例数据
         all_instance_data: list[BaseInstanceData] = existing_instances + created_instance_data
 
+        logger.info(f"[{self._get_cache_type()}] all_instance_data count: {len(all_instance_data)}")
+
         # 计算需要删除的实例（过期或超量）
         delete_instance_keys = self._clear_data(cache_data, all_instance_data)
 
@@ -95,9 +97,9 @@ class CachedDiscoverMixin(ABC):
         )
         logger.info(
             f"[{self._get_cache_type()}] "
-            f"update_instance_keys: {update_instance_keys}, "
-            f"create_instance_keys: {create_instance_keys}, "
-            f"delete_instance_keys: {delete_instance_keys}"
+            f"update_instance_keys count: {len(update_instance_keys)}, "
+            f"create_instance_keys count: {len(create_instance_keys)}, "
+            f"delete_instance_keys count: {len(delete_instance_keys)}"
         )
 
     @classmethod
