@@ -1377,7 +1377,7 @@ class BatchUpdateTaskRunningStatusResource(Resource):
         task_list = uptime_check_operation.list_uptime_check_tasks_by_ids(task_id_list)
         # 所有的订阅ID 和 任务与订阅ID的关系
         task_subscription_dict = uptime_check_operation.list_subscriptions_by_task_ids(task_id_list)
-        subscription_id_list = uptime_check_operation.get_all_subscription_ids_by_task_ids(task_id_list)
+        subscription_id_list = uptime_check_operation.list_subscription_ids_by_task_ids(task_id_list)
 
         # 获取所有订阅ID的节点管理状态
         subscription_status = self.check_task_status(subscription_id_list)
@@ -2730,7 +2730,7 @@ class UptimeCheckTaskInfoResource(Resource):
         ids = serializers.ListField(label="拨测任务id列表", child=serializers.IntegerField(), required=True)
 
     def perform_request(self, data):
-        return uptime_check_operation.get_task_models_by_ids_as_dict(data["ids"])
+        return uptime_check_operation.list_task_models_as_dict(data["ids"])
 
 
 class TopoTemplateHostResource(Resource):
