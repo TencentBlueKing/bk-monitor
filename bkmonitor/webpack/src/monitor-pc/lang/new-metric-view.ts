@@ -112,6 +112,11 @@ export default {
   指标管理: '',
   '确定 Cmd + Enter': '',
   '暂只支持开启，不支持关闭': 'Currently only supports opening, not closing',
+  此操作存在风险: 'This operation is risky',
+  '开启自动发现，已有数据不会丢失，但可能会导致维度爆炸问题，请确认维度数据':
+    'Enabling auto-discovery will not lose existing data, but may cause dimension explosion issues. Please confirm the dimension data.',
+  '关闭自动发现，将以手动维护的指标和维度为准，其他数据将被丢弃':
+    'Disabling auto-discovery will use manually maintained metrics and dimensions. Other data will be discarded.',
   '已开启自动发现新增指标，无法操作': 'Automatic discovery of new metrics has been enabled and cannot be operated',
   清空关键词: 'Clear keywords',
   '显/隐': 'Show/Hide',

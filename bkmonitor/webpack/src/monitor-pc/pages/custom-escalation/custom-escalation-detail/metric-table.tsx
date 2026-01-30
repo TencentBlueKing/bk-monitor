@@ -120,6 +120,8 @@ export default class IndicatorTable extends tsc<any, any> {
 
   isShow = false;
   isShowDialog = false;
+  /** 开关切换的目标状态：true=开启, false=关闭 */
+  switcherTargetValue = false;
 
   loading = false;
 
@@ -550,12 +552,10 @@ export default class IndicatorTable extends tsc<any, any> {
   }
 
   handChangeSwitcher(v) {
-    if (!v) {
-      this.isShowDialog = true;
-      return false;
-    }
-    this.switcherChange(true);
-    return true;
+    // 无论开启还是关闭，都需要弹窗确认
+    this.switcherTargetValue = v;
+    this.isShowDialog = true;
+    return false;
   }
   @Emit('switcherChange')
   switcherChange(v: boolean) {
@@ -1060,12 +1060,6 @@ export default class IndicatorTable extends tsc<any, any> {
             {this.showAutoDiscover && (
               <div class='list-header-button'>
                 <bk-switcher
-                  v-bk-tooltips={{
-                    disabled: !this.autoDiscover,
-                    content: this.$t('暂只支持开启，不支持关闭'),
-                  }}
-                  // TODO: 暂只支持开启，不支持关闭
-                  disabled={this.autoDiscover}
                   preCheck={this.handChangeSwitcher}
                   theme='primary'
                   value={this.autoDiscover}
@@ -1134,12 +1128,18 @@ export default class IndicatorTable extends tsc<any, any> {
           ext-cls=''
           v-model={this.isShowDialog}
           headerPosition='left'
-          title={this.$t('确认关闭？')}
+          title={this.$t('此操作存在风险')}
           onCancel={() => {
             this.isShowDialog = false;
           }}
-          onConfirm={() => this.switcherChange(false)}
-        />
+          onConfirm={() => this.switcherChange(this.switcherTargetValue)}
+        >
+          <p>
+            {this.switcherTargetValue
+              ? this.$t('开启自动发现，已有数据不会丢失，但可能会导致维度爆炸问题，请确认维度数据')
+              : this.$t('关闭自动发现，将以手动维护的指标和维度为准，其他数据将被丢弃')}
+          </p>
+        </bk-dialog>
       </div>
     );
   }
