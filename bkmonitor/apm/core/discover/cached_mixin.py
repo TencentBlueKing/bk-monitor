@@ -55,6 +55,24 @@ class CachedDiscoverMixin(ABC):
     def _build_instance_data(instance_obj):
         raise NotImplementedError("Subclass must implement _build_instance_data()")
 
+    @classmethod
+    def to_cache_key(cls, instance: BaseInstanceData) -> str:
+        """
+        公开方法：从实例数据对象生成唯一的 cache key
+        :param instance: 实例数据对象
+        :return: 缓存 key
+        """
+        return cls._to_cache_key(instance)
+
+    @classmethod
+    def build_instance_data(cls, instance_obj):
+        """
+        公开方法：将数据库对象转换为实例数据对象
+        :param instance_obj: 数据库对象
+        :return: 实例数据对象
+        """
+        return cls._build_instance_data(instance_obj)
+
     def handle_cache_refresh_after_create(
         self,
         existing_instances: list[BaseInstanceData],

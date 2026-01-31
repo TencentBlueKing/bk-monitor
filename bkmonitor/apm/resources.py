@@ -1043,20 +1043,17 @@ class QueryEndpointResource(Resource):
         if data.get("filters"):
             endpoints = endpoints.filter(**data["filters"])
 
-        # 从Redis缓存获取端点时间信息
-        cache_name = ApmCacheHandler.get_cache_key(ApmCacheType.ENDPOINT, data["bk_biz_id"], data["app_name"])
-        cache_data = ApmCacheHandler().get_cache_data(cache_name)
+        # 批量获取缓存并合并更新时间
+        from apm.core.discover.endpoint import EndpointDiscover
 
-        # 构建端点数据并合并缓存时间信息，然后根据合并后的时间进行过期过滤
+        id_to_updated_at = DiscoverHandler.batch_merge_cache_updated_time(
+            data["bk_biz_id"], data["app_name"], ApmCacheType.ENDPOINT, list(endpoints), EndpointDiscover
+        )
+
+        # 构建端点数据并根据合并后的时间进行过期过滤
         result = []
         for endpoint in endpoints:
-            # 构建缓存key，格式：{id}:{service_name}:{endpoint_name}
-            cache_key = f"{endpoint.id}:{endpoint.service_name}:{endpoint.endpoint_name}"
-
-            # 获取时间戳，优先使用缓存中的时间，如果缓存中没有则使用数据库的updated_at
-            updated_at = endpoint.updated_at
-            if cache_key in cache_data:
-                updated_at = datetime.datetime.fromtimestamp(cache_data[cache_key], tz=pytz.UTC)
+            updated_at = id_to_updated_at[endpoint.id]
 
             # 根据合并后的时间进行过期过滤
             if updated_at >= retention_cutoff:
@@ -1564,13 +1561,37 @@ class QueryHostInstanceResource(Resource):
             fields = ["bk_cloud_id", "ip", "bk_host_id"]
 
     def perform_request(self, data):
-        filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
+        # 获取过期时间分界线，确保使用UTC时区
+        retention = DiscoverHandler.get_app_retention(data["bk_biz_id"], data["app_name"])
+        retention_cutoff = datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(retention)
+
+        # 获取数据库中的主机实例数据，不使用updated_at__gte过滤，避免过早过滤导致数据丢失
+        filter_params = {
+            "bk_biz_id": data["bk_biz_id"],
+            "app_name": data["app_name"],
+        }
 
         q = Q()
         if data.get("service_name"):
             q &= Q(topo_node_key=data["service_name"])
 
-        return HostInstance.objects.filter(**filter_params).filter(q)
+        hosts = HostInstance.objects.filter(**filter_params).filter(q)
+
+        # 批量获取缓存并合并更新时间
+        from apm.core.discover.host import HostDiscover
+
+        id_to_updated_at = DiscoverHandler.batch_merge_cache_updated_time(
+            data["bk_biz_id"], data["app_name"], ApmCacheType.HOST, list(hosts), HostDiscover
+        )
+
+        # 根据合并后的时间进行过期过滤
+        result = []
+        for host in hosts:
+            updated_at = id_to_updated_at[host.id]
+            if updated_at >= retention_cutoff:
+                result.append(host)
+
+        return result
 
 
 class QueryRemoteServiceRelationResource(Resource):
