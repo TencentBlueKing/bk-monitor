@@ -1376,6 +1376,10 @@ class IncidentAlertViewResource(IncidentBaseResource):
 
         for alert in alerts:
             alert_entity = snapshot.alert_entity_mapping.get(alert["id"])
+            # 尝试在dimension获取ip和云区域ip
+            alert_dimension_ip_dict = {item['key']: item['value']
+                                       for item in alert.get('dimensions', [])
+                                       if isinstance(item, dict)}
             alert["entity"] = alert_entity.entity.to_src_dict() if alert_entity else None
             alert["is_feedback_root"] = (
                 (getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id)
@@ -1392,7 +1396,8 @@ class IncidentAlertViewResource(IncidentBaseResource):
             alert_doc.event.extra_info = alert_doc.extra_info
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
-                    alert["graph_panel"] = AIOPSManager.get_graph_panel(alert_doc, with_anomaly=False)
+                    alert["graph_panel"] = AIOPSManager.get_graph_panel(alert_doc, with_anomaly=False
+                                                                        ,alert_dimension_ip_dict=alert_dimension_ip_dict)
                     category["alerts"].append(alert)
 
         return incident_alerts
