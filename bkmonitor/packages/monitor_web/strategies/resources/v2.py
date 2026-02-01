@@ -23,7 +23,7 @@ from bk_monitor_base.strategy import (
     update_partial_strategy,
 )
 from django.conf import settings
-from django.db import close_old_connections, transaction
+from django.db import transaction
 from django.db.models import Count, Q, QuerySet
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -59,6 +59,7 @@ from bkmonitor.utils.request import get_request_tenant_id, get_request_username,
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
+from common.decorators import db_safe_wrapper
 from constants.action import UserGroupType
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
@@ -79,18 +80,6 @@ from monitor_web.tasks import update_metric_list_by_biz
 from utils.strategy import fill_user_groups
 
 logger = logging.getLogger(__name__)
-
-
-def db_safe_wrapper(func):
-    """数据库连接安全装饰器"""
-
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        finally:
-            close_old_connections()
-
-    return wrapper
 
 
 class GetStrategyListV2Resource(Resource):

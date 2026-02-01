@@ -200,9 +200,9 @@ PUBLIC_NOTICE_CONFIG: dict[str, str | list[dict]] = {
         {
             "time_range": "00:00:00--23:59:59",
             "notify_config": [
-                {"level": 1, "type": ["weixin", "mail"]},
-                {"level": 2, "type": ["weixin", "mail"]},
-                {"level": 3, "type": ["weixin", "mail"]},
+                {"level": 1, "type": ["mail"]},
+                {"level": 2, "type": ["mail"]},
+                {"level": 3, "type": ["mail"]},
             ],
         }
     ],

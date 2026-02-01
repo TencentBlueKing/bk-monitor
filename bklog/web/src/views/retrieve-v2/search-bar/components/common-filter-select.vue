@@ -172,7 +172,7 @@ const handleDeleAllOptions = () => {
           @blur.capture="handleRowBlur"
           @focus.capture="e => handleRowFocus(index, e)"
         >
-          {{ item?.field_alias || item?.field_name || '' }}
+          {{ item?.query_alias || item?.field_name || '' }}
         </div>
         <bk-select
           v-model="commonFilterAddition[index].operator"

@@ -90,7 +90,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
       ipv6: this.$t('目标IPv6'),
       bk_cloud_id: this.$t('管控区域ID'),
       strategy_id: this.$t('策略ID'),
-      assignee: this.$t('通知人'),
+      assignee: this.$t('告警接收人'),
       bk_service_instance_id: this.$t('服务实例ID'),
       plugin_id: this.$t('告警来源'),
     };

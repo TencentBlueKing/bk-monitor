@@ -1214,7 +1214,7 @@ const handleOptionListMouseEnter = (e, item) => {
   const { offsetWidth, scrollWidth } = e.target.lastElementChild;
   if (offsetWidth < scrollWidth) {
     fieldOptionListInstance.setContent(
-      `${item.query_alias || item.field_alias || item.field_name}(${item.field_name})`,
+      `${item.query_alias || item.field_name}(${item.field_name})`,
     );
     fieldOptionListInstance.show(e.target);
   }
@@ -1257,7 +1257,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="ui-query-options">
+  <div class="ui-query-options" @click.stop="() => {}">
     <div class="ui-query-option-content">
       <div class="field-list">
         <div class="ui-search-input">

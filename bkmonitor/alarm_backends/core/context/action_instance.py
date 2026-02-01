@@ -22,7 +22,7 @@ from django.utils.translation import gettext_lazy as _lazy
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import ConvergeInstance, ConvergeRelation
 from bkmonitor.utils.template import Jinja2Renderer, NoticeRowRenderer
-from bkmonitor.utils.time_tools import hms_string, format_user_time
+from bkmonitor.utils.time_tools import hms_string, strftime_local
 from constants.action import (
     ACTION_DISPLAY_STATUS_DICT,
     ActionPluginType,
@@ -85,9 +85,7 @@ class ActionInstanceContext(BaseContextObject):
         创建任务时间
         :return:
         """
-        # 使用用户时区格式化时间
-        timezone_name = self.parent.user_timezone
-        return format_user_time(self.parent.action.create_time, timezone_name=timezone_name)
+        return strftime_local(self.parent.action.create_time)
 
     @cached_property
     def end_time(self):
@@ -96,11 +94,7 @@ class ActionInstanceContext(BaseContextObject):
         :return:
         """
         end_time = self.parent.action.end_time
-        if end_time:
-            # 使用用户时区格式化时间
-            timezone_name = self.parent.user_timezone
-            return format_user_time(end_time, timezone_name=timezone_name)
-        return "--"
+        return strftime_local(end_time) if end_time else "--"
 
     @cached_property
     def duration(self):
