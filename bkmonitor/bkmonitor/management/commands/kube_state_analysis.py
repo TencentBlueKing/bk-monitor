@@ -1,5 +1,4 @@
 from collections import defaultdict
-from typing import Dict, List
 
 from django.core.management.base import BaseCommand
 from django.db.models import Q
@@ -55,19 +54,19 @@ doc = """
     """
 
 # pod近30分钟重启次数过多，指标名
-RESTARTS_TOTAL_METRIC_FIELD = 'kube_pod_container_status_restarts_total'
+RESTARTS_TOTAL_METRIC_FIELD = "kube_pod_container_status_restarts_total"
 # 因OOM重启，指标名
-TERMINATED_REASON_METRIC_FIELD = 'kube_pod_container_status_terminated_reason'
+TERMINATED_REASON_METRIC_FIELD = "kube_pod_container_status_terminated_reason"
 
 # pod近30分钟重启次数过多，promql
 RESTARTS_TOTAL_PROMQL = (
-    r'increase(sum by (pod_name, bcs_cluster_id, namespace, container_name)'
+    r"increase(sum by (pod_name, bcs_cluster_id, namespace, container_name)"
     r'(bkmonitor:kube_pod_container_status_restarts_total{job="kube-state-metrics",'
     r'pod_name!="",namespace!="bkmonitor-operator",container!="tke-monitor-agent"})[30m:])'
 )
 # 因OOM重启，promql
 TERMINATED_REASON_PROMQL = (
-    r'increase ((max by (bcs_cluster_id, namespace, pod_name) (bkmonitor:'
+    r"increase ((max by (bcs_cluster_id, namespace, pod_name) (bkmonitor:"
     r'kube_pod_container_status_terminated_reason{container!="tke-monitor-agent",namespace!~"^'
     r'(|bkmonitor\\-operator)$",pod_name!="",reason="OOMKilled"}))[2m:])'
 )
@@ -269,13 +268,13 @@ def kube_state_metrics_analysis(preview=True):
         Q(config__metric_field=RESTARTS_TOTAL_METRIC_FIELD) | Q(config__metric_field=TERMINATED_REASON_METRIC_FIELD)
     )
 
-    strategy_ids = query_configs.values_list('strategy_id', flat=True).distinct()
+    strategy_ids = query_configs.values_list("strategy_id", flat=True).distinct()
     strategies = StrategyModel.objects.filter(id__in=strategy_ids)
     items = ItemModel.objects.filter(strategy_id__in=strategy_ids)
 
     # 构建映射关系
-    query_configs_mapping: Dict[int, List[QueryConfigModel]] = defaultdict(list)
-    items_mapping: Dict[int, List[ItemModel]] = defaultdict(list)
+    query_configs_mapping: dict[int, list[QueryConfigModel]] = defaultdict(list)
+    items_mapping: dict[int, list[ItemModel]] = defaultdict(list)
     for qc in query_configs:
         query_configs_mapping[qc.strategy_id].append(qc)
     for item in items:
@@ -350,16 +349,3 @@ def kube_state_metrics_analysis(preview=True):
         ItemModel.objects.bulk_update(items_to_update, fields=["origin_sql"])
 
     print("\n执行结束\n")
-
-
-# 回滚
-from bkmonitor.models import QueryConfigModel, StrategyHistoryModel
-from bkmonitor.strategy.new_strategy import Strategy
-
-
-def rollback(strategy_id):
-    record = StrategyHistoryModel.objects.filter(strategy_id=strategy_id).first()
-    s = Strategy(**record.content)
-    s.id = strategy_id
-    print(QueryConfigModel.objects.filter(strategy_id=strategy_id).delete())
-    s.save()

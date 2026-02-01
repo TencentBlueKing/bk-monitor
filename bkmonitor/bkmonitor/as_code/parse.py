@@ -47,6 +47,7 @@ from bkmonitor.models import (
     UserGroup,
 )
 from bkmonitor.strategy.new_strategy import Strategy
+from bk_monitor_base.strategy import StrategySerializer
 from bkmonitor.utils.dict import nested_update
 from constants.action import ActionPluginType
 from core.drf_resource import api
@@ -284,9 +285,9 @@ def convert_rules(
 
             if not parse_error:
                 if old_strategy:
-                    config["id"] = old_strategy.id
+                    config["id"] = old_strategy.pk
 
-                serializer = Strategy.Serializer(data=config)
+                serializer = StrategySerializer(data=config)
                 try:
                     serializer.is_valid(raise_exception=True)
                     obj = Strategy(**config)

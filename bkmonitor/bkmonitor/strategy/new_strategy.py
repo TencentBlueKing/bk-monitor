@@ -1965,13 +1965,8 @@ class Strategy(AbstractConfig):
                 else:
                     rt_query_config[field] = value
 
-            # frontend和backend两种格式
-            if config_type == "frontend":
-                rt_query_config.pop("id", None)
-                item_config.update(rt_query_config)
-            else:
-                rt_query_config["rt_query_config_id"] = query_config["id"]
-                item_config["rt_query_config"] = rt_query_config
+            rt_query_config["rt_query_config_id"] = query_config["id"]
+            item_config["rt_query_config"] = rt_query_config
 
             item_list.append(item_config)
 
@@ -1980,7 +1975,7 @@ class Strategy(AbstractConfig):
 
         anomaly_template = None
         recovery_template = None
-        for template in notice.config.get("template"):
+        for template in notice.config.get("template", []):
             if template["signal"] == ActionSignal.ABNORMAL:
                 anomaly_template = template
             elif template["signal"] == ActionSignal.RECOVERED:

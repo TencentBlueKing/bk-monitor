@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,12 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import datetime
 import logging
 import time
 from collections import Counter, defaultdict
-from typing import Dict
 
 import pytz
 from django.conf import settings
@@ -35,7 +34,7 @@ from core.prometheus import metrics
 logger = logging.getLogger("aiops.maintainer")
 
 
-def report_aiops_check_metrics(base_labels: Dict, status: str, exception: str = "", exc_type: str = ""):
+def report_aiops_check_metrics(base_labels: dict, status: str, exception: str = "", exc_type: str = ""):
     labels = copy.deepcopy(base_labels)
     labels.update({"status": status, "exception": exception, "exc_type": exc_type})
     metrics.AIOPS_STRATEGY_CHECK.labels(**labels).inc()
@@ -64,7 +63,7 @@ class AIOpsStrategyMaintainer:
         """准备在bkbase中所有的监控策略(基于flow名称)."""
         flow_list = api.bkdata.get_data_flow_list(project_id=settings.BK_DATA_PROJECT_ID)
         if not flow_list:
-            logger.info("no dataflow exists in project({})".format(settings.BK_DATA_PROJECT_ID))
+            logger.info(f"no dataflow exists in project({settings.BK_DATA_PROJECT_ID})")
 
         # 需要检测的flow关键字
         flow_name_keys = [
@@ -130,7 +129,7 @@ class AIOpsStrategyMaintainer:
 
     def generate_strategy_base_labels(
         self, strategy: StrategyModel, query_config: QueryConfig, algorithm: AlgorithmModel
-    ) -> Dict:
+    ) -> dict:
         """生成巡检任务埋点的基础label."""
         return {
             "bk_biz_id": strategy.bk_biz_id,
@@ -257,7 +256,7 @@ class AIOpsStrategyMaintainer:
                     f"dataflow status error({str(e)})"
                 )
 
-    def check_strategy_prepare(self, strategy_info: Dict):
+    def check_strategy_prepare(self, strategy_info: dict):
         """检测SDK策略的准备情况
 
         :param strategy_info: 策略信息
@@ -273,8 +272,7 @@ class AIOpsStrategyMaintainer:
         now_time = datetime.datetime.now(tz=pytz.UTC)
         if now_time - strategy_info["strategy"].update_time > datetime.timedelta(minutes=30):
             error_msg = (
-                f"Strategy({strategy_info['strategy'].id}:"
-                f"{strategy_info['strategy'].bk_biz_id}) had prepared failure"
+                f"Strategy({strategy_info['strategy'].id}:{strategy_info['strategy'].bk_biz_id}) had prepared failure"
             )
             logger.error(error_msg)
             report_aiops_check_metrics(
@@ -286,7 +284,7 @@ class AIOpsStrategyMaintainer:
             self.checked_abnormal_strategies.add(strategy_info["strategy"].id)
             self.error_counter[CheckErrorType.NOT_READY] += 1
 
-    def check_strategy_flow_status(self, strategy_info: Dict):
+    def check_strategy_flow_status(self, strategy_info: dict):
         """检测任务运行是否有异常.
 
         :param strategy_info: 策略信息
@@ -336,7 +334,7 @@ class AIOpsStrategyMaintainer:
             self.error_counter[CheckErrorType.RUNNING_FAILURE] += 1
             return
 
-    def check_strategy_data_monitor_metrics(self, strategy_info: Dict):
+    def check_strategy_data_monitor_metrics(self, strategy_info: dict):
         """检测任务的数据监控埋点.
 
         :param strategy_info: 策略信息
@@ -372,7 +370,7 @@ class AIOpsStrategyMaintainer:
             self.checked_abnormal_strategies.add(strategy_info["strategy"].id)
             self.error_counter[CheckErrorType.NO_RUNTIME_METRICS] += 1
 
-    def check_strategy_output(self, strategy_info: Dict):
+    def check_strategy_output(self, strategy_info: dict):
         """检测任务是否有输出.
 
         :param strategy_info: 策略信息

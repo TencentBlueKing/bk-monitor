@@ -20,6 +20,7 @@ from functools import reduce
 from itertools import chain
 from urllib.parse import parse_qs
 
+from bk_monitor_base.strategy import parse_metric_id
 from django.conf import settings
 from django.db.models import Q as DQ
 from django.utils.translation import gettext as _
@@ -28,7 +29,6 @@ from bkmonitor.aiops.utils import AiSetting, ReadOnlyAiSetting
 from bkmonitor.dataflow.constant import VisualType
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import NO_DATA_TAG_DIMENSION, AlgorithmModel, MetricListCache
-from bkmonitor.strategy.new_strategy import parse_metric_id
 from bkmonitor.utils.range import load_agg_condition_instance
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.alert import CLUSTER_PATTERN, EventSeverity

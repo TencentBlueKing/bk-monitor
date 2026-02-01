@@ -23,7 +23,8 @@ from io import StringIO
 from itertools import chain
 from typing import Any
 
-from bk_monitor_base.strategy import parse_metric_id
+import arrow
+from bk_monitor_base.strategy import get_strategy, parse_metric_id
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Count
@@ -60,7 +61,6 @@ from bkmonitor.models import (
 )
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.share.api_auth_resource import ApiAuthResource
-from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.range import load_agg_condition_instance
@@ -2342,14 +2342,14 @@ class StrategySnapshotResource(Resource):
         changed_status = self.ConfigChangedStatus.UNCHANGED
         current_strategy = None
         try:
-            strategy = StrategyModel.objects.get(id=strategy_config["id"])
-            is_enabled = strategy.is_enabled
-            current_strategy = Strategy.from_models([strategy])[0]
+            current_strategy = get_strategy(bk_biz_id=alert.bk_biz_id, strategy_id=strategy_config["id"])
+            is_enabled = current_strategy["is_enabled"]
+            current_update_time = arrow.get(current_strategy["update_time"])
+            strategy_update_time = arrow.get(strategy_config["update_time"])
+            if current_update_time.int_timestamp != strategy_update_time.int_timestamp:
+                changed_status = self.ConfigChangedStatus.UPDATED
         except StrategyModel.DoesNotExist:
             changed_status = self.ConfigChangedStatus.DELETED
-        else:
-            if int(strategy.update_time.timestamp()) != strategy_config["update_time"]:
-                changed_status = self.ConfigChangedStatus.UPDATED
 
         if current_strategy and "intelligent_detect" in strategy_config["items"][0]["query_configs"][0]:
             if not strategy_config["items"][0]["query_configs"][0]["intelligent_detect"].get("use_sdk", False):

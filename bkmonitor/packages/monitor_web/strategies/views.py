@@ -77,20 +77,10 @@ class StrategiesViewSet(ResourceViewSet):
         # 获取策略目标详情
         ResourceRoute("POST", resource.strategies.get_target_detail, endpoint="get_target_detail"),
         # v1 - 旧版接口
-        # 获取指标维度最近所上报的值
-        ResourceRoute("POST", resource.strategies.get_dimension_values, endpoint="get_dimension_values"),
-        # 创建、修改监控策略
-        ResourceRoute("POST", resource.strategies.strategy_config, endpoint="strategy_config"),
         # 删除监控策略
         ResourceRoute("POST", resource.strategies.delete_strategy_config, endpoint="delete_strategy_config"),
-        # 获取监控策略列表
-        ResourceRoute("POST", resource.strategies.strategy_config_list, endpoint="strategy_config_list"),
-        # 获取监控策略详情
-        ResourceRoute("GET", resource.strategies.strategy_config_detail, endpoint="strategy_config_detail"),
         # 批量修改策略接口
         ResourceRoute("POST", resource.strategies.bulk_edit_strategy, endpoint="bulk_edit_strategy"),
-        # 获取指标的维度列表
-        ResourceRoute("GET", resource.strategies.get_dimension_list, endpoint="get_dimension_list"),
         # 获取监控策略轻量列表
         ResourceRoute("GET", resource.strategies.plain_strategy_list, endpoint="plain_strategy_list"),
         # 获取索引列表
@@ -132,10 +122,6 @@ class StrategiesViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.strategies.update_metric_list_by_biz, endpoint="update_metric_list_by_biz"),
         # 获取单位详情
         ResourceRoute("GET", resource.strategies.multivariate_anomaly_scenes, endpoint="multivariate_anomaly_scenes"),
-        # 将仪表盘图表转换为查询配置
-        ResourceRoute(
-            "POST", resource.strategies.dashboard_panel_to_query_config, endpoint="dashboard_panel_to_query_config"
-        ),
         # 返回简易版本的策略列表
         ResourceRoute("GET", resource.strategies.get_devops_strategy_list, endpoint="get_devops_strategy_list"),
         # 新增/保存策略订阅

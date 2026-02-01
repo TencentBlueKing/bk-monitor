@@ -28,7 +28,6 @@ import Vue from 'vue';
 import { getVariableValue } from 'monitor-api/modules/grafana';
 import { noticeGroupList } from 'monitor-api/modules/notice_group';
 import {
-  getDimensionValues,
   getIndexSetList,
   getScenarioList,
   getStrategyV2,
@@ -37,7 +36,6 @@ import {
   getUnitInfo,
   getUnitList,
   noticeVariableList,
-  strategyConfig,
 } from 'monitor-api/modules/strategies';
 
 export const SET_LOADING = 'SET_LOADING';
@@ -114,23 +112,6 @@ const actions = {
       commit(SET_GROUP_LIST, groupData);
     });
   },
-  async getDimensionValueList({ commit }, params) {
-    // commit(SET_LOADING, needLoading)
-    await getDimensionValues(params, { needRes: true })
-      .then(({ data, tips }) => {
-        if (tips?.length) {
-          Vue.prototype.$bkMessage({
-            theme: 'warning',
-            message: tips,
-          });
-        }
-        commit(SET_DIMENSION_VALUE_MAP, {
-          id: params.field,
-          data: Array.isArray(data) ? data : [],
-        });
-      })
-      .catch(() => []);
-  },
   async getVariableValueList({ commit, rootGetters }, params) {
     if (params.params.data_source_label === 'custom' && params.params.data_type_label === 'event') {
       params.params.result_table_id = `${params.bk_biz_id || rootGetters.bizId}_bkmonitor_event_${
@@ -155,9 +136,6 @@ const actions = {
         });
       })
       .catch(() => []);
-  },
-  async addStrategyConfig(store, params) {
-    await strategyConfig(params);
   },
   // 获取索引集数据
   async getIndexSetList(store, params) {

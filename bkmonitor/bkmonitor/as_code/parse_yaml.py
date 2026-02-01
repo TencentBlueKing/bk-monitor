@@ -15,6 +15,7 @@ from abc import abstractmethod
 from copy import deepcopy
 from typing import Any
 
+from bk_monitor_base.strategy import AlgorithmSerializer
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.action.serializers import DutyRuleDetailSlz
@@ -42,7 +43,6 @@ from bkmonitor.as_code.utils import (
     parse_user,
 )
 from bkmonitor.models import ActionPlugin, AlgorithmModel, DutyRule, MetricListCache
-from bkmonitor.strategy.new_strategy import Algorithm
 from bkmonitor.utils.dict import nested_diff, nested_update
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.action import DEFAULT_CONVERGE_CONFIG, NoticeChannel, NoticeWay
@@ -153,7 +153,7 @@ class StrategyConfigParser(BaseConfigParser):
         if algorithm_type == AlgorithmModel.AlgorithmChoices.Threshold:
             algorithm_config = parse_threshold(config["config"])
         else:
-            serializer_class = Algorithm.Serializer.AlgorithmSerializers.get(algorithm_type)
+            serializer_class = AlgorithmSerializer.AlgorithmSerializers.get(algorithm_type)
             if serializer_class:
                 serializer = serializer_class(data=config["config"])
                 serializer.is_valid()

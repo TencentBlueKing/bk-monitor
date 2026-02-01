@@ -9,13 +9,8 @@ export const strategyLabelList = request('GET', 'rest/v2/strategies/strategy_lab
 export const deleteStrategyLabel = request('POST', 'rest/v2/strategies/delete_strategy_label/');
 export const fetchItemStatus = request('POST', 'rest/v2/strategies/fetch_item_status/');
 export const getTargetDetail = request('POST', 'rest/v2/strategies/get_target_detail/');
-export const getDimensionValues = request('POST', 'rest/v2/strategies/get_dimension_values/');
-export const strategyConfig = request('POST', 'rest/v2/strategies/strategy_config/');
 export const deleteStrategyConfig = request('POST', 'rest/v2/strategies/delete_strategy_config/');
-export const strategyConfigList = request('POST', 'rest/v2/strategies/strategy_config_list/');
-export const strategyConfigDetail = request('GET', 'rest/v2/strategies/strategy_config_detail/');
 export const bulkEditStrategy = request('POST', 'rest/v2/strategies/bulk_edit_strategy/');
-export const getDimensionList = request('GET', 'rest/v2/strategies/get_dimension_list/');
 export const plainStrategyList = request('GET', 'rest/v2/strategies/plain_strategy_list/');
 export const getIndexSetList = request('GET', 'rest/v2/strategies/get_index_set_list/');
 export const getMetricListV2 = request('POST', 'rest/v2/strategies/v2/get_metric_list/');
@@ -52,13 +47,8 @@ export default {
   deleteStrategyLabel,
   fetchItemStatus,
   getTargetDetail,
-  getDimensionValues,
-  strategyConfig,
   deleteStrategyConfig,
-  strategyConfigList,
-  strategyConfigDetail,
   bulkEditStrategy,
-  getDimensionList,
   plainStrategyList,
   getIndexSetList,
   getMetricListV2,

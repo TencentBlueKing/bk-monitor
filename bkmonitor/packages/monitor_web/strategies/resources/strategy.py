@@ -23,7 +23,6 @@ from bk_monitor_base.strategy import (
     update_partial_strategy,
 )
 from django.conf import settings
-from django.db import transaction
 from django.db.models import Count, Q, QuerySet
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -52,7 +51,7 @@ from bkmonitor.models import (
     StrategyModel,
     UserGroup,
 )
-from bkmonitor.models.strategy import AlgorithmChoiceConfig, NoticeSubscribe
+from bkmonitor.models.strategy import AlgorithmChoiceConfig
 from bkmonitor.strategy.new_strategy import QueryConfig
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username, get_source_app
@@ -60,7 +59,6 @@ from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
 from common.decorators import db_safe_wrapper
-from constants.action import UserGroupType
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
@@ -665,16 +663,12 @@ class GetStrategyListV2Resource(Resource):
 
     @classmethod
     def _convert_v2_conditions_to_filterspec(
-        cls,
-        *,
-        bk_biz_id: int,
-        conditions: list[dict],
-    ) -> tuple[list[dict], set[str], dict[str, list[Any]]]:
+        cls, *, bk_biz_id: int, conditions: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], dict[str, list[Any]]]:
         """将 v2 `conditions=[{\"key\":...,\"value\":...}]` 转换为 base `FilterSpec` 风格条件。
 
         Returns:
             - engine_conditions: 可直接用于 `StrategyQueryEngine.filter_strategies` 的条件列表（不含 scenario/ip/status 等）
-            - scenario_values: 由 conditions 中的 scenario 汇总出的场景值集合（用于外层 facet/选择）
             - heavy_values: heavy 条件原始值（用于外层先按现网逻辑解析，再降维为 id 过滤）
         """
         # 复用 v2 现有 field_mapping（保持与旧版 `filter_by_conditions` 一致：仅做 key 映射，不额外扩展操作符能力）
@@ -731,16 +725,12 @@ class GetStrategyListV2Resource(Resource):
             mapped_key = field_mapping.get(raw_key, raw_key)
             grouped[mapped_key].extend(values)
 
-        scenario_values: set[str] = set()
         heavy_values: dict[str, list[Any]] = {"ip": [], "bk_cloud_id": [], "strategy_status": []}
         engine_conditions: list[dict] = []
 
         # === heavy/特殊条件收集（外层解析）===
         for k, values in list(grouped.items()):
-            if k == "scenario":
-                scenario_values.update({str(v) for v in values if str(v).strip()})
-                grouped.pop(k, None)
-            elif k in {"ip", "bk_cloud_id", "strategy_status"}:
+            if k in {"ip", "bk_cloud_id", "strategy_status"}:
                 heavy_values[k].extend(values)
                 grouped.pop(k, None)
 
@@ -868,7 +858,7 @@ class GetStrategyListV2Resource(Resource):
             else:
                 engine_conditions.append({"key": "source", "values": values, "operator": op})
 
-        return engine_conditions, scenario_values, heavy_values
+        return engine_conditions, heavy_values
 
     def _empty_response(self) -> dict[str, Any]:
         """空响应"""
@@ -886,21 +876,17 @@ class GetStrategyListV2Resource(Resource):
             "total": 0,
         }
 
-    def perform_request(self, params):
-        bk_biz_id = params["bk_biz_id"]
-        v2_conditions: list[dict] = params.get("conditions") or []
-        engine_conditions, scenario_values, heavy_values = self._convert_v2_conditions_to_filterspec(
-            bk_biz_id=bk_biz_id,
-            conditions=v2_conditions,
+    def filter_by_conditions(self, bk_biz_id: int, conditions: list[dict]) -> set[int]:
+        engine_conditions, heavy_values = self._convert_v2_conditions_to_filterspec(
+            bk_biz_id=bk_biz_id, conditions=conditions
         )
-
         # 先用 base 查询引擎完成“核心条件交集”（不含 scenario/ip/status）
         core_qs = StrategyQueryEngine.filter_strategies(
             bk_biz_id, conditions=cast(list[FilterCondition], engine_conditions)
         )
-        candidates = set(core_qs.values_list("id", flat=True).distinct())
+        candidates: set[int] = set(core_qs.values_list("id", flat=True).distinct())
         if not candidates:
-            return self._empty_response()
+            return candidates
 
         # heavy：strategy_status（ALERT/SHIELDED/ON/OFF/INVALID）仍按现网实现解析为 id 再收敛
         status_values = [str(v).upper() for v in heavy_values.get("strategy_status", []) if str(v).strip()]
@@ -910,7 +896,7 @@ class GetStrategyListV2Resource(Resource):
                 status_hit.update(self.filter_by_status(s, filter_strategy_ids=list(candidates), bk_biz_id=bk_biz_id))
             candidates &= status_hit
             if not candidates:
-                return self._empty_response()
+                return candidates
 
         # heavy：ip/bk_cloud_id 仍按现网实现解析为 id 再收敛
         ip_values = [str(v) for v in heavy_values.get("ip", []) if str(v).strip()]
@@ -931,26 +917,42 @@ class GetStrategyListV2Resource(Resource):
             ip_qs = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=candidates)
             ip_qs = self.filter_by_ip(ips=ips, strategies=ip_qs, bk_biz_id=bk_biz_id)
             candidates &= set(ip_qs.values_list("id", flat=True).distinct())
-            if not candidates:
-                return self._empty_response()
+
+        return candidates
+
+    def add_scenario_condition(self, conditions: list[dict[str, Any]], scenario: str | None) -> list[dict[str, Any]]:
+        """
+        将场景条件添加到条件列表中
+        """
+        # 如果没有场景条件，则直接返回原条件列表
+        if not scenario:
+            return conditions
+
+        new_conditions: list[dict[str, Any]] = []
+        for condition in conditions:
+            if condition.get("key") == "scenario":
+                new_conditions.append({"key": "scenario", "values": [scenario], "operator": "eq"})
+            else:
+                new_conditions.append(condition)
+        return new_conditions
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        conditions: list[dict] = validated_request_data.get("conditions") or []
+
+        # 添加场景条件
+        conditions = self.add_scenario_condition(conditions, validated_request_data.get("scenario"))
+
+        # 条件过滤，返回策略ID集合
+        candidates = self.filter_by_conditions(bk_biz_id=bk_biz_id, conditions=conditions)
+        if not candidates:
+            return self._empty_response()
 
         # 构造 bkmonitor 侧 queryset 以复用现网 facet 统计逻辑
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=candidates)
 
         # 在过滤监控对象前统计数量（facet）
         scenario_list = self.get_scenario_list(strategies)
-
-        # 场景选择：来自 params.scenario 与 conditions.scenario
-        scenarios: set[str] = set()
-        scenario_param = params.get("scenario")
-        if scenario_param:
-            if isinstance(scenario_param, list):
-                scenarios.update({str(v) for v in scenario_param if str(v).strip()})
-            else:
-                scenarios.add(str(scenario_param))
-        scenarios |= scenario_values
-        if scenarios:
-            strategies = strategies.filter(scenario__in=scenarios)
 
         # 统计其他分类数量（基于最终筛选结果，包含场景选择）
         all_strategy_ids = list(strategies.values_list("id", flat=True).distinct())
@@ -971,32 +973,26 @@ class GetStrategyListV2Resource(Resource):
         invalid_type_list_future = executor.submit(db_safe_wrapper(self.get_invalid_type_list), all_strategy_ids)
         algorithm_type_list_future = executor.submit(db_safe_wrapper(self.get_algorithm_type_list), all_strategy_ids)
 
-        # 统计总数
-        total = strategies.count()
+        # 分页计算
+        offset, limit = 0, None
+        page, page_size = validated_request_data.get("page"), validated_request_data.get("page_size")
+        if page and page_size:
+            offset = (page - 1) * page_size
+            limit = page * page_size
 
-        # 排序
-        strategies = strategies.order_by("-update_time")
-
-        # Django 不支持“先 slice 再 distinct”：Cannot create distinct fields once a slice has been taken.
-        # 这里我们只需要分页后的唯一 ID 列表：先 distinct 再 slice（保持语义一致）。
-        page_strategy_id_qs = strategies.values_list("id", flat=True).distinct()
-
-        # 分页
-        if params.get("page") and params.get("page_size"):
-            start = (params["page"] - 1) * params["page_size"]
-            end = params["page"] * params["page_size"]
-            page_strategy_id_qs = page_strategy_id_qs[start:end]
-
-        page_strategy_ids = list(page_strategy_id_qs)
-        # 生成策略配置（只针对分页结果）
-        strategy_configs = list_strategy(
+        # 生成策略配置
+        strategies_result = list_strategy(
             bk_biz_id=bk_biz_id,
-            conditions=[{"key": "id", "values": page_strategy_ids, "operator": "eq"}],
+            conditions=[{"key": "id", "values": list(candidates), "operator": "eq"}],
+            offset=offset,
+            limit=limit,
         )
+        strategy_configs = strategies_result["data"]
+        total = strategies_result["count"]
 
         # 补充告警组信息
-        if params["with_user_group"]:
-            fill_user_groups(strategy_configs, params["with_user_group_detail"])
+        if validated_request_data["with_user_group"]:
+            fill_user_groups(strategy_configs, validated_request_data["with_user_group_detail"])
 
         # 补充AsCode字段
         for strategy_config in strategy_configs:
@@ -1086,7 +1082,7 @@ class GetStrategyV2Resource(Resource):
         return strategy
 
 
-class PlainStrategyListV2Resource(Resource):
+class PlainStrategyListResource(Resource):
     """获取轻量的策略列表"""
 
     class RequestSerializer(serializers.Serializer):
@@ -1719,10 +1715,11 @@ class GetMetricListV2Resource(Resource):
         if not strategy_ids:
             return metric_list
 
-        strategies = list_strategy(
+        strategies_result = list_strategy(
             bk_biz_id=params["bk_biz_id"],
             conditions=[{"key": "id", "values": strategy_ids, "operator": "eq"}],
         )
+        strategies = strategies_result["data"]
         metric_id_by_strategy = {}
         for strategy in strategies:
             for query_config in strategy["items"][0]["query_configs"]:
@@ -2961,247 +2958,3 @@ class GetDevopsStrategyListResource(Resource):
             {"optionId": str(strategy["id"]), "optionName": strategy["name"]} for strategy in strategies
         ]
         return {"result": True, "status": 0, "data": strategy_list, "message": "success"}
-
-
-class SaveStrategySubscribeResource(Resource):
-    """
-    新增/保存策略订阅
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=False)
-        sub_username = serializers.CharField(required=True, source="username")
-        bk_biz_id = serializers.IntegerField(required=True)
-        conditions = serializers.ListField(required=True, child=serializers.DictField())
-        notice_ways = serializers.ListField(required=True, child=serializers.CharField())
-        priority = serializers.IntegerField(required=False, default=-1)
-        user_type = serializers.ChoiceField(
-            required=False, choices=UserGroupType.CHOICE, default=UserGroupType.FOLLOWER
-        )
-        is_enable = serializers.BooleanField(required=False, default=True)
-
-    def perform_request(self, validated_request_data: dict[str, Any]):
-        sub_id = validated_request_data.get("id")
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        if sub_id:
-            try:
-                instance = NoticeSubscribe.objects.get(id=sub_id, bk_biz_id=bk_biz_id)
-                for k, v in validated_request_data.items():
-                    setattr(instance, k, v)
-                instance.save()
-            except NoticeSubscribe.DoesNotExist:
-                raise ValidationError(_(f"订阅ID：{sub_id} 在业务[{bk_biz_id}] 下不存在"))
-        else:
-            instance = NoticeSubscribe.objects.create(**validated_request_data)
-
-        return {
-            "id": instance.id,
-            "username": instance.username,
-            "bk_biz_id": instance.bk_biz_id,
-            "conditions": instance.conditions,
-            "notice_ways": instance.notice_ways,
-            "priority": instance.priority,
-            "user_type": instance.user_type,
-            "is_enable": instance.is_enable,
-        }
-
-
-class BulkSaveStrategySubscribeResource(Resource):
-    """
-    批量创建订阅
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True)
-        subscriptions = serializers.ListField(required=True, child=SaveStrategySubscribeResource.RequestSerializer())
-
-    def perform_request(self, validated_request_data: dict[str, Any]):
-        subscriptions = validated_request_data["subscriptions"]
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        to_be_created = []
-        to_be_updated = []
-        update_subs = {}
-        filter_dict = {"bk_biz_id": bk_biz_id, "id__in": []}
-
-        for sub in subscriptions:
-            sub_id = sub.get("id")
-            if sub_id:
-                filter_dict["id__in"].append(sub_id)
-                update_subs[sub_id] = sub
-            else:
-                # 确保新创建的订阅包含 bk_biz_id
-                sub_data = sub.copy()
-                sub_data["bk_biz_id"] = bk_biz_id
-                to_be_created.append(NoticeSubscribe(**sub_data))
-
-        # 只有当有需要更新的订阅时才执行查询
-        if filter_dict["id__in"]:
-            for sub in NoticeSubscribe.objects.filter(**filter_dict):
-                sub_data = update_subs[sub.id]
-                for k, v in sub_data.items():
-                    if k != "id":  # 跳过id字段
-                        setattr(sub, k, v)
-                to_be_updated.append(sub)
-
-        with transaction.atomic():
-            if to_be_created:
-                NoticeSubscribe.objects.bulk_create(to_be_created)
-            if to_be_updated:
-                # 动态获取需要更新的字段
-                update_fields = ["username", "conditions", "notice_ways", "priority", "user_type", "is_enable"]
-                NoticeSubscribe.objects.bulk_update(to_be_updated, update_fields)
-
-        return {"created": len(to_be_created), "updated": len(to_be_updated)}
-
-
-class BulkDeleteStrategySubscribeResource(Resource):
-    """
-    批量删除/取消策略订阅
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        ids = serializers.ListField(
-            child=serializers.IntegerField(), required=True, allow_empty=False, help_text="要删除的订阅ID列表"
-        )
-        bk_biz_id = serializers.IntegerField(required=True)
-        sub_username = serializers.CharField(required=False, source="username", default="")
-
-    def perform_request(self, params):
-        ids = params["ids"]
-        bk_biz_id = params["bk_biz_id"]
-
-        # 查询要删除的订阅记录
-        qs = NoticeSubscribe.objects.filter(id__in=ids, bk_biz_id=bk_biz_id)
-        if params["username"]:
-            qs = qs.filter(username=params["username"])
-
-        # 获取实际存在的订阅ID，用于返回结果
-        existing_ids = list(qs.values_list("id", flat=True))
-
-        # 执行批量删除
-        deleted_count, _ = qs.delete()
-
-        # 检查是否有未找到的订阅ID
-        not_found_ids = [id for id in ids if id not in existing_ids]
-
-        if deleted_count == 0:
-            raise ValidationError(_("删除失败：未找到符合条件的订阅"))
-
-        result = {
-            "deleted_count": deleted_count,
-            "deleted_ids": existing_ids,
-        }
-
-        # 如果有部分ID未找到，添加到返回结果中
-        if not_found_ids:
-            result["not_found_ids"] = not_found_ids
-            result["message"] = _("部分订阅删除成功，但以下ID未找到：{}").format(", ".join(map(str, not_found_ids)))
-
-        return result
-
-
-class DeleteStrategySubscribeResource(Resource):
-    """
-    删除/取消单个策略订阅（向后兼容接口）
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True)
-        bk_biz_id = serializers.IntegerField(required=True)
-        sub_username = serializers.CharField(required=False, source="username", default="")
-
-    def perform_request(self, params):
-        # 复用批量删除的逻辑
-        batch_params = {"ids": [params["id"]], "bk_biz_id": params["bk_biz_id"], "sub_username": params["username"]}
-
-        # 调用批量删除资源
-        batch_resource = BulkDeleteStrategySubscribeResource()
-        result = batch_resource.perform_request(batch_params)
-
-        # 如果有未找到的ID，说明删除失败
-        if "not_found_ids" in result:
-            raise ValidationError(_("删除失败：未找到符合条件的订阅"))
-
-        return True
-
-
-class ListStrategySubscribeResource(Resource):
-    """
-    策略订阅列表
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        sub_username = serializers.CharField(required=False, source="username")
-        bk_biz_id = serializers.IntegerField(required=True)
-        is_enable = serializers.BooleanField(required=False, default=True)
-        page = serializers.IntegerField(required=False, default=1, min_value=1)
-        page_size = serializers.IntegerField(required=False, default=100, min_value=1, max_value=500)
-
-    def perform_request(self, params):
-        # 只使用经过验证的字段进行过滤，避免潜在的安全风险
-        filter_params = {
-            "bk_biz_id": params["bk_biz_id"],
-        }
-        if params.get("username", ""):
-            filter_params["username"] = params["username"]
-
-        # 可选的is_enable过滤
-        if "is_enable" in params:
-            filter_params["is_enable"] = params["is_enable"]
-
-        # 分页参数
-        page = params.get("page", 1)
-        page_size = params.get("page_size", 100)
-        offset = (page - 1) * page_size
-
-        # 查询数据
-        qs = NoticeSubscribe.objects.filter(**filter_params).order_by("priority", "id")
-
-        # 获取总数和分页数据
-        total_count = qs.count()
-        paginated_qs = qs[offset : offset + page_size]
-
-        return {
-            "total": total_count,
-            "page": page,
-            "page_size": page_size,
-            "results": [
-                {
-                    "id": obj.id,
-                    "username": obj.username,
-                    "bk_biz_id": obj.bk_biz_id,
-                    "conditions": obj.conditions,
-                    "notice_ways": obj.notice_ways,
-                    "priority": obj.priority,
-                    "user_type": obj.user_type,
-                    "is_enable": obj.is_enable,
-                }
-                for obj in paginated_qs
-            ],
-        }
-
-
-class DetailStrategySubscribeResource(Resource):
-    """
-    策略订阅详情
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True)
-        bk_biz_id = serializers.IntegerField(required=True)
-
-    def perform_request(self, params):
-        bk_biz_id = params["bk_biz_id"]
-        obj = NoticeSubscribe.objects.filter(id=params["id"], bk_biz_id=bk_biz_id).first()
-        if not obj:
-            raise ValidationError(_(f"[{bk_biz_id}]下未找到符合条件的订阅"))
-        return {
-            "id": obj.id,
-            "username": obj.username,
-            "bk_biz_id": obj.bk_biz_id,
-            "conditions": obj.conditions,
-            "notice_ways": obj.notice_ways,
-            "priority": obj.priority,
-            "user_type": obj.user_type,
-            "is_enable": obj.is_enable,
-        }

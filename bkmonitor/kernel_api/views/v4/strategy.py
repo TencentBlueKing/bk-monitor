@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
+from typing import Any, cast
 
 from bk_monitor_base.strategy import switch_strategy
 from rest_framework import exceptions, serializers
@@ -16,10 +16,7 @@ from rest_framework import exceptions, serializers
 from bkmonitor.utils.user import get_global_user
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from kernel_api.views.v4.notice_group import (
-    SaveNoticeGroupResource,
-    SearchNoticeGroupResource,
-)
+from kernel_api.views.v4.notice_group import SaveNoticeGroupResource, SearchNoticeGroupResource
 
 
 class SaveStrategyResource(Resource):
@@ -60,22 +57,22 @@ class SaveStrategyResource(Resource):
         """
         serializer = self.NoticeGroupSerializer(many=True, data=notice_group_list)
         serializer.is_valid(raise_exception=True)
-        notice_group_list = serializer.validated_data
+        notice_group_list = cast(list[dict[str, Any]], serializer.validated_data)
 
         config = []
         for notice_group in notice_group_list:
             config.append(SaveNoticeGroupResource()(bk_biz_id=bk_biz_id, **notice_group)["id"])
         return config
 
-    def perform_request(self, params):
-        if "bk_biz_id" in params:
-            for action in params.get("action_list", []):
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        if "bk_biz_id" in validated_request_data:
+            for action in validated_request_data.get("action_list", []):
                 if "notice_group_list" in action:
                     action["notice_group_list"] = self.parse_notice_group(
-                        params["bk_biz_id"], action["notice_group_list"]
+                        validated_request_data["bk_biz_id"], action["notice_group_list"]
                     )
 
-        return resource.strategies.backend_strategy_config(**params)
+        return resource.strategies.backend_strategy_config(**validated_request_data)
 
 
 class SearchStrategyResource(Resource):
@@ -97,7 +94,7 @@ class SearchStrategyResource(Resource):
         metric_id = serializers.CharField(required=False, label="指标ID")
         ids = serializers.ListField(required=False, label="ID列表")
 
-        fields = serializers.ListField(default=[], label="所需字段")
+        fields = serializers.ListField(default=list, label="所需字段")
 
     def perform_request(self, validated_request_data):
         result = resource.strategies.backend_strategy_config_list(**validated_request_data)
