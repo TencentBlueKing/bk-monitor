@@ -13,8 +13,11 @@ import datetime
 import logging
 import time
 from collections import Counter, defaultdict
+from collections.abc import Callable
+from typing import Any
 
 import pytz
+from bk_monitor_base.strategy import list_strategy
 from django.conf import settings
 
 from bkmonitor.dataflow.constant import CheckErrorType
@@ -23,8 +26,7 @@ from bkmonitor.dataflow.task.intelligent_detect import (
     HostAnomalyIntelligentDetectTask,
     StrategyIntelligentModelDetectTask,
 )
-from bkmonitor.models import AlgorithmModel, QueryConfigModel, StrategyModel
-from bkmonitor.strategy.new_strategy import QueryConfig
+from bkmonitor.models import AlgorithmModel
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from constants.aiops import SDKDetectStatus
 from constants.data_source import DataSourceLabel
@@ -46,7 +48,7 @@ class AIOpsStrategyMaintainer:
 
     MAINTAIN_ACCESS_INTERVAL = 60
 
-    def __init__(self, access_func_factory: callable):
+    def __init__(self, access_func_factory: Callable[[str], Any]):
         self.flow_strategies = defaultdict(dict)
         self.monitor_strategies = {}
 
@@ -96,23 +98,23 @@ class AIOpsStrategyMaintainer:
     def prepare_strategies_in_monitor(self):
         """准备监控平台所有生效中的智能监控策略."""
         # 找到监控平台配置了智能异常检测的所有策略
-        queryset = AlgorithmModel.objects.filter(type__in=AlgorithmModel.AIOPS_ALGORITHMS).values_list(
-            "strategy_id", flat=True
-        )
-        strategy_ids = list(queryset)
-
-        strategies = {item.id: item for item in StrategyModel.objects.filter(id__in=strategy_ids, is_enabled=True)}
-        query_configs = {
-            query_config.strategy_id: query_config
-            for query_config in QueryConfig.from_models(
-                QueryConfigModel.objects.filter(strategy_id__in=list(strategies.keys()))
-            )
+        strategy_configs = list_strategy(
+            conditions=[{"key": "algorithm_type", "values": AlgorithmModel.AIOPS_ALGORITHMS, "operator": "eq"}]
+        )["data"]
+        strategies: dict[int, dict[str, Any]] = {
+            strategy_config["id"]: strategy_config for strategy_config in strategy_configs
         }
-        algorithms = {
-            algorithm.strategy_id: algorithm
-            for algorithm in AlgorithmModel.objects.filter(
-                strategy_id__in=list(strategies.keys()), type__in=AlgorithmModel.AIOPS_ALGORITHMS
-            )
+        algorithms: dict[int, dict[str, Any]] = {
+            strategy_config["id"]: algorithm
+            for strategy_config in strategy_configs
+            for item in strategy_config["items"]
+            for algorithm in item["algorithms"]
+            if algorithm["type"] in AlgorithmModel.AIOPS_ALGORITHMS
+        }
+        query_configs: dict[int, dict[str, Any]] = {
+            strategy_config["id"]: item["query_configs"][0]
+            for strategy_config in strategy_configs
+            for item in strategy_config["items"]
         }
         self.monitor_strategies = {
             strategy_id: {
@@ -122,22 +124,22 @@ class AIOpsStrategyMaintainer:
                 "base_labels": self.generate_strategy_base_labels(
                     strategy, query_configs[strategy_id], algorithms[strategy_id]
                 ),
-                "use_sdk": getattr(query_configs[strategy_id], "intelligent_detect", {}).get("use_sdk", False),
+                "use_sdk": query_configs[strategy_id].get("intelligent_detect", {}).get("use_sdk", False),
             }
             for strategy_id, strategy in strategies.items()
         }
 
     def generate_strategy_base_labels(
-        self, strategy: StrategyModel, query_config: QueryConfig, algorithm: AlgorithmModel
+        self, strategy: dict[str, Any], query_config: dict[str, Any], algorithm: dict[str, Any]
     ) -> dict:
         """生成巡检任务埋点的基础label."""
         return {
-            "bk_biz_id": strategy.bk_biz_id,
-            "strategy_id": strategy.id,
-            "algorithm": algorithm.type,
-            "data_source_label": query_config.data_source_label,
-            "data_type_label": query_config.data_type_label,
-            "metric_id": query_config.metric_id,
+            "bk_biz_id": strategy["bk_biz_id"],
+            "strategy_id": strategy["id"],
+            "algorithm": algorithm["type"],
+            "data_source_label": query_config["data_source_label"],
+            "data_type_label": query_config["data_type_label"],
+            "metric_id": query_config["metric_id"],
             "flow_id": getattr(query_config, "intelligent_detect", {}).get("data_flow_id"),
         }
 
@@ -239,8 +241,6 @@ class AIOpsStrategyMaintainer:
                     f"{getattr(strategy_info['query_config'], 'intelligent_detect', {}).get('message')})"
                 )
                 logger.error(err_msg)
-                # access_func = self.access_func_factory(strategy_info["algorithm"].type)
-                # access_func.apply_async(args=(strategy_id,), countdown=interval)
                 interval += self.MAINTAIN_ACCESS_INTERVAL
                 report_aiops_check_metrics(
                     strategy_info["base_labels"],

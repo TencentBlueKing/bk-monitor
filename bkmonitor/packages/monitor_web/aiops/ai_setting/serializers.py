@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,10 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from bk_monitor_base.strategy import ItemSerializer
 from django.conf import settings
 from django.utils.translation import gettext as _
 
-from bkmonitor.strategy.new_strategy import Item
 from bkmonitor.views import serializers
 from constants.aiops import DEFAULT_SENSITIVITY
 
@@ -52,7 +51,7 @@ class MultivariateAnomalyDetectionSceneSerializer(AiSettingTemplateSerializer):
     is_enabled = serializers.BooleanField(default=False)
     # 关闭通知对象，复用策略中的target序列化器
     exclude_target = serializers.ListField(
-        allow_empty=True, child=serializers.ListField(child=Item.Serializer.TargetSerializer()), default=list
+        allow_empty=True, child=serializers.ListField(child=ItemSerializer.TargetSerializer()), default=list
     )
     intelligent_detect = serializers.DictField(required=False)
 

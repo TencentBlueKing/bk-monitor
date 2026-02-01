@@ -11,6 +11,7 @@ import arrow
 from bk_monitor_base.strategy import (
     AlgorithmSerializer,
     FilterCondition,
+    QueryConfigSerializerMapping,
     StrategyQueryEngine,
     StrategySerializer,
     delete_strategies,
@@ -52,7 +53,6 @@ from bkmonitor.models import (
     UserGroup,
 )
 from bkmonitor.models.strategy import AlgorithmChoiceConfig
-from bkmonitor.strategy.new_strategy import QueryConfig
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username, get_source_app
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -2307,7 +2307,9 @@ class QueryConfigToPromql(Resource):
                 if query_config["agg_interval"] == "auto":
                     query_config["agg_interval"] = 60
 
-                serializer_class = QueryConfig.QueryConfigSerializerMapping.get(data_source)
+                serializer_class = QueryConfigSerializerMapping.get(data_source)
+                if not serializer_class:
+                    raise ValidationError(f"not support data_source({data_source})")
                 serializer = serializer_class(data=query_config)
                 serializer.is_valid(raise_exception=True)
                 attrs["query_configs"][index] = serializer.validated_data

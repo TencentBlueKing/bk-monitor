@@ -14,6 +14,7 @@ from itertools import chain
 
 import xxhash
 import yaml
+from bk_monitor_base.strategy import StrategySerializer, delete_strategies, save_strategy
 from rest_framework.exceptions import ValidationError
 from schema import SchemaError
 
@@ -46,8 +47,6 @@ from bkmonitor.models import (
     StrategyModel,
     UserGroup,
 )
-from bkmonitor.strategy.new_strategy import Strategy
-from bk_monitor_base.strategy import StrategySerializer
 from bkmonitor.utils.dict import nested_update
 from constants.action import ActionPluginType
 from core.drf_resource import api
@@ -290,7 +289,7 @@ def convert_rules(
                 serializer = StrategySerializer(data=config)
                 try:
                     serializer.is_valid(raise_exception=True)
-                    obj = Strategy(**config)
+                    obj = config
                 except ValidationError as e:
                     validate_error = e
 
@@ -652,16 +651,20 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
         overwrite=overwrite,
     )
 
-    errors: dict[str, str] = get_errors(rule_records)
+    errors = get_errors(rule_records)
     if errors:
         return errors
 
     for record in rule_records:
-        record["obj"].convert()
-        record["obj"].save()
-        StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id=record["obj"].id).update(
-            app=app, snippet=record["snippet"], hash=record["hash"], path=record["path"]
+        record["obj"].update(
+            {
+                "app": app,
+                "snippet": record["snippet"],
+                "hash": record["hash"],
+                "path": record["path"],
+            }
         )
+        save_strategy(bk_biz_id, record["obj"].to_dict(), "system")
 
     assign_group_records = convert_assign_groups(
         bk_biz_id=bk_biz_id,
@@ -673,7 +676,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
         overwrite=overwrite,
     )
 
-    errors: dict[str, str] = get_errors(assign_group_records)
+    errors = get_errors(assign_group_records)
     if errors:
         return errors
 
@@ -693,7 +696,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
             .exclude(path__in=list(rule_configs.keys()))
             .values_list("id", flat=True)
         )
-        Strategy.delete_by_strategy_ids(old_strategy_ids)
+        delete_strategies(bk_biz_id, old_strategy_ids, "system")
 
         # 删除旧的告警分派组和规则
         old_rule_group_ids = list(
