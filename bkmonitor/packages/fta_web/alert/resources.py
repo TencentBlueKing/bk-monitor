@@ -23,6 +23,7 @@ from io import StringIO
 from itertools import chain
 from typing import Any
 
+from bk_monitor_base.strategy import parse_metric_id
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Count
@@ -59,7 +60,7 @@ from bkmonitor.models import (
 )
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.share.api_auth_resource import ApiAuthResource
-from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
+from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.range import load_agg_condition_instance
@@ -125,6 +126,7 @@ from monitor_web.aiops.metric_recommend.constant import (
 )
 from monitor_web.constants import AlgorithmType
 from monitor_web.models import CustomEventGroup
+from utils.strategy import fill_user_groups
 
 logger = logging.getLogger("root")
 
@@ -2358,7 +2360,7 @@ class StrategySnapshotResource(Resource):
         strategy_config["create_time"] = utc2datetime(strategy_config["create_time"])
         strategy_config["update_time"] = utc2datetime(strategy_config["update_time"])
         strategy_config["is_enabled"] = is_enabled
-        Strategy.fill_user_groups([strategy_config])
+        fill_user_groups([strategy_config])
         return strategy_config
 
 

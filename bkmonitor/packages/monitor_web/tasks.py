@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 import arrow
 from arrow.parser import ParserError
+from bk_monitor_base.strategy import get_metric_id
 from bkstorages.exceptions import RequestError
 from celery import shared_task
 from celery.signals import task_postrun
@@ -53,7 +54,7 @@ from bkmonitor.dataflow.task.intelligent_detect import (
 )
 from bkmonitor.models import ActionConfig, AlgorithmChoiceConfig, AlgorithmModel, ItemModel, StrategyModel
 from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
-from bkmonitor.strategy.new_strategy import QueryConfig, Strategy, get_metric_id
+from bkmonitor.strategy.new_strategy import QueryConfig, Strategy
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
@@ -1522,7 +1523,9 @@ def update_target_detail(bk_biz_id=None, strategies_ids=None):
     )
     for item in items:
         try:
-            resource.strategies.get_target_detail_with_cache.request.refresh({"strategy_id": item.strategy_id})
+            resource.strategies.get_target_detail_with_cache.request.refresh(
+                {"bk_biz_id": bk_biz_id, "strategy_id": item.strategy_id}
+            )
         except Exception as e:
             logger.exception(f"[update_target_detail] failed for strategy({item.strategy_id}): {e}")
         logger.info(f"[update_target_detail] strategy({item.strategy_id}) done")

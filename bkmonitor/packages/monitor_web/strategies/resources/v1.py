@@ -14,10 +14,10 @@ import logging
 from functools import reduce
 from itertools import chain
 
+from bk_monitor_base.strategy import get_metric_id
 from django.conf import settings
-from django.db.models import Count, Q, QuerySet, Sum
+from django.db.models import Count, Q
 from django.db.models.functions import Length
-from django.forms import model_to_dict
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
@@ -31,7 +31,7 @@ from bkmonitor.models import (
     StrategyModel,
 )
 from bkmonitor.models.metric_list_cache import MetricListCache
-from bkmonitor.strategy.new_strategy import Strategy, get_metric_id
+from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.time_tools import strftime_local
 from bkmonitor.utils.user import get_global_user
@@ -39,14 +39,12 @@ from bkmonitor.views import serializers
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 from constants.strategy import (
-    UPTIMECHECK_ERROR_CODE_MAP,
     AdvanceConditionMethod,
     DataTarget,
     TargetFieldType,
 )
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
-from core.drf_resource.management.exceptions import ResourceNotRegistered
 from core.errors.strategy import StrategyNotExist
 from core.unit import load_unit
 from monitor_web.alert_events.constant import EventStatus
@@ -54,10 +52,8 @@ from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.models import CustomEventGroup, CustomEventItem, DataTargetMapping
 from monitor_web.shield.utils import ShieldDetectManager
 from monitor_web.strategies.constant import (
-    DEFAULT_TRIGGER_CONFIG_MAP,
     DETECT_ALGORITHM_CHOICES,
     EVENT_METRIC_ID,
-    GLOBAL_TRIGGER_CONFIG,
     Scenario,
 )
 from monitor_web.strategies.metric_list_cache import (
@@ -79,348 +75,6 @@ from monitor_web.strategies.serializers import (
 from monitor_web.tasks import update_target_detail
 
 logger = logging.getLogger(__name__)
-
-
-class GetMetricListResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        data_source_label = serializers.CharField(default="", label="指标数据来源", allow_blank=True)
-        data_type_label = serializers.CharField(default="", label="指标数据类型", allow_blank=True)
-        result_table_label = serializers.CharField(default="", label="对象类型", allow_blank=True)
-        tag = serializers.CharField(default="", label="标签", allow_blank=True)
-
-        search_fields = serializers.DictField(default=lambda: {}, label="查询字段")
-        is_exact_match = serializers.BooleanField(default=False, label="是否精确匹配")
-        search_value = serializers.CharField(default="", label="查询关键字", allow_blank=True)
-        page = serializers.IntegerField(required=False, label="页码")
-        page_size = serializers.IntegerField(required=False, label="每页数目")
-
-    @classmethod
-    def search_filter(cls, metrics: QuerySet, params):
-        """
-        指标过滤&搜索
-        """
-        search_fields = params["search_fields"]
-
-        # 对象过滤
-        if params["result_table_label"]:
-            metrics = metrics.filter(Q(result_table_label=params.get("result_table_label")))
-
-        # 可搜索字段
-        searchable_fields = [
-            "related_id",
-            "related_name",
-            "result_table_id",
-            "result_table_name",
-            "metric_field",
-            "metric_field_name",
-            "result_table_label_name",
-            "result_table_label",
-            "plugin_type",
-        ]
-        fields_in_extend = ["scenario_name", "scenario_id", "storage_cluster_name", "bk_data_id"]
-
-        # 指定字段搜索
-        if search_fields:
-            search_params = {}
-
-            for key, value in search_fields.items():
-                if key not in searchable_fields and key not in fields_in_extend:
-                    continue
-
-                if key in fields_in_extend:
-                    search_params["extend_fields__icontains"] = f'"{key}": "{value}'
-                    if params["is_exact_match"]:
-                        search_params["extend_fields__icontains"] += '"'
-                else:
-                    if params["is_exact_match"]:
-                        search_params[key] = value
-                    else:
-                        search_params[f"{key}__icontains"] = value
-
-            metrics = metrics.filter(**search_params)
-
-        # 模糊搜索
-        search_value_list = [x for x in params["search_value"].split(";") if x]
-        for search_value in search_value_list:
-            search_filter = Q()
-            search_filter.connector = "OR"
-            for field in searchable_fields + ["extend_fields"]:
-                search_filter.children.append((f"{field}__icontains", search_value))
-
-            # 支持metric_id查询
-            metric_split_list = search_value.split(".")
-            if len(metric_split_list) == 3:
-                result_table_id = ".".join(metric_split_list[:2])
-                metric_field = metric_split_list[2]
-                metrics = metrics.filter(
-                    search_filter | Q(result_table_id=result_table_id, metric_field__startswith=metric_field)
-                )
-            if len(metric_split_list) == 2 and params["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH:
-                index_set_name = metric_split_list[0]
-                metric_field = metric_split_list[1]
-                metrics = metrics.filter(
-                    search_filter | Q(related_name=index_set_name, metric_field__startswith=metric_field)
-                )
-            else:
-                metrics = metrics.filter(search_filter)
-
-        return metrics
-
-    @classmethod
-    def page_filter(cls, metrics: QuerySet, params) -> QuerySet:
-        """
-        分页过滤
-        """
-        # 如果监控对象为服务拨测，对其中的监控采集指标分类去重
-        if (
-            params.get("data_source_label", "") == DataSourceLabel.BK_MONITOR_COLLECTOR
-            and params.get("data_type_label", "") == DataTypeLabel.TIME_SERIES
-        ):
-            uptimecheck_instance = []
-            for metric_dict in cls.bkmonitor_metric:
-                instance = metrics.filter(
-                    result_table_id=metric_dict["result_table_id"], metric_field=metric_dict["metric_field"]
-                )
-                if len(instance) != 0:
-                    total = instance.aggregate(use_frequency=Sum("use_frequency"))
-                    instance = instance.first()
-                    instance.use_frequency = total.get("use_frequency", "")
-                    uptimecheck_instance.append(instance)
-            metrics = sorted(uptimecheck_instance, key=lambda x: x.use_frequency, reverse=True)
-        if params.get("page") and params.get("page_size"):
-            # fmt: off
-            metrics = metrics[(params["page"] - 1) * params["page_size"]: params["page"] * params["page_size"]]
-            # fmt: on
-
-        return metrics
-
-    @classmethod
-    def category_filter(cls, metrics: QuerySet, params):
-        """
-        分类过滤
-        """
-        if params.get("data_source_label"):
-            metrics = metrics.filter(data_source_label=params["data_source_label"])
-        if params.get("data_type_label"):
-            metrics = metrics.filter(data_type_label=params["data_type_label"])
-        return metrics.order_by("-use_frequency")
-
-    @classmethod
-    def tag_filter(cls, metrics: QuerySet, params):
-        """
-        标签过滤
-        """
-        tag = params["tag"]
-
-        if tag == "__COMMON_USED__":
-            metrics = metrics.exclude(use_frequency=0)
-        elif tag:
-            metrics = metrics.filter(result_table_id=tag)
-
-        return metrics
-
-    @classmethod
-    def get_count_list(cls, metrics: QuerySet):
-        """
-        数据来源及类型分组统计
-        """
-        count_list = []
-        for data_category_msg in DATA_CATEGORY:
-            if (
-                data_category_msg["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH
-                and data_category_msg["data_type_label"] == DataTypeLabel.LOG
-            ):
-                continue
-            count_list.append(
-                {
-                    "count": 0,
-                    "data_source_label": data_category_msg["data_source_label"],
-                    "data_type_label": data_category_msg["data_type_label"],
-                    "source_type": data_category_msg["type"],
-                    "source_name": data_category_msg["name"],
-                }
-            )
-
-        for count_msg in count_list:
-            # 如果监控对象为服务拨测，对其中的监控采集指标分类计数
-            if count_msg["source_type"] == "bk_monitor_time_series":
-                cls.bkmonitor_metric = (
-                    metrics.filter(
-                        data_source_label=count_msg["data_source_label"], data_type_label=count_msg["data_type_label"]
-                    )
-                    .values("result_table_id", "metric_field")
-                    .distinct()
-                )
-                count_msg["count"] = cls.bkmonitor_metric.count()
-                continue
-            count_msg["count"] = metrics.filter(
-                data_source_label=count_msg["data_source_label"], data_type_label=count_msg["data_type_label"]
-            ).count()
-
-        return count_list
-
-    @classmethod
-    def get_tag_list(cls, metrics: QuerySet, params):
-        """
-        可选分类
-        """
-        tags = [{"id": "__COMMON_USED__", "name": _("常用")}]
-
-        if params["search_fields"].get("related_id"):
-            result_tables = metrics.values("result_table_id", "result_table_name").annotate(
-                count=Count("result_table_id")
-            )
-            for result_table in result_tables:
-                tags.append({"id": result_table["result_table_id"], "name": result_table["result_table_name"]})
-
-        return tags
-
-    @staticmethod
-    def get_metric_remarks(metric: dict) -> list:
-        """
-        指标备注
-        """
-        if metric["data_type_label"] != "event" or metric["data_source_label"] != "bk_monitor":
-            return []
-
-        if metric["metric_field"] == "disk-full-gse":
-            return [
-                _("依赖bkmonitorbeat采集器, 在节点管理安装"),
-            ]
-        elif metric["metric_field"] == "disk-readonly-gse":
-            return [
-                _("依赖bkmonitorbeat采集器, 在节点管理安装"),
-                _("通过对挂载磁盘的文件状态ro进行判断，类似Linux命令：fgrep ' ro,' /proc/mounts"),
-            ]
-        elif metric["metric_field"] == "corefile-gse":
-            return [
-                _(
-                    "查看corefile生成路径：cat /proc/sys/kernel/core_pattern，确保在某一个目录下，例如 /data/corefile/core_%e_%t"
-                ),
-                _("依赖bkmonitorbeat采集器, 在节点管理安装,会自动根据core_pattern监听文件目录"),
-            ]
-        elif metric["metric_field"] == "gse_custom_event":
-            return [
-                _("【已废弃】"),
-                _("功能通过上报 自定义事件 覆盖").format(
-                    settings.LINUX_GSE_AGENT_PATH, settings.GSE_CUSTOM_EVENT_DATAID
-                ),
-            ]
-        elif metric["metric_field"] == "agent-gse":
-            return [_("gse每隔60秒检查一次agent心跳数据。"), _("心跳数据持续未更新，24小时后将不再上报失联事件。")]
-        elif metric["metric_field"] == "oom-gse":
-            return [
-                _("通过调用内核syslog接口获取系统日志，对out of memory:关键字匹配告警，应用进程触发的OOM告警"),
-                _("通过对/proc/vmstat的oom_kill计数器进行判断告警，如递增则判断产生OOM告警，操作系统触发的OOM告警"),
-            ]
-        elif metric["metric_field"] == "os_restart":
-            return [
-                _("依赖bkmonitorbeat采集器的安装 ，在节点管理进行安装"),
-                _("检测原理：通过最近2次的uptime数据对比，满足cur_uptime < pre_uptime，则判断为重启"),
-            ]
-        elif metric["metric_field"] == "ping-gse":
-            return [
-                _("依赖bk-collector采集器的安装，在节点管理进行安装"),
-                _("由监控后台部署的bk-collector去探测目标IP是否存活。"),
-            ]
-        elif metric["metric_field"] == "proc_port":
-            return [
-                _("依赖bkmonitorbeat采集器的安装，在节点管理进行安装"),
-                _("对CMDB中的进程端口存活状态判断，如不满足预定义数据状态，则产生告警"),
-            ]
-
-        return []
-
-    @staticmethod
-    def translate_metric(metric: dict) -> dict:
-        """
-        指标字段翻译
-        """
-        fields = [
-            "result_table_name",
-            "metric_field_name",
-            "category_display",
-            "description",
-            "result_table_label_name",
-        ]
-
-        for field in fields:
-            if field in metric:
-                metric[field] = _(metric[field])
-
-        for dimension in metric["dimensions"]:
-            dimension["name"] = _(dimension["name"])
-
-        return metric
-
-    @classmethod
-    def get_metric_list(cls, metrics: QuerySet, params):
-        """
-        指标数据
-        """
-        metric_list = []
-
-        for metric in metrics:
-            data = model_to_dict(metric)
-
-            # 过滤进程托管的自定义上报指标
-            if data["result_table_id"] == str(settings.GSE_PROCESS_REPORT_DATAID):
-                continue
-
-            # 默认触发条件
-            data["default_trigger_config"] = (
-                DEFAULT_TRIGGER_CONFIG_MAP.get(metric.data_source_label, {})
-                .get(metric.data_type_label, {})
-                .get(f"{metric.result_table_id}.{metric.metric_field}", GLOBAL_TRIGGER_CONFIG)
-            )
-
-            data["metric_description"] = MetricListCache.metric_description(metric=metric)
-            data["remarks"] = cls.get_metric_remarks(data)
-
-            # 拨测指标特殊处理
-            if data["result_table_id"].startswith("uptimecheck."):
-                # 仅对搜索任务ID和任务名时保留指标关联任务，选取后默认填充监控条件为搜索任务
-                if not (params["search_fields"].get("related_id") or params["search_fields"].get("related_name")):
-                    data["related_id"] = ""
-                    data["related_name"] = ""
-
-                if data["metric_field"] in ["response_code", "message"]:
-                    data["method_list"] = ["COUNT"]
-                else:
-                    data["method_list"] = ["SUM", "AVG", "MAX", "MIN", "COUNT"]
-
-                # 针对拨测服务采集，过滤业务/IP/云区域ID/错误码
-                data["dimensions"] = [
-                    dimension
-                    for dimension in data["dimensions"]
-                    if dimension["id"] not in ["bk_biz_id", "ip", "bk_cloud_id", "error_code"]
-                ]
-                for metric_msg in data["default_condition"]:
-                    if metric_msg.get("key") == "task_id":
-                        metric_msg["value"] = int(metric_msg["value"])
-                    if metric_msg.get("key") in list(UPTIMECHECK_ERROR_CODE_MAP.keys()):
-                        metric_msg["disabled"] = False if metric_msg.get("value") else True
-
-            data = cls.translate_metric(data)
-
-            # 单位处理
-            unit = load_unit(data["unit"])
-            suffix_list = unit.suffix_list if unit.suffix_list else []
-            suffix_id = suffix_list[unit.suffix_idx] if unit.suffix_idx < len(suffix_list) else ""
-            data["unit_suffix_list"] = [{"id": suffix, "name": f"{suffix}{unit._suffix}"} for suffix in suffix_list]
-            if not data["unit_suffix_list"] and unit._suffix:
-                data["unit_suffix_list"].append({"id": "", "name": unit._suffix})
-                suffix_id = ""
-            data["unit_suffix_id"] = suffix_id
-
-            metric_list.append(data)
-
-        return metric_list
-
-    def perform_request(self, params):
-        # 接口下线，不再使用，不分函数可能还在被调用
-        raise ResourceNotRegistered("该接口已下线，请使用'/grafana/get_metric_list'替换")
 
 
 class GetDimensionValuesResource(Resource):
@@ -1462,7 +1116,7 @@ class StrategyConfigDetailResource(Resource):
                 suffix_id = ""
             item["unit_suffix_id"] = suffix_id
 
-            item["remarks"] = GetMetricListResource.get_metric_remarks(item)
+            item["remarks"] = resource.strategies.get_metric_list_v2.get_metric_remarks(item)
         return result_data
 
 
@@ -1732,45 +1386,6 @@ class StrategyConfigResource(Resource):
         return {"id": strategy.id}
 
 
-class CloneStrategyConfig(Resource):
-    """
-    拷贝监控策略
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        id = serializers.IntegerField(required=True, label="策略ID")
-
-    def perform_request(self, validated_request_data):
-        strategy_data = resource.strategies.strategy_config_detail(validated_request_data)
-
-        strategy_data.pop("id", None)
-        strategy_data["source_type"] = "BKMONITOR"
-
-        for action in strategy_data["action_list"]:
-            action["notice_group_list"] = action["notice_group_id_list"]
-
-        new_strategy_name = strategy_name = f"{strategy_data['name']}_copy"  # noqa
-
-        # 判断重名
-        index = 1
-        while True:
-            # 检查是否存在同名策略
-            is_exists = StrategyModel.objects.filter(
-                bk_biz_id=validated_request_data["bk_biz_id"], name=new_strategy_name
-            ).exists()
-            if not is_exists:
-                break
-            new_strategy_name = f"{strategy_name}({index})"
-            index += 1
-
-        strategy_data["name"] = new_strategy_name
-
-        new_strategy_data = resource.strategies.strategy_config(strategy_data)
-
-        return new_strategy_data
-
-
 class BulkEditStrategyResource(Resource):
     """
     批量修改接口
@@ -2023,51 +1638,6 @@ class PlainStrategyListResource(Resource):
         return resource.strategies.plain_strategy_list_v2(**validated_request_data)
 
 
-class StrategyInfo(StrategyConfigDetailResource):
-    """
-    获取监控策略信息，供告警屏蔽策略展示用
-    """
-
-    def perform_request(self, params):
-        strategy_instance = StrategyModel.objects.filter(bk_biz_id=params["bk_biz_id"], id=params["id"]).first()
-        if not strategy_instance:
-            raise StrategyNotExist
-
-        # 获取策略配置
-        strategy = Strategy.from_models([strategy_instance])[0]
-        strategy.restore()
-        strategy_config = {
-            key: value for key, value in strategy.to_dict_v1().items() if key in ["id", "name", "item_list", "scenario"]
-        }
-
-        # 监控维度的中文名称转换
-        for item in strategy_config["item_list"]:
-            item["level"] = set()
-            for algorithm in item.pop("algorithm_list", []):
-                item["level"].add(algorithm["level"])
-            item["level"] = list(item["level"])
-
-            # 指标说明
-            item["metric_description"] = MetricListCache.metric_description(item)
-            dimensions = resource.strategies.get_dimension_list(
-                data_source_label=item["data_source_label"],
-                data_type_label=item["data_type_label"],
-                result_table_id=item.get("result_table_id", ""),
-                custom_event_id=item.get("custom_event_id", 0),
-                bk_event_group_id=item.get("bk_event_group_id", 0),
-            )
-            dimension_mapping = {}
-            for dimension in dimensions:
-                dimension_mapping[dimension["id"]] = dimension["name"]
-
-            item["agg_dimension"] = [dimension_mapping.get(d, d) for d in item.get("agg_dimension", [])]
-
-            for condition in item.get("agg_condition", []):
-                condition["key"] = dimension_mapping.get(condition["key"], condition["key"])
-
-        return strategy_config
-
-
 class GetIndexSetListResource(Resource):
     """
     获取索引集
@@ -2168,38 +1738,6 @@ class GetIndexSetListResource(Resource):
             data = filter_data
         metric_list, count_list = self.index_filter(data)
         return {"metric_list": metric_list, "count_list": count_list}
-
-
-class GetLogFields(Resource):
-    """
-    获取日志关键字的维度
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        index_set_id = serializers.IntegerField(required=True, label="索引集ID")
-
-    def perform_request(self, validated_request_data):
-        index_set_id = validated_request_data["index_set_id"]
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        # 获取监控方法
-        operators_temp = api.log_search.operators(bk_biz_id=bk_biz_id)
-        operators = [
-            {"id": operator.get("operator"), "name": operator.get("label"), "placeholder": operator.get("placeholder")}
-            for operator in operators_temp
-        ]
-
-        # 获取监控维度
-        fields = api.log_search.search_index_fields(bk_biz_id=bk_biz_id, index_set_id=index_set_id)
-        fields = fields.get("fields", "")
-        res_fields = []
-        for i in fields:
-            if i["es_doc_values"] and i.get("field_type") != "date":
-                temp = {"id": i["field_name"], "name": i["field_name"], "description": i["field_alias"]}
-                res_fields.append(temp)
-
-        result = {"dimension": res_fields, "condition": operators}
-        return result
 
 
 class BackendStrategyConfigListResource(StrategyConfigListResource):
