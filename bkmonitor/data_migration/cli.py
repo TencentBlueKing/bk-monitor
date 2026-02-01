@@ -9,6 +9,7 @@ import django
 import dotenv
 
 from .commands.export.command import create_command as create_export_command
+from .commands.handle.command import create_command as create_handle_command
 from .commands.import_.command import create_command as create_import_command
 
 CLI_HELP_TEXT = """\
@@ -23,6 +24,7 @@ CLI_HELP_TEXT = """\
 \b
 使用方式:
   - 导出: `python -m data_migration.cli export --help`
+  - 处理: `python -m data_migration.cli handle --help`
   - 导入: `python -m data_migration.cli import --help`
 """
 
@@ -41,6 +43,7 @@ def cli() -> None:
 
 # click.group 装饰器会将 cli 变为 click.Group 实例，类型系统无法准确识别
 cli.add_command(create_export_command())  # type: ignore[attr-defined]
+cli.add_command(create_handle_command())  # type: ignore[attr-defined]
 cli.add_command(create_import_command())  # type: ignore[attr-defined]
 
 if __name__ == "__main__":

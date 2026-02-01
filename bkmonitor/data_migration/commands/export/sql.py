@@ -3,7 +3,8 @@
 实现要点:
     - 使用 raw SQL 导出，避免 ORM 层字段转换开销
     - 使用主键游标分页（`WHERE pk > last_pk ORDER BY pk LIMIT N`）降低大表导出时的内存压力
-    - 支持 RowHandlerFn 逐行处理，返回 None 表示丢弃该行
+    - 支持 RowTransformer 批次处理，通过 TablePipeline 进行变换与过滤
+    - 支持通过 `EXPORT_SQL_FILTER_MAPPING` 为指定表追加 WHERE 条件片段，用于导出阶段数据过滤
 """
 
 from __future__ import annotations
@@ -17,8 +18,9 @@ from django.apps import apps
 from django.db import connection
 from django.db.models import Model
 
-from ...utils.types import ExportBatch, RowDict, RowHandlerFn
-from .handler import TABLE_HANDLER_MAPPING
+from ...config import EXPORT_SQL_FILTER_MAPPING
+from ...utils.types import ExportBatch
+from ..handle.handle import TablePipeline, get_table_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -30,38 +32,49 @@ class ExportOrmDataStats:
     """ORM 导出过程统计信息。
 
     Attributes:
-        dropped_rows: 被 RowHandlerFn 丢弃的行数（返回 None 的数量）。
+        dropped_rows: 被 RowTransformer 丢弃的行数（返回 None 的数量）。
     """
 
     dropped_rows: int = 0
 
 
-def set_table_handler_mapping(mapping: dict[str, list[RowHandlerFn]]) -> None:
-    """设置表级别 Handler 映射表"""
-    TABLE_HANDLER_MAPPING.clear()
-    TABLE_HANDLER_MAPPING.update(mapping)
+def get_export_sql_filter(model_label: str) -> str | None:
+    """获取导出 SQL 过滤条件片段
 
+    Args:
+        model_label: 模型标签（app_label.ModelName）
 
-def get_model_row_handlers(model_label: str) -> list[RowHandlerFn]:
-    """获取模型 Row Handler"""
-    # key="*" 的 handlers 会被追加到每张表 handlers 的最后执行
-    handlers: list[RowHandlerFn] = []
-    handlers.extend(TABLE_HANDLER_MAPPING.get(model_label, []))
-    handlers.extend(TABLE_HANDLER_MAPPING.get("*", []))
-    return handlers
+    Returns:
+        过滤条件片段（不包含 WHERE），为空或未配置返回 None
+
+    Raises:
+        ValueError: 配置包含 WHERE 关键字（避免重复拼接导致语法错误）
+    """
+
+    where = EXPORT_SQL_FILTER_MAPPING.get(model_label)
+    if where is None:
+        return None
+    where = where.strip()
+    if not where:
+        return None
+    # 约定 value 为“条件片段”，不应包含 WHERE
+    if where.lower().startswith("where "):
+        raise ValueError(f"EXPORT_SQL_FILTER_MAPPING[{model_label!r}] 不应包含 WHERE 关键字")
+    return where
 
 
 def export_orm_data(
     model_label: str,
     batch_size: int = DEFAULT_BATCH_SIZE,
     stats: ExportOrmDataStats | None = None,
+    apply_pipeline: bool = True,
 ) -> Iterator[ExportBatch]:
     """按批导出 ORM 数据"""
     model = apps.get_model(model_label)
     if model is None:
         raise LookupError(f"未找到模型: {model_label}")
     fields = _resolve_export_fields(model)
-    handlers = get_model_row_handlers(model_label)
+    pipeline = get_table_pipeline(model_label) if apply_pipeline else None
 
     pk_field = model._meta.pk
     if pk_field is None:
@@ -75,18 +88,33 @@ def export_orm_data(
     select_columns = ", ".join(f"{quoted(field.column)} AS {quoted(field.name)}" for field in fields)
     pk_column_sql = quoted(pk_column)
     table_sql = quoted(table_name)
+    export_where = get_export_sql_filter(model_label)
 
     last_pk: Any | None = None
     while True:
         if last_pk is None:
-            sql = f"SELECT {select_columns} FROM {table_sql} ORDER BY {pk_column_sql} ASC LIMIT %s"
+            if export_where:
+                sql = (
+                    f"SELECT {select_columns} FROM {table_sql} "
+                    f"WHERE ({export_where}) "
+                    f"ORDER BY {pk_column_sql} ASC LIMIT %s"
+                )
+            else:
+                sql = f"SELECT {select_columns} FROM {table_sql} ORDER BY {pk_column_sql} ASC LIMIT %s"
             params = [batch_size]
         else:
-            sql = (
-                f"SELECT {select_columns} FROM {table_sql} "
-                f"WHERE {pk_column_sql} > %s "
-                f"ORDER BY {pk_column_sql} ASC LIMIT %s"
-            )
+            if export_where:
+                sql = (
+                    f"SELECT {select_columns} FROM {table_sql} "
+                    f"WHERE ({export_where}) AND {pk_column_sql} > %s "
+                    f"ORDER BY {pk_column_sql} ASC LIMIT %s"
+                )
+            else:
+                sql = (
+                    f"SELECT {select_columns} FROM {table_sql} "
+                    f"WHERE {pk_column_sql} > %s "
+                    f"ORDER BY {pk_column_sql} ASC LIMIT %s"
+                )
             params = [last_pk, batch_size]
 
         with connection.cursor() as cursor:
@@ -101,33 +129,39 @@ def export_orm_data(
             last_pk = rows[-1][pk_index]
             batch = [dict(zip(columns, row)) for row in rows]
 
-        processed_rows, batch_drop_rows_count = apply_row_handlers(batch, handlers, model_label)
-        if stats is not None:
-            stats.dropped_rows += batch_drop_rows_count
-        yield processed_rows
+        if pipeline:
+            processed_rows, batch_drop_rows_count = _apply_pipeline(batch, pipeline, model_label)
+            if stats is not None:
+                stats.dropped_rows += batch_drop_rows_count
+            yield processed_rows
+        else:
+            yield batch
 
 
-def apply_row_handlers(rows: ExportBatch, handlers: list[RowHandlerFn], model_label: str) -> tuple[ExportBatch, int]:
-    """顺序执行 Row Handler"""
-    if not handlers:
+def _apply_pipeline(
+    rows: ExportBatch,
+    pipeline: TablePipeline,
+    model_label: str,
+) -> tuple[ExportBatch, int]:
+    """使用 pipeline 处理数据批次
+
+    Args:
+        rows: 输入行列表
+        pipeline: 表级处理管道
+        model_label: 模型标签（app_label.ModelName）
+
+    Returns:
+        (处理后的行列表, 被过滤的行数)
+    """
+    try:
+        processed_rows, drop_rows_count = pipeline.process_batch(rows, model_label)
+        if drop_rows_count > 0:
+            logger.debug("Pipeline 过滤了 %d 行数据: %s", drop_rows_count, model_label)
+        return processed_rows, drop_rows_count
+    except Exception:
+        logger.exception("Pipeline 处理失败: %s", model_label)
+        # 处理失败时返回原数据，不丢弃
         return rows, 0
-    processed_rows: list[RowDict] = []
-    drop_rows_count = 0
-    for row in rows:
-        try:
-            current_row = row
-            for handler in handlers:
-                current_row = handler(current_row)
-                if current_row is None:
-                    break
-            if current_row is None:
-                logger.debug("Handler 丢弃数据，已跳过: %s (%s)", model_label, row)
-                drop_rows_count += 1
-                continue
-            processed_rows.append(current_row)
-        except Exception:
-            logger.exception("Handler 处理失败，已跳过行: %s (%s)", model_label, row)
-    return processed_rows, drop_rows_count
 
 
 def _resolve_export_fields(model: type[Model]) -> list[Any]:

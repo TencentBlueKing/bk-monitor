@@ -13,8 +13,8 @@ from django.apps import apps
 
 from ...config import DEFAULT_EXPORT_MODELS, EXCLUDE_EXPORT_MODELS
 from ...utils.types import RowDict
+from ..handle.handle import get_global_required_models, run_global_pipelines
 from . import sql, writer
-from .handler import GLOBAL_HANDLERS, GlobalHandlerContext
 
 
 @dataclass(frozen=True)
@@ -52,6 +52,7 @@ def create_command() -> click.Command:
 示例:
   - uv run python -m data_migration.cli export --model metadata --out /tmp/export_dir
   - uv run python -m data_migration.cli export --model metadata.ResultTable --out /tmp/export.zip
+  - uv run python -m data_migration.cli export --disable-handle --model metadata --out /tmp/export_dir
 """
 
     @click.command("export", help=export_help_text, epilog=export_epilog_text)  # type: ignore[attr-defined]
@@ -75,7 +76,14 @@ def create_command() -> click.Command:
         show_default=True,
         help="当数据量为 0 时是否仍生成 JSON 文件（默认跳过）",
     )
-    def export_data(models: tuple[str, ...], output_path: Path, write_empty_file: bool) -> None:
+    @click.option(
+        "--enable-handle/--disable-handle",
+        "enable_handle",
+        default=False,
+        show_default=True,
+        help="是否启用数据处理 pipeline（行级/跨表 handle 逻辑），默认开启",
+    )
+    def export_data(models: tuple[str, ...], output_path: Path, write_empty_file: bool, enable_handle: bool) -> None:
         """导出数据"""
         model_labels = list(models) if models else list(DEFAULT_EXPORT_MODELS)
         model_labels = _expand_model_labels(model_labels)
@@ -84,18 +92,16 @@ def create_command() -> click.Command:
         if not model_labels:
             raise click.ClickException("未指定模型，且默认导出列表为空。")
 
-        global_required_models: set[str] = set()
-        for spec in GLOBAL_HANDLERS:
-            global_required_models |= spec.required_models
+        global_required_models = get_global_required_models() if enable_handle else set()
+        if enable_handle:
+            required_but_excluded = global_required_models & excluded_models
+            if required_but_excluded:
+                required_text = ", ".join(sorted(required_but_excluded))
+                raise click.ClickException(f"全局处理依赖的模型被排除: {required_text}")
 
-        required_but_excluded = global_required_models & excluded_models
-        if required_but_excluded:
-            required_text = ", ".join(sorted(required_but_excluded))
-            raise click.ClickException(f"全局 handler 依赖的模型被排除: {required_text}")
-
-        missing_required_models = sorted(global_required_models - set(model_labels))
-        if missing_required_models:
-            model_labels.extend(missing_required_models)
+            missing_required_models = sorted(global_required_models - set(model_labels))
+            if missing_required_models:
+                model_labels.extend(missing_required_models)
 
         exported_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         with writer.prepare_output_dir(output_path) as (output_dir, output_zip):
@@ -114,9 +120,9 @@ def create_command() -> click.Command:
                 model_name = model.__name__
 
                 export_stats = sql.ExportOrmDataStats()
-                batches = sql.export_orm_data(model_label, stats=export_stats)
+                batches = sql.export_orm_data(model_label, stats=export_stats, apply_pipeline=enable_handle)
                 started_at = time.perf_counter()
-                # 全局 handler 依赖的表：在普通 handler 处理后先收集到内存，待全局数据处理完成后再落地
+                # 全局处理依赖的表：在表级 pipeline 处理后先收集到内存，待全局处理完成后再落地
                 if model_label in global_required_models:
                     rows: list[RowDict] = []
                     for batch in batches:
@@ -154,16 +160,14 @@ def create_command() -> click.Command:
                     relative_path = file_path.relative_to(output_dir).as_posix()
                     click.echo(f"导出完成: {relative_path} (total={total})")
 
-            if global_required_models:
-                # 全局 handler 跨表处理：只对其 required_models 生效，允许覆盖多表数据
-                for spec in GLOBAL_HANDLERS:
-                    ctx = GlobalHandlerContext(in_memory_rows, allowed_models=spec.required_models)
-                    try:
-                        spec.fn(ctx)
-                    except Exception as exc:
-                        raise click.ClickException(f"全局 handler 执行失败: {spec.name}: {exc}") from exc
+            if enable_handle and global_required_models:
+                # 全局处理跨表处理：只对其 required_models 生效，允许覆盖多表数据
+                try:
+                    run_global_pipelines(in_memory_rows)
+                except RuntimeError as exc:
+                    raise click.ClickException(str(exc)) from exc
 
-                # 全局 handler 执行后，将依赖表的数据最终落地
+                # 全局处理执行后，将依赖表的数据最终落地
                 for model_label in model_labels:
                     if model_label not in global_required_models:
                         continue

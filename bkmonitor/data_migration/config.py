@@ -158,6 +158,7 @@ EXCLUDE_EXPORT_MODELS: list[str] = [
     "bkmonitor.MetricListCache",
     # 用户配置
     "monitor.UserConfig",
+    "apm_web.UserVisitRecord",
 ]
 
 
@@ -173,4 +174,50 @@ TABLE_PRIORITY_MAPPING: dict[str, int] = {
     # 自定义事件
     "monitor_web.CustomEventGroup": 2,
     "monitor_web.CustomEventItem": 1,
+}
+
+
+# 导出 SQL 过滤条件（按模型）
+#
+# 说明:
+# - key 为 model_label（格式: app_label.ModelName）
+# - value 为 WHERE 条件片段（不包含 WHERE 关键字），会直接拼接进导出 SQL
+# - 仅用于导出阶段做数据过滤，不影响导入逻辑
+#
+# 示例:
+# EXPORT_SQL_FILTER_MAPPING = {
+#     "bkmonitor.ActionInstance": "is_deleted = 0",
+#     "bkmonitor.Alert": "status != 'CLOSED'",
+# }
+EXPORT_SQL_FILTER_MAPPING: dict[str, str] = {
+    "bkmonitor.Shield": "is_deleted = 0",
+}
+
+# =====================================================================
+# 日志采集源配置
+# =====================================================================
+#
+# 用于按业务归属筛选日志采集数据源（DataSource.type_label="log"）。
+# 可按实际部署环境补充更多日志平台 app_code。
+LOG_SOURCE_SYSTEMS: set[str] = {"bk_log_search"}
+
+
+# =====================================================================
+# 业务过滤与租户映射配置
+# =====================================================================
+#
+# 处理逻辑：
+# 1. 排除 EXCLUDED_BIZ_IDS 中指定的业务数据
+# 2. 根据 BIZ_TENANT_ID_MAPPING 将特定业务数据归属到特定租户
+# 3. 其他数据的 bk_tenant_id 替换为 DEFAULT_TARGET_TENANT_ID
+
+# 默认目标租户ID
+DEFAULT_TARGET_TENANT_ID: str = "tencent"
+
+# 需要排除的业务ID集合
+EXCLUDED_BIZ_IDS: set[int] = {2}
+
+# 业务ID到租户ID的映射
+BIZ_TENANT_ID_MAPPING: dict[int, str] = {
+    19074: "grena",
 }
