@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import operator
 import time
+from collections import defaultdict
 from functools import reduce
 
 from django.utils.translation import gettext as _
@@ -17,12 +18,13 @@ from django.utils.translation import gettext_lazy as _lazy
 from django_elasticsearch_dsl.search import Search
 from elasticsearch_dsl import Q
 from elasticsearch_dsl.response import Response
+from elasticsearch_dsl.response.aggs import BucketData
 from elasticsearch_dsl.utils import AttrList
 
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.incident import IncidentDocument
 from bkmonitor.utils.time_tools import hms_string
-from constants.incident import IncidentLevel, IncidentStatus
+from constants.incident import IncidentLevel, IncidentStatus,INCIDENT_STATUS_DICT
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.base import (
     BaseBizQueryHandler,
@@ -213,37 +215,157 @@ class IncidentQueryHandler(BaseBizQueryHandler):
             incident["duration"] = hms_string(int(time.time()) - incident["begin_time"])
         return incident
 
-    def date_histogram(self, interval: str = "auto") -> dict:
-        interval = self.calculate_agg_interval(self.start_time, self.end_time, interval)
-        search_object = self.get_search_object()
+    def _get_buckets(
+            self,
+            result: dict[tuple[tuple[str, any]], any],
+            dimensions: dict[str, any],
+            aggregation: BucketData,
+            agg_fields: list[str],
+    ):
+        """
+        获取聚合结果
+        """
+        if agg_fields:
+            field = agg_fields[0]
+            if field.startswith("tags."):
+                buckets = aggregation[field].key.value.buckets
+            else:
+                buckets = aggregation[field].buckets
+            for bucket in buckets:
+                dimensions[field] = bucket.key
+                self._get_buckets(result, dimensions, bucket, agg_fields[1:])
+        else:
+            dimension_tuple: tuple = tuple(dimensions.items())
+            result[dimension_tuple] = aggregation
+
+    def date_histogram(self, interval: str = "auto", group_by: list[str] | None = None, bucket_size: int = 100) -> dict:
+        new_interval: int = self.calculate_agg_interval(self.start_time, self.end_time, interval)
+        # 默认按status聚合
+        if group_by is None:
+            group_by = ["status"]
+
+        # status 会被单独处理
+        status_group = False
+        if "status" in group_by:
+            status_group = True
+            group_by = [field for field in group_by if field != "status"]
+
+        # TODO: tags开头的字段是否能够进行嵌套聚合？
+
+        tags_field_count = 0
+        for field in group_by:
+            if field.startswith("tags."):
+                tags_field_count += 1
+        if tags_field_count > 1:
+            raise ValueError("can not group by more than one tags field")
+
+        # 将tags开头的字段放在后面
+        group_by = sorted(group_by, key=lambda x: x.startswith("tags."))
+
+        # 查询时间对齐
+        start_time = self.start_time // new_interval * new_interval
+        end_time = self.end_time // new_interval * new_interval + new_interval
+        now_time = int(time.time()) // new_interval * new_interval + new_interval
+        search_object = self.get_search_object(start_time=start_time, end_time=end_time)
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object)
-        search_object = self.add_pagination(search_object, page_size=0)
 
-        search_object.aggs.bucket(
-            "group_by_histogram",
-            "date_histogram",
-            field="time",
-            fixed_interval=f"{interval}s",
-            format="epoch_millis",
-            min_doc_count=0,
-            extended_bounds={"min": self.start_time * 1000, "max": self.end_time * 1000},
+        # 已经恢复或关闭的故障，按end_time聚合
+        ended_object = search_object.aggs.bucket(
+            "end_time", "filter", {"range": {"end_time": {"lte": end_time}}}
+        ).bucket("end_incident", "filter", {"terms": {"status": [
+            IncidentStatus.RECOVERING.value, IncidentStatus.RECOVERED.value, IncidentStatus.CLOSED.value,
+            IncidentStatus.MERGED.value]}})
+        # 查询时间范围内产生的故障，按begin_time聚合
+        new_anomaly_object = search_object.aggs.bucket(
+            "begin_time", "filter", {"range": {"begin_time": {"gte": start_time, "lte": end_time}}}
+        )
+        # 开始时间在查询时间范围之前的故障总数
+        old_anomaly_object = search_object.aggs.bucket(
+            "init_incident", "filter", {"range": {"begin_time": {"lt": start_time}}}
+        )
+        # 时间聚合
+        ended_object = ended_object.bucket(
+            "time", "date_histogram", field="end_time", fixed_interval=f"{new_interval}s"
+        ).bucket("status", "terms", field="status")
+        new_anomaly_object = new_anomaly_object.bucket(
+            "time", "date_histogram", field="begin_time", fixed_interval=f"{new_interval}s"
         )
 
-        search_result = search_object.execute()
-        if not search_result.aggs:
-            series_data = []
-        else:
-            series_data = [
-                [int(bucket.key_as_string), bucket.doc_count]
-                for bucket in search_result.aggs.group_by_histogram.buckets
-            ]
+        # 维度聚合
+        for field in group_by:
+            ended_object = self.add_agg_bucket(ended_object, field, size=bucket_size)
+            new_anomaly_object = self.add_agg_bucket(new_anomaly_object, field, size=bucket_size)
+            old_anomaly_object = self.add_agg_bucket(old_anomaly_object, field, size=bucket_size)
 
-        result_data = {
-            "series": [{"data": series_data, "name": _("当前")}],
-            "unit": "",
-        }
-        return result_data
+        # 查询
+        search_result = search_object[:0].execute()
+        result = defaultdict(
+            lambda: {
+                status: {ts * 1000: 0 for ts in range(start_time, min(now_time, end_time), new_interval)}
+                for status in INCIDENT_STATUS_DICT
+            }
+        )
+
+        if hasattr(search_result.aggs, "begin_time"):
+            for time_bucket in search_result.aggs.begin_time.time.buckets:
+                begin_time_result = {}
+                self._get_buckets(begin_time_result, {}, time_bucket, group_by)
+
+                key = int(time_bucket.key_as_string) * 1000
+                for dimension_tuple, bucket in begin_time_result.items():
+                    if key in result[dimension_tuple][IncidentStatus.ABNORMAL.value]:
+                        result[dimension_tuple][IncidentStatus.ABNORMAL.value][key] = bucket.doc_count
+
+        if hasattr(search_result.aggs, "end_time") and hasattr(search_result.aggs.end_time, "end_incident"):
+            for time_bucket in search_result.aggs.end_time.end_incident.time.buckets:
+                for status_bucket in time_bucket.status.buckets:
+                    end_time_result = {}
+                    self._get_buckets(end_time_result, {}, status_bucket, group_by)
+
+                    key = int(time_bucket.key_as_string) * 1000
+                    for dimension_tuple, bucket in end_time_result.items():
+                        if key in result[dimension_tuple][status_bucket.key]:
+                            result[dimension_tuple][status_bucket.key][key] = bucket.doc_count
+
+        init_incident_result = {}
+        if hasattr(search_result.aggs, "init_incident"):
+            self._get_buckets(init_incident_result, {}, search_result.aggs.init_incident, group_by)
+        # 获取全部维度
+        all_dimensions = set(result.keys()) | set(init_incident_result.keys())
+        # 按维度分别统计事件数量
+        for dimension_tuple in all_dimensions:
+            all_series = result[dimension_tuple]
+
+            if dimension_tuple in init_incident_result:
+                current_abnormal_count = init_incident_result[dimension_tuple].doc_count
+            else:
+                current_abnormal_count = 0
+
+            for ts in all_series[IncidentStatus.ABNORMAL.value]:
+                # 异常是一个持续的状态，会随着时间的推移不断叠加
+                # 一旦有恢复或关闭\已解决\已合并的告警，异常告警将会相应减少
+                all_series[IncidentStatus.ABNORMAL.value][ts] = (
+                        current_abnormal_count
+                        + all_series[IncidentStatus.ABNORMAL.value][ts]
+                        - all_series[IncidentStatus.CLOSED.value][ts]
+                        - all_series[IncidentStatus.RECOVERED.value][ts]
+                        - all_series[IncidentStatus.RECOVERING.value][ts]
+                        - all_series[IncidentStatus.MERGED.value][ts]
+                )
+                current_abnormal_count = all_series[IncidentStatus.ABNORMAL.value][ts]
+
+            # 如果不按status聚合，需要将status聚合的结果合并到一起
+            if not status_group:
+                for ts in all_series[IncidentStatus.ABNORMAL.value]:
+                    all_series[IncidentStatus.ABNORMAL.value][ts] += (
+                            all_series[IncidentStatus.CLOSED.value][ts] + all_series[IncidentStatus.RECOVERED.value][ts]
+                    )
+                all_series.pop(IncidentStatus.CLOSED.value, None)
+                all_series.pop(IncidentStatus.RECOVERED.value, None)
+                all_series.pop(IncidentStatus.RECOVERING.value, None)
+                all_series.pop(IncidentStatus.MERGED.value, None)
+        return result
 
     def add_overview(self, search_object: Search) -> Search:
         """补充检索全览的检索结构.
