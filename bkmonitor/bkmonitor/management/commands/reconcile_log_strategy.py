@@ -16,7 +16,7 @@ specific language governing permissions and limitations under the License.
 
 灰度控制机制：通过 LogSearchTimeSeriesDataSource.LOG_UNIFY_QUERY_WHITE_BIZ_LIST 类成员变量控制。
 
-使用方法::
+使用方法：
 
     # 模式 1：统计日志类策略数量
     python manage.py reconcile_log_strategy --mode=stat
@@ -370,8 +370,8 @@ def run_reconciliation(
     遍历指定业务下的日志平台数据源策略，分别执行灰度和非灰度查询，比较结果一致性。
     """
     results: list[dict[str, Any]] = []
-    start_ts: int = start_time * 1000
-    end_ts: int = end_time * 1000
+    start_time: int = start_time * 1000
+    end_time: int = end_time * 1000
     base_url: str = settings.BK_MONITOR_HOST
     log_strategy_ids: list[int] = get_log_strategy_ids()
 
@@ -400,8 +400,8 @@ def run_reconciliation(
                     "data_sources": build_data_sources(strategy),
                     "expression": item.expression,
                     "functions": item.functions or [],
-                    "start_time": start_ts,
-                    "end_time": end_ts,
+                    "start_time": start_time,
+                    "end_time": end_time,
                 }
 
                 # 执行非灰度查询
