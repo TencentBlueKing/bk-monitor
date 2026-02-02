@@ -2094,6 +2094,19 @@ class SearchViewSet(APIViewSet):
         data = instance.fetch_grep_query_data(params)
         return Response(data)
 
+    @detail_route(methods=["POST"], url_path="grep_query/total")
+    def grep_query_total(self, request, index_set_id):
+        """
+        @api {post} /search/index_set/$index_set_id/grep_query/total/
+        @apiDescription grep语法查询总数
+        @apiName grep_query_total
+        @apiGroup 11_Search
+        """
+        params = self.params_valid(LogGrepQuerySerializer)
+        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
+        data = instance.fetch_grep_query_total(params)
+        return Response(data)
+
     @detail_route(methods=["POST"], url_path="alias_settings")
     def alias_settings(self, request, index_set_id):
         params = self.params_valid(AliasSettingsSerializer)

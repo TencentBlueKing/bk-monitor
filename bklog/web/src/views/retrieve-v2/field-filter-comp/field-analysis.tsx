@@ -38,6 +38,7 @@ import { formatNumberWithRegex } from '../../../common/util';
 import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
 import { lineColor } from '../../../store/constant';
 import AggChart from './agg-chart';
+import { formatTimeStampZone } from '@/global/utils/time';
 
 import './field-analysis.scss';
 
@@ -130,8 +131,9 @@ export default class FieldAnalysis extends Vue {
   get pillarQueryTime() {
     const { start_time: startTime, end_time: endTime } = this.queryParams;
     if (startTime && endTime && this.isPillarChart) {
-      const pillarFormatStr = 'YYYY-MM-DD HH:mm:ss';
-      return `${window.mainComponent.$t('查询时段')}: ${dayjs(startTime).format(pillarFormatStr)} - ${dayjs(endTime).format(pillarFormatStr)}`;
+      // const pillarFormatStr = 'YYYY-MM-DD HH:mm:ss';
+      const timezone = store.state.indexItem.timezone;
+      return `${window.mainComponent.$t('查询时段')}: ${formatTimeStampZone(startTime, timezone)} - ${formatTimeStampZone(endTime, timezone)}`;
     }
     return '';
   }
@@ -584,8 +586,8 @@ export default class FieldAnalysis extends Vue {
     }
   }
 
-  getChartsCancelFn = () => { };
-  getInfoCancelFn = () => { };
+  getChartsCancelFn = () => {};
+  getInfoCancelFn = () => {};
 
   // 添加防抖处理
   legendWheel = (event: WheelEvent) => {

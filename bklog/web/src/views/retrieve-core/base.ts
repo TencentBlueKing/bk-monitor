@@ -32,6 +32,7 @@ import type OptimizedHighlighter from './optimized-highlighter';
 import type RetrieveEvent from './retrieve-events';
 import { EventEmitter } from './event';
 import { reportRouteLog } from '@/store/modules/report-helper.ts';
+import { formatTimeZoneString } from '@/global/utils/time';
 
 
 export default class extends EventEmitter<RetrieveEvent> {
@@ -132,6 +133,45 @@ export default class extends EventEmitter<RetrieveEvent> {
       return formatFn[fieldType](data) || data || '--';
     }
     return data;
+  }
+
+  /**
+   * 格式化时间戳，支持时区转换
+   * @param data 时间戳或时间字符串（支持 ISO 8601 格式，如 2024-11-01T08:56:24.274552Z）
+   * @param fieldType 字段类型，date 或 date_nanos
+   * @param timezone 时区
+   * @returns 格式化后的时间戳
+   */
+  formatTimeZoneValue(data: number | string, fieldType: string, timezone: string = 'Asia/Shanghai') {
+    if (['date', 'date_nanos', 'date_time', 'time'].includes(fieldType)) {
+      let format = 'YYYY-MM-DD HH:mm:ss';
+      if (fieldType === 'date_nanos') {
+        const milliseconds = `${data}`.toString().split('.')[1]?.length ?? 0;
+        if (milliseconds > 0) {
+          format = `YYYY-MM-DD HH:mm:ss.${'S'.repeat(milliseconds)}`;
+        } else {
+          format = 'YYYY-MM-DD HH:mm:ss.SSS';
+        }
+      }
+
+      if (`${data}`.startsWith('<mark>')) {
+        const value = `${data}`.replace(/^<mark>/i, '').replace(/<\/mark>$/i, '');
+
+        if (/^\d+$/.test(value)) {
+          return `<mark>${formatTimeZoneString(Number(value), timezone, format, false)}</mark>`;
+        }
+
+        return `<mark>${formatTimeZoneString(value, timezone, format, false)}</mark>`;
+      }
+
+      if (/^\d+$/.test(`${data}`)) {
+        return formatTimeZoneString(Number(data), timezone, format, false) || data || '--';
+      }
+
+      return formatTimeZoneString(data, timezone, format, false) || data || '--';
+    }
+
+    return data || '--';
   }
 
 
