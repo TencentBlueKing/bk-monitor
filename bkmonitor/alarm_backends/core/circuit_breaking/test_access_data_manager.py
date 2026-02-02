@@ -31,7 +31,7 @@ class AccessDataCircuitBreakingTest:
 
     def __init__(self):
         self.module = "access.data"
-        self.manager = AccessDataCircuitBreakingManager(self.module)
+        self.manager = AccessDataCircuitBreakingManager()
         self.test_results = []
 
     def run_test_case(self, test_name: str, test_data: dict[str, Any], expected: bool) -> bool:
@@ -82,7 +82,7 @@ class AccessDataCircuitBreakingTest:
             module=self.module, strategy_sources=["bk_log_search:log"], description="测试用例1: strategy_source熔断"
         )
         # 重新初始化manager以加载新配置
-        self.manager = AccessDataCircuitBreakingManager(self.module)
+        self.manager = AccessDataCircuitBreakingManager()
 
         # 打印当前配置
         config = CircuitBreakingCacheManager.get_config(self.module)
@@ -126,7 +126,7 @@ class AccessDataCircuitBreakingTest:
         )
 
         # 重新初始化manager以加载新配置
-        self.manager = AccessDataCircuitBreakingManager(self.module)
+        self.manager = AccessDataCircuitBreakingManager()
 
         # 打印当前配置
         config = CircuitBreakingCacheManager.get_config(self.module)
@@ -158,7 +158,7 @@ class AccessDataCircuitBreakingTest:
             description="测试用例3: 数据源标签熔断",
         )
         # 重新初始化manager以加载新配置
-        self.manager = AccessDataCircuitBreakingManager(self.module)
+        self.manager = AccessDataCircuitBreakingManager()
 
         # 打印当前配置
         config = CircuitBreakingCacheManager.get_config(self.module)
@@ -190,26 +190,17 @@ class AccessDataCircuitBreakingTest:
         clear(self.module)
 
         # 先添加策略级别的熔断规则
-        CircuitBreakingCacheManager.add_rule(
-            self.module,
-            {
-                "key": "strategy_id",
-                "method": "eq",
-                "value": ["1001", "1002"],
-                "condition": "or",
-                "description": "策略级别熔断测试",
-            },
-        )
+        CircuitBreakingCacheManager.set_strategy_circuit_breaking(self.module, ["1001", "1002"])
 
         # 重新初始化manager以加载新配置
-        self.manager = AccessDataCircuitBreakingManager(self.module)
+        self.manager = AccessDataCircuitBreakingManager()
 
         # 打印当前配置
         config = CircuitBreakingCacheManager.get_config(self.module)
         logger.info(f"当前熔断配置: {config}")
 
         # 重新初始化manager
-        self.manager = AccessDataCircuitBreakingManager(self.module)
+        self.manager = AccessDataCircuitBreakingManager()
 
         # 测试策略级别熔断
         try:
@@ -246,14 +237,14 @@ class AccessDataCircuitBreakingTest:
         )
 
         # 重新初始化manager以加载新配置
-        self.manager = AccessDataCircuitBreakingManager(self.module)
+        self.manager = AccessDataCircuitBreakingManager()
 
         # 打印当前配置
         config = CircuitBreakingCacheManager.get_config(self.module)
         logger.info(f"当前熔断配置: {config}")
 
         # 重新初始化manager
-        self.manager = AccessDataCircuitBreakingManager(self.module)
+        self.manager = AccessDataCircuitBreakingManager()
 
         for test_case in test_cases:
             self.run_test_case(**test_case)

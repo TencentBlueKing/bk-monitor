@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from typing import Any
 
 from alarm_backends.core.cache.circuit_breaking import CircuitBreakingCacheManager
 from alarm_backends.core.circuit_breaking.matcher import gen_circuit_breaking_matcher
@@ -19,9 +20,8 @@ logger = logging.getLogger("circuit_breaking")
 class BaseCircuitBreakingManager:
     module = ""
 
-    def __init__(self, module: str):
-        self.module = module
-        self.config = CircuitBreakingCacheManager.get_config(module)
+    def __init__(self):
+        self.config = CircuitBreakingCacheManager.get_config(self.module)
         self.matcher = gen_circuit_breaking_matcher(self.config)
 
     def __bool__(self) -> bool:
@@ -45,31 +45,12 @@ class BaseCircuitBreakingManager:
         if is_match:
             # 获取匹配的具体规则用于日志记录
             matched_rules = self.matcher.config_rules
-            logger.info(
-                f"[circuit breaking] Circuit breaking triggered for module {self.module}, "
+            logger.debug(
+                f"[circuit breaking] [{self.module}] circuit breaking triggered for module {self.module}, "
                 f"matched_rules: {matched_rules}, instance: {clean_instance}"
             )
 
         return is_match
-
-    @classmethod
-    def clean_cb_dimension(cls, *args, **kwargs) -> dict:
-        """
-        清理熔断维度数据
-        :return: 清理后的维度数据
-        """
-        return {}
-
-
-class AccessDataCircuitBreakingManager(BaseCircuitBreakingManager):
-    """
-    Access Data 模块熔断管理器
-    """
-
-    module = "access.data"
-
-    def __init__(self, module: str = "access.data"):
-        super().__init__(module)
 
     @classmethod
     def clean_cb_dimension(
@@ -107,6 +88,7 @@ class AccessDataCircuitBreakingManager(BaseCircuitBreakingManager):
         :param bk_biz_id: 业务ID
         :param data_source_label: 数据源标签
         :param data_type_label: 数据类型标签
+        :param strategy_id: 策略ID
         :return: 是否需要熔断
         """
         if not kwargs:
@@ -116,10 +98,12 @@ class AccessDataCircuitBreakingManager(BaseCircuitBreakingManager):
             target_instance.update(kwargs)
             return self.is_cb(target_instance)
         except Exception as e:
-            logger.exception(f"[circuit breaking] Data source circuit breaking check failed for kwargs {kwargs}: {e}")
+            logger.exception(
+                f"[circuit breaking] [access.data] data source circuit breaking check failed for kwargs {kwargs}: {e}"
+            )
             return False
 
-    def is_strategy_only_circuit_breaking(self, strategy_id: int, labels: list = None) -> bool:
+    def is_strategy_only_circuit_breaking(self, strategy_id: int, labels: list | None = None) -> bool:
         """
         检查策略是否熔断（只检查策略ID维度）
         用于在processor中判断策略级别的熔断
@@ -129,12 +113,80 @@ class AccessDataCircuitBreakingManager(BaseCircuitBreakingManager):
         """
         try:
             # 只检查策略ID维度的熔断
-            dimensions = {"strategy_id": str(strategy_id)}
+            dimensions: dict[str, Any] = {"strategy_id": str(strategy_id)}
             if labels is not None:
                 dimensions["labels"] = labels
             return self.is_cb(dimensions)
         except Exception as e:
             logger.exception(
-                f"[circuit breaking] Strategy circuit breaking check failed for strategy_id {strategy_id}: {e}"
+                f"[circuit breaking] [access.data] strategy circuit breaking check failed for strategy_id {strategy_id}: {e}"
             )
             return False
+
+
+class AccessDataCircuitBreakingManager(BaseCircuitBreakingManager):
+    """
+    Access Data 模块熔断管理器
+    """
+
+    module = "access.data"
+
+
+class AlertBuilderCircuitBreakingManager(BaseCircuitBreakingManager):
+    """
+    Alert Builder 模块熔断管理器
+    """
+
+    module = "alert.builder"
+
+
+class AlertManagerCircuitBreakingManager(BaseCircuitBreakingManager):
+    """
+    Alert Manager 模块熔断管理器
+    alert.manager 模块同步应用熔断规则, 规则模块尝试从alert.manager获取, 如果未配置, 则复用alert.builder中的熔断规则
+    """
+
+    module = "alert.manager"
+
+    def __init__(self):
+        super().__init__()
+        if self.matcher is None:
+            self.config = CircuitBreakingCacheManager.get_config("alert.builder")
+            self.matcher = gen_circuit_breaking_matcher(self.config)
+
+
+class ActionCircuitBreakingManager(BaseCircuitBreakingManager):
+    """
+    Action 模块熔断管理器
+    用于 FTA Action 模块的熔断控制
+    plugin_type: config 支持基于处理套餐类型的细化熔
+    """
+
+    module = "action"
+
+    @classmethod
+    def clean_cb_dimension(
+        cls, strategy_id=None, bk_biz_id=None, data_source_label=None, data_type_label=None, plugin_type=None, **kwargs
+    ) -> dict:
+        """
+        清理Action模块的熔断维度
+        :param strategy_id: 策略ID
+        :param bk_biz_id: 业务ID
+        :param data_source_label: 数据源标签
+        :param data_type_label: 数据类型标签
+        :param plugin_type: 插件类型（Action模块特有）
+        :param kwargs: 其他参数
+        :return: 清理后的维度数据
+        """
+        # 先调用父类方法处理基础字段
+        dimension = super().clean_cb_dimension(
+            strategy_id=strategy_id,
+            bk_biz_id=bk_biz_id,
+            data_source_label=data_source_label,
+            data_type_label=data_type_label,
+            **kwargs,
+        )
+        # 添加 plugin_type 处理（Action模块特有）
+        if plugin_type is not None:
+            dimension["plugin_type"] = str(plugin_type)
+        return dimension

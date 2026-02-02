@@ -303,7 +303,7 @@ export default defineComponent({
                     on-change={value => {
                       cacheData.value.is_analyzed = value;
                     }}
-                    // on-change={handelChangeAnalyzed}
+                  // on-change={handelChangeAnalyzed}
                   />
                 </div>
                 <div class='menu-item'>
@@ -333,7 +333,7 @@ export default defineComponent({
                       on-change={value => {
                         cacheData.value.tokenize_on_chars = value;
                       }}
-                      // disabled={getCustomizeDisabled(props.row)}
+                    // disabled={getCustomizeDisabled(props.row)}
                     />
                   )}
                 </div>
@@ -466,7 +466,7 @@ export default defineComponent({
         try {
           i.hide();
           i.destroy();
-        } catch (_) {}
+        } catch (_) { }
       });
       tippyInstances = [];
     };
@@ -1164,7 +1164,6 @@ export default defineComponent({
         ),
       },
     ]);
-
     const handleType = (type: string) => {
       typeKey.value = type;
     };

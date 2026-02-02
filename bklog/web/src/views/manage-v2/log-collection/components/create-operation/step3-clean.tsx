@@ -390,7 +390,6 @@ export default defineComponent({
         ...props.configData,
         etl_fields: eltField,
       };
-
       if (!id) {
         return;
       }
@@ -1377,21 +1376,21 @@ export default defineComponent({
         const fieldsList = cleaningMode.value === 'bk_log_text' ? [] : etl_fields;
         const requestData = isNeedCreate
           ? {
-              ...data,
-              fields: fieldsList,
-              storage_cluster_id,
-              allocation_min_days,
-              storage_replies,
-              es_shards,
-              table_id,
-              retention,
-              etl_config: cleaningMode.value,
-            }
+            ...data,
+            fields: fieldsList,
+            storage_cluster_id,
+            allocation_min_days,
+            storage_replies,
+            es_shards,
+            table_id,
+            retention,
+            etl_config: cleaningMode.value,
+          }
           : {
-              ...data,
-              etl_fields: fieldsList,
-              clean_type: cleaningMode.value,
-            };
+            ...data,
+            etl_fields: fieldsList,
+            clean_type: cleaningMode.value,
+          };
         $http
           .request(url, {
             params: {

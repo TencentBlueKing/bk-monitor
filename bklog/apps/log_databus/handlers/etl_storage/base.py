@@ -145,6 +145,7 @@ class EtlStorage:
         type_mapping = {
             "string": "string",
             "int": "long",
+            "integer": "long",
             "long": "long",
             "float": "double",
             "double": "double",
@@ -164,163 +165,48 @@ class EtlStorage:
         # V3到V4时间格式映射表
         time_format_mapping = {
             # 标准日期时间格式
-            "yyyy-MM-dd HH:mm:ss": {
-                "format": "%Y-%m-%d %H:%M:%S",
-                "zone": 0
-            },
-            "yyyy-MM-dd HH:mm:ss,SSS": {
-                "format": "%Y-%m-%d %H:%M:%S,%3f",
-                "zone": 0
-            },
-            "yyyy-MM-dd HH:mm:ss.SSS": {
-                "format": "%Y-%m-%d %H:%M:%S.%3f",
-                "zone": 0
-            },
-            "yyyy-MM-dd HH:mm:ss.SSSSSS": {
-                "format": "%Y-%m-%d %H:%M:%S.%6f",
-                "zone": 0
-            },
-            "yy-MM-dd HH:mm:ss.SSSSSS": {
-                "format": "%y-%m-%d %H:%M:%S.%6f",
-                "zone": 0
-            },
-            "yyyy-MM-ddTHH:mm:ss.SSSSSS": {
-                "format": "%Y-%m-%dT%H:%M:%S.%6f",
-                "zone": 0
-            },
-            "yyyy-MM-dd+HH:mm:ss": {
-                "format": "%Y-%m-%d+%H:%M:%S",
-                "zone": 0
-            },
-            "MM/dd/yyyy HH:mm:ss": {
-                "format": "%m/%d/%Y %H:%M:%S",
-                "zone": 0
-            },
-            "yyyyMMddHHmmss": {
-                "format": "%Y%m%d%H%M%S",
-                "zone": 0
-            },
-            "yyyyMMdd HHmmss": {
-                "format": "%Y%m%d %H%M%S",
-                "zone": 0
-            },
-            "yyyyMMdd HHmmss.SSS": {
-                "format": "%Y%m%d %H%M%S.%3f",
-                "zone": 0
-            },
-            "dd/MMM/yyyy:HH:mm:ss": {
-                "format": "%d/%b/%Y:%H:%M:%S",
-                "zone": 0
-            },
-            "dd/MMM/yyyy:HH:mm:ssZ": {
-                "format": "%d/%b/%Y:%H:%M:%S%:z",
-                "zone": None
-            },
-            "dd/MMM/yyyy:HH:mm:ss Z": {
-                "format": "%d/%b/%Y:%H:%M:%S %:z",
-                "zone": None
-            },
-            "dd/MMM/yyyy:HH:mm:ssZZ": {
-                "format": "%d/%b/%Y:%H:%M:%S%:z",
-                "zone": None
-            },
-            "dd/MMM/yyyy:HH:mm:ss ZZ": {
-                "format": "%d/%b/%Y:%H:%M:%S %:z",
-                "zone": None
-            },
-            "rfc3339": {
-                "format": "%+",
-                "zone": None
-            },
-            "yyyy-MM-ddTHH:mm:ss": {
-                "format": "%Y-%m-%dT%H:%M:%S",
-                "zone": 0
-            },
-            "yyyy-MM-ddTHH:mm:ss.SSS": {
-                "format": "%Y-%m-%dT%H:%M:%S.%3f",
-                "zone": 0
-            },
-            "yyyyMMddTHHmmssZ": {
-                "format": "%Y%m%dT%H%M%S%:z",
-                "zone": None
-            },
-            "yyyyMMddTHHmmss.SSSSSSZ": {
-                "format": "%Y%m%dT%H%M%S.%6f%:z",
-                "zone": None
-            },
-            "yyyy-MM-ddTHH:mm:ss.SSSZ": {
-                "format": "%Y-%m-%dT%H:%M:%S.%3f%:z",
-                "zone": None
-            },
-            "yyyy-MM-ddTHH:mm:ss.SSSSSSZ": {
-                "format": "%Y-%m-%dT%H:%M:%S.%6fZ",
-                "zone": None
-            },
-            "ISO8601": {
-                "format": "%+",
-                "zone": None
-            },
-            "yyyy-MM-ddTHH:mm:ssZ": {
-                "format": "%Y-%m-%dT%H:%M:%S%:z",
-                "zone": None
-            },
-            "yyyy-MM-ddTHH:mm:ss.SSSSSSZZ": {
-                "format": "%Y-%m-%dT%H:%M:%S.%6f%:z",
-                "zone": None
-            },
-            "yyyy.MM.dd-HH.mm.ss:SSS": {
-                "format": "%Y.%m.%d-%H.%M.%S:%3f",
-                "zone": 0
-            },
-            "date_hour_minute_second": {
-                "format": "%Y-%m-%dT%H:%M:%S",
-                "zone": 0
-            },
-            "date_hour_minute_second_millis": {
-                "format": "%Y-%m-%dT%H:%M:%S.%3f",
-                "zone": 0
-            },
-            "basic_date_time": {
-                "format": "%Y%m%dT%H%M%S.%3f%z",
-                "zone": None
-            },
-            "basic_date_time_no_millis": {
-                "format": "%Y%m%dT%H%M%S%z",
-                "zone": None
-            },
-            "basic_date_time_micros": {
-                "format": "%Y%m%dT%H%M%S.%6f%z",
-                "zone": None
-            },
-            "strict_date_time": {
-                "format": "%Y-%m-%dT%H:%M:%S.%3f%:z",
-                "zone": None
-            },
-            "strict_date_time_no_millis": {
-                "format": "%Y-%m-%dT%H:%M:%S%:z",
-                "zone": None
-            },
-            "strict_date_time_micros": {
-                "format": "%Y-%m-%dT%H:%M:%S.%6f%:z",
-                "zone": None
-            },
+            "yyyy-MM-dd HH:mm:ss": {"format": "%Y-%m-%d %H:%M:%S", "zone": 0},
+            "yyyy-MM-dd HH:mm:ss,SSS": {"format": "%Y-%m-%d %H:%M:%S,%3f", "zone": 0},
+            "yyyy-MM-dd HH:mm:ss.SSS": {"format": "%Y-%m-%d %H:%M:%S.%3f", "zone": 0},
+            "yyyy-MM-dd HH:mm:ss.SSSSSS": {"format": "%Y-%m-%d %H:%M:%S.%6f", "zone": 0},
+            "yy-MM-dd HH:mm:ss.SSSSSS": {"format": "%y-%m-%d %H:%M:%S.%6f", "zone": 0},
+            "yyyy-MM-ddTHH:mm:ss.SSSSSS": {"format": "%Y-%m-%dT%H:%M:%S.%6f", "zone": 0},
+            "yyyy-MM-dd+HH:mm:ss": {"format": "%Y-%m-%d+%H:%M:%S", "zone": 0},
+            "MM/dd/yyyy HH:mm:ss": {"format": "%m/%d/%Y %H:%M:%S", "zone": 0},
+            "yyyyMMddHHmmss": {"format": "%Y%m%d%H%M%S", "zone": 0},
+            "yyyyMMdd HHmmss": {"format": "%Y%m%d %H%M%S", "zone": 0},
+            "yyyyMMdd HHmmss.SSS": {"format": "%Y%m%d %H%M%S.%3f", "zone": 0},
+            "yyyyMMdd HH:mm:ss.SSSSSS": {"format": "%Y%m%d %H:%M:%S.%6f", "zone": 0},
+            "YYYYMMdd HH:mm:ss.SSSSSS": {"format": "%Y%m%d %H:%M:%S.%6f", "zone": 0},
+            "dd/MMM/yyyy:HH:mm:ss": {"format": "%d/%b/%Y:%H:%M:%S", "zone": 0},
+            "dd/MMM/yyyy:HH:mm:ssZ": {"format": "%d/%b/%Y:%H:%M:%S%:z", "zone": None},
+            "dd/MMM/yyyy:HH:mm:ss Z": {"format": "%d/%b/%Y:%H:%M:%S %:z", "zone": None},
+            "dd/MMM/yyyy:HH:mm:ssZZ": {"format": "%d/%b/%Y:%H:%M:%S%:z", "zone": None},
+            "dd/MMM/yyyy:HH:mm:ss ZZ": {"format": "%d/%b/%Y:%H:%M:%S %:z", "zone": None},
+            "rfc3339": {"format": "%+", "zone": None},
+            "yyyy-MM-ddTHH:mm:ss": {"format": "%Y-%m-%dT%H:%M:%S", "zone": 0},
+            "yyyy-MM-ddTHH:mm:ss.SSS": {"format": "%Y-%m-%dT%H:%M:%S.%3f", "zone": 0},
+            "yyyyMMddTHHmmssZ": {"format": "%Y%m%dT%H%M%S%:z", "zone": None},
+            "yyyyMMddTHHmmss.SSSSSSZ": {"format": "%Y%m%dT%H%M%S.%6f%:z", "zone": None},
+            "yyyy-MM-ddTHH:mm:ss.SSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%3f%:z", "zone": None},
+            "yyyy-MM-ddTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": None},
+            "ISO8601": {"format": "%+", "zone": None},
+            "yyyy-MM-ddTHH:mm:ssZ": {"format": "%Y-%m-%dT%H:%M:%S%:z", "zone": None},
+            "yyyy-MM-ddTHH:mm:ss.SSSSSSZZ": {"format": "%Y-%m-%dT%H:%M:%S.%6f%:z", "zone": None},
+            "yyyy.MM.dd-HH.mm.ss:SSS": {"format": "%Y.%m.%d-%H.%M.%S:%3f", "zone": 0},
+            "date_hour_minute_second": {"format": "%Y-%m-%dT%H:%M:%S", "zone": 0},
+            "date_hour_minute_second_millis": {"format": "%Y-%m-%dT%H:%M:%S.%3f", "zone": 0},
+            "basic_date_time": {"format": "%Y%m%dT%H%M%S.%3f%z", "zone": None},
+            "basic_date_time_no_millis": {"format": "%Y%m%dT%H%M%S%z", "zone": None},
+            "basic_date_time_micros": {"format": "%Y%m%dT%H%M%S.%6f%z", "zone": None},
+            "strict_date_time": {"format": "%Y-%m-%dT%H:%M:%S.%3f%:z", "zone": None},
+            "strict_date_time_no_millis": {"format": "%Y-%m-%dT%H:%M:%S%:z", "zone": None},
+            "strict_date_time_micros": {"format": "%Y-%m-%dT%H:%M:%S.%6f%:z", "zone": None},
             # Unix时间戳格式
-            "epoch_micros": {
-                "format": "Unix Timestamp",
-                "zone": None
-            },
-            "Unix Time Stamp(milliseconds)": {
-                "format": "Unix Timestamp",
-                "zone": None
-            },
-            "epoch_millis": {
-                "format": "Unix Timestamp",
-                "zone": None
-            },
-            "epoch_second": {
-                "format": "Unix Timestamp",
-                "zone": None
-            }
+            "epoch_micros": {"format": "Unix Timestamp", "zone": None},
+            "Unix Time Stamp(milliseconds)": {"format": "Unix Timestamp", "zone": None},
+            "epoch_millis": {"format": "Unix Timestamp", "zone": None},
+            "epoch_second": {"format": "Unix Timestamp", "zone": None},
         }
 
         # 获取映射配置
@@ -328,24 +214,18 @@ class EtlStorage:
         if not format_config:
             # 如果找不到映射，使用默认配置
             return {
-                "from": {
-                    "format": "%Y-%m-%d %H:%M:%S",
-                    "zone": 0
-                },
+                "from": {"format": "%Y-%m-%d %H:%M:%S", "zone": 0},
                 "interval_format": None,
                 "to": "millis",
-                "now_if_parse_failed": True
+                "now_if_parse_failed": True,
             }
 
         # 构建V4 in_place_time_parsing配置
         return {
-            "from": {
-                "format": format_config["format"],
-                "zone": format_config["zone"]
-            },
+            "from": {"format": format_config["format"], "zone": format_config["zone"]},
             "interval_format": None,
             "to": "millis",
-            "now_if_parse_failed": True
+            "now_if_parse_failed": True,
         }
 
     def _build_built_in_fields_v4(self, built_in_config: dict) -> list:
@@ -367,23 +247,25 @@ class EtlStorage:
             if field_name in ["log", "iterationIndex"]:
                 continue
 
-            rules.append({
-                "input_id": "json_data",
-                "output_id": field_name,
-                "operator": {
-                    "type": "assign",
-                    "key_index": alias_name,
-                    "alias": field_name,
-                    "desc": field.get("description"),
-                    "input_type": None,
-                    "output_type": self._get_output_type(field_type),
-                    "fixed_value": None,
-                    "is_time_field": None,
-                    "time_format": None,
-                    "in_place_time_parsing": None,
-                    "default_value": None
+            rules.append(
+                {
+                    "input_id": "json_data",
+                    "output_id": field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": alias_name,
+                        "alias": field_name,
+                        "desc": field.get("description"),
+                        "input_type": None,
+                        "output_type": self._get_output_type(field_type),
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": None,
+                        "default_value": None,
+                    },
                 }
-            })
+            )
 
         # 处理时间字段
         time_field = built_in_config.get("time_field")
@@ -396,24 +278,200 @@ class EtlStorage:
             v3_time_format = time_field.get("option", {}).get("time_format", "yyyy-MM-dd HH:mm:ss")
             v4_time_parsing = self._convert_v3_to_v4_time_format(v3_time_format)
 
-            rules.append({
-                "input_id": "json_data",
-                "output_id": time_field_name,
-                "operator": {
-                    "type": "assign",
-                    "key_index": time_alias_name,
-                    "alias": time_field_name,
-                    "desc": time_field.get("description"),
-                    "input_type": None,
-                    "output_type": self._get_output_type(time_field_type),
-                    "fixed_value": None,
-                    "is_time_field": None,
-                    "time_format": None,
-                    "in_place_time_parsing": v4_time_parsing,
-                    "default_value": None
-                }
-            })
+            # 检查是否为纳秒级时间格式，参考transfer清洗的dtEventTimeStampNanos处理逻辑
+            time_fmts = array_group(FieldDateFormatEnum.get_choices_list_dict(), "id", True)
+            time_fmt = time_fmts.get(v3_time_format, {})
+            is_nanos = time_fmt.get("es_format", "epoch_millis") == "strict_date_optional_time_nanos"
 
+            rules.append(
+                {
+                    "input_id": "json_data",
+                    "output_id": time_field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": time_alias_name,
+                        "alias": time_field_name,
+                        "desc": time_field.get("description"),
+                        "input_type": None,
+                        "output_type": self._get_output_type(time_field_type),
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": v4_time_parsing,
+                        "default_value": None,
+                    },
+                }
+            )
+
+            # 如果是纳秒级时间格式，记录需要生成dtEventTimeStampNanos字段
+            # 注意：dtEventTimeStampNanos规则需要在bk_separator_object之后生成，因为用户指定的时间字段在bk_separator_object中
+            # 这里只记录is_nanos状态，实际的规则生成在_build_nanos_time_field_v4方法中
+            if is_nanos:
+                # 将纳秒时间字段信息存储到built_in_config中，供后续使用
+                built_in_config["_nanos_time_field"] = {
+                    "time_alias_name": time_alias_name,
+                    "v3_time_format": v3_time_format,
+                }
+
+        return rules
+
+    def _build_iteration_index_field_v4(self, built_in_config: dict) -> list:
+        """
+        构建V4版本的iterationIndex字段规则（从iter_item提取）
+        :param built_in_config: 内置配置，包含fields
+        :return: iterationIndex字段规则列表
+        """
+        rules = []
+        built_in_fields = built_in_config.get("fields", [])
+
+        # 查找iterationIndex字段（flat_field为True的字段）
+        for field in built_in_fields:
+            if field.get("field_name") == "iterationIndex" and field.get("flat_field", False):
+                alias_name = field.get("alias_name", "iterationindex")
+
+                # 优先使用es_type确定output_type
+                # iterationIndex的field_type可能是float，但es_type是integer，需映射为long
+                field_type = field.get("option", {}).get("es_type") or field.get("field_type")
+                output_type = self._get_output_type(field_type)
+
+                rules.append(
+                    {
+                        "input_id": "iter_item",
+                        "output_id": "iterationIndex",
+                        "operator": {
+                            "type": "assign",
+                            "key_index": alias_name,
+                            "alias": "iterationIndex",
+                            "desc": field.get("description"),
+                            "input_type": None,
+                            "output_type": output_type,
+                            "fixed_value": None,
+                            "is_time_field": None,
+                            "time_format": None,
+                            "in_place_time_parsing": None,
+                            "default_value": None,
+                        },
+                    }
+                )
+                break
+
+        return rules
+
+    def _build_nanos_time_field_v4(self, built_in_config: dict) -> list:
+        """
+        构建V4版本的dtEventTimeStampNanos字段规则（从bk_separator_object提取用户指定的时间字段）
+        :param built_in_config: 内置配置，包含_nanos_time_field信息
+        :return: dtEventTimeStampNanos字段规则列表
+        """
+        rules = []
+        nanos_time_field = built_in_config.get("_nanos_time_field")
+        if nanos_time_field:
+            time_alias_name = nanos_time_field["time_alias_name"]
+            v3_time_format = nanos_time_field["v3_time_format"]
+
+            # 获取纳秒级时间格式的V4配置
+            nanos_v4_time_parsing = self._convert_v3_to_v4_time_format(v3_time_format)
+            # 纳秒级时间解析的输出应为nanos
+            nanos_v4_time_parsing["to"] = "nanos"
+
+            rules.append(
+                {
+                    "input_id": self.separator_node_name,
+                    "output_id": "dtEventTimeStampNanos",
+                    "operator": {
+                        "type": "assign",
+                        "key_index": time_alias_name,
+                        "alias": "dtEventTimeStampNanos",
+                        "desc": "纳秒级时间戳",
+                        "input_type": None,
+                        "output_type": "long",
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": nanos_v4_time_parsing,
+                        "default_value": None,
+                    },
+                }
+            )
+        return rules
+
+    def _build_extra_json_field_v4(self, etl_params: dict, fields: list) -> list:
+        """
+        构建V4版本的ext_json字段规则
+        :param etl_params: 清洗参数
+        :param fields: 字段列表
+        :return: ext_json字段规则列表
+        """
+        rules = []
+        if etl_params.get("retain_extra_json"):
+            # 1. 创建临时对象，通过 delete 算子排除已定义的字段
+            exclude_keys = []
+            for field in fields:
+                if field.get("is_delete"):
+                    continue
+                # 只有从 separator_node 提取的字段才需要排除
+                source_field = field.get("alias_name") or field["field_name"]
+                exclude_keys.append({"type": "key", "value": source_field})
+
+            temp_output_id = f"__ext_json_temp_{self.separator_node_name}"
+
+            rules.append(
+                {
+                    "input_id": self.separator_node_name,
+                    "output_id": temp_output_id,
+                    "operator": {"type": "delete", "key_index": exclude_keys},
+                }
+            )
+
+            # 2. 将排除后的结果赋值给 __ext_json
+            rules.append(
+                {
+                    "input_id": temp_output_id,
+                    "output_id": "__ext_json",
+                    "operator": {
+                        "type": "assign",
+                        "key_index": None,
+                        "alias": "ext_json",
+                        "desc": None,
+                        "input_type": None,
+                        "output_type": "dict",
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": None,
+                        "default_value": None,
+                    },
+                }
+            )
+        return rules
+
+    def _build_parse_failure_field_v4(self, etl_params: dict) -> list:
+        """
+        构建V4版本的清洗失败标记字段规则
+        :param etl_params: 清洗参数
+        :return: 清洗失败标记字段规则列表
+        """
+        rules = []
+        if etl_params.get("record_parse_failure"):
+            rules.append(
+                {
+                    "input_id": self.separator_node_name,
+                    "output_id": PARSE_FAILURE_FIELD,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": PARSE_FAILURE_FIELD,
+                        "alias": PARSE_FAILURE_FIELD,
+                        "desc": _("清洗失败标记"),
+                        "input_type": None,
+                        "output_type": "boolean",
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": None,
+                        "default_value": None,
+                    },
+                }
+            )
         return rules
 
     @staticmethod
@@ -652,10 +710,10 @@ class EtlStorage:
             ):
                 raise ValidationError(_(f"ES版本{es_version}不支持 flattened 字段类型"))
 
+            option = field.get("option") or {}
+
             # option, 非时间字段的option里的time_zone和time_format都为"", 不需要入库
-            field_option = {
-                k: v for k, v in field.get("option", {}).items() if k not in ["time_zone", "time_format", "es_format"]
-            }
+            field_option = {k: v for k, v in option.items() if k not in ["time_zone", "time_format", "es_format"]}
             field_option["field_index"] = etl_field_index
             etl_field_index += 1
 
@@ -859,8 +917,9 @@ class EtlStorage:
             pass
 
         if not table_id and FeatureToggleObject.switch("log_v4_data_link", instance.get_bk_biz_id()):
-            instance.enable_v4 = True
-            instance.save()
+            if hasattr(instance, "enable_v4"):
+                instance.enable_v4 = True
+                instance.save()
 
         # 获取清洗配置
         collector_scenario = CollectorScenario.get_instance(collector_scenario_id=instance.collector_scenario_id)
@@ -870,8 +929,10 @@ class EtlStorage:
             sort_fields=sort_fields,
             target_fields=target_fields,
         )
-        result_table_config = self.get_result_table_config(fields, etl_params, built_in_config,
-                                                           es_version=es_version, enable_v4=instance.enable_v4)
+        enable_v4 = getattr(instance, "enable_v4", False)
+        result_table_config = self.get_result_table_config(
+            fields, etl_params, built_in_config, es_version=es_version, enable_v4=enable_v4
+        )
         is_nanos = False
         for rt_field in result_table_config["field_list"]:
             if rt_field["field_name"] == "dtEventTimeStampNanos":
@@ -1011,8 +1072,10 @@ class EtlStorage:
         collector_config = {"etl_params": result_table_config.get("option", {})}
         if result_table_storage:
             collector_config["storage_cluster_id"] = result_table_storage["cluster_config"]["cluster_id"]
-            collector_config["storage_cluster_name"] = result_table_storage["cluster_config"].get("display_name")\
-                                                       or result_table_storage["cluster_config"]["cluster_name"]
+            collector_config["storage_cluster_name"] = (
+                result_table_storage["cluster_config"].get("display_name")
+                or result_table_storage["cluster_config"]["cluster_name"]
+            )
             collector_config["retention"] = result_table_storage["storage_config"].get("retention")
             collector_config["allocation_min_days"] = result_table_storage["storage_config"].get("warm_phase_days")
 
@@ -1147,7 +1210,7 @@ class EtlStorage:
     def _to_bkdata_conf(self, time_field):
         return {
             "output_field_name": "timestamp",
-            "time_format": time_field["option"]["time_format"],
+            "time_format": time_field["option"]["time_format"].replace("YY", "yy").replace("DD", "dd"),
             "timezone": time_field["option"]["time_zone"],
             "encoding": "UTF-8",
             "timestamp_len": 0,

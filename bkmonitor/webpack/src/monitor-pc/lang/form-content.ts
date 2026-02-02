@@ -133,9 +133,12 @@ export default {
     'Generated incident, contains {alert_count} alarms, incident person in charge: {assignees}',
   '故障观察中，剩余观察时间{last_minutes}分钟':
     'Incident under observation, remaining observation time: {last_minutes} minutes',
+  '故障在观察期间重新打开': 'Incident reopened during observation',
   '故障通知已发送（接收人：{receivers}）': 'Incident notification sent (recipients: {receivers})',
   故障已恢复: 'Incident restored',
   '故障{merged_incident_name}被合并入当前故障': 'Incident {merged_incident_name} merged into the current incident',
+  '故障【{link_incident_name}】合并入当前故障': 'Incident [{link_incident_name}] merged into the current incident',
+  '当前故障合并到【{link_incident_name}】': 'Current incident merged into [{link_incident_name}]',
   '{operator}故障属性{incident_key_alias}: 从{from_value}被修改为{to_value}':
     '{operator} incident attribute {incident_key_alias}: changed from {from_value} to {to_value}',
   '检测到新告警（{alert_name}）': 'New alarm detected ({alert_name})',
@@ -173,6 +176,7 @@ export default {
   诊断分析: 'Diagnosis analysis',
   故障总结: 'Incident summary',
   告警异常维度分析: 'Alarm abnormal dimension analysis',
+  '异常维度（组合）': 'Abnormal dimension (combination)',
   '故障关联的告警，统计出最异常的维度（组合）：':
     'Alarms related to the fault, statistics are the most abnormal dimension (combination):',
   '来源于以下 {0} 个策略': 'From the following  {0} strategies',
@@ -190,6 +194,11 @@ export default {
   '示例日志：': 'Example log:',
   '（共 {0} 条日志）': ' (total {0} logs)',
   独立查看: 'View independently',
+  'Trace 分析': 'Trace analysis',
+  'Trace 分析总结：': 'Trace analysis summary:',
+  分析结果: 'Analysis result',
+  '示例 span：': 'Example span:',
+  '（共 {0} 条异常信息）': ' (total {0} abnormal messages)',
   '在{0}个周期内累计满足{1}次检测算法': 'In {0} cycles, the detection algorithm is met {1} times',
   '较{0}对比': 'Compare with {0}',
   '上升{0}%时触发告警': 'Trigger an alarm when rising {0}%',

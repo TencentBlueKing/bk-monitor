@@ -712,7 +712,7 @@
         "workflow_keys": "{{template_id}}"
       },
       "resource_class": "CommonBaseResource",
-      "resource_data": "response.items[].form_canvas_data.form_data.layout[].list[].{key: key, desc: desc, name: tips,default:defaultValue,required:verification.required.value}",
+      "resource_data": "response.items[].form_canvas_data.form_data.layout[].list[].{key: key, desc: desc, name: title.value,default:defaultValue,required:verification.required.value}",
       "resource_module": "api.common.default"
     },
     "plugin_url": {
@@ -868,7 +868,7 @@
                 "request_data_mapping": {
                     "bk_template_id": "{{template_id}}"
                 },
-                "resource_data": "response.pipeline_tree.constants.*",
+                "resource_data": "response.pipeline_tree.constants.* | [?show_type == 'show']",
                 "mapping": {
                     "key": "{{key}}",
                     "name": "{{name}}",

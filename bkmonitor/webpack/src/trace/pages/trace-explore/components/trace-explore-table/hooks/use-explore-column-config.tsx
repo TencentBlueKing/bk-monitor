@@ -29,6 +29,7 @@ import { type MaybeRef, type VNode, computed } from 'vue';
 import { get } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 
+import { useTraceStore } from '../../../../../store/modules/trace';
 import {
   CAN_TABLE_SORT_FIELD_TYPES,
   SERVICE_CATEGORY_MAP,
@@ -100,6 +101,7 @@ export const useExploreColumnConfig = ({
   /** table 默认配置项 */
   const { tableConfig: defaultTableConfig, traceConfig, spanConfig } = TABLE_DEFAULT_CONFIG;
   const { t } = useI18n();
+  const traceStore = useTraceStore();
 
   /** table 所有列字段信息(字段设置使用) */
   const tableColumns = computed(() => {
@@ -287,7 +289,12 @@ export const useExploreColumnConfig = ({
               <i
                 class='icon-monitor icon-Tracing'
                 v-bk-tooltips={{ content: t('查看关联 Trace'), delay: 400 }}
-                onClick={() => handleSliderShowChange('trace', row.trace_id)}
+                onClick={() => {
+                  // 记录“需要在 trace 侧滑中定位/高亮的 span”
+                  traceStore.setExternalLocateSpan(row.trace_id, row.span_id);
+                  // 打开 trace 侧滑
+                  handleSliderShowChange('trace', row.trace_id);
+                }}
               />
             ) as unknown as VNode,
           clickCallback: row => handleSliderShowChange('span', row.span_id),
@@ -302,19 +309,19 @@ export const useExploreColumnConfig = ({
           renderType: ExploreTableColumnTypeEnum.TIME,
           colKey: 'time',
           title: t('时间'),
-          width: 160,
+          width: 200,
         },
         start_time: {
           renderType: ExploreTableColumnTypeEnum.TIME,
           colKey: 'start_time',
           title: t('开始时间'),
-          width: 180,
+          minWidth: 230,
         },
         end_time: {
           renderType: ExploreTableColumnTypeEnum.TIME,
           colKey: 'end_time',
           title: t('结束时间'),
-          width: 180,
+          minWidth: 230,
         },
         elapsed_time: {
           renderType: ExploreTableColumnTypeEnum.DURATION,
@@ -361,7 +368,12 @@ export const useExploreColumnConfig = ({
           colKey: 'trace_id',
           title: t('所属 Trace'),
           width: 240,
-          clickCallback: row => handleSliderShowChange('trace', row.trace_id),
+          clickCallback: row => {
+            // 记录“需要在 trace 侧滑中定位/高亮的 span”
+            traceStore.setExternalLocateSpan(row.trace_id, row.span_id);
+            // 打开 trace 侧滑
+            handleSliderShowChange('trace', row.trace_id);
+          },
         },
       };
     }

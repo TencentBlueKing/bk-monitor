@@ -26,6 +26,7 @@
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue';
 
 import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
+// import { perfStart, perfEnd } from '@/utils/performance-monitor';
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
@@ -230,12 +231,16 @@ export default defineComponent({
           resize: false,
           minWidth: timeFieldType.value === 'date_nanos' ? 250 : 200,
           renderBodyCell: ({ row }) => {
+            const timezone = store.state.indexItem.timezone;
+            const fieldType = timeFieldType.value;
+            const formatValue = RetrieveHelper.formatTimeZoneValue(row[timeField.value], fieldType, timezone);
+
             return h(
               'span',
               {
                 class: 'time-field',
                 domProps: {
-                  innerHTML: xssFilter(RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value)),
+                  innerHTML: xssFilter(formatValue),
                 },
               },
               [],
@@ -316,14 +321,17 @@ export default defineComponent({
       col.width = '100%';
     };
 
-    const getFieldColumns = () => {
+    // 性能优化：使用 computed 缓存列配置，避免每次渲染都重新计算
+    const getFieldColumns = computed(() => {
       if (showCtxType.value === 'table') {
         const columnList: Record<string, any>[] = [];
         const columns = visibleFields.value.length > 0 ? visibleFields.value : fullColumns.value;
         let maxColWidth = operatorToolsWidth.value + 40;
         let logField: Record<string, any> | null = null;
 
-        for (const col of columns) {
+        // 性能优化：当字段数量很大时，使用 for 循环比 forEach 性能更好
+        for (let i = 0; i < columns.length; i++) {
+          const col = columns[i];
           const formatValue = formatColumn(col);
           if (col.field_name === 'log') {
             logField = formatValue;
@@ -334,7 +342,7 @@ export default defineComponent({
         }
 
         if (!logField && columnList.length > 0) {
-          logField = columnList.at(-1);
+          logField = columnList[columnList.length - 1];
         }
 
         if (logField && offsetWidth.value > maxColWidth) {
@@ -345,7 +353,7 @@ export default defineComponent({
       }
 
       return originalColumns.value;
-    };
+    });
 
     const hanldeAfterExpandClick = (target: HTMLElement) => {
       const expandTarget = target
@@ -495,7 +503,11 @@ export default defineComponent({
       const dataFields: Record<string, any>[] = [];
       const indexSetFields: Record<string, any>[] = [];
       const logFields: Record<string, any>[] = [];
-      for (const item of filteredFieldList.value) {
+
+      // 性能优化：使用 for 循环替代 for...of，当字段数量很大时性能更好
+      const filteredFields = filteredFieldList.value;
+      for (let i = 0; i < filteredFields.length; i++) {
+        const item = filteredFields[i];
         if (item.field_type === 'date') {
           dataFields.push(item);
         } else if (item.field_name === 'log' || item.field_alias === 'original_text') {
@@ -504,6 +516,8 @@ export default defineComponent({
           indexSetFields.push(item);
         }
       }
+
+      // 性能优化：缓存正则替换结果，避免重复计算
       const sortIndexSetFieldsList = indexSetFields.sort((a, b) => {
         const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
         const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
@@ -564,12 +578,28 @@ export default defineComponent({
     const expandOption = {
       render: ({ row }) => {
         const config = tableRowConfig.get(row);
+        const rowIndex = config.value[ROW_INDEX];
+
+        // // 性能监控：记录展开渲染耗时
+        // perfStart('log-rows:expand-render', {
+        //   rowIndex,
+        //   fieldCount: kvShowFieldsList.value.length,
+        // });
+
+        // // 使用 nextTick 确保性能监控在渲染完成后执行
+        // nextTick(() => {
+        //   perfEnd('log-rows:expand-render', {
+        //     rowIndex,
+        //     fieldCount: kvShowFieldsList.value.length,
+        //   });
+        // });
+
         return (
           <ExpandView
             data={row}
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
-            row-index={config.value[ROW_INDEX]}
+            row-index={rowIndex}
             onValue-click={(type, content, isLink, field, depth, isNestedField) => {
               return handleIconClick(type, content, field, row, isLink, depth, isNestedField);
             }}
@@ -741,7 +771,7 @@ export default defineComponent({
       // tableDataSize.value === 0 用于判定是否是第一次渲染导致触发的请求
       // visibleFields.value 在字段重置时会清空，所以需要判断
       if (isRequesting.value || tableDataSize.value === 0 || visibleFields.value.length === 0) {
-        return;
+        return Promise.resolve(false);
       }
 
       if (pageIndex.value * pageSize.value < tableDataSize.value) {
@@ -753,7 +783,7 @@ export default defineComponent({
         debounceSetLoading(0);
         nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
         localUpdateCounter.value += 1;
-        return;
+        return Promise.resolve(false);
       }
 
       if (hasMoreList.value) {
@@ -793,7 +823,7 @@ export default defineComponent({
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { offsetWidth, scrollWidth, computeRect } = useLazyRender({
+    const { offsetWidth, scrollWidth, computeRect, getScrollElement } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
@@ -820,11 +850,44 @@ export default defineComponent({
       return showCtxType.value === 'table' && scrollWidth.value > offsetWidth.value;
     });
 
+    const isPreloading = ref(false);     // 是否正在预加载
+    const preloadThreshold = 32 * 50;        // 距离底部多少 px 开始预加载
+    let lastPreloadTime = 0;
+    const preloadCooldown = 300;         // ms
+
+    const shouldPreloadOnScrollDown = (event: WheelEvent) => {
+
+      if (!hasMoreList.value) return false;
+      if (isPreloading.value) return false;
+
+      // 1️⃣ 判定向下滚动
+      if (event.deltaY <= 0) return false;
+
+      const now = Date.now();
+      if (now - lastPreloadTime < preloadCooldown) return false;
+
+      const scrollElement = getScrollElement();
+      // 2️⃣ 判定是否接近底部
+      const scrollTop = scrollElement?.scrollTop ?? 0;
+      const clientHeight = scrollElement?.clientHeight ?? 0;
+      const scrollHeight = scrollElement?.scrollHeight ?? 0;
+      const distanceToBottom = scrollHeight - (scrollTop + clientHeight);
+
+      return distanceToBottom <= preloadThreshold;
+    }
+
     let isAnimating = false;
 
     useWheel({
       target: refRootElement,
       callback: (event: WheelEvent) => {
+        if (shouldPreloadOnScrollDown(event)) {
+          isPreloading.value = true;
+          loadMoreTableData().finally(() => {
+            isPreloading.value = false;
+          });
+        }
+
         const maxOffset = scrollWidth.value - offsetWidth.value;
 
         // 检查是否按住 shift 键
@@ -952,7 +1015,7 @@ export default defineComponent({
     };
 
     const allColumns = computed(() => {
-      return [...leftColumns.value, ...getFieldColumns(), ...rightColumns.value].filter(
+      return [...leftColumns.value, ...getFieldColumns.value, ...rightColumns.value].filter(
         item => !(item as any).disabled,
       );
     });
@@ -1017,14 +1080,31 @@ export default defineComponent({
       const expandCell = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
 
       if (target.classList.contains('valid-text') || expandCell?.contains(target)) {
+        RetrieveHelper.setMousedownEvent(null);
         return;
       }
 
       const config: RowConfig = tableRowConfig.get(item).value;
-      config.expand = !config.expand;
+      const isExpanding = !config.expand;
+      config.expand = isExpanding;
+      RetrieveHelper.setMousedownEvent(null);
+
+      // 性能监控：记录展开/收起操作的耗时
+      // if (isExpanding) {
+      //   perfStart('log-rows:expand-click', {
+      //     rowIndex: config[ROW_INDEX],
+      //     fieldCount: kvShowFieldsList.value.length,
+      //   });
+      // }
+
       nextTick(() => {
         if (config.expand) {
           hanldeAfterExpandClick(target);
+          // 展开完成后记录耗时
+          // perfEnd('log-rows:expand-click', {
+          //   rowIndex: config[ROW_INDEX],
+          //   fieldCount: kvShowFieldsList.value.length,
+          // });
         }
       });
     };

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -11,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from django.core.exceptions import ImproperlyConfigured
 from rest_framework.routers import DefaultRouter
-from rest_framework.viewsets import GenericViewSet
+from rest_framework.viewsets import GenericViewSet, ViewSet
 
 from core.drf_resource.tools import get_underscore_viewset_name
 from core.drf_resource.viewsets import ResourceViewSet
@@ -34,7 +33,7 @@ class ResourceRouter(DefaultRouter):
         self._init_resource_viewset(viewset)
 
         try:
-            super(ResourceRouter, self).register(prefix, viewset, basename)
+            super().register(prefix, viewset, basename)
         except ImproperlyConfigured:
             pass
 
@@ -47,7 +46,7 @@ class ResourceRouter(DefaultRouter):
             if attr.startswith("_") or attr[0].islower():
                 continue
 
-            if isinstance(viewset, type) and issubclass(viewset, GenericViewSet):
+            if isinstance(viewset, type) and issubclass(viewset, ViewSet | GenericViewSet):
                 prefix = self.get_default_basename(viewset)
                 self.register(prefix, viewset)
 

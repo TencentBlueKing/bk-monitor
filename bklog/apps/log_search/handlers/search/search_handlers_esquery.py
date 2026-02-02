@@ -2194,7 +2194,10 @@ class SearchHandler:
         """
         添加 BCS 集群有关内置字段内容
         """
-        bcs_cluster_id = log.get("__ext", dict()).get("bk_bcs_cluster_id")
+        ext_fields = log.get("__ext")
+        if not ext_fields or not isinstance(ext_fields, dict):
+            return log
+        bcs_cluster_id = ext_fields.get("bk_bcs_cluster_id")
 
         if bcs_cluster_id:
             bcs_cluster_name = self._get_bcs_cluster_name(bcs_cluster_id)

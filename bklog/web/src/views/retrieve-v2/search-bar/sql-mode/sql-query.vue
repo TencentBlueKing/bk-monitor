@@ -33,9 +33,10 @@ const isFocused = ref(false);
 // 动态 placeholder 文本
 const placeholderText = computed(() => {
   if (isFocused.value) {
-    return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，${shortcutKey} + ENTER ${t('AI 搜索')}`;
+    return `${t('可输入自然语言')}，${shortcutKey} + Enter ${t('触发 AI 解析')}`;
   }
-  return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}， ${t('Tab 切换为 AI 模式')}`;
+  return ` / ${t('唤起')}， ${t('输入检索内容')}（${t('Tab 可切换为 AI 模式')}）`;
+  // return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}`;
 });
 
 const refSqlQueryOption = ref(null);
@@ -230,7 +231,9 @@ const createEditorInstance = () => {
       return true;
     },
     onCtrlEnter: () => {
-      if ((getTippyInstance()?.state?.isShown ?? false) && modelValue.value.length) {
+      // 如果有内容，直接执行 AI 解析，无论是否有下拉提示
+      if (modelValue.value.length) {
+        handleTextToQuery();
         return true;
       }
 
@@ -239,7 +242,7 @@ const createEditorInstance = () => {
     onFocusChange: (state, isFocusing) => {
       // 更新 focus 状态，用于动态显示 placeholder
       isFocused.value = isFocusing;
-      
+
       if (isFocusing) {
         if (!(getTippyInstance()?.state?.isShown ?? false)) {
           delayShowInstance(refEditorParent.value);

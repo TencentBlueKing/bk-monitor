@@ -1,11 +1,14 @@
 @import './global.scss';
+
 .create-operation-main {
   .block {
     display: block;
   }
+
   .width-88 {
     width: 88px;
   }
+
   .create-step {
     position: fixed;
     height: 50px;
@@ -13,6 +16,7 @@
     right: 10px;
     z-index: 10;
   }
+
   .step-main {
     display: flex;
     align-items: center;
@@ -20,19 +24,23 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
+
     .custom-icon {
       .bk-step-indicator {
         background: #eaebf0;
         border: none;
       }
+
       .bk-step.done .bk-step-indicator {
         background: #e1ecff;
       }
+
       .bk-step.current .bk-step-indicator {
         background: #3a84ff;
       }
     }
   }
+
   .step-tips {
     display: inline-block;
     height: 100%;
@@ -43,11 +51,13 @@
     color: #3a84ff;
     font-size: 12px;
     cursor: pointer;
+
     .help-icon {
       font-size: 14px;
       margin-right: 5px;
     }
   }
+
   .status-box {
     width: 148px;
     height: 40px;
@@ -62,6 +72,7 @@
     align-items: center;
     z-index: 10;
     cursor: pointer;
+
     .status-icon-box {
       width: 32px;
       height: 32px;
@@ -75,6 +86,7 @@
       backface-visibility: hidden;
       transform: translateZ(0);
     }
+
     .spinner {
       width: 30px;
       height: 30px;
@@ -82,68 +94,85 @@
       transform-origin: 50% 50%;
       animation: spin 2s linear infinite;
     }
+
     .status-icon {
       position: absolute;
     }
+
     .status-txt {
       color: #fff;
       font-size: 14px;
       text-align: center;
     }
+
     &.running {
       .status-icon-box {
         background: url('@/images/log-collection/loading.svg') no-repeat center;
-        background-size: 32px 32px; /* 固定像素，避免 contain 的细微重采样 */
+        background-size: 32px 32px;
+        /* 固定像素，避免 contain 的细微重采样 */
         animation: spin 2s linear infinite;
       }
+
       .status-icon {
         color: #fff;
         left: 12px;
       }
-      
+
     }
+
     &.success {
       background: #3d9399;
+
       .status-icon-box {
         background: #fff;
       }
+
       .status-icon {
         font-size: 33px;
         color: #00b38f;
       }
     }
+
     &.failed {
       background: #b34747;
+
       .status-icon {
         left: 1px;
       }
+
       .status-icon-box {
         background: #fff;
       }
+
       .status-icon {
         font-size: 38px;
         color: #ea3636;
       }
     }
+
     @keyframes spin {
-        from {
-            transform: rotate(0deg);
-        }
-        to {
-            transform: rotate(360deg);
-        }
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
     }
   }
 
   .create-operation {
     margin-top: 60px;
   }
+
   .create-operation-form {
     margin-top: 20px;
+
     .el-form-item {
       margin-bottom: 20px;
     }
   }
+
   .create-operation-btn {
     margin-top: 20px;
     text-align: center;

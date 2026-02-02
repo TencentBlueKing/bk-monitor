@@ -67,6 +67,7 @@
   import dayjs from 'dayjs';
   import * as echarts from 'echarts';
   import { mapGetters } from 'vuex';
+  // import { formatAdditionalFields } from '@/store/helper';
 
   import SelectDate from './select-date';
 

@@ -30,7 +30,7 @@ import { getCharLength } from '@/common/util';
 import RetrieveHelper from '@/views/retrieve-helper';
 import { isElement } from 'lodash-es';
 
-import PopInstanceUtil from '../../../../global/pop-instance-util';
+import PopInstanceUtil from '@/global/pop-instance-util';
 
 export default (
   props,
@@ -74,6 +74,11 @@ export default (
    */
   const delayShowInstance = (target) => {
     popInstanceUtil?.cancelHide();
+
+    if (popInstanceUtil?.isShown()) {
+      return;
+    }
+
     popInstanceUtil?.show(target);
   };
 
@@ -104,16 +109,26 @@ export default (
 
   const handleContainerClick = (e?) => {
     const root = getRoot();
-    if (root !== undefined && (e === undefined || root === e?.target)) {
+    const clickTarget = e?.target as HTMLElement;
+    const isClickOnRoot = root === clickTarget;
+    const isClickInsideRoot = root && clickTarget && root.contains(clickTarget);
+
+    if (root !== undefined && (e === undefined || isClickOnRoot || isClickInsideRoot)) {
       const input = root.querySelector('.tag-option-focus-input');
 
       input?.focus();
       input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
 
-      if (!isInstanceShown()) {
+      if (isInstanceShown()) {
+        // 如果已经显示，只需要更新位置，不要销毁再重新弹出
+        repositionTippyInstance();
         setIsInputTextFocus(true);
         onInputFocus?.();
-        if (showPopoverOnClick) { // 是否在点击时显示弹窗
+      } else {
+        setIsInputTextFocus(true);
+        onInputFocus?.();
+        if (showPopoverOnClick) {
+          // 是否在点击时显示弹窗
           delayShowInstance(getPopTarget());
         }
       }

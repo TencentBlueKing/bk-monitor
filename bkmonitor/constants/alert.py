@@ -43,6 +43,12 @@ K8S_RESOURCE_TYPE = {
 class APMTargetType:
     SERVICE = "APM-SERVICE"
 
+    @staticmethod
+    def parse_target(target: str) -> tuple[str, str]:
+        """解析 APM 场景的 target 目标格式"""
+        app_name, service_name = target.split(":", 1)
+        return app_name, service_name
+
 
 EVENT_EXTRA_TARGET_TYPE = (
     K8STargetType.POD,
@@ -194,9 +200,9 @@ PUBLIC_NOTICE_CONFIG: dict[str, str | list[dict]] = {
         {
             "time_range": "00:00:00--23:59:59",
             "notify_config": [
-                {"level": 1, "type": ["weixin", "mail"]},
-                {"level": 2, "type": ["weixin", "mail"]},
-                {"level": 3, "type": ["weixin", "mail"]},
+                {"level": 1, "type": ["mail"]},
+                {"level": 2, "type": ["mail"]},
+                {"level": 3, "type": ["mail"]},
             ],
         }
     ],

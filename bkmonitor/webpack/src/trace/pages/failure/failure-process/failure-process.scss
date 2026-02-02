@@ -28,17 +28,20 @@
       }
     }
 
-    .link {
+    .clear-btn {
       margin: 8px 2px 0px;
       color: #3a84ff;
     }
-
-    .cursor {
-      cursor: pointer;
-    }
   }
 
+  .link {
+    margin: 0px 2px;
+    color: #3a84ff;
+  }
 
+  .cursor {
+    cursor: pointer;
+  }
 
   .bk-nested-loading {
     height: 100%;
