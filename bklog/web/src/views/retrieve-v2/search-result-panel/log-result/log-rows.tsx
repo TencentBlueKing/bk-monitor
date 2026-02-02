@@ -93,6 +93,7 @@ export default defineComponent({
     const { handleOperation, getObjectValue } = useTextAction(emit, 'origin');
 
     let savedSelection: Range = null;
+    let mousedownOnRow = false;
 
     const popInstanceUtil = new PopInstanceUtil({
       refContent: () => refSegmentContent.value,
@@ -1055,6 +1056,8 @@ export default defineComponent({
     };
 
     const handleRowMousedown = (e: MouseEvent) => {
+      mousedownOnRow = true;
+
       if (RetrieveHelper.isClickOnSelection(e, 2)) {
         RetrieveHelper.stopEventPropagation(e);
         return;
@@ -1065,6 +1068,13 @@ export default defineComponent({
     };
 
     const handleRowMouseup = (e: MouseEvent, item: any) => {
+      if (!mousedownOnRow) {
+        RetrieveHelper.setMousedownEvent(null);
+        return;
+      }
+
+      mousedownOnRow = false;
+
       if (RetrieveHelper.isClickOnSelection(e, 2) || RetrieveHelper.isMouseSelectionUpEvent(e)) {
         RetrieveHelper.stopEventPropagation(e);
         RetrieveHelper.setMousedownEvent(null);
