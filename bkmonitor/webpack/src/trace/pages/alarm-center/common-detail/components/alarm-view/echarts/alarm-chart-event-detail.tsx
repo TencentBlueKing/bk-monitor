@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { Button, Exception, Progress } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -69,6 +69,9 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
 
+    /** 组件DOM引用，用于获取实际高度 */
+    const eventDetailRef = useTemplateRef<HTMLDivElement>('eventDetailRef');
+
     /** 异常事件数据 */
     const warningData = shallowRef<ICustomEventDetail>({});
     /** 全部事件数据 */
@@ -82,6 +85,17 @@ export default defineComponent({
     const menuData = computed<ICustomEventDetail>(() => {
       return activeTab.value === EventTab.Warning ? warningData.value : allData.value;
     });
+
+    /**
+     * @description 获取组件实际高度
+     * @returns {number} 组件高度，默认返回200
+     */
+    const getComponentHeight = (): number => {
+      if (eventDetailRef.value) {
+        return eventDetailRef.value.offsetHeight || 200;
+      }
+      return 200;
+    };
 
     /**
      * @description 生成基础URL
@@ -625,6 +639,7 @@ export default defineComponent({
 
     return {
       loading,
+      getComponentHeight,
       createTitleRender,
       createContentRender,
       createHeaderRender,
@@ -637,6 +652,7 @@ export default defineComponent({
 
     return (
       <div
+        ref='eventDetailRef'
         style={{
           left: `${this.position.left}px`,
           top: `${this.position.top}px`,
