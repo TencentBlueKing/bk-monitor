@@ -79,9 +79,7 @@ class DiscoverHandler:
         # 批量处理所有对象
         id_to_updated_at = {}
         for obj in objs:
-            # 将数据库对象转换为实例数据对象（使用公开方法）
             instance_data = discover_class.build_instance_data(obj)
-            # 使用公开方法生成缓存 key
             cache_key = discover_class.to_cache_key(instance_data)
 
             # 获取时间戳，优先使用缓存中的时间，如果缓存中没有则使用数据库的 updated_at
