@@ -41,9 +41,9 @@ from constants.data_source import (
 from constants.strategy import EVENT_QUERY_CONFIG_MAP, SYSTEM_EVENT_RT_TABLE_ID
 from core.drf_resource import Resource, api, resource
 from core.errors.api import BKAPIError
+from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
 from monitor_web.grafana.utils import get_cookies_filter, is_global_k8s_event
 from monitor_web.models import CollectConfigMeta
-from monitor_web.models.uptime_check import UptimeCheckNode, UptimeCheckTask
 from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
 from monitor_web.strategies.default_settings.k8s_event import DEFAULT_K8S_EVENT_NAME
 
@@ -928,15 +928,13 @@ class GetVariableValue(Resource):
             "uptimecheck_"
         ):
             if dimension_field == "task_id":
-                uptime_check_tasks = UptimeCheckTask.objects.filter(id__in=dimensions).values("id", "name")
+                uptime_check_tasks = uptime_check_operation.list_uptime_check_tasks_by_ids(task_ids=dimensions)
                 task_name_mapping = {str(task["id"]): task["name"] for task in uptime_check_tasks}
                 result = [
                     {"label": task_name_mapping.get(v, _("任务({})已删除").format(v)), "value": v} for v in dimensions
                 ]
             elif dimension_field == "node_id":
-                nodes = []
-                for dimension in dimensions:
-                    nodes.extend(UptimeCheckNode.adapt_new_node_id(bk_biz_id, dimension))
+                nodes = uptime_check_operation.adapt_node_id_to_nodes(bk_biz_id, dimensions)
                 result = [{"label": node["name"], "value": str(node["id"])} for node in nodes]
 
         result = result or [{"label": v, "value": v} for v in dimensions]
