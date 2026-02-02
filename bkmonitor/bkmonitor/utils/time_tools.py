@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import datetime
-import logging
 import re
 import time
 
@@ -20,7 +19,6 @@ from django.conf import settings
 from django.utils import timezone
 
 DEFAULT_FORMAT = "%Y-%m-%d %H:%M:%S"
-logger = logging.getLogger("bkmonitor.utils.time_tools")
 
 
 def now():
@@ -413,94 +411,3 @@ def time_interval_align(timestamp: int, interval: int):
 
 
 MAX_DATETIME_STR = datetime2str(datetime.datetime.max)
-
-
-def get_user_timezone(username: str) -> pytz.tzinfo.BaseTzInfo | None:
-    """
-    获取用户时区对象
-    :param username: 用户名
-    :return: pytz时区对象,失败返回None
-    """
-    if not username:
-        return None
-
-    try:
-        from core.drf_resource import api
-
-        user_info = api.bk_login.get_user_info(id=username)
-        user_time_zone = user_info.get("time_zone", "")
-
-        if not user_time_zone:
-            logger.warning(f"Get user timezone success but empty: user={username}, fallback to biz_tz")
-            return None
-
-        # 验证时区有效性
-        try:
-            tz_obj = pytz.timezone(user_time_zone)
-            return tz_obj
-        except pytz.UnknownTimeZoneError:
-            logger.error(f"Invalid timezone: user={username}, timezone={user_time_zone}, fallback to biz_tz")
-            return None
-
-    except Exception as e:
-        logger.error(f"Get user timezone failed: user={username}, error={e}, fallback to biz_tz")
-        return None
-
-
-def localtime_with_tz(value: datetime.datetime, timezone_name: str | None = None) -> datetime.datetime:
-    """
-    转换为指定时区的datetime
-    :param value: datetime对象
-    :param timezone_name: 时区名称,为None时使用业务时区
-    :return: 带时区信息的datetime对象
-    """
-
-    try:
-        # 确保是aware datetime
-        if not timezone.is_aware(value):
-            value = value.astimezone()
-
-        if not timezone_name:
-            # 使用业务时区
-            return localtime(value)
-
-        # 转换到目标时区
-        target_tz = pytz.timezone(timezone_name)
-        return value.astimezone(target_tz)
-    except Exception as e:
-        logger.error(f"Time conversion failed: time={value}, timezone={timezone_name}, error={e}")
-        # 降级为业务时区
-        return localtime(value)
-
-
-def format_user_time(
-    value: datetime.datetime,
-    username: str | None = None,
-    timezone_name: str | None = None,
-    _format: str = "%Y-%m-%d %H:%M:%S%z",
-) -> str:
-    """
-    格式化为用户时区时间(带时区标识)
-    :param value: datetime对象
-    :param username: 用户名,用于获取用户时区
-    :param timezone_name: 直接指定时区名称(优先级高于username)
-    :param _format: 时间格式
-    :return: 格式化后的时间字符串
-    """
-    # 确定要使用的时区
-    target_tz_name = timezone_name
-    if not target_tz_name and username:
-        user_tz = get_user_timezone(username)
-        if user_tz:
-            target_tz_name = user_tz.zone
-
-    # 转换到目标时区
-    local_dt = localtime_with_tz(value, target_tz_name)
-
-    # 格式化输出
-    try:
-        return local_dt.strftime(_format)
-    except Exception as e:
-        logger.error(f"Time format failed: time={local_dt}, format={_format}, error={e}")
-        # 降级为默认格式
-        return local_dt.strftime("%Y-%m-%d %H:%M:%S%z")

@@ -70,7 +70,7 @@
                   v-for="option in esClusterList"
                   :id="option.storage_cluster_id"
                   :key="option.storage_cluster_id"
-                  :name="option.storage_cluster_name"
+                  :name="option.storage_display_name"
                 >
                   <div
                     v-if="!(option.permission && option.permission[authorityMap.MANAGE_ES_SOURCE_AUTH])"
@@ -78,7 +78,7 @@
                     @click.stop
                   >
                     <span class="text">
-                      <span>{{ option.storage_cluster_name }}</span>
+                      <span>{{ option.storage_display_name }}</span>
                     </span>
                     <span
                       class="apply-text"
@@ -91,7 +91,7 @@
                     class="option-slot-container"
                     v-bk-overflow-tips
                   >
-                    <span>{{ option.storage_cluster_name }}</span>
+                    <span>{{ option.storage_display_name }}</span>
                   </div>
                 </bk-option>
               </bk-select>
