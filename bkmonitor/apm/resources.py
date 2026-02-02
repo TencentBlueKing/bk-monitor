@@ -1577,11 +1577,6 @@ class QueryHostInstanceResource(Resource):
         app_name = serializers.CharField()
         service_name = serializers.CharField(required=False)
 
-    class ResponseSerializer(serializers.ModelSerializer):
-        class Meta:
-            model = HostInstance
-            fields = ["bk_cloud_id", "ip", "bk_host_id"]
-
     def perform_request(self, data):
         # 获取过期时间分界线，确保使用UTC时区
         retention = DiscoverHandler.get_app_retention(data["bk_biz_id"], data["app_name"])
@@ -1611,7 +1606,13 @@ class QueryHostInstanceResource(Resource):
         for host in hosts:
             updated_at = id_to_updated_at[host.id]
             if updated_at >= retention_cutoff:
-                result.append(host)
+                result.append(
+                    {
+                        "bk_cloud_id": host.bk_cloud_id,
+                        "ip": host.ip,
+                        "bk_host_id": host.bk_host_id,
+                    }
+                )
 
         return result
 
