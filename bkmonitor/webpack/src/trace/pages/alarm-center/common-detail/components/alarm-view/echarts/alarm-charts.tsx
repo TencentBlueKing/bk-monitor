@@ -183,6 +183,7 @@ export default defineComponent({
             data: {
               bk_biz_id: props.detail.bk_biz_id,
               alert_id: props.detail.id,
+              interval: queryConfig?.query_configs?.[0]?.interval,
             },
           },
         ],
