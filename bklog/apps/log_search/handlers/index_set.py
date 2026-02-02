@@ -1819,7 +1819,7 @@ class BaseIndexSetHandler:
                     }
 
                     if query_alias_settings := index_set.query_alias_settings:
-                        table_info["query_alias_settings"] = query_alias_settings
+                        table_info["query_alias_settings"] = copy.deepcopy(query_alias_settings)
 
                     if table_info["source_type"] == Scenario.LOG:
                         table_info["origin_table_id"] = obj.result_table_id
