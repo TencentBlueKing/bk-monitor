@@ -42,7 +42,7 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         return ApmCacheType.HOST
 
     @classmethod
-    def _to_cache_key(cls, instance: HostInstanceData) -> str:
+    def to_cache_key(cls, instance: HostInstanceData) -> str:
         """从实例数据对象生成 host 缓存 key"""
         bk_cloud_id = instance.bk_cloud_id
         bk_host_id = instance.bk_host_id
@@ -51,7 +51,7 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         return cls.HOST_ID_SPLIT.join([str(bk_cloud_id), str(bk_host_id), str(ip), str(topo_node_key)])
 
     @staticmethod
-    def _build_instance_data(host_obj) -> HostInstanceData:
+    def build_instance_data(host_obj) -> HostInstanceData:
         return HostInstanceData(
             id=DiscoverBase._get_attr_value(host_obj, "id"),
             bk_cloud_id=DiscoverBase._get_attr_value(host_obj, "bk_cloud_id"),

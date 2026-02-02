@@ -34,14 +34,14 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
         return ApmCacheType.TOPO_INSTANCE
 
     @classmethod
-    def _to_cache_key(cls, instance: TopoInstanceData) -> str:
+    def to_cache_key(cls, instance: TopoInstanceData) -> str:
         """从实例数据对象生成唯一的 key"""
         object_pk_id = instance.id
         instance_id = instance.instance_id
         return cls.INSTANCE_ID_SPLIT.join([str(object_pk_id), str(instance_id)])
 
     @staticmethod
-    def _build_instance_data(instance_obj) -> TopoInstanceData:
+    def build_instance_data(instance_obj) -> TopoInstanceData:
         return TopoInstanceData(
             id=DiscoverBase._get_attr_value(instance_obj, "id"),
             topo_node_key=DiscoverBase._get_attr_value(instance_obj, "topo_node_key"),

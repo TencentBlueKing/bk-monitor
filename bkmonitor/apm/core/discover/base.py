@@ -259,8 +259,8 @@ class DiscoverBase(ABC):
         pass
 
     @staticmethod
-    def _build_instance_data(instance_obj) -> BaseInstanceData:
-        raise NotImplementedError("Subclass must implement _build_instance_data()")
+    def build_instance_data(instance_obj) -> BaseInstanceData:
+        raise NotImplementedError("Subclass must implement build_instance_data()")
 
     @staticmethod
     def _to_found_key(instance_data: BaseInstanceData) -> tuple:
@@ -290,7 +290,7 @@ class DiscoverBase(ABC):
         exists_mapping = {}
         for instance in db_instances:
             # 构建实例数据对象
-            instance_data = self._build_instance_data(instance)
+            instance_data = self.build_instance_data(instance)
             # 获取唯一键
             key = self._to_found_key(instance_data)
             if key not in exists_mapping:

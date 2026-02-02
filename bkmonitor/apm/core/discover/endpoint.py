@@ -34,7 +34,7 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         return ApmCacheType.ENDPOINT
 
     @classmethod
-    def _to_cache_key(cls, instance: EndpointInstanceData) -> str:
+    def to_cache_key(cls, instance: EndpointInstanceData) -> str:
         """从实例数据对象生成实例key"""
         endpoint_name = instance.endpoint_name
         service_name = instance.service_name
@@ -45,7 +45,7 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         return f"{span_kind}:{category_kind_value}:{category_kind_key}:{category_id}:{service_name}:{endpoint_name}"
 
     @staticmethod
-    def _build_instance_data(endpoint_obj) -> EndpointInstanceData:
+    def build_instance_data(endpoint_obj) -> EndpointInstanceData:
         return EndpointInstanceData(
             id=DiscoverBase._get_attr_value(endpoint_obj, "id"),
             service_name=DiscoverBase._get_attr_value(endpoint_obj, "service_name"),

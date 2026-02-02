@@ -41,37 +41,19 @@ class CachedDiscoverMixin(ABC):
 
     @classmethod
     @abstractmethod
-    def _to_cache_key(cls, instance: BaseInstanceData) -> str:
+    def to_cache_key(cls, instance: BaseInstanceData) -> str:
         """
         从实例数据对象生成唯一的 key
         子类需要重写此方法，直接从 instance 对象中提取所需字段并生成 key
         :param instance: 实例数据对象
         :return: 实例 key
         """
-        raise NotImplementedError("Subclass must implement to_instance_key()")
+        raise NotImplementedError("Subclass must implement to_cache_key()")
 
     @staticmethod
     @abstractmethod
-    def _build_instance_data(instance_obj):
-        raise NotImplementedError("Subclass must implement _build_instance_data()")
-
-    @classmethod
-    def to_cache_key(cls, instance: BaseInstanceData) -> str:
-        """
-        公开方法：从实例数据对象生成唯一的 cache key
-        :param instance: 实例数据对象
-        :return: 缓存 key
-        """
-        return cls._to_cache_key(instance)
-
-    @classmethod
-    def build_instance_data(cls, instance_obj):
-        """
-        公开方法：将数据库对象转换为实例数据对象
-        :param instance_obj: 数据库对象
-        :return: 实例数据对象
-        """
-        return cls._build_instance_data(instance_obj)
+    def build_instance_data(instance_obj):
+        raise NotImplementedError("Subclass must implement build_instance_data()")
 
     def handle_cache_refresh_after_create(
         self,
@@ -92,7 +74,7 @@ class CachedDiscoverMixin(ABC):
         created_instance_data: list[BaseInstanceData] = []
         create_instance_keys = set()
         if created_db_instances:
-            created_instance_data = [self._build_instance_data(db_obj) for db_obj in created_db_instances]
+            created_instance_data = [self.build_instance_data(db_obj) for db_obj in created_db_instances]
             _, create_instance_keys = self._to_id_and_key(created_instance_data)
 
         # 合并已存在的和新创建的实例数据
@@ -130,7 +112,7 @@ class CachedDiscoverMixin(ABC):
         ids, keys = set(), set()
         for inst in instances:
             inst_id = inst.id
-            inst_key = cls._to_cache_key(inst)
+            inst_key = cls.to_cache_key(inst)
             keys.add(inst_key)
             ids.add(inst_id)
         return ids, keys
@@ -145,7 +127,7 @@ class CachedDiscoverMixin(ABC):
         """
         merge_data = []
         for inst in instances:
-            key = cls._to_cache_key(inst)
+            key = cls.to_cache_key(inst)
             if key in cache_data:
                 inst.updated_at = datetime.datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
             merge_data.append(inst)
