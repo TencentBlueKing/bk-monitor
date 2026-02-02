@@ -41,7 +41,9 @@ SCENARIO_ID_BKDATA = "bkdata"
 
 OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
 
-CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": "", "port": 123, "domain_name": ""}}]
+CLUSTER_INFO = [
+    {"cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": "", "port": 123, "domain_name": ""}}
+]
 CLUSTER_INFO_WITH_AUTH = [
     {"cluster_config": {"cluster_id": 1, "cluster_name": ""}, "auth_info": {"username": "", "password": ""}}
 ]
@@ -267,6 +269,7 @@ INDEX_SET_LISTS = {
             "category_name": "其他",
             "scenario_name": "第三方ES",
             "storage_cluster_name": "",
+            "storage_display_name": "",
             "apply_status": "normal",
             "apply_status_name": "正常",
             "bk_biz_id": 2,
@@ -353,6 +356,7 @@ RETRIEVE_LIST = {
     "apply_status": "normal",
     "apply_status_name": "正常",
     "storage_cluster_name": "",
+    "storage_display_name": "",
     "tags": [],
     "storage_cluster_domain_name": "",
     "storage_cluster_port": 123,
