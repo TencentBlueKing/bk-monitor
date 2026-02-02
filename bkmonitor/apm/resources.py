@@ -785,7 +785,17 @@ class QueryTopoInstanceResource(PageListResource):
     UNIQUE_UPDATED_AT = "updated_at"
 
     topo_instance_all_fields = [field.column for field in TopoInstance._meta.fields]
-    merge_data_need_fields = ["updated_at", "id", "instance_id"]
+    merge_data_need_fields = [
+        "updated_at",
+        "topo_node_key",
+        "instance_id",
+        "instance_topo_kind",
+        "component_instance_category",
+        "component_instance_predicate_value",
+        "sdk_name",
+        "sdk_version",
+        "sdk_language",
+    ]
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
@@ -860,7 +870,19 @@ class QueryTopoInstanceResource(PageListResource):
         cache_data = ApmCacheHandler().get_cache_data(name)
         # 更新 updated_at 字段
         for instance in instance_list:
-            key = str(instance["id"]) + ":" + instance["instance_id"]
+            # 使用与 InstanceDiscover.to_cache_key 一致的 key 生成逻辑
+            key = ":".join(
+                [
+                    str(instance["topo_node_key"]),
+                    str(instance["instance_id"]),
+                    str(instance["instance_topo_kind"]),
+                    str(instance.get("component_instance_category", "")),
+                    str(instance.get("component_instance_predicate_value", "")),
+                    str(instance.get("sdk_name", "")),
+                    str(instance.get("sdk_version", "")),
+                    str(instance.get("sdk_language", "")),
+                ]
+            )
             if key in cache_data:
                 instance["updated_at"] = datetime.datetime.fromtimestamp(cache_data.get(key)).strftime(
                     "%Y-%m-%d %H:%M:%S"

@@ -26,6 +26,7 @@ from constants.apm import OtlpKey
 
 class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
     MAX_COUNT = 100000
+    ENDPOINT_ID_SPLIT = ":"
     model = Endpoint
 
     @classmethod
@@ -36,13 +37,7 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
     @classmethod
     def to_cache_key(cls, instance: EndpointInstanceData) -> str:
         """从实例数据对象生成实例key"""
-        endpoint_name = instance.endpoint_name
-        service_name = instance.service_name
-        category_id = instance.category_id
-        category_kind_key = instance.category_kind_key
-        category_kind_value = instance.category_kind_value
-        span_kind = instance.span_kind
-        return f"{span_kind}:{category_kind_value}:{category_kind_key}:{category_id}:{service_name}:{endpoint_name}"
+        return cls.ENDPOINT_ID_SPLIT.join(map(str, reversed(cls._to_found_key(instance))))
 
     @staticmethod
     def build_instance_data(endpoint_obj) -> EndpointInstanceData:

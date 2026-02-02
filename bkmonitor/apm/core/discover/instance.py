@@ -36,9 +36,7 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
     @classmethod
     def to_cache_key(cls, instance: TopoInstanceData) -> str:
         """从实例数据对象生成唯一的 key"""
-        object_pk_id = instance.id
-        instance_id = instance.instance_id
-        return cls.INSTANCE_ID_SPLIT.join([str(object_pk_id), str(instance_id)])
+        return cls.INSTANCE_ID_SPLIT.join(map(str, cls._to_found_key(instance)))
 
     @staticmethod
     def build_instance_data(instance_obj) -> TopoInstanceData:
