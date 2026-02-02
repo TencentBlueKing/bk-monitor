@@ -53,6 +53,7 @@ from core.errors.dataapi import EmptyQueryException
 from monitor.utils import update_task_config
 from monitor_web.collecting.constant import CollectStatus
 from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
+from bk_monitor_base.infras.threading.local import get_request_username
 from bk_monitor_base.domains.uptime_check.define import UptimeCheckNode, UptimeCheckTaskProtocol, UptimeCheckTaskStatus
 from bk_monitor_base.domains.uptime_check.models import (
     UptimeCheckTaskModel,
@@ -2353,9 +2354,10 @@ class ImportUptimeCheckNodeResource(Resource):
                     ip=create_data["ip"],
                     plat_id=create_data["plat_id"],
                 )
+            node_id = None
             if node:
                 node_obj = node[0]
-            if not node:
+            else:
                 # 验证主机是否存在于 CMDB
                 if create_data.get("bk_host_id"):
                     result = api.cmdb.get_host_by_id(
@@ -2370,9 +2372,18 @@ class ImportUptimeCheckNodeResource(Resource):
                 if not result:
                     raise CustomException(_("业务下没有该主机，请检查配置"))
                 # 创建一个node
-                node_obj = uptime_check_operation.create_node_model(bk_tenant_id=bk_tenant_id, **create_data)
+                node_define = UptimeCheckNode(bk_tenant_id=bk_tenant_id, **create_data)
+                node_id = uptime_check_operation.create_or_update_uptime_check_node(
+                    node=node_define, operator=get_request_username()
+                )
 
-            return {"result": True, "detail": {"node_id": node_obj.id, "target_conf": item_data["target_conf"]}}
+            return {
+                "result": True,
+                "detail": {
+                    "node_id": node_id if node_id is not None else node_obj.id,
+                    "target_conf": item_data["target_conf"],
+                },
+            }
         except Exception as e:
             return {"result": False, "detail": {"target_conf": item_data["target_conf"], "error_mes": str(e)}}
 
