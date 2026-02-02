@@ -72,7 +72,7 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
     def process_duplicate_records(
         self, db_instances, delete_duplicates: bool = False, keep_last: bool = False
     ) -> dict[tuple, BaseInstanceData]:
-        return super().process_duplicate_records(db_instances, delete_duplicates, True)
+        return super().process_duplicate_records(db_instances, True, True)
 
     def discover(self, origin_data, exists_instances: dict[tuple, TopoInstanceData]):
         """
