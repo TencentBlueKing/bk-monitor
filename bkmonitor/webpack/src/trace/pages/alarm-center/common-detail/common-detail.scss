@@ -1,6 +1,8 @@
 /* stylelint-disable selector-class-pattern */
 .alarm-center-detail-box {
   position: relative;
+  display: flex;
+  flex-direction: column;
   background: #fff;
 
   .panel-tab {
