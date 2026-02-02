@@ -166,13 +166,12 @@ export default defineComponent({
                   <i class='icon-monitor icon-mc-check-small' />
                 </Button>
                 <Button
-                  loading={this.loading}
-                  loading-mode='spin'
+                  disabled={this.loading}
                   size='small'
                   text={true}
                   onClick={() => this.toggleEditMode(false)}
                 >
-                  <i class='icon-monitor icon-mc-close' />
+                  <i class={`icon-monitor icon-mc-close ${this.loading ? 'is-disabled' : ''}`} />
                 </Button>
               </div>
             </div>
