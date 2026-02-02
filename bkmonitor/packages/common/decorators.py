@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community
 Edition) available.
@@ -11,12 +10,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from functools import wraps
+
+from django.db import close_old_connections
 
 
 def timezone_exempt(view_func):
-
     """Mark a view function as being exempt from timezone activate"""
 
     def wrapped_view(*args, **kwargs):
@@ -27,7 +26,6 @@ def timezone_exempt(view_func):
 
 
 def track_site_visit(view_func):
-
     """Mark a view function as being track site visit"""
 
     def wrapped_view(*args, **kwargs):
@@ -35,3 +33,16 @@ def track_site_visit(view_func):
 
     wrapped_view.track_site_visit = True
     return wraps(view_func)(wrapped_view)
+
+
+def db_safe_wrapper(func):
+    """数据库连接安全装饰器"""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        finally:
+            close_old_connections()
+
+    return wrapper

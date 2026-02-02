@@ -113,14 +113,14 @@
                   v-show="option.storage_cluster_id"
                   :id="option.storage_cluster_id"
                   :key="option.storage_cluster_id"
-                  :name="option.storage_cluster_name"
+                  :name="option.storage_display_name"
                 >
                   <!-- <div
                     v-if="!(option.permission && option.permission[authorityMap.MANAGE_ES_SOURCE_AUTH])"
                     class="option-slot-container no-authority"
                     @click.stop
                   >
-                    <span class="text">{{ option.storage_cluster_name }}</span>
+                    <span class="text">{{ option.storage_display_name }}</span>
                     <span
                       class="apply-text"
                       @click="applyClusterAccess(option)"
@@ -130,7 +130,7 @@
                   <div
                     class="option-slot-container"
                   >
-                    {{ option.storage_cluster_name }}
+                    {{ option.storage_display_name }}
                   </div>
                 </bk-option>
               </bk-select>
