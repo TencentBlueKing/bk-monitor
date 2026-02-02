@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import arrow
 from arrow.parser import ParserError
-from bk_monitor_base.strategy import get_metric_id, get_strategy, save_strategy
+from bk_monitor_base.strategy import get_metric_id, get_strategy, save_strategy, MultivariateAnomalyDetectionSerializer
 from bkstorages.exceptions import RequestError
 from celery import shared_task
 from celery.signals import task_postrun
@@ -53,7 +53,6 @@ from bkmonitor.dataflow.task.intelligent_detect import (
 )
 from bkmonitor.models import ActionConfig, AlgorithmChoiceConfig, AlgorithmModel, ItemModel, StrategyModel
 from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
-from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id

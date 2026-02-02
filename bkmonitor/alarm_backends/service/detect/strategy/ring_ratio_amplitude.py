@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,17 +7,18 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 """
 环比振幅算法
 当前与前一时刻均>={threshold}且,之间差值>=前一时刻值*{ratio}+{shock}
 """
 
 
+from bk_monitor_base.strategy import RingRatioAmplitudeSerializer
 from django.utils.translation import gettext_lazy as _
 
 from alarm_backends.service.detect.strategy import ExprDetectAlgorithms
 from alarm_backends.service.detect.strategy.simple_ring_ratio import SimpleRingRatio
-from bkmonitor.strategy.serializers import RingRatioAmplitudeSerializer
 
 
 class RingRatioAmplitude(SimpleRingRatio):
@@ -42,7 +42,7 @@ class RingRatioAmplitude(SimpleRingRatio):
         )
 
     def gen_anomaly_point(self, data_point, detect_result, level, auto_format=True):
-        ap = super(RingRatioAmplitude, self).gen_anomaly_point(data_point, detect_result, level)
+        ap = super().gen_anomaly_point(data_point, detect_result, level)
         if auto_format:
             anomaly_message_prefix, anomaly_message_suffix = self.anomaly_message_template_tuple(data_point)
             ap.anomaly_message = anomaly_message_prefix + self._format_message(data_point) + anomaly_message_suffix

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,14 +7,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 """
 TimeSeriesForecasting：时序预测算法，基于计算平台的预测结果进行静态阈值检测
 """
 import json
 import logging
 import operator
-from typing import Dict, List, Tuple, Union
+from typing import Any
 
+from bk_monitor_base.strategy import TimeSeriesForecastingSerializer
 from django.conf import settings
 from django.utils.translation import gettext as _
 
@@ -25,7 +26,6 @@ from alarm_backends.service.detect.strategy import (
     SDKPreDetectMixin,
 )
 from alarm_backends.templatetags.unit import unit_convert_min, unit_suffix
-from bkmonitor.strategy.serializers import TimeSeriesForecastingSerializer
 from bkmonitor.utils.time_tools import hms_string
 from core.drf_resource import api
 from core.unit import load_unit
@@ -61,7 +61,7 @@ class TimeSeriesForecasting(SDKPreDetectMixin, BasicAlgorithmsCollection):
 
     desc_tpl = "{method_desc} {threshold}{unit_suffix}"
 
-    def generate_sdk_predict_params(self) -> Dict:
+    def generate_sdk_predict_params(self) -> dict[str, Any]:
         return {
             "predict_args": {
                 "granularity": "T",
@@ -108,7 +108,7 @@ class TimeSeriesForecasting(SDKPreDetectMixin, BasicAlgorithmsCollection):
 
         return []
 
-    def _threshold_detect(self, value: float, data_point) -> Union[AnomalyDataPoint, None]:
+    def _threshold_detect(self, value: float, data_point) -> AnomalyDataPoint | None:
         """
         静态阈值检测
         """
@@ -150,7 +150,7 @@ class TimeSeriesForecasting(SDKPreDetectMixin, BasicAlgorithmsCollection):
         return value, suffix
 
     @classmethod
-    def fetch_predict_values(cls, data_point: DataPoint, value_field: str) -> List[Tuple[int, float]]:
+    def fetch_predict_values(cls, data_point: DataPoint, value_field: str) -> list[tuple[int, float]]:
         """
         提取预测值
         """

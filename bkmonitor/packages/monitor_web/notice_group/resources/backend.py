@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,11 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from django.utils.translation import gettext as _
 
 from bkmonitor.models.base import NoticeGroup
-from bkmonitor.strategy.serializers import NoticeGroupSerializer
+from bk_monitor_base.strategy import NoticeGroupSerializer
 from bkmonitor.views import serializers
 from core.drf_resource.base import Resource
 from core.errors.notice_group import (
@@ -29,7 +27,9 @@ class BackendSearchNoticeGroup(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_ids = serializers.ListField(child=serializers.IntegerField(required=True, label="业务ID"), required=False)
+        bk_biz_ids = serializers.ListField(
+            child=serializers.IntegerField(required=True, label="业务ID"), required=False
+        )
         ids = serializers.ListField(child=serializers.IntegerField(required=True, label="告警组ID"), required=False)
 
     def perform_request(self, params):
@@ -93,7 +93,7 @@ class BackendSaveNoticeGroupResource(Resource):
         if instance:
             raise NoticeGroupNameExist()
 
-        return super(BackendSaveNoticeGroupResource, self).validate_request_data(request_data)
+        return super().validate_request_data(request_data)
 
     def perform_request(self, validated_request_data):
         if validated_request_data.get("notice_receiver"):
