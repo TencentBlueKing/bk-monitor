@@ -4,8 +4,10 @@
     min-height: 40px;
 
     &.lever-rect-col {
+      align-items: unset;
+
       .lever-rect {
-        margin-top: 1px;
+        margin-right: 8px;
       }
     }
 
