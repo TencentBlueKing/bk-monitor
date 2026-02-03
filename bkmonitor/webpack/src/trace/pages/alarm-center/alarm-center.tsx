@@ -96,7 +96,7 @@ export default defineComponent({
       handleGetUserConfig: handleGetResidentSettingUserConfig,
       handleSetUserConfig: handleSetResidentSettingUserConfig,
     } = useUserConfig();
-    console.log('alarmStore', alarmStore, '================================');
+
     const { quickFilterList, quickFilterLoading } = useQuickFilter();
     const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
     const {
@@ -292,9 +292,11 @@ export default defineComponent({
         quickFilterValue: JSON.stringify(alarmStore.quickFilterValue),
         filterMode: alarmStore.filterMode,
         alarmType: alarmStore.alarmType,
+        alarmId: alarmId.value,
         bizIds: JSON.stringify(alarmStore.bizIds),
         currentPage: page.value,
         sortOrder: ordering.value,
+        showDetail: JSON.stringify(alarmDetailShow.value),
       };
     });
 
@@ -338,6 +340,8 @@ export default defineComponent({
         alarmType,
         sortOrder,
         currentPage,
+        showDetail,
+        alarmId: alarmIdParams,
         favorite_id: favoriteId,
       } = route.query;
       try {
@@ -359,6 +363,8 @@ export default defineComponent({
           defaultFavoriteId.value = Number(favoriteId);
         }
         isShowFavorite.value = JSON.parse(localStorage.getItem(ALARM_CENTER_SHOW_FAVORITE) || 'false');
+        alarmDetailShow.value = JSON.parse(showDetail as string) || false;
+        alarmId.value = (alarmIdParams as string) || '';
         alarmStore.initAlarmService();
       } catch (error) {
         console.log('route query:', error);
@@ -381,6 +387,9 @@ export default defineComponent({
 
     function handleDetailShowChange(show: boolean) {
       alarmDetailShow.value = show;
+      if (!show) {
+        alarmId.value = '';
+      }
     }
 
     /**

@@ -66,11 +66,16 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    showBlankBtn: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: {
     toggleFullscreen: val => typeof val === 'boolean',
     previous: () => true,
     next: () => true,
+    blank: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -117,6 +122,12 @@ export default defineComponent({
           title: isFeedback.value ? t('已反馈') : t('反馈'),
           icon: 'icon-a-FeedBackfankui',
           isShow: props.showFeedbackBtn,
+        },
+        {
+          id: 'blank',
+          title: t('新开页'),
+          icon: 'icon-a-NewPagexinkaiye',
+          isShow: props.showBlankBtn,
         },
         {
           id: 'fullscreen',
@@ -210,6 +221,9 @@ export default defineComponent({
           break;
         case 'next':
           emit('next');
+          break;
+        case 'blank':
+          emit('blank');
           break;
       }
     };
