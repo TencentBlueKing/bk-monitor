@@ -28,7 +28,7 @@ import { defineComponent, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import DetailCommon from '../common-detail/common-detail';
-import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
+// import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
 import EventDetailHead from './components/event-detail-head';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
@@ -71,7 +71,7 @@ export default defineComponent({
         />
         <div class='alarm-center-detail-page-content'>
           <DetailCommon />
-          <DiagnosticAnalysis />
+          {/* <DiagnosticAnalysis /> */}
         </div>
       </div>
     );

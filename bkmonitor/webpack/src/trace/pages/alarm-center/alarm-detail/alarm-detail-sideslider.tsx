@@ -33,7 +33,7 @@ import DetailCommon from '../common-detail/common-detail';
 import { AlarmType } from '../typings';
 import ActionDetailHead from './components/action-detail-head';
 import ActionDetail from './components/action-detail/action-detail';
-import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
+// import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
 import EventDetailHead from './components/event-detail-head';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 import { getAuthorityMap, useAuthorityStore } from '@/store/modules/authority';
@@ -122,6 +122,11 @@ export default defineComponent({
       emit('next');
     };
 
+    // 处理全屏切换事件
+    const handleFullscreenChange = (value: boolean) => {
+      isFullscreen.value = value;
+    };
+
     const renderHeader = () => {
       switch (alarmType.value) {
         case AlarmType.ALERT:
@@ -131,18 +136,14 @@ export default defineComponent({
               showStepBtn={props.showStepBtn}
               onNext={handleNextDetail}
               onPrevious={handlePreviousDetail}
-              onToggleFullscreen={val => {
-                isFullscreen.value = val;
-              }}
+              onToggleFullscreen={handleFullscreenChange}
             />
           );
         case AlarmType.ACTION:
           return (
             <ActionDetailHead
               isFullscreen={isFullscreen.value}
-              onToggleFullscreen={val => {
-                isFullscreen.value = val;
-              }}
+              onToggleFullscreen={handleFullscreenChange}
             />
           );
       }
@@ -154,7 +155,7 @@ export default defineComponent({
           return (
             <div class='alarm-center-detail-wrapper'>
               <DetailCommon />
-              <DiagnosticAnalysis />
+              {/* <DiagnosticAnalysis /> */}
             </div>
           );
         case AlarmType.ACTION:
@@ -174,7 +175,7 @@ export default defineComponent({
   render() {
     return (
       <Sideslider
-        width={this.isFullscreen ? '100%' : 1280}
+        width={this.isFullscreen ? '100%' : '80%'}
         extCls='alarm-detail-sideslider'
         v-slots={{
           header: this.renderHeader,

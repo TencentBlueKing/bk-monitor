@@ -389,7 +389,6 @@ export default defineComponent({
      */
     const handleCurrentPageChange = (currentPage: number) => {
       page.value = currentPage;
-      setUrlParams();
     };
     /**
      * @description 表格 -- 处理分页大小变化

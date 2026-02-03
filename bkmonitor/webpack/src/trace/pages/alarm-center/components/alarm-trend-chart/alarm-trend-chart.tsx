@@ -55,7 +55,7 @@ export default defineComponent({
       [AlarmType.ALERT]: 'alert_v2.alertDateHistogram',
       [AlarmType.ACTION]: 'alert_v2.actionDateHistogram',
       // todo 等待后端接口同步到alert_v2文件中
-      [AlarmType.INCIDENT]: 'alert_v2.actionDateHistogram',
+      [AlarmType.INCIDENT]: 'incident.incidentHistogram',
     };
 
     /** 汇聚周期 */
