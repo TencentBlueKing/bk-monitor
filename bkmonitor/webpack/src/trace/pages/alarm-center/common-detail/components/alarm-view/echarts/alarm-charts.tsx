@@ -148,7 +148,7 @@ export default defineComponent({
     const isEventOrLogAlarm = computed(() => ['event', 'log'].includes(props.detail?.data_type));
     /** 图表面板配置 */
     const monitorChartPanel = computed(() => {
-      const { graph_panel } = props.detail;
+      const { graph_panel } = props.detail ?? {};
       if (!graph_panel) return null;
       const [{ data: queryConfig }] = graph_panel.targets;
       // 异常检测场景需要禁用采样
