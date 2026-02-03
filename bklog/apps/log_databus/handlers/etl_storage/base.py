@@ -1072,8 +1072,8 @@ class EtlStorage:
         collector_config = {"etl_params": result_table_config.get("option", {})}
         if result_table_storage:
             collector_config["storage_cluster_id"] = result_table_storage["cluster_config"]["cluster_id"]
-            collector_config["storage_cluster_name"] = result_table_storage["cluster_config"].get("cluster_name")
-            collector_config["storage_display_name"] = result_table_storage["cluster_config"].get("display_name")
+            collector_config["storage_cluster_name"] = result_table_storage["cluster_config"].get("cluster_name", "")
+            collector_config["storage_display_name"] = result_table_storage["cluster_config"].get("display_name", "")
             collector_config["retention"] = result_table_storage["storage_config"].get("retention")
             collector_config["allocation_min_days"] = result_table_storage["storage_config"].get("warm_phase_days")
 

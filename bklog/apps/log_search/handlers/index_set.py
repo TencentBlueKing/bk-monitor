@@ -379,8 +379,8 @@ class IndexSetHandler(APIModel):
             cluster_map.update(
                 {
                     cluster_config["cluster_id"]: {
-                        "cluster_name": cluster_config["cluster_name"],
-                        "display_name": cluster_config.get("display_name") or None,
+                        "cluster_name": cluster_config.get("cluster_name", ""),
+                        "display_name": cluster_config.get("display_name", ""),
                         "cluster_domain_name": cluster_config["domain_name"],
                         "cluster_port": cluster_config["port"],
                     }
