@@ -4,6 +4,7 @@ from collections import defaultdict
 from django.core.management import BaseCommand, CommandError
 from django.db import transaction, IntegrityError
 
+from apps.api import OverseasMigrateApi
 from apps.log_clustering.models import (
     AiopsModel,
     AiopsModelExperiment,
@@ -256,6 +257,13 @@ class OverseasMigrateTool:
 
         collector_config_id_name_dict = {}
 
+        # 获取 flow_id 映射信息
+        result = OverseasMigrateApi.get_migration_mapping_info()
+        flow_mapping_infos = result.get("flow_mapping_info", [])
+        flow_id_mapping_info_dict = {}
+        for item in flow_mapping_infos:
+            flow_id_mapping_info_dict.update(item)
+
         # 遍历索引集数据，进行迁移操作
         for data in index_set_file_datas:
             if (self.bk_biz_id and data.get("space_uid") != self.space_uid) or (
@@ -276,6 +284,27 @@ class OverseasMigrateTool:
             clustering_subscription_datas = clustering_subscription_file_datas_dict.get(index_set_id, [])
             notice_group_datas = notice_group_file_datas_dict.get(index_set_id, [])
             signature_strategy_settings_datas = signature_strategy_settings_file_datas_dict.get(index_set_id, [])
+
+            # flow_id 替换为新
+            for clustering_config in clustering_config_datas:
+                after_treat_flow_id = str(clustering_config.get("after_treat_flow_id"))
+                pre_treat_flow_id = str(clustering_config.get("pre_treat_flow_id"))
+                predict_flow_id = str(clustering_config.get("predict_flow_id"))
+                log_count_aggregation_flow_id = str(clustering_config.get("log_count_aggregation_flow_id"))
+
+                if after_treat_flow_id and after_treat_flow_id in flow_id_mapping_info_dict:
+                    clustering_config["after_treat_flow_id"] = flow_id_mapping_info_dict[after_treat_flow_id]
+
+                if pre_treat_flow_id and pre_treat_flow_id in flow_id_mapping_info_dict:
+                    clustering_config["pre_treat_flow_id"] = flow_id_mapping_info_dict[pre_treat_flow_id]
+
+                if predict_flow_id and predict_flow_id in flow_id_mapping_info_dict:
+                    clustering_config["predict_flow_id"] = flow_id_mapping_info_dict[predict_flow_id]
+
+                if log_count_aggregation_flow_id and log_count_aggregation_flow_id in flow_id_mapping_info_dict:
+                    clustering_config["log_count_aggregation_flow_id"] = flow_id_mapping_info_dict[
+                        log_count_aggregation_flow_id
+                    ]
 
             if collector_config_data:
                 collector_config_id = collector_config_data.get("collector_config_id")
