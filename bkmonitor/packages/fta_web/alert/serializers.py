@@ -11,11 +11,46 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+from typing import Any
 
+from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.utils.request import get_request
 from core.drf_resource import resource
 from fta_web.models.alert import AlertFeedback, AlertSuggestion, SearchFavorite
+
+
+class SpaceUidConvertMixin:
+    """
+    空间 UID 转换混入类
+    """
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """
+        验证并处理请求数据。
+
+        如果提供了 space_uids，将其转换为 bk_biz_ids 并与已有的 bk_biz_ids 合并。
+
+        :param attrs: 已验证的属性字典。
+        :return: 填充了 bk_biz_ids 的处理后属性。
+        """
+        space_uids: list[str] | None = attrs.pop("space_uids", None)
+        if not space_uids:
+            return attrs
+
+        # 将 space_uids 转换为 bk_biz_ids
+        converted_biz_ids: list[int] = [
+            bk_biz_id for space_uid in space_uids if (bk_biz_id := space_uid_to_bk_biz_id(space_uid)) != 0
+        ]
+
+        # 合并已有的 bk_biz_ids
+        existing_bk_biz_ids: list[str] | None = attrs.get("bk_biz_ids")
+        if existing_bk_biz_ids is not None:
+            attrs["bk_biz_ids"] = list(set(existing_bk_biz_ids + converted_biz_ids))
+        else:
+            attrs["bk_biz_ids"] = converted_biz_ids
+
+        return attrs
 
 
 class SearchFavoriteSerializer(serializers.ModelSerializer):
@@ -71,8 +106,11 @@ class AllowedBizIdsField(serializers.ListField):
         return resource.space.get_bk_biz_ids_by_user(req.user)
 
 
-class AlertSearchSerializer(serializers.Serializer):
+class AlertSearchSerializer(SpaceUidConvertMixin, serializers.Serializer):
     bk_biz_ids = serializers.ListField(label="业务ID", default=None, allow_null=True, child=serializers.IntegerField())
+    space_uids = serializers.ListField(
+        label="空间UID列表", default=None, allow_null=True, required=False, child=serializers.CharField()
+    )
     status = serializers.ListField(label="状态", required=False, child=serializers.CharField())
     conditions = SearchConditionSerializer(label="搜索条件", many=True, default=[])
     query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
@@ -81,8 +119,11 @@ class AlertSearchSerializer(serializers.Serializer):
     username = serializers.CharField(required=False, label="负责人")
 
 
-class ActionSearchSerializer(serializers.Serializer):
+class ActionSearchSerializer(SpaceUidConvertMixin, serializers.Serializer):
     bk_biz_ids = serializers.ListField(label="业务ID", default=None, allow_null=True)
+    space_uids = serializers.ListField(
+        label="空间UID列表", default=None, allow_null=True, required=False, child=serializers.CharField()
+    )
     alert_ids = serializers.ListField(label="告警ID", required=False, child=AlertIDField())
     status = serializers.ListField(label="状态", required=False, child=serializers.CharField())
     start_time = serializers.IntegerField(label="开始时间", required=False)
