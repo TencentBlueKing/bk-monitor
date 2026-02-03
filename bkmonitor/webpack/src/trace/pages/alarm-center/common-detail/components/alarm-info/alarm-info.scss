@@ -57,6 +57,11 @@ $blue: #3a84ff;
         margin-left: 0;
       }
     }
+
+    .skeleton-element {
+      width: 500px;
+      height: 40px;
+    }
   }
 
   .basic-info {
@@ -96,6 +101,11 @@ $blue: #3a84ff;
           line-height: 16px;
           color: #313238;
           word-break: break-all;
+
+          &.skeleton-element {
+            height: 16px;
+            width: 80px;
+          }
 
           .dimensions-item {
             padding: 4px 5px;

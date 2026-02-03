@@ -22,11 +22,13 @@
     position: relative;
     display: flex;
     min-height: 300px;
+    max-height: 540px;
     border-top: 1px solid #dcdee5;
 
     .dimension-analysis-left {
       width: 160px;
       min-width: 160px;
+      overflow-y: auto;
       background: #f3f6fa;
     }
 

@@ -211,7 +211,7 @@ export default defineComponent({
         </div>
         {this.loading ? (
           <div class='skeleton-wrap'>
-            {new Array(5).fill(0).map((item, index) => (
+            {new Array(5).fill(0).map((_, index) => (
               <div
                 key={index}
                 class='skeleton-group'
@@ -228,7 +228,7 @@ export default defineComponent({
             {!this.showFilterList.length && (
               <EmptyStatus
                 showOperation={false}
-                textMap={{ 'search-empty': this.t('暂无告警') }}
+                textMap={{ 'search-empty': this.t('暂无数据') }}
                 type='search-empty'
               />
             )}

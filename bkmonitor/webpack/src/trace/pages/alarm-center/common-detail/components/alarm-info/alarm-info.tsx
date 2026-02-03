@@ -43,16 +43,18 @@ export default defineComponent({
   props: {
     data: {
       type: Object as PropType<AlarmDetail>,
+      default: () => ({}),
     },
     alertActionOverview: {
       type: Object as PropType<AlertActionOverview>,
+      default: () => ({}),
     },
     readonly: Boolean,
   },
   emits: ['manualProcess', 'alarmDispatch', 'alarmStatusDetailShow'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const { bizItem } = storeToRefs(useAlarmCenterDetailStore());
+    const { bizItem, loading } = storeToRefs(useAlarmCenterDetailStore());
     const bizIdName = computed(() =>
       bizItem.value?.space_type_id === ETagsType.BKCC
         ? `#${bizItem.value?.id}`
@@ -101,7 +103,7 @@ export default defineComponent({
 
     /** 维度列表 */
     const filterDimensions = computed(() => {
-      return props.data.dimensions?.filter(item => !(cloudIdMap.includes(item.key) && item.value === 0));
+      return props.data?.dimensions?.filter(item => !(cloudIdMap.includes(item.key) && item.value === 0));
     });
 
     /* bk_collect_config_id */
@@ -109,7 +111,7 @@ export default defineComponent({
       const labels = props.data?.extra_info?.strategy?.labels || [];
       const need = labels.some(item => ['集成内置', 'Datalink BuiltIn'].includes(item));
       return need
-        ? props.data.dimensions?.find(
+        ? props.data?.dimensions?.find(
             item => item.key === 'bk_collect_config_id' || item.key === 'tags.bk_collect_config_id'
           )?.value
         : '';
@@ -154,16 +156,16 @@ export default defineComponent({
 
         /** 跳转到主机监控 */
         case 'bk_host_id':
-          toPerformanceDetail(props.data.bk_biz_id, item.value);
+          toPerformanceDetail(props.data?.bk_biz_id, item.value);
           break;
 
         default: {
-          const cloudIdItem = props.data.dimensions.find(dim => cloudIdMap.includes(dim.key));
+          const cloudIdItem = props.data?.dimensions.find(dim => cloudIdMap.includes(dim.key));
           if (!cloudIdItem) {
             return;
           }
           const cloudId = cloudIdItem.value;
-          toPerformanceDetail(props.data.bk_biz_id, `${item.value}-${cloudId}`);
+          toPerformanceDetail(props.data?.bk_biz_id, `${item.value}-${cloudId}`);
           break;
         }
       }
@@ -181,23 +183,23 @@ export default defineComponent({
       [
         {
           title: t('异常时间'),
-          text: dayjs.tz(props.data.first_anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
-          timeZone: dayjs.tz(props.data.first_anomaly_time * 1000).format('Z'),
+          text: dayjs.tz(props.data?.first_anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
+          timeZone: dayjs.tz(props.data?.first_anomaly_time * 1000).format('Z'),
         },
         { title: t('处理阶段'), content: renderCurrentStage },
       ],
       [
         {
           title: t('告警产生'),
-          text: dayjs.tz(props.data.create_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
-          timeZone: dayjs.tz(props.data.create_time * 1000).format('Z'),
+          text: dayjs.tz(props.data?.create_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
+          timeZone: dayjs.tz(props.data?.create_time * 1000).format('Z'),
         },
         {
           title: t('负责人'),
           extCls: 'flex-wrap',
           content: () =>
-            props.data.appointee?.length
-              ? props.data.appointee.map((v, index, arr) => [
+            props.data?.appointee?.length
+              ? props.data?.appointee.map((v, index, arr) => [
                   <bk-user-display-name
                     key={v}
                     user-id={v}
@@ -208,7 +210,7 @@ export default defineComponent({
         },
       ],
       [
-        { title: t('持续时间'), text: props.data.duration },
+        { title: t('持续时间'), text: props.data?.duration },
         { title: t('关注人'), content: getFollowerInfo },
       ],
     ]);
@@ -238,7 +240,7 @@ export default defineComponent({
     function renderCurrentStage() {
       return (
         <span>
-          {props.data.stage_display || '--'}
+          {props.data?.stage_display || '--'}
           {!props.readonly && [
             <span
               key='manual-process'
@@ -287,11 +289,12 @@ export default defineComponent({
 
     function handleToCollectDetail() {
       window.open(
-        `${location.origin}${location.pathname}?bizId=${props.data.bk_biz_id}#/collect-config/detail/${bkCollectConfigId.value}?tab=${CollectorTabEnum.TargetDetail}`
+        `${location.origin}${location.pathname}?bizId=${props.data?.bk_biz_id}#/collect-config/detail/${bkCollectConfigId.value}?tab=${CollectorTabEnum.TargetDetail}`
       );
     }
 
     return {
+      loading,
       renderDimensionsInfo,
       basicInfoForm,
     };
@@ -300,7 +303,9 @@ export default defineComponent({
     return (
       <div class='alarm-center-detail-alarm-info'>
         <div class='block-title'>维度信息</div>
-        <div class='dimension-info'>{this.renderDimensionsInfo()}</div>
+        <div class='dimension-info'>
+          {this.loading ? <div class='skeleton-element' /> : this.renderDimensionsInfo()}
+        </div>
         <div class='block-title mt-18'>基础信息</div>
         <div class='basic-info'>
           {this.basicInfoForm.map((item, index) => (
@@ -314,7 +319,12 @@ export default defineComponent({
                   class={['item-col', item.extCls]}
                 >
                   <div class='item-label'>{item.title}：</div>
-                  {item.content ? (
+                  {this.loading ? (
+                    <div
+                      style={{ width: `${Math.random() * 80 + 40}px` }}
+                      class='item-content skeleton-element'
+                    />
+                  ) : item.content ? (
                     <div class='item-content'>{item.content()}</div>
                   ) : (
                     <div class='item-content'>

@@ -47,6 +47,10 @@ export default defineComponent({
   },
   props: {
     onlyCopy: Boolean,
+    type: {
+      type: String,
+      default: 'trace',
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -114,7 +118,7 @@ export default defineComponent({
         weWebData = { ...data };
       }
       return {
-        type: 'trace',
+        type: props.type,
         expire_time: dayjs
           .tz()
           .add(+period, (validityPeriod.value.split(period.toString())?.[1] || 'h') as any)

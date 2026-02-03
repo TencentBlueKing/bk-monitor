@@ -101,5 +101,7 @@ src/mermaid/
 /.codecc
 .codecc
 
+.trae
+
 monitor-vue3-components
 monitor-vue2-components

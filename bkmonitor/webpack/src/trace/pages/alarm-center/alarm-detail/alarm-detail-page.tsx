@@ -66,6 +66,7 @@ export default defineComponent({
       <div class='alarm-center-detail-page'>
         <EventDetailHead
           isFullscreen={true}
+          showBlankBtn={false}
           showFullScreenBtn={false}
           showStepBtn={false}
         />

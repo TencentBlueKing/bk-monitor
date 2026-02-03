@@ -33,7 +33,7 @@ export const ALARM_CENTER_PANEL_TAB_MAP = {
   PROCESS: 'process',
   CONTAINER: 'container',
   EVENT: 'event',
-  // METRIC: 'metric',
+  METRIC: 'metric',
   ALARM: 'alarm',
 } as const;
 
