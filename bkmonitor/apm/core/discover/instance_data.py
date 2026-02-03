@@ -47,3 +47,10 @@ class HostInstanceData(BaseInstanceData):
     bk_host_id: int | None = None
     ip: str | None = None
     topo_node_key: str | None = None
+
+
+@dataclass
+class RootEndpointInstanceData(BaseInstanceData):
+    endpoint_name: str | None = None
+    service_name: str | None = None
+    category_id: str | None = None

@@ -946,22 +946,82 @@ class QueryTopoInstanceResource(PageListResource):
         return {"total": total, "data": [obj for obj in res.values(*fields)]}
 
 
-class QueryRootEndpointResource(Resource):
+class CachedDiscoverQueryResource(Resource):
+    many_response_data = True
+    model = None
+    cache_type = None
+    discover_class = None
+
+    @staticmethod
+    def build_filter_params(data: dict) -> dict:
+        """构建基础查询过滤条件"""
+        return {
+            "bk_biz_id": data["bk_biz_id"],
+            "app_name": data["app_name"],
+        }
+
+    def apply_additional_filters(self, queryset, data: dict):
+        """应用额外的过滤条件（子类可重写）"""
+        return queryset
+
+    def build_result_item(self, obj, updated_at) -> dict:
+        """构建返回结果的单个项（子类必须实现）"""
+        raise NotImplementedError("Subclass must implement build_result_item()")
+
+    def sort_results(self, results: list) -> list:
+        """对结果进行排序（子类可重写）"""
+        return results
+
+    def perform_request(self, data):
+        # 1. 获取过期时间分界线，确保使用UTC时区
+        retention = DiscoverHandler.get_app_retention(data["bk_biz_id"], data["app_name"])
+        retention_cutoff = datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(retention)
+
+        # 2. 构建查询并获取数据库对象
+        filter_params = self.build_filter_params(data)
+        queryset = self.model.objects.filter(**filter_params)
+        queryset = self.apply_additional_filters(queryset, data)
+        objs = list(queryset)
+
+        # 3. 获取 discover_class（支持 @property 动态导入）
+        discover_class = self.discover_class
+
+        # 4. 批量获取缓存并合并更新时间
+        id_to_updated_at = DiscoverHandler.batch_merge_cache_updated_time(
+            data["bk_biz_id"], data["app_name"], self.cache_type, objs, discover_class
+        )
+
+        # 5. 根据合并后的时间进行过期过滤并构建结果
+        result = []
+        for obj in objs:
+            updated_at = id_to_updated_at[obj.id]
+            if updated_at >= retention_cutoff:
+                result.append(self.build_result_item(obj, updated_at))
+
+        # 6. 排序结果
+        return self.sort_results(result)
+
+
+class QueryRootEndpointResource(CachedDiscoverQueryResource):
+    model = RootEndpoint
+    cache_type = ApmCacheType.ROOT_ENDPOINT
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称", max_length=50)
 
-    class ResponseSerializer(serializers.ModelSerializer):
-        class Meta:
-            model = RootEndpoint
-            fields = ("endpoint_name", "category_id", "service_name")
+    @property
+    def discover_class(self):
+        from apm.core.discover.root_endpoint import RootEndpointDiscover
 
-    many_response_data = True
+        return RootEndpointDiscover
 
-    def perform_request(self, data):
-        filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
-
-        return RootEndpoint.objects.filter(**filter_params)
+    def build_result_item(self, obj, updated_at) -> dict:
+        return {
+            "endpoint_name": obj.endpoint_name,
+            "category_id": obj.category_id,
+            "service_name": obj.service_name,
+        }
 
 
 class FilterSerializer(serializers.Serializer):
@@ -1005,7 +1065,10 @@ class QuerySpanResource(Resource):
         return application.trace_datasource.query_span_with_group_keys(**param)
 
 
-class QueryEndpointResource(Resource):
+class QueryEndpointResource(CachedDiscoverQueryResource):
+    model = Endpoint
+    cache_type = ApmCacheType.ENDPOINT
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称", max_length=50)
@@ -1029,65 +1092,48 @@ class QueryEndpointResource(Resource):
                     data["category"] = [category]
             return super().to_internal_value(data)
 
-    def perform_request(self, data):
-        # 获取过期时间分界线，确保使用UTC时区
-        retention = DiscoverHandler.get_app_retention(data["bk_biz_id"], data["app_name"])
-        retention_cutoff = datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(retention)
+    @property
+    def discover_class(self):
+        from apm.core.discover.endpoint import EndpointDiscover
 
-        # 获取数据库中的端点数据，不使用updated_at__gte过滤，避免过早过滤导致数据丢失
-        filter_params = {
-            "bk_biz_id": data["bk_biz_id"],
-            "app_name": data["app_name"],
-        }
-        endpoints = Endpoint.objects.filter(**filter_params)
+        return EndpointDiscover
+
+    def apply_additional_filters(self, queryset, data: dict):
+        """应用额外的过滤条件"""
         if data["category"]:
-            endpoints = endpoints.filter(category_id__in=data["category"])
+            queryset = queryset.filter(category_id__in=data["category"])
         if data["category_kind_value"]:
-            endpoints = endpoints.filter(category_kind_value=data["category_kind_value"])
+            queryset = queryset.filter(category_kind_value=data["category_kind_value"])
         if data["service_name"]:
-            endpoints = endpoints.filter(service_name=data["service_name"])
+            queryset = queryset.filter(service_name=data["service_name"])
         if data["bk_instance_id"]:
             instance = TopoInstance.objects.filter(
                 instance_id=data["bk_instance_id"],
                 bk_biz_id=data["bk_biz_id"],
                 app_name=data["app_name"],
             ).first()
-            endpoints = endpoints.filter(service_name=instance.topo_node_key)
+            queryset = queryset.filter(service_name=instance.topo_node_key)
         if data.get("filters"):
-            endpoints = endpoints.filter(**data["filters"])
+            queryset = queryset.filter(**data["filters"])
+        return queryset
 
-        # 批量获取缓存并合并更新时间
-        from apm.core.discover.endpoint import EndpointDiscover
+    def build_result_item(self, obj, updated_at) -> dict:
+        return {
+            "endpoint_name": obj.endpoint_name,
+            "kind": obj.span_kind,
+            "service_name": obj.service_name,
+            "category_kind": {"key": obj.category_kind_key, "value": obj.category_kind_value},
+            "category": obj.category_id,
+            "extra_data": obj.extra_data,
+            "app_name": obj.app_name,
+            "created_at": obj.created_at,
+            "updated_at": updated_at,
+        }
 
-        id_to_updated_at = DiscoverHandler.batch_merge_cache_updated_time(
-            data["bk_biz_id"], data["app_name"], ApmCacheType.ENDPOINT, list(endpoints), EndpointDiscover
-        )
-
-        # 构建端点数据并根据合并后的时间进行过期过滤
-        result = []
-        for endpoint in endpoints:
-            updated_at = id_to_updated_at[endpoint.id]
-
-            # 根据合并后的时间进行过期过滤
-            if updated_at >= retention_cutoff:
-                result.append(
-                    {
-                        "endpoint_name": endpoint.endpoint_name,
-                        "kind": endpoint.span_kind,
-                        "service_name": endpoint.service_name,
-                        "category_kind": {"key": endpoint.category_kind_key, "value": endpoint.category_kind_value},
-                        "category": endpoint.category_id,
-                        "extra_data": endpoint.extra_data,
-                        "app_name": endpoint.app_name,
-                        "created_at": endpoint.created_at,
-                        "updated_at": updated_at,
-                    }
-                )
-
-        # 按照更新时间倒序排序（最新的在前面）
-        result.sort(key=lambda x: x["updated_at"], reverse=True)
-
-        return result
+    def sort_results(self, results: list) -> list:
+        """按照更新时间倒序排序（最新的在前面）"""
+        results.sort(key=lambda x: x["updated_at"], reverse=True)
+        return results
 
 
 class QueryEventResource(Resource):
@@ -1560,52 +1606,33 @@ class QueryAppByTraceResource(Resource):
         return res
 
 
-class QueryHostInstanceResource(Resource):
-    many_response_data = True
+class QueryHostInstanceResource(CachedDiscoverQueryResource):
+    model = HostInstance
+    cache_type = ApmCacheType.HOST
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField()
         service_name = serializers.CharField(required=False)
 
-    def perform_request(self, data):
-        # 获取过期时间分界线，确保使用UTC时区
-        retention = DiscoverHandler.get_app_retention(data["bk_biz_id"], data["app_name"])
-        retention_cutoff = datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(retention)
-
-        # 获取数据库中的主机实例数据，不使用updated_at__gte过滤，避免过早过滤导致数据丢失
-        filter_params = {
-            "bk_biz_id": data["bk_biz_id"],
-            "app_name": data["app_name"],
-        }
-
-        q = Q()
-        if data.get("service_name"):
-            q &= Q(topo_node_key=data["service_name"])
-
-        hosts = HostInstance.objects.filter(**filter_params).filter(q)
-
-        # 批量获取缓存并合并更新时间
+    @property
+    def discover_class(self):
         from apm.core.discover.host import HostDiscover
 
-        id_to_updated_at = DiscoverHandler.batch_merge_cache_updated_time(
-            data["bk_biz_id"], data["app_name"], ApmCacheType.HOST, list(hosts), HostDiscover
-        )
+        return HostDiscover
 
-        # 根据合并后的时间进行过期过滤
-        result = []
-        for host in hosts:
-            updated_at = id_to_updated_at[host.id]
-            if updated_at >= retention_cutoff:
-                result.append(
-                    {
-                        "bk_cloud_id": host.bk_cloud_id,
-                        "ip": host.ip,
-                        "bk_host_id": host.bk_host_id,
-                    }
-                )
+    def apply_additional_filters(self, queryset, data: dict):
+        """根据 service_name 进行额外过滤"""
+        if data.get("service_name"):
+            queryset = queryset.filter(topo_node_key=data["service_name"])
+        return queryset
 
-        return result
+    def build_result_item(self, obj, updated_at) -> dict:
+        return {
+            "bk_cloud_id": obj.bk_cloud_id,
+            "ip": obj.ip,
+            "bk_host_id": obj.bk_host_id,
+        }
 
 
 class QueryRemoteServiceRelationResource(Resource):
