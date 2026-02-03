@@ -42,7 +42,7 @@ import {
   AlarmLevelIconMap,
   AlarmStatusIconMap,
 } from '../typings';
-import { AlarmService } from './base';
+import { type RequestOptions, AlarmService } from './base';
 import { type IFilterField, EFieldType } from '@/components/retrieval-filter/typing';
 const ALERT_TABLE_COLUMNS = [
   {
@@ -805,12 +805,18 @@ export class AlertService extends AlarmService {
     }));
     return data;
   }
-  async getFilterTableList<T = AlertTableItem>(params: Partial<CommonFilterParams>): Promise<FilterTableResponse<T>> {
-    const data = await searchAlert({
-      ...params,
-      show_overview: false, // 是否展示概览
-      show_aggs: false, // 是否展示聚合
-    })
+  async getFilterTableList<T = AlertTableItem>(
+    params: Partial<CommonFilterParams>,
+    options?: RequestOptions
+  ): Promise<FilterTableResponse<T>> {
+    const data = await searchAlert(
+      {
+        ...params,
+        show_overview: false, // 是否展示概览
+        show_aggs: false, // 是否展示聚合
+      },
+      options
+    )
       .then(({ alerts, total }) => {
         // 将后端queryConfig相关数转换组装为前端定义统一的 QueryConfig 格式
         for (const alert of alerts || []) {

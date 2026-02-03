@@ -38,7 +38,7 @@ import {
   AlarmLevelIconMap,
   IncidentIconMap,
 } from '../typings';
-import { AlarmService } from './base';
+import { type RequestOptions, AlarmService } from './base';
 import { type IFilterField, EFieldType } from '@/components/retrieval-filter/typing';
 const INCIDENT_TABLE_COLUMNS = [
   // {
@@ -382,13 +382,17 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
     return data;
   }
   async getFilterTableList<T = IncidentTableItem>(
-    params: Partial<CommonFilterParams>
+    params: Partial<CommonFilterParams>,
+    options?: RequestOptions
   ): Promise<FilterTableResponse<T>> {
-    const data = await incidentList({
-      ...params,
-      show_overview: false, // 是否展示概览
-      show_aggs: false, // 是否展示聚合
-    })
+    const data = await incidentList(
+      {
+        ...params,
+        show_overview: false, // 是否展示概览
+        show_aggs: false, // 是否展示聚合
+      },
+      options
+    )
       .then(({ total, incidents }) => ({
         total,
         data: incidents,
