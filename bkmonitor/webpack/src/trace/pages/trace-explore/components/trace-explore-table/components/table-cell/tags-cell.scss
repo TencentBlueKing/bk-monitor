@@ -1,7 +1,9 @@
-.explore-tags-col {
+.explore-tags-col.bk-common-tag-show {
   --tag-height: 22px;
+
   display: flex;
   flex-wrap: wrap;
+
   // 避免在 自适应行高表格 在tag组件计算时高度样式会出现抖动，
   // 所以 根元素.explore-tags-col 和 .item-tags 都需要设置 flex-wrap: nowrap 不允许换行
   flex-wrap: nowrap;

@@ -28,7 +28,6 @@ import { computed, nextTick, onMounted, onBeforeUnmount, type Ref, watch } from 
 import { formatNumberWithRegex } from '@/common/util';
 import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
-import dayjs from 'dayjs';
 import * as Echarts from 'echarts';
 import { cloneDeep, debounce } from 'lodash-es';
 import { addListener, removeListener } from 'resize-detector';
@@ -36,7 +35,7 @@ import { useRoute, useRouter } from 'vue-router/composables';
 
 import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
 import chartOption, { getSeriesData } from './trend-chart-options';
-// import { formatTimeZoneString } from '@/global/utils/time';
+import { formatTimeStampZone } from '@/global/utils/time';
 
 export type TrandChartOption = {
   target: Ref<HTMLDivElement | null>;
@@ -61,7 +60,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return (store.state.indexFieldInfo.custom_config?.grade_options?.settings ?? []).filter(setting => setting.enable);
   });
 
-  // const timezone = computed(() => store.state.userMeta.time_zone);
+  const timezone = computed(() => store.state.indexItem.timezone);
 
   /**
    * 匹配规则是否为值匹配
@@ -138,7 +137,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const getIntegerTime = (time) => {
     if (runningInterval === '1d') {
       // 如果周期是 天 则特殊处理
-      const step = dayjs.tz(time * 1000).format('YYYY-MM-DD');
+      const step = formatTimeStampZone(time * 1000, timezone.value, 'YYYY-MM-DD');
       return Date.parse(`${step} 00:00:00`) / 1000;
     }
 
@@ -299,7 +298,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         for (const dstKey of sortKeys) {
           const { dataMap } = dataset.get(dstKey);
           dataMap.set(key, [key, null, keyAsString]);
-          xLabelMap.set(key, dayjs(key).format(formatStr));
+          xLabelMap.set(key, formatTimeStampZone(key, timezone.value, formatStr) as string);
         }
       }
 
@@ -320,7 +319,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
           const finalCount = newCount === 0 ? null : newCount;
           dataMap.set(key, [key, finalCount, keyAsString]);
-          xLabelMap.set(key, dayjs(key).format(formatStr));
+          xLabelMap.set(key, formatTimeStampZone(key, timezone.value, formatStr) as string);
         }
       }
     }
@@ -350,7 +349,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     }
 
     for (const { key, doc_count: docCount, key_as_string: keyAsString } of buckets) {
-      xLabelMap.set(key, dayjs(key).format(formatStr));
+      xLabelMap.set(key, formatTimeStampZone(key, timezone.value, formatStr) as string);
       optData.set(key, [docCount + (optData.get(key)?.[0] ?? 0), keyAsString]);
       count += docCount;
     }
@@ -427,23 +426,22 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     const { start_time, end_time } = retrieveParams.value;
     const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
 
-    options.xAxis[0].axisLabel.formatter = v => xLabelMap.get(v) || dayjs(v).format(formatStr);
+    options.xAxis[0].axisLabel.formatter = v => xLabelMap.get(v)
+      || formatTimeStampZone(v, timezone.value, formatStr);
+
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
     options.yAxis[0].splitNumber = dynamicHeight.value < 120 ? 2 : 4;
 
     // 格式化tooltip
     options.tooltip.formatter = (params) => {
-      // 获取开始时间
-      const timeStart = dayjs(params[0].value[0]).format('MM-DD HH:mm:ss');
-      // const timeStart = formatTimeZoneString(params[0].value[0], timezone.value, 'MM-DD HH:mm:ssZZ');
-
       // 计算结束时间：起始时间 + runningInterval
       const startTimestamp = params[0].value[0]; // 时间戳
+      const timeStart = RetrieveHelper.formatTimeZoneValue(startTimestamp, 'date', timezone.value);
+
       const intervalSeconds = getIntervalValue(runningInterval);
       const endTimestamp = startTimestamp + intervalSeconds * 1000; // 转换为毫秒
-      const timeEnd = dayjs(endTimestamp).format('MM-DD HH:mm:ss');
-      // const timeEnd = formatTimeZoneString(endTimestamp, timezone.value, 'MM-DD HH:mm:ssZZ');
+      const timeEnd = RetrieveHelper.formatTimeZoneValue(endTimestamp, 'date', timezone.value);
 
       // 多 series 展示
       const seriesHtml = params
@@ -514,9 +512,11 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
     }
 
+    const formatStr = 'YYYY-MM-DD HH:mm:ss';
+
     if (batch.startValue && batch.endValue) {
-      const timeFrom = dayjs.tz(batch.startValue).format('YYYY-MM-DD HH:mm:ss');
-      const timeTo = dayjs.tz(batch.endValue).format('YYYY-MM-DD HH:mm:ss');
+      const timeFrom = formatTimeStampZone(batch.startValue, timezone.value, formatStr) as string;
+      const timeTo = formatTimeStampZone(batch.endValue, timezone.value, formatStr) as string;
 
       if (window.__IS_MONITOR_COMPONENT__) {
         handleChartDataZoom([timeFrom, timeTo]);

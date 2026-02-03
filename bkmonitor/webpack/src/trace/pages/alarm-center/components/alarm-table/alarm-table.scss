@@ -67,7 +67,7 @@
         align-items: center;
         width: 3px;
         height: 20px;
-        margin-right: 4px;
+        margin-right: 5px;
 
         &::before {
           position: absolute;
@@ -82,6 +82,10 @@
       .lever-rect-text {
         color: #3a84ff;
         cursor: pointer;
+
+        & > span {
+          vertical-align: text-bottom;
+        }
       }
     }
 

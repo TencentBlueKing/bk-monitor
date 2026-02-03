@@ -26,7 +26,7 @@
 
 import { isEn } from '@/i18n/i18n';
 
-import { editDataMeaning } from 'monitor-api/modules/alert';
+import { editDataMeaning } from 'monitor-api/modules/alert_v2';
 import { alertTopN, searchAlert } from 'monitor-api/modules/alert_v2';
 import { getMethodIdForLowerCase } from 'monitor-pc/pages/query-template/components/utils/utils';
 import { MetricDetailV2, QueryConfig } from 'monitor-pc/pages/query-template/typings';

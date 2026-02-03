@@ -56,7 +56,6 @@
           width: 22px;
           height: 22px;
           font-size: 20px;
-          cursor: pointer;
         }
 
         .icon-mc-check-small {
@@ -65,6 +64,10 @@
 
         .icon-mc-close {
           color: #ea3636;
+
+          &.is-disabled {
+            opacity: 0.5;
+          }
         }
       }
     }
