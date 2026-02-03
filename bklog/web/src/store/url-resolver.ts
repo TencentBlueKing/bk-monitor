@@ -69,7 +69,14 @@ class RouteUrlResolver {
    */
   public convertQueryToStore<T>(): T {
     return this.resolveFieldList.reduce((output, key) => {
-      const value = this.resolver.get(key)?.(this.query?.[key]) ?? this.commonResolver(this.query?.[key]);
+      let value;
+      try {
+        value = this.resolver.get(key)?.(this.query?.[key]) ?? this.commonResolver(this.query?.[key]);
+      } catch (error) {
+        // 单个字段解析失败不影响整体，避免白屏：能解析多少展示多少
+        console.warn('route url resolver convertQueryToStore error', key, error);
+        value = undefined;
+      }
       if (value !== undefined) {
         output[key] = value;
       }
@@ -122,17 +129,67 @@ class RouteUrlResolver {
 
   private commonResolver(str, next?) {
     if (str !== undefined && str !== null) {
-      const val = decodeURIComponent(str);
+      // vue-router query 可能是 string | string[]
+      const raw = Array.isArray(str) ? str[str.length - 1] : str;
+
+      // 非字符串直接透传（尽量不因类型异常导致白屏）
+      if (typeof raw !== 'string') {
+        return next?.(raw) ?? raw;
+      }
+
+      let val = raw;
+      try {
+        val = decodeURIComponent(raw);
+      } catch (error) {
+        // URL 被截断或包含非法 % 序列时，decodeURIComponent 会抛 URIError
+        // 这里兜底，保证不白屏：能解析多少算多少
+        console.warn('route url resolver decodeURIComponent error', error);
+        val = raw;
+      }
       return next?.(val) ?? val;
     }
 
     return;
   }
 
+  /**
+   * 用于 URL query 中 JSON 参数解析（对象/数组/对象数组等）。
+   * 关键点：优先直接 JSON.parse（避免对值里的 %xx 进行误解码），失败后再按需 decode 后重试。
+   */
+  private parseJsonParam<T>(raw: string, fallback: T, maxDepth = 3): T {
+    let current = raw;
+
+    for (let i = 0; i <= maxDepth; i++) {
+      try {
+        return JSON.parse(current) as T;
+      } catch (e) {
+        // parse 失败再尝试 decode；decode 失败直接返回 fallback
+      }
+
+      let decoded: string;
+      try {
+        decoded = decodeURIComponent(current);
+      } catch (e) {
+        return fallback;
+      }
+
+      if (decoded === current) {
+        return fallback;
+      }
+
+      current = decoded;
+    }
+
+    return fallback;
+  }
+
   private objectResolver(str) {
     return this.commonResolver(str, (val) => {
       try {
-        return JSON.parse(decodeURIComponent(val ?? ''));
+        if (typeof val !== 'string') {
+          return val;
+        }
+        return this.parseJsonParam(val ?? '', val);
       } catch (error) {
         console.warn('route url resolver objectResolver error', error);
         return val;
@@ -158,7 +215,13 @@ class RouteUrlResolver {
    */
   private dateTimeRangeResolver(timeRange: string[]) {
     const decodeValue = timeRange.map((t) => {
-      const r = decodeURIComponent(t);
+      let r = t;
+      try {
+        r = decodeURIComponent(t);
+      } catch (error) {
+        console.warn('route url resolver dateTimeRangeResolver decode error', error);
+        r = t;
+      }
       return intTimestampStr(r);
     });
 
@@ -172,10 +235,19 @@ class RouteUrlResolver {
         return [];
       }
 
-      return (JSON.parse(decodeURIComponent(value)) ?? []).map((val) => {
-        const instance = new ConditionOperator(val);
-        return instance.formatApiOperatorToFront(true);
-      });
+      try {
+        if (typeof value !== 'string') {
+          return [];
+        }
+        const parsed = this.parseJsonParam<any[]>(value, []);
+        return (parsed ?? []).map((val) => {
+          const instance = new ConditionOperator(val);
+          return instance.formatApiOperatorToFront(true);
+        });
+      } catch (e) {
+        console.warn('additionResolver parse error:', e);
+        return [];
+      }
     });
   }
 
@@ -192,7 +264,12 @@ class RouteUrlResolver {
     }
 
     try {
-      return JSON.parse(decodeURIComponent(str));
+      const raw = Array.isArray(str) ? str[str.length - 1] : str;
+      if (typeof raw !== 'string') {
+        return [];
+      }
+      const parsed = this.parseJsonParam<any[]>(raw, []);
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       console.error(e);
       return [];
@@ -290,12 +367,14 @@ class RetrieveUrlResolver {
 
         return isEmpty ? undefined : getEncodeString(val);
       },
-      start_time: () => encodeURIComponent(this.routeQueryParams.datePickerValue[0]),
-      end_time: () => encodeURIComponent(this.routeQueryParams.datePickerValue[1]),
-      keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : encodeURIComponent(val)),
+      // 注意：不要在这里 encodeURIComponent，vue-router 在生成 href / replace 时会自动编码
+      // 这里提前编码会导致 URL 出现 %25... 的重复编码
+      start_time: () => this.routeQueryParams.datePickerValue[0],
+      end_time: () => this.routeQueryParams.datePickerValue[1],
+      keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : val),
       unionList: (val) => {
         if (this.routeQueryParams.isUnionIndex && val?.length) {
-          return encodeURIComponent(getEncodeString(val));
+          return getEncodeString(val);
         }
 
         return;
@@ -303,11 +382,11 @@ class RetrieveUrlResolver {
       default: (val) => {
         if (typeof val === 'object' && val !== null) {
           if (Array.isArray(val) && val.length) {
-            return encodeURIComponent(getEncodeString(val));
+            return getEncodeString(val);
           }
 
           if (Object.keys(val).length) {
-            return encodeURIComponent(getEncodeString(val));
+            return getEncodeString(val);
           }
 
           return;
