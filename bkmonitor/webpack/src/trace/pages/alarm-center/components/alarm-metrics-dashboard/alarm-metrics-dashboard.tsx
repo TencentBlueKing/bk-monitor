@@ -160,6 +160,7 @@ export default defineComponent({
         const size = (timeRange[1] - timeRange[0]) / width;
         return size > 0 ? `${Math.ceil(size)}s` : undefined;
       }
+      return downSampleRange;
     };
 
     return {
