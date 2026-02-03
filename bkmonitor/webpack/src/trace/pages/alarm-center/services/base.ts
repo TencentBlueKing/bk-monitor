@@ -46,6 +46,12 @@ import type {
 } from '../typings';
 import type { IFilterField } from '@/components/retrieval-filter/typing';
 
+/** 请求配置选项 */
+export interface RequestOptions {
+  /** 中止信号 */
+  signal?: AbortSignal;
+}
+
 export abstract class AlarmService<S = AlarmType> {
   isEn = false;
   abstract readonly storageAnalysisKey: string;
@@ -71,8 +77,13 @@ export abstract class AlarmService<S = AlarmType> {
   abstract get filterFields(): IFilterField[];
   /**
    * @description: 获取告警表格数据关联的事件数和关联告警信息
+   * @param {(ActionTableItem | AlertTableItem | IncidentTableItem)[]} data 表格数据
+   * @param {RequestOptions} options 请求配置选项
    */
-  async getAlterRelevance(data: (ActionTableItem | AlertTableItem | IncidentTableItem)[]): Promise<{
+  async getAlterRelevance(
+    data: (ActionTableItem | AlertTableItem | IncidentTableItem)[],
+    options?: RequestOptions
+  ): Promise<{
     event_count: AlertEventCountResult;
     extend_info: AlertExtendInfoResult;
   }> {
@@ -80,8 +91,8 @@ export abstract class AlarmService<S = AlarmType> {
       return null;
     }
     const params = { ids: data.map(item => item.id) };
-    const eventCountPromise = alertEventCount(params).catch(() => {}) as Promise<Record<string, number>>;
-    const relateInfosPromise = alertRelatedInfo(params).catch(() => {});
+    const eventCountPromise = alertEventCount(params, options).catch(() => {}) as Promise<Record<string, number>>;
+    const relateInfosPromise = alertRelatedInfo(params, options).catch(() => {});
 
     const [eventCount, extendInfo] = (await Promise.allSettled([eventCountPromise, relateInfosPromise])) as [
       PromiseFulfilledResult<AlertEventCountResult>,
@@ -119,10 +130,11 @@ export abstract class AlarmService<S = AlarmType> {
   /**
    * @description: 获取筛选的 table 数据
    * @param {Partial<CommonFilterParams>} params
+   * @param {RequestOptions} options 请求配置选项
    */
   abstract getFilterTableList<
     T = S extends AlarmType.ALERT ? AlertTableItem : S extends AlarmType.INCIDENT ? IncidentTableItem : ActionTableItem,
-  >(params: Partial<CommonFilterParams>): Promise<FilterTableResponse<T>>;
+  >(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<FilterTableResponse<T>>;
 
   /**
    * @description: 获取快速筛选列表

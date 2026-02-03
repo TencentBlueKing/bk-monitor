@@ -38,7 +38,7 @@ import {
   type TableColumnItem,
   ActionIconMap,
 } from '../typings';
-import { AlarmService } from './base';
+import { type RequestOptions, AlarmService } from './base';
 const ACTION_TABLE_COLUMNS = [
   {
     colKey: 'id',
@@ -397,12 +397,18 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
     }));
     return data;
   }
-  async getFilterTableList<T = ActionTableItem>(params: Partial<CommonFilterParams>): Promise<FilterTableResponse<T>> {
-    const data = await searchAction({
-      ...params,
-      show_overview: false, // 是否展示概览
-      show_aggs: false, // 是否展示聚合
-    })
+  async getFilterTableList<T = ActionTableItem>(
+    params: Partial<CommonFilterParams>,
+    options?: RequestOptions
+  ): Promise<FilterTableResponse<T>> {
+    const data = await searchAction(
+      {
+        ...params,
+        show_overview: false, // 是否展示概览
+        show_aggs: false, // 是否展示聚合
+      },
+      options
+    )
       .then(({ actions, total }) => {
         return {
           total,

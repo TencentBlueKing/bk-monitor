@@ -148,7 +148,7 @@ export default defineComponent({
     const isEventOrLogAlarm = computed(() => ['event', 'log'].includes(props.detail?.data_type));
     /** 图表面板配置 */
     const monitorChartPanel = computed(() => {
-      const { graph_panel } = props.detail;
+      const { graph_panel } = props.detail ?? {};
       if (!graph_panel) return null;
       const [{ data: queryConfig }] = graph_panel.targets;
       // 异常检测场景需要禁用采样
@@ -380,15 +380,11 @@ export default defineComponent({
     };
 
     /**
-     * @description 自定义图表options配置（为事件散点图添加独立坐标轴）
+     * @description 为事件散点图创建独立坐标轴
      */
-    const formatterOptions = options => {
-      options.color = COLOR_LIST;
-      options.grid.top = 24;
-      const isBar = options.series[0].type === 'bar';
-
+    const createAxisForEventScatter = options => {
       const eventSeriesIndex = options.series.findIndex(item => item.alias === 'alertEventTs');
-      if (eventSeriesIndex === -1) return options;
+      if (eventSeriesIndex === -1) return;
 
       const eventSeries = options.series[eventSeriesIndex];
       const hasEventData = eventSeries.datapoints.some(e => e[0] > 0);
@@ -402,6 +398,7 @@ export default defineComponent({
           data: eventSeries.datapoints.map(e => e[1]),
         });
       }
+      // 为事件散点图创建独立的y轴
       options.yAxis.push({
         scale: true,
         show: hasEventData,
@@ -416,6 +413,17 @@ export default defineComponent({
 
       eventSeries.xAxisIndex = shouldCreateNewXAxis ? options.xAxis.length - 1 : eventSeries.xAxisIndex;
       eventSeries.yAxisIndex = options.yAxis.length - 1;
+    };
+
+    /**
+     * @description 自定义图表options配置
+     */
+    const formatterOptions = options => {
+      options.color = COLOR_LIST;
+      options.grid.top = 24;
+      const isBar = options.series[0].type === 'bar';
+
+      createAxisForEventScatter(options);
 
       // 为x轴添加刻度线
       Object.assign(options.xAxis[0], {
@@ -425,12 +433,29 @@ export default defineComponent({
         splitLine: { show: true, alignWithLabel: isBar },
         axisLabel: { ...options.xAxis[0].axisLabel, align: 'center', showMinLabel: true, showMaxLabel: true },
       });
+
       // 为y轴添加刻度线
       for (const [index, item] of options.yAxis.entries()) {
+        const isMainYAxis = index === 0;
         Object.assign(item, {
           axisTick: { show: true },
           axisLine: { show: true },
-          ...(index === 0 && { splitLine: { show: true } }),
+          ...(isMainYAxis && { splitLine: { show: true } }),
+        });
+      }
+
+      // 检测是否存在右侧y轴
+      const hasRightYAxis = options.yAxis.some(axis => axis.position === 'right');
+      // 当不存在右侧y轴时，创建一个右侧y轴来显示右边框
+      if (!hasRightYAxis) {
+        options.yAxis.push({
+          show: true,
+          position: 'right',
+          axisTick: { show: false },
+          axisLine: { show: true },
+          axisLabel: { show: false },
+          splitLine: { show: false },
+          z: 3,
         });
       }
 

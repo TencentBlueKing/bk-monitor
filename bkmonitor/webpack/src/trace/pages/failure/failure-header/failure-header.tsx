@@ -35,6 +35,7 @@ import ChatGroup from '../alarm-detail/chat-group/chat-group';
 import { LEVEL_LIST } from '../constant';
 import { useIncidentInject } from '../utils';
 import FailureEditDialog from './failure-edit-dialog';
+import { AlarmType } from '@/pages/alarm-center/typings';
 
 import type { IIncident } from '../types';
 import type { IAggregationRoot } from '../types';
@@ -129,7 +130,10 @@ export default defineComponent({
       }
       const { bk_biz_id } = incidentDetail.value;
       const { origin, pathname } = location;
-      const url = `${origin}${pathname}?bizId=${bk_biz_id}#/event-center?searchType=incident&activeFilterId=incident${timeRangText}`;
+      // 旧版告警中心路由
+      // const url = `${origin}${pathname}?bizId=${bk_biz_id}#/event-center?searchType=incident&activeFilterId=incident${timeRangText}`;
+      // 新版告警中心路由
+      const url = `${origin}${pathname}?bizId=${bk_biz_id}#/trace/alarm-center?alarmType=${AlarmType.INCIDENT}${timeRangText}`;
       window.location.href = url;
     };
     /** 一期先不展示 */

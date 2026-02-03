@@ -742,6 +742,7 @@ export default defineComponent({
                           loading={this.loading}
                           selectedRowKeys={this.selectedRowKeys}
                           sort={this.ordering}
+                          timeRange={this.alarmStore.timeRange}
                           onCurrentPageChange={this.handleCurrentPageChange}
                           onDisplayColFieldsChange={displayColFields => {
                             this.storageColumns = displayColFields;

@@ -44,18 +44,31 @@ export function useAlarmTable() {
   const ordering = shallowRef('');
   // 是否加载中
   const loading = shallowRef(false);
+  // 请求中止控制器
+  let abortController: AbortController | null = null;
 
   const effectFunc = async () => {
+    // 中止上一次未完成的请求
+    if (abortController) {
+      abortController.abort();
+    }
+    // 创建新的中止控制器
+    abortController = new AbortController();
+    const { signal } = abortController;
+
     loading.value = true;
     data.value = [];
-    const res = await alarmStore.alarmService.getFilterTableList({
-      ...alarmStore.commonFilterParams,
-      page_size: pageSize.value,
-      page: page.value,
-      ordering: ordering.value ? [ordering.value] : [],
-    });
+    const res = await alarmStore.alarmService.getFilterTableList(
+      {
+        ...alarmStore.commonFilterParams,
+        page_size: pageSize.value,
+        page: page.value,
+        ordering: ordering.value ? [ordering.value] : [],
+      },
+      { signal }
+    );
     // 获取告警关联事件数 和 关联告警信息
-    await alarmStore.alarmService.getAlterRelevance(res.data).then(result => {
+    await alarmStore.alarmService.getAlterRelevance(res.data, { signal }).then(result => {
       if (!result) return;
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { event_count, extend_info } = result;
@@ -65,7 +78,8 @@ export function useAlarmTable() {
         item.followerDisabled = getOperatorDisabled(item.follower, item.assignee);
       }
     });
-
+    // 检查请求是否已被中止，确保不会更新过期数据
+    if (signal.aborted) return;
     total.value = res.total;
     data.value = res.data;
     loading.value = false;
@@ -77,6 +91,11 @@ export function useAlarmTable() {
   });
 
   onScopeDispose(() => {
+    // 中止未完成的请求
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
+    }
     pageSize.value = 10;
     page.value = 1;
     total.value = 0;
