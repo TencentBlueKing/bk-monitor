@@ -54,7 +54,7 @@ export const useChartLegend = (
         min: '',
         avg: 0,
         total: 0,
-        color: seriesItem?.color || options.value.color[index],
+        color: seriesItem?.color || seriesItem?.itemStyle?.color || options.value.color[index],
         show: true,
         minSource: 0,
         maxSource: 0,
