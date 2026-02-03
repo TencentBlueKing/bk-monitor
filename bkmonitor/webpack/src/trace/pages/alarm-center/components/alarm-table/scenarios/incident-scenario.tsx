@@ -24,6 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+import { type MaybeRef } from 'vue';
+
+import { get } from '@vueuse/core';
+
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import {
   type BaseTableColumn,
@@ -51,6 +55,7 @@ export class IncidentScenario extends BaseScenario {
       [methodName: string]: any;
       hoverPopoverTools: IUsePopoverTools;
       router: Router;
+      timeRange: MaybeRef<string[]>;
     }
   ) {
     super();
@@ -174,6 +179,7 @@ export class IncidentScenario extends BaseScenario {
    * @param {string} activeTab 跳转至故障页面后激活显示的tab
    */
   private jumpToIncidentDetail(id: string, activeTab = '') {
+    const timeRange = get(this.context.timeRange) || [];
     this.context.router.push({
       name: 'incident-detail',
       params: {
@@ -181,6 +187,8 @@ export class IncidentScenario extends BaseScenario {
       },
       query: {
         activeTab,
+        from: timeRange[0],
+        to: timeRange[1],
       },
     });
   }

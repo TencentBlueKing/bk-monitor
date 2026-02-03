@@ -107,6 +107,11 @@ export default defineComponent({
       type: Array as PropType<(number | string)[]>,
       default: () => [],
     },
+    /** 时间范围 [from, to] */
+    timeRange: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
   },
   emits: {
     currentPageChange: (currentPage: number) => typeof currentPage === 'number',
@@ -177,6 +182,7 @@ export default defineComponent({
       handleAlertContentDetailShow,
       handleAlertOperationClick,
       handleActionSliderShowDetail,
+      timeRange: toRef(props, 'timeRange'),
     };
     // 使用场景渲染器
     const { transformColumns, currentScenario, tableEmpty, tableScenarioClassName } =
