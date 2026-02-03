@@ -1408,6 +1408,8 @@ class IndexSetHandler(APIModel):
 
     @transaction.atomic()
     def update_alias_settings(self, alias_settings):
+        # 纳秒字段别名不支持用户修改
+        alias_settings = [alias for alias in alias_settings if alias.get("field_name") != "dtEventTimeStampNanos"]
         is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.data.tag_ids)
         multi_execute_func = MultiExecuteFunc()
         if not is_doris:
