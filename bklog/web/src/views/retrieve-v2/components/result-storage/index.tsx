@@ -62,6 +62,7 @@ export default defineComponent({
       return isSortShow.value && isDesc;
     });
     const isMonitorApm = ref(window.__IS_MONITOR_APM__);
+    const isMonitorTrace = ref(window.__IS_MONITOR_TRACE__);
 
     const handleStorageChange = (val, key) => {
       store.commit('updateStorage', { [key]: val });
@@ -103,7 +104,7 @@ export default defineComponent({
 
     return () => (
       <div class='bklog-v3-storage'>
-        {!isMonitorApm.value && (
+        {!isMonitorApm.value && !isMonitorTrace.value && (
           <div class='switch-label log-sort'>
             <span
               class='bklog-option-item'

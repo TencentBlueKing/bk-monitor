@@ -26,7 +26,7 @@
 
 <template>
   <div class="original-log-panel">
-    <div class="original-log-panel-tools">
+    <div :class="['original-log-panel-tools', {'trace-log-panel': isMonitorTrace}]">
       <div class="left-operate">
         <div class="bk-button-group">
           <span
@@ -59,7 +59,7 @@
               @change="handleHighlightEnter"
             />
             <MatchMode
-              v-if="!isMonitorApm"
+              v-if="!isMonitorApm && !isMonitorTrace"
               class="bklog-v3-match-mode"
               :border="true"
               :match-mode="matchMode"
@@ -355,6 +355,10 @@ export default {
     display: flex;
     justify-content: space-between;
     padding: 0 6px 0 6px;
+
+    &.trace-log-panel {
+      padding-top: 6px;
+    }
   }
 
   .tools-more {

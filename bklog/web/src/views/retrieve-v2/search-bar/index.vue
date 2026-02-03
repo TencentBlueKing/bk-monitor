@@ -98,6 +98,7 @@ const uiQueryValue = ref([]);
 const sqlQueryValue = ref('');
 const activeFavorite = ref({});
 const localModeActiveIndex = ref(0);
+const isMonitorTrace = ref(window.__IS_MONITOR_TRACE__);
 
 const inspectPopInstance = new PopInstanceUtil({
   refContent: refKeywordInspectElement,
@@ -759,7 +760,7 @@ defineExpose({
 <template>
   <div
     ref="refRootElement"
-    :class="['search-bar-wrapper']"
+    :class="['search-bar-wrapper', {'trace-log-bar': isMonitorTrace}]"
   >
     <div
       v-bkloading="{
