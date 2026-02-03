@@ -44,9 +44,9 @@
             <span
               v-bk-tooltips.top="{
                 content: `${indexSetData.storage_cluster_domain_name}:${indexSetData.storage_cluster_port}`,
-                disabled: !indexSetData.storage_cluster_name,
+                disabled: !(indexSetData.storage_display_name || indexSetData.storage_cluster_name),
               }"
-              >{{ indexSetData.storage_cluster_name || '-' }}</span
+              >{{ indexSetData.storage_display_name || indexSetData.storage_cluster_name || '-' }}</span
             >
           </dd>
         </div>

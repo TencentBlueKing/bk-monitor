@@ -1217,7 +1217,7 @@ AI_AGENTS_REQUESTS_TOTAL = Counter(
 MCP_REQUESTS_TOTAL = Counter(
     name="bkmonitor_mcp_requests_total",
     documentation="MCP工具调用统计",
-    labelnames=("tool_name", "bk_biz_id", "username", "status", "permission_action"),
+    labelnames=("tool_name", "bk_biz_id", "username", "status", "permission_action", "mcp_server_name"),
 )
 
 MCP_RESOURCE_REQUESTS_TOTAL = Counter(

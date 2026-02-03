@@ -97,20 +97,29 @@ export default class TableStore {
         iss.push(searchIds.includes(String(item.id)));
       }
       if (searchNames.length) {
-        iss.push(searchNames.some(name => (item.name as string).indexOf(name) > -1));
+        iss.push(
+          searchNames.some(name => (item.name as string).toLocaleLowerCase().includes(name.toLocaleLowerCase()))
+        );
       }
       if (searcOthers.length) {
-        iss.push(searcOthers.some(name => (item.name as string).indexOf(name) > -1));
+        iss.push(
+          searcOthers.some(name => (item.name as string).toLocaleLowerCase().includes(name.toLocaleLowerCase()))
+        );
       }
       if (searchRules.length) {
-        // iss.push(searchRules.some(id => item.duty_rules.map(d => String(d)).indexOf(id) > -1));
-        iss.push(searchRules.some(id => item.dutyRuleNames.some(d => d.name === id)));
+        iss.push(
+          searchRules.some(id =>
+            item.dutyRuleNames.some(d => d.name.toLocaleLowerCase().includes(id.toLocaleLowerCase()))
+          )
+        );
       }
       if (searchNotifyTarget.length) {
         iss.push(
           searchNotifyTarget.some(targetId =>
             item.users.some(notifytarget =>
-              `${notifytarget.id || ''}(${notifytarget.display_name || ''})`.includes(targetId)
+              `${notifytarget.id || ''}(${notifytarget.display_name || ''})`
+                .toLocaleLowerCase()
+                .includes(targetId.toLocaleLowerCase())
             )
           )
         );

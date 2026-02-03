@@ -253,7 +253,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         parts = path.split("/")
         return parts[-1] if parts else ""
 
-    def _report_mcp_metric(self, tool_name, bk_biz_id, username, status, permission_action):
+    def _report_mcp_metric(self, tool_name, bk_biz_id, username, status, permission_action, mcp_server_name):
         """
         上报MCP调用指标
         @param tool_name: 工具名称
@@ -261,6 +261,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         @param username: 用户名
         @param status: 调用状态 (accessed/permission_denied/invalid_params/error/exempt)
         @param permission_action: 权限动作ID
+        @param mcp_server_name: MCP服务名称
         """
         try:
             # 标签值处理，避免空值
@@ -270,6 +271,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 "username": username or "unknown",
                 "status": status,
                 "permission_action": permission_action or "unknown",
+                "mcp_server_name": mcp_server_name or "unknown",
             }
 
             # 上报请求计数
@@ -292,12 +294,14 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         logger.info("MCPAuthentication: Handling MCP authentication")
 
+        # 提取MCP服务名称（用于指标上报）
+        mcp_server_name = request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", "")
+
         # 提取工具名称，检查是否在豁免白名单中
         tool_name = self.extract_tool_name_from_path(request.path)
 
         # 获取权限动作ID
         # 优先从 MCP Server Name 映射中获取，如果没有则从旧的请求头中获取
-        mcp_server_name = request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", "")
         permission_action_id = ""
 
         if mcp_server_name:
@@ -322,6 +326,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 username=username,
                 status="exempt",
                 permission_action=permission_action_id,
+                mcp_server_name=mcp_server_name,
             )
             return None
 
@@ -357,6 +362,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 username=username,
                 status="invalid_params",
                 permission_action=permission_action_id,
+                mcp_server_name=mcp_server_name,
             )
             return HttpResponseForbidden("Missing bk_biz_id in request parameters")
 
@@ -371,6 +377,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 username=username,
                 status="invalid_params",
                 permission_action=permission_action_id,
+                mcp_server_name=mcp_server_name,
             )
             return HttpResponseForbidden(f"Invalid bk_biz_id format: {bk_biz_id}")
 
@@ -401,6 +408,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
                     username=username,
                     status="permission_denied",
                     permission_action=permission_action_id,
+                    mcp_server_name=mcp_server_name,
                 )
                 return HttpResponseForbidden("Permission denied: insufficient MCP permissions")
         except Exception as e:
@@ -412,6 +420,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 username=username,
                 status="error",
                 permission_action=permission_action_id,
+                mcp_server_name=mcp_server_name,
             )
             return HttpResponseForbidden(f"Permission denied: {e}")
 
@@ -423,6 +432,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             username=username,
             status="accessed",
             permission_action=permission_action_id,
+            mcp_server_name=mcp_server_name,
         )
         return None
 

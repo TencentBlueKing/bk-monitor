@@ -123,11 +123,11 @@
                   v-for="option in storageList"
                   :id="option.storage_cluster_id"
                   :key="option.storage_cluster_id"
-                  :name="option.storage_cluster_name"
+                  :name="option.storage_display_name"
                 >
                 </bk-option>
               </bk-select>
-              <div v-else>{{ formData.storage_cluster_name }}</div>
+              <div v-else>{{ formData.storage_display_name || '--' }} </div>
             </bk-form-item>
             <bk-form-item
               ext-cls="en-bk-form"
@@ -271,7 +271,7 @@
     collector_config_name: '',
     collector_config_name_en: '',
     bk_data_id: '',
-    storage_cluster_name: '',
+    storage_display_name: '',
     storage_cluster_id: '',
     retention: '',
     etl_params: {

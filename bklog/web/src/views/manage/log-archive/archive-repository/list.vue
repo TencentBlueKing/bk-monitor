@@ -88,7 +88,7 @@
           :render-header="$renderHeader"
         >
           <template #default="props">
-            {{ props.row.cluster_name }}
+            {{ props.row.display_name }}
           </template>
         </bk-table-column>
         <bk-table-column
@@ -272,7 +272,7 @@
         if (this.params.keyword) {
           this.tableDataSearched = this.tableDataOrigin.filter(item => {
             if (item.repository_name) {
-              return (item.repository_name + item.cluster_name).includes(this.params.keyword);
+              return (item.repository_name + item.display_name).includes(this.params.keyword);
             }
           });
         } else {
