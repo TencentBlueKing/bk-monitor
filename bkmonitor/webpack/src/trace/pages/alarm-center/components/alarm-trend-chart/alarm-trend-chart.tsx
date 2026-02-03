@@ -34,7 +34,7 @@ import IntervalSelect from '../../../../components/interval-select/interval-sele
 import ChartCollapse from '../../../../pages/trace-explore/components/explore-chart/chart-collapse';
 import ExploreChart from '../../../../pages/trace-explore/components/explore-chart/explore-chart';
 import { useAlarmCenterStore } from '../../../../store/modules/alarm-center';
-import { AlarmStatusIconMap, AlarmType } from '../../typings';
+import { AlarmStatusIconMap, AlarmType, IncidentIconMap } from '../../typings';
 
 import './alarm-trend-chart.scss';
 
@@ -54,7 +54,6 @@ export default defineComponent({
     const apiMap = {
       [AlarmType.ALERT]: 'alert_v2.alertDateHistogram',
       [AlarmType.ACTION]: 'alert_v2.actionDateHistogram',
-      // todo 等待后端接口同步到alert_v2文件中
       [AlarmType.INCIDENT]: 'incident.incidentHistogram',
     };
 
@@ -69,14 +68,31 @@ export default defineComponent({
       duration.value = val;
     };
 
-    const seriesColorMap = {
-      ...Object.entries(AlarmStatusIconMap).reduce((pre, [key, value]) => {
-        pre[key] = value.iconColor;
-        return pre;
-      }, {}),
-      success: '#6FC5BF',
-      failure: '#F59789',
-    };
+    const seriesColorMap = computed(() => {
+      let colorMap = {};
+
+      switch (store.alarmType) {
+        case AlarmType.ALERT: {
+          colorMap = Object.entries(AlarmStatusIconMap).reduce((pre, [key, value]) => {
+            pre[key] = value.iconColor;
+            return pre;
+          }, {});
+          break;
+        }
+        case AlarmType.ACTION: {
+          colorMap = { success: '#6FC5BF', failure: '#F59789' };
+          break;
+        }
+        case AlarmType.INCIDENT:
+          colorMap = Object.entries(IncidentIconMap).reduce((pre, [key, value]) => {
+            pre[key] = value.iconColor;
+            return pre;
+          }, {});
+          break;
+      }
+
+      return colorMap;
+    });
 
     const panel = computed(() => {
       return new PanelModel({
@@ -143,9 +159,9 @@ export default defineComponent({
             alias: item.display_name,
             type: 'bar',
             itemStyle: {
-              color: seriesColorMap[item.name],
+              color: seriesColorMap.value[item.name],
             },
-            color: seriesColorMap[item.name],
+            color: seriesColorMap.value[item.name],
             unit: data.unit,
           };
         }),

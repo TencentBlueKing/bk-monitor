@@ -27,7 +27,6 @@ import { computed, defineComponent, inject, KeepAlive, shallowRef, useTemplateRe
 
 import { Tab } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
-import { useI18n } from 'vue-i18n';
 
 import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-detail';
 import { useAlarmBasicInfo } from '../composables/use-alarm-baseinfo';
@@ -57,10 +56,9 @@ import './common-detail.scss';
 export default defineComponent({
   name: 'AlarmDetail',
   setup() {
-    const { t } = useI18n();
     const boxWrapRef = useTemplateRef<HTMLDivElement>('boxWrap');
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmDetail, loading, bizId, alarmId, timeRange } = storeToRefs(alarmCenterDetailStore);
+    const { alarmDetail, bizId, alarmId, timeRange } = storeToRefs(alarmCenterDetailStore);
     const currentPanel = shallowRef(alarmDetail.value?.alarmTabList?.[0]?.name);
     const { alarmStatusOverview, alarmStatusActions, alarmStatusTotal } = useAlarmBasicInfo();
 
@@ -168,7 +166,6 @@ export default defineComponent({
     };
 
     const getPanelComponent = () => {
-      if (loading.value) return <div class='alarm-detail-panel-content-skeleton skeleton-element' />;
       switch (currentPanel.value) {
         case ALARM_CENTER_PANEL_TAB_MAP.VIEW:
           return (
@@ -197,7 +194,7 @@ export default defineComponent({
           return <PanelK8s alertId={alarmId.value} />;
         case ALARM_CENTER_PANEL_TAB_MAP.EVENT:
           return <PanelEvent detail={alarmDetail.value} />;
-        case 'metric':
+        case ALARM_CENTER_PANEL_TAB_MAP.METRIC:
           return <PanelMetric />;
         case ALARM_CENTER_PANEL_TAB_MAP.ALARM:
           return (
@@ -211,62 +208,31 @@ export default defineComponent({
       }
     };
 
-    /** 详情信息骨架屏 */
-    const renderBasicInfoSkeleton = () => {
-      return (
-        <div class='alarm-basic-info-skeleton'>
-          <div class='skeleton-element alarm-alert' />
-          <div class='alarm-info'>
-            <div class='dimension-info'>
-              <div class='skeleton-title'>{t('维度信息')}</div>
-              <div class='skeleton-element dimension-info-row' />
-            </div>
-            <div class='basic-info'>
-              <div class='skeleton-title'>{t('基础信息')}</div>
-              {new Array(4).fill(0).map((_, index) => (
-                <div
-                  key={index}
-                  class='basic-info-row'
-                >
-                  <div class='skeleton-element basic-info-col' />
-                  <div class='skeleton-element basic-info-col' />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      );
-    };
-
     return () => (
       <div
         ref={'boxWrap'}
         class='alarm-center-detail-box'
       >
-        {loading.value
-          ? renderBasicInfoSkeleton()
-          : [
-              <AlarmAlert
-                key='alarm-alert'
-                data={alarmDetail.value}
-                onAlarmConfirm={() => {
-                  handleShowAlarmConfirm(true);
-                }}
-                onQuickShield={() => {
-                  handleShowQuickShield(true);
-                }}
-              />,
-              <AlarmInfo
-                key='alarm-info'
-                alertActionOverview={alarmStatusOverview.value}
-                data={alarmDetail.value}
-                onAlarmDispatch={handleAlarmDispatch}
-                onAlarmStatusDetailShow={() => {
-                  alarmStatusDetailShow.value = true;
-                }}
-                onManualProcess={handleManualProcess}
-              />,
-            ]}
+        <AlarmAlert
+          key='alarm-alert'
+          data={alarmDetail.value}
+          onAlarmConfirm={() => {
+            handleShowAlarmConfirm(true);
+          }}
+          onQuickShield={() => {
+            handleShowQuickShield(true);
+          }}
+        />
+        <AlarmInfo
+          key='alarm-info'
+          alertActionOverview={alarmStatusOverview.value}
+          data={alarmDetail.value}
+          onAlarmDispatch={handleAlarmDispatch}
+          onAlarmStatusDetailShow={() => {
+            alarmStatusDetailShow.value = true;
+          }}
+          onManualProcess={handleManualProcess}
+        />
         <Tab
           class='panel-tab'
           active={currentPanel.value}
@@ -288,7 +254,6 @@ export default defineComponent({
           ))}
         </Tab>
         <KeepAlive>{getPanelComponent()}</KeepAlive>
-
         <AlarmConfirmDialog
           alarmBizId={bizId.value}
           alarmIds={[alarmId.value]}

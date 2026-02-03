@@ -66,7 +66,7 @@ export default defineComponent({
       <div class='action-detail-head'>
         <div class='detail-head-title'>{this.$t('处理记录详情')}</div>
         <span class='detail-id'>ID: {this.actionId}</span>
-        <TemporaryShareNew />
+        <TemporaryShareNew type='event' />
         {this.showFullScreenBtn && (
           <div
             class='fullscreen-btn'

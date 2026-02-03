@@ -280,7 +280,7 @@ export default defineComponent({
                 onClick={() => this.handleToEventDetail('detail')}
               />
             ) : (
-              <TemporaryShareNew />
+              <TemporaryShareNew type='event' />
             )}
           </span>
           {this.alarmDetail?.alert_name && (

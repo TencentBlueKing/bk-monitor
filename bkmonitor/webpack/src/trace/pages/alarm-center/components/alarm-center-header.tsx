@@ -30,6 +30,7 @@ import { useI18n } from 'vue-i18n';
 
 import CommonHeader from '../../../components/common-header/common-header';
 import { useAlarmCenterStore } from '../../../store/modules/alarm-center';
+import { useAppStore } from '../../../store/modules/app';
 import { type AlarmType, alarmTypeMap } from '../typings';
 
 import type { TimeRangeType } from '../../../components/time-range/utils';
@@ -50,6 +51,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const alarmStore = useAlarmCenterStore();
+    const appStore = useAppStore();
 
     function handleAlarmTypeChange(value: AlarmType) {
       alarmStore.handleAlarmTypeChange(value);
@@ -71,7 +73,10 @@ export default defineComponent({
       alarmStore.timezone = value;
     }
 
-    function handleGotoOld() {}
+    function handleGotoOld() {
+      const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${appStore.bizId}#/event-center`;
+      window.location.href = url;
+    }
 
     const handleFavoriteShowChange = () => {
       emit('favoriteShowChange', !props.isShowFavorite);
