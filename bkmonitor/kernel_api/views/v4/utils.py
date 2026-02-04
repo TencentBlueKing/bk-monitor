@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,3 +7,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from kernel_api.resource.utils import GetMCPHelperInfoResource
+
+
+class UtilsViewSet(ResourceViewSet):
+    """
+    通用辅助工具服务
+    """
+
+    resource_routes = [
+        ResourceRoute("POST", GetMCPHelperInfoResource, endpoint="get_mcp_helper_info"),
+    ]

@@ -33,6 +33,8 @@ export default {
   待选项列表: 'Unselected item',
   已选项列表: 'Selected item',
   查询无数据: 'No query results',
+  '- 共检索出': '- Retrieved',
+  '条结果 -': 'results -',
   数据源配置: 'Data source configuration',
   请输入组名: 'Please enter group name',
   搜索收藏名: 'Search collection name',
@@ -1264,6 +1266,11 @@ export default {
   '已上传成功，请直接检索': 'Uploaded successfully, please search directly',
   '搜索 openID、文件名称': 'Search by OpenID, file name',
   请先勾选任务: 'Please check the task first',
+  '支持字母、数字、下划线、连字符': 'Supports letters, numbers, underscores, and hyphens',
+  '支持字母、数字、下划线、连字符，不能以连字符开头':
+    'Supports letters, numbers, underscores, and hyphens, but cannot start with a hyphen',
+  '多个用户名粘贴请使用英文分号 " ; " 分隔 ，手动输入用户名请键入 Enter 保存':
+    'When pasting multiple usernames, please separate them with English semicolons ";". When manually entering usernames, press Enter to save',
   '搜索 名称、描述、更新人、定义': 'Search by name, description, updater, or definition',
   内置Grok模式不可编辑: 'Built-in Grok patterns are not editable',
   内置Grok模式不可删除: 'Built-in Grok patterns cannot be deleted',

@@ -1366,8 +1366,8 @@ class BaseInnerMetricProcessor:
             return
 
         info: dict[str, Any] = cls.info(field_name)
-        metric_info["unit"] = info.get("unit", "")
-        metric_info["description"] = info.get("description", "")
+        metric_info["unit"] = info.get("unit") or metric_info.get("unit", "")
+        metric_info["description"] = info.get("description") or metric_info.get("description", "")
 
         if not cls._TAGS:
             return
