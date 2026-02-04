@@ -294,7 +294,7 @@ export default defineComponent({
           horizontalScrollAffixedBottom={{
             container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
           }}
-          autoFillSpace={false}
+          autoFillSpace={!this.data?.length}
           columns={this.transformedColumns}
           data={this.data}
           defaultActiveRowKeys={this.defaultActiveRowKeys}
