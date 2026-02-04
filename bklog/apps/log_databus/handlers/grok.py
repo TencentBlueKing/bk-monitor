@@ -146,9 +146,12 @@ class GrokHandler:
                 Q(name__icontains=params["keyword"])
                 | Q(pattern__icontains=params["keyword"])
                 | Q(description__icontains=params["keyword"])
+                | Q(updated_by__icontains=params["keyword"])
             )
-
-        ordering = ["-is_builtin", params.get("ordering") or "-updated_at"]
+        if params.get("ordering"):
+            ordering = [params["ordering"]]
+        else:
+            ordering = ["is_builtin", "-updated_at"]
 
         grok_list = GrokInfo.objects.filter(q).order_by(*ordering).values()
         total = grok_list.count()
@@ -212,6 +215,18 @@ class GrokHandler:
             )
 
         grok_info.delete()
+
+    @staticmethod
+    def get_updated_by_list(bk_biz_id) -> list:
+        """
+        获取更新人列表
+        """
+        updated_by_list = (
+            GrokInfo.objects.filter(Q(bk_biz_id=bk_biz_id) | Q(is_builtin=True))
+            .values_list("updated_by", flat=True)
+            .distinct()
+        )
+        return list(updated_by_list)
 
     def debug(self, params) -> dict:
         """
