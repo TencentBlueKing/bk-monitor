@@ -84,7 +84,7 @@ from monitor_web.constants import (
 from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
 from monitor_web.extend_account.models import UserAccessRecord
 from bk_monitor_base.domains.uptime_check.define import UptimeCheckTaskStatus
-from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
+from bk_monitor_base import uptime_check as uptime_check_operation
 from monitor_web.models.custom_report import CustomEventGroup
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.plugin.constant import PLUGIN_REVERSED_DIMENSION

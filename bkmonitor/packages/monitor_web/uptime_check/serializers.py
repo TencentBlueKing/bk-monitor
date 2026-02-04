@@ -26,7 +26,7 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.uptime_check import UptimeCheckProcessError
-from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
+from bk_monitor_base import uptime_check as uptime_check_operation
 from bk_monitor_base.domains.uptime_check.constants import TASK_MIN_PERIOD
 from bk_monitor_base.domains.uptime_check.define import (
     UptimeCheckGroup as UptimeCheckGroupDefine,
@@ -119,9 +119,9 @@ class UptimeCheckNodeSerializer(serializers.Serializer):
         operator = request.user.username if request else ""
 
         # 从 instance（定义对象）中获取原始值
-        instance_id = instance.id if hasattr(instance, "id") else instance.get("id")
-        instance_bk_biz_id = instance.bk_biz_id if hasattr(instance, "bk_biz_id") else instance.get("bk_biz_id")
-        instance_is_common = instance.is_common if hasattr(instance, "is_common") else instance.get("is_common", False)
+        instance_id = instance.id
+        instance_bk_biz_id = instance.bk_biz_id
+        instance_is_common = instance.is_common
 
         if instance_is_common and not validated_data.get("is_common"):
             # 校验公共节点管理权限
@@ -140,22 +140,20 @@ class UptimeCheckNodeSerializer(serializers.Serializer):
                 )
 
         # 获取原始值
-        original_biz_scope = instance.biz_scope if hasattr(instance, "biz_scope") else instance.get("biz_scope", [])
-        original_location = instance.location if hasattr(instance, "location") else instance.get("location", {})
-        original_carrieroperator = (
-            instance.carrieroperator if hasattr(instance, "carrieroperator") else instance.get("carrieroperator", "")
-        )
-        original_ip_type = instance.ip_type if hasattr(instance, "ip_type") else instance.get("ip_type")
-        original_bk_host_id = instance.bk_host_id if hasattr(instance, "bk_host_id") else instance.get("bk_host_id")
-        original_ip = instance.ip if hasattr(instance, "ip") else instance.get("ip")
-        original_plat_id = instance.plat_id if hasattr(instance, "plat_id") else instance.get("plat_id")
+        original_biz_scope = instance.biz_scope
+        original_location = instance.location
+        original_carrieroperator = instance.carrieroperator
+        original_ip_type = instance.ip_type
+        original_bk_host_id = instance.bk_host_id
+        original_ip = instance.ip
+        original_plat_id = instance.plat_id
 
         # 构建 UptimeCheckNodeDefine 进行更新
         node_define = UptimeCheckNodeDefine(
             bk_tenant_id=bk_tenant_id,
             id=instance_id,
             bk_biz_id=validated_data.get("bk_biz_id", instance_bk_biz_id),
-            name=validated_data.get("name", getattr(instance, "name", instance.get("name", ""))),
+            name=validated_data.get("name", instance.name),
             is_common=validated_data.get("is_common", instance_is_common),
             biz_scope=validated_data.get("biz_scope", original_biz_scope),
             ip_type=UptimeCheckNodeIPType(validated_data.get("ip_type", original_ip_type)),
@@ -344,21 +342,15 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
     @staticmethod
     def get_url_list(obj):
         """拼接拨测地址"""
-        # 兼容 Model、Define 和字典三种对象格式
-        if isinstance(obj, dict):
-            protocol = obj.get("protocol")
-            config = obj.get("config", {})
-            bk_biz_id = obj.get("bk_biz_id")
-        else:
-            protocol = (
-                obj.protocol
-                if isinstance(obj.protocol, str)
-                else obj.protocol.value
-                if hasattr(obj.protocol, "value")
-                else str(obj.protocol)
-            )
-            config = obj.config
-            bk_biz_id = obj.bk_biz_id
+        protocol = (
+            obj.protocol
+            if isinstance(obj.protocol, str)
+            else obj.protocol.value
+            if hasattr(obj.protocol, "value")
+            else str(obj.protocol)
+        )
+        config = obj.config
+        bk_biz_id = obj.bk_biz_id
 
         if protocol == UptimeCheckTaskProtocol.HTTP.value:
             # 针对HTTP协议
@@ -406,10 +398,7 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
 
     def get_nodes(self, obj):
         """获取任务节点列表"""
-        if isinstance(obj, dict):
-            node_ids = obj.get("node_ids", [])
-        else:
-            node_ids = [n.pk for n in (obj.nodes.all() if hasattr(obj, "nodes") else [])]
+        node_ids = [n.pk for n in (obj.nodes.all() if hasattr(obj, "nodes") else [])]
 
         if not node_ids:
             return []
@@ -421,10 +410,7 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
 
     def get_groups(self, obj):
         """获取任务分组信息"""
-        if isinstance(obj, dict):
-            task_id = obj.get("id")
-        else:
-            task_id = obj.id
+        task_id = obj.id
 
         return uptime_check_operation.list_group_id_name_by_task_id(task_id)
 
@@ -432,19 +418,14 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         """计算任务可用率，如异常则按0计算，不可影响任务列表的获取"""
         # 只有拨测任务列表列需要展示每个拨测任务的可用率情况
         # 需要展示每个任务可用率时，则调用 list() 方法时指定 get_available=True
-        # 兼容 Model、Define 和字典三种对象
-        if isinstance(obj, dict):
-            task_id = obj.get("id")
-            status = obj.get("status")
-        else:
-            task_id = obj.id
-            status = (
-                obj.status
-                if isinstance(obj.status, str)
-                else obj.status.value
-                if hasattr(obj.status, "value")
-                else str(obj.status)
-            )
+        task_id = obj.id
+        status = (
+            obj.status
+            if isinstance(obj.status, str)
+            else obj.status.value
+            if hasattr(obj.status, "value")
+            else str(obj.status)
+        )
 
         if (
             self.context.get("request").query_params.get("get_available", False)
@@ -461,19 +442,14 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
 
     def get_task_duration(self, obj):
         """计算任务响应时长"""
-        # 兼容 Model、Define 和字典三种对象
-        if isinstance(obj, dict):
-            task_id = obj.get("id")
-            status = obj.get("status")
-        else:
-            task_id = obj.id
-            status = (
-                obj.status
-                if isinstance(obj.status, str)
-                else obj.status.value
-                if hasattr(obj.status, "value")
-                else str(obj.status)
-            )
+        task_id = obj.id
+        status = (
+            obj.status
+            if isinstance(obj.status, str)
+            else obj.status.value
+            if hasattr(obj.status, "value")
+            else str(obj.status)
+        )
 
         if (
             self.context.get("request").query_params.get("get_task_duration", False)
@@ -606,17 +582,14 @@ class UptimeCheckGroupSerializer(serializers.Serializer):
 
     def get_tasks(self, obj):
         """获取分组任务列表"""
-        if isinstance(obj, dict):
-            task_ids = obj.get("task_ids", [])
-        else:
-            task_ids = [t.pk for t in (obj.tasks.filter(is_deleted=False) if hasattr(obj, "tasks") else [])]
+        task_ids = [t.pk for t in (obj.tasks.filter(is_deleted=False) if hasattr(obj, "tasks") else [])]
 
         if not task_ids:
             return []
 
         tasks = uptime_check_operation.list_uptime_check_tasks(
             bk_tenant_id=get_request_tenant_id(),
-            bk_biz_id=obj.get("bk_biz_id") if isinstance(obj, dict) else obj.bk_biz_id,
+            bk_biz_id=obj.bk_biz_id,
             task_ids=task_ids,
         )
         return [dict(t) for t in tasks]
@@ -666,19 +639,14 @@ class UptimeCheckGroupSerializer(serializers.Serializer):
         existing_groups = uptime_check_operation.list_uptime_check_groups(
             bk_tenant_id, bk_biz_id, name=validated_data["name"]
         )
-        instance_id = instance.id if hasattr(instance, "id") else instance.get("id")
+        instance_id = instance.id
         if any(group.id != instance_id and group.name == validated_data["name"] for group in existing_groups):
             raise serializers.ValidationError(_("分组 %s 已存在！") % validated_data["name"])
 
         task_ids = validated_data.pop("task_id_list", None)
 
         # 获取原始任务ID列表
-        if hasattr(instance, "tasks"):
-            original_task_ids = [task.id for task in instance.tasks.all()]
-        elif isinstance(instance, dict):
-            original_task_ids = instance.get("task_ids", [])
-        else:
-            original_task_ids = []
+        original_task_ids = [task.id for task in instance.tasks.all()]
 
         # 构建 UptimeCheckGroupDefine 进行更新
         group_define = UptimeCheckGroupDefine(
@@ -686,7 +654,7 @@ class UptimeCheckGroupSerializer(serializers.Serializer):
             id=instance_id,
             bk_biz_id=bk_biz_id,
             name=validated_data["name"],
-            logo=validated_data.get("logo", getattr(instance, "logo", instance.get("logo", ""))),
+            logo=validated_data.get("logo", instance.logo),
             task_ids=task_ids if task_ids is not None else original_task_ids,
         )
 

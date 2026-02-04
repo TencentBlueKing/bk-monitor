@@ -53,7 +53,7 @@ from core.errors.dataapi import EmptyQueryException
 from monitor.utils import update_task_config
 from monitor_web.collecting.constant import CollectStatus
 from monitor_web.uptime_check.constants import UPTIME_CHECK_CONFIG_TEMPLATE
-from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
+from bk_monitor_base import uptime_check as uptime_check_operation
 from bk_monitor_base.infras.threading.local import get_request_username
 from bk_monitor_base.domains.uptime_check.define import UptimeCheckNode, UptimeCheckTaskProtocol, UptimeCheckTaskStatus
 from bk_monitor_base.domains.uptime_check.models import (

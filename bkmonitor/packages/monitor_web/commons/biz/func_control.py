@@ -15,7 +15,7 @@ from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceFunction, SpaceTypeEnum
 from core.drf_resource import resource
 from core.errors.api import BKAPIError
-from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
+from bk_monitor_base import uptime_check as uptime_check_operation
 
 
 class ControlManager:

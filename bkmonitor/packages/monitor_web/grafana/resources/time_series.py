@@ -41,7 +41,7 @@ from constants.data_source import (
 from constants.strategy import EVENT_QUERY_CONFIG_MAP, SYSTEM_EVENT_RT_TABLE_ID
 from core.drf_resource import Resource, api, resource
 from core.errors.api import BKAPIError
-from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
+from bk_monitor_base import uptime_check as uptime_check_operation
 from monitor_web.grafana.utils import get_cookies_filter, is_global_k8s_event
 from monitor_web.models import CollectConfigMeta
 from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST

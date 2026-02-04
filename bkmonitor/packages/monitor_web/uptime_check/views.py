@@ -22,7 +22,7 @@ from bkmonitor.utils.common_utils import host_key, safe_int
 from bkmonitor.utils.request import get_request_tenant_id
 from core.drf_resource import api, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
+from bk_monitor_base import uptime_check as uptime_check_operation
 from bk_monitor_base.domains.uptime_check.constants import BEAT_STATUS
 from bk_monitor_base.domains.uptime_check.define import UptimeCheckTaskProtocol, UptimeCheckTaskStatus
 from monitor_web.uptime_check.serializers import (

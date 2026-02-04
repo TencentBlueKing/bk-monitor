@@ -1,6 +1,6 @@
 from django.utils.translation import gettext as _
 
-from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
+from bk_monitor_base import uptime_check as uptime_check_operation
 from bk_monitor_base.domains.uptime_check.models import UptimeCheckTaskModel
 from bkmonitor.iam import ActionEnum
 from bkmonitor.utils.request import get_request_tenant_id
