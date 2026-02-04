@@ -180,7 +180,8 @@ class UseSegmentProp {
     ]
       .filter((item) => {
         if (window?.__IS_MONITOR_TRACE__) {
-          return item.text !== this.$t('新建检索');
+          // return item.text !== this.$t('新建检索');
+          return !['new-search-page-is', 'add-to-ai'].includes(item.id);
         }
         return !item.disabled;
       })
