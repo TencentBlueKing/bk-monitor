@@ -161,6 +161,10 @@ export const IncidentIconMap = {
     icon: 'icon-mc-check-fill',
     iconColor: '#6FC5BF',
   },
+  merged: {
+    icon: 'icon-yihebing',
+    iconColor: '#e24d42',
+  },
 };
 
 export const AlarmLevelIconMap = {
