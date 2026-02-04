@@ -310,6 +310,7 @@ export default {
 
   // 说明
   反馈: 'Feedback',
+  反馈说明: 'Feedback Description',
   说明: 'Description',
   插件变更说明: 'ChangLog',
   上报格式说明: 'Format Help',

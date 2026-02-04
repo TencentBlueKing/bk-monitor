@@ -157,7 +157,7 @@ export default defineComponent({
                   </div>
                 </div>
                 <div class='content'>
-                  <div class='title'>{this.t('反馈')}</div>
+                  <div class='title'>{this.t('反馈说明')}</div>
                   {this.state === 2 && (
                     <div class='tags'>
                       {TAGS.map(item => (
