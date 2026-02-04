@@ -65,7 +65,7 @@ export class AlertScenario extends BaseScenario {
       clickPopoverTools: IUsePopoverTools;
       handleAlertContentDetailShow: (e: MouseEvent, row: AlertTableItem, colKey: string) => void;
       handleAlertOperationClick: (actionType: AlertRowOperationAction, row: AlertTableItem) => void;
-      handleAlertSliderShowDetail: (id: string) => void;
+      handleAlertSliderShowDetail: (id: string, defaultTab?: string) => void;
       hoverPopoverTools: IUsePopoverTools;
     }
   ) {
@@ -101,7 +101,7 @@ export class AlertScenario extends BaseScenario {
         renderType: ExploreTableColumnTypeEnum.CLICK,
         getRenderValue: row => (row.event_count > 0 ? row.event_count : undefined),
         clickCallback: row => {
-          this.context.handleAlertSliderShowDetail(row.id);
+          this.context.handleAlertSliderShowDetail(row.id, 'event');
         },
       },
       /** 首次异常时间(first_anomaly_time) 列 */

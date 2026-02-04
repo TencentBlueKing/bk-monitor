@@ -136,6 +136,7 @@ export default defineComponent({
     const defaultFavoriteId = shallowRef(null);
     /* 当前选择的收藏项 */
     const currentFavorite = shallowRef(null);
+    const alarmDetailDefaultTab = shallowRef('');
     // 当前选择的收藏项（检索条件栏使用）
     const retrievalSelectFavorite = computed(() => {
       if (currentFavorite.value) {
@@ -374,7 +375,8 @@ export default defineComponent({
     /**
      * 展示告警详情
      */
-    function handleShowAlertDetail(id: string) {
+    function handleShowAlertDetail(id: string, defaultTab?: string) {
+      alarmDetailDefaultTab.value = defaultTab || '';
       alarmId.value = id;
       handleDetailShowChange(true);
     }
@@ -389,6 +391,7 @@ export default defineComponent({
       alarmDetailShow.value = show;
       if (!show) {
         alarmId.value = '';
+        alarmDetailDefaultTab.value = '';
       }
     }
 
@@ -615,6 +618,7 @@ export default defineComponent({
       retrievalFavoriteList,
       retrievalSelectFavorite,
       defaultFavoriteId,
+      alarmDetailDefaultTab,
       setUrlParams,
       handleSelectedRowKeysChange,
       handleAlertDialogShow,
@@ -771,6 +775,7 @@ export default defineComponent({
           <AlarmCenterDetail
             alarmId={this.alarmId}
             alarmType={this.alarmStore.alarmType}
+            defaultTab={this.alarmDetailDefaultTab}
             show={this.alarmDetailShow}
             showStepBtn={this.data.length > 1}
             onNext={this.handleNextDetail}

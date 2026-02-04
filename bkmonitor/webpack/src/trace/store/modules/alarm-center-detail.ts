@@ -51,6 +51,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   const alarmType = shallowRef<AlarmType>(AlarmType.ALERT);
   /** 加载状态 */
   const loading = shallowRef<boolean>(false);
+  const defaultTab = shallowRef('');
   const appStore = useAppStore();
   /** 数据间隔 */
   const interval = computed(
@@ -122,6 +123,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     alarmDetail,
     detail,
     alarmId,
+    defaultTab,
     actionId,
     actionDetail,
     alarmType,
