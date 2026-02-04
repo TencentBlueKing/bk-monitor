@@ -22,12 +22,13 @@ overrides:
   vuex-module-decorators: ^1.2.0
   cross-spawn: ^7.0.6
   on-headers: ^1.1.0
+  '@prometheus-io/lezer-promql': 0.305.0
   browserslist: ^4.28.1
 
 recursiveInstall: true
 
 publicHoistPattern:
-  - '!vue'
+  - '!vue@'
   - '!vue-template-compiler'
   - '!vue-i18n'
   - '!@vue/compiler-sfc'

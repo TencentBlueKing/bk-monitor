@@ -122,13 +122,11 @@ const handleAddAlertPolicy = async () => {
     }
   }
 
+  // 构建 URL 参数，统一使用 encodeURIComponent 确保特殊字符正确编码
   const urlArr = [];
   for (const key in params) {
-    if (key === 'dimension' || key === 'condition') {
-      urlArr.push(`${key}=${encodeURI(JSON.stringify(params[key]))}`);
-    } else {
-      urlArr.push(`${key}=${params[key]}`);
-    }
+    const value = typeof params[key] === 'object' ? JSON.stringify(params[key]) : params[key];
+    urlArr.push(`${key}=${encodeURIComponent(value)}`);
   }
   window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
 };

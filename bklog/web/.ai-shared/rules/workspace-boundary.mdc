@@ -1,0 +1,11 @@
+---
+description: 工作边界约束（只处理 src 目录）。
+alwaysApply: true
+---
+
+# Workspace Boundary
+
+- No edit outside `bklog/web/src/`
+- No edit in `bklog/web/packages/*`
+- No explore in `bklog/web/packages/*` without explicit request
+- No repo-wide search without `bklog/web/src/` scope

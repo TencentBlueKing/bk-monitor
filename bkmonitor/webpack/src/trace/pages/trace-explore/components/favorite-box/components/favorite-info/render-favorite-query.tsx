@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, inject } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
@@ -77,8 +77,10 @@ export default defineComponent({
       type: Object as PropType<IFavoriteGroup['favorites'][number]>,
     },
   },
-  setup(props) {
+  setup(props, context) {
     const favoriteType = useFavoriteType();
+    const renderFavoriteQuery =
+      inject<(data: IFavoriteGroup['favorites'][number]) => JSX.Element>('renderFavoriteQuery');
     const { t } = useI18n();
 
     const renderMetric = () => {
@@ -164,11 +166,41 @@ export default defineComponent({
       return '*';
     };
 
+    const renderAlarm = () => {
+      if (!['alarm_action', 'alarm_alert', 'alarm_incident'].includes(favoriteType.value)) {
+        return null;
+      }
+      const queryParams = (props.data?.config?.queryParams ||
+        {}) as IFavoriteGroup<'alarm_alert'>['favorites'][number]['config']['queryParams'];
+      const filterMode = props.data?.config?.componentData?.filterMode || EMode.ui;
+      if (filterMode === EMode.queryString || queryParams?.query_string) {
+        return <span>{queryParams.query_string}</span>;
+      }
+      if (filterMode === EMode.ui || queryParams?.conditions?.length) {
+        return (
+          <VueJsonPretty
+            data={queryParams}
+            deep={5}
+          />
+        );
+      }
+      return '*';
+    };
+
     return () => (
       <div class='favorite-box-favorite-info-query'>
-        {renderEvent()}
-        {renderMetric()}
-        {renderTrace()}
+        {renderFavoriteQuery ? (
+          renderFavoriteQuery(props.data)
+        ) : context.slots?.renderFavoriteQuery ? (
+          context.slots.renderFavoriteQuery(props.data)
+        ) : (
+          <>
+            {renderEvent()}
+            {renderMetric()}
+            {renderTrace()}
+            {renderAlarm()}
+          </>
+        )}
       </div>
     );
   },

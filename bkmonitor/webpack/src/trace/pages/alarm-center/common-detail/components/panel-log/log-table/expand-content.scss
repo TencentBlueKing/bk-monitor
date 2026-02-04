@@ -1,0 +1,206 @@
+/* stylelint-disable selector-class-pattern */
+
+/* stylelint-disable font-family-no-missing-generic-family-keyword */
+.log-table-new-expand-content {
+  position: relative;
+
+  .view-tab {
+    display: flex;
+    justify-content: space-between;
+    padding-right: 15px;
+    font-size: 0;
+    background-color: #f5f7fa;
+
+    .tab-left {
+      span {
+        display: inline-block;
+        width: 46px;
+        height: 23px;
+        font-size: 12px;
+        line-height: 23px;
+        color: #313238;
+        text-align: center;
+        cursor: pointer;
+        border-top: 0;
+
+        &:first-child {
+          border-left: 0;
+        }
+
+        &.activeKv,
+        &.activeJson {
+          position: relative;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        &.activeKv::after {
+          position: absolute;
+          top: -2px; /* 确保线条在元素的上方 */
+          left: 14px;
+          width: 17px;
+          height: 2px;
+          content: ''; /* 必须有content属性，即使为空 */
+          background-color: #313238; /* 红色横线 */
+        }
+
+        &.activeJson::after {
+          position: absolute;
+          top: -2px; /* 确保线条在元素的上方 */
+          left: 10px;
+          width: 30px;
+          height: 2px;
+          content: ''; /* 必须有content属性，即使为空 */
+          background-color: #313238; /* 红色横线 */
+        }
+      }
+    }
+
+    .tab-right {
+      position: sticky;
+      right: 20px;
+      display: flex;
+      align-items: center;
+
+      .icon-mc-copy {
+        font-size: 16px;
+        color: #63656e;
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  .kv-list-wrap {
+    padding: 2px 15px 14px;
+    background-color: rgb(245 247 250);
+
+    .log-item {
+      display: flex;
+      align-items: center;
+      min-height: 24px;
+      padding-left: 8px;
+
+      .field-value {
+        display: flex;
+        align-items: flex-start;
+        color: #16171a;
+        word-break: break-all;
+
+        .valid-text {
+          &:hover {
+            text-decoration: underline; /* 悬停时添加下划线 */
+            text-decoration-color: #498eff; /* 设置下划线颜色为蓝色 */
+          }
+        }
+      }
+
+      .field-label {
+        display: flex;
+        flex-shrink: 0;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        align-self: flex-start;
+        width: 300px;
+        height: 100%;
+        margin: 5px 0;
+        margin-right: 18px;
+
+        .field-eye-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-right: 8px;
+          color: #4d4f56;
+
+          .icon-monitor {
+            width: 12px;
+            font-size: 13px;
+            cursor: pointer;
+          }
+
+          &:hover {
+            color: rgb(58 132 255);
+          }
+        }
+
+        .col-title-field-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          font-size: 14px;
+          border-radius: 2px;
+        }
+
+        .field-text {
+          display: block;
+          width: auto;
+          overflow: hidden;
+          font-family: Roboto-Regular;
+          color: #313238;
+          word-break: normal;
+          overflow-wrap: break-word;
+        }
+      }
+    }
+
+    .log-item:nth-child(even) {
+      background-color: #f5f7fa;
+    }
+
+    .log-item:nth-child(odd) {
+      background-color: #fff;
+    }
+  }
+
+  .json-view-wrap {
+    padding: 2px 12px 10px 39px;
+    background-color: rgb(245 247 250);
+
+    .vjs-tree-node {
+      font-size: 12px;
+      line-height: 22px;
+
+      &:not(:has(.vjs-carets-open)) {
+        padding-left: 9px;
+      }
+
+      &:has(.vjs-carets-open) {
+        padding-left: 20px;
+      }
+
+      .vjs-carets-open {
+        right: 5px;
+        display: flex;
+        align-items: center;
+        height: 100%;
+        color: #1f6d89;
+      }
+
+      .vjs-indent-unit.has-line {
+        width: 2em;
+        border-left-style: solid;
+      }
+
+      .vjs-key {
+        color: #9d694c;
+      }
+
+      .vjs-value {
+        &.vjs-value-string {
+          color: #1f6d89;
+          white-space: pre-wrap;
+        }
+
+        &.vjs-value-number {
+          color: #2caf5e;
+        }
+      }
+    }
+  }
+}

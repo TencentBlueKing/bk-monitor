@@ -1,0 +1,56 @@
+.k8s-target-selector {
+  background: #f0f1f5;
+  border-radius: 2px;
+
+  .bk-select {
+    height: 32px;
+
+    &.popover-show {
+      .bk-select-trigger {
+        .trigger-suffix {
+          transform: rotate(180deg);
+        }
+      }
+    }
+
+    .bk-select-trigger {
+      height: 100%;
+      cursor: pointer;
+
+      .k8s-target-selector-trigger-container {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        padding-right: 4px;
+        padding-left: 8px;
+        line-height: 20px;
+
+        .trigger-prefix {
+          flex-shrink: 0;
+          color: #757880;
+        }
+
+        .trigger-suffix {
+          flex-shrink: 0;
+          width: 20px;
+          height: 20px;
+          transition: 0.3s ease-in-out;
+
+          .icon-monitor {
+            font-size: 20px;
+            color: #4d4f56;
+          }
+        }
+
+        .trigger-main {
+          flex: 1;
+          min-width: 0;
+
+          .selected-text {
+            color: #313238;
+          }
+        }
+      }
+    }
+  }
+}

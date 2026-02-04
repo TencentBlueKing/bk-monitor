@@ -41,5 +41,6 @@ export default {
     'selector-max-id': 3,
     'selector-no-vendor-prefix': true,
     'value-no-vendor-prefix': true,
+    'custom-property-pattern': '--?[\\s\\S]+',
   },
 };

@@ -55,6 +55,7 @@ interface RequestConfig {
   needTraceId?: boolean;
   /* 是否需要拒绝403 */
   reject403?: boolean;
+  signal?: AbortSignal;
   /* 取消请求 */
   cancelFn?: () => void;
   /* 上传进度 */
@@ -77,6 +78,7 @@ const defaultConfig: RequestConfig = {
   needTraceId: true,
   cancelFn() {},
   onUploadProgress() {},
+  signal: null,
 };
 
 const noMessageCode: (number | string)[] = [3308005, 3314003, 3314004, ...axiosError]; // 无数据状态下 不弹窗
