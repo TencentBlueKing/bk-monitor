@@ -85,7 +85,7 @@ export default defineComponent({
     const editClusterId = ref(null); // 编辑ES源ID
     const isOpenWindow = ref(false); // 是否打开窗口
     const emptyType = ref('empty'); // 空状态类型
-    const filterSearchObj = ref({}); // 过滤搜索对象
+    const filterParams = ref({}); // 过滤参数对象
     const isFilterSearch = ref(false); // 是否过滤搜索
     const settingCacheKey = 'collection'; // 设置缓存键
     const searchTimer = ref(null); // 搜索定时器
@@ -102,6 +102,7 @@ export default defineComponent({
     const settingFields = ref([
       { id: 'cluster_id', label: 'ID', disabled: true },
       { id: 'collector_config_name', label: t('名称'), disabled: true },
+      { id: 'cluster_name', label: t('英文名称') },
       { id: 'domain_name', label: t('地址'), disabled: true },
       { id: 'source_type', label: t('来源') },
       { id: 'port', label: t('端口') },
@@ -262,36 +263,47 @@ export default defineComponent({
       }, 300);
     };
 
-    // 来源过滤方法
-    const sourceFilterMethod = (value, row, column) => {
-      const { property } = column;
-      handlePageChange(1);
-      return row[property] === value;
-    };
-
     // 搜索回调
     const searchCallback = () => {
+      let filteredData = tableDataOrigin.value;
+
+      // 先进行过滤处理
+      if (isFilterSearch.value) {
+        filteredData = filteredData.filter(item => Object.keys(filterParams.value).
+          every(key => (filterIsNotCompared(filterParams.value[key])
+            ? true : compareFilter(item, filterParams.value[key], key)),
+          ),
+        );
+      }
+
+      // 再进行搜索处理
       const keyword = params.value.keyword.trim();
       if (keyword) {
-        tableDataSearched.value = tableDataOrigin.value.filter(item => {
+        filteredData = filteredData.filter((item) => {
           if (isIPv6(keyword)) {
             return completeIPv6Address(item.cluster_config.domain_name) === completeIPv6Address(keyword);
           }
-          if (item.cluster_config.cluster_name) {
-            return (
-              item.cluster_config.cluster_name +
-              item.cluster_config.creator +
-              item.cluster_config.domain_name
-            ).includes(keyword);
-          }
-          return (item.source_name + item.updated_by).includes(keyword);
+
+          // 分别判断各个字段，只要有一项满足条件即可
+          const keywordLower = keyword.toLowerCase();
+          const clusterName = (item.cluster_config.cluster_name || '').toLowerCase();
+          const displayName = (item.cluster_config.display_name || '').toLowerCase();
+          const domainName = (item.cluster_config.domain_name || '').toLowerCase();
+          const creator = (item.cluster_config.creator || '').toLowerCase();
+
+          return (
+            clusterName.includes(keywordLower)
+            || displayName.includes(keywordLower)
+            || domainName.includes(keywordLower)
+            || creator.includes(keywordLower)
+          );
         });
-      } else {
-        tableDataSearched.value = tableDataOrigin.value;
       }
+
+      tableDataSearched.value = filteredData;
       emptyType.value = params.value.keyword || isFilterSearch.value ? 'search-empty' : 'empty';
       pagination.value.current = 1;
-      pagination.value.count = tableDataSearched.value.length;
+      pagination.value.count = filteredData.length;
       computePageData();
     };
 
@@ -470,16 +482,27 @@ export default defineComponent({
       introWidth.value = state ? 360 : 1;
     };
 
-    // 状态过滤方法
-    const sourceStateFilterMethod = (value, row) => {
-      const info = stateMap.value[row.cluster_config.cluster_id];
-      const state = typeof info === 'boolean' ? info : info?.status;
-      return state === value;
-    };
-
     // 检查字段显示
     const checkcFields = field => {
       return clusterSetting.value.selectedFields.some(item => item.id === field);
+    };
+
+    // 判断过滤值是否为空
+    const filterIsNotCompared = (val) => {
+      if (typeof val === 'string' && val === '') return true;
+      if (typeof val === 'object' && JSON.stringify(val) === '{}') return true;
+      if (Array.isArray(val) && !val.length) return true;
+      return false;
+    };
+
+    // 比较过滤值与数据值
+    const compareFilter = (item, fCompare, key) => {
+      if (key === 'cluster_config.cluster_id') {
+        const info = stateMap.value[item.cluster_config.cluster_id];
+        const state = typeof info === 'boolean' ? info : info?.status;
+        return state.toString() === fCompare;
+      }
+      return item[key] === fCompare;
     };
 
     // 获取百分比
@@ -488,11 +511,11 @@ export default defineComponent({
     };
 
     // 过滤变化处理
-    const handleFilterChange = data => {
-      for (const [key, value] of Object.entries(data)) {
-        filterSearchObj.value[key] = Array.isArray(value) ? value.length : 0;
-      }
-      isFilterSearch.value = !!Object.values(filterSearchObj.value).reduce((pre, cur) => Number(pre) + Number(cur), 0);
+    const handleFilterChange = (data) => {
+      Object.keys(data).forEach((key) => {
+        filterParams.value[key] = Array.isArray(data[key]) ? data[key].join('') : data[key];
+      });
+      isFilterSearch.value = !!Object.values(filterParams.value).some(item => !filterIsNotCompared(item));
       searchCallback();
     };
 
@@ -550,7 +573,7 @@ export default defineComponent({
               style='float: right; width: 360px'
               clearable={true}
               data-test-id='esAccessBox_input_search'
-              placeholder={t('搜索ES源名称、地址、创建人')}
+              placeholder={t('搜索名称、英文名称、地址、创建人')}
               right-icon='bk-icon icon-search'
               value={params.value.keyword}
               on-right-icon-click={handleSearch}
@@ -591,9 +614,20 @@ export default defineComponent({
               key='name'
               label={t('名称')}
               min-width='170'
-              prop='cluster_config.cluster_name'
+              prop='cluster_config.display_name'
               renderHeader={renderHeader}
+              scopedSlots={{ default: (props: any) => props.row.cluster_config.display_name || '--' }}
             />
+            {checkcFields('cluster_name') && (
+              <bk-table-column
+                key='cluster_name'
+                label={t('英文名称')}
+                min-width='170'
+                prop='cluster_config.cluster_name'
+                renderHeader={renderHeader}
+                scopedSlots={{ default: (props: any) => props.row.cluster_config.cluster_name || '--' }}
+              />
+            )}
             <bk-table-column
               key='address'
               label={t('地址')}
@@ -606,7 +640,6 @@ export default defineComponent({
                 key='source_type'
                 class-name='filter-column'
                 column-key='source_type'
-                filter-method={sourceFilterMethod}
                 filter-multiple={false}
                 filters={sourceFilters.value}
                 label={t('来源')}
@@ -642,7 +675,6 @@ export default defineComponent({
                 }}
                 class-name='filter-column'
                 column-key='cluster_config.cluster_id'
-                filter-method={sourceStateFilterMethod}
                 filter-multiple={false}
                 filters={sourceStateFilters.value}
                 label={t('连接状态')}

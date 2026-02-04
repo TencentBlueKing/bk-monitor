@@ -93,6 +93,7 @@ export default defineComponent({
     const { handleOperation, getObjectValue } = useTextAction(emit, 'origin');
 
     let savedSelection: Range = null;
+    let mousedownOnRow = false;
 
     const popInstanceUtil = new PopInstanceUtil({
       refContent: () => refSegmentContent.value,
@@ -231,12 +232,16 @@ export default defineComponent({
           resize: false,
           minWidth: timeFieldType.value === 'date_nanos' ? 250 : 200,
           renderBodyCell: ({ row }) => {
+            const timezone = store.state.indexItem.timezone;
+            const fieldType = timeFieldType.value;
+            const formatValue = RetrieveHelper.formatTimeZoneValue(row[timeField.value], fieldType, timezone);
+
             return h(
               'span',
               {
                 class: 'time-field',
                 domProps: {
-                  innerHTML: xssFilter(RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value)),
+                  innerHTML: xssFilter(formatValue),
                 },
               },
               [],
@@ -1051,6 +1056,8 @@ export default defineComponent({
     };
 
     const handleRowMousedown = (e: MouseEvent) => {
+      mousedownOnRow = true;
+
       if (RetrieveHelper.isClickOnSelection(e, 2)) {
         RetrieveHelper.stopEventPropagation(e);
         return;
@@ -1061,6 +1068,13 @@ export default defineComponent({
     };
 
     const handleRowMouseup = (e: MouseEvent, item: any) => {
+      if (!mousedownOnRow) {
+        RetrieveHelper.setMousedownEvent(null);
+        return;
+      }
+
+      mousedownOnRow = false;
+
       if (RetrieveHelper.isClickOnSelection(e, 2) || RetrieveHelper.isMouseSelectionUpEvent(e)) {
         RetrieveHelper.stopEventPropagation(e);
         RetrieveHelper.setMousedownEvent(null);
