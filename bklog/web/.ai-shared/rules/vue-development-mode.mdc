@@ -1,81 +1,12 @@
 ---
-description: Vue 组件开发模式约束。新功能使用 Composition API + TSX + hooks，修复基于原组件模式。
+description: Vue 开发模式约束（新功能 TSX+hooks；修复保持原风格）。
 alwaysApply: true
 ---
 
-# Vue 组件开发模式约束
+# Vue 开发模式约束（最小规则）
 
-## 核心原则
-
-### 新功能开发
-
-新功能**必须**使用 Vue + Composition API + TSX + hooks 模式：
-
-```tsx
-import { defineComponent, ref, computed, onMounted } from 'vue';
-import useStore from '@/hooks/use-store';
-import './index.scss';
-
-export default defineComponent({
-  name: 'NewFeature',
-  props: { /* props 定义 */ },
-  emits: ['change'],
-  setup(props, { emit }) {
-    const store = useStore();
-    
-    // 使用 hooks 封装可复用逻辑
-    const { data, loading } = useCustomHook();
-    
-    // 响应式状态
-    const localState = ref('');
-    
-    // 计算属性
-    const derivedValue = computed(() => localState.value.toUpperCase());
-    
-    // 方法
-    const handleAction = () => {
-      emit('change', localState.value);
-    };
-    
-    return () => (
-      <div class="new-feature">
-        {/* TSX 模板 */}
-      </div>
-    );
-  },
-});
-```
-
-### 已有组件修复
-
-修复已有组件时，**保持**原组件的实现模式：
-
-- **Options API (Vue SFC)**: 继续使用 `data`, `methods`, `computed`, `watch`
-- **Composition API (TSX)**: 继续使用 `setup`, `ref`, `computed`
-- **混合模式**: 保持原有混合方式
-
-```javascript
-// ❌ 错误：在 Options API 组件中引入 Composition API
-export default {
-  data() { return { value: '' } },
-  setup() { /* 不要这样混用 */ }
-}
-
-// ✅ 正确：保持原有 Options API 风格
-export default {
-  data() { return { value: '' } },
-  methods: {
-    fixedMethod() { /* 修复逻辑 */ }
-  }
-}
-```
-
-## 判断标准
-
-| 场景 | 模式 |
-|------|------|
-| 新建组件/模块 | Composition API + TSX + hooks |
-| 新建 hooks | `src/hooks/use-xxx.ts` |
-| 修复 `.vue` SFC | 保持 Options API |
-| 修复 `.tsx` 组件 | 保持 Composition API |
-| 扩展已有组件功能 | 保持原组件模式 |
+- No new module/component in Options API `.vue`（新功能：Composition API + TSX + hooks）
+- No paradigm switch during bugfix（修复：保持原文件风格）
+- No Composition API injected into legacy Options API SFC
+- No Options API introduced into TSX/Composition component
+- No mixed Options API + Composition API in a single file
