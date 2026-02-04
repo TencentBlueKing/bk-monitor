@@ -3,6 +3,7 @@ from apm_web.service.views import ServiceViewSet
 from apm_web.trace.views import TraceQueryViewSet
 from apm_web.event.views import EventViewSet
 from apm_web.metric.views import MetricViewSet
+from apm_web.profile.views import ProfileQueryViewSet
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from kernel_api.resource.apm import (
     ListApmApplicationResource,
@@ -11,6 +12,12 @@ from kernel_api.resource.apm import (
     QueryApmTraceDetailResource,
     QueryApmSpanDetailResource,
 )
+
+
+class ApmProfileQueryWebViewSet(ProfileQueryViewSet):
+    """
+    APM Profile 相关 API
+    """
 
 
 class ApmMetricWebViewSet(MetricViewSet):

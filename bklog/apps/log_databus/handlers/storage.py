@@ -690,6 +690,9 @@ class StorageHandler:
             params["auth_info"]["username"] = cluster_objs[0]["auth_info"]["username"]
             params["auth_info"]["password"] = cluster_objs[0]["auth_info"]["password"]
 
+        # 集群英文名不可修改, 保持原值
+        params["cluster_name"] = cluster_objs[0]["cluster_config"]["cluster_name"]
+
         hot_warm_config_is_enabled = params["custom_option"]["hot_warm_config"]["is_enabled"]
         connect_result, version_num_str = BkLogApi.connectivity_detect(  # pylint: disable=unused-variable
             params={

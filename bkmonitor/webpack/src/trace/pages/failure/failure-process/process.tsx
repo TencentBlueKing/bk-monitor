@@ -34,6 +34,7 @@ export const typeTextMap = {
   incident_create: '生成故障，包含{alert_count}个告警，故障负责人：{assignees}',
   incident_observe: '故障观察中，剩余观察时间{last_minutes}分钟',
   incident_recover: '故障已恢复',
+  incident_reopen: '故障在观察期间重新打开',
   incident_notice: '故障通知已发送（接收人：{receivers}）',
   incident_merge: '故障{merged_incident_name}被合并入当前故障',
   incident_merge_new: '故障【{link_incident_name}】合并入当前故障',
