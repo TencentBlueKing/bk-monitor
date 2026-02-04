@@ -2045,7 +2045,11 @@ class TimeSeriesMetric(models.Model):
             if m.get("field_name")
         }
 
-        old_records = set(cls.objects.filter(group_id=group_id).values_list("field_name", "field_scope"))
+        old_metric_to_ids = {
+            (m[1], m[2]): m[0]
+            for m in cls.objects.filter(group_id=group_id).values_list("field_id", "field_name", "field_scope")
+        }
+        old_records = set(old_metric_to_ids.keys())
         new_records = set(_metrics_dict.keys())
 
         # 计算需要创建和更新的记录
@@ -2066,13 +2070,11 @@ class TimeSeriesMetric(models.Model):
             )
 
         # 处理不在返回列表中的已存在指标，设置为非活跃
-        existing_metrics_set = set(old_records)
-        inactive_metrics = existing_metrics_set - new_records
+        inactive_metrics = old_records - new_records
         if inactive_metrics:
             # 批量更新不在返回列表中的指标为非活跃状态
-            cls.objects.filter(group_id=group_id, field_name__in=inactive_metrics, is_active=True).update(
-                is_active=False
-            )
+            field_ids = [old_metric_to_ids.get(k) for k in inactive_metrics]
+            cls.objects.filter(group_id=group_id, field_id__in=field_ids, is_active=True).update(is_active=False)
             logger.info(
                 "bulk_refresh_ts_metrics: set inactive metrics for group_id->[%s], metrics->[%s]",
                 group_id,
