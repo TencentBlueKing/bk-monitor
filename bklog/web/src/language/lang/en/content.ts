@@ -1264,4 +1264,18 @@ export default {
   '已上传成功，请直接检索': 'Uploaded successfully, please search directly',
   '搜索 openID、文件名称': 'Search by OpenID, file name',
   请先勾选任务: 'Please check the task first',
+  '搜索 名称、描述、更新人、定义': 'Search by name, description, updater, or definition',
+  内置Grok模式不可编辑: 'Built-in Grok patterns are not editable',
+  内置Grok模式不可删除: 'Built-in Grok patterns cannot be deleted',
+  '仅支持大写字母、下划线': 'Only uppercase letters and underscores are supported',
+  '新建 Grok 模式': 'New Grok pattern',
+  '编辑 Grok 模式': 'Edit Grok pattern',
+  选填: 'Optional',
+  'Grok 定义（可引用其他模式）': 'Grok definition (can reference other patterns)',
+  '例如  %{IPORHOST: client} %{HTTPVERB:verb} %{URIPATHPARAM:path}':
+    'For example: %{IPORHOST: client} %{HTTPVERB:verb} %{URIPATHPARAM:path}',
+  '当前Grok名称为{n}，确认要删除？': 'The current Grok name is {n}. Are you sure you want to delete it?',
+  'Grok 模式更新成功': 'Grok pattern updated successfully',
+  'Grok 模式删除成功': 'Grok pattern deleted successfully',
+  'Grok 模式创建成功': 'Grok pattern created successfully',
 };

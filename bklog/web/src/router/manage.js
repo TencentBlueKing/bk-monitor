@@ -69,6 +69,7 @@ const ClusterMess = () => import(/* webpackChunkName: 'es-cluster-mess' */ '@/vi
 const DataLinkConf = () => import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/manage-data-link/manage-data-link-conf');
 const MaskingEdit = () => import(/* webpackChunkName: 'field-masking-separate' */ '@/views/manage/field-masking-separate');
 const MaskingList = () => import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/log-clean/clean-masking/list');
+const GrokManage = () => import(/* webpackChunkName: 'grok-manage' */ '@/views/manage-v2/grok-manage/index.tsx');
 
 // 管理模块路由配置生成函数
 const getManageRoutes = () => [
@@ -624,6 +625,16 @@ const getManageRoutes = () => [
             },
           },
         ],
+      },
+      // Grok管理
+      {
+        path: 'grok-manage',
+        name: 'grok-manage',
+        component: GrokManage,
+        meta: {
+          title: 'Grok管理',
+          navId: 'grok-manage',
+        },
       },
       // 日志归档-归档仓库
       {
