@@ -59,7 +59,6 @@ from apps.log_databus.constants import (  # noqa
     Environment,
     EtlConfigChoices,
     ETLProcessorChoices,
-    GrokOriginEnum,
     VisibleEnum,
 )
 from apps.log_search.constants import (  # noqa
@@ -810,9 +809,7 @@ class GrokInfo(OperateRecordModel):
     bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
     name = models.CharField(_("规则名称"), max_length=128, db_index=True)
     pattern = models.TextField(_("表达式"))
-    origin = models.CharField(
-        _("来源"), max_length=128, choices=GrokOriginEnum.get_choices(), default=GrokOriginEnum.CUSTOM.value
-    )
+    is_builtin = models.BooleanField(_("是否内置"), default=False)
     sample = models.TextField(_("样例"), null=True, blank=True)
     description = models.TextField(_("描述"), null=True, blank=True)
 

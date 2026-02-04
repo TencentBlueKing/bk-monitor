@@ -26,7 +26,6 @@ from django.db import IntegrityError
 from django.db.models import Q
 from pygrok import Grok
 
-from apps.log_databus.constants import GrokOriginEnum
 from apps.log_databus.exceptions import (
     GrokCircularReferenceException,
     GrokReferencedException,
@@ -58,9 +57,9 @@ class GrokHandler:
         """
         获取所有 Grok 模式名称
         """
-        all_patterns = GrokInfo.objects.filter(
-            Q(bk_biz_id=self.bk_biz_id) | Q(origin=GrokOriginEnum.BUILTIN.value)
-        ).values_list("name", flat=True)
+        all_patterns = GrokInfo.objects.filter(Q(bk_biz_id=self.bk_biz_id) | Q(is_builtin=True)).values_list(
+            "name", flat=True
+        )
         return list(all_patterns)
 
     @staticmethod
@@ -137,9 +136,9 @@ class GrokHandler:
         """
         获取 Grok 模式列表
         """
-        q = Q(origin=GrokOriginEnum.BUILTIN.value) | Q(bk_biz_id=params["bk_biz_id"])
-        if params.get("origin"):
-            q &= Q(origin=params["origin"])
+        q = Q(is_builtin=True) | Q(bk_biz_id=params["bk_biz_id"])
+        if params.get("is_builtin") is not None:
+            q &= Q(is_builtin=params["is_builtin"])
         if params.get("updated_by"):
             q &= Q(updated_by=params["updated_by"])
         if params.get("keyword"):
@@ -149,7 +148,7 @@ class GrokHandler:
                 | Q(description__icontains=params["keyword"])
             )
 
-        ordering = ["-origin", params.get("ordering") or "-updated_at"]
+        ordering = ["-is_builtin", params.get("ordering") or "-updated_at"]
 
         grok_list = GrokInfo.objects.filter(q).order_by(*ordering).values()
         total = grok_list.count()
@@ -197,15 +196,20 @@ class GrokHandler:
         删除 Grok 模式
         """
         grok_info = GrokInfo.objects.filter(id=grok_info_id).first()
-        if not grok_info or grok_info.origin != GrokOriginEnum.CUSTOM.value:
+        if not grok_info or grok_info.is_builtin:
             return
 
         # 检查是否有其他模式引用了该模式
         custom_grok_patterns = GrokInfo.objects.filter(bk_biz_id=grok_info.bk_biz_id).all()
+        referenced_by = []
         for grok in custom_grok_patterns:
             reference_patterns = cls._extract_pattern_references(grok.pattern)
             if grok_info.name in reference_patterns:
-                raise GrokReferencedException
+                referenced_by.append(grok.name)
+        if referenced_by:
+            raise GrokReferencedException(
+                GrokReferencedException.MESSAGE.format(referenced_by=", ".join(referenced_by))
+            )
 
         grok_info.delete()
 

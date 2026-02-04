@@ -1775,7 +1775,7 @@ class GrokListSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_null=True, allow_blank=True)
-    origin = serializers.CharField(label=_("来源"), required=False, allow_null=True, allow_blank=True)
+    is_builtin = serializers.BooleanField(label=_("是否内置"), required=False, allow_null=True)
     updated_by = serializers.CharField(label=_("更新人"), required=False, allow_null=True, allow_blank=True)
     ordering = serializers.CharField(label=_("排序"), required=False, allow_null=True, allow_blank=True)
     page = serializers.IntegerField(label=_("页码"), required=False)

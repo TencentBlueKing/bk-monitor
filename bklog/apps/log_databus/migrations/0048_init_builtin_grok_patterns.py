@@ -12,7 +12,7 @@ def init_builtin_grok_patterns(apps, schema_editor):
     GrokInfo = apps.get_model("log_databus", "GrokInfo")
 
     # 如果已经有内置规则，跳过初始化
-    if GrokInfo.objects.filter(origin="builtin").exists():
+    if GrokInfo.objects.filter(is_builtin=True).exists():
         return
 
     grok = Grok("")
@@ -23,7 +23,7 @@ def init_builtin_grok_patterns(apps, schema_editor):
             GrokInfo(
                 name=pattern_name,
                 pattern=pattern.regex_str,
-                origin="builtin",
+                is_builtin=True,
                 bk_biz_id=0,
                 created_by="system",
                 updated_by="system",
@@ -37,7 +37,7 @@ def reverse_init_builtin_grok_patterns(apps, schema_editor):
     回滚操作：删除内置 Grok 规则
     """
     GrokInfo = apps.get_model("log_databus", "GrokInfo")
-    GrokInfo.objects.filter(origin="builtin").delete()
+    GrokInfo.objects.filter(is_builtin=True).delete()
 
 
 class Migration(migrations.Migration):
