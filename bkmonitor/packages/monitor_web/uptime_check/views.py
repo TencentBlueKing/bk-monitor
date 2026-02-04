@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import logging
 
 from django.conf import settings
-from django.db.models import Prefetch
 from django.utils.translation import gettext as _
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
@@ -23,15 +22,9 @@ from bkmonitor.utils.common_utils import host_key, safe_int
 from bkmonitor.utils.request import get_request_tenant_id
 from core.drf_resource import api, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from monitor_api.filtersets import get_filterset
 from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
 from bk_monitor_base.domains.uptime_check.constants import BEAT_STATUS
 from bk_monitor_base.domains.uptime_check.define import UptimeCheckTaskProtocol, UptimeCheckTaskStatus
-from bk_monitor_base.domains.uptime_check.models import (
-    UptimeCheckGroupModel,
-    UptimeCheckNodeModel,
-    UptimeCheckTaskModel,
-)
 from monitor_web.uptime_check.serializers import (
     UptimeCheckGroupSerializer,
     UptimeCheckNodeSerializer,
@@ -42,16 +35,26 @@ from utils.business import get_business_id_list
 logger = logging.getLogger(__name__)
 
 
-class CountModelMixin:
-    """
-    Count a queryset.
-    """
+class TaskAdapter:
+    """将字典数据适配成资源层需要的对象格式"""
 
-    @action(methods=["GET"], detail=False)
-    def count(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        content = {"count": queryset.count()}
-        return Response(content)
+    def __init__(self, task_dict: dict):
+        self._task_dict = task_dict
+        self.id = task_dict.get("id")
+        self.protocol = task_dict.get("protocol")
+        self.config = task_dict.get("config", {})
+        for key, value in task_dict.items():
+            if not hasattr(self, key):
+                setattr(self, key, value)
+
+    def get_period(self) -> int:
+        """获取任务周期（秒）"""
+        return self.config.get("period", 60)
+
+    @property
+    def __dict__(self):
+        """返回字典表示"""
+        return self._task_dict
 
 
 class PermissionMixin:
@@ -116,19 +119,19 @@ def get_capacity(targets_count):
         return "normal"
 
 
-class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelMixin):
-    _, filterset_class = get_filterset(UptimeCheckNodeModel)
+class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
+    """拨测节点 ViewSet"""
+
     serializer_class = UptimeCheckNodeSerializer
 
-    def get_queryset(self):
-        return uptime_check_operation.build_node_queryset(bk_tenant_id=get_request_tenant_id())
-
-    def retrieve(self, request, *args, **kwargs):
-        data = super().retrieve(request, *args, **kwargs).data
-        node_instance = self.get_object()
-        bk_host_id = node_instance.set_host_id()
-        data["bk_host_id"] = bk_host_id
-        return Response(data)
+    def retrieve(self, request, pk: int | None = None):
+        """获取节点详情"""
+        node_data = uptime_check_operation.get_node_detail(int(pk))
+        bk_host_id = uptime_check_operation.set_node_host_id(int(pk))
+        node_data["bk_host_id"] = bk_host_id
+        serializer = UptimeCheckNodeSerializer(data=node_data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data)
 
     @staticmethod
     def get_beat_version(bk_host_ids):
@@ -165,38 +168,29 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         重写list,简化节点部分数据并添加关联任务数等数据
         """
 
-        def get_by_node(node, data_map, default=None):
-            if isinstance(node, UptimeCheckNodeModel):
-                node = node.__dict__
-            key = node["bk_host_id"]
+        def get_by_node(node: dict, data_map: dict, default=None):
+            key = node.get("bk_host_id")
             if not key:
                 key = host_key(ip=node["ip"], bk_cloud_id=node["plat_id"])
             if key not in data_map:
                 return default
             return data_map[key]
 
-        # 如用户传入业务，同时还应该加上通用节点
-        id_list = get_business_id_list()
-        # 使用business_id_list过滤掉业务已经不存在的公共节点
-        common_nodes = self.get_queryset().filter(is_common=True, bk_biz_id__in=id_list)
-        biz_nodes = self.get_queryset().filter(is_common=False).values("biz_scope", "id")
-
-        # 指定业务范围可见节点过滤
+        bk_tenant_id = get_request_tenant_id()
         bk_biz_id = request.GET.get("bk_biz_id")
-        biz_node_ids = []
-        for biz_node in biz_nodes:
-            if bk_biz_id in biz_node["biz_scope"]:
-                biz_node_ids.append(biz_node["id"])
-        queryset = (
-            (self.get_queryset().filter(id__in=biz_node_ids) | common_nodes | self.filter_queryset(self.get_queryset()))
-            .distinct()
-            .prefetch_related(
-                Prefetch("tasks", queryset=UptimeCheckTaskModel.objects.filter(is_deleted=False).only("id"))
-            )
+
+        # 使用business_id_list过滤掉业务已经不存在的公共节点
+        id_list = get_business_id_list()
+
+        # 获取用于展示的节点列表
+        nodes = uptime_check_operation.list_nodes_for_display(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=int(bk_biz_id) if bk_biz_id else None,
+            valid_bk_biz_id_list=id_list,
         )
-        serializer: UptimeCheckNodeSerializer = self.get_serializer(queryset, many=True)
+
         # 将节点解析成cmdb主机，存放在以host_id 和 ip+cloud_id 为key 的 字典里
-        node_to_host = resource.uptime_check.get_node_host_dict(bk_tenant_id=get_request_tenant_id(), nodes=queryset)
+        node_to_host = resource.uptime_check.get_node_host_dict(bk_tenant_id=bk_tenant_id, nodes=nodes)
 
         result = []
         bk_host_ids = {host.bk_host_id for host in node_to_host.values()}
@@ -217,10 +211,8 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         except Exception as e:
             logger.exception(f"Failed to get uptime check node status: {e}")
 
-        node_task_counts = {node.id: node.tasks.count() for node in queryset}
-
-        for node in serializer.data:
-            task_num = node_task_counts.get(node["id"], 0)
+        for node in nodes:
+            task_num = node.get("task_count", 0)
             host_instance = get_by_node(node, node_to_host)
             beat_version = ""
             if not host_instance:
@@ -259,6 +251,20 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                 }
             )
         return Response(result)
+
+    @action(methods=["GET"], detail=False)
+    def count(self, request, *args, **kwargs):
+        """获取节点数量"""
+        bk_tenant_id = get_request_tenant_id()
+        bk_biz_id = request.GET.get("bk_biz_id")
+        id_list = get_business_id_list()
+
+        nodes = uptime_check_operation.list_nodes_for_display(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=int(bk_biz_id) if bk_biz_id else None,
+            valid_bk_biz_id_list=id_list,
+        )
+        return Response({"count": len(nodes)})
 
     @action(methods=["GET"], detail=False)
     def is_exist(self, request, *args, **kwargs):
@@ -300,15 +306,19 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         return Response({"name": name})
 
 
-class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelMixin):
-    _, filterset_class = get_filterset(UptimeCheckTaskModel)
+class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
+    """拨测任务 ViewSet
+
+    改造后完全通过 operation 层操作，不直接暴露 Model。
+    """
+
     serializer_class = UptimeCheckTaskSerializer
 
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(self, request, pk=None):
         """
         旧版动态下发配置转换
         """
-        data = super().retrieve(request, *args, **kwargs).data
+        data = uptime_check_operation.get_task_detail(int(pk))
         config = data["config"]
         protocol = data["protocol"]
         if config.get("urls") and protocol == UptimeCheckTaskProtocol.HTTP.value:
@@ -333,62 +343,45 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
             return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS, ActionEnum.VIEW_SYNTHETIC])]
         return super().get_permissions()
 
-    def get_queryset(self):
-        """
-        可用于按任务组筛选拨测任务
-        """
-        group_id = self.request.query_params.get("group_id")
-        if group_id:
-            return uptime_check_operation.build_task_queryset(group_id=int(group_id))
-        return uptime_check_operation.build_task_queryset()
-
     def list(self, request, *args, **kwargs):
         """
         重写list，传入get_groups时整合拨测任务组卡片页数据，避免数据库重复查询
         """
-        queryset = self.filter_queryset(self.get_queryset())
+        group_id = request.query_params.get("group_id")
+        bk_biz_id = int(request.query_params.get("bk_biz_id", 0))
 
         # 如果传入plain参数，则返回简单数据
         if request.query_params.get("plain", False):
             task_id = request.query_params.get("id")
+            tasks = uptime_check_operation.list_tasks_simple(
+                bk_biz_id=bk_biz_id if bk_biz_id else None,
+                group_id=int(group_id) if group_id else None,
+                task_id=int(task_id) if task_id else None,
+                plain=True if task_id else False,
+            )
             if task_id:
-                tasks = queryset.filter(id=task_id)
-                response = Response(
-                    [
-                        {
-                            "id": task.id,
-                            "name": task.name,
-                            "bk_biz_id": task.bk_biz_id,
-                            "status": task.status,
-                            "config": task.config,
-                            "protocol": task.protocol,
-                            "check_interval": task.check_interval,
-                            "location": task.location,
-                        }
-                        for task in tasks
-                    ]
-                )
+                return Response(tasks)
             else:
-                response = Response(
-                    [
-                        {
-                            "id": task.id,
-                            "name": task.name,
-                            "bk_biz_id": task.bk_biz_id,
-                        }
-                        for task in queryset.only("id", "name", "bk_biz_id")
-                    ]
-                )
-            return response
+                return Response([{"id": t["id"], "name": t["name"], "bk_biz_id": t["bk_biz_id"]} for t in tasks])
 
-        bk_biz_id = int(request.query_params.get("bk_biz_id", 0))
-        if bk_biz_id:
-            queryset = queryset.filter(bk_biz_id=bk_biz_id)
+        # 使用 operation 层直接获取任务列表，避免 QuerySet 依赖
+        tasks = uptime_check_operation.list_tasks_simple(
+            bk_biz_id=bk_biz_id if bk_biz_id else None,
+            group_id=int(group_id) if group_id else None,
+            plain=False,
+        )
+
+        # 适配成对象格式(兼容resource调用)
+        task_adapters = [TaskAdapter(task) for task in tasks]
+
         get_groups = request.query_params.get("get_groups", False)
         get_available = request.query_params.get("get_available") == "true"
         get_task_duration = request.query_params.get("get_task_duration") == "true"
         task_data = resource.uptime_check.uptime_check_task_list(
-            task_data=queryset, bk_biz_id=bk_biz_id, get_available=get_available, get_task_duration=get_task_duration
+            task_data=task_adapters,
+            bk_biz_id=bk_biz_id,
+            get_available=get_available,
+            get_task_duration=get_task_duration,
         )
 
         # 如果节点对应的业务id已经不存在了，则该任务状态强制显示为START_FAILED，用于给用户提示
@@ -403,6 +396,20 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         else:
             result = task_data
         return Response(result)
+
+    @action(methods=["GET"], detail=False)
+    def count(self, request, *args, **kwargs):
+        """获取任务数量"""
+        group_id = request.query_params.get("group_id")
+        bk_biz_id = int(request.query_params.get("bk_biz_id", 0))
+
+        # 使用 operation 层获取数量
+        tasks = uptime_check_operation.list_tasks_simple(
+            bk_biz_id=bk_biz_id if bk_biz_id else None,
+            group_id=int(group_id) if group_id else None,
+            plain=False,
+        )
+        return Response({"count": len(tasks)})
 
     @action(methods=["POST"], detail=False)
     def test(self, request, *args, **kwargs):
@@ -423,101 +430,137 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
         )
 
     @action(methods=["POST"], detail=True)
-    def deploy(self, request, *args, **kwargs):
+    def deploy(self, request, pk=None):
         """
         正式创建任务
         下发正式配置，采集器托管任务，将采集结果上报至计算平台
         """
-        task = self.get_object()
+        task_id = int(pk)
         bk_tenant_id = get_request_tenant_id()
-        result = uptime_check_operation.deploy_uptime_check_task(bk_tenant_id, task.bk_biz_id, task.pk)
+        bk_biz_id = uptime_check_operation.get_task_bk_biz_id(task_id)
+        result = uptime_check_operation.deploy_uptime_check_task(bk_tenant_id, bk_biz_id, task_id)
         return Response(result)
 
     @action(methods=["POST"], detail=True)
-    def clone(self, request, *args, **kwargs):
+    def clone(self, request, pk=None):
         """
         克隆任务
         """
-        task = self.get_object()
+        task_id = int(pk)
         bk_tenant_id = get_request_tenant_id()
+        bk_biz_id = uptime_check_operation.get_task_bk_biz_id(task_id)
         operator = request.user.username
-        new_task_id = uptime_check_operation.clone_uptime_check_task(bk_tenant_id, task.bk_biz_id, task.pk, operator)
+        new_task_id = uptime_check_operation.clone_uptime_check_task(bk_tenant_id, bk_biz_id, task_id, operator)
         return Response({"id": new_task_id})
 
     @action(methods=["POST"], detail=True)
-    def change_status(self, request, *args, **kwargs):
+    def change_status(self, request, pk=None):
         """
         更改任务状态
         """
-        task = self.get_object()
-        status = request.data.get("status", "")
+        task_id = int(pk)
+        task_status = request.data.get("status", "")
         bk_tenant_id = get_request_tenant_id()
+        bk_biz_id = uptime_check_operation.get_task_bk_biz_id(task_id)
         operator = request.user.username
 
         # status: "running" -> start, "stoped" -> stop
-        action = "start" if status == UptimeCheckTaskStatus.RUNNING.value else "stop"
-        uptime_check_operation.switch_uptime_check_task(bk_tenant_id, task.bk_biz_id, task.pk, action, operator)
+        action = "start" if task_status == UptimeCheckTaskStatus.RUNNING.value else "stop"
+        uptime_check_operation.switch_uptime_check_task(bk_tenant_id, bk_biz_id, task_id, action, operator)
 
         # 重新获取更新后的状态
-        updated_task = uptime_check_operation.get_task_by_pk(task.pk)
-        return Response(data={"id": task.pk, "status": updated_task.status})
+        updated_status = uptime_check_operation.get_task_status(task_id)
+        return Response(data={"id": task_id, "status": updated_status})
 
     @action(methods=["GET"], detail=True)
-    def running_status(self, request, *args, **kwargs):
+    def running_status(self, request, pk=None):
         """
         创建拨测任务时，查询部署任务是否成功，失败则返回节点管理中部署失败错误日志
         :return:
         """
-        task = self.get_object()
-        if task.status == UptimeCheckTaskStatus.START_FAILED.value:
-            error_log = uptime_check_operation.list_task_collector_error_logs(task.id)
+        task_id = int(pk)
+        task_status = uptime_check_operation.get_task_status(task_id)
+        if task_status == UptimeCheckTaskStatus.START_FAILED.value:
+            error_log = uptime_check_operation.list_task_collector_error_logs(task_id)
             return Response(data={"status": UptimeCheckTaskStatus.START_FAILED.value, "error_log": error_log})
         else:
-            return Response(data={"status": task.status})
+            return Response(data={"status": task_status})
 
 
-class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ModelViewSet):
-    queryset = uptime_check_operation.build_group_queryset()
-    _, filterset_class = get_filterset(UptimeCheckGroupModel)
+class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
+    """拨测分组 ViewSet
+
+    改造后完全通过 operation 层操作，不直接暴露 Model。
+    """
+
     serializer_class = UptimeCheckGroupSerializer
 
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(self, request, pk=None):
         """
         简化返回数据
         """
-        data = super().retrieve(request, *args, **kwargs).data
+        data = uptime_check_operation.get_group_detail(int(pk))
         result = {
             "id": data["id"],
             "name": data["name"],
             "bk_biz_id": data["bk_biz_id"],
             "logo": data["logo"],
-            "task_list": [{"id": item["id"], "name": item["name"]} for item in data["tasks"]],
+            "task_list": data["tasks"],
         }
         return Response(result)
 
+    def list(self, request, *args, **kwargs):
+        """获取分组列表"""
+        bk_biz_id = int(request.query_params.get("bk_biz_id", 0))
+        bk_tenant_id = get_request_tenant_id()
+
+        if bk_biz_id:
+            result = uptime_check_operation.list_uptime_check_groups_paged(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+            )
+        else:
+            # 没有指定业务时，使用基础查询
+            result = uptime_check_operation.list_uptime_check_groups_paged(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=0,
+                include_global=True,
+            )
+        return Response(result["data"])
+
     @action(methods=["POST"], detail=True)
-    def add_task(self, request, *args, **kwargs):
+    def add_task(self, request, pk=None):
         """
         拨测任务拖拽进入任务组
         """
+        group_id = int(pk)
         task_id = request.data.get("task_id")
-        task = uptime_check_operation.get_task_by_pk(task_id)
-        group = self.get_object()
-        if task in group.tasks.all():
-            return Response({"msg": _("拨测分组({})已存在任务({})".format(group.name, task.name))})
-        group.tasks.add(task_id)
-        return Response({"msg": _("拨测分组({})添加任务({})成功".format(group.name, task.name))})
+
+        if uptime_check_operation.check_task_in_group(group_id, task_id):
+            group_name = uptime_check_operation.get_group_name(group_id)
+            task_name = uptime_check_operation.get_task_name(task_id)
+            return Response({"msg": _("拨测分组({})已存在任务({})".format(group_name, task_name))})
+
+        uptime_check_operation.add_task_to_group(group_id, task_id)
+        group_name = uptime_check_operation.get_group_name(group_id)
+        task_name = uptime_check_operation.get_task_name(task_id)
+        return Response({"msg": _("拨测分组({})添加任务({})成功".format(group_name, task_name))})
 
     @action(methods=["post"], detail=True)
-    def remove_task(self, request, *args, **kwargs):
+    def remove_task(self, request, pk=None):
         """拨测任务组移除拨测任务"""
+        group_id = int(pk)
         task_id = request.data.get("task_id")
-        task = uptime_check_operation.get_task_by_pk(task_id)
-        group = self.get_object()
-        if task not in group.tasks.all():
-            return Response({"msg": _("拨测分组({})不存在任务({})".format(group.name, task.name))})
-        group.tasks.remove(task_id)
-        return Response({"msg": _("拨测分组({})移除任务({})成功".format(group.name, task.name))})
+
+        if not uptime_check_operation.check_task_in_group(group_id, task_id):
+            group_name = uptime_check_operation.get_group_name(group_id)
+            task_name = uptime_check_operation.get_task_name(task_id)
+            return Response({"msg": _("拨测分组({})不存在任务({})".format(group_name, task_name))})
+
+        uptime_check_operation.remove_task_from_group(group_id, task_id)
+        group_name = uptime_check_operation.get_group_name(group_id)
+        task_name = uptime_check_operation.get_task_name(task_id)
+        return Response({"msg": _("拨测分组({})移除任务({})成功".format(group_name, task_name))})
 
 
 class ExportUptimeCheckConfViewSet(PermissionMixin, ResourceViewSet):
