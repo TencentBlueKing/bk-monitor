@@ -102,7 +102,7 @@ export default defineComponent({
 
     return () => (
       <div class='bklog-v3-storage'>
-        {!window.__IS_MONITOR_APM__ && !window.__IS_MONITOR_TRACE__ && (
+        {!window?.__IS_MONITOR_APM__ && !window?.__IS_MONITOR_TRACE__ && (
           <div class='switch-label log-sort'>
             <span
               class='bklog-option-item'

@@ -759,7 +759,7 @@ defineExpose({
 <template>
   <div
     ref="refRootElement"
-    :class="['search-bar-wrapper', {'trace-log-bar': window.__IS_MONITOR_TRACE__}]"
+    :class="['search-bar-wrapper', {'trace-log-bar': window?.__IS_MONITOR_TRACE__}]"
   >
     <div
       v-bkloading="{
