@@ -54,6 +54,10 @@ export default defineComponent({
       type: String as PropType<AlarmType>,
       default: AlarmType.ALERT,
     },
+    defaultTab: {
+      type: String,
+      default: '',
+    },
     show: {
       type: Boolean,
       required: true,
@@ -69,7 +73,7 @@ export default defineComponent({
     const router = useRouter();
     const isFullscreen = shallowRef(false);
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmId, actionId, alarmType } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId, actionId, alarmType, defaultTab } = storeToRefs(alarmCenterDetailStore);
     const authorityStore = useAuthorityStore();
     const authority = shallowReactive<IAuthority>({
       map: authMap,
@@ -85,6 +89,14 @@ export default defineComponent({
         if (newVal !== alarmType.value) {
           alarmType.value = newVal;
         }
+      },
+      { immediate: true }
+    );
+
+    watch(
+      () => props.defaultTab,
+      newVal => {
+        defaultTab.value = newVal || '';
       },
       { immediate: true }
     );

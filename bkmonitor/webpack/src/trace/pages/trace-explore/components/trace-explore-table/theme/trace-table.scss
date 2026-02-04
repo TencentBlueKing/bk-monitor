@@ -1,4 +1,6 @@
+/* stylelint-disable selector-class-pattern */
 @mixin table-theme() {
+  /* stylelint-disable-next-line block-no-redundant-nested-style-rules */
   & {
     .t-table__th-cell-inner {
       .t-table__cell--title {
@@ -15,7 +17,7 @@
       align-items: center;
       width: 100%;
       height: var(--trace-table-explore-col-height);
-      font-family: 'Roboto-Regular', 'pingfang sc', 'microsoft yahei', 'arial regular';
+      font-family: Roboto-Regular, 'pingfang sc', 'microsoft yahei', 'arial regular';
 
       &.explore-click-col {
         color: #3a84ff;
@@ -67,8 +69,14 @@
         .t-table__body {
           td {
             &:has(.explore-tags-col) {
-              padding-top: 0px;
-              padding-bottom: 0px;
+              padding-top: 0;
+              padding-bottom: 0;
+            }
+          }
+
+          .t-table__empty-row {
+            td {
+              padding: 0;
             }
           }
         }
@@ -165,12 +173,6 @@
     //     // .t-table--layout-fixed {
     //     //   height: 100%;
     //     // }
-
-    //     .t-table__empty-row {
-    //       td {
-    //         padding: 0;
-    //       }
-    //     }
     //   }
 
     //   // .t-table__affixed-header-elm-wrap {

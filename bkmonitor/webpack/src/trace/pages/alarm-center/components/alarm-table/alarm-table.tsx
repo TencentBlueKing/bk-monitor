@@ -118,7 +118,7 @@ export default defineComponent({
     displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
-    showAlertDetail: (item: string) => typeof item === 'string',
+    showAlertDetail: (item: string, _defaultTab?: string) => typeof item === 'string',
     showActionDetail: (item: string) => typeof item === 'string',
     selectionChange: (selectedRowKeys: string[], options?: SelectOptions<any>) =>
       Array.isArray(selectedRowKeys) && options,
@@ -163,7 +163,7 @@ export default defineComponent({
       clickPopoverTools,
       selectedRowKeys: toRef(props, 'selectedRowKeys'),
       clearSelected: () => handleSelectionChange(),
-      showDetailEmit: id => emit('showAlertDetail', id),
+      showDetailEmit: (id, defaultTab) => emit('showAlertDetail', id, defaultTab),
       openDialogEmit: (...args) => emit('openAlertDialog', ...args),
       saveContentNameEmit: (saveInfo, savePromiseEvent) => emit('saveAlertContentName', saveInfo, savePromiseEvent),
     });
@@ -294,7 +294,7 @@ export default defineComponent({
           horizontalScrollAffixedBottom={{
             container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
           }}
-          autoFillSpace={false}
+          autoFillSpace={!this.data?.length}
           columns={this.transformedColumns}
           data={this.data}
           defaultActiveRowKeys={this.defaultActiveRowKeys}

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, KeepAlive, shallowRef, useTemplateRef } from 'vue';
+import { computed, defineComponent, inject, KeepAlive, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { Tab } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
@@ -58,7 +58,7 @@ export default defineComponent({
   setup() {
     const boxWrapRef = useTemplateRef<HTMLDivElement>('boxWrap');
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmDetail, bizId, alarmId, timeRange } = storeToRefs(alarmCenterDetailStore);
+    const { alarmDetail, bizId, alarmId, timeRange, defaultTab } = storeToRefs(alarmCenterDetailStore);
     const currentPanel = shallowRef(alarmDetail.value?.alarmTabList?.[0]?.name);
     const { alarmStatusOverview, alarmStatusActions, alarmStatusTotal } = useAlarmBasicInfo();
 
@@ -165,6 +165,22 @@ export default defineComponent({
       currentPanel.value = ALARM_CENTER_PANEL_TAB_MAP.ALARM;
     };
 
+    const handleCurrentPanelChange = v => {
+      relatedEventsParams.value = {
+        start_time: 0,
+        end_time: 0,
+      };
+      currentPanel.value = v;
+    };
+
+    watch(
+      () => defaultTab.value,
+      newVal => {
+        handleCurrentPanelChange(newVal || alarmDetail.value?.alarmTabList?.[0]?.name);
+      },
+      { immediate: true }
+    );
+
     const getPanelComponent = () => {
       switch (currentPanel.value) {
         case ALARM_CENTER_PANEL_TAB_MAP.VIEW:
@@ -237,13 +253,7 @@ export default defineComponent({
           class='panel-tab'
           active={currentPanel.value}
           type='unborder-card'
-          onUpdate:active={v => {
-            relatedEventsParams.value = {
-              start_time: 0,
-              end_time: 0,
-            };
-            currentPanel.value = v;
-          }}
+          onUpdate:active={v => handleCurrentPanelChange(v)}
         >
           {alarmDetail.value?.alarmTabList?.map(item => (
             <Tab.TabPanel
