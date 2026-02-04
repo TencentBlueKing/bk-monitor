@@ -1,0 +1,87 @@
+.manual-process-dialog-wrap {
+  .meal-list {
+    width: 500px;
+
+    .title {
+      position: relative;
+      font-size: 12px;
+
+      &::after {
+        position: absolute;
+        top: 50%;
+        display: inline-block;
+        height: 8px;
+        font-size: 12px;
+        line-height: 1;
+        vertical-align: middle;
+        color: #ea3636;
+        content: '*';
+        transform: translate(3px, -50%);
+      }
+    }
+
+    .wrap {
+      display: flex;
+      align-items: center;
+
+      .wrap-select {
+        flex: 1;
+      }
+
+      .select-wrap {
+        .select-name {
+          font-size: 12px;
+        }
+      }
+
+      .icon-shuaxin {
+        margin-left: 16px;
+        font-size: 12px;
+        line-height: 25px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+  }
+
+  .template-list {
+    width: 500px;
+    margin-top: 8px;
+    font-size: 12px;
+  }
+
+  .meal-content {
+    max-height: 600px;
+    margin-top: 24px;
+    overflow-y: auto;
+
+    .nodata {
+      font-size: 12px;
+    }
+
+    .dynamic-form-wrap {
+      .form-wrap {
+        .bk-form-label {
+          font-size: 12px;
+        }
+
+        .bk-label {
+          .bk-label-text {
+            white-space: pre;
+          }
+        }
+      }
+    }
+  }
+
+  .no-meal {
+    margin-top: 16px;
+    font-size: 12px;
+
+    .link {
+      margin: 0 4px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+}

@@ -1,0 +1,31 @@
+.query-config-viewer {
+  display: flex;
+  flex-direction: column;
+  row-gap: 8px;
+
+  .expression-view {
+    display: flex;
+    line-height: 20px;
+    color: #313238;
+
+    .item-label {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      margin-right: 4px;
+    }
+
+    .item-value-view {
+      display: flex;
+      align-items: center;
+      font-weight: 700;
+      color: #3a84ff;
+    }
+  }
+
+  .config-view {
+    display: flex;
+    flex-direction: column;
+    row-gap: 8px;
+  }
+}

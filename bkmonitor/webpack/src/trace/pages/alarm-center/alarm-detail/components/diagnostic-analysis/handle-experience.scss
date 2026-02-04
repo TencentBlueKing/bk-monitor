@@ -1,0 +1,46 @@
+.handle-experience-dialog {
+  .handle-experience-dialog-wrapper {
+    .bk-alert {
+      margin-bottom: 16px;
+    }
+
+    .form-item {
+      display: flex;
+
+      .form-label {
+        flex-shrink: 0;
+        width: 60px;
+      }
+
+      .form-content {
+        flex: 1;
+      }
+
+      & + .form-item {
+        margin-top: 16px;
+      }
+
+      &.bind-target {
+        .bk-radio-group {
+          flex-direction: column;
+
+          .bk-radio {
+            margin-left: 0;
+            line-height: 20px;
+
+            & + .bk-radio {
+              margin-top: 7px;
+            }
+          }
+        }
+      }
+
+      &.edit-experience {
+        .form-content {
+          height: 370px;
+          overflow: hidden;
+        }
+      }
+    }
+  }
+}

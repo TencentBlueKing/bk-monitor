@@ -33,8 +33,8 @@ import type { ITopoNodeDataItem } from '../typings/event';
 import './shield-tree-compnent.scss';
 
 interface IProps {
-  bizId: string | number;
-  bkHostId: string | number; 
+  bizId: number | string;
+  bkHostId: number | string;
   show?: boolean;
 }
 
@@ -46,7 +46,7 @@ interface TreeNodeData {
   instId: string;
   // 当前id
   key: string;
-  name: string;  
+  name: string;
   state: {
     checked: boolean;
   };
@@ -63,9 +63,9 @@ export default class ShieldTreeCompnent extends tsc<
   }
 > {
   // 告警中心首页有select组件切换空间，故bizId需要传递方式获取
-  @Prop({ type: [String, Number], default: '' }) bizId: string | number;
+  @Prop({ type: [String, Number], default: '' }) bizId: number | string;
   // 请求节点树数据必须参数
-  @Prop({ type: [String, Number], default: '' }) bkHostId: string | number;
+  @Prop({ type: [String, Number], default: '' }) bkHostId: number | string;
   // 展示节点树
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Ref('tree') treeRef: any;
@@ -89,7 +89,7 @@ export default class ShieldTreeCompnent extends tsc<
   @Emit('confirm')
   handleConfirm() {
     // 将选中的id转换为后端需要的格式传递给父组件
-    const findCheckedNodes = (nodes) => {
+    const findCheckedNodes = nodes => {
       let result = [];
       for (const item of nodes) {
         const fullId = `${item.instId}_${item.objId}`; // 集群与模块之前的id不唯一所以拼接方式查找
@@ -111,7 +111,6 @@ export default class ShieldTreeCompnent extends tsc<
     const bkTopoNode = findCheckedNodes(this.treeNodeList);
     return bkTopoNode;
   }
-  
 
   @Emit('cancel')
   handleCancel() {
@@ -126,16 +125,15 @@ export default class ShieldTreeCompnent extends tsc<
       topo_tree: true, // 只有该接口需要查找topoNode才需要此参数
       bk_host_id: this.bkHostId, // 只有该接口需要查找topoNode才需要此参数
     })
-    .then(res => {
-      this.treeNodeList = this.mapTreeData(res);
-    })
-    .catch(()=>{
-      this.treeNodeList = [];
-    })
-    .finally(() => {
-      this.loading = false;
-    })
-    
+      .then(res => {
+        this.treeNodeList = this.mapTreeData(res);
+      })
+      .catch(() => {
+        this.treeNodeList = [];
+      })
+      .finally(() => {
+        this.loading = false;
+      });
   }
 
   /**
@@ -154,7 +152,7 @@ export default class ShieldTreeCompnent extends tsc<
       children: item.child && item.child.length > 0 ? this.mapTreeData(item.child) : [],
     }));
   }
- 
+
   /**
    * 更新big-tree组件节点状态
    * @param nodeIds 需要变更状态的节点
@@ -189,6 +187,7 @@ export default class ShieldTreeCompnent extends tsc<
 
   // 节点checkbox事件
   handleCheckChange(id, node) {
+    console.log(id, node, this.treeRef);
     this.updateNodesState([node.id], node.state.checked, node.state.checked);
     const value = this.treeRef.nodes.filter(node => node.state.checked && !node.state.disabled).map(node => node.id);
     this.checkedIds = Array.from(new Set(value));
@@ -207,10 +206,10 @@ export default class ShieldTreeCompnent extends tsc<
 
   // 节点树渲染
   treeNodeComponent() {
-    return  (
+    return (
       <div class='tree-node__container'>
-        { this.treeNodeList.length ?
-          (<bk-big-tree
+        {this.treeNodeList.length ? (
+          <bk-big-tree
             ref='tree'
             check-strictly={false}
             data={this.treeNodeList}
@@ -219,10 +218,12 @@ export default class ShieldTreeCompnent extends tsc<
             selectable={true}
             show-checkbox={true}
             on-check-change={this.handleCheckChange}
-          />) : <div class='empty'>{this.$t('暂无数据')}</div>
-        }
+          />
+        ) : (
+          <div class='empty'>{this.$t('暂无数据')}</div>
+        )}
       </div>
-    )
+    );
   }
 
   render() {
@@ -233,9 +234,9 @@ export default class ShieldTreeCompnent extends tsc<
           <div class='button-wrap'>
             <bk-button
               class='mr-8'
+              disabled={this.loading}
               theme='primary'
               onClick={() => this.handleConfirm()}
-              disabled={this.loading}
             >
               {this.$t('确定')}
             </bk-button>

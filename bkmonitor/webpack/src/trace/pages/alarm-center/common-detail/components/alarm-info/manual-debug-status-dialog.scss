@@ -1,0 +1,122 @@
+.manual-debug-running-dialog {
+  .status-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .spinner {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+
+      @keyframes loading-ratate {
+        0% {
+          transform: rotate(0deg);
+        }
+
+        100% {
+          transform: rotate(-360deg);
+        }
+      }
+
+      .loading-svg {
+        width: 48px;
+        height: 48px;
+        animation: loading-ratate 1s linear 0s infinite;
+
+        g {
+          @for $i from 1 through 8 {
+            :nth-child(#{$i}) {
+              opacity: #{$i * 0.125};
+              fill: #3a84ff;
+            }
+          }
+        }
+      }
+
+      .success,
+      .failure {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+      }
+
+      .success {
+        background: #e5f6ea;
+
+        .icon-mc-check-small {
+          font-size: 36px;
+          color: #3fc06d;
+        }
+      }
+
+      .failure {
+        background: #fddddd;
+
+        .icon-mc-close {
+          font-size: 36px;
+          color: #ea3636;
+        }
+      }
+    }
+
+    .status-title {
+      margin-top: 16px;
+      font-size: 20px;
+      line-height: 26px;
+      color: #313238;
+    }
+
+    .status-text {
+      margin-top: 16px;
+      font-size: 14px;
+      line-height: 19px;
+      color: #63656e;
+      overflow-wrap: break-word;
+      white-space: break-spaces;
+
+      .info-jtnr {
+        &-link {
+          display: inline-block;
+          margin-left: 10px;
+          color: #3a84ff;
+          cursor: pointer;
+
+          .icon-copy-link {
+            margin-right: 6px;
+            font-size: 12px;
+          }
+        }
+      }
+    }
+
+    .status-tip {
+      line-height: 30px;
+      color: #979ba5;
+
+      .icon-hint {
+        margin-right: 8px;
+        font-size: 14px;
+      }
+
+      .text {
+        font-size: 12px;
+
+        .link {
+          margin: 0 4px;
+          color: #3a84ff;
+        }
+      }
+    }
+
+    .status-operate {
+      margin-top: 16px;
+    }
+  }
+}
