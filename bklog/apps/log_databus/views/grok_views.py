@@ -24,7 +24,6 @@ from rest_framework.response import Response
 from apps.generic import APIViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
 from apps.log_databus.handlers.grok import GrokHandler
-from apps.log_databus.models import GrokInfo
 from apps.log_databus.serializers import (
     GrokCreateSerializer,
     GrokDebugSerializer,
@@ -79,10 +78,7 @@ class GrokViewSet(APIViewSet):
         @api {put} /log_databus/grok/updated_by_list/
         """
         params = self.params_valid(GrokUpdatedByListSerializer)
-        updated_by_list = (
-            GrokInfo.objects.filter(bk_biz_id=params["bk_biz_id"]).values_list("updated_by", flat=True).distinct()
-        )
-        return Response(updated_by_list)
+        return Response(GrokHandler.get_updated_by_list(params["bk_biz_id"]))
 
     @list_route(methods=["POST"], url_path="debug")
     def debug(self, request, *args, **kwargs):
