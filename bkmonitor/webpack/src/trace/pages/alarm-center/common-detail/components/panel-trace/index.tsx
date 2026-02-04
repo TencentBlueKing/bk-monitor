@@ -96,7 +96,7 @@ export default defineComponent({
       <div class='alarm-center-detail-panel-trace'>
         <TraceExploreTable
           class='panel-trace-table'
-          appName={'tilapia'}
+          appName={this.traceQueryConfig?.app_name || ''}
           canSortFieldTypes={[]}
           displayFields={this.displayFields}
           enabledClickMenu={false}

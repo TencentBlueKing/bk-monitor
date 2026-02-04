@@ -31,7 +31,7 @@ import { alertTraces } from 'monitor-api/modules/alert_v2';
 
 import { ExploreTableLoadingEnum } from '@/pages/trace-explore/components/trace-explore-table/typing';
 
-import type { ALertTracesData } from '../typings';
+import type { ALertTracesData, ALertTracesQueryConfig } from '../typings';
 
 /**
  * @function useAlertTraces 调用链数据 hook
@@ -42,7 +42,11 @@ export const useAlertTraces = (alertId: MaybeRef<string>) => {
   /** 调用链表格展示数据 */
   const traceList = shallowRef([]);
   /** 调用链查询配置 */
-  const traceQueryConfig = shallowRef({});
+  const traceQueryConfig = shallowRef<ALertTracesQueryConfig>({
+    app_name: '',
+    sceneMode: '',
+    where: [],
+  });
   /** table loading 配置 */
   const tableLoading = reactive({
     /** table body部分 骨架屏 loading */
