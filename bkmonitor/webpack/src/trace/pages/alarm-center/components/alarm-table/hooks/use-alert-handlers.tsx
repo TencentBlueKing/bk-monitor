@@ -29,11 +29,11 @@ import { get } from '@vueuse/core';
 
 import {
   type AlertContentItem,
+  type AlertContentNameEditInfo,
   type AlertRowOperationAction,
   type AlertSelectBatchAction,
   type AlertTableItem,
   AlertAllActionEnum,
-  type AlertContentNameEditInfo,
 } from '../../../typings';
 import AlertContentDetail, {
   type AlertSavePromiseEvent,
@@ -51,10 +51,10 @@ export interface UseAlertHandlersOptions {
   selectedRowKeys: MaybeRef<string[]>;
   /** 清除表格选中的行 */
   clearSelected: () => void;
-  /** 显示告警详情抽屉回调 */
-  showDetailEmit: (id: string) => void;
   /** 保存告警内容数据含义回调 */
   saveContentNameEmit: (saveInfo: AlertContentNameEditInfo, savePromiseEvent: AlertSavePromiseEvent) => void;
+  /** 显示告警详情抽屉回调 */
+  showDetailEmit: (id: string, defaultTab?: string) => void;
 }
 
 export type UseAlertHandlersReturnType = ReturnType<typeof useAlertHandlers>;
@@ -84,8 +84,8 @@ export const useAlertHandlers = ({
   /**
    * @description: 展示 告警 详情抽屉
    */
-  const handleAlertSliderShowDetail = (id: string) => {
-    showDetailEmit(id);
+  const handleAlertSliderShowDetail = (id: string, defaultTab?: string) => {
+    showDetailEmit(id, defaultTab);
   };
 
   /**
@@ -148,9 +148,9 @@ export const useAlertHandlers = ({
   const renderAlertHandlerDom = () => (
     <AlertContentDetail
       ref='alertContentDetailRef'
-      bizId={activeBizId.value}
-      alertId={activeAlertId.value}
       alertContentDetail={activeAlertContentDetail.value}
+      alertId={activeAlertId.value}
+      bizId={activeBizId.value}
       onSave={handleSaveContentName}
     />
   );

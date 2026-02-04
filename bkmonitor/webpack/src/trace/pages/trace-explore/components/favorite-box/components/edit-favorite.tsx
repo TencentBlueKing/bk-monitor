@@ -103,6 +103,7 @@ export default defineComponent({
         {
           required: true,
           trigger: 'blur',
+          message: t('必填项'),
         },
         {
           validator: (value: string) =>
