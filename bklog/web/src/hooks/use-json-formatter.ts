@@ -122,7 +122,7 @@ export default class UseJsonFormatter {
 
   handleSegmentClick(e: MouseEvent, value) {
     // 如果是点击划选文本，则不进行处理
-    if (RetrieveHelper.isClickOnSelection(e, 2)) {
+    if (RetrieveHelper.isClickOnSelection(e, 2) || window?.getSelection()?.toString()?.length > 1) {
       return;
     }
     if (!value.toString() || value === '--') {

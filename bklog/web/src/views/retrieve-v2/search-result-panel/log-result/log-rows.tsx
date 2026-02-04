@@ -1072,6 +1072,11 @@ export default defineComponent({
         RetrieveHelper.setMousedownEvent(null);
         return;
       }
+      // 选中文本不弹出复制等选项框
+      if (window.__IS_MONITOR_TRACE__ && window.getSelection().toString().length > 1) {
+        RetrieveHelper.setMousedownEvent(null);
+        return;
+      }
 
       mousedownOnRow = false;
 
