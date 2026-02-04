@@ -36,6 +36,7 @@ import type { PropType } from 'vue';
 
 import { type SortInfo, type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Button, Checkbox } from 'bkui-vue';
+import EmptyStatus, { type EmptyStatusOperationType } from 'trace/components/empty-status/empty-status';
 import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { formatTime } from 'trace/utils/utils';
 import { useI18n } from 'vue-i18n';
@@ -360,7 +361,6 @@ export default defineComponent({
     };
 
     const handleSourceTypeChange = (value: (typeof SourceTypeEnum)[keyof typeof SourceTypeEnum][]) => {
-      console.log(value);
       sourceType.value = value;
       isAllSourceType.value = sourceTypeOptions.value.length - 1 === value.length;
       resetData();
@@ -368,7 +368,6 @@ export default defineComponent({
     };
 
     const handleChangeAllSourceType = (value: boolean) => {
-      console.log(value);
       isAllSourceType.value = value;
       if (value) {
         sourceType.value = sourceTypeOptions.value
@@ -379,6 +378,12 @@ export default defineComponent({
       }
       resetData();
       handleLoad();
+    };
+
+    const handleOperation = (type: EmptyStatusOperationType) => {
+      if (type === 'clear-filter') {
+        handleSourceTypeChange([]);
+      }
     };
 
     onMounted(() => {
@@ -423,6 +428,7 @@ export default defineComponent({
       handleGoEvent,
       handleSourceTypeChange,
       handleChangeAllSourceType,
+      handleOperation,
     };
   },
   render() {
@@ -501,7 +507,16 @@ export default defineComponent({
             sort={this.sort}
             onExpandChange={this.handleExpandChange}
             onSortChange={this.handleSortChange as any}
-          />
+          >
+            {{
+              empty: () => (
+                <EmptyStatus
+                  type={this.sourceType.length ? 'search-empty' : 'empty'}
+                  onOperation={this.handleOperation}
+                />
+              ),
+            }}
+          </PrimaryTable>
         )}
         <div
           ref='scrollRef'

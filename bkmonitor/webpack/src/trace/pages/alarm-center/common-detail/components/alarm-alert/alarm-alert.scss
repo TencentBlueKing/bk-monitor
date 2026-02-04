@@ -31,8 +31,8 @@
 
   .alert-content {
     display: flex;
-    align-items: center;
     flex: 1;
+    align-items: center;
 
     .alarm-content {
       display: flex;
@@ -55,6 +55,7 @@
     .alarm-tips {
       display: flex;
       align-items: center;
+      min-width: fit-content;
       margin-left: 5px;
 
       .shielded-duration {
@@ -63,8 +64,8 @@
 
       .duration-value {
         margin-left: 5px;
-        color: #313238;
         font-weight: 700;
+        color: #313238;
       }
     }
   }
@@ -90,8 +91,8 @@
   }
 
   &.ABNORMAL {
-    border-left-color: #e71818;
     background: #ffebeb;
+    border-left-color: #e71818;
 
     .status-icon {
       color: #ea3636;
@@ -99,8 +100,8 @@
   }
 
   &.SHIELDED_ABNORMAL {
-    border-left-color: #f59500;
     background: #fdeed8;
+    border-left-color: #f59500;
 
     .status-icon {
       color: #f59500;
@@ -112,8 +113,8 @@
   }
 
   &.RECOVERED {
-    border-left-color: #2caf5e;
     background: #daf6e5;
+    border-left-color: #2caf5e;
 
     .status-icon {
       color: #2caf5e;
@@ -121,8 +122,8 @@
   }
 
   &.CLOSED {
-    border-left-color: #c4c6cc;
     background: #eaebf0;
+    border-left-color: #c4c6cc;
 
     .status-icon {
       color: #979ba5;
@@ -132,6 +133,6 @@
 
 .bk-popover.bk-pop2-content.alarm-alert-monitor-data-popover {
   padding: 0;
-  box-shadow: 0 2px 12px 0 #00000033;
   overflow: hidden;
+  box-shadow: 0 2px 12px 0 #0003;
 }
