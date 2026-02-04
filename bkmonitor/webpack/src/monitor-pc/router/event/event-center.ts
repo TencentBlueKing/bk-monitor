@@ -247,4 +247,9 @@ export default [
       },
     },
   },
+  {
+    path: '/alarm-center',
+    name: 'alarm-center',
+    redirect: '/trace/alarm-center',
+  },
 ] as RouteConfig[];
