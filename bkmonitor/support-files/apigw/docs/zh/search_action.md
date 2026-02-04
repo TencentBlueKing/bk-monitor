@@ -5,30 +5,31 @@
 
 ### 请求参数
 
-| 字段          | 类型           | 必选 | 描述                                                         |
-| ------------- | -------------- | ---- | ------------------------------------------------------------ |
-| bk_biz_ids    | List[int]      | 是   | 业务ID列表                                                   |
-| alert_ids     | List[string]   | 否   | 告警ID列表                                                   |
-| status        | List[string]   | 否   | 状态，可选 `MINE`, `ABNORMAL`, `CLOSED`, `RECOVERED`         |
-| conditions    | List[Condtion] | 否   | 过滤条件                                                     |
-| query_string  | string         | 否   | 查询字符串，语法：https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#query-string-query-notes |
-| ordering      | list[string]   | 否   | 排序字段，字段前面加 "-" 代表倒序                            |
-| start_time    | int            | 否   | 开始时间                                                     |
-| end_time      | int            | 否   | 结束时间                                                     |
-| page          | int            | 是   | 页数                                                         |
-| page_size     | int            | 是   | 每页条数（最大1000）                                         |
-| show_overview | bool           | 否   | 是否返回总览统计信息，默认 true                              |
-| show_aggs     | bool           | 否   | 是否返回聚合统计信息，默认 true                              |
-| show_dsl      | Bool           | 否   | 是否返回DSL，默认False                                       |
+| 字段           | 类型              | 必选 | 描述                                                         |
+| -------------- | ----------------- | ---- | ------------------------------------------------------------ |
+| bk_biz_ids     | list[int]         | 否   | 业务ID列表，默认为 null                                      |
+| alert_ids      | list[str]         | 否   | 告警ID列表                                                   |
+| status         | list[str]         | 否   | 状态，可选 `MINE`, `ABNORMAL`, `CLOSED`, `RECOVERED`         |
+| conditions     | list[Condition]   | 否   | 过滤条件，默认为空列表                                       |
+| query_string   | str               | 否   | 查询字符串，默认为空字符串，语法：https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#query-string-query-notes |
+| ordering       | list[str]         | 否   | 排序字段，字段前面加 "-" 代表倒序，默认为空列表             |
+| start_time     | int               | 否   | 开始时间（时间戳）                                           |
+| end_time       | int               | 否   | 结束时间（时间戳）                                           |
+| page           | int               | 否   | 页数，默认为 1，最小值为 1                                   |
+| page_size      | int               | 否   | 每页条数，默认为 10，最小值为 0，最大值为 1000               |
+| show_overview  | bool              | 否   | 是否返回总览统计信息，默认为 true                            |
+| show_aggs      | bool              | 否   | 是否返回聚合统计信息，默认为 true                            |
+| show_dsl       | bool              | 否   | 是否返回DSL，默认为 false                                    |
+| record_history | bool              | 否   | 是否保存收藏历史，默认为 false                               |
 
-#### 过滤条件（conditions）
+#### 过滤条件（Condition）
 
-| 字段      | 类型   | 必须 | 描述                                                         |
-| :-------- | :----- | :--- | :----------------------------------------------------------- |
-| key       | string | 是   | 字段名                                                       |
-| value     | List   | 是   | 可取值的列表。当 `method = eq`，则满足其一即可；当`method = neq`，则全都不满足 |
-| method    | string | 是   | 匹配方式，可选 `eq`, `neq`，默认 `eq`                        |
-| condition | string | 否   | 可选 `and`, `or`                                             |
+| 字段      | 类型     | 必选 | 描述                                                         |
+| :-------- | :------- | :--- | :----------------------------------------------------------- |
+| key       | str      | 是   | 匹配字段名                                                   |
+| value     | list     | 是   | 匹配值列表。当 `method = eq`，则满足其一即可；当 `method = neq`，则全都不满足；当 `method = include`，则包含其一即可；当 `method = exclude`，则全都不包含 |
+| method    | str      | 否   | 匹配方法，可选值：`eq`（等于）, `neq`（不等于）, `include`（包含）, `exclude`（排除）, `gt`（大于）, `gte`（大于等于）, `lt`（小于）, `lte`（小于等于），默认为 `eq` |
+| condition | str      | 否   | 复合条件，可选值：`and`（且）, `or`（或）, `""`（空字符串），默认为空字符串 |
 
 ### 请求参数示例
 
@@ -63,67 +64,67 @@
 
 | 字段     | 类型 | 描述               |
 | -------- | ---- | ------------------ |
-| actions  | List | 所有的处理记录列表 |
-| code     | Int  | 返回处理记录的条数 |
-| aggs     | List | 返回的聚合统计信息 |
-| overview | List | 返回的总览统计信息 |
+| actions  | list | 所有的处理记录列表 |
+| total    | int  | 返回处理记录的条数 |
+| aggs     | list | 返回的聚合统计信息 |
+| overview | dict | 返回的总览统计信息 |
 
 #### data.actions字段说明
 
-| 字段                       | 类型         | 描述                                                         |
-| -------------------------- | ------------ | ------------------------------------------------------------ |
-| action_config              | Dict         | 套餐配置                                                     |
-| action_config_id           | Int          | 套餐ID                                                       |
-| action_name                | String       | 套餐名称                                                     |
-| action_plugin              | Dict         | 套餐插件快照                                                 |
-| action_plugin_type         | String       | 套餐类型                                                     |
-| action_plugin_type_display | String       | 套餐类型名称                                                 |
-| alert_id                   | List(string) | 告警ID                                                       |
-| alert_level                | Int          | 告警级别                                                     |
-| bk_biz_id                  | String       | 业务ID                                                       |
-| bk_biz_name                | String       | 业务名称                                                     |
-| bk_module_ids              | List(int)    | 模块ID                                                       |
-| bk_module_names            | String       | 模块名称（以`,`分割）                                        |
-| bk_set_ids                 | List(int)    | 集群ID                                                       |
-| bk_set_names               | String       | 集群名称（以`,`分割）                                        |
-| bk_target_display          | String       | 目标                                                         |
-| content                    | Dict         | 处理内容                                                     |
-| converge_count             | Int          | 告警收敛数量                                                 |
-| converge_id                | Int          | 告警收敛记录ID                                               |
-| create_time                | Int          | 创建时间                                                     |
-| dimension_string           | String       | 维度信息                                                     |
-| dimensions                 | Dict         | 维度信息                                                     |
-| duration                   | String       | 处理时长                                                     |
-| end_time                   | Int          | 结束时间                                                     |
-| ex_data                    | Dict         | 异常信息                                                     |
-| execute_times              | Int          | 执行次数                                                     |
-| failure_type               | String       | 失败类型                                                     |
-| id                         | String       | 处理记录ID                                                   |
-| inputs                     | Dict         | 动作输入                                                     |
-| is_converge_primary        | Bool         | 是否为收敛关键记录                                           |
-| is_parent_action           | Bool         | 是否为子任务                                                 |
-| operate_target_string      | String       | 执行对象                                                     |
-| operator                   | List(string) | 负责人                                                       |
-| outputs                    | Dict         | 输出动作                                                     |
-| parent_action_id           | Int          | 父记录ID                                                     |
-| raw_id                     | Int          | 原始Id                                                       |
-| related_action_ids         | List         | 关联的任务ID                                                 |
-| signal                     | String       | 触发信号                                                     |
-| signal_display             | String       | 触发信号别名                                                 |
-| status                     | String       | 状态：running - 执行中,success - 成功, failure - 失败, skipped-已收敛， shield - 被屏蔽 |
-| status_tips                | String       | 状态别名                                                     |
-| strategy_id                | Int          | 策略ID                                                       |
-| strategy_name              | String       | 策略名称                                                     |
-| update_time                | Int          | 更新时间                                                     |
+| 字段                       | 类型       | 描述                                                         |
+| -------------------------- | ---------- | ------------------------------------------------------------ |
+| action_config              | dict       | 套餐配置                                                     |
+| action_config_id           | int        | 套餐ID                                                       |
+| action_name                | str        | 套餐名称                                                     |
+| action_plugin              | dict       | 套餐插件快照                                                 |
+| action_plugin_type         | str        | 套餐类型                                                     |
+| action_plugin_type_display | str        | 套餐类型名称                                                 |
+| alert_id                   | list[str]  | 告警ID列表                                                   |
+| alert_level                | int        | 告警级别                                                     |
+| bk_biz_id                  | str        | 业务ID                                                       |
+| bk_biz_name                | str        | 业务名称                                                     |
+| bk_module_ids              | list[int]  | 模块ID列表                                                   |
+| bk_module_names            | str        | 模块名称（以`,`分割）                                        |
+| bk_set_ids                 | list[int]  | 集群ID列表                                                   |
+| bk_set_names               | str        | 集群名称（以`,`分割）                                        |
+| bk_target_display          | str        | 目标                                                         |
+| content                    | dict       | 处理内容                                                     |
+| converge_count             | int        | 告警收敛数量                                                 |
+| converge_id                | int        | 告警收敛记录ID                                               |
+| create_time                | int        | 创建时间（时间戳）                                           |
+| dimension_string           | str        | 维度信息字符串                                               |
+| dimensions                 | list[dict] | 维度信息列表                                                 |
+| duration                   | str        | 处理时长                                                     |
+| end_time                   | int        | 结束时间（时间戳）                                           |
+| ex_data                    | dict       | 异常信息                                                     |
+| execute_times              | int        | 执行次数                                                     |
+| failure_type               | str        | 失败类型                                                     |
+| id                         | str        | 处理记录ID                                                   |
+| inputs                     | dict       | 动作输入                                                     |
+| is_converge_primary        | bool       | 是否为收敛关键记录                                           |
+| is_parent_action           | bool       | 是否为父任务                                                 |
+| operate_target_string      | str        | 执行对象                                                     |
+| operator                   | list[str]  | 负责人列表                                                   |
+| outputs                    | dict       | 输出动作                                                     |
+| parent_action_id           | int        | 父记录ID                                                     |
+| raw_id                     | int        | 原始ID                                                       |
+| related_action_ids         | list       | 关联的任务ID列表                                             |
+| signal                     | str        | 触发信号                                                     |
+| signal_display             | str        | 触发信号别名                                                 |
+| status                     | str        | 状态：running - 执行中, success - 成功, failure - 失败, skipped - 已收敛, shield - 被屏蔽 |
+| status_tips                | str        | 状态别名                                                     |
+| strategy_id                | int        | 策略ID                                                       |
+| strategy_name              | str        | 策略名称                                                     |
+| update_time                | int        | 更新时间（时间戳）                                           |
 
-#### data.aggs字段说明（over_view结构与之类似）
+#### data.aggs字段说明（overview结构与之类似）
 
-| 字段     | 类型        | 描述               |
-| -------- | ----------- | ------------------ |
-| id       | String      | 聚合统计ID         |
-| name     | String      | 聚合统计名称       |
-| count    | Int         | 相关数量           |
-| children | List（agg） | 该聚合统计可选内容 |
+| 字段     | 类型       | 描述               |
+| -------- | ---------- | ------------------ |
+| id       | str        | 聚合统计ID         |
+| name     | str        | 聚合统计名称       |
+| count    | int        | 相关数量           |
+| children | list[dict] | 该聚合统计可选内容，每个元素结构与父级相同 |
 
 ### 响应参数示例
 

@@ -2,35 +2,37 @@
 
 查询告警列表
 
-
 ### 请求参数
 
-| 字段          | 类型           | 必选 | 描述                                                         |
-| ------------- | -------------- | ---- | ------------------------------------------------------------ |
-| bk_biz_ids    | List[int]      | 是   | 业务ID列表                                                   |
-| status        | List[string]   | 否   | 状态，可选 `MINE`, `ABNORMAL`, `CLOSED`, `RECOVERED`         |
-| conditions    | List[Condtion] | 否   | 过滤条件                                                     |
-| query_string  | string         | 否   | 查询字符串，语法：https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#query-string-query-notes |
-| ordering      | list[string]   | 否   | 排序字段，字段前面加 "-" 代表倒序                            |
-| start_time    | int            | 是   | 开始时间                                                     |
-| end_time      | int            | 是   | 结束时间                                                     |
-| page          | int            | 是   | 页数                                                         |
-| page_size     | int            | 是   | 每页条数（最大5000）                                         |
-| show_overview | bool           | 否   | 是否返回总览统计信息，默认 true                              |
-| show_aggs     | bool           | 否   | 是否返回聚合统计信息，默认 true                              |
-| show_dsl      | Bool           | 否   | 是否返回DSL，默认False                                       |
+| 字段                 | 类型              | 必选 | 描述                                                                                                                                  |
+|--------------------|-----------------|----|-------------------------------------------------------------------------------------------------------------------------------------|
+| bk_biz_ids         | list[int]       | 否  | 业务ID列表，为空时查询所有有权限的业务                                                                                                                |
+| status             | list[str]       | 否  | 状态，可选 `MINE`, `ABNORMAL`, `CLOSED`, `RECOVERED`                                                                                     |
+| conditions         | list[Condition] | 否  | 过滤条件                                                                                                                                |
+| query_string       | str             | 否  | 查询字符串，语法：https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#query-string-query-notes |
+| ordering           | list[str]       | 否  | 排序字段，字段前面加 "-" 代表倒序                                                                                                                 |
+| start_time         | int             | 是  | 开始时间（Unix时间戳，单位：秒）                                                                                                                  |
+| end_time           | int             | 是  | 结束时间（Unix时间戳，单位：秒）                                                                                                                  |
+| page               | int             | 否  | 页数，默认1                                                                                                                              |
+| page_size          | int             | 否  | 每页条数（最大5000），默认10                                                                                                                   |
+| show_overview      | bool            | 否  | 是否返回总览统计信息，默认true                                                                                                                   |
+| show_aggs          | bool            | 否  | 是否返回聚合统计信息，默认true                                                                                                                   |
+| show_dsl           | bool            | 否  | 是否返回DSL，默认false                                                                                                                     |
+| username           | str             | 否  | 负责人                                                                                                                                 |
+| record_history     | bool            | 否  | 是否保存收藏历史，默认false                                                                                                                    |
+| must_exists_fields | list[str]       | 否  | 必要字段列表                                                                                                                              |
+| replace_time_range | bool            | 否  | 是否替换时间范围                                                                                                                            |
 
 #### 过滤条件（conditions）
 
-| 字段      | 类型   | 必须 | 描述                                                         |
-| :-------- | :----- | :--- | :----------------------------------------------------------- |
-| key       | string | 是   | 字段名                                                       |
-| value     | List   | 是   | 可取值的列表。当 `method = eq`，则满足其一即可；当`method = neq`，则全都不满足 |
-| method    | string | 是   | 匹配方式，可选 `eq`, `neq`，默认 `eq`                        |
-| condition | string | 否   | 可选 `and`, `or`                                             |
+| 字段        | 类型   | 必须 | 描述                                                                          |
+|:----------|:-----|:---|:----------------------------------------------------------------------------|
+| key       | str  | 是  | 字段名                                                                         |
+| value     | list | 是  | 可取值的列表。当 `method = eq`，则满足其一即可；当`method = neq`，则全都不满足                       |
+| method    | str  | 否  | 匹配方式，可选 `eq`, `neq`, `include`, `exclude`, `gt`, `gte`, `lt`, `lte`，默认 `eq` |
+| condition | str  | 否  | 复合条件，可选 `and`, `or`, `""`，默认 `""`                                           |
 
 ### 请求参数示例
-
 
 ```json
 {
@@ -50,78 +52,78 @@
 
 ### 响应参数
 
-| 字段    | 类型   | 描述               |
-| ------- | ------ | ------------------ |
-| result  | bool   | 请求是否成功       |
-| code    | int    | 返回的状态码       |
-| message | string | 描述信息           |
+| 字段      | 类型     | 描述        |
+|---------|--------|-----------|
+| result  | bool   | 请求是否成功    |
+| code    | int    | 返回的状态码    |
+| message | string | 描述信息      |
 | data    | dict   | 相关的告警列表数据 |
 
 #### data字段说明
 
-| 字段   | 类型 | 描述               |
-| ------ | ---- | ------------------ |
-| alerts | List | 所有的告警列表     |
-| total   | int  | 返回告警列表的条数 |
-| aggs   | List | 返回的聚合统计信息 |
+| 字段     | 类型         | 描述        |
+|--------|------------|-----------|
+| alerts | list[dict] | 所有的告警列表   |
+| total  | int        | 返回告警列表的条数 |
+| aggs   | list[dict] | 返回的聚合统计信息 |
 
 #### data.alerts字段说明
 
-| 字段                   | 类型         | 描述           |
-| ---------------------- | ------------ | -------------- |
-| id                     | String       | 告警id         |
-| alert_name             | String       | 告警名称       |
-| assignee               | List(string) | 负责人列表     |
-| begin_time             | Int          | 开始时间       |
-| bk_biz_id              | Int          | 业务id         |
-| bk_biz_name            | String       | 业务名称       |
-| bk_cloud_id            | Int          | 云区域id       |
-| bk_service_instance_id | Int          | 服务实例ID     |
-| bk_topo_node           | List         | 目标节点       |
-| category               | String       | 分类           |
-| category_display       | String       | 分类名称       |
-| converge_id            | String       | 收敛记录ID     |
-| create_time            | Int          | 创建时间       |
-| data_type              | String       | 数据类型       |
-| dedupe_keys            | List         | 告警去重字段   |
-| dedupe_md5             | String       | 告警去重MD5    |
-| description            | String       | 告警内容       |
-| dimension_message      | String       | 维度信息       |
-| dimensions             | List         | 维度           |
-| duration               | String       | 持续时间       |
-| end_time               | String       | 结束时间       |
-| event_id               | String       | 事件ID         |
-| first_anomaly_time     | Int          | 首次异常事件   |
-| ip                     | String       | 目标ip         |
-| is_ack                 | Bool         | 是否确认       |
-| is_handled             | Bool         | 是否已处理     |
-| is_shielded            | Bool         | 是否已屏蔽     |
-| latest_time            | Int          | 最新事件时间   |
-| metric                 | List         | 指标           |
-| metric_display         | List         | 指标信息       |
-| plugin_id              | String       | 插件ID         |
-| seq_id                 | Int          | 告警序列ID     |
-| severity               | Int          | 级别           |
-| shield_id              | List（int）  | 屏蔽配置ID列表 |
-| shield_left_time       | String       | 屏蔽剩余时间   |
-| stage_display          | String       | 处理阶段       |
-| status                 | String       | 状态           |
-| strategy_id            | Int          | 策略ID         |
-| strategy_name          | String       | 策略名称       |
-| tags                   | List         | 标签           |
-| target                 | String       | 告警目标       |
-| target_key             | String       | 告警目标信息   |
-| target_type            | String       | 告警目标类型   |
-| update_time            | Int          | 更新时间       |
+| 字段                     | 类型         | 描述                   |
+|------------------------|------------|----------------------|
+| id                     | str        | 告警id                 |
+| alert_name             | str        | 告警名称                 |
+| assignee               | list[str]  | 负责人列表                |
+| begin_time             | int        | 开始时间（Unix时间戳，单位：秒）   |
+| bk_biz_id              | int        | 业务id                 |
+| bk_biz_name            | str        | 业务名称                 |
+| bk_cloud_id            | int        | 云区域id                |
+| bk_service_instance_id | int        | 服务实例ID               |
+| bk_topo_node           | list[str]  | 目标节点                 |
+| category               | str        | 分类                   |
+| category_display       | str        | 分类名称                 |
+| converge_id            | str        | 收敛记录ID               |
+| create_time            | int        | 创建时间（Unix时间戳，单位：秒）   |
+| data_type              | str        | 数据类型                 |
+| dedupe_keys            | list[str]  | 告警去重字段               |
+| dedupe_md5             | str        | 告警去重MD5              |
+| description            | str        | 告警内容                 |
+| dimension_message      | str        | 维度信息                 |
+| dimensions             | list[dict] | 维度                   |
+| duration               | str        | 持续时间                 |
+| end_time               | int        | 结束时间（Unix时间戳，单位：秒）   |
+| event_id               | str        | 事件ID                 |
+| first_anomaly_time     | int        | 首次异常事件（Unix时间戳，单位：秒） |
+| ip                     | str        | 目标ip                 |
+| is_ack                 | bool       | 是否确认                 |
+| is_handled             | bool       | 是否已处理                |
+| is_shielded            | bool       | 是否已屏蔽                |
+| latest_time            | int        | 最新事件时间（Unix时间戳，单位：秒） |
+| metric                 | list[str]  | 指标                   |
+| metric_display         | list[dict] | 指标信息                 |
+| plugin_id              | str        | 插件ID                 |
+| seq_id                 | int        | 告警序列ID               |
+| severity               | int        | 级别                   |
+| shield_id              | list[int]  | 屏蔽配置ID列表             |
+| shield_left_time       | str        | 屏蔽剩余时间               |
+| stage_display          | str        | 处理阶段                 |
+| status                 | str        | 状态                   |
+| strategy_id            | int        | 策略ID                 |
+| strategy_name          | str        | 策略名称                 |
+| tags                   | list[dict] | 标签                   |
+| target                 | str        | 告警目标                 |
+| target_key             | str        | 告警目标信息               |
+| target_type            | str        | 告警目标类型               |
+| update_time            | int        | 更新时间（Unix时间戳，单位：秒）   |
 
 #### data.aggs字段说明（over_view结构与之类似）
 
-| 字段     | 类型        | 描述               |
-| -------- | ----------- | ------------------ |
-| id       | String      | 聚合统计ID         |
-| name     | String      | 聚合统计名称       |
-| count    | Int         | 相关数量           |
-| children | List（agg） | 该聚合统计可选内容 |
+| 字段       | 类型         | 描述        |
+|----------|------------|-----------|
+| id       | str        | 聚合统计ID    |
+| name     | str        | 聚合统计名称    |
+| count    | int        | 相关数量      |
+| children | list[dict] | 该聚合统计可选内容 |
 
 ### 响应参数示例
 
