@@ -19,6 +19,7 @@
    1. xxxx_yyyy_built_in_time_series - cmdb关联数据
 6. APM应用 - 通过ApmDataSourceConfigBase派生的四张表，通过业务ID查询dataid，然后通过dataid关联的table_id
 7. 日志采集 - DataSource的type_label为log，且source_system为bk_log_search/其他日志平台app_code（可以配置为config变量），获取到bk_data_ids后，通过DataSourceResultTable关联ResultTable，然后再用resulttable中的bk_biz_id过滤出业务下的table_ids
+8. 其他 - resulttable的业务ID为对应业务下的bk_biz_id
 
 特殊逻辑业务0，代表全局数据
 1. 内置数据
@@ -31,7 +32,6 @@
 8. 特殊逻辑
    1. dbm/p4等特殊主机数据
    2. apm预计算表
-
 
 ### DataSource分类
 1. type_label: time_series

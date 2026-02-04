@@ -32,6 +32,7 @@ TABLE_PIPELINE_MAPPING: dict[str, list[RowTransformer]] = {
     "metadata.DataSource": [disable_enable_fields],
     "metadata.ResultTable": [disable_enable_fields],
     "bkmonitor.Shield": [filter_is_deleted],
+    "apm.ApmApplication": [disable_enable_fields],
 }
 
 # =============================================================================
