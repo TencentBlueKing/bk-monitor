@@ -288,7 +288,7 @@ export default defineComponent({
               >
                 <div class='header'>
                   <i18n-t
-                    keypath='已选{0}项'
+                    keypath='已选 {0} 项'
                     tag='span'
                   >
                     <span class='selected-count'>{this.localSelectValue.length}</span>
@@ -300,41 +300,48 @@ export default defineComponent({
                     {this.$t('清空')}
                   </span>
                 </div>
-                <TransitionGroup
-                  class='selected-list'
-                  name='drag'
-                  tag='ul'
-                >
-                  {this.localSelectValueList.map((field, index) => {
-                    return (
-                      <li
-                        key={field.id}
-                        class='list-item target-item'
-                        onDragend={this.handleDragend}
-                        onDragover={e => this.handleDragover(e, field.id)}
-                        onDragstart={e => this.handleDragstart(e, field.id)}
-                      >
-                        <div class='list-item-left'>
+                {this.localSelectValueList.length ? (
+                  <TransitionGroup
+                    class='selected-list'
+                    name='drag'
+                    tag='ul'
+                  >
+                    {this.localSelectValueList.map((field, index) => {
+                      return (
+                        <li
+                          key={field.id}
+                          class='list-item target-item'
+                          onDragend={this.handleDragend}
+                          onDragover={e => this.handleDragover(e, field.id)}
+                          onDragstart={e => this.handleDragstart(e, field.id)}
+                        >
+                          <div class='list-item-left'>
+                            <i
+                              class='icon-monitor icon-mc-tuozhuai'
+                              onMousedown={e => this.dragHandleMouseOperation(e, true)}
+                              onMouseup={e => this.dragHandleMouseOperation(e, false)}
+                            />
+                            <span
+                              class='item-label'
+                              v-overflow-tips
+                            >
+                              {field.name}
+                            </span>
+                          </div>
                           <i
-                            class='icon-monitor icon-mc-tuozhuai'
-                            onMousedown={e => this.dragHandleMouseOperation(e, true)}
-                            onMouseup={e => this.dragHandleMouseOperation(e, false)}
+                            class='icon-monitor icon-mc-close'
+                            onClick={() => this.handleDeleteItem(index)}
                           />
-                          <span
-                            class='item-label'
-                            v-overflow-tips
-                          >
-                            {field.name}
-                          </span>
-                        </div>
-                        <i
-                          class='icon-monitor icon-mc-close'
-                          onClick={() => this.handleDeleteItem(index)}
-                        />
-                      </li>
-                    );
-                  })}
-                </TransitionGroup>
+                        </li>
+                      );
+                    })}
+                  </TransitionGroup>
+                ) : (
+                  <EmptyStatus
+                    textMap={{ empty: this.$t('暂无选中项') }}
+                    type='empty'
+                  />
+                )}
               </div>
             </div>
           ),

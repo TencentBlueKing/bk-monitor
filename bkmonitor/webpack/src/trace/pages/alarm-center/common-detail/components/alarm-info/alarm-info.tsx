@@ -26,7 +26,7 @@
 import { type PropType, computed, defineComponent } from 'vue';
 
 import dayjs from 'dayjs';
-import { toBcsDetail, toPerformanceDetail } from 'fta-solutions/common/go-link';
+import { toBcsDetail, toCollectDetail, toPerformanceDetail } from 'fta-solutions/common/go-link';
 import { ETagsType } from 'monitor-common/utils/biz';
 import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 import { storeToRefs } from 'pinia';
@@ -61,7 +61,14 @@ export default defineComponent({
         : bizItem.value?.space_id || bizItem.value?.space_code || ''
     );
     const cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
-    const ipMap = ['bk_target_ip', 'ip', 'bk_host_id', 'tags.bcs_cluster_id'];
+    const ipMap = [
+      'bk_target_ip',
+      'ip',
+      'bk_host_id',
+      'tags.bcs_cluster_id',
+      'tags.bk_collect_config_id', // 采集配置ID
+      'bk_collect_config_id', // 采集配置ID
+    ];
 
     const handleStatusString = computed(() => {
       const total = props.alertActionOverview?.count;
@@ -157,6 +164,11 @@ export default defineComponent({
         /** 跳转到主机监控 */
         case 'bk_host_id':
           toPerformanceDetail(props.data?.bk_biz_id, item.value);
+          break;
+
+        case 'bk_collect_config_id':
+        case 'tags.bk_collect_config_id':
+          toCollectDetail(props.data?.bk_biz_id, item.value);
           break;
 
         default: {

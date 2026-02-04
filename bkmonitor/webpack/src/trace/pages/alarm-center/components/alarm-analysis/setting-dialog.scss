@@ -2,7 +2,7 @@
   .bk-dialog-header {
     padding: 16px 24px 20px;
     line-height: 28px;
-    border-bottom: 1px solid #DCDEE5;
+    border-bottom: 1px solid #dcdee5;
   }
 
   .bk-dialog-content {
@@ -41,6 +41,7 @@
           margin-bottom: 18px;
           margin-left: 0;
           line-height: 22px;
+          color: #4d4f56;
         }
       }
     }
@@ -48,20 +49,21 @@
     .right-panel {
       width: 360px;
       padding: 10px 25px 10px 16px;
-      background: #F5F7FA;
+      background: #f5f7fa;
 
       .header {
         display: flex;
         justify-content: space-between;
         font-size: 14px;
         line-height: 22px;
+        color: #313238;
 
         .selected-count {
-           font-weight: 700;
+          font-weight: 700;
         }
 
         .clear-btn {
-          color: #3A84FF;
+          color: #3a84ff;
           cursor: pointer;
         }
       }
@@ -80,12 +82,11 @@
           align-items: center;
           height: 36px;
           padding: 0 10px;
-          background: #FFFFFF;
+          background: #ffffff;
           border-radius: 2px;
           box-shadow: 0 1px 2px 0 #00000029;
-          
 
-          &+.list-item {
+          & + .list-item {
             margin-top: 4px;
           }
 
@@ -102,6 +103,7 @@
 
             .item-label {
               margin-left: 9px;
+              color: #4d4f56;
               overflow: hidden;
               text-overflow: ellipsis;
               white-space: nowrap;
@@ -109,7 +111,7 @@
           }
 
           .icon-mc-close {
-            color: #C4C6CC;
+            color: #c4c6cc;
             cursor: pointer;
           }
         }

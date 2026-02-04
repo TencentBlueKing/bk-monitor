@@ -75,6 +75,7 @@ export default {
   '{0}个成功': ' successes: {0}',
   '{0}个失败': ' failed: {0}',
   '{0}个导入中': 'Importing: {0}',
+  '已选 {0} 项': 'Selected {0} Items',
   '已选{0}项': 'Selected {0} Items',
   '展开 1 层': 'Expand 1 Layer',
   '收起 1 层': 'Collapse 1 Layer',

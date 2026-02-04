@@ -46,7 +46,7 @@ import PanelEvent from './components/panel-event';
 import PanelHost from './components/panel-host';
 import PanelK8s from './components/panel-k8s';
 import PanelLog from './components/panel-log';
-import PanelMetric from './components/panel-metric';
+// import PanelMetric from './components/panel-metric';
 import PanelTrace from './components/panel-trace';
 
 import type { IAuthority } from '@/typings/authority';
@@ -194,8 +194,8 @@ export default defineComponent({
           return <PanelK8s alertId={alarmId.value} />;
         case ALARM_CENTER_PANEL_TAB_MAP.EVENT:
           return <PanelEvent detail={alarmDetail.value} />;
-        case ALARM_CENTER_PANEL_TAB_MAP.METRIC:
-          return <PanelMetric />;
+        // case ALARM_CENTER_PANEL_TAB_MAP.METRIC:
+        //   return <PanelMetric />;
         case ALARM_CENTER_PANEL_TAB_MAP.ALARM:
           return (
             <PanelAlarm
