@@ -161,11 +161,13 @@ EXTRACT_FILE_MAX_ITERATIONS = 10  # 解压文件最大迭代次数
 class TGPATaskTypeEnum(ChoicesEnum):
     """任务类型"""
 
+    BUSINESS_LOG_V1 = 6
     SYSTEM_LOG = 7
     BUSINESS_LOG_V2 = 8
 
     _choices_labels = (
         (SYSTEM_LOG, _("系统日志捞取")),
+        (BUSINESS_LOG_V1, _("业务日志捞取")),
         (BUSINESS_LOG_V2, _("业务日志捞取V2")),
     )
 
