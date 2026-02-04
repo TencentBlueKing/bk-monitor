@@ -9,15 +9,15 @@
   .item-tags {
     display: inline-flex;
     flex-wrap: wrap;
-    row-gap: 4px;
-    column-gap: var(--tag-col-gap);
+    gap: 4px var(--tag-col-gap);
+
     // margin-right: 5px;
     overflow: hidden;
   }
 
   .collapse-tag {
     display: inline-block;
-    height: 20px;
+    height: var(--tag-height);
     padding: 0 5px;
     font-size: 12px;
     line-height: 20px;
