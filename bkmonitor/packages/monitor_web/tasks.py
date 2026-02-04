@@ -586,7 +586,7 @@ def update_task_running_status(task_id):
     异步查询拨测任务启动状态，更新拨测任务列表中的运行状态
     """
 
-    task = uptime_check_operation.get_task_by_pk(task_id)
+    task = uptime_check_operation.get_task_by_id(task_id)
     bk_biz_id = task.bk_biz_id
     bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
     set_local_tenant_id(bk_tenant_id=bk_tenant_id)

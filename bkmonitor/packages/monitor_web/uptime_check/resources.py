@@ -2547,27 +2547,39 @@ class ImportUptimeCheckTaskResource(Resource):
         )
         if existing_tasks:
             uptime_check_operation.update_task_model_by_name(task_create_data["name"], **task_create_data)
-            # 更新后重新获取模型实例以进行 M2M 操作
-            task_obj = uptime_check_operation.get_task_model_by_name(
+            task_id = uptime_check_operation.get_task_id_by_name(
                 bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, name=task_create_data["name"]
             )
         else:
             if settings.ENABLE_MULTI_TENANT_MODE:
                 task_create_data["indepentent_dataid"] = True
-            task_obj = uptime_check_operation.create_task_model(**task_create_data)
-        task_obj.nodes.set(nodes)
-        task_obj.groups.set(groups)
-        task_obj.save()
-        return task_obj
+            task_id = uptime_check_operation.create_task_model(**task_create_data)
+
+        # 设置 M2M 关系，不再需要 Model 实例
+        uptime_check_operation.set_task_node_and_group_relations(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            task_id=task_id,
+            node_id_list=[n.id for n in nodes],
+            group_id_list=[g.id for g in groups],
+        )
+
+        return task_id
 
     def import_task(self, item_data, bk_biz_id):
         try:
-            task_obj = self.create_task(item_data, bk_biz_id)
+            task_id = self.create_task(item_data, bk_biz_id)
+            bk_tenant_id = get_request_tenant_id()
+            task_name = item_data["collector_conf"]["name"]
 
             # 如果没有传入monitor_conf则生成默认配置
             if item_data.get("monitor_conf"):
-                task_obj.status = UptimeCheckTaskStatus.STARTING
-                task_obj.save()
+                uptime_check_operation.update_task_status(
+                    bk_tenant_id=bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    task_id=task_id,
+                    status=UptimeCheckTaskStatus.STARTING,
+                )
                 monitor_conf_list = item_data["monitor_conf"]
                 for monitor_conf in monitor_conf_list:
                     monitor_conf.update(
@@ -2579,18 +2591,18 @@ class ImportUptimeCheckTaskResource(Resource):
                             "solution_type": "job",
                             "solution_is_enable": False,
                             "monitor_id": 0,
-                            "where_sql": f"(task_id={task_obj.id})",
-                            "task_id": task_obj.id,
-                            "bk_biz_id": task_obj.bk_biz_id,
+                            "where_sql": f"(task_id={task_id})",
+                            "task_id": task_id,
+                            "bk_biz_id": bk_biz_id,
                         }
                     )
                     resource.config.save_alarm_strategy(monitor_conf)
 
             # 创建下发拨测任务
             uptime_check_operation.deploy_uptime_check_task(
-                bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id, task_id=task_obj.id
+                bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id
             )
-            return {"result": True, "detail": {"task_name": task_obj.name}}
+            return {"result": True, "detail": {"task_name": task_name}}
         except Exception as e:
             return {"result": False, "detail": {"task_name": item_data["collector_conf"]["name"], "error_mes": str(e)}}
 
