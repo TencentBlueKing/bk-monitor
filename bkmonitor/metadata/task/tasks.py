@@ -1032,9 +1032,9 @@ def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
 
     # 获取默认VM集群
     if not storage_cluster_name:
-        cluster_info = models.ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True
-        ).last()
+        cluster_info = models.ClusterInfo.get_matched_cluster(
+            bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM, bk_biz_id=bk_biz_id
+        )
         if not cluster_info:
             logger.error("create_basereport_datalink_for_bkcc: get default vm cluster failed,return!")
             return
@@ -1275,9 +1275,9 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         ).cluster_id
     else:
         # TODO 这里需要区分ES集群是否在计算平台有注册
-        default_es_cluster = models.ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_ES, is_default_cluster=True
-        ).last()
+        default_es_cluster = models.ClusterInfo.get_matched_cluster(
+            bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_ES, bk_biz_id=bk_biz_id
+        )
         if not default_es_cluster:
             logger.error("create_base_event_datalink_for_bkcc: get default es cluster failed,return!")
             return
@@ -1666,9 +1666,9 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
 
     # 如果未指定存储集群，则使用默认的VM集群
     if not storage_cluster_name:
-        cluster = models.ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True
-        ).last()
+        cluster = models.ClusterInfo.get_matched_cluster(
+            bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM, bk_biz_id=bk_biz_id
+        )
         if not cluster:
             logger.error("create_system_proc_datalink_for_bkcc: get default vm cluster failed,return!")
             return
@@ -1944,9 +1944,8 @@ def create_single_tenant_system_datalink(
         datasource.register_to_bkbase(bk_biz_id=bk_biz_id, bkbase_data_name="basereport")
         datasource.save()
 
-    # 获取默认的VM集群
-    vm_cluster = ClusterInfo.objects.get(
-        bk_tenant_id=datasource.bk_tenant_id, is_default_cluster=True, cluster_type=ClusterInfo.TYPE_VM
+    vm_cluster = ClusterInfo.get_matched_cluster(
+        bk_tenant_id=datasource.bk_tenant_id, cluster_type=ClusterInfo.TYPE_VM, bk_biz_id=bk_biz_id
     )
 
     # 创建内置结果表对应的AccessVMRecord
@@ -2018,7 +2017,9 @@ def create_single_tenant_system_proc_datalink(
         bk_biz_id = data_bk_biz_id
 
     # 获取默认的VM集群
-    vm_cluster = ClusterInfo.objects.get(is_default_cluster=True, cluster_type=ClusterInfo.TYPE_VM)
+    vm_cluster = ClusterInfo.get_matched_cluster(
+        bk_tenant_id=DEFAULT_TENANT_ID, cluster_type=ClusterInfo.TYPE_VM, bk_biz_id=bk_biz_id
+    )
 
     # 获取kafka集群
     try:

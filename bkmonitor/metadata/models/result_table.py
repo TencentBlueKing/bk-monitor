@@ -219,6 +219,90 @@ class ResultTable(models.Model):
         return DataSource.objects.get(bk_data_id=bk_data_id, bk_tenant_id=self.bk_tenant_id)
 
     @classmethod
+    def get_data_type_by_data_id(cls, table_id: str) -> str | None:
+        """
+        根据 table_id 的命名规则解析对应的 data_type
+
+        支持的 data_type:
+        - log: 日志数据
+        - time_series: 时序数据
+        - trace: 调用链数据
+        - metric: APM指标数据
+        - event: 事件数据
+
+        params:
+            table_id: 结果表ID，如：
+                - log: bklog_index_set_*, space_*_bklog.*
+                - time_series: {biz_id}_bkmonitor_time_series_*
+                - trace: {biz_id}_bkapm.trace_*
+                - metric: {biz_id}_bkapm_metric_*
+                - event: {biz_id}_bkmonitor_event_*
+
+        return:
+            data_type 字符串，如果无法识别则返回 None
+        """
+        if not table_id:
+            return None
+
+        # log: 包含bklog
+        if "bklog" in table_id:
+            return "log"
+
+        # time_series: {biz_id}_bkmonitor_time_series_*
+        if "_bkmonitor_time_series_" in table_id:
+            return "time_series"
+
+        # trace: {biz_id}_bkapm.trace_*
+        if "_bkapm.trace_" in table_id:
+            return "trace"
+
+        # metric: {biz_id}_bkapm_metric_*
+        if "_bkapm_metric_" in table_id:
+            return "metric"
+
+        # event: {biz_id}_bkmonitor_event_*
+        if "_bkmonitor_event_" in table_id:
+            return "event"
+
+        # 无法识别的类型
+        logger.warning("get_data_type_by_data_id: unable to identify data_type for table_id->[%s]", table_id)
+        return None
+
+    @classmethod
+    def get_biz_id_by_table_id(cls, table_id: str) -> int | None:
+        """
+        尝试从table_id中提取bk_biz_id
+        注意: 并非百分百成功,部分格式无法解析
+
+        支持格式:
+        - {bk_biz_id}_xxx: 如 "7_system_cpu"
+        - space_{bk_biz_id}_xxx: 如 "space_7_bklog.xxx" (表示 -7)
+        """
+        if not table_id or "_" not in table_id:
+            return None
+
+        # 尝试提取业务ID
+        parts = table_id.split("_", 2)  # 最多分割3部分
+
+        # 格式1: space_{bk_biz_id}_xxx (负数业务ID)
+        if parts[0] == "space" and len(parts) >= 2 and parts[1].isdigit():
+            bk_biz_id = -int(parts[1])
+            logger.info(
+                "get_biz_id_by_table_id: extracted bk_biz_id->[%s] from table_id->[%s] (space format)",
+                bk_biz_id,
+                table_id,
+            )
+            return bk_biz_id
+
+        # 格式2: {bk_biz_id}_xxx (正数业务ID)
+        if parts[0].isdigit():
+            bk_biz_id = int(parts[0])
+            logger.info("get_biz_id_by_table_id: extracted bk_biz_id->[%s] from table_id->[%s]", bk_biz_id, table_id)
+            return bk_biz_id
+
+        return None
+
+    @classmethod
     def is_disable_metric_cutter(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         是否 禁用指标切分模式

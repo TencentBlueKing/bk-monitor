@@ -176,6 +176,39 @@ class ClusterInfo(models.Model):
     label = models.CharField("用途标签", max_length=32, null=True, default="")
     default_settings = JsonField("集群的默认配置", default={}, null=True)
 
+    # 集群标签配置（用于匹配路由）
+    labels = models.JSONField(
+        "集群标签",
+        default=dict,
+        null=True,
+        blank=True,
+        help_text="""
+        集群标签配置，用于业务和数据类型的匹配路由。
+        
+        格式示例：
+        {
+            "bk_biz_ids": [2, 100],
+            "data_types": ["time_series", "event"]
+        }
+        
+        说明：
+        - bk_biz_ids: 业务ID列表，空列表表示不限制业务（匹配所有）
+        - data_types: 数据类型列表，支持：
+          * time_series: 时序数据
+          * metric: 指标
+          * event: 事件数据
+          * log: 日志数据
+          * trace: Trace数据
+          空列表表示不限制数据类型（匹配所有）
+        
+        匹配优先级（自动计算）：
+        - 级别1: 业务ID和数据类型都精确匹配（最高优先级）
+        - 级别2: 仅业务ID精确匹配
+        - 级别3: 仅数据类型精确匹配
+        - 级别4: 都为空列表（兜底规则，匹配所有）
+        """,
+    )
+
     # 创建和修改信息
     creator = models.CharField("创建者", default="system", max_length=255)
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
@@ -186,6 +219,181 @@ class ClusterInfo(models.Model):
         verbose_name = "集群配置信息"
         verbose_name_plural = "集群配置信息"
         unique_together = (("bk_tenant_id", "cluster_type", "cluster_name"),)
+
+    @classmethod
+    def get_matched_cluster(
+        cls, bk_tenant_id: str, cluster_type: str, bk_biz_id: int | None = None, data_type: str | None = None, **kwargs
+    ) -> "ClusterInfo":
+        """
+        根据业务ID和数据类型智能匹配集群
+
+        匹配逻辑：
+        1. 获取指定类型的所有集群
+        2. 遍历每个集群的 labels 进行匹配
+        3. 自动优先级排序：
+           - 优先级1: 业务ID和数据类型都匹配
+           - 优先级2: 仅业务ID匹配
+           - 优先级3: 仅数据类型匹配
+           - 优先级4: labels 为空（兜底规则）
+           - 同优先级按创建时间倒序
+        4. 如果都不匹配，回退到 is_default_cluster=True
+
+        params:
+            bk_tenant_id: 租户ID（必填）
+            cluster_type: 集群类型（必填）
+            bk_biz_id: 业务ID
+            data_type: 数据类型，支持：
+                - time_series: 时序数据
+                - event: 事件数据
+                - log: 日志数据
+                - alert: 关联告警
+                - trace: Trace数据
+
+        return:
+            匹配的 ClusterInfo 对象
+
+        Raises:
+            ValueError: 找不到任何可用集群
+        """
+
+        # 1. 获取所有候选集群
+        clusters = cls.objects.filter(bk_tenant_id=bk_tenant_id, cluster_type=cluster_type).only(
+            "cluster_id",
+            "cluster_name",
+            "cluster_type",
+            "labels",
+            "create_time",
+            "is_default_cluster",
+        )
+
+        if not clusters.exists():
+            raise ValueError(f"未找到任何 {cluster_type} 类型的集群，租户={bk_tenant_id}")
+
+        # 2. 记录匹配上下文
+        logger.info(
+            f"get_matched_cluster: searching {cluster_type} cluster, "
+            f"tenant={bk_tenant_id}, bk_biz_id={bk_biz_id}, data_type={data_type}"
+        )
+
+        # 3. 收集所有匹配的集群及其匹配信息
+        matched_clusters = []
+        for cluster in clusters:
+            # 对符合条件的集群进行标签匹配
+            match_info = cls._match_cluster_labels(cluster, bk_biz_id, data_type)
+            if match_info["is_matched"]:
+                matched_clusters.append(
+                    {
+                        "cluster": cluster,
+                        "match_level": match_info["match_level"],  # 1=都匹配, 2=仅biz, 3=仅类型， 4=兜底
+                        "create_time": cluster.create_time,
+                    }
+                )
+
+        # 4. 如果有匹配的集群，选择最优的
+        if matched_clusters:
+            # 排序：匹配级别（数字越小越优先） > 创建时间倒序（新规则优先）
+            matched_clusters.sort(
+                key=lambda x: (
+                    x["match_level"],
+                    -x["create_time"].timestamp(),  # 负号表示倒序
+                )
+            )
+
+            # 取最匹配的
+            selected = matched_clusters[0]["cluster"]
+            match_level_desc = {
+                1: "业务ID和数据类型都匹配",
+                2: "仅业务ID匹配",
+                3: "仅数据类型匹配",
+                4: "兜底匹配",
+            }
+
+            # 记录警告（如果有多个匹配）-> 提示修改存在冲突的规则
+            if len(matched_clusters) > 1:
+                alternatives = [f"{m['cluster'].cluster_name}(级别{m['match_level']})" for m in matched_clusters[1:3]]
+                logger.warning(
+                    f"get_matched_cluster: multiple clusters matched, "
+                    f"selected={selected.cluster_name} "
+                    f"(级别{matched_clusters[0]['match_level']}: {match_level_desc[matched_clusters[0]['match_level']]}), "
+                    f"alternatives={alternatives}"
+                )
+            else:
+                logger.info(
+                    f"get_matched_cluster: matched cluster={selected.cluster_name} "
+                    f"(id={selected.cluster_id}, "
+                    f"级别{matched_clusters[0]['match_level']}: {match_level_desc[matched_clusters[0]['match_level']]})"
+                )
+
+            return selected
+
+        # 5. 没有匹配的规则，回退到默认集群
+        default_cluster = clusters.filter(is_default_cluster=True).first()
+        if default_cluster:
+            logger.info(
+                f"get_matched_cluster: no rules matched, using default cluster="
+                f"{default_cluster.cluster_name} (id={default_cluster.cluster_id})"
+            )
+            return default_cluster
+
+        # 6. 找不到任何集群
+        logger.error(f"get_matched_cluster: no cluster found, type={cluster_type}, tenant={bk_tenant_id}")
+        raise ValueError(f"未找到可用的 {cluster_type} 集群（租户={bk_tenant_id}）,请配置默认集群或匹配规则")
+
+    @classmethod
+    def _match_cluster_labels(cls, cluster: "ClusterInfo", bk_biz_id: int | None, data_type: str | None) -> dict:
+        """
+        检查集群标签是否匹配
+
+        匹配级别：
+        - 1: 业务ID和数据类型都精确匹配（最高优先级）
+        - 2: 仅业务ID精确匹配
+        - 3: 仅数据类型精确匹配
+        - 4: 标签为空或都为空列表（匹配所有，兜底规则）
+
+        Returns:
+            {
+                "is_matched": bool,
+                "match_level": int    # 匹配级别，数字越小优先级越高
+            }
+        """
+        # 如果没有 labels 配置，作为兜底规则
+        if not cluster.labels:
+            return {
+                "is_matched": True,
+                "match_level": 4,  # 兜底规则
+            }
+
+        # 获取标签配置
+        label_biz_ids = cluster.labels.get("bk_biz_ids", [])
+        label_data_types = cluster.labels.get("data_types", [])
+
+        # 判断是否有限制条件
+        has_biz_label = bool(label_biz_ids)  # 是否限制了业务
+        has_type_label = bool(label_data_types)  # 是否限制了数据类型
+
+        # 判断是否匹配（空列表表示不限制，即匹配所有）
+        biz_match = not has_biz_label or (bk_biz_id is not None and bk_biz_id in label_biz_ids)
+        type_match = not has_type_label or (data_type is not None and data_type in label_data_types)
+
+        # 如果业务或类型任一不匹配，则不匹配
+        if not (biz_match and type_match):
+            return {"is_matched": False, "match_level": 999}
+
+        # 确定匹配级别
+        # 级别1: 业务ID和数据类型都有明确配置且都匹配
+        if has_biz_label and has_type_label:
+            return {"is_matched": True, "match_level": 1}
+
+        # 级别2: 仅业务ID有明确配置且匹配
+        if has_biz_label and not has_type_label:
+            return {"is_matched": True, "match_level": 2}
+
+        # 级别3: 仅数据类型有明确配置且匹配
+        if not has_biz_label and has_type_label:
+            return {"is_matched": True, "match_level": 3}
+
+        # 级别4: 都没有限制（兜底规则）
+        return {"is_matched": True, "match_level": 4}
 
     def to_dict(self, fields: list | None = None, exclude: list | None = None) -> dict:
         data = {}
@@ -1664,6 +1872,7 @@ class RedisStorage(models.Model, StorageResultTable):
     def create_table(
         cls,
         table_id,
+        bk_tenant_id=DEFAULT_TENANT_ID,
         storage_cluster_id=None,
         key=None,
         db=0,
@@ -1675,6 +1884,7 @@ class RedisStorage(models.Model, StorageResultTable):
         """
         实际创建结果表
         :param table_id: 结果表ID
+        :param bk_tenant_id: 租户ID
         :param storage_cluster_id: 存储集群配置ID
         :param key: 写入到redis的键值配置
         :param db: redis DB，但该配置在publish命令下无效
@@ -1687,9 +1897,33 @@ class RedisStorage(models.Model, StorageResultTable):
 
         # 0. 判断是否需要使用默认集群信息
         if storage_cluster_id is None:
-            storage_cluster_id = ClusterInfo.objects.get(
-                cluster_type=ClusterInfo.TYPE_REDIS, is_default_cluster=True
-            ).cluster_id
+            try:
+                # 解析当前table_id对应的data_type
+                data_type = ResultTable.get_data_type_by_data_id(table_id)
+                bk_biz_id = ResultTable.get_biz_id_by_table_id(table_id)
+
+                # 匹配符合规则的集群
+                default_cluster = ClusterInfo.get_matched_cluster(
+                    bk_tenant_id=bk_tenant_id,
+                    cluster_type=ClusterInfo.TYPE_REDIS,
+                    bk_biz_id=bk_biz_id,
+                    data_type=data_type,
+                )
+                storage_cluster_id = default_cluster.cluster_id
+                logger.info(
+                    "create_table: table_id->[%s] matched cluster->[%s] (id=%s) with bk_biz_id->[%s], data_type->[%s]",
+                    table_id,
+                    default_cluster.cluster_name,
+                    storage_cluster_id,
+                    bk_biz_id,
+                    data_type,
+                )
+            except (ClusterInfo.DoesNotExist, ValueError) as e:
+                # 捕获两种异常：DoesNotExist (查询失败) 和 ValueError (匹配失败)
+                logger.error(
+                    "create_table: failed to get Redis cluster for table_id->[%s], error->[%s]", table_id, str(e)
+                )
+                raise ValueError(_("存储集群配置有误，默认Redis集群不存在，请确认或联系管理员处理"))
 
         # 如果有提供集群信息，需要判断
         else:
@@ -1813,9 +2047,33 @@ class KafkaStorage(models.Model, StorageResultTable):
             if settings.DEFAULT_KAFKA_STORAGE_CLUSTER_ID is not None:
                 storage_cluster_id = settings.DEFAULT_KAFKA_STORAGE_CLUSTER_ID
             else:
-                storage_cluster_id = ClusterInfo.objects.get(
-                    bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_KAFKA, is_default_cluster=True
-                ).cluster_id
+                try:
+                    # 解析当前table_id对应的data_type
+                    data_type = ResultTable.get_data_type_by_data_id(table_id)
+                    bk_biz_id = ResultTable.get_biz_id_by_table_id(table_id)
+
+                    # 匹配符合规则的集群
+                    default_cluster = ClusterInfo.get_matched_cluster(
+                        cluster_type=ClusterInfo.TYPE_KAFKA,
+                        bk_tenant_id=bk_tenant_id,
+                        bk_biz_id=bk_biz_id,
+                        data_type=data_type,
+                    )
+                    storage_cluster_id = default_cluster.cluster_id
+                    logger.info(
+                        "create_table: table_id->[%s] matched cluster->[%s] (id=%s) with bk_biz_id->[%s], data_type->[%s]",
+                        table_id,
+                        default_cluster.cluster_name,
+                        storage_cluster_id,
+                        bk_biz_id,
+                        data_type,
+                    )
+                except (ClusterInfo.DoesNotExist, ValueError) as e:
+                    # 捕获两种异常：DoesNotExist (查询失败) 和 ValueError (匹配失败)
+                    logger.error(
+                        "create_table: failed to get Kafka cluster for table_id->[%s], error->[%s]", table_id, str(e)
+                    )
+                    raise ValueError(_("存储集群配置有误，默认kafka集群不存在，请确认或联系管理员处理"))
 
         # 如果有提供集群信息，需要判断
         else:
@@ -2088,13 +2346,30 @@ class ESStorage(models.Model, StorageResultTable):
         # 0. 判断是否需要使用默认集群信息
         if cluster_id is None:
             try:
-                cluster_id = ClusterInfo.objects.get(
-                    bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_ES, is_default_cluster=True
-                ).cluster_id
-            except ClusterInfo.DoesNotExist:
-                logger.error(f"cluster_id->[{cluster_id}] is not exists or is not redis cluster, something go wrong?")
-                raise ValueError(_("存储集群配置有误，默认es集群不存在，请确认或联系管理员处理"))
+                # 解析当前table_id对应的data_type
+                data_type = ResultTable.get_data_type_by_data_id(table_id)
+                bk_biz_id = ResultTable.get_biz_id_by_table_id(table_id)
 
+                # 匹配符合规则的集群
+                default_cluster = ClusterInfo.get_matched_cluster(
+                    bk_tenant_id=bk_tenant_id,
+                    cluster_type=ClusterInfo.TYPE_ES,
+                    bk_biz_id=bk_biz_id,
+                    data_type=data_type,
+                )
+                cluster_id = default_cluster.cluster_id
+                logger.info(
+                    "create_table: table_id->[%s] matched cluster->[%s] (id=%s) with bk_biz_id->[%s], data_type->[%s]",
+                    table_id,
+                    default_cluster.cluster_name,
+                    cluster_id,
+                    bk_biz_id,
+                    data_type,
+                )
+            except (ClusterInfo.DoesNotExist, ValueError) as e:
+                # 捕获两种异常：DoesNotExist (查询失败) 和 ValueError (匹配失败)
+                logger.error("create_table: failed to get ES cluster for table_id->[%s], error->[%s]", table_id, str(e))
+                raise ValueError(_("存储集群配置有误，默认es集群不存在，请确认或联系管理员处理"))
         # 如果有提供集群信息，需要判断
         else:
             if not ClusterInfo.objects.filter(
@@ -5197,9 +5472,33 @@ class ArgusStorage(models.Model, StorageResultTable):
 
         # 0. 判断是否需要使用默认集群信息
         if storage_cluster_id is None:
-            storage_cluster_id = ClusterInfo.objects.get(
-                cluster_type=ClusterInfo.TYPE_ARGUS, is_default_cluster=True
-            ).cluster_id
+            try:
+                # 解析当前table_id对应的data_type
+                data_type = ResultTable.get_data_type_by_data_id(table_id)
+                bk_biz_id = ResultTable.get_biz_id_by_table_id(table_id)
+
+                # 匹配符合规则的集群
+                default_cluster = ClusterInfo.get_matched_cluster(
+                    cluster_type=ClusterInfo.TYPE_ARGUS,
+                    bk_tenant_id=tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    data_type=data_type,
+                )
+                storage_cluster_id = default_cluster.cluster_id
+                logger.info(
+                    "create_table: table_id->[%s] matched cluster->[%s] (id=%s) with bk_biz_id->[%s], data_type->[%s]",
+                    table_id,
+                    default_cluster.cluster_name,
+                    storage_cluster_id,
+                    bk_biz_id,
+                    data_type,
+                )
+            except (ClusterInfo.DoesNotExist, ValueError) as e:
+                # 捕获两种异常：DoesNotExist (查询失败) 和 ValueError (匹配失败)
+                logger.error(
+                    "create_table: failed to get Argus cluster for table_id->[%s], error->[%s]", table_id, str(e)
+                )
+                raise ValueError(_("存储集群配置有误，默认Argus集群不存在，请确认或联系管理员处理"))
 
         # 如果有提供集群信息，需要判断
         else:
@@ -5419,10 +5718,34 @@ class DorisStorage(models.Model, StorageResultTable):
         """
         # 0. 判断是否需要使用默认集群信息
         if storage_cluster_id is None:
-            storage_cluster_id = ClusterInfo.objects.get(
-                bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_DORIS, is_default_cluster=True
-            ).cluster_id
-            logger.info("CreateDorisStorage: use default Doris storage cluster->[%s]", storage_cluster_id)
+            try:
+                # 解析当前table_id对应的data_type
+                data_type = ResultTable.get_data_type_by_data_id(table_id)
+                bk_biz_id = ResultTable.get_biz_id_by_table_id(table_id)
+
+                # 匹配符合规则的集群
+                default_cluster = ClusterInfo.get_matched_cluster(
+                    bk_tenant_id=bk_tenant_id,
+                    cluster_type=ClusterInfo.TYPE_DORIS,
+                    bk_biz_id=bk_biz_id,
+                    data_type=data_type,
+                )
+                storage_cluster_id = default_cluster.cluster_id
+                logger.info(
+                    "create_table: table_id->[%s] matched cluster->[%s] (id=%s) with bk_biz_id->[%s], data_type->[%s]",
+                    table_id,
+                    default_cluster.cluster_name,
+                    storage_cluster_id,
+                    bk_biz_id,
+                    data_type,
+                )
+            except (ClusterInfo.DoesNotExist, ValueError) as e:
+                # 捕获两种异常：DoesNotExist (查询失败) 和 ValueError (匹配失败)
+                logger.error(
+                    "create_table: failed to get Doris cluster for table_id->[%s], error->[%s]", table_id, str(e)
+                )
+                raise ValueError(_("存储集群配置有误，默认Doris集群不存在，请确认或联系管理员处理"))
+
         else:
             if not ClusterInfo.objects.filter(
                 bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_DORIS, cluster_id=storage_cluster_id
