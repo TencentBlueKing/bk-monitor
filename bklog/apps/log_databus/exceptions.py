@@ -442,7 +442,7 @@ class GrokCircularReferenceException(BaseException):
 
 class GrokReferencedException(BaseException):
     ERROR_CODE = "913"
-    MESSAGE = _("该 Grok 模式已被其他模式引用")
+    MESSAGE = _("该 Grok 模式已被其他模式引用：{referenced_by}")
 
 
 class GrokPatternNotFoundException(BaseException):
