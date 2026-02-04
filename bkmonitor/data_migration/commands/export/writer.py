@@ -20,7 +20,7 @@ from typing import Any
 
 from django.core.serializers.json import DjangoJSONEncoder
 
-from ...utils.types import ExportBatch, ExportPayload
+from ...utils.types import AutoIncrementReport, ExportBatch, ExportPayload
 
 
 def write_export_batches(
@@ -30,6 +30,7 @@ def write_export_batches(
     app_label: str,
     exported_at: str,
     write_empty_file: bool = False,
+    auto_increment: int | None = None,
 ) -> tuple[Path | None, int, int]:
     """按批次流式写入导出文件"""
     model_name = model_label.split(".", 1)[1]
@@ -69,7 +70,7 @@ def write_export_batches(
                 first = False
                 total += 1
         handle.write("], ")
-        handle.write('"stats": ' + json.dumps({"total": total}, ensure_ascii=False))
+        handle.write('"stats": ' + json.dumps({"total": total, "auto_increment": auto_increment}, ensure_ascii=False))
         handle.write("}")
 
     if total == 0:
@@ -119,6 +120,14 @@ def write_export_file(payload: ExportPayload, output_dir: Path) -> Path:
     with file_path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, cls=DjangoJSONEncoder, default=_json_default)
     return file_path
+
+
+def write_auto_increment_report(payload: AutoIncrementReport, output_dir: Path) -> Path:
+    """写入自增值报告 JSON。"""
+    report_path = output_dir / "auto_increment_report.json"
+    with report_path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, cls=DjangoJSONEncoder, default=_json_default)
+    return report_path
 
 
 def _json_default(value: Any) -> Any:

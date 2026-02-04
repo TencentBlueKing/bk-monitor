@@ -10,10 +10,33 @@ RowHandlerFn = Callable[[RowDict], RowDict | None]
 ExportBatch = list[RowDict]
 
 
+class AutoIncrementReportItem(TypedDict):
+    """自增值报告条目"""
+
+    model: str
+    table: str
+    total_rows: int
+    auto_increment: int | None
+
+
+class AutoIncrementReport(TypedDict):
+    """自增值报告结构"""
+
+    exported_at: str
+    items: list[AutoIncrementReportItem]
+
+
 class ExportPayload(TypedDict):
     """单模型导出结构"""
 
     model: str
     exported_at: str
     data: list[RowDict]
-    stats: dict[str, int]
+    stats: ExportStats
+
+
+class ExportStats(TypedDict):
+    """导出统计信息"""
+
+    total: int
+    auto_increment: int | None

@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from django.apps import apps
-from django.db import connection
+from django.db import connection, models
 from django.db.models import Model
 
 from ...config import EXPORT_SQL_FILTER_MAPPING
@@ -36,6 +36,41 @@ class ExportOrmDataStats:
     """
 
     dropped_rows: int = 0
+
+
+def get_mysql_auto_increment_value(model: type[Model]) -> int | None:
+    """获取 MySQL 表的当前自增值。
+
+    Args:
+        model: Django 模型类型。
+
+    Returns:
+        当前自增值；若非 MySQL 或非自增主键返回 None。
+    """
+    if connection.vendor != "mysql":
+        return None
+    pk_field = model._meta.pk
+    if pk_field is None or not isinstance(
+        pk_field,
+        models.AutoField | models.BigAutoField | models.SmallAutoField,
+    ):
+        return None
+    database_name = connection.settings_dict.get("NAME")
+    if not database_name:
+        return None
+    table_name = model._meta.db_table
+    sql = "SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s"
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [database_name, table_name])
+            row = cursor.fetchone()
+    except Exception:
+        logger.exception("读取表自增值失败: %s", model._meta.label)
+        return None
+    if not row:
+        return None
+    value = row[0]
+    return int(value) if value is not None else None
 
 
 def get_export_sql_filter(model_label: str) -> str | None:

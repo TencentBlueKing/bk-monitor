@@ -12,7 +12,7 @@ import click
 from django.apps import apps
 
 from ...config import DEFAULT_EXPORT_MODELS, EXCLUDE_EXPORT_MODELS
-from ...utils.types import RowDict
+from ...utils.types import AutoIncrementReportItem, RowDict
 from ..handle.handle import get_global_required_models, run_global_pipelines
 from . import sql, writer
 
@@ -23,10 +23,12 @@ class ExportRecord:
 
     app_label: str
     model_name: str
+    table_name: str
     rows: int
     filtered_rows: int
     duration_sec: float
     size_bytes: int
+    auto_increment: int | None
 
 
 def create_command() -> click.Command:
@@ -106,11 +108,14 @@ def create_command() -> click.Command:
         exported_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         with writer.prepare_output_dir(output_path) as (output_dir, output_zip):
             records: list[ExportRecord] = []
+            auto_increment_items: list[AutoIncrementReportItem] = []
             in_memory_rows: dict[str, list[RowDict]] = {}
             in_memory_started_at: dict[str, float] = {}
             in_memory_meta: dict[str, tuple[str, str]] = {}
             in_memory_sql_stats: dict[str, sql.ExportOrmDataStats] = {}
             in_memory_pre_global_len: dict[str, int] = {}
+            in_memory_auto_increment: dict[str, int | None] = {}
+            in_memory_table_name: dict[str, str] = {}
             for model_label in model_labels:
                 model = apps.get_model(model_label)
                 if model is None:
@@ -118,6 +123,8 @@ def create_command() -> click.Command:
 
                 app_label = model._meta.app_label
                 model_name = model.__name__
+                table_name = model._meta.db_table
+                auto_increment = sql.get_mysql_auto_increment_value(model)
 
                 export_stats = sql.ExportOrmDataStats()
                 batches = sql.export_orm_data(model_label, stats=export_stats, apply_pipeline=enable_handle)
@@ -132,6 +139,8 @@ def create_command() -> click.Command:
                     in_memory_started_at[model_label] = started_at
                     in_memory_meta[model_label] = (app_label, model_name)
                     in_memory_sql_stats[model_label] = export_stats
+                    in_memory_auto_increment[model_label] = auto_increment
+                    in_memory_table_name[model_label] = table_name
                     continue
 
                 file_path, total, size_bytes = writer.write_export_batches(
@@ -141,16 +150,27 @@ def create_command() -> click.Command:
                     app_label=app_label,
                     exported_at=exported_at,
                     write_empty_file=write_empty_file,
+                    auto_increment=auto_increment,
                 )
                 duration_sec = time.perf_counter() - started_at
                 records.append(
                     ExportRecord(
                         app_label=app_label,
                         model_name=model_name,
+                        table_name=table_name,
                         rows=total,
                         filtered_rows=export_stats.dropped_rows,
                         duration_sec=duration_sec,
                         size_bytes=size_bytes,
+                        auto_increment=auto_increment,
+                    )
+                )
+                auto_increment_items.append(
+                    AutoIncrementReportItem(
+                        model=model_label,
+                        table=table_name,
+                        total_rows=total,
+                        auto_increment=auto_increment,
                     )
                 )
 
@@ -176,6 +196,8 @@ def create_command() -> click.Command:
                     rows = in_memory_rows.get(model_label, [])
                     export_stats = in_memory_sql_stats.get(model_label, sql.ExportOrmDataStats())
                     pre_global_len = in_memory_pre_global_len.get(model_label, len(rows))
+                    auto_increment = in_memory_auto_increment.get(model_label)
+                    table_name = in_memory_table_name.get(model_label, model_label)
                     batches = _iter_batches(rows, batch_size=sql.DEFAULT_BATCH_SIZE)
                     file_path, total, size_bytes = writer.write_export_batches(
                         model_label=model_label,
@@ -184,6 +206,7 @@ def create_command() -> click.Command:
                         app_label=app_label,
                         exported_at=exported_at,
                         write_empty_file=write_empty_file,
+                        auto_increment=auto_increment,
                     )
                     duration_sec = time.perf_counter() - started_at
                     filtered_by_global = max(0, pre_global_len - len(rows))
@@ -191,10 +214,20 @@ def create_command() -> click.Command:
                         ExportRecord(
                             app_label=app_label,
                             model_name=model_name,
+                            table_name=table_name,
                             rows=total,
                             filtered_rows=export_stats.dropped_rows + filtered_by_global,
                             duration_sec=duration_sec,
                             size_bytes=size_bytes,
+                            auto_increment=auto_increment,
+                        )
+                    )
+                    auto_increment_items.append(
+                        AutoIncrementReportItem(
+                            model=model_label,
+                            table=table_name,
+                            total_rows=total,
+                            auto_increment=auto_increment,
                         )
                     )
 
@@ -206,6 +239,11 @@ def create_command() -> click.Command:
 
             report_path = _write_export_report(exported_at=exported_at, output_dir=output_dir, records=records)
             click.echo(f"已生成导出报告: {report_path.relative_to(output_dir).as_posix()}")
+            auto_increment_path = writer.write_auto_increment_report(
+                payload={"exported_at": exported_at, "items": auto_increment_items},
+                output_dir=output_dir,
+            )
+            click.echo(f"已生成自增值报告: {auto_increment_path.relative_to(output_dir).as_posix()}")
             if output_zip:
                 zip_path = writer.write_export_archive(output_dir, output_zip)
                 click.echo(f"已生成压缩包: {zip_path}")
@@ -291,11 +329,12 @@ def _write_export_report(exported_at: str, output_dir: Path, records: list[Expor
 
         lines.append(f"## {app_label}")
         lines.append("")
-        lines.append("| 模型 | 数据量 | 过滤量 | 耗时(s) | 文件大小 |")
-        lines.append("| --- | --- | --- | --- | --- |")
+        lines.append("| 模型 | 数据量 | 过滤量 | 耗时(s) | 文件大小 | 自增值 |")
+        lines.append("| --- | --- | --- | --- | --- | --- |")
         for record in app_records:
+            auto_increment = "-" if record.auto_increment is None else record.auto_increment
             lines.append(
-                f"| {record.model_name} | {record.rows} | {record.filtered_rows} | {record.duration_sec:.3f} | {_format_bytes(record.size_bytes)} |"
+                f"| {record.model_name} | {record.rows} | {record.filtered_rows} | {record.duration_sec:.3f} | {_format_bytes(record.size_bytes)} | {auto_increment} |"
             )
         lines.append("")
         lines.append(f"- 小计数据量: {app_total_rows}")

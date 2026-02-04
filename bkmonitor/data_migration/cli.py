@@ -8,6 +8,7 @@ import click
 import django
 import dotenv
 
+from .commands.auto_increment.command import create_command as create_auto_increment_command
 from .commands.export.command import create_command as create_export_command
 from .commands.handle.command import create_command as create_handle_command
 from .commands.import_.command import create_command as create_import_command
@@ -26,6 +27,7 @@ CLI_HELP_TEXT = """\
   - 导出: `python -m data_migration.cli export --help`
   - 处理: `python -m data_migration.cli handle --help`
   - 导入: `python -m data_migration.cli import --help`
+  - 设置自增值: `python -m data_migration.cli set-auto-increment --help`
 """
 
 
@@ -43,6 +45,7 @@ def cli() -> None:
 
 # click.group 装饰器会将 cli 变为 click.Group 实例，类型系统无法准确识别
 cli.add_command(create_export_command())  # type: ignore[attr-defined]
+cli.add_command(create_auto_increment_command())  # type: ignore[attr-defined]
 cli.add_command(create_handle_command())  # type: ignore[attr-defined]
 cli.add_command(create_import_command())  # type: ignore[attr-defined]
 
