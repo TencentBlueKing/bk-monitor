@@ -20,9 +20,9 @@ from config.tools.redis import get_cache_redis_settings, get_redis_settings
 
 from ..tools.environment import (
     DJANGO_CONF_MODULE,
+    ENVIRONMENT,
     IS_CONTAINER_MODE,
     NEW_ENV,
-    ENVIRONMENT,
 )
 
 # 按照环境变量中的配置，加载对应的配置文件
@@ -44,7 +44,7 @@ SUPERVISOR_SERVER = "unix:///var/run/bkmonitorv3/monitor-supervisor.sock"
 SUPERVISOR_USERNAME = ""
 SUPERVISOR_PASSWORD = ""
 
-INSTALLED_APPS += (  # noqa: F405
+globals()["INSTALLED_APPS"] += (  # noqa: F405
     "django_celery_beat",
     "django_celery_results",
     "django_elasticsearch_dsl",
@@ -123,39 +123,8 @@ ENABLE_DIRECT_AREA_PING_COLLECT = True  # 是否开启直连区域的PING采集
 HEALTHZ_ALARM_CONFIG = {}
 
 # CRONTAB
-DEFAULT_CRONTAB = [
-    # eg:
-    # (module_name, every, run_type) like: ("fta.poll_alarm.main start", "* * * * *", "global")
-    # Notice Notice Notice:
-    # Use UTC's time zone to set your crontab instead of the local time zone
-    # run_type: global/cluster
-    # model cache
-    # 策略全量更新频率降低
-    ("alarm_backends.core.cache.strategy", "*/6 * * * *", "global"),
-    # 策略增量更新
-    ("alarm_backends.core.cache.strategy.smart_refresh", "* * * * *", "global"),
-    ("alarm_backends.core.cache.models.collect_config", "* * * * *", "global"),
-    ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
-    ("alarm_backends.core.cache.action_config.refresh_total", "*/60 * * * *", "global"),
-    ("alarm_backends.core.cache.action_config.refresh_latest_5_minutes", "* * * * *", "global"),
-    ("alarm_backends.core.cache.assign", "* * * * *", "global"),
-    ("alarm_backends.core.cache.calendar", "* * * * *", "global"),
-    ("alarm_backends.core.cache.subscribe", "* * * * *", "global"),
-    # api cache
-    ("alarm_backends.core.cache.result_table", "*/10 * * * *", "global"),
-    # delay queue
-    ("alarm_backends.core.cache.delay_queue", "* * * * *", "global"),
-    # bcs cluster cache
-    ("alarm_backends.core.cache.bcs_cluster", "*/10 * * * *", "global"),
-    # clean detect result cache
-    ("alarm_backends.core.detect_result.tasks.clean_expired_detect_result", "0 */2 * * *", "global"),
-    ("alarm_backends.core.detect_result.tasks.clean_md5_to_dimension_cache", "0 23 * * *", "global"),
-    # 定期清理超时未执行任务
-    ("alarm_backends.service.fta_action.tasks.check_timeout_actions", "* * * * *", "global"),
-    # 定期清理mysql内半个月前的数据
-    ("alarm_backends.service.fta_action.tasks.clear_mysql_action_data", "* * * * *", "global"),
-    # mail_report 配置管理和告警接收人信息缓存
-    ("alarm_backends.core.cache.mail_report", "*/30 * * * *", "global"),
+# apm 相关任务
+APM_CRONTAB_TASKS = [
     # apm topo discover: 每分钟触发，每次分片处理1/10应用
     ("apm.task.tasks.topo_discover_cron", "* * * * *", "global"),
     # apm datasource discover: 每分钟触发，每次分片处理1/10应用
@@ -179,12 +148,11 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.k8s_bk_collector_discover_cron", "*/15 * * * *", "global"),
     # apm 定时检查预计算任务是否正常执行 每15分钟触发
     ("apm.task.tasks.bmw_task_cron", "*/15 * * * *", "global"),
-    # metadata 更新 bkcc 空间名称任务，因为不要求实时性，每6分钟执行一次
-    ("metadata.task.sync_space.refresh_bkcc_space_name", "*/6 * * * *", "global"),
 ]
 
-if BCS_API_GATEWAY_HOST:
-    DEFAULT_CRONTAB += [
+# 如果配置了BCS_API_GATEWAY_HOST，则启用BCS资源同步任务
+if globals()["BCS_API_GATEWAY_HOST"]:
+    BCS_METADATA_CRONTAB_TASKS = [
         # bcs资源同步
         ("api.bcs.tasks.sync_bcs_cluster_to_db", "*/15 * * * *", "global"),
         ("api.bcs.tasks.sync_bcs_service_to_db", "*/25 * * * *", "global"),
@@ -203,8 +171,109 @@ if BCS_API_GATEWAY_HOST:
         ("api.bcs.tasks.sync_bcs_node_resource", "*/260 * * * *", "global"),
         # bcs集群安装operator信息，一天同步一次
         ("api.bcs.tasks.sync_bkmonitor_operator_info", "0 2 * * *", "global"),
+        # 自定义指标/自定义事件label刷新，标记是否是容器数据
+        ("metadata.task.bcs.refresh_bcs_metrics_label", "*/10 * * * *", "global"),
+        # podmonitor/servicemonitor资源同步
+        ("metadata.task.bcs.refresh_bcs_monitor_info", "*/10 * * * *", "global"),
+        # bcs集群数据接入
+        ("metadata.task.bcs.discover_bcs_clusters", "*/5 * * * *", "global"),
     ]
+else:
+    BCS_METADATA_CRONTAB_TASKS = []
 
+# 告警后台相关任务，主要是定时清理任务
+ALARM_BACKEND_CRONTAB_TASKS = [
+    # clean detect result cache
+    ("alarm_backends.core.detect_result.tasks.clean_expired_detect_result", "0 */2 * * *", "global"),
+    ("alarm_backends.core.detect_result.tasks.clean_md5_to_dimension_cache", "0 23 * * *", "global"),
+    # 定期清理超时未执行任务
+    ("alarm_backends.service.fta_action.tasks.check_timeout_actions", "* * * * *", "global"),
+    # 定期清理mysql内半个月前的数据
+    ("alarm_backends.service.fta_action.tasks.clear_mysql_action_data", "* * * * *", "global"),
+]
+
+# 告警后台缓存更新任务
+ALAMR_BACKEND_CACHE_CRONTAB_TASKS = [
+    ("alarm_backends.core.cache.strategy", "*/6 * * * *", "global"),
+    # 策略增量更新
+    ("alarm_backends.core.cache.strategy.smart_refresh", "* * * * *", "global"),
+    ("alarm_backends.core.cache.models.collect_config", "* * * * *", "global"),
+    ("alarm_backends.core.cache.models.uptimecheck", "* * * * *", "global"),
+    ("alarm_backends.core.cache.action_config.refresh_total", "*/60 * * * *", "global"),
+    ("alarm_backends.core.cache.action_config.refresh_latest_5_minutes", "* * * * *", "global"),
+    ("alarm_backends.core.cache.assign", "* * * * *", "global"),
+    ("alarm_backends.core.cache.calendar", "* * * * *", "global"),
+    ("alarm_backends.core.cache.subscribe", "* * * * *", "global"),
+    # api cache
+    ("alarm_backends.core.cache.result_table", "*/10 * * * *", "global"),
+    # delay queue
+    ("alarm_backends.core.cache.delay_queue", "* * * * *", "global"),
+    # bcs cluster cache
+    ("alarm_backends.core.cache.bcs_cluster", "*/10 * * * *", "global"),
+    # mail_report 配置管理和告警接收人信息缓存
+    ("alarm_backends.core.cache.mail_report", "*/30 * * * *", "global"),
+]
+
+# 自定义上报配置下发相关任务
+CUSTOM_REPORT_CONFIG_CRONTAB_TASKS = [
+    # metadata同步pingserver配置，下发iplist到proxy机器，每10分钟执行一次
+    ("metadata.task.ping_server.refresh_ping_server_2_node_man", "*/10 * * * *", "global"),
+    # metadata同步自定义上报配置到节点管理，完成配置订阅，理论上，在配置变更的时候，会执行一次，所以这里运行周期可以放大
+    ("metadata.task.custom_report.refresh_all_custom_report_2_node_man", "*/5 * * * *", "global"),
+    # metadata同步自定义日志配置到节点管理，虽然 1 分钟一次，实际只会运行ID对30取模后和当前分钟对齐的任务
+    ("metadata.task.custom_report.refresh_all_log_config", "* * * * *", "global"),
+    # metadata同步自定义日志k8s批量配置，每5分钟触发，获取全部数据进行批量调度
+    ("metadata.task.custom_report.refresh_all_log_config_to_k8s", "*/10 * * * *", "global"),
+    # metadata自动部署bkmonitorproxy
+    ("metadata.task.auto_deploy_proxy", "30 */2 * * *", "global"),
+]
+
+# metadata 空间同步任务
+METADATA_SPACE_CRONTAB_TASKS = [
+    # metadata 更新 bkcc 空间名称任务，因为不要求实时性，每6分钟执行一次
+    ("metadata.task.sync_space.refresh_bkcc_space_name", "*/6 * * * *", "global"),
+    # 同步空间信息
+    ("metadata.task.sync_space.sync_bkcc_space", "*/10 * * * *", "global"),
+    ("metadata.task.sync_space.sync_bcs_space", "*/10 * * * *", "global"),
+    ("metadata.task.sync_space.refresh_bcs_project_biz", "*/10 * * * *", "global"),
+    # metadata 同步 bkci 空间名称任务，因为不要求实时性，每天3点执行一次
+    ("metadata.task.sync_space.refresh_bkci_space_name", "0 3 * * *", "global"),
+]
+
+# 默认定时任务
+DEFAULT_CRONTAB = [
+    *CUSTOM_REPORT_CONFIG_CRONTAB_TASKS,
+    *METADATA_SPACE_CRONTAB_TASKS,
+    *ALARM_BACKEND_CRONTAB_TASKS,
+    *BCS_METADATA_CRONTAB_TASKS,
+    *APM_CRONTAB_TASKS,
+    *ALAMR_BACKEND_CACHE_CRONTAB_TASKS,
+    # metadata更新每个influxdb的存储RP，UTC时间的22点进行更新，待0点influxdb进行清理
+    ("metadata.task.refresh_default_rp", "0 22 * * *", "global"),
+    ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
+    ("metadata.task.config_refresh.refresh_consul_es_info", "*/10 * * * *", "global"),
+    ("metadata.task.config_refresh.refresh_consul_storage", "*/10 * * * *", "global"),
+    # 检查V4数据源是否存在对应的Consul配置，若存在则删除
+    ("metadata.task.config_refresh.check_and_delete_ds_consul_config", "*/5 * * * *", "global"),
+    ("metadata.task.config_refresh.refresh_bcs_info", "*/10 * * * *", "global"),
+    # 刷新回溯配置
+    ("metadata.task.config_refresh.refresh_es_restore", "* * * * *", "global"),
+    # 上报自采集指标--每分钟一次
+    ("metadata.task.custom_report.report_custom_metrics", "* * * * *", "global"),
+    # BkBase信息同步,一小时一次
+    ("metadata.task.bkbase.sync_all_bkbase_cluster_info", "0 */1 * * *", "global"),
+    # 检查并执行接入vm命令, 每5分钟执行一次
+    ("metadata.task.vm.check_access_vm_task", "*/5 * * * *", "global"),
+    # 关联协议数据同步--cmdb_relation，根据redis信息创建/更新结果表
+    ("metadata.task.sync_cmdb_relation.sync_relation_redis_data", "0 * * * *", "global"),
+    # 计算平台元数据一致性 Redis Watch
+    ("metadata.task.bkbase.watch_bkbase_meta_redis_task", "* * * * *", "global"),
+    # ES集群关键配置检查,六小时检查一次
+    ("metadata.task.config_refresh.check_es_clusters_key_settings", "0 */6 * * *", "global"),
+]
+
+
+# Action 相关任务，独立队列处理
 ACTION_TASK_CRONTAB = [
     # 策略缓存更新
     ("alarm_backends.core.cache.shield.main", "* * * * *", "global"),
@@ -230,50 +299,7 @@ ACTION_TASK_CRONTAB = [
     ("alarm_backends.service.preparation.tasks.maintain_all_aiops_sdk_depend_data", "45 * * * *", "global"),
 ]
 
-DEFAULT_CRONTAB += [
-    # metadata
-    # metadata更新每个influxdb的存储RP，UTC时间的22点进行更新，待0点influxdb进行清理
-    ("metadata.task.refresh_default_rp", "0 22 * * *", "global"),
-    # metadata同步pingserver配置，下发iplist到proxy机器，每10分钟执行一次
-    ("metadata.task.ping_server.refresh_ping_server_2_node_man", "*/10 * * * *", "global"),
-    # metadata同步自定义上报配置到节点管理，完成配置订阅，理论上，在配置变更的时候，会执行一次，所以这里运行周期可以放大
-    ("metadata.task.custom_report.refresh_all_custom_report_2_node_man", "*/5 * * * *", "global"),
-    # metadata同步自定义日志配置到节点管理，虽然 1 分钟一次，实际只会运行ID对30取模后和当前分钟对齐的任务
-    ("metadata.task.custom_report.refresh_all_log_config", "* * * * *", "global"),
-    # metadata同步自定义日志k8s批量配置，每5分钟触发，获取全部数据进行批量调度
-    ("metadata.task.custom_report.refresh_all_log_config_to_k8s", "*/10 * * * *", "global"),
-    # metadata自动部署bkmonitorproxy
-    ("metadata.task.auto_deploy_proxy", "30 */2 * * *", "global"),
-    ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
-    ("metadata.task.config_refresh.refresh_consul_es_info", "*/10 * * * *", "global"),
-    ("metadata.task.config_refresh.refresh_consul_storage", "*/10 * * * *", "global"),
-    # 检查V4数据源是否存在对应的Consul配置，若存在则删除
-    ("metadata.task.config_refresh.check_and_delete_ds_consul_config", "*/5 * * * *", "global"),
-    ("metadata.task.config_refresh.refresh_bcs_info", "*/10 * * * *", "global"),
-    # 刷新回溯配置
-    ("metadata.task.config_refresh.refresh_es_restore", "* * * * *", "global"),
-    # 上报自采集指标--每分钟一次
-    ("metadata.task.custom_report.report_custom_metrics", "* * * * *", "global"),
-    # bcs信息刷新
-    ("metadata.task.bcs.refresh_bcs_metrics_label", "*/10 * * * *", "global"),
-    ("metadata.task.bcs.refresh_bcs_monitor_info", "*/10 * * * *", "global"),
-    ("metadata.task.bcs.discover_bcs_clusters", "*/5 * * * *", "global"),
-    # BkBase信息同步,一小时一次
-    ("metadata.task.bkbase.sync_all_bkbase_cluster_info", "0 */1 * * *", "global"),
-    # 检查并执行接入vm命令, 每5分钟执行一次
-    ("metadata.task.vm.check_access_vm_task", "*/5 * * * *", "global"),
-    # 同步空间信息
-    ("metadata.task.sync_space.sync_bkcc_space", "*/10 * * * *", "global"),
-    ("metadata.task.sync_space.sync_bcs_space", "*/10 * * * *", "global"),
-    ("metadata.task.sync_space.refresh_bcs_project_biz", "*/10 * * * *", "global"),
-    # 关联协议数据同步--cmdb_relation
-    ("metadata.task.sync_cmdb_relation.sync_relation_redis_data", "0 * * * *", "global"),
-    # 计算平台元数据一致性 Redis Watch
-    ("metadata.task.bkbase.watch_bkbase_meta_redis_task", "* * * * *", "global"),
-    # ES集群关键配置检查,六小时检查一次
-    ("metadata.task.config_refresh.check_es_clusters_key_settings", "0 */6 * * *", "global"),
-]
-# 耗时任务单独队列处理
+# metadata 耗时任务单独队列处理
 LONG_TASK_CRONTAB = [
     # 清理任务耗时较久，半个小时执行一次
     # ("metadata.task.config_refresh.clean_influxdb_tag", "*/30 * * * *", "global"),
@@ -290,8 +316,6 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.sync_space.sync_bkcc_space_data_source", "* */1 * * *", "global"),
     # metadata 同步自定义事件维度及事件，每三分钟将会从ES同步一次
     ("metadata.task.custom_report.check_event_update", "*/3 * * * *", "global"),
-    # metadata 同步 bkci 空间名称任务，因为不要求实时性，每天3点执行一次
-    ("metadata.task.sync_space.refresh_bkci_space_name", "0 3 * * *", "global"),
     # metadata 刷新 unify_query 视图需要的字段，因为变动性很低，每天 4 点执行一次
     # ("metadata.task.config_refresh.refresh_unify_query_additional_config", "0 4 * * *", "global"),
     # 删除数据库中已经不存在的数据源
@@ -312,6 +336,25 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.refresh_data_link.refresh_data_link_status", "*/15 * * * *", "global"),
 ]
 
+# 停止部分外部数据发现与自动数据接入
+if os.getenv("STOP_EXTERNAL_DATA_DISCOVERY", "false") == "true":
+    _STOP_EXTERNAL_DATA_DISCOVERY_TASKS = [
+        "metadata.task.sync_space.sync_bkcc_space",
+        "metadata.task.sync_space.sync_bcs_space",
+        "metadata.task.bcs.discover_bcs_clusters",
+        "api.bcs.tasks.sync_bcs_cluster_to_db",
+        "metadata.task.bcs.refresh_bcs_metrics_label",
+        "metadata.task.bcs.refresh_bcs_monitor_info",
+        "metadata.task.sync_cmdb_relation.sync_relation_redis_data",
+        "metadata.task.bkbase.sync_all_bkbase_cluster_info",
+        "metadata.task.bkbase.sync_bkbase_metadata_all",
+        "metadata.task.bkbase.sync_bkbase_rt_meta_info_all",
+    ]
+    DEFAULT_CRONTAB = [task for task in DEFAULT_CRONTAB if task[0] not in _STOP_EXTERNAL_DATA_DISCOVERY_TASKS]
+    LONG_TASK_CRONTAB = [task for task in LONG_TASK_CRONTAB if task[0] not in _STOP_EXTERNAL_DATA_DISCOVERY_TASKS]
+    ACTION_TASK_CRONTAB = [task for task in ACTION_TASK_CRONTAB if task[0] not in _STOP_EXTERNAL_DATA_DISCOVERY_TASKS]
+
+# 停用
 AES_X_KEY_FIELD = "SAAS_SECRET_KEY"
 
 # gse alarm dataid
