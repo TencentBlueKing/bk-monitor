@@ -54,3 +54,12 @@ class RootEndpointInstanceData(BaseInstanceData):
     endpoint_name: str | None = None
     service_name: str | None = None
     category_id: str | None = None
+
+
+@dataclass
+class RelationInstanceData(BaseInstanceData):
+    from_topo_key: str | None = None
+    to_topo_key: str | None = None
+    kind: str | None = None
+    to_topo_key_kind: str | None = None
+    to_topo_key_category: str | None = None

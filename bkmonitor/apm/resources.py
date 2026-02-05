@@ -756,7 +756,66 @@ class QueryTopoNodeResource(Resource):
         return res
 
 
-class QueryTopoRelationResource(Resource):
+class CachedDiscoverQueryResource(Resource):
+    many_response_data = True
+    model = None
+    cache_type = None
+    discover_class = None
+
+    @staticmethod
+    def build_filter_params(data: dict) -> dict:
+        """构建基础查询过滤条件"""
+        return {
+            "bk_biz_id": data["bk_biz_id"],
+            "app_name": data["app_name"],
+        }
+
+    def apply_additional_filters(self, queryset, data: dict):
+        """应用额外的过滤条件（子类可重写）"""
+        return queryset
+
+    def build_result_item(self, obj, updated_at) -> dict:
+        """构建返回结果的单个项（子类必须实现）"""
+        raise NotImplementedError("Subclass must implement build_result_item()")
+
+    def sort_results(self, results: list) -> list:
+        """对结果进行排序（子类可重写）"""
+        return results
+
+    def perform_request(self, data):
+        # 1. 获取过期时间分界线，确保使用UTC时区
+        retention = DiscoverHandler.get_app_retention(data["bk_biz_id"], data["app_name"])
+        retention_cutoff = datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(retention)
+
+        # 2. 构建查询并获取数据库对象
+        filter_params = self.build_filter_params(data)
+        queryset = self.model.objects.filter(**filter_params)
+        queryset = self.apply_additional_filters(queryset, data)
+        objs = list(queryset)
+
+        # 3. 获取 discover_class（支持 @property 动态导入）
+        discover_class = self.discover_class
+
+        # 4. 批量获取缓存并合并更新时间
+        id_to_updated_at = DiscoverHandler.batch_merge_cache_updated_time(
+            data["bk_biz_id"], data["app_name"], self.cache_type, objs, discover_class
+        )
+
+        # 5. 根据合并后的时间进行过期过滤并构建结果
+        result = []
+        for obj in objs:
+            updated_at = id_to_updated_at[obj.id]
+            if updated_at >= retention_cutoff:
+                result.append(self.build_result_item(obj, updated_at))
+
+        # 6. 排序结果
+        return self.sort_results(result)
+
+
+class QueryTopoRelationResource(CachedDiscoverQueryResource):
+    model = TopoRelation
+    cache_type = ApmCacheType.RELATION
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称", max_length=50)
@@ -764,22 +823,35 @@ class QueryTopoRelationResource(Resource):
         to_topo_key = serializers.CharField(label="被调方Topo Key", allow_null=True, required=False)
         filters = serializers.DictField(label="查询条件", allow_null=True, required=False, default={})
 
-    class ResponseSerializer(serializers.ModelSerializer):
-        class Meta:
-            model = TopoRelation
-            exclude = ["created_at", "updated_at"]
+    @property
+    def discover_class(self):
+        from apm.core.discover.relation import RelationDiscover
 
-    many_response_data = True
+        return RelationDiscover
 
-    def perform_request(self, data):
-        filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
-
+    def apply_additional_filters(self, queryset, data: dict):
+        """根据 from_topo_key 和 to_topo_key 进行额外过滤"""
         if data.get("from_topo_key"):
-            filter_params["from_topo_key"] = data["from_topo_key"]
+            queryset = queryset.filter(from_topo_key=data["from_topo_key"])
         if data.get("to_topo_key"):
-            filter_params["to_topo_key"] = data["to_topo_key"]
+            queryset = queryset.filter(to_topo_key=data["to_topo_key"])
+        if data.get("filters"):
+            queryset = queryset.filter(**data["filters"])
+        return queryset
 
-        return TopoRelation.objects.filter(**filter_params, **data["filters"])
+    def build_result_item(self, obj, updated_at) -> dict:
+        """构建返回结果的单个项"""
+        return {
+            "id": obj.id,
+            "bk_biz_id": obj.bk_biz_id,
+            "app_name": obj.app_name,
+            "from_topo_key": obj.from_topo_key,
+            "to_topo_key": obj.to_topo_key,
+            "kind": obj.kind,
+            "to_topo_key_kind": obj.to_topo_key_kind,
+            "to_topo_key_category": obj.to_topo_key_category,
+            "extra_data": obj.extra_data,
+        }
 
 
 class QueryTopoInstanceResource(PageListResource):
@@ -944,62 +1016,6 @@ class QueryTopoInstanceResource(PageListResource):
         if isinstance(res, list):
             return {"total": total, "data": res}
         return {"total": total, "data": [obj for obj in res.values(*fields)]}
-
-
-class CachedDiscoverQueryResource(Resource):
-    many_response_data = True
-    model = None
-    cache_type = None
-    discover_class = None
-
-    @staticmethod
-    def build_filter_params(data: dict) -> dict:
-        """构建基础查询过滤条件"""
-        return {
-            "bk_biz_id": data["bk_biz_id"],
-            "app_name": data["app_name"],
-        }
-
-    def apply_additional_filters(self, queryset, data: dict):
-        """应用额外的过滤条件（子类可重写）"""
-        return queryset
-
-    def build_result_item(self, obj, updated_at) -> dict:
-        """构建返回结果的单个项（子类必须实现）"""
-        raise NotImplementedError("Subclass must implement build_result_item()")
-
-    def sort_results(self, results: list) -> list:
-        """对结果进行排序（子类可重写）"""
-        return results
-
-    def perform_request(self, data):
-        # 1. 获取过期时间分界线，确保使用UTC时区
-        retention = DiscoverHandler.get_app_retention(data["bk_biz_id"], data["app_name"])
-        retention_cutoff = datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(retention)
-
-        # 2. 构建查询并获取数据库对象
-        filter_params = self.build_filter_params(data)
-        queryset = self.model.objects.filter(**filter_params)
-        queryset = self.apply_additional_filters(queryset, data)
-        objs = list(queryset)
-
-        # 3. 获取 discover_class（支持 @property 动态导入）
-        discover_class = self.discover_class
-
-        # 4. 批量获取缓存并合并更新时间
-        id_to_updated_at = DiscoverHandler.batch_merge_cache_updated_time(
-            data["bk_biz_id"], data["app_name"], self.cache_type, objs, discover_class
-        )
-
-        # 5. 根据合并后的时间进行过期过滤并构建结果
-        result = []
-        for obj in objs:
-            updated_at = id_to_updated_at[obj.id]
-            if updated_at >= retention_cutoff:
-                result.append(self.build_result_item(obj, updated_at))
-
-        # 6. 排序结果
-        return self.sort_results(result)
 
 
 class QueryRootEndpointResource(CachedDiscoverQueryResource):
