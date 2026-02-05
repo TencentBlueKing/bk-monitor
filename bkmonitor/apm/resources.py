@@ -31,6 +31,7 @@ from apm.constants import (
     StatisticsProperty,
     VisibleEnum,
 )
+from apm.core.discover.instance import InstanceDiscover
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.core.handlers.bk_data.helper import FlowHelper
@@ -870,19 +871,9 @@ class QueryTopoInstanceResource(PageListResource):
         cache_data = ApmCacheHandler().get_cache_data(name)
         # 更新 updated_at 字段
         for instance in instance_list:
-            # 使用与 InstanceDiscover.to_cache_key 一致的 key 生成逻辑
-            key = ":".join(
-                [
-                    str(instance["topo_node_key"]),
-                    str(instance["instance_id"]),
-                    str(instance["instance_topo_kind"]),
-                    str(instance.get("component_instance_category", "")),
-                    str(instance.get("component_instance_predicate_value", "")),
-                    str(instance.get("sdk_name", "")),
-                    str(instance.get("sdk_version", "")),
-                    str(instance.get("sdk_language", "")),
-                ]
-            )
+            instance_data = InstanceDiscover.build_instance_data(instance)
+            key = InstanceDiscover.to_cache_key(instance_data)
+
             if key in cache_data:
                 instance["updated_at"] = datetime.datetime.fromtimestamp(cache_data.get(key)).strftime(
                     "%Y-%m-%d %H:%M:%S"
