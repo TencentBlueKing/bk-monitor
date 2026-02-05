@@ -128,11 +128,13 @@ class UptimeCheckNodeSerializer(serializers.Serializer):
             Permission().is_allowed(action=ActionEnum.MANAGE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
 
             # 检查是否有其他业务的任务在使用此公共节点
-            tasks = uptime_check_operation.list_tasks_by_node_id(instance_id)
+            tasks = uptime_check_operation.list_tasks(
+                query={"node_ids": [instance_id]}, output={"format": "values", "fields": ["id", "name", "bk_biz_id"]}
+            )
             other_biz_task = [
-                _("{}(业务id:{})").format(task.name, task.bk_biz_id)
+                _("{}(业务id:{})").format(task["name"], task["bk_biz_id"])
                 for task in tasks
-                if task.bk_biz_id != instance_bk_biz_id
+                if task["bk_biz_id"] != instance_bk_biz_id
             ]
             if other_biz_task:
                 raise CustomException(
@@ -163,11 +165,14 @@ class UptimeCheckNodeSerializer(serializers.Serializer):
             location=validated_data.get("location", original_location),
             carrieroperator=validated_data.get("carrieroperator", original_carrieroperator),
         )
-        node_id = uptime_check_operation.create_or_update_uptime_check_node(node_define, operator)
+        node_id = uptime_check_operation.save_node(node=node_define, operator=operator)
 
         # 返回更新后的节点定义对象
-        return uptime_check_operation.get_uptime_check_node(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=validated_data.get("bk_biz_id", instance_bk_biz_id), node_id=node_id
+        return uptime_check_operation.get_node(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=validated_data.get("bk_biz_id", instance_bk_biz_id),
+            node_id=node_id,
+            output={"format": "define"},
         )
 
     def create(self, validated_data):
@@ -197,9 +202,12 @@ class UptimeCheckNodeSerializer(serializers.Serializer):
             location=validated_data.get("location", {}),
             carrieroperator=validated_data.get("carrieroperator", ""),
         )
-        node_id = uptime_check_operation.create_or_update_uptime_check_node(node_define, operator)
-        return uptime_check_operation.get_uptime_check_node(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=validated_data["bk_biz_id"], node_id=node_id
+        node_id = uptime_check_operation.save_node(node=node_define, operator=operator)
+        return uptime_check_operation.get_node(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=validated_data["bk_biz_id"],
+            node_id=node_id,
+            output={"format": "define"},
         )
 
 
@@ -403,8 +411,8 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         if not node_ids:
             return []
 
-        nodes = uptime_check_operation.list_uptime_check_nodes_by_ids(
-            bk_tenant_id=get_request_tenant_id(), node_ids=node_ids
+        nodes = uptime_check_operation.list_nodes(
+            bk_tenant_id=get_request_tenant_id(), query={"node_ids": node_ids}, output={"format": "define"}
         )
         return UptimeCheckNodeSerializer(nodes, many=True).data
 
@@ -412,7 +420,13 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         """获取任务分组信息"""
         task_id = obj.id
 
-        return uptime_check_operation.list_group_id_name_by_task_id(task_id)
+        groups = uptime_check_operation.list_groups(
+            bk_tenant_id=get_request_tenant_id(),
+            bk_biz_id=obj.bk_biz_id,
+            query={"task_id": task_id},
+            output={"format": "values", "fields": ["id", "name"]},
+        )
+        return groups
 
     def get_available(self, obj):
         """计算任务可用率，如异常则按0计算，不可影响任务列表的获取"""
@@ -478,8 +492,11 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         request = self.context.get("request")
         operator = request.user.username if request else ""
 
-        node_objects = uptime_check_operation.list_uptime_check_nodes(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, node_ids=node_ids, include_common=True
+        node_objects = uptime_check_operation.list_nodes(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            query={"node_ids": node_ids, "include_common": True},
+            output={"format": "define"},
         )
         common_nodes = [node for node in node_objects if node.is_common]
 
@@ -488,8 +505,11 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
             Permission().is_allowed(ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
 
         # 检查任务名称是否重复
-        existing_tasks = uptime_check_operation.list_uptime_check_tasks(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, name=validated_data["name"]
+        existing_tasks = uptime_check_operation.list_tasks(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            query={"name": validated_data["name"]},
+            output={"format": "values", "fields": ["id", "name"]},
         )
         # 精确匹配名称
         if any(task["name"] == validated_data["name"] for task in existing_tasks):
@@ -511,9 +531,9 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
             independent_dataid=settings.ENABLE_MULTI_TENANT_MODE,
         )
 
-        task_id = uptime_check_operation.create_or_update_uptime_check_task(task_define, operator)
-        return uptime_check_operation.get_uptime_check_task(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id
+        task_id = uptime_check_operation.save_task(task=task_define, operator=operator)
+        return uptime_check_operation.get_task(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id, output={"format": "define"}
         )
 
     def update(self, instance, validated_data):
@@ -528,8 +548,11 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         operator = request.user.username if request else ""
 
         # 检查任务名称是否重复（排除自己）
-        existing_tasks = uptime_check_operation.list_uptime_check_tasks(
-            bk_tenant_id, bk_biz_id, name=validated_data["name"]
+        existing_tasks = uptime_check_operation.list_tasks(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            query={"name": validated_data["name"]},
+            output={"format": "values", "fields": ["id", "name"]},
         )
         # 精确匹配名称，排除自己
         if any(task["name"] == validated_data["name"] and task["id"] != instance.id for task in existing_tasks):
@@ -552,9 +575,9 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
             independent_dataid=instance.indepentent_dataid,
         )
 
-        task_id = uptime_check_operation.create_or_update_uptime_check_task(task_define, operator)
-        return uptime_check_operation.get_uptime_check_task(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id
+        task_id = uptime_check_operation.save_task(task=task_define, operator=operator)
+        return uptime_check_operation.get_task(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id, output={"format": "define"}
         )
 
 
@@ -587,12 +610,13 @@ class UptimeCheckGroupSerializer(serializers.Serializer):
         if not task_ids:
             return []
 
-        tasks = uptime_check_operation.list_uptime_check_tasks(
+        tasks = uptime_check_operation.list_tasks(
             bk_tenant_id=get_request_tenant_id(),
             bk_biz_id=obj.bk_biz_id,
-            task_ids=task_ids,
+            query={"task_ids": task_ids},
+            output={"format": "dict"},
         )
-        return [dict(t) for t in tasks]
+        return tasks
 
     def validate(self, data):
         if self.instance is None and "task_id_list" not in data:
@@ -607,11 +631,14 @@ class UptimeCheckGroupSerializer(serializers.Serializer):
         request = self.context.get("request")
         operator = request.user.username if request else ""
 
-        # 检查分组名称是否重复
-        existing_groups = uptime_check_operation.list_uptime_check_groups(
-            bk_tenant_id, bk_biz_id, name=validated_data["name"]
+        # 使用新版 list_groups API 检查分组名称是否重复
+        existing_groups = uptime_check_operation.list_groups(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            query={"name": validated_data["name"]},
+            output={"format": "values", "fields": ["id", "name"]},
         )
-        if any(group.name == validated_data["name"] for group in existing_groups):
+        if any(group["name"] == validated_data["name"] for group in existing_groups):
             raise serializers.ValidationError(_("分组 %s 已存在！") % validated_data["name"])
 
         # 构建 UptimeCheckGroupDefine 进行创建
@@ -623,9 +650,9 @@ class UptimeCheckGroupSerializer(serializers.Serializer):
             task_ids=task_ids,
         )
 
-        group_id = uptime_check_operation.create_or_update_uptime_check_group(group_define, operator)
-        return uptime_check_operation.get_uptime_check_group(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id
+        group_id = uptime_check_operation.save_group(group=group_define, operator=operator)
+        return uptime_check_operation.get_group(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id, output={"format": "define"}
         )
 
     def update(self, instance, validated_data):
@@ -636,11 +663,14 @@ class UptimeCheckGroupSerializer(serializers.Serializer):
         operator = request.user.username if request else ""
 
         # 检查分组名称是否重复（排除自己）
-        existing_groups = uptime_check_operation.list_uptime_check_groups(
-            bk_tenant_id, bk_biz_id, name=validated_data["name"]
+        existing_groups = uptime_check_operation.list_groups(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            query={"name": validated_data["name"]},
+            output={"format": "values", "fields": ["id", "name"]},
         )
         instance_id = instance.id
-        if any(group.id != instance_id and group.name == validated_data["name"] for group in existing_groups):
+        if any(group["id"] != instance_id and group["name"] == validated_data["name"] for group in existing_groups):
             raise serializers.ValidationError(_("分组 %s 已存在！") % validated_data["name"])
 
         task_ids = validated_data.pop("task_id_list", None)
@@ -658,7 +688,8 @@ class UptimeCheckGroupSerializer(serializers.Serializer):
             task_ids=task_ids if task_ids is not None else original_task_ids,
         )
 
-        group_id = uptime_check_operation.create_or_update_uptime_check_group(group_define, operator)
-        return uptime_check_operation.get_uptime_check_group(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id
+        group_id = uptime_check_operation.save_group(group=group_define, operator=operator)
+        # 使用新版 get_group API 替代 get_uptime_check_group
+        return uptime_check_operation.get_group(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id, output={"format": "define"}
         )
