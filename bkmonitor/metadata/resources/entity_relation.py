@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 from typing import Any
 
@@ -20,8 +21,14 @@ from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource
 from core.errors.metadata import EntityNotFoundError, UnsupportedKindError
 from metadata.models import EntityMeta
+from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
+
+ENTITY_REDIS_KEY_PREFIX = "bkmonitorv3:entity"
+REDIS_SYNC_KINDS = ("ResourceDefinition", "RelationDefinition")
+# 空 namespace 的映射值
+NAMESPACE_ALL = "__all__"
 
 
 class EntityHandler:
@@ -84,6 +91,9 @@ class EntityHandler:
                 entity.generation += 1
                 entity.save()
 
+        # 同步到 Redis（仅对特定类型）
+        self._sync_to_redis(entity)
+
         return entity.to_json()
 
     def get(self, namespace: str, name: str) -> dict[str, Any]:
@@ -145,7 +155,118 @@ class EntityHandler:
         except self.model_class.DoesNotExist:
             raise EntityNotFoundError(context={"namespace": namespace, "name": name})
 
+        # 先从 Redis 删除
+        self._delete_from_redis(entity)
+
         entity.delete()
+
+    def _sync_to_redis(self, entity: EntityMeta) -> None:
+        """
+        同步实体到 Redis，供 bmw SchemaProvider 消费
+
+        Redis 数据结构:
+        - Key: bkmonitorv3:entity:{Kind}
+        - Field: namespace (空的映射到 __all__)
+        - Value: {name: jsonData, name2: jsonData2, ...}
+
+        Args:
+            entity: 实体对象
+        """
+        kind = entity.get_kind()
+
+        # 只对特定类型进行 Redis 同步
+        if kind not in REDIS_SYNC_KINDS:
+            return
+
+        # 检查实体是否有 to_redis_json 方法
+        if not hasattr(entity, "to_redis_json"):
+            logger.warning("entity %s does not have to_redis_json method, skip redis sync", kind)
+            return
+
+        try:
+            redis_key = f"{ENTITY_REDIS_KEY_PREFIX}:{kind}"
+            channel = f"{redis_key}:channel"
+            namespace = entity.namespace or NAMESPACE_ALL
+
+            # 获取该 namespace 下的现有实体
+            existing_data = RedisTools.hget(redis_key, namespace)
+            if existing_data:
+                entities = json.loads(existing_data.decode("utf-8"))
+            else:
+                entities = {}
+
+            # 更新/添加当前实体
+            entities[entity.name] = entity.to_redis_json()
+
+            # 写入 Redis
+            RedisTools.hset_to_redis(redis_key, namespace, json.dumps(entities))
+
+            # 发布变更通知
+            msg = json.dumps({"namespace": entity.namespace, "name": entity.name, "kind": kind})
+            RedisTools.publish(channel, [msg])
+
+            logger.info("sync entity to redis: kind=%s, namespace=%s, name=%s", kind, namespace, entity.name)
+
+        except Exception as e:
+            # Redis 同步失败不影响主流程，只记录日志
+            logger.exception(
+                "failed to sync entity to redis: kind=%s, namespace=%s, name=%s, error=%s",
+                kind,
+                entity.namespace,
+                entity.name,
+                e,
+            )
+
+    def _delete_from_redis(self, entity: EntityMeta) -> None:
+        """
+        从 Redis 删除实体
+
+        Args:
+            entity: 实体对象
+        """
+        kind = entity.get_kind()
+
+        # 只对特定类型进行 Redis 同步
+        if kind not in REDIS_SYNC_KINDS:
+            return
+
+        try:
+            redis_key = f"{ENTITY_REDIS_KEY_PREFIX}:{kind}"
+            channel = f"{redis_key}:channel"
+            namespace = entity.namespace or NAMESPACE_ALL
+
+            # 获取该 namespace 下的现有实体
+            existing_data = RedisTools.hget(redis_key, namespace)
+            if not existing_data:
+                return
+
+            entities = json.loads(existing_data.decode("utf-8"))
+
+            # 删除实体
+            if entity.name in entities:
+                del entities[entity.name]
+
+                # 如果 namespace 下没有实体了，删除整个字段
+                if not entities:
+                    RedisTools.hdel(redis_key, [namespace])
+                else:
+                    RedisTools.hset_to_redis(redis_key, namespace, json.dumps(entities))
+
+                # 发布变更通知
+                msg = json.dumps({"namespace": entity.namespace, "name": entity.name, "kind": kind})
+                RedisTools.publish(channel, [msg])
+
+                logger.info("delete entity from redis: kind=%s, namespace=%s, name=%s", kind, namespace, entity.name)
+
+        except Exception as e:
+            # Redis 同步失败不影响主流程，只记录日志
+            logger.exception(
+                "failed to delete entity from redis: kind=%s, namespace=%s, name=%s, error=%s",
+                kind,
+                entity.namespace,
+                entity.name,
+                e,
+            )
 
 
 class EntityHandlerFactory:
