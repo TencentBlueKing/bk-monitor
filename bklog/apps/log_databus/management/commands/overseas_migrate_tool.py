@@ -259,10 +259,7 @@ class OverseasMigrateTool:
 
         # 获取 flow_id 映射信息
         result = OverseasMigrateApi.get_migration_mapping_info()
-        flow_mapping_infos = result.get("flow_mapping_info", [])
-        flow_id_mapping_info_dict = {}
-        for item in flow_mapping_infos:
-            flow_id_mapping_info_dict.update(item)
+        flow_id_mapping_info_dict = result.get("flow_mapping_info", {})
 
         # 遍历索引集数据，进行迁移操作
         for data in index_set_file_datas:
