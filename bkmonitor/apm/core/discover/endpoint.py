@@ -19,7 +19,7 @@ from apm.core.discover.base import (
     get_topo_instance_key,
 )
 from apm.core.discover.cached_mixin import CachedDiscoverMixin
-from apm.core.discover.instance_data import EndpointInstanceData, BaseInstanceData
+from apm.core.discover.instance_data import EndpointInstanceData
 from apm.models import ApmTopoDiscoverRule, Endpoint, TraceDataSource
 from constants.apm import OtlpKey
 
@@ -64,10 +64,9 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
             instance_data.span_kind,
         )
 
-    def process_duplicate_records(
-        self, db_instances, delete_duplicates: bool = False, keep_last: bool = False
-    ) -> dict[tuple, BaseInstanceData]:
-        return super().process_duplicate_records(db_instances, True, keep_last)
+    def get_remain_data(self):
+        instances = self.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        return self.process_duplicate_records(instances, True)
 
     def discover(self, origin_data, exists_endpoints: dict[tuple, EndpointInstanceData]):
         """

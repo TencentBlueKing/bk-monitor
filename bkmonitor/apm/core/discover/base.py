@@ -258,6 +258,9 @@ class DiscoverBase(ABC):
     def discover(self, origin_data, remain_data: dict[tuple, BaseInstanceData]):
         pass
 
+    def get_remain_data(self):
+        return None
+
     @classmethod
     def build_instance_data(cls, instance_obj) -> BaseInstanceData:
         raise NotImplementedError("Subclass must implement build_instance_data()")
@@ -501,12 +504,6 @@ class TopoHandler:
 
     def discover(self):
         """application spans discover"""
-
-        # 延迟导入以避免循环依赖
-        from apm.core.discover.endpoint import EndpointDiscover
-        from apm.core.discover.host import HostDiscover
-        from apm.core.discover.instance import InstanceDiscover
-
         start = datetime.datetime.now()
         trace_id_count = 0
         span_count = 0
@@ -523,12 +520,7 @@ class TopoHandler:
         # 提前构造topo_params结构
         topo_params_template = []
         for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
-            if c in [EndpointDiscover, HostDiscover, InstanceDiscover]:
-                discover = c(self.bk_biz_id, self.app_name)
-                instances = discover.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-                topo_params_template.append((c, None, "topo", discover.process_duplicate_records(instances)))
-            else:
-                topo_params_template.append((c, None, "topo", None))
+            topo_params_template.append((c, None, "topo", c(self.bk_biz_id, self.app_name).get_remain_data()))
 
         for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:
