@@ -34,6 +34,8 @@ import { BK_LOG_STORAGE } from '../../../../store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import './index.scss';
 
+const IS_SORT_TIME_SHOW = !window.__IS_MONITOR_APM__ && !window.__IS_MONITOR_TRACE__;
+
 export default defineComponent({
   setup() {
     const store = useStore();
@@ -60,10 +62,6 @@ export default defineComponent({
     const descShow = computed(() => {
       const isDesc = sortField.value[1] === 'desc';
       return isSortShow.value && isDesc;
-    });
-
-    const isSortTimeShow = computed(() => {
-      return !window?.__IS_MONITOR_APM__ && !window?.__IS_MONITOR_TRACE__;
     });
 
     const handleStorageChange = (val, key) => {
@@ -106,7 +104,7 @@ export default defineComponent({
 
     return () => (
       <div class='bklog-v3-storage'>
-        {isSortTimeShow.value && (
+        {IS_SORT_TIME_SHOW && (
           <div class='switch-label log-sort'>
             <span
               class='bklog-option-item'
