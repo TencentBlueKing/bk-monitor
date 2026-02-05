@@ -39,8 +39,8 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         """从实例数据对象生成实例key"""
         return cls.ENDPOINT_ID_SPLIT.join(map(str, reversed(cls._to_found_key(instance))))
 
-    @staticmethod
-    def build_instance_data(endpoint_obj) -> EndpointInstanceData:
+    @classmethod
+    def build_instance_data(cls, endpoint_obj) -> EndpointInstanceData:
         return EndpointInstanceData(
             id=DiscoverBase._get_attr_value(endpoint_obj, "id"),
             service_name=DiscoverBase._get_attr_value(endpoint_obj, "service_name"),
@@ -52,8 +52,8 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
             updated_at=DiscoverBase._get_attr_value(endpoint_obj, "updated_at"),
         )
 
-    @staticmethod
-    def _to_found_key(instance_data: EndpointInstanceData) -> tuple:
+    @classmethod
+    def _to_found_key(cls, instance_data: EndpointInstanceData) -> tuple:
         """从实例数据对象生成业务唯一标识（不包含数据库ID）用于在 discover 过程中匹配已存在的实例"""
         return (
             instance_data.endpoint_name,

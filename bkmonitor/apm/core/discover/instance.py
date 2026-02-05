@@ -38,8 +38,8 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
         """从实例数据对象生成唯一的 key"""
         return cls.INSTANCE_ID_SPLIT.join(map(str, cls._to_found_key(instance)))
 
-    @staticmethod
-    def build_instance_data(instance_obj) -> TopoInstanceData:
+    @classmethod
+    def build_instance_data(cls, instance_obj) -> TopoInstanceData:
         return TopoInstanceData(
             id=DiscoverBase._get_attr_value(instance_obj, "id"),
             topo_node_key=DiscoverBase._get_attr_value(instance_obj, "topo_node_key"),
@@ -55,8 +55,8 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
             updated_at=DiscoverBase._get_attr_value(instance_obj, "updated_at"),
         )
 
-    @staticmethod
-    def _to_found_key(instance_data: TopoInstanceData) -> tuple:
+    @classmethod
+    def _to_found_key(cls, instance_data: TopoInstanceData) -> tuple:
         """从实例数据对象生成业务唯一标识（不包含数据库ID）用于在 discover 过程中匹配已存在的实例"""
         return (
             instance_data.topo_node_key,

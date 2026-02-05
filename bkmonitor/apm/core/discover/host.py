@@ -46,8 +46,8 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
         """从实例数据对象生成 host 缓存 key"""
         return cls.HOST_ID_SPLIT.join(map(str, cls._to_found_key(instance)))
 
-    @staticmethod
-    def build_instance_data(host_obj) -> HostInstanceData:
+    @classmethod
+    def build_instance_data(cls, host_obj) -> HostInstanceData:
         return HostInstanceData(
             id=DiscoverBase._get_attr_value(host_obj, "id"),
             bk_cloud_id=DiscoverBase._get_attr_value(host_obj, "bk_cloud_id"),
@@ -57,8 +57,8 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
             updated_at=DiscoverBase._get_attr_value(host_obj, "updated_at"),
         )
 
-    @staticmethod
-    def _to_found_key(instance_data: HostInstanceData) -> tuple:
+    @classmethod
+    def _to_found_key(cls, instance_data: HostInstanceData) -> tuple:
         """从实例数据对象生成业务唯一标识（不包含数据库ID）用于在 discover 过程中匹配已存在的实例"""
         return instance_data.bk_cloud_id, instance_data.bk_host_id, instance_data.ip, instance_data.topo_node_key
 

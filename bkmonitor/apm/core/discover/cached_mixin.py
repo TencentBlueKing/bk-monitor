@@ -50,9 +50,9 @@ class CachedDiscoverMixin(ABC):
         """
         raise NotImplementedError("Subclass must implement to_cache_key()")
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def build_instance_data(instance_obj):
+    def build_instance_data(cls, instance_obj):
         raise NotImplementedError("Subclass must implement build_instance_data()")
 
     def handle_cache_refresh_after_create(

@@ -258,12 +258,12 @@ class DiscoverBase(ABC):
     def discover(self, origin_data, remain_data: dict[tuple, BaseInstanceData]):
         pass
 
-    @staticmethod
-    def build_instance_data(instance_obj) -> BaseInstanceData:
+    @classmethod
+    def build_instance_data(cls, instance_obj) -> BaseInstanceData:
         raise NotImplementedError("Subclass must implement build_instance_data()")
 
-    @staticmethod
-    def _to_found_key(instance_data: BaseInstanceData) -> tuple:
+    @classmethod
+    def _to_found_key(cls, instance_data: BaseInstanceData) -> tuple:
         """
         从实例数据对象生成业务唯一标识（不包含数据库ID）用于在 discover 过程中匹配已存在的实例
         :param instance_data: 实例数据对象
