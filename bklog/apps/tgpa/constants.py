@@ -25,7 +25,7 @@ from apps.utils import ChoicesEnum
 
 
 TGPA_BASE_DIR = "/tmp/log-search/tgpa"
-TASK_LIST_BATCH_SIZE = 500
+TASK_LIST_BATCH_SIZE = 1000
 TGPA_TASK_EXE_CODE_SUCCESS = "0"  # 文件上传成功状态码
 FEATURE_TOGGLE_TGPA_TASK = "tgpa_task"
 

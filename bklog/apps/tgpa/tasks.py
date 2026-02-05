@@ -86,14 +86,32 @@ def fetch_and_process_tgpa_tasks():
                     ]
                 )
                 continue
+            # 首次同步V1任务，只创建数据，不处理任务
+            have_v1_task = TGPATask.objects.filter(
+                bk_biz_id=bk_biz_id, task_type=TGPATaskTypeEnum.BUSINESS_LOG_V1.value
+            ).exists()
+            if not have_v1_task:
+                TGPATask.objects.bulk_create(
+                    [
+                        TGPATask(
+                            id=task["id"],
+                            task_id=task["go_svr_task_id"],
+                            task_type=task["task_type"],
+                            bk_biz_id=bk_biz_id,
+                            log_path=task["log_path"],
+                            task_status=task["status"],
+                            file_status=task["exe_code"],
+                            process_status=TGPATaskProcessStatusEnum.INIT.value,
+                        )
+                        for task in task_list
+                        if task["task_type"] == TGPATaskTypeEnum.BUSINESS_LOG_V1.value
+                    ]
+                )
         except Exception:
             logger.exception("Failed to sync client log tasks, business id: %s", bk_biz_id)
             continue
 
         # 对比任务列表和数据库中的任务
-        have_v1_task = TGPATask.objects.filter(
-            bk_biz_id=bk_biz_id, task_type=TGPATaskTypeEnum.BUSINESS_LOG_V1.value
-        ).exists()
         existed_tasks = TGPATask.objects.filter(bk_biz_id=bk_biz_id)
         task_map = {task.task_id: task for task in existed_tasks}
         for task in task_list:
@@ -121,9 +139,6 @@ def fetch_and_process_tgpa_tasks():
                         "process_status": TGPATaskProcessStatusEnum.INIT.value,
                     },
                 )
-                # 由于新增了V1任务，这里跳过存量任务
-                if not have_v1_task and task["task_type"] == TGPATaskTypeEnum.BUSINESS_LOG_V1.value:
-                    continue
                 if created and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
                     task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
                     task_obj.save(update_fields=["process_status"])
