@@ -55,7 +55,12 @@ from monitor_web.collecting.constant import CollectStatus
 from monitor_web.uptime_check.constants import UPTIME_CHECK_CONFIG_TEMPLATE
 from bk_monitor_base import uptime_check as uptime_check_operation
 from bk_monitor_base.infras.threading.local import get_request_username
-from bk_monitor_base.domains.uptime_check.define import UptimeCheckNode, UptimeCheckTaskProtocol, UptimeCheckTaskStatus
+from bk_monitor_base.domains.uptime_check.define import (
+    UptimeCheckNode,
+    UptimeCheckTask,
+    UptimeCheckTaskProtocol,
+    UptimeCheckTaskStatus,
+)
 from bk_monitor_base.domains.uptime_check.models import (
     UptimeCheckTaskModel,
 )
@@ -180,13 +185,20 @@ class UptimeCheckTaskListResource(Resource):
         get_available = serializers.BooleanField(default=False, label="获取可用率")
         get_task_duration = serializers.BooleanField(default=False, label="获取响应时间")
 
-    def get_groups(self, task_id: int):
+    def get_groups(self, bk_tenant_id: str, bk_biz_id: int, task_id: int):
         """获取任务分组信息"""
-        return uptime_check_operation.list_group_id_name_by_task_id(task_id)
+        return uptime_check_operation.list_groups(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            query={"task_id": task_id},
+            output={"format": "values", "fields": ["id", "name"]},
+        )
 
-    def get_nodes(self, task_id: int):
+    def get_nodes(self, bk_tenant_id: str, bk_biz_id: int, task_id: int):
         """获取任务节点信息"""
-        nodes = uptime_check_operation.list_nodes_by_task_id(task_id)
+        nodes = uptime_check_operation.list_nodes(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"task_id": task_id}
+        )
         return [node.model_dump() for node in nodes]
 
     def query_available_or_duration(self, metric, bk_biz_id, data_label, where, period, end_time, ret=None):
@@ -222,6 +234,7 @@ class UptimeCheckTaskListResource(Resource):
     def perform_request(self, validated_request_data):
         task_data = validated_request_data["task_data"]
         bk_biz_id = validated_request_data["bk_biz_id"]
+        bk_tenant_id = get_request_tenant_id()
         query_group = {}
         task_data_mapping = {}
         for task in task_data:
@@ -231,8 +244,8 @@ class UptimeCheckTaskListResource(Resource):
             url = UptimeCheckTaskSerializer.get_url_list(task)
             task_data_mapping[task.id].update(
                 url=url,
-                nodes=self.get_nodes(task.id),
-                groups=self.get_groups(task.id),
+                nodes=self.get_nodes(bk_tenant_id, bk_biz_id, task.id),
+                groups=self.get_groups(bk_tenant_id, bk_biz_id, task.id),
                 task_duration=0,
                 available=0,
             )
@@ -336,14 +349,15 @@ class TestTaskResource(Resource):
 
         # 权限检查：如果有公共节点，验证用户是否有公共节点的使用权限
         if settings.ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH:
-            all_nodes = uptime_check_operation.list_uptime_check_nodes(
-                bk_tenant_id, data["bk_biz_id"], node_ids=data["node_id_list"], include_common=True
+            all_nodes = uptime_check_operation.list_nodes(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=data["bk_biz_id"],
+                query={"node_ids": data["node_id_list"], "include_common": True},
             )
             common_nodes = [node for node in all_nodes if node.is_common]
             if common_nodes:
                 Permission().is_allowed(ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
 
-        # 核心测试逻辑委托给底座
         try:
             return uptime_check_operation.test_uptime_check_task(
                 bk_biz_id=data["bk_biz_id"],
@@ -374,12 +388,13 @@ class GenerateConfigResource(Resource):
     def perform_request(self, data):
         bk_tenant_id = get_request_tenant_id()
         try:
-            node = uptime_check_operation.get_node_by_ip(bk_tenant_id, data["ip"])
+            node = uptime_check_operation.get_node(bk_tenant_id=bk_tenant_id, ip=data["ip"])
         except Exception:
             raise CustomException(_("不存在的节点ip=%s") % data["ip"])
 
-        # 获取节点关联的任务
-        tasks = uptime_check_operation.list_tasks_by_node_id(node.id)
+        tasks = uptime_check_operation.list_tasks(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=node.bk_biz_id, query={"node_id": node.id}
+        )
 
         tcp_tasks = []
         udp_tasks = []
@@ -473,7 +488,7 @@ class GenerateSubConfigResource(Resource):
         # 兼容测试和正式下发两种情况: 测试需要传入 config 和 protocol，正式下发只需传入 task_id
         if task_id:
             try:
-                task_model = uptime_check_operation.get_uptime_check_task(
+                task_model = uptime_check_operation.get_task(
                     bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id
                 )
             except Exception:
@@ -556,7 +571,9 @@ class TaskDataResource(Resource):
         bk_tenant_id = get_request_tenant_id()
         bk_biz_id = data["bk_biz_id"]
         try:
-            task = uptime_check_operation.get_uptime_check_task(bk_tenant_id, bk_biz_id, int(data["task_id"]))
+            task = uptime_check_operation.get_task(
+                bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=int(data["task_id"])
+            )
         except Exception:
             err_msg = _("未找到拨测任务ID=%s") % data["task_id"]
             logger.error(err_msg)
@@ -607,22 +624,27 @@ class TaskDetailResource(Resource):
         time_step = serializers.IntegerField(required=False)
 
     @staticmethod
-    def get_nodes_by_carrieroperator(task_id, carrieroperator):
+    def get_nodes_by_carrieroperator(bk_tenant_id, bk_biz_id, task_id, carrieroperator):
         """
         根据运营商划分出拨测节点列表
         """
-        nodes = uptime_check_operation.list_nodes_by_task_id(task_id)
+        nodes = uptime_check_operation.list_nodes(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"task_id": task_id}
+        )
         result = {}
         for item in carrieroperator:
             result[item] = [str(node.id) for node in nodes if node.carrieroperator == item]
         return result
 
     @staticmethod
-    def get_nodes_by_location(task_id, location):
+    def get_nodes_by_location(bk_tenant_id, bk_biz_id, task_id, location):
         """
         根据国家地区划分出拨测节点列表
         """
-        nodes = uptime_check_operation.list_nodes_by_task_id(task_id)
+        # 使用新版统一 CRUD 操作
+        nodes = uptime_check_operation.list_nodes(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"task_id": task_id}
+        )
         result = {}
         for item in location:
             result[item] = []
@@ -638,15 +660,17 @@ class TaskDetailResource(Resource):
         task_id = data["task_id"]
         monitor_field = data["type"]
         try:
-            task = uptime_check_operation.get_uptime_check_task(bk_tenant_id, bk_biz_id, task_id)
+            task = uptime_check_operation.get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
         except Exception:
             raise CustomException(_("拨测任务(id=%s)获取失败") % task_id)
         protocol = task.protocol.lower()
 
         if data.get("location"):
-            location = self.get_nodes_by_location(task_id, data["location"])
+            location = self.get_nodes_by_location(bk_tenant_id, bk_biz_id, task_id, data["location"])
         if data.get("carrieroperator"):
-            carrieroperator = self.get_nodes_by_carrieroperator(task_id, data["carrieroperator"])
+            carrieroperator = self.get_nodes_by_carrieroperator(
+                bk_tenant_id, bk_biz_id, task_id, data["carrieroperator"]
+            )
 
         # 如果任务创建时间距离当前时间小于12小时，则默认展示时间范围为创建时间到当前时间，group_by minute1
         create_time, end = get_timestamp_range_by_biz_date(localtime(task.create_time))
@@ -691,8 +715,10 @@ class TaskDetailResource(Resource):
                     kwargs["series_label_show"] = city + op
                     both = [i for i in location[city] if i in carrieroperator[op]]
                     if len(both):
-                        nodes = uptime_check_operation.list_uptime_check_nodes(
-                            bk_tenant_id, bk_biz_id, node_ids=[int(i) for i in both], include_common=False
+                        nodes = uptime_check_operation.list_nodes(
+                            bk_tenant_id=bk_tenant_id,
+                            bk_biz_id=bk_biz_id,
+                            query={"node_ids": [int(i) for i in both], "include_common": False},
                         )
                         ip_list = [{"ip": i.ip, "bk_cloud_id": str(i.plat_id)} for i in nodes]
                         kwargs["filter_dict"]["ip_list"] = ip_list
@@ -702,8 +728,10 @@ class TaskDetailResource(Resource):
             for city in list(location.keys()):
                 kwargs = copy.deepcopy(kwargs)
                 if len(location[city]) > 0:
-                    nodes = uptime_check_operation.list_uptime_check_nodes(
-                        bk_tenant_id, bk_biz_id, node_ids=[int(i) for i in location[city]], include_common=False
+                    nodes = uptime_check_operation.list_nodes(
+                        bk_tenant_id=bk_tenant_id,
+                        bk_biz_id=bk_biz_id,
+                        query={"node_ids": [int(i) for i in location[city]], "include_common": False},
                     )
                     ip_list = [{"ip": i.ip, "bk_cloud_id": str(i.plat_id)} for i in nodes]
                     kwargs["filter_dict"]["ip_list"] = ip_list
@@ -715,8 +743,10 @@ class TaskDetailResource(Resource):
             for op in list(carrieroperator.keys()):
                 kwargs = copy.deepcopy(kwargs)
                 if len(carrieroperator[op]) > 0:
-                    nodes = uptime_check_operation.list_uptime_check_nodes(
-                        bk_tenant_id, bk_biz_id, node_ids=[int(i) for i in carrieroperator[op]], include_common=False
+                    nodes = uptime_check_operation.list_nodes(
+                        bk_tenant_id=bk_tenant_id,
+                        bk_biz_id=bk_biz_id,
+                        query={"node_ids": [int(i) for i in carrieroperator[op]], "include_common": False},
                     )
                     ip_list = [{"ip": i.ip, "bk_cloud_id": str(i.plat_id)} for i in nodes]
                     kwargs["filter_dict"]["ip_list"] = ip_list
@@ -812,7 +842,7 @@ class TaskGraphAndMapResource(Resource):
             "task_duration": task_duration_graph if task_duration_graph else {},
         }
 
-        task = uptime_check_operation.get_uptime_check_task(bk_tenant_id, bk_biz_id, data["task_id"])
+        task = uptime_check_operation.get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=data["task_id"])
         for type in list(graph_result.keys()):
             threshold_result = self.get_threshold_line(type, task)
             if threshold_result:
@@ -825,7 +855,9 @@ class TaskGraphAndMapResource(Resource):
         available_value = []
         task_duration_value = []
         # 预先获取租户下所有节点用于查找
-        all_nodes = uptime_check_operation.list_uptime_check_nodes(bk_tenant_id, bk_biz_id, include_common=True)
+        all_nodes = uptime_check_operation.list_nodes(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"include_common": True}
+        )
         nodes_by_ip_cloud = {(n.ip, str(n.plat_id)): n for n in all_nodes}
 
         for type, graph in list(graph_result.items()):
@@ -1007,10 +1039,14 @@ class UptimeCheckBeatResource(Resource):
         if not hosts:
             # 如果指定了业务ID，则获取该业务下的节点（包含通用节点）
             if bk_biz_id:
-                nodes = uptime_check_operation.list_uptime_check_nodes(bk_tenant_id, bk_biz_id, include_common=True)
+                nodes = uptime_check_operation.list_nodes(
+                    bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"include_common": True}
+                )
             else:
                 # 没有指定业务ID，获取租户下所有节点（通过 bk_biz_id=0 方式，include_common=True 获取所有）
-                nodes = uptime_check_operation.list_uptime_check_nodes(bk_tenant_id, 0, include_common=True)
+                nodes = uptime_check_operation.list_nodes(
+                    bk_tenant_id=bk_tenant_id, bk_biz_id=0, query={"include_common": True}
+                )
 
             node_to_host_dict = resource.uptime_check.get_node_host_dict(bk_tenant_id=bk_tenant_id, nodes=nodes)
             bk_host_ids = {host.bk_host_id for host in node_to_host_dict.values()}
@@ -1236,7 +1272,7 @@ class GenerateDefaultStrategyResource(Resource):
 
     def perform_request(self, data):
         try:
-            task = uptime_check_operation.get_task_by_id(task_id=data["task_id"])
+            task = uptime_check_operation.get_task(task_id=data["task_id"])
         except Exception:
             raise CustomException(_("不存在的任务id:%s") % data["task_id"])
 
@@ -1303,15 +1339,16 @@ class UpdateTaskRunningStatusResource(Resource):
 
     def perform_request(self, task_id: int):
         logger.info("start celery period task: update uptime check task running status")
-        task = uptime_check_operation.get_task_by_id(task_id=task_id)
-        subscriptions = uptime_check_operation.list_subscriptions_by_task_id(task_id)
+        # 使用新版统一 CRUD 操作
+        task = uptime_check_operation.get_task(task_id=task_id)
+        subscriptions = uptime_check_operation.list_subscriptions(task_id=task_id)
         hasFail = False
         # 遍历所有订阅，获取全部的状态
         for subscription_id, _node_ids in subscriptions:
             status, log, nodeman_task_id = self.check_single_task_status(subscription_id)
             if status == UptimeCheckTaskStatus.START_FAILED:
                 for item in log:
-                    uptime_check_operation.create_task_collector_log(
+                    uptime_check_operation.create_collector_log(
                         task_id=task.id,
                         error_log=item,
                         subscription_id=subscription_id,
@@ -1374,11 +1411,10 @@ class BatchUpdateTaskRunningStatusResource(Resource):
 
     def perform_request(self, task_id_list):
         logger.info("start celery period task: period update uptime check task running status")
-        # 拨测任务的当前状态关系（使用 Define）
-        task_list = uptime_check_operation.list_uptime_check_tasks_by_ids(task_id_list)
-        # 所有的订阅ID 和 任务与订阅ID的关系
-        task_subscription_dict = uptime_check_operation.list_subscriptions_by_task_ids(task_id_list)
-        subscription_id_list = uptime_check_operation.list_subscription_ids_by_task_ids(task_id_list)
+        task_list = uptime_check_operation.list_tasks(query={"task_ids": task_id_list})
+        # 获取所有的订阅ID 和 任务与订阅ID的关系
+        task_subscription_dict = uptime_check_operation.list_subscriptions(task_ids=task_id_list, output="dict")
+        subscription_id_list = uptime_check_operation.list_subscriptions(task_ids=task_id_list, output="flat")
 
         # 获取所有订阅ID的节点管理状态
         subscription_status = self.check_task_status(subscription_id_list)
@@ -1443,10 +1479,13 @@ class FrontPageDataResource(Resource):
 
     def perform_request(self, data):
         bk_biz_id = data["bk_biz_id"]
+        bk_tenant_id = get_request_tenant_id()
         task_id_list = data["task_id_list"]
 
         try:
-            tasks = uptime_check_operation.list_uptime_check_tasks_by_ids(task_id_list)
+            tasks = uptime_check_operation.list_tasks(
+                bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"task_ids": task_id_list}
+            )
         except Exception as e:
             err_msg = _("未找到拨测任务: %s") % e
             logger.error(err_msg)
@@ -1553,8 +1592,10 @@ class ExportUptimeCheckConfResource(Resource):
         task_conf["target_conf"] = self.target_conf
         if "node_list" in self.target_conf:
             # 通过 node_ids 获取节点信息
-            node_list = uptime_check_operation.list_uptime_check_nodes(
-                bk_tenant_id, task.bk_biz_id, node_ids=task.node_ids, include_common=True
+            node_list = uptime_check_operation.list_nodes(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=task.bk_biz_id,
+                query={"node_ids": task.node_ids, "include_common": True},
             )
             for node in node_list:
                 node_conf = resource.uptime_check.export_uptime_check_node_conf.get_node_conf(node)
@@ -1586,8 +1627,8 @@ class ExportUptimeCheckConfResource(Resource):
         task_protocol = data.get("protocol", "")
         task_conf_list = []
 
-        # 获取任务列表（使用 Define）
-        tasks = uptime_check_operation.list_uptime_check_tasks(bk_tenant_id, bk_biz_id)
+        # 获取任务列表
+        tasks = uptime_check_operation.list_tasks(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         if task_protocol:
             tasks = [t for t in tasks if t.protocol.value.lower() == task_protocol.lower()]
         if task_ids:
@@ -1630,9 +1671,8 @@ class ExportUptimeCheckNodeConfResource(Resource):
         node_conf_list = []
         bk_biz_id = data["bk_biz_id"]
         node_ids = data.get("node_ids", "")
-        nodes = uptime_check_operation.list_uptime_check_nodes(
-            bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id
-        )
+        # 使用新版统一 CRUD 操作
+        nodes = uptime_check_operation.list_nodes(bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id)
         if node_ids:
             node_id_list = [int(i) for i in node_ids.split(",")]
             nodes = [n for n in nodes if n.id in node_id_list]
@@ -2135,9 +2175,9 @@ class FileImportUptimeCheckResource(Resource):
         failed_detail = []
         biz_id = validated_request_data["bk_biz_id"]
         bk_tenant_id = get_request_tenant_id()
-        # 取出当前业务下的所有节点（包含公共节点）
-        self.all_uptime_check_node = uptime_check_operation.list_uptime_check_nodes(
-            bk_tenant_id, biz_id, include_common=True
+        # 取出当前业务下的所有节点（包含公共节点）- 使用新版统一 CRUD 操作
+        self.all_uptime_check_node = uptime_check_operation.list_nodes(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=biz_id, query={"include_common": True}
         )
         # 数据解析和组装
         for task_conf in validated_request_data["task_list"]:
@@ -2215,8 +2255,8 @@ class UptimeCheckCardResource(Resource):
                 group_task_dict.setdefault(g["id"], []).append(t)
 
         # 任务组告警
-        uptime_check_group = uptime_check_operation.list_uptime_check_groups(
-            bk_tenant_id, bk_biz_id, include_global=True
+        uptime_check_group = uptime_check_operation.list_groups(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"include_global": True}
         )
         group_data = []
         for group in uptime_check_group:
@@ -2280,7 +2320,9 @@ class UptimeCheckCardResource(Resource):
 
         # 用于给前端判断无拨测任务时是否需要先指引用户创建拨测节点
         if bk_biz_id:
-            all_nodes = uptime_check_operation.list_uptime_check_nodes(bk_tenant_id, bk_biz_id, include_common=True)
+            all_nodes = uptime_check_operation.list_nodes(
+                bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"include_common": True}
+            )
         else:
             all_nodes = []
         return {"group_data": group_data, "task_data": all_tasks_data, "has_node": len(all_nodes) > 0}
@@ -2342,17 +2384,16 @@ class ImportUptimeCheckNodeResource(Resource):
             if not create_data["bk_biz_id"]:
                 raise CustomException(_("未填写业务ID,请检查配置"))
             if create_data.get("bk_host_id"):
-                node = uptime_check_operation.list_uptime_check_nodes(
+                node = uptime_check_operation.list_nodes(
                     bk_tenant_id=bk_tenant_id,
                     bk_biz_id=create_data["bk_biz_id"],
-                    bk_host_ids=[create_data["bk_host_id"]],
+                    query={"bk_host_ids": [create_data["bk_host_id"]]},
                 )
             else:
-                node = uptime_check_operation.list_uptime_check_nodes(
+                node = uptime_check_operation.list_nodes(
                     bk_tenant_id=bk_tenant_id,
                     bk_biz_id=create_data["bk_biz_id"],
-                    ip=create_data["ip"],
-                    plat_id=create_data["plat_id"],
+                    query={"ip": create_data["ip"], "plat_id": create_data["plat_id"]},
                 )
             node_id = None
             if node:
@@ -2373,9 +2414,7 @@ class ImportUptimeCheckNodeResource(Resource):
                     raise CustomException(_("业务下没有该主机，请检查配置"))
                 # 创建一个node
                 node_define = UptimeCheckNode(bk_tenant_id=bk_tenant_id, **create_data)
-                node_id = uptime_check_operation.create_or_update_uptime_check_node(
-                    node=node_define, operator=get_request_username()
-                )
+                node_id = uptime_check_operation.save_node(node=node_define, operator=get_request_username())
 
             return {
                 "result": True,
@@ -2467,9 +2506,8 @@ class ImportUptimeCheckTaskResource(Resource):
             raise CustomException(_("下发配置缺少节点信息，请填写node_list或node_id_list"))
         for i in node_id_list:
             try:
-                # 使用 operation 函数查找节点
-                nodes = uptime_check_operation.list_uptime_check_nodes(
-                    bk_tenant_id, bk_biz_id, node_ids=[i], include_common=True
+                nodes = uptime_check_operation.list_nodes(
+                    bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"node_ids": [i], "include_common": True}
                 )
                 found = any(node.bk_biz_id == bk_biz_id or node.is_common for node in nodes)
                 if not found:
@@ -2485,8 +2523,8 @@ class ImportUptimeCheckTaskResource(Resource):
             result_id_list = [i["node_id"] for i in result["success"]["detail"]]
 
         node_id_list.extend(result_id_list)
-        nodes = uptime_check_operation.list_uptime_check_nodes(
-            bk_tenant_id, bk_biz_id, node_ids=node_id_list, include_common=True
+        nodes = uptime_check_operation.list_nodes(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"node_ids": node_id_list, "include_common": True}
         )
         nodes = [n for n in nodes if n.bk_biz_id == data["target_conf"]["bk_biz_id"] or n.is_common]
         if not nodes:
@@ -2496,8 +2534,19 @@ class ImportUptimeCheckTaskResource(Resource):
     def get_groups(self, group_names, bk_biz_id):
         bk_tenant_id = get_request_tenant_id()
         group_name_list = group_names.split(",")
-        groups = uptime_check_operation.list_uptime_check_groups(bk_tenant_id, bk_biz_id)
+        groups = uptime_check_operation.list_groups(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         return [g for g in groups if g.name in group_name_list]
+
+    @staticmethod
+    def _get_existing_task_id(bk_tenant_id: str, bk_biz_id: int, name: str) -> int | None:
+        """获取现有任务ID（用于更新时识别）"""
+        try:
+            existing_tasks = uptime_check_operation.list_tasks(
+                bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"name": name}
+            )
+            return existing_tasks[0].id if existing_tasks else None
+        except Exception:
+            return None
 
     def create_task(self, data, bk_biz_id):
         own_bk_biz_id = data["target_conf"]["bk_biz_id"] if data["target_conf"]["bk_biz_id"] else bk_biz_id
@@ -2540,28 +2589,30 @@ class ImportUptimeCheckTaskResource(Resource):
                 }
             )
 
-        # 检查是否存在同名任务，若存在则更新所有同名任务
         bk_tenant_id = get_request_tenant_id()
-        existing_tasks = uptime_check_operation.list_uptime_check_tasks(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, name=task_create_data["name"]
-        )
-        if existing_tasks:
-            uptime_check_operation.update_task_model_by_name(task_create_data["name"], **task_create_data)
-            task_id = uptime_check_operation.get_task_id_by_name(
-                bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, name=task_create_data["name"]
-            )
-        else:
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                task_create_data["indepentent_dataid"] = True
-            task_id = uptime_check_operation.create_task_model(**task_create_data)
 
-        # 设置 M2M 关系，不再需要 Model 实例
-        uptime_check_operation.set_task_node_and_group_relations(
+        # 自动判断是创建还是更新（根据是否有同名任务的 id）
+        existing_task_id = self._get_existing_task_id(bk_tenant_id, bk_biz_id, task_create_data["name"])
+
+        # 构建 UptimeCheckTask 定义对象
+        task_define = UptimeCheckTask(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
-            task_id=task_id,
-            node_id_list=[n.id for n in nodes],
-            group_id_list=[g.id for g in groups],
+            id=existing_task_id,
+            name=task_create_data["name"],
+            protocol=UptimeCheckTaskProtocol(task_create_data["protocol"]),
+            config=task_create_data["config"],
+            labels=task_create_data.get("labels"),
+            location=task_create_data.get("location"),
+            check_interval=task_create_data.get("check_interval", 5),
+            independent_dataid=settings.ENABLE_MULTI_TENANT_MODE if settings.ENABLE_MULTI_TENANT_MODE else False,
+            node_ids=[n.id for n in nodes],
+            group_ids=[g.id for g in groups],
+        )
+
+        task_id = uptime_check_operation.save_task(
+            task=task_define,
+            operator=get_request_username(),
         )
 
         return task_id
@@ -2572,14 +2623,9 @@ class ImportUptimeCheckTaskResource(Resource):
             bk_tenant_id = get_request_tenant_id()
             task_name = item_data["collector_conf"]["name"]
 
-            # 如果没有传入monitor_conf则生成默认配置
+            # 如果传入 monitor_conf 则配置告警策略
             if item_data.get("monitor_conf"):
-                uptime_check_operation.update_task_status(
-                    bk_tenant_id=bk_tenant_id,
-                    bk_biz_id=bk_biz_id,
-                    task_id=task_id,
-                    status=UptimeCheckTaskStatus.STARTING,
-                )
+                # deploy_uptime_check_task 会自动设置状态为 STARTING
                 monitor_conf_list = item_data["monitor_conf"]
                 for monitor_conf in monitor_conf_list:
                     monitor_conf.update(
@@ -2598,7 +2644,7 @@ class ImportUptimeCheckTaskResource(Resource):
                     )
                     resource.config.save_alarm_strategy(monitor_conf)
 
-            # 创建下发拨测任务
+            # 自动管理状态：NEW_DRAFT → STARTING → RUNNING
             uptime_check_operation.deploy_uptime_check_task(
                 bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id
             )
@@ -2641,9 +2687,7 @@ class SelectUptimeCheckNodeResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
 
         host_list = resource.commons.host_region_isp_info(bk_biz_id=bk_biz_id)
-        node_list = uptime_check_operation.list_uptime_check_nodes(
-            bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id
-        )
+        node_list = uptime_check_operation.list_nodes(bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id)
         node_ip_list = [node.ip for node in node_list if not node.bk_host_id]
         node_id_list = [node.bk_host_id for node in node_list if node.bk_host_id]
 
@@ -2671,7 +2715,7 @@ class GetRecentTaskDataResource(Resource):
         task_type = validated_request_data["type"]
 
         try:
-            uptime_check_task = uptime_check_operation.get_task_by_id(task_id=int(task_id))
+            uptime_check_task = uptime_check_operation.get_task(task_id=int(task_id))
         except Exception:
             raise CustomException(_("不存在id为%s的拨测任务") % task_id)
 
@@ -2721,10 +2765,13 @@ class SelectCarrierOperator(Resource):
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         isp_cn_list = [item["cn"] for item in ISP_LIST]
-        return uptime_check_operation.list_custom_carrier_operators(
+        nodes = uptime_check_operation.list_nodes(
+            bk_tenant_id=get_request_tenant_id(),
             bk_biz_id=int(bk_biz_id),
-            exclude_isp_list=isp_cn_list,
+            query={"exclude_carrieroperators": isp_cn_list},
+            output={"format": "flat", "fields": ["carrieroperator"]},
         )
+        return list(dict.fromkeys(nodes))  # 保留顺序的去重
 
 
 class UptimeCheckNodeInfoResource(Resource):
@@ -2737,7 +2784,8 @@ class UptimeCheckNodeInfoResource(Resource):
 
     def perform_request(self, data):
         bk_tenant_id = get_request_tenant_id()
-        nodes = uptime_check_operation.list_uptime_check_nodes_by_ids(bk_tenant_id, data["ids"])
+        # 使用新版统一 CRUD 操作
+        nodes = uptime_check_operation.list_nodes(bk_tenant_id=bk_tenant_id, query={"node_ids": data["ids"]})
         result = {}
         for node in nodes:
             result[node.id] = node.model_dump()
@@ -2753,7 +2801,10 @@ class UptimeCheckTaskInfoResource(Resource):
         ids = serializers.ListField(label="拨测任务id列表", child=serializers.IntegerField(), required=True)
 
     def perform_request(self, data):
-        return uptime_check_operation.list_task_models_as_dict(data["ids"])
+        task_ids = data["ids"]
+        tasks = uptime_check_operation.list_tasks(query={"task_ids": task_ids}, output={"format": "dict"})
+        # 转换为 {id: task_dict} 的格式
+        return {task["id"]: task for task in tasks}
 
 
 class TopoTemplateHostResource(Resource):
