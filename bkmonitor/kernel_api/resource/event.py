@@ -9,6 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from typing import Any
+
+from apm_web.event.resources import (
+    EventLogsResource as APMEventLogsResource,
+    EventViewConfigResource as APMEventViewConfigResource,
+)
 from core.drf_resource import Resource
 from packages.monitor_web.grafana.resources.event import GetDataSourceConfigResource
 from packages.monitor_web.data_explorer.event.resources import EventLogsResource, EventViewConfigResource
@@ -46,6 +52,9 @@ class GetEventViewConfigResource(Resource):
         table = serializers.CharField(required=True, label="表名")
         start_time = serializers.CharField(required=True, label="开始时间")
         end_time = serializers.CharField(required=True, label="结束时间")
+        # APM 相关参数
+        app_name = serializers.CharField(required=False, label="APM应用名称", allow_blank=True, default="")
+        service_name = serializers.CharField(required=False, label="APM服务名称", allow_blank=True, default="")
 
     @staticmethod
     def _build_data_source_config(data: dict) -> dict:
@@ -53,7 +62,7 @@ class GetEventViewConfigResource(Resource):
         config_keys = ["data_source_label", "data_type_label", "table"]
         return {key: data[key] for key in config_keys}
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         logger.info(
             "GetEventViewConfigResource: try to get event view config,bk_biz_id->[%s]",
             validated_request_data["bk_biz_id"],
@@ -61,10 +70,17 @@ class GetEventViewConfigResource(Resource):
         data_source_config = self._build_data_source_config(validated_request_data)
         # 提取顶层参数
         top_level_keys = ["start_time", "end_time", "bk_biz_id"]
-        query_params = {
+        query_params: dict[str, Any] = {
             "data_sources": [data_source_config],
             **{key: validated_request_data[key] for key in top_level_keys},
         }
+
+        # 如果传入了 APM 参数，则调用 APM 资源类
+        if validated_request_data.get("app_name") and validated_request_data.get("service_name"):
+            query_params["app_name"] = validated_request_data["app_name"]
+            query_params["service_name"] = validated_request_data["service_name"]
+            return APMEventViewConfigResource().request(query_params)
+
         return EventViewConfigResource().request(query_params)
 
 
@@ -86,6 +102,9 @@ class SearchEventLogResource(Resource):
         sort = serializers.ListSerializer(
             label="排序字段", required=False, child=serializers.CharField(), default=[], allow_empty=True
         )
+        # APM 相关参数
+        app_name = serializers.CharField(required=False, label="APM应用名称", allow_blank=True, default="")
+        service_name = serializers.CharField(required=False, label="APM服务名称", allow_blank=True, default="")
 
     @staticmethod
     def _build_query_config(data: dict) -> dict:
@@ -93,15 +112,22 @@ class SearchEventLogResource(Resource):
         config_keys = ["data_source_label", "data_type_label", "table", "query_string"]
         return {key: data[key] for key in config_keys}
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         logger.info(
             "SearchEventLogResource: try to search event log,bk_biz_id->[%s]", validated_request_data["bk_biz_id"]
         )
         query_config = self._build_query_config(validated_request_data)
         # 提取顶层参数
         top_level_keys = ["start_time", "end_time", "bk_biz_id", "limit", "offset", "sort"]
-        query_params = {
+        query_params: dict[str, Any] = {
             "query_configs": [query_config],
             **{key: validated_request_data[key] for key in top_level_keys},
         }
+
+        # 如果传入了 APM 参数，则调用 APM 资源类
+        if validated_request_data.get("app_name") and validated_request_data.get("service_name"):
+            query_params["app_name"] = validated_request_data["app_name"]
+            query_params["service_name"] = validated_request_data["service_name"]
+            return APMEventLogsResource().request(query_params)
+
         return EventLogsResource().request(query_params)

@@ -911,7 +911,7 @@ class ChannelBkchatSender(BaseSender):
                 "color": "#7092ed",
             },
             "keyword2": {"value": alarm.description, "color": "#173177"},
-            "keyword3": {"value": alarm.begin_time, "color": "#7092ed"},
+            "keyword3": {"value": alarm.begin_time.strftime(settings.DATETIME_FORMAT), "color": "#7092ed"},
         }
 
         notice_params = {"notice_group_id_list": notice_receivers, "msg_type": "mini", "msg_param": msg_param}
@@ -999,6 +999,7 @@ class IncidentSender(Sender):
             if response["errcode"] != 0:
                 result = False
                 message = response["errmsg"]
+                logger.error(f"send.wxwork_group failed, errcode={response['errcode']}, errmsg={message}")
         except Exception as e:
             result = False
             message = str(e)

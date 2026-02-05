@@ -1,16 +1,51 @@
+@use './theme/trace-table.scss' as traceTable;
+
 .trace-explore-table {
   position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
 
+  .explore-table {
+    height: 100%;
+    // 最小高度应为骨架屏高度避免出现空白
+    min-height: 370px;
+    @include traceTable.table-theme();
+
+    &.t-table {
+      color: #313238;
+      // 容器有剩余空间时撑满容器
+      .t-table__content {
+        // 1px 是由于兼容 tdesign 使用滚动条吸底功能时填充多加了1px
+        height: calc(100% + 1px);
+        overflow-x: scroll;
+        overflow-y: hidden;
+
+        .t-table--layout-fixed {
+          height: 100%;
+        }
+
+        .t-table__body {
+          tr {
+            &:not(.t-table__row--full) {
+              height: var(--trace-table-row-height, 32px);
+            }
+          }
+        }
+      }
+    }
+  }
+
   .t-table__header {
     .explore-header-col {
       display: flex;
       align-items: center;
       min-width: 0;
+      color: #000000 !important;
       user-select: none;
+    }
 
+    .explore-header-col {
       .col-type-icon {
         margin-right: 4px;
       }
@@ -32,73 +67,12 @@
         }
       }
     }
-
-    // .t-table thead:hover {
-    //   .icon-monitor.icon-Chart.statistics-icon {
-    //     display: block;
-    //   }
-    // }
-  }
-
-  .t-table__th-cell-inner {
-    .t-table__cell--title {
-      & > div {
-        display: inline-flex;
-        flex-basis: auto;
-        min-width: 0;
-      }
-    }
   }
 
   .explore-col {
-    width: 100%;
-    height: 23px;
-    font-family: 'Roboto-Regular', 'pingfang sc', 'microsoft yahei', 'arial regular';
-    display: flex;
-    align-items: center;
-
-    &.explore-click-col {
-      color: #3a84ff;
-
-      .explore-click-text {
-        cursor: pointer;
-      }
-    }
-
-    &.explore-link-col {
-      color: #3a84ff;
-
-      & > a {
-        display: inline-flex;
-        flex-basis: auto;
-        align-items: center;
-        min-width: 0;
-      }
-
-      .explore-link-text {
-        flex-basis: auto;
-        min-width: 0;
-      }
-
-      .icon-monitor {
-        display: none;
-        flex-shrink: 0;
-        height: 16px;
-        line-height: 16px;
-      }
-
-      &:hover {
-        .icon-monitor {
-          display: inline-block;
-        }
-      }
-    }
+    --trace-table-explore-col-height: 15px;
 
     &.explore-prefix-icon-col {
-      .prefix-icon {
-        flex-shrink: 0;
-      }
-
       .status-code-icon {
         &-normal {
           position: relative;
@@ -177,8 +151,8 @@
       }
 
       .span-kind-icon {
-        width: 22px;
         flex-shrink: 0;
+        width: 22px;
         margin-right: 4px;
       }
     }
@@ -238,88 +212,33 @@
     }
   }
 
-  .t-table {
-    height: 100%;
-    --td-comp-paddingTB-s: var(--td-size-2);
-    --td-comp-margin-s: var(--td-size-2);
-    --td-text-color-primary: #313238;
+  .scroll-end-loading {
+    position: sticky;
+    left: 50%;
+    display: inline-flex;
+    align-items: center;
+    // height: 32px;
+    transform: translateX(-50%);
 
-    &__header {
-      tr {
-        background: #f5f7fa;
+    .bk-loading-size-mini {
+      flex-direction: row;
+      column-gap: 8px;
+      align-items: center;
 
-        .t-table__th-cell-inner {
-          color: #000000;
-
-          .t-table__cell--title {
-            color: inherit;
-
-            .t-text-ellipsis {
-              flex-basis: auto;
-              width: unset;
-              min-width: 0;
-            }
-
-            .t-table__filter-icon-wrap {
-              flex-shrink: 0;
-              color: #c4c6cc;
-            }
-          }
-        }
+      .bk-loading-title {
+        margin-top: 0;
       }
     }
+  }
 
-    &__body {
+  .explore-table.t-table {
+    .t-table__body {
       tr {
-        &:not(.t-table__row--full) {
-          height: 32px;
-        }
-
-        &.t-table__first-full-row {
-          .t-table__filter-result {
-            position: sticky;
-            left: 50%;
-            display: inline-flex;
-            transform: translateX(-50%);
-          }
-        }
-
-        &.t-table__first-full-row {
-          .t-table__row-full-element {
-            padding: var(--td-comp-paddingTB-m) 0;
-
-            .t-table__row-filter-inner {
-              text-align: left;
-            }
-          }
-        }
-
-        &.t-table__last-full-row {
-          td,
-          .t-table__row-full-element {
-            padding: 0;
-
-            .scroll-end-loading {
-              position: sticky;
-              left: 50%;
-              display: inline-flex;
-              align-items: center;
-              height: 32px;
-              transform: translateX(-50%);
-
-              .bk-loading-size-mini {
-                flex-direction: row;
-                column-gap: 8px;
-                align-items: center;
-
-                .bk-loading-title {
-                  margin-top: 0;
-                }
-              }
-            }
-          }
-        }
         .icon-Tracing {
+          display: none;
+          flex-shrink: 0;
+          align-items: center;
+          justify-content: center;
           width: 24px;
           height: 24px;
           // background: #fafbfd;
@@ -327,11 +246,8 @@
           // border-radius: 2px;
           margin-left: 6px;
           cursor: pointer;
-          display: none;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
         }
+
         &:hover {
           .icon-Tracing {
             display: inline-flex;
@@ -339,42 +255,13 @@
         }
       }
     }
-
-    &__content {
-      // 1px 是由于兼容 tdesign 使用滚动条吸底功能时填充多加了1px
-      height: calc(100% + 1px);
-      overflow-x: scroll;
-      overflow-y: hidden;
-
-      .t-table--layout-fixed {
-        height: 100%;
-      }
-
-      .t-table__empty-row {
-        td {
-          padding: 0;
-        }
-      }
-    }
-
-    .t-table__affixed-header-elm-wrap {
-      height: 34px !important;
-      opacity: unset !important;
-
-      .t-table__affixed-header-elm {
-        overflow: hidden !important;
-        opacity: unset !important;
-      }
-    }
   }
 
-  .t-table--column-fixed .t-table__cell--fixed-left-last::after {
-    border-right-width: 1px !important;
-    box-shadow: 1px 0px 3px 0px rgba(0, 0, 0, 0.12);
-  }
-
-  .t-table--column-fixed .t-table__cell--fixed-right-first::after {
-    border-left-width: 1px !important;
-    box-shadow: -1px 0px 3px 0px rgba(0, 0, 0, 0.12);
+  .explore-table-empty {
+    position: sticky;
+    right: var(--td-comp-paddingLR-s);
+    left: var(--td-comp-paddingLR-s);
+    width: calc(100% - var(--td-comp-paddingLR-s) - var(--td-comp-paddingLR-s));
+    padding: 20px 0;
   }
 }

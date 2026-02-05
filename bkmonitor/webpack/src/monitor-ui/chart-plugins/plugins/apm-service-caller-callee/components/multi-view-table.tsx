@@ -495,11 +495,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     }
     const { kind, timeParams, pointTime } = this.dimensionParam;
     /** 是否选中了图表中的某个点 */
-    const isHasPointTime = pointTime?.startTime;
+    const isHasPointTime = pointTime?.startTime || timeParams?.start_time;
     const interval = isHasPointTime ? 60 : 0;
     const from = isHasPointTime ? (timeParams.start_time - interval) * 1000 : this.timeRange[0];
     const to = isHasPointTime ? timeParams.end_time * 1000 : this.timeRange[1];
-
     const { app_name, service_name } = this.viewOptions;
     /** 主被调 */
     if (type === 'callee') {

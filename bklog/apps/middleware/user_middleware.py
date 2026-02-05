@@ -19,7 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import json
 import os
 import socket
 
@@ -43,24 +42,18 @@ HOSTNAME = socket.gethostname()
 STAGE = os.getenv("BKPAAS_ENVIRONMENT", "dev")
 
 
-def get_from_request_param(request, key, default=None):
+def get_timezone_from_headers(request):
     """
-    从请求参数中获取指定的参数值
+    从请求头中获取时区
     """
-    # 优先从 GET 和 POST 参数中获取
-    value = request.GET.get(key) or request.POST.get(key)
-    if value:
-        return value
-
-    # 如果 GET/POST 参数为空，尝试从 JSON 请求体中获取
-    if request.content_type == "application/json":
+    tz_name = request.META.get("HTTP_X_BKLOG_TIMEZONE", None)
+    # 验证时区是否有效
+    if tz_name:
         try:
-            body_data = json.loads(request.body) if request.body else {}
-            value = body_data.get(key)
+            pytz.timezone(tz_name)
         except Exception:
-            pass
-
-    return value or default
+            return None
+    return tz_name
 
 
 class UserLocalMiddleware(MiddlewareMixin):
@@ -82,10 +75,9 @@ class UserLocalMiddleware(MiddlewareMixin):
             request.session["bluking_timezone"] = settings.TIME_ZONE
             return None
 
-        # 从请求参数中获取时区（支持GET和POST参数）
-        param_timezone = get_from_request_param(request, "time_zone")
+        timezone_from_headers = get_timezone_from_headers(request)
         user_info = self._get_user_info(user=request.user.username)
-        tzname = param_timezone or user_info.get("time_zone", settings.TIME_ZONE)
+        tzname = timezone_from_headers or user_info.get("time_zone", settings.TIME_ZONE)
         set_local_param("time_zone", tzname)
         timezone.activate(pytz.timezone(tzname))
         request.session["bluking_timezone"] = tzname
