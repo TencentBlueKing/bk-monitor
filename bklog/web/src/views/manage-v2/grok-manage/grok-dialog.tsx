@@ -148,6 +148,7 @@ export default defineComponent({
         mask-close={false}
         title={dialogTitle.value}
         transfer
+        ok-text={t('提交')}
         on-value-change={handleValueChange}
       >
         <div

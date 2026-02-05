@@ -35,6 +35,7 @@ import useStore from '@/hooks/use-store';
 import useUtils from '@/hooks/use-utils';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import { tenantManager, UserInfoLoadedEventData } from '@/views/retrieve-core/tenant-manager';
+import useAdaptivePagination from '@/views/manage-v2/hooks/use-adaptive-pagination';
 
 import GrokDialog from './grok-dialog';
 import GrokTable from './grok-table';
@@ -65,10 +66,21 @@ export default defineComponent({
     // 更新人列表
     const updatedBys = ref<{ text: string; value: string }[]>([]);
 
-    // 分页状态
+    // 分页大小列表
+    const LIMIT_LIST = [10, 20, 50, 100];
+
+    // 自适应分页大小
+    const { limit } = useAdaptivePagination({
+      fixedHeight: 254,
+      limitList: LIMIT_LIST,
+    });
+
+    // 分页配置
     const pagination = ref({
       current: 1,
-      limit: 10,
+      count: 0,
+      limit: limit.value,
+      limitList: LIMIT_LIST,
     });
 
     // 排序状态
@@ -159,10 +171,13 @@ export default defineComponent({
           'updated_at',
           'created_at',
         ]);
+        const total = response.data.total || 0;
         tableData.value = {
           list: formattedList,
-          total: response.data.total || 0,
+          total,
         };
+        // 同步更新分页总数
+        pagination.value.count = total;
       } catch (error) {
         console.warn('获取 Grok 数据失败:', error);
       } finally {
@@ -170,26 +185,33 @@ export default defineComponent({
       }
     };
 
+    // 统一获取数据的方法
+    const fetchAllData = async () => {
+      // 并行获取两个数据源
+      await Promise.all([fetchGrokData(), fetchUpdatedByList()]);
+    };
+
     // 防抖版本的请求数据
     const fetchGrokDataDebounced = debounce(fetchGrokData, 300);
+    const fetchAllDataDebounced = debounce(fetchAllData, 300);
 
     // 搜索处理
     const handleSearch = () => {
       pagination.value.current = 1;
-      fetchGrokData();
+      fetchAllData();
     };
 
     // 分页变化处理
     const handlePageChange = (current: number) => {
       pagination.value.current = current;
-      fetchGrokData();
+      fetchAllData();
     };
 
     // 分页大小变化处理
     const handlePageLimitChange = (limit: number) => {
       pagination.value.limit = limit;
       pagination.value.current = 1;
-      fetchGrokData();
+      fetchAllData();
     };
 
     // 排序变化处理
@@ -201,7 +223,7 @@ export default defineComponent({
       } else {
         sortParams.value.ordering = '';
       }
-      fetchGrokData();
+      fetchAllData();
     };
 
     // 筛选变化处理
@@ -210,7 +232,7 @@ export default defineComponent({
         filterParams.value[key] = filters[key]?.[0];
       });
       pagination.value.current = 1;
-      fetchGrokDataDebounced(); // 使用防抖版本
+      fetchAllDataDebounced(); // 使用防抖版本
     };
 
     // 新建 Grok
@@ -246,8 +268,7 @@ export default defineComponent({
           theme: 'success',
           message: t('Grok 模式删除成功'),
         });
-        fetchGrokData();
-        fetchUpdatedByList();
+        fetchAllData();
       } catch (error) {
         console.warn('删除 Grok 失败:', error);
       }
@@ -294,8 +315,7 @@ export default defineComponent({
           });
         }
         dialogVisible.value = false;
-        fetchGrokData();
-        fetchUpdatedByList();
+        fetchAllData();
       } catch (error) {
         console.warn(isEditMode.value ? '更新 Grok 失败:' : '创建 Grok 失败:', error);
       } finally {
@@ -310,7 +330,7 @@ export default defineComponent({
 
     // 清空搜索
     const handleClearSearch = () => {
-      fetchGrokDataDebounced.cancel(); // 取消防抖请求
+      fetchAllDataDebounced.cancel(); // 取消防抖请求
       searchKeyword.value = '';
       handleSearch();
     };
@@ -326,8 +346,7 @@ export default defineComponent({
     };
 
     onMounted(() => {
-      fetchGrokData();
-      fetchUpdatedByList();
+      fetchAllData();
 
       // 监听用户信息更新事件
       tenantManager.on('userInfoUpdated', handleUserInfoUpdate);
@@ -336,6 +355,7 @@ export default defineComponent({
     onBeforeUnmount(() => {
       // 清理防抖函数
       fetchGrokDataDebounced.cancel();
+      fetchAllDataDebounced.cancel();
 
       // 清理事件监听
       tenantManager.off('userInfoUpdated', handleUserInfoUpdate);
@@ -371,10 +391,10 @@ export default defineComponent({
         {/* 表格区域 */}
         <GrokTable
           data={tableData.value.list}
-          total={tableData.value.total}
           loading={isLoading.value}
           updatedBys={updatedBys.value}
           hasFilter={hasFilter.value}
+          pagination={pagination.value}
           on-page-change={handlePageChange}
           on-page-limit-change={handlePageLimitChange}
           on-sort-change={handleSortChange}

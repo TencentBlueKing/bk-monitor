@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 
 import { clearTableFilter } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 import { t } from '@/hooks/use-locale';
-import { useTableSetting } from '../hooks/use-table-setting';
+import { useTableSetting } from '@/views/manage-v2/hooks/use-table-setting';
 
 import { IGrokItem } from './types';
 
@@ -45,10 +45,6 @@ export default defineComponent({
       type: Array as () => IGrokItem[],
       default: () => [],
     },
-    total: {
-      type: Number,
-      default: 0,
-    },
     loading: {
       type: Boolean,
       default: false,
@@ -60,6 +56,10 @@ export default defineComponent({
     hasFilter: {
       type: Boolean,
       default: false,
+    },
+    pagination: {
+      type: Object,
+      default: () => ({ current: 1, count: 0, limit: 10, limitList: [10, 20, 50, 100] }),
     },
   },
   emits: ['page-change', 'page-limit-change', 'sort-change', 'filter-change', 'edit', 'delete', 'clear-keyword'],
@@ -84,14 +84,6 @@ export default defineComponent({
       // 不传 defaultSelectedIds，默认全部显示
     });
 
-    // 分页配置
-    const pagination = ref({
-      current: 1,
-      count: props.total,
-      limit: 10,
-      limitList: [10, 20, 50, 100],
-    });
-
     // 来源筛选选项（固定两种：内置和自定义）
     const originFilterList = [
       { text: t('内置'), value: true },
@@ -103,14 +95,11 @@ export default defineComponent({
 
     // 分页变化事件处理函数
     const handlePageChange = (current: number) => {
-      pagination.value.current = current;
       emit('page-change', current);
     };
 
     // 分页限制变化事件处理函数
     const handlePageLimitChange = (limit: number) => {
-      pagination.value.limit = limit;
-      pagination.value.current = 1;
       emit('page-limit-change', limit);
     };
 
@@ -258,19 +247,11 @@ export default defineComponent({
       },
     };
 
-    // 监听 total 变化，更新分页配置
-    watch(
-      () => props.total,
-      (newTotal) => {
-        pagination.value.count = newTotal;
-      },
-    );
-
     return () => (
       <div class='grok-table'>
         <bk-table
           data={props.data}
-          pagination={pagination.value}
+          pagination={props.pagination}
           ref={grokTableRef}
           v-bkloading={{ isLoading: props.loading }}
           onPage-change={handlePageChange}
