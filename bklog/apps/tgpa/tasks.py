@@ -36,6 +36,7 @@ from apps.tgpa.constants import (
     TGPAReportSyncStatusEnum,
     TGPA_REPORT_OFFSET_MINUTES,
     TGPA_REPORT_MAX_TIME_RANGE_MINUTES,
+    TGPATaskTypeEnum,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler, TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
@@ -63,17 +64,18 @@ def fetch_and_process_tgpa_tasks():
         try:
             # 确保已经创建采集配置
             TGPACollectorConfigHandler.get_or_create_collector_config(bk_biz_id)
-            # 获取任务列表，存量的任务只同步数据，不处理任务
             task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
             # 统一将 go_svr_task_id 转换为 int 类型，确保与数据库字段类型一致
             for task in task_list:
                 task["go_svr_task_id"] = int(task["go_svr_task_id"])
+            # 如果是第一次同步，只创建数据，不处理任务
             if not TGPATask.objects.filter(bk_biz_id=bk_biz_id).exists():
                 TGPATask.objects.bulk_create(
                     [
                         TGPATask(
                             id=task["id"],
                             task_id=task["go_svr_task_id"],
+                            task_type=task["task_type"],
                             bk_biz_id=bk_biz_id,
                             log_path=task["log_path"],
                             task_status=task["status"],
@@ -89,6 +91,9 @@ def fetch_and_process_tgpa_tasks():
             continue
 
         # 对比任务列表和数据库中的任务
+        have_v1_task = TGPATask.objects.filter(
+            bk_biz_id=bk_biz_id, task_type=TGPATaskTypeEnum.BUSINESS_LOG_V1.value
+        ).exists()
         existed_tasks = TGPATask.objects.filter(bk_biz_id=bk_biz_id)
         task_map = {task.task_id: task for task in existed_tasks}
         for task in task_list:
@@ -108,6 +113,7 @@ def fetch_and_process_tgpa_tasks():
                     task_id=task["go_svr_task_id"],
                     defaults={
                         "id": task["id"],
+                        "task_type": task["task_type"],
                         "bk_biz_id": task["cc_id"],
                         "log_path": task["log_path"],
                         "task_status": task["status"],
@@ -115,6 +121,9 @@ def fetch_and_process_tgpa_tasks():
                         "process_status": TGPATaskProcessStatusEnum.INIT.value,
                     },
                 )
+                # 由于新增了V1任务，这里跳过存量任务
+                if not have_v1_task and task["task_type"] == TGPATaskTypeEnum.BUSINESS_LOG_V1.value:
+                    continue
                 if created and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
                     task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
                     task_obj.save(update_fields=["process_status"])

@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apps.tgpa.constants import TGPATaskProcessStatusEnum, TGPAReportSyncStatusEnum
+from apps.tgpa.constants import TGPATaskProcessStatusEnum, TGPAReportSyncStatusEnum, TGPATaskTypeEnum
 
 
 class TGPATask(models.Model):
@@ -31,6 +31,7 @@ class TGPATask(models.Model):
     """
 
     task_id = models.IntegerField(_("后台任务id"), unique=True, db_index=True)
+    task_type = models.IntegerField(_("任务类型"), default=TGPATaskTypeEnum.BUSINESS_LOG_V2.value)
     bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
     log_path = models.TextField(_("日志路径"), null=True, blank=True)
     task_status = models.CharField(_("任务状态"), max_length=64, null=True)
