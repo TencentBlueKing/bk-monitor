@@ -104,7 +104,7 @@ class MetricTranslator(AbstractTranslator):
             return []
 
     def translate(self, values: list[str]) -> dict:
-        if not settings.ROLE == "api":
+        if settings.ROLE == "api":
             return {}
         if not values:
             return {}
