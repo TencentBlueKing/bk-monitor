@@ -63,3 +63,10 @@ class RelationInstanceData(BaseInstanceData):
     kind: str | None = None
     to_topo_key_kind: str | None = None
     to_topo_key_category: str | None = None
+
+
+@dataclass
+class RemoteServiceRelationInstanceData(BaseInstanceData):
+    topo_node_key: str | None = None
+    from_endpoint_name: str | None = None
+    category: str | None = None

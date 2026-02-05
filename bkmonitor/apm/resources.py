@@ -1651,28 +1651,35 @@ class QueryHostInstanceResource(DiscoverQueryResource):
         }
 
 
-class QueryRemoteServiceRelationResource(Resource):
+class QueryRemoteServiceRelationResource(DiscoverQueryResource):
+    model = RemoteServiceRelation
+    cache_type = ApmCacheType.REMOTE_SERVICE_RELATION
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
         app_name = serializers.CharField()
         topo_node_key = serializers.CharField()
         category = serializers.CharField(allow_null=True, required=False)
 
-    many_response_data = True
+    @property
+    def discover_class(self):
+        from apm.core.discover.remote_service_relation import RemoteServiceRelationDiscover
 
-    class ResponseSerializer(serializers.ModelSerializer):
-        class Meta:
-            model = RemoteServiceRelation
-            fields = ["topo_node_key", "from_endpoint_name", "category"]
+        return RemoteServiceRelationDiscover
 
-    def perform_request(self, data):
-        filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
-
-        q = Q(topo_node_key=data["topo_node_key"])
+    def apply_additional_filters(self, queryset, data: dict):
+        """根据 topo_node_key 和 category 进行额外过滤"""
+        queryset = queryset.filter(topo_node_key=data["topo_node_key"])
         if data.get("category"):
-            q &= Q(category=data["category"])
+            queryset = queryset.filter(category=data["category"])
+        return queryset
 
-        return RemoteServiceRelation.objects.filter(**filter_params).filter(q)
+    def build_result_item(self, obj, updated_at) -> dict:
+        return {
+            "topo_node_key": obj.topo_node_key,
+            "from_endpoint_name": obj.from_endpoint_name,
+            "category": obj.category,
+        }
 
 
 class QueryLogRelationByIndexSetIdResource(Resource):
