@@ -1,0 +1,53 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'actorBkg': '#e3f2fd', 'actorTextColor': '#1565c0', 'actorBorder': '#1976d2', 'signalColor': '#42a5f5', 'noteBkgColor': '#fff3e0'}}}%%
+sequenceDiagram
+    participant Browser as 浏览器
+    participant Main as main.js
+    participant Preload as preload.ts
+    participant Store as Vuex Store
+    participant HTTP as HTTP Layer
+    participant API as Backend API
+    participant Router as Vue Router
+    participant App as App.tsx
+
+    Browser->>Main: 加载应用
+    
+    rect rgb(240, 248, 255)
+        Note over Main: 1. 初始化全局能力
+        Main->>Main: 注册全局组件<br/>(JsonFormatWrapper, LogButton, LogIcon)
+        Main->>Main: 注册全局 mixin/plugin<br/>(docsLinkMixin, vue-virtual-scroller)
+        Main->>Main: 设置 Vue.prototype<br/>($renderHeader, $xss)
+    end
+
+    rect rgb(255, 248, 240)
+        Note over Main, API: 2. Preload 阶段 (并行请求)
+        Main->>Preload: preload({ http, store })
+        
+        par 并行请求
+            Preload->>API: space/getMySpaceList
+            Preload->>API: userInfo/getUsername
+            Preload->>API: collect/globals
+            Preload->>API: meta/getUserGuide
+        end
+        
+        API-->>Preload: 返回结果
+        Preload->>Store: commit(spaceUid, bkBizId, userMeta, globalsData...)
+    end
+
+    rect rgb(240, 255, 240)
+        Note over Main, App: 3. 创建路由 + 拉取菜单 + 挂载
+        Main->>Router: getRouter(spaceUid, bkBizId, externalMenu)
+        Main->>Store: dispatch('requestMenuList', spaceUid)
+        Store->>API: meta/menu
+        API-->>Store: 菜单数据
+        Main->>App: new Vue({ router, store, i18n })
+        App->>Browser: 渲染应用
+    end
+
+    rect rgb(255, 240, 255)
+        Note over Main, API: 4. Development 环境额外步骤
+        alt isDevelopment
+            Main->>API: meta/getEnvConstant
+            API-->>Main: 环境常量
+            Main->>Main: 写入 window.FEATURE_TOGGLE 等
+        end
+    end

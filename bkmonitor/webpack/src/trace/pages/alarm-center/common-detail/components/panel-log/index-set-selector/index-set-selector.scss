@@ -1,0 +1,75 @@
+.alarm-center-detail-panel-alarm-log-index-set-selector {
+  flex: 1;
+
+  .index-set-trigger {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 4px 0 8px;
+    cursor: pointer;
+    background: #f0f1f5;
+    border: 1px solid #f0f1f5;
+    border-radius: 2px;
+
+    .index-set-trigger-text {
+      font-size: 12px;
+      position: relative;
+
+      .name {
+        color: #313238;
+      }
+
+      .alias {
+        margin-left: 5px;
+        color: #757880;
+      }
+      &::after {
+        content: attr(data-placeholder);
+        color: #757880;
+      }
+    }
+
+    .index-set-trigger-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      margin: 0 0 0 auto;
+      transition: transform 0.3s;
+
+      .icon-mc-arrow-down {
+        font-size: 12px;
+        color: #4d4f56;
+      }
+    }
+
+    &::after {
+      position: absolute;
+      top: 50%;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      height: 16px;
+      padding: 0 3px;
+      font-family: RobotoMono-Bold, monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: #a3b1cc;
+      content: attr(data-shortcut-key);
+      background: #fff;
+      border-radius: 2px;
+      transform: translateY(-50%);
+    }
+
+    &.active {
+      background: #fff;
+      border: 1px solid #3a84ff;
+
+      .index-set-trigger-icon {
+        transform: rotate(180deg);
+      }
+    }
+  }
+}

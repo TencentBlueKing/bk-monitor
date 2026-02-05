@@ -26,6 +26,8 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
+
 import VariablesManage from '../../variables/variables-manage/variables-manage';
 import BasicInfo from '../basic-info/basic-info';
 import ExpressionPanel from '../expression-panel/expression-panel';
@@ -43,6 +45,7 @@ import type {
   QueryConfig,
 } from '../../typings';
 import type { VariableModelType } from '../../variables';
+import type { IGetMetricListData, IGetMetricListParams } from '../metric/components/types';
 
 import './query-template-set.scss';
 
@@ -97,6 +100,7 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
 
   resizeObserver = null;
   isSticky = false;
+  abortController: AbortController | null = null;
 
   get getNextStepDisabled() {
     return !this.queryConfigs.some(item => item.metricDetail);
@@ -120,6 +124,32 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
   @Emit('createVariable')
   handleCreateVariable(variable: IVariableModel) {
     return variable;
+  }
+  async getMetricList(params: IGetMetricListParams) {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+    this.abortController = new AbortController();
+    const data = await getMetricListV2<IGetMetricListData>(
+      {
+        conditions: [
+          {
+            key: 'query',
+            value: '',
+          },
+        ],
+        data_type_label: 'time_series',
+        tag: '',
+        page: 1,
+        page_size: 20,
+        ...params,
+      },
+      {
+        signal: this.abortController.signal,
+      }
+    );
+    return data;
   }
 
   handleSelectMetric(index: number, metric: MetricDetailV2) {
@@ -226,8 +256,10 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
                   {this.queryConfigs.map((item, index) => (
                     <QueryPanel
                       key={item.key}
+                      getMetricList={this.getMetricList}
                       hasAdd={index === this.queryConfigs.length - 1}
                       hasDelete={this.queryConfigs.length >= 2}
+                      hasVariableOperate={true}
                       metricFunctions={this.metricFunctions}
                       queryConfig={item}
                       variables={this.variablesList}

@@ -488,6 +488,7 @@ export default defineComponent({
                     bordered={true}
                     data={[{}]}
                     maxHeight={450}
+                    needCustomScroll={false}
                     rowKey='key'
                   />
                 </div>

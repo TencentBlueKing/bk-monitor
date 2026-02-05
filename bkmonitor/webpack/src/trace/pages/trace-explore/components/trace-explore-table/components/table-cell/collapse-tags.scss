@@ -1,0 +1,34 @@
+.bk-common-tag-show {
+  position: relative;
+  display: flex;
+  column-gap: var(--tag-col-gap);
+  align-items: center;
+  width: 100%;
+  height: 100%;
+
+  .item-tags {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px var(--tag-col-gap);
+
+    // margin-right: 5px;
+    overflow: hidden;
+  }
+
+  .collapse-tag {
+    display: inline-block;
+    height: var(--tag-height);
+    padding: 0 5px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+    background: #f0f1f5;
+    border-radius: 2px;
+  }
+
+  .collapse-tag-fill {
+    position: absolute;
+    top: -9999px;
+    visibility: hidden;
+  }
+}

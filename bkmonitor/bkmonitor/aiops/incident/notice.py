@@ -416,7 +416,15 @@ class IncidentNoticeHelper:
                 notice_receivers=chat_ids,
             )
 
-            logger.info(f"Sent wxwork_bot notice for incident {incident.incident_id} to {len(chat_ids)} chat(s)")
+            # 检查发送结果
+            failed_chats = [chat_id for chat_id, res in result.items() if not res.get("result", False)]
+            if failed_chats:
+                logger.warning(
+                    f"Failed to send wxwork_bot notice for incident {incident.incident_id} "
+                    f"to {len(failed_chats)} chat(s): {result}"
+                )
+            else:
+                logger.info(f"Sent wxwork_bot notice for incident {incident.incident_id} to {len(chat_ids)} chat(s)")
 
             return result
 

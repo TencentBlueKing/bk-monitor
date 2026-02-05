@@ -734,6 +734,7 @@ export default defineComponent({
                     }}
                     data={this.tableData}
                     filterRow={undefined}
+                    needCustomScroll={false}
                     resizable={true}
                     rowKey='name'
                     showSortColumnBgColor={true}
