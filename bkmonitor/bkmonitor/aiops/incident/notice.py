@@ -105,6 +105,22 @@ class IncidentNoticeHelper:
 
         # 故障合并信息
         link_incident_name = kwargs.get("link_incident_name")
+        is_anonymous_source = kwargs.get("is_anonymous_source", False)  # 源故障是否为匿名故障
+        merge_alert_count = kwargs.get("alert_count")  # 合并的告警数量
+
+        # 构建 MERGE 通知的 subtitle
+        def _get_merge_subtitle() -> str:
+            if is_anonymous_source:
+                # 匿名故障：使用告警数量或简化描述
+                if merge_alert_count:
+                    return f"合并入 {merge_alert_count} 条关联告警"
+                else:
+                    return "检测到关联告警合并入当前故障"
+            elif link_incident_name:
+                # 正常故障：显示故障名称
+                return f"故障【{link_incident_name}】合并入当前故障"
+            else:
+                return "故障合并"
 
         # 默认标题
         subtitle = ""
@@ -127,9 +143,7 @@ class IncidentNoticeHelper:
                 IncidentOperationType.UPDATE: f"【{incident_key_alias}】原始值：{from_value} → 最新值：{to_value}"
                 if incident_key
                 else "故障状态更新",
-                IncidentOperationType.MERGE: f"故障【{link_incident_name}】合并入当前故障"
-                if link_incident_name
-                else "故障合并",
+                IncidentOperationType.MERGE: _get_merge_subtitle(),
                 IncidentOperationType.MERGE_TO: f"当前故障合并到【{link_incident_name}】"
                 if link_incident_name
                 else "故障合并",
@@ -402,7 +416,15 @@ class IncidentNoticeHelper:
                 notice_receivers=chat_ids,
             )
 
-            logger.info(f"Sent wxwork_bot notice for incident {incident.incident_id} to {len(chat_ids)} chat(s)")
+            # 检查发送结果
+            failed_chats = [chat_id for chat_id, res in result.items() if not res.get("result", False)]
+            if failed_chats:
+                logger.warning(
+                    f"Failed to send wxwork_bot notice for incident {incident.incident_id} "
+                    f"to {len(failed_chats)} chat(s): {result}"
+                )
+            else:
+                logger.info(f"Sent wxwork_bot notice for incident {incident.incident_id} to {len(chat_ids)} chat(s)")
 
             return result
 

@@ -41,9 +41,14 @@ SCENARIO_ID_BKDATA = "bkdata"
 
 OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
 
-CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": "", "port": 123, "domain_name": ""}}]
+CLUSTER_INFO = [
+    {"cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": "", "port": 123, "domain_name": ""}}
+]
 CLUSTER_INFO_WITH_AUTH = [
-    {"cluster_config": {"cluster_id": 1, "cluster_name": ""}, "auth_info": {"username": "", "password": ""}}
+    {
+        "cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": ""},
+        "auth_info": {"username": "", "password": ""},
+    }
 ]
 
 CLUSTER_INFOS = {"2_bklog.test3333": {"cluster_config": {"cluster_id": 1, "cluster_name": ""}}}

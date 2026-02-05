@@ -1,0 +1,88 @@
+.alarm-status-dialog-wrap {
+  .header-on-left {
+    height: 26px;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: -21px;
+    line-height: 26px;
+  }
+
+  .bk-dialog-body {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .bk-dialog-footer {
+    padding-top: 8px;
+    padding-bottom: 7px;
+  }
+
+  .handle-status-content {
+    min-height: 400px;
+    padding: 18px 0;
+
+    .action-status {
+      display: inline-block;
+      height: 22px;
+      padding: 0 11px;
+      font-weight: 400;
+      line-height: 22px;
+      border-radius: 2px;
+
+      &.success {
+        color: #14a568;
+        background-color: #e4faf0;
+      }
+
+      &.failure {
+        color: #ea3536;
+        background-color: #feebea;
+      }
+    }
+  }
+
+  .handle-label {
+    font-size: 12px;
+    color: #63656e;
+  }
+
+  .handle-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 24px;
+
+    .handel-label {
+      flex-shrink: 0;
+      font-size: 12px;
+      min-width: 71px;
+    }
+
+    .count-select {
+      flex: 1;
+    }
+  }
+
+  .mb16 {
+    margin-bottom: 16px;
+  }
+
+  .table-wrap {
+    &::before {
+      display: none;
+    }
+
+    .icon-mc-check-fill {
+      font-size: 16px;
+      color: #2dcb56;
+    }
+
+    .icon-mc-close-fill {
+      font-size: 16px;
+      color: #ff5656;
+    }
+
+    .algin-center {
+      text-align: center;
+    }
+  }
+}

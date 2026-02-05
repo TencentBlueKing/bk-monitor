@@ -1,0 +1,121 @@
+.alarm-analysis-setting-dialog.bk-dialog {
+  .bk-dialog-header {
+    padding: 16px 24px 20px;
+    line-height: 28px;
+    border-bottom: 1px solid #dcdee5;
+  }
+
+  .bk-dialog-content {
+    padding: 0;
+    margin: 0;
+  }
+
+  .content {
+    display: flex;
+    height: 524px;
+
+    .field-select-wrap {
+      flex: 1;
+      padding: 12px 24px;
+
+      .select-button-group {
+        width: 100%;
+
+        .bk-button {
+          width: 50%;
+        }
+      }
+
+      .search-input {
+        margin: 8px 0 12px 0;
+      }
+
+      .select-group-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        max-height: calc(100% - 84px);
+        overflow-y: auto;
+
+        .bk-checkbox {
+          flex: 0 0 33.33%;
+          margin-bottom: 18px;
+          margin-left: 0;
+          line-height: 22px;
+          color: #4d4f56;
+        }
+      }
+    }
+
+    .right-panel {
+      width: 360px;
+      padding: 10px 25px 10px 16px;
+      background: #f5f7fa;
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        line-height: 22px;
+        color: #313238;
+
+        .selected-count {
+          font-weight: 700;
+        }
+
+        .clear-btn {
+          color: #3a84ff;
+          cursor: pointer;
+        }
+      }
+
+      .selected-list {
+        height: calc(100% - 22px);
+        padding: 8px 0;
+        overflow-y: auto;
+
+        .drag-move {
+          transition: transform 0.3s;
+        }
+
+        .list-item {
+          display: flex;
+          align-items: center;
+          height: 36px;
+          padding: 0 10px;
+          background: #ffffff;
+          border-radius: 2px;
+          box-shadow: 0 1px 2px 0 #00000029;
+
+          & + .list-item {
+            margin-top: 4px;
+          }
+
+          .list-item-left {
+            display: flex;
+            flex: 1;
+            align-items: center;
+            overflow: hidden;
+
+            .icon-mc-tuozhuai {
+              font-size: 12px;
+              cursor: pointer;
+            }
+
+            .item-label {
+              margin-left: 9px;
+              color: #4d4f56;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+          }
+
+          .icon-mc-close {
+            color: #c4c6cc;
+            cursor: pointer;
+          }
+        }
+      }
+    }
+  }
+}

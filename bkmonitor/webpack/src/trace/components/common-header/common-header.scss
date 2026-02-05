@@ -1,0 +1,55 @@
+.common-header-comp {
+  display: flex;
+  height: 52px;
+  background: #ffffff;
+  box-shadow: 0 3px 4px 0 #0000000a;
+
+  .header-left {
+    margin-right: auto;
+  }
+
+  .header-tools {
+    display: flex;
+    align-items: center;
+    margin-right: 16px;
+    margin-left: auto;
+
+    .icon-mc-more-tool {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      margin-left: 8px;
+      overflow: hidden;
+      font-size: 16px;
+      cursor: pointer;
+      background: #f5f7fa;
+      border-radius: 2px;
+    }
+  }
+
+  .goto-old {
+    display: flex;
+    align-items: center;
+    min-width: 81px;
+    padding: 0 12px 0 13px;
+    color: #3a84ff;
+    border-left: 1px solid #eaebf0;
+
+    .goto-old-wrap {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .icon {
+      margin-right: 5px;
+      transform: rotateY(180deg);
+
+      .icon-zhuanhuan {
+        font-size: 14px;
+      }
+    }
+  }
+}

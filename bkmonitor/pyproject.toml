@@ -107,6 +107,7 @@ bk-monitor-base = { path = "../bk-monitor-base", editable = true }
 [dependency-groups]
 aidev = [
     "attrdictionary==1.0.0",
+    "langchain-mcp-adapters<0.2.0",
     "langchain<0.4.0",
     "langchain-community",
     "langchain-core",

@@ -364,12 +364,12 @@ VARIABLES = [
             {"name": "alarm.id", "desc": _lazy("告警ID"), "example": "163800442000001"},
             {"name": "alarm.name", "desc": _lazy("告警名称"), "example": "CPU总使用率告警"},
             {
-                "name": "alarm.display_dimensions['dimension_name'].display_name",
+                "name": "alarm.display_dimensions['tags.dimension_name'].display_name",
                 "desc": _lazy("维度名"),
                 "example": "目标IP",
             },
             {
-                "name": "alarm.display_dimensions['dimension_name'].display_value",
+                "name": "alarm.display_dimensions['tags.dimension_name'].display_value",
                 "desc": _lazy("维度值"),
                 "example": "127.0.0.1",
             },

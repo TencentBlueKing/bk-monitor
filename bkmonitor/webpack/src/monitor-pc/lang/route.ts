@@ -105,6 +105,7 @@ export default {
   'route-应用监控': 'Application Monitoring',
   'route-轮值': 'Rotation',
   'route-管理': 'Management',
+  'route-告警中心': 'Alarm Center',
   // 面包屑 标题定位
   'route-新建策略': 'New Alert Rules',
   'route-新建拨测任务': 'New Check',

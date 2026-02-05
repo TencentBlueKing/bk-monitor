@@ -24,33 +24,72 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, type Ref, watch } from 'vue';
+import { type MaybeRef, type Ref, inject, watch } from 'vue';
 import { shallowRef } from 'vue';
 import { computed } from 'vue';
 
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
+import { random } from 'monitor-common/utils';
 import { arraysEqual } from 'monitor-common/utils/equal';
 import { COLOR_LIST_BAR } from 'monitor-ui/chart-plugins/constants/charts';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { useChartTooltips } from './use-chart-tooltips';
-import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import { useTraceExploreStore } from '@/store/modules/explore';
+import {
+  handleGetMinPrecision,
+  handleSetMarkPoints,
+  handleSetMarkTimeRange,
+  handleSetThresholdArea,
+  handleSetThresholdLine,
+} from './utils';
 
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
 import type { IDataQuery } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
+/** 图表交互状态配置 */
+export interface ChartInteractionState {
+  /** 所有联动图表中存在有一个图表触发 hover 是否展示所有联动图表的 tooltip(默认 false) */
+  hoverAllTooltips?: MaybeRef<boolean>;
+  /** 当前鼠标是否 hover 在图表区域 */
+  isMouseOver: MaybeRef<boolean>;
+}
+export interface CustomOptions {
+  formatterData?: (formatter: any, target: IDataQuery) => any;
+  options?: (options: any) => any;
+  series?: (series: EchartSeriesItem[]) => EchartSeriesItem[];
+}
+
+/**
+ * @function useAlertEcharts 告警图表 ECharts Hook
+ * @description 用于管理告警指标图表的数据获取、配置生成和交互状态
+ * @param panel - 图表面板配置，包含 targets、options 等图表配置信息
+ * @param chartRef - 图表 DOM 元素引用，用于 tooltip 定位
+ * @param $api - API 模块对象，用于调用后端接口获取图表数据
+ * @param params - 请求参数，会与 target.data 合并后发送请求
+ * @param customOptions - 数据格式化函数，用于需要自定义逻辑
+ * @param interactionState - 图表交互状态配置，控制 tooltip 联动等行为
+ */
 export const useEcharts = (
   panel: MaybeRef<PanelModel>,
   chartRef: Ref<HTMLElement>,
-  $api: Record<string, () => Promise<any>>
+  $api: Record<string, () => Promise<any>>,
+  params: MaybeRef<Record<string, any>>,
+  customOptions: CustomOptions,
+  interactionState?: ChartInteractionState
 ) => {
-  const traceStore = useTraceExploreStore();
+  /** 图表id，每次重新请求会修改该值 */
+  const chartId = shallowRef(random(8));
+  const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
+  const refreshImmediate = inject('refreshImmediate');
+
   const cancelTokens = [];
   const loading = shallowRef(false);
+  /** 接口请求耗时 */
+  const duration = shallowRef(0);
   const options = shallowRef();
   const metricList = shallowRef([]);
   const targets = shallowRef<IDataQuery[]>([]);
@@ -65,60 +104,68 @@ export const useEcharts = (
   const series = shallowRef([]);
 
   const getEchartOptions = async () => {
+    const startDate = Date.now();
     loading.value = true;
     metricList.value = [];
     targets.value = [];
-    const [startTime, endTime] = handleTransformToTimestamp(traceStore.timeRange);
-    const promiseList = get(panel).targets.map(target => {
+    const [startTime, endTime] = handleTransformToTimestamp(get(timeRange) || DEFAULT_TIME_RANGE);
+    const promiseList = get(panel)?.targets?.map?.(target => {
       return $api[target.apiModule]
         [target.apiFunc](
           {
-            ...target.data,
             start_time: startTime,
             end_time: endTime,
-            app_name: traceStore.appName,
+            ...target.data,
+            ...(get(params) ?? {}),
           },
           {
             cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
             needMessage: false,
           }
         )
-        .then(({ series, metrics, query_config }) => {
+        .then(res => {
+          const { series, metrics, query_config } = customOptions.formatterData?.(res, target) ?? res;
           for (const metric of metrics) {
             if (!metricList.value.some(item => item.metric_id === metric.metric_id)) {
               metricList.value.push(metric);
             }
           }
-          targets.value.push({ ...target, data: query_config });
+          const targetCopy = { ...target };
+          if (query_config) {
+            targetCopy.data = query_config;
+          }
+          targets.value.push(targetCopy);
           return series?.length
             ? series.map(item => ({
                 ...item,
                 alias: target.alias || item.alias,
                 type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
                 stack: target.data?.stack || item.stack,
+                unit: item.unit || (get(panel)?.options as { unit?: string })?.unit,
               }))
             : [];
         })
         .catch(() => []);
     });
-    const resList = await Promise.allSettled(promiseList).finally(() => {
+    const resList = await Promise.allSettled(promiseList ?? []).finally(() => {
       loading.value = false;
     });
     const seriesList = [];
     for (const item of resList) {
+      // @ts-expect-error
       Array.isArray(item?.value) && item.value.length && seriesList.push(...item.value);
     }
+    duration.value = Date.now() - startDate;
     series.value = seriesList;
     if (!seriesList.length) {
       return undefined;
     }
     const { xAxis, seriesData } = createSeries(seriesList);
     const yAxis = createYAxis(seriesData);
-
     const options = createOptions(xAxis, yAxis, seriesData);
     const { tooltipsOptions } = useChartTooltips(chartRef, {
-      isMouseOver: true,
-      hoverAllTooltips: false,
+      isMouseOver: interactionState?.isMouseOver ?? true,
+      hoverAllTooltips: interactionState?.hoverAllTooltips ?? false,
       options,
     });
     return {
@@ -148,13 +195,29 @@ export const useEcharts = (
         xAxisIndex += 1;
       }
       const unitFormatter = getValueFormat(data.unit);
-      seriesData.push({
+      // 获取y轴上可设置的最小的精确度
+      const precision = handleGetMinPrecision(
+        list
+          ?.filter?.(set => {
+            const typedSet = set as { value: number | undefined };
+            return typedSet && typeof typedSet.value === 'number';
+          })
+          .map(set => {
+            const typedSet = set as { value: number | undefined };
+            return typedSet.value;
+          }) ?? [],
+        unitFormatter,
+        data.unit
+      );
+      // 构建基础 series 配置
+      const seriesItem: EchartSeriesItem = {
         name: data.alias || data.target || '',
         data: list,
         xAxisIndex: xAxisIndex,
         type: data.type,
         stack: data.stack,
         unit: data.unit,
+        // @ts-expect-error
         connectNulls: false,
         sampling: 'none',
         showAllSymbol: 'auto',
@@ -167,11 +230,37 @@ export const useEcharts = (
         },
         raw_data: {
           ...data,
+          precision,
           datapoints: undefined,
           unitFormatter,
         },
-        z: 3,
-      });
+        z: data.z || 3,
+        ...data,
+      };
+
+      // 处理 markPoints（告警点）
+      if (data.markPoints?.length && data.datapoints?.length) {
+        seriesItem.markPoint = handleSetMarkPoints(data.markPoints, data.datapoints);
+      }
+
+      // 处理 markTimeRange（时间范围标记区域）
+      if (data.markTimeRange?.length) {
+        seriesItem.markArea = handleSetMarkTimeRange(data.markTimeRange);
+      }
+
+      // 处理 thresholds（阈值线和阈值区域）
+      if (data.thresholds?.length) {
+        seriesItem.markLine = handleSetThresholdLine(data.thresholds);
+        const thresholdArea = handleSetThresholdArea(data.thresholds);
+        if (thresholdArea) {
+          seriesItem.markArea = seriesItem.markArea
+            ? { ...seriesItem.markArea, data: [...(seriesItem.markArea.data || []), ...thresholdArea.data] }
+            : thresholdArea;
+        }
+      }
+
+      seriesData.push(seriesItem);
+
       if (!isEqual) {
         xAxis.push(...createXAxis(xData, { show: xAxisIndex === 0 }));
       }
@@ -179,7 +268,7 @@ export const useEcharts = (
     }
     return {
       xData: Array.from(xAllData).sort(),
-      seriesData,
+      seriesData: customOptions.series?.(seriesData) ?? seriesData,
       xAxis,
     };
   };
@@ -264,10 +353,6 @@ export const useEcharts = (
       const yValueFormatter = getValueFormat(unit);
       return {
         type: 'value',
-        // boundaryGap: true,
-        // alignTicks: true,
-        // nameGap: 0,
-        // nameLocation: 'center',
         axisLine: {
           show: false,
           lineStyle: {
@@ -307,7 +392,7 @@ export const useEcharts = (
     });
   };
   const createOptions = (xAxis, yAxis, series) => {
-    return {
+    const options = {
       useUTC: false,
       animation: false,
       animationThreshold: 2000,
@@ -387,12 +472,14 @@ export const useEcharts = (
         };
       }),
     };
+    return customOptions.options?.(options) ?? options;
   };
   watch(
-    [() => traceStore.timeRange, () => traceStore.refreshImmediate, panel],
+    [timeRange, refreshImmediate, panel, params],
     async () => {
       loading.value = true;
       options.value = await getEchartOptions();
+      chartId.value = random(8);
       loading.value = false;
     },
     {
@@ -405,7 +492,9 @@ export const useEcharts = (
     metricList,
     targets,
     queryConfigs,
+    duration,
     series,
+    chartId,
     getEchartOptions,
   };
 };
