@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import functools
 import json
 import zlib
@@ -145,3 +145,4 @@ cache_half_hour = functools.partial(using_cache, duration=0.5 * TimeEnum.ONE_HOU
 cache_one_day = functools.partial(using_cache, duration=TimeEnum.ONE_DAY_SECOND.value)
 
 caches_one_hour = functools.partial(using_caches, duration=TimeEnum.ONE_HOUR_SECOND.value)
+caches_half_one_hour = functools.partial(using_caches, duration=0.5 * TimeEnum.ONE_HOUR_SECOND.value)
