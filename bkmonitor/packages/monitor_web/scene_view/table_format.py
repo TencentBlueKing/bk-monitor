@@ -613,3 +613,78 @@ class StackLinkOverviewDataTableFormat(OverviewDataTableFormat):
             "subtitle": row[self.id]["subtitle"],
             "is_stack": True if row[self.id]["is_stack"] == _lazy("有Stack") else False,
         }
+
+
+class EndpointListTableFormat(TableFormat):
+    """接口列表列格式类。
+
+    用于 endpoint_name 列，支持 link_list 类型，包含接口名称和操作链接（如调用链）。
+    """
+
+    column_type = "link_list"
+
+    def __init__(
+        self,
+        *args,
+        title: str,
+        max_width: int | None = None,
+        links: list[LinkTableFormat] | None = None,
+        show_over_flow_tool_tip: bool = True,
+        **kwargs,
+    ):
+        """初始化接口列表列格式。
+
+        :param title: 概览行显示的标题
+        :param max_width: 列最大宽度
+        :param links: 操作链接列表
+        :param show_over_flow_tool_tip: 是否显示溢出提示
+        """
+        super().__init__(*args, **kwargs)
+        self.title = title
+        self.max_width = max_width
+        self.links = links or []
+        self.show_over_flow_tool_tip = show_over_flow_tool_tip
+
+    def column(self) -> dict:
+        """生成列配置。"""
+        return {
+            **super().column(),
+            "showOverflowTooltip": self.show_over_flow_tool_tip,
+            "max_width": self.max_width,
+        }
+
+    def format(self, row: dict) -> list[dict]:
+        """格式化单行数据。
+
+        将接口名称和操作链接合并为列表格式。
+
+        :param row: 行数据字典
+        :return: 链接列表
+        """
+        result = [{"key": "", "icon": "", "target": "null_event", "url": "", "value": row[self.id]}]
+        for link in self.links:
+            # 手动构建链接数据，使用 link.name 作为显示文本
+            try:
+                url = link.url_format.format(**row)
+            except KeyError:
+                # 如果 URL 格式化失败（缺少字段），使用空 URL
+                url = ""
+            result.append(
+                {
+                    "target": link.target,
+                    "value": link.name,
+                    "url": url,
+                    "key": link.event_key,
+                    "icon": "",
+                }
+            )
+        return result
+
+    def format_overview(self, title: str, icon: str = "") -> list[dict]:
+        """格式化概览行数据。
+
+        :param title: 概览标题
+        :param icon: 概览图标
+        :return: 概览数据列表
+        """
+        return [{"icon": icon, "target": "null_event", "url": "", "key": "", "value": title}]
