@@ -295,6 +295,15 @@ class IndexSetHandler(APIModel):
                     .split(",")
                 }
             )
+            if cluster_map.get(_index["storage_cluster_id"], {}).get("display_name"):
+                _index["storage_display_name"] = ",".join(
+                    {
+                        display_name
+                        for display_name in cluster_map.get(_index["storage_cluster_id"], {})
+                        .get("display_name", "")
+                        .split(",")
+                    }
+                )
 
             normal_idx = [idx for idx in _index["indexes"] if idx["apply_status"] == LogIndexSetData.Status.NORMAL]
 
@@ -389,7 +398,8 @@ class IndexSetHandler(APIModel):
             cluster_map.update(
                 {
                     cluster_config["cluster_id"]: {
-                        "cluster_name": cluster_config["cluster_name"],
+                        "cluster_name": cluster_config.get("cluster_name", ""),
+                        "display_name": cluster_config.get("display_name", ""),
                         "cluster_domain_name": cluster_config["domain_name"],
                         "cluster_port": cluster_config["port"],
                     }
@@ -1435,6 +1445,8 @@ class IndexSetHandler(APIModel):
 
     @transaction.atomic()
     def update_alias_settings(self, alias_settings):
+        # 纳秒字段别名不支持用户修改
+        alias_settings = [alias for alias in alias_settings if alias.get("field_name") != "dtEventTimeStampNanos"]
         is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.data.tag_ids)
         multi_execute_func = MultiExecuteFunc()
         if not is_doris:
@@ -1892,16 +1904,17 @@ class BaseIndexSetHandler:
                     },
                 ],
             }
+            # 别名信息
+            if query_alias_settings := index_set.query_alias_settings:
+                table_info["query_alias_settings"] = copy.deepcopy(query_alias_settings)
             if table_info["source_type"] == Scenario.LOG:
                 table_info["origin_table_id"] = obj.result_table_id
                 collector_config = CollectorConfig.objects.filter(table_id=obj.result_table_id).first()
                 # 为纳秒字段新增别名
                 if collector_config.is_nanos:
-                    table_info["query_alias_settings"].update(
+                    table_info.setdefault("query_alias_settings", []).append(
                         {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}
                     )
-            if query_alias_settings := index_set.query_alias_settings:
-                table_info["query_alias_settings"] = query_alias_settings
             table_info_list.append(table_info)
 
             # 纳秒采集新旧链路迁移路由补充
