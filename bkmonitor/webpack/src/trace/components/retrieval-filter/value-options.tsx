@@ -28,6 +28,7 @@ import { computed, defineComponent, nextTick, onUnmounted, shallowRef, useTempla
 
 import { useEventListener, watchDebounced } from '@vueuse/core';
 import { promiseTimeout } from '@vueuse/core';
+import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
 import loadingImg from '../../static/img/spinner.svg';
@@ -41,6 +42,9 @@ export default defineComponent({
   name: 'ValueOptions',
   props: VALUE_OPTIONS_PROPS,
   emits: VALUE_OPTIONS_EMITS,
+  directive: {
+    OverflowTips,
+  },
   setup(props, { emit }) {
     const { t } = useI18n();
     const elRef = useTemplateRef<HTMLDivElement>('el');
@@ -49,7 +53,7 @@ export default defineComponent({
     const loading = shallowRef(false);
     const hoverActiveIndex = shallowRef(-1);
     const scrollLoading = shallowRef(false);
-    const pageSize = shallowRef(200);
+    const pageSize = shallowRef(props.limit);
     const page = shallowRef(1);
     const isEnd = shallowRef(false);
 
@@ -252,7 +256,9 @@ export default defineComponent({
       }
       if (props.fieldInfo?.isEnableOptions) {
         const limit = pageSize.value * page.value;
-        await promiseTimeout(300);
+        if (props.loadDelay) {
+          await promiseTimeout(props.loadDelay);
+        }
         const data = await props.getValueFn({
           search: props.search,
           limit,

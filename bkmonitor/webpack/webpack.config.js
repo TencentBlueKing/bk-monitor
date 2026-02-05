@@ -36,7 +36,7 @@ module.exports = async (baseConfig, { production, app }) => {
       server: 'http',
       proxy: ['proxy', 'logProxy', 'tenantProxy'] // 监控平台、日志平台、租户平台代理配置
         .map(key =>
-          devConfig[key]
+          devConfig[key]?.target
             ? {
                 ...devConfig[key],
                 proxyTimeout: 5 * 60 * 1000,
@@ -49,7 +49,11 @@ module.exports = async (baseConfig, { production, app }) => {
         overlay: false,
       },
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': `http://${devConfig.host}:${devPort}`,
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+        'Access-Control-Allow-Headers':
+          'traceparent, x-csrftoken, cookie, x-requested-with, source-app, authorization, content-type, accept, accept-encoding, accept-language, cache-control, pragma, origin, referer, user-agent, dnt',
+        'Access-Control-Allow-Credentials': true,
       },
       open: false,
       static: [],

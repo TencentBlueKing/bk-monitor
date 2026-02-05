@@ -1,0 +1,105 @@
+@mixin font-style {
+  font-size: 12px;
+  line-height: 20px;
+  color: #63656e;
+}
+
+@mixin require {
+  position: relative;
+  display: inline-block;
+
+  &.require {
+    &::after {
+      position: absolute;
+      top: 2px;
+      right: -10px;
+      width: 3px;
+      height: 3px;
+      color: #ea3636;
+      content: '*';
+    }
+  }
+}
+
+.alarm-dispatch-component-dialog {
+  .alarm-dispatch {
+    .tips {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      min-height: 32px;
+      padding: 6px 9px;
+      background: #f0f8ff;
+      border: 1px solid #c5daff;
+      border-radius: 2px;
+
+      @include font-style;
+
+      .icon-hint {
+        margin-right: 9px;
+        font-size: 16px;
+        color: #3a84ff;
+      }
+    }
+
+    .form-item {
+      margin-top: 16px;
+
+      .label {
+        @include font-style;
+        @include require;
+
+        .tags {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          margin-top: 4px;
+
+          .tag {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 22px;
+            padding: 0 10px;
+            margin-right: 8px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            background: #f0f1f5;
+            border-radius: 2px;
+          }
+        }
+
+        .title {
+          @include require;
+        }
+      }
+
+      & > .content {
+        margin-top: 6px;
+
+        .content-user-selector {
+          width: 100%;
+        }
+
+        .bk-form-checkbox {
+          margin-right: 24px;
+        }
+      }
+    }
+
+    .bk-checkbox-text {
+      /* stylelint-disable-next-line declaration-no-important */
+      font-size: 12px !important;
+    }
+  }
+
+  .mr0 {
+    /* stylelint-disable-next-line declaration-no-important */
+    margin: 0 !important;
+  }
+
+  .err-msg {
+    font-size: 12px;
+    color: #ea3636;
+  }
+}

@@ -1,0 +1,106 @@
+@use '../../../../../trace-explore/components/trace-explore-table/theme/trace-table.scss' as tableCommonTheme;
+
+.common-table-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+
+  // 最小高度应为骨架屏高度避免出现空白
+  // min-height: 370px;
+
+  .common-table {
+    @include tableCommonTheme.table-theme;
+
+    .common-table-ellipsis {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  // 在根元素容器高度仍有剩余的情况下，表格是否自适应填满根元素容器的剩余空间
+  &.fill-remaining-space {
+    .common-table {
+      display: flex;
+      flex-grow: 1;
+      flex-basis: auto;
+      flex-direction: column;
+      min-height: 0;
+
+      &.t-table {
+        // 容器有剩余空间时撑满容器
+        .t-table__content {
+          flex-grow: 1;
+          overflow-x: scroll;
+
+          .t-table--layout-fixed {
+            height: 100%;
+          }
+        }
+      }
+    }
+  }
+
+  .common-table-skeleton {
+    position: absolute;
+    top: var(--trace-table-header-height, 34px);
+    z-index: 100;
+
+    // 使用 visibility 属性会影响布局计算，改用 display 属性
+    // visibility: hidden;
+    display: none;
+    height: calc(100% - var(--trace-table-header-height, 34px));
+    min-height: fit-content;
+    padding: 10px 8px;
+    background: #fff;
+
+    &.common-skeleton-show-all,
+    &.common-skeleton-show-body {
+      // 使用 visibility 属性会影响布局计算，改用 display 属性
+      // visibility: visible;
+      display: block;
+    }
+
+    &.common-skeleton-show-body {
+      .common-table-skeleton-row:nth-child(1) {
+        display: none;
+      }
+    }
+
+    .common-table-skeleton-row {
+      margin-bottom: 10px;
+    }
+  }
+
+  .common-table-empty {
+    .exception-image {
+      height: 180px;
+    }
+
+    .bk-exception-description {
+      margin-top: 16px;
+    }
+  }
+
+  .bk-pagination {
+    padding: 12px 16px;
+
+    .bk-pagination-small-list {
+      margin-left: auto;
+    }
+
+    .bk-pagination-total {
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  .t-table .t-table__last-full-row td,
+  .t-table .t-table__first-full-row td {
+    line-height: 0;
+  }
+
+  .t-table .t-table__last-full-row td .t-table__row-full-element {
+    padding: 0;
+  }
+}

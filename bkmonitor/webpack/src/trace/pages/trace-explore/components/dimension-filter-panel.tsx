@@ -198,7 +198,7 @@ export default defineComponent({
     }
 
     function handleClose() {
-      emit('close');
+      emit('close', true);
     }
 
     function renderSkeleton() {
