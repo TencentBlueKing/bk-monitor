@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -60,6 +60,10 @@ export default defineComponent({
     const descShow = computed(() => {
       const isDesc = sortField.value[1] === 'desc';
       return isSortShow.value && isDesc;
+    });
+
+    const isSortTimeShow = computed(() => {
+      return !window?.__IS_MONITOR_APM__ && !window?.__IS_MONITOR_TRACE__;
     });
 
     const handleStorageChange = (val, key) => {
@@ -102,7 +106,7 @@ export default defineComponent({
 
     return () => (
       <div class='bklog-v3-storage'>
-        {!window?.__IS_MONITOR_APM__ && !window?.__IS_MONITOR_TRACE__ && (
+        {isSortTimeShow.value && (
           <div class='switch-label log-sort'>
             <span
               class='bklog-option-item'

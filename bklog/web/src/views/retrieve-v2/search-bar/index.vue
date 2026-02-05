@@ -171,6 +171,10 @@ const isShowSearchTools = computed(() => {
   );
 });
 
+const isMonitorTrace = computed(() => {
+  return window?.__IS_MONITOR_TRACE__;
+});
+
 watch(
   () => isIndexFieldLoading.value,
   () => {
@@ -759,7 +763,7 @@ defineExpose({
 <template>
   <div
     ref="refRootElement"
-    :class="['search-bar-wrapper', {'trace-log-bar': window?.__IS_MONITOR_TRACE__}]"
+    :class="['search-bar-wrapper', {'trace-log-bar': isMonitorTrace}]"
   >
     <div
       v-bkloading="{
