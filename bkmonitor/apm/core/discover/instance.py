@@ -41,18 +41,18 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
     @classmethod
     def build_instance_data(cls, instance_obj) -> TopoInstanceData:
         return TopoInstanceData(
-            id=DiscoverBase._get_attr_value(instance_obj, "id"),
-            topo_node_key=DiscoverBase._get_attr_value(instance_obj, "topo_node_key"),
-            instance_id=DiscoverBase._get_attr_value(instance_obj, "instance_id"),
-            instance_topo_kind=DiscoverBase._get_attr_value(instance_obj, "instance_topo_kind"),
-            component_instance_category=DiscoverBase._get_attr_value(instance_obj, "component_instance_category"),
-            component_instance_predicate_value=DiscoverBase._get_attr_value(
+            id=DiscoverBase.get_attr_value(instance_obj, "id"),
+            topo_node_key=DiscoverBase.get_attr_value(instance_obj, "topo_node_key"),
+            instance_id=DiscoverBase.get_attr_value(instance_obj, "instance_id"),
+            instance_topo_kind=DiscoverBase.get_attr_value(instance_obj, "instance_topo_kind"),
+            component_instance_category=DiscoverBase.get_attr_value(instance_obj, "component_instance_category"),
+            component_instance_predicate_value=DiscoverBase.get_attr_value(
                 instance_obj, "component_instance_predicate_value"
             ),
-            sdk_name=DiscoverBase._get_attr_value(instance_obj, "sdk_name"),
-            sdk_version=DiscoverBase._get_attr_value(instance_obj, "sdk_version"),
-            sdk_language=DiscoverBase._get_attr_value(instance_obj, "sdk_language"),
-            updated_at=DiscoverBase._get_attr_value(instance_obj, "updated_at"),
+            sdk_name=DiscoverBase.get_attr_value(instance_obj, "sdk_name"),
+            sdk_version=DiscoverBase.get_attr_value(instance_obj, "sdk_version"),
+            sdk_language=DiscoverBase.get_attr_value(instance_obj, "sdk_language"),
+            updated_at=DiscoverBase.get_attr_value(instance_obj, "updated_at"),
         )
 
     @classmethod

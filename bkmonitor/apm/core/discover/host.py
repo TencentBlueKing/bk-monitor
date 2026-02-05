@@ -49,12 +49,12 @@ class HostDiscover(CachedDiscoverMixin, DiscoverBase):
     @classmethod
     def build_instance_data(cls, host_obj) -> HostInstanceData:
         return HostInstanceData(
-            id=DiscoverBase._get_attr_value(host_obj, "id"),
-            bk_cloud_id=DiscoverBase._get_attr_value(host_obj, "bk_cloud_id"),
-            bk_host_id=DiscoverBase._get_attr_value(host_obj, "bk_host_id"),
-            ip=DiscoverBase._get_attr_value(host_obj, "ip"),
-            topo_node_key=DiscoverBase._get_attr_value(host_obj, "topo_node_key"),
-            updated_at=DiscoverBase._get_attr_value(host_obj, "updated_at"),
+            id=DiscoverBase.get_attr_value(host_obj, "id"),
+            bk_cloud_id=DiscoverBase.get_attr_value(host_obj, "bk_cloud_id"),
+            bk_host_id=DiscoverBase.get_attr_value(host_obj, "bk_host_id"),
+            ip=DiscoverBase.get_attr_value(host_obj, "ip"),
+            topo_node_key=DiscoverBase.get_attr_value(host_obj, "topo_node_key"),
+            updated_at=DiscoverBase.get_attr_value(host_obj, "updated_at"),
         )
 
     @classmethod

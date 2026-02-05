@@ -42,14 +42,14 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
     @classmethod
     def build_instance_data(cls, endpoint_obj) -> EndpointInstanceData:
         return EndpointInstanceData(
-            id=DiscoverBase._get_attr_value(endpoint_obj, "id"),
-            service_name=DiscoverBase._get_attr_value(endpoint_obj, "service_name"),
-            endpoint_name=DiscoverBase._get_attr_value(endpoint_obj, "endpoint_name"),
-            category_id=DiscoverBase._get_attr_value(endpoint_obj, "category_id"),
-            category_kind_key=DiscoverBase._get_attr_value(endpoint_obj, "category_kind_key"),
-            category_kind_value=DiscoverBase._get_attr_value(endpoint_obj, "category_kind_value"),
-            span_kind=DiscoverBase._get_attr_value(endpoint_obj, "span_kind"),
-            updated_at=DiscoverBase._get_attr_value(endpoint_obj, "updated_at"),
+            id=DiscoverBase.get_attr_value(endpoint_obj, "id"),
+            service_name=DiscoverBase.get_attr_value(endpoint_obj, "service_name"),
+            endpoint_name=DiscoverBase.get_attr_value(endpoint_obj, "endpoint_name"),
+            category_id=DiscoverBase.get_attr_value(endpoint_obj, "category_id"),
+            category_kind_key=DiscoverBase.get_attr_value(endpoint_obj, "category_kind_key"),
+            category_kind_value=DiscoverBase.get_attr_value(endpoint_obj, "category_kind_value"),
+            span_kind=DiscoverBase.get_attr_value(endpoint_obj, "span_kind"),
+            updated_at=DiscoverBase.get_attr_value(endpoint_obj, "updated_at"),
         )
 
     @classmethod

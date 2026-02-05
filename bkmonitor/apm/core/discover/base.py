@@ -271,8 +271,8 @@ class DiscoverBase(ABC):
         """
         raise NotImplementedError("Subclass must implement _to_found_key()")
 
-    @staticmethod
-    def _get_attr_value(obj, attr_name):
+    @classmethod
+    def get_attr_value(cls, obj, attr_name):
         if hasattr(obj, attr_name):
             return getattr(obj, attr_name)
         return obj.get(attr_name) if isinstance(obj, dict) else None
