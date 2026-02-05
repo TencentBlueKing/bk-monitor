@@ -139,7 +139,7 @@ export const SETTING_FIELDS = [
   },
   // 集群名
   {
-    id: 'storage_cluster_name',
+    id: 'storage_display_name',
     label: window.$t('集群名'),
   },
   // 过期时间

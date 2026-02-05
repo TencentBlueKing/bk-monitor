@@ -88,6 +88,7 @@ export default defineComponent({
           <i18n-t
             class='operation-text'
             keypath='可以尝试{0}或{1}'
+            tag='span'
           >
             <span style='margin: 0 3px'>{this.t('调整关键词')}</span>
             <span

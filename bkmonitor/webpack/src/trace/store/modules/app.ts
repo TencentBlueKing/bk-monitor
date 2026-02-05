@@ -56,6 +56,11 @@ export const useAppStore = defineStore('app', {
     extraDocLinkMap: {},
     spaceTimezone: getSpaceTimezone(),
   }),
+  getters: {
+    bizItem: (state: IAppState) => {
+      return state.bizList.find(item => item.id === state.bizId);
+    },
+  },
   actions: {
     /**
      * @description: 更新文档链接

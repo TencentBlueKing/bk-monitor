@@ -1,0 +1,431 @@
+@mixin ellipsis() {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vue3__space-select-component {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  height: 32px;
+  border: 1px solid #c4c6cc;
+  border-radius: 0 2px 2px 0;
+  border-radius: 0 2px 2px 0;
+
+  &.space-select-component-common-style {
+    max-width: 328px;
+    background: #fff4e2;
+  }
+
+  &.active {
+    border: 1px solid #3a84ff;
+
+    .icon-arrow-down {
+      transform: rotate(-180deg);
+    }
+  }
+
+  &.error {
+    border: 1px solid #ff5656;
+  }
+
+  .space-select-content {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 0 7px 0 9px;
+    cursor: pointer;
+
+    .selected-wrap-title {
+      display: inline-block;
+      margin-right: 8px;
+      line-height: 32px;
+      color: #ff9c01;
+      white-space: nowrap;
+    }
+
+    .selected-text {
+      display: inline-block;
+      max-width: 90%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 32px;
+      white-space: nowrap;
+
+      .selected-text-item {
+        color: #63656e;
+
+        .selected-text-id {
+          margin-left: 4px;
+          color: #c4c6cc;
+        }
+      }
+    }
+
+    .space-select-right-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      margin: 0 0 0 auto;
+      font-size: 20px;
+      color: #979ba5;
+      cursor: pointer;
+
+      .icon-mc-close-fill {
+        display: none;
+        font-size: 14px;
+      }
+
+      .icon-arrow-down {
+        transition:
+          transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+          -webkit-transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+    }
+
+    &:hover {
+      .icon-mc-close-fill {
+        display: block;
+      }
+
+      .icon-arrow-down {
+        display: none;
+      }
+    }
+
+    &.single {
+      .icon-arrow-down {
+        display: block;
+      }
+    }
+
+    &.disabled {
+      cursor: not-allowed;
+      background-color: #fafbfd;
+
+      &:hover {
+        .icon-mc-close-fill {
+          display: none;
+        }
+
+        .icon-arrow-down {
+          display: block;
+        }
+      }
+    }
+  }
+}
+
+.vue3__space-select-component-popover-content {
+  width: 320px;
+
+  .search-input {
+    padding: 0 8px;
+
+    .icon-mc-search {
+      font-size: 16px;
+      line-height: 32px;
+      color: #979ba5;
+    }
+
+    .bk-form-input.only-bottom-border {
+      border-color: transparent transparent #eaebf0;
+    }
+  }
+
+  .group-choice-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    box-shadow: 0 2px 8px 0 #0000001a;
+
+    .space-type-list-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+
+      .space-type-list {
+        position: relative;
+        display: flex;
+        align-items: center;
+        padding: 8px 0 4px 0;
+        margin: 0 12px;
+        overflow-y: auto;
+
+        -ms-overflow-style: none; /* IE 和 Edge */
+        scrollbar-width: none; /* Firefox */
+        &::-webkit-scrollbar {
+          display: none;
+        }
+
+        .space-type-item {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 22px;
+          padding: 0 8px;
+          margin-right: 4px;
+          margin-bottom: 4px;
+          font-size: 12px;
+
+          /* 颜色类型 */
+          color: #63656e;
+          white-space: nowrap;
+          cursor: pointer;
+          background-color: #f0f1f5;
+          border: 1px solid transparent;
+          border-radius: 2px;
+
+          &.bkcc {
+            color: #3a84ff;
+            background-color: #edf4ff;
+          }
+
+          &.bkci {
+            color: #ea3536;
+            background-color: #feebea;
+          }
+
+          &.bcs {
+            color: #fe9c00;
+            background-color: #fff1db;
+          }
+
+          &.paas,
+          &.bksaas {
+            color: #14a568;
+            background-color: #e4faf0;
+          }
+
+          /* 边框类型 */
+          &.selected {
+            background: #fafbfd;
+            border-color: #979ba54d;
+
+            &.bkcc {
+              background: #f0f5ff;
+              border-color: #a3c5fd;
+            }
+
+            &.bkci {
+              background: #fee;
+              border-color: #f8b4b4;
+            }
+
+            &.bcs {
+              background: #fff3e1;
+              border-color: #ffd695;
+            }
+
+            &.paas,
+            &.bksaas {
+              background: #e4faf0;
+              border-color: #14a5684d;
+            }
+          }
+
+          /* hover */
+          &.hover-active {
+            &:hover {
+              background: #dcdee5;
+
+              &.bkcc {
+                background: #e1ecff;
+              }
+
+              &.bkci {
+                background: #fedddc;
+              }
+
+              &.bcs {
+                background: #ffe8c3;
+              }
+
+              &.paas,
+              &.bksaas {
+                background: #c9f5e2;
+              }
+            }
+          }
+        }
+      }
+
+      .pre-btn,
+      .next-btn {
+        position: absolute;
+        top: 7px;
+        display: none;
+        width: 16px;
+        height: 24px;
+        cursor: pointer;
+        background: #fff;
+        opacity: 1;
+
+        .icon-arrow-left,
+        .icon-arrow-right {
+          font-size: 20px;
+          color: #444f69;
+        }
+
+        &.disable {
+          cursor: not-allowed;
+
+          .icon-arrow-left,
+          .icon-arrow-right {
+            color: #959eaf;
+          }
+        }
+      }
+
+      .pre-btn {
+        left: 12px;
+      }
+
+      .next-btn {
+        right: 12px;
+      }
+
+      &.show-btn {
+        .space-type-list {
+          padding: 8px 16px 4px 16px;
+        }
+
+        .pre-btn,
+        .next-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+      }
+    }
+
+    .choice-type-checkbox {
+      flex-shrink: 0;
+      margin-right: 8px;
+
+      .bk-checkbox-label {
+        font-size: 12px;
+      }
+    }
+  }
+
+  .space-list {
+    max-height: 232px;
+    padding-top: 8px;
+    overflow-y: auto;
+
+    .space-list-item {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      padding: 0 7px 0 12px;
+      font-size: 12px;
+      cursor: pointer;
+
+      .space-name {
+        display: inline-flex;
+        flex: 1;
+        flex-wrap: nowrap;
+        align-items: center;
+        margin-left: 6px;
+
+        @include ellipsis();
+
+        .name {
+          margin-right: 6px;
+          color: #63656e;
+
+          @include ellipsis();
+
+          &.disabled {
+            color: #c4c6cc;
+          }
+        }
+
+        .id {
+          color: #c4c6cc;
+
+          @include ellipsis();
+        }
+
+        .cur-position {
+          margin-right: 4px;
+          margin-left: 8px;
+          font-size: 14px;
+          color: #3a84ff;
+        }
+      }
+
+      .space-tags {
+        display: flex;
+        margin: 0 0 0 auto;
+
+        .space-tags-item {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 22px;
+          padding: 0 10px;
+          border-radius: 2px;
+
+          &:not(:last-child) {
+            margin-right: 8px;
+          }
+        }
+
+        .auth-button {
+          padding-right: 0px;
+          font-size: 12px;
+          color: #3a84ff;
+        }
+      }
+
+      .space-hover-btn {
+        display: none;
+        margin: 0 0 0 auto;
+
+        .bk-button-text.bk-button-small {
+          padding: 0 2px;
+        }
+      }
+
+      &:hover {
+        // background-color: #e1ecff;
+        background: #f5f7fa;
+
+        .space-tags {
+          display: none;
+        }
+
+        .space-hover-btn {
+          display: flex;
+        }
+      }
+
+      &.no-hover-btn {
+        &:hover {
+          .space-tags {
+            display: flex;
+          }
+
+          .space-hover-btn {
+            display: none;
+          }
+        }
+      }
+
+      &.active {
+        color: #3a84ff;
+        background-color: #f5f7fa;
+      }
+    }
+  }
+}

@@ -66,6 +66,7 @@ interface ITableRowData {
   status_name: string;
   storage_cluster_id?: number;
   storage_cluster_name?: string;
+  storage_display_name?: string;
   daily_usage?: number;
   total_usage?: number;
   bk_data_name?: string;
@@ -107,7 +108,7 @@ interface IFilterCondition {
 interface IFilterValues {
   created_by: Array<{ label: string; value: string; key?: string }>;
   updated_by: Array<{ label: string; value: string; key?: string }>;
-  storage_cluster_name: Array<{ label: string; value: string; key?: string }>;
+  storage_display_name: Array<{ label: string; value: string; key?: string }>;
 }
 
 /**
@@ -166,7 +167,7 @@ const FIELD_ID_TO_COL_KEY_MAP: Record<string, string> = {
   index_set_id: 'index_set_name',
   log_access_type: 'log_access_type',
   collector_scenario_id: 'collector_scenario_id',
-  storage_cluster_name: 'storage_cluster_name',
+  storage_display_name: 'storage_display_name',
   retention: 'retention',
   label: 'tags',
   es_host_state: 'status',
@@ -225,7 +226,7 @@ export default defineComponent({
     const IFilterValues = ref<IFilterValues>({
       created_by: [],
       updated_by: [],
-      storage_cluster_name: [],
+      storage_display_name: [],
     });
     // 过滤条件
     const conditions = ref<IFilterCondition[]>([]);
@@ -233,7 +234,7 @@ export default defineComponent({
     const filterValue = ref<Record<string, string>>({
       log_access_type: '',
       collector_scenario_id: '',
-      storage_cluster_name: '',
+      storage_display_name: '',
       status: '',
       created_by: '',
       updated_by: '',
@@ -493,10 +494,10 @@ export default defineComponent({
       },
       {
         title: t('集群名'),
-        colKey: 'storage_cluster_name',
+        colKey: 'storage_display_name',
         minWidth: 140,
         ellipsis: true,
-        filter: getColumnsFilter(IFilterValues.value.storage_cluster_name),
+        filter: getColumnsFilter(IFilterValues.value.storage_display_name),
       },
       {
         title: t('过期时间'),

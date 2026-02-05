@@ -1,0 +1,131 @@
+.suspicious-analysis-group {
+  display: grid;
+  grid-template-rows: 0fr;
+  grid-template-columns: 100%;
+  overflow: hidden;
+  transition: grid-template-rows 0.6s ease;
+
+  .link-text {
+    display: flex;
+    align-items: center;
+    color: #3a84ff;
+    cursor: pointer;
+
+    .icon-monitor {
+      margin-right: 5px;
+      font-size: 12px;
+    }
+
+    &:hover {
+      color: #699df4;
+    }
+  }
+
+  .suspicious-analysis-group-wrapper {
+    min-height: 26px;
+    border: 1px solid #eaebf0;
+    border-radius: 2px;
+
+    .group-header {
+      display: flex;
+      align-items: center;
+      height: 26px;
+      cursor: pointer;
+      background: #eaebf0;
+
+      .arrow-icon {
+        transition: transform 0.1s;
+      }
+
+      .icon-monitor {
+        font-size: 24px;
+      }
+
+      .group-name {
+        .icon-fenxiang {
+          margin-left: 6px;
+          font-size: 12px;
+        }
+      }
+    }
+
+    .error-info {
+      .error-info-item {
+        display: flex;
+        align-items: center;
+        height: 24px;
+        background: #fff;
+
+        .error-info-name {
+          width: 110px;
+          padding-left: 24px;
+          font-size: 12px;
+          color: #757880;
+        }
+
+        .error-info-value {
+          font-size: 12px;
+          color: #313238;
+        }
+
+        &.even {
+          background: #f8fafd;
+        }
+      }
+    }
+
+    .suspicious-reason {
+      display: flex;
+      align-items: center;
+      height: 24px;
+      padding-right: 8px;
+      padding-left: 24px;
+      border-top: 1px solid #eaebf0;
+
+      .reason {
+        flex: 1;
+        font-size: 12px;
+        color: #c12626;
+      }
+    }
+
+    .error-content {
+      padding: 8px 24px;
+      background: #f8fafd;
+
+      .error-content-item {
+        .error-content-item-name {
+          font-weight: 700;
+          line-height: 20px;
+          color: #313238;
+        }
+
+        .error-content-item-value {
+          font-size: 12px;
+          line-height: 20px;
+          color: #313238;
+        }
+
+        & + .error-content-item {
+          margin-top: 20px;
+        }
+      }
+    }
+  }
+
+  &.expand {
+    grid-template-rows: 1fr;
+
+    .suspicious-analysis-group-wrapper {
+      .group-header {
+        .arrow-icon {
+          transform: rotateZ(90deg);
+        }
+      }
+    }
+  }
+
+  & + .suspicious-analysis-group {
+    margin-top: 8px;
+  }
+}

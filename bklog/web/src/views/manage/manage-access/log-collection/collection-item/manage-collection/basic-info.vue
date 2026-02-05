@@ -267,9 +267,9 @@
           <span
             v-bk-tooltips.top="{
               content: `${collectorData.storage_cluster_domain_name}:${collectorData.storage_cluster_port}`,
-              disabled: !collectorData.storage_cluster_name,
+              disabled: !collectorData.storage_display_name,
             }"
-            >{{ collectorData.storage_cluster_name || '-' }}</span
+            >{{ collectorData.storage_display_name || '-' }}</span
           >
         </div>
         <!-- 存储索引名 -->
