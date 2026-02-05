@@ -83,9 +83,10 @@ from monitor_web.constants import (
 )
 from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
 from monitor_web.extend_account.models import UserAccessRecord
+from bk_monitor_base.domains.uptime_check.define import UptimeCheckTaskStatus
+from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
 from monitor_web.models.custom_report import CustomEventGroup
 from monitor_web.models.plugin import CollectorPluginMeta
-from monitor_web.models.uptime_check import UptimeCheckTask
 from monitor_web.plugin.constant import PLUGIN_REVERSED_DIMENSION
 from monitor_web.strategies.built_in import run_build_in
 from utils import business, count_md5
@@ -575,9 +576,7 @@ def update_uptime_check_task_status():
     定时刷新 starting 状态的拨测任务
     :return:
     """
-    from monitor_web.models.uptime_check import UptimeCheckTask
-
-    for task_id in UptimeCheckTask.objects.filter(status=UptimeCheckTask.Status.STARTING).values_list("id", flat=True):
+    for task_id in uptime_check_operation.list_uptime_check_tasks_id_by_status(UptimeCheckTaskStatus.STARTING.value):
         update_task_running_status(task_id)
 
 
@@ -586,7 +585,8 @@ def update_task_running_status(task_id):
     """
     异步查询拨测任务启动状态，更新拨测任务列表中的运行状态
     """
-    task = UptimeCheckTask.objects.get(id=task_id)
+
+    task = uptime_check_operation.get_task_by_pk(task_id)
     bk_biz_id = task.bk_biz_id
     bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
     set_local_tenant_id(bk_tenant_id=bk_tenant_id)

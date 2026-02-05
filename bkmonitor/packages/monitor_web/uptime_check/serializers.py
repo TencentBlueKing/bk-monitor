@@ -12,7 +12,6 @@ import arrow
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
-from django.db import transaction
 from django.utils.translation import gettext as _
 
 from bkmonitor.action.serializers import AuthorizeConfigSlz, BodyConfigSlz, KVPairSlz
@@ -27,12 +26,21 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.uptime_check import UptimeCheckProcessError
-from monitor_web.models.uptime_check import (
-    UptimeCheckGroup,
-    UptimeCheckNode,
-    UptimeCheckTask,
+from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
+from bk_monitor_base.domains.uptime_check.constants import TASK_MIN_PERIOD
+from bk_monitor_base.domains.uptime_check.define import (
+    UptimeCheckGroup as UptimeCheckGroupDefine,
+    UptimeCheckNode as UptimeCheckNodeDefine,
+    UptimeCheckTask as UptimeCheckTaskDefine,
+    UptimeCheckTaskProtocol,
+    UptimeCheckTaskStatus,
+    UptimeCheckNodeIPType,
 )
-from monitor_web.uptime_check.constants import TASK_MIN_PERIOD
+from bk_monitor_base.domains.uptime_check.models import (
+    UptimeCheckGroupModel,
+    UptimeCheckNodeModel,
+    UptimeCheckTaskModel,
+)
 
 
 class AuthorizeConfigSerializer(AuthorizeConfigSlz):
@@ -96,34 +104,82 @@ class UptimeCheckNodeSerializer(serializers.ModelSerializer):
         更新节点
         """
         self.node_beat_check(validated_data)
+        bk_tenant_id = get_request_tenant_id()
+        request = self.context.get("request")
+        operator = request.user.username if request else ""
+
         if instance.is_common and not validated_data.get("is_common"):
             # 校验公共节点管理权限
             Permission().is_allowed(action=ActionEnum.MANAGE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
 
-            other_biz_task = []
-            for task in instance.tasks.all():
-                if task.bk_biz_id != instance.bk_biz_id:
-                    other_biz_task.append(_("{}(业务id:{})").format(task.name, task.bk_biz_id))
+            # 检查是否有其他业务的任务在使用此公共节点
+            tasks = uptime_check_operation.list_tasks_by_node_id(instance.id)
+            other_biz_task = [
+                _("{}(业务id:{})").format(task.name, task.bk_biz_id)
+                for task in tasks
+                if task.bk_biz_id != instance.bk_biz_id
+            ]
             if other_biz_task:
                 raise CustomException(
                     _("不能取消公共节点勾选，若要取消，请先删除以下任务的当前节点：%s") % "，".join(other_biz_task)
                 )
-        for attr, value in list(validated_data.items()):
-            setattr(instance, attr, value)
-        instance.save(update=True)
-        return instance
+
+        # 构建 UptimeCheckNodeDefine 进行更新
+        node_define = UptimeCheckNodeDefine(
+            bk_tenant_id=bk_tenant_id,
+            id=instance.id,
+            bk_biz_id=validated_data.get("bk_biz_id", instance.bk_biz_id),
+            name=validated_data.get("name", instance.name),
+            is_common=validated_data.get("is_common", instance.is_common),
+            biz_scope=validated_data.get("biz_scope", instance.biz_scope or []),
+            ip_type=UptimeCheckNodeIPType(validated_data.get("ip_type", instance.ip_type)),
+            bk_host_id=validated_data.get("bk_host_id", instance.bk_host_id),
+            ip=validated_data.get("ip", instance.ip),
+            plat_id=validated_data.get("plat_id", instance.plat_id),
+            location=validated_data.get("location", instance.location or {}),
+            carrieroperator=validated_data.get("carrieroperator", instance.carrieroperator or ""),
+        )
+        node_id = uptime_check_operation.create_or_update_uptime_check_node(node_define, operator)
+
+        # 返回更新后的实例
+        return uptime_check_operation.get_uptime_check_node(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=validated_data.get("bk_biz_id", instance.bk_biz_id), node_id=node_id
+        )
 
     def create(self, validated_data):
+        """
+        创建节点
+        """
         if validated_data.get("is_common"):
             # 校验公共节点管理权限
             Permission().is_allowed(action=ActionEnum.MANAGE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
         self.node_beat_check(validated_data)
-        instance = UptimeCheckNode(bk_tenant_id=get_request_tenant_id(), **validated_data)
-        instance.save()
-        return instance
+
+        bk_tenant_id = get_request_tenant_id()
+        request = self.context.get("request")
+        operator = request.user.username if request else ""
+
+        # 构建 UptimeCheckNodeDefine 进行创建
+        node_define = UptimeCheckNodeDefine(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=validated_data["bk_biz_id"],
+            name=validated_data["name"],
+            is_common=validated_data.get("is_common", False),
+            biz_scope=validated_data.get("biz_scope", []),
+            ip_type=UptimeCheckNodeIPType(validated_data.get("ip_type", 4)),
+            bk_host_id=validated_data.get("bk_host_id"),
+            ip=validated_data.get("ip"),
+            plat_id=validated_data.get("plat_id"),
+            location=validated_data.get("location", {}),
+            carrieroperator=validated_data.get("carrieroperator", ""),
+        )
+        node_id = uptime_check_operation.create_or_update_uptime_check_node(node_define, operator)
+        return uptime_check_operation.get_uptime_check_node(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=validated_data["bk_biz_id"], node_id=node_id
+        )
 
     class Meta:
-        model = UptimeCheckNode
+        model = UptimeCheckNodeModel
         fields = "__all__"
 
 
@@ -200,7 +256,7 @@ class UptimeCheckTaskBaseSerializer(serializers.ModelSerializer):
         if data["config"]["period"] < TASK_MIN_PERIOD:
             raise CustomException("period must be greater than 10")
         has_targets = data["config"].get("node_list") or data["config"].get("ip_list") or data["config"].get("url_list")
-        if data["protocol"] == UptimeCheckTask.Protocol.HTTP:
+        if data["protocol"] == UptimeCheckTaskProtocol.HTTP.value:
             if not data["config"].get("method") or not (data["config"].get("url_list") or data["config"].get("urls")):
                 raise CustomException("When protocol is HTTP, method and url_list is required in config.")
             if data["config"]["method"] in ["POST", "PUT", "PATCH"] and not data["config"].get("body"):
@@ -209,14 +265,14 @@ class UptimeCheckTaskBaseSerializer(serializers.ModelSerializer):
                 if not self.url_validate(url):
                     raise CustomException("Not a valid URL")
 
-        elif data["protocol"] == UptimeCheckTask.Protocol.ICMP:
+        elif data["protocol"] == UptimeCheckTaskProtocol.ICMP.value:
             if not (data["config"].get("hosts") or has_targets):
                 raise CustomException("When protocol is ICMP, targets is required in config.")
         else:
             if not data["config"].get("port") or not (data["config"].get("hosts") or has_targets):
                 raise CustomException("When protocol is TCP/UDP, targets and port is required in config.")
 
-        if data["protocol"] == UptimeCheckTask.Protocol.UDP:
+        if data["protocol"] == UptimeCheckTaskProtocol.UDP.value:
             if "request" not in data["config"]:
                 raise CustomException("request is required in config.")
 
@@ -248,8 +304,10 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         """
         拼接拨测地址
         """
+        # 兼容 Model 和 Define 两种对象
+        protocol = obj.protocol if isinstance(obj.protocol, str) else obj.protocol.value
 
-        if obj.protocol == UptimeCheckTask.Protocol.HTTP:
+        if protocol == UptimeCheckTaskProtocol.HTTP.value:
             # 针对HTTP协议
             if obj.config.get("urls"):
                 url_list = [obj.config["urls"]]
@@ -288,22 +346,24 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
                 target_host = [host["ip"] for host in obj.config["hosts"] if host.get("ip")]
 
         # 拼接拨测地址
-        if obj.protocol == UptimeCheckTask.Protocol.ICMP:
+        if protocol == UptimeCheckTaskProtocol.ICMP.value:
             return target_host
         else:
             return ["[{}]:{}".format(host, obj.config["port"]) for host in target_host]
 
     def get_groups(self, obj):
         """获取任务分组信息"""
-        return [{"id": group.id, "name": group.name} for group in obj.groups.all()]
+        return uptime_check_operation.list_group_id_name_by_task_id(obj.id)
 
     def get_available(self, obj):
         """计算任务可用率，如异常则按0计算，不可影响任务列表的获取"""
         # 只有拨测任务列表列需要展示每个拨测任务的可用率情况
         # 需要展示每个任务可用率时，则调用 list() 方法时指定 get_available=True
+        # 兼容 Model 和 Define 两种对象
+        status = obj.status if isinstance(obj.status, str) else obj.status.value
         if (
             self.context.get("request").query_params.get("get_available", False)
-            and obj.status != UptimeCheckTask.Status.STOPED
+            and status != UptimeCheckTaskStatus.STOPED.value
         ):
             try:
                 task_data = resource.uptime_check.get_recent_task_data({"task_id": obj.id, "type": "available"})
@@ -318,9 +378,11 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         """
         计算任务响应时长
         """
+        # 兼容 Model 和 Define 两种对象
+        status = obj.status if isinstance(obj.status, str) else obj.status.value
         if (
             self.context.get("request").query_params.get("get_task_duration", False)
-            and obj.status != UptimeCheckTask.Status.STOPED
+            and status != UptimeCheckTaskStatus.STOPED.value
         ):
             try:
                 task_data = resource.uptime_check.get_recent_task_data({"task_id": obj.id, "type": "task_duration"})
@@ -332,94 +394,100 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
             return None
 
     def create(self, validated_data):
+        """创建拨测任务（使用 operation 层）"""
         # 处理节点信息
-        nodes = validated_data.pop("node_id_list", [])
-        groups = validated_data.pop("group_id_list", [])
+        node_ids = validated_data.pop("node_id_list", [])
+        group_ids = validated_data.pop("group_id_list", [])
 
         # 检查权限
         # 获取节点详情，区分公共节点和业务节点
-        node_objects = UptimeCheckNode.objects.filter(id__in=nodes)
+        bk_tenant_id = get_request_tenant_id()
+        bk_biz_id = validated_data["bk_biz_id"]
+        # 获取操作人
+        request = self.context.get("request")
+        operator = request.user.username if request else ""
+
+        node_objects = uptime_check_operation.list_uptime_check_nodes(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, node_ids=node_ids, include_common=True
+        )
         common_nodes = [node for node in node_objects if node.is_common]
 
         # 如果存在公共节点，检查用户是否有权限使用
         if common_nodes and settings.ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH:
             Permission().is_allowed(ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
 
-        with transaction.atomic():
-            if UptimeCheckTask.objects.filter(
-                name=validated_data["name"], bk_biz_id=validated_data["bk_biz_id"]
-            ).first():
-                raise CustomException(_("已存在相同名称的拨测任务"))
-            task = UptimeCheckTask.objects.create(**validated_data)
-            for node in nodes:
-                if node:
-                    task.nodes.add(node)
-            for group in groups:
-                group = UptimeCheckGroup.objects.get(id=group)
-                group.tasks.add(task.id)
-                group.save()
+        # 检查任务名称是否重复
+        existing_tasks = uptime_check_operation.list_uptime_check_tasks(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, name=validated_data["name"]
+        )
+        # 精确匹配名称
+        if any(task["name"] == validated_data["name"] for task in existing_tasks):
+            raise CustomException(_("已存在相同名称的拨测任务"))
 
+        # 构建 UptimeCheckTaskDefine 进行创建
+        task_define = UptimeCheckTaskDefine(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            name=validated_data["name"],
+            protocol=UptimeCheckTaskProtocol(validated_data["protocol"]),
+            config=validated_data["config"],
+            labels=validated_data.get("labels", {}),
+            check_interval=validated_data["config"].get("period", 5),
+            location=validated_data.get("location", {}),
+            node_ids=node_ids,
+            group_ids=group_ids,
             # 多租户模式下，独立数据源模式
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                task.indepentent_dataid = True
-            task.save()
+            independent_dataid=settings.ENABLE_MULTI_TENANT_MODE,
+        )
 
-        return task
+        task_id = uptime_check_operation.create_or_update_uptime_check_task(task_define, operator)
+        return uptime_check_operation.get_uptime_check_task(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id
+        )
 
     def update(self, instance, validated_data):
-        nodes = validated_data.pop("node_id_list", [])
-        groups = validated_data.pop("group_id_list", [])
+        """更新拨测任务（使用 operation 层）"""
+        node_ids = validated_data.pop("node_id_list", [])
+        group_ids = validated_data.pop("group_id_list", [])
 
-        for attr, value in list(validated_data.items()):
-            setattr(instance, attr, value)
-        with transaction.atomic():
-            instance.nodes.clear()
-            for node in nodes:
-                instance.nodes.add(node)
+        # 获取租户、业务和操作人信息
+        bk_tenant_id = get_request_tenant_id()
+        bk_biz_id = validated_data["bk_biz_id"]
+        request = self.context.get("request")
+        operator = request.user.username if request else ""
 
-            instance.groups.clear()
-            for group in groups:
-                group = UptimeCheckGroup.objects.get(id=group)
-                # 编辑任务时，若分组下已关联此任务，则不需要重复添加任务id
-                task_id_list = [task.id for task in group.tasks.all()]
-                if instance.id not in task_id_list:
-                    group.tasks.add(instance.id)
-                    group.save()
+        # 检查任务名称是否重复（排除自己）
+        existing_tasks = uptime_check_operation.list_uptime_check_tasks(
+            bk_tenant_id, bk_biz_id, name=validated_data["name"]
+        )
+        # 精确匹配名称，排除自己
+        if any(task["name"] == validated_data["name"] and task["id"] != instance.id for task in existing_tasks):
+            raise CustomException(_("已存在相同名称的拨测任务"))
 
-            task_ids = [
-                task.id
-                for task in UptimeCheckTask.objects.filter(
-                    name=validated_data["name"], bk_biz_id=validated_data["bk_biz_id"]
-                )
-            ]
+        # 构建 UptimeCheckTaskDefine 进行更新
+        task_define = UptimeCheckTaskDefine(
+            bk_tenant_id=bk_tenant_id,
+            id=instance.id,
+            bk_biz_id=bk_biz_id,
+            name=validated_data["name"],
+            protocol=UptimeCheckTaskProtocol(validated_data["protocol"]),
+            config=validated_data["config"],
+            labels=validated_data.get("labels", instance.labels or {}),
+            check_interval=validated_data["config"].get("period", instance.check_interval),
+            location=validated_data.get("location", instance.location or {}),
+            node_ids=node_ids,
+            group_ids=group_ids,
+            status=UptimeCheckTaskStatus(instance.status),
+            independent_dataid=instance.indepentent_dataid,
+        )
 
-            if task_ids and instance.id not in task_ids:
-                raise CustomException(_("已存在相同名称的拨测任务"))
-
-            instance.save()
-
-            # monitors = instance.monitors
-            # for monitor in monitors:
-            #     target_name = re.split(r'[_"]', monitor.title)
-            #     monitor.title = instance.name
-            #     if len(target_name) >= 2:
-            #         monitor.title += '_' + target_name[-1]
-            #     monitor.save()
-
-            # TODO: 接入新的策略
-            # # 重新保存策略以同
-            # alarm_strategies = resource.config.list_alarm_strategy({
-            #     "task_id": instance.id,
-            #     "bk_biz_id": instance.bk_biz_id
-            # })
-            # for alarm_strategy in alarm_strategies:
-            #     alarm_strategy["task_id"] = instance.id
-            #     resource.config.save_alarm_strategy(alarm_strategy)
-
-        return instance
+        task_id = uptime_check_operation.create_or_update_uptime_check_task(task_define, operator)
+        return uptime_check_operation.get_uptime_check_task(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id
+        )
 
     class Meta:
-        model = UptimeCheckTask
+        model = UptimeCheckTaskModel
         fields = "__all__"
 
 
@@ -433,39 +501,65 @@ class UptimeCheckGroupSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        tasks = validated_data.pop("task_id_list")
-        if UptimeCheckGroup.objects.filter(name=validated_data["name"], bk_biz_id=validated_data["bk_biz_id"]).exists():
+        """创建拨测分组（使用 operation 层）"""
+        task_ids = validated_data.pop("task_id_list")
+        bk_tenant_id = get_request_tenant_id()
+        bk_biz_id = validated_data["bk_biz_id"]
+        request = self.context.get("request")
+        operator = request.user.username if request else ""
+
+        # 检查分组名称是否重复
+        existing_groups = uptime_check_operation.list_uptime_check_groups(
+            bk_tenant_id, bk_biz_id, name=validated_data["name"]
+        )
+        if any(group.name == validated_data["name"] for group in existing_groups):
             raise serializers.ValidationError(_("分组 %s 已存在！") % validated_data["name"])
 
-        with transaction.atomic():
-            group = UptimeCheckGroup.objects.create(**validated_data)
-            for task in tasks:
-                group.tasks.add(task)
-            group.save()
+        # 构建 UptimeCheckGroupDefine 进行创建
+        group_define = UptimeCheckGroupDefine(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            name=validated_data["name"],
+            logo=validated_data.get("logo", ""),
+            task_ids=task_ids,
+        )
 
-        return group
+        group_id = uptime_check_operation.create_or_update_uptime_check_group(group_define, operator)
+        return uptime_check_operation.get_uptime_check_group(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id
+        )
 
     def update(self, instance, validated_data):
-        if (
-            UptimeCheckGroup.objects.filter(name=validated_data["name"], bk_biz_id=validated_data["bk_biz_id"])
-            .exclude(id=instance.id)
-            .exists()
-        ):
+        """更新拨测分组（使用 operation 层）"""
+        bk_tenant_id = get_request_tenant_id()
+        bk_biz_id = validated_data["bk_biz_id"]
+        request = self.context.get("request")
+        operator = request.user.username if request else ""
+
+        # 检查分组名称是否重复（排除自己）
+        existing_groups = uptime_check_operation.list_uptime_check_groups(
+            bk_tenant_id, bk_biz_id, name=validated_data["name"]
+        )
+        if any(group.name == validated_data["name"] and group.id != instance.id for group in existing_groups):
             raise serializers.ValidationError(_("分组 %s 已存在！") % validated_data["name"])
 
-        for attr, value in list(validated_data.items()):
-            setattr(instance, attr, value)
+        task_ids = validated_data.pop("task_id_list", None)
 
-        tasks = validated_data.pop("task_id_list", None)
-        with transaction.atomic():
-            if tasks is not None:
-                instance.tasks.clear()
-                for task in tasks:
-                    instance.tasks.add(task)
-            instance.save()
+        # 构建 UptimeCheckGroupDefine 进行更新
+        group_define = UptimeCheckGroupDefine(
+            bk_tenant_id=bk_tenant_id,
+            id=instance.id,
+            bk_biz_id=bk_biz_id,
+            name=validated_data["name"],
+            logo=validated_data.get("logo", instance.logo or ""),
+            task_ids=task_ids if task_ids is not None else [task.id for task in instance.tasks.all()],
+        )
 
-        return instance
+        group_id = uptime_check_operation.create_or_update_uptime_check_group(group_define, operator)
+        return uptime_check_operation.get_uptime_check_group(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id
+        )
 
     class Meta:
-        model = UptimeCheckGroup
+        model = UptimeCheckGroupModel
         fields = "__all__"

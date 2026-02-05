@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
-from typing import List
-
 from django.utils.translation import gettext as _
 
+from bk_monitor_base.domains.uptime_check import operation as uptime_check_operation
+from bk_monitor_base.domains.uptime_check.models import UptimeCheckTaskModel
 from bkmonitor.iam import ActionEnum
 from bkmonitor.utils.request import get_request_tenant_id
-from monitor_web.models.uptime_check import UptimeCheckNode, UptimeCheckTask
 from monitor_web.search.handlers.base import (
     BaseSearchHandler,
     SearchResultItem,
@@ -16,14 +14,13 @@ from monitor_web.search.handlers.base import (
 class UptimecheckSearchHandler(BaseSearchHandler):
     SCENE = "uptimecheck"
 
-    def search_node(self, query: str, limit: int = 10) -> List[SearchResultItem]:
+    def search_node(self, query: str, limit: int = 10) -> list[SearchResultItem]:
         bk_tenant_id = get_request_tenant_id()
-        nodes = UptimeCheckNode.objects.filter(name__icontains=query, bk_tenant_id=bk_tenant_id).values(
-            "id", "bk_biz_id", "name"
+        nodes = uptime_check_operation.search_nodes_by_name(
+            bk_tenant_id=bk_tenant_id,
+            query=query,
+            bk_biz_id=self.bk_biz_id if self.scope == SearchScope.BIZ else None,
         )
-
-        if self.scope == SearchScope.BIZ:
-            nodes = nodes.filter(bk_biz_id=self.bk_biz_id)
 
         search_results = []
 
@@ -50,8 +47,10 @@ class UptimecheckSearchHandler(BaseSearchHandler):
         )
         return search_results
 
-    def search_task(self, query: str, limit: int = 10) -> List[SearchResultItem]:
-        tasks = UptimeCheckTask.objects.filter(name__icontains=query).values("id", "bk_biz_id", "name")
+    def search_task(self, query: str, limit: int = 10) -> list[SearchResultItem]:
+        tasks = UptimeCheckTaskModel.objects.filter(name__icontains=query, is_deleted=False).values(
+            "id", "bk_biz_id", "name"
+        )
 
         if self.scope == SearchScope.BIZ:
             tasks = tasks.filter(bk_biz_id=self.bk_biz_id)
@@ -81,7 +80,7 @@ class UptimecheckSearchHandler(BaseSearchHandler):
         )
         return search_results
 
-    def search(self, query: str, limit: int = 10) -> List[SearchResultItem]:
+    def search(self, query: str, limit: int = 10) -> list[SearchResultItem]:
         search_results = self.search_task(query, limit) + self.search_node(query, limit)
         self.add_permission_for_results(results=search_results, action=ActionEnum.VIEW_SYNTHETIC)
         return search_results
