@@ -5,10 +5,75 @@
 
 from __future__ import annotations
 
-from data_migration.config import BIZ_TENANT_ID_MAPPING, DEFAULT_TARGET_TENANT_ID, EXCLUDED_BIZ_IDS
+import json
+from pathlib import Path
+from typing import Any
 
-from ...utils.types import RowDict
+from data_migration.config import BIZ_TENANT_ID_MAPPING, DEFAULT_TARGET_TENANT_ID
+from data_migration.utils.types import RowDict
+
 from .biz_filter import get_row_biz_id
+
+_ENABLE_FIELD_RECORDS: list[dict[str, Any]] = []
+_ENABLE_FIELD_RECORD_PATH: Path | None = None
+_ENABLE_FIELD_HANDLED_AT: str | None = None
+_ENABLE_FIELD_RECORDING_ENABLED = False
+
+
+def configure_enable_field_recording(output_dir: Path | None, handled_at: str | None, enabled: bool) -> None:
+    """配置 enable 字段记录开关。
+
+    Args:
+        output_dir: handle 输出目录
+        handled_at: 处理时间（ISO8601）
+        enabled: 是否启用记录
+    """
+    global _ENABLE_FIELD_RECORDS, _ENABLE_FIELD_RECORD_PATH, _ENABLE_FIELD_HANDLED_AT, _ENABLE_FIELD_RECORDING_ENABLED
+
+    _ENABLE_FIELD_RECORDS = []
+    _ENABLE_FIELD_RECORD_PATH = None
+    _ENABLE_FIELD_HANDLED_AT = handled_at
+    _ENABLE_FIELD_RECORDING_ENABLED = False
+
+    if not enabled or output_dir is None:
+        return
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    _ENABLE_FIELD_RECORD_PATH = output_dir / "disable_enable_fields_enabled_rows.json"
+    _ENABLE_FIELD_RECORDING_ENABLED = True
+
+
+def flush_enable_field_records() -> None:
+    """写出 enable 字段记录到 JSON 文件。"""
+    if not _ENABLE_FIELD_RECORDING_ENABLED or _ENABLE_FIELD_RECORD_PATH is None:
+        return
+
+    payload = {
+        "handled_at": _ENABLE_FIELD_HANDLED_AT,
+        "total": len(_ENABLE_FIELD_RECORDS),
+        "items": _ENABLE_FIELD_RECORDS,
+    }
+    _ENABLE_FIELD_RECORD_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _record_enable_field_row(model_label: str, row: RowDict, enabled_fields: dict[str, Any]) -> None:
+    """记录原本启用的行数据。
+
+    Args:
+        model_label: 模型标签
+        row: 原始行数据
+        enabled_fields: 原本启用的字段映射
+    """
+    if not _ENABLE_FIELD_RECORDING_ENABLED:
+        return
+    _ENABLE_FIELD_RECORDS.append(
+        {
+            "model_label": model_label,
+            "enabled_fields": enabled_fields,
+            "row": dict(row),
+        }
+    )
+
 
 # 内置数据源列表
 # BUILTIN_DATASOURCES: dict[int, str] = {
@@ -142,61 +207,64 @@ def disable_enable_fields(rows: list[RowDict], model_label: str) -> list[RowDict
     enable_fields = ["enable", "is_enable", "is_enabled"]
 
     for row in rows:
+        original_row = dict(row)
+        enabled_fields: dict[str, Any] = {}
         for field in enable_fields:
             if field not in row:
                 continue
             if row[field]:
+                enabled_fields[field] = row[field]
                 row[field] = False
+        if enabled_fields:
+            _record_enable_field_row(model_label, original_row, enabled_fields)
     return rows
 
 
-def replace_bk_tenant_id(rows: list[RowDict], model_label: str) -> list[RowDict]:
-    """替换租户ID，并根据业务ID过滤数据。
+def _resolve_tenant_id(biz_id: int | None) -> str:
+    """根据业务ID解析租户ID。
 
-    处理逻辑：
-    1. 跳过 metadata 表（由 filter_metadata_by_biz 专门处理）
-    2. 排除指定业务（EXCLUDED_BIZ_IDS）的数据
-    3. 根据业务ID映射（BIZ_TENANT_ID_MAPPING）决定租户ID
-    4. 默认使用 DEFAULT_TARGET_TENANT_ID
+    Args:
+        biz_id: 业务ID
+
+    Returns:
+        目标租户ID
+    """
+    if biz_id is None:
+        return DEFAULT_TARGET_TENANT_ID
+    return BIZ_TENANT_ID_MAPPING.get(biz_id, DEFAULT_TARGET_TENANT_ID)
+
+
+def replace_bk_tenant_id(rows: list[RowDict], model_label: str) -> list[RowDict]:
+    """替换租户ID。
 
     Args:
         rows: 原始数据行列表
         model_label: 模型标签（app_label.ModelName）
 
     Returns:
-        处理后的数据行列表（已过滤排除业务的数据）
-
-    Note:
-        metadata 表的 bk_biz_id 字段可能不正确，需要通过关联链路推导业务归属，
-        因此由 filter_metadata_by_biz 函数专门处理。
+        处理后的数据行列表
     """
-    # 跳过 metadata 表，由专门的 filter_metadata_by_biz 处理
-    if model_label.startswith("metadata."):
-        return rows
-
-    result: list[RowDict] = []
-
     for row in rows:
-        # 检测业务ID（传入 model_label 以支持关联推导）
-        biz_id = get_row_biz_id(row, model_label)
-
-        # 排除指定业务的数据
-        if biz_id in EXCLUDED_BIZ_IDS:
-            continue
-
-        # 如果没有 bk_tenant_id 字段，仅做过滤，直接保留
         if "bk_tenant_id" not in row:
-            result.append(row)
             continue
+        biz_id = get_row_biz_id(row, model_label)
+        row["bk_tenant_id"] = _resolve_tenant_id(biz_id)
+    return rows
 
-        # 如果业务ID为空，则使用默认租户ID
-        if biz_id is None:
-            row["bk_tenant_id"] = DEFAULT_TARGET_TENANT_ID
-            result.append(row)
+
+def replace_bk_tenant_id_for_biz(rows: list[RowDict], biz_id: int | None) -> list[RowDict]:
+    """按业务替换租户ID。
+
+    Args:
+        rows: 原始数据行列表
+        biz_id: 业务ID
+
+    Returns:
+        原始数据行列表
+    """
+    target_tenant_id = _resolve_tenant_id(biz_id)
+    for row in rows:
+        if "bk_tenant_id" not in row:
             continue
-
-        # 确定租户ID
-        row["bk_tenant_id"] = BIZ_TENANT_ID_MAPPING.get(biz_id, DEFAULT_TARGET_TENANT_ID)
-        result.append(row)
-
-    return result
+        row["bk_tenant_id"] = target_tenant_id
+    return rows

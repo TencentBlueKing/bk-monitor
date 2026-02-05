@@ -152,6 +152,8 @@ def _bulk_upsert(
 def _resolve_unique_keys(model: type[Model]) -> list[str]:
     """从模型定义解析唯一键"""
     if model._meta.unique_together:
+        if isinstance(model._meta.unique_together[0], str):
+            return list(model._meta.unique_together)
         return list(model._meta.unique_together[0])
     constraints = [
         constraint

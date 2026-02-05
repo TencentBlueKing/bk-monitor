@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -31,19 +30,6 @@ METADATA_GLOBAL_TABLES: set[str] = {
 
 # 有直接 bk_biz_id 字段的表
 METADATA_TABLES_WITH_BIZ_ID: set[str] = {
-    "metadata.ResultTable",
-    "metadata.TimeSeriesGroup",
-    "metadata.EventGroup",
-    "metadata.LogGroup",
-    "metadata.BCSClusterInfo",
-    # DataLink 配置表
-    "metadata.ResultTableConfig",
-    "metadata.DataBusConfig",
-    "metadata.DataIdConfig",
-    "metadata.VMStorageBindingConfig",
-    "metadata.ESStorageBindingConfig",
-    "metadata.DorisStorageBindingConfig",
-    "metadata.ConditionalSinkConfig",
     # 其他
     "metadata.CustomReportSubscription",
     "metadata.CustomReportSubscriptionConfig",
@@ -53,6 +39,10 @@ METADATA_TABLES_WITH_BIZ_ID: set[str] = {
 # 按 table_id 关联的表（字段名 -> 表集合）
 METADATA_TABLES_BY_TABLE_ID: dict[str, set[str]] = {
     "table_id": {
+        "metadata.ResultTable",
+        "metadata.TimeSeriesGroup",
+        "metadata.EventGroup",
+        "metadata.LogGroup",
         "metadata.ResultTableOption",
         "metadata.ResultTableField",
         "metadata.ResultTableFieldOption",
@@ -102,6 +92,7 @@ METADATA_SPACE_UID_TABLES: set[str] = {
 # BCS 相关表（字段名 -> 表集合）
 METADATA_BCS_TABLES: dict[str, set[str]] = {
     "cluster_id": {
+        "metadata.BCSClusterInfo",
         "metadata.ServiceMonitorInfo",
         "metadata.PodMonitorInfo",
         "metadata.LogCollectorInfo",
@@ -116,8 +107,14 @@ METADATA_BCS_FEDERAL_TABLES: set[str] = {
 # DataLink 相关表（通过 data_link_name 关联）
 METADATA_DATALINK_TABLES: set[str] = {
     "metadata.DataLink",
-    # 注意：DataIdConfig, DataBusConfig 等已在 METADATA_TABLES_WITH_BIZ_ID 中
-    # 这里只列出仅通过 data_link_name 关联的表
+    # 注意：DataLink 相关配置表的 bk_biz_id 可能不准确，统一通过 data_link_name 关联
+    "metadata.ResultTableConfig",
+    "metadata.DataBusConfig",
+    "metadata.DataIdConfig",
+    "metadata.VMStorageBindingConfig",
+    "metadata.ESStorageBindingConfig",
+    "metadata.DorisStorageBindingConfig",
+    "metadata.ConditionalSinkConfig",
 }
 
 # 二级关联表
@@ -312,90 +309,6 @@ def _exclude_by_any_field(
 # =====================================================================
 
 
-def _get_row_biz_id_for_metadata(
-    row: RowDict,
-    model_label: str,
-    table_id_to_biz: dict[str, int],
-    data_id_to_biz: dict[int, int],
-    space_key_to_biz: dict[tuple[str, str], int],
-    cluster_id_to_biz: dict[str, int],
-    data_link_name_to_biz: dict[str, int],
-) -> int | None:
-    """获取 metadata 行的业务ID。
-
-    根据表类型和关联缓存，推导行数据的业务归属。
-
-    Args:
-        row: 数据行
-        model_label: 模型标签（app_label.ModelName）
-        table_id_to_biz: table_id -> bk_biz_id 映射
-        data_id_to_biz: bk_data_id -> bk_biz_id 映射
-        space_key_to_biz: (space_type_id, space_id) -> bk_biz_id 映射
-        cluster_id_to_biz: cluster_id -> bk_biz_id 映射
-        data_link_name_to_biz: data_link_name -> bk_biz_id 映射
-
-    Returns:
-        业务ID，如果无法确定则返回 None
-    """
-    # 1. 优先从直接字段获取
-    if model_label in METADATA_TABLES_WITH_BIZ_ID:
-        biz_id = _normalize_int(row.get("bk_biz_id"))
-        if biz_id is not None:
-            return biz_id
-
-    # 2. 按 table_id 关联
-    for field_name, tables in METADATA_TABLES_BY_TABLE_ID.items():
-        if model_label in tables:
-            table_id = _normalize_str(row.get(field_name))
-            if table_id and table_id in table_id_to_biz:
-                return table_id_to_biz[table_id]
-
-    # 3. 按 bk_data_id 关联
-    if model_label in METADATA_TABLES_BY_DATA_ID:
-        data_id = _normalize_int(row.get("bk_data_id"))
-        if data_id is not None and data_id in data_id_to_biz:
-            return data_id_to_biz[data_id]
-
-    # 4. Space 相关表
-    for field_names, tables in METADATA_SPACE_TABLES.items():
-        if model_label in tables:
-            key = _build_composite_key(row, field_names, _normalize_str)
-            if key and key in space_key_to_biz:
-                return space_key_to_biz[key]
-
-    # 5. BkAppSpaceRecord 通过 space_uid
-    if model_label in METADATA_SPACE_UID_TABLES:
-        space_uid = _normalize_str(row.get("space_uid"))
-        if space_uid and "__" in space_uid:
-            parts = space_uid.split("__", 1)
-            if len(parts) == 2:
-                key = (parts[0], parts[1])
-                if key in space_key_to_biz:
-                    return space_key_to_biz[key]
-
-    # 6. BCS 相关表
-    for field_name, tables in METADATA_BCS_TABLES.items():
-        if model_label in tables:
-            cluster_id = _normalize_str(row.get(field_name))
-            if cluster_id and cluster_id in cluster_id_to_biz:
-                return cluster_id_to_biz[cluster_id]
-
-    # 7. BcsFederalClusterInfo 通过多个 cluster_id 字段
-    if model_label in METADATA_BCS_FEDERAL_TABLES:
-        for field_name in ("host_cluster_id", "sub_cluster_id", "fed_cluster_id"):
-            cluster_id = _normalize_str(row.get(field_name))
-            if cluster_id and cluster_id in cluster_id_to_biz:
-                return cluster_id_to_biz[cluster_id]
-
-    # 8. DataLink 相关表
-    if model_label in METADATA_DATALINK_TABLES:
-        data_link_name = _normalize_str(row.get("data_link_name"))
-        if data_link_name and data_link_name in data_link_name_to_biz:
-            return data_link_name_to_biz[data_link_name]
-
-    return None
-
-
 def _replace_tenant_id_in_row(
     row: RowDict,
     biz_id: int | None,
@@ -550,43 +463,45 @@ def get_table_ids_by_biz(biz_ids: set[int], rows_by_model: dict[str, list[RowDic
     )
     table_ids.update(_extract_field_values(log_groups, "table_id", _normalize_str))
 
-    # 插件采集场景：根据 time_series_group_name 推导业务
-    plugin_types = ("script", "pushgateway", "jmx", "exporter", "snmp", "datadog")
-    uptimecheck_pattern = re.compile(r"^uptimecheck_(http|tcp|icmp|udp)_(\d+)$")
-    plugin_pattern = re.compile(rf"^({'|'.join(plugin_types)})_(\d+)_\d+$")
-    for row in rows_by_model.get("metadata.TimeSeriesGroup", []):
-        group_name = row.get("time_series_group_name")
-        if not group_name:
+    plugin_biz_map: dict[tuple[str, str], int] = {}
+    for row in rows_by_model.get("monitor_web.CollectorPluginMeta", []):
+        tenant_id = _normalize_str(row.get("bk_tenant_id"))
+        plugin_id = _normalize_str(row.get("plugin_id"))
+        biz_id = _normalize_int(row.get("bk_biz_id"))
+        if not tenant_id or not plugin_id or biz_id is None:
             continue
-        if group_name in {"process_perf", "process_port"}:
-            group_biz_id = _normalize_int(row.get("bk_biz_id"))
-            if group_biz_id in biz_ids_for_filter:
-                table_id = _normalize_str(row.get("table_id"))
-                if table_id:
-                    table_ids.add(table_id)
-            continue
+        plugin_biz_map[(tenant_id, plugin_id.lower())] = biz_id
 
-        uptimecheck_match = uptimecheck_pattern.match(str(group_name))
-        if uptimecheck_match:
-            match_biz_id = _normalize_int(uptimecheck_match.group(2))
-            if match_biz_id in biz_ids_for_filter:
-                table_id = _normalize_str(row.get("table_id"))
-                if table_id:
-                    table_ids.add(table_id)
-            continue
-
-        plugin_match = plugin_pattern.match(str(group_name))
-        if plugin_match:
-            match_biz_id = _normalize_int(plugin_match.group(2))
-            if match_biz_id in biz_ids_for_filter:
-                table_id = _normalize_str(row.get("table_id"))
-                if table_id:
-                    table_ids.add(table_id)
-
-    # 插件采集：腾讯云插件
+    # 插件采集
     for row in rows_by_model.get("metadata.ResultTable", []):
         table_id = _normalize_str(row.get("table_id"))
-        if not table_id or "k8s_qcloud_exporter_" not in table_id:
+        row_biz_id: int | None = None
+        if not table_id:
+            continue
+        if "k8s_qcloud_exporter_" in table_id:
+            db_name, _ = table_id.split(".", 1)
+            row_biz_id = _normalize_int(db_name.rsplit("_", 1)[1])
+        elif (
+            table_id.startswith("exporter_")
+            or table_id.startswith("script_")
+            or table_id.startswith("pushgateway_")
+            or table_id.startswith("jmx_")
+            or table_id.startswith("snmp_")
+            or table_id.startswith("datadog_")
+        ):
+            db_name, _ = table_id.split(".", 1)
+            _plugin_type, plugin_id = db_name.split("_", 1)
+            tenant_id = _normalize_str(row.get("bk_tenant_id"))
+            if tenant_id:
+                row_biz_id = plugin_biz_map.get((tenant_id, plugin_id))
+
+        if row_biz_id in biz_ids_for_filter:
+            table_ids.add(table_id)
+
+    # 日志采集：bklog_index_set_ 前缀结果表直接按 bk_biz_id 判定
+    for row in rows_by_model.get("metadata.ResultTable", []):
+        table_id = _normalize_str(row.get("table_id"))
+        if not table_id or not table_id.startswith("bklog_index_set_"):
             continue
         row_biz_id = _normalize_int(row.get("bk_biz_id"))
         if row_biz_id in biz_ids_for_filter:
@@ -1180,7 +1095,6 @@ def _should_keep_row(biz_id: int | None, target_biz_ids: set[int], mode: FilterM
 def _collect_retained_group_ids(
     rows_by_model: dict[str, list[RowDict]],
     target_biz_ids: set[int],
-    mode: FilterMode,
 ) -> dict[str, set[int]]:
     """收集保留的父表 group_id（用于二级关联表过滤）。
 
@@ -1190,20 +1104,25 @@ def _collect_retained_group_ids(
     Args:
         rows_by_model: 预加载的模型数据
         target_biz_ids: 目标业务ID集合
-        mode: 过滤模式
-
     Returns:
         父表ID字段名 -> 保留的ID集合的映射
         例如: {"time_series_group_id": {1, 2, 3}, "event_group_id": {4, 5, 6}}
     """
+    normalized_biz_ids = {bid for bid in (_normalize_int(b) for b in target_biz_ids) if bid is not None}
+    biz_to_table_ids = {biz_id: get_table_ids_by_biz({biz_id}, rows_by_model) for biz_id in normalized_biz_ids}
+    target_table_ids: set[str] = set().union(*biz_to_table_ids.values()) if biz_to_table_ids else set()
+
+    def _should_keep_by_table_id(table_id: str | None) -> bool:
+        return bool(table_id) and table_id in target_table_ids
+
     result: dict[str, set[int]] = {}
 
     # TimeSeriesGroup -> time_series_group_id
     ts_group_rows = rows_by_model.get("metadata.TimeSeriesGroup", [])
     retained_ts_group_ids: set[int] = set()
     for row in ts_group_rows:
-        biz_id = _normalize_int(row.get("bk_biz_id"))
-        if _should_keep_row(biz_id, target_biz_ids, mode):
+        table_id = _normalize_str(row.get("table_id"))
+        if _should_keep_by_table_id(table_id):
             group_id = _normalize_int(row.get("time_series_group_id"))
             if group_id is not None:
                 retained_ts_group_ids.add(group_id)
@@ -1213,8 +1132,8 @@ def _collect_retained_group_ids(
     event_group_rows = rows_by_model.get("metadata.EventGroup", [])
     retained_event_group_ids: set[int] = set()
     for row in event_group_rows:
-        biz_id = _normalize_int(row.get("bk_biz_id"))
-        if _should_keep_row(biz_id, target_biz_ids, mode):
+        table_id = _normalize_str(row.get("table_id"))
+        if _should_keep_by_table_id(table_id):
             group_id = _normalize_int(row.get("event_group_id"))
             if group_id is not None:
                 retained_event_group_ids.add(group_id)
@@ -1226,66 +1145,174 @@ def _collect_retained_group_ids(
 def _filter_metadata_rows_by_biz(
     rows_by_model: dict[str, list[RowDict]],
     biz_ids: set[int],
-    mode: FilterMode = "include",
+    mode: FilterMode,
     biz_tenant_mapping: dict[int, str] | None = None,
     default_tenant_id: str = "system",
+    relation_rows_by_model: dict[str, list[RowDict]] | None = None,
 ) -> dict[str, list[RowDict]]:
-    """按业务过滤 metadata 数据的核心逻辑。
+    """按业务过滤 metadata 数据并替换租户ID
 
-    统一的过滤函数，支持正向过滤（只保留指定业务）和反向过滤（排除指定业务）。
+    exclude模式:
+    1. 全局表直接保留，不做业务过滤
+    2. 按 biz_ids 排除指定业务的数据
+    3. 按 biz_tenant_mapping 替换租户ID
+    4. 默认使用 default_tenant_id
 
-    Args:
-        rows_by_model: 预加载的模型数据（仅处理 metadata.* 表）
-        biz_ids: 业务ID集合
-        mode: 过滤模式
-            - "include": 只保留指定业务的数据（正向过滤）
-            - "exclude": 排除指定业务的数据（反向过滤）
-        biz_tenant_mapping: 业务ID到租户ID的映射
-        default_tenant_id: 默认租户ID
+    include模式:
+    1. 全局表全部剔除
+    2. 按 biz_ids 保留指定业务的数据
+    3. 按 biz_tenant_mapping 替换租户ID
+    4. 默认使用 default_tenant_id
 
-    Returns:
-        过滤并处理后的模型数据
+    先生成业务ID与table_ids的映射，然后通过table_id确定数据的业务归属。
+
     """
     if biz_tenant_mapping is None:
         biz_tenant_mapping = {}
 
+    relation_rows = relation_rows_by_model or rows_by_model
+
     normalized_biz_ids = {bid for bid in (_normalize_int(b) for b in biz_ids) if bid is not None}
+    sorted_biz_ids = sorted(normalized_biz_ids)
 
-    # 构建关联缓存
-    (
-        table_id_to_biz,
-        data_id_to_biz,
-        space_key_to_biz,
-        cluster_id_to_biz,
-        data_link_name_to_biz,
-    ) = _build_metadata_relation_caches(rows_by_model)
+    # 生成业务与 table_id 的映射（复用 get_table_ids_by_biz 的业务归属逻辑）
+    biz_to_table_ids: dict[int, set[str]] = {
+        biz_id: get_table_ids_by_biz({biz_id}, relation_rows) for biz_id in sorted_biz_ids
+    }
+    target_table_ids: set[str] = set().union(*biz_to_table_ids.values()) if biz_to_table_ids else set()
 
-    # 预先收集保留的父表 group_id（用于二级关联表过滤）
-    retained_group_ids: dict[str, set[int]] = _collect_retained_group_ids(rows_by_model, normalized_biz_ids, mode)
+    # table_id -> biz_id 映射（用于租户替换）
+    table_id_to_biz: dict[str, int] = {}
+    for biz_id in sorted_biz_ids:
+        for table_id in biz_to_table_ids.get(biz_id, set()):
+            table_id_to_biz.setdefault(table_id, biz_id)
+
+    # table_id -> biz_id（全量 ResultTable，用于补充租户替换）
+    table_id_to_biz_all: dict[str, int] = {}
+    for row in relation_rows.get("metadata.ResultTable", []):
+        biz_id = _normalize_int(row.get("bk_biz_id"))
+        table_id = _normalize_str(row.get("table_id"))
+        if biz_id is not None and table_id:
+            table_id_to_biz_all.setdefault(table_id, biz_id)
+
+    def _should_keep_by_table_id(table_id: str | None) -> bool:
+        if mode == "include":
+            return bool(table_id) and table_id in target_table_ids
+        return table_id is None or table_id not in target_table_ids
+
+    # 基于 table_id 反推 data_id（用于 DataSource 等表）
+    target_data_ids: set[int] = set()
+    for row in relation_rows.get("metadata.DataSourceResultTable", []):
+        table_id = _normalize_str(row.get("table_id"))
+        data_id = _normalize_int(row.get("bk_data_id"))
+        if table_id in target_table_ids and data_id is not None:
+            target_data_ids.add(data_id)
+    for model_label in ("metadata.TimeSeriesGroup", "metadata.EventGroup", "metadata.LogGroup"):
+        for row in relation_rows.get(model_label, []):
+            table_id = _normalize_str(row.get("table_id"))
+            data_id = _normalize_int(row.get("bk_data_id"))
+            if table_id in target_table_ids and data_id is not None:
+                target_data_ids.add(data_id)
+
+    data_id_to_biz_all: dict[int, int] = {}
+    for row in relation_rows.get("metadata.DataSourceResultTable", []):
+        table_id = _normalize_str(row.get("table_id"))
+        data_id = _normalize_int(row.get("bk_data_id"))
+        if data_id is None:
+            continue
+        biz_id = table_id_to_biz_all.get(table_id) if table_id else None
+        if biz_id is not None:
+            data_id_to_biz_all.setdefault(data_id, biz_id)
+
+    # BCS 关联缓存
+    bcs_data_id_fields = (
+        "K8sMetricDataID",
+        "CustomMetricDataID",
+        "K8sEventDataID",
+        "CustomEventDataID",
+        "SystemLogDataID",
+        "CustomLogDataID",
+    )
+    cluster_id_to_biz_all: dict[str, int] = {}
+    target_cluster_ids: set[str] = set()
+    for row in relation_rows.get("metadata.BCSClusterInfo", []):
+        cluster_id = _normalize_str(row.get("cluster_id"))
+        row_data_ids = {
+            _normalize_int(row.get(field_name))
+            for field_name in bcs_data_id_fields
+            if _normalize_int(row.get(field_name)) is not None
+        }
+        if cluster_id and any(data_id in target_data_ids for data_id in row_data_ids):
+            target_cluster_ids.add(cluster_id)
+
+        biz_id = None
+        for data_id in row_data_ids:
+            if data_id in data_id_to_biz_all:
+                biz_id = data_id_to_biz_all[data_id]
+                break
+        if biz_id is not None and cluster_id:
+            cluster_id_to_biz_all.setdefault(cluster_id, biz_id)
+
+    # DataLink 关联缓存
+    data_link_name_to_biz_all: dict[str, int] = {}
+    target_data_link_names: set[str] = set()
+    for row in relation_rows.get("metadata.BkBaseResultTable", []):
+        monitor_table_id = _normalize_str(row.get("monitor_table_id"))
+        data_link_name = _normalize_str(row.get("data_link_name"))
+        if not monitor_table_id or not data_link_name:
+            continue
+        biz_id = table_id_to_biz_all.get(monitor_table_id)
+        if biz_id is not None:
+            data_link_name_to_biz_all.setdefault(data_link_name, biz_id)
+        if monitor_table_id in target_table_ids:
+            target_data_link_names.add(data_link_name)
+
+    # Space 关联缓存（仅支持 bkcc -> biz_id）
+    space_key_to_biz_all: dict[tuple[str, str], int] = {}
+    space_uid_to_biz_all: dict[str, int] = {}
+    for row in relation_rows.get("metadata.Space", []):
+        space_type_id = _normalize_str(row.get("space_type_id"))
+        space_id = _normalize_str(row.get("space_id"))
+        if not space_type_id or not space_id:
+            continue
+        if space_type_id == "bkcc":
+            biz_id = _normalize_int(space_id)
+            if biz_id is not None:
+                space_key = (space_type_id, space_id)
+                space_key_to_biz_all.setdefault(space_key, biz_id)
+                space_uid_to_biz_all.setdefault(f"{space_type_id}__{space_id}", biz_id)
+
+    # 二级关联表需要保留的 group_id
+    retained_group_ids = _collect_retained_group_ids(relation_rows, normalized_biz_ids)
+    group_id_to_biz_all: dict[int, int] = {}
+    for model_label, id_field in (
+        ("metadata.TimeSeriesGroup", "time_series_group_id"),
+        ("metadata.EventGroup", "event_group_id"),
+    ):
+        for row in relation_rows.get(model_label, []):
+            group_id = _normalize_int(row.get(id_field))
+            biz_id = _normalize_int(row.get("bk_biz_id"))
+            if group_id is not None and biz_id is not None:
+                group_id_to_biz_all.setdefault(group_id, biz_id)
 
     result: dict[str, list[RowDict]] = {}
 
     for model_label, rows in rows_by_model.items():
-        # 只处理 metadata 表
         if not model_label.startswith("metadata."):
             result[model_label] = rows
             continue
 
-        # 全局表处理：反向过滤时保留，正向过滤时去掉
         if model_label in METADATA_GLOBAL_TABLES:
             if mode == "exclude":
-                # 反向过滤：保留全局表，替换租户ID
                 for row in rows:
                     _replace_tenant_id_in_row(row, None, biz_tenant_mapping, default_tenant_id)
                 result[model_label] = rows
             else:
-                # 正向过滤：去掉全局表
                 result[model_label] = []
             continue
 
         filtered_rows: list[RowDict] = []
 
-        # 有直接 bk_biz_id 字段的表
         if model_label in METADATA_TABLES_WITH_BIZ_ID:
             for row in rows:
                 biz_id = _normalize_int(row.get("bk_biz_id"))
@@ -1296,7 +1323,6 @@ def _filter_metadata_rows_by_biz(
             result[model_label] = filtered_rows
             continue
 
-        # 按 table_id 关联的表
         table_id_field = None
         for field_name, tables in METADATA_TABLES_BY_TABLE_ID.items():
             if model_label in tables:
@@ -1305,36 +1331,44 @@ def _filter_metadata_rows_by_biz(
         if table_id_field:
             for row in rows:
                 table_id = _normalize_str(row.get(table_id_field))
-                biz_id = table_id_to_biz.get(table_id) if table_id else None
-                if not _should_keep_row(biz_id, normalized_biz_ids, mode):
+                if not _should_keep_by_table_id(table_id):
                     continue
+                biz_id = None
+                if table_id:
+                    biz_id = table_id_to_biz.get(table_id) or table_id_to_biz_all.get(table_id)
                 _replace_tenant_id_in_row(row, biz_id, biz_tenant_mapping, default_tenant_id)
                 filtered_rows.append(row)
             result[model_label] = filtered_rows
             continue
 
-        # 按 bk_data_id 关联的表
         if model_label in METADATA_TABLES_BY_DATA_ID:
             for row in rows:
                 data_id = _normalize_int(row.get("bk_data_id"))
-                biz_id = data_id_to_biz.get(data_id) if data_id is not None else None
-                if not _should_keep_row(biz_id, normalized_biz_ids, mode):
+                if mode == "include":
+                    should_keep = data_id is not None and data_id in target_data_ids
+                else:
+                    should_keep = data_id is None or data_id not in target_data_ids
+                if not should_keep:
                     continue
+                biz_id = data_id_to_biz_all.get(data_id) if data_id is not None else None
                 _replace_tenant_id_in_row(row, biz_id, biz_tenant_mapping, default_tenant_id)
                 filtered_rows.append(row)
             result[model_label] = filtered_rows
             continue
 
-        # Space 相关表
-        space_field_names = None
+        space_fields = None
         for field_names, tables in METADATA_SPACE_TABLES.items():
             if model_label in tables:
-                space_field_names = field_names
+                space_fields = field_names
                 break
-        if space_field_names:
+        if space_fields:
             for row in rows:
-                space_key = _build_composite_key(row, space_field_names, _normalize_str)
-                biz_id = space_key_to_biz.get(space_key) if space_key else None
+                space_type = _normalize_str(row.get(space_fields[0]))
+                space_id = _normalize_str(row.get(space_fields[1]))
+                biz_id = None
+                if space_type and space_id:
+                    space_key = (space_type, space_id)
+                    biz_id = space_key_to_biz_all.get(space_key)
                 if not _should_keep_row(biz_id, normalized_biz_ids, mode):
                     continue
                 _replace_tenant_id_in_row(row, biz_id, biz_tenant_mapping, default_tenant_id)
@@ -1342,16 +1376,10 @@ def _filter_metadata_rows_by_biz(
             result[model_label] = filtered_rows
             continue
 
-        # BkAppSpaceRecord 通过 space_uid
         if model_label in METADATA_SPACE_UID_TABLES:
             for row in rows:
                 space_uid = _normalize_str(row.get("space_uid"))
-                space_key = None
-                if space_uid and "__" in space_uid:
-                    parts = space_uid.split("__", 1)
-                    if len(parts) == 2:
-                        space_key = (parts[0], parts[1])
-                biz_id = space_key_to_biz.get(space_key) if space_key else None
+                biz_id = space_uid_to_biz_all.get(space_uid) if space_uid else None
                 if not _should_keep_row(biz_id, normalized_biz_ids, mode):
                     continue
                 _replace_tenant_id_in_row(row, biz_id, biz_tenant_mapping, default_tenant_id)
@@ -1359,67 +1387,82 @@ def _filter_metadata_rows_by_biz(
             result[model_label] = filtered_rows
             continue
 
-        # BCS 相关表
-        bcs_field_name = None
+        bcs_field = None
         for field_name, tables in METADATA_BCS_TABLES.items():
             if model_label in tables:
-                bcs_field_name = field_name
+                bcs_field = field_name
                 break
-        if bcs_field_name:
+        if bcs_field:
             for row in rows:
-                cluster_id = _normalize_str(row.get(bcs_field_name))
-                biz_id = cluster_id_to_biz.get(cluster_id) if cluster_id else None
-                if not _should_keep_row(biz_id, normalized_biz_ids, mode):
+                cluster_id = _normalize_str(row.get(bcs_field))
+                if mode == "include":
+                    should_keep = cluster_id is not None and cluster_id in target_cluster_ids
+                else:
+                    should_keep = cluster_id is None or cluster_id not in target_cluster_ids
+                if not should_keep:
                     continue
+                biz_id = cluster_id_to_biz_all.get(cluster_id) if cluster_id else None
                 _replace_tenant_id_in_row(row, biz_id, biz_tenant_mapping, default_tenant_id)
                 filtered_rows.append(row)
             result[model_label] = filtered_rows
             continue
 
-        # BcsFederalClusterInfo 通过多个 cluster_id 字段
         if model_label in METADATA_BCS_FEDERAL_TABLES:
             for row in rows:
-                biz_id = None
-                for field_name in ("host_cluster_id", "sub_cluster_id", "fed_cluster_id"):
-                    cluster_id = _normalize_str(row.get(field_name))
-                    if cluster_id and cluster_id in cluster_id_to_biz:
-                        biz_id = cluster_id_to_biz[cluster_id]
-                        break
-                if not _should_keep_row(biz_id, normalized_biz_ids, mode):
+                cluster_ids = (
+                    _normalize_str(row.get("host_cluster_id")),
+                    _normalize_str(row.get("sub_cluster_id")),
+                    _normalize_str(row.get("fed_cluster_id")),
+                )
+                if mode == "include":
+                    should_keep = any(cid in target_cluster_ids for cid in cluster_ids if cid)
+                else:
+                    should_keep = not any(cid in target_cluster_ids for cid in cluster_ids if cid)
+                if not should_keep:
                     continue
+                biz_id = None
+                for cid in cluster_ids:
+                    if cid in cluster_id_to_biz_all:
+                        biz_id = cluster_id_to_biz_all[cid]
+                        break
                 _replace_tenant_id_in_row(row, biz_id, biz_tenant_mapping, default_tenant_id)
                 filtered_rows.append(row)
             result[model_label] = filtered_rows
             continue
 
-        # DataLink 相关表
         if model_label in METADATA_DATALINK_TABLES:
             for row in rows:
                 data_link_name = _normalize_str(row.get("data_link_name"))
-                biz_id = data_link_name_to_biz.get(data_link_name) if data_link_name else None
-                if not _should_keep_row(biz_id, normalized_biz_ids, mode):
+                if mode == "include":
+                    should_keep = data_link_name is not None and data_link_name in target_data_link_names
+                else:
+                    should_keep = data_link_name is None or data_link_name not in target_data_link_names
+                if not should_keep:
                     continue
+                biz_id = data_link_name_to_biz_all.get(data_link_name) if data_link_name else None
                 _replace_tenant_id_in_row(row, biz_id, biz_tenant_mapping, default_tenant_id)
                 filtered_rows.append(row)
             result[model_label] = filtered_rows
             continue
 
-        # 二级关联表（TimeSeriesMetric, Event）
         if model_label in METADATA_SECONDARY_TABLES:
-            # 通过父表的 group_id 来过滤
-            child_field, parent_id_field = METADATA_SECONDARY_TABLES[model_label]
-            parent_group_ids = retained_group_ids.get(parent_id_field, set())
+            relation_field, source_id_field = METADATA_SECONDARY_TABLES[model_label]
+            retained_ids = retained_group_ids.get(source_id_field, set())
             for row in rows:
-                group_id = _normalize_int(row.get(child_field))
-                if group_id is not None and group_id in parent_group_ids:
-                    _replace_tenant_id_in_row(row, None, biz_tenant_mapping, default_tenant_id)
-                    filtered_rows.append(row)
+                source_id = _normalize_int(row.get(relation_field))
+                if mode == "include":
+                    should_keep = source_id is not None and source_id in retained_ids
+                else:
+                    should_keep = source_id is None or source_id not in retained_ids
+                if not should_keep:
+                    continue
+                biz_id = group_id_to_biz_all.get(source_id) if source_id is not None else None
+                _replace_tenant_id_in_row(row, biz_id, biz_tenant_mapping, default_tenant_id)
+                filtered_rows.append(row)
             result[model_label] = filtered_rows
             continue
 
-        # 未知表处理
-        # 反向过滤：保留原样并使用默认租户ID
-        # 正向过滤：去掉
+        # 未分类的 metadata 表：include 模式丢弃，exclude 模式保留
         if mode == "exclude":
             for row in rows:
                 _replace_tenant_id_in_row(row, None, biz_tenant_mapping, default_tenant_id)
@@ -1435,6 +1478,7 @@ def filter_metadata_by_biz(
     excluded_biz_ids: set[int] | None = None,
     biz_tenant_mapping: dict[int, str] | None = None,
     default_tenant_id: str = "system",
+    relation_rows_by_model: dict[str, list[RowDict]] | None = None,
 ) -> dict[str, list[RowDict]]:
     """按业务排除 metadata 数据并替换租户ID（反向过滤）。
 
@@ -1458,6 +1502,7 @@ def filter_metadata_by_biz(
         mode="exclude",
         biz_tenant_mapping=biz_tenant_mapping,
         default_tenant_id=default_tenant_id,
+        relation_rows_by_model=relation_rows_by_model,
     )
 
 
@@ -1466,6 +1511,7 @@ def get_metadata_by_biz(
     biz_ids: set[int],
     biz_tenant_mapping: dict[int, str] | None = None,
     default_tenant_id: str = "system",
+    relation_rows_by_model: dict[str, list[RowDict]] | None = None,
 ) -> dict[str, list[RowDict]]:
     """按业务获取 metadata 数据并替换租户ID（正向过滤）。
 
@@ -1489,4 +1535,34 @@ def get_metadata_by_biz(
         mode="include",
         biz_tenant_mapping=biz_tenant_mapping,
         default_tenant_id=default_tenant_id,
+        relation_rows_by_model=relation_rows_by_model,
+    )
+
+
+def get_global_metadata(
+    rows_by_model: dict[str, list[RowDict]],
+    all_biz_ids: set[int],
+    biz_tenant_mapping: dict[int, str] | None = None,
+    default_tenant_id: str = "system",
+    relation_rows_by_model: dict[str, list[RowDict]] | None = None,
+) -> dict[str, list[RowDict]]:
+    """获取全局 metadata 数据（排除所有业务数据后的剩余数据）。
+
+    Args:
+        rows_by_model: 预加载的模型数据（仅处理 metadata.* 表）。
+        all_biz_ids: 所有业务ID集合。
+        biz_tenant_mapping: 业务ID到租户ID的映射。
+        default_tenant_id: 默认租户ID。
+        relation_rows_by_model: 用于关联推导的模型数据。
+
+    Returns:
+        过滤后的全局 metadata 数据。
+    """
+    return _filter_metadata_rows_by_biz(
+        rows_by_model,
+        biz_ids=all_biz_ids,
+        mode="exclude",
+        biz_tenant_mapping=biz_tenant_mapping,
+        default_tenant_id=default_tenant_id,
+        relation_rows_by_model=relation_rows_by_model,
     )
