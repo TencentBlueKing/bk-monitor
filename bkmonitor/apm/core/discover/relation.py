@@ -270,7 +270,7 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
         instances = self.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         return self.process_duplicate_records(instances, True)
 
-    def discover(self, origin_data, exists_relations: dict[tuple, RelationInstanceData]):
+    def discover(self, origin_data, remain_data: dict[tuple, RelationInstanceData]):
         rules, other_rule = self.get_rules()
         component_rules = [r for r in rules + [other_rule] if r.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT]
 
@@ -283,8 +283,8 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
             from_key = self.get_service_name(span)
             found_keys = self.find_relation_by_single_span(component_rules, from_key, span, span["kind"])
             for found_key in found_keys:
-                if found_key in exists_relations:
-                    need_update_instances.append(exists_relations[found_key])
+                if found_key in remain_data:
+                    need_update_instances.append(remain_data[found_key])
                 else:
                     need_create_relations.add(found_key)
 
@@ -304,8 +304,8 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
                 found_keys |= self.find_normal_relation(rules, other_rule, from_key, relation["to"], kind)
 
             for found_key in found_keys:
-                if found_key in exists_relations:
-                    need_update_instances.append(exists_relations[found_key])
+                if found_key in remain_data:
+                    need_update_instances.append(remain_data[found_key])
                 else:
                     need_create_relations.add(found_key)
 
@@ -324,7 +324,7 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
         TopoRelation.objects.bulk_create(created_instances)
 
         self.handle_cache_refresh_after_create(
-            existing_instances=list(exists_relations.values()),
+            existing_instances=list(remain_data.values()),
             created_db_instances=created_instances,
             updated_instances=need_update_instances,
         )

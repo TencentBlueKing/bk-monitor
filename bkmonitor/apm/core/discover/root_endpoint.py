@@ -73,7 +73,7 @@ class RootEndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         instances = self.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         return self.process_duplicate_records(instances, True)
 
-    def discover(self, origin_data, exists_root_endpoints: dict[tuple, RootEndpointInstanceData]):
+    def discover(self, origin_data, remain_data: dict[tuple, RootEndpointInstanceData]):
         """
         Discover Root Endpoint
         Rule:
@@ -100,8 +100,8 @@ class RootEndpointDiscover(CachedDiscoverMixin, DiscoverBase):
 
             found_key = (endpoint_name, service_name, match_rule.category_id)
 
-            if found_key in exists_root_endpoints:
-                need_update_instances.append(exists_root_endpoints[found_key])
+            if found_key in remain_data:
+                need_update_instances.append(remain_data[found_key])
             else:
                 need_create_instances.add(found_key)
 
@@ -119,7 +119,7 @@ class RootEndpointDiscover(CachedDiscoverMixin, DiscoverBase):
 
         # 使用抽象方法处理缓存刷新
         self.handle_cache_refresh_after_create(
-            existing_instances=list(exists_root_endpoints.values()),
+            existing_instances=list(remain_data.values()),
             created_db_instances=created_instances,
             updated_instances=need_update_instances,
         )

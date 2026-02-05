@@ -68,7 +68,7 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
         instances = self.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         return self.process_duplicate_records(instances, True)
 
-    def discover(self, origin_data, exists_endpoints: dict[tuple, EndpointInstanceData]):
+    def discover(self, origin_data, remain_data: dict[tuple, EndpointInstanceData]):
         """
         Endpoint name according to endpoint_key in discover rule
         """
@@ -116,8 +116,8 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
                 )
 
             for k in found_keys:
-                if k in exists_endpoints:
-                    need_update_instances.append(exists_endpoints[k])
+                if k in remain_data:
+                    need_update_instances.append(remain_data[k])
                 else:
                     need_create_instances.add(k)
 
@@ -138,7 +138,7 @@ class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
 
         # 使用抽象方法处理缓存刷新
         self.handle_cache_refresh_after_create(
-            existing_instances=list(exists_endpoints.values()),
+            existing_instances=list(remain_data.values()),
             created_db_instances=created_instances,
             updated_instances=need_update_instances,
         )
