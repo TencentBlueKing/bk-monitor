@@ -58,6 +58,7 @@ dependencies = [
     "mockredis>=0.1.3.dev0",
     "netifaces==0.11.0",
     "networkx==2.6.3",
+    "mistune<3",    # version-log依赖，需要3版本以下
     "opentelemetry-api==1.11.1",
     "opentelemetry-exporter-otlp==1.11.1",
     "opentelemetry-instrumentation-celery==0.30b1",
