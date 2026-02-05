@@ -756,7 +756,7 @@ class QueryTopoNodeResource(Resource):
         return res
 
 
-class CachedDiscoverQueryResource(Resource):
+class DiscoverQueryResource(Resource):
     many_response_data = True
     model = None
     cache_type = None
@@ -812,7 +812,7 @@ class CachedDiscoverQueryResource(Resource):
         return self.sort_results(result)
 
 
-class QueryTopoRelationResource(CachedDiscoverQueryResource):
+class QueryTopoRelationResource(DiscoverQueryResource):
     model = TopoRelation
     cache_type = ApmCacheType.RELATION
 
@@ -1018,7 +1018,7 @@ class QueryTopoInstanceResource(PageListResource):
         return {"total": total, "data": [obj for obj in res.values(*fields)]}
 
 
-class QueryRootEndpointResource(CachedDiscoverQueryResource):
+class QueryRootEndpointResource(DiscoverQueryResource):
     model = RootEndpoint
     cache_type = ApmCacheType.ROOT_ENDPOINT
 
@@ -1081,7 +1081,7 @@ class QuerySpanResource(Resource):
         return application.trace_datasource.query_span_with_group_keys(**param)
 
 
-class QueryEndpointResource(CachedDiscoverQueryResource):
+class QueryEndpointResource(DiscoverQueryResource):
     model = Endpoint
     cache_type = ApmCacheType.ENDPOINT
 
@@ -1622,7 +1622,7 @@ class QueryAppByTraceResource(Resource):
         return res
 
 
-class QueryHostInstanceResource(CachedDiscoverQueryResource):
+class QueryHostInstanceResource(DiscoverQueryResource):
     model = HostInstance
     cache_type = ApmCacheType.HOST
 
