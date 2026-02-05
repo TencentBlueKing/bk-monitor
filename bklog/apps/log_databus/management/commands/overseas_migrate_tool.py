@@ -398,6 +398,12 @@ class OverseasMigrateTool:
                     error=str(e),
                 )
 
+    def migrate_collector(self):
+        pass
+
+    def migrate_clustering(self):
+        pass
+
     @staticmethod
     def file_datas_save_db(model, file_datas):
         if not file_datas:
