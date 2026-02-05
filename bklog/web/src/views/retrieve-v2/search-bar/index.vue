@@ -34,6 +34,8 @@ import SqlQuery from './sql-mode/sql-query';
 import UiInput from './ui-mode/ui-input';
 import { withoutValueConditionList } from './utils/const.common';
 
+const IS_MONITOR_TRACE = window.__IS_MONITOR_TRACE__;
+
 const props = defineProps({
   // activeFavorite: {
   //   default: null,
@@ -759,7 +761,7 @@ defineExpose({
 <template>
   <div
     ref="refRootElement"
-    :class="['search-bar-wrapper', {'trace-log-bar': window.__IS_MONITOR_TRACE__}]"
+    :class="['search-bar-wrapper', {'trace-log-bar': IS_MONITOR_TRACE}]"
   >
     <div
       v-bkloading="{

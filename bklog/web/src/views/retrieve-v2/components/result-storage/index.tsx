@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -33,6 +33,8 @@ import { BK_LOG_STORAGE } from '../../../../store/store.type';
 
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import './index.scss';
+
+const IS_SORT_TIME_SHOW = !window.__IS_MONITOR_APM__ && !window.__IS_MONITOR_TRACE__;
 
 export default defineComponent({
   setup() {
@@ -102,7 +104,7 @@ export default defineComponent({
 
     return () => (
       <div class='bklog-v3-storage'>
-        {!window.__IS_MONITOR_APM__ && !window.__IS_MONITOR_TRACE__ && (
+        {IS_SORT_TIME_SHOW && (
           <div class='switch-label log-sort'>
             <span
               class='bklog-option-item'
