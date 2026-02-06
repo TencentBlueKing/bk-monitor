@@ -1424,3 +1424,6 @@ TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"
 
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
+
+# 邮件报表浏览器启动参数
+RUN_BROWSER_NO_SANDBOX = os.getenv("BK_MONITOR_RUN_BROWSER_NO_SANDBOX", "false").lower() == "true"

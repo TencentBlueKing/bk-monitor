@@ -232,20 +232,24 @@ async def start_tasks(elements):
             else:
                 raise CustomException("[mail_report] Without Chrome, Could not start mail report.")
 
+            args = [
+                "--disable-dev-shm-usage",
+                "--disable-infobars",
+                "--disable-extensions",
+                "--disable-gpu",
+                "--mute-audio",
+                "--disable-bundled-ppapi-flash",
+                "--hide-scrollbars",
+            ]
+
+            # 如果需要禁用沙盒，则添加沙盒参数
+            if settings.RUN_BROWSER_NO_SANDBOX:
+                args.extend(["--no-sandbox", "--disable-setuid-sandbox"])
+
             browser = await launch(
                 headless=True,
                 executablePath=chrome_path,
-                options={
-                    "args": [
-                        "--disable-dev-shm-usage",
-                        "--disable-infobars",
-                        "--disable-extensions",
-                        "--disable-gpu",
-                        "--mute-audio",
-                        "--disable-bundled-ppapi-flash",
-                        "--hide-scrollbars",
-                    ]
-                },
+                options={"args": args},
             )
         except Exception as e:
             if launcher:
