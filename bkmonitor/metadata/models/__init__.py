@@ -56,6 +56,8 @@ from .record_rule import RecordRule, ResultTableFlow
 from .entity_relation import (
     CustomRelationStatus,
     EntityMeta,
+    RelationDefinition,
+    ResourceDefinition,
 )
 from .result_table import (
     CMDBLevelRecord,
@@ -161,4 +163,6 @@ __all__ = [
     # resource relation
     "EntityMeta",
     "CustomRelationStatus",
+    "ResourceDefinition",
+    "RelationDefinition",
 ]
