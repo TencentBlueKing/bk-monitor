@@ -77,6 +77,7 @@ import type { SelectOptions } from '@blueking/tdesign-ui/.';
 const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
 import { Message } from 'bkui-vue';
+import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
 import { saveAlertContentName } from './services/alert-services';
@@ -84,6 +85,7 @@ import { saveAlertContentName } from './services/alert-services';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
 import './alarm-center.scss';
+
 export default defineComponent({
   name: 'AlarmCenter',
   setup() {
@@ -147,11 +149,18 @@ export default defineComponent({
       }
       return null;
     });
-    const { getRetrievalFilterValueData } = useAlarmFilter(() => ({
-      alarmType: alarmStore.alarmType,
-      commonFilterParams: alarmStore.commonFilterParams,
-      filterMode: alarmStore.filterMode,
-    }));
+    const { getRetrievalFilterValueData } = useAlarmFilter(() => {
+      const [start, end] = handleTransformToTimestamp(alarmStore.timeRange);
+      return {
+        alarmType: alarmStore.alarmType,
+        commonFilterParams: {
+          ...alarmStore.commonFilterParams,
+          start_time: start,
+          end_time: end,
+        },
+        filterMode: alarmStore.filterMode,
+      };
+    });
 
     const isCollapsed = shallowRef(false);
     const alarmId = shallowRef<string>('');
