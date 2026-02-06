@@ -536,14 +536,10 @@ class OverseasMigrateTool:
 
     @staticmethod
     def transform_dict_list_to_customization_key_dict(
-        key, dict_list: list[dict], index_set_id_set: set[int] = None
+        key, dict_list: list[dict], condition: set[int | str] = None
     ) -> dict[str:dict]:
         if not key or not dict_list:
             return {}
-
-        condition = set()
-        if index_set_id_set:
-            condition = index_set_id_set
 
         result = {}
 
