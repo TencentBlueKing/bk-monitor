@@ -1,30 +1,28 @@
 ### 功能描述
 
-保存（新建或更新）规则组
-
+保存告警分派组
 
 ### 请求参数
 
-| 字段        | 类型         | 是否必须 | 描述               |
-|-----------|------------|------|------------------|
-| id        | int        | 否    | 分派组ID， 没有新建，有则保存 |
-| bk_biz_id | int        | 是    | 业务ID             |
-| name      | string     | 是    | 名称               |
-| priority  | int        | 是    | 优先级              |
-| rules     | list[rule] | 否    | 规则组列表            |
+| 字段              | 类型         | 是否必须 | 描述    |
+|-----------------|------------|------|-------|
+| assign_group_id | int        | 否    | 分派组ID |
+| bk_biz_id       | int        | 是    | 业务ID  |
+| name            | string     | 是    | 规则组名称 |
+| priority        | int        | 是    | 优先级   |
+| rules           | list[rule] | 否    | 规则组列表 |
 
+#### `rule` 字段说明
 
-####  `rule` 字段说明
-
-| 字段              | 类型              | 是否必填 | 描述                                  |
-|-----------------|-----------------|------|-------------------------------------|
-| id              | int             | 否    | 规则ID ，有修改，没有新增                      |
-| is_enabled      | bool            | 是    | 是否启用                                |
-| user_groups     | list[ group_id] | 是    | 通知组ID列表                             |
-| conditions      | list[condition] | 是    | 适配规则                                |
-| actions         | list[action]    | 是    | 通知配置                                |
-| alert_severity  | int             | 否    | 默认为0（维持不变），1,2,3分别对应 `致命` `预警` `提醒` |
-| additional_tags | list[tag]       | 否    | 添加标签                                |
+| 字段              | 类型              | 是否必填 | 描述                                       |
+|-----------------|-----------------|------|------------------------------------------|
+| id              | int             | 否    | 规则ID                                     |
+| is_enabled      | bool            | 否    | 是否启用                                     |
+| user_groups     | list[ int]      | 是    | 通知组ID列表                                  |
+| conditions      | list[condition] | 是    | 适配规则                                     |
+| actions         | list[action]    | 否    | 通知配置                                     |
+| alert_severity  | int             | 否    | 告警级别，默认为0（维持不变），1,2,3分别对应 `致命` `预警` `提醒` |
+| additional_tags | list[tag]       | 否    | 添加标签                                     |
 
 #### `tag` 字段说明
 
@@ -37,11 +35,12 @@
 
 #### `condition` 字段说明
 
-| 字段     | 类型           | 是否必填 | 描述                                                        |
-|--------|--------------|------|-----------------------------------------------------------|
-| field  | string       | 是    | 适配字段key， 可参考页面配置项                                         |
-| value  | list[string] | 是    | 表达式value值                                                 |
-| method | string       | 否    | 表达式方法 `eq`（默认） `neq`  `include`, `exclude`, `reg`, `nreg` |
+| 字段        | 类型           | 是否必填 | 描述                                                                     |
+|-----------|--------------|------|------------------------------------------------------------------------|
+| field     | string       | 是    | 适配字段key， 可参考页面配置项                                                      |
+| value     | list[string] | 是    | 表达式value值                                                              |
+| method    | string       | 否    | 匹配方法 `eq`（默认） `neq`  `include`, `exclude`, `reg`, `nreg`, `issuperset` |
+| condition | string       | 否    | 连接条件，支持 `and`, `or`, 或空字符串（默认）                                         |
 
 #### `action` 字段说明
 
@@ -56,7 +55,7 @@
 
 | 字段               | 类型        | 是否必须 | 描述                       |
 |------------------|-----------|------|--------------------------|
-| user_groups      | list[int] | 是    | 告警升级接收通知组（不可与当前规则的负责人重复） |
+| user_groups      | list[int] | 否    | 告警升级接收通知组（不可与当前规则的负责人重复） |
 | upgrade_interval | int       | 否    | 升级周期，单位分钟，默认60 min       |
 | is_enabled       | bool      | 否    | 是否生效，通知默认为`True`         |
 
@@ -64,10 +63,10 @@
 
 ```json
 {
+  "assign_group_id": 7,
   "name": "分派测试11112",
   "bk_biz_id": 2,
   "priority": 10002,
-  "settings": {},
   "rules": [
     {
       "id": 9,
@@ -171,13 +170,12 @@
 
 #### data 字段说明
 
-| 字段              | 类型   | 描述        |
-|-----------------|------|-----------|
-| bk_biz_id       | int  | 业务ID      |
-| assign_group_id | int  | 分派组ID     |
-| rules           | list | 当前分派组规则ID |
-| aborted_rules   | list | 删除的规则ID   |
-
+| 字段              | 类型        | 描述        |
+|-----------------|-----------|-----------|
+| bk_biz_id       | int       | 业务ID      |
+| assign_group_id | int       | 分派组ID     |
+| rules           | list[int] | 当前分派组规则ID |
+| aborted_rules   | list[int] | 删除的规则ID   |
 
 ### 响应参数示例
 
