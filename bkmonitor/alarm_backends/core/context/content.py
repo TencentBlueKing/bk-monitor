@@ -36,9 +36,6 @@ from . import BaseContextObject
 logger = logging.getLogger("fta_action.run")
 
 
-DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S%z"
-
-
 class DefaultContent(BaseContextObject):
     """
     通知内容对象
@@ -99,12 +96,12 @@ class DefaultContent(BaseContextObject):
     # 最近一次时间
     @cached_property
     def time(self):
-        return time_tools.utc2localtime(self.parent.alert.latest_time).strftime(DATETIME_FORMAT)
+        return time_tools.utc2localtime(self.parent.alert.latest_time).strftime(settings.DATETIME_FORMAT)
 
     # 首次异常时间
     @cached_property
     def begin_time(self):
-        return self.parent.alarm.begin_time.strftime(DATETIME_FORMAT)
+        return self.parent.alarm.begin_time.strftime(settings.DATETIME_FORMAT)
 
     # 持续时间
     @cached_property
@@ -177,8 +174,30 @@ class DefaultContent(BaseContextObject):
     @cached_property
     def receivers(self):
         """
-        历史负责人 + 知会人信息
+        告警接收人信息
+
+        优先级：merged_notice_receivers > notice_receiver > alarm.receivers
+        - merged_notice_receivers: 合并通知后的所有接收人（与实际发送一致）
+        - notice_receiver: 单个接收人或列表
+        - alarm.receivers: 从 alert.assignee 获取（向后兼容）
         """
+        # 优先使用合并后的接收人
+        if hasattr(self.parent, "merged_notice_receivers") and self.parent.merged_notice_receivers:
+            merged_receivers = self.parent.merged_notice_receivers
+            if isinstance(merged_receivers, list) and merged_receivers:
+                return ",".join(merged_receivers)
+            elif merged_receivers:
+                return merged_receivers if isinstance(merged_receivers, str) else str(merged_receivers)
+
+        # 使用 context 中的 notice_receiver
+        if hasattr(self.parent, "notice_receiver") and self.parent.notice_receiver:
+            notice_receiver = self.parent.notice_receiver
+            if isinstance(notice_receiver, list):
+                return ",".join(notice_receiver) if notice_receiver else ""
+            elif notice_receiver:
+                return notice_receiver if isinstance(notice_receiver, str) else str(notice_receiver)
+
+        # fallback 到 alarm.receivers
         if self.parent.alarm.receivers:
             return ",".join(self.parent.alarm.receivers)
         return None
@@ -611,7 +630,7 @@ class MultiStrategyCollectContent(DefaultContent):
         max_time = time_tools.localtime(max(source_times))
         min_time = time_tools.localtime(min(source_times))
 
-        time_range = f"{min_time.strftime(DATETIME_FORMAT)} ~ {max_time.strftime(DATETIME_FORMAT)}"
+        time_range = f"{min_time.strftime(settings.DATETIME_FORMAT)} ~ {max_time.strftime(settings.DATETIME_FORMAT)}"
         return time_range
 
     @cached_property

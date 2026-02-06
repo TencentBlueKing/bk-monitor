@@ -976,4 +976,7 @@ export default {
   请选择服务实例: 'Please select a service instance',
   tag名称: 'Tag Name',
   原文: 'Original',
+  英文名称: 'English name',
+  '搜索名称、英文名称、地址、创建人': 'Search by name, English name, address, or creator',
+  集群英文名称: 'Cluster English Name',
 };

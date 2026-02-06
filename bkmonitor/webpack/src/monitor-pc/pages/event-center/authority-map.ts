@@ -25,10 +25,12 @@
  */
 import { MANAGE_AUTH as MANAGE } from '../alarm-shield/authority-map';
 import { VIEW_AUTH as PERFORMANCE_VIEW } from '../performance/authority-map';
-import { VIEW_AUTH as VIEW } from '../strategy-config/authority-map';
+import { MANAGE_ACTION_CONFIG, VIEW_AUTH as VIEW } from '../strategy-config/authority-map';
 
 export const VIEW_AUTH = 'view_event_v2';
 export const MANAGE_AUTH = 'view_event_v2';
 export const STRATEGY_VIEW_AUTH = VIEW;
 export const ALARM_SHIELD_MANAGE_AUTH = MANAGE;
 export const PERFORMANCE_VIEW_AUTH = PERFORMANCE_VIEW;
+export const MANAGE_ACTION_CONFIG_AUTH = MANAGE_ACTION_CONFIG;
+export const MANAGE_EVENT_V2_AUTH = 'manage_event_v2';

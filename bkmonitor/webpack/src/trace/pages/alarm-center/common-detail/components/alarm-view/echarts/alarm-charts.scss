@@ -1,0 +1,52 @@
+.alarm-charts {
+  height: 100%;
+  padding-bottom: 12px;
+  background: #fff;
+
+  .common-legend {
+    column-gap: 24px;
+    justify-content: flex-start;
+
+    .common-legend-item {
+      .legend-icon {
+        width: 10px;
+        height: 2px;
+        margin-right: 4px;
+      }
+
+      .icon-monitor {
+        display: flex;
+        align-items: center;
+        width: 14px;
+        height: 14px;
+        margin-right: 3px;
+        font-size: 14px;
+        color: var(--legend-color);
+      }
+
+      .circle-legend {
+        width: 8px;
+        height: 8px;
+        margin-right: 5px;
+        background-color: var(--legend-color);
+        border-radius: 50%;
+      }
+
+      .rect-legend {
+        width: 8px;
+        height: 8px;
+        margin-right: 5px;
+        background-color: var(--legend-color);
+      }
+
+      .event-legend-icon {
+        width: 8px;
+        height: 8px;
+        margin-right: 5px;
+        background: #49c4cc;
+        border-radius: 50%;
+        opacity: 0.5;
+      }
+    }
+  }
+}

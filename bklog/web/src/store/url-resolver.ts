@@ -120,19 +120,28 @@ class RouteUrlResolver {
     ];
   }
 
+  /**
+   * 通用解析器
+   * 注意：Vue Router 3.x 的 route.query 已自动解码 URL 参数
+   * 因此这里不需要再次调用 decodeURIComponent
+   */
   private commonResolver(str, next?) {
     if (str !== undefined && str !== null) {
-      const val = decodeURIComponent(str);
-      return next?.(val) ?? val;
+      // Vue Router 已自动解码，直接使用原值
+      return next?.(str) ?? str;
     }
 
     return;
   }
 
+  /**
+   * 对象解析器 - 将 JSON 字符串解析为对象
+   * Vue Router 已自动解码，无需再次 decodeURIComponent
+   */
   private objectResolver(str) {
     return this.commonResolver(str, (val) => {
       try {
-        return JSON.parse(decodeURIComponent(val ?? ''));
+        return JSON.parse(val ?? '');
       } catch (error) {
         console.warn('route url resolver objectResolver error', error);
         return val;
@@ -155,24 +164,26 @@ class RouteUrlResolver {
   /**
    * datepicker时间范围格式化为标准时间格式
    * @param timeRange [start_time, end_time]
+   * 注意：Vue Router 已自动解码，无需再次 decodeURIComponent
    */
   private dateTimeRangeResolver(timeRange: string[]) {
-    const decodeValue = timeRange.map((t) => {
-      const r = decodeURIComponent(t);
-      return intTimestampStr(r);
-    });
+    const parsedValue = timeRange.map((t) => intTimestampStr(t));
 
-    const result: number[] = handleTransformToTimestamp(decodeValue as any, this.timeFormatResolver(this.query.format));
+    const result: number[] = handleTransformToTimestamp(parsedValue as any, this.timeFormatResolver(this.query.format));
     return { start_time: result[0], end_time: result[1] };
   }
 
+  /**
+   * addition 条件解析器
+   * Vue Router 已自动解码，无需再次 decodeURIComponent
+   */
   private additionResolver(str) {
     return this.commonResolver(str, (value) => {
       if (value === undefined || value === null || value === '') {
         return [];
       }
 
-      return (JSON.parse(decodeURIComponent(value)) ?? []).map((val) => {
+      return (JSON.parse(value) ?? []).map((val) => {
         const instance = new ConditionOperator(val);
         return instance.formatApiOperatorToFront(true);
       });
@@ -186,13 +197,17 @@ class RouteUrlResolver {
     });
   }
 
+  /**
+   * addition 数组解析器
+   * Vue Router 已自动解码，无需再次 decodeURIComponent
+   */
   private additionArrayResolver(str) {
     if (!str) {
       return [];
     }
 
     try {
-      return JSON.parse(decodeURIComponent(str));
+      return JSON.parse(str);
     } catch (e) {
       console.error(e);
       return [];
@@ -271,12 +286,18 @@ class RetrieveUrlResolver {
     };
   }
 
+  /**
+   * 将 Store 参数解析为 URL query 参数
+   * 注意：Vue Router 3.x 的 router.push/replace({ query: {...} }) 会自动编码参数
+   * 因此这里不需要手动调用 encodeURIComponent
+   */
   resolveParamsToUrl() {
-    const getEncodeString = val => JSON.stringify(val);
+    const getJsonString = val => JSON.stringify(val);
 
     /**
      * 路由参数格式化字典函数
      * 不同的字段需要不同的格式化函数
+     * Vue Router 会自动编码，无需手动 encodeURIComponent
      */
     const routeQueryMap = {
       host_scopes: (val) => {
@@ -288,14 +309,14 @@ class RetrieveUrlResolver {
           return val[k]?.length;
         });
 
-        return isEmpty ? undefined : getEncodeString(val);
+        return isEmpty ? undefined : getJsonString(val);
       },
-      start_time: () => encodeURIComponent(this.routeQueryParams.datePickerValue[0]),
-      end_time: () => encodeURIComponent(this.routeQueryParams.datePickerValue[1]),
-      keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : encodeURIComponent(val)),
+      start_time: () => this.routeQueryParams.datePickerValue[0],
+      end_time: () => this.routeQueryParams.datePickerValue[1],
+      keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : val),
       unionList: (val) => {
         if (this.routeQueryParams.isUnionIndex && val?.length) {
-          return encodeURIComponent(getEncodeString(val));
+          return getJsonString(val);
         }
 
         return;
@@ -303,11 +324,11 @@ class RetrieveUrlResolver {
       default: (val) => {
         if (typeof val === 'object' && val !== null) {
           if (Array.isArray(val) && val.length) {
-            return encodeURIComponent(getEncodeString(val));
+            return getJsonString(val);
           }
 
           if (Object.keys(val).length) {
-            return encodeURIComponent(getEncodeString(val));
+            return getJsonString(val);
           }
 
           return;

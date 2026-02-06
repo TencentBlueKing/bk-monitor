@@ -545,7 +545,14 @@ const handleFieldItemClick = (item, index, activeCondition = true) => {
   }
 
   if (!isValidateEgges(item)) {
-    conditionValueInstance.hide(100);
+    // 如果是全文检索字段，等待 DOM 更新完成后再隐藏弹窗
+    if (item.field_name === '*') {
+      nextTick(() => {
+        conditionValueInstance.hide(0);
+      });
+    } else {
+      conditionValueInstance.hide(100);
+    }
   }
 
   setFullTextFocus();
@@ -794,7 +801,7 @@ const handleDeleteTagItem = (index) => {
 
 // 清空检索内容
 const handleClearBtnClick = () => {
-  condition.value.value = [];
+  condition.value.value.splice(0);
 };
 
 const handleOperatorBtnClick = () => {
@@ -1098,7 +1105,8 @@ const beforeShowndFn = () => {
   if (!isMountedEventAdded) {
     isMountedEventAdded = true;
     document.addEventListener('keydown', handleKeydownClick, { capture: true });
-    document.addEventListener('click', handleDocumentClick);
+    // 用 capture 以避免上层 stopPropagation 导致无法收到点击
+    document.addEventListener('click', handleDocumentClick, { capture: true });
 
     // 先恢复字段和条件，这样 activeIndex 会被正确设置
     restoreFieldAndCondition();
@@ -1134,7 +1142,7 @@ const beforeHideFn = () => {
 
 const afterHideFn = () => {
   document.removeEventListener('keydown', handleKeydownClick, { capture: true });
-  document.removeEventListener('click', handleDocumentClick);
+  document.removeEventListener('click', handleDocumentClick, { capture: true });
   isMountedEventAdded = false;
   resetParams();
 };
@@ -1207,7 +1215,7 @@ const handleOptionListMouseEnter = (e, item) => {
   const { offsetWidth, scrollWidth } = e.target.lastElementChild;
   if (offsetWidth < scrollWidth) {
     fieldOptionListInstance.setContent(
-      `${item.query_alias || item.field_alias || item.field_name}(${item.field_name})`,
+      `${item.query_alias || item.field_name}(${item.field_name})`,
     );
     fieldOptionListInstance.show(e.target);
   }
@@ -1221,19 +1229,47 @@ const handleCustomTagItemClick = () => {
   handleValueInputEnter({ target: refValueTagInput.value });
 };
 
+const isClickInConditionValueArea = (target: EventTarget | null) => {
+  const el = target as HTMLElement | null;
+  if (!el) {
+    return false;
+  }
+
+  // 输入区（tag 容器）
+  if (refConditionInput?.value?.contains(el)) {
+    return true;
+  }
+
+  // 下拉内容（tippy popper 内真实渲染区域）
+  const popper = conditionValueInstance?.getTippyInstance?.()?.popper as HTMLElement | undefined;
+  if (popper?.contains(el)) {
+    return true;
+  }
+
+  return false;
+};
+
+const hideConditionValueIfNeeded = () => {
+  if (conditionValueInstance?.isShown()) {
+    conditionValueInstance.hide(100);
+  }
+};
+
+const handlePanelClick = (e: MouseEvent) => {
+  // 面板内部点空白：如果不在条件值输入/下拉区域，则收起下拉
+  if (isClickInConditionValueArea(e.target)) {
+    return;
+  }
+  hideConditionValueIfNeeded();
+};
+
 const handleDocumentClick = (e) => {
-  if (
-    refSearchResultList?.value?.contains(e.target)
-      || refConditionInput?.value?.contains(e.target)
-      || refValueTagInputOptionList?.value?.contains(e.target)
-      || refValueTagInputOptionList?.value?.contains(e.target)
-  ) {
+  // 点击在面板内、条件值输入区/下拉内 -> 不处理
+  if (refSearchResultList?.value?.contains(e.target) || isClickInConditionValueArea(e.target)) {
     return;
   }
 
-  if (conditionValueInstance?.isShown()) {
-    conditionValueInstance?.hide(100);
-  }
+  hideConditionValueIfNeeded();
 };
 
 onBeforeUnmount(() => {
@@ -1250,7 +1286,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="ui-query-options">
+  <div class="ui-query-options" @click.stop="handlePanelClick">
     <div class="ui-query-option-content">
       <div class="field-list">
         <div class="ui-search-input">

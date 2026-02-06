@@ -326,8 +326,10 @@ class UnifyQueryHandler:
 
                 for addition in self.search_params.get("addition", []):
                     # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
-                    if addition.get("field", "").startswith("__dist"):
+                    field = addition.get("field", "")
+                    if field.startswith("__dist") or field == "signature":
                         index_info = self._set_scenario_id_proxy_indices(index_set_id, index_info)
+                        break
                 index_info_list.append(index_info)
             else:
                 raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
@@ -620,7 +622,7 @@ class UnifyQueryHandler:
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
             "down_sample_range": "",
-            "timezone": self.search_params.get("time_zone") or get_local_param("time_zone", settings.TIME_ZONE),
+            "timezone": get_local_param("time_zone", settings.TIME_ZONE),
             "bk_biz_id": self.bk_biz_id,
         }
 

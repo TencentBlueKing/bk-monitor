@@ -1,0 +1,40 @@
+.alarm-confirm-dialog {
+  font-size: 12px;
+  color: #63656e;
+  padding-bottom: 20px;
+  .info-tips {
+    margin: 8px 0 16px 0;
+  }
+  .info-content-title {
+    margin-bottom: 8px;
+  }
+  .info-content {
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background: #fafbfd;
+    border: 1px solid #dcdee5;
+    border-radius: 3px;
+    .lint-item {
+      color: #3a84ff;
+      .item-name {
+        cursor: pointer;
+      }
+      .item-id {
+        color: #98999f;
+      }
+    }
+  }
+  .alarm-confirm-cur {
+    margin: 16px 0 8px 0;
+  }
+  .alarm-confirm-desc {
+    height: 50px;
+    padding: 5px 6px;
+    line-height: 20px;
+    background-color: #f6f6f6;
+    margin-bottom: 14px;
+    .desc-mark {
+      color: #313238;
+    }
+  }
+}

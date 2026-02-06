@@ -1,0 +1,31 @@
+.trace-notice-status-table {
+  .cell {
+    /* stylelint-disable-next-line declaration-no-important */
+    display: flex !important;
+    align-items: center;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    justify-content: center !important;
+
+    .notice-failed {
+      display: flex;
+      width: 12px;
+      height: 12px;
+      background-image: url('../../../../../../monitor-pc/static/images/svg/notice-failed.svg');
+      background-size: cover;
+    }
+
+    .notice-success {
+      display: flex;
+      width: 12px;
+      height: 12px;
+      background: url('../../../../../../monitor-pc/static/images/svg/notice-success.svg');
+      background-size: cover;
+    }
+  }
+}
+
+.notice-status-tooltips-w200 {
+  width: 200px;
+  word-break: break-all;
+}

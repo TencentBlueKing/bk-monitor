@@ -1,0 +1,14 @@
+
+/* stylelint-disable selector-class-pattern */
+.module-selector-module-cascade-selector {
+  align-self: stretch;
+
+  .bk-select-trigger {
+    align-self: stretch;
+    height: 100%;
+
+    .alarm-retrieval-filter-component__selector-trigger {
+      height: 100%;
+    }
+  }
+}

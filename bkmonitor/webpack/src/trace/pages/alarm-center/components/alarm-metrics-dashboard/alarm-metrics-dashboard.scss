@@ -1,0 +1,44 @@
+.alarm-metrics-dashboard {
+  .alarm-metrics-dashboard-collapse {
+    .chart-collapse-header {
+      border-radius: 2px;
+
+      .chart-collapse-header-trigger {
+        flex: 1;
+        min-width: 0;
+
+        .chart-icon {
+          color: #979ba5;
+        }
+
+        .chart-trigger-title {
+          font-weight: 400;
+        }
+
+        .chart-trigger-description {
+          margin-left: 4px;
+          color: #979ba5;
+        }
+      }
+
+      .chart-collapse-header-custom {
+        flex: 0;
+      }
+    }
+
+    .chart-collapse-content {
+      .alarm-metrics-chart-container {
+        display: grid;
+        grid-template-columns: repeat(var(--dashboard-grid-col), 1fr);
+        gap: 12px;
+        padding-top: 12px;
+      }
+    }
+
+    &:not(.is-expand) {
+      .chart-collapse-header {
+        background: #eaebf0;
+      }
+    }
+  }
+}

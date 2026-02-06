@@ -1,0 +1,47 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#fff3e0', 'primaryTextColor': '#e65100', 'primaryBorderColor': '#ff9800', 'lineColor': '#ffb74d'}}}%%
+flowchart TD
+    subgraph "请求发起"
+        START([http.request 调用]) --> BUILD_CONFIG[构建请求配置<br/>url, method, params]
+        BUILD_CONFIG --> CHECK_CACHE{fromCache?}
+        CHECK_CACHE -->|是| HIT_CACHE{缓存命中?}
+        HIT_CACHE -->|是| RETURN_CACHE[返回缓存 Promise]
+        HIT_CACHE -->|否| ADD_QUEUE
+        CHECK_CACHE -->|否| ADD_QUEUE[加入 RequestQueue]
+    end
+
+    subgraph "请求拦截器"
+        ADD_QUEUE --> REQ_INTERCEPTOR[Request Interceptor]
+        REQ_INTERCEPTOR --> ADD_HEADERS[添加 Headers]
+        ADD_HEADERS --> H1[X-Bk-Space-Uid<br/>外部版]
+        ADD_HEADERS --> H2[Traceparent<br/>追踪链路]
+        ADD_HEADERS --> H3[X-BKLOG-TIMEZONE<br/>时区信息]
+    end
+
+    subgraph "响应处理"
+        H1 --> SEND_REQ[发送请求]
+        H2 --> SEND_REQ
+        H3 --> SEND_REQ
+        SEND_REQ --> RESP_INTERCEPTOR[Response Interceptor]
+        RESP_INTERCEPTOR --> CHECK_BLOB{Blob 类型?}
+        CHECK_BLOB -->|是| BLOB_HANDLE[Blob 处理逻辑]
+        CHECK_BLOB -->|否| HANDLE_RESP[handleResponse]
+    end
+
+    subgraph "错误处理"
+        HANDLE_RESP --> CHECK_SUCCESS{请求成功?}
+        CHECK_SUCCESS -->|是| RETURN_DATA[返回数据]
+        CHECK_SUCCESS -->|否| ERROR_HANDLE{错误类型}
+        ERROR_HANDLE -->|401| LOGIN_MODAL[弹出登录框<br/>或跳转登录页]
+        ERROR_HANDLE -->|9900403| AUTH_DIALOG[写入 authDialogData<br/>触发鉴权弹窗]
+        ERROR_HANDLE -->|其他| CHECK_MSG{catchIsShowMessage?}
+        CHECK_MSG -->|是| SHOW_MSG[bkMessage 提示]
+        CHECK_MSG -->|否| SILENT[静默处理]
+    end
+
+    RETURN_CACHE --> END_FLOW([请求结束])
+    RETURN_DATA --> END_FLOW
+    LOGIN_MODAL --> END_FLOW
+    AUTH_DIALOG --> END_FLOW
+    SHOW_MSG --> END_FLOW
+    SILENT --> END_FLOW
+    BLOB_HANDLE --> END_FLOW

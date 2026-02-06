@@ -753,7 +753,7 @@ class K8sClusterMeta(K8sResourceMeta):
         filter_string = self.filter.filter_string()
         filter_string += ","
         filter_string += 'role=~"master|control-plane"'
-        return f"""count by (bcs_cluster_id)(sum by (bcs_cluster_id)(kube_node_role{{{filter_string}}}))"""
+        return f"""count by (bcs_cluster_id)(sum by (pod, bcs_cluster_id)(kube_node_role{{{filter_string}}}))"""
 
     @property
     def meta_prom_with_worker_node_count(self):

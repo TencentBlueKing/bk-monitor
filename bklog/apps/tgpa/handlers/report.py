@@ -109,8 +109,8 @@ class TGPAReportHandler:
         if not end_time:
             end_time = int(arrow.now().timestamp() * 1000)
 
-        where_conditions.append(f"dtEventTimeStamp >= '{start_time}'")
-        where_conditions.append(f"dtEventTimeStamp < '{end_time}'")
+        where_conditions.append(f"dtEventTimeStamp >= {start_time}")
+        where_conditions.append(f"dtEventTimeStamp < {end_time}")
 
         return " AND ".join(where_conditions)
 
@@ -258,6 +258,9 @@ class TGPAReportHandler:
         更新文件处理状态
         """
         record_obj = TGPAReportSyncRecord.objects.get(id=record_id)
+        if record_obj.status in [TGPAReportSyncStatusEnum.SUCCESS.value, TGPAReportSyncStatusEnum.FAILED.value]:
+            return
+
         status_list = TGPAReport.objects.filter(record_id=record_id).values_list("process_status", flat=True).distinct()
         status_set = set(status_list)
 

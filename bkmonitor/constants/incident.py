@@ -66,7 +66,7 @@ class IncidentLevel(CustomEnum):
         }
         return incident_level_map[self.value]
 
-
+incident_status_map = {status.value:status.alias for status in list(IncidentStatus)}
 INCIDENT_ATTRIBUTE_VALUE_ENUMS = {
     "status": IncidentStatus,
     "level": IncidentLevel,
@@ -88,15 +88,21 @@ class IncidentOperationClass(CustomEnum):
         return incident_operation_class_map[self.value]
 
 
+# 内部操作类型列表，查询时不展示
+_INTERNAL_OPERATION_TYPES = ["send_message"]
+
+
 class IncidentOperationType(CustomEnum):
     """故障操作类型"""
 
     CREATE = "incident_create"
     OBSERVE = "incident_observe"
     RECOVER = "incident_recover"
+    REOPEN = "incident_reopen"
     NOTICE = "incident_notice"
     UPDATE = "incident_update"
     MERGE = "incident_merge"
+    MERGE_TO = "incident_merge_to"
     ALERT_TRIGGER = "alert_trigger"
     ALERT_RECOVER = "alert_recover"
     ALERT_INVALID = "alert_invalid"
@@ -111,6 +117,8 @@ class IncidentOperationType(CustomEnum):
     ALERT_HANDLE = "alert_handle"
     ALERT_CLOSE = "alert_close"
     ALERT_DISPATCH = "alert_dispatch"
+    # 内部操作类型，用于记录通知发送流水，不在故障流转记录查询中展示
+    SEND_MESSAGE = "send_message"
 
     @property
     def alias(self):
@@ -118,9 +126,11 @@ class IncidentOperationType(CustomEnum):
             "incident_create": _lazy("故障生成"),
             "incident_observe": _lazy("故障观察中"),
             "incident_recover": _lazy("故障恢复"),
+            "incident_reopen": _lazy("故障重新打开"),
             "incident_notice": _lazy("故障通知"),
             "incident_update": _lazy("修改故障属性"),
             "incident_merge": _lazy("故障合并"),
+            "incident_merge_to": _lazy("故障合并到"),
             "alert_trigger": _lazy("触发告警"),
             "alert_recover": _lazy("告警恢复"),
             "alert_invalid": _lazy("告警失效"),
@@ -135,6 +145,7 @@ class IncidentOperationType(CustomEnum):
             "alert_handle": _lazy("告警处理"),
             "alert_close": _lazy("告警关闭"),
             "alert_dispatch": _lazy("告警分派"),
+            "send_message": _lazy("发送通知"),
         }
         return incident_operation_type_map[self.value]
 
@@ -144,18 +155,26 @@ class IncidentOperationType(CustomEnum):
             "incident_create",
             "incident_observe",
             "incident_recover",
+            "incident_reopen",
             "incident_notice",
             "incident_update",
             "incident_merge",
+            "incident_merge_to",
             "alert_trigger",
             "alert_recover",
             "alert_invalid",
             "alert_notice",
             "alert_convergence",
+            "send_message",
         ]:
             return IncidentOperationClass.SYSTEM
         else:
             return IncidentOperationClass.USER
+
+    @property
+    def is_internal(self) -> bool:
+        """是否为内部操作类型，内部操作类型不在故障流转记录查询中展示"""
+        return self.value in _INTERNAL_OPERATION_TYPES
 
 
 class IncidentSyncType(CustomEnum):

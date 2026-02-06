@@ -1,6 +1,11 @@
+/* stylelint-disable font-family-no-missing-generic-family-keyword */
+
+/* stylelint-disable font-family-name-quotes */
+
+/* stylelint-disable selector-class-pattern */
 .vue3_retrieval-filter__qs-selector-options-component {
   display: flex;
-  min-height: 400px;
+  height: 400px;
 
   .mr-2 {
     margin-right: 2px;
@@ -14,9 +19,10 @@
     display: flex;
     flex: 1;
     flex-direction: column;
+    height: 100%;
 
     .options-wrap {
-      max-height: 258px;
+      flex: 1;
       overflow-y: scroll;
       border-bottom: 1px solid #dcdee5;
 
@@ -58,7 +64,7 @@
           }
 
           .option-item-name {
-            font-family: RobotoMono-Regular;
+            font-family: 'RobotoMono-Regular';
             font-size: 12px;
             color: #313238;
           }
@@ -80,7 +86,7 @@
               width: 32px;
               height: 32px;
               content: '';
-              background-color: rgba(0, 0, 0, 0.1); /* 半透明红色 */
+              background-color: rgb(0 0 0 / 10%);
             }
           }
         }
@@ -104,8 +110,9 @@
     }
 
     .favorite-wrap {
-      flex: 1;
-      height: 95px;
+      // flex: 1;
+
+      // max-height: 200px;
       padding: 0 12px;
       overflow-y: scroll;
       border-bottom: 1px solid #dcdee5;
@@ -122,7 +129,7 @@
       }
 
       .favorite-item {
-        margin-top: 10px;
+        margin-bottom: 6px;
         font-size: 12px;
         line-height: 18px;
         color: #4d4f56;
@@ -142,10 +149,16 @@
           }
         }
       }
+
+      .empty-status-container {
+        padding: 0;
+        margin-top: -20px;
+      }
     }
 
     .key-help {
       display: flex;
+      flex: 0 0 48px;
       align-items: center;
       height: 48px;
       padding-left: 16px;

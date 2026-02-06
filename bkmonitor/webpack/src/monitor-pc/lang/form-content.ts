@@ -133,9 +133,12 @@ export default {
     'Generated incident, contains {alert_count} alarms, incident person in charge: {assignees}',
   '故障观察中，剩余观察时间{last_minutes}分钟':
     'Incident under observation, remaining observation time: {last_minutes} minutes',
+  '故障在观察期间重新打开': 'Incident reopened during observation',
   '故障通知已发送（接收人：{receivers}）': 'Incident notification sent (recipients: {receivers})',
   故障已恢复: 'Incident restored',
   '故障{merged_incident_name}被合并入当前故障': 'Incident {merged_incident_name} merged into the current incident',
+  '故障【{link_incident_name}】合并入当前故障': 'Incident [{link_incident_name}] merged into the current incident',
+  '当前故障合并到【{link_incident_name}】': 'Current incident merged into [{link_incident_name}]',
   '{operator}故障属性{incident_key_alias}: 从{from_value}被修改为{to_value}':
     '{operator} incident attribute {incident_key_alias}: changed from {from_value} to {to_value}',
   '检测到新告警（{alert_name}）': 'New alarm detected ({alert_name})',
@@ -201,4 +204,5 @@ export default {
   '上升{0}%时触发告警': 'Trigger an alarm when rising {0}%',
   '下降{0}%时触发告警': 'Trigger an alarm when falling {0}%',
   '{0}上升{1}%或下降{2}%': '{0} rises {1}% or falls {2}%',
+  这个告警我有经验: 'I have experience with this alarm',
 };

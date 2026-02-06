@@ -1,0 +1,37 @@
+.dimension-analysis-data-table {
+  position: relative;
+
+  .operation-btn {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+
+    .icon-mc-triangle-down {
+      margin-left: 4px;
+      font-size: 16px;
+    }
+  }
+
+  .dimension-value {
+    display: flex;
+    align-items: center;
+
+    .color-rect {
+      display: block;
+      width: 10px;
+      min-width: 10px;
+      height: 2px;
+      margin-right: 6px;
+      background: #7ec7e7;
+    }
+
+    .dimension-value-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #4d4f56;
+      white-space: nowrap;
+    }
+  }
+}

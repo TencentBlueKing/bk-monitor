@@ -574,13 +574,56 @@ PLATFORM_METRIC_DIMENSION_FILED = [
     "attributes.net.host.ip",
 ]
 
-APM_TOPO_INSTANCE = "BKMONITOR_{}_{}_APM_TOPO_INSTANCE_HEARTBEAT_{}_{}"
-APM_ENDPOINT = "BKMONITOR_{}_{}_APM_ENDPOINT_HEARTBEAT_{}_{}"
 
-# 针对高频修改字段 updated_at 的过期清理时间
-DEFAULT_APM_CACHE_EXPIRE = 7 * 24 * 60 * 60
-DEFAULT_TOPO_INSTANCE_EXPIRE = 7 * 24 * 60 * 60
-DEFAULT_ENDPOINT_EXPIRE = 7 * 24 * 60 * 60
+class ApmCacheType:
+    """APM 缓存类型枚举"""
+
+    TOPO_INSTANCE = "topo_instance"
+    ENDPOINT = "endpoint"
+    HOST = "host"
+
+
+class ApmCacheConfig:
+    """
+    APM 缓存配置容器
+    统一管理所有 APM 相关的缓存配置，包括 key 模板和过期时间
+    """
+
+    # 缓存 key 模板
+    _KEY_TEMPLATES = {
+        ApmCacheType.TOPO_INSTANCE: "BKMONITOR_{}_{}_APM_TOPO_INSTANCE_HEARTBEAT_{}_{}",
+        ApmCacheType.ENDPOINT: "BKMONITOR_{}_{}_APM_ENDPOINT_HEARTBEAT_{}_{}",
+        ApmCacheType.HOST: "BKMONITOR_{}_{}_APM_HOST_HEARTBEAT_{}_{}",
+    }
+
+    # 缓存过期时间（秒）
+    _EXPIRE_TIMES = {
+        ApmCacheType.TOPO_INSTANCE: 7 * 24 * 60 * 60,  # 7天
+        ApmCacheType.ENDPOINT: 7 * 24 * 60 * 60,  # 7天
+        ApmCacheType.HOST: 7 * 24 * 60 * 60,  # 7天
+    }
+
+    @classmethod
+    def get_key_template(cls, cache_type: str) -> str:
+        """
+        获取缓存 key 模板
+        :param cache_type: 缓存类型
+        :return: key 模板
+        """
+        if cache_type not in cls._KEY_TEMPLATES:
+            raise ValueError(f"Unknown cache type: {cache_type}")
+        return cls._KEY_TEMPLATES[cache_type]
+
+    @classmethod
+    def get_expire_time(cls, cache_type: str) -> int:
+        """
+        获取缓存过期时间
+        :param cache_type: 缓存类型
+        :return: 过期时间（秒）
+        """
+        if cache_type not in cls._EXPIRE_TIMES:
+            raise ValueError(f"Unknown cache type: {cache_type}")
+        return cls._EXPIRE_TIMES[cache_type]
 
 
 class ProfileApiType:

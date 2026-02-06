@@ -1,0 +1,67 @@
+.ai-highlight-card {
+  // 边框宽度
+  --border-width: 1px;
+
+  // 左侧边框宽度
+  --border-left-width: 4px;
+
+  // 特殊左侧边框颜色需要覆盖的宽度
+  // 如设置为 非 0px 则左侧边框和另外三个边框的颜色不属于 同一线性渐变 延申的
+  // 如设置为 0px 则四个边框的颜色是属于 同一线性渐变 延申的
+  --left-special-border-width: var(--border-left-width);
+
+  padding: 6px 4px;
+  background-image:
+    linear-gradient(96deg, #f5f7ff 0%, #eff3fe 100%), linear-gradient(180deg, #235dfa 0%, #c383ee 100%),
+    linear-gradient(90deg, #235dfa 0%, #c383ee 100%);
+  background-repeat: no-repeat;
+  background-position:
+    100% 100%,
+    calc(0px - var(--left-special-border-width)) calc(0px - var(--border-width)),
+    calc(0px - var(--border-width)) calc(0px - var(--border-width));
+  background-clip: padding-box, border-box, border-box;
+  background-size:
+    100% 100%,
+    var(--left-special-border-width) calc(100% + 2 * var(--border-width)),
+    calc(100% + 2 * var(--border-width)) calc(100% + 2 * var(--border-width));
+  border: var(--border-width) solid transparent;
+  border-left-width: var(--border-left-width);
+  border-radius: 2px;
+
+  .ai-highlight-card-header {
+    display: flex;
+
+    .ai-favicon {
+      flex-shrink: 0;
+      width: var(--ai-favicon-size);
+      height: var(--ai-favicon-size);
+
+      & > img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+    }
+
+    .ai-highlight-card-header-title {
+      margin-left: 4px;
+
+      /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
+      font-family: PingFangHK-Semibold;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: var(--ai-favicon-size);
+      color: #235dfa;
+    }
+  }
+
+  .ai-highlight-card-main {
+    padding-left: calc(var(--ai-favicon-size) + 4px);
+    margin-top: 4px;
+
+    /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
+    font-family: PingFangSC-Regular;
+    line-height: 20px;
+    color: #4d4f56;
+  }
+}

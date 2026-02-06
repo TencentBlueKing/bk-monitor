@@ -36,7 +36,7 @@ from bkmonitor.utils.time_tools import (
     utc2_str,
     utc2localtime,
 )
-from constants.action import ActionPluginType, ActionSignal, ConvergeType
+from constants.action import ActionPluginType, ActionSignal, ConvergeType, NoticeWay
 from constants.alert import (
     AlertRedirectType,
     CMDB_TARGET_DIMENSIONS,
@@ -59,6 +59,20 @@ class Alarm(BaseContextObject):
     """
     告警信息对象
     """
+
+    @cached_property
+    def _is_sms_notice(self) -> bool:
+        """
+        判断是否为短信通知
+
+        短信通知时需要过滤 URL，因为短信内容长度有限且 URL 不便于点击使用。
+
+        注意：self.parent.notice_way 已经过 get_notice_channel() 解析，
+        通道前缀（如 "bkchat|sms"）已被去除，此处直接比较纯通知方式即可。
+
+        :return: True 表示短信通知，False 表示其他通知方式
+        """
+        return getattr(self.parent, "notice_way", None) == NoticeWay.SMS
 
     @cached_property
     def id(self):
@@ -429,6 +443,9 @@ class Alarm(BaseContextObject):
         """
         告警详情链接, 告警url
         """
+        # 短信通知时不返回 URL
+        if self._is_sms_notice:
+            return None
         if self.parent.is_external_channel:
             # 如果有channel信息，并且不是内部渠道，直接忽略链接
             return None
@@ -446,6 +463,9 @@ class Alarm(BaseContextObject):
     @cached_property
     def example_detail_url(self):
         """代表单个告警的url"""
+        # 短信通知时不返回 URL
+        if self._is_sms_notice:
+            return None
         if self.parent.is_external_channel:
             # 如果有channel信息，并且不是内部渠道，直接忽略链接
             return None
@@ -474,9 +494,8 @@ class Alarm(BaseContextObject):
 
     @cached_property
     def quick_ack_url(self):
-        if self.operate_allowed:
-            return f"{self.detail_url}&batchAction=ack"
-        return None
+        detail_url = self.detail_url
+        return f"{detail_url}&batchAction=ack" if self.operate_allowed and detail_url else None
 
     @cached_property
     def quick_shield_url(self):
@@ -486,7 +505,8 @@ class Alarm(BaseContextObject):
         if self.collect_count > 1:
             # 当有汇总的告警多余1个的时候，直接返回空
             return None
-        return f"{self.detail_url}&batchAction=shield"
+        detail_url = self.detail_url
+        return f"{detail_url}&batchAction=shield" if detail_url else None
 
     @cached_property
     def notice_from(self):
@@ -736,6 +756,9 @@ class Alarm(BaseContextObject):
 
     @cached_property
     def strategy_url(self):
+        # 短信通知时不返回 URL
+        if self._is_sms_notice:
+            return None
         if self.parent.is_external_channel:
             return None
 
@@ -754,6 +777,8 @@ class Alarm(BaseContextObject):
     def receivers(self):
         """
         通知人列表
+        从 alert.assignee 获取，alert 是 AlertDocument 实例，存储在 ES (Elasticsearch) 中
+        assignee 字段在告警分派时设置，存储在 ES 的 AlertDocument 中
         """
         if not self.parent.alert:
             return []
@@ -817,6 +842,9 @@ class Alarm(BaseContextObject):
 
     @cached_property
     def assign_detail(self):
+        # 短信通知时不返回 URL
+        if self._is_sms_notice:
+            return None
         if not self.latest_assign_group:
             # 最近一次没有的话，表示没有命中分派
             return None
