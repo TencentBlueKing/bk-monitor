@@ -25,6 +25,7 @@ from .custom_report import (
     LogSubscriptionConfig,
     TimeSeriesGroup,
     TimeSeriesMetric,
+    TimeSeriesScope,
     TimeSeriesTag,
 )
 from .data_link import (  # noqa
@@ -126,6 +127,7 @@ __all__ = [
     "LogGroup",
     "TimeSeriesGroup",
     "TimeSeriesMetric",
+    "TimeSeriesScope",
     "TimeSeriesTag",
     "CustomReportSubscription",
     "LogSubscriptionConfig",

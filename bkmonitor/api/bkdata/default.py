@@ -1310,6 +1310,7 @@ class QueryMetricAndDimension(BkDataAPIGWResource):
         storage = serializers.CharField(required=True, label="存储类型")
         result_table_id = serializers.CharField(required=True, label="结果表ID")
         values = serializers.ListField(required=True, label="维度列表")
+        version = serializers.CharField(required=False, label="数据格式版本")
 
 
 ####################################
