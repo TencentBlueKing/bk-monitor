@@ -247,8 +247,16 @@ class CreateResultTableSnapshotViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateResultTableSnapshotResource)]
 
 
+class BulkCreateResultTableSnapshotViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.BulkCreateResultTableSnapshotResource)]
+
+
 class ModifyResultTableSnapshotViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ModifyResultTableSnapshotResource)]
+
+
+class BulkModifyResultTableSnapshotViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.BulkModifyResultTableSnapshotResource)]
 
 
 class DeleteResultTableSnapshotViewSet(MetaViewSet):
