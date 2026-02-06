@@ -284,6 +284,7 @@ def get_scope_name(field, default_scope):
 
 class Migration(migrations.Migration):
     dependencies = [
+        ("monitor_web", "0076_auto_20250408_1522"),
         ("metadata", "0249_add_custom_time_series_scope"),
     ]
 
