@@ -30,7 +30,7 @@ from django.utils.functional import cached_property
 
 from apps.api import MonitorApi, UnifyQueryApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH, CLUSTERING_UNIFY_QUERY_GRAY_BOX_TEST
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH, UNIFY_QUERY_SEARCH_CLUSTERING
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_ACTION_NOTICE,
@@ -306,7 +306,7 @@ class PatternHandler:
     def _get_pattern_aggs_result(self, index_set_id, query):
         pattern_aggs_field = self.pattern_aggs_field
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, query.get("bk_biz_id")) and FeatureToggleObject.switch(
-            CLUSTERING_UNIFY_QUERY_GRAY_BOX_TEST, query.get("bk_biz_id")
+            UNIFY_QUERY_SEARCH_CLUSTERING, query.get("bk_biz_id")
         ):
             query["index_set_ids"] = [index_set_id]
             query["agg_field"] = pattern_aggs_field
