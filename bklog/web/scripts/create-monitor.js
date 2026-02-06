@@ -76,13 +76,13 @@ const createMonitorConfig = config => {
       filename: '[name].js',
       path: outputUrl,
       library: {
-        type: 'module',
+        type: 'commonjs',
       },
       environment: {
-        module: true,
+        module: false,
       },
-      chunkFormat: 'module',
-      module: true,
+      chunkFormat: 'commonjs',
+      module: false,
       clean: true,
       publicPath: '',
     },
@@ -94,13 +94,13 @@ const createMonitorConfig = config => {
       },
     },
     experiments: {
-      outputModule: true,
+      outputModule: false,
     },
     optimization: {
       minimize: false,
       mangleExports: false,
     },
-    externalsType: 'module',
+    externalsType: 'commonjs',
     externals: isTrace
       ? [
           /@blueking\/date-picker/,
@@ -122,7 +122,7 @@ const createMonitorConfig = config => {
           /dayjs\//,
           'dayjs',
           // /echarts\/*/,
-          /lodash/,
+          // /lodash/,
           // /vue-json-pretty/,
           ({ request }, cb) => {
             if (request === 'echarts') {
@@ -138,7 +138,7 @@ const createMonitorConfig = config => {
           /@blueking\/date-picker/,
           // /@blueking\/ai-blueking/,
           /@blueking\/ip-selector/,
-          /@blueking\/user-selector/,
+          // /@blueking\/user-selector/,
           /@blueking\/bkui-library/,
           /bk-magic-vue/,
           /vue-i18n/,
@@ -153,7 +153,7 @@ const createMonitorConfig = config => {
           'qs',
           /dayjs\//,
           'dayjs',
-          /lodash/,
+          // /lodash/,
           /vue-json-pretty/,
           /monaco-editor/,
           ({ request }, cb) => {
