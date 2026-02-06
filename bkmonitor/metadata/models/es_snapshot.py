@@ -97,7 +97,7 @@ class EsSnapshot(models.Model):
             repository_name=target_snapshot_repository_name,
             cluster_id=storage_cluster_ids[0],
             is_deleted=False,
-            bk_tenant_id=bk_tenant_id
+            bk_tenant_id=bk_tenant_id,
         ).exists():
             raise ValueError(_("快照仓库不存在或已经被删除"))
 
@@ -142,9 +142,9 @@ class EsSnapshot(models.Model):
         return objs
 
     @classmethod
-    def has_running_snapshot(cls, table_id):
+    def has_running_snapshot(cls, table_id, bk_tenant_id):
         """是否有正在运行的快照任务"""
-        return cls.objects.filter(table_id=table_id, status=cls.ES_RUNNING_STATUS).exists()
+        return cls.objects.filter(table_id=table_id, status=cls.ES_RUNNING_STATUS, bk_tenant_id=bk_tenant_id).exists()
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -162,14 +162,14 @@ class EsSnapshot(models.Model):
         cls._create_snapshot_valid([table_id], bk_tenant_id, target_snapshot_repository_name, status)
 
         return cls.objects.create(
-                table_id=table_id,
-                target_snapshot_repository_name=target_snapshot_repository_name,
-                snapshot_days=snapshot_days,
-                creator=operator,
-                last_modify_user=operator,
-                status=status,
-                bk_tenant_id=bk_tenant_id,
-            )
+            table_id=table_id,
+            target_snapshot_repository_name=target_snapshot_repository_name,
+            snapshot_days=snapshot_days,
+            creator=operator,
+            last_modify_user=operator,
+            status=status,
+            bk_tenant_id=bk_tenant_id,
+        )
     
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -220,7 +220,7 @@ class EsSnapshot(models.Model):
         updated_fields = ["snapshot_days", "last_modify_user"]
         # 如果状态不为空，则进行状态的更新
         if status is not None:
-            if status == cls.ES_RUNNING_STATUS and cls.has_running_snapshot(obj.table_id):
+            if status == cls.ES_RUNNING_STATUS and cls.has_running_snapshot(obj.table_id, obj.bk_tenant_id):
                 raise ValueError(_("已存在启用中结果表快照"))
             obj.status = status
             updated_fields.append("status")
@@ -243,7 +243,9 @@ class EsSnapshot(models.Model):
         if status is not None:
             if (
                 status == cls.ES_RUNNING_STATUS and
-                cls.objects.filter(status=cls.ES_RUNNING_STATUS, table_id__in=table_ids).exists()
+                cls.objects.filter(
+                    status=cls.ES_RUNNING_STATUS, table_id__in=table_ids, bk_tenant_id=bk_tenant_id
+                ).exists()
             ):
                 raise ValueError(_("已存在启用中结果表快照"))
             objs.update(status=status)
