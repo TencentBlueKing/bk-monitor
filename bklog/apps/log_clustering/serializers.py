@@ -55,6 +55,8 @@ class PatternSearchSerlaizer(serializers.Serializer):
     owner_config = serializers.ChoiceField(choices=OwnerConfigEnum.get_choices(), default=OwnerConfigEnum.ALL.value)
     owners = serializers.ListField(child=serializers.CharField(), required=False, default=[])
 
+    bk_biz_id = serializers.IntegerField(label=_("业务 ID"), required=False, default=None)
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
         if attrs["filter_not_clustering"]:
