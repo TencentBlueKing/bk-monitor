@@ -125,6 +125,7 @@ __all__ = [
     "WeWorkApi",
     "UnifyQueryApi",
     "TGPATaskApi",
+    "OverseasMigrateApi",
 ]
 
 
