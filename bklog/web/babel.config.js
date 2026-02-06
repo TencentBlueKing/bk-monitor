@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 const isMonitorCompiler = ['apm', 'trace'].includes(process.env.MONITOR_APP);
-module.exports = function (api) {
+module.exports = api => {
   api?.cache.never();
   const presets = [
     [

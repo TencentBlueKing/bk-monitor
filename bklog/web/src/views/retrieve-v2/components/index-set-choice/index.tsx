@@ -141,7 +141,7 @@ export default defineComponent({
     /**
      * 扁平化树形列表
      */
-    const getFlatList = () => (props.indexSetList ?? []).map((t: any) => [t, t.children]).flat(3);
+    const getFlatList = () => (props.indexSetList ?? []).map((t: any) => [t, t.children ?? []]).flat(3);
 
     /**
      * 查询选中结果值，新版索引ID格式为： pid_childId, 如果为根节点，格式为： #_childId

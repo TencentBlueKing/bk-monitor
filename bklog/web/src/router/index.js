@@ -56,7 +56,7 @@ VueRouter.prototype.push = function push(location, onResolve, onReject) {
   if (onResolve || onReject) {
     return originalPush.call(this, location, onResolve, onReject);
   }
-  return originalPush.call(this, location).catch(err => err);
+  return originalPush.call(this, location).catch((err) => err);
 };
 
 // replace
@@ -64,7 +64,7 @@ VueRouter.prototype.replace = function push(location, onResolve, onReject) {
   if (onResolve || onReject) {
     return originalReplace.call(this, location, onResolve, onReject);
   }
-  return originalReplace.call(this, location).catch(err => err);
+  return originalReplace.call(this, location).catch((err) => err);
 };
 
 // 3.动态生成路由表
@@ -127,19 +127,21 @@ const getRoutes = (spaceId, bkBizId, externalMenu) => {
 
 // 4.根据 navId 获取路由配置
 export function getRouteConfigById(id, spaceUid, bkBizId, externalMenu) {
-  const flatConfig = getRoutes(spaceUid, bkBizId, externalMenu).flatMap((config) => {
-    if (config.children?.length) {
-      return config.children.flatMap((set) => {
-        if (set.children?.length) {
-          return set.children;
-        }
-        return set;
-      });
+  const flatConfig = getRoutes(spaceUid, bkBizId, externalMenu).flatMap(
+    (config) => {
+      if (config.children?.length) {
+        return config.children.flatMap((set) => {
+          if (set.children?.length) {
+            return set.children;
+          }
+          return set;
+        });
+      }
+      return config;
     }
-    return config;
-  });
+  );
 
-  return flatConfig.find(item => item.meta?.navId === id);
+  return flatConfig.find((item) => item.meta?.navId === id);
 }
 
 // 5.创建并返回 VueRouter 实例，包含路由守卫和路由日志上报
@@ -152,8 +154,10 @@ export default (spaceId, bkBizId, externalMenu) => {
   // 路由切换前取消所有需要取消的请求，避免数据串扰
   const cancelRequest = async () => {
     const allRequest = http.queue.get();
-    const requestQueue = allRequest.filter(request => request.cancelWhenRouteChange);
-    await http.cancel(requestQueue.map(request => request.requestId));
+    const requestQueue = allRequest.filter(
+      (request) => request.cancelWhenRouteChange
+    );
+    await http.cancel(requestQueue.map((request) => request.requestId));
   };
 
   // 路由前置守卫：切换路由时取消请求、处理外部跳转和重定向
@@ -167,17 +171,21 @@ export default (spaceId, bkBizId, externalMenu) => {
           _LOG_TO_MONITOR_: true,
           _MONITOR_URL_: window.MONITOR_URL,
         },
-        '*',
+        '*'
         // window.MONITOR_URL,
       );
     }
     if (
-      window.IS_EXTERNAL
-      && JSON.parse(window.IS_EXTERNAL)
-      && !['retrieve', 'extract-home', 'extract-create', 'extract-clone'].includes(to.name)
+      window.IS_EXTERNAL &&
+      JSON.parse(window.IS_EXTERNAL) &&
+      !['retrieve', 'extract-home', 'extract-create', 'extract-clone'].includes(
+        to.name
+      )
     ) {
       // 非外部版路由重定向，保留 query 和 params 参数
-      const routeName = store.state.externalMenu.includes('retrieve') ? 'retrieve' : 'manage';
+      const routeName = store.state.externalMenu.includes('retrieve')
+        ? 'retrieve'
+        : 'manage';
       next({
         name: routeName,
         query: to.query,

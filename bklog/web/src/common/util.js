@@ -878,7 +878,7 @@ export const parseTableRowData = (
   isFormatDate = store.state.isFormatDate,
   emptyCharacter = '--',
 ) => {
-  const keyArr = key.split('.');
+  const keyArr = typeof key === 'string' ? key.split('.') : [];
   let data;
 
   try {

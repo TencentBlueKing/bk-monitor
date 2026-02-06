@@ -897,7 +897,8 @@ export default defineComponent({
           if (hasScrollX.value && refScrollXBar.value) {
             event.stopPropagation();
             event.stopImmediatePropagation();
-            event.preventDefault();
+            // 使用被动事件监听器（passive event listeners）时尝试调用 preventDefault(),浏览器会报错
+            // event.preventDefault();
 
             // 使用系统默认的滚动行为，通过 refScrollXBar 执行横向滚动
             const currentScrollLeft = refScrollXBar.value.getScrollLeft?.() || 0;
@@ -914,7 +915,8 @@ export default defineComponent({
         if (event.deltaX !== 0 && hasScrollX.value) {
           event.stopPropagation();
           event.stopImmediatePropagation();
-          event.preventDefault();
+          // 使用被动事件监听器（passive event listeners）时尝试调用 preventDefault()，浏览器会报错
+          // event.preventDefault();
           if (!isAnimating) {
             isAnimating = true;
             requestAnimationFrame(() => {

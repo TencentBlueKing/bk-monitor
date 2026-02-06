@@ -444,7 +444,8 @@ export default defineComponent({
     };
 
     const handleToggleCollapse = (isCollapsed: boolean) => {
-      initialDivide.value = isCollapsed ? 42 : 250;
+      const minHeight = window.__IS_MONITOR_APM__ ? 20 : 42;
+      initialDivide.value = isCollapsed ? minHeight : 250;
     };
 
     onMounted(() => {
