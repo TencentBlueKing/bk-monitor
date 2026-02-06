@@ -43,7 +43,7 @@ class _OverseasMigrateApi:
 def _build_request_url(path, description):
     request_url = DATAFLOW_APIGATEWAY_ROOT + path
     Prompt.info(
-        msg="\n构建请求 URL -> \n   request_url: {request_url}\n   description: {description}",
+        msg="构建请求 URL -> \n   request_url: {request_url}\n   description: {description}",
         request_url=request_url,
         description=description,
     )

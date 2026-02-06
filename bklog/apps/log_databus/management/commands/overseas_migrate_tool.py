@@ -62,14 +62,14 @@ class Command(BaseCommand):
             default=False,
         )
         parser.add_argument(
-            "-oi",
+            "-mi",
             "--is_migrate_index_set",
             type=str_to_bool,
             help="是否迁移索引集相关表",
             default=True,
         )
         parser.add_argument(
-            "-oc",
+            "-mc",
             "--is_migrate_clustering",
             type=str_to_bool,
             help="是否迁移日志聚类相关表",
@@ -170,107 +170,92 @@ class OverseasMigrateTool:
         原数据迁移
         """
         index_set_file_datas = self.json_content_dict.get("index_set", [])
-        if self.is_migrate_index_set:
-            if self.space_uid and not self.index_set_id_set:
+        if not self.index_set_id_set:
+            if self.space_uid:
                 index_set_file_datas = [
                     data for data in index_set_file_datas if data.get("space_uid", "") == self.space_uid
                 ]
-                self.index_set_id_set = set(
-                    [data.get("index_set_id") for data in index_set_file_datas if data.get("index_set_id")]
+            self.index_set_id_set = set(
+                [data.get("index_set_id") for data in index_set_file_datas if data.get("index_set_id")]
+            )
+
+        with transaction.atomic():
+            # 无外键关联, 直接全表迁移
+            try:
+                aiops_model_objs = self.datas_save_db(AiopsModel, self.json_content_dict.get("aiops_model", []))
+                aiops_model_experiment_objs = self.datas_save_db(
+                    AiopsModelExperiment, self.json_content_dict.get("aiops_model_experiment", [])
                 )
-        elif not self.is_migrate_index_set and self.is_migrate_clustering:
-            if not self.index_set_id_set:
-                if self.bk_biz_id:
-                    clustering_config_file_datas = [
-                        data
-                        for data in self.json_content_dict.get("clustering_config", [])
-                        if data.get("bk_biz_id", "") == self.bk_biz_id
-                    ]
-                    self.index_set_id_set = set(
-                        [data.get("index_set_id") for data in clustering_config_file_datas if data.get("index_set_id")]
-                    )
+                aiops_signature_and_pattern_objs = self.datas_save_db(
+                    AiopsSignatureAndPattern, self.json_content_dict.get("aiops_signature_and_pattern", [])
+                )
+                sample_set_objs = self.datas_save_db(SampleSet, self.json_content_dict.get("sample_set", []))
+
+                self.aiops_model_success_migrate_ids = [obj["id"] for obj in aiops_model_objs]
+                self.aiops_model_experiment_success_migrate_ids = [obj["id"] for obj in aiops_model_experiment_objs]
+                self.aiops_signature_and_pattern_success_migrate_ids = [
+                    obj["id"] for obj in aiops_signature_and_pattern_objs
+                ]
+                self.sample_set_success_migrate_ids = [obj["id"] for obj in sample_set_objs]
+            except IntegrityError as e:
+                if self.is_first_execute:
+                    raise CommandError(
+                        "\n此报错原因可能为: "
+                        "\n1.该环境下不是第一次执行此迁移指令, 表 log_clustering_aiopsmodel、log_clustering_aiopsmodelexperiment、log_clustering_aiopssignatureandpattern、log_clustering_sampleset 已迁移过所有的数据"
+                        "\n请增加参数 --is_first_execute False 尝试解决\n"
+                    ) from e
                 else:
-                    clustering_config_file_datas = self.json_content_dict.get("clustering_config", [])
-                    self.index_set_id_set = set(
-                        [data.get("index_set_id") for data in clustering_config_file_datas if data.get("index_set_id")]
+                    Prompt.info(
+                        msg="跳过表 log_clustering_aiopsmodel、log_clustering_aiopsmodelexperiment、log_clustering_aiopssignatureandpattern、log_clustering_sampleset 的迁移操作\n"
                     )
-        elif not self.is_migrate_index_set and not self.is_migrate_clustering:
-            Prompt.info(msg="\n未进行任何迁移操作\n")
-            return
-
-        # 无外键关联, 直接全表迁移
-        try:
-            aiops_model_objs = self.datas_save_db(AiopsModel, self.json_content_dict.get("aiops_model", []))
-            aiops_model_experiment_objs = self.datas_save_db(
-                AiopsModelExperiment, self.json_content_dict.get("aiops_model_experiment", [])
-            )
-            aiops_signature_and_pattern_objs = self.datas_save_db(
-                AiopsSignatureAndPattern, self.json_content_dict.get("aiops_signature_and_pattern", [])
-            )
-            sample_set_objs = self.datas_save_db(SampleSet, self.json_content_dict.get("sample_set", []))
-
-            self.aiops_model_success_migrate_ids = [obj["id"] for obj in aiops_model_objs]
-            self.aiops_model_experiment_success_migrate_ids = [obj["id"] for obj in aiops_model_experiment_objs]
-            self.aiops_signature_and_pattern_success_migrate_ids = [
-                obj["id"] for obj in aiops_signature_and_pattern_objs
-            ]
-            self.sample_set_success_migrate_ids = [obj["id"] for obj in sample_set_objs]
-        except IntegrityError as e:
-            if self.is_first_execute:
-                raise CommandError(
-                    "\n此报错原因可能为: "
-                    "\n1.该环境下不是第一次执行此迁移指令, 表 log_clustering_aiopsmodel、log_clustering_aiopsmodelexperiment、log_clustering_aiopssignatureandpattern、log_clustering_sampleset 已迁移过所有的数据"
-                    "\n请增加参数 --is_first_execute False 尝试解决\n"
+            except Exception as e:
+                raise Exception(
+                    f"\n表 log_clustering_aiopsmodel、log_clustering_aiopsmodelexperiment、log_clustering_aiopssignatureandpattern、log_clustering_sampleset 迁移时发生未知错误: {str(e)}\n"
                 ) from e
-            else:
-                Prompt.info(
-                    msg="\n跳过表 log_clustering_aiopsmodel、log_clustering_aiopsmodelexperiment、log_clustering_aiopssignatureandpattern、log_clustering_sampleset 的迁移操作\n"
-                )
-        except Exception as e:
-            raise CommandError(
-                f"\n表 log_clustering_aiopsmodel、log_clustering_aiopsmodelexperiment、log_clustering_aiopssignatureandpattern、log_clustering_sampleset 迁移时发生未知错误: {str(e)}\n"
-            ) from e
 
-        # 有外键关联, 需关联迁移
-        # 创建数据字典，方便后续取值
-        clustering_remark_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
-            "bk_biz_id",
-            self.json_content_dict.get("clustering_remark", []),
-            {self.bk_biz_id} if self.bk_biz_id else set(),
-        )
-        regex_template_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
-            "space_uid", self.json_content_dict.get("regex_template", []), {self.space_uid} if self.space_uid else set()
-        )
+        with transaction.atomic():
+            # 有外键关联, 需关联迁移
+            # 创建数据字典，方便后续取值
+            clustering_remark_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
+                "bk_biz_id",
+                self.json_content_dict.get("clustering_remark", []),
+                {self.bk_biz_id} if self.bk_biz_id else set(),
+            )
+            regex_template_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
+                "space_uid",
+                self.json_content_dict.get("regex_template", []),
+                {self.space_uid} if self.space_uid else set(),
+            )
 
-        # 参数 bk_biz_id 有值则进行关联迁移, 否则全表迁移
-        try:
-            clustering_remark_file_datas = []
-            regex_template_file_datas = []
+            # 参数 bk_biz_id 有值则进行关联迁移, 否则全表迁移
+            try:
+                clustering_remark_file_datas = []
+                regex_template_file_datas = []
 
-            for value in clustering_remark_file_datas_dict.values():
-                clustering_remark_file_datas.extend(value)
-            for value in regex_template_file_datas_dict.values():
-                regex_template_file_datas.extend(value)
+                for value in clustering_remark_file_datas_dict.values():
+                    clustering_remark_file_datas.extend(value)
+                for value in regex_template_file_datas_dict.values():
+                    regex_template_file_datas.extend(value)
 
-            clustering_remark_objs = self.datas_save_db(ClusteringRemark, clustering_remark_file_datas)
-            regex_template_objs = self.datas_save_db(RegexTemplate, regex_template_file_datas)
+                clustering_remark_objs = self.datas_save_db(ClusteringRemark, clustering_remark_file_datas)
+                regex_template_objs = self.datas_save_db(RegexTemplate, regex_template_file_datas)
 
-            self.clustering_remark_success_migrate_ids = [obj["id"] for obj in clustering_remark_objs]
-            self.regex_template_success_migrate_ids = [obj["id"] for obj in regex_template_objs]
-        except IntegrityError as e:
-            if not self.is_skip:
-                raise CommandError(
-                    f"\n此报错原因可能为: "
-                    f"\n1.表 log_clustering_clusteringremark、log_clustering_regextemplate 已迁移过 bk_biz_id 为 {self.bk_biz_id} 的数据"
-                    f"\n2.表 log_clustering_clusteringremark、log_clustering_regextemplate 已迁移过所有的数据"
-                    f"\n请增加参数 --is_skip True 尝试解决"
+                self.clustering_remark_success_migrate_ids = [obj["id"] for obj in clustering_remark_objs]
+                self.regex_template_success_migrate_ids = [obj["id"] for obj in regex_template_objs]
+            except IntegrityError as e:
+                if not self.is_skip:
+                    raise CommandError(
+                        f"\n此报错原因可能为: "
+                        f"\n1.表 log_clustering_clusteringremark、log_clustering_regextemplate 已迁移过 bk_biz_id 为 {self.bk_biz_id} 的数据"
+                        f"\n2.表 log_clustering_clusteringremark、log_clustering_regextemplate 已迁移过所有的数据"
+                        f"\n请增加参数 --is_skip True 尝试解决\n"
+                    ) from e
+                else:
+                    Prompt.info(msg="跳过表 log_clustering_clusteringremark、log_clustering_regextemplate 的迁移操作\n")
+            except Exception as e:
+                raise Exception(
+                    f"表 log_clustering_clusteringremark、log_clustering_regextemplate 迁移时发生未知错误: {str(e)}\n"
                 ) from e
-            else:
-                Prompt.info(msg="跳过表 log_clustering_clusteringremark、log_clustering_regextemplate 的迁移操作\n")
-        except Exception as e:
-            raise CommandError(
-                f"表 log_clustering_clusteringremark、log_clustering_regextemplate 迁移时发生未知错误: {str(e)}\n"
-            ) from e
 
         collector_config_id_name_dict = {}
 
@@ -415,10 +400,9 @@ class OverseasMigrateTool:
             )
             return
 
+        clustering_config_file_datas = self.json_content_dict.get("clustering_config", [])
+
         # 创建数据字典，方便后续取值
-        clustering_config_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
-            "index_set_id", self.json_content_dict.get("clustering_config", []), self.index_set_id_set
-        )
         clustering_subscription_file_datas_dict = self.transform_dict_list_to_customization_key_dict_list_dict(
             "index_set_id",
             self.json_content_dict.get("clustering_subscription", []),
@@ -433,37 +417,40 @@ class OverseasMigrateTool:
             self.index_set_id_set,
         )
 
-        # 遍历 index_set_id_set，进行关联迁移操作
-        for index_set_id in self.index_set_id_set:
+        # 遍历日志聚类配置，进行关联迁移操作
+        for data in clustering_config_file_datas:
+            if (self.bk_biz_id and data.get("bk_biz_id") != self.bk_biz_id) or (
+                self.index_set_id_set and data.get("index_set_id") not in self.index_set_id_set
+            ):
+                continue
+
+            index_set_id = data.get("index_set_id")
+
             # 通过 index_set_id 取出表数据
-            clustering_config_datas = clustering_config_file_datas_dict.get(index_set_id, [])
             clustering_subscription_datas = clustering_subscription_file_datas_dict.get(index_set_id, [])
             notice_group_datas = notice_group_file_datas_dict.get(index_set_id, [])
             signature_strategy_settings_datas = signature_strategy_settings_file_datas_dict.get(index_set_id, [])
 
             # flow_id 替换为新
-            for clustering_config in clustering_config_datas:
-                after_treat_flow_id = str(clustering_config.get("after_treat_flow_id"))
-                pre_treat_flow_id = str(clustering_config.get("pre_treat_flow_id"))
-                predict_flow_id = str(clustering_config.get("predict_flow_id"))
-                log_count_aggregation_flow_id = str(clustering_config.get("log_count_aggregation_flow_id"))
+            after_treat_flow_id = str(data.get("after_treat_flow_id"))
+            pre_treat_flow_id = str(data.get("pre_treat_flow_id"))
+            predict_flow_id = str(data.get("predict_flow_id"))
+            log_count_aggregation_flow_id = str(data.get("log_count_aggregation_flow_id"))
 
-                if after_treat_flow_id and after_treat_flow_id in flow_id_mapping_info_dict:
-                    clustering_config["after_treat_flow_id"] = flow_id_mapping_info_dict[after_treat_flow_id]
+            if after_treat_flow_id and after_treat_flow_id in flow_id_mapping_info_dict:
+                data["after_treat_flow_id"] = flow_id_mapping_info_dict[after_treat_flow_id]
 
-                if pre_treat_flow_id and pre_treat_flow_id in flow_id_mapping_info_dict:
-                    clustering_config["pre_treat_flow_id"] = flow_id_mapping_info_dict[pre_treat_flow_id]
+            if pre_treat_flow_id and pre_treat_flow_id in flow_id_mapping_info_dict:
+                data["pre_treat_flow_id"] = flow_id_mapping_info_dict[pre_treat_flow_id]
 
-                if predict_flow_id and predict_flow_id in flow_id_mapping_info_dict:
-                    clustering_config["predict_flow_id"] = flow_id_mapping_info_dict[predict_flow_id]
+            if predict_flow_id and predict_flow_id in flow_id_mapping_info_dict:
+                data["predict_flow_id"] = flow_id_mapping_info_dict[predict_flow_id]
 
-                if log_count_aggregation_flow_id and log_count_aggregation_flow_id in flow_id_mapping_info_dict:
-                    clustering_config["log_count_aggregation_flow_id"] = flow_id_mapping_info_dict[
-                        log_count_aggregation_flow_id
-                    ]
+            if log_count_aggregation_flow_id and log_count_aggregation_flow_id in flow_id_mapping_info_dict:
+                data["log_count_aggregation_flow_id"] = flow_id_mapping_info_dict[log_count_aggregation_flow_id]
 
-            clustering_config_objs = self.datas_save_db(ClusteringConfig, clustering_config_datas)
-            self.clustering_config_success_migrate_ids.extend([obj["id"] for obj in clustering_config_objs])
+            clustering_config_obj = self.data_save_db(ClusteringConfig, data)
+            self.clustering_config_success_migrate_ids.append(clustering_config_obj["id"])
 
             clustering_subscription_objs = self.datas_save_db(ClusteringSubscription, clustering_subscription_datas)
             self.clustering_subscription_success_migrate_ids.extend([obj["id"] for obj in clustering_subscription_objs])
