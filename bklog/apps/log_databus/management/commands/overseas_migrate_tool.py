@@ -62,13 +62,15 @@ class Command(BaseCommand):
             default=False,
         )
         parser.add_argument(
-            "-oi--is_migrate_index_set",
+            "-oi",
+            "--is_migrate_index_set",
             type=str_to_bool,
             help="是否迁移索引集相关表",
             default=True,
         )
         parser.add_argument(
-            "-oc--is_migrate_clustering",
+            "-oc",
+            "--is_migrate_clustering",
             type=str_to_bool,
             help="是否迁移日志聚类相关表",
             default=True,
