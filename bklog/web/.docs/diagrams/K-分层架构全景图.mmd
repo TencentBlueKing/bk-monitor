@@ -1,0 +1,82 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f5e9', 'primaryTextColor': '#2e7d32', 'primaryBorderColor': '#4caf50', 'lineColor': '#81c784'}}}%%
+graph TB
+    subgraph "用户交互层"
+        USER[用户操作]
+    end
+
+    subgraph "视图层 Views"
+        V1[Retrieve 检索]
+        V2[Manage 管理]
+        V3[Dashboard 仪表盘]
+        V4[Monitor 监控嵌入]
+    end
+
+    subgraph "组件层 Components"
+        COMP1[业务组件]
+        COMP2[通用组件]
+        COMP3[布局组件]
+    end
+
+    subgraph "状态管理层 Vuex"
+        STORE_ROOT[Root Store]
+        STORE_M1[retrieve module]
+        STORE_M2[collect module]
+        STORE_M3[globals module]
+    end
+
+    subgraph "服务层 Services"
+        SVC1[meta.js]
+        SVC2[retrieve.ts]
+        SVC3[collect.js]
+        SVC4[dashboard.js]
+        SVC5[...]
+    end
+
+    subgraph "HTTP 层 API"
+        HTTP_CORE[axios instance]
+        HTTP_QUEUE[RequestQueue]
+        HTTP_CACHE[CachedPromise]
+        HTTP_INTERCEPT[Interceptors]
+    end
+
+    subgraph "后端 API"
+        BACKEND["/api/v1/*"]
+    end
+
+    USER --> V1
+    USER --> V2
+    USER --> V3
+    USER --> V4
+
+    V1 --> COMP1
+    V2 --> COMP1
+    V3 --> COMP1
+    V4 --> COMP1
+    COMP1 --> COMP2
+    COMP1 --> COMP3
+
+    V1 --> STORE_ROOT
+    V2 --> STORE_ROOT
+    V3 --> STORE_ROOT
+    V4 --> STORE_ROOT
+    
+    STORE_ROOT --> STORE_M1
+    STORE_ROOT --> STORE_M2
+    STORE_ROOT --> STORE_M3
+
+    STORE_M1 --> SVC1
+    STORE_M1 --> SVC2
+    STORE_M2 --> SVC3
+    STORE_M3 --> SVC1
+
+    SVC1 --> HTTP_CORE
+    SVC2 --> HTTP_CORE
+    SVC3 --> HTTP_CORE
+    SVC4 --> HTTP_CORE
+    SVC5 --> HTTP_CORE
+
+    HTTP_CORE --> HTTP_QUEUE
+    HTTP_CORE --> HTTP_CACHE
+    HTTP_CORE --> HTTP_INTERCEPT
+
+    HTTP_INTERCEPT --> BACKEND

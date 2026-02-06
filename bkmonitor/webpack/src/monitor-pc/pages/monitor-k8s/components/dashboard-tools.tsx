@@ -55,6 +55,8 @@ interface IHeadToolEvent {
   onDownSampleRangeChange?: (v: number | string) => void;
   // 点击全屏功能触发
   onFullscreenChange: (v: boolean) => void;
+  // 返回新版功能触发
+  onGotoNew?: () => void;
   // 触发立即刷新
   onImmediateRefresh: () => void;
   onIntervalChange?: (v: number | string) => void;
@@ -78,6 +80,8 @@ interface IHeadToolProps {
   // 是否显示粒度
   showDownSampleRange?: boolean;
   showFullscreen?: boolean;
+  // 是否显示返回新版功能
+  showGotoNew?: boolean;
   showInterval?: boolean;
   // 是否展示列表功能
   showListMenu?: boolean;
@@ -116,6 +120,8 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
   @Prop({ default: true, type: Boolean }) showTimeRange: boolean;
   // 是否显示分屏功能
   @Prop({ default: false, type: Boolean }) showSplitPanel: boolean;
+  // 是否显示返回新版功能
+  @Prop({ default: false, type: Boolean }) showGotoNew: boolean;
   // menu list
   @Prop({ default: () => COMMON_SETTINGS_LIST }) menuList: IMenuItem[];
   // 粒度
@@ -395,6 +401,9 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
   handleTimezoneChange(v) {
     return v;
   }
+  @Emit('gotoNew')
+  handleGotoOld() {}
+
   render() {
     return (
       <div class='dashboard-tools'>
@@ -470,6 +479,27 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
                 <i class='icon-monitor icon-mc-more-tool' />
               </div>
             </ListMenu>
+          )}
+          {this.showGotoNew && (
+            <div
+              style='padding-right: 0px'
+              class='goto-old'
+            >
+              <div
+                class='goto-old-wrap'
+                v-bk-tooltips={{
+                  content: this.$t('返回新版'),
+                  placements: ['bottom-end'],
+                  zIndex: 9999,
+                }}
+                onClick={this.handleGotoOld}
+              >
+                <div class='icon'>
+                  <i class='icon-monitor icon-zhuanhuan' />
+                </div>
+                <span>{this.$t('返回新版')}</span>
+              </div>
+            </div>
           )}
         </span>
       </div>

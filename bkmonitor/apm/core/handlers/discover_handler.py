@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,12 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
-from typing import Optional
 
 import pytz
 from django.utils.translation import gettext_lazy as _
 
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.models import HostInstance, TraceDataSource
 from core.drf_resource.exceptions import CustomException
 
@@ -36,7 +36,7 @@ class DiscoverHandler:
 
     @classmethod
     def get_app_retention(cls, bk_biz_id, app_name):
-        trace_datasource: Optional[TraceDataSource] = TraceDataSource.objects.filter(
+        trace_datasource: TraceDataSource | None = TraceDataSource.objects.filter(
             bk_biz_id=bk_biz_id, app_name=app_name
         ).first()
         if not trace_datasource:
@@ -60,3 +60,33 @@ class DiscoverHandler:
             "app_name": app_name,
             "updated_at__gte": last,
         }
+
+    @classmethod
+    def batch_merge_cache_updated_time(cls, bk_biz_id, app_name, cache_type, objs, discover_class):
+        """
+        批量从缓存中获取更新时间，并与数据库的时间合并
+        :param bk_biz_id: 业务ID
+        :param app_name: 应用名称
+        :param cache_type: 缓存类型（来自 ApmCacheType）
+        :param objs: 数据库对象列表
+        :param discover_class: Discover 类（如 EndpointDiscover, HostDiscover）
+        :return: 对象ID到更新时间的映射字典 {obj_id: updated_at}
+        """
+        # 一次性从 Redis 获取所有缓存数据
+        cache_name = ApmCacheHandler.get_cache_key(cache_type, bk_biz_id, app_name)
+        cache_data = ApmCacheHandler().get_cache_data(cache_name)
+
+        # 批量处理所有对象
+        id_to_updated_at = {}
+        for obj in objs:
+            instance_data = discover_class.build_instance_data(obj)
+            cache_key = discover_class.to_cache_key(instance_data)
+
+            # 获取时间戳，优先使用缓存中的时间，如果缓存中没有则使用数据库的 updated_at
+            updated_at = obj.updated_at
+            if cache_key in cache_data:
+                updated_at = datetime.datetime.fromtimestamp(cache_data[cache_key], tz=pytz.UTC)
+
+            id_to_updated_at[obj.id] = updated_at
+
+        return id_to_updated_at

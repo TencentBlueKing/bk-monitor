@@ -150,7 +150,8 @@ class IncidentOperationManager:
                     return
 
             # 根据故障的业务ID从字典中获取对应的接收人
-            bk_biz_id = incident_document.bk_biz_id
+            # 注意：配置中的 key 是字符串，需要转换类型
+            bk_biz_id = str(incident_document.bk_biz_id)
             chat_ids = builtin_chat_ids_dict.get(bk_biz_id, [])
             user_ids = builtin_user_ids_dict.get(bk_biz_id, [])
             # 接收人，使用内置的admin接收人，管理员组

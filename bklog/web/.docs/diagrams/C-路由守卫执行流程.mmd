@@ -1,0 +1,27 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f5e9', 'primaryTextColor': '#2e7d32', 'primaryBorderColor': '#43a047', 'lineColor': '#66bb6a'}}}%%
+flowchart TD
+    START([路由切换开始]) --> BEFORE_EACH{beforeEach 守卫}
+    
+    subgraph "beforeEach 处理"
+        BEFORE_EACH --> CANCEL_REQ[取消 cancelWhenRouteChange<br/>的请求]
+        CANCEL_REQ --> CHECK_RETRIEVE{目标是 retrieve?}
+        CHECK_RETRIEVE -->|是| POST_MSG[向 window.parent<br/>postMessage 同步参数]
+        CHECK_RETRIEVE -->|否| CHECK_EXTERNAL{外部版?}
+        POST_MSG --> CHECK_EXTERNAL
+        CHECK_EXTERNAL -->|是| CHECK_WHITELIST{路由在白名单?}
+        CHECK_EXTERNAL -->|否| ALLOW[允许访问]
+        CHECK_WHITELIST -->|否| REDIRECT[重定向到 retrieve<br/>或 manage]
+        CHECK_WHITELIST -->|是| ALLOW
+    end
+    
+    REDIRECT --> AFTER_EACH
+    ALLOW --> AFTER_EACH
+    
+    subgraph "afterEach 处理"
+        AFTER_EACH{afterEach 守卫} --> CHECK_EXCEPTION{是 exception 页?}
+        CHECK_EXCEPTION -->|否| REPORT_LOG[reportRouteLog 上报]
+        CHECK_EXCEPTION -->|是| END_HOOK
+        REPORT_LOG --> END_HOOK[守卫结束]
+    end
+    
+    END_HOOK --> RENDER([渲染目标组件])

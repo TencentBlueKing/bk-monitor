@@ -92,19 +92,18 @@ except ImportError:
     pass
 
 # 融合 bk-monitor-base Django 配置：主项目优先，仅补齐缺失项
-# 暂时不开启，待子模块拉取问题解决后再开启
-# try:
-#     from bk_monitor_base.config.django import merge_django_settings
+try:
+    from bk_monitor_base.config.django import merge_django_settings
 
-#     merge_django_settings(globals())
+    merge_django_settings(globals())
 
-#     # 暂时排除metadata app
-#     globals()["INSTALLED_APPS"] = tuple(app for app in globals()["INSTALLED_APPS"] if app != "bk_monitor_base.metadata")
+    # 暂时排除metadata app
+    globals()["INSTALLED_APPS"] = tuple(app for app in globals()["INSTALLED_APPS"] if app != "bk_monitor_base.metadata")
 
-#     from bk_monitor_base.infras.constant import OLD_MONITOR_SAAS_DB_NAME, OLD_MONITOR_BACKEND_DB_NAME
+    from bk_monitor_base.infras.constant import OLD_MONITOR_BACKEND_DB_NAME, OLD_MONITOR_SAAS_DB_NAME
 
-#     # 数据库配置初始化
-#     globals()["DATABASES"][OLD_MONITOR_SAAS_DB_NAME] = globals()["DATABASES"]["default"].copy()
-#     globals()["DATABASES"][OLD_MONITOR_BACKEND_DB_NAME] = globals()["DATABASES"]["monitor_api"].copy()
-# except ImportError as e:
-#     pass
+    # 数据库配置初始化
+    globals()["DATABASES"][OLD_MONITOR_SAAS_DB_NAME] = globals()["DATABASES"]["default"].copy()
+    globals()["DATABASES"][OLD_MONITOR_BACKEND_DB_NAME] = globals()["DATABASES"]["monitor_api"].copy()
+except ImportError as e:
+    print(f"import bk-monitor-base and load settings failed, error: {e}")

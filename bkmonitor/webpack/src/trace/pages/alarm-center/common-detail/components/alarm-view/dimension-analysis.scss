@@ -1,0 +1,145 @@
+.alarm-view-panel-dimension-analysis-wrap {
+  .alarm-dimension-chart {
+    width: 100%;
+    height: 240px;
+    background-color: #fff;
+
+    .dimension-chart {
+      .custom-tools-wrapper {
+        .dimension-chart-fullscreen {
+          margin-right: 6px;
+          cursor: pointer;
+
+          &:hover {
+            color: #3a84ff;
+          }
+        }
+      }
+    }
+  }
+
+  .dimension-analysis-table-view {
+    position: relative;
+    display: flex;
+    min-height: 300px;
+    max-height: 540px;
+    border-top: 1px solid #dcdee5;
+
+    .dimension-analysis-left {
+      width: 160px;
+      min-width: 160px;
+      overflow-y: auto;
+      background: #f3f6fa;
+    }
+
+    .dimension-analysis-right {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      max-width: calc(100% - 160px);
+      background: #fff;
+
+      .type-select {
+        display: flex;
+        align-items: center;
+        width: fit-content;
+        height: 32px;
+        padding: 0 4px;
+        margin: 8px;
+        background: #f0f1f5;
+        border-radius: 2px;
+
+        .type-select-item {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          cursor: pointer;
+          border-radius: 2px;
+
+          .icon-monitor {
+            font-size: 12px;
+          }
+
+          &.active {
+            cursor: default;
+            background: #fff;
+
+            .icon-monitor {
+              color: #3a84ff;
+            }
+          }
+        }
+      }
+
+      .conditions-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 8px 8px;
+
+        .condition-item {
+          display: flex;
+          align-items: center;
+          height: 22px;
+          padding: 0 2px 0 8px;
+          margin: 2px 6px 2px 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-size: 12px;
+          color: rgb(99 101 110);
+          white-space: nowrap;
+          background-color: rgb(151 155 165 / 10%);
+
+          .text-ellipsis {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .method {
+            margin: 0 4px;
+            color: rgb(255 156 1);
+          }
+
+          .icon-mc-close {
+            font-size: 16px;
+            cursor: pointer;
+          }
+        }
+      }
+
+      .dimension-analysis-data {
+        flex: 1;
+      }
+    }
+  }
+}
+
+.alarm-dimension-chart-full-dialog.bk-dialog {
+  .bk-modal-wrapper {
+    .bk-modal-content {
+      & > div {
+        height: 100%;
+
+        .bk-dialog-content {
+          height: 100%;
+          margin-top: 0;
+          margin-bottom: 0;
+
+          .view-wrap {
+            height: 100%;
+
+            .dimension-fullscreen-chart {
+              .chart-skeleton {
+                .h-20 {
+                  height: 16%;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

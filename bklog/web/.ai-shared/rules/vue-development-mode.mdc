@@ -1,0 +1,12 @@
+---
+description: Vue 开发模式约束（新功能 TSX+hooks；修复保持原风格）。
+alwaysApply: true
+---
+
+# Vue 开发模式约束（最小规则）
+
+- No new module/component in Options API `.vue`（新功能：Composition API + TSX + hooks）
+- No paradigm switch during bugfix（修复：保持原文件风格）
+- No Composition API injected into legacy Options API SFC
+- No Options API introduced into TSX/Composition component
+- No mixed Options API + Composition API in a single file

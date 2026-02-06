@@ -1,0 +1,24 @@
+.k8s-scene-selector {
+  .k8s-scene-selector-item {
+    min-width: 64px;
+    color: #4d4f56;
+
+    &.is-checked {
+      color: #3a84ff;
+    }
+
+    .bk-radio-button-label {
+      color: inherit;
+    }
+
+    .item-container {
+      display: flex;
+      column-gap: 4px;
+      align-items: center;
+
+      .item-prefix-icon {
+        font-size: 12px;
+      }
+    }
+  }
+}
