@@ -3217,9 +3217,6 @@ class ESFieldQueryAliasOption(BaseModel):
     query_alias = models.CharField("查询别名", max_length=256)
     is_deleted = models.BooleanField("是否已删除(已废弃)", default=False)
 
-    class Meta:
-        unique_together = ("table_id", "bk_tenant_id", "query_alias")
-
     @classmethod
     def generate_query_alias_settings(cls, table_id: str, bk_tenant_id: str):
         """

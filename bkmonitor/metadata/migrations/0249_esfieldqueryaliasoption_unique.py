@@ -62,8 +62,4 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(dedupe_esfield_query_alias_option, reverse_code=migrations.RunPython.noop),
-        migrations.AlterUniqueTogether(
-            name="esfieldqueryaliasoption",
-            unique_together={("table_id", "bk_tenant_id", "query_alias")},
-        ),
     ]
