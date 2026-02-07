@@ -8,10 +8,11 @@ logger = logging.getLogger("metadata.migrations")
 
 
 def dedupe_esfield_query_alias_option(apps, schema_editor):
-    """软删除重复的 ES 字段别名配置（可重入）。
+    """清理重复的 ES 字段别名配置（可重入）。
 
     说明：
-        - 同一 (table_id, bk_tenant_id, query_alias) 只保留最新一条。
+        - is_deleted=True 的记录直接硬删除。
+        - is_deleted=False 的重复记录只做软删除，避免误删。
         - 多次执行结果一致，可安全重入。
 
     Args:
@@ -27,11 +28,21 @@ def dedupe_esfield_query_alias_option(apps, schema_editor):
         "-id",
     )
     seen_keys: set[tuple[str, str, str]] = set()
+    delete_ids: list[int] = []
     soft_delete_ids: list[int] = []
 
     for record in queryset.iterator(chunk_size=1000):
-        # 已软删除记录跳过，不重复处理。
+        # 已软删除记录直接硬删除。
         if record.is_deleted:
+            logger.info(
+                "dedupe_esfield_query_alias_option: hard delete soft-deleted record id=%s table_id=%s bk_tenant_id=%s query_alias=%s field_path=%s",
+                record.pk,
+                record.table_id,
+                record.bk_tenant_id,
+                record.query_alias,
+                record.field_path,
+            )
+            delete_ids.append(record.pk)
             continue
         # 相同别名仅保留最新一条（排序已保证先遇到的是最新）。
         key = (record.table_id, record.bk_tenant_id, record.query_alias)
@@ -45,12 +56,11 @@ def dedupe_esfield_query_alias_option(apps, schema_editor):
                 record.field_path,
             )
             soft_delete_ids.append(record.pk)
-            if len(soft_delete_ids) >= 1000:
-                model.objects.filter(id__in=soft_delete_ids).update(is_deleted=True)
-                soft_delete_ids = []
             continue
         seen_keys.add(key)
 
+    if delete_ids:
+        model.objects.filter(id__in=delete_ids).delete()
     if soft_delete_ids:
         model.objects.filter(id__in=soft_delete_ids).update(is_deleted=True)
 
