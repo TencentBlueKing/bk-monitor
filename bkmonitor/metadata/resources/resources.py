@@ -2233,7 +2233,7 @@ class KafkaTailResource(Resource):
         # 是否是V4数据链路
         elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
             # 若开启特性开关且存在RT且非日志数据，则V4链路使用BkBase侧的Kafka采样接口拉取数据
-            if result_table and datasource.etl_config in EtlConfigs.BK_STANDARD_V2_EVENT.value:
+            if result_table and datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
                 bkbase_result_table = models.BkBaseResultTable.objects.filter(
                     bk_tenant_id=bk_tenant_id, monitor_table_id=result_table.table_id
                 ).first()
