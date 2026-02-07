@@ -2242,13 +2242,25 @@ class KafkaTailResource(Resource):
                         "KafkaTailResource: bkbase_result_table not found,table_id->[%s]", result_table.table_id
                     )
                     return []
-                data_id_config = DataIdConfig.objects.get(
+                try:
+                    data_id_config = DataIdConfig.objects.get(
+                        bk_tenant_id=bk_tenant_id,
+                        namespace=BKBASE_NAMESPACE_BK_LOG,
+                        name=bkbase_result_table.bkbase_data_name,
+                    )
+                except DataIdConfig.DoesNotExist:
+                    logger.warning(
+                        "KafkaTailResource: DataIdConfig not found, bk_tenant_id->[%s], namespace->[%s], name->[%s]",
+                        bk_tenant_id,
+                        BKBASE_NAMESPACE_BK_LOG,
+                        bkbase_result_table.bkbase_data_name,
+                    )
+                    return []
+                res = api.bkdata.tail_kafka_data(
                     bk_tenant_id=bk_tenant_id,
                     namespace=BKBASE_NAMESPACE_BK_LOG,
-                    name=bkbase_result_table.bkbase_data_name,
-                )
-                res = api.bkdata.tail_kafka_data(
-                    bk_tenant_id=bk_tenant_id, namespace=BKBASE_NAMESPACE_BK_LOG, name=data_id_config.name, limit=size
+                    name=data_id_config.name,
+                    limit=size,
                 )
                 result = [json.loads(data) for data in res]
             elif result_table and datasource.etl_config != "bk_flat_batch":
