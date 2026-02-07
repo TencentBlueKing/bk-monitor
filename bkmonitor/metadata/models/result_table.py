@@ -3309,7 +3309,7 @@ class ESFieldQueryAliasOption(BaseModel):
                 query_alias = item["query_alias"]
                 field_path = item["field_name"]
                 path_type = item.get("path_type", "keyword")
-                ESFieldQueryAliasOption.objects.update_or_create(
+                record, created = ESFieldQueryAliasOption.objects.get_or_create(
                     table_id=table_id,
                     bk_tenant_id=bk_tenant_id,
                     query_alias=query_alias,
@@ -3321,6 +3321,12 @@ class ESFieldQueryAliasOption(BaseModel):
                         "is_deleted": False,
                     },
                 )
+                if not created:
+                    record.field_path = field_path
+                    record.path_type = path_type
+                    record.updater = operator
+                    record.is_deleted = False
+                    record.save(update_fields=["field_path", "path_type", "updater", "is_deleted", "update_time"])
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
                 "manage_query_alias_settings: failed to manage alias settings for table_id->[%s], "
