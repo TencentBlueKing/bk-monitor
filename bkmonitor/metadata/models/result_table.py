@@ -3263,7 +3263,7 @@ class ESFieldQueryAliasOption(BaseModel):
         table_id: str,
         query_alias_settings: list[dict[str, Any]],
         operator: str,
-        bk_tenant_id: str = DEFAULT_TENANT_ID,
+        bk_tenant_id: str,
     ) -> None:
         """
         管理ES字段关联别名配置记录（支持一个field_path对应多个alias）。
