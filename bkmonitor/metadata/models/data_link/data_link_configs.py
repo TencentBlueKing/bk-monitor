@@ -52,7 +52,7 @@ class DataLinkResourceConfigBase(models.Model):
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
     status = models.CharField(verbose_name="状态", max_length=64)
-    data_link_name = models.CharField(verbose_name="数据链路名称", max_length=64)
+    data_link_name = models.CharField(verbose_name="数据链路名称", max_length=64, blank=True)
     bk_biz_id = models.BigIntegerField(verbose_name="业务ID")
     bk_tenant_id: str = models.CharField("租户ID", max_length=256, null=True, default="system")  # pyright: ignore[reportAssignmentType]
 
