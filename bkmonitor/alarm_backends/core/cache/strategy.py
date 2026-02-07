@@ -20,6 +20,7 @@ from operator import itemgetter
 from typing import Any
 
 import arrow
+from bk_monitor_base.strategy import list_strategy, parse_metric_id
 from django.conf import settings
 
 from alarm_backends.constants import CONST_ONE_DAY
@@ -37,7 +38,6 @@ from bkmonitor.models import (
     StrategyHistoryModel,
     StrategyModel,
 )
-from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
 from bkmonitor.utils.common_utils import chunks, count_md5
 from bkmonitor.utils.kubernetes import is_k8s_target
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -45,10 +45,10 @@ from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
 from constants.strategy import (
     AGG_METHOD_REAL_TIME,
-    AdvanceConditionMethod,
-    TargetFieldType,
     OS_RESTART_METRIC_ID,
     SYSTEM_PROC_PORT_METRIC_ID,
+    AdvanceConditionMethod,
+    TargetFieldType,
 )
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -386,9 +386,11 @@ class StrategyCacheManager(CacheManager):
 
         # 根据给定的过滤条件，从数据库中筛选出所有启用的策略模型，并将它们转换为字典形式
         # 这个映射的键是策略的唯一标识符，值是策略的内容，便于进一步处理和使用
-        strategy_configs_map = {
-            strategy.id: strategy.to_dict()
-            for strategy in Strategy.from_models(StrategyModel.objects.filter(is_enabled=True).filter(**filter_dict))
+        strategy_configs_map: dict[int, dict[str, Any]] = {
+            strategy_config["id"]: strategy_config
+            for strategy_config in list_strategy(
+                conditions=[{"key": "is_enabled", "values": [True], "operator": "eq"}]
+            )["data"]
         }
 
         result_map = {}
@@ -596,7 +598,7 @@ class StrategyCacheManager(CacheManager):
         strategies = []
         for sub_keys in chunks(keys, 1000):
             strategies.extend(cls.cache.mget(sub_keys))
-        return [Strategy.convert_v1_to_v2(json.loads(strategy)) for strategy in strategies if strategy]
+        return [json.loads(strategy) for strategy in strategies if strategy]
 
     @classmethod
     def get_strategy_by_id(cls, strategy_id: int) -> dict:
@@ -604,8 +606,6 @@ class StrategyCacheManager(CacheManager):
         从缓存中获取策略详情
         """
         strategy = json.loads(cls.cache.get(cls.CACHE_KEY_TEMPLATE.format(strategy_id=strategy_id)) or "null")
-        # 兼容旧版策略
-        strategy = Strategy.convert_v1_to_v2(strategy)
         return strategy
 
     @classmethod

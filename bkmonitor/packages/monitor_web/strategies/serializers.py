@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,8 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from bk_monitor_base.strategy import AlgorithmSerializer
 from django.conf import settings
-from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
@@ -126,9 +126,10 @@ def validate_algorithm_msg(value):
     for algorithm_msg in value:
         algorithm_type = algorithm_msg["algorithm_type"]
         check_config = algorithm_msg["algorithm_config"]
-        type_serializer = algorithm_type + "Serializer"
         try:
-            serializer_cls = import_string("bkmonitor.strategy.serializers.{}".format(type_serializer))
+            serializer_cls = AlgorithmSerializer.AlgorithmSerializers.get(algorithm_type)
+            if not serializer_cls:
+                continue
             serializer = serializer_cls(data=check_config)
             serializer.is_valid(raise_exception=True)
             algorithm_msg["algorithm_config"] = serializer.validated_data

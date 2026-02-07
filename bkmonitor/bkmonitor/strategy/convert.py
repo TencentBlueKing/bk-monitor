@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -14,13 +13,11 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 from itertools import chain
-from typing import List
 
 from django.conf import settings
 from django.utils.translation import gettext as _
 
 from bkmonitor.models import AlgorithmModel
-from bkmonitor.strategy.new_strategy import Strategy
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import (
     EVENT_DETECT_LIST,
@@ -44,7 +41,7 @@ class UptimeCheckConvert:
     """
 
     @classmethod
-    def convert(cls, strategy: Strategy):
+    def convert(cls, strategy):
         for item in strategy.items:
             for query_config in item.query_configs:
                 # 判断是否是拨测配置
@@ -93,7 +90,7 @@ class UptimeCheckConvert:
                     algorithm.config = [[{"method": "gte", "threshold": algorithm.config.get("count", 0)}]]
 
     @classmethod
-    def restore(cls, strategy: Strategy):
+    def restore(cls, strategy):
         for item in strategy.items:
             is_special_uptime_check = False
             for query_config in item.query_configs:
@@ -128,7 +125,7 @@ class UptimeCheckConvert:
                         continue
 
                     # task_id的值转为字符型
-                    if condition_msg["key"] == "task_id" and isinstance(condition_msg["value"], (tuple, list)):
+                    if condition_msg["key"] == "task_id" and isinstance(condition_msg["value"], tuple | list):
                         condition_msg["value"] = [str(task_id) for task_id in condition_msg["value"]]
 
                     if not new_condition and "condition" in condition_msg:
@@ -157,7 +154,7 @@ class CMDBTopoNodeAggConvert:
     """
 
     @classmethod
-    def convert(cls, strategy: Strategy):
+    def convert(cls, strategy):
         """
         保存时判断是否进行拓扑层级聚合
         1. 判断是否监控对象是否是拓扑节点
@@ -192,7 +189,7 @@ class CMDBTopoNodeAggConvert:
                     continue
 
                 origin_result_table_id: str = query_config.result_table_id
-                origin_dimension: List[str] = query_config.agg_dimension.copy()
+                origin_dimension: list[str] = query_config.agg_dimension.copy()
 
                 # 判断是否已经进行了转换
                 if len(set(origin_dimension) & set(SPLIT_DIMENSIONS)) == 2:
@@ -211,7 +208,9 @@ class CMDBTopoNodeAggConvert:
                 if settings.IS_ACCESS_BK_DATA:
                     return
                 if query_config.result_table_id.startswith("system."):
-                    raise Exception(_("主机性能指标按CMDB动态节点聚合暂不可用(原因：维度未使用云区域ID + IP，目标又选择了CMDB节点)"))
+                    raise Exception(
+                        _("主机性能指标按CMDB动态节点聚合暂不可用(原因：维度未使用云区域ID + IP，目标又选择了CMDB节点)")
+                    )
                 # 调用metadataCMDB拓扑节点聚合
                 for bk_obj_id in bk_obj_ids:
                     try:
@@ -236,7 +235,7 @@ class CMDBTopoNodeAggConvert:
                 }
 
     @classmethod
-    def restore(cls, strategy: Strategy):
+    def restore(cls, strategy):
         """
         将策略还原成原始配置
         从extend_fields中的origin_config还原result_table_id及agg_dimension
@@ -264,7 +263,7 @@ class CMDBTopoNodeAggConvertWithBKData:
     """
 
     @classmethod
-    def convert(cls, strategy: Strategy):
+    def convert(cls, strategy):
         """
         利用计算平台计算能力，补充CMDB层级信息到原始表（按需开启）
 
@@ -301,33 +300,31 @@ class CMDBTopoNodeAggConvertWithBKData:
                     api.metadata.full_cmdb_node_info(table_id=rt_query.result_table_id)
                 except Exception:  # noqa
                     logger.exception(
-                        "create cmdb node info error, strategy_id({}), result_table_id({})".format(
-                            strategy.id, rt_query.result_table_id
-                        )
+                        f"create cmdb node info error, strategy_id({strategy.id}), result_table_id({rt_query.result_table_id})"
                     )
                     continue
 
                 rt_query.agg_dimension = list(set(rt_query.agg_dimension + SPLIT_DIMENSIONS))
 
     @classmethod
-    def restore(cls, strategy: Strategy):
+    def restore(cls, strategy):
         pass
 
 
-class AIOPSWithBkdataConvert(object):
+class AIOPSWithBkdataConvert:
     """
     aiops策略配置转换
     """
 
     @classmethod
-    def convert(cls, strategy: Strategy):
+    def convert(cls, strategy):
         """
         在新建的时候，由于策略还未保存，缺少一些信息，所以这部分动作挪到了外面(策略保存后), 这里不做任何处理
         """
         pass
 
     @classmethod
-    def restore(cls, strategy: Strategy):
+    def restore(cls, strategy):
         """
         策略创建好之后，需要等待一段时间才能使用
         :param strategy:
@@ -360,7 +357,7 @@ class FakeEventConvert:
     """
 
     @classmethod
-    def convert(cls, strategy: Strategy):
+    def convert(cls, strategy):
         """
         转换成真实的查询配置
         :param strategy: 策略
@@ -387,7 +384,7 @@ class FakeEventConvert:
                     algorithm.config = EVENT_DETECT_LIST[origin_metric_field][0]["config"]
 
     @classmethod
-    def restore(cls, strategy: Strategy):
+    def restore(cls, strategy):
         event_algorithm_types = [detect_config[0]["type"] for detect_config in EVENT_DETECT_LIST.values()]
 
         # 判断是否有事件算法
@@ -419,7 +416,7 @@ class EventTobeClosedConvert:
     """
 
     @classmethod
-    def convert(cls, strategy: Strategy):
+    def convert(cls, strategy):
         for query_config in chain(*[item.query_configs for item in strategy.items]):
             if query_config.get_metric_id() not in settings.CLOSE_EVNET_METRIC_IDS:
                 break
@@ -427,7 +424,7 @@ class EventTobeClosedConvert:
             strategy.detects[0].recovery_config.update({"status_setter": "close"})
 
     @classmethod
-    def restore(cls, strategy: Strategy):
+    def restore(cls, strategy):
         pass
 
 
@@ -437,7 +434,7 @@ class ActionOptionConvert:
     """
 
     @classmethod
-    def convert(cls, strategy: Strategy):
+    def convert(cls, strategy):
         for action in strategy.actions:
             action.user_groups = strategy.notice.user_groups
             action.options.update(
@@ -453,7 +450,7 @@ class ActionOptionConvert:
             strategy.detects[0].recovery_config.update({"status_setter": "close"})
 
     @classmethod
-    def restore(cls, strategy: Strategy):
+    def restore(cls, strategy):
         pass
 
 

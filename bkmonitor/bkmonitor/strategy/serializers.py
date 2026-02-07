@@ -28,14 +28,6 @@ allowed_threshold_method = {
     "neq": "!=",
 }
 
-allowed_method = {
-    "gt": ">",
-    "gte": ">=",
-    "lt": "<",
-    "lte": "<=",
-    "eq": "==",
-}
-
 
 class AdvancedYearRoundSerializer(serializers.Serializer):
     """
@@ -214,6 +206,14 @@ class YearRoundAmplitudeSerializer(serializers.Serializer):
     """
     同比振幅算法
     """
+
+    allowed_method = {
+        "gt": ">",
+        "gte": ">=",
+        "lt": "<",
+        "lte": "<=",
+        "eq": "==",
+    }
 
     ratio = serializers.FloatField(required=True)
     shock = serializers.FloatField(required=True)

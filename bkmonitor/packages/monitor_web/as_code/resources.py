@@ -14,15 +14,16 @@ import os
 import shutil
 import tarfile
 import tempfile
-from typing import Any
 import zipfile
 from collections import defaultdict
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 from urllib.parse import urljoin
 
 import arrow
 import yaml
+from bk_monitor_base.strategy import list_strategy
 from django.conf import settings
 from django.core.files import File
 from django.core.files.storage import default_storage
@@ -58,7 +59,6 @@ from bkmonitor.models import (
     UserGroup,
 )
 from bkmonitor.models.as_code import AsCodeImportTask
-from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.serializers import BkBizIdSerializer
 from bkmonitor.views import serializers
@@ -223,11 +223,14 @@ class ExportConfigResource(Resource):
 
         # 配置生成
         # 所有的策略需要非告警状态采集内置策略才可以导出
-        rules = [rule for rule in rules if rule.source != DATALINK_SOURCE]
-        rule_objs = Strategy.from_models(rules)
-        for strategy_obj in rule_objs:
-            strategy_obj.restore()
-        strategy_configs = [s.to_dict(convert_dashboard=False) for s in rule_objs]
+        filters: list[dict[str, Any]] = [
+            {"key": "source", "operator": "neq", "values": [DATALINK_SOURCE]},
+        ]
+        if rule_ids is not None:
+            filters.append({"key": "id", "operator": "eq", "values": rule_ids})
+        if app is not None:
+            filters.append({"key": "app", "operator": "eq", "values": [app]})
+        strategy_configs = list_strategy(bk_biz_id=bk_biz_id, conditions=filters)
 
         # 转换为AsCode配置
         parser = StrategyConfigParser(
