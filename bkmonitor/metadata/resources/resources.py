@@ -62,6 +62,7 @@ from metadata.models.constants import (
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG
 from metadata.models.data_link.data_link_configs import DataIdConfig
 from metadata.models.data_link.utils import (
+    compose_bkdata_data_id_name,
     get_bkbase_raw_data_name_for_v3_datalink,
     get_data_source_related_info,
 )
@@ -2234,26 +2235,19 @@ class KafkaTailResource(Resource):
         elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
             # 若开启特性开关且存在RT且非日志数据，则V4链路使用BkBase侧的Kafka采样接口拉取数据
             if result_table and datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
-                bkbase_result_table = models.BkBaseResultTable.objects.filter(
-                    bk_tenant_id=bk_tenant_id, monitor_table_id=result_table.table_id
-                ).first()
-                if not bkbase_result_table:
-                    logger.warning(
-                        "KafkaTailResource: bkbase_result_table not found,table_id->[%s]", result_table.table_id
-                    )
-                    return []
+                data_id_config_name = compose_bkdata_data_id_name(datasource.data_name)
                 try:
                     data_id_config = DataIdConfig.objects.get(
                         bk_tenant_id=bk_tenant_id,
                         namespace=BKBASE_NAMESPACE_BK_LOG,
-                        name=bkbase_result_table.bkbase_data_name,
+                        name=data_id_config_name,
                     )
                 except DataIdConfig.DoesNotExist:
                     logger.warning(
                         "KafkaTailResource: DataIdConfig not found, bk_tenant_id->[%s], namespace->[%s], name->[%s]",
                         bk_tenant_id,
                         BKBASE_NAMESPACE_BK_LOG,
-                        bkbase_result_table.bkbase_data_name,
+                        data_id_config_name,
                     )
                     return []
                 res = api.bkdata.tail_kafka_data(
