@@ -41,9 +41,14 @@ SCENARIO_ID_BKDATA = "bkdata"
 
 OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
 
-CLUSTER_INFO = [{"cluster_config": {"cluster_id": 1, "cluster_name": "", "port": 123, "domain_name": ""}}]
+CLUSTER_INFO = [
+    {"cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": "", "port": 123, "domain_name": ""}}
+]
 CLUSTER_INFO_WITH_AUTH = [
-    {"cluster_config": {"cluster_id": 1, "cluster_name": ""}, "auth_info": {"username": "", "password": ""}}
+    {
+        "cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": ""},
+        "auth_info": {"username": "", "password": ""},
+    }
 ]
 
 CLUSTER_INFOS = {"2_bklog.test3333": {"cluster_config": {"cluster_id": 1, "cluster_name": ""}}}
@@ -101,6 +106,8 @@ CREATE_SUCCESS = {
         "source_app_code": settings.APP_CODE,
         "tag_ids": [],
         "is_editable": True,
+        "is_group": False,
+        "parent_index_set_ids": [],
         "sort_fields": [],
         "target_fields": [],
         "result_window": 10000,
@@ -125,7 +132,6 @@ UPDATE_INDEX_SET = {
             "index_id": 204,
             "index_set_id": 102,
             "bk_biz_id": None,
-            "bk_biz_name": None,
             "source_id": None,
             "source_name": "--",
             "result_table_id": "log_xxx",
@@ -140,7 +146,6 @@ UPDATE_INDEX_SET = {
             "index_id": 203,
             "index_set_id": 102,
             "bk_biz_id": 1,
-            "bk_biz_name": None,
             "source_id": None,
             "source_name": "--",
             "result_table_id": "591_xx",
@@ -180,6 +185,7 @@ UPDATE_INDEX_SET = {
     "source_app_code": settings.APP_CODE,
     "tag_ids": [],
     "is_editable": True,
+    "is_group": False,
     "sort_fields": [],
     "target_fields": [],
     "result_window": 10000,
@@ -210,7 +216,6 @@ INDEX_SET_LISTS = {
                     "index_id": 62,
                     "index_set_id": 31,
                     "bk_biz_id": None,
-                    "bk_biz_name": None,
                     "source_id": None,
                     "source_name": "--",
                     "result_table_id": "log_xxx",
@@ -225,7 +230,6 @@ INDEX_SET_LISTS = {
                     "index_id": 61,
                     "index_set_id": 31,
                     "bk_biz_id": 1,
-                    "bk_biz_name": None,
                     "source_id": None,
                     "source_name": "--",
                     "result_table_id": "591_xx",
@@ -272,6 +276,7 @@ INDEX_SET_LISTS = {
             "bk_biz_id": 2,
             "permission": {},
             "is_editable": True,
+            "is_group": False,
             "sort_fields": [],
             "target_fields": [],
             "result_window": 10000,
@@ -316,7 +321,6 @@ SYSC_AUTH_STATUS_RESULT = [
         "index_id": 154,
         "index_set_id": 135,
         "bk_biz_id": None,
-        "bk_biz_name": None,
         "source_id": None,
         "source_name": "--",
         "result_table_id": "log_xxx",
@@ -331,7 +335,6 @@ SYSC_AUTH_STATUS_RESULT = [
         "index_id": 153,
         "index_set_id": 135,
         "bk_biz_id": 1,
-        "bk_biz_name": None,
         "source_id": None,
         "source_name": "--",
         "result_table_id": "591_xx",
@@ -363,7 +366,6 @@ RETRIEVE_LIST = {
             "index_id": 126,
             "index_set_id": 63,
             "bk_biz_id": None,
-            "bk_biz_name": None,
             "source_id": None,
             "source_name": "--",
             "result_table_id": "log_xxx",
@@ -378,7 +380,6 @@ RETRIEVE_LIST = {
             "index_id": 125,
             "index_set_id": 63,
             "bk_biz_id": 1,
-            "bk_biz_name": None,
             "source_id": None,
             "source_name": "--",
             "result_table_id": "591_xx",
@@ -418,6 +419,7 @@ RETRIEVE_LIST = {
     "fields_snapshot": "{}",
     "source_app_code": settings.APP_CODE,
     "is_editable": True,
+    "is_group": False,
     "sort_fields": [],
     "target_fields": [],
     "result_window": 10000,
@@ -802,3 +804,65 @@ class TestIndexSet(TestCase):
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
         self.maxDiff = 100000
         self.assertEqual(content["data"], RETRIEVE_LIST)
+
+
+@patch("apps.iam.handlers.drf.BusinessActionPermission.has_permission", return_value=True)
+@patch("apps.iam.handlers.drf.InstanceActionPermission.has_permission", return_value=True)
+@patch("apps.iam.handlers.drf.ViewBusinessPermission.has_permission", return_value=True)
+@patch("apps.iam.handlers.permission.Permission.batch_is_allowed", return_value=Dummy())
+class IndexGroupViewSetTestCase(TestCase):
+    def setUp(self):
+        self.do_create_index_group()
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def do_create_index_group(self, *args, **kwargs):
+        path = "/api/v1/index_group/"
+        data = {"space_uid": SPACE_UID, "index_set_name": "new_group"}
+        response = self.client.post(path, data)
+        content = json.loads(response.content)
+
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+        self.assertIn("index_set_id", content["data"])
+
+        # 验证数据库
+        new_group = LogIndexSet.objects.get(index_set_id=content["data"]["index_set_id"])
+        self.assertEqual(new_group.index_set_name, "new_group")
+        self.assertEqual(new_group.space_uid, SPACE_UID)
+        self.assertTrue(new_group.is_group)
+        self.index_group = new_group
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_list_index_groups(self, *args, **kwargs):
+        path = "/api/v1/index_group/"
+        data = {"space_uid": SPACE_UID}
+
+        response = self.client.get(path, data)
+        content = json.loads(response.content)
+
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+        index_groups = content["data"]["list"]
+        self.assertEqual(len(index_groups), 1)
+        self.assertEqual(index_groups[0]["index_set_id"], self.index_group.index_set_id)
+        self.assertEqual(index_groups[0]["index_set_name"], "new_group")
+        self.assertEqual(index_groups[0]["index_count"], 0)
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_update_index_group(self, *args, **kwargs):
+        path = f"/api/v1/index_group/{self.index_group.index_set_id}/"
+        data = {"index_set_name": "updated_group"}
+        response = self.client.put(path, data, content_type="application/json")
+
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+
+        # 验证数据库
+        updated_group = LogIndexSet.objects.get(index_set_id=self.index_group.index_set_id)
+        self.assertEqual(updated_group.index_set_name, "updated_group")
+
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    def test_delete_index_group(self, *args, **kwargs):
+        path = f"/api/v1/index_group/{self.index_group.index_set_id}/"
+        response = self.client.delete(path)
+
+        self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
+        # 验证数据库
+        self.assertFalse(LogIndexSet.objects.filter(index_set_id=self.index_group.index_set_id).exists())

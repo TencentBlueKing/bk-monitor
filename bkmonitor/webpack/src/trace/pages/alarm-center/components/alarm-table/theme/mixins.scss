@@ -1,0 +1,20 @@
+@mixin text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin icon-size($size: 16px, $hasHover: false) {
+  display: flex;
+  flex: 0 0 $size;
+  align-items: center;
+  justify-content: center;
+  font-size: $size;
+
+  @if $hasHover {
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+}

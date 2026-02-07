@@ -46,6 +46,7 @@ import StatisticsList from '../statistics-list';
 import ExploreConditionMenu from './components/explore-condition-menu';
 import ExploreTableEmpty from './components/explore-table-empty';
 import {
+  CAN_TABLE_SORT_FIELD_TYPES,
   ENABLED_TABLE_CONDITION_MENU_CLASS_NAME,
   ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME,
   ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME,
@@ -69,6 +70,11 @@ const DEFAULT_SCROLL_CONTAINER_SELECTOR = '.trace-explore-view';
 export default defineComponent({
   name: 'TraceExploreTable',
   props: {
+    /** 是否显示操作按钮 */
+    showOperation: {
+      type: Boolean,
+      default: true,
+    },
     /** 滚动容器选择器 */
     scrollContainerSelector: {
       type: String,
@@ -133,6 +139,11 @@ export default defineComponent({
         descending: null,
       }),
     },
+    /** 支持排序的字段类型 */
+    canSortFieldTypes: {
+      type: [Set, Array] as PropType<Set<string> | string[]>,
+      default: () => CAN_TABLE_SORT_FIELD_TYPES,
+    },
     /** 是否启用点击弹出操作下拉菜单 */
     enabledClickMenu: {
       type: Boolean,
@@ -145,6 +156,11 @@ export default defineComponent({
     },
     /** 是否启用字段分析统计面板功能 */
     enableStatistics: {
+      type: Boolean,
+      default: true,
+    },
+    /** 是否显示列头图标 */
+    showHeaderIcon: {
       type: Boolean,
       default: true,
     },
@@ -258,7 +274,16 @@ export default defineComponent({
       },
     });
 
-    const { tableCellRender } = useTableCell(tableRowKeyField);
+    const { tableCellRender, renderContext } = useTableCell({
+      rowKeyField: tableRowKeyField,
+      customDefaultGetRenderValue: (row, column) => {
+        const alias = row?.[column.colKey];
+        if (typeof alias !== 'object' || alias == null) {
+          return alias;
+        }
+        return JSON.stringify(alias);
+      },
+    });
     const { tableColumns, tableDisplayColumns } = useExploreColumnConfig({
       appName: toRef(props, 'appName'),
       displayFields: toRef(props, 'displayFields'),
@@ -268,6 +293,8 @@ export default defineComponent({
       sortContainer: toRef(props, 'sortContainer'),
       sourceFieldConfigs: toRef(props, 'sourceFieldConfigs'),
       enabledClickMenu: toRef(props, 'enabledClickMenu'),
+      canSortFieldTypes: toRef(props, 'canSortFieldTypes'),
+      renderContext,
       tableHeaderCellRender: (...args) => tableHeaderCellRender(...args),
       tableCellRender,
       handleConditionMenuShow: (...args) => handleConditionMenuShow(...args),
@@ -524,10 +551,13 @@ export default defineComponent({
             key={title}
             class={`explore-header-col ${chartIconActive}`}
           >
-            <FieldTypeIcon
-              class='col-type-icon'
-              type={fieldType}
-            />
+            {props.showHeaderIcon && (
+              <FieldTypeIcon
+                class='col-type-icon'
+                type={fieldType}
+              />
+            )}
+
             <div class={`${ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME}`}>
               <span
                 class={`th-label ${ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME}`}
@@ -607,10 +637,11 @@ export default defineComponent({
       >
         <PrimaryTable
           ref='tableRef'
-          class={this.tableSkeletonConfig?.tableClass}
+          class={`explore-table ${this.tableSkeletonConfig?.tableClass}`}
           v-slots={{
             empty: () => (
               <ExploreTableEmpty
+                showOperation={this.showOperation}
                 onClearFilter={() => this.$emit('clearRetrievalFilter')}
                 onDataSourceConfigClick={this.handleDataSourceConfigClick}
               />
@@ -668,15 +699,20 @@ export default defineComponent({
                 )
               : undefined
           }
-          rowspanAndColspan={({ colIndex }) => {
-            return {
-              rowspan: 1,
-              colspan: colIndex === this.tableDisplayColumns.length - 1 ? 2 : 1,
-            };
-          }}
+          rowspanAndColspan={
+            this.enabledDisplayFieldSetting
+              ? ({ colIndex }) => {
+                  return {
+                    rowspan: 1,
+                    colspan: colIndex === this.tableDisplayColumns.length - 1 ? 2 : 1,
+                  };
+                }
+              : undefined
+          }
           activeRowType='single'
           data={this.tableData}
           hover={true}
+          needCustomScroll={false}
           resizable={true}
           rowKey={this.tableRowKeyField}
           showSortColumnBgColor={true}
@@ -687,6 +723,7 @@ export default defineComponent({
           onColumnResizeChange={context => this.$emit('columnResize', context)}
           onSortChange={this.handleSortChange}
         />
+
         <TableSkeleton class={`explore-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
 
         <div style='display: none'>
