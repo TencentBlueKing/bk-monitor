@@ -66,7 +66,7 @@ class IncidentLevel(CustomEnum):
         }
         return incident_level_map[self.value]
 
-
+incident_status_map = {status.value:status.alias for status in list(IncidentStatus)}
 INCIDENT_ATTRIBUTE_VALUE_ENUMS = {
     "status": IncidentStatus,
     "level": IncidentLevel,

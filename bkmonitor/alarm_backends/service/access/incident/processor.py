@@ -180,6 +180,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 alert_count=len(sync_info["scope"]["alerts"]),
                 assignees=incident_document.assignees,
                 incident_document=incident_document,  # 直接传入文档，避免 ES 查询延迟
+                incident_name=incident_info.get("incident_name"),  # 用于判断是否为匿名故障
             )
             self.generate_alert_operations(
                 snapshot_alerts,
@@ -267,8 +268,34 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
             logger.info(f"[UPDATE]Success to init incident[{sync_info['incident_id']}] data")
         except IncidentNotFoundError as e:
+            # 检查是否为 merge 场景：故障生成后立即被合并，不推送 create 事件
+            status_update = sync_info.get("update_attributes", {}).get("status", {})
+            is_merge_scenario = (
+                status_update.get("to") == IncidentStatus.MERGED.value
+                and merge_info
+                and merge_info.get("target_incident_id")
+            )
+
+            # 兜底创建文档
             logger.warn(f"[UPDATE]Access incident error: {e}, CREATE IT", exc_info=True)
             self.create_incident(sync_info)
+
+            if is_merge_scenario:
+                # merge 场景：记录 merge 流转
+                # 源故障记录 MERGE_TO（匿名故障不发送通知），目标故障记录 MERGE（发送通知）
+                incident_info = sync_info.get("incident_info", {})
+                operate_time = incident_info.get("update_time", int(time.time()))
+                alert_count = len(sync_info.get("scope", {}).get("alerts", []))
+
+                logger.info(
+                    f"[UPDATE]Incident[{sync_info['incident_id']}] is merge scenario, "
+                    f"record merge operations to target incident[{merge_info.get('target_incident_id')}]"
+                )
+                IncidentOperationManager.record_merge_incident(
+                    operate_time=operate_time,
+                    merge_info=merge_info,
+                    alert_count=alert_count,
+                )
             return
         except Exception as e:
             logger.error(f"[UPDATE]Access incident error: {e}", exc_info=True)

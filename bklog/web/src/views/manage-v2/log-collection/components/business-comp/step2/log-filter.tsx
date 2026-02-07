@@ -421,7 +421,11 @@ export default defineComponent({
           fieldindex: '-1',
         }));
       }
-
+      if (!filterSwitcher.value) {
+        return {
+          type: 'none',
+        };
+      }
       return {
         type: activeFilterType.value,
         separator: separator.value,

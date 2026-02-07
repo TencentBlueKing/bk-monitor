@@ -28,6 +28,7 @@ import { computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vu
 
 import { useDebounceFn } from '@vueuse/core';
 import { Button, Input, Message } from 'bkui-vue';
+import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../empty-status/empty-status';
@@ -40,6 +41,9 @@ export default defineComponent({
   name: 'ResidentSettingTransfer',
   props: RESIDENT_SETTING_TRANSFER_PROPS,
   emits: RESIDENT_SETTING_TRANSFER_EMITS,
+  directive: {
+    OverflowTips,
+  },
   setup(props, { emit }) {
     const { t } = useI18n();
     const searchRef = useTemplateRef<HTMLDivElement>('search');
@@ -119,7 +123,7 @@ export default defineComponent({
       }
       const name = searchLocalFields.value[index].name;
       const delIndex = localFields.value.findIndex(item => item.name === name);
-      const item = structuredClone(localFields.value[delIndex]);
+      const item = JSON.parse(JSON.stringify(localFields.value[delIndex]));
       localFields.value.splice(delIndex, 1);
       selectedFields.value.push(item);
       triggerShallowRef(localFields);

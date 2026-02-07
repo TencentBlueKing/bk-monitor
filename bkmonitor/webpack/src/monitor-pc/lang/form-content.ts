@@ -204,4 +204,5 @@ export default {
   '上升{0}%时触发告警': 'Trigger an alarm when rising {0}%',
   '下降{0}%时触发告警': 'Trigger an alarm when falling {0}%',
   '{0}上升{1}%或下降{2}%': '{0} rises {1}% or falls {2}%',
+  这个告警我有经验: 'I have experience with this alarm',
 };

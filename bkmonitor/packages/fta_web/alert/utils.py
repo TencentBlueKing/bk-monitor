@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import re
+import time
 
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
@@ -122,6 +123,17 @@ def slice_time_interval(start_time: int, end_time: int) -> list:
     else:
         return [(start_time, end_time)]
 
+def search_time_init(new_interval:int,start_time:int, end_time:int):
+    '''
+    :param new_interval:聚合步长时间间隔(秒)
+    :param start_time: 查询的开始时间戳
+    :param end_time: 查询的结束时间戳
+    :return: 调整后的开始时间戳、结束时间戳、当前时间戳
+    '''
+    start_time = start_time // new_interval * new_interval
+    end_time = end_time // new_interval * new_interval + new_interval
+    now_time = int(time.time()) // new_interval * new_interval + new_interval
+    return start_time, end_time, now_time
 
 def add_overview(result: dict, sliced_result: dict):
     if "overview" not in result.keys():
