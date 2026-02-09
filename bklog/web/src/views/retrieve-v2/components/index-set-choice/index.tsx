@@ -30,6 +30,7 @@ import { getOsCommandLabel } from '../../../../common/util';
 import BklogPopover from '../../../../components/bklog-popover';
 import EllipsisTagList from '../../../../components/ellipsis-tag-list';
 import Content from './content';
+import useStore from '@/hooks/use-store';
 
 import type { IndexSetTabList, IndexSetType } from './use-choice';
 import type { Props } from 'tippy.js';
@@ -95,6 +96,8 @@ export default defineComponent({
   },
   emits: ['type-change', 'value-change', 'auth-request'],
   setup(props, { emit }) {
+    const store = useStore();
+
     const isOpened = ref(false);
     const refRootElement: Ref<any | null> = ref(null);
     const shortcutKey = `${getOsCommandLabel()}+O`;
@@ -165,6 +168,9 @@ export default defineComponent({
       () => props.indexSetValue,
       () => {
         selectedValues.value = getSelectedValues();
+        if (selectedValues.value.length === 1 && window.__IS_MONITOR_APM__) {
+          store.commit('updateSpace', selectedValues.value[0]);
+        }
       },
       { immediate: true },
     );
