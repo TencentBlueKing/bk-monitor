@@ -327,6 +327,13 @@ export function removeClass(el, cls) {
 }
 
 /**
+ * @description 将毫秒转换为秒
+ * @param ms 毫秒值
+ * @returns 秒值（向下取整）
+ */
+export const msToSeconds = (ms: number): number => dayjs(ms).unix();
+
+/**
  * @description: 格式化时间显示
  * @param {number} time 毫秒 | 秒
  * @return {*}
