@@ -100,6 +100,9 @@ def requests_callback(span: Span, request, response):
     # 流式请求不统计，避免流式失效
     if "application/json" not in response.headers.get("Content-Type", ""):
         return
+    # bytes 一般是二进制数据
+    if response.headers.get("Accept-Ranges", "") == "bytes":
+        return
 
     try:
         json_result = response.json()
