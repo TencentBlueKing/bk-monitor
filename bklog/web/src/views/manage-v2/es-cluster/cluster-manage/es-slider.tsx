@@ -29,7 +29,7 @@ import { defineComponent, ref, computed, watch } from 'vue';
 import { messageError } from '@/common/bkmagic';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import BkUserSelector from '@blueking/user-selector';
+import BkUserSelector from '@blueking/bk-user-selector/vue2';
 import { Message } from 'bk-magic-vue';
 
 import { useSidebarDiff } from '../../hooks/use-sidebar-diff';
@@ -1398,7 +1398,7 @@ export default defineComponent({
                         required
                       >
                         <div class='principal'>
-                          <BkUserSelector
+                          <bk-user-selector
                             class={isAdminError.value && 'is-error'}
                             api={userApi.value}
                             empty-text={t('无匹配人员')}
