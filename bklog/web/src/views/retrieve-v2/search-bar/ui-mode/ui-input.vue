@@ -218,6 +218,8 @@ const {
     placement: 'top',
     delay: [0, 300],
     // appendTo: document.body,
+    appendTo: window.__IS_MONITOR_TRACE__ ? document.body : undefined,
+    zIndex: window.__IS_MONITOR_TRACE__ ? 9999 : undefined,
     onHide: () => {
       refPopInstance.value?.beforeHideFn?.();
     },

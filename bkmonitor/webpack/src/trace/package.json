@@ -17,7 +17,7 @@
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/ip-selector": "0.3.0-beta.51",
     "@blueking/login-modal": "^1.0.6",
-    "@blueking/monitor-trace-log": "2.0.6",
+    "@blueking/monitor-trace-log": "2.0.8",
     "@blueking/tdesign-ui": "0.0.1-beta.32",
     "@dagrejs/dagre": "^1.1.5",
     "@toast-ui/editor": "^3.2.2",
