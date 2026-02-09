@@ -178,6 +178,7 @@ export default defineComponent({
      * 告警类型筛选默认选中所有
      */
     const checked = shallowRef(circulationFilter.value.map(item => item.id));
+    const checkAll = shallowRef(true);
 
     /**
      * @description 告警记录数据列表链接兼容处理
@@ -221,6 +222,7 @@ export default defineComponent({
      * 告警记录数据为空类型
      */
     const emptyType = shallowRef('empty');
+    const preListLen = shallowRef(0);
     /**
      * 告警记录数据
      */
@@ -270,6 +272,7 @@ export default defineComponent({
         return [];
       });
       recordData.list = [...recordData.list, ...listLinkCompatibility(list)];
+      preListLen.value = recordData.list.length;
       // 保留上一次的ID
       recordData.lastLogOffset = recordData.offset;
       // 记录最后一位ID
@@ -357,6 +360,34 @@ export default defineComponent({
       handleGetLogList();
     };
 
+    const handleCheck = (id: string, v: boolean) => {
+      let list = [];
+      if (v) {
+        list = Array.from(new Set([...checked.value, id]));
+      } else {
+        list = checked.value.filter(item => item !== id);
+      }
+      checkAll.value = list.length === circulationFilter.value.length;
+      handleCheckedChange(list);
+    };
+    const handleCheckAll = (v: boolean) => {
+      checkAll.value = v;
+      let list = [];
+      if (v) {
+        list = circulationFilter.value.map(item => item.id);
+      } else {
+        list = [];
+      }
+      handleCheckedChange(list);
+    };
+
+    const handleOperation = (type: string) => {
+      if (type === 'refresh') {
+        recordDataReset();
+        handleGetLogList();
+      }
+    };
+
     /**
      * @description 告警记录数据列表折叠前处理
      */
@@ -387,11 +418,16 @@ export default defineComponent({
       recordData,
       emptyType,
       noticeStatusDialogState,
+      checkAll,
+      preListLen,
       handleGotoShieldStrategy,
       beforeCollapseChange,
       handleNoticeDetail,
       openLink,
       handleCheckedChange,
+      handleCheck,
+      handleCheckAll,
+      handleOperation,
       t,
     };
   },
@@ -557,24 +593,27 @@ export default defineComponent({
         <div class='alarm-records-header'>
           <span class='header-title'>{this.t('节点过滤')}</span>
           <span class='header-options'>
-            <Checkbox.Group
-              modelValue={this.checked}
-              onChange={this.handleCheckedChange}
+            <Checkbox
+              key='all'
+              modelValue={this.checkAll}
+              onChange={v => this.handleCheckAll(v)}
             >
-              {this.circulationFilter.map(item => (
-                <Checkbox
-                  key={item.id}
-                  label={item.id}
-                >
-                  {item.name}
-                </Checkbox>
-              ))}
-            </Checkbox.Group>
+              {this.t('全选')}
+            </Checkbox>
+            {this.circulationFilter.map(item => (
+              <Checkbox
+                key={item.id}
+                modelValue={this.checked.includes(item.id)}
+                onChange={v => this.handleCheck(item.id, v)}
+              >
+                {item.name}
+              </Checkbox>
+            ))}
           </span>
         </div>
         {this.recordData.loading ? (
           <div class='skeleton-list-wrap'>
-            {new Array(3).fill(0).map((_item, index) => (
+            {new Array(this.preListLen > 3 ? this.preListLen : 3).fill(0).map((_item, index) => (
               <div
                 key={index}
                 class='skeleton-list-item'
@@ -614,7 +653,7 @@ export default defineComponent({
             ) : (
               <EmptyStatus
                 type={this.emptyType}
-                // onOperation={this.handleOperation}
+                onOperation={this.handleOperation}
               />
             )}
           </ul>
