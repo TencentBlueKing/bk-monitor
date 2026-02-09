@@ -243,7 +243,7 @@ export default defineComponent({
       return {
         bcs_cluster_id: props.bcsClusterId,
         bk_biz_id: bkBizId.value,
-        namespaces: namespaces || [],
+        namespaces: namespaces.length === 1 && namespaces[0] === '*' ? [] : namespaces,
         label_selector: {
           match_expressions: matchExpressions,
         },

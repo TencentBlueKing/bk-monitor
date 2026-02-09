@@ -267,3 +267,5 @@ TGPA_REPORT_SELECT_FIELDS = [
 TGPA_REPORT_FILTER_FIELDS = ["openid", "file_name"]
 TGPA_REPORT_ORDER_FIELDS = ["file_size"]
 TGPA_REPORT_LIST_BATCH_SIZE = 500  # 客户端日志上报列表批量查询大小
+TGPA_REPORT_OFFSET_MINUTES = -5  # 客户端日志上报同步偏移时间
+TGPA_REPORT_MAX_TIME_RANGE_MINUTES = 30  # 客户端日志上报同步最大时间跨度

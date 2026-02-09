@@ -689,7 +689,7 @@
     "is_builtin": true,
     "is_deleted": false,
     "is_peripheral": true,
-    "name": "新版ITSM流程服务",
+    "name": "IT服务管理中心",
     "plugin_key": "itsmv4",
     "plugin_source": "peripheral",
     "plugin_type": "common",

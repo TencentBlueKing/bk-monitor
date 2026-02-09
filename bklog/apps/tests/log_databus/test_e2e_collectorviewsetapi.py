@@ -166,6 +166,7 @@ COLLECTORS_LIST = {
                 "storage_cluster_id": 1,
                 "rule_id": 0,
                 "storage_cluster_name": "",
+                "storage_display_name": "",
                 "table_id_prefix": "2_bklog_",
                 "is_search": False,
                 "permission": {"view_collection_v2": True, "manage_collection_v2": True},

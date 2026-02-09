@@ -36,6 +36,7 @@ import MethodCreator from '../method/method-creator';
 import MetricCreator from '../metric/metric-creator';
 
 import type { AggCondition, AggFunction, MetricDetailV2, QueryConfig } from '../../typings';
+import type { IGetMetricListData, IGetMetricListParams } from '../metric/components/types';
 import type {
   IConditionOptionsItem,
   IDimensionOptionsItem,
@@ -46,9 +47,11 @@ import type {
 import './query-config-creator.scss';
 
 interface IProps {
+  hasVariableOperate?: boolean;
   metricFunctions?: IFunctionOptionsItem[];
   queryConfig?: QueryConfig;
   variables?: IVariablesItem[];
+  getMetricList: (params: IGetMetricListParams) => Promise<IGetMetricListData>;
   onChangeCondition?: (val: AggCondition[]) => void;
   onChangeDimension?: (val: string[]) => void;
   onChangeFunction?: (val: AggFunction[]) => void;
@@ -63,7 +66,10 @@ export default class QueryConfigCreator extends tsc<IProps> {
   @Prop({ default: () => [] }) variables: IVariablesItem[];
   @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
   @Prop({ default: () => null }) queryConfig: QueryConfig;
-
+  @Prop({ required: true, type: Function }) getMetricList: (
+    params: IGetMetricListParams
+  ) => Promise<IGetMetricListData>;
+  @Prop({ default: false }) hasVariableOperate: boolean;
   get getMethodVariables() {
     return this.variables.filter(item => item.type === VariableTypeEnum.METHOD);
   }
@@ -161,6 +167,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
               class='query-config-row'
             >
               <MetricCreator
+                getMetricList={this.getMetricList}
                 metricDetail={this.queryConfig.metricDetail}
                 onSelectMetric={this.handleSelectMetric}
               />
@@ -169,7 +176,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
                   key={'method'}
                   allVariables={this.allVariables}
                   options={this.getAggMethodList}
-                  showVariables={true}
+                  showVariables={this.hasVariableOperate}
                   value={this.queryConfig.agg_method}
                   variables={this.getMethodVariables}
                   onChange={this.handleChangeMethod}

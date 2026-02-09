@@ -1,0 +1,52 @@
+/* stylelint-disable font-family-no-missing-generic-family-keyword */
+.log-table-new-log-cell {
+  position: relative;
+  overflow: hidden;
+  line-height: 20px;
+  white-space: pre-wrap;
+  
+  .segment-content {
+    font-family: RobotoMono-Regular;
+    font-size: 13px;
+    line-height: 20px;
+    color: #313238;
+    word-break: break-all;
+    white-space: pre-wrap;
+  }
+
+  .menu-list {
+    position: absolute;
+    display: none;
+  }
+
+  .valid-text {
+    padding: 2px 0;
+    white-space: pre-wrap;
+    cursor: pointer;
+
+    &.focus-text,
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .mark-text {
+    background-color: #faeeb1;
+  }
+
+  .null-item {
+    display: inline-block;
+    min-width: 6px;
+  }
+
+  .more-btn {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    display: block;
+    font-family: Menlo, Monaco, Consolas, "Courier New", RobotoMono-Regular, "PingFang SC", "Microsoft YaHei", monospace;
+    color: rgb(58 132 255);
+    cursor: pointer;
+    background-color: rgb(255 255 255);
+  }
+}

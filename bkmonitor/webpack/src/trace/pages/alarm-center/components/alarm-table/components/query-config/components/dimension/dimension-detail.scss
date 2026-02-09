@@ -1,0 +1,38 @@
+.alert-dimension-detail-component {
+  display: flex;
+  color: #757880;
+
+  .dimension-label {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 50px;
+    text-align: right;
+  }
+
+  .dimension-colon {
+    display: inline-flex;
+    flex-shrink: 0;
+    margin-right: 10px;
+    margin-left: 2px;
+  }
+
+  .tags-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    color: #313238;
+
+    .tags-item {
+      display: flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 8px;
+      background: #eaebf0;
+      border-radius: 2px;
+
+      .tags-item-name {
+        color: #4d4f56;
+      }
+    }
+  }
+}

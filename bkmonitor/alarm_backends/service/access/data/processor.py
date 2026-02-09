@@ -754,6 +754,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         - 仅对 TIME_SERIES 类型数据生效，日志关键字等其他类型不受影响
         - 查询逻辑保持不变，仅在处理阶段进行限制
         - checkpoint 更新为最后处理的时间点，确保逐步补齐历史数据
+        - 当 access-detect 合并处理时（静态阈值），不限制时间点数量
 
         Args:
             records: 原始数据记录列表
@@ -770,6 +771,15 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         if not is_time_series:
             # 非时序数据，不做限制
+            return records, None, None
+
+        # 当 access-detect 合并处理时（所有算法都是静态阈值），不限制时间点数量
+        # 原因：静态阈值检测不依赖历史数据，可以一次性处理所有时间点
+        if self._can_merge_access_detect():
+            logger.info(
+                f"strategy_group_key({self.strategy_group_key}) access-detect merge enabled, "
+                f"skip time points limitation"
+            )
             return records, None, None
 
         max_time_points = settings.ACCESS_DATA_MAX_TIME_POINTS

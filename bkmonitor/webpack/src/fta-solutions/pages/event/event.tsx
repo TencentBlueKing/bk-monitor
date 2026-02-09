@@ -779,6 +779,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     }
     return defaultData;
   }
+
+  handleGotoNew() {
+    const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${this.$store.getters.bizId}#/trace/alarm-center`;
+    window.location.href = url;
+  }
+
   /**
    * @description: popstate事件触发 用于记录用户搜索操作历史
    * @param {*} event
@@ -2632,10 +2638,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               class='header-tools'
               isSplitPanel={this.isSplitPanel}
               refreshInterval={this.refreshInterval}
+              showGotoNew={false}
               showListMenu={false}
               timeRange={this.timeRange}
               timezone={this.timezone}
               onFullscreenChange={this.handleFullscreen}
+              onGotoNew={this.handleGotoNew}
               onImmediateRefresh={this.handleImmediateRefresh}
               onRefreshChange={this.handleRefreshChange}
               onSplitPanelChange={this.handleSplitPanel}
