@@ -2039,8 +2039,10 @@ class ListResultTableSnapshotResource(Resource):
         result = []
         for snapshot in result_queryset:
             snapshot_json = snapshot.to_self_json()
-            snapshot_group_attr = "{}_{}".format(snapshot.table_id, snapshot.target_snapshot_repository_name)
-            table_id_doc_count_and_store_size = all_doc_count_and_store_size.get(snapshot_group_attr, {})
+            table_id_doc_count_and_store_size = all_doc_count_and_store_size.get(
+                (snapshot.table_id, snapshot.target_snapshot_repository_name),
+                {}
+            )
             snapshot_json["doc_count"] = table_id_doc_count_and_store_size.get("doc_count", 0)
             snapshot_json["store_size"] = table_id_doc_count_and_store_size.get("store_size", 0)
             snapshot_json["index_count"] = table_id_doc_count_and_store_size.get("index_count", 0)

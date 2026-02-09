@@ -4424,6 +4424,7 @@ class ESStorage(models.Model, StorageResultTable):
                 table_id=self.table_id,
                 snapshot_name=current_snapshot_name,
                 bk_tenant_id=self.bk_tenant_id,
+                repository_name=self.snapshot_obj.target_snapshot_repository_name,
             ).exists()
             es_snapshot_exists = current_snapshot_info["datetime"].day == now.day
             current_snapshot_is_success = current_snapshot_info["is_success"]

@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('metadata', '0173_essnapshotrestore_repository_name'),
-        ('metadata', '0247_timeseriesmetric_is_active'),
+        ('metadata', '0248_auto_20260119_0334'),
     ]
 
     operations = [

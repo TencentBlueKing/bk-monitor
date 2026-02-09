@@ -24,13 +24,37 @@ class Migration(migrations.Migration):
     dependencies = [
         ('metadata', '0177_add_gather_up_dataid'),
     ]
-    
+
     # 禁用事务以支持DDL操作
     atomic = False
 
     operations = [
-        migrations.RunPython(
-            code=add_status_field_if_not_exists,
-            reverse_code=migrations.RunPython.noop,  # 回滚时不做操作
-        ),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(
+                    code=add_status_field_if_not_exists,
+                    reverse_code=migrations.RunPython.noop,
+                )
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name='essnapshot',
+                    name='status',
+                    field=models.CharField(
+                        max_length=16,
+                        blank=True,
+                        null=True,
+                        default='running',
+                        verbose_name='快照状态',
+                    ),
+                )
+            ],
+        )
     ]
+
+    # operations = [
+    #     migrations.RunPython(
+    #         code=add_status_field_if_not_exists,
+    #         reverse_code=migrations.RunPython.noop,  # 回滚时不做操作
+    #     )
+    # ]

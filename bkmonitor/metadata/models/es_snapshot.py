@@ -142,9 +142,12 @@ class EsSnapshot(models.Model):
         return objs
 
     @classmethod
-    def has_running_snapshot(cls, table_id, bk_tenant_id):
+    def has_running_snapshot(cls, table_id, bk_tenant_id, exclude_id: int | None = None):
         """是否有正在运行的快照任务"""
-        return cls.objects.filter(table_id=table_id, status=cls.ES_RUNNING_STATUS, bk_tenant_id=bk_tenant_id).exists()
+        qs = cls.objects.filter(table_id=table_id, status=cls.ES_RUNNING_STATUS, bk_tenant_id=bk_tenant_id)
+        if exclude_id:
+            qs = qs.exclude(id=exclude_id)
+        return qs.exists()
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -220,7 +223,11 @@ class EsSnapshot(models.Model):
         updated_fields = ["snapshot_days", "last_modify_user"]
         # 如果状态不为空，则进行状态的更新
         if status is not None:
-            if status == cls.ES_RUNNING_STATUS and cls.has_running_snapshot(obj.table_id, obj.bk_tenant_id):
+            if (
+                status == cls.ES_RUNNING_STATUS and
+                obj.status != cls.ES_RUNNING_STATUS and
+                cls.has_running_snapshot(obj.table_id, obj.bk_tenant_id, exclude_id=obj.id)
+            ):
                 raise ValueError(_("已存在启用中结果表快照"))
             obj.status = status
             updated_fields.append("status")
@@ -241,13 +248,16 @@ class EsSnapshot(models.Model):
         objs = cls.validated_multi_snapshots(table_ids, bk_tenant_id, target_snapshot_repository_name)
         objs.update(snapshot_days=snapshot_days, last_modify_user=operator)
         if status is not None:
-            if (
-                status == cls.ES_RUNNING_STATUS and
-                cls.objects.filter(
-                    status=cls.ES_RUNNING_STATUS, table_id__in=table_ids, bk_tenant_id=bk_tenant_id
-                ).exists()
-            ):
-                raise ValueError(_("已存在启用中结果表快照"))
+            if status == cls.ES_RUNNING_STATUS:
+                # 检查批次外是否存在已启用的快照配置，排除本次要更新的对象本身
+                running_qs = cls.objects.filter(
+                    status=cls.ES_RUNNING_STATUS,
+                    table_id__in=table_ids,
+                    bk_tenant_id=bk_tenant_id,
+                ).exclude(id__in=objs.values("id"))
+                if running_qs.exists():
+                    raise ValueError(_("已存在启用中结果表快照"))
+                
             objs.update(status=status)
 
     @classmethod
@@ -264,7 +274,9 @@ class EsSnapshot(models.Model):
         """
         from metadata.task.tasks import delete_es_result_table_snapshot
 
-        snapshot = cls.validated_snapshot(table_id, bk_tenant_id, target_snapshot_repository_name)
+        snapshot = cls.validated_snapshot(
+            table_id, bk_tenant_id, target_snapshot_repository_name=target_snapshot_repository_name
+        )
         if not snapshot:
             logger.exception("ES SnapShot does not exists, table_id(%s)", table_id)
             raise ValueError(_("快照配置不存在或已经被删除"))
@@ -296,7 +308,9 @@ class EsSnapshot(models.Model):
     ):
         from metadata.task.tasks import retry_es_result_table_snapshot
 
-        snapshot = cls.validated_snapshot(table_id, bk_tenant_id, target_snapshot_repository_name)
+        snapshot = cls.validated_snapshot(
+            table_id, bk_tenant_id, target_snapshot_repository_name=target_snapshot_repository_name
+        )
         if not snapshot:
             logger.exception("ES SnapShot does not exists, table_id(%s)", table_id)
             raise ValueError(_("快照配置不存在或已经被删除"))
@@ -573,7 +587,7 @@ class EsSnapshotIndice(models.Model):
             .annotate(doc_count=Sum("doc_count"), store_size=Sum("store_size"), index_count=Count("table_id"))
         )
         agg_result = [
-            {**item, "table_id_repository_name": "{table_id}_{repository_name}".format(**item)}
+            {**item, "table_id_repository_name": (item["table_id"], item["repository_name"])}
             for item in agg_result
         ]
         return array_group(agg_result, "table_id_repository_name", True)
@@ -657,7 +671,9 @@ class EsSnapshotRestore(models.Model):
         if not es_storage:
             raise ValueError(_("结果表不存在"))
         
-        snapshot = EsSnapshot.validated_snapshot(table_id, repository_name)
+        snapshot = EsSnapshot.validated_snapshot(
+            table_id, bk_tenant_id, target_snapshot_repository_name=repository_name
+        )
         if not snapshot:
             raise ValueError(_("结果表不存在快照配置"))
 
@@ -811,7 +827,9 @@ class EsSnapshotRestore(models.Model):
         if not es_storage:
             raise ValueError(_("结果表不存在"))
 
-        snapshot = EsSnapshot.validated_snapshot(restore.table_id, restore.repository_name)
+        snapshot = EsSnapshot.validated_snapshot(
+            restore.table_id, restore.bk_tenant_id, target_snapshot_repository_name=restore.repository_name
+        )
         if not snapshot:
             raise ValueError(_("结果表不存在快照配置"))
 
