@@ -239,6 +239,8 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
   handleClearAll() {
     this.localValue = [];
     this.isClearAll = true;
+    this.isShow = false;
+    this.isFocus = false;
     this.handleValueChange();
   }
 
@@ -270,10 +272,11 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
     if (!val) {
       !this.isCustomTimeRange && this.handleSubmit();
       setTimeout(() => {
-        this.isClearAll = false;
         this.isFocus = false;
-      }, 200);
+      }, 100);
     } else {
+      this.isClearAll = false;
+      this.isFocus = true;
       this.isCustomTimeRange = false;
     }
   }
@@ -345,7 +348,6 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
    * @returns void
    */
   handleTimeRangeInputBlur() {
-    this.isFocus = true;
     if (!this.isCustomTimeRange || !this.triggerInputText.length || !this.localValue.length) return;
     const customTimeRange = this.parseTimeRangeStr(this.triggerInputText);
     if (customTimeRange) {
