@@ -22,6 +22,8 @@ the project delivered to anyone in the future.
 import os
 from abc import ABC, abstractmethod
 
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.tgpa.constants import FEATURE_TOGGLE_TGPA_TASK
 from apps.utils.log import logger
 
 
@@ -33,11 +35,7 @@ class BaseDecryptHandler(ABC):
 
     @abstractmethod
     def decrypt(self, data: bytes) -> bytes:
-        """
-        解密数据
-        :param data: 加密的字节数据
-        :return: 解密后的字节数据
-        """
+        """解密数据"""
         raise NotImplementedError
 
     def decrypt_file(self, file_path: str) -> None:
@@ -61,8 +59,6 @@ class BaseDecryptHandler(ABC):
 class XorDecryptHandler(BaseDecryptHandler):
     """
     异或解密处理器
-    对每个字节进行异或操作
-    如果文件内容包含"Log file open"，则认为文件未加密，跳过解密
     """
 
     # 未加密文件的特征前缀
@@ -71,10 +67,6 @@ class XorDecryptHandler(BaseDecryptHandler):
     CHUNK_SIZE = 8192
 
     def __init__(self, xor_key: int = 0x73):
-        """
-        初始化异或解密器
-        :param xor_key: 异或密钥，默认为0x73
-        """
         self.xor_key = xor_key
 
     def decrypt(self, data: bytes) -> bytes:
@@ -82,10 +74,7 @@ class XorDecryptHandler(BaseDecryptHandler):
         return bytes(byte ^ self.xor_key for byte in data)
 
     def decrypt_file(self, file_path: str) -> None:
-        """
-        解密文件
-        如果文件头部包含"Log file open"，则认为文件未加密，跳过解密
-        """
+        """解密文件"""
         try:
             # 先读取第一块数据来判断是否需要解密
             with open(file_path, "rb") as f:
@@ -113,19 +102,45 @@ class XorDecryptHandler(BaseDecryptHandler):
             raise
 
 
-# 解密处理器类型枚举，便于通过类型名称获取解密处理器
-DECRYPT_HANDLER_REGISTRY = {"100231": XorDecryptHandler}
+DECRYPT_HANDLER_TYPE_MAP = {
+    "xor": XorDecryptHandler,
+}
 
 
-def get_decrypt_handler(bk_biz_id, **kwargs) -> BaseDecryptHandler | None:
+def _get_decrypt_config(bk_biz_id: str) -> dict | None:
     """
-    根据解密处理器实例
+    从 FeatureConfig 中获取业务对应的解密处理器配置
+    配置格式示例（feature_config中的decrypt_handler_config字段）：
+    {
+        "100231": {
+            "handler": "xor"
+        }
+    }
+    """
+    feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+    if not feature_toggle or not feature_toggle.feature_config:
+        return None
+
+    decrypt_handler_config = feature_toggle.feature_config.get("decrypt_config", {})
+    return decrypt_handler_config.get(bk_biz_id)
+
+
+def get_decrypt_handler(bk_biz_id: int) -> BaseDecryptHandler | None:
+    """
+    根据业务ID获取解密处理器实例
     """
     if not bk_biz_id:
         return None
 
-    handler_class = DECRYPT_HANDLER_REGISTRY.get(str(bk_biz_id))
-    if handler_class is None:
+    bk_biz_id_str = str(bk_biz_id)
+    config = _get_decrypt_config(bk_biz_id_str)
+    if not config:
         return None
 
-    return handler_class(**kwargs)
+    handler_type = config.get("handler")
+    handler_class = DECRYPT_HANDLER_TYPE_MAP.get(handler_type)
+    if handler_class:
+        return handler_class()
+    else:
+        logger.warning("Unknown decrypt handler type: %s for bk_biz_id: %s", handler_type, bk_biz_id_str)
+        return None

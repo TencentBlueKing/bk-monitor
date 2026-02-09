@@ -45,7 +45,7 @@ class TGPATaskHandler:
         self.task_id = self.task_info["go_svr_task_id"]
         self.temp_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "task", str(self.task_id), "temp")
         self.output_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "task", str(self.task_id), "output")
-        # 解密处理器配置：decrypt_handler_type为解密处理器类型，decrypt_handler_kwargs为解密处理器初始化参数
+        # 解密处理器实例
         self.decrypt_handler = get_decrypt_handler(bk_biz_id)
 
     @cached_property
