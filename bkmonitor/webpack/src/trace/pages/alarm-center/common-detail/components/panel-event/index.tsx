@@ -89,7 +89,6 @@ export default defineComponent({
         ? `&targets=${encodeURIComponent(JSON.stringify([{ data: { query_configs: [eventQueryConfig.value?.query_configs] } }]))}`
         : '';
       const bizId = eventQueryConfig.value?.bk_biz_id || props.detail?.bk_biz_id || window.cc_biz_id;
-      console.log(eventQueryConfig.value, targetsStr);
       let hash = `#/event-explore?${fromToStr}${targetsStr}`;
       if (serviceName && appName) {
         hash = `#/apm/service?filter-service_name=${serviceName}&filter-app_name=${appName}&dashboardId=service-default-event${fromToStr}${targetsStr}`;
