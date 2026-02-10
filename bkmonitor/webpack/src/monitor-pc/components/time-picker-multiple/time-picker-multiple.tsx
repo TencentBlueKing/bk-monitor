@@ -272,7 +272,6 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
    */
   handleTimePickerShow(val: boolean) {
     this.isShow = val;
-    console.log(val, 'show');
     if (!val) {
       !this.isCustomTimeRange && this.handleSubmit();
       setTimeout(() => {
