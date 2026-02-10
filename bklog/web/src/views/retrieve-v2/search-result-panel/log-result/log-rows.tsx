@@ -231,12 +231,16 @@ export default defineComponent({
           resize: false,
           minWidth: timeFieldType.value === 'date_nanos' ? 250 : 200,
           renderBodyCell: ({ row }) => {
+            const timezone = store.state.indexItem.timezone;
+            const fieldType = timeFieldType.value;
+            const formatValue = RetrieveHelper.formatTimeZoneValue(row[timeField.value], fieldType, timezone);
+
             return h(
               'span',
               {
                 class: 'time-field',
                 domProps: {
-                  innerHTML: xssFilter(RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value)),
+                  innerHTML: xssFilter(formatValue),
                 },
               },
               [],
@@ -767,7 +771,7 @@ export default defineComponent({
       // tableDataSize.value === 0 用于判定是否是第一次渲染导致触发的请求
       // visibleFields.value 在字段重置时会清空，所以需要判断
       if (isRequesting.value || tableDataSize.value === 0 || visibleFields.value.length === 0) {
-        return;
+        return Promise.resolve(false);
       }
 
       if (pageIndex.value * pageSize.value < tableDataSize.value) {
@@ -779,7 +783,7 @@ export default defineComponent({
         debounceSetLoading(0);
         nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
         localUpdateCounter.value += 1;
-        return;
+        return Promise.resolve(false);
       }
 
       if (hasMoreList.value) {
@@ -819,7 +823,7 @@ export default defineComponent({
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { offsetWidth, scrollWidth, computeRect } = useLazyRender({
+    const { offsetWidth, scrollWidth, computeRect, getScrollElement } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
@@ -846,11 +850,44 @@ export default defineComponent({
       return showCtxType.value === 'table' && scrollWidth.value > offsetWidth.value;
     });
 
+    const isPreloading = ref(false);     // 是否正在预加载
+    const preloadThreshold = 32 * 50;        // 距离底部多少 px 开始预加载
+    let lastPreloadTime = 0;
+    const preloadCooldown = 300;         // ms
+
+    const shouldPreloadOnScrollDown = (event: WheelEvent) => {
+
+      if (!hasMoreList.value) return false;
+      if (isPreloading.value) return false;
+
+      // 1️⃣ 判定向下滚动
+      if (event.deltaY <= 0) return false;
+
+      const now = Date.now();
+      if (now - lastPreloadTime < preloadCooldown) return false;
+
+      const scrollElement = getScrollElement();
+      // 2️⃣ 判定是否接近底部
+      const scrollTop = scrollElement?.scrollTop ?? 0;
+      const clientHeight = scrollElement?.clientHeight ?? 0;
+      const scrollHeight = scrollElement?.scrollHeight ?? 0;
+      const distanceToBottom = scrollHeight - (scrollTop + clientHeight);
+
+      return distanceToBottom <= preloadThreshold;
+    }
+
     let isAnimating = false;
 
     useWheel({
       target: refRootElement,
       callback: (event: WheelEvent) => {
+        if (shouldPreloadOnScrollDown(event)) {
+          isPreloading.value = true;
+          loadMoreTableData().finally(() => {
+            isPreloading.value = false;
+          });
+        }
+
         const maxOffset = scrollWidth.value - offsetWidth.value;
 
         // 检查是否按住 shift 键
@@ -1043,12 +1080,14 @@ export default defineComponent({
       const expandCell = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
 
       if (target.classList.contains('valid-text') || expandCell?.contains(target)) {
+        RetrieveHelper.setMousedownEvent(null);
         return;
       }
 
       const config: RowConfig = tableRowConfig.get(item).value;
       const isExpanding = !config.expand;
       config.expand = isExpanding;
+      RetrieveHelper.setMousedownEvent(null);
 
       // 性能监控：记录展开/收起操作的耗时
       // if (isExpanding) {

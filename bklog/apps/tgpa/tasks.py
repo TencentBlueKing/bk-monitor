@@ -19,6 +19,9 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import random
+
+import arrow
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from celery.schedules import crontab
@@ -231,3 +234,85 @@ def process_single_report(report_info: dict, record_id: int):
             report_obj.save(update_fields=["process_status", "error_message"])
     finally:
         lock.release()
+
+
+@periodic_task(run_every=crontab(minute="*/5"), queue="tgpa_task")
+@share_lock()
+def periodic_sync_tgpa_reports():
+    """
+    定期同步客户端上报文件
+    - 从 FeatureToggle 获取需要处理的业务列表
+    - 记录处理时间，根据上次处理时间进行增量同步
+    - 支持采样率配置，只处理部分数据
+    - 使用 Celery 异步任务处理单个文件
+    """
+    feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+    if not feature_toggle:
+        return
+    bk_biz_id_list = feature_toggle.biz_id_white_list or []
+
+    # 采样率配置格式: {"report_sample_rate": {"bk_biz_id": sample_rate , ...}}
+    feature_config = feature_toggle.feature_config or {}
+    report_sample_rate = feature_config.get("report_sample_rate", {})
+
+    for bk_biz_id in bk_biz_id_list:
+        # 获取该业务的采样率，默认为 0（不处理），范围 1-100
+        sample_rate = report_sample_rate.get(str(bk_biz_id), 0)
+        if not isinstance(sample_rate, int) or not (1 <= sample_rate <= 100):
+            logger.warning(
+                "Invalid sample rate for business: %s, sample_rate: %s (should be 1-100)", bk_biz_id, sample_rate
+            )
+            continue
+
+        logger.info("Begin periodic sync tgpa reports for business: %s, sample_rate: %s", bk_biz_id, sample_rate)
+        # 获取上一次同步记录
+        last_sync_record = (
+            TGPAReportSyncRecord.objects.filter(bk_biz_id=bk_biz_id, created_by="periodic_task")
+            .order_by("-created_at")
+            .first()
+        )
+        # 创建新的同步记录
+        current_sync_record = TGPAReportSyncRecord.objects.create(
+            bk_biz_id=bk_biz_id,
+            status=TGPAReportSyncStatusEnum.RUNNING.value,
+            created_by="periodic_task",
+        )
+
+        # 更新上一次同步记录的状态，获取时间范围
+        if last_sync_record:
+            TGPAReportHandler.update_process_status(record_id=last_sync_record.id)
+            start_time = int(arrow.get(last_sync_record.created_at).timestamp() * 1000)
+        else:
+            # 如果没有上一次同步记录，从 5 分钟前开始同步
+            start_time = int(arrow.now().shift(minutes=-5).timestamp() * 1000)
+        end_time = int(arrow.get(current_sync_record.created_at).timestamp() * 1000)
+
+        try:
+            # 获取时间范围内的上报文件列表
+            report_list = TGPAReportHandler.iter_report_list(
+                bk_biz_id=bk_biz_id, start_time=start_time, end_time=end_time
+            )
+
+            processed_count = 0
+            skipped_count = 0
+            for report in report_list:
+                # 使用随机数进行采样，生成 0-99 的随机整数，如果随机值大于等于采样率，则跳过该记录
+                if random.randint(0, 99) >= sample_rate:
+                    skipped_count += 1
+                    continue
+                process_single_report.delay(report_info=report, record_id=current_sync_record.id)
+                processed_count += 1
+
+            logger.info(
+                "Finished periodic sync tgpa reports for business: %s, processed: %s, skipped: %s, start_time: %s, end_time: %s",
+                bk_biz_id,
+                processed_count,
+                skipped_count,
+                arrow.get(start_time).format(),
+                arrow.get(end_time).format(),
+            )
+        except Exception as e:
+            logger.exception("Failed to periodic sync tgpa reports for business: %s", bk_biz_id)
+            current_sync_record.status = TGPAReportSyncStatusEnum.FAILED.value
+            current_sync_record.error_message = str(e)
+            current_sync_record.save(update_fields=["status", "error_message"])

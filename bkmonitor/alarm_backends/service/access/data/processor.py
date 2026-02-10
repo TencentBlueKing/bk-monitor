@@ -46,7 +46,7 @@ from alarm_backends.service.access.data.filters import (
     RangeFilter,
 )
 from alarm_backends.service.access.data.fullers import TopoNodeFuller
-from alarm_backends.service.access.data.records import DataRecord
+from alarm_backends.service.access.data.records import DataRecord, calculate_record_id, get_value_from_raw_data
 from alarm_backends.service.access.priority import PriorityChecker
 from alarm_backends.core.circuit_breaking.manager import AccessDataCircuitBreakingManager
 from bkmonitor.utils.common_utils import count_md5, get_local_ip
@@ -79,6 +79,8 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
     def post_handle(self):
         # 释放主机信息本地内存
         clear_mem_cache("host_cache")
+        # 释放服务实例信息本地内存
+        clear_mem_cache("service_instance_cache")
 
     def _check_circuit_breaking_before_pull(self) -> bool:
         """在数据查询前检查策略级别熔断并剔除触发熔断的策略。
@@ -540,47 +542,88 @@ class AccessDataProcess(BaseAccessDataProcess):
 
     def send_batch_data(self, points: list[dict], batch_threshold: int = 50000) -> list[dict]:
         """
-        发送分批处理任务，并返回第一批数据
+        批量数据处理：当数据量超过阈值时，将数据拆分为多个批量任务异步处理。
+
+        功能说明：
+        - 按数据量拆分：每批数据量不超过 batch_threshold（默认5万）
+        - 拆分触发条件：当累积数据量达到阈值且遇到新时间点时，触发拆分
+        - 时间点完整性保障：当数据点数不足阈值或当前记录与前一个记录属于同一时间点时，继续累积，不触发拆分
+        - 数据排序：数据点按 series 优先排序（保持 Prometheus matrix 响应的原生顺序），
+          每个 series 内部的数据点按时间从旧到新排序
+        - 实际分布：每个批次包含部分 series 的完整时间范围（所有时间点），批次数据量控制在阈值左右
+
+        参数：
+            points: 数据点列表，按 series 优先排序
+            batch_threshold: 批量处理阈值，默认 50000 条
+
+        返回：
+            list[dict]: 第一批数据（数据序列最前面的部分 series 的完整时间范围），原地处理
+
+        示例：
+            假设拉取到 1,000,000 条数据点，共 13 个时间点，每个时间点有约 76,923 个 series：
+            - 拆分为 20 个批次（1,000,000 / 50,000 = 20）
+            - 每个批次包含完整的 13 个时间点
+            - 每个批次包含约 3,846 个 series（50000/13 ≈ 3846.15）
+            - 第一批：Series_1-3846 的完整 T1-T13 数据（50000 条）→ 原地处理
+            - 第二批：Series_3847-7692 的完整 T1-T13 数据（50000 条）→ 异步处理
         """
         from alarm_backends.service.access.tasks import run_access_batch_data
 
+        # 初始化批量处理
+        # batch_timestamp: 批量处理时间戳，用于生成子任务ID
         self.batch_timestamp = int(time.time())
 
         client = key.ACCESS_BATCH_DATA_KEY.client
-        first_batch_points = []
-        latest_record_timestamp = None
-        last_batch_index, batch_count = 0, 0
+        first_batch_points = []  # 第一批数据，原地处理
+        latest_record_timestamp = None  # 上一个记录的时间戳，用于判断是否遇到新时间点
+        last_batch_index, batch_count = 0, 0  # last_batch_index: 上一批次的结束位置，batch_count: 批次计数
+
+        # 遍历数据点（从前往后），按数据量拆分（保障时间点完整性）
         for index, record in enumerate(points):
             timestamp = record.get("_time_") or record["time"]
-            # 当数据点数不足或数据同属一个时间点时，数据点记为同一批次
+
+            # 拆分条件判断：
+            # 1. index - last_batch_index < batch_threshold: 数据量未达到阈值，继续累积
+            # 2. latest_record_timestamp == timestamp: 当前记录与前一个记录属于同一时间点，继续累积（时间点完整性保障）
+            # 3. index < len(points) - 1: 不是最后一条记录（最后一条记录会强制触发拆分）
+            # 满足任一条件时，继续累积，不触发拆分
             if (index - last_batch_index < batch_threshold or latest_record_timestamp == timestamp) and index < len(
                 points
             ) - 1:
                 latest_record_timestamp = timestamp
-                continue
+                continue  # 继续累积
 
-            # 记录当前批次数
+            # 触发拆分：当数据量达到阈值（index - last_batch_index >= batch_threshold）
+            # 且遇到新时间点（latest_record_timestamp != timestamp）
+            # 且不是最后一条记录时，触发拆分
             batch_count += 1
 
+            # 确定当前批次的数据范围
             if index == len(points) - 1:
+                # 最后一条记录：包含从 last_batch_index 到结尾的所有数据
                 batch_points = points[last_batch_index:]
             else:
+                # 非最后一条记录：包含从 last_batch_index 到 index（不含）的数据
                 batch_points = points[last_batch_index:index]
 
-            # 第一批数据原地处理
+            # 第一批数据：数据序列最前面的部分 series 的完整时间范围，原地处理，减少延迟
             if batch_count == 1:
                 first_batch_points = batch_points
             else:
-                # 将分批数据写入redis
+                # 其余批次：后续 series 的完整时间范围，通过异步任务处理
+                # 生成子任务ID：格式为 {batch_timestamp}.{batch_count}
                 sub_task_id = f"{self.batch_timestamp}.{batch_count}"
                 data_key = key.ACCESS_BATCH_DATA_KEY.get_key(
                     strategy_group_key=self.strategy_group_key, sub_task_id=sub_task_id
                 )
                 data_key.strategy_id = self.items[0].strategy.id
+
+                # 数据压缩：使用 gzip + base64 压缩数据，减少 Redis 存储空间
                 compress_batch_points = base64.b64encode(gzip.compress(json.dumps(batch_points).encode("utf-8")))
                 client.set(data_key, compress_batch_points, ex=key.ACCESS_BATCH_DATA_KEY.ttl)
 
-                # 发起异步任务
+                # 发起异步任务：将批量数据写入 Redis 后，发起异步处理任务
+                # 任务队列：celery_service_batch（批量数据处理任务队列）
                 run_access_batch_data.delay(self.strategy_group_key, sub_task_id)
 
             # 记录下一轮的起始位置
@@ -605,6 +648,9 @@ class AccessDataProcess(BaseAccessDataProcess):
         dup_obj = Duplicate(self.strategy_group_key, strategy_id=first_item.strategy.id, ttl=max_agg_interval * 10)
         duplicate_counts = none_point_counts = 0
 
+        # 预加载去重缓存
+        dup_obj.preload_duplicate_cache(points)
+
         # 是否有优先级
         have_priority = False
         for item in self.items:
@@ -617,40 +663,60 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 用于在去重后 record_list 为空时，仍然能够更新 checkpoint，避免死循环
         max_queried_data_time = 0
 
+        non_duplicate_records = []
+
         for record in reversed(points):
-            point = DataRecord(self.items, record)
-
-            if point.value is not None:
-                # 记录所有数据的最大时间点（不管是否重复）
-                if point.time > max_queried_data_time:
-                    max_queried_data_time = point.time
-
-                # 去除重复数据
-                if dup_obj.is_duplicate(point):
-                    duplicate_counts += 1
-                    # 有优先级的策略，重复数据需要保留，后续再过滤
-                    if have_priority:
-                        point.is_duplicate = True
-                        records.append(point)
-                else:
-                    dup_obj.add_record(point)
-                    records.append(point)
-
-                    # 只观察非重复数据
-                    if point.time > max_data_time:
-                        max_data_time = point.time
-            else:
+            # 先进行轻量级 value 检查
+            value = get_value_from_raw_data(record, first_item)
+            if value is None:
                 none_point_counts += 1
+                continue
+
+            # 计算 record_id 用于去重判断
+            record_id, record_time = calculate_record_id(record, first_item)
+
+            # 记录所有数据的最大时间点（不管是否重复）
+            if record_time > max_queried_data_time:
+                max_queried_data_time = record_time
+
+            # 去重判断
+            if dup_obj.is_duplicate_by_id(record_id, record_time):
+                duplicate_counts += 1
+                # 有优先级的策略，重复数据需要保留，后续再过滤
+                if have_priority:
+                    point = DataRecord(self.items, record)
+                    point.is_duplicate = True
+                    records.append(point)
+            else:
+                # 非重复数据创建 DataRecord
+                point = DataRecord(self.items, record)
+                records.append(point)
+                non_duplicate_records.append(point)
+
+                # 只观察非重复数据
+                if point.time > max_data_time:
+                    max_data_time = point.time
+
+        # 批量添加非重复记录到去重缓存
+        if non_duplicate_records:
+            dup_obj.add_records_batch(non_duplicate_records)
 
         # 保存到实例变量，供 push 方法使用
         self.max_queried_data_time = max_queried_data_time
+
+        # 保存 Duplicate 对象，供 push 方法使用
+        # 用于在时间点限制后，清理被丢弃时间点的去重缓存
+        self.dup_obj = dup_obj
 
         # 如果当前数据延迟超过一定值，则上报延迟埋点
         # 对于非batch的数据，有可能存在数据稀疏的情况，因此在filter duplicate后再进行延迟统计
         if max_data_time > 0 and not self.batch_timestamp and self.until_timestamp:
             self.observe_big_latency_datasource(first_item, max_data_time)
 
-        dup_obj.refresh_cache()
+        # 修改：不在这里刷新缓存，而是在 push() 中，时间点限制之后刷新
+        # 这样可以确保只有被处理的数据才会被标记为"已见过"
+        # dup_obj.refresh_cache()
+
         self.record_list = records
         point_count = len(records)
         if point_count:
@@ -677,9 +743,9 @@ class AccessDataProcess(BaseAccessDataProcess):
                     "none_point_count": none_point_counts,
                 }
 
-    def _limit_records_by_time_points(self, records: list) -> tuple[list, int | None]:
+    def _limit_records_by_time_points(self, records: list) -> tuple[list, int | None, set | None]:
         """
-        限制处理的时间点数量（方案 B）。
+        限制处理的时间点数量。
 
         限制的是唯一时间点数量，同一时间点的所有序列数据会被完整保留或完整丢弃。
         这样可以控制推送到下游 detect 模块的数据量，避免故障恢复后一次性处理过量数据。
@@ -693,10 +759,10 @@ class AccessDataProcess(BaseAccessDataProcess):
             records: 原始数据记录列表
 
         Returns:
-            tuple: (限制后的记录列表, 最后处理的时间点 或 None（未触发限制）)
+            tuple: (限制后的记录列表, 最后处理的时间点 或 None（未触发限制）, 被丢弃的时间点集合 或 None)
         """
         if not records:
-            return records, None
+            return records, None, None
 
         # 检查是否为时序数据类型
         first_item = self.items[0]
@@ -704,7 +770,7 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         if not is_time_series:
             # 非时序数据，不做限制
-            return records, None
+            return records, None, None
 
         max_time_points = settings.ACCESS_DATA_MAX_TIME_POINTS
 
@@ -713,10 +779,11 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         if len(unique_times) <= max_time_points:
             # 时间点数量未超限，不做限制
-            return records, None
+            return records, None, None
 
         # 取前 N 个时间点
         allowed_times = set(unique_times[:max_time_points])
+        discarded_times = set(unique_times[max_time_points:])
         last_time_point = max(allowed_times)
 
         # 过滤：只保留允许时间点内的所有序列数据
@@ -729,7 +796,7 @@ class AccessDataProcess(BaseAccessDataProcess):
             f"records: {len(records)} -> {len(limited_records)}"
         )
 
-        return limited_records, last_time_point
+        return limited_records, last_time_point, discarded_times
 
     def _is_all_static_threshold(self, item: Item) -> bool:
         """
@@ -900,21 +967,13 @@ class AccessDataProcess(BaseAccessDataProcess):
                 type="data",
             ).inc(len(data_points))
 
-    def push(self, records: list = None, output_client=None):
-        # 方案 B：限制处理的时间点数量（在处理阶段限制，不影响查询）
-        # 这样可以控制推送到下游 detect 模块的数据量
-        limited_records, last_time_point = self._limit_records_by_time_points(self.record_list)
-        self.record_list = limited_records
+    def _update_checkpoint(self, last_time_point: int | None = None) -> int:
+        """
+        更新checkpoint检测点
 
-        # 判断是否可以合并处理（access-detect 合并）
-        # 当策略的所有检测算法均为静态阈值时，直接在 access 模块执行检测
-        if self._can_merge_access_detect():
-            # 直接在 access 中执行检测并推送异常数据
-            self._detect_and_push_abnormal()
-        else:
-            # 走原有流程：推送到 Redis 队列，由 detect 异步任务处理
-            super().push(records=records, output_client=output_client)
-
+        :param last_time_point: 最后处理的时间点（触发时间点限制时使用）
+        :return: 更新后的checkpoint值
+        """
         checkpoint = Checkpoint(self.strategy_group_key)
         checkpoint_timestamp = checkpoint.get()
 
@@ -950,19 +1009,74 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 记录检测点 下次从检测点开始重新检查
             checkpoint.set(last_checkpoint)
 
-        # 记录access最后一次数据拉取时间
-        access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(strategy_group_key=self.strategy_group_key)
-        key.ACCESS_RUN_TIMESTAMP_KEY.client.set(access_run_timestamp_key, int(time.time()))
+        return last_checkpoint
 
-        # 非批量任务，记录日志
-        if not self.sub_task_id:
+    def push(self, records: list = None, output_client=None):
+        # 限制处理的时间点数量（在处理阶段限制，不影响查询）
+        # 这样可以控制推送到下游 detect 模块的数据量
+        limited_records, last_time_point, discarded_times = self._limit_records_by_time_points(self.record_list)
+
+        # 清理被时间点限制丢弃的数据的去重缓存
+        # 确保只有被处理的数据才会被标记为"已见过"
+        dup_obj = getattr(self, "dup_obj", None)
+        if dup_obj and discarded_times:
+            # 提前获取 strategy_id，避免循环内重复检查
+            strategy_id = dup_obj.strategy_id
+
+            # 从 record_ids_cache 和 pending_to_add 中移除被丢弃时间点的 key
+            for discarded_time in discarded_times:
+                dup_key = key.ACCESS_DUPLICATE_KEY.get_key(
+                    strategy_group_key=self.strategy_group_key, dt_event_time=discarded_time
+                )
+                if strategy_id is not None:
+                    dup_key.strategy_id = strategy_id
+
+                # 使用 pop 方法更安全，避免 KeyError 和并发问题
+                dup_obj.record_ids_cache.pop(dup_key, None)
+                dup_obj.pending_to_add.pop(dup_key, None)
+
+            logger.info(
+                f"strategy_group_key({self.strategy_group_key}) "
+                f"cleaned duplicate cache for {len(discarded_times)} discarded time points"
+            )
+
+        # 刷新去重缓存，将保留的数据写入 Redis
+        if dup_obj:
+            dup_obj.refresh_cache()
+        else:
+            # 异常情况：dup_obj 为 None 可能表示 filter_duplicates 未被调用
+            logger.warning(
+                f"strategy_group_key({self.strategy_group_key}) "
+                f"dup_obj is None, skip refresh_cache. This may indicate filter_duplicates was not called."
+            )
+
+        self.record_list = limited_records
+
+        # 判断是否可以合并处理（access-detect 合并）
+        # 当策略的所有检测算法均为静态阈值时，直接在 access 模块执行检测
+        if self._can_merge_access_detect():
+            # 直接在 access 中执行检测并推送异常数据
+            self._detect_and_push_abnormal()
+        else:
+            # 走原有流程：推送到 Redis 队列，由 detect 异步任务处理
+            super().push(records=records, output_client=output_client)
+
+        if self.sub_task_id is None:
+            # 主任务 需要额外做一些事情
+            # 更新checkpoint
+            last_checkpoint = self._update_checkpoint(last_time_point)
             logger.info(
                 f"strategy_group_key({self.strategy_group_key}), process records({len(self.record_list)}), last_checkpoint({arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT)})"
             )
-        else:
+            # 记录access最后一次数据拉取时间
+            access_run_timestamp_key = key.ACCESS_RUN_TIMESTAMP_KEY.get_key(strategy_group_key=self.strategy_group_key)
+            key.ACCESS_RUN_TIMESTAMP_KEY.client.set(access_run_timestamp_key, int(time.time()))
+
+        # 非批量任务，记录日志
+        if self.sub_task_id:
             self.process_counts["total_push_data"] = {
                 "count": len(self.record_list),
-                "last_checkpoint": last_checkpoint,
+                "last_checkpoint": 0,
             }
 
     def process(self):
@@ -1042,7 +1156,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 continue
 
             total_push_data = result["process_counts"].get("total_push_data", {})
-            last_checkpoint = max(last_checkpoint, total_push_data.get("last_checkpoint", 0))
+            last_checkpoint = Checkpoint(self.strategy_group_key).get()
             total_push_count += total_push_data.get("count", 0)
 
         # 拉取数量记录日志
@@ -1135,7 +1249,12 @@ class AccessDataProcess(BaseAccessDataProcess):
 
 class AccessBatchDataProcess(AccessDataProcess):
     """
-    分批任务处理器
+    分批任务处理器：继承自 AccessDataProcess，通过重写 pull() 方法实现批量数据的读取。
+
+    关键特性：
+    - 只重写 pull() 方法，handle() 和 push() 完全复用父类实现
+    - 处理逻辑与主任务完全一致，确保数据处理的正确性
+    - 去重机制：filter_duplicates() 使用 reversed(points) 从新到旧遍历，优先处理最新数据
     """
 
     def __init__(self, *args, **kwargs):
@@ -1144,6 +1263,16 @@ class AccessBatchDataProcess(AccessDataProcess):
             raise ValueError("sub_task_id is required")
 
     def pull(self):
+        """
+        从 Redis 读取批量数据。
+
+        流程：
+        1. 从 Redis 读取压缩的批量数据
+        2. 解压数据（base64 解码 → gzip 解压 → JSON 解析）
+        3. 删除 Redis 缓存（避免数据残留）
+        4. 调用 filter_duplicates() 去重处理
+        """
+        # 从 Redis 读取批量数据
         client = key.ACCESS_BATCH_DATA_KEY.client
         cache_key = key.ACCESS_BATCH_DATA_KEY.get_key(
             strategy_group_key=self.strategy_group_key, sub_task_id=self.sub_task_id
@@ -1151,31 +1280,48 @@ class AccessBatchDataProcess(AccessDataProcess):
         cache_key.strategy_id = self.items[0].strategy.id
         data = client.get(cache_key)
         if data:
+            # 解压数据：base64 解码 → gzip 解压 → JSON 解析
             points = json.loads(gzip.decompress(base64.b64decode(data)).decode("utf-8"))
         else:
             points = []
+        # 删除缓存数据（避免数据残留）
         client.delete(cache_key)
+        # 去重处理：使用 reversed(points) 从新到旧遍历，优先处理最新数据
         self.filter_duplicates(points)
 
     def process(self):
+        """
+        执行完整的数据处理流程并记录结果。
+
+        流程：
+        1. 执行父类的 process 方法（pull → handle → push）
+        2. 记录处理结果到 Redis（供主任务汇总）
+        3. 设置过期时间
+        """
+        # 执行父类的 process 方法
+        # 调用链：super().process() -> BaseAccessProcess.process()
+        # 执行流程：pull() -> handle() -> push()
         exc = super().process()
 
+        # 记录处理结果到 Redis（供主任务汇总）
         client = key.ACCESS_BATCH_DATA_RESULT_KEY.client
         result_key = key.ACCESS_BATCH_DATA_RESULT_KEY.get_key(
             strategy_group_key=self.strategy_group_key, timestamp=self.batch_timestamp
         )
 
+        # 推送结果到结果队列（List 类型）
         client.lpush(
             result_key,
             json.dumps(
                 {
                     "sub_task_id": self.sub_task_id,
-                    "result": not exc,
-                    "error": str(exc),
-                    "process_counts": self.process_counts,
+                    "result": not exc,  # True 表示成功，False 表示失败
+                    "error": str(exc) if exc else "",
+                    "process_counts": self.process_counts,  # 处理统计信息
                 }
             ),
         )
+        # 设置过期时间
         client.expire(result_key, key.ACCESS_BATCH_DATA_RESULT_KEY.ttl)
 
 

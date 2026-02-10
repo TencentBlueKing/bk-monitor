@@ -81,6 +81,8 @@ const logPluginConfig = {
       window.VERSION = '\${VERSION}'
       window.BK_SHARED_RES_URL = '\${BK_SHARED_RES_URL}'
       window.BK_PAAS_API_HOST = '\${BK_PAAS_API_HOST}'
+      window.BK_USER_URL = '\${BK_USER_URL}'
+      window.BK_IAM_URL = '\${BK_IAM_URL}'
     </script>`,
 };
 if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
@@ -112,7 +114,8 @@ module.exports = (baseConfig, { app, mobile, production, fta, log: _log, email =
 
     config.devServer = Object.assign({}, config.devServer || {}, {
       port: devConfig.port,
-      host: devConfig.host,
+      host: '0.0.0.0',
+      allowedHosts: 'all',
       open: false,
       static: [
         // 开发环境：优先直接从 node_modules 提供 log-web1-dll 资源
