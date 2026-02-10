@@ -234,8 +234,15 @@ class GrokHandler:
         """
         self.validate_references_exist(params["pattern"])
         custom_patterns_map = self.get_custom_patterns_map()
-        grok = Grok(params["pattern"], custom_patterns=custom_patterns_map)
-        return grok.match(params["sample"])
+
+        # 将用户输入的模式注册为自定义模式（_matched 字段的值为表达式匹配到的原文片段）
+        wrapper_pattern_name = "_GROK_DEBUG_WRAPPER"
+        fallback_field = "_matched"
+        custom_patterns_map[wrapper_pattern_name] = params["pattern"]
+        grok = Grok(f"%{{{wrapper_pattern_name}:{fallback_field}}}", custom_patterns=custom_patterns_map)
+
+        result = grok.match(params["sample"])
+        return result
 
     def replace_custom_patterns(self, pattern: str) -> str:
         """
