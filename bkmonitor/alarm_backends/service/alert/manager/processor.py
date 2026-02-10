@@ -122,8 +122,8 @@ class AlertManager(BaseAlertProcessor):
         # 打印过滤日志(包含过滤的告警id)
         filtered_alert_ids = set([alert.id for alert in alerts]) - set([alert.id for alert in new_alerts])
         self.logger.info(
-            "[manager] Lock fetched alerts: %s,Filtered alerts: %s",
-            ",".join(str(alert_id) for alert_id in fetched_alert_ids),
+            "[manager] Lock fetched alerts count: %s, Filtered alerts: %s",
+            len(fetched_alert_ids),
             ",".join(str(alert_id) for alert_id in filtered_alert_ids),
         )
         return new_alerts
