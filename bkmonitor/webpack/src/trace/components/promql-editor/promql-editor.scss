@@ -1,0 +1,72 @@
+/* stylelint-disable declaration-no-important */
+.promql-editor {
+  position: relative;
+  box-sizing: content-box;
+  display: flex;
+  width: 100%;
+  min-height: 68px;
+  overflow: hidden;
+  color: #63656e;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
+  &.is-error {
+    border-color: #ff5656;
+  }
+
+  .promql-editor {
+    width: 100%;
+    height: 100%;
+    border: 0;
+
+    /* stylelint-disable-next-line selector-class-pattern */
+    .overflowingContentWidgets {
+      .monaco-hover-content {
+        .hover-row.status-bar {
+          display: none;
+        }
+      }
+    }
+  }
+
+  .scroll-decoration {
+    box-shadow: none;
+  }
+
+  .placeholder-widget {
+    top: 6px !important;
+    left: 12px !important;
+    color: #888;
+    pointer-events: none;
+  }
+
+  .resize-vertical-drop {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 16px;
+    height: 16px;
+    cursor: ns-resize;
+
+    .lines {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transform: rotate(135deg) translate(4px, -8px);
+
+      .line-1 {
+        width: 6px;
+        height: 1px;
+        margin-bottom: 2px;
+        background: #666;
+      }
+
+      .line-2 {
+        width: 12px;
+        height: 1px;
+        background: #666;
+      }
+    }
+  }
+}

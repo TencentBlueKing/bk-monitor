@@ -1433,6 +1433,7 @@ export default defineComponent({
           columns={this.tableColumns}
           data={this.tableData.map(item => ({ ...item, id: item.id ?? random(6) }))}
           filterValue={this.filterValue}
+          needCustomScroll={false}
           rowKey='id'
           sort={this.sortInfo}
           showSortColumnBgColor

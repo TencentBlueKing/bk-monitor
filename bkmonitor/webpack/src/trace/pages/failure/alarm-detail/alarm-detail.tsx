@@ -384,7 +384,7 @@ export default defineComponent({
                     boundary: 'window',
                     extCls: 'alarm-detail-table-tooltip',
                   }}
-                ></span>
+                />
               )}
             </div>
           );
@@ -1076,6 +1076,7 @@ export default defineComponent({
                     columns={this.columns}
                     data={item.alerts}
                     maxHeight={this.tableMaxHeight}
+                    needCustomScroll={false}
                     scroll={{ type: 'virtual' }}
                     tooltip-config={{ showAll: false }}
                     onDisplayColumnsChange={value => {

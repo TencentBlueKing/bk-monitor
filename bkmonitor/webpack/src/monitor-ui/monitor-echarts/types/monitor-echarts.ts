@@ -23,7 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { BarChart, CustomChart, HeatmapChart, LineChart, MapChart, PieChart, ScatterChart } from 'echarts/charts';
+import {
+  BarChart,
+  CustomChart,
+  HeatmapChart,
+  LineChart,
+  MapChart,
+  PieChart,
+  ScatterChart,
+  TreemapChart,
+} from 'echarts/charts';
 import {
   BrushComponent,
   DataZoomComponent,
@@ -77,6 +86,7 @@ echarts.use([
   BarChart,
   PieChart,
   LineChart,
+  TreemapChart,
   ScatterChart,
   MapChart,
   HeatmapChart,
