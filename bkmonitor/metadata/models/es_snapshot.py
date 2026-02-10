@@ -80,10 +80,10 @@ class EsSnapshot(models.Model):
         unique_table_ids = sorted(list(set(table_ids)))
 
         # 1. 一次性锁定所有相关快照记录（按顺序避免死锁）
-        locked_snapshots = cls.objects.filter(
+        locked_snapshots = cls.objects.select_for_update().filter(
             table_id__in=unique_table_ids,
             bk_tenant_id=bk_tenant_id
-        ).order_by('table_id').select_for_update()
+        ).order_by('table_id')
 
         # 返回锁定的记录数（可选）
         return list(locked_snapshots)
@@ -100,7 +100,7 @@ class EsSnapshot(models.Model):
         from metadata.models import ESStorage
 
         if not table_ids:
-            raise Exception("table_ids is empty")
+            raise ValueError("table_ids is empty")
 
         # 立即获取锁（执行查询）
         snapshot_list = cls._lock_snapshot_scope(table_ids, bk_tenant_id)
@@ -113,7 +113,10 @@ class EsSnapshot(models.Model):
             snapshots_by_table[snapshot.table_id].append(snapshot)
 
         # 3. 其他校验（这些表通常不会被并发修改，所以不用锁定）
-        es_storages = ESStorage.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
+        es_storages = ESStorage.objects.select_for_update().filter(
+            table_id__in=table_ids,
+            bk_tenant_id=bk_tenant_id,
+        )
 
         exist_table_ids = es_storages.values_list("table_id", flat=True)
         if set(table_ids) != set(exist_table_ids):
@@ -239,7 +242,16 @@ class EsSnapshot(models.Model):
         status: str | None = None,
         bk_tenant_id=DEFAULT_TENANT_ID
     ):
-        """批量创建ES快照配置"""
+        """批量创建ES快照配置
+
+        :param table_ids: 需要修改快照配置的结果表 ID 列表。
+        :param target_snapshot_repository_name: 目标快照仓库名称
+        :param snapshot_days: 快照保留天数。
+        :param operator: 本次修改的操作者用户名。
+        :param status: 快照配置目标状态，为 ``None`` 时默认为running状态。
+        :param bk_tenant_id: 租户 ID，默认为默认租户。
+        :return: 实际创建的记录条数。
+        """
         status = status or cls.ES_RUNNING_STATUS
         unique_table_ids = list(set(table_ids))
         # 使用带锁的校验
@@ -308,7 +320,16 @@ class EsSnapshot(models.Model):
         target_snapshot_repository_name: str | None = None,
         bk_tenant_id=DEFAULT_TENANT_ID
     ):
-        """批量创建ES快照配置"""
+        """批量修改ES快照配置
+        
+        :param table_ids: 需要修改快照配置的结果表 ID 列表。
+        :param snapshot_days: 快照保留天数。
+        :param operator: 本次修改的操作者用户名。
+        :param status: 快照配置目标状态，为 ``None`` 时不修改状态。
+        :param target_snapshot_repository_name: 目标快照仓库名称，用于校验已有配置。
+        :param bk_tenant_id: 租户 ID，默认为默认租户。
+        :return: 实际更新的记录条数。
+        """
         unique_table_ids = list(set(table_ids))
         # 1. 锁定相关记录
         cls._lock_snapshot_scope(unique_table_ids, bk_tenant_id)

@@ -1926,7 +1926,12 @@ class BulkCreateResultTableSnapshotResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
-        table_ids = serializers.ListField(required=True, label="结果表IDs", allow_empty=False)
+        table_ids = serializers.ListField(
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            required=True,
+            label="结果表IDs",
+            allow_empty=False,
+        )
         target_snapshot_repository_name = serializers.CharField(required=True, label="目标es集群快照仓库")
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
@@ -1962,7 +1967,12 @@ class BulkModifyResultTableSnapshotResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
-        table_ids = serializers.ListField(required=True, label="结果表IDs", allow_empty=False)
+        table_ids = serializers.ListField(
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            required=True,
+            label="结果表IDs",
+            allow_empty=False,
+        )
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
         status = serializers.CharField(required=False, label="快照状态")
