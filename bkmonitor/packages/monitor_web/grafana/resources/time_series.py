@@ -41,11 +41,12 @@ from constants.data_source import (
 from constants.strategy import EVENT_QUERY_CONFIG_MAP, SYSTEM_EVENT_RT_TABLE_ID
 from core.drf_resource import Resource, api, resource
 from core.errors.api import BKAPIError
-from bk_monitor_base import uptime_check as uptime_check_operation
+from bk_monitor_base.uptime_check import list_nodes
 from monitor_web.grafana.utils import get_cookies_filter, is_global_k8s_event
 from monitor_web.models import CollectConfigMeta
 from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
 from monitor_web.strategies.default_settings.k8s_event import DEFAULT_K8S_EVENT_NAME
+from bk_monitor_base.uptime_check import list_tasks
 
 logger = logging.getLogger(__name__)
 
@@ -928,18 +929,83 @@ class GetVariableValue(Resource):
             "uptimecheck_"
         ):
             if dimension_field == "task_id":
-                uptime_check_tasks = uptime_check_operation.list_uptime_check_tasks_by_ids(task_ids=dimensions)
-                task_name_mapping = {str(task["id"]): task["name"] for task in uptime_check_tasks}
+                uptime_check_tasks = list_tasks(query={"task_ids": dimensions})
+                task_name_mapping = {str(task.id): task.name for task in uptime_check_tasks}
                 result = [
                     {"label": task_name_mapping.get(v, _("任务({})已删除").format(v)), "value": v} for v in dimensions
                 ]
             elif dimension_field == "node_id":
-                nodes = uptime_check_operation.adapt_node_id_to_nodes(bk_biz_id, dimensions)
+                nodes = GetVariableValue.adapt_node_id_to_nodes(bk_biz_id, get_request_tenant_id(), dimensions)
                 result = [{"label": node["name"], "value": str(node["id"])} for node in nodes]
 
         result = result or [{"label": v, "value": v} for v in dimensions]
 
         return result
+
+    @staticmethod
+    def adapt_node_id_to_nodes(bk_biz_id: int, bk_tenant_id: str, node_ids: list[str | int]) -> list[dict[str, Any]]:
+        """适配节点ID到节点信息列表（使用最新 CRUD 操作）
+
+        支持新旧两种节点ID格式：
+        - 旧格式：数字ID（整数）
+        - 新格式：bk_cloud_id:ip 的格式
+
+        Args:
+            bk_biz_id: 业务ID
+            bk_tenant_id: 租户ID
+            node_ids: 节点ID列表，可为整数或 "bk_cloud_id:ip" 格式的字符串
+
+        Returns:
+            list[dict[str, Any]]: 节点信息列表，每个元素包含 id、name、plat_id、ip 等字段
+        """
+        from django.conf import settings
+
+        nodes: list[dict[str, Any]] = []
+
+        for node_id in node_ids:
+            old_format = False
+            try:
+                # 若还是数字ID，则说明为旧格式
+                node_id_int = int(node_id)
+                if node_id_int == 0:
+                    # 老格式（使用订阅下发 bkmonitorbeat，但未上报node_id，因此我们也不知道是哪个拨测节点）
+                    query_nodes = list_nodes(
+                        bk_tenant_id=bk_tenant_id,
+                        bk_biz_id=bk_biz_id,
+                    )
+                else:
+                    # 远古格式（通过uptimecheckbeat 上报的数据）
+                    query_nodes = list_nodes(
+                        bk_tenant_id=bk_tenant_id,
+                        bk_biz_id=bk_biz_id,
+                        query={"node_id": node_id_int},
+                    )
+
+                old_format = True
+
+            except (ValueError, TypeError):
+                # 适配新格式 bk_cloud_id:ip
+                try:
+                    bk_cloud_id, ip = str(node_id).rsplit(":", 1)
+                    query_nodes = list_nodes(
+                        bk_tenant_id=bk_tenant_id,
+                        bk_biz_id=bk_biz_id,
+                        query={"plat_id": int(bk_cloud_id), "ip": ip},
+                    )
+                except (ValueError, AttributeError):
+                    query_nodes = []
+
+            # 转换 Define 对象为字典
+            for node_define in query_nodes:
+                node = node_define.model_dump()
+                if old_format:
+                    node["name"] = node["name"] + _("bkmonitorbeat(版本低于{}, 请升级)").format(
+                        settings.BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION
+                    )
+                node["id"] = f"{node['plat_id']}:{node['ip']}"
+                nodes.append(node)
+
+        return nodes
 
     @staticmethod
     def query_collect(bk_biz_id: int, params):

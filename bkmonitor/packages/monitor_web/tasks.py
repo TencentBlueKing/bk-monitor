@@ -34,6 +34,10 @@ from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from bk_dataview.api import get_or_create_org, get_or_create_user
+from bk_monitor_base.uptime_check import (
+    get_task,
+    list_tasks,
+)
 from bkmonitor.aiops.alert.maintainer import AIOpsStrategyMaintainer
 from bkmonitor.dataflow.constant import (
     FLINK_KEY_WORDS,
@@ -84,7 +88,6 @@ from monitor_web.constants import (
 from monitor_web.export_import.constant import ImportDetailStatus, ImportHistoryStatus
 from monitor_web.extend_account.models import UserAccessRecord
 from bk_monitor_base.domains.uptime_check.define import UptimeCheckTaskStatus
-from bk_monitor_base import uptime_check as uptime_check_operation
 from monitor_web.models.custom_report import CustomEventGroup
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.plugin.constant import PLUGIN_REVERSED_DIMENSION
@@ -576,8 +579,8 @@ def update_uptime_check_task_status():
     定时刷新 starting 状态的拨测任务
     :return:
     """
-    for task_id in uptime_check_operation.list_uptime_check_tasks_id_by_status(UptimeCheckTaskStatus.STARTING.value):
-        update_task_running_status(task_id)
+    for task in list_tasks(query={"status": UptimeCheckTaskStatus.STARTING.value}):
+        update_task_running_status(task.id)
 
 
 @shared_task(ignore_result=True, queue="celery_resource")
@@ -585,8 +588,7 @@ def update_task_running_status(task_id):
     """
     异步查询拨测任务启动状态，更新拨测任务列表中的运行状态
     """
-
-    task = uptime_check_operation.get_task_by_id(task_id)
+    task = get_task(task_id=task_id)
     bk_biz_id = task.bk_biz_id
     bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
     set_local_tenant_id(bk_tenant_id=bk_tenant_id)

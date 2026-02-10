@@ -110,7 +110,8 @@ class UCController(BaseController):
 
     @property
     def accessed(self):
-        return self.related and uptime_check_operation.check_task_exists(bk_biz_id=self.space.bk_biz_id)
+        tasks = uptime_check_operation.list_tasks(bk_biz_id=self.space.bk_biz_id, fields=["id"])
+        return self.related and len(tasks) > 0
 
 
 @register_controller(SpaceFunction.K8S.value)

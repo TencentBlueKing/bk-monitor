@@ -12,7 +12,6 @@ import copy
 import json
 import re
 import threading
-import time
 import urllib.parse
 from base64 import b64encode
 from collections import defaultdict
@@ -48,10 +47,8 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.drf_resource.exceptions import CustomException
-from core.errors.api import BKAPIError
 from core.errors.dataapi import EmptyQueryException
 from monitor.utils import update_task_config
-from monitor_web.collecting.constant import CollectStatus
 from monitor_web.uptime_check.constants import UPTIME_CHECK_CONFIG_TEMPLATE
 from bk_monitor_base.infras.threading.local import get_request_username
 from bk_monitor_base.uptime_check import (
@@ -81,13 +78,10 @@ from bk_monitor_base.uptime_check import (
     list_tasks,
     get_task,
     generate_task_sub_config,
-    list_subscriptions,
-    create_collector_log,
-    bulk_update_task_status,
-    list_group_names_by_ids,
+    refresh_task_status,
     save_node,
     save_task,
-    deploy_uptime_check_task,
+    control_task,
 )
 from monitor_web.uptime_check.serializers import (
     ConfigSlz,
@@ -197,12 +191,13 @@ class UptimeCheckTaskListResource(Resource):
 
     def get_groups(self, bk_tenant_id: str, bk_biz_id: int, task_id: int):
         """获取任务分组信息"""
-        return list_groups(
+        groups = list_groups(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
             query={"task_id": task_id},
-            output={"format": "values", "fields": ["id", "name"]},
         )
+        # 从 Define 对象中提取 id 和 name 字段
+        return [[group.id, group.name] for group in groups]
 
     def get_nodes(self, bk_tenant_id: str, bk_biz_id: int, task_id: int):
         """获取任务节点信息"""
@@ -641,7 +636,6 @@ class TaskDetailResource(Resource):
         """
         根据国家地区划分出拨测节点列表
         """
-        # 使用新版统一 CRUD 操作
         nodes = list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"task_id": task_id})
         result = {}
         for item in location:
@@ -1287,143 +1281,39 @@ class UpdateTaskRunningStatusResource(Resource):
     周期查询拨测任务启动状态，用于后台celery任务
     """
 
-    def __init__(self):
-        super().__init__()
-
-    def check_single_task_status(self, subscription_id):
-        while True:
-            time.sleep(3)
-            error_count = 0
-            try:
-                status_result = api.node_man.batch_task_result(subscription_id=subscription_id)
-            except BKAPIError as e:
-                logger.error(f"请求节点管理任务{subscription_id}执行结果接口:batch_task_result失败: {e}")
-                return
-            log = []
-            nodeman_task_id = ""
-            if len(status_result) == 0:
-                logger.info(f"celery period task: 订阅任务{subscription_id}正在启用中")
-                logger.info(f"error_log: {log}")
-                return UptimeCheckTaskStatus.STARTING, log, nodeman_task_id
-            for item in status_result:
-                if item["status"] in [CollectStatus.RUNNING, CollectStatus.PENDING]:
-                    break
-                if item["status"] == CollectStatus.FAILED:
-                    error_count += 1
-                    params = {"subscription_id": subscription_id, "instance_id": item["instance_id"]}
-                    result = api.node_man.task_result_detail(**params)
-                    if result:
-                        nodeman_task_id = result["task_id"]
-                        for step in result.get("steps", []):
-                            if step["status"] == CollectStatus.FAILED:
-                                for sub_step in step["target_hosts"][0].get("sub_steps", []):
-                                    if sub_step["ex_data"]:
-                                        log.append(sub_step["ex_data"])
-            else:
-                if error_count == 0:
-                    logger.info(f"celery period task: 订阅任务{subscription_id}正在运行中")
-                    logger.info(f"error_log: {log}")
-                    return UptimeCheckTaskStatus.RUNNING, log, nodeman_task_id
-                else:
-                    logger.info(f"celery period task: 订阅任务{subscription_id}启动失败")
-                    logger.info(f"error_log: {log}")
-                    return UptimeCheckTaskStatus.START_FAILED, log, nodeman_task_id
-
     def perform_request(self, task_id: int):
         logger.info("start celery period task: update uptime check task running status")
-        # 使用新版统一 CRUD 操作
-        task = get_task(task_id=task_id)
-        subscriptions = list_subscriptions(task_id=task_id)
-        hasFail = False
-        # 遍历所有订阅，获取全部的状态
-        for subscription_id, _node_ids in subscriptions:
-            status, log, nodeman_task_id = self.check_single_task_status(subscription_id)
-            if status == UptimeCheckTaskStatus.START_FAILED:
-                for item in log:
-                    create_collector_log(
-                        task_id=task.id,
-                        error_log=item,
-                        subscription_id=subscription_id,
-                        nodeman_task_id=nodeman_task_id,
-                    )
-                hasFail = True
-        # 存在失败则判定为全部失败
-        if hasFail:
-            new_status = UptimeCheckTaskStatus.START_FAILED
-        else:
-            new_status = UptimeCheckTaskStatus.RUNNING
+        bk_tenant_id = get_request_tenant_id()
 
-        bulk_update_task_status({task_id: new_status.value})
+        # 从任务中获取业务ID
+        task = get_task(task_id=task_id)
+        bk_biz_id = task.bk_biz_id
+
+        refresh_task_status(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            task_ids=[task_id],
+        )
 
 
 class BatchUpdateTaskRunningStatusResource(Resource):
     """周期更新任务状态，用于celery周期任务"""
 
-    def __init__(self):
-        super().__init__()
-
-    @staticmethod
-    def check_task_status(subscription_id_list):
-        def chunks(lst, n):
-            """
-            切割数组
-            :param lst: 数组
-            :param n: 每组多少份
-            """
-            for i in range(0, len(lst), n):
-                yield lst[i : i + n]
-
-        result = {}
-        for subscription_ids in chunks(subscription_id_list, 20):
-            try:
-                status_result = api.node_man.batch_task_result.bulk_request(
-                    [{"subscription_id": s_id} for s_id in subscription_ids]
-                )
-            except BKAPIError as e:
-                logger.error(f"请求节点管理任务执行结果接口失败: {e}")
-                return
-            for index, subscription_id in enumerate(subscription_ids):
-                result[subscription_id] = status_result[index][0].get("status")
-        return result
-
-    @staticmethod
-    def judge_task_status(subscription_ids, subscription_status):
-        """通过从节点管理获取的订阅的状态，来判断当前的任务应该是什么状态"""
-        for subscription_id in subscription_ids:
-            status = subscription_status.get(subscription_id)
-            # 如果没有获取到状态，则跳过
-            if not status:
-                logger.info(f"celery period task: 订阅任务{subscription_id}未能获取状态")
-                return None
-            if status in [CollectStatus.RUNNING, CollectStatus.PENDING]:
-                return UptimeCheckTaskStatus.STARTING
-            if status == CollectStatus.FAILED:
-                return UptimeCheckTaskStatus.START_FAILED
-        return UptimeCheckTaskStatus.RUNNING
-
     def perform_request(self, task_id_list):
         logger.info("start celery period task: period update uptime check task running status")
-        task_list = list_tasks(query={"task_ids": task_id_list})
-        # 获取所有的订阅ID 和 任务与订阅ID的关系
-        task_subscription_dict = list_subscriptions(task_ids=task_id_list, output="dict")
-        subscription_id_list = list_subscriptions(task_ids=task_id_list, output="flat")
+        bk_tenant_id = get_request_tenant_id()
 
-        # 获取所有订阅ID的节点管理状态
-        subscription_status = self.check_task_status(subscription_id_list)
-        task_status_updates: dict[int, str] = {}
+        if task_id_list:
+            first_task = get_task(task_id=task_id_list[0])
+            bk_biz_id = first_task.bk_biz_id
+        else:
+            return
 
-        for task in task_list:
-            # 获取该 task_id 下的所有订阅 ID
-            s_id = task_subscription_dict.get(task.id)
-            if not s_id:
-                continue
-            new_status = self.judge_task_status(s_id, subscription_status)
-            if task.status == new_status:
-                continue
-            task_status_updates[task.id] = new_status.value
-
-        if task_status_updates:
-            bulk_update_task_status(task_status_updates, batch_size=500)
+        refresh_task_status(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            task_ids=task_id_list,
+        )
 
 
 class FrontPageDataResource(Resource):
@@ -1597,7 +1487,12 @@ class ExportUptimeCheckConfResource(Resource):
             del real_task_config["hosts"]
 
         # 通过 group_ids 获取分组名称
-        group_names = list_group_names_by_ids(task.group_ids) if task.group_ids else []
+        groups = (
+            list_groups(bk_tenant_id=bk_tenant_id, bk_biz_id=task.bk_biz_id, query={"group_ids": task.group_ids})
+            if task.group_ids
+            else []
+        )
+        group_names = [g.name for g in groups]
 
         task_conf["collector_conf"] = {
             "groups": ",".join(group_names),
@@ -1661,7 +1556,6 @@ class ExportUptimeCheckNodeConfResource(Resource):
         node_conf_list = []
         bk_biz_id = data["bk_biz_id"]
         node_ids = data.get("node_ids", "")
-        # 使用新版统一 CRUD 操作
         nodes = list_nodes(bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id)
         if node_ids:
             node_id_list = [int(i) for i in node_ids.split(",")]
@@ -2165,7 +2059,7 @@ class FileImportUptimeCheckResource(Resource):
         failed_detail = []
         biz_id = validated_request_data["bk_biz_id"]
         bk_tenant_id = get_request_tenant_id()
-        # 取出当前业务下的所有节点（包含公共节点）- 使用新版统一 CRUD 操作
+        # 取出当前业务下的所有节点（包含公共节点）
         self.all_uptime_check_node = list_nodes(
             bk_tenant_id=bk_tenant_id, bk_biz_id=biz_id, query={"include_common": True}
         )
@@ -2629,7 +2523,7 @@ class ImportUptimeCheckTaskResource(Resource):
                     resource.config.save_alarm_strategy(monitor_conf)
 
             # 自动管理状态：NEW_DRAFT → STARTING → RUNNING
-            deploy_uptime_check_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
+            control_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id, action="deploy")
             return {"result": True, "detail": {"task_name": task_name}}
         except Exception as e:
             return {"result": False, "detail": {"task_name": item_data["collector_conf"]["name"], "error_mes": str(e)}}
@@ -2751,9 +2645,10 @@ class SelectCarrierOperator(Resource):
             bk_tenant_id=get_request_tenant_id(),
             bk_biz_id=int(bk_biz_id),
             query={"exclude_carrieroperators": isp_cn_list},
-            output={"format": "flat", "fields": ["carrieroperator"]},
         )
-        return list(dict.fromkeys(nodes))  # 保留顺序的去重
+        # 从 Define 对象提取 carrieroperator 字段
+        carrieroperators = [node.carrieroperator for node in nodes]
+        return list(dict.fromkeys(carrieroperators))  # 保留顺序的去重
 
 
 class UptimeCheckNodeInfoResource(Resource):
@@ -2766,7 +2661,6 @@ class UptimeCheckNodeInfoResource(Resource):
 
     def perform_request(self, data):
         bk_tenant_id = get_request_tenant_id()
-        # 使用新版统一 CRUD 操作
         nodes = list_nodes(bk_tenant_id=bk_tenant_id, query={"node_ids": data["ids"]})
         result = {}
         for node in nodes:
@@ -2784,9 +2678,9 @@ class UptimeCheckTaskInfoResource(Resource):
 
     def perform_request(self, data):
         task_ids = data["ids"]
-        tasks = list_tasks(query={"task_ids": task_ids}, output={"format": "dict"})
+        tasks = list_tasks(query={"task_ids": task_ids})
         # 转换为 {id: task_dict} 的格式
-        return {task["id"]: task for task in tasks}
+        return {task.id: task.model_dump() for task in tasks}
 
 
 class TopoTemplateHostResource(Resource):

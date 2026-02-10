@@ -1,7 +1,6 @@
 from django.utils.translation import gettext as _
 
-from bk_monitor_base import uptime_check as uptime_check_operation
-from bk_monitor_base.domains.uptime_check.models import UptimeCheckTaskModel
+from bk_monitor_base.uptime_check import list_nodes, list_tasks
 from bkmonitor.iam import ActionEnum
 from bkmonitor.utils.request import get_request_tenant_id
 from monitor_web.search.handlers.base import (
@@ -16,14 +15,12 @@ class UptimecheckSearchHandler(BaseSearchHandler):
 
     def search_node(self, query: str, limit: int = 10) -> list[SearchResultItem]:
         bk_tenant_id = get_request_tenant_id()
-        nodes = uptime_check_operation.search_nodes_by_name(
+        nodes = list_nodes(
             bk_tenant_id=bk_tenant_id,
-            query=query,
             bk_biz_id=self.bk_biz_id if self.scope == SearchScope.BIZ else None,
+            query={"name": query},
         )
-
         search_results = []
-
         for node in nodes:
             search_results.append(
                 SearchResultItem(
@@ -48,15 +45,12 @@ class UptimecheckSearchHandler(BaseSearchHandler):
         return search_results
 
     def search_task(self, query: str, limit: int = 10) -> list[SearchResultItem]:
-        tasks = UptimeCheckTaskModel.objects.filter(name__icontains=query, is_deleted=False).values(
-            "id", "bk_biz_id", "name"
+        tasks = list_tasks(
+            bk_biz_id=self.bk_biz_id if self.scope == SearchScope.BIZ else None,
+            query={"name": query},
+            fields=["id", "bk_biz_id", "name"],
         )
-
-        if self.scope == SearchScope.BIZ:
-            tasks = tasks.filter(bk_biz_id=self.bk_biz_id)
-
         search_results = []
-
         for task in tasks:
             search_results.append(
                 SearchResultItem(
