@@ -115,7 +115,9 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
     this.currentIndex = this.localValue.length;
     this.localValue.push([...this.timeRange]);
     this.handleMoveTrigger(true);
-    this.$nextTick(() => (this.isShow = true));
+    this.$nextTick(() => {
+      this.isShow = true;
+    });
   }
 
   /**
@@ -190,6 +192,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
       }, 300);
     } else {
       this.isShow = false;
+      this.isFocus = false;
     }
     this.triggerInputText = this.localValue[this.currentIndex]?.join?.('-') || '';
     this.mode = EMode.edit;
@@ -269,6 +272,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
    */
   handleTimePickerShow(val: boolean) {
     this.isShow = val;
+    console.log(val, 'show');
     if (!val) {
       !this.isCustomTimeRange && this.handleSubmit();
       setTimeout(() => {
@@ -388,6 +392,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
           >
             {this.localValue.map((item, index) => (
               <li
+                key={index}
                 class={[
                   'time-range-item',
                   {
@@ -431,7 +436,9 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
                   v-model={this.triggerInputText}
                   slot='trigger'
                   onBlur={this.handleTimeRangeInputBlur}
-                  onFocus={() => (this.isFocus = true)}
+                  onFocus={() => {
+                    this.isFocus = true;
+                  }}
                   onInput={this.handleTimeRangeInput}
                   onKeydown={modifiers.del(this.handleDelItem)}
                 />
