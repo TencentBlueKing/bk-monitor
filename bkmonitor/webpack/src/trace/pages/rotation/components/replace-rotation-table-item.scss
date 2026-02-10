@@ -90,6 +90,7 @@
       .user-select-wrapper {
         display: flex;
         flex: 1;
+
         --drag-icon-position-right: 20px;
 
         .user-select-prefix {
@@ -125,11 +126,14 @@
   }
 
   .auto-group-wrap {
-    .auto-user-selector {
+    .auto-user-selector.bk-user-selector {
+      height: unset;
+
       .tags-container {
         align-items: flex-start !important;
         min-height: 78px;
         padding: 6px 10px 6px 8px;
+
         .search-input {
           height: 22px;
         }
@@ -153,6 +157,7 @@
             display: flex;
             align-items: center;
             height: 100%;
+
             // cursor: pointer;
 
             .auto-group-tag-color {
@@ -186,7 +191,7 @@
         }
 
         &:first-child {
-          border-right-width: 0px;
+          border-right-width: 0;
           border-radius: 2px 0 0 2px;
 
           &.active {
@@ -195,7 +200,7 @@
         }
 
         &:last-child {
-          border-left-width: 0px;
+          border-left-width: 0;
           border-radius: 0 2px 2px 0;
 
           &.active {
