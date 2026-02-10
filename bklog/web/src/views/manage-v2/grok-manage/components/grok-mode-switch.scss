@@ -1,0 +1,12 @@
+.grok-mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .grok-mode-label {
+    font-size: 12px;
+    color: #63656e;
+    border-bottom: 1px dashed #979ba5;
+    cursor: pointer;
+  }
+}

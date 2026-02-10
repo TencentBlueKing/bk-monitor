@@ -1285,4 +1285,10 @@ export default {
   'Grok 模式更新成功': 'Grok pattern updated successfully',
   'Grok 模式删除成功': 'Grok pattern deleted successfully',
   'Grok 模式创建成功': 'Grok pattern created successfully',
+  请输入需要调试的样例: 'Please enter the sample you need to debug',
+  '请先完成调试，方可提交': 'Please complete the debugging process before submitting',
+  调试成功: 'Debugging successful',
+  调试失败: 'Debugging failed',
+  '内容有变更，请重新调试': 'The content has changed; please reconfigure the settings',
+  没有更多数据: 'No more data',
 };

@@ -70,8 +70,8 @@ export default defineComponent({
     const tableFields = [
       { id: 'name', label: t('名称'), disabled: true },
       { id: 'is_builtin', label: t('来源') },
-      { id: 'sample', label: t('样例') },
       { id: 'pattern', label: t('定义') },
+      { id: 'sample', label: t('样例') },
       { id: 'description', label: t('描述') },
       { id: 'updated_by', label: t('更新人') },
       { id: 'updated_at', label: t('更新时间') },
@@ -290,16 +290,6 @@ export default defineComponent({
               scopedSlots={originSlot}
             />
           )}
-          {checkFields('sample') && (
-            <bk-table-column
-              key='sample'
-              class-name='filter-column'
-              label={t('样例')}
-              prop='sample'
-              min-width='150'
-              scopedSlots={sampleSlot}
-            />
-          )}
           {checkFields('pattern') && (
             <bk-table-column
               key='pattern'
@@ -308,6 +298,16 @@ export default defineComponent({
               prop='pattern'
               min-width='200'
               scopedSlots={patternSlot}
+            />
+          )}
+          {checkFields('sample') && (
+            <bk-table-column
+              key='sample'
+              class-name='filter-column'
+              label={t('样例')}
+              prop='sample'
+              min-width='150'
+              scopedSlots={sampleSlot}
             />
           )}
           {checkFields('description') && (

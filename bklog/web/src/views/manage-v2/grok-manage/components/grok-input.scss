@@ -1,0 +1,98 @@
+.grok-input-wrapper {
+  width: 100%;
+
+  // 隐藏 bk-input textarea 滚动条
+  &.hide-scrollbar {
+    textarea {
+      overflow: hidden;
+    }
+  }
+
+  // CodeMirror 编辑器样式 - 与 bk-input 保持一致
+  .grok-input-editor {
+    position: relative;
+    width: 100%;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+    background-color: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    overflow: hidden;
+
+    .cm-editor,
+    .cm-content,
+    .cm-line,
+    .cm-placeholder {
+      font-family: "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    &:hover {
+      border-color: #979ba5;
+    }
+
+    &:focus-within {
+      border-color: #3a84ff;
+    }
+
+    // 单行输入框样式 - 与 bk-input type="text" 一致
+    &--text {
+      height: 32px;
+
+      .cm-editor {
+        height: 100%;
+      }
+
+      .cm-scroller {
+        overflow: hidden !important;
+      }
+
+      .cm-content {
+        white-space: nowrap;
+      }
+    }
+
+    // 多行输入框样式 - 与 bk-input type="textarea" 一致
+    &--textarea {
+      height: 72px;
+
+      .cm-editor {
+        height: 100%;
+      }
+
+      .cm-scroller {
+        overflow: auto !important;
+      }
+
+      // 隐藏滚动条
+      &.hide-scrollbar {
+        .cm-scroller {
+          overflow: hidden !important;
+        }
+      }
+    }
+
+    // 禁用状态
+    &.is-disabled {
+      background-color: #fafbfd;
+      border-color: #dcdee5;
+      cursor: not-allowed;
+
+      .cm-editor {
+        cursor: not-allowed;
+      }
+
+      .cm-content {
+        color: #c4c6cc;
+        cursor: not-allowed;
+      }
+    }
+
+    // 只读状态
+    &.is-readonly {
+      background-color: #fafbfd;
+
+      .cm-content {
+        cursor: default;
+      }
+    }
+  }
+}

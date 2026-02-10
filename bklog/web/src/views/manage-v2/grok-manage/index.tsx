@@ -37,7 +37,7 @@ import { BK_LOG_STORAGE } from '@/store/store.type';
 import { tenantManager, UserInfoLoadedEventData } from '@/views/retrieve-core/tenant-manager';
 import useAdaptivePagination from '@/views/manage-v2/hooks/use-adaptive-pagination';
 
-import GrokDialog from './grok-dialog';
+import GrokSlider from './grok-slider';
 import GrokTable from './grok-table';
 import { IGrokItem } from './types';
 
@@ -47,7 +47,7 @@ export default defineComponent({
   name: 'GrokManage',
   components: {
     GrokTable,
-    GrokDialog,
+    GrokSlider,
   },
   setup() {
     const store = useStore();
@@ -192,7 +192,6 @@ export default defineComponent({
     };
 
     // 防抖版本的请求数据
-    const fetchGrokDataDebounced = debounce(fetchGrokData, 300);
     const fetchAllDataDebounced = debounce(fetchAllData, 300);
 
     // 搜索处理
@@ -274,11 +273,12 @@ export default defineComponent({
       }
     };
 
-    // 弹窗确认
+    // 侧栏确认
     const handleDialogConfirm = async (formData: {
       name: string;
       description: string;
       pattern: string;
+      sample?: string;
       id?: number;
     }) => {
       dialogLoading.value = true;
@@ -290,7 +290,7 @@ export default defineComponent({
             data: {
               bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
               pattern: formData.pattern,
-              sample: '',
+              sample: formData.sample || '',
               description: formData.description,
             },
           });
@@ -305,7 +305,7 @@ export default defineComponent({
               bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
               name: formData.name,
               pattern: formData.pattern,
-              sample: '',
+              sample: formData.sample || '',
               description: formData.description,
             },
           });
@@ -323,7 +323,7 @@ export default defineComponent({
       }
     };
 
-    // 弹窗取消
+    // 侧栏取消
     const handleDialogCancel = () => {
       dialogVisible.value = false;
     };
@@ -354,7 +354,6 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       // 清理防抖函数
-      fetchGrokDataDebounced.cancel();
       fetchAllDataDebounced.cancel();
 
       // 清理事件监听
@@ -404,8 +403,8 @@ export default defineComponent({
           on-delete={handleDelete}
         />
 
-        {/* 新建/编辑弹窗 */}
-        <GrokDialog
+        {/* 新建/编辑侧栏 */}
+        <GrokSlider
           isShow={dialogVisible.value}
           isEdit={isEditMode.value}
           editData={editGrokData.value}

@@ -24,32 +24,37 @@
  * IN THE SOFTWARE.
  */
 
-/* eslint-disable no-unused-vars */
-export interface IGrokItem {
-  id: number;
-  name: string;
-  pattern: string;
-  is_builtin: boolean;
-  description: string | null;
-  sample: string | null;
-  created_at: string;
-  created_by: string;
-  updated_at: string;
-  updated_by: string;
-  bk_biz_id: number;
-}
+import { defineComponent } from 'vue';
 
-// 调试状态枚举
-export enum DebugStatus {
-  NONE = 'none', // 未调试
-  SUCCESS = 'success', // 调试成功
-  CHANGED = 'changed', // 内容已变更，需重新调试
-  FAILED = 'failed', // 调试失败
-}
+import { t } from '@/hooks/use-locale';
 
-// GrokPopoverList 组件暴露的方法类型
-export interface GrokPopoverListExpose {
-  handleKeydown: (e: KeyboardEvent) => void;
-  reset: () => void;
-  fetchGrokList: (append?: boolean) => Promise<void>;
-}
+import './grok-mode-switch.scss';
+
+export default defineComponent({
+  name: 'GrokModeSwitch',
+  props: {
+    value: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: ['change', 'update:value'],
+  setup(props, { emit }) {
+    const handleChange = (val: boolean) => {
+      emit('change', val);
+    };
+
+    return () => (
+      <div class='grok-mode-switch'>
+        <bk-switcher
+          theme='primary'
+          value={props.value}
+          onChange={handleChange}
+        />
+        <span class='grok-mode-label' v-bk-tooltips={t('当检测到 %{PATTERN} 就按 Grok 处理，否则按传统正则')}>
+          {t('Grok 模式')}
+        </span>
+      </div>
+    );
+  },
+});

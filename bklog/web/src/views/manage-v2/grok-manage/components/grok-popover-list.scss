@@ -1,0 +1,116 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ */
+
+.grok-popover-list {
+  width: 640px;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 2px;
+  font-size: 12px;
+  overflow: hidden;
+
+  .grok-popover-list-header {
+    display: flex;
+    height: 36px;
+    line-height: 36px;
+    background: #fafbfd;
+    border-bottom: 1px solid #dcdee5;
+    font-weight: 700;
+    color: #313238;
+    flex-shrink: 0;
+  }
+
+  .grok-popover-list-body {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 242px;
+    padding: 8px 0;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background-color: #f1f1f1;
+      border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-color: #c1c1c1;
+      border-radius: 3px;
+    }
+  }
+
+  .grok-popover-list-row {
+    display: flex;
+    line-height: 32px;
+    cursor: pointer;
+
+    &:hover,
+    &.active {
+      background: #F5F7FA;
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  .grok-popover-list-cell {
+    padding: 0 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #63656e;
+
+    &.name {
+      width: 200px;
+      flex-shrink: 0;
+    }
+
+    &.description {
+      width: 200px;
+      flex-shrink: 0;
+      color: #979ba5;
+    }
+
+    &.pattern {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  .grok-popover-list-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 12px 0;
+    color: #979ba5;
+  }
+
+  .grok-popover-list-empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px 0;
+    color: #979ba5;
+  }
+
+  .grok-popover-list-no-more {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 0;
+    color: #c4c6cc;
+    font-size: 12px;
+  }
+}
