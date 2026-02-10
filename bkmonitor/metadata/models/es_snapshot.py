@@ -18,6 +18,7 @@ import elasticsearch
 import elasticsearch5
 import elasticsearch6
 from curator import utils
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import Count, Sum, Q
 from django.db.transaction import atomic, on_commit
@@ -445,6 +446,8 @@ class EsSnapshot(models.Model):
                 snapshots = es_storage.es_client.snapshot.get(
                     es_storage.snapshot_obj.target_snapshot_repository_name, es_storage.search_snapshot
                 ).get("snapshots", [])
+            except ObjectDoesNotExist:
+                pass
             except Exception as e:  # noqa
                 logger.exception(
                     f"batch get es snapshots error, target_snapshot_repository_name({es_storage.snapshot_obj.target_snapshot_repository_name}), search_snapshot({es_storage.search_snapshot})"
@@ -479,6 +482,9 @@ class EsSnapshot(models.Model):
                 ).get("snapshots", [])
             except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
                 search_code = EsSearchCodes.NOT_FOUND
+            except ObjectDoesNotExist as e:
+                search_code = EsSearchCodes.FAIL
+                failures.append(str(e))
             except Exception as e:  # noqa
                 logger.exception(
                     f"batch get es snapshots error, target_snapshot_repository_name({es_storage.snapshot_obj.target_snapshot_repository_name}), search_snapshot({es_storage.search_snapshot})"
