@@ -72,7 +72,7 @@ class EsSnapshot(models.Model):
 
     class Meta:
         unique_together = ("table_id", "target_snapshot_repository_name")
-        
+
     @classmethod
     def _lock_snapshot_scope(cls, table_ids: list, bk_tenant_id: str):
         """锁定快照记录"""
@@ -83,7 +83,7 @@ class EsSnapshot(models.Model):
         locked_snapshots = cls.objects.select_for_update().filter(
             table_id__in=unique_table_ids,
             bk_tenant_id=bk_tenant_id
-        ).order_by('table_id')
+        ).order_by("id")
 
         # 返回锁定的记录数（可选）
         return list(locked_snapshots)
@@ -116,7 +116,7 @@ class EsSnapshot(models.Model):
         es_storages = ESStorage.objects.select_for_update().filter(
             table_id__in=table_ids,
             bk_tenant_id=bk_tenant_id,
-        )
+        ).order_by("id")
 
         exist_table_ids = es_storages.values_list("table_id", flat=True)
         if set(table_ids) != set(exist_table_ids):
