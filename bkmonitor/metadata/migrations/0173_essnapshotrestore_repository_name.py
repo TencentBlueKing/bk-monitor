@@ -3,49 +3,87 @@
 from django.db import migrations, models
 
 
+# 最终的优化版本
 def populate_repository_name(apps, schema_editor):
-    """补充历史数据 EsSnapshotRestore 表的 repository_name 字段"""
+    """优化版：使用批量更新 + 分批处理"""
     EsSnapshotRestore = apps.get_model('metadata', 'EsSnapshotRestore')
     EsSnapshot = apps.get_model('metadata', 'EsSnapshot')
 
-    def model_has_field(model, field_name: str) -> bool:
-        return any(field.name == field_name for field in model._meta.get_fields())
+    # 1. 检查字段存在性
+    def field_exists(model, field_name):
+        try:
+            model._meta.get_field(field_name)
+            return True
+        except:
+            return False
 
-    restore_has_tenant = model_has_field(EsSnapshotRestore, 'bk_tenant_id')
-    snapshot_has_tenant = model_has_field(EsSnapshot, 'bk_tenant_id')
+    restore_has_tenant = field_exists(EsSnapshotRestore, 'bk_tenant_id')
+    snapshot_has_tenant = field_exists(EsSnapshot, 'bk_tenant_id')
 
-    restores = EsSnapshotRestore.objects.all()
-    value_fields = ['table_id'] + (['bk_tenant_id'] if restore_has_tenant else [])
-    restore_values = list(restores.values(*value_fields))
-    table_ids = {item['table_id'] for item in restore_values}
-    tenant_ids = {item.get('bk_tenant_id') for item in restore_values if restore_has_tenant}
+    # 获取所有需要处理的 restore 记录
+    restores = EsSnapshotRestore.objects.all().only(
+        'table_id', 'bk_tenant_id' if restore_has_tenant else 'table_id'
+    )
 
-    if not table_ids:
+    if not restores.exists():
         return
 
+    # 收集 table_id 和 tenant_id
+    table_ids = set()
+    tenant_ids = set()
+
+    for restore in restores.iterator(chunk_size=1000):
+        table_ids.add(restore.table_id)
+        if restore_has_tenant and restore.bk_tenant_id:
+            tenant_ids.add(restore.bk_tenant_id)
+
+    # 构建 snapshot 映射
     snapshots_qs = EsSnapshot.objects.filter(table_id__in=table_ids)
     if snapshot_has_tenant and tenant_ids:
         snapshots_qs = snapshots_qs.filter(bk_tenant_id__in=tenant_ids)
 
     snapshots_map = {}
-    for snapshot in snapshots_qs:
+    # 根据字段存在情况构建不同的 key
+    for snapshot in snapshots_qs.iterator(chunk_size=1000):
         if snapshot_has_tenant:
-            tenant_key = snapshot.bk_tenant_id
-            snapshots_map[(snapshot.table_id, tenant_key)] = snapshot
+            key = (snapshot.table_id, snapshot.bk_tenant_id)
         else:
-            snapshots_map[snapshot.table_id] = snapshot
+            key = snapshot.table_id
 
-    for restore in restores:
-        if snapshot_has_tenant:
+        snapshots_map[key] = snapshot.target_snapshot_repository_name
+
+    # 批量更新 restore 记录
+    batch_size = 1000
+    current_batch = []
+
+    for restore in restores.iterator(chunk_size=1000):
+        # 构建 restore 的 key
+        if snapshot_has_tenant and restore_has_tenant:
             tenant_key = getattr(restore, 'bk_tenant_id', None)
-            snapshot = snapshots_map.get((restore.table_id, tenant_key))
+            key = (restore.table_id, tenant_key)
         else:
-            snapshot = snapshots_map.get(restore.table_id)
-            
-        if not snapshot:
-            continue
-        restore.repository_name = snapshot.target_snapshot_repository_name
-        restore.save(update_fields=['repository_name'])
+            key = restore.table_id
+
+        # 获取 repository_name
+        repository_name = snapshots_map.get(key)
+        if repository_name:
+            restore.repository_name = repository_name
+            current_batch.append(restore)
+
+        # 批量提交
+        if len(current_batch) >= batch_size:
+            EsSnapshotRestore.objects.bulk_update(
+                current_batch,
+                ['repository_name']
+            )
+            current_batch = []
+
+    # 最后一批
+    if current_batch:
+        EsSnapshotRestore.objects.bulk_update(
+            current_batch,
+            ['repository_name']
+        )
 
 
 def reverse_populate_repository_name(apps, schema_editor):
@@ -55,7 +93,6 @@ def reverse_populate_repository_name(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('metadata', '0172_auto_20251104_1851'),
     ]

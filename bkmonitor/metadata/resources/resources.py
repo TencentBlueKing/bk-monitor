@@ -1913,7 +1913,12 @@ class CreateResultTableSnapshotResource(Resource):
         target_snapshot_repository_name = serializers.CharField(required=True, label="目标es集群快照仓库")
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
-        status = serializers.CharField(required=False, label="快照状态")
+        status = serializers.ChoiceField(
+            required=False,
+            label="快照状态",
+            choices=[models.EsSnapshot.ES_RUNNING_STATUS, models.EsSnapshot.ES_STOPPED_STATUS],
+            default=models.EsSnapshot.ES_RUNNING_STATUS,
+        )
 
     def perform_request(self, validated_request_data):
         return models.EsSnapshot.create_snapshot(**validated_request_data).to_json()
@@ -1935,7 +1940,12 @@ class BulkCreateResultTableSnapshotResource(Resource):
         target_snapshot_repository_name = serializers.CharField(required=True, label="目标es集群快照仓库")
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
-        status = serializers.CharField(required=False, label="快照状态")
+        status = serializers.ChoiceField(
+            required=False,
+            label="快照状态",
+            choices=[models.EsSnapshot.ES_RUNNING_STATUS, models.EsSnapshot.ES_STOPPED_STATUS],
+            default=models.EsSnapshot.ES_RUNNING_STATUS,
+        )
 
     def perform_request(self, validated_request_data):
         models.EsSnapshot.bulk_create_snapshot(**validated_request_data)
@@ -1952,7 +1962,11 @@ class ModifyResultTableSnapshotResource(Resource):
         table_id = serializers.CharField(required=True, label="结果表ID")
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
-        status = serializers.CharField(required=False, label="快照状态")
+        status = serializers.ChoiceField(
+            required=False,
+            label="快照状态",
+            choices=[models.EsSnapshot.ES_RUNNING_STATUS, models.EsSnapshot.ES_STOPPED_STATUS],
+        )
         target_snapshot_repository_name = serializers.CharField(required=False, label="目标es集群快照仓库")
 
     def perform_request(self, validated_request_data):
@@ -1975,7 +1989,11 @@ class BulkModifyResultTableSnapshotResource(Resource):
         )
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
-        status = serializers.CharField(required=False, label="快照状态")
+        status = serializers.ChoiceField(
+            required=False,
+            label="快照状态",
+            choices=[models.EsSnapshot.ES_RUNNING_STATUS, models.EsSnapshot.ES_STOPPED_STATUS],
+        )
         target_snapshot_repository_name = serializers.CharField(required=False, label="目标es集群快照仓库")
 
     def perform_request(self, validated_request_data):
@@ -2023,7 +2041,12 @@ class ListResultTableSnapshotResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_ids = serializers.ListField(required=False, label="结果表IDs")
-        repository_names = serializers.ListField(required=False, label="快照仓库名称列表", default=[])
+        repository_names = serializers.ListField(
+            required=False,
+            label="快照仓库名称列表",
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            default=list,
+        )
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
@@ -2068,7 +2091,12 @@ class ListResultTableSnapshotIndicesResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_ids = serializers.ListField(required=True, label="结果表ID")
-        repository_names = serializers.ListField(required=False, label="快照仓库名称列表", default=[])
+        repository_names = serializers.ListField(
+            required=False,
+            label="快照仓库名称列表",
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            default=list,
+        )
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
@@ -2196,7 +2224,12 @@ class ListRestoreResultTableSnapshotResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_ids = serializers.ListField(required=False, label="结果表ID", default=[])
-        repository_names = serializers.ListField(required=False, label="快照仓库名称列表", default=[])
+        repository_names = serializers.ListField(
+            required=False,
+            label="快照仓库名称列表",
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            default=list,
+        )
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
