@@ -1926,7 +1926,7 @@ class BulkCreateResultTableSnapshotResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
-        table_ids = serializers.ListField(required=True, label="结果表IDs")
+        table_ids = serializers.ListField(required=True, label="结果表IDs", allow_empty=False)
         target_snapshot_repository_name = serializers.CharField(required=True, label="目标es集群快照仓库")
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
@@ -1962,7 +1962,7 @@ class BulkModifyResultTableSnapshotResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
-        table_ids = serializers.ListField(required=True, label="结果表IDs")
+        table_ids = serializers.ListField(required=True, label="结果表IDs", allow_empty=False)
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
         status = serializers.CharField(required=False, label="快照状态")
@@ -2027,11 +2027,11 @@ class ListResultTableSnapshotResource(Resource):
             query &= Q(target_snapshot_repository_name__in=repository_names)
 
         result_queryset = models.EsSnapshot.objects.filter(query)
-        table_ids = []
-        repository_names = []
-        for snapshot in result_queryset:
-            table_ids.append(snapshot.table_id)
-            repository_names.append(snapshot.target_snapshot_repository_name)
+        snapshot_pairs = list(
+            result_queryset.values_list("table_id", "target_snapshot_repository_name").distinct()
+        )
+        table_ids = list({table_id for table_id, _ in snapshot_pairs})
+        repository_names = list({repository_name for _, repository_name in snapshot_pairs})
 
         all_doc_count_and_store_size = models.EsSnapshotIndice.all_doc_count_and_store_size(
             bk_tenant_id=bk_tenant_id, table_ids=table_ids, repository_names=repository_names

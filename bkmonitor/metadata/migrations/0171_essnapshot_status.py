@@ -35,18 +35,7 @@ class Migration(migrations.Migration):
                     reverse_code=migrations.RunPython.noop,
                 )
             ],
-            state_operations=[
-                migrations.AddField(
-                    model_name='essnapshot',
-                    name='status',
-                    field=models.CharField(
-                        max_length=16,
-                        blank=True,
-                        null=True,
-                        default='running',
-                        verbose_name='快照状态',
-                    ),
-                )
-            ],
+            # state_operations kept empty to avoid re-adding the status field
+            state_operations=[],
         )
     ]
