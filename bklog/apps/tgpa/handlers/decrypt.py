@@ -65,6 +65,8 @@ class XorDecryptHandler(BaseDecryptHandler):
     UNENCRYPTED_PREFIX = b"Log file open"
     # 分块大小：8KB
     CHUNK_SIZE = 8192
+    # 可打印字符比例阈值，超过此值认为是明文（未加密）
+    PRINTABLE_RATIO_THRESHOLD = 0.90
 
     def __init__(self, xor_key: int = 0x73):
         self.xor_key = xor_key
@@ -72,6 +74,20 @@ class XorDecryptHandler(BaseDecryptHandler):
     def decrypt(self, data: bytes) -> bytes:
         """进行异或处理"""
         return bytes(byte ^ self.xor_key for byte in data)
+
+    def _is_likely_plaintext(self, data: bytes) -> bool:
+        """
+        判断数据是否可能是明文（未加密）
+        通过检查可打印ASCII字符的比例来判断
+        """
+        if not data:
+            return True
+
+        # 可打印ASCII字符范围：0x20-0x7E（空格到波浪号），加上常见控制字符（换行、回车、制表符）
+        printable_count = sum(1 for byte in data if 0x20 <= byte <= 0x7E or byte in (0x09, 0x0A, 0x0D))
+        ratio = printable_count / len(data)
+
+        return ratio >= self.PRINTABLE_RATIO_THRESHOLD
 
     def decrypt_file(self, file_path: str) -> None:
         """解密文件"""
@@ -83,6 +99,14 @@ class XorDecryptHandler(BaseDecryptHandler):
             # 检查第一块数据中是否包含"Log file open"，如果是则跳过解密
             if self.UNENCRYPTED_PREFIX in first_chunk:
                 logger.info("File %s is not encrypted (contains 'Log file open'), skipping decryption", file_path)
+                return
+            # 通过可打印字符比例判断是否为明文，如果是则跳过解密
+            if self._is_likely_plaintext(first_chunk):
+                logger.info(
+                    "File %s is likely plaintext (printable ratio >= %.0f%%), skipping decryption",
+                    file_path,
+                    self.PRINTABLE_RATIO_THRESHOLD * 100,
+                )
                 return
 
             # 分块解密，写入临时文件
