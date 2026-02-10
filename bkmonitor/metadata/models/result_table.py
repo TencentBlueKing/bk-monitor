@@ -1373,7 +1373,7 @@ class ResultTable(models.Model):
             # TODO: 后续需要优化option的配置方式，增加option的类型标记
             result_table_option_ids = (
                 ResultTableOption.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
-                .exclude(name__in=list(set(ResultTableFieldOption.QUERY_OPTION_NAME_LIST) - set(option.keys())))
+                .exclude(name__in=list(set(ResultTableOption.QUERY_OPTION_NAME_LIST) - set(option.keys())))
                 .values_list("id", flat=True)
             )
             self.raw_delete(result_table_option_ids)
@@ -2852,6 +2852,13 @@ class ResultTableOption(OptionBase):
     TYPE_BOOL = "bool"
     TYPE_STRING = "string"
     TYPE_LIST = "list"
+
+    # 查询选项名称列表
+    QUERY_OPTION_NAME_LIST: list[str] = [
+        "need_add_time",  # 是否需要添加时间字段
+        "time_field",  # 指定查询时间单位，如：day、hour、minute、second
+        OPTION_BINDING_BCS_CLUSTER_ID,  # 绑定BCS集群ID
+    ]
 
     table_id = models.CharField("结果表ID", max_length=128, db_index=True)
     name = models.CharField(
