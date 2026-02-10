@@ -8,17 +8,45 @@ def populate_repository_name(apps, schema_editor):
     EsSnapshotRestore = apps.get_model('metadata', 'EsSnapshotRestore')
     EsSnapshot = apps.get_model('metadata', 'EsSnapshot')
 
-    # 获取所有需要填充的回溯记录
+    def model_has_field(model, field_name: str) -> bool:
+        return any(field.name == field_name for field in model._meta.get_fields())
+
+    restore_has_tenant = model_has_field(EsSnapshotRestore, 'bk_tenant_id')
+    snapshot_has_tenant = model_has_field(EsSnapshot, 'bk_tenant_id')
+
     restores = EsSnapshotRestore.objects.all()
-    table_ids = list(restores.values_list('table_id', flat=True))
-    snapshots = EsSnapshot.objects.filter(table_id__in=table_ids)
-    snapshots_map = {snapshot.table_id: snapshot for snapshot in snapshots}
+    value_fields = ['table_id'] + (['bk_tenant_id'] if restore_has_tenant else [])
+    restore_values = list(restores.values(*value_fields))
+    table_ids = {item['table_id'] for item in restore_values}
+    tenant_ids = {item.get('bk_tenant_id') for item in restore_values if restore_has_tenant}
+
+    if not table_ids:
+        return
+
+    snapshots_qs = EsSnapshot.objects.filter(table_id__in=table_ids)
+    if snapshot_has_tenant and tenant_ids:
+        snapshots_qs = snapshots_qs.filter(bk_tenant_id__in=tenant_ids)
+
+    snapshots_map = {}
+    for snapshot in snapshots_qs:
+        if snapshot_has_tenant:
+            tenant_key = snapshot.bk_tenant_id
+            snapshots_map[(snapshot.table_id, tenant_key)] = snapshot
+        else:
+            snapshots_map[snapshot.table_id] = snapshot
 
     for restore in restores:
-        if restore.table_id not in snapshots_map:
+        if snapshot_has_tenant:
+            tenant_key = getattr(restore, 'bk_tenant_id', None)
+            snapshot = snapshots_map.get((restore.table_id, tenant_key))
+        else:
+            snapshot = snapshots_map.get(restore.table_id)
+            
+        if not snapshot:
             continue
-        restore.repository_name = snapshots_map[restore.table_id].target_snapshot_repository_name
+        restore.repository_name = snapshot.target_snapshot_repository_name
         restore.save(update_fields=['repository_name'])
+
 
 def reverse_populate_repository_name(apps, schema_editor):
     """回滚操作：清空 repository_name 字段"""
