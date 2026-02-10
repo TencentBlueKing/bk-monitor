@@ -754,6 +754,9 @@ export class AlertService extends AlarmService {
   get allTableColumns(): TableColumnItem[] {
     return [...ALERT_TABLE_COLUMNS];
   }
+  get analysisDefaultSettingsFields(): string[] {
+    return ['alert_name', 'metric', 'duration', 'ip'];
+  }
   get analysisFields(): string[] {
     return [
       'alert_name',
