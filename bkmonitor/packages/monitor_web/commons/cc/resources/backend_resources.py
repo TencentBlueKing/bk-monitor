@@ -17,7 +17,7 @@ from django.utils.translation import gettext as _
 from rest_framework.serializers import ValidationError
 
 from api.cmdb.define import Host
-from bkmonitor.strategy.new_strategy import Item
+from bk_monitor_base.strategy import ItemSerializer
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.country import COUNTRIES, ISP_LIST
 from bkmonitor.views import serializers
@@ -648,7 +648,7 @@ class GetBusinessTargetDetailResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         target = serializers.ListField(
-            allow_empty=True, child=serializers.ListField(child=Item.Serializer.TargetSerializer()), default=list
+            allow_empty=True, child=serializers.ListField(child=ItemSerializer.TargetSerializer()), default=list
         )
 
     def perform_request(self, validated_request_data):

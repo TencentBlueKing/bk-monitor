@@ -20,6 +20,7 @@ from functools import reduce
 from itertools import chain
 from urllib.parse import parse_qs
 
+from bk_monitor_base.strategy import parse_metric_id
 from django.conf import settings
 from django.db.models import Q as DQ
 from django.utils.translation import gettext as _
@@ -28,7 +29,6 @@ from bkmonitor.aiops.utils import AiSetting, ReadOnlyAiSetting
 from bkmonitor.dataflow.constant import VisualType
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import NO_DATA_TAG_DIMENSION, AlgorithmModel, MetricListCache
-from bkmonitor.strategy.new_strategy import parse_metric_id
 from bkmonitor.utils.range import load_agg_condition_instance
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.alert import CLUSTER_PATTERN, EventSeverity
@@ -108,7 +108,7 @@ class AIOPSManager(abc.ABC):
         compare_function: dict | None = None,
         use_raw_query_config: bool = False,
         with_anomaly: bool = True,
-        alert_dimension_ip_dict: dict | None = None
+        alert_dimension_ip_dict: dict | None = None,
     ):
         """
         获取图表配置
@@ -199,8 +199,9 @@ class AIOPSManager(abc.ABC):
                             "metrics": [{"field": "_index", "method": "SUM", "alias": "a"}],
                             "filter_dict": {
                                 "event_name": event_name_mapping[query_config["metric_field"]],
-                                "ip": alert.event.ip or (alert_dimension_ip_dict or {}).get('ip',None),
-                                "bk_cloud_id": alert.event.bk_cloud_id or (alert_dimension_ip_dict or {}).get('bk_cloud_id',None),
+                                "ip": alert.event.ip or (alert_dimension_ip_dict or {}).get("ip", None),
+                                "bk_cloud_id": alert.event.bk_cloud_id
+                                or (alert_dimension_ip_dict or {}).get("bk_cloud_id", None),
                             },
                             "time_field": "time",
                             "interval": 60,

@@ -13,6 +13,7 @@ import logging
 import time
 from collections import defaultdict
 
+from bk_monitor_base.strategy import AlertExpressionValue, parse_alert_expression
 from django.conf import settings
 from django.utils.translation import gettext as _
 
@@ -32,7 +33,6 @@ from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.fta_action.tasks import create_actions
 from bkmonitor.documents import AlertLog
-from bkmonitor.strategy.expression import AlertExpressionValue, parse_expression
 from bkmonitor.utils.common_utils import count_md5
 from constants.action import ActionSignal
 from constants.alert import EventStatus
@@ -47,7 +47,13 @@ class CompositeProcessor:
     # 关联告警检测窗口大小（单位 s）
     COMPOSITE_CHECK_WINDOW_SIZE = 60 * 60
 
-    def __init__(self, alert: Alert, alert_status: str = "", composite_strategy_ids: list = None, retry_times: int = 0):
+    def __init__(
+        self,
+        alert: Alert,
+        alert_status: str = "",
+        composite_strategy_ids: list[int] | None = None,
+        retry_times: int = 0,
+    ):
         self.alert: Alert = alert
         self.alert_status = alert_status or self.alert.status
         # 此处仅做告警关联，不需要重复清洗数据
@@ -264,7 +270,7 @@ class CompositeProcessor:
                     else:
                         name = query_config["metric_id"].split(".")[-1]
                     alias_translation[query_config["alias"]] = name
-            expr_display = parse_expression(expr).translate(alias_translation)
+            expr_display = parse_alert_expression(expr).translate(alias_translation)
         except Exception:
             expr_display = expr
 
@@ -398,7 +404,7 @@ class CompositeProcessor:
         algorithm_connector = {}
         for detect in strategy["detects"]:
             try:
-                compiled_expression = parse_expression(detect["expression"])
+                compiled_expression = parse_alert_expression(detect["expression"])
                 # 将上下文丢进去进行计算，得到计算结果
                 expression_result = compiled_expression.eval(expression_context)
             except Exception as e:

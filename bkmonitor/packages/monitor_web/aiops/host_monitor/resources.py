@@ -12,14 +12,14 @@ import json
 import logging
 import re
 
+from bk_monitor_base.strategy import get_metric_id, get_strategy
 from django.db.models import Value
 from django.db.models.functions import Concat
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.data_source import UnifyQuery, load_data_source
-from bkmonitor.models import MetricListCache, StrategyModel
-from bkmonitor.strategy.new_strategy import Strategy, get_metric_id
+from bkmonitor.models import MetricListCache
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.views import serializers
 from constants.data_source import DataSourceLabel
@@ -251,8 +251,8 @@ class HostIntelligenAnomalyBaseResource(Resource):
 
         # 如果有配置的策略ID，则从策略中获取需要查询的结果表ID
         if strategy_id:
-            strategy = Strategy.from_models([StrategyModel.objects.get(id=strategy_id)])[0]
-            intelligent_detect = strategy.items[0].query_configs[0].intelligent_detect
+            strategy = get_strategy(bk_biz_id=bk_biz_id, strategy_id=strategy_id)
+            intelligent_detect = strategy["items"][0]["query_configs"][0].get("intelligent_detect", {})
         else:
             intelligent_detect = biz_ai_setting.multivariate_anomaly_detection.host.intelligent_detect
 

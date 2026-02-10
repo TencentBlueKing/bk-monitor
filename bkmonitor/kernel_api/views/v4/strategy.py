@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,18 +7,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import datetime
 
+from typing import Any, cast
+
+from bk_monitor_base.strategy import switch_strategy
 from rest_framework import exceptions, serializers
 
-from bkmonitor.models import StrategyModel
 from bkmonitor.utils.user import get_global_user
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from kernel_api.views.v4.notice_group import (
-    SaveNoticeGroupResource,
-    SearchNoticeGroupResource,
-)
+from kernel_api.views.v4.notice_group import SaveNoticeGroupResource, SearchNoticeGroupResource
 
 
 class SaveStrategyResource(Resource):
@@ -60,22 +57,22 @@ class SaveStrategyResource(Resource):
         """
         serializer = self.NoticeGroupSerializer(many=True, data=notice_group_list)
         serializer.is_valid(raise_exception=True)
-        notice_group_list = serializer.validated_data
+        notice_group_list = cast(list[dict[str, Any]], serializer.validated_data)
 
         config = []
         for notice_group in notice_group_list:
             config.append(SaveNoticeGroupResource()(bk_biz_id=bk_biz_id, **notice_group)["id"])
         return config
 
-    def perform_request(self, params):
-        if "bk_biz_id" in params:
-            for action in params.get("action_list", []):
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        if "bk_biz_id" in validated_request_data:
+            for action in validated_request_data.get("action_list", []):
                 if "notice_group_list" in action:
                     action["notice_group_list"] = self.parse_notice_group(
-                        params["bk_biz_id"], action["notice_group_list"]
+                        validated_request_data["bk_biz_id"], action["notice_group_list"]
                     )
 
-        return resource.strategies.backend_strategy_config(**params)
+        return resource.strategies.backend_strategy_config(**validated_request_data)
 
 
 class SearchStrategyResource(Resource):
@@ -97,7 +94,7 @@ class SearchStrategyResource(Resource):
         metric_id = serializers.CharField(required=False, label="指标ID")
         ids = serializers.ListField(required=False, label="ID列表")
 
-        fields = serializers.ListField(default=[], label="所需字段")
+        fields = serializers.ListField(default=list, label="所需字段")
 
     def perform_request(self, validated_request_data):
         result = resource.strategies.backend_strategy_config_list(**validated_request_data)
@@ -139,16 +136,10 @@ class SwitchStrategyResource(Resource):
         ids = serializers.ListField(child=serializers.IntegerField(), label="策略ID列表")
         is_enabled = serializers.BooleanField()
 
-    def perform_request(self, params):
-        strategies = StrategyModel.objects.filter(id__in=params["ids"])
+    def perform_request(self, validated_request_data: dict[str, Any]):
         username = get_global_user() or "unknown"
-        strategies.update(is_enabled=params["is_enabled"], update_user=username, update_time=datetime.datetime.now())
-
-        switch_ids = [strategy.id for strategy in strategies]
-
-        return {
-            "ids": switch_ids,
-        }
+        switch_strategy(validated_request_data["ids"], validated_request_data["is_enabled"], username)
+        return {"ids": validated_request_data["ids"]}
 
 
 class AlarmStrategyViewSet(ResourceViewSet):
