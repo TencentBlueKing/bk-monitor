@@ -1647,8 +1647,9 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         group_by: list[str] = self._get_group_by()
         base_query: dict[str, Any] = {
             "driver": "influxdb",
-            # UnifyQuery 数据源字段，目前没有 custom 来表示自定义事件，故统一用 bkapm 代表监控侧的数据源（事件、Trace）。
-            "data_source": "bkapm",
+            # UnifyQuery 数据源字段，目前没有 custom 来表示自定义事件，故统一用：
+            # bkapm 代表监控侧的数据源（事件、Trace），bklog 代表日志数据源。
+            "data_source": self._get_datasource(),
             "table_id": self._get_unify_query_table(),
             "reference_name": "",
             "field_name": "",
@@ -2066,7 +2067,7 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
     EXTRA_AGG_DIMENSIONS = []
 
     # 用于灰度对账的临时白名单列表（类成员变量），对账完成后会清空此列表以恢复正常逻辑
-    LOG_UNIFY_QUERY_WHITE_BIZ_LIST: list[int] = []
+    LOG_UNIFY_QUERY_WHITE_BIZ_LIST: list[int] | None = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2087,7 +2088,7 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
     @classmethod
     def _fetch_white_list(cls) -> list[str | int]:
         # 如果类成员白名单列表不为空，优先使用它（用于灰度对账测试）
-        if cls.LOG_UNIFY_QUERY_WHITE_BIZ_LIST:
+        if cls.LOG_UNIFY_QUERY_WHITE_BIZ_LIST is not None:
             return cls.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
 
         return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST

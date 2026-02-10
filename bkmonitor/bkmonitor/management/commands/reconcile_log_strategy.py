@@ -8,29 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-"""
-灰度切换 UnifyQuery 查询结果对账命令。
-
-本命令用于验证日志平台数据源切换到 unify-query 前后查询结果的一致性。
-通过分别启用和禁用灰度开关进行查询，比较两种查询方式的结果是否一致。
-
-灰度控制机制：通过 LogSearchTimeSeriesDataSource.LOG_UNIFY_QUERY_WHITE_BIZ_LIST 类成员变量控制。
-
-使用方法：
-
-    # 模式 1：统计日志类策略数量
-    python manage.py reconcile_log_strategy --mode=stat
-
-    # 模式 2：查询对账（默认模式）
-    python manage.py reconcile_log_strategy --mode=reconcile --biz-ids 1 2 3
-
-    # 指定查询时间范围（秒级时间戳），默认取 (now - 30m, now)
-    python manage.py reconcile_log_strategy --biz-ids 1 2 3 --start-time=1706169600 --end-time=1706171400
-
-    # 指定输出文件路径
-    python manage.py reconcile_log_strategy --biz-ids 1 2 3 --output=/tmp/reconciliation_result.csv
-"""
-
 import csv
 import json
 import time
@@ -43,8 +20,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, OutputWrapper
 from django.core.management.color import Style
 
-from alarm_backends.core.cache.cmdb import BusinessManager
-from api.cmdb.define import Business
+from bkm_space.api import SpaceApi
 from bkmonitor.data_source import load_data_source, UnifyQuery
 from bkmonitor.data_source.data_source import DataSource, LogSearchTimeSeriesDataSource
 from bkmonitor.models import StrategyModel, QueryConfigModel
@@ -92,6 +68,29 @@ class Command(BaseCommand):
     """日志平台数据源 UnifyQuery 灰度切换对账命令"""
 
     help = "对账日志平台数据源切换 unify-query 前后的查询结果一致性"
+
+    """
+    灰度切换 UnifyQuery 查询结果对账命令。
+
+    本命令用于验证日志平台数据源切换到 unify-query 前后查询结果的一致性。
+    通过分别启用和禁用灰度开关进行查询，比较两种查询方式的结果是否一致。
+
+    灰度控制机制：通过 LogSearchTimeSeriesDataSource.LOG_UNIFY_QUERY_WHITE_BIZ_LIST 类成员变量控制。
+
+    使用方法：
+
+        # 模式 1：统计日志类策略数量
+        python manage.py reconcile_log_strategy --mode=stat
+
+        # 模式 2：查询对账（默认模式）
+        python manage.py reconcile_log_strategy --mode=reconcile --biz-ids 1 2 3
+
+        # 指定查询时间范围（秒级时间戳），默认取 (now - 30m, now)
+        python manage.py reconcile_log_strategy --biz-ids 1 2 3 --start-time=1706169600 --end-time=1706171400
+
+        # 指定输出文件路径
+        python manage.py reconcile_log_strategy --biz-ids 1 2 3 --output=/tmp/reconciliation_result.csv
+    """
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         """添加命令行参数。"""
@@ -141,8 +140,9 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"运行模式：{mode}，业务列表：{bk_biz_ids}"))
 
+        biz_id_name_map: dict[int, str] = {i["bk_biz_id"]: i["space_name"] for i in SpaceApi.list_spaces_dict()}
         if mode == "stat":
-            run_stat_mode(bk_biz_ids, output_path, self.stdout, self.style)
+            run_stat_mode(bk_biz_ids, biz_id_name_map, output_path, self.stdout, self.style)
         else:
             if not bk_biz_ids:
                 self.stderr.write(self.style.ERROR("查询对账模式必须提供 --biz-ids 参数"))
@@ -150,15 +150,9 @@ class Command(BaseCommand):
 
             self.stdout.write(f"查询时间范围：{start_time} ~ {end_time}")
 
-            run_reconciliation(bk_biz_ids, start_time, end_time, output_path, self.stdout, self.style)
+            run_reconciliation(bk_biz_ids, biz_id_name_map, start_time, end_time, output_path, self.stdout, self.style)
 
         self.stdout.write(self.style.SUCCESS("执行完成！"))
-
-
-def get_biz_name(bk_biz_id: int) -> str:
-    """获取业务名"""
-    business: Business | None = BusinessManager.get(bk_biz_id)
-    return business.bk_biz_name if business else str(bk_biz_id)
 
 
 def get_log_strategy_ids() -> list[int]:
@@ -182,7 +176,13 @@ def write_results_to_csv(output_csv_path: str, fieldnames: list[str], results: l
         writer.writerows(results)
 
 
-def run_stat_mode(bk_biz_ids: list[int] | None, output_csv_path: str, stdout: OutputWrapper, style: Style):
+def run_stat_mode(
+    bk_biz_ids: list[int] | None,
+    biz_id_name_map: dict[int, str],
+    output_csv_path: str,
+    stdout: OutputWrapper,
+    style: Style,
+):
     """
     统计模式：统计各业务下日志类策略数量（若未指定业务 ID，则统计所有业务）
     """
@@ -205,7 +205,7 @@ def run_stat_mode(bk_biz_ids: list[int] | None, output_csv_path: str, stdout: Ou
     # 构建结果列表，若指定业务 ID，按指定顺序输出，否则按业务 ID 升序输出
     target_biz_ids: list[int] = bk_biz_ids if bk_biz_ids else sorted(biz_strategy_counts.keys())
     for bk_biz_id in target_biz_ids:
-        bk_biz_name: str = get_biz_name(bk_biz_id)
+        bk_biz_name: str = biz_id_name_map.get(bk_biz_id, str(bk_biz_id))
         strategy_count: int = biz_strategy_counts.get(bk_biz_id, 0)
         results.append({"bk_biz_id": bk_biz_id, "bk_biz_name": bk_biz_name, "strategy_count": strategy_count})
         stdout.write(f"业务 {bk_biz_id}（{bk_biz_name}）：{strategy_count} 个日志类策略")
@@ -247,7 +247,10 @@ def execute_query(
     """
     执行查询。
     """
-    LogSearchTimeSeriesDataSource.LOG_UNIFY_QUERY_WHITE_BIZ_LIST = [bk_biz_id] if enable_gray else []
+    def _set_ds(_biz_list: list[int] | None):
+        LogSearchTimeSeriesDataSource.LOG_UNIFY_QUERY_WHITE_BIZ_LIST = _biz_list
+
+    _set_ds([bk_biz_id] if enable_gray else [])
     uq: UnifyQuery = UnifyQuery(
         bk_biz_id=bk_biz_id,
         data_sources=data_sources,
@@ -257,7 +260,8 @@ def execute_query(
     try:
         return uq.query_data(start_time=start_time, end_time=end_time)
     finally:
-        LogSearchTimeSeriesDataSource.LOG_UNIFY_QUERY_WHITE_BIZ_LIST = []
+        # 恢复默认状态，避免对后续查询造成影响
+        _set_ds(None)
 
 
 def process_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -358,6 +362,7 @@ def compare_query_records(uq_records: list[dict[str, Any]], ds_records: list[dic
 
 def run_reconciliation(
     bk_biz_ids: list[int],
+    biz_id_name_map: dict[int, str],
     start_time: int,
     end_time: int,
     output_csv_path: str,
@@ -377,7 +382,7 @@ def run_reconciliation(
 
     for bk_biz_id in bk_biz_ids:
         stdout.write(f"正在处理业务：{bk_biz_id}")
-        bk_biz_name: str = get_biz_name(bk_biz_id)
+        bk_biz_name: str = biz_id_name_map.get(bk_biz_id, str(bk_biz_id))
 
         # 获取该业务下日志平台数据源的已启用策略
         strategy_models: list[StrategyModel] = list(
