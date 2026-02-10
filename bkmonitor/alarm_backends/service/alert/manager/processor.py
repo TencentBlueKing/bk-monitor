@@ -181,6 +181,7 @@ class AlertManager(BaseAlertProcessor):
 
         # 8. 清理内存缓存
         clear_mem_cache("host_cache")
+        clear_mem_cache("service_instance_cache")
         # #### 需要检测的告警，处理结束
 
         if alerts_to_update_directly:

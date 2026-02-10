@@ -1,0 +1,63 @@
+.ai-highlight-card.ai-diagnostic-info-card {
+  --border-left-width: 1px;
+  --left-special-border-width: 0px;
+
+  padding: 4px 16px 12px 12px;
+  margin-bottom: 8px;
+
+  .bold {
+    font-weight: 700;
+  }
+
+  .link-text {
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+
+    &:hover {
+      color: #699df4;
+    }
+  }
+
+  .ai-highlight-card-header-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #235dfa;
+  }
+
+  .ai-highlight-card-main {
+    padding: 0;
+  }
+
+  .ai-diagnostic-info-content {
+    .ai-diagnostic-info-item {
+      display: flex;
+
+      .info-item-label {
+        font-size: 12px;
+        line-height: 20px;
+        color: #757880;
+      }
+
+      .info-item-content {
+        flex: 1;
+        font-size: 12px;
+        line-height: 20px;
+        color: #313238;
+
+        .empty {
+          color: #c4c6cc;
+        }
+
+        .icon-bianji {
+          font-size: 20px;
+          vertical-align: middle;
+        }
+      }
+
+      & + .ai-diagnostic-info-item {
+        margin-top: 8px;
+      }
+    }
+  }
+}

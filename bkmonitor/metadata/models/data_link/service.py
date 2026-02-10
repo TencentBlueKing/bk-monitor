@@ -14,7 +14,6 @@ from django.conf import settings
 from django.db.transaction import atomic
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import api
 from metadata import config
 from metadata.models.data_link import DataIdConfig, utils
@@ -25,14 +24,17 @@ logger = logging.getLogger("metadata")
 
 @atomic(config.DATABASE_CONNECTION_NAME)
 def apply_data_id_v2(
+    bk_tenant_id: str,
     data_name: str,
     bk_biz_id: int,
     namespace: str = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
     is_base: bool = False,
     event_type: str = "metric",
+    prefer_kafka_cluster_name: str | None = None,
 ) -> bool:
     """
     下发 data_id 资源，并记录对应的资源及配置
+    @param bk_tenant_id: 租户ID
     @param data_name: 数据源名称
     @param namespace: 资源命名空间
     @param bk_biz_id: 业务ID
@@ -41,8 +43,6 @@ def apply_data_id_v2(
     """
     logger.info("apply_data_id_v2:apply data_id for data_name: %s,event_type: %s", data_name, event_type)
 
-    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
-
     if is_base:  # 如果是基础数据源（1000,1001）,那么沿用固定格式的data_name，会以此name作为bkbase申请时的唯一键
         bkbase_data_name = data_name
     else:  # 用户自定义数据源，需要进行二次处理，主要为避免超过meta长度限制和特殊字符
@@ -50,10 +50,16 @@ def apply_data_id_v2(
 
     logger.info("apply_data_id_v2:bkbase_data_name: %s", bkbase_data_name)
 
-    data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
-        name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id, bk_tenant_id=bk_tenant_id
+    data_id_config_ins, _ = DataIdConfig.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
+        namespace=namespace,
+        name=bkbase_data_name,
+        defaults={"bk_biz_id": bk_biz_id},
     )
-    data_id_config = data_id_config_ins.compose_config(event_type=event_type)
+    data_id_config = data_id_config_ins.compose_config(
+        event_type=event_type,
+        prefer_kafka_cluster_name=prefer_kafka_cluster_name,
+    )
 
     api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=bk_tenant_id)
     logger.info("apply_data_id_v2:apply data_id for data_name: %s success", data_name)
@@ -61,8 +67,8 @@ def apply_data_id_v2(
 
 
 def get_data_id_v2(
+    bk_tenant_id: str,
     data_name: str,
-    bk_biz_id: int,
     namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
     is_base: bool = False,
     with_detail: bool = False,
@@ -75,8 +81,6 @@ def get_data_id_v2(
         data_id_name = data_name
     else:  # 用户自定义数据源，需要进行二次处理，主要为避免超过meta长度限制和特殊字符
         data_id_name = utils.compose_bkdata_data_id_name(data_name)
-
-    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
 
     data_id_config = api.bkdata.get_data_link(
         kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value),
@@ -92,14 +96,19 @@ def get_data_id_v2(
     if phase == DataLinkResourceStatus.OK.value:
         data_id = int(data_id_config.get("metadata", {}).get("annotations", {}).get("dataId", 0))
         data_id_config_ins.status = phase
-        data_id_config_ins.save()
+        # 记录 bkbase 的 dataId，便于后续链路组件关联与排障
+        if data_id_config_ins.bk_data_id != data_id:
+            data_id_config_ins.bk_data_id = data_id
+            data_id_config_ins.save(update_fields=["status", "bk_data_id"])
+        else:
+            data_id_config_ins.save(update_fields=["status"])
         logger.info("get_data_id: request data_name -> [%s] now is ok", data_name)
         if with_detail:
             return {"status": phase, "data_id": data_id, "data_id_config": data_id_config}
         return {"status": phase, "data_id": data_id}
 
     data_id_config_ins.status = phase
-    data_id_config_ins.save()
+    data_id_config_ins.save(update_fields=["status"])
     logger.info("get_data_id: request data_name -> [%s] ,phase->[%s]", data_name, phase)
     if with_detail:
         return {"status": phase, "data_id": None, "data_id_config": data_id_config}

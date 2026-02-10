@@ -181,13 +181,12 @@
           .pattern-content {
             position: relative;
             display: flex;
-            align-items: center;
+            // align-items: center;
             padding: 8px 6px 8px 0;
             overflow: hidden;
-
-            &.is-limit {
-              max-height: 114px;
-            }
+            max-height: max(30vh, 300px);
+            min-height: 20px;
+            overflow-y: auto;
 
             .monospace-text {
               color: #313238;

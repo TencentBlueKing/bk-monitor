@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, provide, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useStorage } from '@vueuse/core';
 import { Checkbox, Input, Loading } from 'bkui-vue';
@@ -68,6 +68,7 @@ export default defineComponent({
   emits: ['openBlank', 'change', 'close'],
   setup(props, context) {
     const { t } = useI18n();
+    provide('renderFavoriteQuery', context.slots?.renderFavoriteQuery);
     const {
       loading: isGroupListLoading,
       data: groupList,

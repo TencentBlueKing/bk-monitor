@@ -26,7 +26,7 @@
 
 <template>
   <bk-navigation class="bk-log-navigation" :theme-color="navThemeColor" head-height="0" header-title=""
-    navigation-type="left-right" default-open @toggle="handleToggle">
+    navigation-type="left-right" :default-open="false" @toggle="handleToggle">
     <template #menu>
       <bk-navigation-menu :default-active="activeManageNav.id" :item-default-bg-color="navThemeColor">
         <template v-for="groupItem in menuList">
@@ -36,6 +36,7 @@
               <a v-for="navItem in getGroupChildren(groupItem.children)" class="nav-item"
                 :href="getRouteHref(navItem.id)" :key="navItem.id">
                 <bk-navigation-menu-item :data-test-id="`navBox_nav_${navItem.id}`" :icon="getMenuIcon(navItem)"
+                  v-if="shouldShowMenuItem(navItem.id)"
                   :id="navItem.id" @click="handleClickNavItem(navItem.id)">
                   <span>{{ isExpand ? navItem.name : '' }}</span>
                 </bk-navigation-menu-item>
@@ -71,7 +72,7 @@ import { mapGetters, mapState } from 'vuex';
       return {
         navThemeColor: '#2c354d',
         isExpand: true,
-        refreshKey: ''
+        refreshKey: '',
       };
     },
 
@@ -99,6 +100,20 @@ import { mapGetters, mapState } from 'vuex';
     watch: {
       '$route.query.spaceUid'(newSpaceUid, oldSpaceUid) {
         if (newSpaceUid !== oldSpaceUid) {
+          // 检查当前是否在 tgpa-task 相关路由
+          const isTgpaTaskRoute = this.checkIfTgpaTaskRoute();
+
+          if (isTgpaTaskRoute) {
+            // 检查权限
+            const hasPermission = this.checkTgpaTaskFeatureToggle();
+
+            if (!hasPermission) {
+              // 没有权限，跳转到管理页面第一个菜单项
+              this.redirectToFirstMenuItem();
+              return;
+            }
+          }
+
           // 获取最外层路径
           const topLevelRoute = this.getTopLevelRoute();
 
@@ -157,7 +172,73 @@ import { mapGetters, mapState } from 'vuex';
           },
         });
         return newUrl.href;
-      }
+      },
+      // 判断是否应该显示菜单项
+      shouldShowMenuItem(menuId) {
+        // 如果是 tgpa-task 菜单项，需要检查功能开关
+        if (menuId === 'tgpa-task') {
+          return this.checkTgpaTaskFeatureToggle();
+        }
+
+        // 其他菜单项默认显示
+        return true;
+      },
+      // 检查 tgpa_task 功能开关
+      checkTgpaTaskFeatureToggle() {
+        const featureToggle = window.FEATURE_TOGGLE?.tgpa_task;
+
+        // 如果功能开关为 'on' 或不存在，显示菜单
+        if (featureToggle === 'on' || !featureToggle) {
+          return true;
+        }
+
+        // 如果功能开关为 'off'，隐藏菜单
+        if (featureToggle === 'off') {
+          return false;
+        }
+
+        // 如果功能开关为 'debug'，检查白名单
+        if (featureToggle === 'debug') {
+          const whiteList = window.FEATURE_TOGGLE_WHITE_LIST?.tgpa_task ?? [];
+          const bizId = this.$store.state.bkBizId;
+          const spaceUid = this.$store.state.spaceUid;
+
+          // 类型安全的白名单检查
+          const normalizedWhiteList = whiteList.map(id => String(id));
+          return normalizedWhiteList.includes(String(bizId)) ||
+            normalizedWhiteList.includes(String(spaceUid));
+        }
+
+        // 默认不显示
+        return false;
+      },
+      // 检查当前路由是否为 tgpa-task 相关路由
+      checkIfTgpaTaskRoute() {
+        return this.$route.meta?.navId === 'tgpa-task';
+      },
+      // 跳转到manage首页
+      redirectToFirstMenuItem() {
+        // 根据是否为外部版决定跳转目标
+        if (this.isExternal) {
+          // 外部版跳转到日志提取任务
+          this.$router.replace({
+            name: 'log-extract-task',
+            query: {
+              spaceUid: this.spaceUid,
+              bizId: this.bkBizId,
+            },
+          });
+        } else {
+          // 直接跳转到 manage 路由，让路由的 redirect 逻辑自动处理
+          this.$router.replace({
+            name: 'manage',
+            query: {
+              spaceUid: this.spaceUid,
+              bizId: this.bkBizId,
+            },
+          });
+        }
+      },
     },
     mounted() {
       const bkBizId = this.$store.state.bkBizId;
@@ -172,6 +253,9 @@ import { mapGetters, mapState } from 'vuex';
       }).then(() => {
         this.refreshKey = `${this.$router.name}_${this.$route.query.spaceUid}`
       });
+      setTimeout(() => {
+        this.handleToggle();
+      }, 10)
     },
   };
 </script>

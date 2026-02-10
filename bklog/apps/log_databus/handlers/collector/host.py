@@ -26,7 +26,7 @@ from django.db import IntegrityError, transaction
 from apps.api import CCApi, NodeApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
-from apps.exceptions import ApiRequestError
+from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import FEATURE_COLLECTOR_ITSM
 from apps.log_databus.models import CollectorConfig
@@ -66,6 +66,7 @@ from apps.log_databus.exceptions import (
 
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_search.constants import CMDB_HOST_SEARCH_FIELDS
+from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.models import model_to_dict
 
 from apps.log_databus.handlers.collector import CollectorHandler
@@ -289,6 +290,10 @@ class HostCollectorHandler(CollectorHandler):
                     model_fields["collector_scenario_id"] = params["collector_scenario_id"]
                     self.data = CollectorConfig.objects.create(**model_fields)
                     is_create = True
+                    # 创建索引集，并添加到归属索引集中
+                    index_set = self.data.create_index_set()
+                    if params.get("parent_index_set_ids"):
+                        IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(params["parent_index_set_ids"])
                 else:
                     _collector_config_name = copy.deepcopy(self.data.collector_config_name)
                     if self.data.bk_data_id and self.data.bk_data_name != bk_data_name:
@@ -308,6 +313,13 @@ class HostCollectorHandler(CollectorHandler):
                     for key, value in model_fields.items():
                         setattr(self.data, key, value)
                     self.data.save()
+
+                    # 更新归属索引集
+                    index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
+                    if index_set:
+                        IndexSetHandler(index_set.index_set_id).update_parent_index_sets(
+                            params.get("parent_index_set_ids", [])
+                        )
 
                     # collector_config_name更改后更新索引集名称
                     if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
@@ -1005,17 +1017,22 @@ class HostCollectorHandler(CollectorHandler):
                 params=self.data.params,
             )
 
-        status_result = NodeApi.get_subscription_task_status.bulk_request(
-            params={
-                "subscription_id": self.data.subscription_id,
-                "need_detail": False,
-                "need_aggregate_all_tasks": True,
-                "need_out_of_scope_snapshots": False,
-                "bk_biz_id": self.data.bk_biz_id,
-            },
-            get_data=lambda x: x["list"],
-            get_count=lambda x: x["total"],
-        )
+        try:
+            status_result = NodeApi.get_subscription_task_status.bulk_request(
+                params={
+                    "subscription_id": self.data.subscription_id,
+                    "need_detail": False,
+                    "need_aggregate_all_tasks": True,
+                    "need_out_of_scope_snapshots": False,
+                    "bk_biz_id": self.data.bk_biz_id,
+                },
+                get_data=lambda x: x["list"],
+                get_count=lambda x: x["total"],
+            )
+        except ApiResultError:
+            logger.exception("get task status failed, subscription_id: %s", self.data.subscription_id)
+            status_result = []
+
         instance_status = self.format_task_instance_status(status_result)
 
         return {"task_ready": True, "contents": self._get_status_content(instance_status, is_task=True)}

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref as deepRef, defineComponent, provide, reactive, shallowRef, computed } from 'vue';
+import { computed, ref as deepRef, defineComponent, provide, reactive, shallowRef } from 'vue';
 
 import {
   type FilterValue,
@@ -36,6 +36,8 @@ import {
 import { Button, DatePicker, InfoBox, Message, Pagination, SearchSelect } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { detailOfFormatWithTimezone } from 'monitor-common/utils/timezone';
+import { useAppStore } from 'trace/store/modules/app';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -54,6 +56,8 @@ export default defineComponent({
   name: 'AlarmShield',
   setup() {
     const { t } = useI18n();
+    const appStore = useAppStore();
+    const spaceTimezone = computed(() => appStore.spaceTimezone);
     const route = useRoute();
     const router = useRouter();
     const authorityStore = useAuthorityStore();
@@ -132,7 +136,7 @@ export default defineComponent({
       {
         id: EColumn.failureTime,
         name: t('屏蔽失效时间'),
-        width: 150,
+        width: 180,
         disabled: false,
         sortable: false,
       },
@@ -145,7 +149,7 @@ export default defineComponent({
       {
         id: EColumn.endTime,
         name: t('结束时间'),
-        width: 150,
+        width: 180,
         disabled: false,
       },
       {
@@ -185,13 +189,13 @@ export default defineComponent({
         disabled: true,
       },
     ]);
-    const columnComputed = computed(()=>{
+    const columnComputed = computed(() => {
       // 失效时间只在屏蔽失效tab展示
       if (!shieldStatus.value) {
-        return columns.value.filter((item) => item.id !== EColumn.failureTime);
+        return columns.value.filter(item => item.id !== EColumn.failureTime);
       }
       return columns.value;
-    })
+    });
     const tableLoading = deepRef(false);
 
     const pagination = reactive({
@@ -558,16 +562,16 @@ export default defineComponent({
           return <span>{row.content}</span>;
         }
         case EColumn.beginTime: {
-          return <span>{row.begin_time}</span>;
+          return <span>{detailOfFormatWithTimezone(row.begin_time, spaceTimezone.value)}</span>;
         }
         case EColumn.failureTime: {
-          return <span>{row.failure_time}</span>;
+          return <span>{detailOfFormatWithTimezone(row.failure_time, spaceTimezone.value)}</span>;
         }
         // case EColumn.cycleDuration: {
         //   return <span>{row.cycle_duration}</span>;
         // }
         case EColumn.endTime: {
-          return <span>{row.end_time}</span>;
+          return <span>{detailOfFormatWithTimezone(row.end_time, spaceTimezone.value)}</span>;
         }
         case EColumn.shieldCycle: {
           return <span>{row.shield_cycle}</span>;
@@ -719,9 +723,14 @@ export default defineComponent({
                 modelValue={this.dateRange}
                 placeholder={this.t('选择屏蔽时间范围')}
                 type='datetimerange'
-                onChange={v => (this.dateRange = v)}
+                onChange={v => {
+                  this.dateRange = v;
+                }}
                 onClear={() => this.handleDatePickClear()}
                 onPick-success={this.handleDatePick}
+                onUpdate:modelValue={v => {
+                  this.dateRange = v;
+                }}
               />
               <SearchSelect
                 class='shield-search'
@@ -771,12 +780,19 @@ export default defineComponent({
                     : undefined,
                   cell: (_, { row }) => this.handleSetFormat(row, item.id),
                 }))}
+                headerAffixedTop={{
+                  container: '.alarm-shield-page',
+                }}
+                horizontalScrollAffixedBottom={{
+                  container: '.alarm-shield-page',
+                }}
                 pagination={{
                   total: this.pagination.count,
                 }}
                 data={this.tableList}
                 filterValue={this.filterValue}
                 hover={true}
+                needCustomScroll={false}
                 rowKey='id'
                 showSortColumnBgColor={true}
                 sort={this.sort}
@@ -805,8 +821,8 @@ export default defineComponent({
         </div>
         <AlarmShieldDetail
           id={this.detailData.id}
-          show={this.detailData.show}
           failureTime={this.detailData.failureTime}
+          show={this.detailData.show}
           onShowChange={this.handleDetailShowChange}
         />
       </div>

@@ -296,7 +296,7 @@ export default defineComponent({
           title: `${t('发送时间')}`,
           colKey: 'send_time',
           cell: (_, { row: data }) => {
-            return <span>{dayjs(data.send_time).format('YYYY-MM-DD HH:mm:ss')}</span>;
+            return <span>{dayjs(data.send_time).format('YYYY-MM-DD HH:mm:ssZZ')}</span>;
           },
         },
         {
@@ -928,7 +928,7 @@ export default defineComponent({
                 'gray-text': isGrayText,
               }}
             >
-              {row.last_send_time ? dayjs(row.last_send_time).format('YYYY-MM-DD HH:mm:ss') : t('未发送')}
+              {row.last_send_time ? dayjs(row.last_send_time).format('YYYY-MM-DD HH:mm:ssZZ') : t('未发送')}
             </span>
           );
         }
@@ -970,7 +970,7 @@ export default defineComponent({
           );
         }
         case 'create_time': {
-          return <span>{dayjs(row.create_time).format('YYYY-MM-DD HH:mm:ss')}</span>;
+          return <span>{dayjs(row.create_time).format('YYYY-MM-DD HH:mm:ssZZ')}</span>;
         }
         case 'action': {
           return (
@@ -1281,8 +1281,11 @@ export default defineComponent({
           {headerTmpl()}
           <Loading loading={this.isTableLoading}>
             <PrimaryTable
-              style='margin-top: 16px;background-color: white;'
-              v-show={this.isManagerOrUser}
+              style={{
+                marginTop: '16px',
+                backgroundColor: 'white',
+                display: this.isManagerOrUser ? 'block' : 'none !important',
+              }}
               v-slots={{
                 empty: () => (
                   <EmptyStatus
@@ -1324,6 +1327,7 @@ export default defineComponent({
               }}
               bkUiSettings={this.table.settings}
               data={this.table.data}
+              needCustomScroll={false}
               showSortColumnBgColor={true}
               onFilterChange={(filters: TableProps['filterValue']) => {
                 const conditions = [];
@@ -1357,8 +1361,11 @@ export default defineComponent({
               }}
             />
             <PrimaryTable
-              style='margin-top: 16px;background-color: white;'
-              v-show={this.createType === 'self'}
+              style={{
+                marginTop: '16px',
+                backgroundColor: 'white',
+                display: this.createType === 'self' ? 'block' : 'none !important',
+              }}
               v-slots={{
                 empty: () => (
                   <EmptyStatus
@@ -1388,6 +1395,7 @@ export default defineComponent({
               bkUiSettings={this.tableForSelf.settings}
               data={this.computedTableDataForSelf}
               filterValue={this.filterConfig}
+              needCustomScroll={false}
               onFilterChange={(filters: TableProps['filterValue']) => {
                 this.filterConfig = filters;
               }}
@@ -1459,6 +1467,7 @@ export default defineComponent({
                   height={400}
                   columns={this.sendRecordTable.columns}
                   data={this.sendRecordTable.data}
+                  needCustomScroll={false}
                   rowKey='id'
                 />
               </Loading>
@@ -1551,14 +1560,14 @@ export default defineComponent({
                                     <bk-user-display-name user-id={this.subscriptionDetail.update_user} />
                                   </div>
                                   <div>{`${this.t('更新时间')}: ${dayjs(this.subscriptionDetail.update_time).format(
-                                    'YYYY-MM-DD HH:mm:ss'
+                                    'YYYY-MM-DD HH:mm:ssZZ'
                                   )}`}</div>
                                   <div>
                                     <span>{`${this.t('创建人')}: `}</span>
                                     <bk-user-display-name user-id={this.subscriptionDetail.create_user} />
                                   </div>
                                   <div>{`${this.t('创建时间')}: ${dayjs(this.subscriptionDetail.create_time).format(
-                                    'YYYY-MM-DD HH:mm:ss'
+                                    'YYYY-MM-DD HH:mm:ssZZ'
                                   )}`}</div>
                                 </div>
                               );

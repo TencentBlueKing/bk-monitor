@@ -14,7 +14,6 @@ import os
 from blueapps.conf.log import get_logging_config_dict
 from blueapps.patch.log import get_paas_v2_logging_config_dict
 
-
 from ..tools.environment import (
     DJANGO_CONF_MODULE,
     ENVIRONMENT,
@@ -80,9 +79,9 @@ INSTALLED_APPS += (
 # 切换session的backend后， 需要设置该中间件，确保新的 csrftoken 被设置到新的session中
 ensure_csrf_cookie = "django.views.decorators.csrf._EnsureCsrfCookie"
 # 切换backend一段时候后， 再使用如下配置进行csrf保护
-csrf_protect = "django.middleware.csrf.CsrfViewMiddleware"
 
 MIDDLEWARE = (
+    "corsheaders.middleware.CorsMiddleware",
     "bkmonitor.middlewares.pyinstrument.ProfilerMiddleware",
     "bkmonitor.middlewares.prometheus.MetricsBeforeMiddleware",  # 必须放到最前面
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -304,7 +303,6 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ),
     "DEFAULT_RENDERER_CLASSES": ("bkmonitor.views.renderers.MonitorJSONRenderer",),
-    # 'DATETIME_FORMAT': "%Y-%m-%d %H:%M:%S",
     "EXCEPTION_HANDLER": "core.drf_resource.exceptions.custom_exception_handler",
     "DEFAULT_PAGINATION_CLASS": "monitor_api.pagination.MonitorAPIPagination",
     "PAGE_SIZE": 20,

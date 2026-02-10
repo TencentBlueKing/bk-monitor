@@ -23,9 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { BarChart, CustomChart, HeatmapChart, LineChart, MapChart, PieChart, ScatterChart } from 'echarts/charts';
+import {
+  BarChart,
+  CustomChart,
+  HeatmapChart,
+  LineChart,
+  MapChart,
+  PieChart,
+  ScatterChart,
+  TreemapChart,
+} from 'echarts/charts';
 import {
   BrushComponent,
+  DataZoomComponent,
+  DataZoomInsideComponent,
+  DataZoomSliderComponent,
   GeoComponent,
   GraphicComponent,
   GridComponent,
@@ -44,6 +56,7 @@ import { CanvasRenderer } from 'echarts/renderers';
 import type { BarSeriesOption, LineSeriesOption, PieSeriesOption } from 'echarts/charts';
 import type {
   DatasetComponentOption,
+  DataZoomComponentOption,
   GridComponentOption,
   LegendComponentOption,
   MarkAreaComponentOption,
@@ -57,6 +70,7 @@ import type { ComposeOption } from 'echarts/core';
 export type MonitorEchartOptions = ComposeOption<
   | BarSeriesOption
   | DatasetComponentOption
+  | DataZoomComponentOption
   | GridComponentOption
   | LegendComponentOption
   | LineSeriesOption
@@ -72,6 +86,7 @@ echarts.use([
   BarChart,
   PieChart,
   LineChart,
+  TreemapChart,
   ScatterChart,
   MapChart,
   HeatmapChart,
@@ -89,6 +104,9 @@ echarts.use([
   GeoComponent,
   VisualMapComponent,
   BrushComponent,
+  DataZoomComponent,
+  DataZoomInsideComponent,
+  DataZoomSliderComponent,
 ]);
 
 export { echarts };

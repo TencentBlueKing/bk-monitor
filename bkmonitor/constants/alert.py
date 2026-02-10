@@ -25,6 +25,40 @@ class EventTargetType:
     TOPO = "TOPO"
 
 
+class K8STargetType:
+    POD = "K8S-POD"
+    NODE = "K8S-NODE"
+    SERVICE = "K8S-SERVICE"
+    WORKLOAD = "K8S-WORKLOAD"
+
+
+K8S_RESOURCE_TYPE = {
+    K8STargetType.POD: "pod",
+    K8STargetType.NODE: "node",
+    K8STargetType.SERVICE: "service",
+    K8STargetType.WORKLOAD: "workload",
+}
+
+
+class APMTargetType:
+    SERVICE = "APM-SERVICE"
+
+    @staticmethod
+    def parse_target(target: str) -> tuple[str, str]:
+        """解析 APM 场景的 target 目标格式"""
+        app_name, service_name = target.split(":", 1)
+        return app_name, service_name
+
+
+EVENT_EXTRA_TARGET_TYPE = (
+    K8STargetType.POD,
+    K8STargetType.NODE,
+    K8STargetType.SERVICE,
+    K8STargetType.WORKLOAD,
+    APMTargetType.SERVICE,
+)
+
+
 EVENT_TARGET_TYPE = (
     (EventTargetType.EMPTY, _("无")),
     (EventTargetType.HOST, _("主机")),
@@ -166,9 +200,9 @@ PUBLIC_NOTICE_CONFIG: dict[str, str | list[dict]] = {
         {
             "time_range": "00:00:00--23:59:59",
             "notify_config": [
-                {"level": 1, "type": ["weixin", "mail"]},
-                {"level": 2, "type": ["weixin", "mail"]},
-                {"level": 3, "type": ["weixin", "mail"]},
+                {"level": 1, "type": ["mail"]},
+                {"level": 2, "type": ["mail"]},
+                {"level": 3, "type": ["mail"]},
             ],
         }
     ],
@@ -203,8 +237,10 @@ class AlertRedirectType(CachedEnum):
     DETAIL = "detail"
     QUERY = "query"
     LOG_SEARCH = "log_search"
+    EVENT_EXPLORE = "event_explore"
     APM_RPC = "apm_rpc"
     APM_TRACE = "apm_trace"
+    APM_QUERY = "apm_query"
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
@@ -217,7 +253,10 @@ class AlertRedirectType(CachedEnum):
                 self.DETAIL: _("告警详情"),
                 self.QUERY: _("指标检索"),
                 self.LOG_SEARCH: _("日志检索"),
+                self.EVENT_EXPLORE: _("事件检索"),
                 self.APM_RPC: _("调用分析"),
                 self.APM_TRACE: _("Tracing 检索"),
+                # APM 自定义指标检索
+                self.APM_QUERY: _("指标检索"),
             }.get(self, self.value)
         )

@@ -30,6 +30,9 @@ from apps.log_databus.constants import (
     ETL_DELIMITER_DELETE,
     ETL_DELIMITER_END,
     ETL_DELIMITER_IGNORE,
+    CollectStatus,
+    Environment,
+    ContainerCollectorType,
 )
 from apps.log_search.exceptions import (
     ESQuerySyntaxException,
@@ -168,6 +171,7 @@ ASYNC_EXPORT_FILE_EXPIRED_DAYS = 2
 # 异步导出链接expired时间 24*60*60
 ASYNC_EXPORT_EXPIRED = 86400
 HAVE_DATA_ID = "have_data_id"
+HAVE_TABLE_ID = "have_table_id"
 BKDATA_OPEN = "bkdata"
 NOT_CUSTOM = "not_custom"
 IGNORE_DISPLAY_CONFIG = "ignore_display_config"
@@ -373,6 +377,7 @@ class GlobalTypeEnum(ChoicesEnum):
     PAAS_API_HOST = "paas_api_host"
     BK_DOMAIN = "bk_domain"
     RETAIN_EXTRA_JSON = "retain_extra_json"
+    LOG_BUILT_IN_FIELD = "log_built_in_field"
 
     _choices_labels = (
         (CATEGORY, _("数据分类")),
@@ -395,6 +400,7 @@ class GlobalTypeEnum(ChoicesEnum):
         (PAAS_API_HOST, _("网关地址")),
         (BK_DOMAIN, _("蓝鲸域名")),
         (RETAIN_EXTRA_JSON, _("是否开启保留额外JSON字段开关")),
+        (LOG_BUILT_IN_FIELD, _("日志内置字段")),
     )
 
 
@@ -561,6 +567,7 @@ class CollectorScenarioEnum(ChoicesEnum):
     REDIS_SLOWLOG = "redis_slowlog"
     SYSLOG = "syslog"
     KAFKA = "kafka"
+    CLIENT = "client"
 
     _choices_labels = (
         (ROW, _("行日志文件")),
@@ -570,6 +577,7 @@ class CollectorScenarioEnum(ChoicesEnum):
         (REDIS_SLOWLOG, _("Redis慢日志")),
         (SYSLOG, _("Syslog Server")),
         (KAFKA, _("KAFKA")),
+        (CLIENT, _("客户端日志")),
     )
 
     @classmethod
@@ -1120,7 +1128,7 @@ class FieldDateFormatEnum(ChoicesEnum):
             {
                 "id": "strict_date_time",
                 "name": "YYYY-MM-DDTHH:mm:ss.SSSZ",
-                "description": "2006-01-02T15:04:05.000-0700",
+                "description": "2006-01-02T15:04:05.000-07:00",
                 "es_format": "epoch_millis",
                 "es_type": "date",
             },
@@ -1438,6 +1446,17 @@ class IndexSetType(ChoicesEnum):
     UNION = "union"
 
     _choices_labels = ((SINGLE, _("单索引集")), (UNION, _("联合索引集")))
+
+
+class IndexSetDataType(ChoicesEnum):
+    """
+    索引类型
+    """
+
+    RESULT_TABLE = "result_table"
+    INDEX_SET = "index_set"
+
+    _choices_labels = ((RESULT_TABLE, _("结果表")), (INDEX_SET, _("索引集")))
 
 
 class SearchMode(ChoicesEnum):
@@ -1871,3 +1890,163 @@ class DorisFieldTypeEnum(Enum):
         # 去除字段长度信息 例如：varchar(32)、decimal(10,2)
         cleaned_type = re.sub(r"\(.*?\)", "", field_type)
         return field_type_mapping.get(cleaned_type, field_type)
+
+
+LOG_BUILT_IN_FIELD_LIST = [
+    "gseIndex",
+    "gseindex",
+    "iterationIndex",
+    "iterationindex",
+    "_iteration_idx",
+    "__dist_01",
+    "__dist_03",
+    "__dist_05",
+    "__dist_07",
+    "__dist_09",
+    "__ipv6__",
+    "__parse_failure",
+    "time",
+    "__module__",
+    "__set__",
+    "__ipv6__",
+    "__shard_key__",
+    "__unique_key__",
+    "__bcs_cluster_name__",
+]
+
+
+class LogBuiltInFieldTypeEnum:
+    """
+    日志内置字段枚举类
+    """
+
+    @classmethod
+    def get_choices(cls):
+        return LOG_BUILT_IN_FIELD_LIST
+
+    @classmethod
+    def get_choices_list_dict(cls):
+        return [{"id": key, "name": key} for key in LOG_BUILT_IN_FIELD_LIST if key]
+
+
+class LogAccessTypeEnum(ChoicesEnum):
+    """
+    日志接入类型枚举
+    """
+
+    LINUX = "linux"
+    WIN_EVENT = "winevent"
+    CONTAINER_FILE = "container_file"
+    CONTAINER_STDOUT = "container_stdout"
+    BKDATA = "bkdata"
+    ES = "es"
+    CUSTOM_REPORT = "custom_report"
+
+    _choices_labels = (
+        (LINUX, _("主机日志")),
+        (WIN_EVENT, _("Windows Event 日志")),
+        (CONTAINER_FILE, _("容器文件采集")),
+        (CONTAINER_STDOUT, _("容器标准输出")),
+        (BKDATA, _("计算平台")),
+        (ES, _("第三方ES")),
+        (CUSTOM_REPORT, _("自定义上报")),
+    )
+
+    @classmethod
+    def get_log_access_type(
+        cls, scenario_id: str, collector_scenario_id: str, environment: str, container_collector_type: str
+    ) -> str:
+        """
+        判断接入类型
+        """
+        from apps.log_search.models import Scenario
+
+        if scenario_id:
+            if scenario_id == Scenario.BKDATA:
+                return cls.BKDATA.value
+            if scenario_id == Scenario.ES:
+                return cls.ES.value
+
+        elif environment == Environment.CONTAINER:
+            if container_collector_type in [ContainerCollectorType.CONTAINER, ContainerCollectorType.NODE]:
+                return cls.CONTAINER_FILE.value
+            elif container_collector_type == ContainerCollectorType.STDOUT:
+                return cls.CONTAINER_STDOUT.value
+
+        elif collector_scenario_id:
+            if collector_scenario_id == CollectorScenarioEnum.CUSTOM.value:
+                return cls.CUSTOM_REPORT.value
+            if collector_scenario_id in [CollectorScenarioEnum.ROW.value, CollectorScenarioEnum.SECTION.value]:
+                return cls.LINUX.value
+            if collector_scenario_id == CollectorScenarioEnum.WIN_EVENT.value:
+                return cls.WIN_EVENT.value
+        return ""
+
+    @classmethod
+    def get_original_fields(cls, log_access_type: str) -> dict:
+        """
+        根据日志接入类型获取原始字段
+        """
+        from apps.log_search.models import Scenario
+
+        scenario_id_list = []
+        collector_scenario_id_list = []
+        environment_list = []
+        container_collector_type_list = []
+
+        if log_access_type == cls.LINUX.value:
+            environment_list.append(Environment.LINUX)
+            collector_scenario_id_list.extend([CollectorScenarioEnum.ROW.value, CollectorScenarioEnum.SECTION.value])
+        elif log_access_type == cls.WIN_EVENT.value:
+            collector_scenario_id_list.append(CollectorScenarioEnum.WIN_EVENT.value)
+        elif log_access_type == cls.CONTAINER_FILE.value:
+            environment_list.append(Environment.CONTAINER)
+            container_collector_type_list.extend([ContainerCollectorType.CONTAINER, ContainerCollectorType.NODE])
+        elif log_access_type == cls.CONTAINER_STDOUT.value:
+            environment_list.append(Environment.CONTAINER)
+            container_collector_type_list.append(ContainerCollectorType.STDOUT)
+        elif log_access_type == cls.BKDATA.value:
+            scenario_id_list.append(Scenario.BKDATA)
+        elif log_access_type == cls.ES.value:
+            scenario_id_list.append(Scenario.ES)
+        elif log_access_type == cls.CUSTOM_REPORT.value:
+            collector_scenario_id_list.append(CollectorScenarioEnum.CUSTOM.value)
+
+        return {
+            "scenario_id_list": scenario_id_list,
+            "collector_scenario_id_list": collector_scenario_id_list,
+            "environment_list": environment_list,
+            "container_collector_type_list": container_collector_type_list,
+        }
+
+
+class CollectStatusEnum(ChoicesEnum):
+    """
+    采集状态枚举
+    """
+
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+    TERMINATED = "terminated"
+
+    _choices_labels = (
+        (RUNNING, _("部署中")),
+        (SUCCESS, _("正常")),
+        (FAILED, _("异常")),
+        (TERMINATED, _("停用")),
+    )
+
+    @classmethod
+    def get_collect_status(cls, original_status) -> str:
+        """将旧的采集状态转换为新的采集状态"""
+        if not original_status:
+            return ""
+        elif original_status == CollectStatus.SUCCESS:
+            return cls.SUCCESS.value
+        elif original_status == CollectStatus.FAILED:
+            return cls.FAILED.value
+        elif original_status == CollectStatus.TERMINATED:
+            return cls.TERMINATED.value
+        else:
+            return cls.RUNNING.value

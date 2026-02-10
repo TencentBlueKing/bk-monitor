@@ -191,7 +191,7 @@
             </div>
           </template>
           <div
-            v-if="!isWinEventLog && conditions.type === 'none'"
+            v-if="!isWinEventLog && conditions?.type === 'none'"
             class="content-style"
           >
             <span>{{ $t('过滤内容') }}</span>
@@ -267,9 +267,9 @@
           <span
             v-bk-tooltips.top="{
               content: `${collectorData.storage_cluster_domain_name}:${collectorData.storage_cluster_port}`,
-              disabled: !collectorData.storage_cluster_name,
+              disabled: !collectorData.storage_display_name,
             }"
-            >{{ collectorData.storage_cluster_name || '-' }}</span
+            >{{ collectorData.storage_display_name || '-' }}</span
           >
         </div>
         <!-- 存储索引名 -->
@@ -447,7 +447,7 @@
           ];
           this.createAndTimeData = createAndTimeData.map(item => {
             if (item.key === 'created_at' || item.key === 'updated_at') {
-              item.value = utcFormatDate(collectorData[item.key]);
+              item.value = utcFormatDate(collectorData[item.key], true);
             } else {
               item.value = collectorData[item.key];
             }
@@ -484,13 +484,16 @@
         const params = {};
         params.collectorId = this.$route.params.collectorId;
         const routeName = this.isCustomReport ? 'custom-report-edit' : 'collectEdit';
+        // 根据当前路由动态设置backRoute
+        const backRoute = this.isCustomReport ? this.$route.name : 'manage-collection';
         this.$router.push({
           name: routeName,
           params,
           query: {
             spaceUid: this.$store.state.spaceUid,
-            backRoute: 'manage-collection',
+            backRoute,
             type: 'basicInfo',
+            typeKey: this.$route.query.typeKey,
           },
         });
       },

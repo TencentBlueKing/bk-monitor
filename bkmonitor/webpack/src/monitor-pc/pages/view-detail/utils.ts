@@ -55,11 +55,11 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
         timeMap[time] = new Array(tableThArr.length).fill(null);
         list = timeMap[time];
         list[0] = {
-          value: dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss'),
+          value: dayjs.tz(time).format('YYYY-MM-DD HH:mm:ssZZ'),
           originValue: time,
         };
       }
-      const index = tableThArr.findIndex(target => item.target === target);
+      const index = tableThArr.indexOf(item.target);
       if (index >= 0) {
         const value = typeof v !== 'undefined' ? v : null;
         list[index] = {
@@ -89,7 +89,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
     max: null,
     min: null,
   }));
-  tableThArr.forEach((th, index) => {
+  tableThArr.forEach((_th, index) => {
     if (index > 0) {
       const map = maxMinMap[index];
       map.min = tableTdArr[0][index].value;

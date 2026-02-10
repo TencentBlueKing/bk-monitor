@@ -470,7 +470,7 @@ export default class TimeSeriesForecast extends LineChart {
       return;
     }
     const curAxis = params.find(item => item.value?.[1] !== null);
-    const pointTime = dayjs.tz(curAxis.axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs.tz(curAxis.axisValue).format('YYYY-MM-DD HH:mm:ssZZ');
     const data = params
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curPoint.yAxis) - Math.abs(b.value - +this.curPoint.yAxis));

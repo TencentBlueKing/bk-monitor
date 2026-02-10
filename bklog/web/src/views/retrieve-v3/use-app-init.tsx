@@ -227,11 +227,16 @@ export default () => {
       return `${item.index_set_id}` === `${id}`;
     };
 
-    const commitIdexId = (idexs: string[], others = {}) => {
+    const commitIdexId = (idexs: string[], others: any = {}) => {
+      // 优先使用 store 中已有的 pid（从URL解析出来的）
+      const existingPid = store.state.indexItem.pid ?? [];
+      const items = (others as any)?.items ?? [];
+
       const [pid, ids] = idexs
         .filter(t => !!t)
         .reduce(
-          (out, cur) => {
+          (out, cur, index) => {
+            // 如果ID格式是 pid_id，使用解析出来的 pid
             if (cur.indexOf('_') > 0) {
               const [pid, id] = cur.split('_');
               out[0].push(pid);
@@ -239,12 +244,39 @@ export default () => {
               return out;
             }
 
+            // 如果ID格式只是 id，优先使用 URL 中解析的 pid
+            // unique_id 是基于树形结构生成的，可能与 URL 中的 pid 不一致
+            if (existingPid.length > index && existingPid[index] && existingPid[index] !== '#') {
+              // 优先使用 URL 中解析的 pid
+              out[0].push(existingPid[index]);
+              out[1].push(cur);
+              return out;
+            }
+
+            // 如果 URL 中没有 pid，尝试从索引集列表中查找对应的 unique_id，提取 pid
+            // 优先从传入的 items 中查找，如果没有则从 flatIndexSetList 中查找
+            let targetItem = items.find(item => `${item.index_set_id}` === `${cur}`);
+            if (!targetItem) {
+              targetItem = flatIndexSetList.value.find(item => `${item.index_set_id}` === `${cur}`);
+            }
+
+            if (targetItem?.unique_id) {
+              // 从 unique_id 中提取 pid（作为备选方案）
+              const parts = targetItem.unique_id.split('_');
+              const extractedPid = parts.length > 1 ? parts[0] : '#';
+              out[0].push(extractedPid);
+              out[1].push(cur);
+              return out;
+            }
+
+            // 如果都找不到，使用 '#'
             out[0].push('#');
             out[1].push(cur);
             return out;
           },
           [[], []],
         );
+
       store.commit('updateIndexItem', { ids, pid, ...(others ?? {}) });
     };
 
@@ -263,6 +295,7 @@ export default () => {
             query: {
               page_from: route.name,
               type: 'indexset',
+              from: route.query.from,
             },
           });
           return;
@@ -337,10 +370,6 @@ export default () => {
           if (emptyIndexSetList.length) {
             store.commit('updateIndexItem', { ids: [], items: [] });
             store.commit('updateState', { indexId: '' });
-            // store.commit('updateIndexSetQueryResult', {
-            //   is_error: true,
-            //   exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
-            // });
           }
 
           if (indexSetItems.length) {
@@ -350,7 +379,7 @@ export default () => {
 
         // 如果经过上述逻辑，缓存中没有索引信息，则默认取第一个有数据的索引
         if (!indexSetIdList.value.length) {
-          const defIndexItem = flatIndexSetList.value.find(
+          const defIndexItem =            flatIndexSetList.value.find(
             item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
           ) ?? flatIndexSetList.value[0];
           const defaultId = [defIndexItem?.index_set_id];
@@ -362,12 +391,15 @@ export default () => {
           }
         }
 
-        const indexId = store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
+        const indexId =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
           ? store.state.indexItem.ids[0]
           : undefined;
-        const unionList = store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
+        const unionList =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
 
-        if (emptyIndexSetList.length === 0) {
+        // 修复：当 URL 中的 indexId 无效时，已经在上面选择了默认索引
+        // 这里应该判断当前是否有有效的索引ID，而不是判断 emptyIndexSetList
+        // emptyIndexSetList 只记录了无效的ID，不应该阻止默认索引的字段请求
+        if (indexSetIdList.value.length > 0) {
           RetrieveHelper.setSearchingValue(true);
 
           const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
@@ -390,35 +422,42 @@ export default () => {
 
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
-          store.dispatch('requestIndexSetFieldInfo').then((resp) => {
-            RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-            RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
+          store
+            .dispatch('requestIndexSetFieldInfo')
+            .then((resp) => {
+              RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+              RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
 
-            if (
-              route.query.tab === 'origin'
-              || route.query.tab === undefined
-              || route.query.tab === null
-              || route.query.tab === ''
-            ) {
-              if (resp?.data?.fields?.length) {
-                store.dispatch('requestIndexSetQuery').then(() => {
+              if (
+                route.query.tab === 'origin'
+                || route.query.tab === undefined
+                || route.query.tab === null
+                || route.query.tab === ''
+              ) {
+                if (resp?.data?.fields?.length) {
+                  store.dispatch('requestIndexSetQuery').then(() => {
+                    RetrieveHelper.setSearchingValue(false);
+                  });
+                }
+
+                if (!resp?.data?.fields?.length) {
+                  store.commit('updateIndexSetQueryResult', {
+                    is_error: true,
+                    exception_msg: 'index-set-field-not-found',
+                  });
                   RetrieveHelper.setSearchingValue(false);
-                });
+                }
+
+                return;
               }
 
-              if (!resp?.data?.fields?.length) {
-                store.commit('updateIndexSetQueryResult', {
-                  is_error: true,
-                  exception_msg: 'index-set-field-not-found',
-                });
-                RetrieveHelper.setSearchingValue(false);
-              }
-
-              return;
-            }
-
-            RetrieveHelper.setSearchingValue(false);
-          });
+              RetrieveHelper.setSearchingValue(false);
+            })
+            .catch((err) => {
+              // 请求失败时也要关闭 loading 状态，避免页面一直处于加载中
+              console.error('requestIndexSetFieldInfo failed:', err);
+              RetrieveHelper.setSearchingValue(false);
+            });
         }
 
         if (!indexSetIdList.value.length) {

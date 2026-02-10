@@ -29,10 +29,10 @@
     "@blueking/bk-user-selector": "0.0.38-beta.5",
     "@blueking/bkmonitor-cli": "^7.0.1",
     "@blueking/bkui-library": "0.0.0-beta.5",
-    "@blueking/date-picker": "^2.0.0-beta.48",
+    "@blueking/date-picker": "3.0.7",
     "@blueking/fork-resize-detector": "0.0.2",
     "@blueking/ip-selector": "1.0.1-beta.19",
-    "@blueking/log-web": "^0.0.7",
+    "@blueking/log-web": "^0.0.8",
     "@blueking/login-modal": "1.0.1",
     "@blueking/notice-component-vue2": "2.0.3",
     "@blueking/platform-config": "1.0.2",
@@ -91,6 +91,7 @@
     "ts-loader": "9.5.1",
     "tslib": "2.8.1",
     "typescript-eslint": "^8.45.0",
+    "tdesign-vue": "1.11.2-naruto",
     "url-loader": "4.1.1",
     "vue": "v2-latest",
     "vue-class-component": "7.2.6",
@@ -143,10 +144,7 @@
     "webpackbar": "6.0.1"
   },
   "nodemonConfig": {
-    "watch": [
-      "local.settings.js",
-      "webpack.config.js"
-    ],
+    "watch": ["local.settings.js", "webpack.config.js"],
     "extentions": []
   },
   "overrides": {
@@ -168,13 +166,7 @@
     "commit-msg": "node ./bklog/web/webpack/verify-commit.js $1"
   },
   "lint-staged": {
-    "src/**/*.(js|ts|tsx)": [
-      "biome format --write",
-      "oxlint",
-      "eslint --fix"
-    ],
-    "src/**/*.(vue|scss|css|sass)": [
-      "stylelint --cache --fix"
-    ]
+    "src/**/*.(js|ts|tsx)": ["biome format --write", "oxlint", "eslint --fix"],
+    "src/**/*.(vue|scss|css|sass)": ["stylelint --cache --fix"]
   }
 }

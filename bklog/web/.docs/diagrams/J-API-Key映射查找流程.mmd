@@ -1,0 +1,26 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#fce4ec', 'primaryTextColor': '#c2185b', 'primaryBorderColor': '#e91e63', 'lineColor': '#f06292'}}}%%
+flowchart LR
+    subgraph "代码调用"
+        CALL["http.request('meta/menu', {...})"]
+    end
+
+    subgraph "services/index.js"
+        SERVICES["聚合所有 service 模块"]
+    end
+
+    subgraph "services/meta.js"
+        META["export const menu = {<br/>  url: '/meta/menu/',<br/>  method: 'get'<br/>}"]
+    end
+
+    subgraph "api/index.js"
+        API["baseURL: '/api/v1'<br/>+ interceptors<br/>+ cancel/cache 机制"]
+    end
+
+    subgraph "实际请求"
+        REQ["GET /api/v1/meta/menu/"]
+    end
+
+    CALL --> SERVICES
+    SERVICES --> META
+    META --> API
+    API --> REQ

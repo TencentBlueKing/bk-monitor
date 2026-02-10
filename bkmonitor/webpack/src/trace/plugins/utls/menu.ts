@@ -112,9 +112,9 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
         value: (set.value || []).join(','),
       })) || [],
 
-    start_time: start_time ? dayjs.tz(start_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
+    start_time: start_time ? dayjs.tz(start_time).format('YYYY-MM-DD HH:mm:ssZZ') : undefined,
 
-    end_time: end_time ? dayjs.tz(end_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
+    end_time: end_time ? dayjs.tz(end_time).format('YYYY-MM-DD HH:mm:ssZZ') : undefined,
     time_range,
   };
   queryStr = Object.keys(queryObj).reduce((str, key, i) => {
@@ -130,16 +130,18 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
 /**
  * @description: 获取跳转url
  * @param {string} hash hash值
- * @return {*}
+ * @param {string} bizId 业务ID，可选
+ * @return {string} 完整的跳转URL
  */
-export function commOpenUrl(hash: string) {
-  let url = '';
+export function commOpenUrl(hash: string, bizId?: string): string {
+  const currentBizId = bizId || window.cc_biz_id;
+
   if (process.env.NODE_ENV === 'development') {
-    url = `${process.env.proxyUrl}?bizId=${window.cc_biz_id}${hash}`;
-  } else {
-    url = location.href.replace(location.hash, hash);
+    return `${process.env.proxyUrl}?bizId=${currentBizId}${hash}`;
   }
-  return url;
+
+  const { origin, pathname } = location;
+  return `${origin}${pathname}?bizId=${currentBizId}${hash}`;
 }
 /**
  * @description: 跳转到检索
@@ -284,7 +286,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
   //  原始数据表格数据
   tableTdArr = data[0].datapoints.map(set => [
     {
-      value: dayjs.tz(set[1]).format('YYYY-MM-DD HH:mm:ss'),
+      value: dayjs.tz(set[1]).format('YYYY-MM-DD HH:mm:ssZZ'),
       originValue: set[1],
     },
   ]);
@@ -303,7 +305,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
     max: null,
     min: null,
   }));
-  tableThArr.forEach((th, index) => {
+  tableThArr.forEach((_th, index) => {
     if (index > 0) {
       const map: any = maxMinMap[index];
       map.min = tableTdArr[0][index].value;

@@ -59,7 +59,7 @@ import { useRouter } from 'vue-router';
 
 import ExceptionComp from '../../../components/exception';
 import ResourceGraph from '../resource-graph/resource-graph';
-import { useIncidentInject } from '../utils';
+import { checkIsRoot, useIncidentInject } from '../utils';
 import LegendPopoverContent from './components/legend-popover-content';
 import ElkjsUtils from './elkjs-utils';
 import FailureTopoDetail from './failure-topo-detail/failure-topo-detail';
@@ -76,6 +76,7 @@ import {
   getNodeAttrs,
   handleToLink,
   truncateText,
+  typeToLinkHandle,
 } from './utils';
 
 import type { IEdge, IEntity, IncidentDetailData, ITopoData, ITopoNode } from './types';
@@ -120,6 +121,10 @@ export default defineComponent({
     // 边的动画定时器
     let edgeInterval = [];
     let playTime = null;
+    // 播放队列：存储需要播放的帧索引
+    let playQueue: number[] = [];
+    // 队列处理标志：避免重复处理队列
+    let isProcessingQueue = false;
     /** g6 默认缩放级别 数值 / 10 为真实结果值  */
     const MIN_ZOOM = 0.2;
     const { t } = useI18n();
@@ -206,14 +211,15 @@ export default defineComponent({
         afterDraw(cfg, group) {
           const nodeAttrs = getNodeAttrs(cfg as ITopoNode);
           const { entity, alert_all_recorved, is_feedback_root } = cfg as ITopoNode;
-          if (entity.is_root || is_feedback_root) {
+          const isRoot = checkIsRoot(entity);
+          if (isRoot || is_feedback_root) {
             group.addShape('circle', {
               attrs: {
                 lineDash: [3],
                 lineWidth: 1, // 描边宽度
                 cursor: 'pointer', // 手势类型
                 r: 25, // 圆半径
-                stroke: entity.is_root ? '#F55555' : '#FF9C01',
+                stroke: isRoot ? '#F55555' : '#FF9C01',
               },
               name: 'topo-node-root-border',
             });
@@ -226,7 +232,7 @@ export default defineComponent({
                 height: 16,
                 radius: 8,
                 stroke: '#3A3B3D',
-                fill: entity.is_root ? '#F55555' : '#FF9C01',
+                fill: isRoot ? '#F55555' : '#FF9C01',
               },
               name: 'topo-node-rect',
             });
@@ -276,17 +282,18 @@ export default defineComponent({
         draw(cfg, group) {
           const { entity, aggregated_nodes, anomaly_count, is_feedback_root } = cfg as ITopoNode;
           const nodeAttrs: any = getNodeAttrs(cfg as ITopoNode);
-          const isRoot = entity.is_root || entity.is_feedback_root;
+          const isRoot = checkIsRoot(entity);
+          const showRoot = isRoot || entity.is_feedback_root;
           const isAggregated = aggregated_nodes.length > 0;
           const nodeShapeWrap = group.addShape('rect', {
             zIndex: 10,
             attrs: {
-              x: isRoot ? -25 : -20,
-              y: isRoot ? -28 : -22,
+              x: showRoot ? -25 : -20,
+              y: showRoot ? -28 : -22,
               lineWidth: 1, // 描边宽度
               cursor: 'pointer', // 手势类型
-              width: isRoot ? 50 : 40, // 根因有外边框整体宽度为50
-              height: isRoot ? 82 : isAggregated ? 63 : 67, // 根因展示根因提示加节点类型加节点名称 聚合节点展示聚合提示加类型 普通节点展示名字与类型
+              width: showRoot ? 50 : 40, // 根因有外边框整体宽度为50
+              height: showRoot ? 82 : isAggregated ? 63 : 67, // 根因展示根因提示加节点类型加节点名称 聚合节点展示聚合提示加类型 普通节点展示名字与类型
             },
             draggable: true,
             name: 'topo-node-shape-wrap',
@@ -298,7 +305,7 @@ export default defineComponent({
               cursor: 'pointer', // 手势类型
               r: 20, // 圆半径
               ...nodeAttrs.groupAttrs,
-              fill: isRoot ? '#F55555' : nodeAttrs.groupAttrs.fill,
+              fill: showRoot ? '#F55555' : nodeAttrs.groupAttrs.fill,
             },
             draggable: true,
             name: 'topo-node-shape',
@@ -392,7 +399,7 @@ export default defineComponent({
                 cursor: 'cursor',
                 textBaseline: 'middle',
                 text:
-                  entity.is_root || is_feedback_root
+                  isRoot || is_feedback_root
                     ? truncateText(t('根因'), 28, 11, 'PingFangSC-Medium')
                     : aggregated_nodes.length + 1,
                 fontSize: 11,
@@ -406,7 +413,7 @@ export default defineComponent({
             zIndex: 11,
             attrs: {
               x: 0,
-              y: aggregated_nodes?.length || entity.is_root || is_feedback_root ? 36 : 28,
+              y: aggregated_nodes?.length || isRoot || is_feedback_root ? 36 : 28,
               textAlign: 'center',
               textBaseline: 'middle',
               cursor: 'cursor',
@@ -421,7 +428,7 @@ export default defineComponent({
               zIndex: 11,
               attrs: {
                 x: 0,
-                y: entity.is_root || is_feedback_root ? 48 : 40,
+                y: isRoot || is_feedback_root ? 48 : 40,
                 textAlign: 'center',
                 textBaseline: 'middle',
                 cursor: 'cursor',
@@ -1823,14 +1830,19 @@ export default defineComponent({
           handleFeedBack(model);
         }
       });
-      /** 触发下一帧播放 */
+      /** 触发下一帧播放 - 动画完成后继续处理队列 */
       graph.on('afteritemstatechange', ({ state }) => {
         if (state && !(state as string).includes('show-animate')) return;
-        clearTimeout(playTime);
-        playTime = setTimeout(() => {
-          timelinePosition.value = timelinePosition.value + 1;
-          handlePlay({ value: isPlay.value });
-        }, 1000);
+        // 如果正在播放且正在处理队列，动画完成后继续处理队列
+        if (isPlay.value && isProcessingQueue && processNext) {
+          clearTimeout(playTime);
+          playTime = setTimeout(() => {
+            // 动画完成后继续处理队列中的下一帧
+            if (isPlay.value && playQueue.length > 0 && processNext) {
+              processNext();
+            }
+          }, 1000);
+        }
       });
       nextTick(() => {
         addListener(graphRef.value as HTMLElement, onResize);
@@ -1843,13 +1855,16 @@ export default defineComponent({
       edgeInterval = [];
       clearTimeout(playTime);
       clearTimeout(refreshTimeout);
+      // 清空播放队列
+      playQueue = [];
+      isProcessingQueue = false;
       graphRef.value && removeListener(graphRef.value as HTMLElement, onResize);
     });
 
     /** 处理节点详情info tooltip内部结构 */
     const handleNodeInfoTooltip = (model: ITopoNode) => {
       let nodeDetailTips = [];
-      const isShowRootText = model.is_feedback_root || model?.entity?.is_root;
+      const isShowRootText = model.is_feedback_root || checkIsRoot(model?.entity);
       // 节点名称
       nodeDetailTips.push({ label: t('名称'), value: model.entity.entity_name });
       // 节点告警信息
@@ -2120,87 +2135,127 @@ export default defineComponent({
       }
     };
     /** 播放某一帧的图 */
-    const handleRenderTimeline = (hideNodes = []) => {
-      const hideNodeArr = timelinePosition.value === 0 ? topoRawDataCache.value.complete.nodes : hideNodes;
+    const handleRenderTimeline = () => {
       /** 播放时关闭查看资源态 */
       showResourceGraph.value = false;
       /** 播放时关闭查看节点/边概览态 */
       showServiceOverview.value = false;
       /** 播放时清楚自动刷新 */
       clearTimeout(refreshTimeout);
-      // biome-ignore lint/complexity/noForEach: <explanation>
-      hideNodeArr.forEach(({ id }) => {
-        const node = graph.findById(id);
-        node && graph.hideItem(node);
-      });
       /** 对比node是否已经展示，已经展示还存在diff中说明只是状态变更以及对比每个展示的node都需要判断边关系的node是在展示状态 */
-      const { showNodes, content } = topoRawDataCache.value.diff[timelinePosition.value];
+      const { showNodes, content, showEdges, showSubCombos } = topoRawDataCache.value.diff[timelinePosition.value];
       const currNodes = topoRawDataCache.value.diff[timelinePosition.value].content.nodes;
       const currEdges = topoRawDataCache.value.diff[timelinePosition.value].content.edges;
       const randomStr = random(8);
       let next = false;
+
+      // 处理边的更新，与 handleTimelineChange 保持一致
       const edges = graph.getEdges();
+      const findEdges = (edges, target) => {
+        return edges.find(item => item.source === target.source && target.target === item.target);
+      };
+      const updateEdges = currEdges;
       // biome-ignore lint/complexity/noForEach: <explanation>
       edges.forEach(edge => {
         const edgeModel = edge.getModel();
-        const targetEdge = currEdges.find(item => item.source === edgeModel.source && edgeModel.target === item.target);
-
+        const targetEdge = findEdges(updateEdges, edgeModel);
         if (targetEdge) {
           graph.updateItem(edge, { ...edge, ...targetEdge });
-        }
-      });
-      // biome-ignore lint/complexity/noForEach: <explanation>
-      currNodes.forEach(item => {
-        const node = graph.findById(item.id);
-        const model = node?.getModel?.();
-        const targetNode = showNodes.reverse().find(node => node.id === item.id);
-        if (!targetNode) {
-          if (node) {
-            next = true;
-            /** diff中的节点 comboId没有经过布局处理，延用node之前已设置过的id即可 */
-            graph.updateItem(node, {
-              ...node,
-              ...item,
-              comboId: model.comboId,
-              subComboId: model.subComboId,
-            });
-            graph.setItemState(node, 'show-animate', randomStr);
-            const edges = (node as any).getEdges();
-            // biome-ignore lint/complexity/noForEach: <explanation>
-            edges.forEach(edge => {
-              const edgeModel = edge.getModel();
-              const edgeNode = [...showNodes, ...currNodes].find(node => {
-                return edgeModel.source === item.id ? node.id === edgeModel.target : node.id === edgeModel.source;
-              });
-              edgeNode && graph.setItemState(edge, 'show-animate', randomStr);
-            });
-          }
         } else {
-          /** 某个节点状态从展示到隐藏 */
-          if (item.is_deleted) {
-            node?.hide?.();
-            (node as any)?.getEdges()?.forEach(edge => edge?.hide());
-          } else {
-            /** 节点从隐藏到展示 */
-            if (node.getModel().is_deleted) {
-              node?.show?.();
-              (node as any)?.getEdges()?.forEach(edge => edge?.show());
-            }
-            /** diff中的节点  comboId没有经过布局处理，延用node之前已设置过的id即可 */
-            graph.updateItem(node, {
-              ...item,
-              is_deleted: false,
-              comboId: model.comboId,
-              subComboId: model.subComboId,
-            });
+          // 如果当前帧没有该边，尝试从 showEdges 或 complete.edges 中恢复
+          const currEdges =
+            findEdges(showEdges, edgeModel) || findEdges(topoRawDataCache.value.complete.edges, edgeModel);
+          if (currEdges && edgeModel && !isEqual(currEdges, edgeModel)) {
+            graph.updateItem(edge, { ...edge, ...currEdges });
           }
         }
       });
+
+      // 处理节点的更新，与 handleTimelineChange 保持一致
+      // 遍历所有 complete.nodes，确保所有节点状态都正确
+      // biome-ignore lint/complexity/noForEach: <explanation>
+      topoRawDataCache.value.complete.nodes.forEach(({ id }) => {
+        // 查找节点：与 handleTimelineChange 的逻辑保持一致
+        // showNode: 在 showNodes 和 currNodes 的合并数组中查找（用于获取节点数据）
+        const showNode = [...showNodes, ...currNodes].reverse().find(item => item.id === id);
+        const deleteNodeIds = showNodes.filter(item => item.is_deleted).map(item => item.id);
+        const diffNode = currNodes.find(item => item.id === id);
+        // nodeInShowNodes: 单独在 showNodes 中查找，用于判断节点是否之前存在
+        const nodeInShowNodes = showNodes.find(item => item.id === id);
+        // diffData: 节点在 showNodes 中但不在 currNodes 中（之前存在，当前帧没有变化）
+        const diffData = !diffNode && nodeInShowNodes;
+        const updateNode = diffData ? showNode : diffNode;
+
+        if ((!nodeInShowNodes && !diffNode) || deleteNodeIds.includes(id)) {
+          // 节点应该隐藏：既不在 showNodes 中，也不在 currNodes 中，或者被标记为删除
+          const node = graph.findById(id);
+          node && graph.hideItem(node);
+        } else if (diffNode || diffData) {
+          // 节点应该显示：在 currNodes 中（当前帧有变化）或在 showNodes 中（之前存在）
+          const node = graph.findById(updateNode.id);
+          if (node) {
+            const model = node?.getModel?.();
+            // 判断是否为新节点：在 currNodes 中但不在 showNodes 中
+            const isNewNode = !nodeInShowNodes && diffNode;
+
+            if (isNewNode) {
+              // 新节点：需要设置动画
+              next = true;
+              graph.updateItem(node, {
+                ...node,
+                ...updateNode,
+                comboId: model.comboId,
+                subComboId: model.subComboId,
+              });
+              graph.setItemState(node, 'show-animate', randomStr);
+              const edges = (node as any).getEdges();
+              // biome-ignore lint/complexity/noForEach: <explanation>
+              edges.forEach(edge => {
+                const edgeModel = edge.getModel();
+                const edgeNode = [...showNodes, ...currNodes].find(node => {
+                  return edgeModel.source === updateNode.id
+                    ? node.id === edgeModel.target
+                    : node.id === edgeModel.source;
+                });
+                edgeNode && graph.setItemState(edge, 'show-animate', randomStr);
+              });
+            } else {
+              // 已存在的节点：需要更新状态
+              // 与 handleTimelineChange 的逻辑保持一致
+              if (diffNode?.is_deleted) {
+                // 节点被标记为删除
+                node?.hide?.();
+                (node as any)?.getEdges()?.forEach(edge => edge?.hide());
+              } else {
+                // 节点应该显示
+                // 如果节点之前是隐藏状态，先显示
+                if (model.is_deleted) {
+                  node?.show?.();
+                  (node as any)?.getEdges()?.forEach(edge => edge?.show());
+                }
+                // 更新节点数据
+                graph.showItem(node);
+                graph.updateItem(node, {
+                  ...updateNode,
+                  is_deleted: false,
+                  comboId: model.comboId,
+                  subComboId: model.subComboId,
+                });
+              }
+            }
+          }
+        }
+      });
+
+      // 处理 combo 的更新，与 handleTimelineChange 保持一致
       const combos = graph.getCombos().filter(combo => combo.getModel().parentId);
       // biome-ignore lint/complexity/noForEach: <explanation>
       combos.forEach(combo => {
         const { entity, id, comboId } = combo.getModel() as ITopoNode;
-        const updateCombo = content.sub_combos.find(com => com.id === entity.entity_id);
+        // 使用 showSubCombos 和 content.sub_combos，与 handleTimelineChange 保持一致
+        const updateCombo = [...showSubCombos, ...content.sub_combos]
+          .reverse()
+          .find(item => item.id === entity.entity_id);
         const nodes = topoRawDataCache.value.complete.nodes.filter(node => node.subComboId === id);
         const showNodes = nodes.filter(({ id }) => {
           const node = graph.findById(id);
@@ -2230,72 +2285,222 @@ export default defineComponent({
         showResourceGraph.value = false;
         showServiceOverview.value = false;
         resizeCacheCallback.value = () => {
-          setTimeout(() => handlePlay(playOption), 300);
+          setTimeout(() => handlePlay(playOption), 500);
           resizeCacheCallback.value = null;
         };
         return;
       }
       handlePlay(playOption);
     };
+    /** 处理播放队列中的下一帧 */
+    let processNext: (() => void) | null = null;
+
+    /** 处理播放队列 */
+    const processPlayQueue = () => {
+      if (isProcessingQueue || playQueue.length === 0) {
+        return;
+      }
+
+      isProcessingQueue = true;
+      processNext = () => {
+        // 检查播放状态和队列状态
+        if (!isPlay.value) {
+          // 如果暂停了，停止处理但保留队列状态
+          isProcessingQueue = false;
+          return;
+        }
+
+        if (playQueue.length === 0) {
+          // 队列处理完成
+          isProcessingQueue = false;
+          isPlay.value = false;
+          emit('playing', false);
+          handleChangeRefleshTime(refreshTime.value);
+          return;
+        }
+
+        // 检查队列中的第一个帧是否与当前位置一致（避免重复处理）
+        const nextIndex = playQueue[0];
+        if (nextIndex === timelinePosition.value && playQueue.length > 1) {
+          // 如果队列第一个帧与当前位置一致，且还有后续帧，跳过当前帧
+          playQueue.shift();
+          processNext();
+          return;
+        }
+
+        const currentIndex = playQueue.shift();
+        if (currentIndex === undefined) {
+          isProcessingQueue = false;
+          return;
+        }
+
+        const len = topoRawDataCache.value.diff.length;
+        if (currentIndex >= len) {
+          timelinePosition.value = topoRawDataCache.value.diff.length - 1;
+          isPlay.value = false;
+          emit('playing', false);
+          handleChangeRefleshTime(refreshTime.value);
+          isProcessingQueue = false;
+          return;
+        }
+
+        timelinePosition.value = currentIndex;
+        emit('playing', true, currentIndex);
+
+        // 直接渲染当前帧，不再需要预先计算 hideNodes
+        handleRenderTimeline();
+
+        // 延迟处理下一帧，确保DOM渲染完成
+        clearTimeout(playTime);
+        playTime = setTimeout(() => {
+          if (isPlay.value && playQueue.length > 0) {
+            // 继续处理队列中的下一帧
+            processNext();
+          } else {
+            // 队列处理完成或已暂停
+            isProcessingQueue = false;
+            if (isPlay.value && playQueue.length === 0) {
+              // 队列处理完成
+              isPlay.value = false;
+              emit('playing', false);
+              handleChangeRefleshTime(refreshTime.value);
+            }
+          }
+        }, 600); // 没有动画时，短暂延迟即可
+      };
+
+      processNext();
+    };
+
     /** 播放 */
     const handlePlay = playOption => {
-      const { value, isStart = true } = playOption;
+      const { value } = playOption;
+      // 注意：isStart 参数在队列版本中不再使用，队列处理函数会根据 currentIndex 自动判断
+
       if ('timeline' in playOption) {
         timelinePosition.value = 0;
+        // 重置时清空队列
+        playQueue = [];
+        isProcessingQueue = false;
       }
+
       isPlay.value = value;
+
       if (value) {
+        // 开始播放
         const len = topoRawDataCache.value.diff.length;
-        if (timelinePosition.value === len) {
+
+        // 如果队列为空，或者队列第一个帧不等于当前位置，需要重新构建队列
+        // 这包括以下情况：
+        // 1. 首次播放（队列为空）
+        // 2. 暂停后恢复播放，但用户手动切换了帧（队列第一个帧 != 当前位置）
+        // 3. 播放时用户点击了其他帧（已在 handleTimelineChange 中处理，但这里作为兜底）
+        if (playQueue.length === 0 || (playQueue.length > 0 && playQueue[0] !== timelinePosition.value)) {
+          // 重新构建从当前位置到末尾的播放队列
+          playQueue = [];
+          for (let i = timelinePosition.value; i < len; i++) {
+            playQueue.push(i);
+          }
+        }
+
+        // 如果队列为空，说明已经播放完毕
+        if (playQueue.length === 0) {
           timelinePosition.value = topoRawDataCache.value.diff.length - 1;
           isPlay.value = false;
           emit('playing', false);
           handleChangeRefleshTime(refreshTime.value);
           return;
         }
-        emit('playing', true, timelinePosition.value);
-        let hideNodes = [];
-        if (!isStart) {
-          /** 直接切换到对应帧时，直接隐藏掉未出现的帧，并更新当前帧每个node的节点数据 */
-          const { showNodes, content } = topoRawDataCache.value.diff[timelinePosition.value];
-          hideNodes = topoRawDataCache.value.complete.nodes.filter(node => {
-            const showNode = [...showNodes, ...content.nodes].find(item => item.id === node.id);
-            return !showNode;
-          });
+
+        // 开始处理队列
+        // 如果之前正在处理但被暂停了，需要重置标志并重新开始
+        if (isProcessingQueue) {
+          isProcessingQueue = false;
         }
-        const next = isStart ? handleRenderTimeline() : handleRenderTimeline(hideNodes);
-        if (next) {
-          timelinePosition.value = timelinePosition.value + 1;
-          handlePlay({ value: true });
-        }
+        processPlayQueue();
+      } else {
+        // 暂停播放：不清空队列，保留队列状态以便恢复播放
+        // 清除定时器，停止队列处理
+        clearTimeout(playTime);
+        // 重置处理标志，确保恢复播放时可以重新开始
+        isProcessingQueue = false;
+        // 注意：processNext 函数内部会检查 isPlay.value，如果为 false 会自动停止
+        // 但我们需要重置 isProcessingQueue，以便恢复播放时可以重新调用 processPlayQueue
       }
     };
     /** 点击展示某一帧的图 */
     const handleTimelineChange = (value, init = false) => {
-      if (!init && (value === timelinePosition.value || isPlay.value)) return;
+      if (!init && value === timelinePosition.value) return;
+
+      // 如果正在播放时切换帧，需要重新构建队列并立即渲染当前帧
+      if (isPlay.value && !init) {
+        // 清空当前队列，重新构建从新位置开始的队列
+        playQueue = [];
+        clearTimeout(playTime);
+        isProcessingQueue = false;
+        const len = topoRawDataCache.value.diff.length;
+        // 构建从新位置到末尾的播放队列
+        for (let i = value; i < len; i++) {
+          playQueue.push(i);
+        }
+        // 如果队列为空，停止播放
+        if (playQueue.length === 0) {
+          isPlay.value = false;
+          emit('playing', false);
+          handleChangeRefleshTime(refreshTime.value);
+        } else {
+          // 立即渲染当前帧，然后继续播放队列
+          // 渲染当前帧
+          if (topoRawDataCache.value.diff[value]) {
+            handleRenderTimeline();
+          }
+          // 继续处理队列
+          processPlayQueue();
+        }
+        // 直接返回，避免执行下面的非播放状态下的渲染逻辑
+        return;
+      }
+
       timelinePosition.value = value;
       if (!isPlay.value && topoRawDataCache.value.diff[value]) {
         /** 切换帧时 */
         showResourceGraph.value = false;
         showServiceOverview.value = false;
         /** 直接切换到对应帧时，直接隐藏掉未出现的帧，并更新当前帧每个node的节点数据 */
+        /** 注意：需要支持从后往前切换的场景，确保所有节点都按照目标帧的状态来处理 */
         const { showNodes, content, showEdges, showSubCombos } = topoRawDataCache.value.diff[value];
         const updateEdges = content.edges;
         // biome-ignore lint/complexity/noForEach: <explanation>
         topoRawDataCache.value.complete.nodes.forEach(({ id }) => {
+          // 查找节点：与 handleRenderTimeline 的逻辑保持一致
+          // showNode: 在 showNodes 和 content.nodes 的合并数组中查找（用于获取节点数据）
           const showNode = [...showNodes, ...content.nodes].reverse().find(item => item.id === id);
           const deleteNodeIds = showNodes.filter(item => item.is_deleted).map(item => item.id);
           const diffNode = content.nodes.find(item => item.id === id);
-          const diffData = !diffNode && showNode;
+          // nodeInShowNodes: 单独在 showNodes 中查找，用于判断节点是否之前存在
+          const nodeInShowNodes = showNodes.find(item => item.id === id);
+          // diffData: 节点在 showNodes 中但不在 content.nodes 中（之前存在，当前帧没有变化）
+          const diffData = !diffNode && nodeInShowNodes;
           const updateNode = diffData ? showNode : diffNode;
-          if ((!showNode && !diffNode) || deleteNodeIds.includes(id)) {
+
+          if ((!nodeInShowNodes && !diffNode) || deleteNodeIds.includes(id)) {
+            // 节点应该隐藏：既不在 showNodes 中，也不在 content.nodes 中，或者被标记为删除
             const node = graph.findById(id);
             node && graph.hideItem(node);
           } else if (diffNode || diffData) {
+            // 节点应该显示：在 content.nodes 中（当前帧有变化）或在 showNodes 中（之前存在）
             const node = graph.findById(updateNode.id);
-            const model = node?.getModel?.();
-            node && graph.showItem(node);
-            node && graph.updateItem(node, { ...updateNode, comboId: model.comboId, subComboId: model.subComboId });
+            if (node) {
+              const model = node?.getModel?.();
+              // 如果节点之前是隐藏状态，先显示
+              if (model.is_deleted) {
+                node?.show?.();
+                (node as any)?.getEdges()?.forEach(edge => edge?.show());
+              }
+              // 更新节点数据
+              graph.showItem(node);
+              graph.updateItem(node, { ...updateNode, comboId: model.comboId, subComboId: model.subComboId });
+            }
           }
         });
         const edges = graph.getEdges();
@@ -2473,34 +2678,23 @@ export default defineComponent({
       const rootNode = topoRawData.nodes.find(node => node.entity.is_root);
       rootNode && goToTracePage(rootNode.entity, 'traceDetail');
     };
-    const goToTracePage = (entity: IEntity, type) => {
-      const { rca_trace_info, observe_time_rage } = entity;
-      const query: Record<string, number | string> = {};
-      const incidentQuery = {
-        trace_id: rca_trace_info?.abnormal_traces[0].trace_id || '',
-        span_id: rca_trace_info?.abnormal_traces[0].span_id || '',
-        type,
-      };
-      if (observe_time_rage && Object.keys(observe_time_rage).length > 0) {
-        query.start_time = observe_time_rage.start_at;
-        query.end_time = observe_time_rage.end_at;
-      }
+
+    /** 跳转trace检索页 */
+    const goToTracePage = (entity: IEntity, type: string) => {
       const { origin, pathname } = window.location;
       const baseUrl = bkzIds.value[0] ? `${origin}${pathname}?bizId=${bkzIds.value[0]}` : '';
-      const newPage = router.resolve({
-        path: '/trace/home',
-        query: {
-          app_name: rca_trace_info?.abnormal_traces_query.app_name,
-          refreshInterval: '-1',
-          filterMode: 'queryString',
-          query: rca_trace_info.abnormal_traces_query.query,
-          sceneMode: 'trace',
-          incident_query: encodeURIComponent(JSON.stringify(incidentQuery)),
-          ...query,
-        },
-      });
-      window.open(baseUrl + newPage.href, '_blank');
+
+      // 选择对应的链接处理器
+      const linkHandleByType = typeToLinkHandle.SpanExplore;
+      // 获取查询参数
+      const query = linkHandleByType.query(entity, type);
+
+      const queryString = Object.keys(query)
+        .map(key => `${key}=${query[key]}`)
+        .join('&');
+      window.open(`${baseUrl}#${linkHandleByType.path()}?${queryString}`, '_blank');
     };
+
     const handleToDetailTab = node => {
       const { alert_display, alert_ids } = node;
       const name = alert_display?.alert_name || '';
@@ -2511,6 +2705,7 @@ export default defineComponent({
       };
       emit('toDetailTab', alertObj);
     };
+
     const refresh = () => {
       emit('refresh');
     };

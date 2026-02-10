@@ -93,6 +93,7 @@ class ResultTableListSerializer(serializers.Serializer):
 
 
 class ResultTableTraceMatchSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
     indices = serializers.ListField(label=_("索引列表"))
     scenario_id = serializers.CharField(label=_("接入场景"))
     storage_cluster_id = serializers.IntegerField(label=_("数据源ID"), required=False)
@@ -110,6 +111,7 @@ class ResultTableTraceMatchSerializer(serializers.Serializer):
 
 
 class ResultTableDetailSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
     scenario_id = serializers.CharField(label=_("接入场景"))
     storage_cluster_id = serializers.IntegerField(label=_("数据源ID"), required=False)
 
@@ -131,6 +133,7 @@ class ResultTableAdaptSerializer(serializers.Serializer):
             choices=["date", "long"], required=False, allow_null=True, allow_blank=True
         )
 
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
     scenario_id = serializers.CharField(label=_("接入场景"))
     storage_cluster_id = serializers.CharField(label=_("存储集群ID"), required=False, allow_blank=True, allow_null=True)
     basic_index = IndexSerializer(label=_("源索引"), required=False)
@@ -337,8 +340,8 @@ class OriginalSearchAttrSerializer(serializers.Serializer):
 
 
 class SearchFieldsSerializer(serializers.Serializer):
-    start_time = DateTimeFieldWithEpoch(label=_("开始时间"), required=False)
-    end_time = DateTimeFieldWithEpoch(label=_("结束时间"), required=False)
+    start_time = serializers.IntegerField(label=_("开始时间"), required=False)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=False)
     scope = serializers.ChoiceField(
         label=_("类型"), choices=SearchScopeEnum.get_choices(), default=SearchScopeEnum.DEFAULT.value
     )
@@ -1216,3 +1219,49 @@ class SpaceListSerializer(serializers.Serializer):
     has_permission = serializers.BooleanField(label=_("仅获取有权限的空间"), default=False)
     page = serializers.IntegerField(label=_("页数"), required=False, min_value=1)
     page_size = serializers.IntegerField(label=_("每页条数"), required=False, min_value=1)
+
+
+class IndexGroupListSerializer(serializers.Serializer):
+    """
+    索引组列表
+    """
+
+    keyword = serializers.CharField(label=_("关键字"), default=None, allow_null=True)
+    space_uid = SpaceUIDField(label=_("空间唯一标识"))
+
+
+class CreateIndexGroupSerializer(serializers.Serializer):
+    """
+    创建索引组
+    """
+
+    index_set_name = serializers.CharField(label=_("索引组名称"), required=True)
+    space_uid = SpaceUIDField(label=_("空间唯一标识"))
+
+
+class UpdateIndexGroupSerializer(serializers.Serializer):
+    """
+    更新索引组
+    """
+
+    index_set_name = serializers.CharField(label=_("索引组名称"), required=True)
+
+
+class AddChildIndexSetsSerializer(serializers.Serializer):
+    """
+    添加子索引集
+    """
+
+    child_index_set_ids = serializers.ListField(
+        label=_("子索引集ID列表"), child=serializers.IntegerField(), min_length=1
+    )
+
+
+class RemoveChildIndexSetsSerializer(serializers.Serializer):
+    """
+    移除子索引集
+    """
+
+    child_index_set_ids = serializers.ListField(
+        label=_("子索引集ID列表"), child=serializers.IntegerField(), min_length=1
+    )

@@ -1,14 +1,14 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue';
 
+import PopInstanceUtil from '@/global/pop-instance-util';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
-import PopInstanceUtil from '../../../global/pop-instance-util';
 
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-import BookmarkPop from './bookmark-pop';
+import BookmarkPop from './components/bookmark-pop';
 // #else
 // #code const BookmarkPop = () => null;
 // #endif
@@ -16,22 +16,23 @@ import BookmarkPop from './bookmark-pop';
 import { ConditionOperator } from '@/store/condition-operator';
 import { bkMessage } from 'bk-magic-vue';
 
+import $http from '@/api';
+import { copyMessage } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
-import RequestPool from '@/store/request-pool';
-import $http from '../../../api';
-import { copyMessage } from '../../../common/util';
-import useResizeObserve from '../../../hooks/use-resize-observe';
 import {
   clearStorageCommonFilterAddition,
   getCommonFilterAddition,
-} from '../../../store/helper';
-import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
-import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import CommonFilterSelect from './common-filter-select.vue';
-import { withoutValueConditionList } from './const.common';
-import SqlQuery from './sql-query';
-import UiInput from './ui-input';
+} from '@/store/helper';
+import RequestPool from '@/store/request-pool';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import CommonFilterSelect from './components/common-filter-select.vue';
+import AiParseResultBanner from './components/ai-parse-result-banner';
+import SqlQuery from './sql-mode/sql-query';
+import UiInput from './ui-mode/ui-input';
+import { withoutValueConditionList } from './utils/const.common';
 
 const props = defineProps({
   // activeFavorite: {
@@ -63,9 +64,20 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  aiQueryResult: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
-const emit = defineEmits(['refresh', 'height-change', 'search', 'mode-change', 'text-to-query']);
+const emit = defineEmits([
+  'refresh',
+  'height-change',
+  'search',
+  'mode-change',
+  'text-to-query',
+  'close-ai-parsed-text',
+]);
 const store = useStore();
 const { $t } = useLocale();
 const queryTypeList = ref([$t('UI 模式'), $t('语句模式')]);
@@ -85,7 +97,6 @@ const inspectResponse = ref({
 const uiQueryValue = ref([]);
 const sqlQueryValue = ref('');
 const activeFavorite = ref({});
-const refPopTraget = ref(null);
 const localModeActiveIndex = ref(0);
 
 const inspectPopInstance = new PopInstanceUtil({
@@ -105,9 +116,12 @@ const isFilterSecFocused = computed(
   () => isGloalUsage.value
       && store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition,
 );
-const indexItem = computed(() => store.state.indexItem);
-const keyword = computed(() => indexItem.value.keyword);
-const addition = computed(() => indexItem.value.addition);
+// const indexItem = computed(() => store.state.indexItem);
+const keyword = computed(() => {
+  const value = store.state.indexItem.keyword;
+  return value;
+});
+const addition = computed(() => store.state.indexItem.addition);
 const searchMode = computed(() => (!isGloalUsage.value
   ? SEARCH_MODE_DIC[localModeActiveIndex.value]
   : SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui'),
@@ -170,12 +184,47 @@ watch(
   },
 );
 
+// 监听 computed keyword 的变化
 watch(
-  keyword,
-  () => {
-    sqlQueryValue.value = keyword.value;
+  () => keyword.value,
+  (newValue, oldValue) => {
+    if (newValue !== sqlQueryValue.value) {
+      sqlQueryValue.value = newValue;
+    }
   },
   { immediate: true },
+);
+
+// 额外监听 store 中的 keyword 变化（深度监听）
+watch(
+  () => store.state.indexItem.keyword,
+  (newValue, oldValue) => {
+    if (newValue !== sqlQueryValue.value) {
+      sqlQueryValue.value = newValue;
+    }
+  },
+  { immediate: true },
+);
+
+// 监听 aiQueryResult 的变化，当 AI 分析完成时，强制同步 sqlQueryValue
+watch(
+  () => props.aiQueryResult?.queryString,
+  (newQueryString, oldQueryString) => {
+    // 当 AI 分析结果返回时（从 undefined/null 变为有值，或者值发生变化），强制同步 sqlQueryValue
+    // 这样可以确保即使用户在 AI 分析过程中输入了内容，最终也会被 AI 结果覆盖
+    if (newQueryString) {
+      // 使用 nextTick 确保 store 中的 keyword 已经更新
+      nextTick(() => {
+        const storeKeyword = store.state.indexItem.keyword;
+        // 如果 store 中的 keyword 与 AI 结果一致，或者 AI 结果刚返回（oldQueryString 为空），则强制同步
+        if (storeKeyword === newQueryString || !oldQueryString) {
+          if (sqlQueryValue.value !== newQueryString) {
+            sqlQueryValue.value = newQueryString;
+          }
+        }
+      });
+    }
+  },
 );
 
 watch(clearSearchValueNum, () => {
@@ -297,7 +346,7 @@ const handleBtnQueryClick = () => {
             sqlQueryValue.value,
           );
         });
-
+        emit('close-ai-parsed-text');
         return;
       }
 
@@ -330,24 +379,15 @@ const handleSqlRetrieve = (value) => {
         setRouteParams();
         RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
       });
+
+      emit('close-ai-parsed-text');
       return;
     }
 
     requestIndexSetList();
     setRouteParams();
     RetrieveHelper.searchValueChange(searchMode.value, sqlQueryValue.value);
-    return;
-  }
-};
-
-const handleSqlQueryChange = (value) => {
-  if (isGloalUsage.value) {
-    store.commit('updateIndexItemParams', {
-      keyword: value,
-    });
-
-    inspectResponse.value.is_legal = true;
-    setRouteParams();
+    emit('close-ai-parsed-text');
     return;
   }
 };
@@ -714,6 +754,7 @@ defineExpose({
   getValue: () => (searchMode.value === 'ui' ? uiQueryValue.value : sqlQueryValue.value),
   getRect,
 });
+
 </script>
 <template>
   <div
@@ -723,10 +764,10 @@ defineExpose({
     <div
       v-bkloading="{
         isLoading: isAiLoading,
-        opacity: 0.8,
+        opacity: 0.2,
         theme: 'colorful',
         size: 'mini',
-        title: $t('正在解析语句'),
+        title: $t('AI 解析中...'),
         extCls: 'v3-search-ai-loading',
       }"
       :class="[
@@ -771,7 +812,6 @@ defineExpose({
           v-model="sqlQueryValue"
           class="search-input-section"
           @retrieve="handleSqlRetrieve"
-          @change="handleSqlQueryChange"
           @text-to-query="handleTextToQuery"
         >
           <template #custom-placeholder="{ isEmptyText }">
@@ -789,7 +829,6 @@ defineExpose({
           v-if="isShowSearchTools"
           class="search-tool items"
         >
-          <slot name="search-tool" />
           <div
             v-show="!inspectResponse.is_legal"
             style="color: #ea3636"
@@ -868,6 +907,7 @@ defineExpose({
             @refresh="handleRefresh"
             @save-current-active-favorite="saveCurrentActiveFavorite"
           />
+          <slot name="search-tool" />
         </div>
         <div
           class="search-tool search-btn"
@@ -880,7 +920,14 @@ defineExpose({
           />
         </div>
       </div>
+      <div
+        v-if="isAiLoading"
+        class="ai-progress-bar"
+      ></div>
     </div>
+    <template v-if="searchMode === 'sql'">
+      <AiParseResultBanner :ai-query-result="aiQueryResult" :show-border="true" style="margin: 4px 0;" />
+    </template>
     <template v-if="isFilterSecFocused">
       <CommonFilterSelect />
     </template>
@@ -900,14 +947,16 @@ defineExpose({
 .v3-search-ai-loading {
   .bk-loading-wrapper {
     .bk-colorful.bk-size-mini {
-      width: 38px;
-      height: 10px;
+      display: none;
     }
 
     .bk-loading-title {
       margin-top: 0;
-      font-size: 12px;
-      color: #313238;
+      background-image: linear-gradient(118deg, #235DFA 0%, #E28BED 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
     }
   }
 }

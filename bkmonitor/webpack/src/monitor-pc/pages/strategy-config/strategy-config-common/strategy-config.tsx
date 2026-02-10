@@ -28,7 +28,6 @@ import { modifiers, ofType } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import SearchSelect from '@blueking/search-select-v3/vue2';
-import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
 import { exportConfigFile } from 'monitor-api/modules/as_code';
 import { noticeGroupList } from 'monitor-api/modules/notice_group';
@@ -41,6 +40,7 @@ import {
   updatePartialStrategyV2,
 } from 'monitor-api/modules/strategies';
 import { commonPageSizeGet, commonPageSizeSet, copyText, tryURLDecodeParse } from 'monitor-common/utils';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -951,7 +951,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     }));
     localStorage.setItem(STRATEGY_CONFIG_SETTING, JSON.stringify(result));
   }
-  async handleHeaderDragend(newWidth, oldWidth, column) {
+  async handleHeaderDragend(_newWidth, _oldWidthh, column) {
     const labelMap = [
       this.$t('告警组'),
       this.$t('标签'),
@@ -2347,7 +2347,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
           <div class='col-name-label'>
             {props.row.updator ? <bk-user-display-name user-id={props.row.updator} /> : '--'}
           </div>
-          <div>{dayjs.tz(props.row.updateTime).format('YYYY-MM-DD HH:mm:ss') || '--'}</div>
+          <div>{formatWithTimezone(props.row.updateTime) || '--'}</div>
         </div>
       ),
     };
@@ -2597,7 +2597,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         {updator.checked && (
           <bk-table-column
             key='updator'
-            width='150'
+            width='180'
             label={this.$t('更新记录')}
             scopedSlots={updatorSlot}
           />

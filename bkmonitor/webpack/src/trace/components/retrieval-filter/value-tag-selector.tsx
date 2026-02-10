@@ -309,6 +309,8 @@ export default defineComponent({
           <ValueOptions
             fieldInfo={this.fieldInfo}
             getValueFn={this.getValueFn}
+            limit={this.limit}
+            loadDelay={this.loadDelay}
             needUpDownCheck={this.isFocus}
             noDataSimple={true}
             search={this.inputValue}

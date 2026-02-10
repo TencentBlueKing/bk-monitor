@@ -242,7 +242,9 @@ class K8sResourceMeta:
             {"bk_biz_id": self.bk_biz_id, "space_uid": space_uid, "shard_only": True}
         )
 
-        if self.bcs_cluster_id in cluster_info and not isinstance(self, K8sNodeMeta, K8sClusterMeta, K8sNamespaceMeta):
+        if self.bcs_cluster_id in cluster_info and not isinstance(
+            self, K8sNodeMeta | K8sClusterMeta | K8sNamespaceMeta
+        ):
             namespaces = cluster_info[self.bcs_cluster_id].get("namespace_list")
             self.filter.add(load_resource_filter("namespace", namespaces))
         # 不再添加业务id 过滤，有集群过滤即可。
@@ -751,7 +753,7 @@ class K8sClusterMeta(K8sResourceMeta):
         filter_string = self.filter.filter_string()
         filter_string += ","
         filter_string += 'role=~"master|control-plane"'
-        return f"""count by (bcs_cluster_id)(sum by (bcs_cluster_id)(kube_node_role{{{filter_string}}}))"""
+        return f"""count by (bcs_cluster_id)(sum by (pod, bcs_cluster_id)(kube_node_role{{{filter_string}}}))"""
 
     @property
     def meta_prom_with_worker_node_count(self):

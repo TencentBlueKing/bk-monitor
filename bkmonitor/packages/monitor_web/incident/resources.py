@@ -45,16 +45,19 @@ from constants.incident import (
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.alert import AlertNotFoundError
+from fta_web.alert.handlers.base import BaseQueryHandler
 from fta_web.alert.handlers.incident import (
     IncidentAlertQueryHandler,
     IncidentQueryHandler,
+    incident_status_map
 )
 from fta_web.alert.resources import BaseTopNResource
 from fta_web.alert.serializers import AlertSearchSerializer
+from fta_web.alert.utils import slice_time_interval
 from fta_web.models.alert import SearchHistory, SearchType
-from monitor_web.incident.serializers import IncidentSearchSerializer
+from monitor_web.incident.events.resources import IncidentEventsDetailResource, IncidentEventsSearchResource  # noqa
 from monitor_web.incident.metrics.resources import IncidentMetricsSearchResource  # noqa
-from monitor_web.incident.events.resources import IncidentEventsSearchResource, IncidentEventsDetailResource  # noqa
+from monitor_web.incident.serializers import IncidentSearchSerializer
 
 
 class IncidentBaseResource(Resource):
@@ -405,6 +408,7 @@ class ExportIncidentResource(Resource):
     """
 
     class RequestSerializer(IncidentSearchSerializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
         level = serializers.ListField(required=False, label="故障级别", default=[])
         assignee = serializers.ListField(required=False, label="故障负责人", default=[])
         handler = serializers.ListField(required=False, label="故障处理人", default=[])
@@ -412,7 +416,7 @@ class ExportIncidentResource(Resource):
     def perform_request(self, validated_request_data):
         handler = IncidentQueryHandler(**validated_request_data)
         incidents = handler.export()
-        return resource.export_import.export_package(list_data=incidents)
+        return resource.export_import.export_package(list_data=incidents, bk_biz_id=validated_request_data["bk_biz_id"])
 
 
 class IncidentOverviewResource(IncidentBaseResource):
@@ -551,6 +555,13 @@ class IncidentTopologyResource(IncidentBaseResource):
                 limit,
             )
             incident_snapshots = sorted(incident_snapshots, key=lambda x: x["create_time"])
+
+        # 过滤不需要的snapshots
+        incident_snapshots = [
+            snapshot
+            for snapshot in incident_snapshots
+            if all([snapshot.fpp_snapshot_id != "fpp:None", not snapshot.fpp_snapshot_id.endswith(":llm_summary")])
+        ]
 
         # 根据实体加入的时间生成实体ID到时间的映射
         entities_orders = self.generate_entities_orders(incident_snapshots)
@@ -1131,6 +1142,10 @@ class IncidentOperationsResource(IncidentBaseResource):
             order_by="-create_time",
         )
         operations = [operation.to_dict() for operation in operations]
+        # 过滤掉内部操作类型（如 SEND_MESSAGE），这些类型仅用于内部记录，不在前端展示
+        operations = [
+            operation for operation in operations if not IncidentOperationType(operation["operation_type"]).is_internal
+        ]
         for operation in operations:
             operation["operation_class"] = IncidentOperationType(operation["operation_type"]).operation_class.value
         return operations
@@ -1179,7 +1194,12 @@ class IncidentOperationTypesResource(IncidentBaseResource):
             validated_request_data["incident_id"],
             order_by="-create_time",
         )
-        incident_operation_types = {operation.operation_type for operation in operations}
+        # 过滤掉内部操作类型
+        incident_operation_types = {
+            operation.operation_type
+            for operation in operations
+            if not IncidentOperationType(operation.operation_type).is_internal
+        }
 
         operation_types = {
             operation_class: {
@@ -1191,6 +1211,9 @@ class IncidentOperationTypesResource(IncidentBaseResource):
         }
 
         for operation_type in IncidentOperationType.__members__.values():
+            # 跳过内部操作类型
+            if operation_type.is_internal:
+                continue
             if operation_type.value in incident_operation_types:
                 operation_types[operation_type.operation_class]["operation_types"].append(
                     {
@@ -1295,6 +1318,9 @@ class IncidentAlertListResource(IncidentBaseResource):
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
         alerts = self.get_snapshot_alerts(snapshot, **validated_request_data)
 
+        # 获取故障的当前版本ID
+        incident_version_id = incident.extra_info.to_dict().get("version_id") if incident.extra_info else None
+
         incident_alerts = resource.commons.get_label()
         for category in incident_alerts:
             category["alerts"] = []
@@ -1308,6 +1334,11 @@ class IncidentAlertListResource(IncidentBaseResource):
                 if alert_entity
                 else False
             )
+            # 使用 extra_info 中的 version_id 判断告警是否与当前故障更新是同一批次
+            alert_version_id = (
+                alert.get("extra_info", {}).get("incident_version_id") if alert.get("extra_info") else None
+            )
+            alert["is_current_primary"] = incident_version_id is not None and alert_version_id == incident_version_id
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     category["alerts"].append(alert)
@@ -1338,6 +1369,9 @@ class IncidentAlertViewResource(IncidentBaseResource):
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
         alerts = self.get_snapshot_alerts(snapshot, **validated_request_data)
 
+        # 获取故障的当前版本ID
+        incident_version_id = incident.extra_info.to_dict().get("version_id") if incident.extra_info else None
+
         incident_alerts = resource.commons.get_label()
         for category in incident_alerts:
             category["alerts"] = []
@@ -1345,18 +1379,28 @@ class IncidentAlertViewResource(IncidentBaseResource):
 
         for alert in alerts:
             alert_entity = snapshot.alert_entity_mapping.get(alert["id"])
+            # 尝试在dimension获取ip和云区域ip
+            alert_dimension_ip_dict = {item.get('key'): item.get('value','')
+                                       for item in alert.get('dimensions', [])
+                                       if isinstance(item, dict) and 'key' in item }
             alert["entity"] = alert_entity.entity.to_src_dict() if alert_entity else None
             alert["is_feedback_root"] = (
                 (getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id)
                 if alert_entity
                 else False
             )
+            # 使用 extra_info 中的 version_id 判断告警是否与当前故障更新是同一批次
+            alert_version_id = (
+                alert.get("extra_info", {}).get("incident_version_id") if alert.get("extra_info") else None
+            )
+            alert["is_current_primary"] = incident_version_id is not None and alert_version_id == incident_version_id
             alert_doc = AlertDocument(**alert)
             # 检索得到的alert详情不包含event信息，只有event_id，这里默认当前告警时间的extra_info跟event相同
             alert_doc.event.extra_info = alert_doc.extra_info
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
-                    alert["graph_panel"] = AIOPSManager.get_graph_panel(alert_doc, with_anomaly=False)
+                    alert["graph_panel"] = AIOPSManager.get_graph_panel(alert_doc, with_anomaly=False
+                                                                        ,alert_dimension_ip_dict=alert_dimension_ip_dict)
                     category["alerts"].append(alert)
 
         return incident_alerts
@@ -1413,7 +1457,7 @@ class AlertIncidentDetailResource(IncidentDetailResource):
 
 INCIDENT_ANALYSIS_MAPPING_CONFIG = {
     "anomaly_analysis": {"content_key": "dimension_drill_result", "display_panel_name": "anomaly_analysis"},
-    "alerts_analysis": {"content_key": "dimension_drill", "display_panel_name": "anomaly_analysis"},
+    "alerts_analysis": {"content_key": "dimension_drill", "display_panel_name": "alerts_analysis"},
 }
 
 
@@ -1465,7 +1509,8 @@ class IncidentResultsResource(IncidentBaseResource):
                     "status": sub_panel["status"],
                     "message": sub_panel["message"] if sub_panel.get("message") else "",
                     "enabled": True
-                    if sub_panel.get("status") == "running" or self._content_valid(sub_panel.get("content"))
+                    if sub_panel.get("status") == "running"
+                    or (sub_panel.get("is_show", True) and self._content_valid(sub_panel.get("content")))
                     else False,
                 }
             self.set_upper_status(diagnosis_result, sub_key="sub_panels")
@@ -1571,3 +1616,73 @@ class IncidentDiagnosisResource(IncidentBaseResource):
         if individual_summary_content:
             diagnosis_result.update({"individual_summary": individual_summary_content})
         return diagnosis_result
+
+
+
+
+
+class IncidentDateHistogramResource(Resource):
+    """
+    查询故障分布直方图
+    """
+
+    class RequestSerializer(IncidentSearchSerializer):
+        interval = serializers.CharField(label="聚合周期", default="auto")
+        username = serializers.CharField(required=False, label="负责人")
+
+    def perform_request(self, validated_request_data):
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
+        interval = validated_request_data.pop("interval")
+        interval = BaseQueryHandler.calculate_agg_interval(start_time, end_time, interval)
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = IncidentQueryHandler.parse_biz_item(
+                validated_request_data["bk_biz_ids"]
+            )
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+        results = resource.incident.incident_date_histogram_result.bulk_request(
+            [
+                {
+                    "start_time": sliced_start_time,
+                    "end_time": sliced_end_time,
+                    "interval": interval,
+                    **validated_request_data,
+                }
+                for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
+            ]
+        )
+
+        data = {status: {} for status in incident_status_map}
+        for result in results:
+            for status, series in result.items():
+                if status == "default_time_series":
+                    interval = series["interval"]
+                    start_time = series["start_time"] // interval * interval
+                    end_time = series["end_time"] // interval * interval + interval
+                    default_time_series = {ts * 1000: 0 for ts in range(start_time, end_time, interval)}
+                    for sta in incident_status_map:
+                        data[sta].update(default_time_series)
+                    continue
+
+                data[status].update(series)
+        return {
+            "series": [
+                {"data": list(series.items()), "name": status, "display_name": incident_status_map[status]}
+                for status, series in data.items()
+            ],
+            "unit": "" ,
+        }
+
+
+class IncidentDateHistogramResultResource(Resource):
+    def perform_request(self, validated_request_data):
+        interval = validated_request_data.pop("interval")
+        start_time = validated_request_data.get("start_time")
+        end_time = validated_request_data.get("end_time")
+        handler = IncidentQueryHandler(**validated_request_data)
+        datas = list(handler.date_histogram(interval=interval).values())
+        if not datas:
+            data = {"default_time_series": {"start_time": start_time, "end_time": end_time, "interval": interval}}
+            return data
+        return datas[0]

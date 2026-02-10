@@ -421,10 +421,10 @@ export default class Home extends tsc<IHomeProps> {
       // const timeRange = 86400000 * this.dataOverview.timeChecked;
       if (params.activeFilterId) {
         window.open(
-          `${location.origin}${location.pathname}?bizId=${params.id}/#/event-center?activeFilterId=${params.activeFilterId}`
+          `${location.origin}${location.pathname}?bizId=${params.id}#/event-center?activeFilterId=${params.activeFilterId}`
         );
       } else {
-        window.open(`${location.origin}${location.pathname}?bizId=${params.id}/#/event-center`);
+        window.open(`${location.origin}${location.pathname}?bizId=${params.id}#/event-center`);
       }
     }
   }

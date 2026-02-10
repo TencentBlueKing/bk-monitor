@@ -135,19 +135,19 @@
           </template>
         </bk-table-column>
         <bk-table-column
-          v-if="checkcFields('storage_cluster_name')"
+          v-if="checkcFields('storage_display_name')"
           :label="$t('存储集群')"
           :render-header="$renderHeader"
-          :filters="checkcFields('storage_cluster_name') ? filterStorageLabelList : []"
+          :filters="checkcFields('storage_display_name') ? filterStorageLabelList : []"
           :filter-multiple="false"
           class-name="filter-column"
-          column-key="storage_cluster_name"
-          prop="storage_cluster_name"
+          column-key="storage_display_name"
+          prop="storage_display_name"
           min-width="70"
         >
           <template #default="props">
             <span :class="{ 'text-disabled': props.row.status === 'stop' }">
-              {{ props.row.storage_cluster_name || '--' }}
+              {{ props.row.storage_display_name || '--' }}
             </span>
           </template>
         </bk-table-column>
@@ -685,7 +685,7 @@
         },
         // 存储集群
         {
-          id: 'storage_cluster_name',
+          id: 'storage_display_name',
           label: this.$t('存储集群'),
         },
         // 数据类型
@@ -750,7 +750,7 @@
           collector_scenario_id: '',
           category_id: '',
           tags: '',
-          storage_cluster_name: '',
+          storage_display_name: '',
         },
         isAllowedCreate: null,
         columnSetting: {
@@ -782,6 +782,7 @@
         ],
         filterStorageLabelList: [],
         currentRowCollectorConfigId: '',
+        isDestroyed: false,
       };
     },
     computed: {
@@ -859,6 +860,7 @@
       !this.authGlobalInfo && this.requestData();
     },
     beforeDestroy() {
+      this.isDestroyed = true;
       this.isShouldPollCollect = false;
       this.stopStatusPolling();
     },
@@ -1049,15 +1051,15 @@
               const idList = [];
               const indexIdList = data.filter(item => !!item.index_set_id).map(item => item.index_set_id);
               const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
-              const setStorageClusterName = new Set();
+              const setStorageDisplayName = new Set();
               data.forEach(row => {
                 row.status = '';
                 row.status_name = '';
                 idList.push(row.collector_config_id);
                 row.is_desensitize = desensitizeStatus[row.index_set_id]?.is_desensitize ?? false;
-                if (!!row.storage_cluster_name) setStorageClusterName.add(row.storage_cluster_name);
+                if (!!row.storage_display_name) setStorageDisplayName.add(row.storage_display_name);
               });
-              this.filterStorageLabelList = Array.from(setStorageClusterName).map(item => ({
+              this.filterStorageLabelList = Array.from(setStorageDisplayName).map(item => ({
                 text: item,
                 value: item,
               }));
@@ -1106,6 +1108,7 @@
         }
       },
       requestCollectStatus(isPrivate) {
+        if (this.isDestroyed) return; // 组件已销毁，直接返回
         this.$http
           .request('collect/getCollectStatus', {
             query: {
@@ -1113,6 +1116,7 @@
             },
           })
           .then(res => {
+            if (this.isDestroyed) return; // 再次检查组件状态
             this.statusHandler(res.data || []);
             if (this.isShouldPollCollect) this.startStatusPolling();
             if (!isPrivate) this.loadingStatus = true;

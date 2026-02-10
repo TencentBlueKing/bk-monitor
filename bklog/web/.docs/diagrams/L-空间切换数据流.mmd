@@ -1,0 +1,26 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ede7f6', 'primaryTextColor': '#512da8', 'primaryBorderColor': '#673ab7', 'lineColor': '#9575cd'}}}%%
+flowchart TD
+    START([用户切换空间]) --> UPDATE_URL[更新 URL query<br/>spaceUid & bizId]
+    UPDATE_URL --> STORE_COMMIT[store.commit<br/>updateSpace]
+    
+    STORE_COMMIT --> WATCH_TRIGGER{触发 watch}
+    
+    WATCH_TRIGGER --> RESET_INDEX[重置索引集状态<br/>indexId = null]
+    RESET_INDEX --> RESET_UNION["重置联合索引状态<br/>unionList = #91;#93;"]
+    
+    RESET_UNION --> PARALLEL_FETCH{并行请求}
+    
+    PARALLEL_FETCH --> FETCH_MENU[dispatch<br/>requestMenuList]
+    PARALLEL_FETCH --> FETCH_INDEX[dispatch<br/>getIndexSetList]
+    PARALLEL_FETCH --> FETCH_FAV[dispatch<br/>requestFavoriteList]
+    
+    FETCH_MENU --> CHECK_DEFAULT{有默认索引?}
+    FETCH_INDEX --> CHECK_DEFAULT
+    FETCH_FAV --> UPDATE_FAV[更新收藏夹列表]
+    
+    CHECK_DEFAULT -->|是| SET_DEFAULT[设置默认索引<br/>重新执行检索]
+    CHECK_DEFAULT -->|否| SHOW_EMPTY[显示空状态<br/>引导创建索引集]
+    
+    SET_DEFAULT --> COMPLETE([空间切换完成])
+    SHOW_EMPTY --> COMPLETE
+    UPDATE_FAV --> COMPLETE

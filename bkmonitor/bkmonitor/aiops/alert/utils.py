@@ -108,6 +108,7 @@ class AIOPSManager(abc.ABC):
         compare_function: dict | None = None,
         use_raw_query_config: bool = False,
         with_anomaly: bool = True,
+        alert_dimension_ip_dict: dict | None = None
     ):
         """
         获取图表配置
@@ -115,6 +116,7 @@ class AIOPSManager(abc.ABC):
         :param compare_function:
         :param use_raw_query_config: 是否使用原始查询配置（适用于AIOps接入后要获取原始数据源的场景）
         :param with_anomaly: 是否需要在返回图表中包含is_anomaly字段
+        :param alert_dimension_ip_dict: ip和bk_cloud_id的备选字典，如果event里面的没有，则从这里取
         """
         if compare_function is None:
             compare_function = {"time_compare": ["1d", "1w"]}
@@ -143,7 +145,7 @@ class AIOPSManager(abc.ABC):
                                     "filter_dict": {"dedupe_md5": alert.dedupe_md5},
                                 }
                             ],
-                            "function": compare_function,
+                            "function": {"time_compare": []},
                         },
                         "datasourceId": "time_series",
                         "name": _("时序数据"),
@@ -197,8 +199,8 @@ class AIOPSManager(abc.ABC):
                             "metrics": [{"field": "_index", "method": "SUM", "alias": "a"}],
                             "filter_dict": {
                                 "event_name": event_name_mapping[query_config["metric_field"]],
-                                "ip": alert.event.ip,
-                                "bk_cloud_id": alert.event.bk_cloud_id,
+                                "ip": alert.event.ip or (alert_dimension_ip_dict or {}).get('ip',None),
+                                "bk_cloud_id": alert.event.bk_cloud_id or (alert_dimension_ip_dict or {}).get('bk_cloud_id',None),
                             },
                             "time_field": "time",
                             "interval": 60,
@@ -382,6 +384,10 @@ class AIOPSManager(abc.ABC):
             (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
             (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
         )
+        if is_bar:
+            # 柱状图不需要时间对比
+            unify_query_params["function"] = {"time_compare": []}
+            extra_unify_query_params["function"] = {"time_compare": []}
 
         is_composite = data_type_label == DataTypeLabel.ALERT
 

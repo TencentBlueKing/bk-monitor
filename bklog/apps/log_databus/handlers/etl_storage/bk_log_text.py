@@ -141,6 +141,10 @@ class BkLogTextEtlStorage(EtlStorage):
             }
         })
 
+        # 4.1. 提取iterationIndex字段（从iter_item提取，参考v3的flat_field处理）
+        iteration_index_rules = self._build_iteration_index_field_v4(built_in_config)
+        rules.extend(iteration_index_rules)
+
         # 5. Path字段处理（根据separator_configs配置）
         separator_configs = built_in_config.get("option", {}).get("separator_configs", [])
         if separator_configs:

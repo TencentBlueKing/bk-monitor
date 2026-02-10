@@ -572,7 +572,7 @@ class ResultTable(models.Model):
             DataLink.objects.get(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).delete_data_link()
             record.delete()
 
-    def apply_datalink(self) -> None:
+    def apply_datalink(self, force_update: bool = False) -> None:
         """创建数据链路"""
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
         from metadata.task.datalink import apply_event_group_datalink, apply_log_datalink
@@ -593,17 +593,31 @@ class ResultTable(models.Model):
         if self.default_storage == ClusterInfo.TYPE_INFLUXDB:
             # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase v3链路
             # 2. 如果启用了新版数据链路，且etcl_config在启用的列表中，则使用vm存储，
-            is_v4_datalink_etl_config = datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
+            # NOTE:
+            # - ENABLE_V4_DATALINK_ETL_CONFIGS 由全局开关控制（例如 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK 会扩展插件 etl）
+            # - 为避免开关开启后存量 data_id / 结果表在后续 create/modify 时被“回溯”切换链路，这里额外要求
+            #   datasource 必须是 BKDATA 创建（created_from==BKDATA）才允许按 V4/新链路接入。
+            is_v4_datalink_etl_config = (
+                datasource.created_from == DataIdCreatedFromSystem.BKDATA.value
+                and datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
+            )
             if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
-                # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
-                # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
+                # NOTE: 使用 on_commit 确保事务提交后再执行异步任务，避免事务未提交但异步任务先执行的情况
+                # 提取变量值到局部变量，确保闭包捕获的是值而不是引用
+                bk_data_id = datasource.bk_data_id
+                bk_tenant_id = self.bk_tenant_id
+                table_id = self.table_id
                 try:
-                    access_bkdata_vm.delay(
-                        self.bk_tenant_id,
-                        target_bk_biz_id,
-                        self.table_id,
-                        datasource.bk_data_id,
-                        is_v4_datalink_etl_config,
+                    on_commit(
+                        func=lambda: access_bkdata_vm.delay(
+                            bk_tenant_id,
+                            target_bk_biz_id,
+                            table_id,
+                            bk_data_id,
+                            is_v4_datalink_etl_config,
+                            force_update=force_update,
+                        ),
+                        using=config.DATABASE_CONNECTION_NAME,
                     )
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("create_result_table: access vm error: %s", e)
@@ -1117,7 +1131,7 @@ class ResultTable(models.Model):
         is_time_field_only=False,
         is_reserved_check=True,
         external_storage=None,
-        option=None,
+        option: dict[str, Any] | None = None,
         is_enable=None,
         time_option=None,
         data_label=None,
@@ -1330,8 +1344,30 @@ class ResultTable(models.Model):
                 ex_storage.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).delete()
                 logger.info("table->[%s] delete storage->[%s] config success.", self.table_id, storage_type)
 
+        force_update_datalink = False
+
         # 更新结果表option配置
         if option is not None:
+            # 检查ENABLE_FIELD_BLACK_LIST是否需要更新，如果需要更新，则需要强制更新数据链路
+            modify_enable_field_black_list_option_value = option.get(ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST)
+            enable_field_black_list_option = ResultTableOption.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
+            ).first()
+            enable_field_black_list_option_value = (
+                enable_field_black_list_option.get_value() if enable_field_black_list_option else None
+            )
+
+            # 判断是否需要强制更新数据链路：
+            # 1. 如果修改了 ENABLE_FIELD_BLACK_LIST 的值，需要强制更新
+            # 2. 如果修改为 False（非自动发现的结果表），也需要强制更新
+            if (
+                modify_enable_field_black_list_option_value != enable_field_black_list_option_value
+                or modify_enable_field_black_list_option_value is False
+            ):
+                force_update_datalink = True
+
             # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。
             # 目前在option配置的时候并没有标记option的类型，因此只能通过名单的方式进行管理
             # TODO: 后续需要优化option的配置方式，增加option的类型标记
@@ -1351,6 +1387,15 @@ class ResultTable(models.Model):
             ResultTableOption.bulk_create_options(
                 table_id=self.table_id, option_data=option, creator=operator, bk_tenant_id=self.bk_tenant_id
             )
+        else:
+            # 如果是非自动发现的结果表，则需要强制更新数据链路
+            enable_field_black_list_option = ResultTableOption.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
+            ).first()
+            if enable_field_black_list_option and not enable_field_black_list_option.get_value():
+                force_update_datalink = True
 
         # 是否需要修改结果表是否启用
         if is_enable is not None:
@@ -1408,14 +1453,17 @@ class ResultTable(models.Model):
                     push_and_publish_space_router(space_type, space_id, table_id_list=[self.table_id])
                 else:
                     on_commit(
-                        lambda: push_and_publish_space_router.delay(space_type, space_id, table_id_list=[self.table_id])
+                        func=lambda: push_and_publish_space_router.delay(
+                            space_type, space_id, table_id_list=[self.table_id]
+                        ),
+                        using=config.DATABASE_CONNECTION_NAME,
                     )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("push and publish redis error, table_id: %s, %s", self.table_id, e)
 
         # 如果结果表启用，则刷新清洗配置
         if self.is_enable:
-            self.apply_datalink()
+            self.apply_datalink(force_update=force_update_datalink)
         else:
             try:
                 self.delete_datalink()
@@ -3167,7 +3215,7 @@ class ESFieldQueryAliasOption(BaseModel):
     field_path = models.CharField("原始字段路径", max_length=256)
     path_type = models.CharField("路径类型", max_length=128, default="keyword")
     query_alias = models.CharField("查询别名", max_length=256)
-    is_deleted = models.BooleanField("是否已删除", default=False)
+    is_deleted = models.BooleanField("是否已删除(已废弃)", default=False)
 
     @classmethod
     def generate_query_alias_settings(cls, table_id: str, bk_tenant_id: str):
@@ -3211,66 +3259,71 @@ class ESFieldQueryAliasOption(BaseModel):
 
     @staticmethod
     @transaction.atomic
-    def manage_query_alias_settings(table_id, query_alias_settings, operator, bk_tenant_id=DEFAULT_TENANT_ID):
+    def manage_query_alias_settings(
+        table_id: str,
+        query_alias_settings: list[dict[str, Any]],
+        operator: str,
+        bk_tenant_id: str,
+    ) -> None:
         """
-        管理ES字段关联别名配置记录（支持一个field_path对应多个alias）
-        :param table_id: 结果表ID
-        :param query_alias_settings: 用户传入的query_alias_settings列表
-        :param operator: 操作者
-        :param bk_tenant_id 租户ID
+        管理ES字段关联别名配置记录（支持一个field_path对应多个alias）。
+
+        说明：
+            - 同一 table_id 内，query_alias 必须唯一（与 ES alias 语义一致）。
+            - 采用硬删除清理多余记录，避免软删除残留导致唯一冲突。
+
+        Args:
+            table_id: 结果表ID。
+            query_alias_settings: 用户传入的 query_alias_settings 列表。
+            operator: 操作者。
+            bk_tenant_id: 租户ID。
+
+        Returns:
+            None
         """
         logger.info(
             "manage_query_alias_settings: try to manage alias settings for table_id->[%s],query_alias_settings->[%s]",
             table_id,
             query_alias_settings,
         )
-        # 获取当前数据库中的记录（包括软删除记录）
-        existing_records = ESFieldQueryAliasOption.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
-        existing_map = {(record.field_path, record.query_alias): record for record in existing_records}
-
         if not query_alias_settings:
             logger.info(
                 "manage_query_alias_settings: table_id->[%s] now has no query_alias_settings,will delete old records",
                 table_id,
             )
-            ESFieldQueryAliasOption.objects.filter(table_id=table_id).update(is_deleted=True)
+            ESFieldQueryAliasOption.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).delete()
             return
 
-        # 提取用户传入的数据组合，field_path+query_alias 为唯一组合
-        incoming_combinations = {(item["field_name"], item["query_alias"]) for item in query_alias_settings}
-
         try:
-            # 新增或更新记录
+            incoming_aliases = {item["query_alias"] for item in query_alias_settings}
+            # 删除不再需要的别名（硬删除）
+            ESFieldQueryAliasOption.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exclude(
+                query_alias__in=incoming_aliases
+            ).delete()
+
+            # 新增或更新记录（依赖唯一约束保证同别名唯一）
             for item in query_alias_settings:
-                field_path = item["field_name"]
                 query_alias = item["query_alias"]
+                field_path = item["field_name"]
                 path_type = item.get("path_type", "keyword")
-
-                if (field_path, query_alias) in existing_map:
-                    # 更新记录
-                    record = existing_map[(field_path, query_alias)]
-                    record.is_deleted = False  # 重置软删除标记
-                    record.path_type = path_type  # 更新 path_type
+                record, created = ESFieldQueryAliasOption.objects.get_or_create(
+                    table_id=table_id,
+                    bk_tenant_id=bk_tenant_id,
+                    query_alias=query_alias,
+                    defaults={
+                        "field_path": field_path,
+                        "path_type": path_type,
+                        "updater": operator,
+                        "creator": operator,
+                        "is_deleted": False,
+                    },
+                )
+                if not created:
+                    record.field_path = field_path
+                    record.path_type = path_type
                     record.updater = operator
-                    record.save()
-                else:
-                    # 新增记录
-                    ESFieldQueryAliasOption.objects.create(
-                        table_id=table_id,
-                        bk_tenant_id=bk_tenant_id,
-                        field_path=field_path,
-                        query_alias=query_alias,
-                        path_type=path_type,  # 设置 path_type
-                        creator=operator,
-                        is_deleted=False,
-                    )
-
-            # 标记未提供的记录为软删除
-            for (field_path, query_alias), record in existing_map.items():
-                if (field_path, query_alias) not in incoming_combinations and not record.is_deleted:
-                    record.is_deleted = True
-                    record.updater = operator
-                    record.save()
+                    record.is_deleted = False
+                    record.save(update_fields=["field_path", "path_type", "updater", "is_deleted", "update_time"])
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
                 "manage_query_alias_settings: failed to manage alias settings for table_id->[%s], "

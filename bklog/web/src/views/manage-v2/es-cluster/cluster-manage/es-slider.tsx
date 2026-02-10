@@ -29,7 +29,7 @@ import { defineComponent, ref, computed, watch } from 'vue';
 import { messageError } from '@/common/bkmagic';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import BkUserSelector from '@blueking/user-selector';
+import ValidateUserSelector from '@/components/user-selector';
 import { Message } from 'bk-magic-vue';
 
 import { useSidebarDiff } from '../../hooks/use-sidebar-diff';
@@ -44,7 +44,7 @@ export default defineComponent({
   name: 'EsSlider',
   components: {
     EsDialog,
-    BkUserSelector,
+    ValidateUserSelector,
   },
   props: {
     // 是否显示侧滑
@@ -78,7 +78,8 @@ export default defineComponent({
 
     // 连通性测试表单
     const formData = ref<any>({
-      cluster_name: '', // 集群名称
+      cluster_name: '', // 集群英文名称
+      display_name: '', // 集群名称
       source_type: '', // 来源
       source_name: '',
       domain_name: '', // 地址
@@ -116,7 +117,8 @@ export default defineComponent({
 
     // 基本信息表单
     const basicFormData = ref<any>({
-      cluster_name: '', // 集群名
+      cluster_name: '', // 集群英文名称
+      display_name: '', // 集群名称
       source_type: '', // 来源
       source_name: '',
       domain_name: '', // 地址
@@ -131,7 +133,15 @@ export default defineComponent({
     // 表单校验规则
     const basicRules = ref<any>({
       source_type: [{ required: true, trigger: 'blur' }],
-      cluster_name: [{ required: true, trigger: 'blur' }],
+      cluster_name: [
+        { required: true, trigger: 'blur' },
+        {
+          validator: (val: string) => /^[_A-Za-z0-9][_A-Za-z0-9-]{0,49}$/.test(val),
+          message: t('支持字母、数字、下划线、连字符，不能以连字符开头'),
+          trigger: 'blur',
+        },
+      ],
+      display_name: [{ required: true, trigger: 'blur' }],
       domain_name: [{ required: true, trigger: 'blur' }],
       port: [{ required: true, trigger: 'blur' }],
     });
@@ -166,7 +176,6 @@ export default defineComponent({
     const maxDaysList = ref([]); // 最大过期时间列表
     const customRetentionDay = ref(''); // 默认过期时间输入框
     const customMaxDay = ref(''); // 最大过期时间输入框
-    const isAdminError = ref(false); // 集群负责人是否为空
     const bizSelectID = ref(''); // 选中的当前按照业务属性选择
     const bizInputStr = ref(''); // 按照业务属性选择输入值
     const isFirstShow = ref(true); // 是否是第一次渲染
@@ -225,6 +234,7 @@ export default defineComponent({
         // 回填 basicFormData.value
         Object.assign(basicFormData.value, {
           cluster_name: res.data.cluster_config.cluster_name,
+          display_name: res.data.cluster_config.display_name,
           source_type: res.data.cluster_config.custom_option?.source_type || '',
           source_name:
             res.data.cluster_config.custom_option?.source_type === 'other'
@@ -239,35 +249,30 @@ export default defineComponent({
           },
         });
 
-        // 回填 formData.value
-        Object.assign(formData.value, {
-          enable_hot_warm: res.data.cluster_config.enable_hot_warm,
-          hot_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_name || '',
-          hot_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_value || '',
-          warm_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_name || '',
-          warm_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_value || '',
-          setup_config: res.data.cluster_config.custom_option?.setup_config || {},
-          admin: res.data.cluster_config.custom_option?.admin || [],
-          description: res.data.cluster_config.custom_option?.description || '',
-          enable_archive: res.data.cluster_config.custom_option?.enable_archive,
-          enable_assessment: res.data.cluster_config.custom_option?.enable_assessment,
-          visible_config: res.data.cluster_config.custom_option?.visible_config || {},
-          // 合并 basicFormData.value 的基础属性
-          cluster_name: basicFormData.value.cluster_name,
-          source_type: basicFormData.value.source_type,
-          source_name: basicFormData.value.source_name,
-          domain_name: basicFormData.value.domain_name,
-          port: basicFormData.value.port,
-          schema: basicFormData.value.schema,
-          auth_info: basicFormData.value.auth_info,
-        });
-
-        initSidebarFormData();
+        // 先回填业务属性标签，避免设置 visible_config 时 watch 触发清空数据
+        // 确保 bizParentList 已经有值，如果没有则等待
+        if (!bizParentList.value.length) {
+          await getBizPropertyId();
+        }
+        const visibleConfig = res.data.cluster_config.custom_option?.visible_config || {};
+        bkBizLabelsList.value = Object.entries(
+          visibleConfig.bk_biz_labels || {},
+        ).reduce((pre: any[], cur) => {
+          const propertyName = bizParentList.value.find(item => item.id === cur[0]);
+          const obj = {
+            name: propertyName?.name || cur[0], // 如果找不到名称，使用 ID 作为名称
+            id: cur[0],
+            values: (Array.isArray(cur[1]) ? cur[1] : []).map((item: string) => ({ id: item, name: item })),
+          };
+          pre.push(obj);
+          return pre;
+        }, []);
+        cacheBkBizLabelsList.value = JSON.parse(JSON.stringify(bkBizLabelsList.value));
 
         // 回填多业务选择
         visibleList.value = [];
         cacheVisibleList.value = [];
-        for (const val of res.data.cluster_config.custom_option.visible_config?.visible_bk_biz ?? []) {
+        for (const val of visibleConfig.visible_bk_biz ?? []) {
           const target = mySpaceList.value.find(project => project.bk_biz_id === String(val.bk_biz_id));
           if (target) {
             target.is_use = val.is_use;
@@ -281,20 +286,33 @@ export default defineComponent({
           }
         }
 
-        // 回填业务属性标签
-        bkBizLabelsList.value = Object.entries(
-          res.data.cluster_config.custom_option.visible_config?.bk_biz_labels || {},
-        ).reduce((pre: any[], cur) => {
-          const propertyName = bizParentList.value.find(item => item.id === cur[0]);
-          const obj = {
-            name: `${propertyName?.name}`,
-            id: cur[0],
-            values: (Array.isArray(cur[1]) ? cur[1] : []).map((item: string) => ({ id: item, name: item })),
-          };
-          pre.push(obj);
-          return pre;
-        }, []);
-        cacheBkBizLabelsList.value = JSON.parse(JSON.stringify(bkBizLabelsList.value));
+        // 回填 formData.value（最后设置 visible_config，避免 watch 触发时数据还未准备好）
+        Object.assign(formData.value, {
+          enable_hot_warm: res.data.cluster_config.enable_hot_warm,
+          hot_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_name || '',
+          hot_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_value || '',
+          warm_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_name || '',
+          warm_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_value || '',
+          setup_config: res.data.cluster_config.custom_option?.setup_config || {},
+          admin: res.data.cluster_config.custom_option?.admin || [],
+          description: res.data.cluster_config.custom_option?.description || '',
+          enable_archive: res.data.cluster_config.custom_option?.enable_archive,
+          enable_assessment: res.data.cluster_config.custom_option?.enable_assessment,
+          // 合并 basicFormData.value 的基础属性
+          cluster_name: basicFormData.value.cluster_name,
+          display_name: basicFormData.value.display_name,
+          source_type: basicFormData.value.source_type,
+          source_name: basicFormData.value.source_name,
+          domain_name: basicFormData.value.domain_name,
+          port: basicFormData.value.port,
+          schema: basicFormData.value.schema,
+          auth_info: basicFormData.value.auth_info,
+        });
+        
+        // 最后设置 visible_config，此时 bkBizLabelsList 和 cacheBkBizLabelsList 已经准备好
+        formData.value.visible_config = visibleConfig;
+
+        initSidebarFormData();
 
         // 若为编辑状态，则打开侧边栏后直接联通测试，通过则展开ES集群管理
         setTimeout(() => {
@@ -314,6 +332,7 @@ export default defineComponent({
         const postData: any = {
           bk_biz_id: bkBizId.value,
           cluster_name: basicFormData.value.cluster_name,
+          display_name: basicFormData.value.display_name,
           domain_name: basicFormData.value.domain_name,
           port: basicFormData.value.port,
           schema: basicFormData.value.schema,
@@ -601,16 +620,6 @@ export default defineComponent({
       }
     };
 
-    // 集群负责人为空时报错警告
-    const handleChangePrincipal = (val: any[]) => {
-      const realVal = val.filter(item => item !== undefined);
-      isAdminError.value = !realVal.length;
-      formData.value.admin = realVal;
-    };
-    const handleBlur = () => {
-      isAdminError.value = !formData.value.admin.length;
-    };
-
     // 获取业务属性（父/子）列表
     const getBizPropertyId = async () => {
       // 因搜索框如果直接搜索子级元素则返回值不带父级元素 传参需要父级元素则分开展示
@@ -684,8 +693,11 @@ export default defineComponent({
     // 监听：侧滑显示/隐藏
     watch(
       () => props.showSlider,
-      val => {
+      async val => {
         if (val) {
+          // 先获取业务属性列表，确保在编辑模式下回填数据时 bizParentList 已经有值
+          await getBizPropertyId();
+          
           if (isEdit.value) {
             isShowManagement.value = true;
             editDataSource();
@@ -694,10 +706,10 @@ export default defineComponent({
             initSidebarFormData();
           }
           updateDaysList();
-          getBizPropertyId();
         } else {
           Object.assign(formData.value, {
             cluster_name: '',
+            display_name: '',
             source_type: '',
             source_name: '',
             domain_name: '',
@@ -729,6 +741,7 @@ export default defineComponent({
           });
           Object.assign(basicFormData.value, {
             cluster_name: '',
+            display_name: '',
             source_type: '',
             source_name: '',
             domain_name: '',
@@ -837,16 +850,30 @@ export default defineComponent({
                   {/* 基础信息标题 */}
                   <div class='add-collection-title'>{t('基础信息')}</div>
 
-                  {/* 数据源名称 */}
+                  {/* 集群名称 */}
                   <bk-form-item
-                    label={t('数据源名称')}
-                    property='cluster_name'
+                    label={t('集群名称')}
+                    property='display_name'
                     required
                   >
                     <bk-input
                       data-test-id='esAccessFromBox_input_fillName'
                       maxlength={50}
+                      value={basicFormData.value.display_name}
+                      onChange={(val: string) => (basicFormData.value.display_name = val)}
+                    />
+                  </bk-form-item>
+
+                  {/* 集群英文名称 */}
+                  <bk-form-item
+                    label={t('集群英文名称')}
+                    property='cluster_name'
+                    required
+                  >
+                    <bk-input
+                      maxlength={50}
                       readonly={isEdit.value}
+                      placeholder={t('支持字母、数字、下划线、连字符')}
                       value={basicFormData.value.cluster_name}
                       onChange={(val: string) => (basicFormData.value.cluster_name = val)}
                     />
@@ -1053,7 +1080,7 @@ export default defineComponent({
                             remote-method={handleRemoteMethod}
                             show-condition={false}
                             show-popover-tag-change={false}
-                            value={bkBizLabelsList.value}
+                            values={bkBizLabelsList.value}
                             clearable
                             onChange={(val: any[]) => {
                               bkBizLabelsList.value = val;
@@ -1360,14 +1387,10 @@ export default defineComponent({
                         required
                       >
                         <div class='principal'>
-                          <BkUserSelector
-                            class={isAdminError.value && 'is-error'}
-                            api={userApi.value}
-                            empty-text={t('无匹配人员')}
+                          <ValidateUserSelector
                             placeholder={t('请选择集群负责人')}
                             value={formData.value.admin}
-                            onBlur={handleBlur}
-                            onChange={handleChangePrincipal}
+                            onChange={(val: string[]) => (formData.value.admin = val)}
                           />
                         </div>
                       </bk-form-item>

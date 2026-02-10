@@ -207,6 +207,10 @@ class ListBCSClusterInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.ListBCSClusterInfoResource)]
 
 
+class ListBCSClusterInfoByBizViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.ListBCSClusterInfoByBizResource)]
+
+
 class ApplyYamlToBCSClusterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ApplyYamlToBCSClusterResource)]
 
@@ -392,6 +396,10 @@ class QueryDataSourceViewSet(MetaViewSet):
 
 class QueryDataLinkInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataLinkInfoResource)]
+
+
+class QueryDataLinkMetadataViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.QueryDataLinkMetadataResource)]
 
 
 class SpaceDataLinkMetaReportViewSet(MetaViewSet):

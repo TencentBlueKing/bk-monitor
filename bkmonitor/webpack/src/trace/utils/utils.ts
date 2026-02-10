@@ -31,8 +31,8 @@ import { xssFilter } from 'monitor-common/utils/xss';
 import type { IExtendMetricData } from '../plugins/typings';
 
 export const specialEqual = (v: any, o: any) => {
-  if (v === o || v == o) return true;
-  if ([[], null, undefined, 0, {}].some(i => i == v) && [[], null, undefined, 0, {}].some(i => i == o)) return true;
+  if (v === o || v === o) return true;
+  if ([[], null, undefined, 0, {}].some(i => i === v) && [[], null, undefined, 0, {}].some(i => i === o)) return true;
   if (Array.isArray(v) && Array.isArray(o)) {
     return JSON.stringify(v.slice().sort()) === JSON.stringify(o.slice().sort());
   }
@@ -59,7 +59,7 @@ export const isShadowEqual = (v: Record<string, any>, o: Record<string, any>) =>
 export const MAX_PONIT_COUNT = 2880;
 export const MIN_PONIT_COUNT = 1440;
 export const INTERVAL_CONTANT_LIST = [10, 30, 60, 2 * 60, 5 * 60, 10 * 60, 30 * 60, 60 * 60];
-export const reviewInterval = (interval: 'auto' | number | string, timeRange: number, step: number) => {
+export const reviewInterval = (interval: 'auto' | number | string, _timeRange: number, step: number) => {
   let reviewInterval = interval;
   if (interval === 'auto') {
     reviewInterval = interval;
@@ -325,3 +325,23 @@ export function removeClass(el, cls) {
     el.className = trim(curClass);
   }
 }
+
+/**
+ * @description 将毫秒转换为秒
+ * @param ms 毫秒值
+ * @returns 秒值（向下取整）
+ */
+export const msToSeconds = (ms: number): number => dayjs(ms).unix();
+
+/**
+ * @description: 格式化时间显示
+ * @param {number} time 毫秒 | 秒
+ * @return {*}
+ */
+export const formatTime = (time: number) => {
+  let time2 = +time;
+  if (Number.isNaN(time2)) return time2;
+  time2 = `${time2}`.length === 10 ? time2 * 10 ** 3 : time2;
+  const timeRes = dayjs.tz(time2).format('YYYY-MM-DD HH:mm:ssZZ');
+  return timeRes;
+};
