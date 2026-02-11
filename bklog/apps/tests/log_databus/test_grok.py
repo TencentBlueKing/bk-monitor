@@ -130,12 +130,51 @@ class TestGrokHandler(TestCase):
 
     def test_debug(self):
         """测试调试方法"""
+        # 1: 引用不存在的模式，应抛出异常
         params = {
             "pattern": "%{NONEXISTENT_PATTERN:field}",
             "sample": "test",
         }
         with self.assertRaises(GrokPatternNotFoundException):
             self.handler.debug(params)
+
+        # 2: 使用内置模式成功匹配
+        params = {
+            "pattern": "%{IP:ip_address}",
+            "sample": "127.0.0.1",
+        }
+        result = self.handler.debug(params)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.get("ip_address"), "127.0.0.1")
+
+        # 3: 嵌套自定义模式的匹配
+        GrokInfo.objects.create(
+            bk_biz_id=BK_BIZ_ID,
+            name="INNER_NUM",
+            pattern=r"\d{3}",
+            is_builtin=False,
+        )
+        GrokInfo.objects.create(
+            bk_biz_id=BK_BIZ_ID,
+            name="OUTER_CODE",
+            pattern=r"CODE-%{INNER_NUM}",
+            is_builtin=False,
+        )
+        params = {
+            "pattern": "%{OUTER_CODE:code}",
+            "sample": "CODE-123",
+        }
+        result = self.handler.debug(params)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.get("code"), "CODE-123")
+
+        # 4: 不匹配，返回 None
+        params = {
+            "pattern": "%{IP:ip_address}",
+            "sample": "not_an_ip_address",
+        }
+        result = self.handler.debug(params)
+        self.assertIsNone(result)
 
     def test_replace_custom_patterns(self):
         """测试替换自定义模式"""
