@@ -30,7 +30,9 @@ from django.conf import settings
 from pydantic import BaseModel
 from pydantic.fields import Field
 
+from apm.models import ApmApplication, LogDataSource, MetricDataSource, ProfileDataSource, TraceDataSource
 from bkm_space.api import Space, SpaceApi
+from bkmonitor.utils.tenant import get_tenant_default_biz_id
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata.models import BCSClusterInfo, DataSource, DataSourceResultTable, ResultTable
@@ -51,7 +53,6 @@ from metadata.models.space.constants import (
     SYSTEM_BASE_DATA_ETL_CONFIGS,
 )
 from metadata.utils.redis_tools import RedisTools
-from apm.models import ApmApplication, TraceDataSource, MetricDataSource, LogDataSource, ProfileDataSource
 from monitor_web.models.custom_report import CustomEventGroup
 
 
@@ -573,6 +574,10 @@ def get_datalink_status_by_scene(
     """
     result: list[DataLinkStatus] = []
 
+    host_scene_biz_id = bk_biz_id
+    if scene == DataScene.HOST and settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
+        host_scene_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+
     # 校验场景
     if isinstance(scene, str):
         try:
@@ -598,9 +603,9 @@ def get_datalink_status_by_scene(
         )
     elif scene == DataScene.HOST:
         data_names = [
-            f"{bk_tenant_id}_{bk_biz_id}_sys_base",
-            f"base_{bk_biz_id}_system_proc_port",
-            f"base_{bk_biz_id}_system_proc_perf",
+            f"{bk_tenant_id}_{host_scene_biz_id}_sys_base",
+            f"base_{host_scene_biz_id}_system_proc_port",
+            f"base_{host_scene_biz_id}_system_proc_perf",
         ]
         result = get_datalink_status(
             bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, data_names=data_names, with_detail=with_detail
@@ -758,7 +763,10 @@ def check_datalink_health(
     if scene == DataScene.UPTIMECHECK:
         messages.append("服务拨测监控的数据链路是按业务创建，包括 TCP、UDP、HTTP、ICMP 四种类型")
     elif scene == DataScene.HOST:
-        messages.append("主机监控的数据链路是按业务创建，包括系统基础指标、进程端口和进程性能指标")
+        if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
+            messages.append("主机监控的数据链路是按租户创建，包括系统基础指标、进程端口和进程性能指标")
+        else:
+            messages.append("主机监控的数据链路是按业务创建，包括系统基础指标、进程端口和进程性能指标")
     elif scene == DataScene.K8S:
         messages.append(f"Kubernetes 监控的数据链路是按集群创建（集群ID: {bcs_cluster_id}），包括 K8s 指标和自定义指标")
     elif scene == DataScene.APM:
