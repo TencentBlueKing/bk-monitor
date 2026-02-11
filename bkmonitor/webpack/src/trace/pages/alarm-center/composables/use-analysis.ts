@@ -56,7 +56,9 @@ export function useAlarmAnalysis() {
   const analysisFieldsMap = computed(() => alarmStore.alarmService.analysisFieldsMap);
   const storageAnalysisKey = computed(() => alarmStore.alarmService.storageAnalysisKey);
   // 告警、故障、处理记录 展示的告警分析设置项
-  const analysisSettings = useStorage<string[]>(storageAnalysisKey, [...alarmStore.alarmService.analysisFields]);
+  const analysisSettings = useStorage<string[]>(storageAnalysisKey, [
+    ...alarmStore.alarmService.analysisDefaultSettingsFields,
+  ]);
 
   const effectFunc = () => {
     analysisFieldTopNLoading.value = true;

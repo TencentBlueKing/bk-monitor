@@ -454,7 +454,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
               <bk-option
                 id={option.id}
                 key={option.id}
-                name={option.name}
+                name={`${option.name}(${option.plugin_name})`}
               />
             ))}
             <div

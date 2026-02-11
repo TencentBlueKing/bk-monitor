@@ -328,7 +328,11 @@ export function tryURLDecodeParse<T>(str: string, defaultValue: T) {
       result = defaultValue;
     }
   }
-  return result || defaultValue;
+
+  if (result && Object.prototype.toString.call(result) === Object.prototype.toString.call(defaultValue)) {
+    return result;
+  }
+  return defaultValue;
 }
 
 export * from './colorHelpers';

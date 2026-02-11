@@ -387,6 +387,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
                   data_type_label,
                   data_source_label,
                   result_table_id,
+                  table,
                   where,
                   query_string: queryString,
                   group_by: groupBy,
@@ -398,7 +399,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
         ] = targetsList;
         this.dataTypeLabel = data_type_label || 'event';
         this.dataSourceLabel = data_source_label || 'custom';
-        this.dataId = result_table_id;
+        this.dataId = result_table_id || table;
         this.where = whereFormatter(where || []);
         this.queryString = queryString || '';
         this.group_by = groupBy || [];

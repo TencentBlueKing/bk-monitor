@@ -44,6 +44,7 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { fitPosition } from 'monitor-ui/chart-plugins/utils';
 import { useI18n } from 'vue-i18n';
 
+import { msToSeconds } from '../../../../../../utils';
 import { useChartOperation } from '../../../../../trace-explore/components/explore-chart/use-chart-operation';
 import { type AlarmDetail, type AlertScatterClickEvent, AlertLevelEnum } from '../../../../typings';
 import AlarmChartEventDetail from './alarm-chart-event-detail';
@@ -148,17 +149,23 @@ export default defineComponent({
     const isEventOrLogAlarm = computed(() => ['event', 'log'].includes(props.detail?.data_type));
     /** 图表面板配置 */
     const monitorChartPanel = computed(() => {
-      const { graph_panel } = props.detail ?? {};
-      if (!graph_panel) return null;
-      const [{ data: queryConfig }] = graph_panel.targets;
+      // 安全检查：确保 graph_panel 和 targets 存在且有数据
+      const graphPanel = props.detail?.graph_panel;
+      const firstTarget = graphPanel?.targets?.[0];
+      if (!firstTarget?.data) return null;
+      // 浅拷贝 queryConfig，避免修改原始 props 数据
+      const queryConfig = { ...(firstTarget.data as Record<string, any>) };
       // 异常检测场景需要禁用采样
-      if (queryConfig.extendMetricFields?.some(item => item.includes('is_anomaly'))) {
+      if (queryConfig.extendMetricFields?.some((item: string) => item.includes('is_anomaly'))) {
         queryConfig.function = { ...queryConfig.function, max_point_number: 0 };
       }
+      const [startTime, endTime] = timeRange.value;
+      // // 暂定 12个 气泡
+      const eventScatterInterval = Math.ceil((msToSeconds(endTime) - msToSeconds(startTime)) / 12);
 
       return new PanelModel({
-        title: graph_panel.title || '',
-        subTitle: graph_panel.subTitle || '',
+        title: graphPanel.title || '',
+        subTitle: graphPanel.subTitle || '',
         gridPos: { x: 16, y: 16, w: 8, h: 4 },
         id: 'alarm-trend-chart',
         type: 'graph',
@@ -183,7 +190,7 @@ export default defineComponent({
             data: {
               bk_biz_id: props.detail.bk_biz_id,
               alert_id: props.detail.id,
-              interval: queryConfig?.query_configs?.[0]?.interval,
+              interval: eventScatterInterval,
             },
           },
         ],

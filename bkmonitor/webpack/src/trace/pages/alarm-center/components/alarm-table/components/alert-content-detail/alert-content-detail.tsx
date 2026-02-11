@@ -188,7 +188,9 @@ export default defineComponent({
         {this.alertContentDetail?.origin_sql ? (
           <PromqlEditor
             class='alert-content-promql-view'
+            options={{ fontSize: 12 }}
             readonly={true}
+            resizable={false}
             value={this.alertContentDetail?.origin_sql}
           />
         ) : (

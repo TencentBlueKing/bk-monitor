@@ -367,6 +367,9 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
   get allTableColumns(): TableColumnItem[] {
     return [...ACTION_TABLE_COLUMNS];
   }
+  get analysisDefaultSettingsFields(): string[] {
+    return ['action_name', 'action_plugin_type', 'operator', 'duration'];
+  }
   get analysisFields(): string[] {
     return ['action_name', 'action_plugin_type', 'operator', 'duration', 'strategy_name', 'operate_target_string'];
   }
