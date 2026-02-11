@@ -5,6 +5,7 @@ from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.exceptions import CustomException
 from metadata.models import (
     ESStorage,
+    EsSnapshotRepository,
     EsSnapshot,
     EsSnapshotIndice,
     Event,
@@ -143,41 +144,77 @@ class TestTimeSeriesGroupResource:
 class TestEsSnapshotResources:
     tenant = DEFAULT_TENANT_ID
 
+    @pytest.fixture(autouse=True)
+    def es_storage_records(self):
+        table_ids = [
+            "2_system.table_a",
+            "2_system.table_b",
+            "2_system.table_c",
+            "table_x",
+        ]
+        EsSnapshotRepository.objects.update_or_create(
+            repository_name="repo_a",
+            cluster_id=1,
+            bk_tenant_id=self.tenant,
+            defaults={"creator": "tester"},
+        )
+        EsSnapshotRepository.objects.update_or_create(
+            repository_name="repo_b",
+            cluster_id=1,
+            bk_tenant_id=self.tenant,
+            defaults={"creator": "tester"},
+        )
+        EsSnapshotRepository.objects.update_or_create(
+            repository_name="repo_c",
+            cluster_id=1,
+            bk_tenant_id=self.tenant,
+            defaults={"creator": "tester"},
+        )
+        EsSnapshotRepository.objects.update_or_create(
+            repository_name="repo_shared",
+            cluster_id=1,
+            bk_tenant_id=self.tenant,
+            defaults={"creator": "tester"},
+        )
+        for table_id in table_ids:
+            ESStorage.objects.update_or_create(
+                table_id=table_id,
+                bk_tenant_id=self.tenant,
+                defaults={"storage_cluster_id": 1},
+            )
+        yield
+        ESStorage.objects.filter(table_id__in=table_ids, bk_tenant_id=self.tenant).delete()
+        EsSnapshotRepository.objects.filter(
+            repository_name__in=["repo_a", "repo_b", "repo_c", "repo_shared"],
+            bk_tenant_id=self.tenant,
+        ).delete()
+
     @pytest.fixture
     def snapshot_records(self):
         tenant = DEFAULT_TENANT_ID
         base_time = timezone.now()
-        snapshots = [
-            EsSnapshot.objects.create(
-                table_id="2_system.table_a",
-                target_snapshot_repository_name="repo_a",
-                snapshot_days=7,
-                creator="tester",
-                last_modify_user="tester",
-                status=EsSnapshot.ES_RUNNING_STATUS,
-                bk_tenant_id=tenant,
-            ),
-            EsSnapshot.objects.create(
-                table_id="2_system.table_a",
-                target_snapshot_repository_name="repo_b",
-                snapshot_days=7,
-                creator="tester",
-                last_modify_user="tester",
-                status=EsSnapshot.ES_STOPPED_STATUS,
-                bk_tenant_id=tenant,
-            ),
-            EsSnapshot.objects.create(
-                table_id="2_system.table_b",
-                target_snapshot_repository_name="repo_a",
-                snapshot_days=30,
-                creator="tester",
-                last_modify_user="tester",
-                status=EsSnapshot.ES_RUNNING_STATUS,
-                bk_tenant_id=tenant,
-            ),
+
+        snapshot_data = [
+            {"table_id": "2_system.table_a", "repo": "repo_a", "status": EsSnapshot.ES_RUNNING_STATUS, "days": 7},
+            {"table_id": "2_system.table_a", "repo": "repo_b", "status": EsSnapshot.ES_STOPPED_STATUS, "days": 7},
+            {"table_id": "2_system.table_b", "repo": "repo_shared", "status": EsSnapshot.ES_RUNNING_STATUS, "days": 30},
+            {"table_id": "2_system.table_c", "repo": "repo_shared", "status": EsSnapshot.ES_STOPPED_STATUS, "days": 14},
+            {"table_id": "2_system.table_c", "repo": "repo_c", "status": EsSnapshot.ES_RUNNING_STATUS, "days": 14},
         ]
 
-        for idx, snapshot in enumerate(snapshots, start=1):
+        snapshots = []
+        for idx, item in enumerate(snapshot_data, start=1):
+            snapshot = EsSnapshot.objects.create(
+                table_id=item["table_id"],
+                target_snapshot_repository_name=item["repo"],
+                snapshot_days=item["days"],
+                creator="tester",
+                last_modify_user="tester",
+                status=item["status"],
+                bk_tenant_id=tenant,
+            )
+            snapshots.append(snapshot)
+
             EsSnapshotIndice.objects.create(
                 table_id=snapshot.table_id,
                 bk_tenant_id=tenant,
@@ -197,6 +234,7 @@ class TestEsSnapshotResources:
         EsSnapshot.objects.all().delete()
 
     def test_create_snapshot_default_status(self, mocker):
+        """Ensure create API falls back to running status when client omits it."""
         snapshot_mock = mocker.Mock()
         snapshot_mock.to_json.return_value = {"table_id": "table_x"}
         create_patch = mocker.patch(
@@ -219,6 +257,7 @@ class TestEsSnapshotResources:
         assert kwargs["status"] == EsSnapshot.ES_RUNNING_STATUS
 
     def test_create_snapshot_invalid_status(self):
+        """Reject creation when client passes an unsupported snapshot status value."""
         payload = {
             "bk_tenant_id": self.tenant,
             "table_id": "table_x",
@@ -231,6 +270,7 @@ class TestEsSnapshotResources:
             CreateResultTableSnapshotResource().request(payload)
 
     def test_bulk_create_snapshot_conflict(self, mocker):
+        """Surface backend ValueError when bulk create hits duplicate/running conflicts."""
         mocker.patch(
             "metadata.resources.resources.models.EsSnapshot.bulk_create_snapshot",
             side_effect=ValueError("conflict"),
@@ -247,6 +287,7 @@ class TestEsSnapshotResources:
             BulkCreateResultTableSnapshotResource().request(payload)
 
     def test_bulk_modify_snapshot_invalid_status(self):
+        """Validate serializer choice enforcement for bulk modify status field."""
         payload = {
             "bk_tenant_id": self.tenant,
             "table_ids": ["table_a"],
@@ -257,8 +298,72 @@ class TestEsSnapshotResources:
         with pytest.raises(CustomException):
             BulkModifyResultTableSnapshotResource().request(payload)
 
+    def test_create_snapshot_running_conflict(self, snapshot_records):
+        """Creating another config in same repo/table should raise duplicate repo error."""
+        table_id = "2_system.table_a"
+        with pytest.raises(ValueError, match="目标es集群快照仓库结果表快照已存在"):
+            CreateResultTableSnapshotResource().request(
+                {
+                    "bk_tenant_id": self.tenant,
+                    "table_id": table_id,
+                    "target_snapshot_repository_name": "repo_a",
+                    "snapshot_days": 5,
+                    "operator": "tester",
+                }
+            )
+
+    def test_modify_snapshot_running_conflict(self, snapshot_records):
+        """Switching a stopped repo to running while another repo runs should fail."""
+        with pytest.raises(ValueError, match="已存在启用中结果表快照"):
+            EsSnapshot.modify_snapshot(
+                table_id="2_system.table_a",
+                snapshot_days=10,
+                operator="tester",
+                status=EsSnapshot.ES_RUNNING_STATUS,
+                target_snapshot_repository_name="repo_b",
+                bk_tenant_id=self.tenant,
+            )
+
+    def test_bulk_modify_snapshot_conflict_rollback(self, snapshot_records):
+        """Bulk modify keeps data unchanged when running-conflict aborts the transaction."""
+        target_table_ids = ["2_system.table_b", "2_system.table_c"]
+        original_days = {
+            (obj.table_id, obj.target_snapshot_repository_name): obj.snapshot_days
+            for obj in EsSnapshot.objects.filter(
+                table_id__in=target_table_ids,
+                target_snapshot_repository_name="repo_shared",
+            )
+        }
+        with pytest.raises(ValueError, match="已存在启用中结果表快照"):
+            BulkModifyResultTableSnapshotResource().request(
+                {
+                    "bk_tenant_id": self.tenant,
+                    "table_ids": target_table_ids,
+                    "snapshot_days": 90,
+                    "operator": "tester",
+                    "status": EsSnapshot.ES_RUNNING_STATUS,
+                    "target_snapshot_repository_name": "repo_shared",
+                }
+            )
+        for snapshot in EsSnapshot.objects.filter(
+            table_id__in=target_table_ids,
+            target_snapshot_repository_name="repo_shared",
+        ):
+            assert snapshot.snapshot_days == original_days[
+                (snapshot.table_id, snapshot.target_snapshot_repository_name)
+            ]
+
+    def test_validated_snapshot_requires_repository(self, snapshot_records):
+        """validated_snapshot must force repository_name when multiple configs exist."""
+        with pytest.raises(ValueError, match="快照仓库名称不能为空"):
+            EsSnapshot.validated_snapshot(
+                table_id="2_system.table_a",
+                bk_tenant_id=self.tenant,
+            )
+
     @pytest.mark.django_db(databases="__all__")
     def test_list_snapshot_repository_filter(self, snapshot_records):
+        """List API should filter/aggregate stats across table_id + repository combinations."""
         resource = ListResultTableSnapshotResource()
 
         table_ids = ["2_system.table_a", "2_system.table_b"]
@@ -273,7 +378,7 @@ class TestEsSnapshotResources:
         }
         assert doc_counts[("2_system.table_a", "repo_a")] == 10
         assert doc_counts[("2_system.table_a", "repo_b")] == 20
-        assert doc_counts[("2_system.table_b", "repo_a")] == 30
+        assert doc_counts[("2_system.table_b", "repo_shared")] == 30
 
         repo_filtered = resource.request(
             {

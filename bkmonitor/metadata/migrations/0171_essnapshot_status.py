@@ -42,6 +42,18 @@ class Migration(migrations.Migration):
                 )
             ],
             # state_operations kept empty to avoid re-adding the status field
-            state_operations=[],
+            state_operations=[
+                migrations.AddField(
+                    model_name='essnapshot',
+                    name='status',
+                    field=models.CharField(
+                        max_length=16,
+                        blank=True,
+                        null=True,
+                        default='running',
+                        verbose_name='快照状态',
+                    ),
+                )
+            ],
         )
     ]
