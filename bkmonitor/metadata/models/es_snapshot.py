@@ -333,7 +333,10 @@ class EsSnapshot(models.Model):
         # 1. 锁定相关记录
         cls._lock_snapshot_scope(unique_table_ids, bk_tenant_id)
         # 2. 获取要更新的对象
-        objs = cls.validated_multi_snapshots(unique_table_ids, bk_tenant_id, target_snapshot_repository_name)        
+        objs = cls.validated_multi_snapshots(unique_table_ids, bk_tenant_id, target_snapshot_repository_name)    
+        if not objs:
+            return
+        
         # 3. 检查 running 状态冲突
         if status == cls.ES_RUNNING_STATUS:
             # 注意：这里查询的也是被锁定的范围
