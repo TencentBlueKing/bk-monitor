@@ -180,13 +180,10 @@ export default {
   模板说明: 'Template Description',
   消费场景: 'Consumption Scenario',
 
-
-
   被调服务: 'Called server',
   被调service: 'Called service',
   被调接口: 'Called interface',
   返回码: 'Return code',
-
 
   // APM-应用-告警
   告警模板: 'Alarm Template',
@@ -195,4 +192,8 @@ export default {
   关联服务: 'Associated Service',
   '启用 / 禁用': 'Enable / Disable',
   自动下发: 'Auto Deploy',
+
+  // 告警中心-告警详情-调用链
+  '根 Span 接口': 'Root Span Interface',
+  入口服务接口: 'Entry Service Interface',
 };

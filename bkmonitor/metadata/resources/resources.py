@@ -59,7 +59,10 @@ from metadata.models.constants import (
     STRICT_NANO_ES_FORMAT,
     DataIdCreatedFromSystem,
 )
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG
+from metadata.models.data_link.data_link_configs import DataIdConfig
 from metadata.models.data_link.utils import (
+    compose_bkdata_data_id_name,
     get_bkbase_raw_data_name_for_v3_datalink,
     get_data_source_related_info,
 )
@@ -2231,7 +2234,30 @@ class KafkaTailResource(Resource):
         # 是否是V4数据链路
         elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
             # 若开启特性开关且存在RT且非日志数据，则V4链路使用BkBase侧的Kafka采样接口拉取数据
-            if result_table and datasource.etl_config != "bk_flat_batch":
+            if result_table and datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
+                data_id_config_name = compose_bkdata_data_id_name(datasource.data_name)
+                try:
+                    data_id_config = DataIdConfig.objects.get(
+                        bk_tenant_id=bk_tenant_id,
+                        namespace=BKBASE_NAMESPACE_BK_LOG,
+                        name=data_id_config_name,
+                    )
+                except DataIdConfig.DoesNotExist:
+                    logger.warning(
+                        "KafkaTailResource: DataIdConfig not found, bk_tenant_id->[%s], namespace->[%s], name->[%s]",
+                        bk_tenant_id,
+                        BKBASE_NAMESPACE_BK_LOG,
+                        data_id_config_name,
+                    )
+                    return []
+                res = api.bkdata.tail_kafka_data(
+                    bk_tenant_id=bk_tenant_id,
+                    namespace=BKBASE_NAMESPACE_BK_LOG,
+                    name=data_id_config.name,
+                    limit=size,
+                )
+                result = [json.loads(data) for data in res]
+            elif result_table and datasource.etl_config != "bk_flat_batch":
                 logger.info("KafkaTailResource: using bkdata kafka tail api,bk_data_id->[%s]", datasource.bk_data_id)
                 # TODO: 获取计算平台数据名称,待数据一致性实现后,统一通过BkBaseResultTable获取,不再进行复杂转换
                 vm_record = models.AccessVMRecord.objects.get(

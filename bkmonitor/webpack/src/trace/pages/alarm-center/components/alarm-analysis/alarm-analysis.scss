@@ -1,0 +1,112 @@
+.alarm-analysis-comp {
+  .settings {
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+
+    .icon-shezhi1 {
+      margin: 0 3px 0 9px;
+    }
+  }
+
+  .collapse-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 8px;
+    padding: 0 16px 12px;
+
+    .panel-item {
+      height: 208px;
+      padding: 6px 8px 12px 12px;
+      cursor: pointer;
+      background: #f5f7fa;
+      border-radius: 4px;
+
+      .panel-item-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 20px;
+
+        .header-left {
+          display: flex;
+          align-items: center;
+
+          .icon-mc-copy {
+            display: none;
+            font-size: 14px;
+            color: #3a84ff;
+            cursor: pointer;
+          }
+
+          .title {
+            font-size: 12px;
+            color: #000;
+          }
+
+          .count {
+            display: block;
+            height: 16px;
+            padding: 0 4.5px;
+            margin: 0 6.5px 0 4px;
+            color: #8e9bb3;
+            font-weight: 700;
+            line-height: 16px;
+            background: #e6eaf2;
+            border-radius: 2px;
+          }
+        }
+
+        .header-right {
+          display: none;
+          font-size: 12px;
+          color: #3a84ff;
+          cursor: pointer;
+        }
+      }
+
+      .panel-item-content {
+        height: 170px;
+
+        .empty-status-container {
+          overflow: hidden;
+        }
+      }
+
+      &:hover {
+        .panel-item-header {
+          .header-left .icon-mc-copy {
+            display: block;
+          }
+
+          .header-right {
+            display: block;
+          }
+        }
+      }
+    }
+  }
+
+  .skeleton-wrap {
+    display: flex;
+    flex-wrap: wrap;
+
+    .skeleton-panel-item {
+      flex: 0 0 20%;
+      height: 208px;
+      padding: 6px 8px 4px 12px;
+
+      .skeleton-element {
+        height: 26px;
+        margin-bottom: 8px;
+
+        &.title {
+          width: 80px;
+        }
+      }
+    }
+  }
+}

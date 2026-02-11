@@ -8,221 +8,70 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import time
-from datetime import datetime, timedelta
-
-import pytz
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
-from apm.constants import DEFAULT_ENDPOINT_EXPIRE
+from apm.constants import ApmCacheType
 from apm.core.discover.base import (
     DiscoverBase,
     exists_field,
     extract_field_value,
     get_topo_instance_key,
 )
-from apm.core.handlers.apm_cache_handler import ApmCacheHandler
+from apm.core.discover.cached_mixin import CachedDiscoverMixin
+from apm.core.discover.instance_data import EndpointInstanceData
 from apm.models import ApmTopoDiscoverRule, Endpoint, TraceDataSource
 from constants.apm import OtlpKey
 
 
-class EndpointDiscover(DiscoverBase):
+class EndpointDiscover(CachedDiscoverMixin, DiscoverBase):
     MAX_COUNT = 100000
+    ENDPOINT_ID_SPLIT = ":"
     model = Endpoint
 
-    @staticmethod
-    def _build_endpoint_dict(endpoint_obj, include_updated_at=False):
-        """构建端点字典的辅助方法"""
-
-        def get_attr(obj, attr_name):
-            """统一的属性获取方法"""
-            if hasattr(obj, attr_name):
-                return getattr(obj, attr_name)
-            return obj.get(attr_name) if isinstance(obj, dict) else None
-
-        base_dict = {
-            "id": get_attr(endpoint_obj, "id"),
-            "service_name": get_attr(endpoint_obj, "service_name"),
-            "endpoint_name": get_attr(endpoint_obj, "endpoint_name"),
-            "category_id": get_attr(endpoint_obj, "category_id"),
-            "category_kind_key": get_attr(endpoint_obj, "category_kind_key"),
-            "category_kind_value": get_attr(endpoint_obj, "category_kind_value"),
-            "span_kind": get_attr(endpoint_obj, "span_kind"),
-        }
-
-        if include_updated_at:
-            base_dict["updated_at"] = get_attr(endpoint_obj, "updated_at")
-
-        return base_dict
-
-    def list_exists(self):
-        endpoints = Endpoint.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        exists_mapping = {}
-        for e in endpoints:
-            exists_mapping.setdefault(
-                (
-                    e.endpoint_name,
-                    e.service_name,
-                    e.category_id,
-                    e.category_kind_key,
-                    e.category_kind_value,
-                    e.span_kind,
-                ),
-                [],
-            ).append(self._build_endpoint_dict(e, include_updated_at=True))
-
-        # 处理重复数据并构建最终结果
-        res = {}
-        need_delete_ids = []
-        instance_data = []
-
-        for key, records in exists_mapping.items():
-            records.sort(key=lambda x: x["id"])
-            keep_record = records[0]
-            # 收集需要删除的ID
-            if len(records) > 1:
-                need_delete_ids.extend([r["id"] for r in records[1:]])
-
-            # 保留的记录 - 使用辅助方法构建字典
-            res[key] = self._build_endpoint_dict(keep_record)
-            instance_data.append(self._build_endpoint_dict(keep_record, include_updated_at=True))
-
-        # 执行数据库删除操作
-        if need_delete_ids:
-            self.model.objects.filter(id__in=need_delete_ids).delete()
-
-        return res, instance_data
+    @classmethod
+    def _get_cache_type(cls) -> str:
+        """获取缓存类型"""
+        return ApmCacheType.ENDPOINT
 
     @classmethod
-    def to_instance_key(
-        cls, endpoint_name, service_name, category_id, category_kind_key, category_kind_value, span_kind
-    ):
-        """修改为基于六元组的key生成"""
-        return f"{span_kind}:{category_kind_value}:{category_kind_key}:{category_id}:{service_name}:{endpoint_name}"
+    def to_cache_key(cls, instance: EndpointInstanceData) -> str:
+        """从实例数据对象生成实例key"""
+        return cls.ENDPOINT_ID_SPLIT.join(map(str, reversed(cls._to_found_key(instance))))
 
     @classmethod
-    def _extract_instance_key_params(cls, inst):
-        """提取实例key参数的辅助方法"""
-        return (
-            inst.get("endpoint_name"),
-            inst.get("service_name"),
-            inst.get("category_id"),
-            inst.get("category_kind_key"),
-            inst.get("category_kind_value"),
-            inst.get("span_kind"),
+    def build_instance_data(cls, endpoint_obj) -> EndpointInstanceData:
+        return EndpointInstanceData(
+            id=DiscoverBase.get_attr_value(endpoint_obj, "id"),
+            service_name=DiscoverBase.get_attr_value(endpoint_obj, "service_name"),
+            endpoint_name=DiscoverBase.get_attr_value(endpoint_obj, "endpoint_name"),
+            category_id=DiscoverBase.get_attr_value(endpoint_obj, "category_id"),
+            category_kind_key=DiscoverBase.get_attr_value(endpoint_obj, "category_kind_key"),
+            category_kind_value=DiscoverBase.get_attr_value(endpoint_obj, "category_kind_value"),
+            span_kind=DiscoverBase.get_attr_value(endpoint_obj, "span_kind"),
+            updated_at=DiscoverBase.get_attr_value(endpoint_obj, "updated_at"),
         )
 
     @classmethod
-    def to_id_and_key(cls, instances: list):
-        """修改为基于六元组生成keys"""
-        ids, keys = set(), set()
-        for inst in instances:
-            inst_id = str(inst.get("id"))
-            inst_key = cls.to_instance_key(*cls._extract_instance_key_params(inst))
-            keys.add(inst_key)
-            ids.add(inst_id)
-
-        return ids, keys
-
-    @classmethod
-    def merge_data(cls, endpoint_data: list[dict], cache_data: dict):
-        merge_data = []
-        for obj in endpoint_data:
-            key = cls.to_instance_key(*cls._extract_instance_key_params(obj))
-            if key in cache_data:
-                obj["updated_at"] = datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
-            merge_data.append(obj)
-
-        return merge_data
-
-    def instance_clear_if_overflow(self, instances: list):
-        overflow_delete_data = []
-        count = len(instances)
-        if count > self.MAX_COUNT:
-            delete_count = count - self.MAX_COUNT
-            instances.sort(key=lambda x: x["updated_at"])
-            overflow_delete_data = instances[:delete_count]
-            remain_instance_data = instances[delete_count:]
-        else:
-            remain_instance_data = instances
-        return overflow_delete_data, remain_instance_data
-
-    def instance_clear_expired(self, instances: list):
-        """
-        清除过期数据
-        :param instances: 实例数据
-        :return:
-        """
-        # mysql 中的 updated_at 时间字段, 它的时区是 UTC, 跟数据库保持一致
-        boundary = datetime.now(tz=pytz.UTC) - timedelta(days=self.application.trace_datasource.retention)
-        # 按照时间进行过滤
-        expired_delete_data = []
-        remain_instance_data = []
-        for instance in instances:
-            if instance.get("updated_at") <= boundary:
-                expired_delete_data.append(instance)
-            else:
-                remain_instance_data.append(instance)
-        return expired_delete_data, remain_instance_data
-
-    def query_cache_data(self):
-        cache_name = ApmCacheHandler.get_endpoint_cache_key(self.bk_biz_id, self.app_name)
-        return ApmCacheHandler().get_cache_data(cache_name)
-
-    def clear_data(self, cache_data, instance_data) -> set:
-        """
-        数据清除
-        :param cache_data: 缓存数据
-        :param instance_data: mysql 数据
-        :return:
-        """
-        merge_data = self.merge_data(instance_data, cache_data)
-        # 过期数据
-        expired_delete_data, remain_instance_data = self.instance_clear_expired(merge_data)
-        # 超量数据
-        overflow_delete_data, remain_instance_data = self.instance_clear_if_overflow(remain_instance_data)
-        delete_data = expired_delete_data + overflow_delete_data
-
-        delete_ids, delete_keys = self.to_id_and_key(delete_data)
-        if delete_ids:
-            self.model.objects.filter(pk__in=delete_ids).delete()
-
-        return delete_keys
-
-    def refresh_cache_data(
-        self, old_cache_data: dict, create_instance_keys: set, update_instance_keys: set, delete_instance_keys: set
-    ):
-        now = int(time.time())
-
-        cache_data = {key: val for key, val in old_cache_data.items() if key not in delete_instance_keys}
-        cache_data.update({key: now for key in create_instance_keys | update_instance_keys})
-        name = ApmCacheHandler.get_endpoint_cache_key(self.bk_biz_id, self.app_name)
-        ApmCacheHandler().refresh_data(name, cache_data, DEFAULT_ENDPOINT_EXPIRE)
+    def _to_found_key(cls, instance_data: EndpointInstanceData) -> tuple:
+        """从实例数据对象生成业务唯一标识（不包含数据库ID）用于在 discover 过程中匹配已存在的实例"""
+        return (
+            instance_data.endpoint_name,
+            instance_data.service_name,
+            instance_data.category_id,
+            instance_data.category_kind_key,
+            instance_data.category_kind_value,
+            instance_data.span_kind,
+        )
 
     def get_remain_data(self):
-        return self.list_exists()
+        instances = self.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        return self.process_duplicate_records(instances, True)
 
-    def discover_with_remain_data(self, origin_data, remain_data):
+    def discover(self, origin_data, exists_endpoints: dict[tuple, EndpointInstanceData]):
         """
         Endpoint name according to endpoint_key in discover rule
         """
-        exists_endpoints, instance_data = remain_data
-        self._do_discover(exists_endpoints, instance_data, origin_data)
-
-    def discover(self, origin_data):
-        """
-        Endpoint name according to endpoint_key in discover rule
-        """
-        exists_endpoints, instance_data = self.list_exists()
-        self._do_discover(exists_endpoints, instance_data, origin_data)
-
-    def _do_discover(
-        self,
-        exists_endpoints,
-        instance_data,
-        origin_data,
-    ):
         rules, other_rule = self.get_rules()
 
         need_update_instances = list()
@@ -272,35 +121,24 @@ class EndpointDiscover(DiscoverBase):
                 else:
                     need_create_instances.add(k)
 
-        Endpoint.objects.bulk_create(
-            [
-                Endpoint(
-                    bk_biz_id=self.bk_biz_id,
-                    app_name=self.app_name,
-                    endpoint_name=i[0],
-                    service_name=i[1],
-                    category_id=i[2],
-                    category_kind_key=i[3],
-                    category_kind_value=i[4],
-                    span_kind=i[5],
-                )
-                for i in need_create_instances
-            ]
-        )
+        created_instances = [
+            Endpoint(
+                bk_biz_id=self.bk_biz_id,
+                app_name=self.app_name,
+                endpoint_name=i[0],
+                service_name=i[1],
+                category_id=i[2],
+                category_kind_key=i[3],
+                category_kind_value=i[4],
+                span_kind=i[5],
+            )
+            for i in need_create_instances
+        ]
+        Endpoint.objects.bulk_create(created_instances)
 
-        cache_data = self.query_cache_data()
-        delete_instance_keys = self.clear_data(cache_data, instance_data)
-
-        # 修改为基于六元组生成缓存key
-        create_instance_keys = set()
-        for i in need_create_instances:
-            key = self.to_instance_key(i[0], i[1], i[2], i[3], i[4], i[5])
-            create_instance_keys.add(key)
-
-        _, update_instance_keys = self.to_id_and_key(need_update_instances)
-        self.refresh_cache_data(
-            old_cache_data=cache_data,
-            create_instance_keys=create_instance_keys,
-            update_instance_keys=update_instance_keys,
-            delete_instance_keys=delete_instance_keys,
+        # 使用抽象方法处理缓存刷新
+        self.handle_cache_refresh_after_create(
+            existing_instances=list(exists_endpoints.values()),
+            created_db_instances=created_instances,
+            updated_instances=need_update_instances,
         )

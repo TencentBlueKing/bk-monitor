@@ -1,0 +1,23 @@
+/* stylelint-disable selector-class-pattern */
+.alarm-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background-color: #ebecef;
+
+  &-tab {
+    width: 100%;
+    margin-top: 12px;
+    background-color: #fff;
+    box-shadow: 0 0 12px 0 #00000014;
+
+    .bk-tab-header--active {
+      font-weight: 700;
+    }
+
+    .bk-tab-content {
+      display: none;
+    }
+  }
+}

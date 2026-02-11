@@ -23,16 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, watch } from 'vue';
+import { computed, defineComponent, provide, shallowRef, watch } from 'vue';
 
 import { traceChats } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
+import { storeToRefs } from 'pinia';
 
 import ChartCollapse from './chart-collapse';
 import ExploreChart from './explore-chart';
 import { useTraceExploreStore } from '@/store/modules/explore';
+
+import type { IViewOptions } from './types';
 
 import './chart-wrapper.scss';
 export default defineComponent({
@@ -67,6 +70,15 @@ export default defineComponent({
     const store = useTraceExploreStore();
     const panelModels = shallowRef<PanelModel[]>([]);
     const dashboardId = random(10);
+    const params = computed<IViewOptions>(() => {
+      return {
+        app_name: store.appName,
+      };
+    });
+
+    const { timeRange, refreshImmediate } = storeToRefs(store);
+    provide('timeRange', timeRange);
+    provide('refreshImmediate', refreshImmediate);
 
     const getChartPanels = async () => {
       const list =
@@ -86,6 +98,10 @@ export default defineComponent({
       echartsConnect(dashboardId);
     };
 
+    const handleDataZoomChange = val => {
+      store.updateTimeRange(val);
+    };
+
     watch(
       [() => store.appName, () => store.mode],
       () => {
@@ -95,6 +111,8 @@ export default defineComponent({
     );
     return {
       panelModels,
+      params,
+      handleDataZoomChange,
     };
   },
   render() {
@@ -113,7 +131,10 @@ export default defineComponent({
             {this.panelModels.map(panel => (
               <ExploreChart
                 key={panel.id}
+                hoverAllTooltips={true}
                 panel={panel}
+                params={this.params}
+                onDataZoomChange={this.handleDataZoomChange}
               />
             ))}
           </div>

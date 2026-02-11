@@ -32,6 +32,7 @@ from apps.log_databus.views import (
     grok_views,
     itsm_views,
     link_views,
+    log_access_views,
     restore_views,
     storage_views,
 )
@@ -50,6 +51,7 @@ router.register(r"clean_template", clean_views.CleanTemplateViewSet, basename="c
 router.register(r"clean", clean_views.CleanViewSet, basename="clean")
 router.register(r"grok", grok_views.GrokViewSet, basename="grok")
 router.register(r"check_collector", check_collector_views.CheckCollectorViewSet, basename="check_collector")
+router.register(r"log_access", log_access_views.LogAccessViewSet, basename="index_set_view")
 
 
 urlpatterns = [

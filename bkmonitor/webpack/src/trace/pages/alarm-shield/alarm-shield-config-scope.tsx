@@ -438,6 +438,7 @@ export default defineComponent({
                     bordered={true}
                     data={this.scopeState.tableData}
                     maxHeight={450}
+                    needCustomScroll={false}
                     resizable={true}
                     rowKey='name'
                   />
