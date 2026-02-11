@@ -41,13 +41,14 @@ export enum EMethod {
   exclude = 'exclude',
   include = 'include',
   ne = 'ne',
+  nreg = 'nreg',
 }
 export enum EMode {
   queryString = 'queryString',
   ui = 'ui',
 }
 
-export const OPPOSE_METHODS = [EMethod.ne, EMethod.exclude];
+export const OPPOSE_METHODS = [EMethod.ne, EMethod.exclude, EMethod.nreg];
 
 export const METHOD_MAP = {
   [EMethod.eq]: '=',
