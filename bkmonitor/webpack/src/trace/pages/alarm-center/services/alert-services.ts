@@ -55,12 +55,34 @@ const ALERT_TABLE_COLUMNS = [
     sorter: false,
   },
   {
+    colKey: 'create_time',
+    title: window.i18n.t('创建时间'),
+    is_default: true,
+    is_locked: false,
+    minWidth: 150,
+    sorter: true,
+  },
+
+  {
+    colKey: 'description',
+    title: window.i18n.t('告警内容'),
+    is_default: true,
+    is_locked: false,
+    minWidth: 300,
+  },
+  {
+    colKey: 'target_key',
+    title: window.i18n.t('监控目标'),
+    is_default: true,
+    is_locked: false,
+    minWidth: 300,
+  },
+  {
     colKey: 'bk_biz_name',
     title: window.i18n.t('空间名'),
     is_default: true,
     is_locked: false,
     minWidth: 100,
-    fixed: 'left',
     sorter: false,
   },
   {
@@ -73,14 +95,14 @@ const ALERT_TABLE_COLUMNS = [
   {
     colKey: 'category_display',
     title: window.i18n.t('分类'),
-    is_default: true,
+    is_default: false,
     is_locked: false,
     minWidth: 160,
   },
   {
     colKey: 'metric',
     title: window.i18n.t('告警指标'),
-    is_default: true,
+    is_default: false,
     is_locked: false,
     minWidth: 240,
     sorter: true,
@@ -88,18 +110,11 @@ const ALERT_TABLE_COLUMNS = [
   {
     colKey: 'event_count',
     title: window.i18n.t('关联事件'),
-    is_default: true,
+    is_default: false,
     is_locked: false,
     minWidth: 140,
   },
-  {
-    colKey: 'create_time',
-    title: window.i18n.t('创建时间'),
-    is_default: false,
-    is_locked: false,
-    minWidth: 150,
-    sorter: true,
-  },
+
   {
     colKey: 'begin_time',
     title: window.i18n.t('开始时间'),
@@ -140,20 +155,6 @@ const ALERT_TABLE_COLUMNS = [
     sorter: true,
   },
   {
-    colKey: 'description',
-    title: window.i18n.t('告警内容'),
-    is_default: true,
-    is_locked: false,
-    minWidth: 300,
-  },
-  {
-    colKey: 'target_key',
-    title: window.i18n.t('监控目标'),
-    is_default: true,
-    is_locked: false,
-    minWidth: 300,
-  },
-  {
     colKey: 'tags',
     title: window.i18n.t('维度'),
     is_default: false,
@@ -164,27 +165,27 @@ const ALERT_TABLE_COLUMNS = [
     colKey: 'extend_info',
     title: window.i18n.t('关联信息'),
     is_default: false,
-    is_locked: true,
+    is_locked: false,
     minWidth: 250,
   },
   {
     colKey: 'appointee',
     title: window.i18n.t('负责人'),
-    is_default: true,
+    is_default: false,
     is_locked: false,
     minWidth: 200,
   },
   {
     colKey: 'assignee',
     title: window.i18n.t('通知人'),
-    is_default: true,
+    is_default: false,
     is_locked: false,
     minWidth: 200,
   },
   {
     colKey: 'follower',
     title: window.i18n.t('关注人'),
-    is_default: true,
+    is_default: false,
     is_locked: false,
     minWidth: 200,
   },
@@ -753,6 +754,9 @@ export class AlertService extends AlarmService {
   readonly storageKey = ALERT_STORAGE_KEY;
   get allTableColumns(): TableColumnItem[] {
     return [...ALERT_TABLE_COLUMNS];
+  }
+  get analysisDefaultSettingsFields(): string[] {
+    return ['alert_name', 'metric', 'duration', 'ip'];
   }
   get analysisFields(): string[] {
     return [

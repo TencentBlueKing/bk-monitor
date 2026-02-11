@@ -352,6 +352,9 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
   get allTableColumns(): TableColumnItem[] {
     return [...INCIDENT_TABLE_COLUMNS];
   }
+  get analysisDefaultSettingsFields(): string[] {
+    return ['incident_name', 'incident_type', 'operator', 'duration'];
+  }
   get analysisFields(): string[] {
     return ['incident_name', 'incident_type', 'operator', 'duration', 'strategy_name', 'operate_target_string'];
   }
