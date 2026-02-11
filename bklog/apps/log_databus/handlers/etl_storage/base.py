@@ -54,7 +54,7 @@ from apps.log_search.constants import (
     FieldDataTypeEnum,
     FieldDateFormatEnum,
 )
-from apps.utils import is_match_variate
+from apps.utils import is_match_variate, md5_sum
 from apps.utils.codecs import unicode_str_decode
 from apps.utils.db import array_group
 
@@ -970,7 +970,9 @@ class EtlStorage:
             from apps.log_databus.tasks.collector import modify_result_table
 
             modify_result_table.delay(params)
-            cache.delete(CACHE_KEY_CLUSTER_INFO.format(table_id))
+
+            md5_key = md5_sum(CACHE_KEY_CLUSTER_INFO.format(table_id))
+            cache.delete(md5_key)
 
         if not instance.table_id:
             instance.table_id = table_id
@@ -1506,6 +1508,8 @@ class EtlStorage:
             from apps.log_databus.tasks.collector import modify_result_table
 
             modify_result_table.delay(params)
-            cache.delete(CACHE_KEY_CLUSTER_INFO.format(table_id))
+
+            md5_key = md5_sum(CACHE_KEY_CLUSTER_INFO.format(table_id))
+            cache.delete(md5_key)
 
         return {"table_id": table_id, "params": params}
