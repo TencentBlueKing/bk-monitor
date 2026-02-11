@@ -812,6 +812,7 @@ class CollectorMetadataSerializer(serializers.Serializer):
 
 class CollectorEtlParamsSerializer(serializers.Serializer):
     separator_regexp = serializers.CharField(label=_("正则表达式"), required=False, allow_null=True, allow_blank=True)
+    is_grok = serializers.BooleanField(label=_("是否使用grok"), required=False)
     separator = serializers.CharField(
         label=_("分隔符"), trim_whitespace=False, required=False, allow_null=True, allow_blank=True
     )
