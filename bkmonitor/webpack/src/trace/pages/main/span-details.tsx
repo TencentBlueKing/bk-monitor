@@ -250,7 +250,8 @@ export default defineComponent({
     watch(
       () => props.spanDetails,
       val => {
-        if (val && (!props.withSideSlider || (props.isShowPrevNextButtons && Object.keys(val).length))) {
+        // 仅当详情面板显示时才加载数据，避免隐藏状态下的无效加载
+        if (val && props.show && (!props.withSideSlider || (props.isShowPrevNextButtons && Object.keys(val).length))) {
           getDetails();
         }
       },
