@@ -1,0 +1,105 @@
+.set-meal-variable-input-component {
+  min-height: 30px;
+
+  .set-meal-variable-input-content {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    min-height: 22px;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 22px;
+    vertical-align: middle;
+    white-space: nowrap;
+    border: 1px solid #c4c6cc;
+    border-color: transparent transparent #c4c6cc;
+
+    &:focus {
+      border-color: transparent transparent #3a84ff !important;
+    }
+
+    &::-webkit-scrollbar {
+      height: 0;
+    }
+
+    &::before {
+      position: absolute;
+      top: 0;
+      left: 10px;
+      font-size: 12px;
+      line-height: 22px;
+      color: #c4c6cc;
+      pointer-events: none;
+      content: attr(data-placeholder);
+    }
+  }
+}
+
+.set-meal-variable-input-component-pop {
+  width: 540px;
+  font-size: 12px;
+
+  .search-input {
+    padding: 4px 8px;
+  }
+
+  &-theme {
+    padding: 0;
+  }
+
+  .group-list {
+    min-height: 240px;
+    max-height: 240px;
+    overflow-y: scroll;
+
+    .group-item {
+      .group-item-title {
+        height: 32px;
+        padding: 0 12px;
+        line-height: 32px;
+        color: #979ba5;
+      }
+
+      .group-item-child {
+        display: flex;
+        align-items: center;
+        height: 32px;
+        padding: 0 12px 0 24px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 12px;
+        line-height: 32px;
+        color: #63656e;
+        white-space: nowrap;
+        cursor: pointer;
+
+        .group-item-child-id {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          color: #63656e;
+          white-space: nowrap;
+        }
+
+        .group-item-child-name {
+          margin-left: auto;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          color: #c4c6cc;
+          white-space: nowrap;
+        }
+
+        &:focus {
+          background: #f5f7fa;
+        }
+
+        &:hover {
+          background: #e1ecff;
+
+          .group-item-child-id {
+            color: #3a84ff;
+          }
+        }
+      }
+    }
+  }
+}

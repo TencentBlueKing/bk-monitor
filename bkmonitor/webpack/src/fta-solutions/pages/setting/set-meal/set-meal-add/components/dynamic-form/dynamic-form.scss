@@ -8,13 +8,13 @@
   .form-wrap {
     .bk-label {
       min-height: 16px;
-      line-height: 1;
       margin-bottom: 3px;
+      line-height: 1;
 
       .bk-label-text {
+        font-size: 12px;
         line-height: 1;
         color: #63656e;
-        font-size: 12px;
       }
     }
 
@@ -22,14 +22,20 @@
       padding-left: 2px;
     }
 
-    .bk-form-item input[type=text] {
+    .bk-form-item input[type='text'] {
       box-sizing: border-box;
     }
 
-    .bk-form-item.is-error input[type=text] {
+    .bk-form-item.is-error input[type='text'] {
+      box-sizing: border-box;
       border-color: transparent;
       border-bottom-color: #ff5656;
-      box-sizing: border-box;
+    }
+
+    .bk-form-item.is-error {
+      .set-meal-variable-input-content {
+        border-color: transparent transparent #ff5656;
+      }
     }
   }
 
