@@ -136,7 +136,7 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
             pass
 
     def _get_connection(self, check_ping: bool = True):
-        self.host, self.port, self.username, self.password, self.version, self.schema = self._connect_info(
+        self.host, self.port, self.username, self.password, self.version, self.schema, self._ssl_insecure_skip_verify = self._connect_info(
             storage_cluster_id=self.storage_cluster_id
         )
         self._active: bool = False
@@ -152,7 +152,7 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
             scheme=self.schema,
             port=self.port,
             sniffer_timeout=600,
-            verify_certs=False,
+            verify_certs=not self._ssl_insecure_skip_verify,
         )
         if not check_ping or self._client.ping():
             self._active = True
@@ -172,6 +172,7 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
             password: str = auth_info_dict.get("password", "")
             # 添加协议字段 由于是后添加的 所以放置在这个地方
             schema: str = cluster_config_dict.get("schema") or DEFAULT_SCHEMA
+            ssl_insecure_skip_verify: bool = cluster_config_dict.get("ssl_insecure_skip_verify", True)
 
             _es_password = password
             _es_host = domain_name
@@ -179,8 +180,9 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
             _es_user = username
             _es_version = version
             _es_schema = schema
+            _ssl_insecure_skip_verify = ssl_insecure_skip_verify
 
-            return _es_host, _es_port, _es_user, _es_password, _es_version, _es_schema
+            return _es_host, _es_port, _es_user, _es_password, _es_version, _es_schema, _ssl_insecure_skip_verify
 
         else:
             raise EsClientMetaInfoException(EsClientMetaInfoException.MESSAGE.format(message="meta_api_response error"))

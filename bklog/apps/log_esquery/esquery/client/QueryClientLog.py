@@ -180,7 +180,7 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             _connect_info: tuple = self._connect_info(index=index)
         else:
             _connect_info: tuple = self._connect_info_by_storage_cluster_id(storage_cluster_id=self.storage_cluster_id)
-        self.host, self.port, self.username, self.password, self.version, self.schema = _connect_info
+        self.host, self.port, self.username, self.password, self.version, self.schema, self.ssl_insecure_skip_verify = _connect_info
         self._active: bool = False
 
         if not self.host or not self.port:
@@ -198,7 +198,7 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             scheme=self.schema,
             port=self.port,
             sniffer_timeout=600,
-            verify_certs=False,
+            verify_certs=not self.ssl_insecure_skip_verify,
         )
         # check_ping为False时，不检查ping
         if not check_ping or self._client.ping():
@@ -242,6 +242,7 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
         password: str = auth_info.get("password")
         # 添加协议字段 由于是后添加的 所以放置在这个地方
         schema: str = cluster_config.get("schema") or DEFAULT_SCHEMA
+        ssl_insecure_skip_verify: bool = cluster_config.get("ssl_insecure_skip_verify", True)
 
         _es_password = password
         _es_host = domain_name
@@ -249,8 +250,9 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
         _es_user = username
         _es_version = version
         _es_schema = schema
+        _ssl_insecure_skip_verify = ssl_insecure_skip_verify
 
-        return _es_host, _es_port, _es_user, _es_password, _es_version, _es_schema
+        return _es_host, _es_port, _es_user, _es_password, _es_version, _es_schema, _ssl_insecure_skip_verify
 
     @classmethod
     def indices(cls, bk_biz_id, result_table_id=None, with_storage=False):
