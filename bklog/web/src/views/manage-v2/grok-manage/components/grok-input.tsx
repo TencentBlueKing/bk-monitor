@@ -23,14 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, onMounted, onUnmounted, watch, type PropType, nextTick, computed } from 'vue';
+import { defineComponent, ref, onMounted, onUnmounted, watch, type PropType, nextTick } from 'vue';
 
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands';
 import { bracketMatching, indentOnInput } from '@codemirror/language';
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import { EditorState } from '@codemirror/state';
-import { placeholder as cmPlaceholder,
+import {
+  placeholder as cmPlaceholder,
   keymap,
   highlightSpecialChars,
   drawSelection,
@@ -56,6 +57,7 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    // 是否启用 Grok 模式（%{} 匹配、语法高亮、自动补全等功能）
     grokMode: {
       type: Boolean,
       default: false,
@@ -68,10 +70,6 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    rows: {
-      type: Number,
-      default: 3,
-    },
     disabled: {
       type: Boolean,
       default: false,
@@ -80,14 +78,15 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    maxlength: {
-      type: Number,
-      default: undefined,
-    },
     // type 为 textarea 时是否显示滚动条
     showScrollbar: {
       type: Boolean,
-      default: false,
+      default: true,
+    },
+    // 弹窗定位模式：'editor' 相对于编辑器容器定位，'cursor' 相对于光标位置定位
+    popoverPosition: {
+      type: String as PropType<'editor' | 'cursor'>,
+      default: 'editor',
     },
   },
   emits: ['input', 'change', 'enter', 'focus', 'blur'],
@@ -97,20 +96,12 @@ export default defineComponent({
     const grokListRef = ref<GrokPopoverListExpose>();
     let editorView: EditorView | null = null;
 
-    // 弹窗状态
+    // 弹窗状态（仅 grokMode 启用时使用）
     const popoverVisible = ref(false);
-    // 当前 %{} 中的关键字
+    // 当前 %{} 中的关键字（仅 grokMode 启用时使用）
     const currentKeyword = ref('');
-    // 当前光标在 %{} 中的位置信息
+    // 当前光标在 %{} 中的位置信息（仅 grokMode 启用时使用）
     const currentGrokRange = ref<{ start: number; end: number } | null>(null);
-
-    // 计算编辑器高度
-    const editorHeight = computed(() => {
-      if (props.type === 'textarea') {
-        return `${props.rows * 20 + 12}px`;
-      }
-      return '32px';
-    });
 
     // 解析光标位置所在的 %{} 范围和关键字
     const parseGrokAtCursor = (text: string, cursorPos: number) => {
@@ -171,25 +162,25 @@ export default defineComponent({
         dropCursor(),
         EditorState.allowMultipleSelections.of(true),
         indentOnInput(),
-        bracketMatching(),
-        closeBrackets(),
-        autocompletion(),
         rectangularSelection(),
         crosshairCursor(),
         highlightSelectionMatches(),
         highlightSpecialChars(),
         EditorView.lineWrapping,
 
+        // Grok 模式下启用括号匹配高亮、自动补全（括号自动闭合等）
+        ...(props.grokMode ? [bracketMatching(), closeBrackets(), autocompletion()] : []),
+
         // placeholder
         cmPlaceholder(props.placeholder),
 
-        // 键盘映射 - Grok 弹窗导航键需要放在最前面以优先处理
+        // 键盘映射
         keymap.of([
-          // Grok 弹窗导航支持
+          // Grok 弹窗导航支持（仅 grokMode 启用时生效）
           {
             key: 'ArrowDown',
             run: () => {
-              if (popoverVisible.value && grokListRef.value) {
+              if (props.grokMode && popoverVisible.value && grokListRef.value) {
                 grokListRef.value.handleKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
                 return true;
               }
@@ -199,7 +190,7 @@ export default defineComponent({
           {
             key: 'ArrowUp',
             run: () => {
-              if (popoverVisible.value && grokListRef.value) {
+              if (props.grokMode && popoverVisible.value && grokListRef.value) {
                 grokListRef.value.handleKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
                 return true;
               }
@@ -209,18 +200,19 @@ export default defineComponent({
           {
             key: 'Enter',
             run: () => {
-              if (popoverVisible.value && grokListRef.value) {
+              if (props.grokMode && popoverVisible.value && grokListRef.value) {
                 grokListRef.value.handleKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
                 return true;
               }
               return false;
             },
           },
-          ...closeBracketsKeymap,
+          // Grok 模式下启用括号闭合和自动补全的键盘映射
+          ...(props.grokMode ? closeBracketsKeymap : []),
           ...defaultKeymap,
           ...searchKeymap,
           ...historyKeymap,
-          ...completionKeymap,
+          ...(props.grokMode ? completionKeymap : []),
         ]),
 
         // 单行模式下 Enter 键行为
@@ -260,12 +252,11 @@ export default defineComponent({
         EditorView.theme({
           '&': {
             fontSize: '12px',
-            height: editorHeight.value,
           },
           '.cm-content': {
-            padding: isTextarea ? '6px 10px' : '0 10px',
-            minHeight: isTextarea ? editorHeight.value : '30px',
-            lineHeight: isTextarea ? '1.4' : '30px',
+            color: '#63656e',
+            padding: isTextarea ? '5px 10px' : '0 10px 0 8px',
+            lineHeight: isTextarea ? '1.5' : '30px',
             fontFamily: 'inherit',
           },
           '.cm-focused': {
@@ -290,22 +281,6 @@ export default defineComponent({
           },
           '.cm-line': {
             padding: '0',
-          },
-          // 自定义滚动条样式
-          '.cm-scroller::-webkit-scrollbar': {
-            width: '6px',
-            height: '6px',
-          },
-          '.cm-scroller::-webkit-scrollbar-track': {
-            backgroundColor: '#f1f1f1',
-            borderRadius: '3px',
-          },
-          '.cm-scroller::-webkit-scrollbar-thumb': {
-            backgroundColor: '#c1c1c1',
-            borderRadius: '3px',
-          },
-          '.cm-scroller::-webkit-scrollbar-thumb:hover': {
-            backgroundColor: '#a8a8a8',
           },
         }),
       ];
@@ -430,12 +405,6 @@ export default defineComponent({
       editorView.focus();
     };
 
-    // 处理 bk-input 的输入
-    const handleBkInput = (value: string) => {
-      emit('input', value);
-      emit('change', value);
-    };
-
     // 初始化编辑器
     const initEditor = () => {
       if (!editorRef.value) return;
@@ -472,23 +441,28 @@ export default defineComponent({
       },
     );
 
-    // 监听 grokMode 变化，重建编辑器
+    // 监听 grokMode 变化，重建编辑器以应用/移除 Grok 相关功能
     watch(
       () => props.grokMode,
-      () => {
-        if (editorView) {
-          const currentValue = editorView.state.doc.toString();
-          destroyEditor();
-          nextTick(() => {
-            initEditor();
-            // 恢复值
-            if (editorView && currentValue) {
-              editorView.dispatch({
-                changes: { from: 0, to: 0, insert: currentValue },
-              });
-            }
-          });
-        }
+      (newVal, oldVal) => {
+        if (newVal === oldVal) return;
+
+        // grokMode 变化时重建编辑器
+        const currentValue = editorView?.state.doc.toString() || props.value;
+        destroyEditor();
+        nextTick(() => {
+          initEditor();
+          // 恢复之前的内容
+          if (editorView && currentValue) {
+            editorView.dispatch({
+              changes: {
+                from: 0,
+                to: editorView.state.doc.length,
+                insert: currentValue,
+              },
+            });
+          }
+        });
       },
     );
 
@@ -519,19 +493,19 @@ export default defineComponent({
     });
 
     // 渲染 CodeMirror 编辑器
-    const renderCodeMirrorEditor = () => {
-      // content 插槽内容
-      const renderPopoverContent = () => (
-        <GrokPopoverList
-          ref={grokListRef}
-          keyword={currentKeyword.value}
-          visible={popoverVisible.value}
-          on-select={handleGrokSelect}
-        />
-      );
+    const renderEditor = () => {
+      // Grok 模式：需要 Popover 包裹以显示 Grok 列表
+      if (props.grokMode) {
+        const renderPopoverContent = () => (
+          <GrokPopoverList
+            ref={grokListRef}
+            keyword={currentKeyword.value}
+            visible={popoverVisible.value}
+            on-select={handleGrokSelect}
+          />
+        );
 
-      return (
-        <div class='grok-input-codemirror-wrapper'>
+        return (
           <BkLogPopover
             ref={popoverRef}
             contentClass='grok-input-popover-content'
@@ -540,6 +514,30 @@ export default defineComponent({
               placement: 'bottom-start',
               hideOnClick: true,
               appendTo: document.body,
+              theme: 'bklog-basic-light',
+              arrow: false,
+              ...(props.popoverPosition === 'cursor' ? {
+                popperOptions: {
+                  modifiers: [
+                    {
+                      name: 'offset',
+                      options: {
+                        offset: ({ reference }: { reference: { x: number; y: number; height: number } }) => {
+                          // 光标定位模式：计算光标位置相对于编辑器容器的偏移
+                          if (!editorView) return [0, 0];
+                          const cursorPos = editorView.state.selection.main.head;
+                          const cursorCoords = editorView.coordsAtPos(cursorPos);
+                          if (!cursorCoords) return [0, 0];
+                          // 计算光标位置与参考元素的偏移量
+                          const offsetX = cursorCoords.left - reference.x;
+                          const offsetY = cursorCoords.bottom - reference.y - reference.height + 4;
+                          return [offsetX, offsetY];
+                        },
+                      },
+                    },
+                  ],
+                },
+              } : {}),
             } as any}
             {...{
               scopedSlots: { content: renderPopoverContent },
@@ -558,41 +556,38 @@ export default defineComponent({
                   'hide-scrollbar': props.type === 'textarea' && !props.showScrollbar,
                 },
               ]}
-              style={{ height: editorHeight.value }}
             ></div>
           </BkLogPopover>
-        </div>
-      );
-    };
+        );
+      }
 
-    // 渲染 bk-input
-    const renderBkInput = () => {
+      // 非 Grok 模式：直接渲染编辑器
       return (
-        <bk-input
-          value={props.value}
-          type={props.type}
-          placeholder={props.placeholder}
-          rows={props.rows}
-          disabled={props.disabled}
-          readonly={props.readonly}
-          maxlength={props.maxlength}
-          onInput={handleBkInput}
-          onChange={(val: string) => emit('change', val)}
-          onEnter={(val: string) => emit('enter', val)}
-          onFocus={(val: string, e: Event) => emit('focus', val, e)}
-          onBlur={(val: string, e: Event) => emit('blur', val, e)}
-        />
+        <div
+          ref={editorRef}
+          class={[
+            'grok-input-editor',
+            `grok-input-editor--${props.type}`,
+            {
+              'is-disabled': props.disabled,
+              'is-readonly': props.readonly,
+              'hide-scrollbar': props.type === 'textarea' && !props.showScrollbar,
+            },
+          ]}
+        ></div>
       );
     };
 
     return () => (
-      <div class={[
-        'grok-input-wrapper',
-        {
-          'hide-scrollbar': props.type === 'textarea' && !props.showScrollbar,
-        },
-      ]}>
-        {props.grokMode ? renderCodeMirrorEditor() : renderBkInput()}
+      <div
+        class={[
+          'grok-input-wrapper',
+          {
+            'hide-scrollbar': props.type === 'textarea' && !props.showScrollbar,
+          },
+        ]}
+      >
+        {renderEditor()}
       </div>
     );
   },

@@ -206,6 +206,7 @@ export default defineComponent({
         <div
           ref={listRef}
           class='grok-popover-list-body'
+          v-bkloading={{ isLoading: isLoading.value && page.value === 1, zIndex: 10 }}
           onScroll={handleScroll}
         >
           {list.value.map((item, index) => (
@@ -236,11 +237,7 @@ export default defineComponent({
           {/* 加载中状态 */}
           {isLoading.value && (
             <div class='grok-popover-list-loading'>
-              <bk-loading
-                mode='spin'
-                size='mini'
-                theme='primary'
-              />
+              <bk-spin/>
             </div>
           )}
 

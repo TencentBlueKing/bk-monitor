@@ -1302,4 +1302,7 @@ export default {
   调试失败: 'Debugging failed',
   '内容有变更，请重新调试': 'The content has changed; please reconfigure the settings',
   没有更多数据: 'No more data',
+  'Grok 模式': 'Grok pattern',
+  '当检测到 %{PATTERN} 就按 Grok 处理，否则按传统正则':
+    'When %{PATTERN} is detected, process it with Grok; otherwise, process it with traditional regular expressions',
 };
