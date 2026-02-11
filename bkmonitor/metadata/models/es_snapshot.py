@@ -216,7 +216,7 @@ class EsSnapshot(models.Model):
         bk_tenant_id=DEFAULT_TENANT_ID
     ):
         status = status or cls.ES_RUNNING_STATUS
-        # # 使用带锁的校验
+        # 使用带锁的校验
         cls._lock_and_validate_create_snapshot(
             [table_id], bk_tenant_id, target_snapshot_repository_name, status
         )

@@ -203,6 +203,7 @@ class TestEsSnapshotResources:
         ]
 
         snapshots = []
+        created_index_keys = []
         for idx, item in enumerate(snapshot_data, start=1):
             snapshot = EsSnapshot.objects.create(
                 table_id=item["table_id"],
@@ -227,11 +228,26 @@ class TestEsSnapshotResources:
                 start_time=base_time,
                 end_time=base_time,
             )
+            created_index_keys.append(
+                (
+                    snapshot.table_id,
+                    snapshot.target_snapshot_repository_name,
+                    f"snapshot_{idx}",
+                    tenant,
+                )
+            )
 
         yield snapshots
 
-        EsSnapshotIndice.objects.all().delete()
-        EsSnapshot.objects.all().delete()
+        for table_id, repository_name, snapshot_name, tenant_id in created_index_keys:
+            EsSnapshotIndice.objects.filter(
+                table_id=table_id,
+                repository_name=repository_name,
+                snapshot_name=snapshot_name,
+                bk_tenant_id=tenant_id,
+            ).delete()
+        if snapshots:
+             EsSnapshot.objects.filter(id__in=[snapshot.id for snapshot in snapshots]).delete()
 
     def test_create_snapshot_default_status(self, mocker):
         """Ensure create API falls back to running status when client omits it."""
