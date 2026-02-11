@@ -334,7 +334,7 @@ class EsSnapshot(models.Model):
         cls._lock_snapshot_scope(unique_table_ids, bk_tenant_id)
         # 2. 获取要更新的对象
         objs = cls.validated_multi_snapshots(unique_table_ids, bk_tenant_id, target_snapshot_repository_name)    
-        if not objs:
+        if not objs.exists():
             return 0
         
         # 3. 检查 running 状态冲突
