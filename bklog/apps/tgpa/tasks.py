@@ -86,7 +86,7 @@ def fetch_and_process_tgpa_tasks():
                     ]
                 )
                 continue
-            # 首次同步V1任务，只创建数据，不处理任务
+            # 首次同步V1任务，只创建数据，不处理任务（针对当前已经灰度的业务，下次发版可以去掉这段逻辑）
             have_v1_task = TGPATask.objects.filter(
                 bk_biz_id=bk_biz_id, task_type=TGPATaskTypeEnum.BUSINESS_LOG_V1.value
             ).exists()
