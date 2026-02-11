@@ -143,7 +143,6 @@ class EsSnapshot(models.Model):
         for table_id in table_ids:
             if table_id not in snapshots_by_table:
                 continue
-                
             has_same_repo = any(
                 s.target_snapshot_repository_name == target_snapshot_repository_name
                 for s in snapshots_by_table[table_id]
@@ -153,7 +152,6 @@ class EsSnapshot(models.Model):
                 
             if status != cls.ES_RUNNING_STATUS:
                 continue
-
             has_running = any(
                 s.status == cls.ES_RUNNING_STATUS
                 for s in snapshots_by_table[table_id]
@@ -165,7 +163,7 @@ class EsSnapshot(models.Model):
             raise ValueError(_("已存在启用中结果表快照: %s") % ", ".join(running_tables))
 
         return snapshots_by_table
-    
+
     @classmethod
     def validated_snapshot(cls, table_id, bk_tenant_id, target_snapshot_repository_name: str | None = None):
         """返回校验后的快照配置"""
@@ -447,7 +445,11 @@ class EsSnapshot(models.Model):
                     es_storage.snapshot_obj.target_snapshot_repository_name, es_storage.search_snapshot
                 ).get("snapshots", [])
             except ObjectDoesNotExist:
-                pass
+                # 关联的快照配置不存在时跳过当前存储，避免中断批量查询
+                logger.debug(
+                    "skip es_storage %s when batch getting snapshots: snapshot config does not exist",
+                    es_storage.table_id,
+                )
             except Exception as e:  # noqa
                 logger.exception(
                     f"batch get es snapshots error, target_snapshot_repository_name({es_storage.snapshot_obj.target_snapshot_repository_name}), search_snapshot({es_storage.search_snapshot})"

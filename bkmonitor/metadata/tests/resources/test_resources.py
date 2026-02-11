@@ -267,7 +267,10 @@ class TestEsSnapshotResources:
             "table_ids": table_ids,
         })
         assert len(all_results) == 3
-        doc_counts = {(item["table_id"], item["target_snapshot_repository_name"]): item["doc_count"] for item in all_results}
+        doc_counts = {
+            (item["table_id"], item["target_snapshot_repository_name"]): item["doc_count"]
+            for item in all_results
+        }
         assert doc_counts[("2_system.table_a", "repo_a")] == 10
         assert doc_counts[("2_system.table_a", "repo_b")] == 20
         assert doc_counts[("2_system.table_b", "repo_a")] == 30
