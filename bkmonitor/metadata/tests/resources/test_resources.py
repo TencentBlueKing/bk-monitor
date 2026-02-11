@@ -247,7 +247,7 @@ class TestEsSnapshotResources:
                 bk_tenant_id=tenant_id,
             ).delete()
         if snapshots:
-             EsSnapshot.objects.filter(id__in=[snapshot.id for snapshot in snapshots]).delete()
+            EsSnapshot.objects.filter(id__in=[snapshot.id for snapshot in snapshots]).delete()
 
     def test_create_snapshot_default_status(self, mocker):
         """Ensure create API falls back to running status when client omits it."""
