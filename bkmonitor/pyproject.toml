@@ -7,12 +7,14 @@ requires-python = "==3.11.*"
 dependencies = [
     "aidev-agent==1.0.3",
     "apigw-manager==4.0.4",
-    "arrow==0.6.0",
+    "arrow<1",
     "babel==2.14.0",
     "betterproto==2.0.0b7",
     "bk-audit==1.0.7",
     "bk-crypto-python-sdk==2.0.1",
     "bk-iam==2.0.3",
+    # 暂时不开启，待子模块拉取问题解决后再开启
+    "bk-monitor-base",
     "bk-notice-sdk==1.4.2",
     "bkstorages==2.0.3",
     "blueapps==4.16rc1",
@@ -21,7 +23,7 @@ dependencies = [
     "confluent-kafka==2.4.0",
     "dill==0.3.7",
     "django==4.2.27",
-    "django-celery-beat==2.5.0",    # 升级到特定版本会使用regexp_like，导致mysql5.7不兼容
+    "django-celery-beat==2.7.0", # 升级到特定版本会使用regexp_like，导致mysql5.7不兼容
     "django-celery-results==2.6.0",
     "django-cors-headers==4.9.0",
     "django-db-connection-pool==1.2.5",
@@ -32,7 +34,7 @@ dependencies = [
     "django-prometheus==2.3.1",
     "django-redis==5.4.0",
     "django-versionlog==1.8.1",
-    "djangorestframework==3.15.2",
+    "djangorestframework==3.15.1",
     "dnspython==2.6.1",
     "drf-yasg==1.21.5",
     "elasticsearch==7.17.12",
@@ -40,7 +42,7 @@ dependencies = [
     "elasticsearch-dsl==7.4.1",
     "elasticsearch5==5.5.6",
     "elasticsearch6==6.8.2",
-    "furl==2.1.3",
+    "furl<2.2.0",
     "gevent==25.5.1",
     "google-auth==2.37.0",
     "graphviz==0.19.2",
@@ -69,7 +71,7 @@ dependencies = [
     "opentelemetry-instrumentation-requests==0.30b1",
     "opentelemetry-sdk==1.11.1",
     "pika==1.3.2",
-    "pillow==11.3.0",
+    "pillow==11.2.1",
     "ply==3.11",
     "prometheus-client==0.17.1",
     "protobuf==3.19.5",
@@ -90,18 +92,22 @@ dependencies = [
     "six==1.17.0",
     "sqlparse==0.5.3",
     "supervisor==4.2.5",
-    "typing-extensions==4.14.0",
+    "typing-extensions==4.14.1",
     "ujson==5.7.0",
     "whitenoise==6.5.0",
-    "xxhash==3.5.0",
+    "xxhash<3.7.0",
 ]
 
 [tool.uv]
 default-groups = ["aidev"]
 
+[tool.uv.sources]
+bk-monitor-base = { path = "../bk-monitor-base", editable = true }
+
 [dependency-groups]
 aidev = [
     "attrdictionary==1.0.0",
+    "langchain-mcp-adapters<0.2.0",
     "langchain<0.4.0",
     "langchain-community",
     "langchain-core",

@@ -36,7 +36,8 @@ import {
 import { Button, DatePicker, InfoBox, Message, Pagination, SearchSelect } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
+import { detailOfFormatWithTimezone } from 'monitor-common/utils/timezone';
+import { useAppStore } from 'trace/store/modules/app';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -55,6 +56,8 @@ export default defineComponent({
   name: 'AlarmShield',
   setup() {
     const { t } = useI18n();
+    const appStore = useAppStore();
+    const spaceTimezone = computed(() => appStore.spaceTimezone);
     const route = useRoute();
     const router = useRouter();
     const authorityStore = useAuthorityStore();
@@ -559,16 +562,16 @@ export default defineComponent({
           return <span>{row.content}</span>;
         }
         case EColumn.beginTime: {
-          return <span>{formatWithTimezone(row.begin_time)}</span>;
+          return <span>{detailOfFormatWithTimezone(row.begin_time, spaceTimezone.value)}</span>;
         }
         case EColumn.failureTime: {
-          return <span>{formatWithTimezone(row.failure_time)}</span>;
+          return <span>{detailOfFormatWithTimezone(row.failure_time, spaceTimezone.value)}</span>;
         }
         // case EColumn.cycleDuration: {
         //   return <span>{row.cycle_duration}</span>;
         // }
         case EColumn.endTime: {
-          return <span>{formatWithTimezone(row.end_time)}</span>;
+          return <span>{detailOfFormatWithTimezone(row.end_time, spaceTimezone.value)}</span>;
         }
         case EColumn.shieldCycle: {
           return <span>{row.shield_cycle}</span>;
@@ -720,9 +723,14 @@ export default defineComponent({
                 modelValue={this.dateRange}
                 placeholder={this.t('选择屏蔽时间范围')}
                 type='datetimerange'
-                onChange={v => (this.dateRange = v)}
+                onChange={v => {
+                  this.dateRange = v;
+                }}
                 onClear={() => this.handleDatePickClear()}
                 onPick-success={this.handleDatePick}
+                onUpdate:modelValue={v => {
+                  this.dateRange = v;
+                }}
               />
               <SearchSelect
                 class='shield-search'
@@ -772,12 +780,19 @@ export default defineComponent({
                     : undefined,
                   cell: (_, { row }) => this.handleSetFormat(row, item.id),
                 }))}
+                headerAffixedTop={{
+                  container: '.alarm-shield-page',
+                }}
+                horizontalScrollAffixedBottom={{
+                  container: '.alarm-shield-page',
+                }}
                 pagination={{
                   total: this.pagination.count,
                 }}
                 data={this.tableList}
                 filterValue={this.filterValue}
                 hover={true}
+                needCustomScroll={false}
                 rowKey='id'
                 showSortColumnBgColor={true}
                 sort={this.sort}

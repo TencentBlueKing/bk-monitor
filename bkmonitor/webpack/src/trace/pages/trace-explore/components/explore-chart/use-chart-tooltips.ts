@@ -44,13 +44,15 @@ export const useChartTooltips = (
   }
 ) => {
   const tooltipsSize = shallowRef<number>();
+  const tableToolSize = shallowRef<number>();
   const handleSetTooltip: TooltipComponentOption['formatter'] = params => {
     if (!get(isMouseOver) && !get(hoverAllTooltips)) return undefined;
     if (!params || params.length < 1 || params.every(item => item.value === null)) {
       return;
     }
     let liHtmlList = [];
-    const ulStyle = '';
+    let ulStyle = '';
+    let hasWrapText = false;
     const pointTime = dayjs.tz(+params[0].axisValue).format('YYYY-MM-DD HH:mm:ssZZ');
     liHtmlList = params.map(item => {
       const markColor = 'color: #fafbfd;';
@@ -70,11 +72,27 @@ export const useChartTooltips = (
                   </li>`;
     });
     if (liHtmlList?.length < 1) return '';
+    // 如果超出屏幕高度，则分列展示，100为预估预留空间（表头 + tooltip 内边距等），22为每行高度
+    const maxLen = Math.ceil((window.innerHeight - 100) / 22);
+    // 如果列表项数量超过单列最大行数，且已有 tooltip 尺寸信息
+    if (liHtmlList.length > maxLen && get(tooltipsSize)) {
+      hasWrapText = true;
+      // 计算需要几列
+      const cols = Math.ceil(liHtmlList.length / maxLen);
+      // 超过1列时禁用文本换行
+      if (cols > 1) hasWrapText = false;
+      // 记录/更新单列宽度（取最小值避免越来越宽）
+      tableToolSize.value = get(tableToolSize)
+        ? Math.min(get(tableToolSize), get(tooltipsSize)[0])
+        : get(tooltipsSize)[0];
+      // 设置 flex 布局，宽度 = 列数 * 单列宽度，但不超过屏幕一半
+      ulStyle = `display:flex; flex-wrap:wrap; width: ${Math.min(5 + cols * get(tableToolSize), window.innerWidth / 2 - 20)}px;`;
+    }
     return `<div class="monitor-chart-tooltips">
               <p class="tooltips-header">
                   ${pointTime}
               </p>
-              <ul class="tooltips-content" style="${ulStyle}">
+              <ul class="tooltips-content ${hasWrapText ? 'wrap-text' : ''}" style="${ulStyle}">
                   ${liHtmlList?.join('')}
               </ul>
               </div>`;
@@ -120,7 +138,7 @@ export const useChartTooltips = (
     appendToBody: true,
     trigger: 'axis',
     formatter: handleSetTooltip,
-    position: (pos: (number | string)[], params: any, dom: any, rect: any, size: any) => {
+    position: (pos: (number | string)[], _params: any, _domm: any, _rect: any, size: any) => {
       const { contentSize } = size;
       const chartRect = chartRef.value?.getBoundingClientRect();
       const posRect = {

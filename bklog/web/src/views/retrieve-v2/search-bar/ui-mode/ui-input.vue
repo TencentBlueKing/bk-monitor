@@ -2,7 +2,6 @@
 import { computed, ref, set } from 'vue';
 
 import {
-  formatDateTimeField,
   getOperatorKey,
 } from '@/common/util';
 import useFieldNameHook from '@/hooks/use-field-name';
@@ -20,6 +19,7 @@ import {
 } from '../utils/const.common';
 import useFocusInput from '../utils/use-focus-input';
 import UiInputOptions from './ui-input-option.vue';
+import RetrieveHelper from '@/views/retrieve-helper';
 
 const props = defineProps({
   value: {
@@ -155,17 +155,20 @@ const setSearchInputValue = (val) => {
 const handleWrapperClickCapture = (e, { getTippyInstance }) => {
   const instance = getTippyInstance();
   const reference = instance?.reference;
+  const clickTarget = e.target;
+  const container = refUlRoot.value;
 
   const target = refSearchInput.value?.closest('.search-item');
+
   if (reference) {
     // 如果当前是input focus激活的弹出提示
     // 判定当前是否为点击 ui 搜索框
     if (reference === target) {
-      return e.target === refUlRoot.value;
+      return clickTarget === container;
     }
 
     // 判定当前点击是否为某一个条件选项
-    return reference.contains(e.target);
+    return reference.contains(clickTarget);
   }
 
   return false;
@@ -201,17 +204,24 @@ const {
   },
   handleWrapperClick: handleWrapperClickCapture,
   onInputFocus: () => {
+    // 清除 blur 定时器，避免 blur 事件延迟执行导致 isInputTextFocus 被错误设置为 false
+    if (delayBlurTimer) {
+      clearTimeout(delayBlurTimer);
+      delayBlurTimer = null;
+    }
     queryItem.value = '';
     activeIndex.value = null;
   },
   tippyOptions: {
     hideOnClick: true,
     placement: 'top',
+    delay: [0, 300],
+    // appendTo: document.body,
     onHide: () => {
       refPopInstance.value?.beforeHideFn?.();
     },
   },
-  showPopoverOnClick: false,
+  showPopoverOnClick: true,
 });
 
 const debounceShowInstance = () => {
@@ -408,11 +418,6 @@ const handleFullTextInputBlur = (e) => {
 };
 
 
-const handleFullTextInputFocus = (e) => {
-  inputValueLength.value = e.target.value.length;
-  queryItem.value = e.target.value;
-  debounceShowInstance();
-};
 
 const handleInputValueChange = (e) => {
   const currentLength = e.target.value.length;
@@ -510,6 +515,11 @@ const handleBatchInputChange = (isShow) => {
     instance.setProps({ hideOnClick: !isShow });
   }
 };
+
+const formatDateTimeField = (value, fieldType) => {
+  const timezone = store.state.indexItem.timezone;
+  return RetrieveHelper.formatTimeZoneValue(value, fieldType, timezone);
+}
 </script>
 
 <template>
@@ -702,7 +712,6 @@ const handleBatchInputChange = (isShow) => {
         class="tag-option-focus-input"
         type="text"
         @blur.stop="handleFullTextInputBlur"
-        @focus.stop="handleFullTextInputFocus"
         @input="handleInputValueChange"
         @keyup.delete="handleDeleteItem"
         @keydown.enter.stop="handleInputValueEnter"
@@ -878,7 +887,6 @@ const handleBatchInputChange = (isShow) => {
           padding: 0 4px;
           font-weight: 500;
           background-image: linear-gradient(128deg, #235DFA 0%, #E28BED 100%);
-          background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
         }

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, ref, watch } from 'vue';
+import { computed, defineComponent, inject, ref, watch } from 'vue';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
 import { Button, Loading, Sideslider } from 'bkui-vue';
@@ -31,7 +31,8 @@ import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { frontendShieldDetail } from 'monitor-api/modules/shield';
 import { getStrategyV2 } from 'monitor-api/modules/strategies';
 import { random } from 'monitor-common/utils';
-import { formatWithTimezone } from 'monitor-common/utils/timezone';
+import { detailOfFormatWithTimezone } from 'monitor-common/utils/timezone';
+import TimezoneTips from 'trace/components/timezone-tips/timezone-tips';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -127,6 +128,8 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     const store = useAppStore();
+
+    const spaceTimezone = computed(() => store.spaceTimezone);
     const router = useRouter();
 
     const authority = inject<IAuthority>('authority');
@@ -337,6 +340,7 @@ export default defineComponent({
       cycleMap,
       noticeConfig,
       loading,
+      spaceTimezone,
     };
   },
   render() {
@@ -388,7 +392,7 @@ export default defineComponent({
                 </FormItem>
                 {this.failureTime && (
                   <FormItem label={this.t('屏蔽失效时间')}>
-                    <span class='detail-text'>{formatWithTimezone(this.failureTime)}</span>
+                    <span class='detail-text'>{detailOfFormatWithTimezone(this.failureTime, this.spaceTimezone)}</span>
                   </FormItem>
                 )}
                 {(() => {
@@ -416,6 +420,7 @@ export default defineComponent({
                                 bordered={true}
                                 data={this.scopeData.tableData}
                                 maxHeight={450}
+                                needCustomScroll={false}
                                 resizable={true}
                                 rowKey='name'
                               />
@@ -490,6 +495,7 @@ export default defineComponent({
                                   bordered={true}
                                   data={this.strategyData.scope.tableData}
                                   maxHeight={450}
+                                  needCustomScroll={false}
                                   resizable={true}
                                   rowKey='name'
                                 />
@@ -558,14 +564,14 @@ export default defineComponent({
                   {(() => {
                     if (this.detail.cycleConfig.type === 1) {
                       return (
-                        <span class='detail-text'>{`${formatWithTimezone(this.detail.beginTime)} ~ ${formatWithTimezone(this.detail.endTime)}`}</span>
+                        <span class='detail-text'>{`${detailOfFormatWithTimezone(this.detail.beginTime, this.spaceTimezone)} ~ ${detailOfFormatWithTimezone(this.detail.endTime, this.spaceTimezone)}`}</span>
                       );
                     }
                     if (this.detail.cycleConfig.type === 2) {
                       return (
                         <span class='detail-text'>
                           {this.t('每天的')}&nbsp;
-                          <span class='item-highlight'>{`${formatWithTimezone(this.detail.beginTime)} ~ ${formatWithTimezone(this.detail.endTime)}`}</span>
+                          <span class='item-highlight'>{`${this.detail.cycleConfig.startTime} ~ ${this.detail.cycleConfig.endTime}`}</span>
                           &nbsp;
                           {this.t('进行告警屏蔽')}
                         </span>
@@ -577,7 +583,7 @@ export default defineComponent({
                           {this.t('每周')}&nbsp;
                           <span class='item-highlight'>{this.detail.cycleConfig.weekList}</span>&nbsp;
                           {this.t('的')}&nbsp;
-                          <span class='item-highlight'>{`${this.detail.beginTime} ~ ${this.detail.endTime}`}</span>
+                          <span class='item-highlight'>{`${this.detail.cycleConfig.startTime} ~ ${this.detail.cycleConfig.endTime}`}</span>
                           &nbsp;{this.t('进行告警屏蔽')}
                         </span>
                       );
@@ -599,6 +605,7 @@ export default defineComponent({
                 {this.detail.cycleConfig.type !== 1 && (
                   <FormItem label={this.t('日期范围')}>
                     <span class='detail-text mt-9'>{`${this.detail.beginTime} ~ ${this.detail.endTime}`}</span>
+                    <TimezoneTips timezone={this.spaceTimezone} />
                   </FormItem>
                 )}
                 <FormItem label={this.t('屏蔽原因')}>

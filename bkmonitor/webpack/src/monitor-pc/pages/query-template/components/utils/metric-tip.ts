@@ -26,9 +26,9 @@
 
 import { xssFilter } from 'monitor-common/utils/xss';
 
-import type { TMetricDetail } from '../type/typing';
+import type { MetricDetailV2 } from '@/pages/query-template/typings/metric';
 
-export const getMetricTip = (data: TMetricDetail) => {
+export const getMetricTip = (data: MetricDetailV2) => {
   if (!data) {
     return '';
   }
