@@ -102,6 +102,8 @@ const v2CleanTempCreate = () =>
   import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/create-temp-clean');
 
 const v2CleanCreate = () => import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/create-clean');
+const GrokManage = () => import(/* webpackChunkName: 'grok-manage' */ '@/views/manage-v2/grok-manage/index.tsx');
+
 // 管理模块路由配置生成函数
 const getManageRoutes = () => [
   {
@@ -716,6 +718,16 @@ const getManageRoutes = () => [
             },
           },
         ],
+      },
+      // Grok管理
+      {
+        path: 'grok-manage',
+        name: 'grok-manage',
+        component: GrokManage,
+        meta: {
+          title: 'Grok管理',
+          navId: 'grok-manage',
+        },
       },
       // 日志归档-归档仓库
       {

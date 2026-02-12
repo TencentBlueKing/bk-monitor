@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onMounted, ref, watch } from 'vue';
+import { defineComponent, computed, onMounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
 import useRouter from '@/hooks/use-router';
+import useAdaptivePagination from '@/views/manage-v2/hooks/use-adaptive-pagination';
 import { t } from '@/hooks/use-locale';
 import * as authorityMap from '../../../common/authority-map';
 
@@ -88,11 +89,20 @@ export default defineComponent({
     const isGrayRelease = ref(false); // 是否为灰度业务
     const indexSetId = ref<string>(''); // 索引集ID
 
-    // 分页配置
-    const paginationConfig = ref({
-      limit: 10,
-      limitList: [10, 20, 50, 100],
+    // 分页大小列表
+    const LIMIT_LIST = [10, 20, 50, 100];
+
+    // 使用 hooks 计算分页大小
+    const { limit } = useAdaptivePagination({
+      fixedHeight: 368,
+      limitList: LIMIT_LIST,
     });
+
+    // 分页配置
+    const paginationConfig = computed(() => ({
+      limit: limit.value,
+      limitList: LIMIT_LIST,
+    }));
 
     // 获取索引集ID
     const getIndexSetId = async () => {
@@ -167,32 +177,6 @@ export default defineComponent({
 
       isGrayRelease.value = !hasAccess;
     };
-
-    // 计算分页大小
-    const calculatePaginationLimit = () => {
-      const fixedHeight = 368; // 需要减去的固定高度
-      const rowHeight = 43; // 行固定高度
-
-      // 获取浏览器高度
-      const clientHeight = document.documentElement.offsetHeight;
-
-      // 计算可以显示的行数
-      const rows = Math.ceil((clientHeight - fixedHeight) / rowHeight);
-
-      // 根据可显示行数设置合适的limit
-      if (rows < 10) {
-        paginationConfig.value.limit = 10;
-      } else if (rows < 20) {
-        paginationConfig.value.limit = 20;
-      } else if (rows < 50) {
-        paginationConfig.value.limit = 50;
-      } else {
-        paginationConfig.value.limit = 100;
-      }
-    };
-
-    // 立即计算分页大小
-    calculatePaginationLimit();
 
     // tab点击事件
     const handleTabClick = (title: TabType) => {

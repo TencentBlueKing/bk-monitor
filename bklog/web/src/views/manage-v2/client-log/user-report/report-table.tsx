@@ -32,7 +32,7 @@ import EmptyStatus from '@/components/empty-status/index.vue';
 import { t } from '@/hooks/use-locale';
 import * as authorityMap from '../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
-import { useTableSetting } from '../hooks/use-table-setting';
+import { useTableSetting } from '@/views/manage-v2/hooks/use-table-setting';
 import { useSearchTask } from '../hooks/use-search-task';
 import { FileUploadStatus, UserReportItem } from './types';
 

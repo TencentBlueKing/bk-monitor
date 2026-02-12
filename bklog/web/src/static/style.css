@@ -806,3 +806,6 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-tingyongwenjianjia:before {
 	content: "\e242";
 }
+.bklog-grok:before {
+	content: "\e246";
+}

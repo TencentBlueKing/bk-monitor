@@ -1282,4 +1282,27 @@ export default {
     'Supports letters, numbers, underscores, and hyphens, but cannot start with a hyphen',
   '多个用户名粘贴请使用英文分号 " ; " 分隔 ，手动输入用户名请键入 Enter 保存':
     'When pasting multiple usernames, please separate them with English semicolons ";". When manually entering usernames, press Enter to save',
+  '搜索 名称、描述、更新人、定义': 'Search by name, description, updater, or definition',
+  内置Grok模式不可编辑: 'Built-in Grok patterns are not editable',
+  内置Grok模式不可删除: 'Built-in Grok patterns cannot be deleted',
+  '仅支持大写字母、下划线': 'Only uppercase letters and underscores are supported',
+  '新建 Grok 模式': 'New Grok pattern',
+  '编辑 Grok 模式': 'Edit Grok pattern',
+  选填: 'Optional',
+  'Grok 定义（可引用其他模式）': 'Grok definition (can reference other patterns)',
+  '例如  %{IPORHOST: client} %{HTTPVERB:verb} %{URIPATHPARAM:path}':
+    'For example: %{IPORHOST: client} %{HTTPVERB:verb} %{URIPATHPARAM:path}',
+  '当前Grok名称为{n}，确认要删除？': 'The current Grok name is {n}. Are you sure you want to delete it?',
+  'Grok 模式更新成功': 'Grok pattern updated successfully',
+  'Grok 模式删除成功': 'Grok pattern deleted successfully',
+  'Grok 模式创建成功': 'Grok pattern created successfully',
+  请输入需要调试的样例: 'Please enter the sample you need to debug',
+  '请先完成调试，方可提交': 'Please complete the debugging process before submitting',
+  调试成功: 'Debugging successful',
+  调试失败: 'Debugging failed',
+  '内容有变更，请重新调试': 'The content has changed; please reconfigure the settings',
+  没有更多数据: 'No more data',
+  'Grok 模式': 'Grok pattern',
+  '当检测到 %{PATTERN} 就按 Grok 处理，否则按传统正则':
+    'When %{PATTERN} is detected, process it with Grok; otherwise, process it with traditional regular expressions',
 };
