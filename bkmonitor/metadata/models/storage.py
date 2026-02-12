@@ -3126,10 +3126,12 @@ class ESStorage(models.Model, StorageResultTable):
             filter_result = self.group_expired_alias(alias_list, self.retention)
             bounded_not_expired_alias_length = len(filter_result[last_index_name]["not_expired_alias"])
 
-            # 7.1 如果last_index存在已经绑定的别名，且其中的数据为空，那么则进行删除重建操作
-            if (bounded_not_expired_alias_length != 0) and (
+            if force_rotate:  # 强制轮转时,直接进行创建
+                new_index = current_index_info["index"] + 1
+                logger.info("update_index_v2:table_id>[%s],index->[%s],will force_rotate", self.table_id, new_index)
+            elif (bounded_not_expired_alias_length != 0) and (
                 self.es_client.count(index=last_index_name).get("count", 0) == 0
-            ):
+            ):  # 7.1 如果last_index存在已经绑定的别名，且其中的数据为空，那么则进行删除重建操作
                 new_index = current_index_info["index"]
                 self.es_client.indices.delete(index=last_index_name)
                 logger.info(
@@ -3138,9 +3140,6 @@ class ESStorage(models.Model, StorageResultTable):
                     self.table_id,
                     last_index_name,
                 )
-            elif force_rotate:
-                new_index = current_index_info["index"] + 1
-                logger.info("update_index_v2:table_id>[%s],index->[%s],will force_rotate", self.table_id, new_index)
             # 7.2 若上一轮次发起创建的index还没有绑定的别名（未就绪 / 已就绪但还未进行别名切换），跳过本次轮转，等候其别名绑定
             elif bounded_not_expired_alias_length == 0:
                 logger.info(
