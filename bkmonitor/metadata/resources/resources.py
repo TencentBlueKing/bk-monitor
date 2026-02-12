@@ -1913,9 +1913,43 @@ class CreateResultTableSnapshotResource(Resource):
         target_snapshot_repository_name = serializers.CharField(required=True, label="目标es集群快照仓库")
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
+        status = serializers.ChoiceField(
+            required=False,
+            label="快照状态",
+            choices=[models.EsSnapshot.ES_RUNNING_STATUS, models.EsSnapshot.ES_STOPPED_STATUS],
+            default=models.EsSnapshot.ES_RUNNING_STATUS,
+        )
 
     def perform_request(self, validated_request_data):
         return models.EsSnapshot.create_snapshot(**validated_request_data).to_json()
+
+
+class BulkCreateResultTableSnapshotResource(Resource):
+    """
+    Es结果表快照配置批量创建
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        table_ids = serializers.ListField(
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            required=True,
+            label="结果表IDs",
+            allow_empty=False,
+        )
+        target_snapshot_repository_name = serializers.CharField(required=True, label="目标es集群快照仓库")
+        snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
+        operator = serializers.CharField(required=True, label="操作者")
+        status = serializers.ChoiceField(
+            required=False,
+            label="快照状态",
+            choices=[models.EsSnapshot.ES_RUNNING_STATUS, models.EsSnapshot.ES_STOPPED_STATUS],
+            default=models.EsSnapshot.ES_RUNNING_STATUS,
+        )
+
+    def perform_request(self, validated_request_data):
+        models.EsSnapshot.bulk_create_snapshot(**validated_request_data)
+        return validated_request_data
 
 
 class ModifyResultTableSnapshotResource(Resource):
@@ -1928,10 +1962,42 @@ class ModifyResultTableSnapshotResource(Resource):
         table_id = serializers.CharField(required=True, label="结果表ID")
         snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
         operator = serializers.CharField(required=True, label="操作者")
-        status = serializers.CharField(required=False, label="操作者")
+        status = serializers.ChoiceField(
+            required=False,
+            label="快照状态",
+            choices=[models.EsSnapshot.ES_RUNNING_STATUS, models.EsSnapshot.ES_STOPPED_STATUS],
+        )
+        target_snapshot_repository_name = serializers.CharField(required=False, label="目标es集群快照仓库")
 
     def perform_request(self, validated_request_data):
         models.EsSnapshot.modify_snapshot(**validated_request_data)
+        return validated_request_data
+
+
+class BulkModifyResultTableSnapshotResource(Resource):
+    """
+    Es结果表快照配置修改
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        table_ids = serializers.ListField(
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            required=True,
+            label="结果表IDs",
+            allow_empty=False,
+        )
+        snapshot_days = serializers.IntegerField(required=True, label="快照存储时间配置", min_value=0)
+        operator = serializers.CharField(required=True, label="操作者")
+        status = serializers.ChoiceField(
+            required=False,
+            label="快照状态",
+            choices=[models.EsSnapshot.ES_RUNNING_STATUS, models.EsSnapshot.ES_STOPPED_STATUS],
+        )
+        target_snapshot_repository_name = serializers.CharField(required=False, label="目标es集群快照仓库")
+
+    def perform_request(self, validated_request_data):
+        models.EsSnapshot.bulk_modify_snapshot(**validated_request_data)
         return validated_request_data
 
 
@@ -1944,6 +2010,7 @@ class DeleteResultTableSnapshotResource(Resource):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
+        target_snapshot_repository_name = serializers.CharField(required=False, label="目标es集群快照仓库")
 
     def perform_request(self, validated_request_data):
         models.EsSnapshot.delete_snapshot(**validated_request_data)
@@ -1959,6 +2026,7 @@ class RetryResultTableSnapshotResource(Resource):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
+        target_snapshot_repository_name = serializers.CharField(required=False, label="目标es集群快照仓库")
 
     def perform_request(self, validated_request_data):
         models.EsSnapshot.retry_snapshot(**validated_request_data)
@@ -1973,21 +2041,41 @@ class ListResultTableSnapshotResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_ids = serializers.ListField(required=False, label="结果表IDs")
+        repository_names = serializers.ListField(
+            required=False,
+            label="快照仓库名称列表",
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            default=list,
+        )
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         table_ids = validated_request_data.get("table_ids")
-        result_queryset = models.EsSnapshot.objects.filter(bk_tenant_id=bk_tenant_id)
+        repository_names = validated_request_data.get("repository_names")
+        query = Q(bk_tenant_id=bk_tenant_id)
+
         if table_ids:
-            result_queryset = result_queryset.filter(table_id__in=table_ids)
-        table_ids = [snapshot.table_id for snapshot in result_queryset]
+            query &= Q(table_id__in=table_ids)
+        if repository_names:
+            query &= Q(target_snapshot_repository_name__in=repository_names)
+
+        result_queryset = models.EsSnapshot.objects.filter(query)
+        snapshot_pairs = list(
+            result_queryset.values_list("table_id", "target_snapshot_repository_name").distinct()
+        )
+        table_ids = list({table_id for table_id, _ in snapshot_pairs})
+        repository_names = list({repository_name for _, repository_name in snapshot_pairs})
+
         all_doc_count_and_store_size = models.EsSnapshotIndice.all_doc_count_and_store_size(
-            bk_tenant_id=bk_tenant_id, table_ids=table_ids
+            bk_tenant_id=bk_tenant_id, table_ids=table_ids, repository_names=repository_names
         )
         result = []
         for snapshot in result_queryset:
             snapshot_json = snapshot.to_self_json()
-            table_id_doc_count_and_store_size = all_doc_count_and_store_size.get(snapshot.table_id, {})
+            table_id_doc_count_and_store_size = all_doc_count_and_store_size.get(
+                (snapshot.table_id, snapshot.target_snapshot_repository_name),
+                {}
+            )
             snapshot_json["doc_count"] = table_id_doc_count_and_store_size.get("doc_count", 0)
             snapshot_json["store_size"] = table_id_doc_count_and_store_size.get("store_size", 0)
             snapshot_json["index_count"] = table_id_doc_count_and_store_size.get("index_count", 0)
@@ -2003,11 +2091,22 @@ class ListResultTableSnapshotIndicesResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_ids = serializers.ListField(required=True, label="结果表ID")
+        repository_names = serializers.ListField(
+            required=False,
+            label="快照仓库名称列表",
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            default=list,
+        )
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         table_ids = validated_request_data.get("table_ids")
-        es_snapshots = models.EsSnapshot.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
+        repository_names = validated_request_data.get("repository_names")
+        query = Q(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
+        if repository_names:
+            query &= Q(target_snapshot_repository_name__in=repository_names)
+        es_snapshots = models.EsSnapshot.objects.filter(query)
+
         return [es_snapshot.to_json() for es_snapshot in es_snapshots]
 
 
@@ -2052,6 +2151,7 @@ class RestoreResultTableSnapshotResource(Resource):
         expired_time = serializers.DateTimeField(required=True, label="指定过期时间", format="%Y-%m-%d %H:%M:%S")
         operator = serializers.CharField(required=True, label="操作者")
         is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
+        repository_name = serializers.CharField(required=False, label="目标es集群快照仓库")
 
     def perform_request(self, validated_request_data):
         return models.EsSnapshotRestore.create_restore(**validated_request_data)
@@ -2124,12 +2224,20 @@ class ListRestoreResultTableSnapshotResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_ids = serializers.ListField(required=False, label="结果表ID", default=[])
+        repository_names = serializers.ListField(
+            required=False,
+            label="快照仓库名称列表",
+            child=serializers.CharField(trim_whitespace=True, allow_blank=False),
+            default=list,
+        )
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         querysets = models.EsSnapshotRestore.objects.filter(is_deleted=False, bk_tenant_id=bk_tenant_id)
         if validated_request_data["table_ids"]:
             querysets = querysets.filter(table_id__in=validated_request_data["table_ids"])
+        if validated_request_data["repository_names"]:
+            querysets = querysets.filter(repository_name__in=validated_request_data["repository_names"])
         return [queryset.to_json() for queryset in querysets]
 
 
