@@ -46,7 +46,9 @@ from apps.tgpa.constants import (
     TGPA_TASK_SORT_FIELDS,
     TGPA_TASK_TARGET_FIELDS,
     EXTRACT_FILE_MAX_ITERATIONS,
+    COS_DOWNLOAD_MAX_SIZE,
 )
+from apps.tgpa.exceptions import DownloadFileSizeExceedException
 from apps.utils.bcs import Bcs
 from apps.utils.log import logger
 
@@ -75,8 +77,32 @@ class TGPAFileHandler:
 
         save_path = os.path.join(self.temp_dir, file_name)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        with open(save_path, "wb") as f:
-            f.write(response["Body"].get_raw_stream().read())
+
+        # 允许2倍容差，防止传输编码等差异
+        content_length = int(response.get("Content-Length", COS_DOWNLOAD_MAX_SIZE))
+        max_size = min(content_length * 2, COS_DOWNLOAD_MAX_SIZE)
+
+        # 分块读取文件，防止内存占用过大，同时避免文件流被提前消费导致无限循环写入
+        chunk_size = 1024 * 1024
+        read_len = 0
+        try:
+            with open(save_path, "wb") as fp:
+                while True:
+                    chunk = response["Body"].read(chunk_size)
+                    if not chunk:
+                        break
+                    read_len += len(chunk)
+
+                    if read_len > max_size:
+                        raise DownloadFileSizeExceedException(
+                            DownloadFileSizeExceedException.MESSAGE.format(max_size=max_size, file_name=file_name)
+                        )
+                    fp.write(chunk)
+        except Exception:
+            # 异常时清理已下载的临时文件
+            if os.path.exists(save_path):
+                os.remove(save_path)
+            raise
 
         return save_path
 
