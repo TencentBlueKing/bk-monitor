@@ -50,7 +50,6 @@ import {
 } from './typing';
 import {
   DEFAULT_GROUP_RELATION,
-  EXISTS_KEYS,
   fieldTypeMap,
   GROUP_RELATION_KEY,
   isNumeric,
@@ -130,9 +129,10 @@ export default defineComponent({
     const isDurationKey = computed(() => {
       return checkedItem.value?.type === EFieldType.duration;
     });
+    const noValueMethods = computed(() => (props.noValueOfMethods.length ? props.noValueOfMethods : NOT_VALUE_METHODS));
     /* 是否选择了无需检索值的操作符 */
     const notValueOfMethod = computed(() => {
-      return NOT_VALUE_METHODS.includes(method.value);
+      return noValueMethods.value.includes(method.value);
     });
     /* 是否选择了全文检索或者同类型的输入形式 */
     const isTextarea = computed(() => {
@@ -293,7 +293,7 @@ export default defineComponent({
         return;
       }
       if (
-        EXISTS_KEYS.includes(method.value) ||
+        noValueMethods.value.includes(method.value) ||
         values.value.length ||
         (isDurationKey.value && timeConsumingValue.value.value.length)
       ) {
@@ -516,7 +516,7 @@ export default defineComponent({
     }
 
     function handleMethodChange(value) {
-      if (NOT_VALUE_METHODS.includes(value)) {
+      if (noValueMethods.value.includes(value)) {
         values.value = [];
         groupRelation.value = groupRelationItem.value?.default || DEFAULT_GROUP_RELATION;
         isWildcard.value = wildcardItem.value?.default || false;
