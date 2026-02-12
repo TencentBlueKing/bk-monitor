@@ -60,11 +60,6 @@ class Migration(migrations.Migration):
             field=models.CharField(blank=True, max_length=64, verbose_name="数据链路名称"),
         ),
         migrations.AlterField(
-            model_name="esfieldqueryaliasoption",
-            name="is_deleted",
-            field=models.BooleanField(default=False, verbose_name="是否已删除(已废弃)"),
-        ),
-        migrations.AlterField(
             model_name="esstoragebindingconfig",
             name="data_link_name",
             field=models.CharField(blank=True, max_length=64, verbose_name="数据链路名称"),
@@ -83,24 +78,6 @@ class Migration(migrations.Migration):
             model_name="resulttableconfig",
             name="data_link_name",
             field=models.CharField(blank=True, max_length=64, verbose_name="数据链路名称"),
-        ),
-        migrations.AlterField(
-            model_name="resulttableoption",
-            name="name",
-            field=models.CharField(
-                choices=[
-                    ("cmdb_level_config", "cmdb_level_config"),
-                    ("es_unique_field_list", "es_unique_field_list"),
-                    ("group_info_alias", "group_info_alias"),
-                    ("dimension_values", "dimension_values"),
-                    ("segmented_query_enable", "分段查询开关"),
-                    ("is_split_measurement", "是否为单指标单表"),
-                    ("enable_field_black_list", "是否开启指标黑名单"),
-                    ("binding_bcs_cluster_id", "绑定BCS集群ID"),
-                ],
-                max_length=128,
-                verbose_name="option名称",
-            ),
         ),
         migrations.AlterField(
             model_name="vmstoragebindingconfig",
