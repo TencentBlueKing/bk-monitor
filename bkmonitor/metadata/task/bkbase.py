@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import itertools
 import logging
 import re
 import threading
@@ -26,14 +27,8 @@ from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
 from metadata.config import KAFKA_SASL_PROTOCOL
-from metadata.models.data_link import utils as data_link_utils
-from metadata.models.data_link.constants import (
-    BKBASE_NAMESPACE_BK_LOG,
-    BKBASE_NAMESPACE_BK_MONITOR,
-    DataLinkKind,
-    DataLinkResourceStatus,
-)
-from metadata.models.data_link.data_link_configs import ClusterConfig, DataLinkResourceConfigBase
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR, DataLinkKind
+from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP, ClusterConfig
 from metadata.models.space.constants import SpaceStatus, SpaceTypes
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.tasks import sync_bkbase_v4_metadata
@@ -516,646 +511,150 @@ def sync_bkbase_rt_meta_info_all():
     logger.info("sync_bkbase_rt_meta_info_all: finished syncing bkbase rt meta info,cost->[%s]", cost_time)
 
 
-def _safe_int(value: Any) -> int | None:
-    """安全转换为 int。
-
-    Args:
-        value: 原始值
-
-    Returns:
-        转换后的 int 或 None
-    """
-    if value is None:
-        return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _extract_component_common_fields(
-    component: dict[str, Any], fallback_namespace: str
-) -> tuple[str | None, str, int | None, str | None]:
-    """提取组件的通用字段。
-
-    list_data_link 返回的组件结构通常包含：
-    - metadata.name / metadata.namespace
-    - metadata.labels.bk_biz_id：业务ID（本地模型多数以其作为必填字段）
-    - status.phase：组件运行状态（用于反向同步到本地 `status` 字段）
-
-    Args:
-        component: 组件配置
-        fallback_namespace: 兜底命名空间
-
-    Returns:
-        name, namespace, bk_biz_id, status_phase
-    """
-    metadata = component.get("metadata", {})
-    labels = metadata.get("labels", {})
-    status_phase = component.get("status", {}).get("phase")
-    name = metadata.get("name") or component.get("name")
-    namespace = metadata.get("namespace") or fallback_namespace
-    bk_biz_id = _safe_int(labels.get("bk_biz_id"))
-    return name, namespace, bk_biz_id, status_phase
-
-
-def _resolve_component_list(response: Any) -> list[dict[str, Any]]:
-    """统一解析 list_data_link 返回结果。
-
-    由于 API 在不同版本/网关下返回形态可能不一致，这里统一将返回值归一化为列表：
-    - list：直接返回
-    - dict：优先取 data，其次取 results
-    - 其他：返回空列表
-
-    Args:
-        response: API 返回
-
-    Returns:
-        组件列表
-    """
-    if isinstance(response, list):
-        return response
-    if isinstance(response, dict):
-        return cast(list[dict[str, Any]], response.get("data") or response.get("results") or [])
-    return []
-
-
-def _sync_component_record(
-    model: type[DataLinkResourceConfigBase],
-    lookup: dict[str, Any],
-    base_fields: dict[str, Any],
-    status_phase: str | None,
-) -> bool:
-    """同步单个组件记录。
-
-    这里的同步策略是“幂等更新”：\n
-    - 记录不存在：按 lookup + defaults 创建；若能取到 status_phase 则写入，否则默认 `PENDING`\n
-    - 记录已存在：仅当字段发生变化时才 save(update_fields=...)\n
-    这样可以避免无谓写入、降低同步任务对 DB 的压力。
-
-    Args:
-        model: 组件模型
-        lookup: 查询条件
-        base_fields: 基础字段
-        status_phase: 状态字段
-
-    Returns:
-        是否发生变更
-    """
-    record = model.objects.filter(**lookup).first()
-    updated_fields: list[str] = []
-    if record is None:
-        defaults = base_fields.copy()
-        if status_phase:
-            defaults["status"] = status_phase
-        elif "status" not in defaults:
-            defaults["status"] = DataLinkResourceStatus.PENDING.value
-        model.objects.create(**lookup, **defaults)
-        return True
-
-    for field, value in base_fields.items():
-        if value is None:
-            continue
-        if getattr(record, field) != value:
-            setattr(record, field, value)
-            updated_fields.append(field)
-
-    if status_phase and record.status != status_phase:
-        record.status = status_phase
-        updated_fields.append("status")
-
-    if updated_fields:
-        record.save(update_fields=updated_fields)
-        return True
-    return False
-
-
-def _parse_databus_fields(component: dict[str, Any], namespace: str, name: str) -> dict[str, Any] | None:
-    """解析 Databus 组件基础字段。
-
-    Databus 在 V4 配置里会挂接 sources（通常只有 1 个）。我们主要反向同步两类字段：\n
-    - data_id_name：对应上游 DataId 组件的 name（用于后续推断 bk_data_id）\n
-    - data_link_name：用于本地链路聚合的逻辑名\n
-
-    注意：`data_link_name` 在不同命名空间下的语义不同：\n
-    - bklog 命名空间：以 Databus 组件自身 name 作为链路名（与日志链路约定保持一致）\n
-    - bkmonitor 命名空间：以 data_id_name 作为链路名（与监控时序链路约定保持一致）
-    """
-    spec = component.get("spec", {})
-    sources = spec.get("sources") or []
-    if not sources:
-        return None
-    data_id_name = sources[0].get("name")
-    if not data_id_name:
-        return None
-    data_link_name = name if namespace == BKBASE_NAMESPACE_BK_LOG else data_id_name
-    return {"data_id_name": data_id_name, "data_link_name": data_link_name}
-
-
-def _parse_vm_binding_fields(component: dict[str, Any], _namespace: str, _name: str) -> dict[str, Any] | None:
-    """解析 VM 存储绑定基础字段。
-
-    VMStorageBinding 的核心是存储集群名（vm_cluster_name），用于后续通过 ClusterInfo 推断：\n
-    - storage_type（VM）\n
-    - storage_cluster_id
-    """
-    spec = component.get("spec", {})
-    storage = spec.get("storage", {})
-    vm_cluster_name = storage.get("name")
-    if not vm_cluster_name:
-        return None
-    return {"vm_cluster_name": vm_cluster_name}
-
-
-def _parse_es_binding_fields(component: dict[str, Any], _namespace: str, _name: str) -> dict[str, Any] | None:
-    """解析 ES 存储绑定基础字段。
-
-    ESStorageBinding 的核心是：\n
-    - es_cluster_name：用于后续通过 ClusterInfo 推断集群 ID\n
-    - timezone：索引写入时区（若缺失则用 0 兜底）
-    """
-    spec = component.get("spec", {})
-    storage = spec.get("storage", {})
-    es_cluster_name = storage.get("name")
-    if not es_cluster_name:
-        return None
-    timezone = spec.get("write_alias", {}).get("TimeBased", {}).get("timezone")
-    return {"es_cluster_name": es_cluster_name, "timezone": timezone or 0}
-
-
-def _parse_result_table_fields(component: dict[str, Any], _namespace: str, _name: str) -> dict[str, Any] | None:
-    """解析结果表基础字段。
-
-    ResultTableConfig 可能包含 dataType（或 data_type）字段。\n
-    - 若存在：同步到本地 data_type\n
-    - 若不存在：返回空 dict，允许模型按默认值创建（避免因为缺字段导致整个 RT 记录被跳过）
-    """
-    spec = component.get("spec", {})
-    data_type = spec.get("dataType") or spec.get("data_type")
-    if not data_type:
-        return {}
-    return {"data_type": data_type}
-
-
-def _sync_bkbase_components_base_fields(bk_tenant_id: str) -> dict[str, int]:
-    """同步 V4 组件基础字段与状态。
-
-    这是同步流程的“步骤 1”：\n
-    - 直接调用 `api.bkdata.list_data_link` 拉取各类组件配置\n
-    - 将组件的基础字段（kind/bk_biz_id/data_link_name 等）以及可解析出的关键关联字段反写到本地表\n
-    - 同步组件状态（status.phase -> 本地 status）\n
-
-    注意：此步骤只做“组件级别”的反向同步，不尝试构建 DataLink/BkBaseResultTable 关系。\n
-    关系补全在步骤 2 中基于 DatabusConfig 进行推断与落库。
+def _get_bkbase_components_config(
+    bk_tenant_id: str, kind: str, namespace: str, config: dict[str, Any]
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """获取BKBase组件配置
 
     Args:
         bk_tenant_id: 租户ID
-
-    Returns:
-        各组件变更计数
-    """
-    sync_configs = [
-        {
-            "kind": DataLinkKind.DATAID.value,
-            "model": models.DataIdConfig,
-            "namespaces": [BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG],
-            "extra_parser": None,
-        },
-        {
-            "kind": DataLinkKind.RESULTTABLE.value,
-            "model": models.ResultTableConfig,
-            "namespaces": [BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG],
-            "extra_parser": _parse_result_table_fields,
-        },
-        {
-            "kind": DataLinkKind.VMSTORAGEBINDING.value,
-            "model": models.VMStorageBindingConfig,
-            "namespaces": [BKBASE_NAMESPACE_BK_MONITOR],
-            "extra_parser": _parse_vm_binding_fields,
-        },
-        {
-            "kind": DataLinkKind.ESSTORAGEBINDING.value,
-            "model": models.ESStorageBindingConfig,
-            "namespaces": [BKBASE_NAMESPACE_BK_LOG],
-            "extra_parser": _parse_es_binding_fields,
-        },
-        {
-            "kind": DataLinkKind.DORISBINDING.value,
-            "model": models.DorisStorageBindingConfig,
-            "namespaces": [BKBASE_NAMESPACE_BK_LOG],
-            "extra_parser": None,
-        },
-        {
-            "kind": DataLinkKind.DATABUS.value,
-            "model": models.DataBusConfig,
-            "namespaces": [BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG],
-            "extra_parser": _parse_databus_fields,
-        },
-        {
-            "kind": DataLinkKind.CONDITIONALSINK.value,
-            "model": models.ConditionalSinkConfig,
-            "namespaces": [BKBASE_NAMESPACE_BK_MONITOR],
-            "extra_parser": None,
-        },
-    ]
-
-    updated_count_map: dict[str, int] = {}
-    for config in sync_configs:
-        kind = config["kind"]
-        model = config["model"]
-        namespaces = config["namespaces"]
-        extra_parser = config["extra_parser"]
-        kind_name = DataLinkKind.get_choice_value(kind)
-        if not kind_name:
-            logger.warning("sync_bkbase_components: unsupported kind->[%s]", kind)
-            continue
-
-        updated_count = 0
-        for namespace in namespaces:
-            try:
-                # 以 “租户 + namespace + kind” 维度拉取 V4 组件配置列表
-                response = api.bkdata.list_data_link(bk_tenant_id=bk_tenant_id, namespace=namespace, kind=kind_name)
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    "sync_bkbase_components: list_data_link failed,tenant->[%s],kind->[%s],ns->[%s],error->[%s]",
-                    bk_tenant_id,
-                    kind_name,
-                    namespace,
-                    e,
-                )
-                continue
-
-            for component in _resolve_component_list(response):
-                name, component_ns, bk_biz_id, status_phase = _extract_component_common_fields(component, namespace)
-                if not name or bk_biz_id is None:
-                    # 没有 name / bk_biz_id 的配置无法被本地模型正确承载，直接跳过
-                    logger.warning(
-                        "sync_bkbase_components: missing name/bk_biz_id,tenant->[%s],kind->[%s],component->[%s]",
-                        bk_tenant_id,
-                        kind_name,
-                        component,
-                    )
-                    continue
-
-                # 本地配置表的通用字段：
-                # - kind：组件类型枚举值
-                # - bk_biz_id：组件所属业务（用于后续权限/归属等逻辑）
-                # - data_link_name：链路聚合名（多数场景与组件 name 一致；Databus 例外）
-                base_fields: dict[str, Any] = {"kind": kind, "bk_biz_id": bk_biz_id, "data_link_name": name}
-                if extra_parser:
-                    # 不同 kind 的组件存在额外的关键字段（例如 Databus 的 data_id_name）
-                    extra_fields = extra_parser(component, component_ns, name)
-                    if extra_fields is None:
-                        logger.warning(
-                            "sync_bkbase_components: skip due to missing base fields,tenant->[%s],kind->[%s],name->[%s]",
-                            bk_tenant_id,
-                            kind_name,
-                            name,
-                        )
-                        continue
-                    base_fields.update(extra_fields)
-
-                # 组件的唯一定位：tenant + namespace + name
-                lookup = {"bk_tenant_id": bk_tenant_id, "namespace": component_ns, "name": name}
-                if _sync_component_record(model, lookup, base_fields, status_phase):
-                    updated_count += 1
-
-        updated_count_map[kind] = updated_count
-    return updated_count_map
-
-
-def _build_data_id_name_mapping(bk_tenant_id: str) -> dict[str, int]:
-    """构建 data_id_name 到 bk_data_id 的映射。
-
-    DataIdConfig.name 的命名规则在不同场景会带上固定前缀/后缀（见 `compose_bkdata_data_id_name`）。\n
-    本函数从本地 DataSource 表中构造“可能的 data_id_name -> bk_data_id”映射，作为：\n
-    - DataIdConfig.bk_data_id 缺失时的兜底推断来源
-
-    Args:
-        bk_tenant_id: 租户ID
-
-    Returns:
-        映射字典
-    """
-    mapping: dict[str, int] = {}
-    data_sources = models.DataSource.objects.filter(bk_tenant_id=bk_tenant_id)
-    for data_source in data_sources:
-        default_name = data_link_utils.compose_bkdata_data_id_name(data_source.data_name)
-        mapping[default_name] = data_source.bk_data_id
-        fed_name = data_link_utils.compose_bkdata_data_id_name(
-            data_source.data_name, models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES
-        )
-        mapping[fed_name] = data_source.bk_data_id
-    return mapping
-
-
-def _infer_storage_type_and_cluster_id(
-    bk_tenant_id: str, data_link_name: str, fallback_name: str | None = None
-) -> tuple[str | None, int | None]:
-    """根据存储绑定推断存储类型与集群ID。
-
-    推断路径：\n
-    1. 优先用 data_link_name 去绑定表（VMStorageBindingConfig/ESStorageBindingConfig/DorisStorageBindingConfig）查询\n
-    2. 若查不到，且传入 fallback_name，则用组件 name 做一次兜底查询\n
-       （用于兼容 data_link_name 与组件 name 不完全一致的历史/异常情况）\n
-    3. 从绑定表拿到 cluster_name 后，再通过 ClusterInfo 找到 cluster_id\n
-
-    注意：Doris 绑定场景目前仅能反查到存储类型与“某个” Doris 集群 ID（按现有数据模型兜底为 tenant 下第一条 Doris 集群）。\n
-    如果后续 DorisBindingConfig 增强到可携带明确集群名，可再精确化这一推断。
-
-    Args:
-        bk_tenant_id: 租户ID
-        data_link_name: 链路名称
-
-    Returns:
-        storage_type, storage_cluster_id
-    """
-    vm_binding = models.VMStorageBindingConfig.objects.filter(
-        bk_tenant_id=bk_tenant_id, data_link_name=data_link_name
-    ).first()
-    if not vm_binding and fallback_name:
-        vm_binding = models.VMStorageBindingConfig.objects.filter(bk_tenant_id=bk_tenant_id, name=fallback_name).first()
-    if vm_binding:
-        cluster = models.ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id,
-            cluster_type=models.ClusterInfo.TYPE_VM,
-            cluster_name=vm_binding.vm_cluster_name,
-        ).first()
-        return models.ClusterInfo.TYPE_VM, cluster.cluster_id if cluster else None
-
-    es_binding = models.ESStorageBindingConfig.objects.filter(
-        bk_tenant_id=bk_tenant_id, data_link_name=data_link_name
-    ).first()
-    if not es_binding and fallback_name:
-        es_binding = models.ESStorageBindingConfig.objects.filter(bk_tenant_id=bk_tenant_id, name=fallback_name).first()
-    if es_binding:
-        cluster = models.ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id,
-            cluster_type=models.ClusterInfo.TYPE_ES,
-            cluster_name=es_binding.es_cluster_name,
-        ).first()
-        return models.ClusterInfo.TYPE_ES, cluster.cluster_id if cluster else None
-
-    doris_binding = models.DorisStorageBindingConfig.objects.filter(
-        bk_tenant_id=bk_tenant_id, data_link_name=data_link_name
-    ).first()
-    if not doris_binding and fallback_name:
-        doris_binding = models.DorisStorageBindingConfig.objects.filter(
-            bk_tenant_id=bk_tenant_id, name=fallback_name
-        ).first()
-    if doris_binding:
-        cluster = models.ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_DORIS
-        ).first()
-        return models.ClusterInfo.TYPE_DORIS, cluster.cluster_id if cluster else None
-
-    return None, None
-
-
-def _infer_data_link_strategy(storage_type: str | None, namespace: str) -> str:
-    """根据存储类型推断链路策略。
-
-    这里的策略用于写入 DataLink.data_link_strategy：\n
-    - ES/Doris 且在 bklog：视为日志链路（BK_LOG）\n
-    - ES/Doris 且不在 bklog：视为事件链路（BK_STANDARD_V2_EVENT）\n
-    - 其他：默认时序链路（BK_STANDARD_V2_TIME_SERIES）
-
-    Args:
-        storage_type: 存储类型
+        kind: 组件类型
         namespace: 命名空间
+        config: 组件配置
 
     Returns:
-        链路策略
+        基础字段配置和额外字段配置
+        - 基础字段配置: 包含数据链路名称、租户ID、命名空间、名称、业务ID、状态
+        - 额外字段配置: 包含组件状态，其他关联字段等
     """
-    if storage_type in (models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS):
-        if namespace == BKBASE_NAMESPACE_BK_LOG:
-            return models.DataLink.BK_LOG
-        return models.DataLink.BK_STANDARD_V2_EVENT
-    return models.DataLink.BK_STANDARD_V2_TIME_SERIES
 
+    metadata = config["metadata"]
+    annotations: dict[str, Any] = metadata.get("annotations", {})
+    label: dict[str, Any] = metadata.get("label", {})
+    bk_biz_id: int = label.get("bk_biz_id", 0)
+    name: str = metadata["name"]
+    status: str = config["status"]["phase"]
+    spec: dict[str, Any] = config["spec"]
 
-def _sync_data_link_relationships(bk_tenant_id: str) -> dict[str, int]:
-    """基于 Databus 关系补全链路与结果表记录。
-
-        这是同步流程的“步骤 2”，核心思路是：以 DatabusConfig 为锚点补全关联关系。\n
-    \n
-        为什么以 DatabusConfig 为锚点：\n
-        - Databus 表示 “DataId -> 下游存储/RT” 的关键连接点\n
-        - 只有拿到 data_id_name 才能进一步推断 bk_data_id 与本地监控表（monitor_table_id）\n
-    \n
-        推断/落库链路：\n
-        1) 读取 DataBusConfig（跳过 basereport：该场景由系统主动生成，不需要反向同步）\n
-        2) 用 databus.data_id_name 找到 DataIdConfig，进而推断 bk_data_id\n
-           - 优先 DataIdConfig.bk_data_id\n
-           - 兜底：DataSource(data_name)->compose_bkdata_data_id_name->bk_data_id 映射\n
-        3) 用 bk_data_id 通过 DataSourceResultTable 推断本地 `monitor_table_id`（table_id）\n
-           - 监控侧同步表基本是“单指标单表”，所以取 first 作为唯一表\n
-        4) 通过存储绑定（VM/ES/Doris）+ ClusterInfo 推断 storage_type/storage_cluster_id\n
-        5) 确保 DataLink 存在并补齐字段（bk_data_id/table_ids/namespace/strategy）\n
-        6) 找到 ResultTableConfig（优先 data_link_name，其次用 databus.name 兜底）\n
-        7) 确保 BkBaseResultTable 存在并补齐关键字段：\n
-           - bkbase_rt_name = ResultTableConfig.name\n
-           - bkbase_data_name = DataIdConfig.name\n
-           - bkbase_table_id = ResultTableConfig.table_id（计算平台 RT ID）\n
-           - monitor_table_id = DataSourceResultTable.table_id（监控侧 RT 主键）\n
-    \n
-        更新策略：\n
-        - DataLink：存在则按差异更新，不存在则创建（理论上 DatabusConfig 存在意味着 DataLink 应存在，但这里仍做兜底）\n
-        - BkBaseResultTable：存在则仅补齐空值字段，避免覆盖已写入的元信息；不存在则创建\n
-
-        Args:
-            bk_tenant_id: 租户ID
-
-        Returns:
-            变更计数统计
-    """
-    updated_counts = {
-        "data_link": 0,
-        "bkbase_result_table": 0,
-        "data_id": 0,
-        "databus": 0,
+    # 基础字段
+    base_config: dict[str, Any] = {
+        "data_link_name": "",
+        "bk_tenant_id": bk_tenant_id,
+        "namespace": namespace,
+        "name": name,
+    }
+    extra_config = {
+        "bk_biz_id": bk_biz_id,
+        "status": status,
     }
 
-    data_id_name_map = _build_data_id_name_mapping(bk_tenant_id=bk_tenant_id)
-    databus_configs = models.DataBusConfig.objects.filter(bk_tenant_id=bk_tenant_id)
-    for databus in databus_configs:
-        # data_link_name 是本地链路聚合的主键；Databus 若未填则退化为 name
-        data_link_name = databus.data_link_name or databus.name
-        if data_link_name == "basereport":
-            continue
+    # 根据kind处理不同字段
+    match kind:
+        case DataLinkKind.DATAID.value:
+            bk_data_id = annotations.get("dataId") or annotations.get("DataId")
+            extra_config["bk_data_id"] = bk_data_id
+        case DataLinkKind.RESULTTABLE.value:
+            extra_config["bkbase_table_id"] = annotations.get("ResultTableId") or ""
+            extra_config["data_type"] = spec["dataType"]
+        case DataLinkKind.VMSTORAGEBINDING.value:
+            extra_config["vm_cluster_name"] = spec["storage"]["name"]
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+        case DataLinkKind.ESSTORAGEBINDING.value:
+            extra_config["es_cluster_name"] = spec["storage"]["name"]
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+        case DataLinkKind.DORISBINDING.value:
+            extra_config["doris_cluster_name"] = spec["storage"]["name"]
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+        case DataLinkKind.DATABUS.value:
+            sink_names = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
+            extra_config["data_id_name"] = spec["sources"][0]["name"]
+            extra_config["sink_names"] = sink_names
+    return base_config, extra_config
 
-        data_id_name = databus.data_id_name
-        if not data_id_name:
-            logger.warning(
-                "sync_data_link_relations: databus missing data_id_name,tenant->[%s],name->[%s]",
-                bk_tenant_id,
-                databus.name,
-            )
-            continue
 
-        # 通过 databus.data_id_name 关联 DataIdConfig，作为 bk_data_id 推断的主入口
-        data_id_config = models.DataIdConfig.objects.filter(
-            bk_tenant_id=bk_tenant_id, namespace=databus.namespace, name=data_id_name
-        ).first()
-        if not data_id_config:
-            logger.warning(
-                "sync_data_link_relations: data_id_config not found,tenant->[%s],data_id_name->[%s]",
-                bk_tenant_id,
-                data_id_name,
-            )
-            continue
-
-        # bk_data_id 优先取 DataIdConfig 已落库值，缺失时才用 DataSource 映射兜底
-        bk_data_id = data_id_config.bk_data_id or data_id_name_map.get(data_id_name)
-        if not bk_data_id:
-            logger.warning(
-                "sync_data_link_relations: bk_data_id missing,tenant->[%s],data_id_name->[%s]",
-                bk_tenant_id,
-                data_id_name,
-            )
-            continue
-
-        # 反向同步：补齐 DataIdConfig 与 DatabusConfig 的 bk_data_id（便于后续链路推断）
-        if data_id_config.bk_data_id != bk_data_id:
-            data_id_config.bk_data_id = bk_data_id
-            data_id_config.save(update_fields=["bk_data_id"])
-            updated_counts["data_id"] += 1
-
-        if databus.bk_data_id != bk_data_id:
-            databus.bk_data_id = bk_data_id
-            databus.save(update_fields=["bk_data_id"])
-            updated_counts["databus"] += 1
-
-        # monitor_table_id 无法直接从 V4 组件配置得到，只能通过 bk_data_id 在关联表中推断
-        table_id = (
-            models.DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
-            .values_list("table_id", flat=True)
-            .first()
+def _sync_bkbase_v4_datalink_components(bk_tenant_id: str, namespace: str, kind: str):
+    """创建或更新组件"""
+    logger.info(
+        "sync_bkbase_v4_datalink_components: start syncing,bk_tenant_id->[%s],namespace->[%s],kind->[%s]",
+        bk_tenant_id,
+        namespace,
+        kind,
+    )
+    component_class = COMPONENT_CLASS_MAP[kind]
+    exists_components = {
+        component.name: component
+        for component in component_class.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace)
+    }
+    configs = api.bkdata.list_data_link(
+        bk_tenant_id=bk_tenant_id, kind=DataLinkKind.get_choice_value(kind), namespace=namespace
+    )
+    updated_components = []
+    created_components = []
+    update_fields = set()
+    for config in configs:
+        # 获取组件基础字段和额外字段
+        base_config, extra_config = _get_bkbase_components_config(
+            bk_tenant_id=bk_tenant_id, kind=kind, namespace=namespace, config=config
         )
-        if not table_id:
-            logger.warning(
-                "sync_data_link_relations: monitor table_id missing,tenant->[%s],bk_data_id->[%s]",
-                bk_tenant_id,
-                bk_data_id,
-            )
-            continue
+        if base_config["name"] in exists_components:
+            # 如果没有额外字段，则跳过
+            if not extra_config:
+                continue
 
-        storage_type, storage_cluster_id = _infer_storage_type_and_cluster_id(
-            bk_tenant_id=bk_tenant_id, data_link_name=data_link_name, fallback_name=databus.name
-        )
-
-        # DataLink：若存在则差异更新；若不存在则创建（兜底，避免数据缺口导致链路断裂）
-        datalink = models.DataLink.objects.filter(bk_tenant_id=bk_tenant_id, data_link_name=data_link_name).first()
-        if datalink:
-            update_fields: list[str] = []
-            if datalink.bk_data_id != bk_data_id:
-                datalink.bk_data_id = bk_data_id
-                update_fields.append("bk_data_id")
-            if datalink.table_ids != [table_id]:
-                datalink.table_ids = [table_id]
-                update_fields.append("table_ids")
-            if datalink.namespace != databus.namespace:
-                datalink.namespace = databus.namespace
-                update_fields.append("namespace")
-            if update_fields:
-                datalink.save(update_fields=update_fields)
-                updated_counts["data_link"] += 1
+            # 如果组件已存在，则只更新额外字段
+            exists_component = exists_components[base_config["name"]]
+            is_updated = False
+            for field, value in extra_config.items():
+                # 如果值不为空且与现有值不同，则更新
+                if value and getattr(exists_component, field) != value:
+                    setattr(exists_component, field, value)
+                    is_updated = True
+                    update_fields.add(field)
+            if is_updated:
+                updated_components.append(exists_component)
         else:
-            strategy = _infer_data_link_strategy(storage_type, databus.namespace)
-            models.DataLink.objects.create(
-                bk_tenant_id=bk_tenant_id,
-                data_link_name=data_link_name,
-                namespace=databus.namespace,
-                data_link_strategy=strategy,
-                bk_data_id=bk_data_id,
-                table_ids=[table_id],
-            )
-            updated_counts["data_link"] += 1
+            created_components.append(component_class(**base_config, **extra_config))
 
-        # ResultTableConfig：优先按 data_link_name 找；找不到时再用 databus.name 兜底（兼容历史数据）
-        result_table_config = models.ResultTableConfig.objects.filter(
-            bk_tenant_id=bk_tenant_id, data_link_name=data_link_name
-        ).first()
-        if not result_table_config:
-            result_table_config = models.ResultTableConfig.objects.filter(
-                bk_tenant_id=bk_tenant_id, name=databus.name
-            ).first()
-        if not result_table_config:
-            logger.warning(
-                "sync_data_link_relations: result_table_config not found,tenant->[%s],data_link_name->[%s]",
-                bk_tenant_id,
-                data_link_name,
-            )
-            continue
+    # 批量创建或更新组件
+    with transaction.atomic():
+        if created_components:
+            component_class.objects.bulk_create(created_components, batch_size=1000)
+        if updated_components and update_fields:
+            component_class.objects.bulk_update(updated_components, fields=list(update_fields), batch_size=1000)
 
-        if result_table_config.data_link_name != data_link_name:
-            result_table_config.data_link_name = data_link_name
-            result_table_config.save(update_fields=["data_link_name"])
-
-        # BkBaseResultTable 字段定义说明：
-        # - bkbase_rt_name：对应 ResultTableConfig.name（组件名）
-        # - bkbase_data_name：对应 DataIdConfig.name（组件名）
-        # - bkbase_table_id：对应 ResultTableConfig.table_id（计算平台 RT ID）
-        # - monitor_table_id：通过 DataSourceResultTable 推断出来的监控侧 RT 主键
-        bkbase_rt_defaults = {
-            "bkbase_rt_name": result_table_config.name,
-            "bkbase_data_name": data_id_config.name,
-            "bkbase_table_id": result_table_config.table_id,
-            "monitor_table_id": table_id,
-            "storage_type": storage_type or models.ClusterInfo.TYPE_VM,
-            "storage_cluster_id": storage_cluster_id,
-            "bk_tenant_id": bk_tenant_id,
-        }
-        bkbase_rt = models.BkBaseResultTable.objects.filter(data_link_name=data_link_name).first()
-        if not bkbase_rt:
-            models.BkBaseResultTable.objects.create(data_link_name=data_link_name, **bkbase_rt_defaults)
-            updated_counts["bkbase_result_table"] += 1
-        else:
-            # 仅“补齐空值”：避免覆盖其他流程（例如 apply_data_link/sync_metadata）已写入的元信息
-            update_fields = []
-            for field, value in bkbase_rt_defaults.items():
-                if value is None:
-                    continue
-                if getattr(bkbase_rt, field) in (None, "", 0) and getattr(bkbase_rt, field) != value:
-                    setattr(bkbase_rt, field, value)
-                    update_fields.append(field)
-            if update_fields:
-                bkbase_rt.save(update_fields=update_fields)
-                updated_counts["bkbase_result_table"] += 1
-
-    return updated_counts
+    logger.info(
+        "sync_bkbase_v4_datalink_components: finished syncing,bk_tenant_id->[%s],namespace->[%s],kind->[%s],created_components->[%s],updated_components->[%s]",
+        bk_tenant_id,
+        namespace,
+        kind,
+        len(created_components),
+        len(updated_components),
+    )
 
 
 @share_lock(ttl=3600, identify="metadata_sync_bkbase_v4_datalink_components")
 def sync_bkbase_v4_datalink_components():
-    """定时同步 V4 链路组件与链路关系。
-
-    调度入口：\n
-    - 遍历全部租户（`bk_login.list_tenant`）\n
-    - 每个租户执行两步：\n
-      1) `_sync_bkbase_components_base_fields`：反向同步组件基础字段与状态\n
-      2) `_sync_data_link_relationships`：基于 Databus 补全 DataLink 与 BkBaseResultTable\n
-
-    该任务加了 share_lock，避免多实例并发跑导致重复写入与竞争。
-    """
+    """定时同步 V4 链路组件配置"""
     logger.info("sync_bkbase_v4_datalink_components: start")
     start_time = time.time()
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="sync_bkbase_v4_datalink_components", status=TASK_STARTED, process_target=None
     ).inc()
 
-    updated_summary: dict[str, int] = {}
-    for tenant in api.bk_login.list_tenant():
-        tenant_id = tenant.get("id")
-        if not tenant_id:
-            continue
-
-        # Step 1：同步组件基础字段/状态
-        base_updates = _sync_bkbase_components_base_fields(bk_tenant_id=tenant_id)
-        # Step 2：基于 Databus 补全链路关系与结果表
-        relation_updates = _sync_data_link_relationships(bk_tenant_id=tenant_id)
-        for key, value in {**base_updates, **relation_updates}.items():
-            updated_summary[key] = updated_summary.get(key, 0) + value
+    # 遍历所有租户、命名空间和组件类型，创建或更新组件
+    tenants: list[dict[str, Any]] = api.bk_login.list_tenant()
+    namespaces: list[str] = [BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG]
+    kinds: list[str] = [
+        DataLinkKind.VMSTORAGEBINDING.value,
+        DataLinkKind.ESSTORAGEBINDING.value,
+        DataLinkKind.DORISBINDING.value,
+        DataLinkKind.DATABUS.value,
+        DataLinkKind.DATAID.value,
+        DataLinkKind.RESULTTABLE.value,
+        DataLinkKind.CONDITIONALSINK.value,
+    ]
+    for tenant, namespace, kind in itertools.product(tenants, namespaces, kinds):
+        _sync_bkbase_v4_datalink_components(bk_tenant_id=tenant["id"], namespace=namespace, kind=kind)
 
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
@@ -1165,8 +664,4 @@ def sync_bkbase_v4_datalink_components():
         task_name="sync_bkbase_v4_datalink_components", process_target=None
     ).observe(cost_time)
     metrics.report_all()
-    logger.info(
-        "sync_bkbase_v4_datalink_components: finished,cost_time->[%s],updated_summary->[%s]",
-        cost_time,
-        updated_summary,
-    )
+    logger.info("sync_bkbase_v4_datalink_components: finished,cost_time->[%s]", cost_time)
