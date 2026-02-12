@@ -195,6 +195,9 @@ export default class NewMetricView extends tsc<object> {
       viewColumn: Number.parseInt(routerQuery.viewColumn, 10) || 2,
       showStatisticalValue: routerQuery.showStatisticalValue === 'true',
     };
+    // 从本地存储初始化时间范围
+    customEscalationViewStore.initTimeRangeFromStorage();
+    this.timeRange = [customEscalationViewStore.startTime, customEscalationViewStore.endTime];
   }
 
   beforeDestroy() {
