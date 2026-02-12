@@ -51,6 +51,10 @@ export default defineComponent({
       type: String,
       default: 'trace',
     },
+    formatTokenParams: {
+      type: Function,
+      default: (params: Record<string, any>) => params,
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -117,7 +121,7 @@ export default defineComponent({
         const { $baseStore = null, ...data } = { ...window.__BK_WEWEB_DATA__ };
         weWebData = { ...data };
       }
-      return {
+      return props.formatTokenParams({
         type: props.type,
         expire_time: dayjs
           .tz()
@@ -143,7 +147,7 @@ export default defineComponent({
           path: route.path,
           weWebData,
         },
-      };
+      });
     }
     // 隐藏弹窗
     function handleHideDialog() {

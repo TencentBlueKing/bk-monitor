@@ -91,10 +91,14 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
 
   const timeRangeTimestamp = computed(() => {
     const [start, end] = handleTransformToTimestamp(timeRange.value);
-    return {
+    const params = {
       start_time: start,
       end_time: end,
+      [REFRESH_EFFECT_KEY]: refreshId.value,
     };
+    // 用于主动触发 依赖副作用 更新
+    delete params[REFRESH_EFFECT_KEY];
+    return params;
   });
   const commonFilterParams = computed(() => {
     const statusQuickFilter = [];
