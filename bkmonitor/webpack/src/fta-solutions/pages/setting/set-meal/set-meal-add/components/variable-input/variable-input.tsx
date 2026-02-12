@@ -79,6 +79,8 @@ export default class VariableInput extends tsc<IVariableInput> {
   curStrIndex = 0;
   // 当前选择的变量索引
   curCursorIndex = 0;
+  // 输入框弹出层是否显示
+  popoverShow = false;
 
   get selectList() {
     const list = [];
@@ -231,12 +233,14 @@ export default class VariableInput extends tsc<IVariableInput> {
           document.removeEventListener('keydown', this.handleShortcutKey);
           this.curCursorIndex = -1;
           this.searchValue = '';
+          this.popoverShow = false;
         },
       });
     }
     // 显示
     this.popoverInstance.show(100);
     document.addEventListener('keydown', this.handleShortcutKey);
+    this.popoverShow = true;
     // this.handleSetFocus(this.curCursorIndex);
     setTimeout(() => {
       this.searchInputRef?.focus?.();
@@ -254,6 +258,7 @@ export default class VariableInput extends tsc<IVariableInput> {
       document.removeEventListener('keydown', this.handleShortcutKey);
       this.curCursorIndex = -1;
       this.searchValue = '';
+      this.popoverShow = false;
     }
   }
 
@@ -298,6 +303,9 @@ export default class VariableInput extends tsc<IVariableInput> {
    * @param e 键盘事件
    */
   handleShortcutKey(e: KeyboardEvent) {
+    if (!this.popoverShow) {
+      return;
+    }
     const len = this.selectList.reduce((pre, cur) => pre + cur.children.length, 0);
     if (e.key === 'ArrowUp') {
       e.preventDefault();
