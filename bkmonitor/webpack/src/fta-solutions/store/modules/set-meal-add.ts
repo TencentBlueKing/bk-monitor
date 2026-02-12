@@ -238,7 +238,8 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
     expr.split('.').reduce((data, curKey, index, arr) => {
       if (index === arr.length - 1) {
         // 给表达式最后一个赋值
-        return (data[curKey] = value);
+        data[curKey] = value;
+        return data[curKey];
       }
       return data[curKey];
     }, context);
@@ -252,7 +253,7 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
   @Mutation
   public setMessageTemplateList(data) {
     let res = data.reduce((total, cur) => {
-      total = total.concat(cur.items.map(item => ({ ...item, group: cur.group })));
+      total = total.concat(cur.items.map(item => ({ ...item, group: cur.group, groupName: cur.name })));
       return total;
     }, []);
     res = res.map(item => ({
@@ -260,6 +261,7 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
       name: item.desc,
       example: item.example,
       group: item.group,
+      groupName: item.groupName,
     }));
     this.messageTemplateList = res;
   }
