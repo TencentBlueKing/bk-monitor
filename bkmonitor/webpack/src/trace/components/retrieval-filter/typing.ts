@@ -421,6 +421,11 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Number,
     default: 1000,
   },
+  // 无需检索值的操作符列表
+  noValueOfMethods: {
+    type: Array as PropType<string[]>,
+    default: () => [],
+  },
 };
 export const RETRIEVAL_FILTER_EMITS = {
   favorite: (_isEdit: boolean) => true,
@@ -483,6 +488,10 @@ export const UI_SELECTOR_PROPS = {
     type: Boolean,
     default: true,
   },
+  noValueOfMethods: {
+    type: Array as PropType<string[]>,
+    default: () => [],
+  },
 };
 export const UI_SELECTOR_EMITS = {
   change: (_v: IFilterItem[]) => true,
@@ -520,6 +529,10 @@ export const UI_SELECTOR_OPTIONS_PROPS = {
   limit: {
     type: Number,
     default: 200,
+  },
+  noValueOfMethods: {
+    type: Array as PropType<string[]>,
+    default: () => [],
   },
 };
 export const UI_SELECTOR_OPTIONS_EMITS = {
