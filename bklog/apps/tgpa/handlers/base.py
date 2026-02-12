@@ -48,7 +48,6 @@ from apps.tgpa.constants import (
     EXTRACT_FILE_MAX_ITERATIONS,
     COS_DOWNLOAD_MAX_SIZE,
 )
-from apps.tgpa.exceptions import DownloadFileSizeExceedException
 from apps.utils.bcs import Bcs
 from apps.utils.log import logger
 
@@ -94,9 +93,7 @@ class TGPAFileHandler:
                     read_len += len(chunk)
 
                     if read_len > max_size:
-                        raise DownloadFileSizeExceedException(
-                            DownloadFileSizeExceedException.MESSAGE.format(max_size=max_size, file_name=file_name)
-                        )
+                        raise Exception(f"文件 {file_name} 大小超过最大限制 {max_size} 字节")
                     fp.write(chunk)
         except Exception:
             # 异常时清理已下载的临时文件
