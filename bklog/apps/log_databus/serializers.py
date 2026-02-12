@@ -812,6 +812,7 @@ class CollectorMetadataSerializer(serializers.Serializer):
 
 class CollectorEtlParamsSerializer(serializers.Serializer):
     separator_regexp = serializers.CharField(label=_("正则表达式"), required=False, allow_null=True, allow_blank=True)
+    is_grok = serializers.BooleanField(label=_("是否使用grok"), required=False)
     separator = serializers.CharField(
         label=_("分隔符"), trim_whitespace=False, required=False, allow_null=True, allow_blank=True
     )
@@ -1828,3 +1829,58 @@ class GetCollectorFieldEnumsSerializer(serializers.Serializer):
 
 class GetCollectorStatusSerializer(serializers.Serializer):
     collector_config_id_list = serializers.ListSerializer(label=_("采集项ID列表"), child=serializers.IntegerField())
+
+
+class GrokListSerializer(serializers.Serializer):
+    """
+    Grok模式列表
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_null=True, allow_blank=True)
+    is_builtin = serializers.BooleanField(label=_("是否内置"), required=False, allow_null=True)
+    updated_by = serializers.CharField(label=_("更新人"), required=False, allow_null=True, allow_blank=True)
+    ordering = serializers.CharField(label=_("排序"), required=False, allow_null=True, allow_blank=True)
+    page = serializers.IntegerField(label=_("页码"), required=False)
+    pagesize = serializers.IntegerField(label=_("每页数量"), required=False)
+
+
+class GrokCreateSerializer(serializers.Serializer):
+    """
+    Grok模式创建
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    name = serializers.CharField(label=_("规则名称"))
+    pattern = serializers.CharField(label=_("表达式"))
+    sample = serializers.CharField(label=_("样例"), required=False, allow_null=True, allow_blank=True)
+    description = serializers.CharField(label=_("描述"), required=False, allow_null=True, allow_blank=True)
+
+
+class GrokUpdateSerializer(serializers.Serializer):
+    """
+    Grok模式更新
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    pattern = serializers.CharField(label=_("表达式"))
+    sample = serializers.CharField(label=_("样例"), required=False, allow_null=True, allow_blank=True)
+    description = serializers.CharField(label=_("描述"), required=False, allow_null=True, allow_blank=True)
+
+
+class GrokUpdatedByListSerializer(serializers.Serializer):
+    """
+    Grok模式更新人列表
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+
+
+class GrokDebugSerializer(serializers.Serializer):
+    """
+    Grok模式调试
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    pattern = serializers.CharField(label=_("Grok表达式"))
+    sample = serializers.CharField(label=_("日志样例"))
