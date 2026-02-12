@@ -530,8 +530,8 @@ def _get_bkbase_components_config(
 
     metadata = config["metadata"]
     annotations: dict[str, Any] = metadata.get("annotations", {})
-    label: dict[str, Any] = metadata.get("label", {})
-    bk_biz_id: int = label.get("bk_biz_id", 0)
+    labels: dict[str, Any] = metadata.get("labels", {})
+    bk_biz_id: int = labels.get("bk_biz_id", 0)
     name: str = metadata["name"]
     status: str = config["status"]["phase"]
     spec: dict[str, Any] = config["spec"]
@@ -551,7 +551,7 @@ def _get_bkbase_components_config(
     # 根据kind处理不同字段
     match kind:
         case DataLinkKind.DATAID.value:
-            bk_data_id = annotations.get("dataId") or annotations.get("DataId")
+            bk_data_id = int(annotations.get("dataId") or annotations.get("DataId") or 0)
             extra_config["bk_data_id"] = bk_data_id
         case DataLinkKind.RESULTTABLE.value:
             extra_config["bkbase_table_id"] = annotations.get("ResultTableId") or ""

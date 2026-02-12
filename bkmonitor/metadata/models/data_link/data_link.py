@@ -295,7 +295,10 @@ class DataLink(models.Model):
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
                 data_id_name=bkbase_data_name,
-                defaults={"bk_data_id": data_source.bk_data_id, "sink_names": [es_storage_ins.name]},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{es_storage_ins.name}"],
+                },
             )
 
             es_rt_config = es_table_ins.compose_config(fields=fields)
@@ -423,7 +426,11 @@ class DataLink(models.Model):
                     namespace=self.namespace,
                     data_link_name=self.data_link_name,
                     name=self.data_link_name,
-                    defaults={"table_id": table_id},
+                    defaults={
+                        "table_id": table_id,
+                        "bkbase_result_table_name": self.data_link_name,
+                        "doris_cluster_name": doris_storage.storage_cluster.cluster_name,
+                    },
                 )
                 bingding_configs.append(
                     binding.compose_config(
@@ -455,7 +462,10 @@ class DataLink(models.Model):
                 data_link_name=self.data_link_name,
                 name=self.data_link_name,
                 data_id_name=bkbase_data_name,
-                defaults={"bk_data_id": data_source.bk_data_id, "sink_names": [sink["name"] for sink in databus_sinks]},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{sink['kind']}:{sink['name']}" for sink in databus_sinks],
+                },
             )
 
             # 组装配置
@@ -541,7 +551,10 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"bk_data_id": data_source.bk_data_id, "sink_names": [sink_item["name"]]},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
+                },
             )
 
         return [
@@ -701,7 +714,10 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"bk_data_id": data_source.bk_data_id, "sink_names": [self.data_link_name]},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{DataLinkKind.CONDITIONALSINK.value}:{self.data_link_name}"],
+                },
             )
 
         logger.info(
@@ -802,7 +818,10 @@ class DataLink(models.Model):
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
                 data_id_name=component_name,
-                defaults={"bk_data_id": data_source.bk_data_id, "sink_names": [component_name]},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{component_name}"],
+                },
             )
 
             es_rt_config = es_table_ins.compose_config(fields=fields)
@@ -981,7 +1000,10 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"bk_data_id": data_source.bk_data_id, "sink_names": [bkbase_vmrt_name]},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{DataLinkKind.CONDITIONALSINK.value}:{bkbase_vmrt_name}"],
+                },
             )
 
         vm_conditional_sink_config = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
@@ -1061,7 +1083,10 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"bk_data_id": data_source.bk_data_id, "sink_names": [bkbase_vmrt_name]},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{DataLinkKind.VMSTORAGEBINDING.value}:{bkbase_vmrt_name}"],
+                },
             )
 
         configs = [
@@ -1135,7 +1160,10 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={"bk_data_id": data_source.bk_data_id, "sink_names": [sink_item["name"]]},
+                defaults={
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
+                },
             )
 
         transform_format = self.DATABUS_TRANSFORMER_FORMAT.get(self.data_link_strategy)
