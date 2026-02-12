@@ -63,6 +63,7 @@ export default class VariableInput extends tsc<IVariableInput> {
   @Prop({ default: false, type: Boolean }) readonly: boolean;
 
   @Ref('select') selectRef: HTMLElement;
+  @Ref('searchInput') searchInputRef;
 
   // 输入框元素
   elEdit: HTMLInputElement = null;
@@ -228,14 +229,18 @@ export default class VariableInput extends tsc<IVariableInput> {
         duration: [200, 0],
         onHide: () => {
           document.removeEventListener('keydown', this.handleShortcutKey);
-          this.curCursorIndex = 0;
+          this.curCursorIndex = -1;
+          this.searchValue = '';
         },
       });
     }
     // 显示
     this.popoverInstance.show(100);
     document.addEventListener('keydown', this.handleShortcutKey);
-    this.handleSetFocus(this.curCursorIndex);
+    // this.handleSetFocus(this.curCursorIndex);
+    setTimeout(() => {
+      this.searchInputRef?.focus?.();
+    }, 200);
   }
 
   /**
@@ -247,7 +252,8 @@ export default class VariableInput extends tsc<IVariableInput> {
       this.popoverInstance.destroy?.();
       this.popoverInstance = null;
       document.removeEventListener('keydown', this.handleShortcutKey);
-      this.curCursorIndex = 0;
+      this.curCursorIndex = -1;
+      this.searchValue = '';
     }
   }
 
@@ -367,6 +373,7 @@ export default class VariableInput extends tsc<IVariableInput> {
             class='set-meal-variable-input-component-pop'
           >
             <bk-input
+              ref='searchInput'
               class='search-input'
               v-model={this.searchValue}
               behavior='simplicity'
