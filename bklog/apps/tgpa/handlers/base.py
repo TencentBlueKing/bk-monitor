@@ -47,6 +47,7 @@ from apps.tgpa.constants import (
     TGPA_TASK_TARGET_FIELDS,
     EXTRACT_FILE_MAX_ITERATIONS,
     COS_DOWNLOAD_MAX_SIZE,
+    COS_DOWNLOAD_CHUNK_SIZE,
 )
 from apps.utils.bcs import Bcs
 from apps.utils.log import logger
@@ -82,7 +83,7 @@ class TGPAFileHandler:
         max_size = min(content_length * 2, COS_DOWNLOAD_MAX_SIZE)
 
         # 分块读取文件，防止内存占用过大，同时避免文件流被提前消费导致无限循环写入
-        chunk_size = 1024 * 1024
+        chunk_size = COS_DOWNLOAD_CHUNK_SIZE
         read_len = 0
         try:
             with open(save_path, "wb") as fp:
