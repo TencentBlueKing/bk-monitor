@@ -531,7 +531,7 @@ def _get_bkbase_components_config(
     metadata = config["metadata"]
     annotations: dict[str, Any] = metadata.get("annotations", {})
     labels: dict[str, Any] = metadata.get("labels", {})
-    bk_biz_id: int = labels.get("bk_biz_id", 0)
+    bk_biz_id: int = int(labels.get("bk_biz_id", 0))
     name: str = metadata["name"]
     status: str = config["status"]["phase"]
     spec: dict[str, Any] = config["spec"]
@@ -542,11 +542,9 @@ def _get_bkbase_components_config(
         "bk_tenant_id": bk_tenant_id,
         "namespace": namespace,
         "name": name,
-    }
-    extra_config = {
         "bk_biz_id": bk_biz_id,
-        "status": status,
     }
+    extra_config: dict[str, Any] = {"status": status}
 
     # 根据kind处理不同字段
     match kind:
