@@ -47,7 +47,6 @@ class ErrorCode:
     BKLOG_ADMIN = "101"
     BKLOG_CLUSTERING = "102"
     BKLOG_BCS = "103"
-    BKLOG_TGPA = "104"
 
 
 class BaseException(Exception):
