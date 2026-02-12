@@ -129,7 +129,7 @@ export default class VariableInput extends tsc<IVariableInput> {
     this.active = false;
   }
 
-  destroyed() {
+  beforeDestroy() {
     this.handleDestroyPopover();
     document.removeEventListener('keydown', this.handleShortcutKey);
   }
