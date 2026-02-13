@@ -63,11 +63,13 @@ const setMorePopoverRef = (el, index) => {
 };
 const inputValueLength = ref(0);
 
+const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
+
 // 动态设置placeHolder
 const inputPlaceholder = computed(() => {
   if (inputValueLength.value === 0) {
     // return `${t('请输入检索内容')}, / ${t('唤起')} ...`;
-    return ` / ${t('唤起')}，${t('输入检索内容')}（${t('Tab 可切换为 AI 模式')}）`;
+    return ` / ${t('唤起')}，${t('输入检索内容')}${isAiAssistantActive.value ? `（${t('Tab 可切换为 AI 模式')}）` : ''}`;
   }
 
   return '';

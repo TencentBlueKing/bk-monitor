@@ -46,6 +46,12 @@ const shortCutClsName = computed(() => {
   return iconMap[osName] ?? iconMap.ctrl;
 });
 
+/**
+ * @description 是否显示 AI 助手快捷键提示
+ * @returns {boolean}
+ */
+const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
+
 // eslint-disable-next-line no-unused-vars
 enum OptionItemType {
   // eslint-disable-next-line no-unused-vars
@@ -615,7 +621,10 @@ watch(activeIndex, () => {
             <span class="bklog-icon bklog-arrow-down-filled label" />
             <span class="value">{{ $t('移动光标') }}</span>
           </div>
-          <div class="ui-shortcut-item ai-shortcut-item">
+          <div
+            v-if="isAiAssistantActive"
+            class="ui-shortcut-item ai-shortcut-item"
+          >
             <span class="label">
               <i :class="shortCutClsName" />
               <i class="bklog-icon bklog-plus" />

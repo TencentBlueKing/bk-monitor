@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import { debounce } from 'lodash-es';
 
 import CreateLuceneEditor from './codemirror-lucene';
@@ -22,6 +23,8 @@ const handleHeightChange = (height) => {
 };
 
 const { t } = useLocale();
+const store = useStore();
+const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
 
 // 检测操作系统，决定显示 CMD 还是 Ctrl
 const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent);
@@ -33,9 +36,12 @@ const isFocused = ref(false);
 // 动态 placeholder 文本
 const placeholderText = computed(() => {
   if (isFocused.value) {
-    return `${t('可输入自然语言')}，${shortcutKey} + Enter ${t('触发 AI 解析')}`;
+    if (isAiAssistantActive.value) {
+      return `${t('可输入自然语言')}，${shortcutKey} + Enter ${t('触发 AI 解析')}`;
+    }
+    return ` / ${t('唤起')}， ${t('输入检索内容')}`;
   }
-  return ` / ${t('唤起')}， ${t('输入检索内容')}（${t('Tab 可切换为 AI 模式')}）`;
+  return ` / ${t('唤起')}， ${t('输入检索内容')}${isAiAssistantActive.value ? `（${t('Tab 可切换为 AI 模式')}）` : ''}`;
   // return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}`;
 });
 
@@ -231,6 +237,11 @@ const createEditorInstance = () => {
       return true;
     },
     onCtrlEnter: () => {
+      // 如果 AI 助手未激活，不触发 AI 解析
+      if (!isAiAssistantActive.value) {
+        return false;
+      }
+
       // 如果有内容，直接执行 AI 解析，无论是否有下拉提示
       if (modelValue.value.length) {
         handleTextToQuery();
