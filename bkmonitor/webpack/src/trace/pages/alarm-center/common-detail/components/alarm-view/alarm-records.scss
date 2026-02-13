@@ -19,15 +19,15 @@
         display: inline-flex;
         flex-wrap: wrap;
         align-items: center;
+      }
 
-        .bk-checkbox {
-          margin-right: 24px;
-          margin-bottom: 4px;
-          margin-left: 0;
+      .bk-checkbox {
+        margin-right: 24px;
+        margin-bottom: 4px;
+        margin-left: 0;
 
-          .bk-checkbox-label {
-            font-size: 12px;
-          }
+        .bk-checkbox-label {
+          font-size: 12px;
         }
       }
     }
@@ -75,7 +75,7 @@
           margin-right: 10px;
           font-size: 16px;
           color: #fff;
-          background-color: #A3B1CC;
+          background-color: #a3b1cc;
           border-radius: 50%;
         }
       }
@@ -177,7 +177,7 @@
 
         .item-border {
           height: 0;
-          border: 1px dashed #EAEBF0;
+          border: 1px dashed #eaebf0;
         }
       }
     }
@@ -207,10 +207,10 @@
     .skeleton-list-item {
       display: flex;
       align-items: flex-start;
-      margin-bottom: 24px;
+      height: 72px;
 
       .left-item {
-       margin-right: 8px; 
+        margin-right: 8px;
       }
 
       .right-item {

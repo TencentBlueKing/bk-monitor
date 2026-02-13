@@ -31,14 +31,14 @@ import dayjs from 'dayjs';
 import base64Svg from 'monitor-common/svg/base64';
 import { useI18n } from 'vue-i18n';
 
-import { getAlertEventTagDetails } from '@/pages/alarm-center/services/alarm-detail';
+import { getAlertEventTagDetails } from '../../../../services/alarm-detail';
 import {
   type AlertScatterClickEvent,
   type IEventListItem,
   type IEventTopkItem,
   type IPosition,
   EventTab,
-} from '@/pages/alarm-center/typings';
+} from '../../../../typings';
 
 import type { ICustomEventDetail } from 'monitor-ui/chart-plugins/plugins/caller-line-chart/use-custom';
 
@@ -188,8 +188,13 @@ export default defineComponent({
       loading.value = true;
       try {
         // eslint-disable-next-line @typescript-eslint/naming-convention
-        const { query_config: _, bizId, ...requestParams } = props.eventItem;
-        const { Warning: warning, All: all } = await getAlertEventTagDetails({ ...requestParams, bk_biz_id: bizId });
+        const { query_config, bizId, ...requestParams } = props.eventItem;
+        const interval = query_config?.query_configs?.[0]?.interval ?? 300;
+        const { Warning: warning, All: all } = await getAlertEventTagDetails({
+          ...requestParams,
+          bk_biz_id: bizId,
+          interval,
+        });
 
         warningData.value = warning;
         allData.value = all;

@@ -1,10 +1,17 @@
 .dimension-analysis-dimension-selector {
+  position: relative;
+
   .header-title {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin: 7px 8px;
+    padding: 7px 8px;
     line-height: 20px;
+    background: #f3f6fa;
+    opacity: 1;
 
     .title {
       font-size: 12px;
@@ -18,7 +25,12 @@
   }
 
   .search-wrap {
-    margin: 0 8px;
+    position: sticky;
+    top: 34px;
+    z-index: 1;
+    padding: 0 8px;
+    background: #f3f6fa;
+    opacity: 1;
   }
 
   .dimension-list {
@@ -61,7 +73,7 @@
           background: #e1ecff;
 
           .item-label {
-            color: #3A84FF;
+            color: #3a84ff;
           }
         }
       }

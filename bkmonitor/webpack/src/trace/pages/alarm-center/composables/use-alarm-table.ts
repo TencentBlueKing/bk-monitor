@@ -33,7 +33,7 @@ import type { ActionTableItem, AlertTableItem, IncidentTableItem } from '../typi
 export function useAlarmTable() {
   const alarmStore = useAlarmCenterStore();
   // 分页参数
-  const pageSize = shallowRef(10);
+  const pageSize = shallowRef(50);
   // 当前页
   const page = shallowRef(1);
   // 总条数

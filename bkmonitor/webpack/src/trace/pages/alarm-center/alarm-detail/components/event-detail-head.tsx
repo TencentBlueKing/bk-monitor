@@ -84,7 +84,7 @@ export default defineComponent({
     /** 是否反馈 */
     const isFeedback = shallowRef(false);
 
-    const { bizId, alarmId, alarmDetail, loading } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId, alarmDetail, loading } = storeToRefs(alarmCenterDetailStore);
 
     /** 一键拉群弹窗 */
     const chatGroupDialog = reactive<IChatGroupDialogOptions>({
@@ -138,6 +138,16 @@ export default defineComponent({
       ];
     });
 
+    const formatShareTokenParams = params => {
+      params.data.name = 'alarm-center-detail';
+      params.data.path = '/trace/alarm-center/detail/:alarmId';
+      params.data.params = {
+        alarmId: alarmId.value,
+      };
+      params.data.query = {};
+      return params;
+    };
+
     /** 获取告警反馈 */
     const getAlertFeedback = async () => {
       const data = await fetchListAlertFeedback(
@@ -187,22 +197,6 @@ export default defineComponent({
           {label}
         </div>
       );
-    };
-    // 复制事件详情连接
-    const handleToEventDetail = (type: 'action-detail' | 'detail') => {
-      let url = location.href.replace(location.hash, `#/event-center/${type}/${alarmId.value}`);
-      url = url.replace(location.search, `?bizId=${bizId.value || bizId.value}`);
-      copyText(url, msg => {
-        Message({
-          message: msg,
-          theme: 'error',
-        });
-        return;
-      });
-      Message({
-        message: t('复制成功'),
-        theme: 'success',
-      });
     };
 
     const handleBtnClick = (id: string) => {
@@ -263,11 +257,11 @@ export default defineComponent({
       loading,
       getTagComponent,
       toStrategyDetail,
-      handleToEventDetail,
       chatGroupShowChange,
       handleFeedback,
       handleFeedBackConfirm,
       handleBtnClick,
+      formatShareTokenParams,
     };
   },
   render() {
@@ -288,14 +282,10 @@ export default defineComponent({
         <div class='event-detail-head-content'>
           <span class='event-id'>
             ID: {this.alarmId}
-            {window.source_app === 'fta' ? (
-              <i
-                class='icon-monitor icon-copy-link'
-                onClick={() => this.handleToEventDetail('detail')}
-              />
-            ) : (
-              <TemporaryShareNew type='event' />
-            )}
+            <TemporaryShareNew
+              formatTokenParams={this.formatShareTokenParams}
+              type='event'
+            />
           </span>
           {this.alarmDetail?.alert_name && (
             <span

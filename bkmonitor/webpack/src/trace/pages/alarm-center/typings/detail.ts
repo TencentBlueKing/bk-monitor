@@ -552,9 +552,9 @@ export class AlarmDetail {
   get alarmTabList() {
     return AlarmCenterPanelTabList.filter(item => {
       /* 主机和日志 */
-      if (item.name === ALARM_CENTER_PANEL_TAB_MAP.HOST || item.name === ALARM_CENTER_PANEL_TAB_MAP.LOG) {
-        return this.dimensions?.some(item => ['bk_target_ip', 'ip'].includes(item.key));
-      }
+      // if (item.name === ALARM_CENTER_PANEL_TAB_MAP.HOST || item.name === ALARM_CENTER_PANEL_TAB_MAP.LOG) {
+      //   return this.dimensions?.some(item => ['bk_target_ip', 'ip'].includes(item.key));
+      // }
       /* 进程 */
       if (item.name === ALARM_CENTER_PANEL_TAB_MAP.PROCESS) {
         return this.category === 'host_process' && this.dimensions?.some(item => item.key === 'tags.display_name');

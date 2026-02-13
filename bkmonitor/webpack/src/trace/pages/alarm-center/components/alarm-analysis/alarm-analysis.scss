@@ -16,7 +16,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
     gap: 8px;
-    padding: 0 16px 4px;
+    padding: 0 16px 12px;
 
     .panel-item {
       height: 208px;
@@ -52,6 +52,8 @@
             height: 16px;
             padding: 0 4.5px;
             margin: 0 6.5px 0 4px;
+            color: #8e9bb3;
+            font-weight: 700;
             line-height: 16px;
             background: #e6eaf2;
             border-radius: 2px;

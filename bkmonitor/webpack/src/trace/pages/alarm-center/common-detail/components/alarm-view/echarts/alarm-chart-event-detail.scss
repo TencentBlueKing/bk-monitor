@@ -185,8 +185,9 @@
 
     .proportions-num {
       display: inline-flex;
+      flex: 1;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-end;
       height: 20px;
       margin-right: 10px;
       margin-left: auto;

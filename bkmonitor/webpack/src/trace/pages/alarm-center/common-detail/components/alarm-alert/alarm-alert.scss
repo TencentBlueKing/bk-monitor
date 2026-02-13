@@ -33,23 +33,12 @@
     display: flex;
     flex: 1;
     align-items: center;
+    overflow: hidden;
 
     .alarm-content {
-      display: flex;
-      align-items: center;
-
-      .alarm-title {
-        // line-height: 20px;
-        // border-bottom: 1px dashed #979797;
-        // cursor: pointer;
-      }
-
-      .alarm-value {
-        margin-left: 5px;
-        font-size: 12px;
-        font-weight: 700;
-        color: #313238;
-      }
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .alarm-tips {

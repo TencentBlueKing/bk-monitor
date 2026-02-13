@@ -171,6 +171,7 @@ ASYNC_EXPORT_FILE_EXPIRED_DAYS = 2
 # 异步导出链接expired时间 24*60*60
 ASYNC_EXPORT_EXPIRED = 86400
 HAVE_DATA_ID = "have_data_id"
+HAVE_TABLE_ID = "have_table_id"
 BKDATA_OPEN = "bkdata"
 NOT_CUSTOM = "not_custom"
 IGNORE_DISPLAY_CONFIG = "ignore_display_config"

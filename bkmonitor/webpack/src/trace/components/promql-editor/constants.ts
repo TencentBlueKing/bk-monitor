@@ -26,7 +26,7 @@
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
 export const defaultOptions = {
-  lineNumbers: 'off',
+  lineNumbers: 'off' as const,
   lineDecorationsWidth: 10,
   lineNumbersMinChars: 0,
   glyphMargin: false,
@@ -42,13 +42,13 @@ export const defaultOptions = {
   renderLineHighlightOnlyWhenFocus: true,
   overviewRulerBorder: false,
   overviewRulerLanes: 0,
-  wordWrap: 'on',
+  wordWrap: 'on' as const,
   scrollBeyondLastLine: false,
-  renderLineHighlight: 'none',
+  renderLineHighlight: 'none' as const,
   scrollbar: {
-    vertical: 'hidden',
+    vertical: 'hidden' as const,
     verticalScrollbarSize: 0,
-    horizontal: 'hidden',
+    horizontal: 'hidden' as const,
     horizontalScrollbarSize: 0,
     alwaysConsumeMouseWheel: false,
   },
@@ -64,7 +64,7 @@ export const defaultOptions = {
   lineHeight: 19,
   suggestFontSize: 12,
   suggestLineHeight: 19,
-  cursorStyle: 'line-thin',
+  cursorStyle: 'line-thin' as const,
 };
 
 /**

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, shallowRef } from 'vue';
 
 import { alertEvents, alertEventTotal } from 'monitor-api/modules/alert_v2';
 import { random } from 'monitor-common/utils/utils';
@@ -43,6 +43,7 @@ export default defineComponent({
     },
   },
   setup(props) {
+    const eventQueryConfig = shallowRef(null);
     const getData = async (params: { limit: number; offset: number; sort: string[]; sources: string[] }) => {
       const res = await alertEvents({
         alert_id: props.detail.id,
@@ -56,6 +57,7 @@ export default defineComponent({
           total: 0,
         };
       });
+      eventQueryConfig.value = res?.query_config || null;
       return {
         data: (res.list || []).map(item => ({
           ...item,
@@ -78,18 +80,21 @@ export default defineComponent({
     };
 
     const handleGoEvent = () => {
-      const queryConfig = props.detail?.items?.[0]?.query_configs?.[0];
-      const serviceName = queryConfig?.agg_dimension?.service_name?.value || '';
-      const appName = queryConfig?.agg_dimension?.app_name?.value || '';
+      const serviceName = props.detail?.dimensions?.find(item => item.key === 'service_name')?.value || '';
+      const appName = props.detail?.dimensions?.find(item => item.key === 'app_name')?.value || '';
+      const startTime = eventQueryConfig.value?.start_time || '';
+      const endTime = eventQueryConfig.value?.end_time || '';
+      const fromToStr = `${startTime ? `&from=${startTime * 1000}` : ''}${endTime ? `&to=${endTime * 1000}` : ''}`;
+      const targetsStr = eventQueryConfig.value?.query_configs
+        ? `&targets=${encodeURIComponent(JSON.stringify([{ data: { query_configs: [eventQueryConfig.value?.query_configs] } }]))}`
+        : '';
+      const bizId = eventQueryConfig.value?.bk_biz_id || props.detail?.bk_biz_id || window.cc_biz_id;
+      let hash = `#/event-explore?${fromToStr}${targetsStr}`;
       if (serviceName && appName) {
-        const hash = `#/apm/service?filter-service_name=${serviceName}&filter-app_name=${appName}&dashboardId=service-default-event`;
-        const url = location.href.replace(location.hash, hash);
-        window.open(url, '_blank');
-      } else {
-        const hash = '#/event-explore';
-        const url = location.href.replace(location.hash, hash);
-        window.open(url, '_blank');
+        hash = `#/apm/service?filter-service_name=${serviceName}&filter-app_name=${appName}&dashboardId=service-default-event${fromToStr}${targetsStr}`;
       }
+      const url = `${location.origin}${location.pathname}?bizId=${bizId}${hash}`;
+      window.open(url, '_blank');
     };
 
     return {

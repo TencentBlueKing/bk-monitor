@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { ExploreTableRequestParams } from 'monitor-pc/pages/event-explore/typing';
+import type { ExploreTableRequestParams, IFormData } from 'monitor-pc/pages/event-explore/typing';
 
 export enum EventTab {
   All = 'all',
@@ -42,7 +42,9 @@ export interface AlertEventTagDetailParams {
 
 export interface AlertScatterClickEvent extends AlertEventTagDetailParams {
   bizId?: number;
-  query_config?: ExploreTableRequestParams;
+  query_config?: Omit<ExploreTableRequestParams, 'query_configs'> & {
+    query_configs: (IFormData & { interval?: number })[];
+  };
 }
 
 export interface IEventListItem {

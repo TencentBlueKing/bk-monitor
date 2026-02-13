@@ -354,7 +354,8 @@ export default class AlarmDispatchConfig extends tsc<object> {
   async getProcessPackage() {
     this.processLoading = true;
     const data = await listActionConfig().catch(() => []);
-    this.processPackage = data.filter(item => item.plugin_type === 'itsm');
+    /** 只展示 itsm 和 itsmv4 类型的流程套餐 */
+    this.processPackage = data.filter(item => item.plugin_type === 'itsm' || item.plugin_type === 'itsmv4');
     this.processLoading = false;
   }
 
@@ -1702,7 +1703,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                 <bk-option
                   id={option.id}
                   key={option.id}
-                  name={option.name}
+                  name={`${option.name}(${option.plugin_name})`}
                 />
               ))}
               <div

@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+# 82.0 版本之后移除了 pkg_resources 模块
+setuptools==80.9.0
+
 ujson==5.9.0
 
 Django==4.2.22
