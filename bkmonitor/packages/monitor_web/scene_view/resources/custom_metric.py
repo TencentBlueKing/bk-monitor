@@ -574,8 +574,11 @@ class GraphDrillDownResource(Resource):
                         filtered_value = [v for v in value if v is not None]
                         if not filtered_value:
                             continue
-                        condition["value"] = filtered_value
-                    validated_where.append(condition)
+                        # 创建新字典，避免修改原对象
+                        validated_condition = {**condition, "value": filtered_value}
+                        validated_where.append(validated_condition)
+                    else:
+                        validated_where.append(condition)
 
                 attrs["where"] = validated_where
                 return attrs
