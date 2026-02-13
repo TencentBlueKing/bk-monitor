@@ -51,7 +51,7 @@ from apps.log_search.models import (
 )
 from apps.log_search.permission import Permission
 from apps.log_search.utils import handle_es_query_error
-from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT
+from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
@@ -1170,18 +1170,31 @@ class UnifyQueryHandler:
             search_dict["order_by"] = order_by
 
         index_set = self.index_info_list[0]["index_set_obj"]
-        search_after_size = len(search_result["list"])
-        result_size = search_after_size
+        result_size = len(search_result["list"])
         max_result_window = index_set.result_window
+        max_export_count = max(index_set.max_async_count, MAX_ASYNC_COUNT)
         # 参数补充
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = max_result_window
         search_dict["is_search_after"] = True
-        while search_after_size >= max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
-            search_dict["result_table_options"] = search_result["result_table_options"]
+        while result_size < max_export_count:
+            result_table_options = {
+                key: value
+                for key, value in search_result.get("result_table_options", {}).items()
+                if value.get(SEARCH_AFTER_KEY)
+            }
+
+            if not result_table_options:
+                break
+
+            search_dict["result_table_options"] = result_table_options
             search_result = UnifyQueryApi.query_ts_raw(search_dict)
-            search_after_size = len(search_result["list"])
-            result_size += search_after_size
+            new_result_size = len(search_result.get("list", []))
+
+            if new_result_size == 0:
+                break
+
+            result_size += new_result_size
             yield self._deal_query_result(search_result)
 
     def export_data(self, is_quick_export: bool = False):
