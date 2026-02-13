@@ -834,7 +834,8 @@ class DataIDMigrator:
                 namespace=namespace,
                 data_link_name=data_link_name,
                 name=data_link_name,
-                defaults={"table_id": table_id},
+                # NOTE: table_id 字段在较新版本才有，旧版本环境不存在该字段
+                # compose_config() 不依赖 self.table_id，所以此处不设置
             )
 
             # 4b. ESStorageBindingConfig ORM
@@ -856,7 +857,8 @@ class DataIDMigrator:
                 defaults={
                     "es_cluster_name": es_storage.storage_cluster.cluster_name,
                     "timezone": es_storage.time_zone,
-                    "table_id": table_id,
+                    # NOTE: table_id 字段在较新版本才有，旧版本环境不存在该字段
+                    # compose_config() 不依赖 self.table_id，所以此处不设置
                 },
             )
 
@@ -875,6 +877,7 @@ class DataIDMigrator:
             ]
 
             # 4c. DataBusConfig ORM（只创建 ORM 记录，不用 compose_log_config）
+            # NOTE: bk_data_id 字段在较新版本才有，旧版本环境不存在该字段
             databus_orm, _ = models.DataBusConfig.objects.update_or_create(
                 bk_tenant_id=ds.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
@@ -882,7 +885,6 @@ class DataIDMigrator:
                 data_link_name=data_link_name,
                 name=data_link_name,
                 data_id_name=bkbase_data_name,
-                defaults={"bk_data_id": ds.bk_data_id},
             )
 
             # 4d. 手动构建 Databus JSON（TransferAdaptor，不用 compose_log_config 的 Clean 模板）
