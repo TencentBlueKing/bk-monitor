@@ -61,6 +61,7 @@ import { useAlertDialogs } from './composables/use-alert-dialogs';
 import { useQuickFilter } from './composables/use-quick-filter';
 import { useAlarmTableColumns } from './composables/use-table-columns';
 import {
+  type AlarmUrlParams,
   type AlertAllActionEnum,
   type AlertContentNameEditInfo,
   type AlertTableItem,
@@ -77,6 +78,7 @@ import type { SelectOptions } from '@blueking/tdesign-ui/.';
 const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
 import { Message } from 'bkui-vue';
+import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
 import { saveAlertContentName } from './services/alert-services';
@@ -84,6 +86,7 @@ import { saveAlertContentName } from './services/alert-services';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
 import './alarm-center.scss';
+
 export default defineComponent({
   name: 'AlarmCenter',
   setup() {
@@ -147,11 +150,18 @@ export default defineComponent({
       }
       return null;
     });
-    const { getRetrievalFilterValueData } = useAlarmFilter(() => ({
-      alarmType: alarmStore.alarmType,
-      commonFilterParams: alarmStore.commonFilterParams,
-      filterMode: alarmStore.filterMode,
-    }));
+    const { getRetrievalFilterValueData } = useAlarmFilter(() => {
+      const [start, end] = handleTransformToTimestamp(alarmStore.timeRange);
+      return {
+        alarmType: alarmStore.alarmType,
+        commonFilterParams: {
+          ...alarmStore.commonFilterParams,
+          start_time: start,
+          end_time: end,
+        },
+        filterMode: alarmStore.filterMode,
+      };
+    });
 
     const isCollapsed = shallowRef(false);
     const alarmId = shallowRef<string>('');
@@ -281,7 +291,7 @@ export default defineComponent({
     };
 
     /** URL参数 */
-    const urlParams = computed(() => {
+    const urlParams = computed<AlarmUrlParams>(() => {
       return {
         from: alarmStore.timeRange[0],
         to: alarmStore.timeRange[1],
@@ -310,7 +320,6 @@ export default defineComponent({
 
     function setUrlParams(otherParams: { autoShowAlertAction?: string } = {}) {
       const queryParams = {
-        ...route.query,
         ...urlParams.value,
         ...otherParams,
       };
@@ -344,9 +353,13 @@ export default defineComponent({
         showDetail,
         alarmId: alarmIdParams,
         favorite_id: favoriteId,
+        /** 以下是兼容事件中心的URL参数 */
+        searchType,
+        condition,
       } = route.query;
+
       try {
-        alarmStore.alarmType = (alarmType as AlarmType) || AlarmType.ALERT;
+        alarmStore.alarmType = (alarmType as AlarmType) || (searchType as AlarmType) || AlarmType.ALERT;
         if (from && to) {
           alarmStore.timeRange = [from as string, to as string];
         }
@@ -355,16 +368,28 @@ export default defineComponent({
         alarmStore.queryString = (queryString as string) || '';
         alarmStore.conditions = tryURLDecodeParse(conditions as string, []);
         alarmStore.residentCondition = tryURLDecodeParse(residentCondition as string, []);
-        alarmStore.quickFilterValue = tryURLDecodeParse(quickFilterValue as string, []);
+        /** 兼容事件中心的condition */
+        if (condition) {
+          const params = tryURLDecodeParse(condition as string, {});
+          alarmStore.quickFilterValue = Object.keys(params).map(key => ({
+            key,
+            value: params[key],
+          }));
+        } else {
+          alarmStore.quickFilterValue = tryURLDecodeParse(quickFilterValue as string, []);
+        }
         alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
-        alarmStore.bizIds = tryURLDecodeParse(bizIds as string, [-1]);
+
+        /** 兼容事件中心的bizIds */
+        alarmStore.bizIds =
+          typeof bizIds === 'string' ? tryURLDecodeParse(bizIds, [-1]) : bizIds.map(item => Number(item));
         ordering.value = (sortOrder as string) || '';
         page.value = Number(currentPage || 1);
         if (favoriteId) {
           defaultFavoriteId.value = Number(favoriteId);
         }
         isShowFavorite.value = JSON.parse(localStorage.getItem(ALARM_CENTER_SHOW_FAVORITE) || 'false');
-        alarmDetailShow.value = JSON.parse(showDetail as string) || false;
+        alarmDetailShow.value = JSON.parse((showDetail as string) || 'false');
         alarmId.value = (alarmIdParams as string) || '';
         alarmStore.initAlarmService();
       } catch (error) {

@@ -9,13 +9,14 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import itertools
 import logging
 import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 import redis
 from django.conf import settings
@@ -24,8 +25,10 @@ from django.db import transaction
 from alarm_backends.core.lock.service_lock import share_lock
 from core.drf_resource import api
 from core.prometheus import metrics
-from metadata import config, models
-from metadata.models.data_link.data_link_configs import ClusterConfig
+from metadata import models
+from metadata.config import KAFKA_SASL_PROTOCOL
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR, DataLinkKind
+from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP, ClusterConfig
 from metadata.models.space.constants import SpaceStatus, SpaceTypes
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.tasks import sync_bkbase_v4_metadata
@@ -301,7 +304,7 @@ def sync_bkbase_cluster_info(
     elif cluster_type == models.ClusterInfo.TYPE_KAFKA:
         # 如果是kafka集群，需要获取SASL认证信息
         if is_auth:
-            security_protocol = config.KAFKA_SASL_PROTOCOL
+            security_protocol = KAFKA_SASL_PROTOCOL
 
         if v3_channel_id:
             default_settings["v3_channel_id"] = v3_channel_id
@@ -409,8 +412,14 @@ def sync_bkbase_metadata_all():
     matching_keys = []
 
     while True:
-        cursor, keys = bkbase_redis.scan(
-            cursor=cursor, match=f"{settings.BKBASE_REDIS_PATTERN}:*", count=settings.BKBASE_REDIS_SCAN_COUNT
+        # NOTE: `bkbase_redis_client()` 返回的 redis client 在类型存根中可能被标注为异步接口，
+        # 会导致静态检查将 `scan()` 推断为 Awaitable，从而报“不能迭代”的错误。
+        # 这里按运行时行为（同步 scan 返回 (cursor, keys)）做一次显式 cast，以消除误报。
+        cursor, keys = cast(
+            tuple[int, list[Any]],
+            bkbase_redis.scan(
+                cursor=cursor, match=f"{settings.BKBASE_REDIS_PATTERN}:*", count=settings.BKBASE_REDIS_SCAN_COUNT
+            ),
         )
         decoded_keys = [k.decode("utf-8") if isinstance(k, bytes) else k for k in keys]
         matching_keys.extend(decoded_keys)
@@ -500,3 +509,157 @@ def sync_bkbase_rt_meta_info_all():
         task_name="sync_bkbase_rt_meta_info_all", process_target=None
     ).observe(cost_time)
     logger.info("sync_bkbase_rt_meta_info_all: finished syncing bkbase rt meta info,cost->[%s]", cost_time)
+
+
+def _get_bkbase_components_config(
+    bk_tenant_id: str, kind: str, namespace: str, config: dict[str, Any]
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """获取BKBase组件配置
+
+    Args:
+        bk_tenant_id: 租户ID
+        kind: 组件类型
+        namespace: 命名空间
+        config: 组件配置
+
+    Returns:
+        基础字段配置和额外字段配置
+        - 基础字段配置: 包含数据链路名称、租户ID、命名空间、名称、业务ID、状态
+        - 额外字段配置: 包含组件状态，其他关联字段等
+    """
+
+    metadata = config["metadata"]
+    annotations: dict[str, Any] = metadata.get("annotations", {})
+    labels: dict[str, Any] = metadata.get("labels", {})
+    bk_biz_id: int = int(labels.get("bk_biz_id", 0))
+    name: str = metadata["name"]
+    status: str = config["status"]["phase"]
+    spec: dict[str, Any] = config["spec"]
+
+    # 基础字段
+    base_config: dict[str, Any] = {
+        "data_link_name": "",
+        "bk_tenant_id": bk_tenant_id,
+        "namespace": namespace,
+        "name": name,
+        "bk_biz_id": bk_biz_id,
+    }
+    extra_config: dict[str, Any] = {"status": status}
+
+    # 根据kind处理不同字段
+    match kind:
+        case DataLinkKind.DATAID.value:
+            bk_data_id = int(annotations.get("dataId") or annotations.get("DataId") or 0)
+            extra_config["bk_data_id"] = bk_data_id
+        case DataLinkKind.RESULTTABLE.value:
+            extra_config["bkbase_table_id"] = annotations.get("ResultTableId") or ""
+            extra_config["data_type"] = spec["dataType"]
+        case DataLinkKind.VMSTORAGEBINDING.value:
+            extra_config["vm_cluster_name"] = spec["storage"]["name"]
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+        case DataLinkKind.ESSTORAGEBINDING.value:
+            extra_config["es_cluster_name"] = spec["storage"]["name"]
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+        case DataLinkKind.DORISBINDING.value:
+            extra_config["doris_cluster_name"] = spec["storage"]["name"]
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+        case DataLinkKind.DATABUS.value:
+            sink_names = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
+            extra_config["data_id_name"] = spec["sources"][0]["name"]
+            extra_config["sink_names"] = sink_names
+    return base_config, extra_config
+
+
+def _sync_bkbase_v4_datalink_components(bk_tenant_id: str, namespace: str, kind: str):
+    """创建或更新组件"""
+    logger.info(
+        "sync_bkbase_v4_datalink_components: start syncing,bk_tenant_id->[%s],namespace->[%s],kind->[%s]",
+        bk_tenant_id,
+        namespace,
+        kind,
+    )
+    component_class = COMPONENT_CLASS_MAP[kind]
+    exists_components = {
+        component.name: component
+        for component in component_class.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace)
+    }
+    configs = api.bkdata.list_data_link(
+        bk_tenant_id=bk_tenant_id, kind=DataLinkKind.get_choice_value(kind), namespace=namespace
+    )
+    updated_components = []
+    created_components = []
+    update_fields = set()
+    for config in configs:
+        # 获取组件基础字段和额外字段
+        base_config, extra_config = _get_bkbase_components_config(
+            bk_tenant_id=bk_tenant_id, kind=kind, namespace=namespace, config=config
+        )
+        if base_config["name"] in exists_components:
+            # 如果没有额外字段，则跳过
+            if not extra_config:
+                continue
+
+            # 如果组件已存在，则只更新额外字段
+            exists_component = exists_components[base_config["name"]]
+            is_updated = False
+            for field, value in extra_config.items():
+                # 如果值不为空且与现有值不同，则更新
+                if value and getattr(exists_component, field) != value:
+                    setattr(exists_component, field, value)
+                    is_updated = True
+                    update_fields.add(field)
+            if is_updated:
+                updated_components.append(exists_component)
+        else:
+            created_components.append(component_class(**base_config, **extra_config))
+
+    # 批量创建或更新组件
+    with transaction.atomic():
+        if created_components:
+            component_class.objects.bulk_create(created_components, batch_size=1000)
+        if updated_components and update_fields:
+            component_class.objects.bulk_update(updated_components, fields=list(update_fields), batch_size=1000)
+
+    logger.info(
+        "sync_bkbase_v4_datalink_components: finished syncing,bk_tenant_id->[%s],namespace->[%s],kind->[%s],created_components->[%s],updated_components->[%s]",
+        bk_tenant_id,
+        namespace,
+        kind,
+        len(created_components),
+        len(updated_components),
+    )
+
+
+@share_lock(ttl=3600, identify="metadata_sync_bkbase_v4_datalink_components")
+def sync_bkbase_v4_datalink_components():
+    """定时同步 V4 链路组件配置"""
+    logger.info("sync_bkbase_v4_datalink_components: start")
+    start_time = time.time()
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="sync_bkbase_v4_datalink_components", status=TASK_STARTED, process_target=None
+    ).inc()
+
+    # 遍历所有租户、命名空间和组件类型，创建或更新组件
+    tenants: list[dict[str, Any]] = api.bk_login.list_tenant()
+    namespaces: list[str] = [BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG]
+    kinds: list[str] = [
+        DataLinkKind.VMSTORAGEBINDING.value,
+        DataLinkKind.ESSTORAGEBINDING.value,
+        DataLinkKind.DORISBINDING.value,
+        DataLinkKind.DATABUS.value,
+        DataLinkKind.DATAID.value,
+        DataLinkKind.RESULTTABLE.value,
+        DataLinkKind.CONDITIONALSINK.value,
+    ]
+    for tenant, namespace, kind in itertools.product(tenants, namespaces, kinds):
+        _sync_bkbase_v4_datalink_components(bk_tenant_id=tenant["id"], namespace=namespace, kind=kind)
+
+    cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="sync_bkbase_v4_datalink_components", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="sync_bkbase_v4_datalink_components", process_target=None
+    ).observe(cost_time)
+    metrics.report_all()
+    logger.info("sync_bkbase_v4_datalink_components: finished,cost_time->[%s]", cost_time)

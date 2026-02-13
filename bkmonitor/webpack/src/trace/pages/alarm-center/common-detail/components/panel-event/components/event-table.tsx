@@ -97,7 +97,7 @@ export default defineComponent({
       {
         colKey: tableColumnKey.TIME,
         title: window.i18n.t('时间'),
-        width: 150,
+        width: 200,
         // sorter: true,
         ellipsis: false,
         cell: (_h, { row }) => {
@@ -167,7 +167,6 @@ export default defineComponent({
         cell: (_h, { row }) => {
           const cItem = row[tableColumnKey.CONTENT];
           const { alias, detail } = cItem;
-
           return (
             <div
               class='event-content-col'
