@@ -29,10 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import _ from 'lodash';
 import { Debounce } from 'monitor-common/utils';
 
+import customEscalationViewStore from '../../../../../../../store/modules/custom-escalation-view';
 import RenderCommonList from './components/render-common-list/index';
 import RenderCustomList from './components/render-custom-list';
 import RenderResultList from './components/render-result-list/index';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import type { IValue } from './components/render-result-list/components/edit-panel';
 

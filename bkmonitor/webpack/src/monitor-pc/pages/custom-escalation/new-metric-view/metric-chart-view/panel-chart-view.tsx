@@ -36,7 +36,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import LayoutChartTable from './layout-chart-table';
 import { chunkArray } from './utils';
 
-import type { IMetricAnalysisConfig } from '../type';
+import type { IMetricAnalysisConfig, IRouteParams } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -58,6 +58,7 @@ interface IPanelChartViewProps {
 
 @Component
 export default class PanelChartView extends tsc<IPanelChartViewProps> {
+  @InjectReactive('routeParams') routeParams: IRouteParams;
   // 相关配置
   @Prop({ default: () => ({}) }) config: IMetricAnalysisConfig;
   @Prop({ type: Boolean, default: false }) readonly showStatisticalValue: IPanelChartViewProps['showStatisticalValue'];
@@ -88,7 +89,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   defaultGroupId = 'group-chart';
 
   /** 过滤条件发生改变的时候重新拉取数据 */
-  @Watch('config', { deep: true })
+  @Watch('config', { deep: true, immediate: true })
   handleConfigChange(val) {
     // 后端返回'$interval'，interval的赋值生效
     this.viewOptions.interval = Number.isNaN(+val.interval) ? val.interval || 'auto' : +val.interval;
@@ -158,7 +159,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   /** 获取图表配置 */
   @Debounce(300)
   getGroupList() {
-    if (!this.$route.params.id) {
+    if (!this.routeParams.idParams) {
       return;
     }
     if (this.config.metrics.length < 1) {
@@ -172,7 +173,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       ...this.config,
-      time_series_group_id: Number(this.$route.params.id),
+      ...this.routeParams.idParams,
       start_time: startTime,
       end_time: endTime,
     };

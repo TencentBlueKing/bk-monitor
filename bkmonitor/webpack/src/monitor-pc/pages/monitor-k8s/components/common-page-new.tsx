@@ -34,7 +34,10 @@ import bus from 'monitor-common/utils/event-bus';
 import { deepClone, isObject, random } from 'monitor-common/utils/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import { DEFAULT_INTERVAL, DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
-import { APM_LOG_ROUTER_QUERY_KEYS } from 'monitor-ui/chart-plugins/plugins/monitor-retrieve/monitor-retrieve';
+import {
+  APM_CUSTOM_METRIC_ROUTER_QUERY_KEYS,
+  APM_LOG_ROUTER_QUERY_KEYS,
+} from 'monitor-ui/chart-plugins/plugins/monitor-retrieve/monitor-retrieve';
 import {
   type DashboardMode,
   type IPanelModel,
@@ -51,6 +54,7 @@ import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { CP_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../constant/constant';
 import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
+import APMCustomMetric from '../../../pages/custom-escalation/new-metric-view/apm-custom-metric';
 import { Storage } from '../../../utils';
 // import { CHART_INTERVAL } from '../../../constant/constant';
 import HostList from '../../performance/performance-detail/host-list/host-list';
@@ -157,6 +161,7 @@ const customRouterQueryKeys = [
   ...APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS,
   // log-retrieve图所需的路由参数
   ...APM_LOG_ROUTER_QUERY_KEYS,
+  ...APM_CUSTOM_METRIC_ROUTER_QUERY_KEYS,
   ...Event_EXPORT_QUERY_KEYS,
   ...ALARM_TEMPLATE_QUERY_KEYS,
 ];
@@ -1617,6 +1622,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     for (const key of APM_LOG_ROUTER_QUERY_KEYS) {
       this.customRouteQuery[key] = undefined;
     }
+    // 清除 apm 自定义指标所需的路由参数
+    for (const key of APM_CUSTOM_METRIC_ROUTER_QUERY_KEYS) {
+      this.customRouteQuery[key] = undefined;
+    }
     if (this.tab2SceneType && item.type === 'detail') {
       this.localSceneType = 'overview';
     }
@@ -1794,6 +1803,27 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       default:
         return undefined;
     }
+  }
+  renderDashboardPanel() {
+    if (this.sceneData.id === 'custom_metric_v2') {
+      return <APMCustomMetric />;
+    }
+
+    return (
+      <DashboardPanel
+        id={this.dashboardPanelId}
+        key={this.sceneData.id}
+        column={this.sceneData.mode === 'custom' ? 'custom' : this.columns + 1}
+        dashboardId={this.dashboardId}
+        isSingleChart={this.isSingleChart}
+        needOverviewBtn={!!this.sceneData?.list?.length}
+        panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
+        singleChartNoPadding={this.isSingleChartNoPadding}
+        // onLinkTo={this.handleUpdateCurrentData}
+        onBackToOverview={this.handleBackToOverview}
+        onLintToDetail={this.handleLinkToDetail}
+      />
+    );
   }
   render() {
     return (
@@ -2062,19 +2092,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                     <div class='view-has-no-data-main'>{this.$slots.noData}</div>
                   )}
                   {this.filtersReady ? (
-                    <DashboardPanel
-                      id={this.dashboardPanelId}
-                      key={this.sceneData.id}
-                      column={this.sceneData.mode === 'custom' ? 'custom' : this.columns + 1}
-                      dashboardId={this.dashboardId}
-                      isSingleChart={this.isSingleChart}
-                      needOverviewBtn={!!this.sceneData?.list?.length}
-                      panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
-                      singleChartNoPadding={this.isSingleChartNoPadding}
-                      // onLinkTo={this.handleUpdateCurrentData}
-                      onBackToOverview={this.handleBackToOverview}
-                      onLintToDetail={this.handleLinkToDetail}
-                    />
+                    this.renderDashboardPanel()
                   ) : (
                     <div class='empty-wrapper'>{this.$t('加载中...')}</div>
                   )}

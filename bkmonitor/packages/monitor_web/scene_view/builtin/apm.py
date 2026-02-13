@@ -173,6 +173,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-topo",
         "apm_service-service-default-db",
         "apm_service-service-default-custom_metric",
+        "apm_service-service-default-custom_metric_v2",
         "apm_service-remote_service-http-overview",
         # ⬇️ APMTrace检索场景视图
         "apm_trace-log",

@@ -31,7 +31,7 @@ import _ from 'lodash';
 import { makeMap } from 'monitor-common/utils/make-map';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
+import customEscalationViewStore from '../../../../../../../../store/modules/custom-escalation-view';
 
 import './edit-offset.scss';
 
@@ -348,7 +348,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
             onHidden: this.handleSubmitEdit,
             onShow: this.handleShowEdit,
           }}
-          theme='light compare-type-time-edit-offset'
+          theme='light compare-type-time-edit-offset common-monitor'
           trigger='click'
         >
           <div class='append-btn'>

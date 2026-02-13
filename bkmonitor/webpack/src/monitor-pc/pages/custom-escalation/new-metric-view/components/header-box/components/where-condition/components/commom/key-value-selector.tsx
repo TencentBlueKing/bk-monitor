@@ -23,14 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
 import KvSelector from 'monitor-pc/components/retrieval-filter/setting-kv-selector';
 
+import customEscalationViewStore from '../../../../../../../../../store/modules/custom-escalation-view';
 import { getCustomTsDimensionValues } from '../../../../../../services/scene_view_new';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
+
+import type { IRouteParams } from '../../../../../../type';
 
 interface IEmit {
   onChange: (value: IProps['data']) => void;
@@ -47,6 +49,8 @@ interface IProps {
 
 @Component
 export default class FilterConditions extends tsc<IProps, IEmit> {
+  @InjectReactive('routeParams') routeParams: IRouteParams;
+
   @Prop({ type: Object, required: true }) readonly data: IProps['data'];
 
   valueListMemo: Readonly<{ id: string; name: string }[]> = [];
@@ -60,7 +64,7 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
     if (this.valueListMemo.length < 1) {
       const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
       const result = await getCustomTsDimensionValues({
-        time_series_group_id: Number(this.$route.params.id),
+        ...this.routeParams.idParams,
         dimension: this.data.key,
         start_time: startTime || 0,
         end_time: endTime || 0,

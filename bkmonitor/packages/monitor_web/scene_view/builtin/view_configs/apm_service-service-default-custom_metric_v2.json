@@ -1,0 +1,24 @@
+{
+    "id": "custom_metric_v2",
+    "type": "overview",
+    "mode": "custom",
+    "name": "自定义指标（Debug）",
+    "variables": [],
+    "panels": [],
+    "overview_panels": [
+        {
+            "id": 1,
+            "title": "",
+            "type": "custom_metric_v2",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 24,
+                "h": 24
+            },
+            "targets": []
+        }
+    ],
+    "order": [],
+    "options": {}
+}

@@ -23,18 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { customTimeSeriesList } from 'monitor-api/modules/custom_report';
 import { copyText } from 'monitor-common/utils/utils';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
+import customEscalationViewStore from '../../../../../store/modules/custom-escalation-view';
+
+import type { IRouteParams } from '../../type';
 
 import './index.scss';
 
 @Component
 export default class PageHeader extends tsc<object> {
+  @InjectReactive('routeParams') routeParams: IRouteParams;
   customTimeSeriesList: Readonly<{ data_label: string; name: string; time_series_group_id: number }[]> = [];
 
   currentCustomTimeSeriesId = 0;
@@ -88,7 +91,7 @@ export default class PageHeader extends tsc<object> {
 
   created() {
     this.fetchData();
-    this.currentCustomTimeSeriesId = Number(this.$route.params.id);
+    this.currentCustomTimeSeriesId = Number(this.routeParams.idParams.time_series_group_id);
   }
 
   render() {

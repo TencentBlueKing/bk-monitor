@@ -300,7 +300,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
         </div>
         <div class='check-view-detail-body'>
           <HeaderBox
-            dimenstionParams={this.dimensionParams}
+            dimensionParams={this.dimensionParams}
             exclude={['metric']}
             isShowExpand={false}
             offsetSingle={true}

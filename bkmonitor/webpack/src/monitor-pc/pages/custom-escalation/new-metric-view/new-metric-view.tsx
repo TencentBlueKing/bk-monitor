@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 
+import customEscalationViewStore from '../../../store/modules/custom-escalation-view';
 import HeaderBox from './components/header-box/index';
 import MetricsSelect from './components/metrics-select/index';
 import PageHeadr from './components/page-header/index';
@@ -35,16 +36,18 @@ import ViewColumn from './components/view-column/index';
 import ViewTab from './components/view-tab/index';
 import PanelChartView from './metric-chart-view/panel-chart-view';
 import { getCustomTsMetricGroups } from './services/scene_view_new';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
+import type { IRouteParams } from './type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './new-metric-view.scss';
+Component.registerHooks(['beforeRouteEnter']);
 
 @Component
 export default class NewMetricView extends tsc<object> {
+  @Prop({ required: true, type: String }) readonly id: string;
   currentView = 'default';
-  dimenstionParams: Record<string, any> = {};
+  dimensionParams: Record<string, any> = {};
   showStatisticalValue = false;
   isCustomTsMetricGroupsLoading = true;
   viewColumn = 2;
@@ -53,6 +56,7 @@ export default class NewMetricView extends tsc<object> {
     viewColumn: 2,
   };
   cacheTimeRange = [];
+  @ProvideReactive('routeParams') routeParams: Partial<IRouteParams> = {};
   @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
   @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
@@ -83,6 +87,23 @@ export default class NewMetricView extends tsc<object> {
       });
     }
   }
+  @Watch('id', { immediate: true })
+  idChange() {
+    this.routeParams = {
+      id: this.id,
+      idParams: {
+        time_series_group_id: Number(this.id),
+        apm_app_name: undefined,
+        apm_service_name: undefined,
+      },
+    };
+    if (!this.id) {
+      this.$router.push('/custom-metric');
+      return;
+    }
+    this.getCustomTsMetricGroups();
+  }
+
   initScroll() {
     const container = document.querySelector('.metric-view-dashboard-container') as HTMLElement;
     if (container) {
@@ -104,10 +125,6 @@ export default class NewMetricView extends tsc<object> {
     }
   }
 
-  get timeSeriesGroupId() {
-    return Number(this.$route.params.id);
-  }
-
   get startTime() {
     return customEscalationViewStore.startTime;
   }
@@ -123,7 +140,7 @@ export default class NewMetricView extends tsc<object> {
         limit: 50, // 0不限制
       },
       view_column: 2,
-      ...this.dimenstionParams,
+      ...this.dimensionParams,
       // start_time: this.startTime,
       // end_time: this.endTime,
       metrics: customEscalationViewStore.currentSelectedMetricNameList,
@@ -141,17 +158,12 @@ export default class NewMetricView extends tsc<object> {
     });
   }
 
-  @Watch('timeSeriesGroupId', { immediate: true })
-  timeSeriesGroupIdChange() {
-    this.getCustomTsMetricGroups();
-  }
-
   async getCustomTsMetricGroups() {
     const needParseUrl = Boolean(this.$route.query.viewPayload);
     this.isCustomTsMetricGroupsLoading = true;
     try {
       const result = await getCustomTsMetricGroups({
-        time_series_group_id: this.timeSeriesGroupId,
+        time_series_group_id: Number(this.id),
       });
 
       customEscalationViewStore.updateCommonDimensionList(result.common_dimensions);
@@ -174,15 +186,15 @@ export default class NewMetricView extends tsc<object> {
   }
   // 刷新视图
   handleImmediateRefresh() {
-    this.dimenstionParams = Object.freeze({ ...this.dimenstionParams });
+    this.dimensionParams = Object.freeze({ ...this.dimensionParams });
   }
 
   handleDimensionParamsChange(payload: any) {
-    this.dimenstionParams = Object.freeze(payload);
+    this.dimensionParams = Object.freeze(payload);
   }
 
   handleMetricsSelectReset() {
-    this.dimenstionParams = {};
+    this.dimensionParams = {};
   }
   handleRefreshChange(value: number) {
     this.refreshInterval = value;
@@ -203,7 +215,12 @@ export default class NewMetricView extends tsc<object> {
 
   render() {
     return (
-      <div class='bk-monitor-new-metric-view'>
+      <div
+        style={{
+          '--apm-tab-height': '32px',
+        }}
+        class='bk-monitor-new-metric-view'
+      >
         <PageHeadr>
           <DashboardTools
             isSplitPanel={false}
@@ -216,7 +233,7 @@ export default class NewMetricView extends tsc<object> {
           />
         </PageHeadr>
         <div
-          key={this.timeSeriesGroupId}
+          key={this.id}
           v-bkloading={{ isLoading: this.isCustomTsMetricGroupsLoading }}
         >
           {!this.isCustomTsMetricGroupsLoading && (
@@ -238,7 +255,7 @@ export default class NewMetricView extends tsc<object> {
                 <template slot='main'>
                   <HeaderBox
                     key={this.currentView}
-                    dimenstionParams={this.dimenstionParams}
+                    dimensionParams={this.dimensionParams}
                     onChange={this.handleDimensionParamsChange}
                   >
                     <template slot='actionExtend'>

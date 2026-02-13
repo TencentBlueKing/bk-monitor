@@ -45,6 +45,7 @@ import './monitor-retrieve.scss';
 import '@blueking/monitor-apm-log/css/main.css';
 
 export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword', 'indexId', 'unionList'];
+export const APM_CUSTOM_METRIC_ROUTER_QUERY_KEYS = ['viewTab', 'viewPayload'];
 @Component
 export default class MonitorRetrieve extends tsc<void> {
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;

@@ -1,5 +1,5 @@
 .new-metric-view-metrics-group {
-  height: calc(100% - 118px);
+  height: calc(100% - var(--apm-tab-height, 32px) - 70px);
   padding: 0 8px 0 10px;
   margin-top: 8px;
   overflow-y: auto;
@@ -20,7 +20,6 @@
     padding-right: 8px;
     padding-left: 20px;
     margin-bottom: 2px;
-    font-family: PingFangSC-Medium;
     font-size: 12px;
     font-weight: 500;
     color: #313238;
@@ -64,9 +63,9 @@
     flex: 1;
     padding-left: 4px;
     overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 12px;
     line-height: 32px;
-    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
@@ -86,7 +85,7 @@
   .metrics-select-item-content {
     position: relative;
 
-    &:after {
+    &::after {
       position: absolute;
       top: 0;
       bottom: 0;

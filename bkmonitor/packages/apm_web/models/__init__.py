@@ -13,4 +13,5 @@ from .profile import *  # noqa
 from .service import *  # noqa
 from .visit_record import *  # noqa
 from .trace import *  # noqa
+from .metric import *  # noqa
 from .strategy import *  # noqa
