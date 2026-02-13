@@ -27,6 +27,7 @@ from django.utils.functional import cached_property
 from apps.api import TGPATaskApi
 from apps.tgpa.constants import TGPA_BASE_DIR, TGPATaskTypeEnum, TASK_LIST_BATCH_SIZE
 from apps.tgpa.handlers.base import TGPAFileHandler
+from apps.tgpa.handlers.decrypt import get_decrypt_handler
 from apps.tgpa.models import TGPATask
 from apps.utils.thread import MultiExecuteFunc
 
@@ -44,6 +45,8 @@ class TGPATaskHandler:
         self.task_id = self.task_info["go_svr_task_id"]
         self.temp_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "task", str(self.task_id), "temp")
         self.output_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "task", str(self.task_id), "output")
+        # 解密处理器实例
+        self.decrypt_handler = get_decrypt_handler(bk_biz_id)
 
     @cached_property
     def meta_fields(self):
@@ -218,5 +221,5 @@ class TGPATaskHandler:
         """
         下载并处理文件
         """
-        file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields)
+        file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields, self.decrypt_handler)
         file_handler.download_and_process_file(self.task_info["file_name"])
