@@ -65,9 +65,10 @@ def fetch_and_process_tgpa_tasks():
             # 确保已经创建采集配置
             TGPACollectorConfigHandler.get_or_create_collector_config(bk_biz_id)
             task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
-            # 统一将 go_svr_task_id 转换为 int 类型，确保与数据库字段类型一致
+            # 确保与数据库字段类型一致
             for task in task_list:
                 task["go_svr_task_id"] = int(task["go_svr_task_id"])
+                task["status"] = str(task["status"])
             # 如果是第一次同步，只创建数据，不处理任务
             if not TGPATask.objects.filter(bk_biz_id=bk_biz_id).exists():
                 TGPATask.objects.bulk_create(
