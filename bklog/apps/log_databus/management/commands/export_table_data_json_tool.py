@@ -11,8 +11,23 @@ from home_application.management.commands.migrate_tool import parse_str_int_list
 PROJECT_PATH = os.getcwd()
 
 
+def str_to_bool(value):
+    """
+    将字符串转换为布尔值，支持多种常见写法
+    """
+    if isinstance(value, bool):
+        return value
+    lower_value = value.lower().strip()
+    if lower_value in ("true", "1", "yes", "y"):
+        return True
+    elif lower_value in ("false", "0", "no", "n"):
+        return False
+    else:
+        raise CommandError(f"无效的布尔值: {value}, 请使用 True/False、1/0、yes/no、y/n")
+
+
 class Command(BaseCommand):
-    """海外迁移指令类"""
+    """数据库导出 .json 文件指令类"""
 
     def add_arguments(self, parser):
         parser.add_argument("-b", "--bk_biz_id", help="需要导出的业务, 不传时导出所有的业务", type=int, default=0)
@@ -20,7 +35,13 @@ class Command(BaseCommand):
             "--index_set_ids", help="需要导出的索引集 ID, 不传时导出所有的索引集, 例如: 1,2,3", type=str, default=""
         )
         parser.add_argument("-p", "--path", help="导出文件保存目录, 默认为根目录", type=str, default=PROJECT_PATH)
-        parser.add_argument("-om", "--overseas_migrate", help="海外数据迁移", type=bool, default=False)
+        parser.add_argument(
+            "-om",
+            "--overseas_migrate",
+            help="是否为海外数据迁移, 例如: True/False、1/0、yes/no、y/n",
+            type=str_to_bool,
+            default=False,
+        )
         parser.add_argument(
             "--table_names",
             help="需要导出的表名, 例如: log_search_logindexset,log_search_logindexsetdata",
