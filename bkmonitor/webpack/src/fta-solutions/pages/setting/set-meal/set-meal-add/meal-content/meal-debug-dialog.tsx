@@ -84,10 +84,13 @@ export default class MealDebugDialog extends tsc<IProps> {
 
   top = 130;
 
+  alertId = '';
+
   @Watch('show')
   handleWatchShow(v: boolean) {
     if (v) {
       if (this.debugData.type === 'peripheral') {
+        this.alertId = '';
         this.peripheralVerify();
       } else {
         this.isVerify = true;
@@ -135,6 +138,7 @@ export default class MealDebugDialog extends tsc<IProps> {
       true
     );
     executeConfigData.template_detail = templateDetail;
+    executeConfigData.alert_id = this.alertId;
     return executeConfigData;
   }
 
@@ -176,6 +180,7 @@ export default class MealDebugDialog extends tsc<IProps> {
   getDebugStatus() {
     let timer = null;
 
+    // biome-ignore lint/suspicious/noAsyncPromiseExecutor: <explanation>
     return new Promise(async resolve => {
       if (!this.isQueryStatus) {
         resolve({});
@@ -341,14 +346,22 @@ export default class MealDebugDialog extends tsc<IProps> {
           value={this.show}
           on-cancel={() => this.handleShowChange(false)}
         >
-          {this.debugData.type === 'peripheral' && (
+          {this.debugData.type === 'peripheral' && [
             <bk-alert
+              key={'tips'}
               class='mb-24'
               title={this.$t('注意，该功能会调实际套餐去执行，请确认测试变量后再进行测试执行。')}
               type='warning'
               closable
-            />
-          )}
+            />,
+            <bk-input
+              key={'alert-id'}
+              class='mb-24'
+              v-model={this.alertId}
+              placeholder={this.$t('输入告警ID进行变量渲染')}
+              clearable
+            />,
+          ]}
           <div>
             {this.debugData.type === 'webhook' && (
               <HttpCallBack
