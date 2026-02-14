@@ -13,6 +13,7 @@ from typing import Any
 from collections.abc import Callable, Iterable
 
 from django.db.models import Q
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from api.cmdb.define import Host
@@ -819,6 +820,7 @@ class AlertTracesResource(Resource):
             if not trace_id:
                 continue
 
+            is_error: bool = trace.get("error", False)
             processed_traces.append(
                 {
                     "app_name": apm_target["app_name"],
@@ -826,8 +828,11 @@ class AlertTracesResource(Resource):
                     "root_service": trace.get("root_service", ""),
                     "root_span_name": trace.get("root_span_name", ""),
                     "root_service_span_name": trace.get("root_service_span_name", ""),
-                    "error": trace.get("error", False),
-                    "error_msg": trace_err_msg_map.get(trace_id, ""),
+                    "error": is_error,
+                    "error_msg": trace_err_msg_map.get(trace_id, "") if is_error else _("耗时较长"),
+                    # min_start_time（开始时间）｜trace_duration（耗时），单位为毫秒。
+                    "min_start_time": trace.get("min_start_time", 0),
+                    "trace_duration": trace.get("trace_duration", 0),
                 }
             )
 
@@ -886,10 +891,12 @@ class AlertTracesResource(Resource):
 
         # 尝试从 events 中获取异常信息
         # events 结构示例：{"name": ["exception"], "timestamp": [...], "attributes.exception.message": ["error"]}
-        event_names: list[str] = span.get("events.name", [])
+        event_names: list[str] | str = span.get("events.name", [])
         if "exception" in event_names:
-            exception_messages: list[str] = span.get("events.attributes.exception.message", [])
+            exception_messages: list[str] | str = span.get("events.attributes.exception.message", [])
             if exception_messages:
-                return exception_messages[0]
+                if isinstance(exception_messages, list):
+                    return exception_messages[0]
+                return exception_messages
 
         return ""
