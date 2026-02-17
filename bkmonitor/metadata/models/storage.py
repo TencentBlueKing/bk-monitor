@@ -18,7 +18,7 @@ import re
 import string
 import time
 import traceback
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 import arrow
 import curator
@@ -2748,6 +2748,85 @@ class ESStorage(models.Model, StorageResultTable):
                 now_gap += self.slice_gap
 
         return True
+
+    @classmethod
+    def move_last_day_write_alias(cls, es_storage: Self, force_move: bool = False, dry_run: bool = False):
+        """移动前一天的写别名到当前最新的索引
+
+        Notes:
+            由于数据决定使用哪个写别名是基于UTC时间的, 而索引创建是基于东八区时间的, 因此存在索引轮转后, 数据不写向新索引的情况。
+            而且还可能存在数据堆积处理延迟的情况, kafka中也可能存在几个小时前的数据未被消费的情况。
+            在正常情况下，这不会有什么问题，但是一旦遇到故障切换或扩容等场景，实际上我们希望数据不要写向旧索引，而是写向新索引。
+            因此需要将前一天的写别名指向最新的索引，同时删除旧索引的写别名，这样就可以保证数据写向新索引，同时需要将前一天的读别名指向最新的索引。
+
+        执行步骤:
+            1. 确定最新的索引名称
+            2. 确定前一天的读写别名名称
+            3. 确定前一天写别名指向的索引列表
+            4. 如果写别名已经指向最新的索引，则不需要进行写别名的移动
+            5. 检查索引状态, 如果索引状态为red, 则强制进行写别名的移动
+            6. 如果确定需要移动写别名，则执行创建新的写别名指向最新的索引，
+               同时添加对应日期的读别名，并删除旧的写别名指向的索引
+
+        Args:
+            es_storage: ESStorage对象
+            force_move: 默认仅处理上一个写别名指向的索引为read的情况。如果想要在任何情况下都移动写别名, 则需要将force_move设置为True
+            dry_run: 是否只进行模拟，不实际执行操作
+        """
+        # 确定最新的索引名称
+        latest_index_name = sorted(es_storage.get_index_names())[-1]
+
+        # 确定前一天的读写别名
+        last_datetime_object = es_storage.now - datetime.timedelta(minutes=1440)
+        last_date_str = last_datetime_object.strftime(es_storage.date_format)
+        last_write_alias_name = f"write_{last_date_str}_{es_storage.index_name}"
+        last_read_alias_name = f"{es_storage.index_name}_{last_date_str}_read"
+
+        # 确定上一个写别名指向的索引
+        last_indexes = list(es_storage.es_client.indices.get_alias(name=last_write_alias_name).keys())
+        if not last_indexes:
+            print("上一个索引没有进行配置，因此也不需要进行写别名的移动")
+            return
+
+        # 如果写别名已经指向最新的索引，则不需要进行写别名的移动
+        if latest_index_name in last_indexes:
+            print(f"最新的索引->[{latest_index_name}]已经在写别名指向的索引列表中，因此不需要进行写别名的移动")
+            return
+
+        # 如果写别名指向了多个索引，配置存在问题，后续需要检查为什么会出现这种情况？
+        if len(last_indexes) > 1:
+            print(f"Warning: 写别名指向了多个索引！索引列表->[{last_indexes}]")
+
+        # 检查索引状态，如果索引状态为red，则强制进行写别名的移动
+        if not force_move:
+            for index in last_indexes:
+                index_info = es_storage.get_index_info(index)
+                if index_info["status"] == "red":
+                    print(f"索引->[{index}]状态为red，因此要强制进行写别名的移动")
+                    force_move = True
+                    break
+
+        if force_move:
+            # 创建新的写别名指向最新的索引，同时添加对应日期的读别名
+            actions = [
+                {"add": {"index": latest_index_name, "alias": last_write_alias_name}},
+                {"add": {"index": latest_index_name, "alias": last_read_alias_name}},
+            ]
+
+            print(f"将写别名->[{last_write_alias_name}]指向索引->[{latest_index_name}]")
+            print(f"将读别名->[{last_read_alias_name}]指向索引->[{latest_index_name}]")
+
+            # 删除旧的写别名指向的索引
+            for index in last_indexes:
+                actions.append({"remove": {"index": index, "alias": last_write_alias_name}})
+                print(f"删除写别名->[{last_write_alias_name}]指向索引->[{index}]")
+
+            if not dry_run:
+                es_storage._update_aliases_with_retry(actions=actions, new_index_name=latest_index_name)
+            else:
+                print(
+                    f"模拟执行, _update_aliases_with_retry, actions->[{actions}], new_index_name->[{latest_index_name}]"
+                )
 
     def create_or_update_aliases(self, ahead_time=1440, force_rotate: bool = False, is_moving_cluster: bool = False):
         """
