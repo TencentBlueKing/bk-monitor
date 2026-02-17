@@ -84,6 +84,11 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
             auth.login(request, user)
             request.token = token
             request.skip_check = True
+        elif record.type.lower() == "user":
+            # 用户权限模式：替换请求用户为令牌创建者
+            username = record.create_user
+            user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
+            auth.login(request, user)
         else:
             # 观测场景、告警事件场景权限模式：保留原用户信息,判定action是否符合token鉴权场景
             request.token = token
