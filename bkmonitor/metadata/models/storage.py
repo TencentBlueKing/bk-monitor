@@ -2796,12 +2796,12 @@ class ESStorage(models.Model, StorageResultTable):
         if len(last_indexes) > 1:
             print(f"Warning: 写别名指向了多个索引！索引列表->[{last_indexes}]")
 
-        # 检查索引状态，如果索引状态为read，则强制进行写别名的移动
+        # 检查索引状态，如果索引状态为red，则强制进行写别名的移动
         if not force_move:
             for index in last_indexes:
                 index_info = es_storage.get_index_info(index)
-                if index_info["status"] == "read":
-                    print(f"索引->[{index}]状态为read，因此要强制进行写别名的移动")
+                if index_info["status"] == "red":
+                    print(f"索引->[{index}]状态为red，因此要强制进行写别名的移动")
                     force_move = True
                     break
 
