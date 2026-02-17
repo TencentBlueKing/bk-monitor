@@ -2750,7 +2750,7 @@ class ESStorage(models.Model, StorageResultTable):
         return True
 
     @classmethod
-    def move_write_alias(cls, es_storage: Self, force_move: bool = False):
+    def move_write_alias(cls, es_storage: Self, force_move: bool = False, dry_run: bool = False):
         """移动前一天的写别名到当前最新的索引
 
         Notes:
@@ -2770,7 +2770,8 @@ class ESStorage(models.Model, StorageResultTable):
 
         Args:
             es_storage: ESStorage对象
-            force_move: 默认仅处理上一个写别名指向的索引为read的情况。如果想要在任何情况下都移动写别名，则需要将force_move设置为True。
+            force_move: 默认仅处理上一个写别名指向的索引为read的情况。如果想要在任何情况下都移动写别名，则需要将force_move设置为True
+            dry_run: 是否只进行模拟，不实际执行操作
         """
         # 确定最新的索引名称
         latest_index_name = sorted(es_storage.get_index_names())[-1]
@@ -2820,7 +2821,12 @@ class ESStorage(models.Model, StorageResultTable):
                 actions.append({"remove": {"index": index, "alias": last_write_alias_name}})
                 print(f"删除写别名->[{last_write_alias_name}]指向索引->[{index}]")
 
-            es_storage._update_aliases_with_retry(actions=actions, new_index_name=latest_index_name)
+            if not dry_run:
+                es_storage._update_aliases_with_retry(actions=actions, new_index_name=latest_index_name)
+            else:
+                print(
+                    f"模拟执行, _update_aliases_with_retry, actions->[{actions}], new_index_name->[{latest_index_name}]"
+                )
 
     def create_or_update_aliases(self, ahead_time=1440, force_rotate: bool = False, is_moving_cluster: bool = False):
         """
