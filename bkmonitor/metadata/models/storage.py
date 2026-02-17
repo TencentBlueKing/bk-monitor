@@ -2750,7 +2750,7 @@ class ESStorage(models.Model, StorageResultTable):
         return True
 
     @classmethod
-    def move_write_alias(cls, es_storage: Self, force_move: bool = False, dry_run: bool = False):
+    def move_last_day_write_alias(cls, es_storage: Self, force_move: bool = False, dry_run: bool = False):
         """移动前一天的写别名到当前最新的索引
 
         Notes:
