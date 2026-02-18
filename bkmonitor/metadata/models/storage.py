@@ -30,6 +30,7 @@ import requests
 from bkcrypto.contrib.django.fields import SymmetricTextField
 from django.conf import settings
 from django.db import models, transaction
+from django.db.models import Q
 from django.db.models.fields import DateTimeField
 from django.db.transaction import atomic, on_commit
 from django.utils import timezone as django_timezone
@@ -4331,8 +4332,14 @@ class ESStorage(models.Model, StorageResultTable):
         return self.have_snapshot_conf and self.is_index_enable()
 
     @property
+    def running_snapshot_query(self):
+        """启用中快照配置查询条件"""
+        return Q(table_id=self.table_id, status=EsSnapshot.ES_RUNNING_STATUS, bk_tenant_id=self.bk_tenant_id)
+
+    @property
     def have_snapshot_conf(self):
-        return EsSnapshot.objects.filter(table_id=self.table_id).exists()
+        # 存在启用中的快照配置，才做快照管理
+        return EsSnapshot.objects.filter(self.running_snapshot_query).exists()
 
     @property
     def is_snapshot_stopped(self):
@@ -4344,15 +4351,20 @@ class ESStorage(models.Model, StorageResultTable):
 
     @property
     def can_delete_snapshot(self):
-        es_snapshot: EsSnapshot = EsSnapshot.objects.filter(table_id=self.table_id).first()
-        # 永久或者状态是停用的状态，则不允许删除快照数据
+        # table_id存在多份快照配置，这里只管理启用中的快照配置
+        es_snapshot: EsSnapshot = EsSnapshot.objects.filter(self.running_snapshot_query).first()
+
+        # 永久的状态，则不允许删除快照数据
         if es_snapshot:
-            return not (es_snapshot.is_permanent() or es_snapshot.status == EsSnapshot.ES_STOPPED_STATUS)
+            return not es_snapshot.is_permanent()
         return False
 
     @cached_property
     def snapshot_obj(self):
-        return EsSnapshot.objects.get(table_id=self.table_id)
+        snapshot = EsSnapshot.objects.filter(self.running_snapshot_query).first()
+        if not snapshot:
+            raise EsSnapshot.DoesNotExist(f"No running snapshot found for table_id: {self.table_id}")
+        return snapshot
 
     @property
     def snapshot_complete_state(self):
@@ -4476,11 +4488,8 @@ class ESStorage(models.Model, StorageResultTable):
         }
 
     def create_snapshot(self):
+        # 存在启用的快照配置，且结果表处于启用中，才进行快照创建
         if not self.can_snapshot:
-            return
-
-        # 如果是停用状态，则不能新建快照
-        if self.is_snapshot_stopped:
             return
 
         current_snapshot_info = self.current_snapshot_info()
@@ -4494,6 +4503,7 @@ class ESStorage(models.Model, StorageResultTable):
                 table_id=self.table_id,
                 snapshot_name=current_snapshot_name,
                 bk_tenant_id=self.bk_tenant_id,
+                repository_name=self.snapshot_obj.target_snapshot_repository_name,
             ).exists()
             es_snapshot_exists = current_snapshot_info["datetime"].day == now.day
             current_snapshot_is_success = current_snapshot_info["is_success"]
@@ -4592,12 +4602,13 @@ class ESStorage(models.Model, StorageResultTable):
             .get("_source")
         )
 
-    def expired_date_timestamp(self, snapshot):
+    def expired_date_timestamp(self, snapshot, snapshot_days):
         snapshot_re = self.snapshot_re
         re_result = snapshot_re.match(snapshot)
         snapshot_datetime_str = re_result.group("datetime")
         snapshot_datetime = datetime_str_to_datetime(snapshot_datetime_str, self.snapshot_date_format, self.time_zone)
-        expired_datetime_point = snapshot_datetime + datetime.timedelta(days=self.snapshot_obj.snapshot_days)
+        # 所有归档配置的过期时间都能获取到
+        expired_datetime_point = snapshot_datetime + datetime.timedelta(days=snapshot_days)
         return expired_datetime_point.timestamp()
 
     def match_expired_snapshot(self, snapshots: list, expired_datetime_point, snapshot_name_key="snapshot") -> list:
@@ -4618,6 +4629,7 @@ class ESStorage(models.Model, StorageResultTable):
         return expired_snapshots
 
     def get_expired_snapshot(self, expired_days: int):
+        # 只会获取启用中归档配置的过期快照
         logger.info("table_id -> [%s] filter expired snapshot before %s days", self.table_id, expired_days)
         expired_datetime_point = self.now - datetime.timedelta(days=expired_days)
 
@@ -4632,9 +4644,11 @@ class ESStorage(models.Model, StorageResultTable):
 
         # 获取本地残留的过期快照
         all_snapshots = list(
-            EsSnapshotIndice.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).values(
-                "snapshot_name"
-            )
+            EsSnapshotIndice.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                repository_name=self.snapshot_obj.target_snapshot_repository_name,
+            ).values("snapshot_name")
         )
         local_expired_snapshots = self.match_expired_snapshot(
             all_snapshots, expired_datetime_point, snapshot_name_key="snapshot_name"
@@ -4655,6 +4669,7 @@ class ESStorage(models.Model, StorageResultTable):
                 table_id=self.table_id,
                 snapshot_name__in=residual_expired_snapshots,
                 bk_tenant_id=self.bk_tenant_id,
+                repository_name=self.snapshot_obj.target_snapshot_repository_name,
             ).delete()
             logger.info("table_id->[%s] has clean residual snapshot %s", self.table_id, residual_expired_snapshots)
 
@@ -4669,7 +4684,10 @@ class ESStorage(models.Model, StorageResultTable):
     @atomic(config.DATABASE_CONNECTION_NAME)
     def delete_snapshot(self, snapshot_name, target_snapshot_repository_name):
         EsSnapshotIndice.objects.filter(
-            table_id=self.table_id, snapshot_name=snapshot_name, bk_tenant_id=self.bk_tenant_id
+            table_id=self.table_id,
+            snapshot_name=snapshot_name,
+            bk_tenant_id=self.bk_tenant_id,
+            repository_name=target_snapshot_repository_name,
         ).delete()
         self.es_client.snapshot.delete(target_snapshot_repository_name, snapshot_name)
         logger.info("table_id -> [%s] has delete snapshot -> [%s]", self.table_id, snapshot_name)
@@ -4697,7 +4715,9 @@ class ESStorage(models.Model, StorageResultTable):
             raise ValueError(_("delete all snapshot has failed %s") % delete_exception_snapshots)
 
         # 删除残留的快照物理索引记录
-        EsSnapshotIndice.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).delete()
+        EsSnapshotIndice.objects.filter(
+            table_id=self.table_id, bk_tenant_id=self.bk_tenant_id, repository_name=target_snapshot_repository_name
+        ).delete()
         logger.info("table_id -> [%s] has delete all snapshot", self.table_id)
 
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -4705,14 +4725,10 @@ class ESStorage(models.Model, StorageResultTable):
         if not self.can_snapshot:
             return
 
-        # 如果是停用状态，则不能重试快照
-        if self.is_snapshot_stopped:
-            return
-
         # 检查快照是否可重试
         try:
             snapshots = self.es_client.snapshot.get(
-                self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
+                target_snapshot_repository_name, self.search_snapshot
             ).get("snapshots", [])
         except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
             snapshots = []

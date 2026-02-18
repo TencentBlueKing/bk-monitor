@@ -11,8 +11,8 @@ def add_status_field_if_not_exists(apps, schema_editor):
         description = connection.introspection.get_table_description(cursor, table_name)
     existing_column_names = {column.name for column in description}
     if "status" in existing_column_names:
-        print("Field 'status' already exists in table '{}', skipping addition.".format(table_name))
         # 字段已存在，跳过添加
+        print("Field 'status' already exists in table '{}', skipping addition.".format(table_name))
         return
     field = models.CharField(
         blank=True,
@@ -27,7 +27,7 @@ def add_status_field_if_not_exists(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('metadata', '0177_add_gather_up_dataid'),
+        ('metadata', '0170_merge_20230815_1602'),
     ]
 
     # 禁用事务以支持DDL操作
@@ -41,6 +41,19 @@ class Migration(migrations.Migration):
                     reverse_code=migrations.RunPython.noop,
                 )
             ],
-            state_operations=[],
+            # state_operations kept empty to avoid re-adding the status field
+            state_operations=[
+                migrations.AddField(
+                    model_name='essnapshot',
+                    name='status',
+                    field=models.CharField(
+                        max_length=16,
+                        blank=True,
+                        null=True,
+                        default='running',
+                        verbose_name='快照状态',
+                    ),
+                )
+            ],
         )
     ]
