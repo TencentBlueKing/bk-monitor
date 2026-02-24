@@ -14,6 +14,7 @@ from typing import Any, Literal, cast
 from bk_monitor_base.uptime_check import (
     BEAT_STATUS,
     UptimeCheckGroup,
+    UptimeCheckNode,
     UptimeCheckTask,
     UptimeCheckTaskProtocol,
     UptimeCheckTaskStatus,
@@ -120,47 +121,27 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
     serializer_class = UptimeCheckNodeSerializer
 
     @staticmethod
-    def get_filtered_nodes(bk_tenant_id: str, bk_biz_id: int | None = None):
+    def get_filtered_nodes(bk_tenant_id: str, bk_biz_id: int):
         """
         获取过滤后的节点列表（公共节点 + 业务节点）
         """
-        # 获取用户有权限访问的业务ID列表
-        id_list = get_business_id_list()
+        # 公共节点
+        nodes = list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"include_common": True})
 
-        # 获取公共节点：is_common=True 且 bk_biz_id 在 id_list 中
-        # 使用 id_list 过滤掉业务已经不存在的公共节点
-        common_nodes = list_nodes(
-            bk_tenant_id=bk_tenant_id,
-            query={"is_common": True, "bk_biz_ids": id_list} if id_list else {"is_common": True},
-        )
+        filtered_nodes: list[UptimeCheckNode] = []
+        for node in nodes:
+            # 业务节点，直接添加
+            if not node.is_common:
+                filtered_nodes.append(node)
 
-        # 获取业务节点：is_common=False
-        biz_nodes = list_nodes(
-            bk_tenant_id=bk_tenant_id,
-            query={"is_common": False},
-        )
+            # 公共节点，需要判断业务范围可见性
+            if node.is_common:
+                if not node.biz_scope:
+                    filtered_nodes.append(node)
+                elif bk_biz_id in node.biz_scope:
+                    filtered_nodes.append(node)
 
-        # 业务范围可见性过滤：过滤出 biz_scope 包含 bk_biz_id 的业务节点
-        filtered_biz_nodes = []
-        if bk_biz_id:
-            # 指定业务时：只返回 biz_scope 包含该业务的节点
-            for biz_node in biz_nodes:
-                if bk_biz_id in biz_node.biz_scope:
-                    filtered_biz_nodes.append(biz_node)
-        else:
-            # 未指定业务时：返回所有业务节点
-            # 这对应原逻辑中的 filter_queryset(self.get_queryset())
-            filtered_biz_nodes = biz_nodes
-
-        # 合并公共节点和业务节点（去重通过 id）
-        seen_ids = set()
-        result = []
-        for node in common_nodes + filtered_biz_nodes:
-            if node.id not in seen_ids:
-                seen_ids.add(node.id)
-                result.append(node)
-
-        return result
+        return filtered_nodes
 
     def retrieve(self, request: Request, pk: int | str):
         """获取节点详情"""
@@ -238,7 +219,11 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
 
         for node in nodes:
             # 统计任务数（通过任务列表获取）
-            task_num = len(list_tasks(bk_tenant_id=bk_tenant_id, bk_biz_id=node.bk_biz_id, query={"node_id": node.id}))
+            task_num = len(
+                list_tasks(
+                    bk_tenant_id=bk_tenant_id, bk_biz_id=node.bk_biz_id, query={"node_ids": [node.id]}, fields=["id"]
+                )
+            )
             host_instance = get_by_node(node.model_dump(), node_to_host)
             beat_version = ""
             if not host_instance:
