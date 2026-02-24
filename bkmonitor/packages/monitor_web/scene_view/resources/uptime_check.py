@@ -398,11 +398,12 @@ class GetUptimeCheckVarListResource(ApiAuthResource):
             ]
         )
 
-        if var_type == "location":
+        if validated_request_data["var_type"] == "location":
             var_list = [{"id": item["city"], "name": item["city"]} for item in var_list if item.get("city")]
-        elif var_type == "ip_type":
-            var_list = [{"id": item, "name": NODE_IP_TYPE_DICT.get(item, item)} for item in var_list if item]
         else:
+            var_list = [{"id": item, "name": NODE_IP_TYPE_DICT.get(item, item)} for item in var_list if item]
+
+        if validated_request_data["var_type"] != "ip_type":
             var_list.append({"id": _("其他"), "name": _("其他")})
 
         # 按id去重
