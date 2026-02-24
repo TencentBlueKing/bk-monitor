@@ -15,7 +15,7 @@ from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceFunction, SpaceTypeEnum
 from core.drf_resource import resource
 from core.errors.api import BKAPIError
-from bk_monitor_base import uptime_check as uptime_check_operation
+from bk_monitor_base.uptime_check import list_tasks
 
 
 class ControlManager:
@@ -110,7 +110,7 @@ class UCController(BaseController):
 
     @property
     def accessed(self):
-        tasks = uptime_check_operation.list_tasks(bk_biz_id=self.space.bk_biz_id, fields=["id"])
+        tasks = list_tasks(bk_biz_id=self.space.bk_biz_id, fields=["id"])
         return self.related and len(tasks) > 0
 
 
