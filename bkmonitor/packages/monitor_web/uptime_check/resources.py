@@ -247,6 +247,7 @@ class UptimeCheckTaskListResource(Resource):
         task_data_mapping = {}
         for task in task_data:
             # 兼容旧字段名
+            task["status"] = task["status"].value
             task["indepentent_dataid"] = task.get("independent_dataid", False)
             protocol_data: dict[str, Any] = query_group.setdefault(task["protocol"], {})
             protocol_data.setdefault(task["config"].get("period", 60), []).append(str(task["id"]))

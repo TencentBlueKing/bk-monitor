@@ -22,11 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 import arrow
 from arrow.parser import ParserError
-from bk_monitor_base.uptime_check import (
-    UptimeCheckTaskStatus,
-    get_task,
-    list_tasks,
-)
+from bk_monitor_base.uptime_check import UptimeCheckTaskStatus, get_task, list_tasks
 from bkstorages.exceptions import RequestError
 from celery import shared_task
 from celery.signals import task_postrun

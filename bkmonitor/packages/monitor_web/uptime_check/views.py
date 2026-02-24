@@ -358,6 +358,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         # 查询任务
         task_define = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
         data: dict[str, Any] = task_define.model_dump()
+        data["status"] = task_define.status.value
 
         # 兼容旧字段名
         data["indepentent_dataid"] = data.pop("independent_dataid", False)
