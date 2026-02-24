@@ -144,5 +144,6 @@ cache_one_hour = functools.partial(using_cache, duration=TimeEnum.ONE_HOUR_SECON
 cache_half_hour = functools.partial(using_cache, duration=0.5 * TimeEnum.ONE_HOUR_SECOND.value)
 cache_one_day = functools.partial(using_cache, duration=TimeEnum.ONE_DAY_SECOND.value)
 
+caches_ten_minute = functools.partial(using_caches, duration=10 * TimeEnum.ONE_MINUTE_SECOND.value)
 caches_one_hour = functools.partial(using_caches, duration=TimeEnum.ONE_HOUR_SECOND.value)
 caches_half_one_hour = functools.partial(using_caches, duration=0.5 * TimeEnum.ONE_HOUR_SECOND.value)
