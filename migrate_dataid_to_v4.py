@@ -86,11 +86,6 @@ from core.drf_resource import api
 from metadata import models
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link import utils as datalink_utils
-from metadata.models.space.constants import (
-    ENABLE_V4_DATALINK_ETL_CONFIGS,
-    EtlConfigs,
-    LOG_EVENT_ETL_CONFIGS,
-)
 from metadata.models.data_link.constants import (
     BKBASE_NAMESPACE_BK_APM,
     BKBASE_NAMESPACE_BK_LOG,
@@ -99,16 +94,21 @@ from metadata.models.data_link.constants import (
     DataLinkResourceStatus,
 )
 from metadata.models.data_link.utils import generate_result_table_field_list
-from metadata.models.vm.utils import access_v2_bkdata_vm
 from metadata.models.result_table import ResultTableOption
+from metadata.models.space.constants import (
+    ENABLE_V4_DATALINK_ETL_CONFIGS,
+    LOG_EVENT_ETL_CONFIGS,
+    EtlConfigs,
+)
+from metadata.models.vm.utils import access_v2_bkdata_vm
 from metadata.service.data_source import modify_data_id_source
 from metadata.task.datalink import apply_log_datalink
 
 # 日志平台模块导入（用于构建 log_v4_data_link 配置）
 try:
-    from apps.log_databus.models import CollectorConfig
-    from apps.log_databus.handlers.etl_storage import EtlStorage
     from apps.log_databus.handlers.collector_scenario import CollectorScenario
+    from apps.log_databus.handlers.etl_storage import EtlStorage
+    from apps.log_databus.models import CollectorConfig
 
     BKLOG_AVAILABLE = True
 except ImportError:
@@ -266,11 +266,7 @@ class DataIDMigrator:
         table_id = self.get_result_table()
         if not table_id:
             return False
-        return (
-            table_id.startswith("bkapm_")
-            or table_id.startswith("apm_global")
-            or "_bkapm" in table_id
-        )
+        return table_id.startswith("bkapm_") or table_id.startswith("apm_global") or "_bkapm" in table_id
 
     def is_pure_log_type(self) -> bool:
         """判断是否是纯日志类型（排除 APM）"""
@@ -313,7 +309,9 @@ class DataIDMigrator:
         # APM 类型使用 TransferAdaptor 方案，不需要通过此方法构建 clean_rules
         # TransferAdaptor 配置在 _apply_apm_v4_datalink() 中直接构建
         if self.is_apm_type():
-            Printer.info("APM TransferAdaptor 方案: 跳过 build_log_v4_data_link_config, 配置由 _apply_apm_v4_datalink() 构建")
+            Printer.info(
+                "APM TransferAdaptor 方案: 跳过 build_log_v4_data_link_config, 配置由 _apply_apm_v4_datalink() 构建"
+            )
             return None
 
         # 尝试从 CollectorConfig 获取配置
@@ -324,9 +322,7 @@ class DataIDMigrator:
         else:
             return self._build_default_config(table_id)
 
-    def _build_config_from_collector(
-        self, collector_config, table_id: str
-    ) -> Optional[dict]:
+    def _build_config_from_collector(self, collector_config, table_id: str) -> Optional[dict]:
         """从 CollectorConfig 构建 log_v4_data_link 配置"""
         try:
             # 获取 ETL 配置信息
@@ -399,9 +395,7 @@ class DataIDMigrator:
             es_storage = models.ESStorage.objects.filter(table_id=table_id).first()
             if es_storage:
                 # 尝试从 ResultTableOption 获取 es_unique_field_list
-                option = models.ResultTableOption.objects.filter(
-                    table_id=table_id, name="es_unique_field_list"
-                ).first()
+                option = models.ResultTableOption.objects.filter(table_id=table_id, name="es_unique_field_list").first()
                 if option:
                     value = option.get_value()
                     if isinstance(value, list):
@@ -625,31 +619,34 @@ class DataIDMigrator:
 
             # 检查 field_list 中是否包含 time 字段（tag=timestamp）
             # BkFlatBatchConfig 要求有 time 字段，否则 generate_etl_rules() 无法正确生成时间解析规则
-            has_time_field = any(
-                f.get("field_name") == "time" and f.get("tag") == "timestamp"
-                for f in field_list
-            )
+            has_time_field = any(f.get("field_name") == "time" and f.get("tag") == "timestamp" for f in field_list)
             if not has_time_field:
                 Printer.warning("field_list 中缺少 time 字段（tag=timestamp），手动补充")
-                field_list.append({
-                    "field_name": "time",
-                    "type": "timestamp",
-                    "tag": "timestamp",
-                    "option": {
-                        "es_type": "date",
-                        "es_format": "epoch_millis",
-                        "time_format": "yyyy-MM-dd HH:mm:ss",
-                        "time_zone": 0,
-                    },
-                })
+                field_list.append(
+                    {
+                        "field_name": "time",
+                        "type": "timestamp",
+                        "tag": "timestamp",
+                        "option": {
+                            "es_type": "date",
+                            "es_format": "epoch_millis",
+                            "time_format": "yyyy-MM-dd HH:mm:ss",
+                            "time_zone": 0,
+                        },
+                    }
+                )
 
             # 适配 option: 确保有 es_unique_field_list，且不含 separator_node_action
             rt_option = rt_info.get("option", {})
             if "es_unique_field_list" not in rt_option:
                 # 使用 APM Trace 默认的 unique_field_list
                 rt_option["es_unique_field_list"] = [
-                    "trace_id", "span_id", "parent_span_id",
-                    "start_time", "end_time", "span_name",
+                    "trace_id",
+                    "span_id",
+                    "parent_span_id",
+                    "start_time",
+                    "end_time",
+                    "span_name",
                 ]
                 Printer.warning("option 中缺少 es_unique_field_list，使用 APM Trace 默认值")
 
@@ -752,9 +749,7 @@ class DataIDMigrator:
             Printer.success("DataSource 注册到 BKBase 完成")
 
         # 2. 获取 ES 存储信息
-        es_storage = models.ESStorage.objects.filter(
-            bk_tenant_id=ds.bk_tenant_id, table_id=table_id
-        ).first()
+        es_storage = models.ESStorage.objects.filter(bk_tenant_id=ds.bk_tenant_id, table_id=table_id).first()
         if not es_storage:
             raise ValueError(f"APM V4 链路: 未找到 ES 存储配置 (table_id={table_id})")
         Printer.kv("ES 集群", es_storage.storage_cluster.cluster_name)
@@ -794,10 +789,14 @@ class DataIDMigrator:
                 data_link_name=data_link_name,
                 namespace=namespace,
                 data_link_strategy=models.DataLink.BK_LOG,
-                **({
-                    "bk_data_id": ds.bk_data_id,
-                    "table_ids": [table_id],
-                } if hasattr(models.DataLink, "bk_data_id") else {}),
+                **(
+                    {
+                        "bk_data_id": ds.bk_data_id,
+                        "table_ids": [table_id],
+                    }
+                    if hasattr(models.DataLink, "bk_data_id")
+                    else {}
+                ),
             )
         else:
             data_link_name = bkbase_rt.data_link_name
@@ -834,7 +833,6 @@ class DataIDMigrator:
                 namespace=namespace,
                 data_link_name=data_link_name,
                 name=data_link_name,
-                # NOTE: table_id 字段在较新版本才有，旧版本环境不存在该字段
                 # compose_config() 不依赖 self.table_id，所以此处不设置
             )
 
@@ -844,8 +842,12 @@ class DataIDMigrator:
 
             # APM Trace 的 unique_field_list
             unique_field_list = [
-                "trace_id", "span_id", "parent_span_id",
-                "start_time", "end_time", "span_name",
+                "trace_id",
+                "span_id",
+                "parent_span_id",
+                "start_time",
+                "end_time",
+                "span_name",
             ]
 
             es_binding, _ = models.ESStorageBindingConfig.objects.update_or_create(
@@ -857,7 +859,6 @@ class DataIDMigrator:
                 defaults={
                     "es_cluster_name": es_storage.storage_cluster.cluster_name,
                     "timezone": es_storage.time_zone,
-                    # NOTE: table_id 字段在较新版本才有，旧版本环境不存在该字段
                     # compose_config() 不依赖 self.table_id，所以此处不设置
                 },
             )
@@ -877,7 +878,6 @@ class DataIDMigrator:
             ]
 
             # 4c. DataBusConfig ORM（只创建 ORM 记录，不用 compose_log_config）
-            # NOTE: bk_data_id 字段在较新版本才有，旧版本环境不存在该字段
             databus_orm, _ = models.DataBusConfig.objects.update_or_create(
                 bk_tenant_id=ds.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
@@ -1025,11 +1025,7 @@ class DataIDMigrator:
                     table_id=table_id,
                     name=ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
                 )
-                log_v4_enabled = (
-                    option.value.lower() == "true"
-                    if isinstance(option.value, str)
-                    else bool(option.value)
-                )
+                log_v4_enabled = option.value.lower() == "true" if isinstance(option.value, str) else bool(option.value)
                 if log_v4_enabled:
                     self.warnings.append(f"结果表 {table_id} 已启用 V4 链路")
             except models.ResultTableOption.DoesNotExist:
@@ -1045,11 +1041,7 @@ class DataIDMigrator:
                     table_id=table_id,
                     name=ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
                 )
-                log_v4_enabled = (
-                    option.value.lower() == "true"
-                    if isinstance(option.value, str)
-                    else bool(option.value)
-                )
+                log_v4_enabled = option.value.lower() == "true" if isinstance(option.value, str) else bool(option.value)
                 if log_v4_enabled:
                     self.warnings.append(f"结果表 {table_id} 已启用日志 V4 链路")
             except models.ResultTableOption.DoesNotExist:
@@ -1057,9 +1049,7 @@ class DataIDMigrator:
         else:
             # 指标类型: 检查 VM 记录
             if models.AccessVMRecord.objects.filter(result_table_id=table_id).exists():
-                self.warnings.append(
-                    f"结果表 {table_id} 已有 AccessVMRecord，迁移时将跳过创建"
-                )
+                self.warnings.append(f"结果表 {table_id} 已有 AccessVMRecord，迁移时将跳过创建")
 
         # 7. 检查 Kafka 配置
         try:
@@ -1205,9 +1195,7 @@ class DataIDMigrator:
 
         # 全局配置
         Printer.section("7. 全局配置状态")
-        Printer.kv(
-            "ENABLE_V2_VM_DATA_LINK", getattr(settings, "ENABLE_V2_VM_DATA_LINK", False)
-        )
+        Printer.kv("ENABLE_V2_VM_DATA_LINK", getattr(settings, "ENABLE_V2_VM_DATA_LINK", False))
         Printer.kv(
             "ENABLE_INFLUXDB_STORAGE",
             getattr(settings, "ENABLE_INFLUXDB_STORAGE", True),
@@ -1250,9 +1238,7 @@ class DataIDMigrator:
                 data_id_list=[self.bk_data_id],
                 source_type=DataIdCreatedFromSystem.BKDATA.value,
             )
-            Printer.success(
-                f"已更改 created_from 为 {DataIdCreatedFromSystem.BKDATA.value}"
-            )
+            Printer.success(f"已更改 created_from 为 {DataIdCreatedFromSystem.BKDATA.value}")
             Printer.success("已删除 Consul 配置")
 
             # Step 3-4: 创建 DataIdConfig 并下发至 BKBase
@@ -1365,9 +1351,7 @@ class DataIDMigrator:
                 data_id_list=[self.bk_data_id],
                 source_type=DataIdCreatedFromSystem.BKGSE.value,
             )
-            Printer.success(
-                f"已更改 created_from 为 {DataIdCreatedFromSystem.BKGSE.value}"
-            )
+            Printer.success(f"已更改 created_from 为 {DataIdCreatedFromSystem.BKGSE.value}")
             Printer.success("已刷新 Consul 配置和 GSE 路由")
 
             print()
@@ -1381,26 +1365,16 @@ class DataIDMigrator:
             print(Printer.colorize("=" * 70, Printer.GREEN))
             print()
             print(Printer.colorize("  注意事项:", Printer.YELLOW))
-            print(
-                Printer.colorize("  - BKBase 侧的链路配置仍然存在，不会自动删除", Printer.YELLOW)
-            )
-            print(
-                Printer.colorize("  - AccessVMRecord 记录仍然存在，不会自动删除", Printer.YELLOW)
-            )
-            print(
-                Printer.colorize(
-                    "  - 数据将重新通过 Transfer -> InfluxDB 链路处理", Printer.YELLOW
-                )
-            )
+            print(Printer.colorize("  - BKBase 侧的链路配置仍然存在，不会自动删除", Printer.YELLOW))
+            print(Printer.colorize("  - AccessVMRecord 记录仍然存在，不会自动删除", Printer.YELLOW))
+            print(Printer.colorize("  - 数据将重新通过 Transfer -> InfluxDB 链路处理", Printer.YELLOW))
             return True
 
         except Exception as e:
             Printer.error(f"回滚失败: {e}")
             return False
 
-    def _apply_dataid_config_to_bkbase(
-        self, ds, bk_biz_id: int, step_prefix: str = ""
-    ) -> "models.DataIdConfig":
+    def _apply_dataid_config_to_bkbase(self, ds, bk_biz_id: int, step_prefix: str = "") -> "models.DataIdConfig":
         """
         创建 DataIdConfig 并下发至 BKBase
 
@@ -1421,11 +1395,7 @@ class DataIDMigrator:
         #  而非 BKBASE_NAMESPACE_BK_LOG ("bklog")。常量 BKBASE_NAMESPACE_BK_APM 已在
         #  metadata/models/data_link/constants.py 中定义但从未使用。
         #  此处怀疑应改为三路判断: apm -> bkapm, log -> bklog, metric -> bkmonitor
-        dataid_namespace = (
-            BKBASE_NAMESPACE_BK_LOG
-            if self.is_log_type()
-            else BKBASE_NAMESPACE_BK_MONITOR
-        )
+        dataid_namespace = BKBASE_NAMESPACE_BK_LOG if self.is_log_type() else BKBASE_NAMESPACE_BK_MONITOR
         Printer.kv("dataid_namespace", dataid_namespace)
 
         data_id_ins, created = models.DataIdConfig.objects.get_or_create(
@@ -1438,9 +1408,7 @@ class DataIDMigrator:
 
         # 组装并下发配置至 BKBase
         config = self._compose_data_id_config(data_id_ins, ds)
-        config["spec"]["predefined"]["dataId"] = int(
-            config["spec"]["predefined"]["dataId"]
-        )
+        config["spec"]["predefined"]["dataId"] = int(config["spec"]["predefined"]["dataId"])
 
         Printer.info(f"配置内容: {json.dumps(config, indent=2, ensure_ascii=False)}")
 
@@ -1555,11 +1523,7 @@ class DataIDMigrator:
         component_config = data_id_ins.component_config
         Printer.kv(
             "component_config",
-            (
-                json.dumps(component_config, indent=2, ensure_ascii=False)
-                if component_config
-                else "(空)"
-            ),
+            (json.dumps(component_config, indent=2, ensure_ascii=False) if component_config else "(空)"),
         )
 
         if self.is_apm_type():
@@ -1578,7 +1542,9 @@ class DataIDMigrator:
                 monitor_table_id=table_id,
             ).first()
             if bkbase_rt:
-                Printer.success(f"BkBaseResultTable 已创建: data_link_name={bkbase_rt.data_link_name}, status={bkbase_rt.status}")
+                Printer.success(
+                    f"BkBaseResultTable 已创建: data_link_name={bkbase_rt.data_link_name}, status={bkbase_rt.status}"
+                )
             else:
                 Printer.warning("BkBaseResultTable 未创建，TransferAdaptor 链路可能未下发")
         elif self.is_pure_log_type():
@@ -1608,9 +1574,7 @@ class DataIDMigrator:
         bk_data_id = int(datasource.bk_data_id)
         topic = str(datasource.mq_config.topic)
         # 根据 etl_config 判断 event_type: 日志类型为 "log"，指标类型为 "metric"
-        event_type = (
-            "log" if datasource.etl_config in LOG_EVENT_ETL_CONFIGS else "metric"
-        )
+        event_type = "log" if datasource.etl_config in LOG_EVENT_ETL_CONFIGS else "metric"
 
         tpl = """
         {
@@ -1658,9 +1622,7 @@ class DataIDMigrator:
         )
 
 
-def batch_migrate(
-    data_id_list: list, action: str, kafka_name: str, bk_biz_id: Optional[int] = None
-):
+def batch_migrate(data_id_list: list, action: str, kafka_name: str, bk_biz_id: Optional[int] = None):
     """批量迁移"""
     success_count = 0
     fail_count = 0
@@ -1669,9 +1631,7 @@ def batch_migrate(
 
     for i, data_id in enumerate(data_id_list, 1):
         print()
-        print(
-            Printer.colorize(f"[{i}/{len(data_id_list)}] 处理 DataID: {data_id}", Printer.BOLD)
-        )
+        print(Printer.colorize(f"[{i}/{len(data_id_list)}] 处理 DataID: {data_id}", Printer.BOLD))
         print(Printer.colorize("-" * 50, Printer.CYAN))
 
         migrator = DataIDMigrator(data_id, kafka_name=kafka_name, bk_biz_id=bk_biz_id)
@@ -1715,19 +1675,19 @@ def main():
 示例:
     # 诊断 DataID 状态
     python migrate_dataid_to_v4.py 1572869 --diagnose
-    
+
     # 执行迁移
     python migrate_dataid_to_v4.py 1572869 --migrate
-    
+
     # 重试迁移 (用于 BKBase 配置下发失败后的重试)
     python migrate_dataid_to_v4.py 1572869 --retry
-    
+
     # 回滚到 V3
     python migrate_dataid_to_v4.py 1572869 --rollback
-    
+
     # 批量迁移
     python migrate_dataid_to_v4.py 1001,1002,1003 --migrate
-    
+
     # 指定业务 ID 和 Kafka 名称
     python migrate_dataid_to_v4.py 1572869 --migrate --bk-biz-id 2 --kafka-name kafka_outer_default
 
@@ -1745,12 +1705,8 @@ def main():
     parser.add_argument("data_ids", type=str, help="要处理的 data_id，多个用逗号分隔")
 
     action_group = parser.add_mutually_exclusive_group(required=True)
-    action_group.add_argument(
-        "--diagnose", action="store_true", help="诊断模式 - 只查看状态"
-    )
-    action_group.add_argument(
-        "--migrate", action="store_true", help="执行迁移 V3 -> V4"
-    )
+    action_group.add_argument("--diagnose", action="store_true", help="诊断模式 - 只查看状态")
+    action_group.add_argument("--migrate", action="store_true", help="执行迁移 V3 -> V4")
     action_group.add_argument(
         "--retry",
         action="store_true",
@@ -1794,9 +1750,7 @@ def main():
 
     # 执行
     if len(data_id_list) == 1:
-        migrator = DataIDMigrator(
-            data_id_list[0], kafka_name=args.kafka_name, bk_biz_id=args.bk_biz_id
-        )
+        migrator = DataIDMigrator(data_id_list[0], kafka_name=args.kafka_name, bk_biz_id=args.bk_biz_id)
         if action == "diagnose":
             migrator.diagnose()
         elif action == "migrate":
