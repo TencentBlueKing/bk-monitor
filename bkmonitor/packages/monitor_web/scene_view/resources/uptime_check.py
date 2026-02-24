@@ -18,7 +18,6 @@ from bk_monitor_base.uptime_check import (
     list_nodes,
     list_tasks,
 )
-from django.db.models import Q
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
@@ -31,9 +30,6 @@ from bkmonitor.utils.user import get_user_display_name
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor.models import NODE_IP_TYPE_DICT
-from monitor_web.models.uptime_check import (
-    UptimeCheckNode,
-)
 from monitor_web.uptime_check.utils import get_uptime_check_task_url_list
 
 
@@ -249,7 +245,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         return result
 
     def perform_request(self, validated_request_data: dict[str, Any]):
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         bk_biz_id = validated_request_data["bk_biz_id"]
         task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=validated_request_data["task_id"])
 
@@ -279,9 +275,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         host_to_node = {}
         # 过滤业务下所有节点时，同时还应该加上通用节点
         # todo: 过滤增加指定业务可见节点
-        nodes = UptimeCheckNode.objects.filter(
-            Q(bk_biz_id=task.bk_biz_id) | Q(is_common=True), bk_tenant_id=bk_tenant_id
-        )
+        nodes = list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=task.bk_biz_id, query={"include_common": True})
 
         ip_to_hostid = {}
         hostid_to_ip = {}
@@ -390,16 +384,27 @@ class GetUptimeCheckVarListResource(ApiAuthResource):
         var_type = serializers.ChoiceField(choices=("location", "carrieroperator", "node", "ip_type"))
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> Any:
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         bk_biz_id = validated_request_data["bk_biz_id"]
-        var_list = (
-            UptimeCheckNode.objects.filter(Q(bk_biz_id=bk_biz_id) | Q(is_common=True), bk_tenant_id=bk_tenant_id)
-            .values_list(
-                validated_request_data["var_type"] if validated_request_data["var_type"] != "node" else "name",
-                flat=True,
+        nodes = list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"include_common": True})
+        var_list: list[Any] = list(
+            set(
+                [
+                    getattr(
+                        node,
+                        validated_request_data["var_type"] if validated_request_data["var_type"] != "node" else "name",
+                    )
+                    for node in nodes
+                ]
             )
-            .distinct()
         )
+
+        if validated_request_data["var_type"] == "location":
+            var_list = [{"id": item["city"], "name": item["city"]} for item in var_list if item.get("city")]
+        else:
+            var_list = [{"id": item, "name": NODE_IP_TYPE_DICT.get(item, item)} for item in var_list if item]
+        if validated_request_data["var_type"] != "ip_type":
+            var_list.append({"id": _("其他"), "name": _("其他")})
         if validated_request_data["var_type"] == "location":
             var_list = [{"id": item["city"], "name": item["city"]} for item in var_list if item.get("city")]
         else:
