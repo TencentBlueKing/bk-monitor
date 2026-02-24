@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
+from typing import Any, cast
 
 import arrow
 from bk_monitor_base.uptime_check import (
@@ -130,7 +130,7 @@ class UptimeCheckNodeSerializer(serializers.Serializer):
         更新节点
         """
         self.node_beat_check(validated_data)
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         request = self.context.get("request")
         operator = request.user.username if request else ""
 
@@ -197,7 +197,7 @@ class UptimeCheckNodeSerializer(serializers.Serializer):
             Permission().is_allowed(action=ActionEnum.MANAGE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
         self.node_beat_check(validated_data)
 
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         request = self.context.get("request")
         operator = request.user.username if request else ""
 
@@ -292,39 +292,43 @@ class UptimeCheckTaskBaseSerializer(serializers.Serializer):
         except ValidationError:
             return False
 
-    def validate(self, data):
-        if data["config"]["period"] < TASK_MIN_PERIOD:
+    def validate(self, attrs: dict[str, Any]):
+        if attrs["config"]["period"] < TASK_MIN_PERIOD:
             raise CustomException("period must be greater than 10")
-        has_targets = data["config"].get("node_list") or data["config"].get("ip_list") or data["config"].get("url_list")
-        if data["protocol"] == UptimeCheckTaskProtocol.HTTP.value:
-            if not data["config"].get("method") or not (data["config"].get("url_list") or data["config"].get("urls")):
+        has_targets = (
+            attrs["config"].get("node_list") or attrs["config"].get("ip_list") or attrs["config"].get("url_list")
+        )
+        if attrs["protocol"] == UptimeCheckTaskProtocol.HTTP.value:
+            if not attrs["config"].get("method") or not (
+                attrs["config"].get("url_list") or attrs["config"].get("urls")
+            ):
                 raise CustomException("When protocol is HTTP, method and url_list is required in config.")
-            if data["config"]["method"] in ["POST", "PUT", "PATCH"] and not data["config"].get("body"):
+            if attrs["config"]["method"] in ["POST", "PUT", "PATCH"] and not attrs["config"].get("body"):
                 raise CustomException("body is required in config.")
-            for url in data["config"].get("url_list", []):
+            for url in attrs["config"].get("url_list", []):
                 if not self.url_validate(url):
                     raise CustomException("Not a valid URL")
 
-        elif data["protocol"] == UptimeCheckTaskProtocol.ICMP.value:
-            if not (data["config"].get("hosts") or has_targets):
+        elif attrs["protocol"] == UptimeCheckTaskProtocol.ICMP.value:
+            if not (attrs["config"].get("hosts") or has_targets):
                 raise CustomException("When protocol is ICMP, targets is required in config.")
         else:
-            if not data["config"].get("port") or not (data["config"].get("hosts") or has_targets):
+            if not attrs["config"].get("port") or not (attrs["config"].get("hosts") or has_targets):
                 raise CustomException("When protocol is TCP/UDP, targets and port is required in config.")
 
-        if data["protocol"] == UptimeCheckTaskProtocol.UDP.value:
-            if "request" not in data["config"]:
+        if attrs["protocol"] == UptimeCheckTaskProtocol.UDP.value:
+            if "request" not in attrs["config"]:
                 raise CustomException("request is required in config.")
 
         format_ips = []
-        for ip in data["config"].get("ip_list", []):
+        for ip in attrs["config"].get("ip_list", []):
             if is_v6(ip):
                 format_ips.append(exploded_ip(ip))
             elif is_v4(ip):
                 format_ips.append(ip)
             else:
                 raise CustomException("Not a valid IP")
-        return data
+        return attrs
 
 
 class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
@@ -417,7 +421,7 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         if not node_ids:
             return []
 
-        nodes = list_nodes(bk_tenant_id=get_request_tenant_id(), query={"node_ids": node_ids})
+        nodes = list_nodes(bk_tenant_id=cast(str, get_request_tenant_id()), query={"node_ids": node_ids})
         return UptimeCheckNodeSerializer(nodes, many=True).data
 
     def get_groups(self, obj):
@@ -446,7 +450,7 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         )
 
         if (
-            self.context.get("request").query_params.get("get_available", False)
+            self.context["request"].query_params.get("get_available", False)  # type: ignore
             and status != UptimeCheckTaskStatus.STOPED.value
         ):
             try:
@@ -470,7 +474,7 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         )
 
         if (
-            self.context.get("request").query_params.get("get_task_duration", False)
+            self.context["request"].query_params.get("get_task_duration", False)  # type: ignore
             and status != UptimeCheckTaskStatus.STOPED.value
         ):
             try:
@@ -490,7 +494,7 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
 
         # 检查权限
         # 获取节点详情，区分公共节点和业务节点
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         bk_biz_id = validated_data["bk_biz_id"]
         # 获取操作人
         request = self.context.get("request")
@@ -534,7 +538,7 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         )
 
         task_id = save_task(task=task_define, operator=operator)
-        return get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
+        return get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id).model_dump()
 
     def update(self, instance, validated_data):
         """更新拨测任务（使用 operation 层）"""
@@ -542,7 +546,7 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         group_ids = validated_data.pop("group_id_list", [])
 
         # 获取租户、业务和操作人信息
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         bk_biz_id = validated_data["bk_biz_id"]
         request = self.context.get("request")
         operator = request.user.username if request else ""
@@ -575,7 +579,7 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         )
 
         task_id = save_task(task=task_define, operator=operator)
-        return get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
+        return get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id).model_dump()
 
 
 class UptimeCheckGroupSerializer(serializers.Serializer):
@@ -614,15 +618,15 @@ class UptimeCheckGroupSerializer(serializers.Serializer):
         )
         return tasks
 
-    def validate(self, data):
-        if self.instance is None and "task_id_list" not in data:
+    def validate(self, attrs: dict[str, Any]):
+        if self.instance is None and "task_id_list" not in attrs:
             raise serializers.ValidationError(_("创建拨测任务组时需必传参数task_id_list"))
-        return data
+        return attrs
 
     def create(self, validated_data):
         """创建拨测分组（使用 operation 层）"""
         task_ids = validated_data.pop("task_id_list", [])
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         bk_biz_id = validated_data["bk_biz_id"]
         request = self.context.get("request")
         operator = request.user.username if request else ""
@@ -650,7 +654,7 @@ class UptimeCheckGroupSerializer(serializers.Serializer):
 
     def update(self, instance, validated_data):
         """更新拨测分组（使用 operation 层）"""
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         bk_biz_id = validated_data["bk_biz_id"]
         request = self.context.get("request")
         operator = request.user.username if request else ""

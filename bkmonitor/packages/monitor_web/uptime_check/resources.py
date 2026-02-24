@@ -37,7 +37,6 @@ from bk_monitor_base.uptime_check import (
     TestTaskError,
     UptimeCheckNode,
     UptimeCheckTask,
-    UptimeCheckTaskModel,
     UptimeCheckTaskProtocol,
     UptimeCheckTaskStatus,
     control_task,
@@ -85,8 +84,6 @@ from core.errors.dataapi import EmptyQueryException
 from monitor.utils import update_task_config
 from monitor_web.uptime_check.constants import UPTIME_CHECK_CONFIG_TEMPLATE
 from monitor_web.uptime_check.serializers import (
-    ConfigSlz,
-    UptimeCheckTaskBaseSerializer,
     UptimeCheckTaskSerializer,
 )
 
@@ -281,29 +278,13 @@ class UptimeCheckTaskListResource(Resource):
         list([t.join() for t in th_list])
         return list(task_data_mapping.values())
 
-    class ResponseSerializer(UptimeCheckTaskBaseSerializer):
-        config = ConfigSlz(required=True)
-        id = serializers.IntegerField(required=True)
-        location = serializers.JSONField(required=True)
-        nodes = serializers.ListField()
-        groups = serializers.ListField()
-        available = serializers.FloatField(required=True)
-        task_duration = serializers.FloatField(required=True)
-        url = serializers.ListField(allow_null=True)
-        create_time = serializers.DateTimeField()
-        update_time = serializers.DateTimeField()
-
-        class Meta:
-            model = UptimeCheckTaskModel
-            fields = "__all__"
-
 
 class GetHttpHeadersResource(Resource):
     """
     获取HTTP任务允许设置的Header
     """
 
-    def perform_request(self, data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         return UPTIME_CHECK_ALLOWED_HEADERS
 
 
@@ -315,7 +296,7 @@ class GenerateYamlConfigResource(Resource):
     class RequestSerializer(serializers.Serializer):
         config = serializers.DictField(required=True)
 
-    def perform_request(self, data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         # 默认情况下 SafeDumper 会将空字符在生成的yaml文件中显示成 null
         # 需要在此进行进行处理，将 null 替换为空
         SafeDumper.add_representer(
@@ -323,7 +304,7 @@ class GenerateYamlConfigResource(Resource):
         )
         try:
             yaml_content = yaml.safe_dump(
-                data["config"], default_flow_style=False, encoding="utf-8", allow_unicode=True
+                validated_request_data["config"], default_flow_style=False, encoding="utf-8", allow_unicode=True
             )
         except Exception as e:
             logger.error(f"生成yaml配置文件时出错：{e}")
@@ -344,15 +325,15 @@ class TestTaskResource(Resource):
         protocol = serializers.ChoiceField(choices=("HTTP", "TCP", "UDP", "ICMP"), required=True)
         node_id_list = serializers.ListField(required=True)
 
-    def perform_request(self, data):
-        bk_tenant_id = get_request_tenant_id()
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = cast(str, get_request_tenant_id())
 
         # 权限检查：如果有公共节点，验证用户是否有公共节点的使用权限
         if settings.ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH:
             all_nodes = list_nodes(
                 bk_tenant_id=bk_tenant_id,
-                bk_biz_id=data["bk_biz_id"],
-                query={"node_ids": data["node_id_list"], "include_common": True},
+                bk_biz_id=validated_request_data["bk_biz_id"],
+                query={"node_ids": validated_request_data["node_id_list"], "include_common": True},
             )
             common_nodes = [node for node in all_nodes if node.is_common]
             if common_nodes:
@@ -360,10 +341,10 @@ class TestTaskResource(Resource):
 
         try:
             return test_uptime_check_task(
-                bk_biz_id=data["bk_biz_id"],
-                config=data["config"],
-                protocol=data["protocol"],
-                node_id_list=data["node_id_list"],
+                bk_biz_id=validated_request_data["bk_biz_id"],
+                config=validated_request_data["config"],
+                protocol=validated_request_data["protocol"],
+                node_id_list=validated_request_data["node_id_list"],
             )
         except TestTaskError as e:
             raise CustomException(str(e), data=getattr(e, "data", None))
@@ -385,12 +366,12 @@ class GenerateConfigResource(Resource):
         ip = serializers.IPAddressField(required=True)
         output_config = serializers.DictField(required=True)
 
-    def perform_request(self, data):
-        bk_tenant_id = get_request_tenant_id()
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = cast(str, get_request_tenant_id())
         try:
-            node = get_node(bk_tenant_id=bk_tenant_id, ip=data["ip"])
+            node = get_node(bk_tenant_id=bk_tenant_id, ip=validated_request_data["ip"])
         except Exception:
-            raise CustomException(_("不存在的节点ip=%s") % data["ip"])
+            raise CustomException(_("不存在的节点ip=%s") % validated_request_data["ip"])
 
         tasks = list_tasks(bk_tenant_id=bk_tenant_id, bk_biz_id=node.bk_biz_id, query={"node_id": node.id})
 
@@ -446,7 +427,7 @@ class GenerateConfigResource(Resource):
 
         config.pop("output.gse", None)
         config.pop("output.bkpipe", None)
-        config.update(data["output_config"])
+        config.update(validated_request_data["output_config"])
 
         return resource.uptime_check.generate_yaml_config({"config": config})
 
@@ -463,34 +444,35 @@ class GenerateSubConfigResource(Resource):
         protocol = serializers.ChoiceField(choices=("HTTP", "TCP", "UDP", "ICMP"), required=False)
         labels = serializers.DictField(required=False, default={}, label=_("自定义标签"))
 
-    def perform_request(self, data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         """
         生成 bkmonitorbeat 任务配置
 
         Args:
-            data: 请求数据，包含 task_id 或 (config + protocol) 组合
+            validated_request_data: 请求数据，包含 task_id 或 (config + protocol) 组合
 
         Returns:
             list: 任务配置列表
         """
         bk_tenant_id = get_request_tenant_id()
-        task_id = data.get("task_id", 0)
-        config = data.get("config")
-        protocol = data.get("protocol")
-        labels = data.get("labels") or {}
-        test = data.get("test", False)
-        bk_biz_id = 0
+        task_id = validated_request_data.get("task_id", 0)
+        test = validated_request_data.get("test", False)
 
         # 兼容测试和正式下发两种情况: 测试需要传入 config 和 protocol，正式下发只需传入 task_id
         if task_id:
             try:
-                task_model = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
+                task_model = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
             except Exception:
                 raise CustomException(_("不存在的任务id:%s") % task_id)
             bk_biz_id = task_model.bk_biz_id
             protocol = task_model.protocol
             config = task_model.config
             labels = task_model.labels or {}
+        else:
+            config = validated_request_data.get("config")
+            protocol: str = validated_request_data["protocol"]
+            labels = validated_request_data.get("labels") or {}
+            bk_biz_id = 0
 
         if not config:
             raise CustomException(_("任务配置为空，请检查任务参数是否正确"))
@@ -523,7 +505,7 @@ class TaskDataResource(Resource):
         node_id = serializers.CharField(required=False, label="节点ID")
 
     @staticmethod
-    def make_select_param(task, value_filed_list, node_id, bk_biz_id=0):
+    def make_select_param(task: UptimeCheckTask, value_filed_list: list[str], node_id: str | None, bk_biz_id: int = 0):
         kwargs_list = []
         end = arrow.utcnow().timestamp
         start = end - UPTIME_CHECK_SUMMARY_TIME_RANGE * 3600
@@ -561,22 +543,26 @@ class TaskDataResource(Resource):
 
         return kwargs_list
 
-    def perform_request(self, data):
-        bk_tenant_id = get_request_tenant_id()
-        bk_biz_id = data["bk_biz_id"]
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        bk_biz_id = validated_request_data["bk_biz_id"]
         try:
-            task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=int(data["task_id"]))
+            task = get_task(
+                bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=int(validated_request_data["task_id"])
+            )
         except Exception:
-            err_msg = _("未找到拨测任务ID=%s") % data["task_id"]
+            err_msg = _("未找到拨测任务ID=%s") % validated_request_data["task_id"]
             logger.error(err_msg)
             raise CustomException(err_msg)
 
-        if data.get("type", ""):
-            value_field = [data["type"]]
+        if validated_request_data.get("type", ""):
+            value_field = [validated_request_data["type"]]
         else:
             value_field = ["available", "task_duration"]
 
-        kwargs_list = self.make_select_param(task, value_field, data.get("node_id"), data["bk_biz_id"])
+        kwargs_list = self.make_select_param(
+            task, value_field, validated_request_data.get("node_id"), validated_request_data["bk_biz_id"]
+        )
 
         # 执行查询
         try:
@@ -616,7 +602,9 @@ class TaskDetailResource(Resource):
         time_step = serializers.IntegerField(required=False)
 
     @staticmethod
-    def get_nodes_by_carrieroperator(bk_tenant_id, bk_biz_id, task_id, carrieroperator):
+    def get_nodes_by_carrieroperator(
+        bk_tenant_id: str, bk_biz_id: int, task_id: int, carrieroperator: dict[str, list[str]]
+    ) -> dict[str, list[str]]:
         """
         根据运营商划分出拨测节点列表
         """
@@ -627,7 +615,9 @@ class TaskDetailResource(Resource):
         return result
 
     @staticmethod
-    def get_nodes_by_location(bk_tenant_id, bk_biz_id, task_id, location):
+    def get_nodes_by_location(
+        bk_tenant_id: str, bk_biz_id: int, task_id: int, location: dict[str, list[str]]
+    ) -> dict[str, list[str]]:
         """
         根据国家地区划分出拨测节点列表
         """
@@ -641,22 +631,25 @@ class TaskDetailResource(Resource):
                 result[city].append(str(node.id))
         return result
 
-    def perform_request(self, data):
-        bk_tenant_id = get_request_tenant_id()
-        bk_biz_id = data["bk_biz_id"]
-        task_id = data["task_id"]
-        monitor_field = data["type"]
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        task_id = validated_request_data["task_id"]
+        monitor_field = validated_request_data["type"]
         try:
             task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
         except Exception:
             raise CustomException(_("拨测任务(id=%s)获取失败") % task_id)
         protocol = task.protocol.lower()
 
-        if data.get("location"):
-            location = self.get_nodes_by_location(bk_tenant_id, bk_biz_id, task_id, data["location"])
-        if data.get("carrieroperator"):
+        location: dict[str, list[str]] = {}
+        if validated_request_data.get("location"):
+            location = self.get_nodes_by_location(bk_tenant_id, bk_biz_id, task_id, validated_request_data["location"])
+
+        carrieroperator: dict[str, list[str]] = {}
+        if validated_request_data.get("carrieroperator"):
             carrieroperator = self.get_nodes_by_carrieroperator(
-                bk_tenant_id, bk_biz_id, task_id, data["carrieroperator"]
+                bk_tenant_id, bk_biz_id, task_id, validated_request_data["carrieroperator"]
             )
 
         # 如果任务创建时间距离当前时间小于12小时，则默认展示时间范围为创建时间到当前时间，group_by minute1
@@ -664,8 +657,8 @@ class TaskDetailResource(Resource):
         task_created_passed_by_hours = (arrow.utcnow().timestamp - create_time) / 3600
 
         end = arrow.utcnow().timestamp
-        if data.get("time_range"):
-            start, end = parse_time_range(data["time_range"])
+        if validated_request_data.get("time_range"):
+            start, end = parse_time_range(validated_request_data["time_range"])
         elif task_created_passed_by_hours < UPTIME_CHECK_TASK_DETAIL_GROUP_BY_MINUTE1_TIME_RANGE:
             start = create_time
         else:
@@ -685,7 +678,7 @@ class TaskDetailResource(Resource):
             "bk_biz_id": bk_biz_id,
             "time_start": start,
             "time_end": end,
-            "interval": task.get_period(),
+            "interval": task.config.get("period", 60),
             "filter_dict": {"task_id": task_id},
             "monitor_field": monitor_field,
             "result_table_id": f"{str(bk_biz_id)}_{UPTIME_CHECK_DB}_{protocol}",
@@ -695,7 +688,7 @@ class TaskDetailResource(Resource):
             "conversion": 1,
         }
 
-        if data.get("location") and data.get("carrieroperator"):
+        if validated_request_data.get("location") and validated_request_data.get("carrieroperator"):
             for city in list(location.keys()):
                 for op in list(carrieroperator.keys()):
                     kwargs = copy.deepcopy(kwargs)
@@ -711,7 +704,7 @@ class TaskDetailResource(Resource):
                         kwargs["filter_dict"]["ip_list"] = ip_list
                         kwargs_list.append(kwargs)
 
-        elif data.get("location"):
+        elif validated_request_data.get("location"):
             for city in list(location.keys()):
                 kwargs = copy.deepcopy(kwargs)
                 if len(location[city]) > 0:
@@ -726,7 +719,7 @@ class TaskDetailResource(Resource):
                     kwargs["series_label_show"] = city
                     kwargs_list.append(kwargs)
 
-        elif data.get("carrieroperator"):
+        elif validated_request_data.get("carrieroperator"):
             for op in list(carrieroperator.keys()):
                 kwargs = copy.deepcopy(kwargs)
                 if len(carrieroperator[op]) > 0:
@@ -745,7 +738,7 @@ class TaskDetailResource(Resource):
             kwargs_list.append(kwargs)
 
         for item in kwargs_list:
-            item["time_step"] = data["time_step"] if data.get("time_step") else 0
+            item["time_step"] = validated_request_data["time_step"] if validated_request_data.get("time_step") else 0
 
         result = self.do_query(kwargs_list)
         return result
@@ -803,14 +796,14 @@ class TaskGraphAndMapResource(Resource):
         location = serializers.JSONField(required=False, label="地区")
         carrieroperator = serializers.JSONField(required=False, label="外网运营商")
 
-    def perform_request(self, data):
-        bk_tenant_id = get_request_tenant_id()
-        bk_biz_id = data["bk_biz_id"]
-        params = {"bk_biz_id": bk_biz_id, "task_id": data["task_id"]}
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        params = {"bk_biz_id": bk_biz_id, "task_id": validated_request_data["task_id"]}
 
         for item in ["time_range", "location", "carrieroperator"]:
-            if data.get(item):
-                params.update({item: data[item]})
+            if validated_request_data.get(item):
+                params.update({item: validated_request_data[item]})
 
         available_param = params.copy()
         available_param.update({"type": "available"})
@@ -829,7 +822,7 @@ class TaskGraphAndMapResource(Resource):
             "task_duration": task_duration_graph if task_duration_graph else {},
         }
 
-        task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=data["task_id"])
+        task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=validated_request_data["task_id"])
         for type in list(graph_result.keys()):
             threshold_result = self.get_threshold_line(type, task)
             if threshold_result:
@@ -1018,7 +1011,7 @@ class UptimeCheckBeatResource(Resource):
         validated_request_data = self.validate_request_data(request_data)
         bk_biz_id = validated_request_data.get("bk_biz_id")
         hosts = validated_request_data.get("hosts", None)
-        bk_tenant_id = validated_request_data.get("bk_tenant_id") or get_request_tenant_id()
+        bk_tenant_id = validated_request_data.get("bk_tenant_id") or cast(str, get_request_tenant_id())
 
         # nodes -> hosts
         if not hosts:
@@ -1150,15 +1143,16 @@ class GetBeatDataResource(Resource):
 
         return transformd_ips
 
-    def perform_request(self, data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         end = arrow.utcnow().timestamp
         start = end - 180
         data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
-        if data.get("bk_host_ids"):
-            condition_statement = f'''bk_host_id=~"{"|".join(data.get("bk_host_ids"))}"'''
+        if validated_request_data.get("bk_host_ids"):
+            bk_host_ids = validated_request_data["bk_host_ids"]
+            condition_statement = f'''bk_host_id=~"{"|".join(bk_host_ids)}"'''
             promql_statement = f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}"
         else:
-            ips = data.get("ips")
+            ips = validated_request_data["ips"]
             transformd_ips = self.transform_ips(ips)
             promql_statement_list = []
             for ips_info in transformd_ips:
@@ -1178,14 +1172,16 @@ class GetBeatDataResource(Resource):
             "interval": 60,
             "alias": "a",
         }
-        data_source = data_source_class(int(data["bk_biz_id"]), **query_config)
-        query = UnifyQuery(bk_biz_id=int(data["bk_biz_id"]), data_sources=[data_source], expression="")
+        data_source = data_source_class(int(validated_request_data["bk_biz_id"]), **query_config)
+        query = UnifyQuery(
+            bk_biz_id=int(validated_request_data["bk_biz_id"]), data_sources=[data_source], expression=""
+        )
         records = query.query_data(start_time=start * 1000, end_time=end * 1000, limit=5)
 
         results = []
         cloud_id_and_ip = []
         bk_cloud_id_list = []
-        if not data.get("bk_host_ids"):
+        if not validated_request_data.get("bk_host_ids"):
             for record in records:
                 # 如果非 ipv6 业务，要把 bk_host_id 字段去掉，以免影响后面的判断
                 record.pop("bk_host_id", None)
@@ -1213,9 +1209,9 @@ class GetStrategyStatusResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True)
         task_id_list = serializers.ListField(required=True)
 
-    def perform_request(self, data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         return resource.uptime_check.get_strategy_status_by_task_id.bulk_request(
-            [{"task_id": task_id} for task_id in data["task_id_list"]]
+            [{"task_id": task_id} for task_id in validated_request_data["task_id_list"]]
         )
 
 
@@ -1230,7 +1226,7 @@ class SwitchStrategyByTaskIDResource(Resource):
         task_id = serializers.IntegerField(required=True)
         is_enabled = serializers.BooleanField(required=True)
 
-    def perform_request(self, data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         # TODO：切换到新的策略配置
         pass
 
@@ -1251,11 +1247,11 @@ class GenerateDefaultStrategyResource(Resource):
         # TODO：接入新的告警策略
         pass
 
-    def perform_request(self, data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         try:
-            task = get_task(task_id=data["task_id"])
+            task = get_task(task_id=validated_request_data["task_id"])
         except Exception:
-            raise CustomException(_("不存在的任务id:%s") % data["task_id"])
+            raise CustomException(_("不存在的任务id:%s") % validated_request_data["task_id"])
 
         # 拨测任务默认生成可用率监控策略
         self.gen_default_strategy(task, "available", _("可用率"), "lt", UPTIME_CHECK_AVAILABLE_DEFAULT_VALUE)
@@ -1276,9 +1272,10 @@ class UpdateTaskRunningStatusResource(Resource):
     周期查询拨测任务启动状态，用于后台celery任务
     """
 
-    def perform_request(self, task_id: int):
+    def perform_request(self, validated_request_data: int):
         logger.info("start celery period task: update uptime check task running status")
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        task_id = validated_request_data
 
         # 从任务中获取业务ID
         task = get_task(task_id=task_id)
@@ -1294,9 +1291,10 @@ class UpdateTaskRunningStatusResource(Resource):
 class BatchUpdateTaskRunningStatusResource(Resource):
     """周期更新任务状态，用于celery周期任务"""
 
-    def perform_request(self, task_id_list):
+    def perform_request(self, validated_request_data: list[int]):
         logger.info("start celery period task: period update uptime check task running status")
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        task_id_list = validated_request_data
 
         if task_id_list:
             first_task = get_task(task_id=task_id_list[0])
@@ -1354,10 +1352,10 @@ class FrontPageDataResource(Resource):
 
         return result
 
-    def perform_request(self, data):
-        bk_biz_id = data["bk_biz_id"]
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_biz_id = validated_request_data["bk_biz_id"]
         bk_tenant_id = get_request_tenant_id()
-        task_id_list = data["task_id_list"]
+        task_id_list = validated_request_data["task_id_list"]
 
         try:
             tasks = list_tasks(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"task_ids": task_id_list})
@@ -1456,7 +1454,7 @@ class ExportUptimeCheckConfResource(Resource):
 
         return monitor_conf_list
 
-    def get_task_conf(self, task, bk_tenant_id: str):
+    def get_task_conf(self, task: UptimeCheckTask, bk_tenant_id: str):
         """获取任务配置
 
         Args:
@@ -1491,7 +1489,7 @@ class ExportUptimeCheckConfResource(Resource):
 
         task_conf["collector_conf"] = {
             "groups": ",".join(group_names),
-            "protocol": task.protocol.value,
+            "protocol": task.protocol,
             "name": task.name,
             "location": task.location,
             "config": real_task_config,
@@ -1499,18 +1497,18 @@ class ExportUptimeCheckConfResource(Resource):
         task_conf["monitor_conf"] = self.get_monitor_conf(task)
         return task_conf
 
-    def perform_request(self, data):
-        bk_tenant_id = get_request_tenant_id()
-        self.node_conf_needed = data["node_conf_needed"]
-        bk_biz_id = data["bk_biz_id"]
-        task_ids = data.get("task_ids", "")
-        task_protocol = data.get("protocol", "")
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        self.node_conf_needed = validated_request_data["node_conf_needed"]
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        task_ids = validated_request_data.get("task_ids", "")
+        task_protocol = validated_request_data.get("protocol", "")
         task_conf_list = []
 
         # 获取任务列表
         tasks = list_tasks(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         if task_protocol:
-            tasks = [t for t in tasks if t.protocol.value.lower() == task_protocol.lower()]
+            tasks = [t for t in tasks if t.protocol.lower() == task_protocol.lower()]
         if task_ids:
             task_id_list = [int(i) for i in task_ids.split(",")]
             tasks = [t for t in tasks if t.id in task_id_list]
@@ -1547,11 +1545,11 @@ class ExportUptimeCheckNodeConfResource(Resource):
         }
         return node_conf
 
-    def perform_request(self, data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         node_conf_list = []
-        bk_biz_id = data["bk_biz_id"]
-        node_ids = data.get("node_ids", "")
-        nodes = list_nodes(bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id)
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        node_ids = validated_request_data.get("node_ids", "")
+        nodes = list_nodes(bk_tenant_id=cast(str, get_request_tenant_id()), bk_biz_id=bk_biz_id)
         if node_ids:
             node_id_list = [int(i) for i in node_ids.split(",")]
             nodes = [n for n in nodes if n.id in node_id_list]
@@ -1829,6 +1827,8 @@ class FileParseResource(Resource):
                     "regex": r"^all$|^single$",
                 },
             ]
+        else:
+            raise CustomException(_("不支持的协议类型"))
         return result_data
 
 
@@ -2053,7 +2053,7 @@ class FileImportUptimeCheckResource(Resource):
         conf_list = []
         failed_detail = []
         biz_id = validated_request_data["bk_biz_id"]
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         # 取出当前业务下的所有节点（包含公共节点）
         self.all_uptime_check_node = list_nodes(
             bk_tenant_id=bk_tenant_id, bk_biz_id=biz_id, query={"include_common": True}
@@ -2089,11 +2089,11 @@ class UptimeCheckCardResource(Resource):
         bk_biz_id = serializers.IntegerField(required=False, allow_null=True, label="业务ID")
         task_data = serializers.ListField(required=True, label="拨测任务数据")
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         bk_biz_id = validated_request_data.get("bk_biz_id")
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         bk_biz_ids = [bk_biz_id]
-        all_tasks_data = validated_request_data.get("task_data")
+        all_tasks_data: list[dict[str, Any]] = validated_request_data["task_data"]
 
         search_object = (
             AlertDocument.search(all_indices=True)
@@ -2248,7 +2248,7 @@ class ImportUptimeCheckNodeResource(Resource):
         bk_biz_id = serializers.IntegerField(required=False, default=0, label="业务ID")
 
     def import_node(self, item_data, bk_biz_id):
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         if not item_data["target_conf"]["bk_biz_id"]:
             item_data["target_conf"]["bk_biz_id"] = bk_biz_id
 
@@ -2259,20 +2259,20 @@ class ImportUptimeCheckNodeResource(Resource):
             if not create_data["bk_biz_id"]:
                 raise CustomException(_("未填写业务ID,请检查配置"))
             if create_data.get("bk_host_id"):
-                node = list_nodes(
+                nodes = list_nodes(
                     bk_tenant_id=bk_tenant_id,
                     bk_biz_id=create_data["bk_biz_id"],
                     query={"bk_host_ids": [create_data["bk_host_id"]]},
                 )
             else:
-                node = list_nodes(
+                nodes = list_nodes(
                     bk_tenant_id=bk_tenant_id,
                     bk_biz_id=create_data["bk_biz_id"],
                     query={"ip": create_data["ip"], "plat_id": create_data["plat_id"]},
                 )
             node_id = None
-            if node:
-                node_obj = node[0]
+            if nodes:
+                node_obj = nodes[0]
             else:
                 # 验证主机是否存在于 CMDB
                 if create_data.get("bk_host_id"):
@@ -2288,8 +2288,8 @@ class ImportUptimeCheckNodeResource(Resource):
                 if not result:
                     raise CustomException(_("业务下没有该主机，请检查配置"))
                 # 创建一个node
-                node_define = UptimeCheckNode(bk_tenant_id=bk_tenant_id, **create_data)
-                node_id = save_node(node=node_define, operator=get_request_username())
+                node_obj = UptimeCheckNode(bk_tenant_id=bk_tenant_id, **create_data)
+                node_id = save_node(node=node_obj, operator=get_request_username())
 
             return {
                 "result": True,
@@ -2301,10 +2301,10 @@ class ImportUptimeCheckNodeResource(Resource):
         except Exception as e:
             return {"result": False, "detail": {"target_conf": item_data["target_conf"], "error_mes": str(e)}}
 
-    def perform_request(self, data):
-        bk_biz_id = data["bk_biz_id"]
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_biz_id = validated_request_data["bk_biz_id"]
         results = []
-        conf_list = data["conf_list"]
+        conf_list = validated_request_data["conf_list"]
         for item_data in conf_list:
             result = self.import_node(item_data, bk_biz_id)
             results.append(result)
@@ -2367,7 +2367,7 @@ class ImportUptimeCheckTaskResource(Resource):
         }
 
     def get_nodes(self, data, bk_biz_id):
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         node_id_list = data["target_conf"].get("node_id_list", [])
         node_list = data["target_conf"].get("node_list", [])
         if not data["target_conf"]["bk_biz_id"]:
@@ -2462,7 +2462,7 @@ class ImportUptimeCheckTaskResource(Resource):
                 }
             )
 
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
 
         # 自动判断是创建还是更新（根据是否有同名任务的 id）
         existing_task_id = self._get_existing_task_id(bk_tenant_id, bk_biz_id, task_create_data["name"])
@@ -2479,8 +2479,8 @@ class ImportUptimeCheckTaskResource(Resource):
             location=task_create_data.get("location"),
             check_interval=task_create_data.get("check_interval", 5),
             independent_dataid=settings.ENABLE_MULTI_TENANT_MODE if settings.ENABLE_MULTI_TENANT_MODE else False,
-            node_ids=[n.id for n in nodes],
-            group_ids=[g.id for g in groups],
+            node_ids=[cast(int, n.id) for n in nodes],
+            group_ids=[cast(int, g.id) for g in groups],
         )
 
         task_id = save_task(
@@ -2493,7 +2493,7 @@ class ImportUptimeCheckTaskResource(Resource):
     def import_task(self, item_data, bk_biz_id):
         try:
             task_id = self.create_task(item_data, bk_biz_id)
-            bk_tenant_id = get_request_tenant_id()
+            bk_tenant_id = cast(str, get_request_tenant_id())
             task_name = item_data["collector_conf"]["name"]
 
             # 如果传入 monitor_conf 则配置告警策略
@@ -2523,10 +2523,10 @@ class ImportUptimeCheckTaskResource(Resource):
         except Exception as e:
             return {"result": False, "detail": {"task_name": item_data["collector_conf"]["name"], "error_mes": str(e)}}
 
-    def perform_request(self, data):
-        bk_biz_id = data["bk_biz_id"]
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_biz_id = validated_request_data["bk_biz_id"]
         results = []
-        for item_data in data["conf_list"]:
+        for item_data in validated_request_data["conf_list"]:
             result = self.import_task(item_data, bk_biz_id)
             results.append(result)
 
@@ -2554,11 +2554,12 @@ class SelectUptimeCheckNodeResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = cast(str, get_request_tenant_id())
         bk_biz_id = validated_request_data["bk_biz_id"]
 
         host_list = resource.commons.host_region_isp_info(bk_biz_id=bk_biz_id)
-        node_list = list_nodes(bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id)
+        node_list = list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         node_ip_list = [node.ip for node in node_list if not node.bk_host_id]
         node_id_list = [node.bk_host_id for node in node_list if node.bk_host_id]
 
@@ -2581,7 +2582,7 @@ class GetRecentTaskDataResource(Resource):
         task_id = serializers.CharField(required=True, label="任务ID")
         type = serializers.ChoiceField(required=True, choices=["available", "task_duration"])
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         task_id = validated_request_data["task_id"]
         task_type = validated_request_data["type"]
 
@@ -2595,7 +2596,7 @@ class GetRecentTaskDataResource(Resource):
         interval = 60
         now = arrow.utcnow().timestamp
 
-        protocol = uptime_check_task.protocol.value.lower()
+        protocol = uptime_check_task.protocol.lower()
         period = uptime_check_task.config.get("period", 60)
         if task_type == "task_duration":
             # 保留标签聚合
@@ -2637,7 +2638,7 @@ class SelectCarrierOperator(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         isp_cn_list = [item["cn"] for item in ISP_LIST]
         nodes = list_nodes(
-            bk_tenant_id=get_request_tenant_id(),
+            bk_tenant_id=cast(str, get_request_tenant_id()),
             bk_biz_id=int(bk_biz_id),
             query={"exclude_carrieroperators": isp_cn_list},
         )
@@ -2654,9 +2655,9 @@ class UptimeCheckNodeInfoResource(Resource):
     class RequestSerializer(serializers.Serializer):
         ids = serializers.ListField(label="拨测节点id列表", child=serializers.IntegerField(), required=True)
 
-    def perform_request(self, data):
-        bk_tenant_id = get_request_tenant_id()
-        nodes = list_nodes(bk_tenant_id=bk_tenant_id, query={"node_ids": data["ids"]})
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        nodes = list_nodes(bk_tenant_id=bk_tenant_id, query={"node_ids": validated_request_data["ids"]})
         result = {}
         for node in nodes:
             result[node.id] = node.model_dump()
@@ -2671,8 +2672,8 @@ class UptimeCheckTaskInfoResource(Resource):
     class RequestSerializer(serializers.Serializer):
         ids = serializers.ListField(label="拨测任务id列表", child=serializers.IntegerField(), required=True)
 
-    def perform_request(self, data):
-        task_ids = data["ids"]
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        task_ids = validated_request_data["ids"]
         tasks = list_tasks(query={"task_ids": task_ids})
         # 转换为 {id: task_dict} 的格式
         return {task.id: task.model_dump() for task in tasks}
@@ -2683,7 +2684,7 @@ class TopoTemplateHostResource(Resource):
     如果存在动态节点，则返回动态节点下相应的ip
     """
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         bk_tenant_id = get_request_tenant_id()
         bk_biz_id = validated_request_data["bk_biz_id"]
         output_fields = validated_request_data.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS)
@@ -2737,16 +2738,16 @@ class UptimeCheckTargetDetailResource(Resource):
         bk_obj_id = serializers.CharField(label="目标类型", required=True)
         target_hosts = serializers.ListField(label="目标信息", required=True)
 
-    def perform_request(self, validated_data):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         info_func_map = {
             TargetNodeType.INSTANCE: resource.commons.get_host_instance_by_ip,
             TargetNodeType.TOPO: resource.commons.get_host_instance_by_node,
             TargetNodeType.SET_TEMPLATE: resource.commons.get_nodes_by_template,
             TargetNodeType.SERVICE_TEMPLATE: resource.commons.get_nodes_by_template,
         }
-        bk_obj_id = validated_data["bk_obj_id"]
-        bk_biz_id = validated_data["bk_biz_id"]
-        target_hosts = validated_data["target_hosts"]
+        bk_obj_id = validated_request_data["bk_obj_id"]
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        target_hosts = validated_request_data["target_hosts"]
         params = {"bk_biz_id": bk_biz_id}
         if bk_obj_id == TargetNodeType.INSTANCE:
             params["ip_list"] = [{"ip": x["ip"]} for x in target_hosts]

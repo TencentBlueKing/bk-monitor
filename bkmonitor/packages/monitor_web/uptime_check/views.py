@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from bk_monitor_base.uptime_check import (
     BEAT_STATUS,
@@ -33,6 +33,7 @@ from django.conf import settings
 from django.utils.translation import gettext as _
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from bkmonitor.iam import ActionEnum
@@ -53,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 class PermissionMixin:
     def get_permissions(self):
-        if self.request.method in permissions.SAFE_METHODS:
+        if self.request.method in permissions.SAFE_METHODS:  # type: ignore
             return [BusinessActionPermission([ActionEnum.VIEW_SYNTHETIC])]
         return [BusinessActionPermission([ActionEnum.MANAGE_SYNTHETIC])]
 
@@ -161,9 +162,9 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
 
         return result
 
-    def retrieve(self, request, pk: int | None = None):
+    def retrieve(self, request: Request, pk: int | str):
         """获取节点详情"""
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         # 获取节点并自动回填 bk_host_id
         node_define = get_node_with_host_id(bk_tenant_id=bk_tenant_id, node_id=int(pk))
         node_data = node_define.model_dump() if hasattr(node_define, "model_dump") else dict(node_define)
@@ -208,7 +209,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
                 return default
             return data_map[key]
 
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         bk_biz_id = request.GET.get("bk_biz_id")
 
         # 获取过滤后的节点列表（公共节点 + 业务节点）
@@ -253,6 +254,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
                     all_node_status,
                     {"gse_status": BEAT_STATUS["DOWN"], "status": BEAT_STATUS["DOWN"]},
                 )
+                node_status = cast(dict[str, Any], node_status)
                 beat_version = get_by_node(node.model_dump(), all_beat_version, beat_version)
 
             # 添加权限信息
@@ -283,7 +285,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
     @action(methods=["GET"], detail=False)
     def count(self, request, *args, **kwargs):
         """获取节点数量"""
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         bk_biz_id = request.GET.get("bk_biz_id")
 
         # 获取过滤后的节点列表（公共节点 + 业务节点）
@@ -297,7 +299,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         """
         ip = request.GET.get("ip")
         bk_biz_id = request.GET.get("bk_biz_id")
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         # 先获取，再判断是否存在
         nodes = list_nodes(
             bk_tenant_id=bk_tenant_id,
@@ -318,7 +320,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         name = request.GET.get("name", "").rstrip()
         bk_biz_id = request.GET.get("bk_biz_id")
         node_id = request.GET.get("id")
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
 
         exclude_id = int(node_id) if node_id else None
         nodes = list_nodes(
@@ -356,7 +358,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
 
     serializer_class = UptimeCheckTaskSerializer
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request: Request, pk: int | str) -> Response:
         """
         旧版动态下发配置转换
         """
@@ -493,13 +495,13 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         )
 
     @action(methods=["POST"], detail=True)
-    def deploy(self, request, pk=None):
+    def deploy(self, request: Request, pk: int | str):
         """
         正式创建任务
         下发正式配置，采集器托管任务，将采集结果上报至计算平台
         """
         task_id = int(pk)
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         # 先获取任务的bk_biz_id
         task = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
         bk_biz_id = task.bk_biz_id
@@ -507,12 +509,12 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         return Response(result)
 
     @action(methods=["POST"], detail=True)
-    def clone(self, request, pk=None):
+    def clone(self, request, pk: int | str):
         """
         克隆任务
         """
         task_id = int(pk)
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         operator = request.user.username
 
         # 获取源任务（带节点和分组）
@@ -521,7 +523,6 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
             task_id=task_id,
         )
         # 转换为字典
-        source_task_dict = source_task.model_dump()
         bk_biz_id = source_task.bk_biz_id
 
         # 生成新名称
@@ -544,10 +545,10 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
             name=new_name,
-            protocol=source_task_dict["protocol"],
-            config=source_task_dict["config"],
-            node_ids=source_task_dict.get("node_ids", []),
-            group_ids=source_task_dict.get("group_ids", []),
+            protocol=source_task.protocol,
+            config=source_task.config,
+            node_ids=source_task.node_ids,
+            group_ids=source_task.group_ids,
         )
 
         # 保存新任务
@@ -555,13 +556,14 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         return Response({"id": new_task_id})
 
     @action(methods=["POST"], detail=True)
-    def change_status(self, request, pk=None):
+    def change_status(self, request: Request, pk: int | str):
         """
         更改任务状态
         """
         task_id = int(pk)
-        task_status = request.data.get("status", "")
-        bk_tenant_id = get_request_tenant_id()
+        request_data = cast(dict[str, Any], request.data)
+        task_status = request_data.get("status", "")
+        bk_tenant_id = cast(str, get_request_tenant_id())
         # 先获取任务的bk_biz_id
         task = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
         bk_biz_id = task.bk_biz_id
@@ -578,7 +580,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         return Response(data={"id": task_id, "status": updated_task.status.value})
 
     @action(methods=["GET"], detail=True)
-    def running_status(self, request, pk=None):
+    def running_status(self, request, pk: int | str):
         """
         创建拨测任务时，查询部署任务是否成功，失败则返回节点管理中部署失败错误日志
         :return:
@@ -601,7 +603,7 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
 
     serializer_class = UptimeCheckGroupSerializer
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request: Request, pk: int | str):
         """
         简化返回数据
         """
@@ -639,13 +641,13 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
         return Response(result)
 
     @action(methods=["POST"], detail=True)
-    def add_task(self, request, pk=None):
+    def add_task(self, request, pk: int | str):
         """
         拨测任务拖拽进入任务组
         """
         group_id = int(pk)
         task_id = request.data.get("task_id")
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         operator = request.user.username
 
         # 获取分组信息
@@ -679,11 +681,11 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
         return Response({"msg": _("拨测分组({})添加任务({})成功".format(group_name, task_name))})
 
     @action(methods=["post"], detail=True)
-    def remove_task(self, request, pk=None):
+    def remove_task(self, request, pk: int | str):
         """拨测任务组移除拨测任务"""
         group_id = int(pk)
         task_id = request.data.get("task_id")
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = cast(str, get_request_tenant_id())
         operator = request.user.username
 
         # 获取分组信息

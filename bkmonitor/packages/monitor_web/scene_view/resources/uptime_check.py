@@ -10,9 +10,10 @@ specific language governing permissions and limitations under the License.
 
 import json
 from collections import defaultdict
-from typing import cast
+from typing import Any, cast
 
-from bk_monitor_base.uptime_check import get_task, list_groups, list_nodes
+from bk_monitor_base.domains.uptime_check.models import UPTIME_CHECK_TASK_STATUS_NAME_MAP
+from bk_monitor_base.uptime_check import get_task, list_groups, list_nodes, list_tasks
 from django.db.models import Q
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -27,9 +28,7 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor.models import NODE_IP_TYPE_DICT
 from monitor_web.models.uptime_check import (
-    UptimeCheckGroup,
     UptimeCheckNode,
-    UptimeCheckTask,
 )
 from monitor_web.uptime_check.serializers import UptimeCheckTaskSerializer
 
@@ -39,12 +38,12 @@ class GetUptimeCheckTaskList(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         group_id = serializers.CharField(label="分组ID", required=False, allow_null=True, allow_blank=True)
 
-    def perform_request(self, params):
-        if params.get("group_id"):
-            group = UptimeCheckGroup.objects.get(bk_biz_id=params["bk_biz_id"], id=int(params["group_id"]))
-            tasks = group.tasks.all()
-        else:
-            tasks = UptimeCheckTask.objects.filter(bk_biz_id=params["bk_biz_id"])
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        query: dict[str, Any] | None = None
+        if validated_request_data.get("group_id"):
+            query = {"group_ids": [int(validated_request_data["group_id"])]}
+        tasks = list_tasks(bk_tenant_id=bk_tenant_id, bk_biz_id=validated_request_data["bk_biz_id"], query=query)
         return [{"id": task.id, "name": task.name} for task in tasks]
 
 
@@ -59,13 +58,21 @@ class UptimeCheckTaskQuerySerializer(serializers.Serializer):
 class GetUptimeCheckTaskInfo(ApiAuthResource):
     RequestSerializer = UptimeCheckTaskQuerySerializer
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]) -> Any:
         bk_tenant_id = cast(str, get_request_tenant_id())
-        task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=params["bk_biz_id"], task_id=params["task_id"])
-        groups = list_groups(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=params["bk_biz_id"], query={"group_ids": task.group_ids}
+        task = get_task(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            task_id=validated_request_data["task_id"],
         )
-        nodes = list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=params["bk_biz_id"], query={"node_ids": task.node_ids})
+        groups = list_groups(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            query={"group_ids": task.group_ids},
+        )
+        nodes = list_nodes(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=validated_request_data["bk_biz_id"], query={"node_ids": task.node_ids}
+        )
         result = [
             {"name": _("任务名"), "type": "string", "value": task.name},
             {"name": _("拨测类型"), "type": "string", "value": task.protocol},
@@ -90,7 +97,7 @@ class GetUptimeCheckTaskInfo(ApiAuthResource):
 
         result.extend(
             [
-                {"name": _("状态"), "type": "string", "value": task.get_status_display()},
+                {"name": _("状态"), "type": "string", "value": UPTIME_CHECK_TASK_STATUS_NAME_MAP[task.status.value]},
                 {"name": _("创建人"), "type": "string", "value": get_user_display_name(task.create_user or "")},
                 {"name": _("创建时间"), "type": "string", "value": strftime_local(task.create_time)},
             ]
@@ -192,13 +199,14 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
 
     @classmethod
     def get_time_series_chart(cls, params: dict, host_keys, host_to_node):
-        task = UptimeCheckTask.objects.get(bk_biz_id=params["bk_biz_id"], id=params["task_id"])
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=params["bk_biz_id"], task_id=params["task_id"])
         query_params = {
             "query_configs": [
                 {
                     "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
                     "data_type_label": DataTypeLabel.TIME_SERIES,
-                    "interval": task.get_period(),
+                    "interval": task.config.get("period", 60),
                     "filter_dict": {"task_id": str(task.id)},
                     "where": [],
                     "data_label": f"uptimecheck_{task.protocol.lower()}",
@@ -236,30 +244,33 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         result["series"] = series_list
         return result
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         bk_tenant_id = get_request_tenant_id()
-        task = UptimeCheckTask.objects.get(bk_biz_id=params["bk_biz_id"], id=params["task_id"])
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=validated_request_data["task_id"])
 
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
         datasource_params = {
             "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
             "data_type_label": DataTypeLabel.TIME_SERIES,
             "bk_biz_id": task.bk_biz_id,
-            "interval": task.get_period(),
+            "interval": task.config.get("period", 60),
             "data_label": f"uptimecheck_{task.protocol.lower()}",
             "table": "",
             "filter_dict": {"task_id": str(task.id)},
-            "metrics": [{"field": params["metric_field"], "method": "AVG", "alias": "A"}],
+            "metrics": [{"field": validated_request_data["metric_field"], "method": "AVG", "alias": "A"}],
             "group_by": ["bk_host_id", "ip", "bk_cloud_id"],
         }
         # 通过independent_dataid判断是否是独立数据源
-        if task.indepentent_dataid:
+        if task.independent_dataid:
             datasource_params["data_label"] = f"uptimecheck_{task.protocol.lower()}"
 
         data_source = data_source_class(**datasource_params)
-        query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="A")
+        query = UnifyQuery(bk_biz_id=bk_biz_id, data_sources=[data_source], expression="A")
 
-        records = query.query_data(start_time=params["start_time"] * 1000, end_time=params["end_time"] * 1000)
+        records = query.query_data(
+            start_time=validated_request_data["start_time"] * 1000, end_time=validated_request_data["end_time"] * 1000
+        )
 
         host_to_node = {}
         # 过滤业务下所有节点时，同时还应该加上通用节点
@@ -270,7 +281,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
 
         ip_to_hostid = {}
         hostid_to_ip = {}
-        if is_ipv6_biz(params["bk_biz_id"]):
+        if is_ipv6_biz(bk_biz_id):
             ips = [node.ip for node in nodes if node.ip]
             node_hosts = api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, ips=ips)["hosts"]
             ip_to_hostid = {(h.ip, h.bk_cloud_id): h.bk_host_id for h in node_hosts}
@@ -280,7 +291,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
             hostid_to_ip = {h.bk_host_id: (h.ip, h.bk_cloud_id) for h in node_hosts}
 
         for node in nodes:
-            if is_ipv6_biz(params["bk_biz_id"]):
+            if is_ipv6_biz(bk_biz_id):
                 if node.bk_host_id:
                     host_to_node[node.bk_host_id] = node
                 else:
@@ -321,10 +332,10 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
                 node = _("其他")
                 ip_type = None
 
-            location_filter = params.get("location", [])
-            carrieroperator_filter = params.get("carrieroperator", [])
-            node_filter = params.get("node", [])
-            ip_type_filter = params.get("ip_type", [])
+            location_filter = validated_request_data.get("location", [])
+            carrieroperator_filter = validated_request_data.get("carrieroperator", [])
+            node_filter = validated_request_data.get("node", [])
+            ip_type_filter = validated_request_data.get("ip_type", [])
 
             if location_filter:
                 if location not in location_filter:
@@ -343,29 +354,26 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
                 node_values[node].append(record["_result_"])
                 host_keys.add(host_key)
 
-        if params["metric_field"] == "available":
+        if validated_request_data["metric_field"] == "available":
             unit = "%"
         else:
             unit = "ms"
 
-        if params["data_format"] == "time_series_chart":
-            return self.get_time_series_chart(params, host_keys, host_to_node)
+        if validated_request_data["data_format"] == "time_series_chart":
+            return self.get_time_series_chart(validated_request_data, host_keys, host_to_node)
         data_format_map = {
-            "status_map": {
-                "series": location_values,
-                "function": "get_status_map",
-            },
+            "status_map": {"series": location_values, "function": "get_status_map"},
             "percentage_bar": {"series": node_values, "function": "get_percentage_bar"},
         }
         series = []
-        for name, values in data_format_map[params["data_format"]]["series"].items():
+        for name, values in data_format_map[validated_request_data["data_format"]]["series"].items():
             value = sum(values) / len(values)
-            if params["metric_field"] == "available":
+            if validated_request_data["metric_field"] == "available":
                 value *= 100  # 百分比
             value = round(value, 2)
             series.append({"name": name, "value": value, "unit": unit})
-        get_chart = getattr(self, data_format_map[params["data_format"]]["function"], None)
-        return get_chart(params, series)
+        get_chart = getattr(self, data_format_map[validated_request_data["data_format"]]["function"])
+        return get_chart(validated_request_data, series)
 
 
 class GetUptimeCheckVarListResource(ApiAuthResource):
@@ -377,7 +385,7 @@ class GetUptimeCheckVarListResource(ApiAuthResource):
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
         var_type = serializers.ChoiceField(choices=("location", "carrieroperator", "node", "ip_type"))
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]) -> Any:
         bk_tenant_id = get_request_tenant_id()
         bk_biz_id = validated_request_data["bk_biz_id"]
         var_list = (
