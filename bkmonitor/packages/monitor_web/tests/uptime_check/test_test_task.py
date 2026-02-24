@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
-from bk_monitor_base.domains.uptime_check.define import UptimeCheckNode
+from bk_monitor_base.uptime_check import UptimeCheckNode
 from core.drf_resource import resource
 from core.drf_resource.exceptions import CustomException  # noqa
 from monitor_web.uptime_check.constants import RESULT_MSG
@@ -66,7 +66,7 @@ def mock_test_task_success(mocker):
 
 def mock_test_task_job_fail(mocker):
     """Mock uptime_check_operation.test_uptime_check_task JOB 执行失败场景"""
-    from bk_monitor_base.domains.uptime_check.services.task_manager import TestTaskError
+    from bk_monitor_base.uptime_check import TestTaskError
 
     return mocker.patch(
         "monitor_web.uptime_check.resources.uptime_check_operation.test_uptime_check_task",
@@ -76,7 +76,7 @@ def mock_test_task_job_fail(mocker):
 
 def mock_test_task_collect_fail(mocker):
     """Mock uptime_check_operation.test_uptime_check_task 采集失败场景"""
-    from bk_monitor_base.domains.uptime_check.services.task_manager import TestTaskError
+    from bk_monitor_base.uptime_check import TestTaskError
 
     return mocker.patch(
         "monitor_web.uptime_check.resources.uptime_check_operation.test_uptime_check_task",

@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.utils.translation import gettext as _
-from bk_monitor_base.domains.uptime_check.define import UptimeCheckNode
+from bk_monitor_base.uptime_check import UptimeCheckNode
 
 
 def get_data():
@@ -137,15 +137,15 @@ def mock_get_uptimecheck_node(mocker):
         bk_host_id=1,
         carrieroperator="",
     )
-    get_func = mocker.patch("bk_monitor_base.domains.uptime_check.models.UptimeCheckNodeModel.objects.get")
+    get_func = mocker.patch("bk_monitor_base.uptime_check.UptimeCheckNodeModel.objects.get")
     get_func.return_value = node
     return get_func
 
 
 def mock_get_uptimecheck_task(mocker):
-    from bk_monitor_base.domains.uptime_check.models import UptimeCheckTaskModel
+    from bk_monitor_base.uptime_check import UptimeCheckTaskModel
 
-    get_func = mocker.patch("bk_monitor_base.domains.uptime_check.models.UptimeCheckTaskModel.objects.get")
+    get_func = mocker.patch("bk_monitor_base.uptime_check.UptimeCheckTaskModel.objects.get")
     get_func.return_value = UptimeCheckTaskModel()
     return get_func
 

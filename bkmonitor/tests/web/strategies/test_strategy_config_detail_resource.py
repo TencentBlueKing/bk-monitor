@@ -14,7 +14,7 @@ from unittest.mock import PropertyMock
 from bkmonitor.models import Item, NoticeGroup, Strategy
 from core.drf_resource import resource
 from bkmonitor.strategy.strategy import StrategyConfig
-from bk_monitor_base.domains.uptime_check.models import UptimeCheckTaskModel
+from bk_monitor_base.uptime_check import UptimeCheckTaskModel
 
 
 class TestStrategyConfigDetailResource:

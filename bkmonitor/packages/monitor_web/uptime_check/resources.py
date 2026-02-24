@@ -381,7 +381,7 @@ class GenerateConfigResource(Resource):
             final_config_dict += task.generate_sub_config()
 
     注意测试时下发的yaml配置文件不在此生成
-    如果需要修改测试时用的yaml文件模板，请到 bk_monitor_base.domains.uptime_check 中修改
+    如果需要修改测试时用的yaml文件模板，请到 bk_monitor_base 中修改
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -457,8 +457,6 @@ class GenerateConfigResource(Resource):
 class GenerateSubConfigResource(Resource):
     """
     生成拨测节点所使用的yaml配置文件
-
-    委托给 bk_monitor_base.domains.uptime_check.operation.generate_task_sub_config 实现
     """
 
     class RequestSerializer(serializers.Serializer):

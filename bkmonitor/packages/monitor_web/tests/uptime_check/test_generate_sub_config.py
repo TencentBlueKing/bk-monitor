@@ -92,7 +92,7 @@ def get_mock_uptime_check_task_result_deploy():
 
 def mock_uptime_check_task_model(mocker):
     """Mock uptime_check_operation.get_uptime_check_task"""
-    from bk_monitor_base.domains.uptime_check.define import UptimeCheckTask
+    from bk_monitor_base.uptime_check import UptimeCheckTask
 
     task = UptimeCheckTask(
         bk_tenant_id="default",

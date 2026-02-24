@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from bk_monitor_base.domains.uptime_check.models import UptimeCheckNodeModel
+from bk_monitor_base.uptime_check import UptimeCheckNodeModel
 from monitor_web.uptime_check.resources import UptimeCheckBeatResource
 
 
@@ -243,7 +243,7 @@ class TestNodeList:
     def test_uptime_check_beat(self, mocker):
         params = {"bk_biz_id": 2}
         patcher = patch(
-            "bk_monitor_base.domains.uptime_check.models.UptimeCheckNodeModel.objects.filter",
+            "bk_monitor_base.uptime_check.UptimeCheckNodeModel.objects.filter",
             side_effect=node_filter_side_effect,
         )
         patcher.start()
@@ -275,7 +275,7 @@ class TestNodeList:
     def test_uptime_check_beat_only_biz(self, mocker):
         params = {"bk_biz_id": 2}
         patcher = patch(
-            "bk_monitor_base.domains.uptime_check.models.UptimeCheckNodeModel.objects.filter",
+            "bk_monitor_base.uptime_check.UptimeCheckNodeModel.objects.filter",
             side_effect=node_filter_side_effect,
         )
         patcher.start()
@@ -304,7 +304,7 @@ class TestNodeList:
     def test_uptime_check_beat_only_common(self, mocker):
         params = {"bk_biz_id": 2}
         patcher = patch(
-            "bk_monitor_base.domains.uptime_check.models.UptimeCheckNodeModel.objects.filter",
+            "bk_monitor_base.uptime_check.UptimeCheckNodeModel.objects.filter",
             side_effect=node_filter_side_effect,
         )
         patcher.start()

@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
-from bk_monitor_base.domains.uptime_check.define import UptimeCheckTaskStatus
+from bk_monitor_base.uptime_check import UptimeCheckTaskStatus
 
 
 def mock_switch_uptime_check_task(mocker):
@@ -32,7 +32,7 @@ def mock_get_uptime_check_task(mocker):
 class TestTaskChangeStatus:
     def test_change_status_start(self, mocker):
         """测试启动任务状态"""
-        from bk_monitor_base.domains.uptime_check.models import UptimeCheckTaskModel
+        from bk_monitor_base.uptime_check import UptimeCheckTaskModel
 
         # 创建一个测试任务
         task_model = UptimeCheckTaskModel(
@@ -56,18 +56,16 @@ class TestTaskChangeStatus:
         mock_get.return_value = updated_task
 
         # 调用切换状态（由 views.py 中的 change_status 方法调用）
-        from monitor_web.uptime_check.resources import uptime_check_operation
+        from bk_monitor_base.uptime_check import control_task
 
-        uptime_check_operation.switch_uptime_check_task(
-            bk_tenant_id="default", bk_biz_id=2, task_id=1, action="start", operator="admin"
-        )
+        control_task(bk_tenant_id="default", bk_biz_id=2, task_id=1, action="start", operator="admin")
 
         mock_switch.assert_called_once()
         assert mock_get.call_count == 1
 
     def test_change_status_stop(self, mocker):
         """测试停止任务状态"""
-        from bk_monitor_base.domains.uptime_check.models import UptimeCheckTaskModel
+        from bk_monitor_base.uptime_check import UptimeCheckTaskModel
 
         task_model = UptimeCheckTaskModel(
             bk_biz_id=2,
