@@ -366,27 +366,9 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         bk_biz_id = int(request.GET["bk_biz_id"])
         task_define = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
         # 转换为字典
-        data = task_define.model_dump()
+        data: dict[str, Any] = task_define.model_dump()
         # 兼容旧字段名
-        data["indepentent_dataid"] = data.get("independent_dataid", False)
-
-        config = data["config"]
-        protocol = data["protocol"]
-        if config.get("urls") and protocol == UptimeCheckTaskProtocol.HTTP.value:
-            url = config.pop("urls", None)
-            config["url_list"] = [url]
-        if config.get("hosts"):
-            config["url_list"] = []
-            hosts = config.pop("hosts", [])
-            if hosts[0].get("bk_inst_id"):
-                config["node_list"] = hosts
-                config["ip_list"] = []
-            if hosts[0].get("ip"):
-                ips = [host["ip"] for host in hosts if host.get("ip")]
-                host_instances = api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, ips=ips)["hosts"]
-                config["node_list"] = [{"bk_host_id": h.bk_host_id} for h in host_instances]
-                host_instance_ips = [h.ip for h in host_instances]
-                config["ip_list"] = [host["ip"] for host in hosts if host["ip"] not in host_instance_ips]
+        data["indepentent_dataid"] = data.pop("independent_dataid", False)
 
         # 补充nodes字段信息
         if task_define.node_ids:
@@ -407,6 +389,28 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
             ]
         else:
             data["groups"] = []
+
+        serializer = self.serializer_class(data=data)
+        serializer.is_valid(raise_exception=True)
+        data = cast(dict[str, Any], serializer.validated_data)
+        config = data["config"]
+        protocol = data["protocol"]
+        if config.get("urls") and protocol == UptimeCheckTaskProtocol.HTTP.value:
+            url = config.pop("urls", None)
+            config["url_list"] = [url]
+        if config.get("hosts"):
+            config["url_list"] = []
+            hosts = config.pop("hosts", [])
+            if hosts[0].get("bk_inst_id"):
+                config["node_list"] = hosts
+                config["ip_list"] = []
+            if hosts[0].get("ip"):
+                ips = [host["ip"] for host in hosts if host.get("ip")]
+                host_instances = api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, ips=ips)["hosts"]
+                config["node_list"] = [{"bk_host_id": h.bk_host_id} for h in host_instances]
+                host_instance_ips = [h.ip for h in host_instances]
+                config["ip_list"] = [host["ip"] for host in hosts if host["ip"] not in host_instance_ips]
+
         return Response(data)
 
     def get_permissions(self):

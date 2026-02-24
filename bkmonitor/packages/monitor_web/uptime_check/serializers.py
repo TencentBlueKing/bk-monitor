@@ -346,8 +346,6 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
     labels = serializers.JSONField(required=False, default=dict)
 
     # 独立数据源模式
-    independent_dataid = serializers.BooleanField(required=False)
-    # 兼容旧字段名
     indepentent_dataid = serializers.BooleanField(required=False)
 
     # 关联字段
@@ -367,6 +365,8 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
     available = serializers.SerializerMethodField(read_only=True)
     task_duration = serializers.SerializerMethodField(read_only=True)
     url_list = serializers.SerializerMethodField(read_only=True)
+
+    is_deleted = serializers.BooleanField(default=False)
 
     @staticmethod
     def get_url_list(obj: dict[str, Any]) -> list[str]:
