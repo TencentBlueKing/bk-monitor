@@ -386,29 +386,30 @@ class GetUptimeCheckVarListResource(ApiAuthResource):
     def perform_request(self, validated_request_data: dict[str, Any]) -> Any:
         bk_tenant_id = cast(str, get_request_tenant_id())
         bk_biz_id = validated_request_data["bk_biz_id"]
+        var_type = validated_request_data["var_type"]
         nodes = list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"include_common": True})
         var_list: list[Any] = list(
-            set(
-                [
-                    getattr(
-                        node,
-                        validated_request_data["var_type"] if validated_request_data["var_type"] != "node" else "name",
-                    )
-                    for node in nodes
-                ]
-            )
+            [
+                getattr(
+                    node,
+                    var_type if var_type != "node" else "name",
+                )
+                for node in nodes
+            ]
         )
 
-        if validated_request_data["var_type"] == "location":
+        if var_type == "location":
             var_list = [{"id": item["city"], "name": item["city"]} for item in var_list if item.get("city")]
-        else:
+        elif var_type == "ip_type":
             var_list = [{"id": item, "name": NODE_IP_TYPE_DICT.get(item, item)} for item in var_list if item]
-        if validated_request_data["var_type"] != "ip_type":
-            var_list.append({"id": _("其他"), "name": _("其他")})
-        if validated_request_data["var_type"] == "location":
-            var_list = [{"id": item["city"], "name": item["city"]} for item in var_list if item.get("city")]
         else:
-            var_list = [{"id": item, "name": NODE_IP_TYPE_DICT.get(item, item)} for item in var_list if item]
-        if validated_request_data["var_type"] != "ip_type":
             var_list.append({"id": _("其他"), "name": _("其他")})
-        return list(var_list)
+
+        # 按id去重
+        existing_ids: set[str] = set()
+        unique_var_list: list[dict[str, Any]] = []
+        for item in var_list:
+            if item["id"] not in existing_ids:
+                existing_ids.add(item["id"])
+                unique_var_list.append(item)
+        return unique_var_list

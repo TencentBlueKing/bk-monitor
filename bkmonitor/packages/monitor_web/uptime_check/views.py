@@ -19,6 +19,7 @@ from bk_monitor_base.uptime_check import (
     UptimeCheckTaskProtocol,
     UptimeCheckTaskStatus,
     control_task,
+    delete_group,
     get_group,
     get_node_with_host_id,
     get_task,
@@ -816,6 +817,15 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
         task_name = task.name
         group_name = group.name
         return Response({"msg": _("拨测分组({})移除任务({})成功".format(group_name, task_name))})
+
+    def destroy(self, request: Request, pk: int | str):
+        """删除分组"""
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        group_id = int(pk)
+        bk_biz_id = int(request.query_params["bk_biz_id"])
+        operator: str = request.user.username
+        delete_group(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id, operator=operator)
+        return Response({"msg": _("拨测分组({})删除成功".format(group_id))})
 
 
 class ExportUptimeCheckConfViewSet(PermissionMixin, ResourceViewSet):
