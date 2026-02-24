@@ -247,7 +247,7 @@ class UptimeCheckTaskListResource(Resource):
             url = UptimeCheckTaskSerializer.get_url_list(task)
             task_data_mapping[task["id"]].update(
                 url=url,
-                nodes=self.get_nodes(bk_tenant_id, bk_biz_id, task["id"]),
+                nodes=self.get_nodes(bk_tenant_id, bk_biz_id, task["node_ids"]),
                 groups=self.get_groups(bk_tenant_id, bk_biz_id, task["id"]),
                 task_duration=0,
                 available=0,
