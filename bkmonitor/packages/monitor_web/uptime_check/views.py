@@ -663,7 +663,7 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
             bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, name=name, logo=logo, task_ids=task_id_list
         )
         group_id = save_group(group, operator)
-        return Response(get_group(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id))
+        return Response(get_group(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id).model_dump())
 
     def update(self, request: Request, pk: int | str):
         """更新分组"""
@@ -681,7 +681,7 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
         group.logo = logo
         group.task_ids = task_id_list
         save_group(group, operator)
-        return Response(get_group(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id))
+        return Response(get_group(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id).model_dump())
 
     def retrieve(self, request: Request, pk: int | str):
         """
