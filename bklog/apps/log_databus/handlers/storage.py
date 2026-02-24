@@ -639,14 +639,19 @@ class StorageHandler:
         存储集群列表
         :return:
         """
-        params = {"cluster_type": STORAGE_CLUSTER_TYPE}
+        cluster_infos = []
+
+        for cluster_type in [STORAGE_CLUSTER_TYPE, DORIS_CLUSTER_TYPE]:
+            params = {"cluster_type": cluster_type}
+            if cluster_id:
+                params["cluster_id"] = cluster_id
+            cluster_info = TransferApi.get_cluster_info(params)
+            cluster_infos.extend(cluster_info)
+
         if cluster_id:
-            params["cluster_id"] = cluster_id
-        cluster_info = TransferApi.get_cluster_info(params)
-        if cluster_id:
-            cluster_info = self._get_cluster_nodes(cluster_info)
-            cluster_info = self._get_cluster_detail_info(cluster_info)
-        cluster_groups = self.filter_cluster_groups(cluster_info, bk_biz_id, is_default, enable_archive)
+            cluster_infos = self._get_cluster_nodes(cluster_infos)
+            cluster_infos = self._get_cluster_detail_info(cluster_infos)
+        cluster_groups = self.filter_cluster_groups(cluster_infos, bk_biz_id, is_default, enable_archive)
         for cluster_info in cluster_groups:
             cluster_info["is_platform"] = self.is_platform_cluster(
                 cluster_info["cluster_config"]["custom_option"]["visible_config"]["visible_type"]
