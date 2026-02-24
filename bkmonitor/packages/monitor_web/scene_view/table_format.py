@@ -618,10 +618,10 @@ class StackLinkOverviewDataTableFormat(OverviewDataTableFormat):
 class EndpointListTableFormat(TableFormat):
     """接口列表列格式类。
 
-    用于 endpoint_name 列，支持 link_list 类型，包含接口名称和操作链接（如调用链）。
+    用于 endpoint_name 列，支持 suffix_icon 类型，包含接口名称和操作链接（如调用链）。
     """
 
-    column_type = "link_list"
+    column_type = "suffix_icon"
 
     def __init__(
         self,
