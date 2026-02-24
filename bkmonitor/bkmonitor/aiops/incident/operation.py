@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from bkmonitor.documents.incident import IncidentDocument
 import logging
 import time
 from typing import Any
@@ -40,13 +41,61 @@ class IncidentOperationManager:
     ]
 
     @classmethod
+    def _get_incident_document_with_retry(
+        cls, incident_id: int, max_retries: int = 3, retry_delay: float = 0.5, sleep_time=0.5
+    ):
+        """
+        通过 incident_id 查询故障文档，带重试机制
+
+        由于 ES 的 Near Real-Time 特性，文档写入后需要等待 refresh（默认1秒）才能被搜索到。
+        此方法添加重试机制以应对查询延迟问题。
+
+        :param incident_id: 故障ID
+        :param max_retries: 最大重试次数，默认3次
+        :param retry_delay: 每次重试间隔（秒），默认0.5秒
+        :param sleep_time: 首次前置等待时间（秒），默认0.5秒
+        :return: IncidentDocument 对象，如果未找到则返回 None
+        """
+
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+        for retry in range(max_retries):
+            try:
+                search = IncidentDocument.search()
+                search = search.filter("term", incident_id=incident_id)
+                results = search.execute()
+
+                if results:
+                    logger.debug(f"Found incident document for incident_id {incident_id} on retry {retry + 1}")
+                    return results[0]
+
+                if retry < max_retries - 1:
+                    logger.debug(
+                        f"Incident document not found for incident_id {incident_id}, "
+                        f"retry {retry + 1}/{max_retries} after {retry_delay}s"
+                    )
+                    time.sleep(retry_delay)
+            except Exception as e:
+                logger.error(
+                    f"Error querying incident document for incident_id {incident_id} on retry {retry + 1}: {e}"
+                )
+                if retry < max_retries - 1:
+                    time.sleep(retry_delay)
+
+        logger.warning(f"Incident document not found for incident_id {incident_id} after {max_retries} retries")
+        return None
+
+    @classmethod
     def record_operation(
-        cls, incident_id: int, operation_type: IncidentOperationType, operate_time=None, **kwargs
+        cls, incident_id: int, operation_type: IncidentOperationType, operate_time=None, send_notice=False, **kwargs
     ) -> IncidentOperationDocument:
         if operation_type.operation_class == IncidentOperationClass.USER:
             operator = get_request_username()
         else:
             operator = None
+
+        # 从 kwargs 中提取 incident_document（不存入 extra_info）
+        incident_document = kwargs.pop("incident_document", None)
 
         IncidentOperationDocument.bulk_create(
             [
@@ -63,43 +112,57 @@ class IncidentOperationManager:
 
         # 根据操作类型决定是否发送通知
         notice_enabled = getattr(settings, "ENABLE_BK_INCIDENT_NOTICE", False)
-        if notice_enabled:
+        if notice_enabled and send_notice:
             if operation_type in cls.NOTICE_TRIGGER_OPERATIONS:
-                cls._send_incident_notice(incident_id, operation_type, **kwargs)
+                cls._send_incident_notice(incident_id, operation_type, incident_document=incident_document, **kwargs)
 
     @classmethod
-    def _send_incident_notice(cls, incident_id: int, operation_type: IncidentOperationType, **kwargs) -> None:
+    def _send_incident_notice(
+        cls,
+        incident_id: int,
+        operation_type: IncidentOperationType,
+        incident_document: IncidentDocument = None,
+        **kwargs,
+    ) -> None:
         """发送故障通知（支持多种通知方式）
 
         :param incident_id: 故障ID
         :param operation_type: 操作类型
+        :param incident_document: 故障文档对象（可选，如果传入则直接使用，避免 ES 查询延迟）
         :param kwargs: 额外参数
         """
         try:
-            # 获取配置的通知接收人
-            chat_ids = getattr(settings, "BK_INCIDENT_BUILTIN_CONFIG", {}).get("builtin_chat_ids", [])
-            user_ids = getattr(settings, "BK_INCIDENT_BUILTIN_CONFIG", {}).get("builtin_user_ids", [])
+            # 获取配置的通知接收人（字典格式：{bk_biz_id: [ids]}）
+            builtin_config = getattr(settings, "BK_INCIDENT_BUILTIN_CONFIG", {})
+            builtin_chat_ids_dict = builtin_config.get("builtin_chat_ids", {})
+            builtin_user_ids_dict = builtin_config.get("builtin_user_ids", {})
 
-            if not chat_ids and not user_ids:
+            if not builtin_chat_ids_dict and not builtin_user_ids_dict:
                 logger.debug(f"No receivers configured for incident {incident_id}, skip sending notice")
                 return
 
-            # 延迟导入避免循环依赖
-            from bkmonitor.documents.incident import IncidentDocument
-
-            # 获取故障文档
-            try:
-                # 根据incident_id查询故障文档
-                # 由于IncidentDocument的id是 {create_time}{incident_id}，需要通过查询获取
-                search = IncidentDocument.search()
-                search = search.filter("term", incident_id=incident_id)
-                results = search.execute()
-                if not results:
-                    logger.warning(f"Incident document not found for incident_id {incident_id}")
+            # 优先使用传入的 incident_document，避免 ES 索引延迟导致查询失败
+            # 这对于 CREATE 事件尤为重要，因为文档刚写入 ES 时可能还未被索引
+            if not incident_document:
+                incident_document = cls._get_incident_document_with_retry(incident_id, sleep_time=0.5)
+                if not incident_document:
+                    logger.warning(f"Failed to get incident document for incident {incident_id}, skip sending notice")
                     return
-                incident_document = results[0]
-            except Exception as e:
-                logger.error(f"Failed to get incident document for incident_id {incident_id}: {e}")
+
+            # 根据故障的业务ID从字典中获取对应的接收人
+            # 注意：配置中的 key 是字符串，需要转换类型
+            bk_biz_id = str(incident_document.bk_biz_id)
+            chat_ids = builtin_chat_ids_dict.get(bk_biz_id, [])
+            user_ids = builtin_user_ids_dict.get(bk_biz_id, [])
+            # 接收人，使用内置的admin接收人，管理员组
+            admin_ids = builtin_chat_ids_dict.get("admin", [])
+            if admin_ids:
+                chat_ids.extend(admin_ids)
+
+            if not chat_ids and not user_ids:
+                logger.debug(
+                    f"No receivers configured for incident {incident_id} (bk_biz_id={bk_biz_id}), skip sending notice"
+                )
                 return
 
             # 延迟导入避免循环依赖
@@ -167,7 +230,13 @@ class IncidentOperationManager:
 
     @classmethod
     def record_create_incident(
-        cls, incident_id: int, operate_time: int, alert_count: int, assignees: list[str]
+        cls,
+        incident_id: int,
+        operate_time: int,
+        alert_count: int,
+        assignees: list[str],
+        incident_document: IncidentDocument = None,
+        incident_name: str = None,
     ) -> IncidentOperationDocument:
         """记录生成故障
         文案: 生成故障，包含{alert_count}个告警，负责人为{handlers}
@@ -176,25 +245,33 @@ class IncidentOperationManager:
         :param operate_time: 流转生成时间
         :param alert_count: 告警数量
         :param assignees: 故障负责人
+        :param incident_document: 故障文档对象（可选，传入后可直接用于发送通知，避免 ES 查询延迟）
+        :param incident_name: 故障名称（用于判断是否为匿名故障）
         :return: 故障流转记录
         """
+        # 匿名故障不发送通知
+        is_anonymous = cls.is_anonymous_incident(incident_name) if incident_name else False
+
         return cls.record_operation(
-            incident_id, IncidentOperationType.CREATE, operate_time, alert_count=alert_count, assignees=assignees
+            incident_id,
+            IncidentOperationType.CREATE,
+            operate_time,
+            send_notice=not is_anonymous,
+            alert_count=alert_count,
+            assignees=assignees,
+            incident_document=incident_document,
         )
 
     @classmethod
-    def record_observe_incident(
-        cls, incident_id: int, operate_time: int, last_minutes: int = 60
-    ) -> IncidentOperationDocument:
+    def record_observe_incident(cls, incident_id: int, operate_time: int) -> IncidentOperationDocument:
         """记录故障状态转为观察中
-        文案: 故障观察中，剩余观察时间{last_minutes}分钟
+        文案: 故障观察中
 
         :param incident_id: 故障ID
         :param operate_time: 流转生成时间
-        :param last_minutes: 观察剩余分钟数
         :return: 故障流转记录
         """
-        return cls.record_operation(incident_id, IncidentOperationType.OBSERVE, operate_time, last_minutes=last_minutes)
+        return cls.record_operation(incident_id, IncidentOperationType.OBSERVE, operate_time, send_notice=True)
 
     @classmethod
     def record_recover_incident(cls, incident_id: int, operate_time: int) -> IncidentOperationDocument:
@@ -205,7 +282,7 @@ class IncidentOperationManager:
         :param operate_time: 流转生成时间
         :return: 故障流转记录
         """
-        return cls.record_operation(incident_id, IncidentOperationType.RECOVER, operate_time)
+        return cls.record_operation(incident_id, IncidentOperationType.RECOVER, operate_time, send_notice=True)
 
     @classmethod
     def record_reopen_incident(cls, incident_id: int, operate_time: int) -> IncidentOperationDocument:
@@ -216,7 +293,7 @@ class IncidentOperationManager:
         :param operate_time: 流转生成时间
         :return: 故障流转记录
         """
-        return cls.record_operation(incident_id, IncidentOperationType.REOPEN, operate_time)
+        return cls.record_operation(incident_id, IncidentOperationType.REOPEN, operate_time, send_notice=True)
 
     @classmethod
     def record_notice_incident(
@@ -255,13 +332,8 @@ class IncidentOperationManager:
             if to_value == IncidentStatus.RECOVERED.value:
                 return cls.record_recover_incident(incident_id=incident_id, operate_time=operate_time)
             if to_value == IncidentStatus.RECOVERING.value:
-                # 观察中事件：尽量使用上游传入的 last_minutes，否则使用 record_observe_incident 的默认值
-                last_minutes = kwargs.get("last_minutes")
-                if last_minutes is None:
-                    return cls.record_observe_incident(incident_id=incident_id, operate_time=operate_time)
-                return cls.record_observe_incident(
-                    incident_id=incident_id, operate_time=operate_time, last_minutes=last_minutes
-                )
+                # 观察中事件：观察时长由 notice.py 中的 _format_observe_duration 从 end_time 实时计算
+                return cls.record_observe_incident(incident_id=incident_id, operate_time=operate_time)
             # 故障重新打开：从观察中（RECOVERING）变为异常（ABNORMAL）
             if to_value == IncidentStatus.ABNORMAL.value and from_value == IncidentStatus.RECOVERING.value:
                 return cls.record_reopen_incident(incident_id=incident_id, operate_time=operate_time)
@@ -278,7 +350,16 @@ class IncidentOperationManager:
         )
 
     @classmethod
-    def record_merge_incident(cls, operate_time: int, merge_info: dict = None):
+    def is_anonymous_incident(cls, incident_name: str) -> bool:
+        """判断是否为匿名故障（后台默认生成的临时故障名称）
+
+        :param incident_name: 故障名称
+        :return: 是否为匿名故障
+        """
+        return bool(incident_name and incident_name.startswith("new_incident_"))
+
+    @classmethod
+    def record_merge_incident(cls, operate_time: int, merge_info: dict = None, alert_count: int = None):
         """记录故障合并
         文案:
         - MERGE_TO: 故障被合并到{target_incident_name}
@@ -292,6 +373,7 @@ class IncidentOperationManager:
             "target_incident_id": 合并到的目标故障id,
             "target_incident_name": 合并到的目标故障name
             "target_created_at": 合并到的目标故障create_time
+        :param alert_count: 被合并故障的告警数量（用于匿名故障的通知展示）
         :return: 故障流转记录
         """
         merge_info = merge_info if isinstance(merge_info, dict) else {}
@@ -316,11 +398,16 @@ class IncidentOperationManager:
         origin_incident_doc_id = f"{origin_created_at}{origin_incident_id}" if origin_created_at else None
         target_incident_doc_id = f"{target_created_at}{target_incident_id}" if target_created_at else None
 
+        # 判断源故障是否为匿名故障（new_incident_xxx 格式）
+        is_anonymous = cls.is_anonymous_incident(origin_incident_name)
+
         # 给被合并故障，记录 incident_merge_to 记录
+        # 匿名故障不发送通知
         cls.record_operation(
             origin_incident_id,
             IncidentOperationType.MERGE_TO,
             operate_time,
+            send_notice=not is_anonymous,  # 匿名故障不发送通知
             link_incident_name=target_incident_name,
             link_incident_id=target_incident_id,
             link_incident_doc_id=target_incident_doc_id,
@@ -332,9 +419,12 @@ class IncidentOperationManager:
             target_incident_id,
             IncidentOperationType.MERGE,
             operate_time,
+            send_notice=True,
             link_incident_name=origin_incident_name,
             link_incident_id=origin_incident_id,
             link_incident_doc_id=origin_incident_doc_id,
+            is_anonymous_source=is_anonymous,  # 标记源故障是否为匿名故障
+            alert_count=alert_count,  # 传递告警数量
             action={"type": "link", "target": "incident", "params": ["link_incident_doc_id"]},
         )
 

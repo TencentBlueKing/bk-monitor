@@ -159,6 +159,7 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.BooleanField(label="是否根据is_active过滤自定义指标", default=False),
         ),
         ("AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE", slz.IntegerField(label="LLM默认温度参数", default=0.3)),
+        ("MCP_MAX_TIME_SPAN_SECONDS", slz.IntegerField(label="MCP查询跨度限制", default=86400)),
         ("AI_BIZ_LIST", slz.ListField(label="AI小鲸灰度业务名单", default=[])),
         ("AIDEV_COMMAND_AGENT_MAPPING", slz.DictField(label="快捷指令<->Agent映射", default={})),
         ("AIDEV_SCENE_AGENT_CODE_MAPPING", slz.DictField(label="场景-Agent映射配置", default={})),

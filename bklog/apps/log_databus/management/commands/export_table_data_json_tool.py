@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime, date
 
-from django.core.management import BaseCommand
+from django.core.management import BaseCommand, CommandError
 from django.db import connection, DatabaseError
 
 from bkm_space.utils import bk_biz_id_to_space_uid
@@ -20,16 +20,43 @@ class Command(BaseCommand):
             "--index_set_ids", help="需要导出的索引集 ID, 不传时导出所有的索引集, 例如: 1,2,3", type=str, default=""
         )
         parser.add_argument("-p", "--path", help="导出文件保存目录, 默认为根目录", type=str, default=PROJECT_PATH)
+        parser.add_argument("-om", "--overseas_migrate", help="海外数据迁移", type=bool, default=False)
         parser.add_argument(
             "--table_names",
             help="需要导出的表名, 例如: log_search_logindexset,log_search_logindexsetdata",
-            required=True,
+            default=None,
         )
 
     def handle(self, *args, **options):
+        is_overseas_migrate = options["overseas_migrate"]
+        table_names = options["table_names"]
+
+        if (not is_overseas_migrate and not table_names) or (is_overseas_migrate and table_names):
+            raise CommandError("参数错误: --overseas_migrate(-om), --table_names 二选一传入")
+
+        if is_overseas_migrate:
+            table_names_str = (
+                "log_search_logindexset,"
+                "log_search_logindexsetdata,"
+                "log_databus_collectorconfig,"
+                "log_databus_containercollectorconfig,"
+                "log_clustering_aiopsmodel,"
+                "log_clustering_aiopsmodelexperiment,"
+                "log_clustering_aiopssignatureandpattern,"
+                "log_clustering_sampleset,"
+                "log_clustering_clusteringconfig,"
+                "log_clustering_clusteringremark,"
+                "log_clustering_clusteringsubscription,"
+                "log_clustering_noticegroup,"
+                "log_clustering_regextemplate,"
+                "log_clustering_signaturestrategysettings"
+            )
+        else:
+            table_names_str = options["table_names"]
+
         ExportTableDataJsonTool(
             save_path=options["path"],
-            table_names_str=options["table_names"],
+            table_names_str=table_names_str,
             bk_biz_id=options["bk_biz_id"],
             index_set_ids_str=options["index_set_ids"],
         ).batch_export()
@@ -136,7 +163,7 @@ class ExportTableDataJsonTool:
                         msg="表 {table_name} 未查询出数据",
                         table_name=table_name,
                     )
-                    continue
+                    data = []
 
                 os.makedirs(self.save_path, exist_ok=True)
 

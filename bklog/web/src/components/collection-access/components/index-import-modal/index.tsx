@@ -148,7 +148,7 @@ export default class IndexImportModal extends tsc<IProps> {
             const {
               collector_config_id,
               collector_config_name,
-              storage_cluster_name,
+              storage_display_name,
               etl_config,
               retention,
               params,
@@ -165,7 +165,7 @@ export default class IndexImportModal extends tsc<IProps> {
               bk_data_id,
               collector_config_id,
               collector_config_name: collector_config_name || '--',
-              storage_cluster_name: storage_cluster_name || '--',
+              storage_display_name: storage_display_name || '--',
               retention: retention ? `${retention}${$i18n.t('天')}` : '--',
               paths: paths?.join('; ') ?? '',
               etl_config: this.etlConfigList.find(newItem => newItem.id === etl_config)?.name ?? '--',
@@ -344,7 +344,7 @@ export default class IndexImportModal extends tsc<IProps> {
                 />
                 <bk-table-column
                   label='存储集群'
-                  prop='storage_cluster_name'
+                  prop='storage_display_name'
                   scopedSlots={spanSlot}
                 />
                 <bk-table-column

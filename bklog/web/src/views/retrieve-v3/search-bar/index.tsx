@@ -65,8 +65,7 @@ export default defineComponent({
     const searchMode = ref<'normal' | 'ai'>('normal');
     const aiQueryResult = ref<AiQueryResult>(DEFAULT_AI_QUERY_RESULT);
 
-    const aiFilterList = computed<string[]>(() =>
-      (store.state.aiMode.filterList ?? []).filter(f => !/^\s*\*?\s*$/.test(f)),
+    const aiFilterList = computed<string[]>(() => (store.state.aiMode.filterList ?? []).filter(f => !/^\s*\*?\s*$/.test(f)),
     );
 
     const { setRouteParamsByKeywordAndAddition } = useRetrieveParams();
@@ -111,8 +110,7 @@ export default defineComponent({
     /**
      * 当前搜索模式：'ui' | 'sql'
      */
-    const currentSearchMode = computed<'ui' | 'sql'>(() =>
-      store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
+    const currentSearchMode = computed<'ui' | 'sql'>(() => (store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui'),
     );
     /**
      * 更新AI助手位置
@@ -132,7 +130,7 @@ export default defineComponent({
      * 用于处理搜索栏高度变化
      * @param height 搜索栏高度
      */
-    const handleHeightChange = height => {
+    const handleHeightChange = (height) => {
       if (height === searchBarHeight.value || RetrieveHelper.aiAssitantHelper.activePosition !== 'search-bar') {
         return;
       }
@@ -147,11 +145,16 @@ export default defineComponent({
      * @param e 键盘事件
      */
     const handleTabKeyPress = (e: KeyboardEvent, isMouseClick = false) => {
+      // 如果 AI 助手未启用，则不处理 Tab 事件
+      if (!isAiAssistantActive.value) {
+        return;
+      }
+
       if (isAiLoading.value) {
         return;
       }
       // 检查是否按下了 Tab 键（排除 Shift+Tab）
-      if (isMouseClick || ((e.key === 'Tab' || e.keyCode === 9) && !e.shiftKey)) {
+      if (isMouseClick || ((e.key === 'Tab' || e.keyCode === 9) && !e.shiftKey && !e.ctrlKey)) {
         // 阻止默认的 Tab 行为
         e.preventDefault();
         e.stopPropagation();
@@ -239,8 +242,7 @@ export default defineComponent({
           nextTick(() => {
             const searchBarEl = searchBarRef.value?.$el || searchBarRef.value;
             // 找到搜索框容器，点击后会自动触发 focus
-            const searchInputContainer =
-              searchBarEl?.querySelector?.('.search-bar-container') || searchBarEl?.querySelector?.('.search-input');
+            const searchInputContainer =              searchBarEl?.querySelector?.('.search-bar-container') || searchBarEl?.querySelector?.('.search-input');
             if (searchInputContainer) {
               searchInputContainer.click();
             }

@@ -191,7 +191,7 @@
             </div>
           </template>
           <div
-            v-if="!isWinEventLog && conditions.type === 'none'"
+            v-if="!isWinEventLog && conditions?.type === 'none'"
             class="content-style"
           >
             <span>{{ $t('过滤内容') }}</span>
@@ -267,9 +267,9 @@
           <span
             v-bk-tooltips.top="{
               content: `${collectorData.storage_cluster_domain_name}:${collectorData.storage_cluster_port}`,
-              disabled: !collectorData.storage_cluster_name,
+              disabled: !collectorData.storage_display_name,
             }"
-            >{{ collectorData.storage_cluster_name || '-' }}</span
+            >{{ collectorData.storage_display_name || '-' }}</span
           >
         </div>
         <!-- 存储索引名 -->
@@ -493,6 +493,7 @@
             spaceUid: this.$store.state.spaceUid,
             backRoute,
             type: 'basicInfo',
+            typeKey: this.$route.query.typeKey,
           },
         });
       },

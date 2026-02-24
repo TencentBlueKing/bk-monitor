@@ -143,33 +143,35 @@ export default class extends EventEmitter<RetrieveEvent> {
    * @returns 格式化后的时间戳
    */
   formatTimeZoneValue(data: number | string, fieldType: string, timezone: string = 'Asia/Shanghai') {
-
-    let format = 'YYYY-MM-DD HH:mm:ss';
-
-    if (fieldType === 'date_nanos') {
-      const milliseconds = `${data}`.toString().split('.')[1]?.length ?? 0;
-      if (milliseconds > 0) {
-        format = `YYYY-MM-DD HH:mm:ss.${'S'.repeat(milliseconds)}`;
-      } else {
-        format = 'YYYY-MM-DD HH:mm:ss.SSS';
-      }
-    }
-
-    if (`${data}`.startsWith('<mark>')) {
-      const value = `${data}`.replace(/^<mark>/i, '').replace(/<\/mark>$/i, '');
-
-      if (/^\d+$/.test(value)) {
-        return `<mark>${formatTimeZoneString(Number(value), timezone, format, false)}</mark>`;
+    if (['date', 'date_nanos', 'date_time', 'time'].includes(fieldType)) {
+      let format = 'YYYY-MM-DD HH:mm:ss';
+      if (fieldType === 'date_nanos') {
+        const milliseconds = `${data}`.toString().split('.')[1]?.length ?? 0;
+        if (milliseconds > 0) {
+          format = `YYYY-MM-DD HH:mm:ss.${'S'.repeat(milliseconds)}`;
+        } else {
+          format = 'YYYY-MM-DD HH:mm:ss.SSS';
+        }
       }
 
-      return `<mark>${formatTimeZoneString(value, timezone, format, false)}</mark>`;
+      if (`${data}`.startsWith('<mark>')) {
+        const value = `${data}`.replace(/^<mark>/i, '').replace(/<\/mark>$/i, '');
+
+        if (/^\d+$/.test(value)) {
+          return `<mark>${formatTimeZoneString(Number(value), timezone, format, false)}</mark>`;
+        }
+
+        return `<mark>${formatTimeZoneString(value, timezone, format, false)}</mark>`;
+      }
+
+      if (/^\d+$/.test(`${data}`)) {
+        return formatTimeZoneString(Number(data), timezone, format, false) || data || '--';
+      }
+
+      return formatTimeZoneString(data, timezone, format, false) || data || '--';
     }
 
-    if (/^\d+$/.test(`${data}`)) {
-      return formatTimeZoneString(Number(data), timezone, format, false) || data || '--';
-    }
-
-    return formatTimeZoneString(data, timezone, format, false) || data || '--';
+    return data || '--';
   }
 
 

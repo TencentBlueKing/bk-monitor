@@ -19,6 +19,9 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import random
+
+import arrow
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from celery.schedules import crontab
@@ -31,6 +34,9 @@ from apps.tgpa.constants import (
     TGPATaskProcessStatusEnum,
     FEATURE_TOGGLE_TGPA_TASK,
     TGPAReportSyncStatusEnum,
+    TGPA_REPORT_OFFSET_MINUTES,
+    TGPA_REPORT_MAX_TIME_RANGE_MINUTES,
+    TGPATaskTypeEnum,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler, TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
@@ -58,17 +64,19 @@ def fetch_and_process_tgpa_tasks():
         try:
             # 确保已经创建采集配置
             TGPACollectorConfigHandler.get_or_create_collector_config(bk_biz_id)
-            # 获取任务列表，存量的任务只同步数据，不处理任务
             task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
-            # 统一将 go_svr_task_id 转换为 int 类型，确保与数据库字段类型一致
+            # 确保与数据库字段类型一致
             for task in task_list:
                 task["go_svr_task_id"] = int(task["go_svr_task_id"])
+                task["status"] = str(task["status"])
+            # 如果是第一次同步，只创建数据，不处理任务
             if not TGPATask.objects.filter(bk_biz_id=bk_biz_id).exists():
                 TGPATask.objects.bulk_create(
                     [
                         TGPATask(
                             id=task["id"],
                             task_id=task["go_svr_task_id"],
+                            task_type=task["task_type"],
                             bk_biz_id=bk_biz_id,
                             log_path=task["log_path"],
                             task_status=task["status"],
@@ -79,6 +87,27 @@ def fetch_and_process_tgpa_tasks():
                     ]
                 )
                 continue
+            # 首次同步V1任务，只创建数据，不处理任务（针对当前已经灰度的业务，下次发版可以去掉这段逻辑）
+            have_v1_task = TGPATask.objects.filter(
+                bk_biz_id=bk_biz_id, task_type=TGPATaskTypeEnum.BUSINESS_LOG_V1.value
+            ).exists()
+            if not have_v1_task:
+                TGPATask.objects.bulk_create(
+                    [
+                        TGPATask(
+                            id=task["id"],
+                            task_id=task["go_svr_task_id"],
+                            task_type=task["task_type"],
+                            bk_biz_id=bk_biz_id,
+                            log_path=task["log_path"],
+                            task_status=task["status"],
+                            file_status=task["exe_code"],
+                            process_status=TGPATaskProcessStatusEnum.INIT.value,
+                        )
+                        for task in task_list
+                        if task["task_type"] == TGPATaskTypeEnum.BUSINESS_LOG_V1.value
+                    ]
+                )
         except Exception:
             logger.exception("Failed to sync client log tasks, business id: %s", bk_biz_id)
             continue
@@ -103,6 +132,7 @@ def fetch_and_process_tgpa_tasks():
                     task_id=task["go_svr_task_id"],
                     defaults={
                         "id": task["id"],
+                        "task_type": task["task_type"],
                         "bk_biz_id": task["cc_id"],
                         "log_path": task["log_path"],
                         "task_status": task["status"],
@@ -231,3 +261,95 @@ def process_single_report(report_info: dict, record_id: int):
             report_obj.save(update_fields=["process_status", "error_message"])
     finally:
         lock.release()
+
+
+@periodic_task(run_every=crontab(minute="*/5"), queue="tgpa_task")
+@share_lock()
+def periodic_sync_tgpa_reports():
+    """
+    定期同步客户端上报文件
+    - 从 FeatureToggle 获取需要处理的业务列表
+    - 记录处理时间，根据上次处理时间进行增量同步
+    - 支持采样率配置，只处理部分数据
+    - 使用 Celery 异步任务处理单个文件
+    """
+    feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+    if not feature_toggle:
+        return
+    bk_biz_id_list = feature_toggle.biz_id_white_list or []
+
+    # 采样率配置格式: {"report_sample_rate": {"bk_biz_id": sample_rate , ...}}
+    feature_config = feature_toggle.feature_config or {}
+    report_sample_rate = feature_config.get("report_sample_rate", {})
+
+    for bk_biz_id in bk_biz_id_list:
+        # 获取该业务的采样率，默认为 0（不处理），范围 1-100
+        sample_rate = report_sample_rate.get(str(bk_biz_id), 0)
+        if not isinstance(sample_rate, int) or not (1 <= sample_rate <= 100):
+            logger.warning(
+                "Invalid sample rate for business: %s, sample_rate: %s (should be 1-100)", bk_biz_id, sample_rate
+            )
+            continue
+
+        logger.info("Begin periodic sync tgpa reports for business: %s, sample_rate: %s", bk_biz_id, sample_rate)
+        # 获取上一次同步记录
+        last_sync_record = (
+            TGPAReportSyncRecord.objects.filter(bk_biz_id=bk_biz_id, created_by="periodic_task")
+            .order_by("-created_at")
+            .first()
+        )
+        # 创建新的同步记录
+        current_sync_record = TGPAReportSyncRecord.objects.create(
+            bk_biz_id=bk_biz_id,
+            status=TGPAReportSyncStatusEnum.RUNNING.value,
+            created_by="periodic_task",
+        )
+
+        # 更新上一次同步记录的状态，获取时间范围
+        if last_sync_record:
+            TGPAReportHandler.update_process_status(record_id=last_sync_record.id)
+            start_time = arrow.get(last_sync_record.created_at)
+        else:
+            # 如果没有上一次同步记录，从 5 分钟前开始同步
+            start_time = arrow.now().shift(minutes=-5)
+        end_time = arrow.get(current_sync_record.created_at)
+
+        # 如果时间范围超过30分钟，将start_time设置为30分钟前，避免拉取大量数据
+        duration_minutes = (end_time - start_time).total_seconds() / 60
+        if duration_minutes > TGPA_REPORT_MAX_TIME_RANGE_MINUTES:
+            logger.warning("Time range too large, set start_time to 30 minutes ago for business: %s", bk_biz_id)
+            start_time = end_time.shift(minutes=-TGPA_REPORT_MAX_TIME_RANGE_MINUTES)
+
+        # 时间偏移 1 分钟，避免数据延迟带来的影响
+        start_time = int(start_time.shift(minutes=TGPA_REPORT_OFFSET_MINUTES).timestamp() * 1000)
+        end_time = int(end_time.shift(minutes=TGPA_REPORT_OFFSET_MINUTES).timestamp() * 1000)
+
+        try:
+            # 获取时间范围内的上报文件列表
+            report_list = TGPAReportHandler.iter_report_list(
+                bk_biz_id=bk_biz_id, start_time=start_time, end_time=end_time
+            )
+
+            processed_count = 0
+            skipped_count = 0
+            for report in report_list:
+                # 使用随机数进行采样，生成 0-99 的随机整数，如果随机值大于等于采样率，则跳过该记录
+                if random.randint(0, 99) >= sample_rate:
+                    skipped_count += 1
+                    continue
+                process_single_report.delay(report_info=report, record_id=current_sync_record.id)
+                processed_count += 1
+
+            logger.info(
+                "Finished periodic sync tgpa reports for business: %s, processed: %s, skipped: %s, start_time: %s, end_time: %s",
+                bk_biz_id,
+                processed_count,
+                skipped_count,
+                arrow.get(start_time).format(),
+                arrow.get(end_time).format(),
+            )
+        except Exception as e:
+            logger.exception("Failed to periodic sync tgpa reports for business: %s", bk_biz_id)
+            current_sync_record.status = TGPAReportSyncStatusEnum.FAILED.value
+            current_sync_record.error_message = str(e)
+            current_sync_record.save(update_fields=["status", "error_message"])

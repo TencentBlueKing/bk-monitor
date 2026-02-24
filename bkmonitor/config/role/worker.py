@@ -306,6 +306,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.bkbase.sync_bkbase_metadata_all", "0 */2 * * *", "global"),
     # BkBase RT 路由同步任务，6h一次
     ("metadata.task.bkbase.sync_bkbase_rt_meta_info_all", "0 */6 * * *", "global"),
+    # BkBase V4 链路组件与关系同步任务，30min
+    # ("metadata.task.bkbase.sync_bkbase_v4_datalink_components", "*/30 * * * *", "global"),
     # 禁用采集项索引清理任务，30min
     ("metadata.task.config_refresh.manage_disable_es_storage", "*/30 * * * *", "global"),
     # 新版链路状态自动兜底刷新,15min 一次

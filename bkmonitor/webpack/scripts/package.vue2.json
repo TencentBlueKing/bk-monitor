@@ -1,0 +1,16 @@
+{
+  "name": "@blueking/monitor-vue2-components",
+  "version": "0.0.1",
+  "description": "blueking monitor vue2 components builder",
+  "scripts": {},
+  "files": ["index.mjs", "index.css", "monitor-vue2.mjs", "readme.md"],
+  "author": "bkfe",
+  "license": "MIT",
+  "main": "monitor-vue2.mjs",
+  "keywords": ["@blueking", "@blueking/monitor-vue2-components"],
+  "dependencies": {
+    "core-js": "^3.39.0",
+    "@babel/runtime": "^7.27.10",
+    "dayjs": "^1.11.18"
+  }
+}

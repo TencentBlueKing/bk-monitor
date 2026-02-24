@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from rest_framework import serializers
 from rest_framework.response import Response
 
@@ -297,8 +297,8 @@ class StorageViewSet(APIViewSet):
         @api {post} /databus/storage/?bk_biz_id=$bk_biz_id 05_存储集群-创建
         @apiName create_storage
         @apiGroup 09_StorageCluster
-        @apiParam {String} cluster_name 集群名称
-        @apiParam {String} [bkbase_cluster_en_name] 集群英文名
+        @apiParam {String} cluster_name 集群英文名称
+        @apiParam {String} display_name 集群名称
         @apiParam {String} domain_name 集群域名（可以填入IP）
         @apiParam {Int} port 端口
         @apiParam {String} schema 协议
@@ -322,7 +322,8 @@ class StorageViewSet(APIViewSet):
         @apiSuccess {Boolean} enable_assessment 是否启用评估
         @apiParamExample {Json} 请求参数
         {
-            "cluster_name": "ES集群",
+            "cluster_name": "es_cluster",
+            "display_name": "ES集群",
             "domain_name": "xxx",
             "port": 9200,
             "schema": "http",
@@ -409,10 +410,11 @@ class StorageViewSet(APIViewSet):
         @apiParam {Object} auth_info 凭据信息
         @apiParam {String} auth_info.username 用户
         @apiParam {String} auth_info.password 密码
-        @apiParam {String} cluster_name 集群名称
+        @apiParam {String} display_name 集群名称
         @apiParam {List} [visible_bk_biz] 可见业务范围
         @apiParamExample {Json} 请求参数
         {
+            "display_name": "ES集群",
             "domain_name": "127.0.0.11",
             "port":9200,
             "schema": "http",
@@ -456,6 +458,7 @@ class StorageViewSet(APIViewSet):
             "message": ""
         }
         """
+        request.data["cluster_id"] = kwargs["cluster_id"]
         data = self.params_valid(StorageUpdateSerializer)
         data.update(
             {

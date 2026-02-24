@@ -310,6 +310,7 @@ export default {
 
   // 说明
   反馈: 'Feedback',
+  反馈说明: 'Feedback Description',
   说明: 'Description',
   插件变更说明: 'ChangLog',
   上报格式说明: 'Format Help',
@@ -816,6 +817,7 @@ export default {
   主分片: 'Primary Shard',
   副本分片: 'Replica Shard',
   URI源: 'URI Source',
+  APM服务: 'APM Service',
 
   IMAP端口: 'IMAP Port',
   实例数: 'Instances',
@@ -1966,6 +1968,11 @@ export default {
   非空数据: 'Non-empty data',
   非空数据占比: 'Proportion of non-empty data',
   添加方式: 'Add method',
+  数据含义: 'Data meaning',
+  'K8S-POD': 'K8S-POD',
+  'K8S-NODE': 'K8S-NODE',
+  'K8S-SERVICE': 'K8S-SERVICE',
+  'K8S-WORKLOAD': 'K8S-WORKLOAD',
 
   // 查询模板
   '模板名称:': 'Template name:',
@@ -1986,4 +1993,15 @@ export default {
   全部模板: 'All templates',
   内置模板: 'Built-in templates',
   克隆模板: 'Clone template',
+
+  '未恢复（已屏蔽）': 'Not recovered (shielded)',
+  '未恢复（未屏蔽）': 'Not recovered (not shielded)',
+  '告警问题：': 'Alarm problem:',
+  '告警原因：': 'Alarm reason:',
+  '关联故障：': 'Associated fault:',
+  '处理建议：': 'Processing suggestion:',
+  '处理经验：': 'Processing experience:',
+  告警模块: 'Alarm module',
+  事件内容: 'Event content',
+  更多事件: 'More events',
 };

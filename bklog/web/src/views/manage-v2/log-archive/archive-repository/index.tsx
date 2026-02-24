@@ -127,7 +127,8 @@ export default defineComponent({
       isTableLoading.value = true;
       if (params.keyword) {
         tableDataSearched.value = tableDataOrigin.value.filter(item =>
-          (item.repository_name + item.cluster_name).includes(params.keyword),
+          // 搜索仓库名称
+          item.repository_name.includes(params.keyword),
         );
       } else {
         tableDataSearched.value = tableDataOrigin.value;
@@ -348,7 +349,7 @@ export default defineComponent({
             <bk-table-column
               label={t('ES集群')}
               renderHeader={renderHeader}
-              scopedSlots={{ default: (props: any) => props.row.cluster_name }}
+              scopedSlots={{ default: (props: any) => props.row.display_name }}
             />
             <bk-table-column
               class-name='filter-column'

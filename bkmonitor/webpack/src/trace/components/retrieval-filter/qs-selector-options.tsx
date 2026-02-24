@@ -118,21 +118,21 @@ export default defineComponent({
     });
 
     function getSearchFavoriteOptions() {
-      const favoriteOptions$ = [];
+      const favoriteOptionsTemp = [];
       if (props.queryString && !/^\s*$/.test(props.queryString)) {
         const keyword = props.queryString.replace(/^\s+|\s+$/g, '').toLocaleLowerCase();
         for (const item of props.favoriteList) {
-          const content = item?.config?.queryParams?.query || '';
+          const content = item?.config?.queryString || '';
           if (content?.toLocaleLowerCase().includes(keyword)) {
-            favoriteOptions$.push({
-              title: `${item.name} / ${item.name}`,
+            favoriteOptionsTemp.push({
+              title: `${item.groupName ? `${item.groupName} / ` : ''}${item.name}`,
               content,
               keyword,
             });
           }
         }
       }
-      favoriteOptions.value = favoriteOptions$;
+      favoriteOptions.value = favoriteOptionsTemp;
     }
 
     async function handleGetOptions() {
@@ -281,7 +281,7 @@ export default defineComponent({
       isEnd.value = false;
     }
 
-    async function handleScroll() {
+    function handleScroll() {
       const container = optionsRef.value;
       const scrollTop = container.scrollTop;
       const clientHeight = container.clientHeight;
@@ -290,9 +290,13 @@ export default defineComponent({
         if (!scrollLoading.value && !isEnd.value && props.type === EQueryStringTokenType.value) {
           scrollLoading.value = true;
           page.value += 1;
-          const data = await getValueData(true);
-          localOptions.value = data;
-          scrollLoading.value = false;
+          getValueData(true)
+            .then(data => {
+              localOptions.value = data;
+            })
+            .finally(() => {
+              scrollLoading.value = false;
+            });
         }
       }
     }
@@ -304,13 +308,21 @@ export default defineComponent({
         const items = qsSelectorOptionsDescMap?.[id] || [];
         return (
           <span class='subtitle-text'>
-            {items.map(item => {
+            {items?.map?.((item, index) => {
               if (item.type === 'text') {
                 return item.text;
               }
               if (item.type === 'tag') {
-                return <span class='subtitle-text-tag'>{item.text}</span>;
+                return (
+                  <span
+                    key={index}
+                    class='subtitle-text-tag'
+                  >
+                    {item.text}
+                  </span>
+                );
               }
+              return undefined;
             })}
           </span>
         );
@@ -364,7 +376,7 @@ export default defineComponent({
                     <div class='skeleton-element h-16' />
                   </div>
                 ))
-              : this.localOptions.map((item, index) => (
+              : this.localOptions.slice(0, 300).map((item, index) => (
                   <div
                     key={item.id}
                     class={['option-item main-item', { 'cursor-active': index === this.cursorIndex }]}
@@ -396,40 +408,42 @@ export default defineComponent({
               </div>
             )}
           </div>
-          <div class='favorite-wrap'>
-            <div class='favorite-wrap-title'>
-              <i18n-t keypath={'联想到以下 {0} 个收藏：'}>
-                <span class='favorite-count'>{this.favoriteOptions.length}</span>
-              </i18n-t>
-            </div>
-            {this.favoriteOptions.length ? (
-              this.favoriteOptions.map((item, index) => (
-                <div
-                  key={index}
-                  class='favorite-item'
-                  onClick={e => {
-                    e.stopPropagation();
-                    this.handleSelectFavorite(item);
+          {this.isShowFavorite && (
+            <div class='favorite-wrap'>
+              <div class='favorite-wrap-title'>
+                <i18n-t keypath={'联想到以下 {0} 个收藏：'}>
+                  <span class='favorite-count'>{this.favoriteOptions.length}</span>
+                </i18n-t>
+              </div>
+              {this.favoriteOptions.length ? (
+                this.favoriteOptions.map((item, index) => (
+                  <div
+                    key={index}
+                    class='favorite-item'
+                    onClick={e => {
+                      e.stopPropagation();
+                      this.handleSelectFavorite(item);
+                    }}
+                  >
+                    <span class='favorite-item-name'>{item.title}</span>
+                    <span class='favorite-item-content'>
+                      <TextHighlighter
+                        content={item.content}
+                        keyword={item.keyword}
+                      />
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <EmptyStatus
+                  textMap={{
+                    empty: this.t('暂未匹配到符合条件的收藏项'),
                   }}
-                >
-                  <span class='favorite-item-name'>{item.title}</span>
-                  <span class='favorite-item-content'>
-                    <TextHighlighter
-                      content={item.content}
-                      keyword={item.keyword}
-                    />
-                  </span>
-                </div>
-              ))
-            ) : (
-              <EmptyStatus
-                textMap={{
-                  empty: this.t('暂未匹配到符合条件的收藏项'),
-                }}
-                type={'empty'}
-              />
-            )}
-          </div>
+                  type={'empty'}
+                />
+              )}
+            </div>
+          )}
           <div class='key-help'>
             <span class='desc-item'>
               <span class='desc-item-icon mr-2'>
