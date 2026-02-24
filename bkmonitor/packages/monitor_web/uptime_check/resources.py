@@ -197,9 +197,9 @@ class UptimeCheckTaskListResource(Resource):
         # 从 Define 对象中提取 id 和 name 字段
         return [{"id": group.id, "name": group.name} for group in groups]
 
-    def get_nodes(self, bk_tenant_id: str, bk_biz_id: int, task_id: int):
+    def get_nodes(self, bk_tenant_id: str, bk_biz_id: int, node_ids: list[int]):
         """获取任务节点信息"""
-        nodes = list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"task_id": task_id})
+        nodes = list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"node_ids": node_ids})
         return [node.model_dump() for node in nodes]
 
     def query_available_or_duration(self, metric, bk_biz_id, data_label, where, period, end_time, ret=None):
@@ -228,9 +228,11 @@ class UptimeCheckTaskListResource(Resource):
                 continue
             _task_id_list.add(int(item["task_id"]))
             if metric == "available":
-                ret[int(item["task_id"])].update(available=Decimal(item["_result_"]).quantize(Decimal("0.00")) * 100)
+                value = float(Decimal(item["_result_"]).quantize(Decimal("0.00"))) * 100
+                ret[int(item["task_id"])].update(available=value)
             else:
-                ret[int(item["task_id"])].update(task_duration=Decimal(item["_result_"]).quantize(Decimal("0.00")))
+                value = float(Decimal(item["_result_"]).quantize(Decimal("0.00")))
+                ret[int(item["task_id"])].update(task_duration=value)
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
         task_data: list[dict[str, Any]] = validated_request_data["task_data"]
