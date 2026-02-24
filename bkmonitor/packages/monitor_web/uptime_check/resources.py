@@ -195,7 +195,7 @@ class UptimeCheckTaskListResource(Resource):
             query={"task_id": task_id},
         )
         # 从 Define 对象中提取 id 和 name 字段
-        return [[group.id, group.name] for group in groups]
+        return [{"id": group.id, "name": group.name} for group in groups]
 
     def get_nodes(self, bk_tenant_id: str, bk_biz_id: int, task_id: int):
         """获取任务节点信息"""

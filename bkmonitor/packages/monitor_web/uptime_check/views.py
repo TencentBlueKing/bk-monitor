@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
 import logging
 from typing import Any, Literal, cast
 
@@ -442,7 +441,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         get_task_duration = request.query_params.get("get_task_duration") == "true"
 
         task_data = resource.uptime_check.uptime_check_task_list(
-            task_data=[json.loads(task.model_dump_json()) for task in tasks],
+            task_data=[task.model_dump() for task in tasks],
             bk_biz_id=bk_biz_id,
             get_available=get_available,
             get_task_duration=get_task_duration,
