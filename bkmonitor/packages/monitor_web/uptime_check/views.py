@@ -688,6 +688,14 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
             get_available=get_available,
             get_task_duration=get_task_duration,
         )
+
+        # 如果不需要获取可用率和响应时长，则设置为None
+        for task in task_data:
+            if not get_available:
+                task["available"] = None
+            if not get_task_duration:
+                task["task_duration"] = None
+
         task_map = {task["id"]: task for task in task_data}
         for group in result:
             task_ids = group.pop("task_ids", [])
@@ -701,19 +709,20 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
         拨测任务拖拽进入任务组
         """
         group_id = int(pk)
-        task_id = request.data.get("task_id")
+        task_id = int(request.data["task_id"])
         bk_tenant_id = cast(str, get_request_tenant_id())
-        operator = request.user.username
+        bk_biz_id = int(request.data["bk_biz_id"])
+        operator: str = request.user.username
 
         # 获取分组信息
-        group = get_group(group_id=group_id)
+        group = get_group(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id)
         bk_biz_id = group.bk_biz_id
 
         # 检查任务是否已在分组中
         group_task_ids = group.task_ids
         if task_id in group_task_ids:
             # 从任务中获取名称
-            task = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
+            task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
             task_name = task.name
             group_name = group.name
             return Response({"msg": _("拨测分组({})已存在任务({})".format(group_name, task_name))})
@@ -739,19 +748,20 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
     def remove_task(self, request, pk: int | str):
         """拨测任务组移除拨测任务"""
         group_id = int(pk)
-        task_id = request.data.get("task_id")
+        task_id = int(request.data["task_id"])
+        bk_biz_id = int(request.data["bk_biz_id"])
         bk_tenant_id = cast(str, get_request_tenant_id())
         operator = request.user.username
 
         # 获取分组信息
-        group = get_group(group_id=group_id)
+        group = get_group(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id)
         bk_biz_id = group.bk_biz_id
 
         # 检查任务是否在分组中
         group_task_ids = group.task_ids
         if task_id not in group_task_ids:
             # 从任务中获取名称
-            task = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
+            task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
             task_name = task.name
             group_name = group.name
             return Response({"msg": _("拨测分组({})不存在任务({})".format(group_name, task_name))})
