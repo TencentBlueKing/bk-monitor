@@ -187,20 +187,24 @@ class UptimeCheckTaskListResource(Resource):
         get_available = serializers.BooleanField(default=False, label="获取可用率")
         get_task_duration = serializers.BooleanField(default=False, label="获取响应时间")
 
-    def get_groups(self, bk_tenant_id: str, bk_biz_id: int, task_id: int):
+    def get_groups(self, bk_tenant_id: str, bk_biz_id: int, group_ids: list[int]):
         """获取任务分组信息"""
+        if not group_ids:
+            return []
         groups = list_groups(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
-            query={"task_id": task_id},
+            query={"group_ids": group_ids},
         )
         # 从 Define 对象中提取 id 和 name 字段
         return [{"id": group.id, "name": group.name} for group in groups]
 
-    def get_nodes(self, bk_tenant_id: str, bk_biz_id: int, node_ids: list[int]):
+    def get_nodes(self, bk_tenant_id: str, node_ids: list[int]):
         """获取任务节点信息"""
-        nodes = list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"node_ids": node_ids})
-        return [node.model_dump() for node in nodes]
+        if not node_ids:
+            return []
+        nodes = list_nodes(bk_tenant_id=bk_tenant_id, query={"node_ids": node_ids})
+        return [node.model_dump(exclude={"update_time", "create_time"}) for node in nodes]
 
     def query_available_or_duration(self, metric, bk_biz_id, data_label, where, period, end_time, ret=None):
         ret = ret or {}
@@ -241,14 +245,16 @@ class UptimeCheckTaskListResource(Resource):
         query_group = {}
         task_data_mapping = {}
         for task in task_data:
+            # 兼容旧字段名
+            task["indepentent_dataid"] = task.get("independent_dataid", False)
             protocol_data: dict[str, Any] = query_group.setdefault(task["protocol"], {})
             protocol_data.setdefault(task["config"].get("period", 60), []).append(str(task["id"]))
             task_data_mapping[task["id"]] = task
             url = UptimeCheckTaskSerializer.get_url_list(task)
             task_data_mapping[task["id"]].update(
                 url=url,
-                nodes=self.get_nodes(bk_tenant_id, bk_biz_id, task["node_ids"]),
-                groups=self.get_groups(bk_tenant_id, bk_biz_id, task["id"]),
+                nodes=self.get_nodes(bk_tenant_id, task.pop("node_ids", [])),
+                groups=self.get_groups(bk_tenant_id, bk_biz_id, task.pop("group_ids", [])),
                 task_duration=0,
                 available=0,
             )

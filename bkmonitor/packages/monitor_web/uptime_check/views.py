@@ -119,7 +119,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
     serializer_class = UptimeCheckNodeSerializer
 
     @staticmethod
-    def get_filtered_nodes(bk_tenant_id: str, bk_biz_id: str | None = None):
+    def get_filtered_nodes(bk_tenant_id: str, bk_biz_id: int | None = None):
         """
         获取过滤后的节点列表（公共节点 + 业务节点）
         """
@@ -144,7 +144,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         if bk_biz_id:
             # 指定业务时：只返回 biz_scope 包含该业务的节点
             for biz_node in biz_nodes:
-                if bk_biz_id in (biz_node.biz_scope or []):
+                if bk_biz_id in biz_node.biz_scope:
                     filtered_biz_nodes.append(biz_node)
         else:
             # 未指定业务时：返回所有业务节点
@@ -209,7 +209,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
             return data_map[key]
 
         bk_tenant_id = cast(str, get_request_tenant_id())
-        bk_biz_id = request.GET.get("bk_biz_id")
+        bk_biz_id = int(request.GET["bk_biz_id"])
 
         # 获取过滤后的节点列表（公共节点 + 业务节点）
         nodes = self.get_filtered_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
@@ -285,7 +285,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
     def count(self, request, *args, **kwargs):
         """获取节点数量"""
         bk_tenant_id = cast(str, get_request_tenant_id())
-        bk_biz_id = request.GET.get("bk_biz_id")
+        bk_biz_id = int(request.GET["bk_biz_id"])
 
         # 获取过滤后的节点列表（公共节点 + 业务节点）
         nodes = self.get_filtered_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
@@ -297,12 +297,12 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         用于给前端判断输入的IP是否属于已建节点
         """
         ip = request.GET.get("ip")
-        bk_biz_id = request.GET.get("bk_biz_id")
+        bk_biz_id = int(request.GET["bk_biz_id"])
         bk_tenant_id = cast(str, get_request_tenant_id())
         # 先获取，再判断是否存在
         nodes = list_nodes(
             bk_tenant_id=bk_tenant_id,
-            bk_biz_id=int(bk_biz_id),
+            bk_biz_id=bk_biz_id,
             query={"ip": ip},
         )
         # 从 Define 对象提取 id
@@ -361,11 +361,15 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         """
         旧版动态下发配置转换
         """
-        bk_tenant_id = get_request_tenant_id()
         task_id = int(pk)
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        bk_biz_id = int(request.GET["bk_biz_id"])
         task_define = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
         # 转换为字典
         data = task_define.model_dump()
+        # 兼容旧字段名
+        data["indepentent_dataid"] = data.get("independent_dataid", False)
+
         config = data["config"]
         protocol = data["protocol"]
         if config.get("urls") and protocol == UptimeCheckTaskProtocol.HTTP.value:
@@ -383,6 +387,26 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
                 config["node_list"] = [{"bk_host_id": h.bk_host_id} for h in host_instances]
                 host_instance_ips = [h.ip for h in host_instances]
                 config["ip_list"] = [host["ip"] for host in hosts if host["ip"] not in host_instance_ips]
+
+        # 补充nodes字段信息
+        if task_define.node_ids:
+            data["nodes"] = [
+                node.model_dump()
+                for node in list_nodes(bk_tenant_id=bk_tenant_id, query={"node_ids": data.pop("node_ids", [])})
+            ]
+        else:
+            data["nodes"] = []
+
+        # 补充groups字段信息
+        if task_define.group_ids:
+            data["groups"] = [
+                group.model_dump()
+                for group in list_groups(
+                    bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"group_ids": data.pop("group_ids", [])}
+                )
+            ]
+        else:
+            data["groups"] = []
         return Response(data)
 
     def get_permissions(self):
@@ -395,15 +419,15 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         重写list，传入get_groups时整合拨测任务组卡片页数据，避免数据库重复查询
         """
         group_id = request.query_params.get("group_id")
-        bk_biz_id = int(request.query_params.get("bk_biz_id", 0))
-        bk_tenant_id = get_request_tenant_id()
+        bk_biz_id = int(request.query_params["bk_biz_id"])
+        bk_tenant_id = cast(str, get_request_tenant_id())
 
         # 如果传入plain参数，则返回简单数据
         if request.query_params.get("plain", False):
             task_id = request.query_params.get("id")
             tasks = list_tasks(
                 bk_tenant_id=bk_tenant_id,
-                bk_biz_id=bk_biz_id if bk_biz_id else None,
+                bk_biz_id=bk_biz_id,
                 query={
                     "group_ids": [int(group_id)] if group_id else None,
                     "task_ids": [int(task_id)] if task_id else None,
@@ -433,7 +457,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
 
         tasks = list_tasks(
             bk_tenant_id=bk_tenant_id,
-            bk_biz_id=bk_biz_id if bk_biz_id else None,
+            bk_biz_id=bk_biz_id,
             query={"group_ids": [int(group_id)]} if group_id else None,
             order_by=request.query_params.get("ordering"),
         )
@@ -443,7 +467,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         get_task_duration = request.query_params.get("get_task_duration") == "true"
 
         task_data = resource.uptime_check.uptime_check_task_list(
-            task_data=[task.model_dump() for task in tasks],
+            task_data=[task.model_dump(exclude={"bk_tenant_id"}) for task in tasks],
             bk_biz_id=bk_biz_id,
             get_available=get_available,
             get_task_duration=get_task_duration,
@@ -466,14 +490,15 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
     def count(self, request, *args, **kwargs):
         """获取任务数量"""
         group_id = request.query_params.get("group_id")
-        bk_biz_id = int(request.query_params.get("bk_biz_id", 0))
+        bk_biz_id = int(request.query_params["bk_biz_id"])
         bk_tenant_id = get_request_tenant_id()
 
         # 获取数量
         tasks = list_tasks(
             bk_tenant_id=bk_tenant_id,
-            bk_biz_id=bk_biz_id if bk_biz_id else None,
+            bk_biz_id=bk_biz_id,
             query={"group_ids": [int(group_id)]} if group_id else None,
+            fields=["id"],
         )
         return Response({"count": len(tasks)})
 
@@ -503,10 +528,9 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         """
         task_id = int(pk)
         bk_tenant_id = cast(str, get_request_tenant_id())
-        # 先获取任务的bk_biz_id
-        task = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
-        bk_biz_id = task.bk_biz_id
-        result = control_task(bk_tenant_id, bk_biz_id, task_id, action="deploy")
+        request_data = cast(dict[str, Any], request.data)
+        bk_biz_id = int(request_data["bk_biz_id"])
+        result = control_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id, action="deploy")
         return Response(result)
 
     @action(methods=["POST"], detail=True)
@@ -515,16 +539,17 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         克隆任务
         """
         task_id = int(pk)
+        request_data = cast(dict[str, Any], request.data)
+        bk_biz_id = int(request_data["bk_biz_id"])
         bk_tenant_id = cast(str, get_request_tenant_id())
         operator = request.user.username
 
         # 获取源任务（带节点和分组）
         source_task = get_task(
             bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
             task_id=task_id,
         )
-        # 转换为字典
-        bk_biz_id = source_task.bk_biz_id
 
         # 生成新名称
         base_name = source_task.name + "_copy"
@@ -563,21 +588,21 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         """
         task_id = int(pk)
         request_data = cast(dict[str, Any], request.data)
+        bk_biz_id = int(request_data["bk_biz_id"])
         task_status = request_data.get("status", "")
         bk_tenant_id = cast(str, get_request_tenant_id())
-        # 先获取任务的bk_biz_id
-        task = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
-        bk_biz_id = task.bk_biz_id
         operator = request.user.username
 
         # status: "running" -> start, "stoped" -> stop
         action_str = cast(
             Literal["start", "stop"], "start" if task_status == UptimeCheckTaskStatus.RUNNING.value else "stop"
         )
-        control_task(bk_tenant_id, bk_biz_id, task_id, action_str, operator)
+        control_task(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id, action=action_str, operator=operator
+        )
 
         # 重新获取更新后的状态
-        updated_task = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
+        updated_task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
         return Response(data={"id": task_id, "status": updated_task.status.value})
 
     @action(methods=["GET"], detail=True)
@@ -587,7 +612,9 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         :return:
         """
         task_id = int(pk)
-        task = get_task(bk_tenant_id=get_request_tenant_id(), task_id=task_id)
+        request_data = cast(dict[str, Any], request.data)
+        bk_biz_id = int(request_data["bk_biz_id"])
+        task = get_task(bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id, task_id=task_id)
         task_status = task.status.value
         if task_status == UptimeCheckTaskStatus.START_FAILED.value:
             error_log = list_collector_logs(task_id)

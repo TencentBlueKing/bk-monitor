@@ -345,6 +345,11 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
     location = serializers.JSONField(required=True)
     labels = serializers.JSONField(required=False, default=dict)
 
+    # 独立数据源模式
+    independent_dataid = serializers.BooleanField(required=False)
+    # 兼容旧字段名
+    indepentent_dataid = serializers.BooleanField(required=False)
+
     # 关联字段
     config = ConfigSlz(required=True)
     node_id_list = serializers.ListField(required=True, write_only=True)
@@ -521,6 +526,19 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
         if any(task.name == validated_data["name"] for task in existing_tasks):
             raise CustomException(_("已存在相同名称的拨测任务"))
 
+        # 独立数据源模式
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            # 多租户模式下，必须使用独立数据源模式
+            independent_dataid = True
+        else:
+            # 非多租户模式下，使用配置中的独立数据源模式
+            if "independent_dataid" in validated_data:
+                independent_dataid = validated_data["independent_dataid"]
+            elif "indepentent_dataid" in validated_data:
+                independent_dataid = validated_data["indepentent_dataid"]
+            else:
+                independent_dataid = False
+
         # 构建 UptimeCheckTaskDefine 进行创建
         task_define = UptimeCheckTaskDefine(
             bk_tenant_id=bk_tenant_id,
@@ -533,8 +551,7 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
             location=validated_data.get("location", {}),
             node_ids=node_ids,
             group_ids=group_ids,
-            # 多租户模式下，独立数据源模式
-            independent_dataid=settings.ENABLE_MULTI_TENANT_MODE,
+            independent_dataid=independent_dataid,
         )
 
         task_id = save_task(task=task_define, operator=operator)
