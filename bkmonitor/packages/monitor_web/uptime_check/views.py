@@ -46,6 +46,7 @@ from monitor_web.uptime_check.serializers import (
     UptimeCheckNodeSerializer,
     UptimeCheckTaskSerializer,
 )
+from monitor_web.uptime_check.utils import get_uptime_check_task_available, get_uptime_check_task_duration
 from utils.business import get_business_id_list
 
 logger = logging.getLogger(__name__)
@@ -355,18 +356,20 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
     改造后完全通过 operation 层操作，不直接暴露 Model。
     """
 
-    serializer_class = UptimeCheckTaskSerializer
-
     def retrieve(self, request: Request, pk: int | str) -> Response:
         """
         旧版动态下发配置转换
         """
+        params: dict[str, Any] = request.query_params
+
         task_id = int(pk)
         bk_tenant_id = cast(str, get_request_tenant_id())
-        bk_biz_id = int(request.GET["bk_biz_id"])
+        bk_biz_id = int(params["bk_biz_id"])
+
+        # 查询任务
         task_define = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
-        # 转换为字典
         data: dict[str, Any] = task_define.model_dump()
+
         # 兼容旧字段名
         data["indepentent_dataid"] = data.pop("independent_dataid", False)
 
@@ -390,9 +393,17 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         else:
             data["groups"] = []
 
-        serializer = self.serializer_class(data=data)
+        # 获取可用率和响应时长
+        if params.get("get_available"):
+            data["available"] = get_uptime_check_task_available(task_id)
+        if params.get("get_task_duration"):
+            data["task_duration"] = get_uptime_check_task_duration(task_id)
+
+        serializer = UptimeCheckTaskSerializer(data=data)
         serializer.is_valid(raise_exception=True)
         data = cast(dict[str, Any], serializer.validated_data)
+
+        # 配置处理
         config = data["config"]
         protocol = data["protocol"]
         if config.get("urls") and protocol == UptimeCheckTaskProtocol.HTTP.value:
@@ -422,13 +433,14 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         """
         重写list，传入get_groups时整合拨测任务组卡片页数据，避免数据库重复查询
         """
-        group_id = request.query_params.get("group_id")
-        bk_biz_id = int(request.query_params["bk_biz_id"])
+        params = request.query_params
+        group_id = params.get("group_id")
+        bk_biz_id = int(params["bk_biz_id"])
         bk_tenant_id = cast(str, get_request_tenant_id())
 
         # 如果传入plain参数，则返回简单数据
-        if request.query_params.get("plain", False):
-            task_id = request.query_params.get("id")
+        if params.get("plain", False):
+            task_id = params.get("id")
             tasks = list_tasks(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
@@ -438,7 +450,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
                 }
                 if group_id or task_id
                 else None,
-                order_by=request.query_params.get("ordering"),
+                order_by=params.get("ordering"),
             )
             if task_id:
                 return Response(
@@ -639,9 +651,11 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
         """
         简化返回数据
         """
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        bk_biz_id = int(request.query_params["bk_biz_id"])
         group_id = int(pk)
         # 直接获取分组
-        group = get_group(group_id=group_id)
+        group = get_group(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id)
         result = {
             "id": group.id,
             "name": group.name,

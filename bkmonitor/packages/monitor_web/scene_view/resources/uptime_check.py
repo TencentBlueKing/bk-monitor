@@ -29,7 +29,7 @@ from monitor.models import NODE_IP_TYPE_DICT
 from monitor_web.models.uptime_check import (
     UptimeCheckNode,
 )
-from monitor_web.uptime_check.serializers import UptimeCheckTaskSerializer
+from monitor_web.uptime_check.utils import get_uptime_check_task_url_list
 
 
 class GetUptimeCheckTaskList(Resource):
@@ -90,7 +90,7 @@ class GetUptimeCheckTaskInfo(ApiAuthResource):
             {
                 "name": _("目标地址"),
                 "type": "list",
-                "value": UptimeCheckTaskSerializer.get_url_list(task.model_dump()),
+                "value": get_uptime_check_task_url_list(task.model_dump()),
             }
         )
 

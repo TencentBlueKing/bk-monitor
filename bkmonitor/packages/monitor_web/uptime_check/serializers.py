@@ -42,9 +42,8 @@ from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.ip import exploded_ip, is_v4, is_v6
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.views import serializers
-from common.log import logger
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import api, resource
+from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
 from core.errors.uptime_check import UptimeCheckProcessError
 
@@ -284,7 +283,39 @@ class ConfigSlz(serializers.Serializer):
     hosts = HostSlz(required=False, many=True)
 
 
-class UptimeCheckTaskBaseSerializer(serializers.Serializer):
+class UptimeCheckTaskSerializer(serializers.Serializer):
+    # 基本字段
+    id = serializers.IntegerField(required=False, read_only=True)
+    bk_tenant_id = serializers.CharField(required=False, read_only=True)
+    bk_biz_id = serializers.IntegerField(required=True)
+    name = serializers.CharField(max_length=128)
+    protocol = serializers.ChoiceField(choices=["TCP", "UDP", "HTTP", "ICMP"])
+    status = serializers.CharField(required=False, read_only=True)
+    check_interval = serializers.IntegerField(required=False, default=5)
+    location = serializers.JSONField(required=True)
+    labels = serializers.JSONField(required=False, default=dict)
+
+    # 独立数据源模式
+    indepentent_dataid = serializers.BooleanField(required=False)
+
+    # 关联字段
+    config = ConfigSlz(required=True)
+
+    # 读写属性
+    create_user = serializers.CharField(required=False, allow_blank=True)
+    create_time = serializers.DateTimeField(required=False)
+    update_user = serializers.CharField(required=False, allow_blank=True)
+    update_time = serializers.DateTimeField(required=False)
+
+    # 只读字段
+    nodes = serializers.ListField(required=False, child=serializers.DictField(), allow_empty=True)
+    groups = serializers.ListField(required=False, child=serializers.DictField(), allow_empty=True)
+    available = serializers.FloatField(required=False, allow_null=True)
+    task_duration = serializers.FloatField(required=False, allow_null=True)
+    url_list = serializers.ListField(required=False, allow_null=True, allow_empty=True)
+
+    is_deleted = serializers.BooleanField(default=False)
+
     def url_validate(self, url):
         try:
             URLValidator()(url)
@@ -329,167 +360,6 @@ class UptimeCheckTaskBaseSerializer(serializers.Serializer):
             else:
                 raise CustomException("Not a valid IP")
         return attrs
-
-
-class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
-    """拨测任务序列化器（不依赖 Model，使用通用 Serializer 的部分字段）"""
-
-    # 基本字段
-    id = serializers.IntegerField(required=False, read_only=True)
-    bk_tenant_id = serializers.CharField(required=False, read_only=True)
-    bk_biz_id = serializers.IntegerField(required=True)
-    name = serializers.CharField(max_length=128)
-    protocol = serializers.ChoiceField(choices=["TCP", "UDP", "HTTP", "ICMP"])
-    status = serializers.CharField(required=False, read_only=True)
-    check_interval = serializers.IntegerField(required=False, default=5)
-    location = serializers.JSONField(required=True)
-    labels = serializers.JSONField(required=False, default=dict)
-
-    # 独立数据源模式
-    indepentent_dataid = serializers.BooleanField(required=False)
-
-    # 关联字段
-    config = ConfigSlz(required=True)
-    node_id_list = serializers.ListField(required=True, write_only=True)
-    group_id_list = serializers.ListField(required=False, write_only=True)
-
-    # 读写属性
-    create_user = serializers.CharField(required=False, read_only=True)
-    create_time = serializers.DateTimeField(required=False, read_only=True)
-    update_user = serializers.CharField(required=False, read_only=True)
-    update_time = serializers.DateTimeField(required=False, read_only=True)
-
-    # 只读字段
-    nodes = serializers.SerializerMethodField(read_only=True)
-    groups = serializers.SerializerMethodField(read_only=True)
-    available = serializers.SerializerMethodField(read_only=True)
-    task_duration = serializers.SerializerMethodField(read_only=True)
-    url_list = serializers.SerializerMethodField(read_only=True)
-
-    is_deleted = serializers.BooleanField(default=False)
-
-    @staticmethod
-    def get_url_list(obj: dict[str, Any]) -> list[str]:
-        """拼接拨测地址"""
-        protocol: str = obj["protocol"]
-        config: dict[str, Any] = obj["config"]
-        bk_biz_id: int = obj["bk_biz_id"]
-
-        if protocol == UptimeCheckTaskProtocol.HTTP.value:
-            # 针对HTTP协议
-            if config.get("urls"):
-                url_list = [config["urls"]]
-            else:
-                url_list = config.get("url_list", [])
-            return url_list
-
-        if not config.get("hosts", []):
-            if config.get("node_list"):
-                params = {
-                    "hosts": config["node_list"],
-                    "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
-                    "bk_biz_id": bk_biz_id,
-                }
-                node_instance = resource.uptime_check.topo_template_host(**params)
-            else:
-                node_instance = []
-
-            host_instance = config.get("url_list", []) + config.get("ip_list", [])
-            if node_instance:
-                target_host = node_instance + host_instance
-            else:
-                target_host = host_instance
-        else:
-            # 兼容旧版hosts逻辑
-            # 针对其他协议
-            if len(config["hosts"]) and config["hosts"][0].get("bk_obj_id"):
-                # 如果是动态拓扑，拿到所有的IP
-                params = {
-                    "hosts": config["hosts"],
-                    "output_fields": ["bk_host_innerip"],
-                    "bk_biz_id": bk_biz_id,
-                }
-                target_host = resource.uptime_check.topo_template_host(**params)
-            else:
-                target_host = [host["ip"] for host in config["hosts"] if host.get("ip")]
-
-        # 拼接拨测地址
-        if protocol == UptimeCheckTaskProtocol.ICMP.value:
-            return target_host
-        else:
-            return ["[{}]:{}".format(host, config["port"]) for host in target_host]
-
-    def get_nodes(self, obj):
-        """获取任务节点列表"""
-        node_ids = [n.pk for n in (obj.nodes.all() if hasattr(obj, "nodes") else [])]
-
-        if not node_ids:
-            return []
-
-        nodes = list_nodes(bk_tenant_id=cast(str, get_request_tenant_id()), query={"node_ids": node_ids})
-        return UptimeCheckNodeSerializer(nodes, many=True).data
-
-    def get_groups(self, obj):
-        """获取任务分组信息"""
-        task_id = obj.id
-
-        groups = list_groups(
-            bk_tenant_id=get_request_tenant_id(),
-            bk_biz_id=obj.bk_biz_id,
-            query={"task_id": task_id},
-        )
-        # 从 Define 对象中提取 id 和 name 字段
-        return [[group.id, group.name] for group in groups]
-
-    def get_available(self, obj):
-        """计算任务可用率，如异常则按0计算，不可影响任务列表的获取"""
-        # 只有拨测任务列表列需要展示每个拨测任务的可用率情况
-        # 需要展示每个任务可用率时，则调用 list() 方法时指定 get_available=True
-        task_id = obj.id
-        status = (
-            obj.status
-            if isinstance(obj.status, str)
-            else obj.status.value
-            if hasattr(obj.status, "value")
-            else str(obj.status)
-        )
-
-        if (
-            self.context["request"].query_params.get("get_available", False)  # type: ignore
-            and status != UptimeCheckTaskStatus.STOPED.value
-        ):
-            try:
-                task_data = resource.uptime_check.get_recent_task_data({"task_id": task_id, "type": "available"})
-                return task_data["available"] * 100
-            except Exception as e:
-                logger.exception(f"get available failed: {str(e)}")
-                return 0
-        else:
-            return None
-
-    def get_task_duration(self, obj):
-        """计算任务响应时长"""
-        task_id = obj.id
-        status = (
-            obj.status
-            if isinstance(obj.status, str)
-            else obj.status.value
-            if hasattr(obj.status, "value")
-            else str(obj.status)
-        )
-
-        if (
-            self.context["request"].query_params.get("get_task_duration", False)  # type: ignore
-            and status != UptimeCheckTaskStatus.STOPED.value
-        ):
-            try:
-                task_data = resource.uptime_check.get_recent_task_data({"task_id": task_id, "type": "task_duration"})
-                return task_data["task_duration"]
-            except Exception as e:
-                logger.exception(f"get task duration failed:{str(e)}")
-                return None
-        else:
-            return None
 
     def create(self, validated_data):
         """创建拨测任务（使用 operation 层）"""

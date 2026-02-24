@@ -83,9 +83,8 @@ from core.drf_resource.exceptions import CustomException
 from core.errors.dataapi import EmptyQueryException
 from monitor.utils import update_task_config
 from monitor_web.uptime_check.constants import UPTIME_CHECK_CONFIG_TEMPLATE
-from monitor_web.uptime_check.serializers import (
-    UptimeCheckTaskSerializer,
-)
+from monitor_web.uptime_check.serializers import UptimeCheckTaskSerializer
+from monitor_web.uptime_check.utils import get_uptime_check_task_url_list
 
 MAX_DISPLAY_TASK = 3
 
@@ -187,6 +186,8 @@ class UptimeCheckTaskListResource(Resource):
         get_available = serializers.BooleanField(default=False, label="获取可用率")
         get_task_duration = serializers.BooleanField(default=False, label="获取响应时间")
 
+    ResponseSerializer = UptimeCheckTaskSerializer
+
     def get_groups(self, bk_tenant_id: str, bk_biz_id: int, group_ids: list[int]):
         """获取任务分组信息"""
         if not group_ids:
@@ -250,7 +251,7 @@ class UptimeCheckTaskListResource(Resource):
             protocol_data: dict[str, Any] = query_group.setdefault(task["protocol"], {})
             protocol_data.setdefault(task["config"].get("period", 60), []).append(str(task["id"]))
             task_data_mapping[task["id"]] = task
-            url = UptimeCheckTaskSerializer.get_url_list(task)
+            url = get_uptime_check_task_url_list(task)
             task_data_mapping[task["id"]].update(
                 url=url,
                 nodes=self.get_nodes(bk_tenant_id, task.pop("node_ids", [])),
