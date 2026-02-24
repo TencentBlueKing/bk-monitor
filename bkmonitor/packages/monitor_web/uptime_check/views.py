@@ -649,6 +649,40 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
 
     serializer_class = UptimeCheckGroupSerializer
 
+    def create(self, request: Request):
+        """创建分组"""
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        request_data = cast(dict[str, Any], request.data)
+        bk_biz_id = int(request_data["bk_biz_id"])
+        logo: str = request_data.get("logo", "")
+        name: str = request_data["name"]
+        task_id_list: list[int] = request_data.get("task_id_list", [])
+        operator: str = request.user.username
+
+        group = UptimeCheckGroup(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, name=name, logo=logo, task_ids=task_id_list
+        )
+        group_id = save_group(group, operator)
+        return Response(get_group(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id))
+
+    def update(self, request: Request, pk: int | str):
+        """更新分组"""
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        group_id = int(pk)
+        request_data = cast(dict[str, Any], request.data)
+        bk_biz_id = int(request_data["bk_biz_id"])
+        logo: str = request_data.get("logo", "")
+        name: str = request_data["name"]
+        task_id_list: list[int] = request_data.get("task_id_list", [])
+        operator: str = request.user.username
+
+        group = get_group(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id)
+        group.name = name
+        group.logo = logo
+        group.task_ids = task_id_list
+        save_group(group, operator)
+        return Response(get_group(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id))
+
     def retrieve(self, request: Request, pk: int | str):
         """
         简化返回数据
