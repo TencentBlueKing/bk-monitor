@@ -61,18 +61,19 @@ class XorDecryptHandler(BaseDecryptHandler):
     异或解密处理器
     """
 
-    # 未加密文件的特征前缀
-    UNENCRYPTED_PREFIX = b"Log file open"
     # 分块大小：8KB
     CHUNK_SIZE = 8192
     # 可打印字符比例阈值，超过此值认为是明文（未加密）
     PRINTABLE_RATIO_THRESHOLD = 0.90
 
-    def __init__(self, xor_key: int = 0x73):
+    def __init__(self, xor_key: int = None, unencrypted_prefix: str = None):
         self.xor_key = xor_key
+        self.unencrypted_prefix = unencrypted_prefix
 
     def decrypt(self, data: bytes) -> bytes:
-        """进行异或处理"""
+        """进行异或处理，未配置xor_key时直接返回原数据"""
+        if self.xor_key is None:
+            return data
         return bytes(byte ^ self.xor_key for byte in data)
 
     def _is_likely_plaintext(self, data: bytes) -> bool:
@@ -91,14 +92,19 @@ class XorDecryptHandler(BaseDecryptHandler):
 
     def decrypt_file(self, file_path: str) -> None:
         """解密文件"""
+        temp_path = file_path + ".tmp"
         try:
             # 先读取第一块数据来判断是否需要解密
             with open(file_path, "rb") as f:
                 first_chunk = f.read(self.CHUNK_SIZE)
 
-            # 检查第一块数据中是否包含"Log file open"，如果是则跳过解密
-            if self.UNENCRYPTED_PREFIX in first_chunk:
-                logger.info("File %s is not encrypted (contains 'Log file open'), skipping decryption", file_path)
+            # 检查第一块数据中是否包含未加密特征前缀，如果是则跳过解密
+            if self.unencrypted_prefix and self.unencrypted_prefix.encode("utf-8") in first_chunk:
+                logger.info(
+                    "File %s is not encrypted (contains '%s'), skipping decryption",
+                    file_path,
+                    self.unencrypted_prefix,
+                )
                 return
             # 通过可打印字符比例判断是否为明文，如果是则跳过解密
             if self._is_likely_plaintext(first_chunk):
@@ -110,7 +116,6 @@ class XorDecryptHandler(BaseDecryptHandler):
                 return
 
             # 分块解密，写入临时文件
-            temp_path = file_path + ".tmp"
             with open(file_path, "rb") as f_in, open(temp_path, "wb") as f_out:
                 while chunk := f_in.read(self.CHUNK_SIZE):
                     f_out.write(self.decrypt(chunk))
@@ -120,7 +125,6 @@ class XorDecryptHandler(BaseDecryptHandler):
         except Exception as e:
             logger.exception("Failed to decrypt file %s: %s", file_path, e)
             # 清理临时文件
-            temp_path = file_path + ".tmp"
             if os.path.exists(temp_path):
                 os.remove(temp_path)
             raise
@@ -134,12 +138,17 @@ DECRYPT_HANDLER_TYPE_MAP = {
 def _get_decrypt_config(bk_biz_id: str) -> dict | None:
     """
     从 FeatureConfig 中获取业务对应的解密处理器配置
-    配置格式示例（feature_config中的decrypt_handler_config字段）：
+    配置格式示例（feature_config中的decrypt_config字段）：
     {
         "100231": {
-            "handler": "xor"
+            "handler": "xor",
+            "params": {
+                "xor_key": 666,
+                "unencrypted_prefix": "Log file open"
+            }
         }
     }
+    其中 params 用于传递处理器的构造参数
     """
     feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
     if not feature_toggle or not feature_toggle.feature_config:
@@ -164,7 +173,9 @@ def get_decrypt_handler(bk_biz_id: int) -> BaseDecryptHandler | None:
     handler_type = config.get("handler")
     handler_class = DECRYPT_HANDLER_TYPE_MAP.get(handler_type)
     if handler_class:
-        return handler_class()
+        # 从配置中获取动态参数，直接透传给处理器构造函数
+        params = config.get("params", {})
+        return handler_class(**params)
     else:
         logger.warning("Unknown decrypt handler type: %s for bk_biz_id: %s", handler_type, bk_biz_id_str)
         return None
