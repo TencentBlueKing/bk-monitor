@@ -11,8 +11,13 @@ specific language governing permissions and limitations under the License.
 from collections import defaultdict
 from typing import Any, cast
 
-from bk_monitor_base.domains.uptime_check.models import UPTIME_CHECK_TASK_STATUS_NAME_MAP
-from bk_monitor_base.uptime_check import get_task, list_groups, list_nodes, list_tasks
+from bk_monitor_base.uptime_check import (
+    UPTIME_CHECK_TASK_STATUS_NAME_MAP,
+    get_task,
+    list_groups,
+    list_nodes,
+    list_tasks,
+)
 from django.db.models import Q
 from django.utils.translation import gettext as _
 from rest_framework import serializers

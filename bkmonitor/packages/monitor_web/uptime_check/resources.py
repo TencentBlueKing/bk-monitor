@@ -205,7 +205,10 @@ class UptimeCheckTaskListResource(Resource):
         if not node_ids:
             return []
         nodes = list_nodes(bk_tenant_id=bk_tenant_id, query={"node_ids": node_ids})
-        return [node.model_dump(exclude={"update_time", "create_time"}) for node in nodes]
+        node_configs = [node.model_dump(exclude={"update_time", "create_time"}) for node in nodes]
+        for node_config in node_configs:
+            node_config["is_deleted"] = False
+        return node_configs
 
     def query_available_or_duration(self, metric, bk_biz_id, data_label, where, period, end_time, ret=None):
         ret = ret or {}

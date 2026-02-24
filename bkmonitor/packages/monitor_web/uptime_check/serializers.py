@@ -308,6 +308,7 @@ class UptimeCheckTaskSerializer(serializers.Serializer):
     update_time = serializers.DateTimeField(required=False)
 
     # 只读字段
+    url = serializers.ListField(required=False, child=serializers.CharField(), allow_empty=True)
     nodes = serializers.ListField(required=False, child=serializers.DictField(), allow_empty=True)
     groups = serializers.ListField(required=False, child=serializers.DictField(), allow_empty=True)
     available = serializers.FloatField(required=False, allow_null=True)
