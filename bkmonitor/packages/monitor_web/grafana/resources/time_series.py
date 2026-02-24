@@ -823,7 +823,7 @@ class GetVariableValue(Resource):
         """
         对维度的返回字段进行组装，使得其支持多字段查询
         """
-        dimensions = set()
+        dimensions: set[str] | None = set()
 
         def assemble_dimensions_by_drf(total, level, now):
             if len(fields) == level:
@@ -940,91 +940,26 @@ class GetVariableValue(Resource):
                     {"label": task_name_mapping.get(v, _("任务({})已删除").format(v)), "value": v} for v in dimensions
                 ]
             elif dimension_field == "node_id":
-                nodes = GetVariableValue.adapt_node_id_to_nodes(bk_biz_id, bk_tenant_id, dimensions)
-                result = [{"label": node["name"], "value": str(node["id"])} for node in nodes]
+                nodes = list_nodes(bk_tenant_id=bk_tenant_id, query={"node_ids": dimensions})
+                result = [{"label": node.name, "value": str(node.id)} for node in nodes]
 
         result = result or [{"label": v, "value": v} for v in dimensions]
 
         return result
 
     @staticmethod
-    def adapt_node_id_to_nodes(bk_biz_id: int, bk_tenant_id: str, node_ids: list[str | int]) -> list[dict[str, Any]]:
-        """适配节点ID到节点信息列表（使用最新 CRUD 操作）
-
-        支持新旧两种节点ID格式：
-        - 旧格式：数字ID（整数）
-        - 新格式：bk_cloud_id:ip 的格式
-
-        Args:
-            bk_biz_id: 业务ID
-            bk_tenant_id: 租户ID
-            node_ids: 节点ID列表，可为整数或 "bk_cloud_id:ip" 格式的字符串
-
-        Returns:
-            list[dict[str, Any]]: 节点信息列表，每个元素包含 id、name、plat_id、ip 等字段
-        """
-        from django.conf import settings
-
-        nodes: list[dict[str, Any]] = []
-
-        for node_id in node_ids:
-            old_format = False
-            try:
-                # 若还是数字ID，则说明为旧格式
-                node_id_int = int(node_id)
-                if node_id_int == 0:
-                    # 老格式（使用订阅下发 bkmonitorbeat，但未上报node_id，因此我们也不知道是哪个拨测节点）
-                    query_nodes = list_nodes(
-                        bk_tenant_id=bk_tenant_id,
-                        bk_biz_id=bk_biz_id,
-                    )
-                else:
-                    # 远古格式（通过uptimecheckbeat 上报的数据）
-                    query_nodes = list_nodes(
-                        bk_tenant_id=bk_tenant_id,
-                        bk_biz_id=bk_biz_id,
-                        query={"node_id": node_id_int},
-                    )
-
-                old_format = True
-
-            except (ValueError, TypeError):
-                # 适配新格式 bk_cloud_id:ip
-                try:
-                    bk_cloud_id, ip = str(node_id).rsplit(":", 1)
-                    query_nodes = list_nodes(
-                        bk_tenant_id=bk_tenant_id,
-                        bk_biz_id=bk_biz_id,
-                        query={"plat_id": int(bk_cloud_id), "ip": ip},
-                    )
-                except (ValueError, AttributeError):
-                    query_nodes = []
-
-            # 转换 Define 对象为字典
-            for node_define in query_nodes:
-                node = node_define.model_dump()
-                if old_format:
-                    node["name"] = node["name"] + _("bkmonitorbeat(版本低于{}, 请升级)").format(
-                        settings.BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION
-                    )
-                node["id"] = f"{node['plat_id']}:{node['ip']}"
-                nodes.append(node)
-
-        return nodes
-
-    @staticmethod
     def query_collect(bk_biz_id: int, params):
         """
         查询采集配置
         """
-        collects = CollectConfigMeta.objects.filter(bk_biz_id=bk_biz_id).values("id", "name")
-        return [{"label": str(collect.id), "value": collect.name} for collect in collects]
+        collects = CollectConfigMeta.objects.filter(bk_biz_id=bk_biz_id).only("id", "name")
+        return [{"label": str(collect.pk), "value": collect.name} for collect in collects]
 
-    def perform_request(self, params):
-        scenario = params["scenario"]
-        scope_type = params["type"]
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        scenario = validated_request_data["scenario"]
+        scope_type = validated_request_data["type"]
         # 不支持promql的datasource,所以当"data_source_label": "prometheus" 直接返回空
-        if scope_type == "dimension" and params["params"].get("data_source_label") == "prometheus":
+        if scope_type == "dimension" and validated_request_data["params"].get("data_source_label") == "prometheus":
             return []
 
         query_processor = {}
@@ -1053,7 +988,9 @@ class GetVariableValue(Resource):
         if scope_type not in query_processor:
             raise ValidationError(f"type({scope_type}) not exists")
 
-        result = query_processor[scope_type](bk_biz_id=params["bk_biz_id"], params=params["params"])
+        result = query_processor[scope_type](
+            bk_biz_id=validated_request_data["bk_biz_id"], params=validated_request_data["params"]
+        )
         return result
 
 
@@ -1062,5 +999,5 @@ class Test(Resource):
     Grafana数据源测试接口
     """
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         return "OK"
