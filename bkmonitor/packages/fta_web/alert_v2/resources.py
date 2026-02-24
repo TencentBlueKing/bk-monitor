@@ -828,6 +828,8 @@ class AlertTracesResource(Resource):
                     "root_service_span_name": trace.get("root_service_span_name", ""),
                     "error": trace.get("error", False),
                     "error_msg": trace_err_msg_map.get(trace_id, ""),
+                    "trace_duration": trace.get("trace_duration", 0),
+                    "min_start_time": trace.get("min_start_time", 0),
                 }
             )
 
