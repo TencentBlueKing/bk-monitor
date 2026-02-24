@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
 from collections import defaultdict
 from typing import Any, cast
 
@@ -91,7 +90,7 @@ class GetUptimeCheckTaskInfo(ApiAuthResource):
             {
                 "name": _("目标地址"),
                 "type": "list",
-                "value": UptimeCheckTaskSerializer.get_url_list(json.loads(task.model_dump_json())),
+                "value": UptimeCheckTaskSerializer.get_url_list(task.model_dump()),
             }
         )
 
