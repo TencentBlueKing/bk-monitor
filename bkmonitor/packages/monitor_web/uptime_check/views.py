@@ -8,9 +8,27 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
-from typing import cast, Literal
+from typing import Literal, cast
 
+from bk_monitor_base.uptime_check import (
+    BEAT_STATUS,
+    UptimeCheckGroup,
+    UptimeCheckTask,
+    UptimeCheckTaskProtocol,
+    UptimeCheckTaskStatus,
+    control_task,
+    get_group,
+    get_node_with_host_id,
+    get_task,
+    list_collector_logs,
+    list_groups,
+    list_nodes,
+    list_tasks,
+    save_group,
+    save_task,
+)
 from django.conf import settings
 from django.utils.translation import gettext as _
 from rest_framework import permissions, viewsets
@@ -23,54 +41,14 @@ from bkmonitor.utils.common_utils import host_key, safe_int
 from bkmonitor.utils.request import get_request_tenant_id
 from core.drf_resource import api, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from bk_monitor_base.uptime_check import (
-    BEAT_STATUS,
-    UptimeCheckTaskProtocol,
-    UptimeCheckTaskStatus,
-    UptimeCheckTask,
-    UptimeCheckGroup,
-    get_node_with_host_id,
-    list_nodes,
-    list_tasks,
-    get_task,
-    control_task,
-    list_collector_logs,
-    save_task,
-    get_group,
-    list_groups,
-    save_group,
-)
 from monitor_web.uptime_check.serializers import (
     UptimeCheckGroupSerializer,
     UptimeCheckNodeSerializer,
     UptimeCheckTaskSerializer,
 )
-
 from utils.business import get_business_id_list
 
 logger = logging.getLogger(__name__)
-
-
-class TaskAdapter:
-    """将字典数据适配成资源层需要的对象格式"""
-
-    def __init__(self, task_dict: dict):
-        self._task_dict = task_dict
-        self.id = task_dict.get("id")
-        self.protocol = task_dict.get("protocol")
-        self.config = task_dict.get("config", {})
-        for key, value in task_dict.items():
-            if not hasattr(self, key):
-                setattr(self, key, value)
-
-    def get_period(self) -> int:
-        """获取任务周期（秒）"""
-        return self.config.get("period", 60)
-
-    @property
-    def __dict__(self):
-        """返回字典表示"""
-        return self._task_dict
 
 
 class PermissionMixin:
@@ -461,11 +439,8 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         get_available = request.query_params.get("get_available") == "true"
         get_task_duration = request.query_params.get("get_task_duration") == "true"
 
-        # 适配成对象格式(兼容resource调用)
-        task_adapters = [TaskAdapter(task) for task in tasks]
-
         task_data = resource.uptime_check.uptime_check_task_list(
-            task_data=task_adapters,
+            task_data=[json.loads(task.model_dump_json()) for task in tasks],
             bk_biz_id=bk_biz_id,
             get_available=get_available,
             get_task_duration=get_task_duration,

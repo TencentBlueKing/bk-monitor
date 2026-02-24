@@ -16,9 +16,43 @@ import urllib.parse
 from base64 import b64encode
 from collections import defaultdict
 from decimal import Decimal
+from typing import Any, cast
 
 import arrow
 import yaml
+from bk_monitor_base.infras.threading.local import get_request_username
+from bk_monitor_base.uptime_check import (
+    BEAT_STATUS,
+    TASK_MIN_PERIOD,
+    UPTIME_CHECK_ALLOWED_HEADERS,
+    UPTIME_CHECK_AVAILABLE_DEFAULT_VALUE,
+    UPTIME_CHECK_DB,
+    UPTIME_CHECK_MONIT_RESPONSE,
+    UPTIME_CHECK_MONIT_RESPONSE_CODE,
+    UPTIME_CHECK_SUMMARY_TIME_RANGE,
+    UPTIME_CHECK_TASK_DETAIL_GROUP_BY_MINUTE1_TIME_RANGE,
+    UPTIME_CHECK_TASK_DETAIL_TIME_RANGE,
+    UPTIME_DATA_SOURCE_LABEL,
+    UPTIME_DATA_TYPE_LABEL,
+    TestTaskError,
+    UptimeCheckNode,
+    UptimeCheckTask,
+    UptimeCheckTaskModel,
+    UptimeCheckTaskProtocol,
+    UptimeCheckTaskStatus,
+    control_task,
+    generate_task_sub_config,
+    get_node,
+    get_task,
+    # 操作函数
+    list_groups,
+    list_nodes,
+    list_tasks,
+    refresh_task_status,
+    save_node,
+    save_task,
+    test_uptime_check_task,
+)
 from django.conf import settings
 from django.utils.translation import gettext as _
 from requests.auth import to_native_string
@@ -28,7 +62,7 @@ from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
-from bkmonitor.iam import Permission, ActionEnum
+from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.common_utils import host_key, logger, parse_host_id, safe_int
 from bkmonitor.utils.country import ISP_LIST
 from bkmonitor.utils.encode import EncodeWebhook
@@ -50,39 +84,6 @@ from core.drf_resource.exceptions import CustomException
 from core.errors.dataapi import EmptyQueryException
 from monitor.utils import update_task_config
 from monitor_web.uptime_check.constants import UPTIME_CHECK_CONFIG_TEMPLATE
-from bk_monitor_base.infras.threading.local import get_request_username
-from bk_monitor_base.uptime_check import (
-    BEAT_STATUS,
-    TASK_MIN_PERIOD,
-    UPTIME_CHECK_ALLOWED_HEADERS,
-    UPTIME_CHECK_AVAILABLE_DEFAULT_VALUE,
-    UPTIME_CHECK_DB,
-    UPTIME_CHECK_MONIT_RESPONSE,
-    UPTIME_CHECK_MONIT_RESPONSE_CODE,
-    UPTIME_CHECK_SUMMARY_TIME_RANGE,
-    UPTIME_CHECK_TASK_DETAIL_GROUP_BY_MINUTE1_TIME_RANGE,
-    UPTIME_CHECK_TASK_DETAIL_TIME_RANGE,
-    UPTIME_DATA_SOURCE_LABEL,
-    UPTIME_DATA_TYPE_LABEL,
-    TestTaskError,
-    UptimeCheckNode,
-    UptimeCheckTask,
-    UptimeCheckTaskProtocol,
-    UptimeCheckTaskStatus,
-    UptimeCheckTaskModel,
-    # 操作函数
-    list_groups,
-    list_nodes,
-    test_uptime_check_task,
-    get_node,
-    list_tasks,
-    get_task,
-    generate_task_sub_config,
-    refresh_task_status,
-    save_node,
-    save_task,
-    control_task,
-)
 from monitor_web.uptime_check.serializers import (
     ConfigSlz,
     UptimeCheckTaskBaseSerializer,
@@ -234,28 +235,24 @@ class UptimeCheckTaskListResource(Resource):
             else:
                 ret[int(item["task_id"])].update(task_duration=Decimal(item["_result_"]).quantize(Decimal("0.00")))
 
-    def perform_request(self, validated_request_data):
-        task_data = validated_request_data["task_data"]
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        bk_tenant_id = get_request_tenant_id()
+    def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
+        task_data: list[dict[str, Any]] = validated_request_data["task_data"]
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        bk_tenant_id = cast(str, get_request_tenant_id())
         query_group = {}
         task_data_mapping = {}
         for task in task_data:
-            protocol_data = query_group.setdefault(task.protocol, {})
-            protocol_data.setdefault(task.get_period(), []).append(str(task.id))
-            task_data_mapping[task.id] = task.__dict__
+            protocol_data: dict[str, Any] = query_group.setdefault(task["protocol"], {})
+            protocol_data.setdefault(task["config"].get("period", 60), []).append(str(task["id"]))
+            task_data_mapping[task["id"]] = task
             url = UptimeCheckTaskSerializer.get_url_list(task)
-            task_data_mapping[task.id].update(
+            task_data_mapping[task["id"]].update(
                 url=url,
-                nodes=self.get_nodes(bk_tenant_id, bk_biz_id, task.id),
-                groups=self.get_groups(bk_tenant_id, bk_biz_id, task.id),
+                nodes=self.get_nodes(bk_tenant_id, bk_biz_id, task["id"]),
+                groups=self.get_groups(bk_tenant_id, bk_biz_id, task["id"]),
                 task_duration=0,
                 available=0,
             )
-            # if not url:
-            #     # 空目标的情况，删除这个task
-            #     task_data_mapping.pop(task.id)
-
         # 多线程接口调用
         th_list = []
         end = arrow.utcnow().timestamp
@@ -402,7 +399,7 @@ class GenerateConfigResource(Resource):
         http_tasks = []
         icmp_tasks = []
         # default_max_timeout值控制对应任务默认最大执行超时时间，这里默认15000ms可以满足大部分的场景
-        default_max_timeout = dict().fromkeys(["tcp", "udp", "http", "icmp"], settings.UPTIMECHECK_DEFAULT_MAX_TIMEOUT)
+        default_max_timeout: dict[str, int] = defaultdict(lambda: settings.UPTIMECHECK_DEFAULT_MAX_TIMEOUT)
         config = copy.deepcopy(UPTIME_CHECK_CONFIG_TEMPLATE)
         for task in tasks:
             # 只生成运行中和启动中的任务配置，测试完成未保存的任务配置不会在这里生成
@@ -1328,7 +1325,7 @@ class FrontPageDataResource(Resource):
         task_id_list = serializers.ListField(required=True, label="拨测任务ID列表")
 
     @staticmethod
-    def make_select_param(tasks, bk_biz_id=0):
+    def make_select_param(tasks: list[UptimeCheckTask], bk_biz_id: int = 0) -> list[dict[str, Any]]:
         """
         分组中可能包含不同协议的任务，后台HTTP、TCP、UDP三种协议的数据是分表存储
         后台需要多进程查询三个表，将结果汇总到前端展示

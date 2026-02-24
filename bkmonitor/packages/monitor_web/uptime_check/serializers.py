@@ -8,7 +8,28 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
+
 import arrow
+from bk_monitor_base.uptime_check import (
+    TASK_MIN_PERIOD,
+    UptimeCheckGroup,
+    UptimeCheckNode,
+    UptimeCheckNodeIPType,
+    UptimeCheckTask,
+    UptimeCheckTaskProtocol,
+    UptimeCheckTaskStatus,
+    get_group,
+    get_node,
+    get_task,
+    list_groups,
+    list_nodes,
+    # 操作函数
+    list_tasks,
+    save_group,
+    save_node,
+    save_task,
+)
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
@@ -26,25 +47,6 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.uptime_check import UptimeCheckProcessError
-from bk_monitor_base.uptime_check import (
-    TASK_MIN_PERIOD,
-    UptimeCheckGroup,
-    UptimeCheckNode,
-    UptimeCheckTask,
-    UptimeCheckTaskProtocol,
-    UptimeCheckTaskStatus,
-    UptimeCheckNodeIPType,
-    # 操作函数
-    list_tasks,
-    save_node,
-    get_node,
-    list_nodes,
-    list_groups,
-    save_task,
-    get_task,
-    save_group,
-    get_group,
-)
 
 # 别名定义用于序列化器
 UptimeCheckGroupDefine = UptimeCheckGroup
@@ -358,17 +360,11 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
     url_list = serializers.SerializerMethodField(read_only=True)
 
     @staticmethod
-    def get_url_list(obj):
+    def get_url_list(obj: dict[str, Any]) -> list[str]:
         """拼接拨测地址"""
-        protocol = (
-            obj.protocol
-            if isinstance(obj.protocol, str)
-            else obj.protocol.value
-            if hasattr(obj.protocol, "value")
-            else str(obj.protocol)
-        )
-        config = obj.config
-        bk_biz_id = obj.bk_biz_id
+        protocol: str = obj["protocol"]
+        config: dict[str, Any] = obj["config"]
+        bk_biz_id: int = obj["bk_biz_id"]
 
         if protocol == UptimeCheckTaskProtocol.HTTP.value:
             # 针对HTTP协议

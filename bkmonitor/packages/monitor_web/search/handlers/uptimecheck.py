@@ -1,6 +1,6 @@
+from bk_monitor_base.uptime_check import list_nodes, list_tasks
 from django.utils.translation import gettext as _
 
-from bk_monitor_base.uptime_check import list_nodes, list_tasks
 from bkmonitor.iam import ActionEnum
 from bkmonitor.utils.request import get_request_tenant_id
 from monitor_web.search.handlers.base import (
@@ -54,10 +54,10 @@ class UptimecheckSearchHandler(BaseSearchHandler):
         for task in tasks:
             search_results.append(
                 SearchResultItem(
-                    bk_biz_id=task["bk_biz_id"],
-                    title=_("[拨测任务] {name}").format(name=task["name"]),
+                    bk_biz_id=task.bk_biz_id,
+                    title=_("[拨测任务] {name}").format(name=task.name),
                     view="uptime-check-task-detail",
-                    view_args={"params": {"taskId": task["id"]}, "query": {"filter-task_id": task["id"]}},
+                    view_args={"params": {"taskId": task.id}, "query": {"filter-task_id": task.id}},
                 )
             )
 

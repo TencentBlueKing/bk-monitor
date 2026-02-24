@@ -8,8 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 from collections import defaultdict
+from typing import cast
 
+from bk_monitor_base.uptime_check import get_task, list_groups, list_nodes
 from django.db.models import Q
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -57,12 +60,17 @@ class GetUptimeCheckTaskInfo(ApiAuthResource):
     RequestSerializer = UptimeCheckTaskQuerySerializer
 
     def perform_request(self, params):
-        task = UptimeCheckTask.objects.get(bk_biz_id=params["bk_biz_id"], id=params["task_id"])
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=params["bk_biz_id"], task_id=params["task_id"])
+        groups = list_groups(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=params["bk_biz_id"], query={"group_ids": task.group_ids}
+        )
+        nodes = list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=params["bk_biz_id"], query={"node_ids": task.node_ids})
         result = [
             {"name": _("任务名"), "type": "string", "value": task.name},
-            {"name": _("拨测类型"), "type": "string", "value": task.get_protocol_display()},
-            {"name": _("拨测分组"), "type": "list", "value": [group.name for group in task.groups.all()]},
-            {"name": _("拨测节点"), "type": "list", "value": [node.name for node in task.nodes.all()]},
+            {"name": _("拨测类型"), "type": "string", "value": task.protocol},
+            {"name": _("拨测分组"), "type": "list", "value": [group.name for group in groups]},
+            {"name": _("拨测节点"), "type": "list", "value": [node.name for node in nodes]},
         ]
 
         if task.protocol == "HTTP":
@@ -72,12 +80,18 @@ class GetUptimeCheckTaskInfo(ApiAuthResource):
                 url_list = [task.config["urls"]]
             result.append({"name": _("拨测地址"), "type": "list", "value": url_list})
 
-        result.append({"name": _("目标地址"), "type": "list", "value": UptimeCheckTaskSerializer.get_url_list(task)})
+        result.append(
+            {
+                "name": _("目标地址"),
+                "type": "list",
+                "value": UptimeCheckTaskSerializer.get_url_list(json.loads(task.model_dump_json())),
+            }
+        )
 
         result.extend(
             [
                 {"name": _("状态"), "type": "string", "value": task.get_status_display()},
-                {"name": _("创建人"), "type": "string", "value": get_user_display_name(task.create_user)},
+                {"name": _("创建人"), "type": "string", "value": get_user_display_name(task.create_user or "")},
                 {"name": _("创建时间"), "type": "string", "value": strftime_local(task.create_time)},
             ]
         )
