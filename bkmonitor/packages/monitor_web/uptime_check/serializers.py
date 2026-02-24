@@ -285,12 +285,12 @@ class ConfigSlz(serializers.Serializer):
 
 class UptimeCheckTaskSerializer(serializers.Serializer):
     # 基本字段
-    id = serializers.IntegerField(required=False, read_only=True)
-    bk_tenant_id = serializers.CharField(required=False, read_only=True)
+    id = serializers.IntegerField(required=False)
+    bk_tenant_id = serializers.CharField(required=False)
     bk_biz_id = serializers.IntegerField(required=True)
     name = serializers.CharField(max_length=128)
     protocol = serializers.ChoiceField(choices=["TCP", "UDP", "HTTP", "ICMP"])
-    status = serializers.CharField(required=False, read_only=True)
+    status = serializers.CharField(required=False)
     check_interval = serializers.IntegerField(required=False, default=5)
     location = serializers.JSONField(required=True)
     labels = serializers.JSONField(required=False, default=dict)

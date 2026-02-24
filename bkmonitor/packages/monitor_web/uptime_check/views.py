@@ -167,8 +167,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         bk_tenant_id = cast(str, get_request_tenant_id())
         # 获取节点并自动回填 bk_host_id
         node_define = get_node_with_host_id(bk_tenant_id=bk_tenant_id, node_id=int(pk))
-        node_data = node_define.model_dump() if hasattr(node_define, "model_dump") else dict(node_define)
-        return Response(node_data)
+        return Response(node_define.model_dump())
 
     @staticmethod
     def get_beat_version(bk_host_ids):
@@ -297,7 +296,10 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         """
         用于给前端判断输入的IP是否属于已建节点
         """
-        ip = request.GET.get("ip")
+        ip = request.GET["ip"]
+        if not ip:
+            return Response({"is_exist": False})
+
         bk_biz_id = int(request.GET["bk_biz_id"])
         bk_tenant_id = cast(str, get_request_tenant_id())
         # 先获取，再判断是否存在
@@ -351,15 +353,17 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
 
 
 class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
-    """拨测任务 ViewSet
+    """拨测任务 ViewSet"""
 
-    改造后完全通过 operation 层操作，不直接暴露 Model。
-    """
+    def get_permissions(self):
+        """拨测任务权限控制"""
+
+        if self.action == "list":
+            return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS, ActionEnum.VIEW_SYNTHETIC])]
+        return super().get_permissions()
 
     def retrieve(self, request: Request, pk: int | str) -> Response:
-        """
-        旧版动态下发配置转换
-        """
+        """查询任务详情"""
         params: dict[str, Any] = request.query_params
 
         task_id = int(pk)
@@ -424,19 +428,26 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
 
         return Response(data)
 
-    def get_permissions(self):
-        if self.action == "list":
-            return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS, ActionEnum.VIEW_SYNTHETIC])]
-        return super().get_permissions()
+    def create(self, request: Request):
+        """创建任务"""
+
+    def update(self, request: Request, pk: int | str):
+        """更新任务"""
 
     def list(self, request, *args, **kwargs):
         """
         重写list，传入get_groups时整合拨测任务组卡片页数据，避免数据库重复查询
         """
         params = request.query_params
+
         group_id = params.get("group_id")
         bk_biz_id = int(params["bk_biz_id"])
         bk_tenant_id = cast(str, get_request_tenant_id())
+        # 获取分组
+        get_groups = params.get("get_groups", False)
+        # 获取可用率和响应时长
+        get_available = params.get("get_available") == "true"
+        get_task_duration = params.get("get_task_duration") == "true"
 
         # 如果传入plain参数，则返回简单数据
         if params.get("plain", False):
@@ -475,12 +486,8 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
             query={"group_ids": [int(group_id)]} if group_id else None,
-            order_by=request.query_params.get("ordering"),
+            order_by=params.get("ordering"),
         )
-
-        get_groups = request.query_params.get("get_groups", False)
-        get_available = request.query_params.get("get_available") == "true"
-        get_task_duration = request.query_params.get("get_task_duration") == "true"
 
         task_data = resource.uptime_check.uptime_check_task_list(
             task_data=[task.model_dump(exclude={"bk_tenant_id"}) for task in tasks],
