@@ -410,6 +410,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
                 }
                 if group_id or task_id
                 else None,
+                order_by=request.query_params.get("ordering"),
             )
             if task_id:
                 return Response(
