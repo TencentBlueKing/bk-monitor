@@ -2588,7 +2588,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             endpoint["origin_kind"] = endpoint["kind"]
             endpoint["kind"] = SpanKindCachedEnum.from_value(endpoint["kind"]).label
             endpoint["app_name"] = application.app_name
-            endpoint["operation"] = []
             endpoint["origin_category_kind"] = endpoint["category_kind"]
             endpoint["category_kind"] = endpoint["category_kind"]["value"] or "--"
             endpoint["bk_biz_id"] = data["bk_biz_id"]

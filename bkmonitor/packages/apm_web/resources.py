@@ -130,7 +130,7 @@ class SidebarPageListResource(PageListResource):
         if not overview_column:
             return
 
-        def extract_name(value) -> str:
+        def _get_name(value: list | dict | None) -> str:
             if isinstance(value, list) and value:
                 return value[0].get("value", "")
             if isinstance(value, dict):
@@ -138,10 +138,10 @@ class SidebarPageListResource(PageListResource):
             return ""
 
         for item in data:
-            item["name"] = extract_name(item.get(overview_column.id))
+            item["name"] = _get_name(item.get(overview_column.id))
 
         if overview_data:
-            overview_data["name"] = extract_name(overview_data.get(overview_column.id))
+            overview_data["name"] = _get_name(overview_data.get(overview_column.id))
 
     def change_sort_column(self, current_sort, columns, data, overview_data):
         format_columns = [c.column() for c in columns]
@@ -200,7 +200,9 @@ class SidebarPageListResource(PageListResource):
                 }
             elif isinstance(column, EndpointListTableFormat):
                 # EndpointListTableFormat 列返回列表格式
-                res[column.id] = column.format_overview(column.title, get_icon("overview"))
+                res[column.id] = [
+                    {"icon": get_icon("overview"), "target": "null_event", "url": "", "key": "", "value": column.title}
+                ]
             elif column.overview_calculate_handler:
                 empty_row.pop(column.id)
                 value = column.overview_calculate_handler(data)

@@ -646,7 +646,7 @@ class EndpointListTableFormat(TableFormat):
         self.show_over_flow_tool_tip = show_over_flow_tool_tip
 
     def column(self) -> dict:
-        """生成列配置。"""
+        """生成列配置"""
         return {
             **super().column(),
             "showOverflowTooltip": self.show_over_flow_tool_tip,
@@ -663,28 +663,9 @@ class EndpointListTableFormat(TableFormat):
         """
         result = [{"key": "", "icon": "", "target": "null_event", "url": "", "value": row[self.id]}]
         for link in self.links:
-            # 手动构建链接数据，使用 link.name 作为显示文本
             try:
-                url = link.url_format.format(**row)
+                link_data = {**link.format(row), "value": link.name}
             except KeyError:
-                # 如果 URL 格式化失败（缺少字段），使用空 URL
-                url = ""
-            result.append(
-                {
-                    "target": link.target,
-                    "value": link.name,
-                    "url": url,
-                    "key": link.event_key,
-                    "icon": "",
-                }
-            )
+                link_data = {"icon": "", "target": link.target, "url": "", "key": link.event_key, "value": link.name}
+            result.append(link_data)
         return result
-
-    def format_overview(self, title: str, icon: str = "") -> list[dict]:
-        """格式化概览行数据。
-
-        :param title: 概览标题
-        :param icon: 概览图标
-        :return: 概览数据列表
-        """
-        return [{"icon": icon, "target": "null_event", "url": "", "key": "", "value": title}]
