@@ -1,20 +1,20 @@
 ### 功能描述
 
-修改一个单业务结果表，使之升级为全业务结果表
+修改数据源与结果表的关系
 
 ### 请求参数
 
-| 字段            | 类型        | 必选 | 描述      |
-|---------------|-----------|----|---------|
-| table_id_list | list[str] | 是  | 结果表ID列表 |
-| operator      | string    | 是  | 操作者     |
+| 字段         | 类型     | 必选 | 描述    |
+|------------|--------|----|-------|
+| table_id   | string | 是  | 结果表ID |
+| bk_data_id | int    | 是  | 数据源ID |
 
 ### 请求参数示例
 
 ```json
 {
-    "operator": "admin",
-    "table_id_list": ["2_system.cpu", "3_system.cpu"]
+    "table_id": "system.cpu",
+    "bk_data_id": 1001
 }
 ```
 
@@ -31,7 +31,7 @@
 
 ```json
 {
-    "message":"OK",
+    "message": "OK",
     "code": 200,
     "data": null,
     "result": true
