@@ -405,10 +405,6 @@ class ActionConfigBaseInfoSlz(serializers.ModelSerializer):
             )
 
         params_keys = {item["key"] for item in template_params}
-        if plugin_instance.plugin_key == "bk_incident":
-            hidden_key = "${_event_context}"
-            execute_config["template_detail"].setdefault(hidden_key, "{{alarm.callback_message}}")
-            params_keys.add(hidden_key)
         value["execute_config"]["template_detail"] = {
             k: v for k, v in value["execute_config"]["template_detail"].items() if k in params_keys
         }
