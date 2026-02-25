@@ -36,7 +36,6 @@ from apps.iam.handlers.drf import (
     insert_permission_field,
 )
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_databus.constants import DEFAULT_CATEGORY_ID
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import BkJwtVerifyException, IndexSetNotEmptyException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
@@ -133,12 +132,11 @@ class IndexSetViewSet(ModelViewSet):
             index_set_name = serializers.CharField(required=True)
             result_table_id = serializers.CharField(required=False)
             storage_cluster_id = serializers.IntegerField(required=False)
-            category_id = serializers.CharField(required=False, default=DEFAULT_CATEGORY_ID)
+            category_id = serializers.CharField(required=True)
             scenario_id = serializers.CharField(required=True)
             space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
             bkdata_auth_url = serializers.ReadOnlyField()
             is_editable = serializers.BooleanField(required=False, default=True)
-            parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
             def validate(self, attrs):
                 attrs = super().validate(attrs)
@@ -152,10 +150,9 @@ class IndexSetViewSet(ModelViewSet):
             index_set_name = serializers.CharField(required=True)
             storage_cluster_id = serializers.IntegerField(required=False, default=None)
             scenario_id = serializers.CharField(required=True)
-            category_id = serializers.CharField(required=False, default=DEFAULT_CATEGORY_ID)
+            category_id = serializers.CharField(required=True)
             space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
             bkdata_auth_url = serializers.ReadOnlyField()
-            parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
         class ShowMoreSerializer(CustomSerializer):
             source_name = serializers.CharField(read_only=True)
@@ -632,7 +629,6 @@ class IndexSetViewSet(ModelViewSet):
             is_editable=data.get("is_editable"),
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
-            parent_index_set_ids=data.get("parent_index_set_ids", []),
         )
 
         return Response(self.get_serializer_class()(instance=index_set).data)
@@ -702,7 +698,6 @@ class IndexSetViewSet(ModelViewSet):
             time_field_unit=data["time_field_unit"],
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
-            parent_index_set_ids=data.get("parent_index_set_ids", []),
         )
 
         return Response(self.get_serializer_class()(instance=index_set).data)

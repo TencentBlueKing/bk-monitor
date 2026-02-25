@@ -97,7 +97,7 @@ export default defineComponent({
     /** 全局数据（包含自定义上报类型列表） */
     const globalsData = computed(() => store.getters['globals/globalsData']);
 
-    const disabled = computed(() => props.isEdit);
+    const disabled = computed(() => route.name === 'collectEdit' && props.isEdit);
 
     // ==================== 校验相关 ====================
     /** 数据名格式正则：只支持字母、数字、下划线 */
