@@ -688,12 +688,6 @@ MENUS = [
                         "icon": "client-log",
                     },
                     {
-                        "id": "tgpa_task",
-                        "name": _("客户端日志"),
-                        "feature": FEATURE_TOGGLE["tgpa_task"],
-                        "icon": "client-log",
-                    },
-                    {
                         "id": "bk_data_collection",
                         "name": _("计算平台"),
                         "feature": FEATURE_TOGGLE["scenario_bkdata"],
@@ -1310,7 +1304,7 @@ ALL_TENANT_SET_ID = 1
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 # 兼容非多租户模式
-APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or 'test' in sys.argv)
+APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or "test" in sys.argv)
 USE_APIGW = os.getenv("BKAPP_USE_APIGW", "false").lower() == "true"
 
 # 预查询时间, 默认6h小时, 0代表禁用
