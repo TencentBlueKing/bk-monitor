@@ -193,6 +193,8 @@ export interface ITableItemMap {
   stack_link: IStackLinkItem;
   // 字符串类型
   string: { icon?: string; text: string; type: string };
+  // 带后缀操作的链接（第一个为主内容，其余为后缀操作按钮）
+  suffix_icon: ILinkItem[];
   // 标签
   tag: string[];
   // 时间
@@ -254,6 +256,7 @@ export type TableColumnType =
   | 'stack_link'
   | 'status'
   | 'string'
+  | 'suffix_icon'
   | 'tag'
   | 'time';
 // 表格分页类型

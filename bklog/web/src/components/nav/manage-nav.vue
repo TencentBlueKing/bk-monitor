@@ -42,7 +42,7 @@
       <span class="bk-icon bklog-icon bklog-position"></span>
       {{ getBaseName() }}
     </div>
-    <!-- <ul
+    <ul
       v-if="activeManageNav.children && !$route.meta.needBack"
       class="sub-nav-list"
       data-test-id="logCollection_ul_logCollectionNavBox"
@@ -57,7 +57,7 @@
           {{ navItem.name }}
         </li>
       </template>
-    </ul> -->
+    </ul>
   </div>
 </template>
 

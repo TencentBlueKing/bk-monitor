@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -415,7 +416,7 @@ def _init_index_info(*, index_set_id, is_clustered_fields):
     if tmp_index_obj:
         scenario_id = tmp_index_obj.scenario_id
         storage_cluster_id = tmp_index_obj.storage_cluster_id
-        index_set_data_obj_list = tmp_index_obj.get_indexes(has_applied=True)
+        index_set_data_obj_list = tmp_index_obj.get_indexes(has_applied=True, project_info=False)
         if len(index_set_data_obj_list) > 0:
             index = [x.get("result_table_id", None) for x in index_set_data_obj_list]
             indices = ",".join(index)

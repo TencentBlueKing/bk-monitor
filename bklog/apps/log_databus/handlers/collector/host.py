@@ -66,7 +66,6 @@ from apps.log_databus.exceptions import (
 
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_search.constants import CMDB_HOST_SEARCH_FIELDS
-from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.models import model_to_dict
 
 from apps.log_databus.handlers.collector import CollectorHandler
@@ -290,10 +289,6 @@ class HostCollectorHandler(CollectorHandler):
                     model_fields["collector_scenario_id"] = params["collector_scenario_id"]
                     self.data = CollectorConfig.objects.create(**model_fields)
                     is_create = True
-                    # 创建索引集，并添加到归属索引集中
-                    index_set = self.data.create_index_set()
-                    if params.get("parent_index_set_ids"):
-                        IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(params["parent_index_set_ids"])
                 else:
                     _collector_config_name = copy.deepcopy(self.data.collector_config_name)
                     if self.data.bk_data_id and self.data.bk_data_name != bk_data_name:
@@ -313,13 +308,6 @@ class HostCollectorHandler(CollectorHandler):
                     for key, value in model_fields.items():
                         setattr(self.data, key, value)
                     self.data.save()
-
-                    # 更新归属索引集
-                    index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
-                    if index_set:
-                        IndexSetHandler(index_set.index_set_id).update_parent_index_sets(
-                            params.get("parent_index_set_ids", [])
-                        )
 
                     # collector_config_name更改后更新索引集名称
                     if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
