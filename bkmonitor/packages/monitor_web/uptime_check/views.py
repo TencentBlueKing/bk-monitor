@@ -307,11 +307,13 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         return Response(updated_node_define.model_dump())
 
     def destroy(self, request: Request, pk: int | str):
-        """删除节点"""
+        """删除节点。bk_biz_id 支持从 query 或 body 获取，以兼容前端 DELETE 请求体传参。"""
         bk_tenant_id = cast(str, get_request_tenant_id())
         node_id = int(pk)
-        request_data = cast(dict[str, Any], request.data)
-        bk_biz_id_raw = request.query_params.get("bk_biz_id") or request_data.get("bk_biz_id")
+        body = cast(dict, request.data) if request.data is not None else {}
+        bk_biz_id_raw = request.query_params.get("bk_biz_id") or body.get("bk_biz_id")
+        if bk_biz_id_raw is None:
+            raise DRFValidationError({"bk_biz_id": _("参数缺失")})
         bk_biz_id = int(cast(int | str, bk_biz_id_raw))
         operator: str = request.user.username
         delete_node(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, node_id=node_id, operator=operator)
@@ -798,11 +800,11 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         return Response(get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=updated_task_id).model_dump())
 
     def destroy(self, request: Request, pk: int | str):
-        """删除任务（需要先停止任务）"""
+        """删除任务（需要先停止任务）。bk_biz_id 支持从 query 或 body 获取，以兼容前端 DELETE 请求体传参。"""
         bk_tenant_id = cast(str, get_request_tenant_id())
         task_id = int(pk)
-        request_data = cast(dict[str, Any], request.data)
-        bk_biz_id_raw = request.query_params.get("bk_biz_id") or request_data.get("bk_biz_id")
+        body = cast(dict, request.data) if request.data is not None else {}
+        bk_biz_id_raw = request.query_params.get("bk_biz_id") or body.get("bk_biz_id")
         if bk_biz_id_raw is None:
             raise DRFValidationError({"bk_biz_id": _("参数缺失")})
         bk_biz_id = int(cast(int | str, bk_biz_id_raw))
@@ -1210,10 +1212,14 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
         return Response({"msg": _("拨测分组({})移除任务({})成功".format(group_name, task_name))})
 
     def destroy(self, request: Request, pk: int | str):
-        """删除分组"""
+        """删除分组。bk_biz_id 支持从 query 或 body 获取，以兼容前端 DELETE 请求体传参。"""
         bk_tenant_id = cast(str, get_request_tenant_id())
         group_id = int(pk)
-        bk_biz_id = int(request.query_params["bk_biz_id"])
+        body = cast(dict, request.data) if request.data is not None else {}
+        bk_biz_id_raw = request.query_params.get("bk_biz_id") or body.get("bk_biz_id")
+        if bk_biz_id_raw is None:
+            raise DRFValidationError({"bk_biz_id": _("参数缺失")})
+        bk_biz_id = int(bk_biz_id_raw)
         operator: str = request.user.username
         delete_group(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_id=group_id, operator=operator)
         return Response({"msg": _("拨测分组({})删除成功".format(group_id))})
