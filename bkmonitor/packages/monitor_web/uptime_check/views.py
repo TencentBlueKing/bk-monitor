@@ -1029,8 +1029,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         :return:
         """
         task_id = int(pk)
-        request_data = cast(dict[str, Any], request.data)
-        bk_biz_id = int(request_data["bk_biz_id"])
+        bk_biz_id = int(request.query_params["bk_biz_id"])
         task = get_task(bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id, task_id=task_id)
         task_status = task.status.value
         if task_status == UptimeCheckTaskStatus.START_FAILED.value:
