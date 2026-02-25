@@ -1,24 +1,20 @@
 .field-list-main-box {
   width: 100%;
-
   .tab-box {
     font-size: 12px;
     color: #4d4f56;
     display: flex;
-
     .tab-list {
       background: #f0f1f5;
       border-radius: 2px;
       padding: 4px;
       height: 32px;
       margin-right: 12px;
-
       .tab-item {
         display: inline-block;
         padding: 4px 12px;
         cursor: pointer;
       }
-
       .is-selected {
         background: #ffffff;
         border-radius: 2px;
@@ -26,54 +22,44 @@
       }
     }
   }
-
   .add-btn {
     font-size: 20px !important;
     top: -3px !important;
   }
-
   .fields-table-box {
     border: 1px solid #DCDEE5;
-
     .header-text {
       display: flex;
       align-items: center;
-
       .header-text-link {
         cursor: pointer;
         color: #3a84ff;
         margin-left: 8px;
         font-size: 12px;
-
         .link-icon {
           font-size: 13px;
           margin-right: 5px;
         }
       }
     }
-
     .overflow-tips-field-name {
       display: flex;
       height: 100%;
       align-items: center;
       padding: 0 15px;
       background-color: rgb(250, 251, 253);
-
       span {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
-
       .ext-btn {
         font-size: 16px;
       }
     }
-
     .participle-form-item {
       display: flex;
       align-items: center;
-
       .ext-btn {
         cursor: pointer;
         font-size: 18px;
@@ -81,41 +67,33 @@
         z-index: 99;
         bottom: 14px;
       }
-
       .rotate {
         transform: rotate(-90deg);
       }
-
       .bk-form-input[disabled] {
         border-color: transparent !important;
       }
-
       .bk-form-content {
         display: flex;
         align-items: center;
       }
-
       // 错误样式
       &.is-error {
         .bk-form-input {
           border: 1px solid #ea3636 !important;
         }
-
         .bk-select {
           border-color: #ea3636 !important;
         }
       }
     }
-
     .disable-background {
       background-color: #fafbfd;
     }
-
     .participle-field-name-input {
       width: 50%;
       border-right: 1px solid rgb(223, 224, 229);
     }
-
     .participle-icon {
       display: inline-block;
       font-size: 16px;
@@ -130,18 +108,14 @@
       z-index: 99;
       text-align: center;
     }
-
     .participle-icon-color {
       background-color: rgb(250, 251, 253) !important;
     }
-
     .participle-alias-name-input {
       width: 50%;
-
       .bk-form-input {
         padding-left: 15px;
       }
-
       // 别名输入框错误样式
       &.input-error {
         .bk-form-input {
@@ -149,11 +123,9 @@
         }
       }
     }
-
     .alias-input-wrapper {
       position: relative;
       width: 50%;
-
       .alias-error-icon {
         position: absolute;
         right: 8px;
@@ -163,20 +135,17 @@
         z-index: 10;
       }
     }
-
     .participle-field-name-input-pl5 {
       input {
         padding-left: 15px;
       }
     }
-
     .tooltips-icon {
       position: absolute;
       top: 14px;
       color: #ea3636;
       font-size: 16px;
     }
-
     .tooltips-btn {
       position: absolute;
       right: 5px;
@@ -188,36 +157,29 @@
       line-height: 24px;
       min-width: 48px;
     }
-
     .fields-value-column {
       background: #fafbfd;
     }
-
     .fields-tag-column {
       background: #fafbfd;
       padding: 0 !important;
     }
-
     .fields-analyzed-column {
       background: #fafbfd;
     }
-
     // 只针对数据行的 td，不影响表头 th
     .t-table__body {
-
-      td.fields-table-column,
-      td.fields-value-column,
+      td.fields-table-column, 
+      td.fields-value-column, 
       td.fields-analyzed-column {
         padding: 0 !important;
         height: 32px;
         vertical-align: top;
-
         .cell {
           padding: 0 !important;
           height: 100%;
         }
       }
-
       td.fields-analyzed-column,
       td.fields-value-column {
         .cell {
@@ -226,45 +188,35 @@
         }
       }
     }
-
-    .fields-table-column,
-    .fields-value-column,
-    .fields-analyzed-column {
+    .fields-table-column, .fields-value-column, .fields-analyzed-column {
       .bk-form-input {
         border: none;
         height: 42px;
         line-height: 42px;
       }
-
       .bk-select {
         background: #fff;
         border: none;
         height: 42px;
         line-height: 42px;
-
         .bk-select-angle {
           top: 11px;
         }
-
         &.is-disabled {
           background: #fafbfd;
         }
-
         .bk-select-name {
           height: 42px;
           line-height: 42px;
         }
-
         // 类型选择器错误样式
         &.type-error {
           border: 1px solid #ea3636 !important;
         }
       }
-
       .type-select-wrapper {
         position: relative;
         align-items: center;
-
         .type-error-icon {
           position: absolute;
           right: 22px;
@@ -273,38 +225,29 @@
           font-size: 16px;
         }
       }
-
       // 表头样式保持不变
-      &.t-table__th-field_name,
-      &.t-table__th-field_type,
-      &.t-table__th-is_analyzed,
-      &.t-table__th-value {
+      &.t-table__th-field_name, &.t-table__th-field_type, &.t-table__th-is_analyzed, &.t-table__th-value {
         padding: 8px 10px 6px 12px;
       }
     }
-
     .source-box {
       display: inline-block;
       border-radius: 2px;
       font-size: 12px;
       padding: 0 6px;
     }
-
     .source-built {
       background: #f0f1f5;
       color: #4d4f56;
     }
-
     .source-add {
       background: #daf6e5;
       color: #299e56;
     }
-
     .source-debug {
       background: #e1ecff;
-      color: #3a84ff;
+      color: #3a84ff; 
     }
-
     .value-box {
       display: inline-block;
       width: 100%;
@@ -314,7 +257,6 @@
       background: #fafbfd;
       color: #4D4F56;
     }
-
     .word-breaker {
       display: block;
       width: 100%;
@@ -328,7 +270,6 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       box-sizing: border-box;
-
       .select-angle {
         position: absolute;
         color: #979BA5;
@@ -336,12 +277,10 @@
         right: 4px;
         top: 11px;
       }
-
       .bk-loading-wrapper {
         margin-top: 6px;
       }
     }
-
     .word-breaker-edit {
       display: block;
       font-size: 11px;
@@ -350,12 +289,10 @@
       min-height: 32px;
       line-height: 42px;
     }
-
     .bg-gray {
       background: #FAFBFD;
       line-height: 42px;
     }
-
     .disabled-work {
       display: block;
       width: 100%;
@@ -368,77 +305,60 @@
       padding-left: 10px;
       box-sizing: border-box;
     }
-
     .table-operation {
-      width: 100%;
-      text-align: center;
-
-      // display: flex;
-      // align-items: center;
-      // justify-items: center;
+      display: flex;
+      align-items: center;
       .icons {
         font-size: 16px;
         cursor: pointer;
         color: #3a84ff;
       }
-
       .del-icon {
         color: #ea3636;
-        // margin-left: 12px;
+        margin-left: 12px;
       }
     }
   }
 }
-
 .tippy-box[data-theme~='word-breaker-theme-popover'] {
   max-width: 450px !important;
   min-width: 380px;
-
   .tippy-content {
     padding: 0;
   }
-
-  .word-breaker-menu-content {
+  .word-breaker-menu-content{
     padding: 10px 14px;
-
     .menu-item {
       display: flex;
       align-items: center;
       color: #63656e;
       margin: 8px 0;
-
       .menu-item-label {
         text-align: right;
         display: inline-block;
         width: 68px;
         margin-right: 16px;
       }
-
       .custom-input {
         flex: 1;
         margin-left: 4px;
         height: 26px;
         line-height: 26px;
-
-        .bk-input-text,
-        .bk-form-input {
+        .bk-input-text, .bk-form-input {
           height: 26px;
           line-height: 26px;
         }
       }
     }
-
     .menu-footer {
       text-align: right;
       margin-top: 10px;
       margin-bottom: 6px;
-
       .bk-button {
         min-width: 54px;
         height: 24px;
         line-height: 22px;
       }
-
       .bk-primary {
         margin-right: 8px;
       }
