@@ -1753,7 +1753,7 @@ IS_GLOBAL_TENANT = True
 BK_APP_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
-# 内置数据链路是按业务还是按租户申请，默认空。当为空时，如果是多租户环境，默认按业务申请，如果是单租户环境，默认按租户申请
+# 内置数据链路是按业务还是按租户申请，默认空。当为空时，按业务申请；当为 "tenant" 时，按租户申请
 SPACE_BUILTIN_DATA_LINK_MODE = os.getenv("SPACE_BUILTIN_DATA_LINK_MODE", "")
 
 # 事件中心AIOps功能灰度业务列表

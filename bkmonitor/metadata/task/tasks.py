@@ -1158,6 +1158,16 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
 
     logger.info("check_bkcc_space_builtin_datalink: start to check bkcc space builtin datalink")
 
+    # 如果是按租户申请的，则只检查每个租户的默认业务
+    if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
+        seen_tenants: set[str] = set()
+        tenant_biz_list: list[tuple[str, int]] = []
+        for bk_tenant_id, _ in biz_list:
+            if bk_tenant_id not in seen_tenants:
+                seen_tenants.add(bk_tenant_id)
+                tenant_biz_list.append((bk_tenant_id, get_tenant_default_biz_id(bk_tenant_id)))
+        biz_list = tenant_biz_list
+
     # 获取已存在的数据源名称
     exists_data_names: set[str] = set(
         DataSource.objects.filter(
@@ -1204,6 +1214,7 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
                         data_name,
                         bk_tenant_id,
                         bk_biz_id,
+                        task,
                     )
                     task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
                     break
