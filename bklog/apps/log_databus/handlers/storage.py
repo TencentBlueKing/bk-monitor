@@ -290,7 +290,7 @@ class StorageHandler:
                     bk_biz_id, is_default, post_visible, cluster_obj
                 )
 
-            if not is_append:
+            if not is_append or not after_filter_cluster_obj:
                 continue
 
             after_filter_cluster_obj.update(
