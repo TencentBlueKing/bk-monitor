@@ -1105,9 +1105,14 @@ def process_gse_slot_message(message_id: str, bk_agent_id: str, content: str, re
 
         # 如果内置数据链路是按租户申请的，直接按租户默认业务ID查询对应的数据ID
         if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
-            result = _get_bk_biz_internal_data_ids(
-                bk_tenant_id=bk_tenant_id, bk_biz_id=get_tenant_default_biz_id(bk_tenant_id)
-            )
+            try:
+                default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+            except ValueError:
+                logger.error(
+                    "process_gse_slot_message: get tenant default biz id failed, bk_tenant_id->%s", bk_tenant_id
+                )
+                return
+            result = _get_bk_biz_internal_data_ids(bk_tenant_id=bk_tenant_id, bk_biz_id=default_biz_id)
         else:
             host = HostManager.get_by_agent_id(bk_tenant_id=bk_tenant_id, bk_agent_id=bk_agent_id)
             if not host:
@@ -1165,7 +1170,14 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
         for bk_tenant_id, _ in biz_list:
             if bk_tenant_id not in seen_tenants:
                 seen_tenants.add(bk_tenant_id)
-                tenant_biz_list.append((bk_tenant_id, get_tenant_default_biz_id(bk_tenant_id)))
+                try:
+                    tenant_biz_list.append((bk_tenant_id, get_tenant_default_biz_id(bk_tenant_id)))
+                except ValueError:
+                    logger.error(
+                        "check_bkcc_space_builtin_datalink: get tenant default biz id failed, bk_tenant_id->[%s], return!",
+                        bk_tenant_id,
+                    )
+                    continue
         biz_list = tenant_biz_list
 
     # 获取已存在的数据源名称
@@ -1269,7 +1281,14 @@ def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
     # 如果是按租户申请的，数据源需要设置为公共数据源
     is_platform_data_id = False
     if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
-        default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+        try:
+            default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+        except ValueError:
+            logger.error(
+                "create_basereport_datalink_for_bkcc: get tenant default biz id failed, bk_tenant_id->[%s], return!",
+                bk_tenant_id,
+            )
+            return
         if bk_biz_id != default_biz_id:
             logger.info(
                 "create_basereport_datalink_for_bkcc: bk_biz_id->[%s] is not the operation business of bk_tenant_id->[%s],return!",
@@ -1513,7 +1532,14 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
     # 如果是按租户申请的，数据源需要设置为公共数据源
     is_platform_data_id = False
     if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
-        default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+        try:
+            default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+        except ValueError:
+            logger.error(
+                "create_base_event_datalink_for_bkcc: get tenant default biz id failed, bk_tenant_id->[%s], return!",
+                bk_tenant_id,
+            )
+            return
         if bk_biz_id != default_biz_id:
             logger.info(
                 "create_base_event_datalink_for_bkcc: bk_biz_id->[%s] is not the operation business of bk_tenant_id->[%s],return!",
@@ -1796,7 +1822,14 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
     # 如果是按租户申请的，数据源需要设置为公共数据源
     is_platform_data_id = False
     if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
-        default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+        try:
+            default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+        except ValueError:
+            logger.error(
+                "create_system_proc_datalink_for_bkcc: get tenant default biz id failed, bk_tenant_id->[%s], return!",
+                bk_tenant_id,
+            )
+            return
         if bk_biz_id != default_biz_id:
             logger.info(
                 "create_system_proc_datalink_for_bkcc: bk_biz_id->[%s] is not the operation business of bk_tenant_id->[%s],return!",
