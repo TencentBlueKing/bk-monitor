@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 from typing import Any, Literal, cast
 
+import arrow
 from bk_monitor_base.uptime_check import (
     BEAT_STATUS,
     UptimeCheckGroup,
@@ -20,7 +21,9 @@ from bk_monitor_base.uptime_check import (
     UptimeCheckTaskStatus,
     control_task,
     delete_group,
+    delete_node,
     get_group,
+    get_node,
     get_node_with_host_id,
     get_task,
     list_collector_logs,
@@ -28,24 +31,31 @@ from bk_monitor_base.uptime_check import (
     list_nodes,
     list_tasks,
     save_group,
+    save_node,
     save_task,
 )
+from pydantic import ValidationError as PydanticValidationError
 from django.conf import settings
 from django.utils.translation import gettext as _
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from bkmonitor.iam import ActionEnum
+from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.data_source import UnifyQuery, load_data_source
+from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.utils.common_utils import host_key, safe_int
 from bkmonitor.utils.request import get_request_tenant_id
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
+from core.drf_resource.exceptions import CustomException
+from core.errors.uptime_check import UptimeCheckProcessError
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from monitor_web.uptime_check.serializers import (
     UptimeCheckGroupSerializer,
-    UptimeCheckNodeSerializer,
     UptimeCheckTaskSerializer,
 )
 from monitor_web.uptime_check.utils import get_uptime_check_task_available, get_uptime_check_task_duration
@@ -119,7 +129,66 @@ def get_capacity(targets_count):
 class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
     """拨测节点 ViewSet"""
 
-    serializer_class = UptimeCheckNodeSerializer
+    @staticmethod
+    def _validate_node_payload(payload: dict[str, Any]) -> UptimeCheckNode:
+        """将请求参数校验并转换为节点定义对象。"""
+        try:
+            return UptimeCheckNode(**payload)
+        except PydanticValidationError as exc:
+            raise DRFValidationError(exc.errors()) from exc
+
+    @staticmethod
+    def _node_beat_check(
+        *,
+        bk_biz_id: int,
+        bk_host_id: int | None,
+        ip: str | None,
+        plat_id: int | None,
+    ) -> None:
+        """检查当前节点心跳。
+
+        Args:
+            bk_biz_id: 业务 ID。
+            bk_host_id: 主机 ID。
+            ip: 主机 IP。
+            plat_id: 云区域 ID。
+        """
+        # TODO: 多租户环境下暂时跳过心跳检查
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return
+
+        if not is_ipv6_biz(bk_biz_id):
+            checked_ip = ip or ""
+            bk_cloud_id = plat_id or 0
+            if bk_host_id:
+                host = api.cmdb.get_host_by_id(
+                    bk_biz_id=bk_biz_id,
+                    bk_host_ids=[bk_host_id],
+                )
+                if host:
+                    checked_ip = host[0].bk_host_innerip
+                    bk_cloud_id = host[0].bk_cloud_id
+            promql_statement = (
+                f"bkmonitor:beat_monitor:heartbeat_total:uptime{{ip='{checked_ip}',bk_cloud_id='{bk_cloud_id}'}}[3m]"
+            )
+        else:
+            promql_statement = f"bkmonitor:beat_monitor:heartbeat_total:uptime{{bk_host_id='{bk_host_id}'}}[3m]"
+
+        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
+        query_config = {
+            "data_source_label": DataSourceLabel.PROMETHEUS,
+            "data_type_label": DataTypeLabel.TIME_SERIES,
+            "promql": promql_statement,
+            "interval": 60,
+            "alias": "a",
+        }
+        data_source = data_source_class(int(bk_biz_id), **query_config)
+        query = UnifyQuery(bk_biz_id=int(bk_biz_id), data_sources=[data_source], expression="")
+        end_time = arrow.utcnow().timestamp
+        records = query.query_data(start_time=(end_time - 180) * 1000, end_time=end_time * 1000, limit=5)
+
+        if len(records) == 0:
+            raise UptimeCheckProcessError()
 
     @staticmethod
     def _get_filtered_nodes(bk_tenant_id: str, bk_biz_id: int):
@@ -151,11 +220,113 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         node_define = get_node_with_host_id(bk_tenant_id=bk_tenant_id, node_id=int(pk))
         return Response(node_define.model_dump())
 
-    def create(self, request: Request):
+    def create(self, request: Request, *args, **kwargs):
         """创建节点"""
+        request_data = cast(dict[str, Any], request.data)
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        operator: str = request.user.username
 
-    def update(self, request: Request, pk: int | str):
+        # 1) 组装并校验请求参数（统一使用 UptimeCheckNode 进行约束）
+        node_payload = {
+            "bk_tenant_id": bk_tenant_id,
+            "bk_biz_id": request_data.get("bk_biz_id"),
+            "name": request_data.get("name"),
+            "is_common": request_data.get("is_common", False),
+            "biz_scope": request_data.get("biz_scope", []),
+            "ip_type": request_data.get("ip_type"),
+            "bk_host_id": request_data.get("bk_host_id"),
+            "ip": request_data.get("ip"),
+            "plat_id": request_data.get("plat_id"),
+            "location": request_data.get("location", {}),
+            "carrieroperator": request_data.get("carrieroperator", ""),
+        }
+        node_define = self._validate_node_payload(node_payload)
+
+        # 2) 公共节点创建前做权限校验
+        if node_define.is_common:
+            Permission().is_allowed(action=ActionEnum.MANAGE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
+
+        # 3) 心跳校验通过后才允许持久化
+        self._node_beat_check(
+            bk_biz_id=node_define.bk_biz_id,
+            bk_host_id=node_define.bk_host_id,
+            ip=node_define.ip,
+            plat_id=node_define.plat_id,
+        )
+
+        # 4) 保存并返回最新节点数据
+        node_id = save_node(node=node_define, operator=operator)
+        node_define = get_node(bk_tenant_id=bk_tenant_id, bk_biz_id=node_define.bk_biz_id, node_id=node_id)
+        return Response(node_define.model_dump())
+
+    def update(self, request: Request, pk: int | str, *args, **kwargs):
         """更新节点"""
+        request_data = cast(dict[str, Any], request.data)
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        operator: str = request.user.username
+
+        # 1) 读取当前节点定义，用于合并更新参数
+        node_define = get_node_with_host_id(bk_tenant_id=bk_tenant_id, node_id=int(pk))
+        if node_define.is_common and not request_data.get("is_common", True):
+            # 校验公共节点管理权限
+            Permission().is_allowed(action=ActionEnum.MANAGE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
+
+            # 检查是否有其他业务的任务在使用此公共节点
+            tasks = list_tasks(query={"node_ids": [node_define.id]})
+            other_biz_task = [
+                _("{}(业务id:{})").format(task.name, task.bk_biz_id)
+                for task in tasks
+                if task.bk_biz_id != node_define.bk_biz_id
+            ]
+            if other_biz_task:
+                raise CustomException(
+                    _("不能取消公共节点勾选，若要取消，请先删除以下任务的当前节点：%s") % "，".join(other_biz_task)
+                )
+
+        # 2) 合并旧值和新值，再通过 UptimeCheckNode 做完整校验
+        node_payload = {
+            "bk_tenant_id": bk_tenant_id,
+            "id": node_define.id,
+            "bk_biz_id": request_data.get("bk_biz_id", node_define.bk_biz_id),
+            "name": request_data.get("name", node_define.name),
+            "is_common": request_data.get("is_common", node_define.is_common),
+            "biz_scope": request_data.get("biz_scope", node_define.biz_scope),
+            "ip_type": request_data.get("ip_type", node_define.ip_type),
+            "bk_host_id": request_data.get("bk_host_id", node_define.bk_host_id),
+            "ip": request_data.get("ip", node_define.ip),
+            "plat_id": request_data.get("plat_id", node_define.plat_id),
+            "location": request_data.get("location", node_define.location),
+            "carrieroperator": request_data.get("carrieroperator", node_define.carrieroperator),
+        }
+        updated_node_define = self._validate_node_payload(node_payload)
+
+        # 3) 校验心跳，确保节点可连通
+        self._node_beat_check(
+            bk_biz_id=updated_node_define.bk_biz_id,
+            bk_host_id=updated_node_define.bk_host_id,
+            ip=updated_node_define.ip,
+            plat_id=updated_node_define.plat_id,
+        )
+
+        # 4) 保存并返回更新后的节点定义
+        updated_node_id = save_node(node=updated_node_define, operator=operator)
+        updated_node_define = get_node(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=updated_node_define.bk_biz_id,
+            node_id=updated_node_id,
+        )
+        return Response(updated_node_define.model_dump())
+
+    def destroy(self, request: Request, pk: int | str):
+        """删除节点"""
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        node_id = int(pk)
+        request_data = cast(dict[str, Any], request.data)
+        bk_biz_id_raw = request.query_params.get("bk_biz_id") or request_data.get("bk_biz_id")
+        bk_biz_id = int(cast(int | str, bk_biz_id_raw))
+        operator: str = request.user.username
+        delete_node(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, node_id=node_id, operator=operator)
+        return Response({"id": node_id, "result": _("删除成功")})
 
     @staticmethod
     def _get_beat_version(bk_host_ids):

@@ -10,24 +10,19 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any, cast
 
-import arrow
 from bk_monitor_base.uptime_check import (
     TASK_MIN_PERIOD,
     UptimeCheckGroup,
-    UptimeCheckNode,
-    UptimeCheckNodeIPType,
     UptimeCheckTask,
     UptimeCheckTaskProtocol,
     UptimeCheckTaskStatus,
     get_group,
-    get_node,
     get_task,
     list_groups,
     list_nodes,
     # 操作函数
     list_tasks,
     save_group,
-    save_node,
     save_task,
 )
 from django.conf import settings
@@ -36,190 +31,19 @@ from django.core.validators import URLValidator
 from django.utils.translation import gettext as _
 
 from bkmonitor.action.serializers import AuthorizeConfigSlz, BodyConfigSlz, KVPairSlz
-from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.ip import exploded_ip, is_v4, is_v6
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.views import serializers
-from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
-from core.errors.uptime_check import UptimeCheckProcessError
 
 # 别名定义用于序列化器
 UptimeCheckGroupDefine = UptimeCheckGroup
-UptimeCheckNodeDefine = UptimeCheckNode
 UptimeCheckTaskDefine = UptimeCheckTask
 
 
 class AuthorizeConfigSerializer(AuthorizeConfigSlz):
     insecure_skip_verify = serializers.BooleanField(required=False, default=False)
-
-
-class UptimeCheckNodeSerializer(serializers.Serializer):
-    """拨测节点序列化器（不依赖 Model，使用通用 Serializer）"""
-
-    # 基本字段
-    id = serializers.IntegerField(required=False, read_only=True)
-    bk_tenant_id = serializers.CharField(required=False, read_only=True)
-    bk_biz_id = serializers.IntegerField(required=True)
-    name = serializers.CharField(max_length=50)
-    is_common = serializers.BooleanField(required=False, default=False)
-    biz_scope = serializers.ListField(required=False, default=list)
-    ip_type = serializers.IntegerField(required=False, default=4)
-    bk_host_id = serializers.IntegerField(required=False, allow_null=True)
-    ip = serializers.CharField(required=False, allow_blank=True)
-    plat_id = serializers.IntegerField(required=False, allow_null=True)
-    location = serializers.JSONField(required=False, default=dict)
-    carrieroperator = serializers.CharField(required=False, allow_blank=True, default="")
-
-    # 读写属性
-    create_user = serializers.CharField(required=False, read_only=True)
-    create_time = serializers.DateTimeField(required=False, read_only=True)
-    update_user = serializers.CharField(required=False, read_only=True)
-    update_time = serializers.DateTimeField(required=False, read_only=True)
-
-    def node_beat_check(self, validated_data) -> bool:
-        """
-        检查当前节点心跳
-        """
-
-        # TODO: 多租户环境下暂时跳过心跳检查
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            return True
-
-        if not is_ipv6_biz(validated_data["bk_biz_id"]):
-            ip = validated_data.get("ip", "")
-            bk_cloud_id = validated_data.get("plat_id", 0)
-            if validated_data.get("bk_host_id"):
-                host = api.cmdb.get_host_by_id(
-                    bk_biz_id=validated_data["bk_biz_id"], bk_host_ids=[validated_data["bk_host_id"]]
-                )
-                if host:
-                    ip = host[0].bk_host_innerip
-                    bk_cloud_id = host[0].bk_cloud_id
-            promql_statement = (
-                f"bkmonitor:beat_monitor:heartbeat_total:uptime{{ip='{ip}',bk_cloud_id='{bk_cloud_id}'}}[3m]"
-            )
-        else:
-            promql_statement = (
-                f"bkmonitor:beat_monitor:heartbeat_total:uptime{{bk_host_id='{validated_data['bk_host_id']}'}}[3m]"
-            )
-        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
-        query_config = {
-            "data_source_label": DataSourceLabel.PROMETHEUS,
-            "data_type_label": DataTypeLabel.TIME_SERIES,
-            "promql": promql_statement,
-            "interval": 60,
-            "alias": "a",
-        }
-        data_source = data_source_class(int(validated_data["bk_biz_id"]), **query_config)
-        query = UnifyQuery(bk_biz_id=int(validated_data["bk_biz_id"]), data_sources=[data_source], expression="")
-        end_time = arrow.utcnow().timestamp
-        records = query.query_data(start_time=(end_time - 180) * 1000, end_time=end_time * 1000, limit=5)
-
-        if len(records) > 0:
-            return True
-
-        raise UptimeCheckProcessError()
-
-    def update(self, instance, validated_data):
-        """
-        更新节点
-        """
-        self.node_beat_check(validated_data)
-        bk_tenant_id = cast(str, get_request_tenant_id())
-        request = self.context.get("request")
-        operator = request.user.username if request else ""
-
-        # 从 instance（定义对象）中获取原始值
-        instance_id = instance.id
-        instance_bk_biz_id = instance.bk_biz_id
-        instance_is_common = instance.is_common
-
-        if instance_is_common and not validated_data.get("is_common"):
-            # 校验公共节点管理权限
-            Permission().is_allowed(action=ActionEnum.MANAGE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
-
-            # 检查是否有其他业务的任务在使用此公共节点
-            tasks = list_tasks(query={"node_ids": [instance_id]})
-            other_biz_task = [
-                _("{}(业务id:{})").format(task.name, task.bk_biz_id)
-                for task in tasks
-                if task.bk_biz_id != instance_bk_biz_id
-            ]
-            if other_biz_task:
-                raise CustomException(
-                    _("不能取消公共节点勾选，若要取消，请先删除以下任务的当前节点：%s") % "，".join(other_biz_task)
-                )
-
-        # 获取原始值
-        original_biz_scope = instance.biz_scope
-        original_location = instance.location
-        original_carrieroperator = instance.carrieroperator
-        original_ip_type = instance.ip_type
-        original_bk_host_id = instance.bk_host_id
-        original_ip = instance.ip
-        original_plat_id = instance.plat_id
-
-        # 构建 UptimeCheckNodeDefine 进行更新
-        node_define = UptimeCheckNodeDefine(
-            bk_tenant_id=bk_tenant_id,
-            id=instance_id,
-            bk_biz_id=validated_data.get("bk_biz_id", instance_bk_biz_id),
-            name=validated_data.get("name", instance.name),
-            is_common=validated_data.get("is_common", instance_is_common),
-            biz_scope=validated_data.get("biz_scope", original_biz_scope),
-            ip_type=UptimeCheckNodeIPType(validated_data.get("ip_type", original_ip_type)),
-            bk_host_id=validated_data.get("bk_host_id", original_bk_host_id),
-            ip=validated_data.get("ip", original_ip),
-            plat_id=validated_data.get("plat_id", original_plat_id),
-            location=validated_data.get("location", original_location),
-            carrieroperator=validated_data.get("carrieroperator", original_carrieroperator),
-        )
-        node_id = save_node(node=node_define, operator=operator)
-
-        # 返回更新后的节点定义对象
-        return get_node(
-            bk_tenant_id=bk_tenant_id,
-            bk_biz_id=validated_data.get("bk_biz_id", instance_bk_biz_id),
-            node_id=node_id,
-        )
-
-    def create(self, validated_data):
-        """
-        创建节点
-        """
-        if validated_data.get("is_common"):
-            # 校验公共节点管理权限
-            Permission().is_allowed(action=ActionEnum.MANAGE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
-        self.node_beat_check(validated_data)
-
-        bk_tenant_id = cast(str, get_request_tenant_id())
-        request = self.context.get("request")
-        operator = request.user.username if request else ""
-
-        # 构建 UptimeCheckNodeDefine 进行创建
-        node_define = UptimeCheckNodeDefine(
-            bk_tenant_id=bk_tenant_id,
-            bk_biz_id=validated_data["bk_biz_id"],
-            name=validated_data["name"],
-            is_common=validated_data.get("is_common", False),
-            biz_scope=validated_data.get("biz_scope", []),
-            ip_type=UptimeCheckNodeIPType(validated_data.get("ip_type", 4)),
-            bk_host_id=validated_data.get("bk_host_id"),
-            ip=validated_data.get("ip"),
-            plat_id=validated_data.get("plat_id"),
-            location=validated_data.get("location", {}),
-            carrieroperator=validated_data.get("carrieroperator", ""),
-        )
-        node_id = save_node(node=node_define, operator=operator)
-        return get_node(
-            bk_tenant_id=bk_tenant_id,
-            bk_biz_id=validated_data["bk_biz_id"],
-            node_id=node_id,
-        )
 
 
 class ConfigSlz(serializers.Serializer):
