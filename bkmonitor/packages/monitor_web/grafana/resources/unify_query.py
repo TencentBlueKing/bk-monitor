@@ -1487,7 +1487,7 @@ class GetDrillDimensionsResource(Resource):
         )
 
         metric_cache = {(m.result_table_id, m.metric_field): m for m in metrics}
-        all_dimensions: list[set] = []
+        dimension_sets: list[set[str]] = []
         for config in query_configs:
             metric = metric_cache.get((config["result_table_id"], config["metric_field"]))
             if not metric:
@@ -1499,24 +1499,22 @@ class GetDrillDimensionsResource(Resource):
                 )
                 continue
 
-            dimensions = {dim["id"] for dim in metric.dimensions}
+            dim_set: set[str] = {dim["id"] for dim in metric.dimensions}
             # 拨测指标下钻维度排除维度：业务ID/IP/云区域ID/错误码
             if metric.result_table_id.startswith("uptimecheck."):
-                dimensions -= {"bk_biz_id", "ip", "bk_cloud_id", "error_code"}
+                dim_set -= {"bk_biz_id", "ip", "bk_cloud_id", "error_code"}
 
             # 排除该指标已配置的维度
-            all_dimensions.append(dimensions - set(config["configured_dimensions"]))
+            dimension_sets.append(dim_set - set(config["configured_dimensions"]))
 
-        if not all_dimensions:
+        if not dimension_sets:
             logger.warning("no valid metrics found for bk_biz_id=%s, query_configs=%s", bk_biz_id, query_configs)
             return []
 
-        # 单指标：返回该指标的所有可用维度
-        if len(query_configs) == 1:
-            dimensions: list[str] = sorted(all_dimensions[0])
-        else:
-            # 多指标：返回所有指标的共同维度（交集）
-            dimensions: list[str] = sorted(set.intersection(*all_dimensions))
+        # 如果是单指标，则返回该指标的所有可用维度；如果是多指标，则返回所有指标的共同维度（交集）
+        dimensions: list[str] = sorted(
+            dimension_sets[0] if len(query_configs) == 1 else set.intersection(*dimension_sets)
+        )
 
         is_apm: bool = any(
             ApmMetricProcessor.is_match_data_label({"data_label": metric.data_label})
