@@ -155,13 +155,11 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
             )
             return None
 
-    # Step 4: 对存储绑定类型，通过 bkbase_result_table_name 查找对应的 ResultTableConfig
-    rt_instances: list[ResultTableConfig] = []
+    # Step 4: 对存储绑定类型，通过 bkbase_result_table_name 查找对应的 ResultTableConfig（批量查询，避免 N+1）
+    rt_name_map: dict[str, DataLinkResourceConfigBase] = {}
     for instance in sink_instances:
-        # 仅处理存储绑定类型的组件
         if not isinstance(instance, STORAGE_BINDING_MODELS):
             continue
-
         rt_name = instance.bkbase_result_table_name
         if not rt_name:
             logger.warning(
@@ -172,20 +170,25 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
                 instance.name,
             )
             return None
-        try:
-            rt = ResultTableConfig.objects.get(
-                bk_tenant_id=databus.bk_tenant_id,
-                namespace=databus.namespace,
-                name=rt_name,
-            )
-        except ResultTableConfig.DoesNotExist:
-            logger.warning(
-                "rebuild_databus_relation: databus->[%s] ResultTableConfig name->[%s] not found in DB, skip",
-                databus_name,
-                rt_name,
-            )
-            return None
-        rt_instances.append(rt)
+        rt_name_map[rt_name] = instance
+
+    rts_by_name = {
+        rt.name: rt
+        for rt in ResultTableConfig.objects.filter(
+            bk_tenant_id=databus.bk_tenant_id,
+            namespace=databus.namespace,
+            name__in=list(rt_name_map),
+        )
+    }
+    missing_rts = [name for name in rt_name_map if name not in rts_by_name]
+    if missing_rts:
+        logger.warning(
+            "rebuild_databus_relation: databus->[%s] ResultTableConfig name->[%s] not found in DB, skip",
+            databus_name,
+            ", ".join(missing_rts),
+        )
+        return None
+    rt_instances: list[ResultTableConfig] = [rts_by_name[name] for name in rt_name_map]
 
     # Step 5: 冲突检测 —— 若任意 ResultTableConfig 已有 data_link_name，跳过
     for rt in rt_instances:
