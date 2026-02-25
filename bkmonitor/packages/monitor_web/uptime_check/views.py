@@ -22,6 +22,7 @@ from bk_monitor_base.uptime_check import (
     control_task,
     delete_group,
     delete_node,
+    delete_task,
     get_group,
     get_node,
     get_node_with_host_id,
@@ -34,9 +35,9 @@ from bk_monitor_base.uptime_check import (
     save_node,
     save_task,
 )
-from pydantic import ValidationError as PydanticValidationError
 from django.conf import settings
 from django.utils.translation import gettext as _
+from pydantic import ValidationError as PydanticValidationError
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -52,12 +53,9 @@ from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
-from core.errors.uptime_check import UptimeCheckProcessError
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from monitor_web.uptime_check.serializers import (
-    UptimeCheckGroupSerializer,
-    UptimeCheckTaskSerializer,
-)
+from core.errors.uptime_check import UptimeCheckProcessError
+from monitor_web.uptime_check.serializers import UptimeCheckTaskSerializer
 from monitor_web.uptime_check.utils import get_uptime_check_task_available, get_uptime_check_task_duration
 from utils.business import get_business_id_list
 
@@ -115,15 +113,6 @@ class TaskGraphAndMapViewSet(PermissionMixin, ResourceViewSet):
         return [BusinessActionPermission([ActionEnum.VIEW_SYNTHETIC])]
 
     resource_routes = [ResourceRoute("POST", resource.uptime_check.task_graph_and_map)]
-
-
-def get_capacity(targets_count):
-    if targets_count / settings.UPTIMECHECK_NODE_TARGET_LIMITS > 0.6:
-        return "enough"
-    elif targets_count / settings.UPTIMECHECK_NODE_TARGET_LIMITS < 0.3:
-        return "unavailable"
-    else:
-        return "normal"
 
 
 class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
@@ -514,12 +503,128 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
 class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
     """拨测任务 ViewSet"""
 
+    serializer_class = UptimeCheckTaskSerializer
+
     def get_permissions(self):
         """拨测任务权限控制"""
 
         if self.action == "list":
             return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS, ActionEnum.VIEW_SYNTHETIC])]
         return super().get_permissions()
+
+    @staticmethod
+    def _build_task_serializer_payload(
+        request_data: dict[str, Any], instance: UptimeCheckTask | None = None
+    ) -> dict[str, Any]:
+        """构建用于 TaskSerializer 的兼容入参"""
+        if instance is None:
+            payload: dict[str, Any] = {
+                key: request_data[key]
+                for key in ("bk_biz_id", "name", "protocol", "config", "labels", "location", "indepentent_dataid")
+                if key in request_data
+            }
+            # 兼容旧字段 independent_dataid
+            if "independent_dataid" in request_data and "indepentent_dataid" not in payload:
+                payload["indepentent_dataid"] = request_data["independent_dataid"]
+            return payload
+
+        protocol = (
+            instance.protocol.value if isinstance(instance.protocol, UptimeCheckTaskProtocol) else instance.protocol
+        )
+        payload = {
+            "bk_biz_id": request_data.get("bk_biz_id", instance.bk_biz_id),
+            "name": request_data.get("name", instance.name),
+            "protocol": request_data.get("protocol", protocol),
+            "config": request_data.get("config", instance.config),
+            "labels": request_data.get("labels", instance.labels or {}),
+            "location": request_data.get("location", instance.location or {}),
+        }
+        if "indepentent_dataid" in request_data:
+            payload["indepentent_dataid"] = request_data["indepentent_dataid"]
+        elif "independent_dataid" in request_data:
+            payload["indepentent_dataid"] = request_data["independent_dataid"]
+        return payload
+
+    @staticmethod
+    def _parse_relation_id_list(raw_values: Any, id_keys: tuple[str, ...], field_name: str) -> list[int]:
+        """解析节点/分组ID列表，兼容 list[int] 与 list[dict]"""
+        if not isinstance(raw_values, list):
+            raise DRFValidationError({field_name: _("字段格式错误，必须为数组")})
+
+        result: list[int] = []
+        for item in raw_values:
+            parsed_value: Any = item
+            if isinstance(item, dict):
+                found_key = next((key for key in id_keys if item.get(key) is not None), None)
+                if found_key is None:
+                    continue
+                parsed_value = item[found_key]
+            try:
+                result.append(int(parsed_value))
+            except (TypeError, ValueError):
+                raise DRFValidationError({field_name: _("字段格式错误，ID 必须为整数")})
+        return result
+
+    @classmethod
+    def _extract_relation_ids(
+        cls,
+        request_data: dict[str, Any],
+        default_node_ids: list[int] | None = None,
+        default_group_ids: list[int] | None = None,
+    ) -> tuple[list[int], list[int]]:
+        """从新旧字段中提取节点/分组ID"""
+        node_ids: list[int]
+        group_ids: list[int]
+
+        if "node_id_list" in request_data:
+            node_ids = cls._parse_relation_id_list(request_data["node_id_list"], ("id", "node_id"), "node_id_list")
+        elif "node_ids" in request_data:
+            node_ids = cls._parse_relation_id_list(request_data["node_ids"], ("id", "node_id"), "node_ids")
+        elif "nodes" in request_data:
+            node_ids = cls._parse_relation_id_list(request_data["nodes"], ("id", "node_id"), "nodes")
+        else:
+            node_ids = list(default_node_ids or [])
+
+        if "group_id_list" in request_data:
+            group_ids = cls._parse_relation_id_list(request_data["group_id_list"], ("id", "group_id"), "group_id_list")
+        elif "group_ids" in request_data:
+            group_ids = cls._parse_relation_id_list(request_data["group_ids"], ("id", "group_id"), "group_ids")
+        elif "groups" in request_data:
+            group_ids = cls._parse_relation_id_list(request_data["groups"], ("id", "group_id"), "groups")
+        else:
+            group_ids = list(default_group_ids or [])
+
+        return node_ids, group_ids
+
+    @staticmethod
+    def _check_public_node_permission(bk_tenant_id: str, bk_biz_id: int, node_ids: list[int]) -> None:
+        """检查公共节点使用权限"""
+        if not node_ids:
+            return
+
+        node_objects = list_nodes(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            query={"node_ids": node_ids, "include_common": True},
+        )
+        if any(node.is_common for node in node_objects) and settings.ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH:
+            Permission().is_allowed(ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
+
+    @staticmethod
+    def _check_task_name_conflict(
+        bk_tenant_id: str,
+        bk_biz_id: int,
+        task_name: str,
+        exclude_task_id: int | None = None,
+    ) -> None:
+        """检查任务名称冲突"""
+        existing_tasks = list_tasks(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            query={"name": task_name},
+        )
+        if any(task.name == task_name and task.id != exclude_task_id for task in existing_tasks):
+            raise CustomException(_("已存在相同名称的拨测任务"))
 
     def retrieve(self, request: Request, pk: int | str) -> Response:
         """查询任务详情"""
@@ -595,11 +700,131 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
 
         return Response(data)
 
-    def create(self, request: Request):
+    def create(self, request: Request, *args, **kwargs):
         """创建任务"""
+        request_data = cast(dict[str, Any], request.data)
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        operator: str = request.user.username
 
-    def update(self, request: Request, pk: int | str):
+        # 1) 使用 TaskSerializer 进行基础校验与旧字段兼容（如 independent_dataid）
+        serializer_payload = self._build_task_serializer_payload(request_data=request_data)
+        serializer = self.serializer_class(data=serializer_payload)
+        serializer.is_valid(raise_exception=True)
+        validated_data = cast(dict[str, Any], serializer.validated_data)
+
+        # 2) 从新旧字段中提取节点/分组ID，确保兼容历史请求格式
+        node_ids, group_ids = self._extract_relation_ids(request_data=request_data)
+        bk_biz_id = int(validated_data["bk_biz_id"])
+
+        # 3) 权限与业务约束校验
+        self._check_public_node_permission(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, node_ids=node_ids)
+        self._check_task_name_conflict(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            task_name=cast(str, validated_data["name"]),
+        )
+
+        # 4) 独立数据源字段兼容：多租户强制开启，否则沿用请求值（默认 False）
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            independent_dataid = True
+        else:
+            independent_dataid = bool(validated_data.get("indepentent_dataid", False))
+
+        # 5) 构建定义对象并持久化
+        task_define = UptimeCheckTask(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            name=validated_data["name"],
+            protocol=UptimeCheckTaskProtocol(validated_data["protocol"]),
+            config=validated_data["config"],
+            labels=validated_data.get("labels", {}),
+            check_interval=validated_data["config"].get("period", 5),
+            location=validated_data.get("location", {}),
+            node_ids=node_ids,
+            group_ids=group_ids,
+            independent_dataid=independent_dataid,
+        )
+        task_id = save_task(task=task_define, operator=operator)
+        return Response(get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id).model_dump())
+
+    def update(self, request: Request, pk: int | str, *args, **kwargs):
         """更新任务"""
+        request_data = cast(dict[str, Any], request.data)
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        task_id = int(pk)
+        operator: str = request.user.username
+
+        # 1) 读取现有任务，用于补齐局部更新缺失字段
+        existing_task = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
+        serializer_payload = self._build_task_serializer_payload(request_data=request_data, instance=existing_task)
+        serializer = self.serializer_class(data=serializer_payload)
+        serializer.is_valid(raise_exception=True)
+        validated_data = cast(dict[str, Any], serializer.validated_data)
+
+        # 2) 解析节点/分组ID（优先请求值；缺省时回退原值）
+        node_ids, group_ids = self._extract_relation_ids(
+            request_data=request_data,
+            default_node_ids=existing_task.node_ids,
+            default_group_ids=existing_task.group_ids,
+        )
+        bk_biz_id = int(validated_data["bk_biz_id"])
+
+        # 3) 权限与名称冲突校验
+        self._check_public_node_permission(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, node_ids=node_ids)
+        self._check_task_name_conflict(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            task_name=cast(str, validated_data["name"]),
+            exclude_task_id=task_id,
+        )
+
+        # 4) 更新任务定义并持久化（独立数据源沿用现有配置）
+        task_define = UptimeCheckTask(
+            bk_tenant_id=bk_tenant_id,
+            id=task_id,
+            bk_biz_id=bk_biz_id,
+            name=validated_data["name"],
+            protocol=UptimeCheckTaskProtocol(validated_data["protocol"]),
+            config=validated_data["config"],
+            labels=validated_data.get("labels", existing_task.labels or {}),
+            check_interval=validated_data["config"].get("period", existing_task.check_interval),
+            location=validated_data.get("location", existing_task.location or {}),
+            node_ids=node_ids,
+            group_ids=group_ids,
+            status=UptimeCheckTaskStatus(existing_task.status),
+            independent_dataid=existing_task.independent_dataid,
+        )
+        updated_task_id = save_task(task=task_define, operator=operator)
+        return Response(get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=updated_task_id).model_dump())
+
+    def destroy(self, request: Request, pk: int | str):
+        """删除任务（需要先停止任务）"""
+        bk_tenant_id = cast(str, get_request_tenant_id())
+        task_id = int(pk)
+        request_data = cast(dict[str, Any], request.data)
+        bk_biz_id_raw = request.query_params.get("bk_biz_id") or request_data.get("bk_biz_id")
+        if bk_biz_id_raw is None:
+            raise DRFValidationError({"bk_biz_id": _("参数缺失")})
+        bk_biz_id = int(cast(int | str, bk_biz_id_raw))
+        operator: str = request.user.username
+
+        task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
+        # 运行中/启动中/停止中/停止失败的任务，要求先执行停用，避免删除过程中配置状态不一致
+        if task.status in (
+            UptimeCheckTaskStatus.RUNNING,
+            UptimeCheckTaskStatus.STARTING,
+            UptimeCheckTaskStatus.STOPING,
+            UptimeCheckTaskStatus.STOP_FAILED,
+        ):
+            raise CustomException(_("任务正在运行，请先停止任务后再删除"))
+
+        delete_task(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            task_id=task_id,
+            operator=operator,
+        )
+        return Response({"id": task_id, "result": _("删除成功")})
 
     def list(self, request, *args, **kwargs):
         """
@@ -814,12 +1039,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
 
 
 class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
-    """拨测分组 ViewSet
-
-    改造后完全通过 operation 层操作，不直接暴露 Model。
-    """
-
-    serializer_class = UptimeCheckGroupSerializer
+    """拨测分组 ViewSet"""
 
     def create(self, request: Request):
         """创建分组"""

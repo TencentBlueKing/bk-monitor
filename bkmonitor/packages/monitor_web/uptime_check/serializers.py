@@ -150,7 +150,7 @@ class UptimeCheckTaskSerializer(serializers.Serializer):
 
     def validate(self, attrs: dict[str, Any]):
         if attrs["config"]["period"] < TASK_MIN_PERIOD:
-            raise CustomException("period must be greater than 10")
+            raise CustomException(f"period must be greater than {TASK_MIN_PERIOD}s")
         has_targets = (
             attrs["config"].get("node_list") or attrs["config"].get("ip_list") or attrs["config"].get("url_list")
         )
