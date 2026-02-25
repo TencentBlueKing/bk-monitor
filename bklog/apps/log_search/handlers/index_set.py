@@ -1870,7 +1870,7 @@ class BaseIndexSetHandler:
                         f"bklog_index_set_{index_set.index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__analysis__"
                     )
                 if query_alias_settings := index_set.query_alias_settings:
-                    doris_table_info["query_alias_settings"] = query_alias_settings
+                    doris_table_info["query_alias_settings"] = copy.deepcopy(query_alias_settings)
                 table_info_list.append(doris_table_info)
             return table_info_list
         # ES路由
