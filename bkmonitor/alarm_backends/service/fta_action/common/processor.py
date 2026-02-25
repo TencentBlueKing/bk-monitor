@@ -234,6 +234,9 @@ class ActionProcessor(BaseActionProcessor):
             }
         )
         inputs.update(request_schema.get("request_data_mapping", {}))
+        if request_schema.get("render_inputs", False):
+            # 对由 jmespath/静态映射生成的 inputs 可选执行二次 Jinja 渲染。
+            inputs = self.jinja_render(inputs)
         data = {"response": request_class(**request_schema.get("init_kwargs", {})).request(**inputs)}
         outputs = self.decode_request_outputs(output_templates=request_schema.get("outputs", []), **data)
         return outputs
