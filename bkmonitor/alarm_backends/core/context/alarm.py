@@ -777,6 +777,8 @@ class Alarm(BaseContextObject):
     def receivers(self):
         """
         通知人列表
+        从 alert.assignee 获取，alert 是 AlertDocument 实例，存储在 ES (Elasticsearch) 中
+        assignee 字段在告警分派时设置，存储在 ES 的 AlertDocument 中
         """
         if not self.parent.alert:
             return []

@@ -45,12 +45,15 @@ from constants.incident import (
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.alert import AlertNotFoundError
+from fta_web.alert.handlers.base import BaseQueryHandler
 from fta_web.alert.handlers.incident import (
     IncidentAlertQueryHandler,
     IncidentQueryHandler,
+    incident_status_map
 )
 from fta_web.alert.resources import BaseTopNResource
 from fta_web.alert.serializers import AlertSearchSerializer
+from fta_web.alert.utils import slice_time_interval
 from fta_web.models.alert import SearchHistory, SearchType
 from monitor_web.incident.events.resources import IncidentEventsDetailResource, IncidentEventsSearchResource  # noqa
 from monitor_web.incident.metrics.resources import IncidentMetricsSearchResource  # noqa
@@ -1376,6 +1379,10 @@ class IncidentAlertViewResource(IncidentBaseResource):
 
         for alert in alerts:
             alert_entity = snapshot.alert_entity_mapping.get(alert["id"])
+            # 尝试在dimension获取ip和云区域ip
+            alert_dimension_ip_dict = {item.get('key'): item.get('value','')
+                                       for item in alert.get('dimensions', [])
+                                       if isinstance(item, dict) and 'key' in item }
             alert["entity"] = alert_entity.entity.to_src_dict() if alert_entity else None
             alert["is_feedback_root"] = (
                 (getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id)
@@ -1392,7 +1399,8 @@ class IncidentAlertViewResource(IncidentBaseResource):
             alert_doc.event.extra_info = alert_doc.extra_info
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
-                    alert["graph_panel"] = AIOPSManager.get_graph_panel(alert_doc, with_anomaly=False)
+                    alert["graph_panel"] = AIOPSManager.get_graph_panel(alert_doc, with_anomaly=False
+                                                                        ,alert_dimension_ip_dict=alert_dimension_ip_dict)
                     category["alerts"].append(alert)
 
         return incident_alerts
@@ -1608,3 +1616,73 @@ class IncidentDiagnosisResource(IncidentBaseResource):
         if individual_summary_content:
             diagnosis_result.update({"individual_summary": individual_summary_content})
         return diagnosis_result
+
+
+
+
+
+class IncidentDateHistogramResource(Resource):
+    """
+    查询故障分布直方图
+    """
+
+    class RequestSerializer(IncidentSearchSerializer):
+        interval = serializers.CharField(label="聚合周期", default="auto")
+        username = serializers.CharField(required=False, label="负责人")
+
+    def perform_request(self, validated_request_data):
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
+        interval = validated_request_data.pop("interval")
+        interval = BaseQueryHandler.calculate_agg_interval(start_time, end_time, interval)
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = IncidentQueryHandler.parse_biz_item(
+                validated_request_data["bk_biz_ids"]
+            )
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+        results = resource.incident.incident_date_histogram_result.bulk_request(
+            [
+                {
+                    "start_time": sliced_start_time,
+                    "end_time": sliced_end_time,
+                    "interval": interval,
+                    **validated_request_data,
+                }
+                for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
+            ]
+        )
+
+        data = {status: {} for status in incident_status_map}
+        for result in results:
+            for status, series in result.items():
+                if status == "default_time_series":
+                    interval = series["interval"]
+                    start_time = series["start_time"] // interval * interval
+                    end_time = series["end_time"] // interval * interval + interval
+                    default_time_series = {ts * 1000: 0 for ts in range(start_time, end_time, interval)}
+                    for sta in incident_status_map:
+                        data[sta].update(default_time_series)
+                    continue
+
+                data[status].update(series)
+        return {
+            "series": [
+                {"data": list(series.items()), "name": status, "display_name": incident_status_map[status]}
+                for status, series in data.items()
+            ],
+            "unit": "" ,
+        }
+
+
+class IncidentDateHistogramResultResource(Resource):
+    def perform_request(self, validated_request_data):
+        interval = validated_request_data.pop("interval")
+        start_time = validated_request_data.get("start_time")
+        end_time = validated_request_data.get("end_time")
+        handler = IncidentQueryHandler(**validated_request_data)
+        datas = list(handler.date_histogram(interval=interval).values())
+        if not datas:
+            data = {"default_time_series": {"start_time": start_time, "end_time": end_time, "interval": interval}}
+            return data
+        return datas[0]

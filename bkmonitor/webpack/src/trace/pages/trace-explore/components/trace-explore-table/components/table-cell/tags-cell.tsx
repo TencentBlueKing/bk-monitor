@@ -24,116 +24,101 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, useTemplateRef } from 'vue';
-import { shallowRef } from 'vue';
+import { type PropType, defineComponent } from 'vue';
+
+import { Tag } from 'bkui-vue';
 
 import { ENABLED_TABLE_CONDITION_MENU_CLASS_NAME } from '../../constants';
-import { useTagsEllipsis } from '../../hooks/use-tag-ellipsis';
+import CollapseTags from './collapse-tags';
 
-import type { ExploreTableColumn, ExploreTableColumnTypeEnum, TableCellRenderValueType } from '../../typing';
+import type {
+  ExploreTableColumn,
+  ExploreTableColumnTypeEnum,
+  GetTableCellRenderValue,
+  TableCellRenderContext,
+} from '../../typing';
+import type { SlotReturnValue } from 'tdesign-vue-next';
 
 import './tags-cell.scss';
 
 const DEFAULT_TAG_COLOR = {
-  tagColor: '#63656e',
-  tagBgColor: 'rgba(151,155,165,.1)',
+  tagColor: '#4D4F56',
+  tagBgColor: '#F0F1F5',
+  tagHoverColor: '#4D4F56',
+  tagHoverBgColor: '#DCDEE5',
 };
 export default defineComponent({
   name: 'TagsCell',
   props: {
+    /** 当前列配置信息 */
     column: {
       type: Object as PropType<ExploreTableColumn<ExploreTableColumnTypeEnum.TAGS>>,
     },
+    /** 当前需要渲染的数据 */
     tags: {
-      type: Object as PropType<TableCellRenderValueType[ExploreTableColumnTypeEnum.TAGS]>,
+      type: Object as PropType<GetTableCellRenderValue<ExploreTableColumnTypeEnum.TAGS>>,
     },
+    /** 当前列 id */
     colId: {
       type: String,
     },
+    /** 当前行数据 id */
     rowId: {
       type: String,
     },
+    /** table 单元格渲染上下文信息 */
+    renderCtx: {
+      type: Object as PropType<TableCellRenderContext>,
+      default: () => ({}),
+    },
   },
-  setup(props) {
-    const tagContainerRef = useTemplateRef<HTMLElement>('tagContainerRef');
-    const tagsRef = shallowRef<Element[]>([]);
-    const collapseTagRef = useTemplateRef<HTMLElement>('collapseTagRef');
-
-    /** 需要渲染的 tag 总数 */
-    const tagTotal = computed(() => props.tags?.length || 0);
-
-    const { canShowIndex } = useTagsEllipsis({
-      tagContainerRef,
-      // @ts-ignore
-      tagsRef,
-      collapseTagRef: collapseTagRef,
-      tagTotal: tagTotal.value,
-      horizontalSpacing: 4,
-    });
-
-    /** 是否需要显示折叠 tag */
-    const showCollapseTag = computed(() => !tagTotal.value || canShowIndex.value < tagTotal.value - 1);
-
-    /** 折叠 tag 的tip提示内容 */
-    const tipContent = computed(() => {
-      if (!showCollapseTag.value) return;
-      return props.tags
-        .slice(canShowIndex.value + 1)
-        .map(tag => tag.alias)
-        .join('，');
-    });
-
+  setup() {
+    /**
+     * @description 默认的溢出标签提示popover内容渲染方法
+     * @param ellipsisTags 溢出标签列表
+     * @returns {SlotReturnValue} popover 展示的内容
+     */
+    const defaultEllipsisTipsContentRender = (ellipsisTags: any[] | string[]): SlotReturnValue =>
+      ellipsisTags.map(tag => tag?.alias || tag).join('，');
     return {
-      tagsRef,
-      collapseTagRef,
-      canShowIndex,
-      tagTotal,
-      tipContent,
-      showCollapseTag,
+      defaultEllipsisTipsContentRender,
     };
   },
   render() {
     return (
-      <div
-        ref='tagContainerRef'
+      <CollapseTags
         class='explore-col explore-tags-col'
-      >
-        {this.tags?.map?.((tag, index) => (
-          <div
-            key={tag.alias}
-            ref={el => {
-              this.tagsRef[index] = el as Element;
-            }}
-            style={{
-              '--tag-color': tag.tagColor || DEFAULT_TAG_COLOR.tagColor,
-              '--tag-bg-color': tag.tagBgColor || DEFAULT_TAG_COLOR.tagBgColor,
-              display: index > this.canShowIndex ? 'none' : '',
-            }}
-            class='tag-item'
-          >
-            <span
-              class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-              data-col-id={this.colId}
-              data-index={index}
-              data-row-id={this.rowId}
+        v-slots={{
+          customTag: (tag, index) => (
+            <Tag
+              key={index}
+              style={{
+                '--tag-color': tag?.tagColor || DEFAULT_TAG_COLOR.tagColor,
+                '--tag-bg-color': tag?.tagBgColor || DEFAULT_TAG_COLOR.tagBgColor,
+                '--tag-hover-color': tag?.tagHoverColor || tag?.tagColor || DEFAULT_TAG_COLOR.tagHoverColor,
+                '--tag-hover-bg-color': tag?.tagHoverBgColor || tag?.tagBgColor || DEFAULT_TAG_COLOR.tagHoverBgColor,
+              }}
+              class={`tag-item ${this.renderCtx?.isEnabledCellEllipsis(this.column)}`}
             >
-              {tag.alias}
-            </span>
-          </div>
-        ))}
-        <div
-          ref='collapseTagRef'
-          style={{
-            '--tag-color': DEFAULT_TAG_COLOR.tagColor,
-            '--tag-bg-color': DEFAULT_TAG_COLOR.tagBgColor,
-            visibility: this.showCollapseTag ? 'visible' : 'hidden',
-          }}
-          class='tag-item collapse-tag'
-          v-bk-tooltips={{ content: this.tipContent, placement: 'top', disabled: !this.showCollapseTag }}
-        >
-          <span> +{this.tagTotal - this.canShowIndex - 1}</span>
-        </div>
-      </div>
+              {{
+                default: () => (
+                  <span
+                    class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+                    data-col-id={this.colId}
+                    data-index={index}
+                    data-row-id={this.rowId}
+                  >
+                    {tag?.alias || tag}
+                  </span>
+                ),
+              }}
+            </Tag>
+          ),
+        }}
+        data={this.tags}
+        ellipsisTip={this.column?.cellSpecificProps?.ellipsisTip ?? this.defaultEllipsisTipsContentRender}
+        ellipsisTippyOptions={this.column?.cellSpecificProps?.ellipsisTippyOptions ?? {}}
+      />
     );
   },
 });

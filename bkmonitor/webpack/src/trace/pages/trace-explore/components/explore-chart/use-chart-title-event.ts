@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import type { MaybeRef } from 'vue';
+import { type MaybeRef, inject } from 'vue';
+// import { handleAddStrategy } from '@/plugins/utls/menu';
 
 import { get } from '@vueuse/core';
 
 import { handleAddStrategy, handleExplore, handleRelateAlert, handleStoreImage } from './menu';
+import { DEFAULT_TIME_RANGE } from '@/components/time-range/utils';
 import {
   type IUnifyQuerySeriesItem,
   downCsvFile,
@@ -36,7 +38,6 @@ import {
   transformTableDataToCsvStr,
 } from '@/plugins/utls/menu';
 // import { handleAddStrategy } from '@/plugins/utls/menu';
-import { useTraceExploreStore } from '@/store/modules/explore';
 
 import type { IDataQuery } from '@/plugins/typings';
 import type { IMenuItem, ITitleAlarm } from '@/plugins/typings/chart-title';
@@ -45,11 +46,11 @@ import type { IExtendMetricData } from '@/plugins/typings/metric';
 export const useChartTitleEvent = (
   metrics: MaybeRef<Array<Record<string, any>>>,
   targets: MaybeRef<IDataQuery[]>,
-  title?: string,
+  title?: MaybeRef<string>,
   seriesData?: MaybeRef<IUnifyQuerySeriesItem[]>,
   chartRef?: MaybeRef<HTMLElement>
 ) => {
-  const store = useTraceExploreStore();
+  const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
   /** 处理点击左侧响铃图标 跳转策略的逻辑 */
   function handleAlarmClick(alarmStatus: ITitleAlarm) {
     const metricIds = get(metrics).map(item => item.metric_id);
@@ -65,8 +66,8 @@ export const useChartTitleEvent = (
           location.href.replace(
             location.hash,
             `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}&from=${
-              store.timeRange?.[0]
-            }&to=${store.timeRange?.[1]}`
+              get(timeRange)[0]
+            }&to=${get(timeRange)[1]}`
           )
         );
         break;
@@ -75,20 +76,23 @@ export const useChartTitleEvent = (
   function handleMenuClick(item: IMenuItem) {
     switch (item.id) {
       case 'explore':
-        handleExplore(get(targets), store.timeRange);
+        handleExplore(get(targets), get(timeRange));
         return;
       case 'relate-alert':
-        handleRelateAlert(get(targets), store.timeRange);
+        handleRelateAlert(get(targets), get(timeRange));
         return;
       case 'screenshot':
         // 300ms 关闭动画
-        chartRef && setTimeout(() => handleStoreImage(title, get(chartRef)), 300);
+        chartRef &&
+          setTimeout(() => {
+            handleStoreImage(get(title), get(chartRef));
+          }, 300);
         return;
       case 'export-csv': {
         if (seriesData && get(seriesData).length) {
           const { tableThArr, tableTdArr } = transformSrcData(get(seriesData));
           const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
-          downCsvFile(csvString, title);
+          downCsvFile(csvString, get(title));
         }
       }
     }

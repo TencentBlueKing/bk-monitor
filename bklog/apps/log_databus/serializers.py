@@ -558,7 +558,7 @@ class BatchSubscriptionStatusSerializer(serializers.Serializer):
 
 
 class TaskStatusSerializer(serializers.Serializer):
-    task_id_list = serializers.CharField(label=_("部署任务ID"), allow_blank=True)
+    task_id_list = serializers.CharField(label=_("部署任务ID"), allow_blank=True, default="")
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

@@ -65,6 +65,11 @@ export const allRouteConfig: IRouteConfig[] = [
     name: 'route-订阅配置',
     route: 'report',
   },
+  {
+    id: 'alarm-center',
+    name: 'route-告警中心',
+    route: 'alarm-center',
+  },
 ];
 
 export const createRouteConfig = () => allRouteConfig;

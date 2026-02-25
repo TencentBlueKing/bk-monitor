@@ -119,7 +119,7 @@
         :render-header="$renderHeader"
       >
         <template #default="props">
-          <div>{{ props.row.storage_cluster_name || '--' }}</div>
+          <div>{{ props.row.storage_display_name || props.row.storage_cluster_name || '--' }}</div>
         </template>
       </bk-table-column>
       <bk-table-column

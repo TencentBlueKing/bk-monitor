@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from datetime import datetime
 
 from opentelemetry.semconv.resource import ResourceAttributes
@@ -40,7 +40,7 @@ class RootEndpointDiscover(DiscoverBase):
 
         return res
 
-    def discover(self, origin_data):
+    def discover(self, origin_data, remain_data=None):
         """
         Calc the Root Endpoint
         Rule:
@@ -55,7 +55,6 @@ class RootEndpointDiscover(DiscoverBase):
         exists_endpoints = self.list_exists()
 
         for _, trace_spans in self.group_by_trace_id(origin_data).items():
-
             first_span = next(
                 (i for i in trace_spans if i[OtlpKey.KIND] in [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_PRODUCER]),
                 None,

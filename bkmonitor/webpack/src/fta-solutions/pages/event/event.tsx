@@ -49,7 +49,13 @@ import {
   incidentValidateQueryString,
 } from 'monitor-api/modules/incident';
 import { promqlToQueryConfig } from 'monitor-api/modules/strategies';
-import { commonPageSizeGet, commonPageSizeSet, docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import {
+  commonPageSizeGet,
+  commonPageSizeSet,
+  docCookies,
+  LANGUAGE_COOKIE_KEY,
+  tryURLDecodeParse,
+} from 'monitor-common/utils';
 import { random } from 'monitor-common/utils/utils';
 // 20231205 代码还原，先保留原有部分
 import SpaceSelect from 'monitor-pc/components/space-select/space-select';
@@ -726,7 +732,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             query[key] = {};
           }
         } else if (key === 'bizIds') {
-          query[key] = Array.isArray(val) ? val.map(id => +id) : [+(val || this.$store.getters.bizId || -1)];
+          query[key] = Array.isArray(val)
+            ? val.map(id => +id)
+            : tryURLDecodeParse(val, [+(val || this.$store.getters.bizId || -1)]);
         } else if (['from', 'to'].includes(key)) {
           key === 'from' && this.$set(this.timeRange, 0, val);
           key === 'to' && this.$set(this.timeRange, 1, val);
@@ -779,6 +787,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     }
     return defaultData;
   }
+
+  handleGotoNew() {
+    const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${this.$store.getters.bizId}#/trace/alarm-center`;
+    window.location.href = url;
+  }
+
   /**
    * @description: popstate事件触发 用于记录用户搜索操作历史
    * @param {*} event
@@ -2632,10 +2646,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               class='header-tools'
               isSplitPanel={this.isSplitPanel}
               refreshInterval={this.refreshInterval}
+              showGotoNew={false}
               showListMenu={false}
               timeRange={this.timeRange}
               timezone={this.timezone}
               onFullscreenChange={this.handleFullscreen}
+              onGotoNew={this.handleGotoNew}
               onImmediateRefresh={this.handleImmediateRefresh}
               onRefreshChange={this.handleRefreshChange}
               onSplitPanelChange={this.handleSplitPanel}

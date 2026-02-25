@@ -1,0 +1,63 @@
+.k8s-custom-chart {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: 250px;
+  background-color: #fff;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px 0 #1919291f;
+
+  .empty-chart {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+
+  .chart-skeleton {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+
+  .common-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    min-height: 32px;
+    max-height: 40%;
+    overflow: auto;
+  }
+
+  .k8s-custom-chart-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+
+    .chart-restore {
+      position: absolute;
+      top: 5px;
+      right: 8px;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 20px;
+      font-size: 12px;
+      background-color: #fff;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+
+      &:hover {
+        color: #63656e;
+        cursor: pointer;
+        border-color: #979ba5;
+      }
+    }
+  }
+}

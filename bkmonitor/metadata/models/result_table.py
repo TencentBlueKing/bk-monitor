@@ -1373,7 +1373,7 @@ class ResultTable(models.Model):
             # TODO: 后续需要优化option的配置方式，增加option的类型标记
             result_table_option_ids = (
                 ResultTableOption.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
-                .exclude(name__in=list(set(ResultTableFieldOption.QUERY_OPTION_NAME_LIST) - set(option.keys())))
+                .exclude(name__in=list(set(ResultTableOption.QUERY_OPTION_NAME_LIST) - set(option.keys())))
                 .values_list("id", flat=True)
             )
             self.raw_delete(result_table_option_ids)
@@ -2846,11 +2846,19 @@ class ResultTableOption(OptionBase):
     OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK = "enable_v4_event_group_data_link"
     OPTION_ENABLE_V4_LOG_DATA_LINK = "enable_log_v4_data_link"
     OPTION_V4_LOG_DATA_LINK = "log_v4_data_link"
+    OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
 
     # 选项类型
     TYPE_BOOL = "bool"
     TYPE_STRING = "string"
     TYPE_LIST = "list"
+
+    # 查询选项名称列表
+    QUERY_OPTION_NAME_LIST: list[str] = [
+        "need_add_time",  # 是否需要添加时间字段
+        "time_field",  # 指定查询时间单位，如：day、hour、minute、second
+        OPTION_BINDING_BCS_CLUSTER_ID,  # 绑定BCS集群ID
+    ]
 
     table_id = models.CharField("结果表ID", max_length=128, db_index=True)
     name = models.CharField(
@@ -2863,6 +2871,7 @@ class ResultTableOption(OptionBase):
             (OPTION_SEGMENTED_QUERY_ENABLE, _("分段查询开关")),
             (OPTION_IS_SPLIT_MEASUREMENT, _("是否为单指标单表")),
             (OPTION_ENABLE_FIELD_BLACK_LIST, _("是否开启指标黑名单")),
+            (OPTION_BINDING_BCS_CLUSTER_ID, _("绑定BCS集群ID")),
         ),
         max_length=128,
     )
@@ -3215,7 +3224,7 @@ class ESFieldQueryAliasOption(BaseModel):
     field_path = models.CharField("原始字段路径", max_length=256)
     path_type = models.CharField("路径类型", max_length=128, default="keyword")
     query_alias = models.CharField("查询别名", max_length=256)
-    is_deleted = models.BooleanField("是否已删除", default=False)
+    is_deleted = models.BooleanField("是否已删除(已废弃)", default=False)
 
     @classmethod
     def generate_query_alias_settings(cls, table_id: str, bk_tenant_id: str):
@@ -3259,66 +3268,71 @@ class ESFieldQueryAliasOption(BaseModel):
 
     @staticmethod
     @transaction.atomic
-    def manage_query_alias_settings(table_id, query_alias_settings, operator, bk_tenant_id=DEFAULT_TENANT_ID):
+    def manage_query_alias_settings(
+        table_id: str,
+        query_alias_settings: list[dict[str, Any]],
+        operator: str,
+        bk_tenant_id: str,
+    ) -> None:
         """
-        管理ES字段关联别名配置记录（支持一个field_path对应多个alias）
-        :param table_id: 结果表ID
-        :param query_alias_settings: 用户传入的query_alias_settings列表
-        :param operator: 操作者
-        :param bk_tenant_id 租户ID
+        管理ES字段关联别名配置记录（支持一个field_path对应多个alias）。
+
+        说明：
+            - 同一 table_id 内，query_alias 必须唯一（与 ES alias 语义一致）。
+            - 采用硬删除清理多余记录，避免软删除残留导致唯一冲突。
+
+        Args:
+            table_id: 结果表ID。
+            query_alias_settings: 用户传入的 query_alias_settings 列表。
+            operator: 操作者。
+            bk_tenant_id: 租户ID。
+
+        Returns:
+            None
         """
         logger.info(
             "manage_query_alias_settings: try to manage alias settings for table_id->[%s],query_alias_settings->[%s]",
             table_id,
             query_alias_settings,
         )
-        # 获取当前数据库中的记录（包括软删除记录）
-        existing_records = ESFieldQueryAliasOption.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
-        existing_map = {(record.field_path, record.query_alias): record for record in existing_records}
-
         if not query_alias_settings:
             logger.info(
                 "manage_query_alias_settings: table_id->[%s] now has no query_alias_settings,will delete old records",
                 table_id,
             )
-            ESFieldQueryAliasOption.objects.filter(table_id=table_id).update(is_deleted=True)
+            ESFieldQueryAliasOption.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).delete()
             return
 
-        # 提取用户传入的数据组合，field_path+query_alias 为唯一组合
-        incoming_combinations = {(item["field_name"], item["query_alias"]) for item in query_alias_settings}
-
         try:
-            # 新增或更新记录
+            incoming_aliases = {item["query_alias"] for item in query_alias_settings}
+            # 删除不再需要的别名（硬删除）
+            ESFieldQueryAliasOption.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exclude(
+                query_alias__in=incoming_aliases
+            ).delete()
+
+            # 新增或更新记录（依赖唯一约束保证同别名唯一）
             for item in query_alias_settings:
-                field_path = item["field_name"]
                 query_alias = item["query_alias"]
+                field_path = item["field_name"]
                 path_type = item.get("path_type", "keyword")
-
-                if (field_path, query_alias) in existing_map:
-                    # 更新记录
-                    record = existing_map[(field_path, query_alias)]
-                    record.is_deleted = False  # 重置软删除标记
-                    record.path_type = path_type  # 更新 path_type
+                record, created = ESFieldQueryAliasOption.objects.get_or_create(
+                    table_id=table_id,
+                    bk_tenant_id=bk_tenant_id,
+                    query_alias=query_alias,
+                    defaults={
+                        "field_path": field_path,
+                        "path_type": path_type,
+                        "updater": operator,
+                        "creator": operator,
+                        "is_deleted": False,
+                    },
+                )
+                if not created:
+                    record.field_path = field_path
+                    record.path_type = path_type
                     record.updater = operator
-                    record.save()
-                else:
-                    # 新增记录
-                    ESFieldQueryAliasOption.objects.create(
-                        table_id=table_id,
-                        bk_tenant_id=bk_tenant_id,
-                        field_path=field_path,
-                        query_alias=query_alias,
-                        path_type=path_type,  # 设置 path_type
-                        creator=operator,
-                        is_deleted=False,
-                    )
-
-            # 标记未提供的记录为软删除
-            for (field_path, query_alias), record in existing_map.items():
-                if (field_path, query_alias) not in incoming_combinations and not record.is_deleted:
-                    record.is_deleted = True
-                    record.updater = operator
-                    record.save()
+                    record.is_deleted = False
+                    record.save(update_fields=["field_path", "path_type", "updater", "is_deleted", "update_time"])
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
                 "manage_query_alias_settings: failed to manage alias settings for table_id->[%s], "

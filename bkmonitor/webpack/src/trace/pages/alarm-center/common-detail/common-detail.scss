@@ -1,0 +1,52 @@
+/* stylelint-disable selector-class-pattern */
+.alarm-center-detail-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+
+  .panel-tab {
+    position: sticky;
+    top: 0;
+    z-index: 99;
+    background: #fff;
+    box-shadow: 0 -1px 6px 0 rgb(0 0 0 / 7.84%);
+    opacity: 1;
+
+    .bk-tab-header--active {
+      font-weight: 700;
+    }
+
+    .bk-tab-content {
+      display: none;
+    }
+  }
+
+  .alarm-view {
+    .alarm-view-tab {
+      & > .bk-tab {
+        position: sticky;
+        top: 51px;
+        z-index: 99;
+        background: #fff;
+        opacity: 1;
+      }
+
+      .alarm-detail-alarm-view-alarm-records {
+        .alarm-records-header {
+          position: sticky;
+          top: 102px;
+          z-index: 1;
+          padding-top: 12px;
+          margin: 0;
+          background: #fff;
+          opacity: 1;
+        }
+      }
+    }
+  }
+
+  .alarm-detail-panel-content-skeleton {
+    height: 300px;
+  }
+}

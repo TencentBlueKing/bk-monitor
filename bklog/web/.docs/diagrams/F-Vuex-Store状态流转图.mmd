@@ -1,0 +1,71 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#f3e5f5', 'primaryTextColor': '#7b1fa2', 'primaryBorderColor': '#9c27b0', 'lineColor': '#ba68c8'}}}%%
+flowchart LR
+    subgraph "组件层"
+        COMP[Vue 组件]
+    end
+
+    subgraph "Store Actions"
+        direction TB
+        A1[requestMenuList]
+        A2[requestIndexSetFieldInfo]
+        A3[requestIndexSetQuery]
+        A4[requestFavoriteList]
+    end
+
+    subgraph "Store Mutations"
+        direction TB
+        M1[updateSpace]
+        M2[updateIndexItem]
+        M3[updateState]
+        M4[SET_MENU_LIST]
+    end
+
+    subgraph "Store State"
+        direction TB
+        S1["spaceUid / bkBizId<br/>空间/业务"]
+        S2["indexId / indexItem<br/>索引/检索参数"]
+        S3["topMenu / currentMenu<br/>菜单状态"]
+        S4["indexFieldInfo<br/>字段信息"]
+        S5["indexSetQueryResult<br/>检索结果"]
+        S6["globalsData<br/>全局配置"]
+    end
+
+    subgraph "HTTP Layer"
+        HTTP[http.request]
+    end
+
+    subgraph "Backend API"
+        API["/api/v1/*"]
+    end
+
+    COMP -->|dispatch| A1
+    COMP -->|dispatch| A2
+    COMP -->|dispatch| A3
+    COMP -->|dispatch| A4
+    COMP -->|commit| M1
+    COMP -->|commit| M2
+    COMP -->|commit| M3
+
+    A1 --> HTTP
+    A2 --> HTTP
+    A3 --> HTTP
+    A4 --> HTTP
+    HTTP --> API
+    API --> HTTP
+
+    A1 -->|commit| M4
+    A2 -->|commit| M3
+    A3 -->|commit| M3
+
+    M1 --> S1
+    M2 --> S2
+    M3 --> S4
+    M3 --> S5
+    M4 --> S3
+
+    S1 -->|mapState| COMP
+    S2 -->|mapState| COMP
+    S3 -->|mapState| COMP
+    S4 -->|mapState| COMP
+    S5 -->|mapState| COMP
+    S6 -->|mapState| COMP

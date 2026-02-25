@@ -314,7 +314,7 @@ export interface ITraceListItem {
   statusCode?: number;
   time?: number;
   trace_id: string;
-  trace_info: IDetailInfo;
+  trace_info?: IDetailInfo;
   traceID?: string;
   type?: string;
 }

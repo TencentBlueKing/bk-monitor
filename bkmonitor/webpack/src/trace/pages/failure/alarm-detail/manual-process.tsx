@@ -471,7 +471,7 @@ export default defineComponent({
         width={800}
         class='manual-process-dialog-wrap'
         v-slots={{
-          default: (
+          default: () => (
             <Loading loading={this.loading}>
               <div class='formdata-wrap'>
                 <div class='meal-list'>
@@ -573,7 +573,7 @@ export default defineComponent({
               </div>
             </Loading>
           ),
-          footer: [
+          footer: () => [
             <Button
               key='confirm-button'
               loading={this.confirmLoading}

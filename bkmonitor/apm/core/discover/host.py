@@ -10,43 +10,73 @@ specific language governing permissions and limitations under the License.
 
 from itertools import chain
 import logging
-from datetime import datetime
 
 from opentelemetry.semconv.trace import SpanAttributes
 
+from apm.constants import ApmCacheType
 from apm.core.discover.base import DiscoverBase, extract_field_value
+from apm.core.discover.cached_mixin import CachedDiscoverMixin
+from apm.core.discover.instance_data import HostInstanceData
 from apm.models import HostInstance
 from constants.apm import OtlpKey
 
 logger = logging.getLogger("apm")
 
 
-class HostDiscover(DiscoverBase):
+class HostDiscover(CachedDiscoverMixin, DiscoverBase):
+    """
+    Host 发现类
+    使用多继承: CachedDiscoverMixin 提供缓存功能, DiscoverBase 提供基础发现功能
+    """
+
     DISCOVERY_ALL_SPANS = True
     MAX_COUNT = 100000
     PAGE_LIMIT = 100
     DEFAULT_BK_CLOUD_ID = -1
+    HOST_ID_SPLIT = ":"
     model = HostInstance
 
-    def list_exists(self):
-        res = {}
-        instances = HostInstance.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        for i in instances:
-            res.setdefault((i.bk_cloud_id, i.bk_host_id, i.ip, i.topo_node_key), set()).add(i.id)
+    @classmethod
+    def _get_cache_type(cls) -> str:
+        """获取缓存类型"""
+        return ApmCacheType.HOST
 
-        return res
+    @classmethod
+    def to_cache_key(cls, instance: HostInstanceData) -> str:
+        """从实例数据对象生成 host 缓存 key"""
+        return cls.HOST_ID_SPLIT.join(map(str, cls._to_found_key(instance)))
 
-    def discover(self, origin_data):
+    @classmethod
+    def build_instance_data(cls, host_obj) -> HostInstanceData:
+        return HostInstanceData(
+            id=DiscoverBase.get_attr_value(host_obj, "id"),
+            bk_cloud_id=DiscoverBase.get_attr_value(host_obj, "bk_cloud_id"),
+            bk_host_id=DiscoverBase.get_attr_value(host_obj, "bk_host_id"),
+            ip=DiscoverBase.get_attr_value(host_obj, "ip"),
+            topo_node_key=DiscoverBase.get_attr_value(host_obj, "topo_node_key"),
+            updated_at=DiscoverBase.get_attr_value(host_obj, "updated_at"),
+        )
+
+    @classmethod
+    def _to_found_key(cls, instance_data: HostInstanceData) -> tuple:
+        """从实例数据对象生成业务唯一标识（不包含数据库ID）用于在 discover 过程中匹配已存在的实例"""
+        return instance_data.bk_cloud_id, instance_data.bk_host_id, instance_data.ip, instance_data.topo_node_key
+
+    def get_remain_data(self):
+        instances = self.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        return self.process_duplicate_records(instances, True)
+
+    def discover(self, origin_data, exists_hosts: dict[tuple, HostInstanceData]):
         """
         Discover host IP if user fill resource.net.host.ip when define resource in OT SDK
         """
         find_ips = set()
 
-        exists_hosts = self.list_exists()
-
         for span in origin_data:
             service_name = self.get_service_name(span)
-            ip = extract_field_value((OtlpKey.RESOURCE, SpanAttributes.NET_HOST_IP), span)
+            ip = extract_field_value((OtlpKey.RESOURCE, SpanAttributes.NET_HOST_IP), span) or extract_field_value(
+                (OtlpKey.ATTRIBUTES, SpanAttributes.NET_HOST_NAME), span
+            )
 
             if not ip or not service_name:
                 continue
@@ -55,36 +85,35 @@ class HostDiscover(DiscoverBase):
 
         # try to get bk_cloud_id if register in bk_cmdb
         cloud_id_mapping = self.list_bk_cloud_id([i[-1] for i in find_ips])
-        need_update_instance_ids = set()
+        need_update_instances = list()
         need_create_instances = set()
 
         for service_name, ip in find_ips:
             found_key = (*(cloud_id_mapping.get(ip, (self.DEFAULT_BK_CLOUD_ID, None))), ip, service_name)
             if found_key in exists_hosts:
-                need_update_instance_ids |= exists_hosts[found_key]
+                need_update_instances.append(exists_hosts[found_key])
             else:
                 need_create_instances.add(found_key)
 
-        # only update update_time
-        HostInstance.objects.filter(id__in=need_update_instance_ids).update(updated_at=datetime.now())
+        created_instances = [
+            HostInstance(
+                bk_biz_id=self.bk_biz_id,
+                app_name=self.app_name,
+                bk_cloud_id=i[0],
+                bk_host_id=i[1],
+                ip=i[2],
+                topo_node_key=i[3],
+            )
+            for i in need_create_instances
+        ]
+        HostInstance.objects.bulk_create(created_instances)
 
-        # create
-        HostInstance.objects.bulk_create(
-            [
-                HostInstance(
-                    bk_biz_id=self.bk_biz_id,
-                    app_name=self.app_name,
-                    bk_cloud_id=i[0],
-                    bk_host_id=i[1],
-                    ip=i[2],
-                    topo_node_key=i[3],
-                )
-                for i in need_create_instances
-            ]
+        # 使用抽象方法处理缓存刷新
+        self.handle_cache_refresh_after_create(
+            existing_instances=list(exists_hosts.values()),
+            created_db_instances=created_instances,
+            updated_instances=need_update_instances,
         )
-
-        self.clear_if_overflow()
-        self.clear_expired()
 
     def list_bk_cloud_id(self, ips: list[str]) -> dict[str, tuple[int, int]]:
         from alarm_backends.core.cache.cmdb.host import HostManager, HostIPManager

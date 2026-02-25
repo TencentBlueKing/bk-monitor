@@ -1,0 +1,14 @@
+.alarm-dashboard-group {
+  .alarm-dashboard-group-main {
+    display: flex;
+    flex-direction: column;
+    row-gap: 12px;
+  }
+
+  .alarm-dashboard-group-skeleton {
+    display: grid;
+    grid-template-columns: repeat(var(--dashboard-grid-col), 1fr);
+    gap: 70px 12px;
+    padding-top: 12px;
+  }
+}

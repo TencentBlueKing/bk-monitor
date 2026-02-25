@@ -109,8 +109,8 @@ class TGPAReportHandler:
         if not end_time:
             end_time = int(arrow.now().timestamp() * 1000)
 
-        where_conditions.append(f"dtEventTimeStamp >= '{start_time}'")
-        where_conditions.append(f"dtEventTimeStamp < '{end_time}'")
+        where_conditions.append(f"dtEventTimeStamp >= {start_time}")
+        where_conditions.append(f"dtEventTimeStamp < {end_time}")
 
         return " AND ".join(where_conditions)
 

@@ -728,6 +728,9 @@ export default defineComponent({
                 }}
                 onClear={() => this.handleDatePickClear()}
                 onPick-success={this.handleDatePick}
+                onUpdate:modelValue={v => {
+                  this.dateRange = v;
+                }}
               />
               <SearchSelect
                 class='shield-search'
@@ -777,12 +780,19 @@ export default defineComponent({
                     : undefined,
                   cell: (_, { row }) => this.handleSetFormat(row, item.id),
                 }))}
+                headerAffixedTop={{
+                  container: '.alarm-shield-page',
+                }}
+                horizontalScrollAffixedBottom={{
+                  container: '.alarm-shield-page',
+                }}
                 pagination={{
                   total: this.pagination.count,
                 }}
                 data={this.tableList}
                 filterValue={this.filterValue}
                 hover={true}
+                needCustomScroll={false}
                 rowKey='id'
                 showSortColumnBgColor={true}
                 sort={this.sort}
