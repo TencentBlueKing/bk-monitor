@@ -220,7 +220,7 @@ class ScenarioMetricList(Resource):
 
     class RequestSerializer(SpaceRelatedSerializer):
         scenario = serializers.ChoiceField(
-            required=True, label="接入场景", choices=["performance", "network", "capacity", "taiji_gpu", "tke_gpu"]
+            required=True, label="接入场景", choices=["performance", "network", "capacity", "tke_gpu"]
         )
 
     def perform_request(self, validated_request_data):
@@ -235,7 +235,7 @@ class GetScenarioMetric(Resource):
 
     class RequestSerializer(SpaceRelatedSerializer):
         scenario = serializers.ChoiceField(
-            required=True, label="接入场景", choices=["performance", "network", "capacity", "taiji_gpu", "tke_gpu"]
+            required=True, label="接入场景", choices=["performance", "network", "capacity", "tke_gpu"]
         )
         metric_id = serializers.CharField(required=True, label="指标id")
 
@@ -512,7 +512,7 @@ class ListK8SResources(Resource):
         end_time = serializers.IntegerField(required=True, label="结束时间")
         # 场景，后续持续补充， 目前暂时没有用的地方， 先传上
         scenario = serializers.ChoiceField(
-            required=True, label="场景", choices=["performance", "network", "capacity", "tke_gpu", "taiji_gpu"]
+            required=True, label="场景", choices=["performance", "network", "capacity", "tke_gpu"]
         )
         # 历史出现过的资源
         with_history = serializers.BooleanField(required=False, default=False)
@@ -700,7 +700,10 @@ class ResourceTrendResource(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         scenario = serializers.ChoiceField(
-            required=False, label="场景", choices=["performance", "network", "capacity"], default="performance"
+            required=False,
+            label="场景",
+            choices=["performance", "network", "capacity", "tke_gpu"],
+            default="performance",
         )
 
     def perform_request(self, validated_request_data):
