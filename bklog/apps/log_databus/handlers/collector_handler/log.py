@@ -431,7 +431,7 @@ class LogCollectorHandler:
         name_list = []
         bk_data_name_list = []
         collector_scenario_id_list = []
-        created_at_list = []
+        created_by_list = []
         updated_by_list = []
         status_list = []
         storage_cluster_name_list = []
@@ -445,8 +445,8 @@ class LogCollectorHandler:
                 bk_data_name_list = item["value"]
             elif item["key"] == "collector_scenario_id":
                 collector_scenario_id_list = item["value"]
-            elif item["key"] == "created_at":
-                created_at_list = item["value"]
+            elif item["key"] == "created_by":
+                created_by_list = item["value"]
             elif item["key"] == "updated_by":
                 updated_by_list = item["value"]
             elif item["key"] == "status":
@@ -464,7 +464,7 @@ class LogCollectorHandler:
             collector_config_name_list=name_list,
             table_id_list=bk_data_name_list,
             collector_scenario_id_list=collector_scenario_id_list,
-            created_by_list=created_at_list,
+            created_by_list=created_by_list,
             updated_by_list=updated_by_list,
             storage_cluster_name_list=storage_cluster_name_list,
             status_list=status_list,
@@ -486,7 +486,7 @@ class LogCollectorHandler:
                 scenario_id_list=scenario_id_list,
                 index_set_name_list=name_list,
                 result_table_id_list=bk_data_name_list,
-                created_by_list=created_at_list,
+                created_by_list=created_by_list,
                 updated_by_list=updated_by_list,
                 storage_cluster_name_list=storage_cluster_name_list,
                 log_access_type_list=log_access_type_list,
