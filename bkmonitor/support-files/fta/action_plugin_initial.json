@@ -884,6 +884,7 @@
                 "name": "创建分析处置平台任务",
                 "resource_class": "CreateTaskResource",
                 "resource_module": "api.bk_incident.default",
+                "render_inputs": true,
                 "inputs": [
                     {
                         "key": "bk_biz_id",
@@ -899,7 +900,7 @@
                     },
                     {
                         "key": "constants",
-                        "value": "execute_config.template_detail_dict",
+                        "value": "merge(execute_config.template_detail_dict, `{\"${_event_context}\":\"{{alarm.callback_message}}\"}`)",
                         "type": "dict",
                         "format": "jmespath"
                     },
