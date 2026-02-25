@@ -52,8 +52,10 @@ class IndexGroupHandler(APIModel):
         """
         获取索引组列表
         """
-        index_groups = LogIndexSet.objects.filter(is_group=True, space_uid=params["space_uid"]).values(
-            "index_set_id", "index_set_name"
+        index_groups = (
+            LogIndexSet.objects.filter(is_group=True, space_uid=params["space_uid"])
+            .values("index_set_id", "index_set_name")
+            .order_by("index_set_name")
         )
         # 补充索引数量字段
         index_set_ids = [x["index_set_id"] for x in index_groups]
@@ -67,9 +69,7 @@ class IndexGroupHandler(APIModel):
             x["index_count"] = index_counts_dict.get(x["index_set_id"], 0)
             x["deletable"] = True  # TODO: 先给前端一个字段，后续需要判断索引组是否可以删除
 
-        result = list(index_groups)
-        result.sort(key=lambda x: x["index_set_name"].encode("gbk", errors="ignore"))
-        return result
+        return list(index_groups)
 
     @staticmethod
     def create_index_group(params: dict) -> LogIndexSet:

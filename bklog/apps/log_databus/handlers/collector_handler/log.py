@@ -82,7 +82,6 @@ class LogCollectorHandler:
                     "task_id_list": item.get("task_id_list", []),
                     "etl_config": item.get("etl_config", ""),
                     "collect_paths": item.get("params", {}).get("paths", []),
-                    "is_search": item.get("is_search", True),
                 }
             )
         return result_list
