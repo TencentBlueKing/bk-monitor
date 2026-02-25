@@ -48,6 +48,7 @@ from bkmonitor.utils.time_tools import (
     parse_time_compare_abbreviation,
     time_interval_align,
 )
+from constants.apm import ApmAlertHelper, ApmMetricProcessor
 from constants.data_source import (
     GRAPH_MAX_SLIMIT,
     DataSourceLabel,
@@ -1512,10 +1513,24 @@ class GetDrillDimensionsResource(Resource):
 
         # 单指标：返回该指标的所有可用维度
         if len(query_configs) == 1:
-            return sorted(all_dimensions[0])
+            dimensions: list[str] = sorted(all_dimensions[0])
+        else:
+            # 多指标：返回所有指标的共同维度（交集）
+            dimensions: list[str] = sorted(set.intersection(*all_dimensions))
 
-        # 多指标：返回所有指标的共同维度（交集）
-        return sorted(set.intersection(*all_dimensions))
+        is_apm: bool = any(
+            ApmMetricProcessor.is_match_data_label({"data_label": metric.data_label})
+            or ApmMetricProcessor.is_match_table_id({"table_id": metric.result_table_id})
+            for metric in metric_cache.values()
+        )
+        if not is_apm:
+            return [{"id": dimension, "name": dimension} for dimension in dimensions]
+
+        # APM 场景：对维度进行翻译，有别名的维度排在前面
+        dim_items: list[dict[str, str]] = [
+            {"id": dimension, "name": ApmAlertHelper.get_tag_label(dimension)} for dimension in dimensions
+        ]
+        return sorted(dim_items, key=lambda item: item["id"] == item["name"])
 
 
 class DimensionUnifyQuery(Resource):
