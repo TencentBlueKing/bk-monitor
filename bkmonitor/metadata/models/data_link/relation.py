@@ -23,12 +23,17 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from collections.abc import Sequence
+
+from django.db import transaction
+from django.db.models import Model
 
 from metadata.models.data_link.constants import DataLinkKind
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.data_link_configs import (
     ConditionalSinkConfig,
     DataBusConfig,
+    DataLinkResourceConfigBase,
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
     ResultTableConfig,
@@ -38,7 +43,7 @@ from metadata.models.data_link.data_link_configs import (
 logger = logging.getLogger("metadata")
 
 # sink kind → 对应的 Model 类映射
-SINK_KIND_TO_MODEL = {
+SINK_KIND_TO_MODEL: dict[str, type[DataLinkResourceConfigBase]] = {
     DataLinkKind.VMSTORAGEBINDING.value: VMStorageBindingConfig,
     DataLinkKind.ESSTORAGEBINDING.value: ESStorageBindingConfig,
     DataLinkKind.DORISBINDING.value: DorisStorageBindingConfig,
@@ -46,11 +51,11 @@ SINK_KIND_TO_MODEL = {
 }
 
 # 存储绑定类型（需要关联 ResultTableConfig，ConditionalSink 不需要）
-STORAGE_BINDING_KINDS = {
-    DataLinkKind.VMSTORAGEBINDING.value,
-    DataLinkKind.ESSTORAGEBINDING.value,
-    DataLinkKind.DORISBINDING.value,
-}
+STORAGE_BINDING_MODELS = (
+    VMStorageBindingConfig,
+    ESStorageBindingConfig,
+    DorisStorageBindingConfig,
+)
 
 # 重建链路名称前缀，便于与正常创建的链路区分，支持回溯和回滚
 REBUILT_DATA_LINK_NAME_PREFIX = "rebuilt__"
@@ -69,7 +74,7 @@ ETL_CONFIG_TO_STRATEGY = {
 }
 
 
-def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> "DataLink | dict | None":
+def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> DataLink | dict[str, object] | None:
     """以单个 DataBus 为单位重建组件关联关系。
 
     Args:
@@ -109,8 +114,8 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> "
         kind, name = entry.split(":", 1)
         sink_map.setdefault(kind, []).append(name)
 
-    # Step 2: 查询各 sink 组件实例
-    sink_instances = []
+    # Step 2: 查询各 sink 组件实例（批量查询，避免 N+1）
+    sink_instances: list[DataLinkResourceConfigBase] = []
     for kind, names in sink_map.items():
         model = SINK_KIND_TO_MODEL.get(kind)
         if model is None:
@@ -120,22 +125,22 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> "
                 kind,
             )
             return None
-        for name in names:
-            try:
-                instance = model.objects.get(
-                    bk_tenant_id=databus.bk_tenant_id,
-                    namespace=databus.namespace,
-                    name=name,
-                )
-            except model.DoesNotExist:
-                logger.warning(
-                    "rebuild_databus_relation: databus->[%s] sink component kind->[%s] name->[%s] not found in DB, skip",
-                    databus_name,
-                    kind,
-                    name,
-                )
-                return None
-            sink_instances.append(instance)
+        queryset = model.objects.filter(
+            bk_tenant_id=databus.bk_tenant_id,
+            namespace=databus.namespace,
+            name__in=names,
+        )
+        instances_by_name = {instance.name: instance for instance in queryset}
+        missing = [name for name in names if name not in instances_by_name]
+        if missing:
+            logger.warning(
+                "rebuild_databus_relation: databus->[%s] sink component kind->[%s] name->[%s] not found in DB, skip",
+                databus_name,
+                kind,
+                ", ".join(missing),
+            )
+            return None
+        sink_instances.extend(instances_by_name[name] for name in names)
 
     # Step 3: 冲突检测 —— 若任意 sink 组件已有 data_link_name，说明已属于其他链路，跳过
     for instance in sink_instances:
@@ -153,8 +158,10 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> "
     # Step 4: 对存储绑定类型，通过 bkbase_result_table_name 查找对应的 ResultTableConfig
     rt_instances: list[ResultTableConfig] = []
     for instance in sink_instances:
-        if instance.kind not in STORAGE_BINDING_KINDS:
+        # 仅处理存储绑定类型的组件
+        if not isinstance(instance, STORAGE_BINDING_MODELS):
             continue
+
         rt_name = instance.bkbase_result_table_name
         if not rt_name:
             logger.warning(
@@ -219,8 +226,8 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> "
             )
             return None
 
-    # Step 7: data_link_name 使用 "rebuilt__" 前缀 + DataBus name，便于回溯和回滚
-    data_link_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus_name}"
+    # Step 7: data_link_name 使用 "rebuilt__" 前缀 + 租户/命名空间/DataBus name，确保跨租户唯一
+    data_link_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus.bk_tenant_id}__{databus.namespace}__{databus_name}"
 
     # Step 8: 收集 table_ids（来自 ResultTableConfig.table_id，过滤空值）
     table_ids = [rt.table_id for rt in rt_instances if rt.table_id]
@@ -236,32 +243,33 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> "
             "result_tables": [{"name": rt.name, "table_id": rt.table_id} for rt in rt_instances],
         }
 
-    # Step 9: 批量更新所有关联组件的 data_link_name
-    # 先更新 DataBus 自身
-    databus.data_link_name = data_link_name
-    databus.save(update_fields=["data_link_name"])
+    # Step 9-10: 在事务中批量更新组件 data_link_name 并创建/更新 DataLink 记录
+    with transaction.atomic():
+        # 先创建/更新 DataLink 记录，确保主记录存在后再关联组件
+        data_link, created = DataLink.objects.update_or_create(
+            bk_tenant_id=databus.bk_tenant_id,
+            namespace=databus.namespace,
+            data_link_name=data_link_name,
+            defaults={
+                "bk_data_id": databus.bk_data_id,
+                "table_ids": table_ids,
+                "data_link_strategy": strategy,
+            },
+        )
 
-    # 批量更新 sink 组件（按 model 类型分组，减少 DB 操作次数）
-    for instance in sink_instances:
-        instance.data_link_name = data_link_name
-    _bulk_update_data_link_name(sink_instances)
+        # 批量更新 DataBus 自身
+        databus.data_link_name = data_link_name
+        databus.save(update_fields=["data_link_name"])
 
-    # 批量更新 ResultTableConfig
-    for rt in rt_instances:
-        rt.data_link_name = data_link_name
-    _bulk_update_data_link_name(rt_instances)
+        # 批量更新 sink 组件（按 model 类型分组，减少 DB 操作次数）
+        for instance in sink_instances:
+            instance.data_link_name = data_link_name
+        _bulk_update_data_link_name(sink_instances)
 
-    # Step 10: 创建或更新 DataLink 记录
-    data_link, created = DataLink.objects.update_or_create(
-        data_link_name=data_link_name,
-        defaults={
-            "bk_data_id": databus.bk_data_id,
-            "table_ids": table_ids,
-            "data_link_strategy": strategy,
-            "bk_tenant_id": databus.bk_tenant_id,
-            "namespace": databus.namespace,
-        },
-    )
+        # 批量更新 ResultTableConfig
+        for rt in rt_instances:
+            rt.data_link_name = data_link_name
+        _bulk_update_data_link_name(rt_instances)
 
     logger.info(
         "rebuild_databus_relation: databus->[%s] relation rebuilt successfully, "
@@ -274,11 +282,11 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> "
     return data_link
 
 
-def _bulk_update_data_link_name(instances: list) -> None:
+def _bulk_update_data_link_name(instances: Sequence[DataLinkResourceConfigBase]) -> None:
     """按 model 类型分组，批量更新 data_link_name 字段，减少 DB 操作次数。"""
     if not instances:
         return
-    model_groups: dict = {}
+    model_groups: dict[type[Model], list[Model]] = {}
     for instance in instances:
         model_cls = type(instance)
         model_groups.setdefault(model_cls, []).append(instance)
