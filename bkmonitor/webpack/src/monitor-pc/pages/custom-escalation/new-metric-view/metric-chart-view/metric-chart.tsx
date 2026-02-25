@@ -112,6 +112,8 @@ class NewMetricChart extends CommonSimpleChart {
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
   @InjectReactive({ from: 'containerScrollTop', default: 0 }) readonly containerScrollTop: number;
+  @InjectReactive({ from: 'chartSettingParams', default: {} }) readonly chartSettingParams;
+
   @Ref('baseChart') readonly baseChart: HTMLElement;
   @Ref('chart') readonly chart: HTMLElement;
   methodList = APM_CUSTOM_METHODS.map(method => ({
@@ -225,6 +227,17 @@ class NewMetricChart extends CommonSimpleChart {
   @Watch('currentMethod', { immediate: true })
   handleCurrentMethod() {
     this.method = this.currentMethod;
+  }
+  @Watch('chartSettingParams', { immediate: true })
+  handleChartSettingParamsChange() {
+    this.options = {
+      ...this.options,
+      yAxis: {
+        ...this.options.yAxis,
+        minInterval: 10 ** (-this.chartSettingParams?.decimal || 0),
+        min: this.chartSettingParams?.autoYAxis ? 'dataMin' : 0,
+      },
+    };
   }
   /** 切换计算的Method */
   handleMethodChange(method: (typeof APM_CUSTOM_METHODS)[number]) {
@@ -632,9 +645,9 @@ class NewMetricChart extends CommonSimpleChart {
                   : (v: number) => handleYAxisLabelFormatter(v - this.minBase),
               },
               splitNumber: this.height < 120 ? 2 : 4,
-              minInterval: 1,
+              minInterval: 10 ** (-this.chartSettingParams?.decimal || 0),
               max: 'dataMax',
-              min: 0,
+              min: this.chartSettingParams?.autoYAxis ? 'dataMin' : 0,
               scale: false,
             },
             xAxis: {
