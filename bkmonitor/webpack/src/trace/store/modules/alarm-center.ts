@@ -140,10 +140,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
       query_string: filterMode.value === EMode.queryString ? queryString.value : '',
       status: statusQuickFilter,
       ...timeRangeTimestamp.value,
-      [REFRESH_EFFECT_KEY]: refreshId.value,
     };
-    // 用于主动触发 依赖副作用 更新
-    delete params[REFRESH_EFFECT_KEY];
     return params;
   });
 
