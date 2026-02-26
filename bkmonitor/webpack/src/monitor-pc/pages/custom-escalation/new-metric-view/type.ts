@@ -1,3 +1,9 @@
+export interface ChartSettingsParams {
+  /** 是否自动调整Y轴 */
+  autoYAxis: boolean;
+  /** 小数位 */
+  decimal: number;
+}
 export interface IColumnItem {
   colKey?: string;
   color?: string;
@@ -17,16 +23,17 @@ export interface IColumnItem {
   width?: number | string;
   renderFn?: (row) => void;
 }
+
 export interface ICommonCondition {
   key: string;
   method: 'eq' | 'exclude' | 'include' | 'neq' | 'nreg' | 'reg';
   value: string[];
 }
-
 export interface ICompare {
   offset: string[]; // 用于描述对比的时间偏移
   type: '' | 'metric' | 'time';
 }
+
 export interface ICondition {
   condition?: 'and' | 'or'; // 可选字段
   key: string;
@@ -97,7 +104,6 @@ export interface IMetricAnalysisConfig {
   time_series_group_id: number;
   view_column?: number;
 }
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -126,6 +132,7 @@ export interface IMetricAnalysisConfig {
 export interface IObjItem {
   [key: string]: any;
 }
+
 export interface IRefreshItem {
   // 自动刷新间隔值
   id: number | string;
