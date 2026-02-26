@@ -202,6 +202,7 @@ class CollectItsmStatus(ChoicesEnum):
 
 
 STORAGE_CLUSTER_TYPE = "elasticsearch"
+DORIS_CLUSTER_TYPE = "doris"
 KAFKA_CLUSTER_TYPE = "kafka"
 TRANSFER_CLUSTER_TYPE = "transfer"
 REGISTERED_SYSTEM_DEFAULT = "_default"
