@@ -494,6 +494,7 @@ export default defineComponent({
                 getValueFn={this.getValueFn}
                 limit={this.limit}
                 loadDelay={this.loadDelay}
+                noValueOfMethods={this.noValueOfMethods}
                 placeholder={this.placeholder}
                 value={this.uiValue}
                 zIndex={this.zIndex}

@@ -34,8 +34,8 @@ import {
   onMounted,
   ref,
   watch,
+  shallowRef
 } from 'vue';
-import { shallowRef } from 'vue';
 
 import {
   i18n,
