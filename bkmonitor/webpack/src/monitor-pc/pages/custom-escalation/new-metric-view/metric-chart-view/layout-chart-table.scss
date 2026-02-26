@@ -1,13 +1,30 @@
 .layout-chart-table {
-  height: inherit;
+  height: 100%;
   background: #ffffff;
   border-radius: 2px;
+  
 
   .layout-chart-table-main {
-    height: calc(100% - 18px);
+    height: 100%;
 
     .bk-resize-layout-aside {
       border: none;
+    }
+  }
+
+  .main-chart {
+    height: 100%;
+    min-height: 300px;
+
+    .metric-chart-legend {
+      width: 100%;
+      min-height: 16px;
+      max-height: none;
+    }
+
+    .chart-instance {
+      flex: none;
+      height: 211px;
     }
   }
 
