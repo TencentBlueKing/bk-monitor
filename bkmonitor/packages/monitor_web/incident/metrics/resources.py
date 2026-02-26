@@ -8,23 +8,19 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import abc
-import logging
-import threading
 from typing import Any
-
-from bkmonitor.utils.request import get_request_username
+from core.drf_resource.base import Resource
+from monitor_web.incident.metrics.constants import MetricType, EntityType, MetricName, MetricUnit
+from monitor_web.incident.metrics.serializers import MetricsSearchSerializer
+from monitor_web.incident.metrics.metric_config import get_apm_config, get_bcs_config, get_host_config
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import resource
-from core.drf_resource.base import Resource
-from core.drf_resource.exceptions import record_exception
-from monitor_web.incident.metrics.constants import EntityType, MetricName, MetricType, MetricUnit
-from monitor_web.incident.metrics.metric_config import get_apm_config, get_bcs_config, get_host_config
-from monitor_web.incident.metrics.serializers import MetricsSearchSerializer
+import threading
+import abc
 from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
-
-logger = logging.getLogger("monitor_web.incident.metrics")
+from bkmonitor.utils.request import get_request_username
+from core.drf_resource.exceptions import record_exception
 
 
 class BaseIncidentMetricsResource(Resource, abc.ABC):
@@ -164,7 +160,7 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
 
     def execute_query(self, validated_request_data: dict, query_requests: dict, base_response: dict) -> dict:
         """
-        执行指标查询（优化版：批量并发执行所有查询）
+        执行指标查询
         """
         if not query_requests:
             return base_response
@@ -172,37 +168,19 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
         metric_query_response = base_response
 
         def _aggregation(req_data: dict[str, Any], metric_name: str, dimension_type: str):
-            try:
-                unify_query_resp = resource.grafana.graph_unify_query(req_data)
-
-                with self._lock:
-                    self.format_metrics_response(
-                        unify_query_resp,
-                        metric_query_response,
-                        metric_name,
-                        dimension_type=dimension_type,
-                        metric_type=metric_type,
-                    )
-            except KeyError as e:
-                # 捕获不支持的数据源类型错误
-                logger.warning(
-                    f"Unsupported data source for metric '{metric_name}' with dimension '{dimension_type}': {e}. "
-                    f"Query config: {req_data.get('query_configs', [])}"
+            unify_query_resp = resource.grafana.graph_unify_query(req_data)
+            with self._lock:
+                self.format_metrics_response(
+                    unify_query_resp,
+                    metric_query_response,
+                    metric_name,
+                    dimension_type=dimension_type,
+                    metric_type=metric_type,
                 )
-            except Exception as e:
-                # 捕获其他异常，避免影响其他查询
-                logger.exception(f"Failed to query metric '{metric_name}' with dimension '{dimension_type}': {e}")
 
-        # 优化：批量创建所有线程，然后一次性启动
-        threads = []
         for metric_name, req_dict in query_requests.items():
             for dimension_type, req_data in req_dict.items():
-                thread = InheritParentThread(target=_aggregation, args=(req_data, metric_name, dimension_type))
-                threads.append(thread)
-
-        # 一次性启动所有线程
-        if threads:
-            run_threads(threads)
+                run_threads([InheritParentThread(target=_aggregation, args=(req_data, metric_name, dimension_type))])
 
         return metric_query_response
 
