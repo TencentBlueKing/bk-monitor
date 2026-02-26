@@ -234,7 +234,7 @@ class NewMetricChart extends CommonSimpleChart {
       ...this.options,
       yAxis: {
         ...this.options.yAxis,
-        minInterval: 10 ** (-this.chartSettingParams?.decimal || 0),
+        minInterval: 10 ** -(this.chartSettingParams?.decimal ?? 0),
         min: this.chartSettingParams?.autoYAxis ? 'dataMin' : 0,
       },
     };
@@ -639,16 +639,16 @@ class NewMetricChart extends CommonSimpleChart {
                       if (seriesList[0].unit !== 'none') {
                         const obj = getValueFormat(seriesList[0].unit)(
                           v,
-                          this.chartSettingParams?.decimal || seriesList[0].precision
+                          this.chartSettingParams?.decimal ?? seriesList[0].precision
                         );
                         return this.removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
                       }
                       return v;
                     }
-                  : (v: number) => handleYAxisLabelFormatter(v - this.minBase, this.chartSettingParams?.decimal || 3),
+                  : (v: number) => handleYAxisLabelFormatter(v - this.minBase, this.chartSettingParams?.decimal ?? 3),
               },
               splitNumber: this.height < 120 ? 2 : 4,
-              minInterval: 1,
+              minInterval: 10 ** -(this.chartSettingParams?.decimal ?? 0),
               max: 'dataMax',
               /** 支持Y轴自适应 */
               min: this.chartSettingParams?.autoYAxis ? 'dataMin' : 0,
