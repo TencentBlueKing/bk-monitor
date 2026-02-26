@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/member-ordering */
-
-import { deepClone } from 'monitor-common/utils/utils';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,6 +23,8 @@ import { deepClone } from 'monitor-common/utils/utils';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { deepClone } from 'monitor-common/utils/utils';
+
 export const variableRegex = /\$(\w+)|\[\[([\s\S]+?)(?::(\w+))?\]\]|\${(\w+)(?:\.([^:^}]+))?(?::([^}]+))?}/g;
 export type ScopedVars = Record<string, any>;
 
@@ -141,3 +139,7 @@ export class VariablesService {
     return newData;
   }
 }
+
+const singletonVariablesServiceInstance = new VariablesService({});
+
+export const getVariablesService = () => singletonVariablesServiceInstance;

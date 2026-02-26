@@ -24,12 +24,15 @@
  * IN THE SOFTWARE.
  */
 export interface ILegendItem {
+  [key: string]: any;
   alias?: string;
   avg?: number | string;
   avgSource?: number;
   borderColor?: string;
   color: string;
+  disabled?: boolean;
   hidden?: boolean;
+  icon?: string;
   max?: number | string;
   maxSource?: number;
   metricField?: string;

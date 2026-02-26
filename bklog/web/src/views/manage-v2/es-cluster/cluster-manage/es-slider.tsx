@@ -29,7 +29,7 @@ import { defineComponent, ref, computed, watch } from 'vue';
 import { messageError } from '@/common/bkmagic';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import BkUserSelector from '@blueking/user-selector';
+import ValidateUserSelector from '@/components/user-selector';
 import { Message } from 'bk-magic-vue';
 
 import { useSidebarDiff } from '../../hooks/use-sidebar-diff';
@@ -44,7 +44,7 @@ export default defineComponent({
   name: 'EsSlider',
   components: {
     EsDialog,
-    BkUserSelector,
+    ValidateUserSelector,
   },
   props: {
     // 是否显示侧滑
@@ -176,7 +176,6 @@ export default defineComponent({
     const maxDaysList = ref([]); // 最大过期时间列表
     const customRetentionDay = ref(''); // 默认过期时间输入框
     const customMaxDay = ref(''); // 最大过期时间输入框
-    const isAdminError = ref(false); // 集群负责人是否为空
     const bizSelectID = ref(''); // 选中的当前按照业务属性选择
     const bizInputStr = ref(''); // 按照业务属性选择输入值
     const isFirstShow = ref(true); // 是否是第一次渲染
@@ -619,16 +618,6 @@ export default defineComponent({
         isRetention ? (customRetentionDay.value = '') : (customMaxDay.value = '');
         messageError(t('请输入有效数值'));
       }
-    };
-
-    // 集群负责人为空时报错警告
-    const handleChangePrincipal = (val: any[]) => {
-      const realVal = val.filter(item => item !== undefined);
-      isAdminError.value = !realVal.length;
-      formData.value.admin = realVal;
-    };
-    const handleBlur = () => {
-      isAdminError.value = !formData.value.admin.length;
     };
 
     // 获取业务属性（父/子）列表
@@ -1398,14 +1387,10 @@ export default defineComponent({
                         required
                       >
                         <div class='principal'>
-                          <BkUserSelector
-                            class={isAdminError.value && 'is-error'}
-                            api={userApi.value}
-                            empty-text={t('无匹配人员')}
+                          <ValidateUserSelector
                             placeholder={t('请选择集群负责人')}
                             value={formData.value.admin}
-                            onBlur={handleBlur}
-                            onChange={handleChangePrincipal}
+                            onChange={(val: string[]) => (formData.value.admin = val)}
                           />
                         </div>
                       </bk-form-item>

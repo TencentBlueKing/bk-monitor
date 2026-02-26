@@ -63,6 +63,8 @@ const setMorePopoverRef = (el, index) => {
 };
 const inputValueLength = ref(0);
 
+const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
+
 // 动态设置placeHolder
 const inputPlaceholder = computed(() => {
   if (inputValueLength.value === 0) {

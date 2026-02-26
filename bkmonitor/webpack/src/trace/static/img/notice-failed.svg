@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="11px" height="11px" viewBox="0 0 11 11" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 57.1 (83088) - https://sketch.com -->
+    <title>发送失败</title>
+    <desc>Created with Sketch.</desc>
+    <g id="告警事件" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="0204.通知状态细明" transform="translate(-590.000000, -281.000000)" fill="#EA3636">
+            <g id="选择指标" transform="translate(373.000000, 113.000000)">
+                <g id="表格" transform="translate(24.000000, 111.000000)">
+                    <g id="通知状态" transform="translate(193.000000, 57.000000)">
+                        <g id="发送失败">
+                            <path d="M5.5,0 C8.53756612,0 11,2.46243388 11,5.5 C11,8.53756612 8.53756612,11 5.5,11 C2.46243388,11 0,8.53756612 0,5.5 C0,2.46243388 2.46243388,0 5.5,0 Z M7.62132034,2.67157288 L5.5,4.793 L3.37867966,2.67157288 L2.67157288,3.37867966 L4.793,5.5 L2.67157288,7.62132034 L3.37867966,8.32842712 L5.5,6.207 L7.62132034,8.32842712 L8.32842712,7.62132034 L6.207,5.5 L8.32842712,3.37867966 L7.62132034,2.67157288 Z" id="失败状态（11）"></path>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

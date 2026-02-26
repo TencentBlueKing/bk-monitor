@@ -25,11 +25,13 @@ from rest_framework.exceptions import ValidationError
 from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
     AggregatedMethod,
+    ApmCacheType,
     ConfigTypes,
     EnabledStatisticsDimension,
     StatisticsProperty,
     VisibleEnum,
 )
+from apm.core.discover.instance import InstanceDiscover
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.core.handlers.bk_data.helper import FlowHelper
@@ -784,7 +786,17 @@ class QueryTopoInstanceResource(PageListResource):
     UNIQUE_UPDATED_AT = "updated_at"
 
     topo_instance_all_fields = [field.column for field in TopoInstance._meta.fields]
-    merge_data_need_fields = ["updated_at", "id", "instance_id"]
+    merge_data_need_fields = [
+        "updated_at",
+        "topo_node_key",
+        "instance_id",
+        "instance_topo_kind",
+        "component_instance_category",
+        "component_instance_predicate_value",
+        "sdk_name",
+        "sdk_version",
+        "sdk_language",
+    ]
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
@@ -853,13 +865,15 @@ class QueryTopoInstanceResource(PageListResource):
 
     def merge_data(self, instance_list, validated_request_data):
         merge_data = []
-        name = ApmCacheHandler.get_topo_instance_cache_key(
-            validated_request_data["bk_biz_id"], validated_request_data["app_name"]
+        name = ApmCacheHandler.get_cache_key(
+            ApmCacheType.TOPO_INSTANCE, validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
         cache_data = ApmCacheHandler().get_cache_data(name)
         # 更新 updated_at 字段
         for instance in instance_list:
-            key = str(instance["id"]) + ":" + instance["instance_id"]
+            instance_data = InstanceDiscover.build_instance_data(instance)
+            key = InstanceDiscover.to_cache_key(instance_data)
+
             if key in cache_data:
                 instance["updated_at"] = datetime.datetime.fromtimestamp(cache_data.get(key)).strftime(
                     "%Y-%m-%d %H:%M:%S"
@@ -1042,20 +1056,17 @@ class QueryEndpointResource(Resource):
         if data.get("filters"):
             endpoints = endpoints.filter(**data["filters"])
 
-        # 从Redis缓存获取端点时间信息
-        cache_name = ApmCacheHandler.get_endpoint_cache_key(data["bk_biz_id"], data["app_name"])
-        cache_data = ApmCacheHandler().get_cache_data(cache_name)
+        # 批量获取缓存并合并更新时间
+        from apm.core.discover.endpoint import EndpointDiscover
 
-        # 构建端点数据并合并缓存时间信息，然后根据合并后的时间进行过期过滤
+        id_to_updated_at = DiscoverHandler.batch_merge_cache_updated_time(
+            data["bk_biz_id"], data["app_name"], ApmCacheType.ENDPOINT, list(endpoints), EndpointDiscover
+        )
+
+        # 构建端点数据并根据合并后的时间进行过期过滤
         result = []
         for endpoint in endpoints:
-            # 构建缓存key，格式：{id}:{service_name}:{endpoint_name}
-            cache_key = f"{endpoint.id}:{endpoint.service_name}:{endpoint.endpoint_name}"
-
-            # 获取时间戳，优先使用缓存中的时间，如果缓存中没有则使用数据库的updated_at
-            updated_at = endpoint.updated_at
-            if cache_key in cache_data:
-                updated_at = datetime.datetime.fromtimestamp(cache_data[cache_key], tz=pytz.UTC)
+            updated_at = id_to_updated_at[endpoint.id]
 
             # 根据合并后的时间进行过期过滤
             if updated_at >= retention_cutoff:
@@ -1557,19 +1568,44 @@ class QueryHostInstanceResource(Resource):
         app_name = serializers.CharField()
         service_name = serializers.CharField(required=False)
 
-    class ResponseSerializer(serializers.ModelSerializer):
-        class Meta:
-            model = HostInstance
-            fields = ["bk_cloud_id", "ip", "bk_host_id"]
-
     def perform_request(self, data):
-        filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
+        # 获取过期时间分界线，确保使用UTC时区
+        retention = DiscoverHandler.get_app_retention(data["bk_biz_id"], data["app_name"])
+        retention_cutoff = datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(retention)
+
+        # 获取数据库中的主机实例数据，不使用updated_at__gte过滤，避免过早过滤导致数据丢失
+        filter_params = {
+            "bk_biz_id": data["bk_biz_id"],
+            "app_name": data["app_name"],
+        }
 
         q = Q()
         if data.get("service_name"):
             q &= Q(topo_node_key=data["service_name"])
 
-        return HostInstance.objects.filter(**filter_params).filter(q)
+        hosts = HostInstance.objects.filter(**filter_params).filter(q)
+
+        # 批量获取缓存并合并更新时间
+        from apm.core.discover.host import HostDiscover
+
+        id_to_updated_at = DiscoverHandler.batch_merge_cache_updated_time(
+            data["bk_biz_id"], data["app_name"], ApmCacheType.HOST, list(hosts), HostDiscover
+        )
+
+        # 根据合并后的时间进行过期过滤
+        result = []
+        for host in hosts:
+            updated_at = id_to_updated_at[host.id]
+            if updated_at >= retention_cutoff:
+                result.append(
+                    {
+                        "bk_cloud_id": host.bk_cloud_id,
+                        "ip": host.ip,
+                        "bk_host_id": host.bk_host_id,
+                    }
+                )
+
+        return result
 
 
 class QueryRemoteServiceRelationResource(Resource):

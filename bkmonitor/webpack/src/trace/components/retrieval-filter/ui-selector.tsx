@@ -28,17 +28,16 @@ import { isEn } from '../../i18n/i18n';
 import { defineComponent, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useEventListener } from '@vueuse/core';
-import tippy from 'tippy.js';
 import { useI18n } from 'vue-i18n';
+import { useTippy } from 'vue-tippy';
 
 import AutoWidthInput from './auto-width-input';
 import KvTag from './kv-tag';
-import { type IFilterItem, ECondition, EMethod, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
+import { type IFilterItem, ECondition, EFieldType, EMethod, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
 import UiSelectorOptions from './ui-selector-options';
-import { DURATION_KEYS, getDurationDisplay, triggerShallowRef } from './utils';
+import { getDurationDisplay, isElementVisibleAndUnobstructed, triggerShallowRef } from './utils';
 
 import './ui-selector.scss';
-import 'tippy.js/dist/tippy.css';
 export default defineComponent({
   name: 'UiSelector',
   props: UI_SELECTOR_PROPS,
@@ -77,7 +76,9 @@ export default defineComponent({
     );
 
     function init() {
-      cleanup = useEventListener(window, 'keydown', handleKeyDownSlash);
+      if (props.hasShortcutKey) {
+        cleanup = useEventListener(window, 'keydown', handleKeyDownSlash);
+      }
     }
 
     onUnmounted(() => {
@@ -89,14 +90,14 @@ export default defineComponent({
         destroyPopoverInstance();
         return;
       }
-      popoverInstance.value = tippy(event.target as any, {
-        content: selectorRef.value,
+      popoverInstance.value = useTippy(event.target as any, {
+        content: () => selectorRef.value,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',
         arrow: true,
         appendTo: document.body,
-        zIndex: 998,
+        zIndex: props.zIndex,
         maxWidth: 720,
         offset: [0, 4],
         interactive: true,
@@ -177,7 +178,8 @@ export default defineComponent({
         event.key === '/' &&
         !inputValue.value &&
         !showSelector.value &&
-        !['BK-WEWEB', 'INPUT'].includes(event.target?.tagName)
+        !['BK-WEWEB', 'INPUT'].includes(event.target?.tagName) &&
+        isElementVisibleAndUnobstructed(elRef.value)
       ) {
         event.preventDefault();
         handleClickComponent();
@@ -248,13 +250,15 @@ export default defineComponent({
     }
     function handleEnter() {
       if (inputValue.value) {
+        const allItem = props.fields.find(item => item.type === EFieldType.all);
+        const methodItem = allItem?.methods?.[0];
         localValue.value.push({
           key: {
-            id: '*',
-            name: t('全文'),
+            id: allItem?.name || '*',
+            name: allItem?.alias || t('全文'),
           },
           value: [{ id: inputValue.value, name: inputValue.value }],
-          method: { id: EMethod.include, name: t('包含') },
+          method: { id: methodItem?.value || EMethod.include, name: methodItem?.alias || t('包含') },
           condition: { id: ECondition.and, name: 'AND' },
         });
         triggerShallowRef(localValue);
@@ -300,6 +304,17 @@ export default defineComponent({
       hideInput();
     }
 
+    function getIsDuration(id: string) {
+      let isDuration = false;
+      for (const item of props.fields) {
+        if (item.name === id) {
+          isDuration = item.type === EFieldType.duration;
+          break;
+        }
+      }
+      return isDuration;
+    }
+
     return {
       inputValue,
       showSelector,
@@ -316,6 +331,7 @@ export default defineComponent({
       handleHideTag,
       handleUpdateTag,
       handleClickComponent,
+      getIsDuration,
       t,
     };
   },
@@ -335,35 +351,42 @@ export default defineComponent({
         {this.localValue.map((item, index) => (
           <KvTag
             key={`${index}_kv`}
+            hasTagHidden={this.hasTagHidden}
             value={item}
             onDelete={() => this.handleDeleteTag(index)}
             onHide={() => this.handleHideTag(index)}
             onUpdate={event => this.handleUpdateTag(event, index)}
           >
             {{
-              value: DURATION_KEYS.includes(item.key.id)
+              value: this.getIsDuration(item.key.id)
                 ? () => <span class='value-name'>{getDurationDisplay(item.value.map(item => item.id))}</span>
                 : undefined,
             }}
           </KvTag>
         ))}
-        <div class={['kv-placeholder', { 'is-en': isEn }]}>
-          <AutoWidthInput
-            height={40}
-            isFocus={this.inputFocus}
-            placeholder={this.placeholder || `${this.t('快捷键 / ，可直接输入')}`}
-            value={this.inputValue}
-            onBlur={this.handleBlur}
-            onEnter={this.handleEnter}
-            onInput={this.handleInput}
-          />
-        </div>
+        {this.hasShortcutKey && (
+          <div class={['kv-placeholder', { 'is-en': isEn }]}>
+            <AutoWidthInput
+              height={40}
+              isFocus={this.inputFocus}
+              placeholder={this.placeholder || `${this.t('快捷键 / ，可直接输入')}`}
+              value={this.inputValue}
+              onBlur={this.handleBlur}
+              onEnter={this.handleEnter}
+              onInput={this.handleInput}
+            />
+          </div>
+        )}
+
         <div style='display: none;'>
           <div ref='selector'>
             <UiSelectorOptions
               fields={this.fields}
               getValueFn={this.getValueFn}
               keyword={this.inputValue}
+              limit={this.limit}
+              loadDelay={this.loadDelay}
+              noValueOfMethods={this.noValueOfMethods}
               show={this.showSelector}
               value={this.localValue?.[this.updateActive]}
               onCancel={this.handleCancel}

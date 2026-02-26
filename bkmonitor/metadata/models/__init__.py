@@ -37,6 +37,7 @@ from .data_link import (  # noqa
     LogResultTableConfig,
     ResultTableConfig,
     VMStorageBindingConfig,
+    DorisStorageBindingConfig,
 )
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .es_snapshot import (

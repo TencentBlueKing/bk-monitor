@@ -53,13 +53,16 @@ import {
   EMethod,
   EMode,
 } from '../../components/retrieval-filter/typing';
-import { useCandidateValue } from '../../components/retrieval-filter/use-candidate-value';
 import {
+  DURATION_KEYS,
+  INPUT_TAG_KEYS,
   mergeWhereList,
   SPAN_DEFAULT_RESIDENT_SETTING_KEY,
   SPAN_NOT_SUPPORT_ENUM_KEYS,
   TRACE_DEFAULT_RESIDENT_SETTING_KEY,
   TRACE_NOT_SUPPORT_ENUM_KEYS,
+  traceWhereChangeFormatter,
+  traceWhereFormatter,
 } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import useUserConfig from '../../hooks/useUserConfig';
@@ -72,6 +75,7 @@ import FavoriteBox, { type IFavoriteGroup, EditFavorite } from './components/fav
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
+import { useCandidateValue } from './hooks/use-candidate-value';
 import { getFilterByCheckboxFilter, safeParseJsonValueForWhere, tryURLDecodeParse } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
@@ -83,7 +87,15 @@ const TRACE_EXPLORE_APPLICATION_ID_THUMBTACK = 'trace_explore_application_id_thu
 
 updateTimezone(window.timezone);
 
+import { type MetricDetailV2, QueryConfig } from '@blueking/monitor-vue2-components/index.mjs';
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
+
 import { useFavoriteFieldsState } from './components/trace-explore-table/utils/favorite-fields';
+
+import type {
+  IGetMetricListData,
+  IGetMetricListParams,
+} from 'monitor-pc/pages/query-template/components/metric/components/types';
 
 import './trace-explore.scss';
 export default defineComponent({
@@ -102,11 +114,11 @@ export default defineComponent({
     const { t } = useI18n();
     const route = useRoute();
     const router = useRouter();
-    const traceExploreLayoutRef = shallowRef<InstanceType<typeof traceExploreLayoutRef>>();
     const store = useTraceExploreStore();
     const appStore = useAppStore();
     const bizId = computed(() => appStore.bizId);
     const favoriteBox = useTemplateRef<ComponentPublicInstance<typeof FavoriteBox>>('favoriteBox');
+    const isCollapsed = shallowRef(false);
     const allFavoriteList = computed(() => {
       return favoriteBox.value?.getFavoriteList() || [];
     });
@@ -137,6 +149,33 @@ export default defineComponent({
     /** 维度字段列表 */
     const fieldList = computed(() => {
       return store.mode === 'trace' ? fieldListMap.value.trace : fieldListMap.value.span;
+    });
+    const retrievalFields = computed(() => {
+      function getType(item) {
+        if (DURATION_KEYS.includes(item.name)) {
+          return EFieldType.duration;
+        }
+        if (INPUT_TAG_KEYS.includes(item.name)) {
+          return EFieldType.input;
+        }
+        return item.type;
+      }
+      return (fieldList.value as any[])
+        .filter(item => item?.is_searched)
+        .map(item => ({
+          ...item,
+          isEnableOptions: notSupportEnumKeys.value.includes(item.name)
+            ? false
+            : !!item?.is_dimensions || item?.type === EFieldType.boolean,
+          type: getType(item),
+          methods:
+            item?.supported_operations?.map(s => ({
+              ...s,
+              alias: s.label,
+              value: s.operator,
+              wildcardValue: s?.wildcard_operator || '',
+            })) || [],
+        }));
     });
 
     /** 展示侧栏详情 */
@@ -185,8 +224,37 @@ export default defineComponent({
       //   ? t('快捷键 / ，可直接输入TraceID快捷检索')
       //   : t('快捷键 / ，可直接输入SpanID快捷检索');
     });
+    const curFavoriteId = computed(() => currentFavorite.value?.config?.queryParams?.app_name);
+    // 当前是否采用默认常驻设置 （检索条件栏使用）
+    const isDefaultResidentSetting = computed(() => {
+      if (curFavoriteId.value === appName.value) {
+        return false;
+      }
+      return true;
+    });
+    // 当前选择的收藏项（检索条件栏使用）
+    const retrievalSelectFavorite = computed(() => {
+      if (currentFavorite.value) {
+        return {
+          commonWhere: currentFavorite.value?.config?.componentData?.commonWhere || [],
+          where: currentFavorite.value?.config?.queryParams?.filters || [],
+        };
+      }
+      return null;
+    });
+    // 收藏列表（检索条件栏使用）
+    const retrievalFavoriteList = computed(() => {
+      return allFavoriteList.value.map(item => ({
+        ...item,
+        config: {
+          queryString: item?.config?.queryParams?.query || '',
+          where: item?.config?.queryParams?.filters || [],
+          commonWhere: item?.config?.componentData?.commonWhere || [],
+        },
+      }));
+    });
     useIsEnabledProfilingProvider(enableProfiling);
-
+    console.log('store.refreshInterval', store.refreshInterval);
     watch(
       () => store.refreshInterval,
       val => {
@@ -254,8 +322,8 @@ export default defineComponent({
     }
 
     /** 关闭维度列表 */
-    function handleCloseDimensionPanel() {
-      traceExploreLayoutRef.value.handleClickShrink(false);
+    function updateIsCollapsed(v: boolean) {
+      isCollapsed.value = v;
     }
 
     function handleConditionChange(item: ConditionChangeEvent) {
@@ -754,10 +822,42 @@ export default defineComponent({
         };
       }
     }
-
+    const queryConfig = shallowRef<QueryConfig>({});
+    const handleSelectMetric = (val: MetricDetailV2) => {
+      queryConfig.value = new QueryConfig(val);
+      console.log(val);
+    };
+    let abortController: AbortController | null = null;
+    const getMetricList = async (params: IGetMetricListParams) => {
+      if (abortController) {
+        abortController.abort();
+        abortController = null;
+      }
+      abortController = new AbortController();
+      const data = await getMetricListV2<IGetMetricListData>(
+        {
+          conditions: [
+            {
+              key: 'query',
+              value: '',
+            },
+          ],
+          data_type_label: 'time_series',
+          tag: '',
+          page: 1,
+          page_size: 20,
+          ...params,
+        },
+        {
+          signal: abortController.signal,
+        }
+      );
+      return data;
+    };
     return {
+      queryConfig,
       t,
-      traceExploreLayoutRef,
+      isCollapsed,
       defaultApplication,
       applicationLoading,
       applicationList,
@@ -784,13 +884,17 @@ export default defineComponent({
       notSupportEnumKeys,
       showSlideDetail,
       retrievalFilterPlaceholder,
+      retrievalFields,
+      isDefaultResidentSetting,
+      retrievalSelectFavorite,
+      retrievalFavoriteList,
       setUrlParams,
       handleQuery,
       handleAppNameChange,
       handleThumbtackChange,
       handelSceneChange,
       handleFavoriteShowChange,
-      handleCloseDimensionPanel,
+      updateIsCollapsed,
       handleConditionChange,
       getRetrievalFilterValueData,
       handleCommonWhereChange,
@@ -809,11 +913,18 @@ export default defineComponent({
       handleClearRetrievalFilter,
       handleCopyWhereQueryString,
       handleSetCommonWhereToFavoriteCache,
+      handleSelectMetric,
+      getMetricList,
     };
   },
   render() {
     return (
       <div class='trace-explore'>
+        {/* <MonitorVue2
+          getMetricList={this.getMetricList}
+          queryConfig={this.queryConfig}
+          onSelectMetric={this.handleSelectMetric}
+        /> */}
         <div
           style={{ display: this.isShowFavorite ? 'block' : 'none' }}
           class='favorite-panel'
@@ -844,21 +955,26 @@ export default defineComponent({
               <div class='skeleton-element filter-skeleton' />
             ) : (
               <RetrievalFilter
+                changeWhereFormatter={traceWhereChangeFormatter}
                 commonWhere={this.commonWhere}
-                dataId={this.appName}
                 defaultResidentSetting={this.defaultResidentSetting}
                 defaultShowResidentBtn={this.showResidentBtn}
-                favoriteList={this.allFavoriteList}
-                fields={this.fieldList as any[]}
+                favoriteList={this.retrievalFavoriteList}
+                fields={this.retrievalFields as any[]}
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}
+                isDefaultResidentSetting={this.isDefaultResidentSetting}
+                isShowClear={true}
+                isShowCopy={true}
                 isShowFavorite={true}
-                notSupportEnumKeys={this.notSupportEnumKeys}
+                isShowResident={true}
+                loadDelay={300}
                 placeholder={this.retrievalFilterPlaceholder}
                 queryString={this.queryString}
                 residentSettingOnlyId={this.residentSettingOnlyId}
-                selectFavorite={this.currentFavorite}
+                selectFavorite={this.retrievalSelectFavorite}
                 where={this.where}
+                whereFormatter={traceWhereFormatter}
                 onCommonWhereChange={this.handleCommonWhereChange}
                 onCopyWhere={this.handleCopyWhereQueryString}
                 onFavorite={this.handleFavoriteSave}
@@ -887,8 +1003,9 @@ export default defineComponent({
             )}
             {!this.applicationLoading && !!this.applicationList.length && (
               <TraceExploreLayout
-                ref='traceExploreLayoutRef'
                 class='content-container'
+                isCollapsed={this.isCollapsed}
+                onUpdate:isCollapsed={this.updateIsCollapsed}
               >
                 {{
                   aside: () => (
@@ -897,7 +1014,7 @@ export default defineComponent({
                         list={this.fieldList}
                         listLoading={this.loading}
                         params={this.commonParams}
-                        onClose={this.handleCloseDimensionPanel}
+                        onClose={() => this.updateIsCollapsed(true)}
                         onConditionChange={this.handleConditionChange}
                       />
                     </div>

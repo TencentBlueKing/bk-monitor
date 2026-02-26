@@ -1,0 +1,43 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e3f2fd', 'primaryTextColor': '#1565c0', 'primaryBorderColor': '#1976d2', 'lineColor': '#42a5f5'}}}%%
+flowchart TD
+    subgraph "URL 解析阶段"
+        START([进入 Retrieve 页面]) --> PARSE_URL[updateURLArgs 解析 URL]
+        PARSE_URL --> CHECK_INDEX_TYPE{检查索引类型}
+        CHECK_INDEX_TYPE -->|index_id| SINGLE["单索引模式<br/>ids=#91;index_id#93;<br/>isUnionIndex=false"]
+        CHECK_INDEX_TYPE -->|unionList| UNION["联合索引模式<br/>ids=#91;...#93;<br/>isUnionIndex=true"]
+        SINGLE --> COMMIT_STORE
+        UNION --> COMMIT_STORE
+        COMMIT_STORE[store.commit<br/>updateIndexItem<br/>updateSpace<br/>updateState]
+    end
+
+    subgraph "索引集列表加载"
+        COMMIT_STORE --> GET_INDEX_LIST[dispatch<br/>retrieve/getIndexSetList]
+        GET_INDEX_LIST --> CHECK_EMPTY{列表为空?}
+        CHECK_EMPTY -->|是| REDIRECT_UNAUTH[跳转 /un-authorized<br/>?type=indexset]
+        CHECK_EMPTY -->|否| PROCESS_TAGS[处理 tags 联合索引<br/>处理无效索引兜底]
+    end
+
+    subgraph "字段信息 & 查询执行"
+        PROCESS_TAGS --> GET_FIELD_INFO[dispatch<br/>requestIndexSetFieldInfo]
+        GET_FIELD_INFO --> EMIT_EVENTS[触发事件]
+        EMIT_EVENTS --> TREND_EVENT[RetrieveEvent<br/>TREND_GRAPH_SEARCH]
+        EMIT_EVENTS --> FIELD_EVENT[RetrieveEvent<br/>LEFT_FIELD_INFO_UPDATE]
+        TREND_EVENT --> CHECK_TAB{tab=origin?}
+        FIELD_EVENT --> CHECK_TAB
+        CHECK_TAB -->|是| EXEC_QUERY[dispatch<br/>requestIndexSetQuery]
+        CHECK_TAB -->|否| SKIP_QUERY[跳过主查询]
+    end
+
+    subgraph "收藏夹 & 空间监听"
+        EXEC_QUERY --> ON_MOUNTED
+        SKIP_QUERY --> ON_MOUNTED
+        ON_MOUNTED[onMounted] --> GET_FAVORITE[dispatch<br/>requestFavoriteList]
+        ON_MOUNTED --> WATCH_SPACE[watch spaceUid]
+        WATCH_SPACE --> RESET_STATE[重置索引状态]
+        RESET_STATE --> REFETCH[重新拉取<br/>索引集 + 收藏夹]
+        REFETCH --> UPDATE_URL[同步修正 URL query]
+    end
+
+    REDIRECT_UNAUTH --> END_FLOW([流程结束])
+    GET_FAVORITE --> END_FLOW
+    UPDATE_URL --> END_FLOW

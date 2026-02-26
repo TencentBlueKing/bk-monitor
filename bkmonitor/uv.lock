@@ -273,6 +273,116 @@ wheels = [
 ]
 
 [[package]]
+name = "bk-monitor-base"
+version = "0.0.1"
+source = { editable = "../bk-monitor-base" }
+dependencies = [
+    { name = "arrow" },
+    { name = "bk-crypto-python-sdk" },
+    { name = "bkstorages" },
+    { name = "blue-krill" },
+    { name = "celery" },
+    { name = "confluent-kafka" },
+    { name = "django" },
+    { name = "django-celery-beat" },
+    { name = "django-celery-results" },
+    { name = "django-modeltranslation" },
+    { name = "django-prometheus" },
+    { name = "django-redis" },
+    { name = "django-stubs-ext" },
+    { name = "djangorestframework" },
+    { name = "elasticsearch" },
+    { name = "elasticsearch-curator" },
+    { name = "elasticsearch-dsl" },
+    { name = "elasticsearch5" },
+    { name = "elasticsearch6" },
+    { name = "furl" },
+    { name = "influxdb" },
+    { name = "jinja2" },
+    { name = "kafka-python" },
+    { name = "kubernetes" },
+    { name = "mysqlclient" },
+    { name = "pillow" },
+    { name = "ply" },
+    { name = "pycryptodome" },
+    { name = "pydantic" },
+    { name = "pydantic-extra-types" },
+    { name = "pydantic-settings" },
+    { name = "pypinyin" },
+    { name = "python-consul" },
+    { name = "pytz" },
+    { name = "pyyaml" },
+    { name = "redis" },
+    { name = "tenacity" },
+    { name = "typing-extensions" },
+    { name = "xxhash" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "arrow", specifier = "<1" },
+    { name = "bk-crypto-python-sdk", specifier = "==2.0.1" },
+    { name = "bkstorages", specifier = ">=2.0.1,<2.1.0" },
+    { name = "blue-krill", specifier = "==2.1.0" },
+    { name = "celery", specifier = "==5.4.0" },
+    { name = "confluent-kafka", specifier = "==2.4.0" },
+    { name = "django", specifier = "<5" },
+    { name = "django-celery-beat", specifier = "<2.8.0" },
+    { name = "django-celery-results", specifier = "<2.7.0" },
+    { name = "django-modeltranslation", specifier = "==0.17.7" },
+    { name = "django-prometheus", specifier = "==2.3.1" },
+    { name = "django-redis", specifier = "==5.4.0" },
+    { name = "django-stubs-ext", specifier = "<5" },
+    { name = "djangorestframework", specifier = "<3.16.0" },
+    { name = "elasticsearch", specifier = "==7.17.12" },
+    { name = "elasticsearch-curator", specifier = "==7.0.1" },
+    { name = "elasticsearch-dsl", specifier = "==7.4.1" },
+    { name = "elasticsearch5", specifier = "==5.5.6" },
+    { name = "elasticsearch6", specifier = "==6.8.2" },
+    { name = "furl", specifier = ">=2.1.4,<2.2.0" },
+    { name = "influxdb", specifier = "==5.3.2" },
+    { name = "jinja2", specifier = ">=3.1.6,<4.0.0" },
+    { name = "kafka-python", specifier = "==1.4.6" },
+    { name = "kubernetes", specifier = "==18.20.0" },
+    { name = "mysqlclient", specifier = ">=2.2.7,<2.3.0" },
+    { name = "pillow", specifier = "<11.3" },
+    { name = "ply", specifier = ">=3.11,<3.12" },
+    { name = "pycryptodome", specifier = "==3.23.0" },
+    { name = "pydantic", specifier = ">=2.11.5,<2.12.0" },
+    { name = "pydantic-extra-types", specifier = ">=2.10.5,<2.11.0" },
+    { name = "pydantic-settings", specifier = ">=2.10.1,<2.11.0" },
+    { name = "pypinyin", specifier = "==0.53.0" },
+    { name = "python-consul", specifier = "==1.1.0" },
+    { name = "pytz", specifier = ">=2025.2,<2027.0" },
+    { name = "pyyaml", specifier = ">=6.0,<7.0" },
+    { name = "redis", specifier = "==4.6.0" },
+    { name = "tenacity", specifier = "<9" },
+    { name = "typing-extensions", specifier = ">=4.14.1,<4.15.0" },
+    { name = "xxhash", specifier = ">=3.6.0,<3.7.0" },
+]
+
+[package.metadata.requires-dev]
+cli = [
+    { name = "rich", specifier = "<15" },
+    { name = "typer", specifier = "<0.22" },
+]
+dev = [
+    { name = "basedpyright", specifier = ">=1.29.4,<1.30.0" },
+    { name = "celery-types", specifier = ">=0.23.0,<0.25.0" },
+    { name = "django-types", specifier = ">=0.22.0,<0.23.0" },
+    { name = "elasticmock", specifier = "==1.8.1" },
+    { name = "ipython", specifier = ">=9.3.0,<9.4.0" },
+    { name = "pre-commit", specifier = ">=4.2.0,<4.3.0" },
+    { name = "pytest", specifier = ">=7.0.0,<7.1.0" },
+    { name = "pytest-cov", specifier = "<6.3.0" },
+    { name = "pytest-django", specifier = ">=4.5.0,<4.6.0" },
+    { name = "pytest-mock", specifier = ">=3.14.1,<3.15.0" },
+    { name = "pytest-xdist", specifier = ">=3.8.0" },
+    { name = "requests-mock", specifier = ">=1.12.1,<1.13.0" },
+    { name = "ruff", specifier = ">=0.12.3,<0.13.0" },
+]
+
+[[package]]
 name = "bk-notice-sdk"
 version = "1.4.2"
 source = { registry = "https://pypi.org/simple" }
@@ -317,6 +427,7 @@ dependencies = [
     { name = "bk-audit" },
     { name = "bk-crypto-python-sdk" },
     { name = "bk-iam" },
+    { name = "bk-monitor-base" },
     { name = "bk-notice-sdk" },
     { name = "bkstorages" },
     { name = "blueapps" },
@@ -447,6 +558,7 @@ requires-dist = [
     { name = "bk-audit", specifier = "==1.0.7" },
     { name = "bk-crypto-python-sdk", specifier = "==2.0.1" },
     { name = "bk-iam", specifier = "==2.0.3" },
+    { name = "bk-monitor-base", editable = "../bk-monitor-base" },
     { name = "bk-notice-sdk", specifier = "==1.4.2" },
     { name = "bkstorages", specifier = "==2.0.3" },
     { name = "blueapps", specifier = "==4.16rc1" },
@@ -591,6 +703,30 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/22/36/fe51abb8d67a4b43a943acdde2ed5b18c71d5816ecc795e3d5c358a27aa6/bkstorages-2.0.3.tar.gz", hash = "sha256:849d404ffd998318dfd873f229aaba51db1bffe878006f9d834f5f1b85f16061", size = 19978, upload-time = "2025-12-23T07:49:08.038Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/74/57/050268c652fa14e4db47fb845d16804cc5912ccaf8c66199ffeb5f7f4474/bkstorages-2.0.3-py3-none-any.whl", hash = "sha256:27ce52d7fe7df83ca9a0dda0ca722efc6aab0561a66bf769844965815e50725b", size = 22228, upload-time = "2025-12-23T07:59:08.367Z" },
+]
+
+[[package]]
+name = "blue-krill"
+version = "2.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "bk-crypto-python-sdk" },
+    { name = "click" },
+    { name = "cryptography" },
+    { name = "curlify" },
+    { name = "django-environ" },
+    { name = "pydantic" },
+    { name = "pyjwt" },
+    { name = "python-editor" },
+    { name = "requests" },
+    { name = "six" },
+    { name = "toml" },
+    { name = "urllib3" },
+    { name = "watchdog" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/68/15/2696474aa56070faa12d9572a113f0ed0fcf06c4c6ec8625f3cebfd14324/blue_krill-2.1.0.tar.gz", hash = "sha256:b2cd00ae57b8e5e9ddb706a07a545f2e8e1278cef66476b1af5adbe542d2ee55", size = 64714, upload-time = "2025-02-24T06:39:54.422Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f2/ed/1351b5f9a6cde1b816416d1aa912aeac0467b4d1e5062b5cd735da5879b1/blue_krill-2.1.0-py3-none-any.whl", hash = "sha256:f59a0632ebe8259eced5021b6b1b9a1c52ba649483b8a712b5d48a90363e5e30", size = 103040, upload-time = "2025-02-24T06:39:51.91Z" },
 ]
 
 [[package]]
@@ -1087,6 +1223,15 @@ wheels = [
 ]
 
 [[package]]
+name = "django-environ"
+version = "0.12.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d6/04/65d2521842c42f4716225f20d8443a50804920606aec018188bbee30a6b0/django_environ-0.12.0.tar.gz", hash = "sha256:227dc891453dd5bde769c3449cf4a74b6f2ee8f7ab2361c93a07068f4179041a", size = 56804, upload-time = "2025-01-13T17:03:37.74Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/83/b3/0a3bec4ecbfee960f39b1842c2f91e4754251e0a6ed443db9fe3f666ba8f/django_environ-0.12.0-py2.py3-none-any.whl", hash = "sha256:92fb346a158abda07ffe6eb23135ce92843af06ecf8753f43adf9d2366dcc0ca", size = 19957, upload-time = "2025-01-13T17:03:32.918Z" },
+]
+
+[[package]]
 name = "django-filter"
 version = "25.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1110,6 +1255,16 @@ sdist = { url = "https://files.pythonhosted.org/packages/24/11/0807b5cbc60fc3b56
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/ae/63083bf0614a80857e264b9d3ae16af2e2eff7372da6e249abec7919cb0b/django_jinja-2.11.0-py3-none-any.whl", hash = "sha256:cc4c72246a6e346aa0574e0c56c3e534c1a20ef47b8476f05d7287781f69a0a9", size = 23748, upload-time = "2023-09-03T21:20:43.482Z" },
 ]
+
+[[package]]
+name = "django-modeltranslation"
+version = "0.17.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/53/fb/8be99bb6ecc3705c38756804f4738935930cb11f4e40268aebf86d89bc7d/django-modeltranslation-0.17.7.tar.gz", hash = "sha256:e247840b9038b7e7b2dc6f1b4868dfe88737540883eaed3d4b4775e5bd89c7fd", size = 71240, upload-time = "2022-05-04T06:27:37.237Z" }
 
 [[package]]
 name = "django-mysql"
@@ -2195,6 +2350,15 @@ wheels = [
 ]
 
 [[package]]
+name = "mysqlclient"
+version = "2.2.7"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/61/68/810093cb579daae426794bbd9d88aa830fae296e85172d18cb0f0e5dd4bc/mysqlclient-2.2.7.tar.gz", hash = "sha256:24ae22b59416d5fcce7e99c9d37548350b4565baac82f95e149cac6ce4163845", size = 91383, upload-time = "2025-01-10T12:06:00.763Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ef/e3/3e2de3f93cd60dd63bd229ec3e3b679f682982614bf513d046c2722aa4ce/mysqlclient-2.2.7-cp311-cp311-win_amd64.whl", hash = "sha256:a22d99d26baf4af68ebef430e3131bb5a9b722b79a9fcfac6d9bbf8a88800687", size = 207745, upload-time = "2025-01-10T11:56:28.67Z" },
+]
+
+[[package]]
 name = "netifaces"
 version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2870,6 +3034,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pydantic-extra-types"
+version = "2.10.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3a/10/fb64987804cde41bcc39d9cd757cd5f2bb5d97b389d81aa70238b14b8a7e/pydantic_extra_types-2.10.6.tar.gz", hash = "sha256:c63d70bf684366e6bbe1f4ee3957952ebe6973d41e7802aea0b770d06b116aeb", size = 141858, upload-time = "2025-10-08T13:47:49.483Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/93/04/5c918669096da8d1c9ec7bb716bd72e755526103a61bc5e76a3e4fb23b53/pydantic_extra_types-2.10.6-py3-none-any.whl", hash = "sha256:6106c448316d30abf721b5b9fecc65e983ef2614399a24142d689c7546cc246a", size = 40949, upload-time = "2025-10-08T13:47:48.268Z" },
+]
+
+[[package]]
 name = "pydantic-settings"
 version = "2.10.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3111,6 +3288,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f5/d7/d548e0d5a68b328a8d69af833a861be415a17cb15ce3d8f0cd850073d2e1/python-dotenv-0.21.1.tar.gz", hash = "sha256:1c93de8f636cde3ce377292818d0e440b6e45a82f215c3744979151fa8151c49", size = 35930, upload-time = "2023-01-21T10:22:47.277Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/64/62/f19d1e9023aacb47241de3ab5a5d5fedf32c78a71a9e365bb2153378c141/python_dotenv-0.21.1-py3-none-any.whl", hash = "sha256:41e12e0318bebc859fcc4d97d4db8d20ad21721a6aa5047dd59f090391cb549a", size = 19284, upload-time = "2023-01-21T10:22:45.958Z" },
+]
+
+[[package]]
+name = "python-editor"
+version = "1.0.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0a/85/78f4a216d28343a67b7397c99825cff336330893f00601443f7c7b2f2234/python-editor-1.0.4.tar.gz", hash = "sha256:51fda6bcc5ddbbb7063b2af7509e43bd84bfc32a4ff71349ec7847713882327b", size = 7132, upload-time = "2019-02-01T07:33:13.653Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c6/d3/201fc3abe391bbae6606e6f1d598c15d367033332bd54352b12f35513717/python_editor-1.0.4-py3-none-any.whl", hash = "sha256:1bf6e860a8ad52a14c3ee1252d5dc25b2030618ed80c022598f00176adc8367d", size = 4877, upload-time = "2019-02-01T07:33:12.47Z" },
 ]
 
 [[package]]
@@ -3583,6 +3769,15 @@ wheels = [
 ]
 
 [[package]]
+name = "toml"
+version = "0.10.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/be/ba/1f744cdc819428fc6b5084ec34d9b30660f6f9daaf70eead706e3203ec3c/toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f", size = 22253, upload-time = "2020-11-01T01:40:22.204Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b", size = 16588, upload-time = "2020-11-01T01:40:20.672Z" },
+]
+
+[[package]]
 name = "tomli"
 version = "2.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3793,6 +3988,27 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/91/af/a54ce0fb6f1d867e0b9f0efe5f082a691f51ccf705188fca67a3ecefd7f4/voluptuous-0.15.2.tar.gz", hash = "sha256:6ffcab32c4d3230b4d2af3a577c87e1908a714a11f6f95570456b1849b0279aa", size = 51651, upload-time = "2024-07-02T19:10:00.528Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/db/a8/8f9cc6749331186e6a513bfe3745454f81d25f6e34c6024f88f80c71ed28/voluptuous-0.15.2-py3-none-any.whl", hash = "sha256:016348bc7788a9af9520b1764ebd4de0df41fe2138ebe9e06fa036bf86a65566", size = 31349, upload-time = "2024-07-02T19:09:58.125Z" },
+]
+
+[[package]]
+name = "watchdog"
+version = "6.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/db/7d/7f3d619e951c88ed75c6037b246ddcf2d322812ee8ea189be89511721d54/watchdog-6.0.0.tar.gz", hash = "sha256:9ddf7c82fda3ae8e24decda1338ede66e1c99883db93711d8fb941eaa2d8c282", size = 131220, upload-time = "2024-11-01T14:07:13.037Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e0/24/d9be5cd6642a6aa68352ded4b4b10fb0d7889cb7f45814fb92cecd35f101/watchdog-6.0.0-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:6eb11feb5a0d452ee41f824e271ca311a09e250441c262ca2fd7ebcf2461a06c", size = 96393, upload-time = "2024-11-01T14:06:31.756Z" },
+    { url = "https://files.pythonhosted.org/packages/63/7a/6013b0d8dbc56adca7fdd4f0beed381c59f6752341b12fa0886fa7afc78b/watchdog-6.0.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:ef810fbf7b781a5a593894e4f439773830bdecb885e6880d957d5b9382a960d2", size = 88392, upload-time = "2024-11-01T14:06:32.99Z" },
+    { url = "https://files.pythonhosted.org/packages/d1/40/b75381494851556de56281e053700e46bff5b37bf4c7267e858640af5a7f/watchdog-6.0.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:afd0fe1b2270917c5e23c2a65ce50c2a4abb63daafb0d419fde368e272a76b7c", size = 89019, upload-time = "2024-11-01T14:06:34.963Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/c7/ca4bf3e518cb57a686b2feb4f55a1892fd9a3dd13f470fca14e00f80ea36/watchdog-6.0.0-py3-none-manylinux2014_aarch64.whl", hash = "sha256:7607498efa04a3542ae3e05e64da8202e58159aa1fa4acddf7678d34a35d4f13", size = 79079, upload-time = "2024-11-01T14:06:59.472Z" },
+    { url = "https://files.pythonhosted.org/packages/5c/51/d46dc9332f9a647593c947b4b88e2381c8dfc0942d15b8edc0310fa4abb1/watchdog-6.0.0-py3-none-manylinux2014_armv7l.whl", hash = "sha256:9041567ee8953024c83343288ccc458fd0a2d811d6a0fd68c4c22609e3490379", size = 79078, upload-time = "2024-11-01T14:07:01.431Z" },
+    { url = "https://files.pythonhosted.org/packages/d4/57/04edbf5e169cd318d5f07b4766fee38e825d64b6913ca157ca32d1a42267/watchdog-6.0.0-py3-none-manylinux2014_i686.whl", hash = "sha256:82dc3e3143c7e38ec49d61af98d6558288c415eac98486a5c581726e0737c00e", size = 79076, upload-time = "2024-11-01T14:07:02.568Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/cc/da8422b300e13cb187d2203f20b9253e91058aaf7db65b74142013478e66/watchdog-6.0.0-py3-none-manylinux2014_ppc64.whl", hash = "sha256:212ac9b8bf1161dc91bd09c048048a95ca3a4c4f5e5d4a7d1b1a7d5752a7f96f", size = 79077, upload-time = "2024-11-01T14:07:03.893Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/3b/b8964e04ae1a025c44ba8e4291f86e97fac443bca31de8bd98d3263d2fcf/watchdog-6.0.0-py3-none-manylinux2014_ppc64le.whl", hash = "sha256:e3df4cbb9a450c6d49318f6d14f4bbc80d763fa587ba46ec86f99f9e6876bb26", size = 79078, upload-time = "2024-11-01T14:07:05.189Z" },
+    { url = "https://files.pythonhosted.org/packages/62/ae/a696eb424bedff7407801c257d4b1afda455fe40821a2be430e173660e81/watchdog-6.0.0-py3-none-manylinux2014_s390x.whl", hash = "sha256:2cce7cfc2008eb51feb6aab51251fd79b85d9894e98ba847408f662b3395ca3c", size = 79077, upload-time = "2024-11-01T14:07:06.376Z" },
+    { url = "https://files.pythonhosted.org/packages/b5/e8/dbf020b4d98251a9860752a094d09a65e1b436ad181faf929983f697048f/watchdog-6.0.0-py3-none-manylinux2014_x86_64.whl", hash = "sha256:20ffe5b202af80ab4266dcd3e91aae72bf2da48c0d33bdb15c66658e685e94e2", size = 79078, upload-time = "2024-11-01T14:07:07.547Z" },
+    { url = "https://files.pythonhosted.org/packages/07/f6/d0e5b343768e8bcb4cda79f0f2f55051bf26177ecd5651f84c07567461cf/watchdog-6.0.0-py3-none-win32.whl", hash = "sha256:07df1fdd701c5d4c8e55ef6cf55b8f0120fe1aef7ef39a1c6fc6bc2e606d517a", size = 79065, upload-time = "2024-11-01T14:07:09.525Z" },
+    { url = "https://files.pythonhosted.org/packages/db/d9/c495884c6e548fce18a8f40568ff120bc3a4b7b99813081c8ac0c936fa64/watchdog-6.0.0-py3-none-win_amd64.whl", hash = "sha256:cbafb470cf848d93b5d013e2ecb245d4aa1c8fd0504e863ccefa32445359d680", size = 79070, upload-time = "2024-11-01T14:07:10.686Z" },
+    { url = "https://files.pythonhosted.org/packages/33/e8/e40370e6d74ddba47f002a32919d91310d6074130fe4e17dabcafc15cbf1/watchdog-6.0.0-py3-none-win_ia64.whl", hash = "sha256:a1914259fa9e1454315171103c6a30961236f508b9b623eae470268bbcc6a22f", size = 79067, upload-time = "2024-11-01T14:07:11.845Z" },
 ]
 
 [[package]]

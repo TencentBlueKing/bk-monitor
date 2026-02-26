@@ -1,0 +1,46 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8eaf6', 'primaryTextColor': '#283593', 'primaryBorderColor': '#3f51b5', 'lineColor': '#7986cb'}}}%%
+flowchart TD
+    subgraph "Preload 阶段"
+        P1[space/getMySpaceList<br/>GET /meta/spaces/mine/]
+        P2[userInfo/getUsername]
+        P3[collect/globals<br/>GET /meta/globals/]
+        P4[meta/getUserGuide<br/>GET /meta/user_guide/]
+    end
+
+    subgraph "索引集操作"
+        I1[retrieve/getIndexSetList<br/>GET /search/index_set/]
+        I2[requestIndexSetFieldInfo]
+        I2A[单索引: GET /search/index_set/:id/fields/]
+        I2B[联合: unionSearch/unionMapping]
+        I3[requestIndexSetQuery]
+        I3A[单索引: POST /search/index_set/:id/search/]
+        I3B[联合: POST /search/index_set/union_search/]
+    end
+
+    subgraph "衍生能力"
+        D1[趋势图<br/>POST /search/index_set/:id/aggs/date_histogram/]
+        D2[Terms 聚合<br/>POST /search/index_set/:id/aggs/terms/]
+        D3[上下文<br/>POST /search/index_set/:id/context/]
+        D4[实时日志<br/>POST /search/index_set/:id/tail_f/]
+        D5[导出<br/>POST /search/index_set/:id/export/]
+    end
+
+    subgraph "分享 & data_id"
+        S1[创建分享<br/>POST /share/create_or_update_token/]
+        S2[获取分享参数<br/>GET share/get_share_params/]
+        S3[data_id 解析<br/>GET /index_set/query_by_dataid/]
+    end
+
+    P1 --> I1
+    I1 --> I2
+    I2 --> I2A
+    I2 --> I2B
+    I2A --> I3
+    I2B --> I3
+    I3 --> I3A
+    I3 --> I3B
+    I3A --> D1
+    I3A --> D2
+    I3A --> D3
+    I3A --> D4
+    I3A --> D5

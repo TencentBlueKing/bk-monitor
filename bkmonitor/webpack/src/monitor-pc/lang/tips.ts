@@ -373,6 +373,7 @@ export default {
   修改通知对象: 'Modify Notify Target',
   通知对象不能为空: 'Notify target cannot be empty',
   暂无选项: 'No options',
+  '（找到 {0} 条结果，用时 {1} 毫秒）': '(Found {0} results, took {1} milliseconds)',
   PromQL助手: 'PromQL Helper',
   '指标/PromQL语句': 'Metric/PromQL',
   用户指令: 'User Instruction',
@@ -423,6 +424,8 @@ export default {
   '再次勾选「已配置」的策略，可重新下发，覆盖原有的策略':
     'After checking the strategy that has been applied, you can re-issue it to override the existing strategy',
   请先选择模版: 'Please select a template first',
+  '经过 {0} 分析，发现以下可疑维度（组合）：':
+    'After {0} analysis, the following suspicious dimensions (combinations) were found:',
   '解除关联后，{0}服务下将不会配置该策略':
     'After unassociating, the strategy will not be configured on the {0} service',
   模板: 'Template',
@@ -438,4 +441,5 @@ export default {
   '并行：组间同时拨打，组内顺序依次拨打；<br>串行：多个用户组人员顺序合并后依次拨打，<br>重复人员以前置组优先':
     'Parallel: Calls are made simultaneously between groups, and sequentially within each group.<br>Serial: The personnel from multiple user groups are merged in sequence and called one by one, <br>with repeated personnel given priority based on their earlier group.',
   当前业务时区: 'Current business time zone',
+  '输入 $ 可以插入变量': 'Input $ to insert variables',
 };

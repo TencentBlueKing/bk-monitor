@@ -8,9 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
-
-from django.conf import settings
 from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache.models.uptimecheck import UptimecheckCacheManager
@@ -31,33 +28,15 @@ class UptimecheckConfigTranslator(BaseTranslator):
         )
 
     def translate(self, data):
+        # 获取节点名称
         node_field = data.get("node_id")
         if node_field:
-            try:
-                # 若还是数字ID, 则说明为旧格式
-                node_id = int(node_field.value)
-                node_keys = [node for node in UptimecheckCacheManager.cache.keys() if "uptimecheck_node" in node]
-                nodes = [json.loads(node) for node in UptimecheckCacheManager.cache.mget(node_keys)]
-                node_field.display_name = _("节点名称")
-                if node_id == 0 and len(nodes) > 1:
-                    node_field.display_value = _(
-                        _("bkmonitorbeat(版本低于{}, 请升级)").format(
-                            settings.BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION
-                        )
-                    )
-                elif node_id == 0 and len(nodes) == 1:
-                    node_field.display_value = nodes[0]["name"]
-                elif node_id != 0:
-                    for node in nodes:
-                        if node["id"] == node_id:
-                            node_field.display_value = node["name"]
-            except ValueError:
-                # 说明是新格式(bk_cloud_id:ip)，直接取即可
-                node = UptimecheckCacheManager.get_node(node_field.value)
-                node_field.display_name = _("节点名称")
-                if node:
-                    node_field.display_value = node["name"]
+            node = UptimecheckCacheManager.get_node(node_field.value)
+            node_field.display_name = _("节点名称")
+            if node:
+                node_field.display_value = node["name"]
 
+        # 如果有拨测任务ID才尝试获取任务信息
         task_field = data.get("task_id")
         if not task_field:
             return data
