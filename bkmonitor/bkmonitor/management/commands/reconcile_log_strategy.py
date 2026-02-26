@@ -25,6 +25,7 @@ from bkmonitor.data_source import load_data_source, UnifyQuery
 from bkmonitor.data_source.data_source import DataSource, LogSearchTimeSeriesDataSource
 from bkmonitor.models import StrategyModel, QueryConfigModel
 from bkmonitor.strategy.new_strategy import Strategy, Item
+from bkmonitor.utils.time_tools import time_interval_align
 from constants.data_source import DataSourceLabel
 
 # CSV 输出字段名（查询对账模式）
@@ -127,10 +128,19 @@ class Command(BaseCommand):
             default="reconciliation_result.csv",
             help="输出 CSV 文件路径，默认为当前目录下的 reconciliation_result.csv",
         )
+        parser.add_argument(
+            "--strategy-ids",
+            nargs="+",
+            type=int,
+            required=False,
+            default=None,
+            help="直接指定策略 ID 列表，例如：--strategy-ids 100 101 102（指定时仅对账这些策略）",
+        )
 
     def handle(self, *args, **options) -> None:
         """命令执行入口"""
         bk_biz_ids: list[int] | None = options["biz_ids"]
+        strategy_ids: list[int] | None = options["strategy_ids"]
         mode: str = options["mode"]
         output_path: str = str(options["output"])
 
@@ -138,19 +148,21 @@ class Command(BaseCommand):
         end_time: int = options["end_time"] or now
         start_time: int = options["start_time"] or (now - 30 * 60)
 
-        self.stdout.write(self.style.SUCCESS(f"运行模式：{mode}，业务列表：{bk_biz_ids}"))
+        self.stdout.write(self.style.SUCCESS(f"运行模式：{mode}，业务列表：{bk_biz_ids}，策略列表：{strategy_ids}"))
 
         biz_id_name_map: dict[int, str] = {i["bk_biz_id"]: i["space_name"] for i in SpaceApi.list_spaces_dict()}
         if mode == "stat":
             run_stat_mode(bk_biz_ids, biz_id_name_map, output_path, self.stdout, self.style)
         else:
-            if not bk_biz_ids:
-                self.stderr.write(self.style.ERROR("查询对账模式必须提供 --biz-ids 参数"))
+            if not bk_biz_ids and not strategy_ids:
+                self.stderr.write(self.style.ERROR("查询对账模式必须提供 --biz-ids 或 --strategy-ids 参数"))
                 return
 
             self.stdout.write(f"查询时间范围：{start_time} ~ {end_time}")
 
-            run_reconciliation(bk_biz_ids, biz_id_name_map, start_time, end_time, output_path, self.stdout, self.style)
+            run_reconciliation(
+                bk_biz_ids, strategy_ids, biz_id_name_map, start_time, end_time, output_path, self.stdout, self.style
+            )
 
         self.stdout.write(self.style.SUCCESS("执行完成！"))
 
@@ -258,10 +270,14 @@ def execute_query(
         functions=functions,
     )
     try:
-        return uq.query_data(start_time=start_time, end_time=end_time)
+        records: list[dict[str, Any]] = uq.query_data(start_time=start_time, end_time=end_time)
     finally:
         # 恢复默认状态，避免对后续查询造成影响
         _set_ds(None)
+
+    # 移除最后一个时间点的数据（如果存在），因为日志平台数据源可能存在最后一个时间点数据不稳定的情况。
+    end_time: int = time_interval_align(end_time // 1000, data_sources[0].interval) * 1000
+    return [r for r in records if "_time_" in r and r["_time_"] != end_time]
 
 
 def process_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -361,7 +377,8 @@ def compare_query_records(uq_records: list[dict[str, Any]], ds_records: list[dic
 
 
 def run_reconciliation(
-    bk_biz_ids: list[int],
+    bk_biz_ids: list[int] | None,
+    strategy_ids: list[int] | None,
     biz_id_name_map: dict[int, str],
     start_time: int,
     end_time: int,
@@ -373,71 +390,89 @@ def run_reconciliation(
     执行对账流程。
 
     遍历指定业务下的日志平台数据源策略，分别执行灰度和非灰度查询，比较结果一致性。
+
+    参数优先级：
+        - 指定 strategy_ids 时，直接使用这些策略 ID 进行对账（忽略 bk_biz_ids）
+        - 未指定 strategy_ids 时，按 bk_biz_ids 筛选日志平台数据源策略
     """
     results: list[dict[str, Any]] = []
-    start_time: int = start_time * 1000
-    end_time: int = end_time * 1000
+    start_time_ms: int = start_time * 1000
+    end_time_ms: int = end_time * 1000
     base_url: str = settings.BK_MONITOR_HOST
-    log_strategy_ids: list[int] = get_log_strategy_ids()
 
-    for bk_biz_id in bk_biz_ids:
-        stdout.write(f"正在处理业务：{bk_biz_id}")
+    # 根据参数确定待对账的策略列表
+    if strategy_ids:
+        # 指定 strategy_ids 时，直接查询这些策略
+        stdout.write(f"使用指定的策略 ID 列表：{strategy_ids}")
+        strategy_models: list[StrategyModel] = list(StrategyModel.objects.filter(id__in=strategy_ids, is_enabled=True))
+    else:
+        # 按 bk_biz_ids 筛选日志平台数据源策略
+        log_strategy_ids: list[int] = get_log_strategy_ids()
+        strategy_models = list(
+            StrategyModel.objects.filter(bk_biz_id__in=bk_biz_ids, id__in=log_strategy_ids, is_enabled=True)
+        )
+
+    if not strategy_models:
+        stdout.write(style.WARNING("未找到符合条件的策略"))
+        return
+
+    stdout.write(f"找到 {len(strategy_models)} 个策略，开始对账...")
+
+    for strategy in Strategy.from_models(strategy_models):
+        bk_biz_id: int = strategy.bk_biz_id
         bk_biz_name: str = biz_id_name_map.get(bk_biz_id, str(bk_biz_id))
 
-        # 获取该业务下日志平台数据源的已启用策略
-        strategy_models: list[StrategyModel] = list(
-            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=log_strategy_ids, is_enabled=True)
-        )
-        if not strategy_models:
-            stdout.write(f"  业务 {bk_biz_id} 下未找到日志平台数据源策略")
-            continue
+        try:
+            item: Item = strategy.items[0]
+            query_config_dict: dict[str, Any] = item.query_configs[0].to_dict()
 
-        stdout.write(f"  找到 {len(strategy_models)} 个策略，开始对账...")
+            # 构建查询参数
+            query_params: dict[str, Any] = {
+                "bk_biz_id": bk_biz_id,
+                "data_sources": build_data_sources(strategy),
+                "expression": item.expression,
+                "functions": item.functions or [],
+                "start_time": start_time_ms,
+                "end_time": end_time_ms,
+            }
 
-        for strategy in Strategy.from_models(strategy_models):
-            try:
-                item: Item = strategy.items[0]
-                query_config_dict: dict[str, Any] = item.query_configs[0].to_dict()
+            # 执行非灰度查询
+            ds_records: list[dict[str, Any]] = process_records(execute_query(**query_params, enable_gray=False))
 
-                # 构建查询参数
-                query_params: dict[str, Any] = {
+            # 执行灰度查询
+            uq_records: list[dict[str, Any]] = process_records(execute_query(**query_params, enable_gray=True))
+
+            # 指定 strategy_ids 时，输出查询结果到 stdout
+            if strategy_ids:
+                stdout.write(f"\n===== 策略 {strategy.id}（{strategy.name}）查询结果 =====")
+                stdout.write(f"ds_records ({len(ds_records)} 条):")
+                stdout.write(json.dumps(ds_records, ensure_ascii=False, indent=2))
+                stdout.write(f"uq_records ({len(uq_records)} 条):")
+                stdout.write(json.dumps(uq_records, ensure_ascii=False, indent=2))
+
+            # 比较结果
+            compare_result: dict[str, Any] = compare_query_records(uq_records, ds_records)
+
+            results.append(
+                {
                     "bk_biz_id": bk_biz_id,
-                    "data_sources": build_data_sources(strategy),
-                    "expression": item.expression,
-                    "functions": item.functions or [],
-                    "start_time": start_time,
-                    "end_time": end_time,
+                    "bk_biz_name": bk_biz_name,
+                    "strategy_id": strategy.id,
+                    "strategy_name": strategy.name,
+                    "strategy_url": f"{base_url}?bizId={bk_biz_id}#/strategy-config/detail/{strategy.id}",
+                    "data_type_label": query_config_dict.get("data_type_label") or "",
+                    "is_consistent": int(compare_result["is_consistent"]),
+                    "has_data": 1 if ds_records else 0,
+                    "uq_count": compare_result["uq_count"],
+                    "ds_count": compare_result["ds_count"],
+                    "diff_reason": compare_result["diff_reason"],
+                    "query_string": query_config_dict.get("query_string") or "",
+                    "agg_dimension": json.dumps(query_config_dict.get("agg_dimension") or [], ensure_ascii=False),
+                    "query_config": json.dumps(query_config_dict, ensure_ascii=False),
                 }
-
-                # 执行非灰度查询
-                ds_records: list[dict[str, Any]] = process_records(execute_query(**query_params, enable_gray=False))
-
-                # 执行灰度查询
-                uq_records: list[dict[str, Any]] = process_records(execute_query(**query_params, enable_gray=True))
-
-                # 比较结果
-                compare_result: dict[str, Any] = compare_query_records(uq_records, ds_records)
-
-                results.append(
-                    {
-                        "bk_biz_id": bk_biz_id,
-                        "bk_biz_name": bk_biz_name,
-                        "strategy_id": strategy.id,
-                        "strategy_name": strategy.name,
-                        "strategy_url": f"{base_url}?bizId={bk_biz_id}#/strategy-config/detail/{strategy.id}",
-                        "data_type_label": query_config_dict.get("data_type_label") or "",
-                        "is_consistent": int(compare_result["is_consistent"]),
-                        "has_data": 1 if ds_records else 0,
-                        "uq_count": compare_result["uq_count"],
-                        "ds_count": compare_result["ds_count"],
-                        "diff_reason": compare_result["diff_reason"],
-                        "query_string": query_config_dict.get("query_string") or "",
-                        "agg_dimension": json.dumps(query_config_dict.get("agg_dimension") or [], ensure_ascii=False),
-                        "query_config": json.dumps(query_config_dict, ensure_ascii=False),
-                    }
-                )
-            except Exception as e:
-                stdout.write(style.ERROR(f"  处理策略 {strategy.id} 时出错：{e}"))
+            )
+        except Exception as e:
+            stdout.write(style.ERROR(f"  处理策略 {strategy.id} 时出错：{e}"))
 
     # 写入 CSV 文件
     write_results_to_csv(output_csv_path, CSV_FIELDNAMES_RECONCILE, results)
