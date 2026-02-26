@@ -506,7 +506,8 @@ class StorageHandler:
             if not cls.storage_visible(bk_biz_id, settings.BLUEKING_BK_BIZ_ID, post_visible=post_visible):
                 return False, cluster_obj
 
-            cluster_obj["is_editable"] = True
+            # doris 集群不可编辑
+            cluster_obj["is_editable"] = False
             cluster_obj["auth_info"]["password"] = ""
             # 默认集群权重: 推荐集群 > 其他
             cluster_obj["priority"] = 1 if cluster_obj["cluster_config"].get("is_default_cluster") else 2
@@ -552,7 +553,8 @@ class StorageHandler:
 
         index_sets = IndexSetHandler.get_index_set_for_storage(cluster_obj["cluster_config"]["cluster_id"])
 
-        cluster_obj["is_editable"] = True
+        # doris 集群不可编辑
+        cluster_obj["is_editable"] = False
         cluster_obj["auth_info"]["password"] = ""
         # 第三方es权重最高
         cluster_obj["priority"] = 0
@@ -1112,7 +1114,29 @@ class StorageHandler:
             multi_execute_func.append(
                 _cluster_id, cls._get_cluster_status_and_stats, {"cluster_id": _cluster_id, "bk_biz_id": bk_biz_id}
             )
-        return multi_execute_func.run()
+
+        multi_execute_func.append(
+            "doris_cluster_infos", TransferApi.get_cluster_info, {"cluster_type": DORIS_CLUSTER_TYPE}
+        )
+
+        result = multi_execute_func.run()
+
+        doris_cluster_infos = result.pop("doris_cluster_infos", [])
+
+        doris_ids = {
+            info.get("cluster_config", {}).get("cluster_id")
+            for info in doris_cluster_infos
+            if info.get("cluster_config", {}).get("cluster_id")
+        }
+
+        # 取交集
+        doris_ids = doris_ids & set(result.keys())
+
+        # doris 集群连接状态默认为 True
+        for doris_id in doris_ids:
+            result[doris_id] = {"status": True, "cluster_stats": None}
+
+        return result
 
     @staticmethod
     def _get_cluster_status_and_stats(params):
