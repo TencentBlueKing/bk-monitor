@@ -29,18 +29,23 @@ import { Component as tsc } from 'vue-tsx-support';
 import _ from 'lodash';
 
 import CompareType from './components/compare-type';
+import DecimalSelector from './components/decimal-selector';
 import GroupBy from './components/group-by';
-import LimitFunction from './components/limit-function';
 import IntervalCreator from './components/interval/index';
+import LimitFunction from './components/limit-function';
 import WhereCondition from './components/where-condition';
+
+import type { ChartSettingsParams } from '../../type';
 
 import './index.scss';
 
 interface IEmit {
   onChange: (value: IResult) => void;
+  onChartSettingChange: (value: ChartSettingsParams) => void;
 }
 
 interface IProps {
+  chartSettingParams?: ChartSettingsParams;
   dimenstionParams?: Record<string, any>;
   exclude?: string[];
   isShowExpand?: boolean;
@@ -49,6 +54,7 @@ interface IProps {
 }
 
 interface IResult {
+  interval: number | string;
   metrics: string[];
   common_conditions: {
     key: string;
@@ -73,7 +79,6 @@ interface IResult {
     method: string;
     value: string[];
   }[];
-  interval: number | string;
 }
 
 export const createDefaultParams = (): IResult => ({
@@ -95,6 +100,7 @@ export const createDefaultParams = (): IResult => ({
 @Component
 export default class HeaderBox extends tsc<IProps, IEmit> {
   @Prop({ type: Object, default: false }) readonly dimenstionParams: IProps['dimenstionParams'];
+  @Prop({ type: Object, default: null }) readonly chartSettingParams: ChartSettingsParams;
   @Prop({ type: Boolean, default: true }) readonly isShowExpand: boolean;
   @Prop({ type: Array, default: () => [] }) readonly exclude: string[];
   @Prop({ type: Boolean, default: true }) readonly splitable: IProps['splitable'];
@@ -103,6 +109,10 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
 
   isExpaned = true;
   params = createDefaultParams();
+  chartSettings: ChartSettingsParams = {
+    autoYAxis: true,
+    decimal: 0,
+  };
   calcLableWidth: () => void;
 
   @Watch('dimenstionParams', { immediate: true })
@@ -123,10 +133,22 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
     }
   }
 
+  @Watch('chartSettingParams', { immediate: true })
+  chartSettingParamsChange() {
+    if (!this.chartSettingParams) {
+      return;
+    }
+    this.chartSettings = { ...this.chartSettingParams };
+  }
+
   triggerChange() {
     this.$emit('change', {
       ...this.params,
     });
+  }
+
+  triggerChartSettingChange() {
+    this.$emit('chartSettingChange', { ...this.chartSettings });
   }
 
   handleConditionChange(payload: { common_conditions: IResult['common_conditions']; where: IResult['where'] }) {
@@ -148,6 +170,11 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
   handleComparTypeChange(payload: IResult['compare']) {
     this.params.compare = payload;
     this.triggerChange();
+  }
+
+  handleDecimalChange(payload: ChartSettingsParams['decimal']) {
+    this.chartSettings.decimal = payload;
+    this.triggerChartSettingChange();
   }
 
   handleToogleExpand() {
@@ -224,6 +251,10 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
                 offsetSingle={this.offsetSingle}
                 value={this.params.compare}
                 onChange={this.handleComparTypeChange}
+              />
+              <DecimalSelector
+                value={this.chartSettings.decimal}
+                onChange={this.handleDecimalChange}
               />
               <div class='action-extend'>{this.$slots.actionExtend}</div>
             </div>

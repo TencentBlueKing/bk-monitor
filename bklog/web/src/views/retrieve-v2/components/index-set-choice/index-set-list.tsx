@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType, ref, set } from 'vue';
+import { computed, defineComponent, type PropType, ref, set } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
 import * as authorityMap from '../../../../common/authority-map';
 import BklogPopover from '../../../../components/bklog-popover';
-import { IndexSetItem } from './use-choice';
+import type { IndexSetItem } from './use-choice';
 import useIndexSetList from './use-index-set-list';
 
 import './index-set-list.scss';
@@ -84,16 +84,17 @@ export default defineComponent({
     });
 
     const isIncludesItem = (item: IndexSetItem) => {
-      return props.value.some((v) => {
+      return props.value.some(v => {
         return v.unique_id === item.unique_id;
       });
     };
 
     const formatList = computed(() => {
-      const filterFn = (node) => {
+      const filterFn = node => {
         return ['index_set_name', 'index_set_id', 'bk_biz_id', 'collector_config_id'].some(
-          key => `${node[key]}`.indexOf(searchText.value) !== -1
-            || (node.indices ?? []).some(idc => `${idc.result_table_id}`.indexOf(searchText.value) !== -1),
+          key =>
+            `${node[key]}`.indexOf(searchText.value) !== -1 ||
+            (node.indices ?? []).some(idc => `${idc.result_table_id}`.indexOf(searchText.value) !== -1),
         );
       };
       // 检查节点是否应该显示
@@ -229,12 +230,13 @@ export default defineComponent({
 
     const rootList = computed(() => formatList.value.filter((item: any) => !item.is_child_node));
 
-    const filterList = computed(() => rootList.value.filter((item: any) => {
-      return (
-        filterFullList.value.includes(item)
-          || (item.children ?? []).filter(child => filterFullList.value.includes(child)).length > 0
-      );
-    }),
+    const filterList = computed(() =>
+      rootList.value.filter((item: any) => {
+        return (
+          filterFullList.value.includes(item) ||
+          (item.children ?? []).filter(child => filterFullList.value.includes(child)).length > 0
+        );
+      }),
     );
 
     /**

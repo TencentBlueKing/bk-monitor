@@ -2004,4 +2004,8 @@ export default {
   告警模块: 'Alarm module',
   事件内容: 'Event content',
   更多事件: 'More events',
+
+  数据后保留小数位: 'Data decimal places',
+  '{0} 位': '{0} decimal places',
+  Y轴最小值自适应: 'Y-axis minimum value adaptive',
 };

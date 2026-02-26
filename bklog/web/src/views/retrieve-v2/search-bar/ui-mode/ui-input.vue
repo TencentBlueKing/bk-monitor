@@ -69,7 +69,8 @@ const isAiAssistantActive = computed(() => store.state.features.isAiAssistantAct
 const inputPlaceholder = computed(() => {
   if (inputValueLength.value === 0) {
     // return `${t('请输入检索内容')}, / ${t('唤起')} ...`;
-    return ` / ${t('唤起')}，${t('输入检索内容')}${isAiAssistantActive.value ? `（${t('Tab 可切换为 AI 模式')}）` : ''}`;
+    return window.__IS_MONITOR_APM__ || window.__IS_MONITOR_TRACE__
+      ? `${t('快捷键')} /，${t('请输入')}...` : ` / ${t('唤起')}，${t('输入检索内容')}（${t('Tab 可切换为 AI 模式')}）`;
   }
 
   return '';
@@ -219,6 +220,8 @@ const {
     placement: 'top',
     delay: [0, 300],
     // appendTo: document.body,
+    appendTo: window.__IS_MONITOR_TRACE__ ? document.body : undefined,
+    zIndex: window.__IS_MONITOR_TRACE__ ? 9999 : undefined,
     onHide: () => {
       refPopInstance.value?.beforeHideFn?.();
     },

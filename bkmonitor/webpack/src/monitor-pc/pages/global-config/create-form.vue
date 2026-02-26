@@ -71,6 +71,12 @@
             </bk-radio>
           </template>
         </component>
+        <span
+          v-if="item.type === 'tag-input' && model[item.formItemProps.property]?.length"
+          v-bk-tooltips="{ content: $t('复制'), placements: ['top'] }"
+          class="icon-monitor icon-mc-copy tag-input-copy-btn"
+          @click="copyTagInputValue(model[item.formItemProps.property])"
+        />
         <template v-if="item.formItemProps.help_text">
           <div class="form-desc">
             {{ item.formItemProps.help_text }}
@@ -100,6 +106,7 @@
   </div>
 </template>
 <script>
+import { copyText } from 'monitor-common/utils/utils';
 export default {
   name: 'CreateForm',
   inject: ['authority', 'handleShowAuthorityDetail', 'authorityMap'],
@@ -146,6 +153,28 @@ export default {
     handleReset() {
       this.$emit('reset', this.model);
     },
+    // 复制标签输入框的值
+    copyTagInputValue(values) {
+      const text = values
+        .map(v => {
+          if (typeof v === 'object') {
+            return JSON.stringify(v);
+          }
+          return v;
+        })
+        .join(',');
+      copyText(text, msg => {
+        this.$bkMessage({
+          message: msg,
+          theme: 'error',
+        });
+        return;
+      });
+      this.$bkMessage({
+        message: this.$t('复制成功'),
+        theme: 'success',
+      });
+    },
   },
 };
 </script>
@@ -190,6 +219,18 @@ export default {
       font-size: 12px;
       line-height: 16px;
       color: #979ba5;
+    }
+
+    .tag-input-copy-btn {
+      position: absolute;
+      top: 0;
+      right: -32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
     }
   }
 

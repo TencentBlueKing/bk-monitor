@@ -129,6 +129,7 @@ export default indexSetApi => {
             item.index_set_id = `${item.index_set_id}`;
             item.indexName = item.index_set_name;
             item.lightenName = ` (${item.indices.map(newItem => newItem.result_table_id).join(';')})`;
+            item.unique_id = `#_${item.index_set_id}`;
           }
           store.commit('retrieve/updateIndexSetList', indexSetList);
           return indexSetList;
