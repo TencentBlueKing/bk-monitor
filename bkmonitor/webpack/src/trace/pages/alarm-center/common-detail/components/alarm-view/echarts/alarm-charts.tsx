@@ -138,9 +138,12 @@ export default defineComponent({
     const eventDetailPopupPosition = shallowRef({ left: 0, top: 0 });
     /** 散点点击事件的详情数据 */
     const scatterClickEventData = shallowRef<AlertScatterClickEvent>({});
+    /** 是否立即刷新图表数据 */
+    const refreshImmediate = shallowRef('');
     const { timeRange, showRestore, handleDataZoomChange, handleRestore } = useChartOperation(
       toRef(props, 'defaultTimeRange')
     );
+    provide('refreshImmediate', refreshImmediate);
     provide('timeRange', timeRange);
 
     /** 图表请求参数（框选时间范围） */
@@ -152,7 +155,7 @@ export default defineComponent({
       // 安全检查：确保 graph_panel 和 targets 存在且有数据
       const graphPanel = props.detail?.graph_panel;
       const firstTarget = graphPanel?.targets?.[0];
-      if (!firstTarget?.data) return null;
+      if (!firstTarget?.data) return new PanelModel({});
       // 浅拷贝 queryConfig，避免修改原始 props 数据
       const queryConfig = { ...(firstTarget.data as Record<string, any>) };
       // 异常检测场景需要禁用采样
