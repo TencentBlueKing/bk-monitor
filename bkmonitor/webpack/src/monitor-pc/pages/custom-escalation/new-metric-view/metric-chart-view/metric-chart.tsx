@@ -637,16 +637,20 @@ class NewMetricChart extends CommonSimpleChart {
                 formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
                   ? (v: any) => {
                       if (seriesList[0].unit !== 'none') {
-                        const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
+                        const obj = getValueFormat(seriesList[0].unit)(
+                          v,
+                          this.chartSettingParams?.decimal || seriesList[0].precision
+                        );
                         return this.removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
                       }
                       return v;
                     }
-                  : (v: number) => handleYAxisLabelFormatter(v - this.minBase),
+                  : (v: number) => handleYAxisLabelFormatter(v - this.minBase, this.chartSettingParams?.decimal || 3),
               },
               splitNumber: this.height < 120 ? 2 : 4,
-              minInterval: 10 ** (-this.chartSettingParams?.decimal || 0),
+              minInterval: 1,
               max: 'dataMax',
+              /** 支持Y轴自适应 */
               min: this.chartSettingParams?.autoYAxis ? 'dataMin' : 0,
               scale: false,
             },
