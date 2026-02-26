@@ -31,7 +31,6 @@ from apps.utils.function import map_if
 from apps.utils.local import get_request_username
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
-from bkm_space.utils import bk_biz_id_to_space_uid
 
 """
 databus
@@ -68,7 +67,7 @@ from apps.log_search.constants import (  # noqa
     GlobalCategoriesEnum,
     InnerTag,
 )
-from apps.log_search.models import LogIndexSet, Space, Scenario  # noqa
+from apps.log_search.models import LogIndexSet, Space  # noqa
 from apps.models import (  # noqa
     JsonField,
     MultiStrSplitByCommaField,
@@ -390,25 +389,6 @@ class CollectorConfig(CollectorBase):
         是否为自定义上报场景
         """
         return self.collector_scenario_id == CollectorScenarioEnum.CUSTOM.value
-
-    def create_index_set(self):
-        """
-        创建相应的索引集，is_active先设置为False，如果已存在则直接返回
-        """
-        index_set, created = LogIndexSet.objects.get_or_create(
-            collector_config_id=self.collector_config_id,
-            is_deleted=False,
-            defaults={
-                "index_set_name": _("[采集项]") + self.collector_config_name,
-                "space_uid": bk_biz_id_to_space_uid(self.bk_biz_id),
-                "scenario_id": Scenario.LOG,
-                "is_active": False,
-            },
-        )
-        if created:
-            self.index_set_id = index_set.index_set_id
-            self.save(update_fields=["index_set_id"])
-        return index_set
 
 
 class ContainerCollectorConfig(SoftDeleteModel):
