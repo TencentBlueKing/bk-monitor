@@ -13,8 +13,8 @@
     border-radius: 2px;
 
     .index-set-trigger-text {
-      font-size: 12px;
       position: relative;
+      font-size: 12px;
 
       .name {
         color: #313238;
@@ -24,9 +24,10 @@
         margin-left: 5px;
         color: #757880;
       }
+
       &::after {
-        content: attr(data-placeholder);
         color: #757880;
+        content: attr(data-placeholder);
       }
     }
 
@@ -67,8 +68,18 @@
       background: #fff;
       border: 1px solid #3a84ff;
 
+      &::after {
+        display: none;
+      }
+
       .index-set-trigger-icon {
         transform: rotate(180deg);
+      }
+    }
+
+    &:hover {
+      &::after {
+        display: none;
       }
     }
   }

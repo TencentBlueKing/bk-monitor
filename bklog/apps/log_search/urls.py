@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -18,7 +19,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 from django.conf.urls import include
 from django.urls import re_path
 from rest_framework import routers
@@ -34,7 +34,6 @@ from apps.log_search.views import (
     result_table_views,
     search_views,
     user_custom_config_views,
-    index_group_views,
 )
 
 app_name = "apps.log_search"  # pylint: disable=invalid-name
@@ -48,7 +47,6 @@ router.register(r"meta", meta_views.MetaViewSet, basename="meta")
 router.register(r"bizs", bizs_views.BizsViewSet, basename="bizs")
 
 router.register(r"index_set", index_set_views.IndexSetViewSet, basename="index_set")
-router.register(r"index_group", index_group_views.IndexGroupViewSet, basename="index_group")
 
 router.register(r"user_custom_config", user_custom_config_views.UserCustomConfigViewSet, basename="user_custom_config")
 

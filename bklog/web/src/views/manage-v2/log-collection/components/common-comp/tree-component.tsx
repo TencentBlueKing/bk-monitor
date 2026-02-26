@@ -55,7 +55,7 @@ export default defineComponent({
   },
   emits: ['click-node', 'toggle'],
   setup(props, { emit }) {
-    const treeNodes = computed<ITreeNode[]>(() => (props.data as ITreeNode[]) || []);
+    const treeNodes = computed<ITreeNode[]>(() => ((props.data as ITreeNode[]) || []));
     /**
      * 切换节点展开/收起状态
      * @param node
@@ -88,7 +88,7 @@ export default defineComponent({
               class='flex items-center'
               on-Click={e => {
                 e.stopPropagation();
-                if (hasChildren) {
+                if (level < props.maxLevel) {
                   toggleTree(node, level);
                 } else {
                   emit('click-node', node, parent);
@@ -108,7 +108,7 @@ export default defineComponent({
                 {node.name}
               </span>
             </div>
-            {hasChildren && <span class='count-badge'>{children.length}</span>}
+            {level < props.maxLevel && <span class='count-badge'>{children.length}</span>}
           </div>
 
           {hasChildren && node.isOpen && (

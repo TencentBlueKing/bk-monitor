@@ -92,7 +92,6 @@ export default defineComponent({
         .then(res => {
           if (res.result) {
             showMessage(t('删除成功'));
-            handleItem(baseItem.value[0]);
             getListData();
           }
         })
@@ -113,7 +112,7 @@ export default defineComponent({
      * 获取列表数据
      */
     const getListData = () => {
-      getIndexGroupList((data: { list: IListItemData[]; total: number }) => {
+      getIndexGroupList((data: {list: IListItemData[], total: number}) => {
         listData.value = data.list;
         total.value = data.total;
         initActionPop();

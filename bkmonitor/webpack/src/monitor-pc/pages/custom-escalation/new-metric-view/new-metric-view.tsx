@@ -37,6 +37,7 @@ import PanelChartView from './metric-chart-view/panel-chart-view';
 import { getCustomTsMetricGroups } from './services/scene_view_new';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
+import type { ChartSettingsParams } from './type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './new-metric-view.scss';
@@ -51,6 +52,8 @@ export default class NewMetricView extends tsc<object> {
   state = {
     showStatisticalValue: false,
     viewColumn: 2,
+    autoYAxis: true,
+    decimal: 0,
   };
   cacheTimeRange = [];
   @ProvideReactive('timeRange') timeRange: TimeRangeType = [this.startTime, this.endTime];
@@ -102,6 +105,13 @@ export default class NewMetricView extends tsc<object> {
     if (e.target.scrollTop > 0) {
       this.containerScrollTop = e.target.scrollTop;
     }
+  }
+
+  get chartSettingParams() {
+    return {
+      autoYAxis: this.state.autoYAxis,
+      decimal: this.state.decimal,
+    };
   }
 
   get timeSeriesGroupId() {
@@ -181,6 +191,10 @@ export default class NewMetricView extends tsc<object> {
     this.dimenstionParams = Object.freeze(payload);
   }
 
+  handleChartSettingChange(payload: ChartSettingsParams) {
+    this.state = { ...this.state, ...payload };
+  }
+
   handleMetricsSelectReset() {
     this.dimenstionParams = {};
   }
@@ -194,7 +208,12 @@ export default class NewMetricView extends tsc<object> {
     this.state = {
       viewColumn: Number.parseInt(routerQuery.viewColumn, 10) || 2,
       showStatisticalValue: routerQuery.showStatisticalValue === 'true',
+      autoYAxis: routerQuery.autoYAxis === 'true',
+      decimal: Number(routerQuery.decimal) || 0,
     };
+    // 从本地存储初始化时间范围
+    customEscalationViewStore.initTimeRangeFromStorage();
+    this.timeRange = [customEscalationViewStore.startTime, customEscalationViewStore.endTime];
   }
 
   beforeDestroy() {
@@ -238,10 +257,18 @@ export default class NewMetricView extends tsc<object> {
                 <template slot='main'>
                   <HeaderBox
                     key={this.currentView}
+                    chartSettingParams={this.chartSettingParams}
                     dimenstionParams={this.dimenstionParams}
                     onChange={this.handleDimensionParamsChange}
+                    onChartSettingChange={this.handleChartSettingChange}
                   >
                     <template slot='actionExtend'>
+                      <bk-checkbox
+                        style='margin-right: 14px;'
+                        v-model={this.state.autoYAxis}
+                      >
+                        {this.$t('Y轴最小值自适应')}
+                      </bk-checkbox>
                       <bk-checkbox v-model={this.state.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
                       <ViewColumn
                         style='margin-left: 32px;'
@@ -252,6 +279,7 @@ export default class NewMetricView extends tsc<object> {
                   <div class='metric-view-dashboard-container'>
                     <PanelChartView
                       ref='panelChartView'
+                      chartSettingParams={this.chartSettingParams}
                       config={this.graphConfigParams as any}
                       showStatisticalValue={this.state.showStatisticalValue}
                       viewColumn={this.state.viewColumn}

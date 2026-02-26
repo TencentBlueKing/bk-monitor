@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, onActivated, shallowRef } from 'vue';
+import { type PropType, defineComponent, onActivated, shallowRef, watch } from 'vue';
 import { reactive } from 'vue';
 
 import { Input, Pagination } from 'bkui-vue';
@@ -67,6 +67,17 @@ export default defineComponent({
     });
     const isLoading = shallowRef(false);
     const tableSort = shallowRef<string[]>([]);
+
+    watch(
+      () => props.detail,
+      val => {
+        if (val) {
+          pagination.current = 1;
+          getData();
+        }
+      }
+    );
+
     /**
      * @description: 获取列表数据
      * @param {string} sort

@@ -24,36 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-/*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
- *
- * Copyright (C) 2017-2025 Tencent.  All rights reserved.
- *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
- *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
- *
- * ---------------------------------------------------
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- */
-
-import { type PropType, computed, defineComponent, inject, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import {
+  type PropType,
+  computed,
+  defineComponent,
+  inject,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  ref,
+  shallowRef,
+} from 'vue';
 
 import * as authorityMap from 'apm/pages/home/authority-map';
-import _isEqual from 'lodash/isEqual';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 
 import SpanDetails from '../../../pages/main/span-details';
@@ -179,11 +162,14 @@ export default defineComponent({
     const authorityStore = useAuthorityStore();
     const virtualizedTraceViewElm = ref();
     const listViewElm = ref(null);
-    const curShowDetailSpanId = ref<string>('');
     const haveReadSpanIds = ref<string[]>([]);
     const showSpanDetails = ref(false);
     const spanDetails = ref<null | Span>(null);
-    const activeTab = ref('BasicInfo');
+    const activeTab = shallowRef('BasicInfo');
+    /** 缓存的滚动容器元素引用，避免重复 DOM 查询 */
+    let cachedContainer: HTMLElement | null = null;
+    /** 缓存的吸顶区域高度（Tab栏 + 工具栏），避免重复计算 */
+    let cachedStickyHeight: null | number = null;
 
     const childrenHiddenStore = useChildrenHiddenInject();
     const isFullscreen = inject('isFullscreen', false);
@@ -197,22 +183,192 @@ export default defineComponent({
         ? generateRowStates(spans.value, childrenHiddenStore?.childrenHiddenIds.value, detailStates)
         : [];
     });
+    /**
+     * @description 获取当前组件所属的根节点，用于 DOM 查询和事件监听
+     * 在微前端 Shadow DOM 环境下，使用 getRootNode() 获取 ShadowRoot，确保能正确查找子应用内的元素
+     * @returns {Document} 当前组件所属的根节点（ShadowRoot 或 Document）
+     */
+    function getRootNode(): Document {
+      return virtualizedTraceViewElm.value?.getRootNode?.() || document;
+    }
 
     onMounted(() => {
-      document.addEventListener('keydown', handleEscKeydown);
+      // 在 window 上监听键盘事件，避免微前端 Shadow DOM 环境下 DOM 层级不确定导致事件无法捕获
+      window.addEventListener('keydown', handleKeydown);
     });
 
     onUnmounted(() => {
-      document.removeEventListener('keydown', handleEscKeydown);
+      window.removeEventListener('keydown', handleKeydown);
     });
 
-    function handleEscKeydown(evt) {
-      if (evt.code === 'Escape') showSpanDetails.value = false;
+    /**
+     * @description 判断当前焦点是否在输入元素内
+     * @returns {boolean} 如果焦点在输入框、文本域或可编辑元素内返回 true，否则返回 false
+     */
+    function isInputElementFocused(): boolean {
+      const rootNode = getRootNode();
+      const activeElement = rootNode.activeElement;
+      return (
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        activeElement?.getAttribute('contenteditable') === 'true'
+      );
+    }
+
+    /**
+     * @description 获取可导航的 span 行列表（过滤掉详情行）
+     * @returns {RowState[]} 可导航的行状态数组
+     */
+    function getNavigableRows(): RowState[] {
+      return getRowStates.value.filter(row => !row.isDetail);
+    }
+
+    /**
+     * @description 获取当前选中 span 在列表中的索引
+     * @param {RowState[]} rows - 可导航的行状态数组
+     * @returns {number} 当前选中 span 的索引，未找到返回 -1
+     */
+    function getCurrentSpanIndex(rows: RowState[]): number {
+      return rows.findIndex(row => row.span.spanID === spanDetails.value?.spanID);
+    }
+
+    /**
+     * @description 导航到上一个 span，选中并滚动到该位置
+     * @param {RowState[]} rows - 可导航的行状态数组
+     * @returns {void}
+     */
+    function navigateToPrevSpan(rows: RowState[]): void {
+      const currentIndex = getCurrentSpanIndex(rows);
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+      const prevSpan = rows[prevIndex]?.span;
+      if (prevSpan) {
+        selectSpan(prevSpan);
+        scrollToSpan(prevSpan.spanID, 'up');
+      }
+    }
+
+    /**
+     * @description 导航到下一个 span，选中并滚动到该位置。如果当前没有选中任何 span，则选中第一个
+     * @param {RowState[]} rows - 可导航的行状态数组
+     * @returns {void}
+     */
+    function navigateToNextSpan(rows: RowState[]): void {
+      const currentIndex = getCurrentSpanIndex(rows);
+      const nextIndex = currentIndex < rows.length - 1 ? currentIndex + 1 : rows.length - 1;
+      const targetIndex = currentIndex === -1 ? 0 : nextIndex;
+      const nextSpan = rows[targetIndex]?.span;
+      if (nextSpan) {
+        selectSpan(nextSpan);
+        scrollToSpan(nextSpan.spanID, 'down');
+      }
+    }
+
+    /**
+     * @description 处理键盘事件，支持 Esc 关闭详情、↑/↓ 导航列表、Enter 打开详情
+     * @param {KeyboardEvent} evt - 键盘事件对象
+     * @returns {void}
+     */
+    function handleKeydown(evt: KeyboardEvent): void {
+      // Esc 键始终可用于关闭详情抽屉
+      if (evt.code === 'Escape') {
+        showSpanDetails.value = false;
+        return;
+      }
+
+      // 如果焦点在输入框内，不处理 ↑/↓/Enter 键
+      if (isInputElementFocused()) return;
+
+      const rows = getNavigableRows();
+      if (!rows.length) return;
+
+      switch (evt.key) {
+        case 'ArrowUp':
+          evt.preventDefault();
+          navigateToPrevSpan(rows);
+          break;
+        case 'ArrowDown':
+          evt.preventDefault();
+          navigateToNextSpan(rows);
+          break;
+        case 'Enter':
+          evt.preventDefault();
+          // 复用 handleSpanClick 逻辑，避免重复代码
+          if (spanDetails.value) {
+            handleSpanClick(spanDetails.value);
+          }
+          break;
+      }
+    }
+
+    /**
+     * @description 获取滚动容器元素（带缓存）
+     * @returns {HTMLElement | null}
+     */
+    function getContainer(): HTMLElement | null {
+      if (!cachedContainer) {
+        cachedContainer = getRootNode().querySelector('.trace-detail-wrapper');
+      }
+      return cachedContainer;
+    }
+
+    /**
+     * @description 计算吸顶区域的总高度（带缓存）
+     * @returns {number} 吸顶区域高度（Tab栏 + 工具栏）
+     */
+    function getStickyHeaderHeight(): number {
+      if (cachedStickyHeight !== null) {
+        return cachedStickyHeight;
+      }
+      const root = getRootNode();
+      const tabElem = root.querySelector('.trace-main-tab') as HTMLElement;
+      const toolsElem = root.querySelector('.view-tools') as HTMLElement;
+      const tabHeight = tabElem?.offsetHeight || 0;
+      const toolsHeight = toolsElem?.offsetHeight || 0;
+      cachedStickyHeight = tabHeight + toolsHeight;
+      return cachedStickyHeight;
+    }
+
+    /**
+     * @description 滚动到指定 span 所在位置
+     * @param {string} spanID - 目标 span 的 ID
+     * @param {'down' | 'up'} direction - 滚动方向，up 向上导航需处理吸顶遮挡，down 向下导航无需额外处理
+     * @returns {void}
+     */
+    function scrollToSpan(spanID: string, direction: 'down' | 'up'): void {
+      const targetElem = getRootNode().getElementById(spanID);
+      if (!targetElem) return;
+
+      // 临时添加 tabIndex 使元素可聚焦
+      targetElem.setAttribute('tabindex', '-1');
+      targetElem.focus({ preventScroll: false });
+      targetElem.removeAttribute('tabindex');
+
+      const container = getContainer();
+      if (!container) return;
+
+      const elemRect = targetElem.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const stickyHeaderHeight = getStickyHeaderHeight();
+      const visibleTop = containerRect.top + stickyHeaderHeight;
+
+      // 如果元素顶部被吸顶区域遮挡，额外滚动让元素完全可见
+      if (elemRect.top < visibleTop) {
+        const scrollOffset = visibleTop - elemRect.top;
+        container.scrollBy({ top: -scrollOffset, behavior: 'instant' });
+      }
+    }
+
+    /**
+     * @description 键盘导航选中 span（不打开详情抽屉，不标记已读）
+     * @param {Span} span - 要选中的 span 对象
+     * @returns {void}
+     */
+    function selectSpan(span: Span): void {
+      spanDetails.value = span;
     }
 
     /** 点击span事件 */
     const handleSpanClick = (span: Span, isEventTab = false) => {
-      curShowDetailSpanId.value = span.spanID;
       if (!haveReadSpanIds.value.includes(span.spanID)) {
         haveReadSpanIds.value.push(span.spanID);
       }

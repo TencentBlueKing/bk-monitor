@@ -191,7 +191,7 @@
             </div>
           </template>
           <div
-            v-if="!isWinEventLog && conditions?.type === 'none'"
+            v-if="!isWinEventLog && conditions.type === 'none'"
             class="content-style"
           >
             <span>{{ $t('过滤内容') }}</span>
@@ -493,7 +493,6 @@
             spaceUid: this.$store.state.spaceUid,
             backRoute,
             type: 'basicInfo',
-            typeKey: this.$route.query.typeKey,
           },
         });
       },

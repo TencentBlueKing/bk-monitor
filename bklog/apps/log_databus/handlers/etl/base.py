@@ -267,8 +267,7 @@ class EtlHandler:
             fields = etl_storage.etl_preview(data, etl_params)
         return {"fields": fields}
 
-    @classmethod
-    def etl_time(cls, time_format, time_zone, data):
+    def etl_time(self, time_format, time_zone, data):
         """
         时间解析
         """

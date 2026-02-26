@@ -26,8 +26,6 @@
 
 import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, computed, type PropType } from 'vue';
 import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
-import * as authorityMap from '@/common/authority-map';
 import tippy, { type Instance } from 'tippy.js';
 import { tenantManager } from '@/views/retrieve-core/tenant-manager';
 import axios from 'axios';
@@ -41,16 +39,15 @@ import {
   COLLECTOR_SCENARIO_ENUM,
   STATUS_ENUM_FILTER,
 } from '../../utils';
-import { projectManages } from '@/common/util';
 import useResizeObserver from '@/hooks/use-resize-observe';
 import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
 import $http from '@/api';
 import { useCollectList } from '../../hook/useCollectList';
 import TagMore from '../common-comp/tag-more';
 import type { IListItemData } from '../../type';
-import StopTypeDialog from './stop-type-dialog';
-import TableComponent from '../common-comp/table-component';
+import EmptyStatus from '@/components/empty-status/index.vue';
 import './table-list.scss';
+import TableComponent from '../common-comp/table-component';
 
 const CancelToken = axios.CancelToken;
 
@@ -70,20 +67,19 @@ interface ITableRowData {
   daily_usage?: number;
   total_usage?: number;
   bk_data_name?: string;
-  parent_index_sets?: Array<{ index_set_name: string;[key: string]: unknown }>;
+  parent_index_sets?: Array<{ index_set_name: string; [key: string]: unknown }>;
   scenario_id?: string;
   scenario_name?: string;
   collector_scenario_id?: string;
   collector_scenario_name?: string;
   retention?: number;
-  tags?: Array<{ name: string;[key: string]: unknown }>;
+  tags?: Array<{ name: string; [key: string]: unknown }>;
   created_by?: string;
   created_at?: string;
   updated_by?: string;
   updated_at?: string;
   environment?: string;
   [key: string]: unknown;
-  log_access_type?: string;
 }
 
 /**
@@ -188,8 +184,6 @@ export default defineComponent({
 
   setup(props) {
     const { t } = useLocale();
-    const store = useStore();
-    const showStopTypeDialog = ref(false);
     const showCollectIssuedSlider = ref(false);
     const currentRow = ref<ITableRowData>({} as ITableRowData);
     /**
@@ -207,7 +201,7 @@ export default defineComponent({
     const checkInfo = ref('');
 
     // 使用自定义 hook 管理状态
-    const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId, isAllowedCreate } = useCollectList();
+    const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId } = useCollectList();
     const tableList = ref<ITableRowData[]>([]);
     const listLoading = ref(false);
     // 保存原始数据顺序的索引映射（用于恢复排序）
@@ -248,7 +242,6 @@ export default defineComponent({
     });
 
     const sortConfig = ref<ISortConfig>({});
-    const stopTypeKey = ref(true);
     /**
      * 获取空状态类型
      * @returns 空状态类型
@@ -363,8 +356,6 @@ export default defineComponent({
      */
     const renderMenu = (row: ITableRowData): IMenuItem[] => {
       const type = row?.log_access_type || 'linux';
-      // status 是异步获取的，可能暂时为空，默认按非 terminated 状态处理
-      const status = row?.status || '';
 
       if (!type) {
         return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
@@ -566,56 +557,48 @@ export default defineComponent({
         colKey: 'operation',
         width: 110,
         fixed: 'right',
-        cell: (h, { row }: { row: ITableRowData }) => {
-          const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
-          const editKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.MANAGE_COLLECTION_AUTH;
-          const searchKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.SEARCH_LOG_AUTH;
-          return (
-            <div class='table-operation'>
-              <span
-                class={{
-                  'link mr-6': true,
-                  disabled: !getOperatorCanClick(row, 'search'),
-                }}
-                v-cursor={{ active: !row.permission?.[searchKey] }}
-                on-click={() => handleEditOperation(row, 'search')}
-              >
-                {t('检索')}
-              </span>
-              <span
-                class={{
-                  link: true,
-                  disabled: !getOperatorCanClick(row, 'edit'),
-                }}
-                v-cursor={{ active: !row.permission?.[editKey] }}
-                on-click={() => handleEditOperation(row, 'edit')}
-              >
-                {t('编辑')}
-              </span>
-              <span class='bk-icon icon-more more-btn table-more-btn' />
-              <div
-                style={{ display: 'none' }}
-                class='row-menu-popover'
-              >
-                <div class='row-menu-content'>
-                  {renderMenu(row).map(item => (
-                    <span
-                      key={item.key}
-                      v-cursor={{ active: !row.permission?.[editKey] }}
-                      class={{
-                        'menu-item': true,
-                        disabled: !getOperatorCanClick(row, item.key),
-                      }}
-                      on-Click={() => handleMenuClick(item.key, row)}
-                    >
-                      {item.label}
-                    </span>
-                  ))}
-                </div>
+        cell: (h, { row }: { row: ITableRowData }) => (
+          <div class='table-operation'>
+            <span
+              class={{
+                'link mr-6': true,
+                disabled: !getOperatorCanClick(row, 'search'),
+              }}
+              on-click={() => handleEditOperation(row, 'search')}
+            >
+              {t('检索')}
+            </span>
+            <span
+              class={{
+                link: true,
+                disabled: !getOperatorCanClick(row, 'edit'),
+              }}
+              on-click={() => handleEditOperation(row, 'edit')}
+            >
+              {t('编辑')}
+            </span>
+            <span class='bk-icon icon-more more-btn table-more-btn' />
+            <div
+              style={{ display: 'none' }}
+              class='row-menu-popover'
+            >
+              <div class='row-menu-content'>
+                {renderMenu(row).map(item => (
+                  <span
+                    key={item.key}
+                    class={{
+                      'menu-item': true,
+                      disabled: !getOperatorCanClick(row, item.key),
+                    }}
+                    on-Click={() => handleMenuClick(item.key, row)}
+                  >
+                    {item.label}
+                  </span>
+                ))}
               </div>
             </div>
-          );
-        },
+          </div>
+        ),
       },
     ]);
 
@@ -653,17 +636,6 @@ export default defineComponent({
     watch(
       () => props.indexSet,
       () => {
-        // 清空过滤条件
-        conditions.value = [];
-        filterValue.value = {
-          log_access_type: '',
-          collector_scenario_id: '',
-          storage_cluster_name: '',
-          status: '',
-          created_by: '',
-          updated_by: '',
-        };
-        searchKey.value = '';
         reloadList();
       },
     );
@@ -944,7 +916,7 @@ export default defineComponent({
      * @param items - 过滤选项数组
      * @returns 用户ID数组
      */
-    const extractUserIds = (items: Array<{ key?: string;[key: string]: unknown }>): string[] => {
+    const extractUserIds = (items: Array<{ key?: string; [key: string]: unknown }>): string[] => {
       return (items || []).map(item => item.key).filter(Boolean) as string[];
     };
 
@@ -955,7 +927,7 @@ export default defineComponent({
      * @returns 处理后的过滤选项数组
      */
     const processFilterItemsWithUserInfo = (
-      items: Array<{ key?: string; label?: string;[key: string]: unknown }>,
+      items: Array<{ key?: string; label?: string; [key: string]: unknown }>,
       userInfoMap: Map<string, { display_name: string }>,
     ) => {
       return (items || []).map(item => ({
@@ -1083,7 +1055,7 @@ export default defineComponent({
 
       // 停用
       if (key === 'stop') {
-        showStopTypeDialog.value = true;
+        showCollectIssuedSlider.value = true;
         return;
       }
 
@@ -1253,8 +1225,6 @@ export default defineComponent({
       return hasSearch || hasFilter;
     });
 
-    const collectProject = computed(() => projectManages(store.state.topMenu, 'collection-item'));
-
     /**
      * 处理空状态操作
      * @param type - 操作类型
@@ -1284,8 +1254,6 @@ export default defineComponent({
               icon='plus'
               theme='primary'
               on-Click={handleCreateOperation}
-              v-cursor={{ active: isAllowedCreate }}
-              disabled={!collectProject.value || listLoading.value || isAllowedCreate === null}
             >
               {t('采集项')}
             </bk-button>
@@ -1351,27 +1319,13 @@ export default defineComponent({
             collectorConfigId={
               currentRow.value.collector_config_id ? Number(currentRow.value.collector_config_id) : undefined
             }
-            stopTypeKey={stopTypeKey.value}
             status={currentRow.value.status}
             config={currentRow.value}
             isStopCollection={true}
             on-change={(value: boolean) => {
               showCollectIssuedSlider.value = value;
             }}
-            on-refresh={() => {
-              reloadList();
-              showCollectIssuedSlider.value = false;
-            }}
-          />
-          <StopTypeDialog
-            showDialog={showStopTypeDialog.value}
-            on-update={(val: boolean) => {
-              showCollectIssuedSlider.value = true;
-              stopTypeKey.value = val;
-            }}
-            on-cancel={() => {
-              showStopTypeDialog.value = false;
-            }}
+            on-refresh={reloadList}
           />
         </div>
       </div>

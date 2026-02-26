@@ -72,7 +72,6 @@ from apps.log_search.constants import (
     TimeFieldUnitEnum,
     TimeZoneEnum,
     LogBuiltInFieldTypeEnum,
-    IndexSetDataType,
 )
 from apps.log_search.exceptions import (
     CouldNotFindTemplateException,
@@ -394,8 +393,6 @@ class LogIndexSet(SoftDeleteModel):
 
     query_alias_settings = models.JSONField(_("查询别名配置"), null=True, blank=True)
 
-    is_group = models.BooleanField(_("是否索引组"), default=False)
-
     def get_name(self):
         return self.index_set_name
 
@@ -456,41 +453,6 @@ class LogIndexSet(SoftDeleteModel):
 
         return BkDataAuthHandler.get_auth_url(not_applied_indices)
 
-    def get_parent_index_set_ids(self) -> list[int]:
-        """
-        获取当前索引集的归属索引集ID列表
-        """
-        parent_ids = LogIndexSetData.objects.filter(
-            result_table_id=self.index_set_id,
-            type=IndexSetDataType.INDEX_SET.value,
-        ).values_list("index_set_id", flat=True)
-
-        return list(parent_ids)
-
-    def get_child_index_set_ids(self) -> list[int]:
-        """
-        获取当前索引集的子索引集ID列表
-        """
-        child_ids = LogIndexSetData.objects.filter(
-            index_set_id=self.index_set_id,
-            type=IndexSetDataType.INDEX_SET.value,
-        ).values_list("result_table_id", flat=True)
-
-        return [int(child_id) for child_id in child_ids]
-
-    def get_doris_table_ids(self) -> list:
-        doris_table_ids = []
-        if self.is_group:
-            # 如果是索引组，获取所有子索引集的doris_table_id
-            child_index_set_ids = self.get_child_index_set_ids()
-            child_index_sets = LogIndexSet.objects.filter(index_set_id__in=child_index_set_ids)
-            for child_index_set in child_index_sets:
-                if child_index_set.doris_table_id:
-                    doris_table_ids.extend(child_index_set.doris_table_id.split(","))
-        elif self.doris_table_id:
-            doris_table_ids.extend(self.doris_table_id.split(","))
-        return doris_table_ids
-
     @staticmethod
     def no_data_check_time(index_set_id: str):
         result = cache.get(INDEX_SET_NO_DATA_CHECK_PREFIX + index_set_id)
@@ -499,7 +461,7 @@ class LogIndexSet(SoftDeleteModel):
             result = datetime_to_timestamp(temp)
         return timestamp_to_timeformat(result)
 
-    def get_indexes(self, has_applied=None):
+    def get_indexes(self, has_applied=None, project_info=True):
         """
         返回当前索引集下的索引列表
         :return:
@@ -507,6 +469,13 @@ class LogIndexSet(SoftDeleteModel):
         index_set_data = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
         if has_applied:
             index_set_data = index_set_data.filter(apply_status=LogIndexSetData.Status.NORMAL)
+        bizs = {}
+        if self.scenario_id == Scenario.BKDATA:
+            if project_info is True:
+                bizs = {
+                    space.bk_biz_id: space.space_name
+                    for space in Space.objects.filter(bk_biz_id__in=list({data.bk_biz_id for data in index_set_data}))
+                }
         source_name = self.source_name
 
         return [
@@ -514,6 +483,7 @@ class LogIndexSet(SoftDeleteModel):
                 "index_id": data.index_id,
                 "index_set_id": self.index_set_id,
                 "bk_biz_id": data.bk_biz_id,
+                "bk_biz_name": bizs.get(data.bk_biz_id, "") if project_info is False else None,
                 "source_id": self.source_id,
                 "source_name": source_name,
                 "result_table_id": data.result_table_id,
@@ -556,7 +526,6 @@ class LogIndexSet(SoftDeleteModel):
             "sort_fields",
             "support_doris",
             "doris_table_id",
-            "is_group",
         )
 
         # 获取接入场景
@@ -719,16 +688,12 @@ class LogIndexSetData(SoftDeleteModel):
     bk_biz_id = models.IntegerField(_("业务ID"), null=True, default=None)
     result_table_id = models.CharField(_("结果表"), max_length=255)
     result_table_name = models.CharField(_("结果表名称"), max_length=255, null=True, default=None, blank=True)
-    time_field = models.CharField(_("时间字段"), max_length=64, null=True, default=None, blank=True)
+    time_field = models.CharField(_("时间字段"), max_length=64, null=True, default=True, blank=True)
     apply_status = models.CharField(_("审核状态"), max_length=64, choices=Status.StatusChoices, default=Status.PENDING)
     scenario_id = models.CharField(_("接入场景"), max_length=64, null=True, blank=True)
     storage_cluster_id = models.IntegerField(_("存储集群ID"), default=None, null=True, blank=True)
     time_field_type = models.CharField(_("时间字段类型"), max_length=32, default=None, null=True)
     time_field_unit = models.CharField(_("时间字段单位"), max_length=32, default=None, null=True)
-
-    type = models.CharField(
-        _("类型"), max_length=64, choices=IndexSetDataType.get_choices(), default=IndexSetDataType.RESULT_TABLE.value
-    )
 
     def list_operate(self):
         return format_html(_('<a href="../logindexset/?index_set_id=%s">索引集</a>&nbsp;&nbsp;') % self.index_set_id)

@@ -305,6 +305,7 @@ export default defineComponent({
         if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
           // 更新开关状态
           switcherValue.value = newVal && newVal.length > 0;
+
           // 只在第一次进入页面且 groupList 已加载时回填
           // 后续编辑时不再回填，避免覆盖用户的操作
           if (!hasInitialized.value && groupList.value.length > 0 && newVal && newVal.length > 0) {

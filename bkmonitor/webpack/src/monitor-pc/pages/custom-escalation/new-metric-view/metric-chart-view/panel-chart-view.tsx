@@ -36,7 +36,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import LayoutChartTable from './layout-chart-table';
 import { chunkArray } from './utils';
 
-import type { IMetricAnalysisConfig } from '../type';
+import type { ChartSettingsParams, IMetricAnalysisConfig } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -51,6 +51,7 @@ interface IGroups {
 }
 
 interface IPanelChartViewProps {
+  chartSettingParams?: ChartSettingsParams;
   config?: IMetricAnalysisConfig;
   showStatisticalValue?: boolean;
   viewColumn?: number;
@@ -60,6 +61,15 @@ interface IPanelChartViewProps {
 export default class PanelChartView extends tsc<IPanelChartViewProps> {
   // 相关配置
   @Prop({ default: () => ({}) }) config: IMetricAnalysisConfig;
+
+  @ProvideReactive('chartSettingParams')
+  @Prop({
+    default: () => ({
+      autoYAxis: true,
+      decimal: 0,
+    }),
+  })
+  chartSettingParams: ChartSettingsParams;
   @Prop({ type: Boolean, default: false }) readonly showStatisticalValue: IPanelChartViewProps['showStatisticalValue'];
   @Prop({ type: Number, default: 2 }) readonly viewColumn: IPanelChartViewProps['viewColumn'];
 

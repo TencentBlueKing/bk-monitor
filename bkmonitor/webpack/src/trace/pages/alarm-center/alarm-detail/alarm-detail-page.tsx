@@ -23,14 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, watch } from 'vue';
+import { defineComponent, onMounted, provide, shallowReactive, watch } from 'vue';
 
+import * as authMap from 'monitor-pc/pages/event-center/authority-map';
 import { storeToRefs } from 'pinia';
 
 import DetailCommon from '../common-detail/common-detail';
 // import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
 import EventDetailHead from './components/event-detail-head';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
+import { getAuthorityMap, useAuthorityStore } from '@/store/modules/authority';
+
+import type { IAuthority } from '@/typings/authority';
 
 import './alarm-detail-page.scss';
 
@@ -45,6 +49,14 @@ export default defineComponent({
   setup(props) {
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     const { alarmId, alarmDetail } = storeToRefs(alarmCenterDetailStore);
+    const authorityStore = useAuthorityStore();
+    const authority = shallowReactive<IAuthority>({
+      map: authMap,
+      auth: {},
+      showDetail: authorityStore.getAuthorityDetail,
+    });
+
+    provide('authority', authority);
 
     watch(
       () => props.alarmId,
@@ -55,6 +67,14 @@ export default defineComponent({
       },
       { immediate: true }
     );
+
+    const init = async () => {
+      authority.auth = await getAuthorityMap(authMap);
+    };
+
+    onMounted(() => {
+      init();
+    });
 
     return {
       alarmDetail,

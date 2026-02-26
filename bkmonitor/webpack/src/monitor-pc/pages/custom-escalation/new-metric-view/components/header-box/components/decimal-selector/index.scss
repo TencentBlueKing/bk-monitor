@@ -1,0 +1,45 @@
+.new-metric-view-decimal-selector {
+  display: flex;
+  align-items: center;
+  margin-right: 16px;
+
+  .label {
+    height: 100%;
+    padding: 0 8px;
+    line-height: 35px;
+    color: #313238;
+    background: #ebeef5;
+
+    div {
+      white-space: nowrap;
+    }
+  }
+}
+
+.tippy-tooltip.new-metric-view-decimal-selector-theme {
+  padding: 0;
+  .wrapper {
+    padding: 8px 0;
+    background: #fff;
+  }
+  .decimal-item {
+    height: 32px;
+    line-height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+    color: #4d4f56;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    &:hover {
+      background: #f5f7fa;
+    }
+    &.is-active {
+      color: #3a84ff;
+      background-color: #f4f6fa;
+    }
+    .bk-checkbox {
+      margin-right: 6px;
+    }
+  }
+}

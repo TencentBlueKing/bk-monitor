@@ -194,34 +194,6 @@ export default defineComponent({
       },
     ];
     /**
-     * 可见字段
-     */
-    const visibleData = computed(() => {
-      return props.data.filter(item => !item.is_delete);
-    });
-    /**
-     * 被隐藏字段
-     */
-    const invisibleData = computed(() => {
-      return props.data.filter(item => item.is_delete);
-    });
-    const showData = computed(() => {
-      return typeKey.value === 'visible' ? visibleData.value : invisibleData.value;
-    });
-
-    /**
-     * 是否显示内置字段
-     */
-    const showTableList = computed(() => {
-      return showBuiltIn.value ? [...showData.value, ...props.builtInFieldsList] : showData.value;
-    });
-
-    const isLogDelimiter = computed(() => props.selectEtlConfig === 'bk_log_delimiter');
-
-    const isLogJson = computed(() => props.selectEtlConfig === 'bk_log_json');
-
-    const isLogRegexp = computed(() => props.selectEtlConfig === 'bk_log_regexp');
-    /**
      * 来源render
      * @param row
      * @returns
@@ -303,7 +275,7 @@ export default defineComponent({
                     on-change={value => {
                       cacheData.value.is_analyzed = value;
                     }}
-                  // on-change={handelChangeAnalyzed}
+                    // on-change={handelChangeAnalyzed}
                   />
                 </div>
                 <div class='menu-item'>
@@ -333,7 +305,7 @@ export default defineComponent({
                       on-change={value => {
                         cacheData.value.tokenize_on_chars = value;
                       }}
-                    // disabled={getCustomizeDisabled(props.row)}
+                      // disabled={getCustomizeDisabled(props.row)}
                     />
                   )}
                 </div>
@@ -466,7 +438,7 @@ export default defineComponent({
         try {
           i.hide();
           i.destroy();
-        } catch (_) { }
+        } catch (_) {}
       });
       tippyInstances = [];
     };
@@ -541,18 +513,21 @@ export default defineComponent({
     };
 
     /**
-     * 检测字段名是否包含不完整的引号
-     * @param fieldName 字段名称
-     * @returns 是否包含不完整引号
+     * 验证并处理字段名输入
+     * 对于 JSON 提取方式，如果字段名不符合标准命名规范，自动添加引号包裹
+     * @param row 字段行数据
      */
-    const hasIncompleteQuotes = (fieldName: string): boolean => {
-      // 检测是否有完整的引号包裹（英文或中文）
-      const completeQuotedPattern = /^[""].*[""]$/;
-      if (completeQuotedPattern.test(fieldName)) {
-        return false;
+    const validateInput = (row: FieldItem): void => {
+      if (!row.field_name || props.extractMethod !== 'bk_log_json') {
+        return;
       }
-      // 检测是否包含引号（单边引号）
-      return /[""]/.test(fieldName);
+      const quotedPattern = /^".*"$/; // 检测是否已被引号包裹
+      const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/; // 标准字段名格式：字母或下划线开头，只能包含字母、数字和下划线
+
+      // 如果未被引号包裹且不符合标准命名规范，则添加引号
+      if (!quotedPattern.test(row.field_name) && !validFieldPattern.test(row.field_name)) {
+        row.field_name = `"${row.field_name}"`;
+      }
     };
 
     /**
@@ -577,6 +552,9 @@ export default defineComponent({
       if (!currentRow) {
         return '';
       }
+
+      // 先验证并处理输入（自动添加引号等）
+      validateInput(currentRow);
 
       // 如果已有别名，则不需要校验字段名，但需要清空 fieldAliasErr
       if (currentRow.alias_name) {
@@ -606,12 +584,8 @@ export default defineComponent({
       if (!field_name) {
         result = REQUIRED_FIELD_MSG;
       }
-      // 校验是否包含不完整的引号
-      else if (hasIncompleteQuotes(field_name)) {
-        result = t('字段名包含不完整的引号，请补全或删除引号');
-      }
-      // 校验字段名格式：只能包含 a-z、A-Z、0-9 和 _，且不能以 _ 开头和结尾（或被完整引号包裹）
-      else if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name) && !/^[""].*[""]$/.test(field_name)) {
+      // 校验字段名格式：只能包含 a-z、A-Z、0-9 和 _，且不能以 _ 开头和结尾
+      else if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
         if (props.selectEtlConfig === 'bk_log_json') {
           // JSON 模式下，格式错误时提示用户重命名
           btnShow = true;
@@ -1096,6 +1070,7 @@ export default defineComponent({
               disabled={row.is_built_in}
               value={row.field_type}
               on-change={value => {
+                console.log(value, 'value===');
                 if (value === 'string') {
                   setTimeout(() => {
                     initMenuPop();
@@ -1142,18 +1117,17 @@ export default defineComponent({
       {
         title: t('操作'),
         colKey: 'operation',
-        width: 60,
+        width: 70,
         cell: (h, { row }) => (
           <div class='table-operation'>
-            {isLogDelimiter.value &&
-              !row.is_built_in && (
-                <i
-                  class={`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`}
-                  v-bk-tooltips={row.is_delete ? t('复原') : t('隐藏')}
-                  on-click={() => isDisableOperate(row)}
-                />
-              )}
-            {isLogJson.value && !row.is_built_in && (
+            {!row.is_built_in && (
+              <i
+                class={`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`}
+                v-bk-tooltips={row.is_delete ? t('复原') : t('隐藏')}
+                on-click={() => isDisableOperate(row)}
+              />
+            )}
+            {row.is_add_in && (
               <i
                 class='bklog-icon bklog-log-delete icons del-icon'
                 v-bk-tooltips={t('删除')}
@@ -1180,20 +1154,40 @@ export default defineComponent({
           {t('可见字段')}
           {` (${visibleData.value.length})`}
         </span>
-        {isLogDelimiter.value && (
-          <span
-            class={{
-              'tab-item': true,
-              'is-selected': typeKey.value === 'invisible',
-            }}
-            on-Click={() => handleType('invisible')}
-          >
-            {t('被隐藏字段')}
-            {` (${invisibleData.value.length})`}
-          </span>
-        )}
+        <span
+          class={{
+            'tab-item': true,
+            'is-selected': typeKey.value === 'invisible',
+          }}
+          on-Click={() => handleType('invisible')}
+        >
+          {t('被隐藏字段')}
+          {` (${invisibleData.value.length})`}
+        </span>
       </div>
     );
+    /**
+     * 可见字段
+     */
+    const visibleData = computed(() => {
+      return props.data.filter(item => !item.is_delete);
+    });
+    /**
+     * 被隐藏字段
+     */
+    const invisibleData = computed(() => {
+      return props.data.filter(item => item.is_delete);
+    });
+    const showData = computed(() => {
+      return typeKey.value === 'visible' ? visibleData.value : invisibleData.value;
+    });
+
+    /**
+     * 是否显示内置字段
+     */
+    const showTableList = computed(() => {
+      return showBuiltIn.value ? [...showData.value, ...props.builtInFieldsList] : showData.value;
+    });
 
     const handleShowBuiltIn = () => {
       showBuiltIn.value = !showBuiltIn.value;
@@ -1217,15 +1211,15 @@ export default defineComponent({
       const newList = updateList(props.data, row, item => ({ ...item, is_delete: !item.is_delete }));
       emit('change', newList);
     };
-    const showColumns = computed(() =>
-      isLogRegexp.value ? columns.value.filter(item => item.colKey !== 'operation') : columns.value,
-    );
     /**
      * 字段表格
      * @returns
      */
     const renderTable = () => (
-      <div class='fields-table'>
+      <div
+        class='fields-table'
+        // v-bkloading={{ isLoading: props.loading, zIndex: 10 }}
+      >
         <TableComponent
           class='fields-table-box'
           loading={props.loading}
@@ -1236,7 +1230,7 @@ export default defineComponent({
             rows: 2,
             widths: ['2%', '24%', '24%', ' 24%', '22%', '4%'],
           }}
-          columns={showColumns.value}
+          columns={columns.value}
           slots={{
             'title-slot-name': () => (
               <span class='header-text'>

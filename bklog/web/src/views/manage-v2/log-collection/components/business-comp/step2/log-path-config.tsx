@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, type PropType, watch } from 'vue';
+import { defineComponent, ref, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -62,9 +62,6 @@ export default defineComponent({
     // 处理黑名单显示切换
     const handleBlacklist = () => {
       isBlacklist.value = !isBlacklist.value;
-      if (props.excludeFiles.length === 0) {
-        emit('update', 'exclude_files', [{ value: '' }]);
-      }
     };
 
     // 处理黑名单路径更新
@@ -87,14 +84,6 @@ export default defineComponent({
     expose({
       validate,
     });
-
-    watch(
-      () => props.excludeFiles,
-      (val: { value: string }[]) => {
-        isBlacklist.value = val.length > 0;
-      },
-      { immediate: true },
-    );
 
     return () => (
       <div class='log-path-config-main'>

@@ -22,6 +22,7 @@ from django.utils.translation import gettext as _
 from tenacity import RetryError, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from alarm_backends.service.scheduler.app import app
+from bkmonitor.utils.tenant import get_tenant_default_biz_id
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -1013,6 +1014,241 @@ def sync_bkbase_v4_metadata(key, skip_types: list[str] | None = None):
     )
 
 
+def _get_bk_biz_internal_data_ids(bk_tenant_id: str, bk_biz_id: int) -> list[dict[str, int | str]]:
+    """
+    获取业务内置数据ID
+    """
+    result: list[dict[str, int | str]] = []
+
+    # 系统指标
+    system_metric_data_source = DataSource.objects.filter(data_name=f"{bk_tenant_id}_{bk_biz_id}_sys_base").first()
+    if system_metric_data_source:
+        result.append({"task": "basereport", "dataid": system_metric_data_source.bk_data_id})
+
+    # 系统事件
+    system_event_data_source = DataSource.objects.filter(data_name=f"base_{bk_biz_id}_agent_event").first()
+    if system_event_data_source:
+        result.append({"task": "exceptionbeat", "dataid": system_event_data_source.bk_data_id})
+
+    # 系统进程
+    system_proc_data_source = DataSource.objects.filter(
+        data_name=SYSTEM_PROC_DATA_LINK_CONFIGS["perf"]["data_name_tpl"].format(bk_biz_id=bk_biz_id)
+    ).first()
+    if system_proc_data_source:
+        result.append({"task": "processbeat_perf", "dataid": system_proc_data_source.bk_data_id})
+
+    system_proc_port_data_source = DataSource.objects.filter(
+        data_name=SYSTEM_PROC_DATA_LINK_CONFIGS["port"]["data_name_tpl"].format(bk_biz_id=bk_biz_id)
+    ).first()
+    if system_proc_port_data_source:
+        result.append({"task": "processbeat_port", "dataid": system_proc_port_data_source.bk_data_id})
+
+    return result
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def process_gse_slot_message(message_id: str, bk_agent_id: str, content: str, received_at: str):
+    """
+    Celery异步任务--处理GSE投递的数据
+
+    {
+        # type 格式为 "动作名称"/"影响范围"/"操作内容"
+        "type": "fetch/host/dataid", # 请求类型，暂时只有一种，后续可能扩展
+        "cloudid": 0, # 发起请求的采集器主机 cloudid
+        "bk_agent_id": "02000000005254003dd2ea1700473962076n", # 发起请求的采集器主机 agentid
+        "ip": "127.0.0.1", # 发起请求的采集器主机 ip
+        "bk_tenant_id" : "my-tenant_id", # 采集器读到的 CMDB 下发的文件中的租户 ID
+        "params": "..." # 请求参数，不同的 type 对应着不同的参数
+    }
+
+    type: fetch/host/dataid
+    {
+        # metadata 可以内置这批 tasks 的数据格式以及元信息等，编写成一个独立的任务。
+        "tasks": [
+            "basereport", # 原 1001 dataid
+            "processbeat_perf", # 原 1007 dataid
+            "processbeat_port", # 原 1013 dataid
+            "global_heartbeat", # 原 1100001 dataid
+            "gather_up_beat",  # 原 1100017 dataid
+            "timesync", # 原 1100030 dataid
+            "dmesg", # 原 1100031 dataid
+            "exceptionbeat", # 原 1000 dataid
+        ]
+    }
+    """
+    from alarm_backends.core.cache.cmdb import HostManager
+
+    try:
+        content_data = json.loads(content)
+    except (ValueError, TypeError):
+        logger.error(
+            "process_gse_slot_message: content is not a valid json, message_id->%s, bk_agent_id->%s, content->%s",
+            message_id,
+            bk_agent_id,
+            content,
+        )
+        return
+
+    # 解析Content，Content内容为采集器与Metadata约定的协议
+    if content_data.get("type") == "fetch/host/dataid":
+        logger.info("process_gse_slot_message: start to fetch host dataid")
+
+        bk_tenant_id = content_data.get("bk_tenant_id")
+
+        if not bk_tenant_id:
+            logger.warning(
+                "process_gse_slot_message: bk_tenant_id is not found,message_id->%s,content->%s",
+                message_id,
+                content,
+            )
+            return
+
+        # 如果内置数据链路是按租户申请的，直接按租户默认业务ID查询对应的数据ID
+        if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
+            try:
+                default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+            except ValueError:
+                logger.error(
+                    "process_gse_slot_message: get tenant default biz id failed, bk_tenant_id->%s", bk_tenant_id
+                )
+                return
+            result = _get_bk_biz_internal_data_ids(bk_tenant_id=bk_tenant_id, bk_biz_id=default_biz_id)
+        else:
+            host = HostManager.get_by_agent_id(bk_tenant_id=bk_tenant_id, bk_agent_id=bk_agent_id)
+            if not host:
+                logger.warning(
+                    "process_gse_slot_message: host not found,bk_tenant_id->%s,bk_agent_id->%s",
+                    bk_tenant_id,
+                    bk_agent_id,
+                )
+                return
+
+            result: list[dict[str, int | str]] = _get_bk_biz_internal_data_ids(
+                bk_tenant_id=bk_tenant_id, bk_biz_id=host.bk_biz_id
+            )
+
+        # 回调GSE接口,告知DataId
+        api.gse.dispatch_message(
+            bk_tenant_id=bk_tenant_id,
+            message_id=message_id,
+            agent_id_list=[bk_agent_id],
+            content=json.dumps({"code": 0, "data": result}),
+        )
+        logger.info(
+            "process_gse_slot_message: callback gse interface,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s,result->%s",
+            message_id,
+            bk_agent_id,
+            content,
+            received_at,
+            result,
+        )
+    else:
+        logger.warning(
+            "process_gse_slot_message: unknown content type,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s",
+            message_id,
+            bk_agent_id,
+            content,
+            received_at,
+        )
+
+
+def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
+    """
+    检查业务内置数据链路
+    """
+
+    # 如果未开启新版数据链路或空间内置数据链路，则不检查
+    if not (settings.ENABLE_V2_VM_DATA_LINK and settings.ENABLE_SPACE_BUILTIN_DATA_LINK) or not biz_list:
+        return
+
+    logger.info("check_bkcc_space_builtin_datalink: start to check bkcc space builtin datalink")
+
+    # 如果是按租户申请的，则只检查每个租户的默认业务
+    if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
+        seen_tenants: set[str] = set()
+        tenant_biz_list: list[tuple[str, int]] = []
+        for bk_tenant_id, _ in biz_list:
+            if bk_tenant_id not in seen_tenants:
+                seen_tenants.add(bk_tenant_id)
+                try:
+                    tenant_biz_list.append((bk_tenant_id, get_tenant_default_biz_id(bk_tenant_id)))
+                except ValueError:
+                    logger.error(
+                        "check_bkcc_space_builtin_datalink: get tenant default biz id failed, bk_tenant_id->[%s], return!",
+                        bk_tenant_id,
+                    )
+                    continue
+        biz_list = tenant_biz_list
+
+    # 获取已存在的数据源名称
+    exists_data_names: set[str] = set(
+        DataSource.objects.filter(
+            Q(data_name__endswith="_agent_event")
+            | Q(data_name__endswith="_sys_base")
+            | Q(data_name__endswith="_system_proc_port")
+            | Q(data_name__endswith="_system_proc_perf")
+        ).values_list("data_name", flat=True)
+    )
+
+    # 获取已存在的DataLink名称
+    data_link_name_to_namespaces: dict[str, str] = dict(DataLink.objects.values_list("data_link_name", "namespace"))
+
+    # 数据源名称模板到任务的映射
+    data_name_tpl_to_task: dict[tuple[str, tuple[str, ...]], Any] = {
+        ("bkmonitor", ("{bk_tenant_id}_{bk_biz_id}_sys_base",)): create_basereport_datalink_for_bkcc,
+        ("bklog", ("base_{bk_biz_id}_agent_event",)): create_base_event_datalink_for_bkcc,
+        ("bkmonitor", ("base_{bk_biz_id}_system_proc_port",)): create_system_proc_datalink_for_bkcc,
+        ("bkmonitor", ("base_{bk_biz_id}_system_proc_perf",)): create_system_proc_datalink_for_bkcc,
+    }
+
+    # 遍历业务列表，检查是否存在对应的数据源名称，如果不存在，则执行对应任务创建数据源
+    for bk_tenant_id, bk_biz_id in biz_list:
+        for (namespace, data_name_tpls), task in data_name_tpl_to_task.items():
+            data_names: list[str] = [
+                data_name_tpl.format(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id) for data_name_tpl in data_name_tpls
+            ]
+            for data_name in data_names:
+                if data_name not in exists_data_names:
+                    logger.info(
+                        "check_bkcc_space_builtin_datalink: data_source(%s) not found, bk_tenant_id->[%s], bk_biz_id->[%s], run task->[%s] to create",
+                        data_name,
+                        bk_tenant_id,
+                        bk_biz_id,
+                        task,
+                    )
+                    task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+                    break
+
+                if data_name not in data_link_name_to_namespaces:
+                    # 如果数据链路不存在，则创建数据链路
+                    logger.info(
+                        "check_bkcc_space_builtin_datalink: data_link(%s) not found, bk_tenant_id->[%s], bk_biz_id->[%s], run task->[%s] to create",
+                        data_name,
+                        bk_tenant_id,
+                        bk_biz_id,
+                        task,
+                    )
+                    task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+                    break
+                elif data_link_name_to_namespaces[data_name] != namespace:
+                    # 如果数据链路存在，但命名空间不匹配，则调整命名空间后重建
+                    datalink_ins = DataLink.objects.get(data_link_name=data_name)
+                    datalink_ins.namespace = namespace
+                    datalink_ins.save()
+                    logger.info(
+                        "check_bkcc_space_builtin_datalink: data_link(%s) namespace mismatch, bk_tenant_id->[%s], bk_biz_id->[%s], run task->[%s] to rebuild",
+                        data_name,
+                        bk_tenant_id,
+                        bk_biz_id,
+                        task,
+                    )
+                    for component_class in DataLink.STRATEGY_RELATED_COMPONENTS[datalink_ins.data_link_strategy]:
+                        component_class.objects.filter(data_link_name=data_name).update(namespace=namespace)
+                    task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+
+    logger.info("check_bkcc_space_builtin_datalink: check bkcc space builtin datalink success")
+
+
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, storage_cluster_name: str | None = None):
     """
@@ -1026,6 +1262,7 @@ def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         "create_basereport_datalink_for_bkcc: start to create basereport datalink,for bk_biz_id->[%s]", bk_biz_id
     )
 
+    # 如果未开启多租户模式，则不创建
     if not settings.ENABLE_MULTI_TENANT_MODE:
         logger.error("create_basereport_datalink_for_bkcc: multi tenant mode is not enabled,return!")
         return
@@ -1039,6 +1276,27 @@ def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
             logger.error("create_basereport_datalink_for_bkcc: get default vm cluster failed,return!")
             return
         storage_cluster_name = cluster_info.cluster_name
+
+    # 如果内置数据链路是按租户申请的，则只有业务ID等于租户下的运营业务时，才创建数据链路
+    # 如果是按租户申请的，数据源需要设置为公共数据源
+    is_platform_data_id = False
+    if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
+        try:
+            default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+        except ValueError:
+            logger.error(
+                "create_basereport_datalink_for_bkcc: get tenant default biz id failed, bk_tenant_id->[%s], return!",
+                bk_tenant_id,
+            )
+            return
+        if bk_biz_id != default_biz_id:
+            logger.info(
+                "create_basereport_datalink_for_bkcc: bk_biz_id->[%s] is not the operation business of bk_tenant_id->[%s],return!",
+                bk_biz_id,
+                bk_tenant_id,
+            )
+            return
+        is_platform_data_id = True
 
     # source -- 数据渠道 sys / dbm / devx / perforce
     source = BASEREPORT_SOURCE_SYSTEM
@@ -1070,6 +1328,7 @@ def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
             type_label="time_series",
             bk_biz_id=bk_biz_id,
             created_from=DataIdCreatedFromSystem.BKDATA.value,
+            is_platform_data_id=is_platform_data_id,
         )
         logger.info(
             "create_basereport_datalink_for_bkcc: data_source created,bk_biz_id->[%s],data_name->[%s],bk_data_id->[%s]",
@@ -1269,6 +1528,27 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         logger.error("create_base_event_datalink_for_bkcc: multi tenant mode is not enabled,return!")
         return
 
+    # 如果内置数据链路是按租户申请的，则只有业务ID等于租户下的运营业务时，才创建数据链路
+    # 如果是按租户申请的，数据源需要设置为公共数据源
+    is_platform_data_id = False
+    if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
+        try:
+            default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+        except ValueError:
+            logger.error(
+                "create_base_event_datalink_for_bkcc: get tenant default biz id failed, bk_tenant_id->[%s], return!",
+                bk_tenant_id,
+            )
+            return
+        if bk_biz_id != default_biz_id:
+            logger.info(
+                "create_base_event_datalink_for_bkcc: bk_biz_id->[%s] is not the operation business of bk_tenant_id->[%s],return!",
+                bk_biz_id,
+                bk_tenant_id,
+            )
+            return
+        is_platform_data_id = True
+
     if storage_cluster_name:
         storage_cluster_id = models.ClusterInfo.objects.get(
             bk_tenant_id=bk_tenant_id, cluster_name=storage_cluster_name
@@ -1308,6 +1588,7 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
             bk_biz_id=bk_biz_id,
             bk_tenant_id=bk_tenant_id,
             created_from=DataIdCreatedFromSystem.BKDATA.value,
+            is_platform_data_id=is_platform_data_id,
         )
 
     logger.info(
@@ -1519,133 +1800,6 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
     )
 
 
-def _get_bk_biz_internal_data_ids(bk_tenant_id: str, bk_biz_id: int) -> list[dict[str, int | str]]:
-    """
-    获取业务内置数据ID
-    """
-    result: list[dict[str, int | str]] = []
-
-    # 系统指标
-    system_metric_data_source = DataSource.objects.filter(data_name=f"{bk_tenant_id}_{bk_biz_id}_sys_base").first()
-    if system_metric_data_source:
-        result.append({"task": "basereport", "dataid": system_metric_data_source.bk_data_id})
-
-    # 系统事件
-    system_event_data_source = DataSource.objects.filter(data_name=f"base_{bk_biz_id}_agent_event").first()
-    if system_event_data_source:
-        result.append({"task": "exceptionbeat", "dataid": system_event_data_source.bk_data_id})
-
-    # 系统进程
-    system_proc_data_source = DataSource.objects.filter(
-        data_name=SYSTEM_PROC_DATA_LINK_CONFIGS["perf"]["data_name_tpl"].format(bk_biz_id=bk_biz_id)
-    ).first()
-    if system_proc_data_source:
-        result.append({"task": "processbeat_perf", "dataid": system_proc_data_source.bk_data_id})
-
-    system_proc_port_data_source = DataSource.objects.filter(
-        data_name=SYSTEM_PROC_DATA_LINK_CONFIGS["port"]["data_name_tpl"].format(bk_biz_id=bk_biz_id)
-    ).first()
-    if system_proc_port_data_source:
-        result.append({"task": "processbeat_port", "dataid": system_proc_port_data_source.bk_data_id})
-
-    return result
-
-
-@app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def process_gse_slot_message(message_id: str, bk_agent_id: str, content: str, received_at: str):
-    """
-    Celery异步任务--处理GSE投递的数据
-
-    {
-        # type 格式为 "动作名称"/"影响范围"/"操作内容"
-        "type": "fetch/host/dataid", # 请求类型，暂时只有一种，后续可能扩展
-        "cloudid": 0, # 发起请求的采集器主机 cloudid
-        "bk_agent_id": "02000000005254003dd2ea1700473962076n", # 发起请求的采集器主机 agentid
-        "ip": "127.0.0.1", # 发起请求的采集器主机 ip
-        "bk_tenant_id" : "my-tenant_id", # 采集器读到的 CMDB 下发的文件中的租户 ID
-        "params": "..." # 请求参数，不同的 type 对应着不同的参数
-    }
-
-    type: fetch/host/dataid
-    {
-        # metadata 可以内置这批 tasks 的数据格式以及元信息等，编写成一个独立的任务。
-        "tasks": [
-            "basereport", # 原 1001 dataid
-            "processbeat_perf", # 原 1007 dataid
-            "processbeat_port", # 原 1013 dataid
-            "global_heartbeat", # 原 1100001 dataid
-            "gather_up_beat",  # 原 1100017 dataid
-            "timesync", # 原 1100030 dataid
-            "dmesg", # 原 1100031 dataid
-            "exceptionbeat", # 原 1000 dataid
-        ]
-    }
-    """
-    from alarm_backends.core.cache.cmdb import HostManager
-
-    try:
-        content_data = json.loads(content)
-    except (ValueError, TypeError):
-        logger.error(
-            "process_gse_slot_message: content is not a valid json, message_id->%s, bk_agent_id->%s, content->%s",
-            message_id,
-            bk_agent_id,
-            content,
-        )
-        return
-
-    # 解析Content，Content内容为采集器与Metadata约定的协议
-    if content_data.get("type") == "fetch/host/dataid":
-        logger.info("process_gse_slot_message: start to fetch host dataid")
-
-        bk_tenant_id = content_data.get("bk_tenant_id")
-
-        if not bk_tenant_id:
-            logger.warning(
-                "process_gse_slot_message: bk_tenant_id is not found,message_id->%s,content->%s",
-                message_id,
-                content,
-            )
-            return
-
-        host = HostManager.get_by_agent_id(bk_tenant_id=bk_tenant_id, bk_agent_id=bk_agent_id)
-        if not host:
-            logger.warning(
-                "process_gse_slot_message: host not found,bk_tenant_id->%s,bk_agent_id->%s",
-                bk_tenant_id,
-                bk_agent_id,
-            )
-            return
-
-        result: list[dict[str, int | str]] = _get_bk_biz_internal_data_ids(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=host.bk_biz_id
-        )
-
-        # 回调GSE接口,告知DataId
-        api.gse.dispatch_message(
-            bk_tenant_id=bk_tenant_id,
-            message_id=message_id,
-            agent_id_list=[bk_agent_id],
-            content=json.dumps({"code": 0, "data": result}),
-        )
-        logger.info(
-            "process_gse_slot_message: callback gse interface,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s,result->%s",
-            message_id,
-            bk_agent_id,
-            content,
-            received_at,
-            result,
-        )
-    else:
-        logger.warning(
-            "process_gse_slot_message: unknown content type,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s",
-            message_id,
-            bk_agent_id,
-            content,
-            received_at,
-        )
-
-
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, storage_cluster_name: str | None = None):
     """
@@ -1663,6 +1817,27 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
     # 如果未开启多租户模式，则不创建
     if not settings.ENABLE_MULTI_TENANT_MODE:
         return
+
+    # 如果内置数据链路是按租户申请的，则只有业务ID等于租户下的运营业务时，才创建数据链路
+    # 如果是按租户申请的，数据源需要设置为公共数据源
+    is_platform_data_id = False
+    if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
+        try:
+            default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+        except ValueError:
+            logger.error(
+                "create_system_proc_datalink_for_bkcc: get tenant default biz id failed, bk_tenant_id->[%s], return!",
+                bk_tenant_id,
+            )
+            return
+        if bk_biz_id != default_biz_id:
+            logger.info(
+                "create_system_proc_datalink_for_bkcc: bk_biz_id->[%s] is not the operation business of bk_tenant_id->[%s],return!",
+                bk_biz_id,
+                bk_tenant_id,
+            )
+            return
+        is_platform_data_id = True
 
     # 如果未指定存储集群，则使用默认的VM集群
     if not storage_cluster_name:
@@ -1711,6 +1886,7 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=bk_tenant_id,
                 created_from=DataIdCreatedFromSystem.BKDATA.value,
+                is_platform_data_id=is_platform_data_id,
             )
 
         # 创建结果表
@@ -1817,85 +1993,6 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
     logger.info(
         "create_system_proc_datalink_for_bkcc: create system proc datalink for bk_biz_id->[%s] success", bk_biz_id
     )
-
-
-def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
-    """
-    检查业务内置数据链路
-    """
-
-    # 如果未开启新版数据链路或空间内置数据链路，则不检查
-    if not (settings.ENABLE_V2_VM_DATA_LINK and settings.ENABLE_SPACE_BUILTIN_DATA_LINK) or not biz_list:
-        return
-
-    logger.info("check_bkcc_space_builtin_datalink: start to check bkcc space builtin datalink")
-
-    # 获取已存在的数据源名称
-    exists_data_names: set[str] = set(
-        DataSource.objects.filter(
-            Q(data_name__endswith="_agent_event")
-            | Q(data_name__endswith="_sys_base")
-            | Q(data_name__endswith="_system_proc_port")
-            | Q(data_name__endswith="_system_proc_perf")
-        ).values_list("data_name", flat=True)
-    )
-
-    # 获取已存在的DataLink名称
-    data_link_name_to_namespaces: dict[str, str] = dict(DataLink.objects.values_list("data_link_name", "namespace"))
-
-    # 数据源名称模板到任务的映射
-    data_name_tpl_to_task: dict[tuple[str, tuple[str, ...]], Any] = {
-        ("bkmonitor", ("{bk_tenant_id}_{bk_biz_id}_sys_base",)): create_basereport_datalink_for_bkcc,
-        ("bklog", ("base_{bk_biz_id}_agent_event",)): create_base_event_datalink_for_bkcc,
-        ("bkmonitor", ("base_{bk_biz_id}_system_proc_port",)): create_system_proc_datalink_for_bkcc,
-        ("bkmonitor", ("base_{bk_biz_id}_system_proc_perf",)): create_system_proc_datalink_for_bkcc,
-    }
-
-    # 遍历业务列表，检查是否存在对应的数据源名称，如果不存在，则执行对应任务创建数据源
-    for bk_tenant_id, bk_biz_id in biz_list:
-        for (namespace, data_name_tpls), task in data_name_tpl_to_task.items():
-            data_names: list[str] = [
-                data_name_tpl.format(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id) for data_name_tpl in data_name_tpls
-            ]
-            for data_name in data_names:
-                if data_name not in exists_data_names:
-                    logger.info(
-                        "check_bkcc_space_builtin_datalink: data_source(%s) not found, bk_tenant_id->[%s], bk_biz_id->[%s], run task->[%s] to create",
-                        data_name,
-                        bk_tenant_id,
-                        bk_biz_id,
-                        task,
-                    )
-                    task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
-                    break
-
-                if data_name not in data_link_name_to_namespaces:
-                    # 如果数据链路不存在，则创建数据链路
-                    logger.info(
-                        "check_bkcc_space_builtin_datalink: data_link(%s) not found, bk_tenant_id->[%s], bk_biz_id->[%s], run task->[%s] to create",
-                        data_name,
-                        bk_tenant_id,
-                        bk_biz_id,
-                    )
-                    task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
-                    break
-                elif data_link_name_to_namespaces[data_name] != namespace:
-                    # 如果数据链路存在，但命名空间不匹配，则调整命名空间后重建
-                    datalink_ins = DataLink.objects.get(data_link_name=data_name)
-                    datalink_ins.namespace = namespace
-                    datalink_ins.save()
-                    logger.info(
-                        "check_bkcc_space_builtin_datalink: data_link(%s) namespace mismatch, bk_tenant_id->[%s], bk_biz_id->[%s], run task->[%s] to rebuild",
-                        data_name,
-                        bk_tenant_id,
-                        bk_biz_id,
-                        task,
-                    )
-                    for component_class in DataLink.STRATEGY_RELATED_COMPONENTS[datalink_ins.data_link_strategy]:
-                        component_class.objects.filter(data_link_name=data_name).update(namespace=namespace)
-                    task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
-
-    logger.info("check_bkcc_space_builtin_datalink: check bkcc space builtin datalink success")
 
 
 def create_single_tenant_system_datalink(

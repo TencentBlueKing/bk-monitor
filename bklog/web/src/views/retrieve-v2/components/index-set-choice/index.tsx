@@ -30,6 +30,7 @@ import { getOsCommandLabel } from '../../../../common/util';
 import BklogPopover from '../../../../components/bklog-popover';
 import EllipsisTagList from '../../../../components/ellipsis-tag-list';
 import Content from './content';
+import useStore from '@/hooks/use-store';
 
 import type { IndexSetTabList, IndexSetType } from './use-choice';
 import type { Props } from 'tippy.js';
@@ -95,6 +96,8 @@ export default defineComponent({
   },
   emits: ['type-change', 'value-change', 'auth-request'],
   setup(props, { emit }) {
+    const store = useStore();
+
     const isOpened = ref(false);
     const refRootElement: Ref<any | null> = ref(null);
     const shortcutKey = `${getOsCommandLabel()}+O`;
@@ -141,7 +144,7 @@ export default defineComponent({
     /**
      * 扁平化树形列表
      */
-    const getFlatList = () => (props.indexSetList ?? []).map((t: any) => [t, t.children]).flat(3);
+    const getFlatList = () => (props.indexSetList ?? []).map((t: any) => [t, t.children ?? []]).flat(3);
 
     /**
      * 查询选中结果值，新版索引ID格式为： pid_childId, 如果为根节点，格式为： #_childId
@@ -165,6 +168,9 @@ export default defineComponent({
       () => props.indexSetValue,
       () => {
         selectedValues.value = getSelectedValues();
+        if (selectedValues.value.length === 1 && window.__IS_MONITOR_APM__) {
+          store.commit('updateSpace', selectedValues.value[0]);
+        }
       },
       { immediate: true },
     );

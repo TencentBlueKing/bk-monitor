@@ -111,6 +111,13 @@ class ResultTableHandler(APIModel):
                 all_rt_ids.add(index["result_table_id"])
         result = dedupe_result
 
+        # 如果是数据平台则只显示用户有管理权限的RT列表
+        if self.scenario_id == Scenario.BKDATA:
+            scopes = BkDataAuthApi.get_user_perm_scope(
+                {"user_id": self.username, "action_id": "result_table.manage_auth", "show_admin_scopes": True}
+            )
+            authorized_tables = {scope["result_table_id"] for scope in scopes if scope.get("result_table_id")}
+            result = [index for index in result if index["result_table_id"] in authorized_tables]
         return result
 
     def retrieve(self, result_table_id):

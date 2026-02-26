@@ -10,8 +10,10 @@
     align-items: center;
     margin: 4px 8px 0;
 
-    .bk-input {
+    .icon-mc-search {
+      display: flex;
       align-items: center;
+      justify-content: center;
     }
   }
 
@@ -31,7 +33,6 @@
       white-space: nowrap;
       cursor: pointer;
       user-select: none;
-      user-select: none;
 
       &:hover {
         color: #63656e;
@@ -39,8 +40,8 @@
       }
 
       &.active {
-        background: #e1ecff;
         color: #3a84ff;
+        background: #e1ecff;
       }
     }
   }

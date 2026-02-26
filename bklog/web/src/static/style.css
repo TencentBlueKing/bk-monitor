@@ -800,9 +800,3 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-key-tab:before {
 	content: "\e240";
 }
-.bklog-tingyongcaijixiang:before {
-	content: "\e243";
-}
-.bklog-tingyongwenjianjia:before {
-	content: "\e242";
-}

@@ -216,10 +216,10 @@ export const MENU_LIST = [
     label: window.$t('删除'),
     key: 'delete',
   },
-  // {
-  //   label: window.$t('一键检测'),
-  //   key: 'one_key_check',
-  // },
+  {
+    label: window.$t('一键检测'),
+    key: 'one_key_check',
+  },
 ];
 
 /**
@@ -373,15 +373,6 @@ export const operatorMappingObj = {
   regex: window.mainComponent.$t('正则匹配'),
   nregex: window.mainComponent.$t('正则不匹配'),
 };
-/**
- * 可见范围单选列表
- */
-
-export const visibleScopeSelectList = [
-  { id: 'current_biz', name: window.mainComponent.$t('当前空间可见') },
-  { id: 'multi_biz', name: window.mainComponent.$t('多空间选择') },
-  { id: 'all_biz', name: window.mainComponent.$t('全平台') },
-];
 
 /**
  * 格式化字节大小为可读字符串。
@@ -399,47 +390,22 @@ export function formatBytes(size) {
   }
   return formatFileSize(size, true);
 }
-/**
- * 表格各操作项是否可以点击
- * @param row
- * @param operateType
- * @returns
- */
-export const getOperatorCanClick = (row: ICollectListRowData, operateType: CollectOperateType) => {
-  const status = row.status?.toLowerCase();
-  const isTerminated = status === 'terminated';
-  const isSuccess = status === 'success';
-  const isFailed = status === 'failed';
-  const isCompleted = row.storage_cluster_id !== -1; // 采集项已完成：storage_cluster_id 存在
 
-  switch (operateType) {
-    case 'search':
-      // 检索 - 判定 is_search 字段
-      return !!(row.is_search as boolean);
-    case 'edit':
-      // 编辑 - 采集状态不为"停用"
-      return !isTerminated;
-    case 'clean':
-      // 清洗 - 采集状态不为"停用"
-      return !isTerminated;
-    case 'storage':
-      // 存储设置 - 采集项已完成且采集状态不为"停用"
-      return isCompleted && !isTerminated;
-    case 'clone':
-      // 克隆 - 无限制条件
-      return true;
-    case 'stop':
-      // 停用 - 采集状态为"正常"或"异常"
-      return isSuccess || isFailed;
-    case 'start':
-      // 启用 - 采集状态为"停用"
-      return isTerminated;
-    case 'delete':
-      // 删除 - 采集状态为"停用"
-      return isTerminated;
-    default:
-      return true;
+export const getOperatorCanClick = (row: ICollectListRowData, operateType: CollectOperateType) => {
+  /**
+   * 未完成的情况下，只能进行编辑和清洗
+   */
+  const keys = ['search', 'storage', 'stop', 'clone', 'delete', 'one_key_check'];
+  if (keys.includes(operateType)) {
+    return row.storage_cluster_id !== -1;
   }
+  /**
+   * 不在运行中的状态才可以删除
+   */
+  if (operateType === 'delete') {
+    return row.status !== 'running';
+  }
+  return true;
 };
 
 export const getLabelSelectorArray = (
@@ -455,34 +421,4 @@ export const getContainerNameList = (containerName = '') => {
   const splitList = containerName.split(',');
   if (splitList.length === 1 && splitList[0] === '') return [];
   return splitList;
-};
-
-/**
- * 处理exclude_files，完成格式转换+空值过滤
- * @param {Array} excludeFiles 原始exclude_files值（对象数组/字符串数组）
- * @returns {Array<string>} 标准化后的非空字符串数组
- */
-export const formatExcludeFiles = excludeFiles => {
-  // 1. 容错处理：非数组/空数组直接返回空数组
-  if (!Array.isArray(excludeFiles) || excludeFiles.length === 0) {
-    return [];
-  }
-
-  const resultArr = [];
-  // 2. 遍历数组，区分「对象项」和「字符串项」
-  excludeFiles.forEach(item => {
-    // 情况A：元素是对象，且包含value属性 → 提取value
-    if (typeof item === 'object' && item !== null && 'value' in item) {
-      const val = item.value;
-      // 过滤空值：仅保留非空的字符串
-      if (val && typeof val === 'string') {
-        resultArr.push(val);
-      }
-    } else if (typeof item === 'string') {
-      // 情况B：元素是字符串 → 直接保留（已符合格式）
-      resultArr.push(item);
-    }
-  });
-
-  return resultArr;
 };
