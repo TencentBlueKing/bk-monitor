@@ -215,6 +215,17 @@ LABEL_ORDER_LIST = [
     ResultTableLabelObj.KubernetesObject.kubernetes,
 ]
 
+METRIC_TYPE_CHOICES = (
+    ("metric", "指标"),
+    ("dimension", "维度"),
+)
+
+
+class MetricType:
+    METRIC = "metric"
+    DIMENSION = "dimension"
+
+
 # 视图最大维度取值数
 # 单图最大展示线条数
 GRAPH_MAX_SLIMIT = 2000
