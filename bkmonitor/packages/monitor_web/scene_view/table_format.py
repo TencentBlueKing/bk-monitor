@@ -664,8 +664,17 @@ class EndpointListTableFormat(TableFormat):
         result = [{"key": "", "icon": "", "target": "null_event", "url": "", "value": row[self.id]}]
         for link in self.links:
             try:
-                link_data = {**link.format(row), "value": link.name}
+                # 不能调用 link.format(row)（会触发 row[link.id] 的 KeyError），需单独构造 url
+                url = link.url_format.format(**row)
             except KeyError:
-                link_data = {"icon": "", "target": link.target, "url": "", "key": link.event_key, "value": link.name}
-            result.append(link_data)
+                url = ""
+            result.append(
+                {
+                    "icon": link.icon_get(row),
+                    "target": link.target,
+                    "url": url,
+                    "key": link.event_key,
+                    "value": link.name,
+                }
+            )
         return result

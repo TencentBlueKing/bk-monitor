@@ -122,7 +122,9 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
   // 获取作业平台数据
   async getPluginTemplates(id: number) {
     this.isLoading = true;
-    const data: any = await SetMealAddModule.getPluginTemplates(id).finally(() => (this.isLoading = false));
+    const data: any = await SetMealAddModule.getPluginTemplates(id).finally(() => {
+      this.isLoading = false;
+    });
     this.label = data.name;
     this.templates = data.templates;
     this.newInfo = data.new_info;
@@ -131,9 +133,9 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
   // 获取动态form表单数据
   async getTemplateDetail(pluginId: number, templateId: number) {
     this.formLoading = true;
-    const data: any = await SetMealAddModule.getTemplateDetail({ pluginId, templateId }).finally(
-      () => (this.formLoading = false)
-    );
+    const data: any = await SetMealAddModule.getTemplateDetail({ pluginId, templateId }).finally(() => {
+      this.formLoading = false;
+    });
     this.formTitle = data.name;
     this.handleDynamicFormData(data.params);
   }
@@ -314,10 +316,11 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                     formList={this.formList}
                     formModel={this.formModel}
                     formRules={this.formRules}
+                    hasVariableInput={true}
                     on-change={this.handleFormDataChage}
                   />
                 ) : (
-                  [this.$t('当前{n}无需填写参数', { n: this.label }), <br />]
+                  <span>{this.$t('当前{n}无需填写参数', { n: this.label })}</span>
                 )}
                 {this.formList.length ? (
                   <bk-button
