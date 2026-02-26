@@ -127,7 +127,7 @@ export default defineComponent({
 
     return () => (
       <bk-dialog
-        width='800'
+        width='600'
         auto-close={false}
         header-position='left'
         mask-close={false}

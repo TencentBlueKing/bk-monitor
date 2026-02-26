@@ -85,7 +85,6 @@ export default defineComponent({
                 <span class='item-percent'>{item.percent}%</span>
               </div>
               <Progress
-                bg-color='#DCDEE5'
                 color='#5AB8A8'
                 percent={item.percent}
                 show-text={false}

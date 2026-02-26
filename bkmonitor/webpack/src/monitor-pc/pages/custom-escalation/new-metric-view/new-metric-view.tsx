@@ -211,6 +211,9 @@ export default class NewMetricView extends tsc<object> {
       autoYAxis: routerQuery.autoYAxis === 'true',
       decimal: Number(routerQuery.decimal) || 0,
     };
+    // 从本地存储初始化时间范围
+    customEscalationViewStore.initTimeRangeFromStorage();
+    this.timeRange = [customEscalationViewStore.startTime, customEscalationViewStore.endTime];
   }
 
   beforeDestroy() {

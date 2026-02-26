@@ -26,7 +26,7 @@
 
 <template>
   <bk-navigation class="bk-log-navigation" :theme-color="navThemeColor" head-height="0" header-title=""
-    navigation-type="left-right" :default-open="false" @toggle="handleToggle">
+    navigation-type="left-right" default-open @toggle="handleToggle">
     <template #menu>
       <bk-navigation-menu :default-active="activeManageNav.id" :item-default-bg-color="navThemeColor">
         <template v-for="groupItem in menuList">
@@ -72,7 +72,7 @@ import { mapGetters, mapState } from 'vuex';
       return {
         navThemeColor: '#2c354d',
         isExpand: true,
-        refreshKey: '',
+        refreshKey: ''
       };
     },
 
@@ -253,9 +253,6 @@ import { mapGetters, mapState } from 'vuex';
       }).then(() => {
         this.refreshKey = `${this.$router.name}_${this.$route.query.spaceUid}`
       });
-      setTimeout(() => {
-        this.handleToggle();
-      }, 10)
     },
   };
 </script>

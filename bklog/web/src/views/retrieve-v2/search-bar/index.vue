@@ -107,14 +107,19 @@ const inspectPopInstance = new PopInstanceUtil({
   },
 });
 
+const isMonitorTrace = window.__IS_MONITOR_TRACE__;
+const isMonitorApm = window.__IS_MONITOR_APM__;
+
 const isGloalUsage = computed(() => props.usageType === 'global');
-const activeIndex = computed(() => (!isGloalUsage.value
-  ? localModeActiveIndex.value
-  : store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] ?? 0),
+const activeIndex = computed(() =>
+  !isGloalUsage.value
+    ? localModeActiveIndex.value
+    : store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] ?? 0
 );
 const isFilterSecFocused = computed(
-  () => isGloalUsage.value
-      && store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition,
+  () =>
+    isGloalUsage.value &&
+    store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition
 );
 // const indexItem = computed(() => store.state.indexItem);
 const keyword = computed(() => {
@@ -122,9 +127,10 @@ const keyword = computed(() => {
   return value;
 });
 const addition = computed(() => store.state.indexItem.addition);
-const searchMode = computed(() => (!isGloalUsage.value
-  ? SEARCH_MODE_DIC[localModeActiveIndex.value]
-  : SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui'),
+const searchMode = computed(() =>
+  !isGloalUsage.value
+    ? SEARCH_MODE_DIC[localModeActiveIndex.value]
+    : SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui'
 );
 const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
 const queryText = computed(() => queryTypeList.value[activeIndex.value]);
@@ -134,13 +140,18 @@ const isInputLoading = computed(() => {
   return indexFieldInfo.value.is_loading;
 });
 
-
 const isSearching = computed(() => {
   return store.state.indexSetQueryResult.is_loading;
 });
 
 const btnIconName = computed(() => {
-  return isSearching.value ? ' bklog-icon bklog-zanting' : ' bklog-icon bklog-shoudongchaxun';
+  if (isMonitorApm || isMonitorTrace) {
+    return isSearching.value ? ' bk-icon icon-pause' : ' bk-icon icon-search';
+  }
+
+  return isSearching.value
+    ? ' bklog-icon bklog-zanting'
+    : ' bklog-icon bklog-shoudongchaxun';
 });
 
 const isCopyBtnActive = computed(() => {
@@ -152,7 +163,7 @@ const isCopyBtnActive = computed(() => {
 });
 
 const isIndexFieldLoading = computed(
-  () => store.state.indexFieldInfo.is_loading,
+  () => store.state.indexFieldInfo.is_loading
 );
 
 const computedIconClass = computed(() => {
@@ -164,10 +175,10 @@ const computedIconClass = computed(() => {
 });
 const isShowSearchTools = computed(() => {
   return (
-    props.showCopy
-      || props.showClear
-      || props.showQuerySetting
-      || props.showFavorites
+    props.showCopy ||
+    props.showClear ||
+    props.showQuerySetting ||
+    props.showFavorites
   );
 });
 
@@ -176,12 +187,13 @@ watch(
   () => {
     nextTick(() => {
       uiQueryValue.value.forEach(
-        v => (v.field_type = (indexFieldInfo.value.fields ?? []).find(
-          f => f.field_name === v.field,
-        )?.field_type),
+        (v) =>
+          (v.field_type = (indexFieldInfo.value.fields ?? []).find(
+            (f) => f.field_name === v.field
+          )?.field_type)
       );
     });
-  },
+  }
 );
 
 // 监听 computed keyword 的变化
@@ -192,7 +204,7 @@ watch(
       sqlQueryValue.value = newValue;
     }
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 // 额外监听 store 中的 keyword 变化（深度监听）
@@ -203,7 +215,7 @@ watch(
       sqlQueryValue.value = newValue;
     }
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 // 监听 aiQueryResult 的变化，当 AI 分析完成时，强制同步 sqlQueryValue
@@ -224,7 +236,7 @@ watch(
         }
       });
     }
-  },
+  }
 );
 
 watch(clearSearchValueNum, () => {
@@ -236,7 +248,7 @@ const formatAddition = (addition) => {
     const value = {
       ...v,
       field_type: (indexFieldInfo.value.fields ?? []).find(
-        f => f.field_name === v.field,
+        (f) => f.field_name === v.field
       )?.field_type,
     };
 
@@ -250,7 +262,7 @@ watch(
     uiQueryValue.value.splice(0);
     uiQueryValue.value.push(...formatAddition(addition.value));
   },
-  { immediate: true, deep: true },
+  { immediate: true, deep: true }
 );
 
 const setRouteParams = () => {
@@ -270,10 +282,10 @@ const setRouteParams = () => {
 };
 
 /**
-   * 增加索引集列表请求限定范围
-   * 1. 如果 tab 为 origin，则请求索引集列表
-   * 2. 如果 tab 为 undefined | null | ''，说明当前为原始日志，则请求索引集列表
-   */
+ * 增加索引集列表请求限定范围
+ * 1. 如果 tab 为 origin，则请求索引集列表
+ * 2. 如果 tab 为 undefined | null | ''，说明当前为原始日志，则请求索引集列表
+ */
 const requestIndexSetList = () => {
   if (route.query.tab === 'origin' || !route.query.tab) {
     store.dispatch('requestIndexSetQuery');
@@ -306,11 +318,11 @@ const beforeQueryBtnClick = () => {
 
 const getBtnQueryResult = () => {
   store.commit('updateIndexItemParams', {
-    addition: uiQueryValue.value.filter(val => !val.is_focus_input),
+    addition: uiQueryValue.value.filter((val) => !val.is_focus_input),
     keyword: sqlQueryValue.value ?? '',
     ip_chooser:
-        uiQueryValue.value.find(item => item.field === '_ip-select_')
-          ?.value?.[0] ?? {},
+      uiQueryValue.value.find((item) => item.field === '_ip-select_')
+        ?.value?.[0] ?? {},
   });
 
   requestIndexSetList();
@@ -318,8 +330,8 @@ const getBtnQueryResult = () => {
 };
 
 /**
-   * UI 模式点击查询按钮
-   */
+ * UI 模式点击查询按钮
+ */
 const handleBtnQueryClick = () => {
   if (isGloalUsage.value) {
     if (isSearching.value) {
@@ -343,7 +355,7 @@ const handleBtnQueryClick = () => {
           getBtnQueryResult();
           RetrieveHelper.searchValueChange(
             searchMode.value,
-            sqlQueryValue.value,
+            sqlQueryValue.value
           );
         });
         emit('close-ai-parsed-text');
@@ -359,14 +371,14 @@ const handleBtnQueryClick = () => {
   emit(
     'search',
     searchMode.value,
-    searchMode.value === 'ui' ? uiQueryValue.value : sqlQueryValue.value,
+    searchMode.value === 'ui' ? uiQueryValue.value : sqlQueryValue.value
   );
 };
 
 /**
-   * SQL 模式点击查询按钮
-   * @param value
-   */
+ * SQL 模式点击查询按钮
+ * @param value
+ */
 const handleSqlRetrieve = (value) => {
   if (isGloalUsage.value) {
     if (value !== '*') {
@@ -430,8 +442,8 @@ const handleQueryTypeChange = () => {
     });
 
     if (
-      addition.value.length > 0
-        || (keyword.value !== '*' && keyword.value !== '')
+      addition.value.length > 0 ||
+      (keyword.value !== '*' && keyword.value !== '')
     ) {
       handleBtnQueryClick();
     } else {
@@ -448,7 +460,7 @@ const sourceUISQLAddition = ref([]);
 const initSourceSQLStr = (params, searchMode) => {
   if (searchMode === 'ui') {
     sourceUISQLAddition.value = formatAddition(
-      structuredClone(params.addition),
+      structuredClone(params.addition)
     );
   } else {
     sourceSQLStr.value = params?.keyword ?? '';
@@ -458,13 +470,14 @@ const initSourceSQLStr = (params, searchMode) => {
 const { addEvent } = useRetrieveEvent();
 addEvent(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, (val) => {
   activeFavorite.value = val;
-  const type =      SEARCH_MODE_DIC.findIndex(
-    idx => idx === activeFavorite.value.search_mode,
-  ) ?? 0;
+  const type =
+    SEARCH_MODE_DIC.findIndex(
+      (idx) => idx === activeFavorite.value.search_mode
+    ) ?? 0;
 
   initSourceSQLStr(
     activeFavorite.value.params,
-    activeFavorite.value.search_mode,
+    activeFavorite.value.search_mode
   );
   store.commit('updateStorage', { searchType: type });
   setRouteParams();
@@ -480,10 +493,10 @@ const matchSQLStr = computed(() => {
     }
     const differerntUISQL = sourceUISQLAddition.value.find((item, index) => {
       return (
-        item.field + item.operator + item.value
-          !== uiQueryValue.value[index].field
-          + uiQueryValue.value[index].operator
-          + uiQueryValue.value[index].value
+        item.field + item.operator + item.value !==
+        uiQueryValue.value[index].field +
+          uiQueryValue.value[index].operator +
+          uiQueryValue.value[index].value
       );
     });
     return !differerntUISQL;
@@ -505,14 +518,16 @@ const saveCurrentActiveFavorite = async () => {
     index_set_type,
   } = activeFavorite.value;
   const searchMode = activeIndex.value === 0 ? 'ui' : 'sql';
-  const reqFormatAddition = uiQueryValue.value.map(item => new ConditionOperator(item).getRequestParam(),
+  const reqFormatAddition = uiQueryValue.value.map((item) =>
+    new ConditionOperator(item).getRequestParam()
   );
-  const searchParams =      searchMode === 'sql'
-    ? { keyword: sqlQueryValue.value, addition: [] }
-    : {
-      addition: reqFormatAddition.filter(v => v.field !== '_ip-select_'),
-      keyword: '*',
-    };
+  const searchParams =
+    searchMode === 'sql'
+      ? { keyword: sqlQueryValue.value, addition: [] }
+      : {
+          addition: reqFormatAddition.filter((v) => v.field !== '_ip-select_'),
+          keyword: '*',
+        };
 
   const data = {
     name,
@@ -522,8 +537,8 @@ const saveCurrentActiveFavorite = async () => {
     is_enable_display_fields,
     search_mode: searchMode,
     ip_chooser:
-        reqFormatAddition.find(item => item.field === '_ip-select_')
-          ?.value?.[0] ?? {},
+      reqFormatAddition.find((item) => item.field === '_ip-select_')
+        ?.value?.[0] ?? {},
     index_set_type,
     ...searchParams,
   };
@@ -597,8 +612,8 @@ useResizeObserve(refRootElement, () => {
 
 const additionFilter = (addition) => {
   return (
-    withoutValueConditionList.includes(addition.operator)
-      || addition.value?.length > 0
+    withoutValueConditionList.includes(addition.operator) ||
+    addition.value?.length > 0
   );
 };
 
@@ -608,23 +623,23 @@ const handleFilterSecClick = () => {
       const commonFilterAddition = getCommonFilterAddition(store.state);
       if (commonFilterAddition.length) {
         window.mainComponent.messageSuccess(
-          $t('“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'),
+          $t("“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。")
         );
         uiQueryValue.value.push(
           ...formatAddition(commonFilterAddition.filter(additionFilter)).map(
-            item => ({
+            (item) => ({
               ...item,
               isCommonFixed: true,
-            }),
-          ),
+            })
+          )
         );
         clearStorageCommonFilterAddition(store.state);
         store.commit('updateIndexItemParams', {
-          addition: uiQueryValue.value.filter(val => !val.is_focus_input),
+          addition: uiQueryValue.value.filter((val) => !val.is_focus_input),
           keyword: sqlQueryValue.value ?? '',
           ip_chooser:
-              uiQueryValue.value.find(item => item.field === '_ip-select_')
-                ?.value?.[0] ?? {},
+            uiQueryValue.value.find((item) => item.field === '_ip-select_')
+              ?.value?.[0] ?? {},
         });
 
         setRouteParams();
@@ -651,9 +666,9 @@ const handleMouseleaveInspect = (_e) => {
 };
 
 /**
-   * @description 鼠标移入错误校验区域时，弹出错误信息
-   * @param e
-   */
+ * @description 鼠标移入错误校验区域时，弹出错误信息
+ * @param e
+ */
 const handleMouseenterInspect = (e, isRoot = true) => {
   inspectPopInstance.cancelHide();
   if (isRoot) {
@@ -662,8 +677,8 @@ const handleMouseenterInspect = (e, isRoot = true) => {
 };
 
 /**
-   * @description 点击错误校验区域时，替换关键字
-   */
+ * @description 点击错误校验区域时，替换关键字
+ */
 const handleInspectKeywordReplace = () => {
   sqlQueryValue.value = inspectResponse.value.keyword;
   inspectResponse.value.keyword = '';
@@ -673,7 +688,9 @@ const handleInspectKeywordReplace = () => {
 };
 
 const getRect = () => {
-  return refRootElement.value?.querySelector('.search-input-section')?.getBoundingClientRect();
+  return refRootElement.value
+    ?.querySelector('.search-input-section')
+    ?.getBoundingClientRect();
 };
 
 const handleUITextToQuery = (value) => {
@@ -729,9 +746,10 @@ defineExpose({
   addValue: (item) => {
     if (searchMode.value === 'ui') {
       const isExisted = uiQueryValue.value.find(
-        v => v.field === item.field
-            && v.operator === item.operator
-            && v.value.toString() === item.value.toString(),
+        (v) =>
+          v.field === item.field &&
+          v.operator === item.operator &&
+          v.value.toString() === item.value.toString()
       );
       if (isExisted) {
         console.warn('已存在相同条件，无法添加');
@@ -751,15 +769,15 @@ defineExpose({
     sqlQueryValue.value += item;
     return true;
   },
-  getValue: () => (searchMode.value === 'ui' ? uiQueryValue.value : sqlQueryValue.value),
+  getValue: () =>
+    searchMode.value === 'ui' ? uiQueryValue.value : sqlQueryValue.value,
   getRect,
 });
-
 </script>
 <template>
   <div
     ref="refRootElement"
-    :class="['search-bar-wrapper']"
+    :class="['search-bar-wrapper', { 'trace-log-bar': isMonitorTrace }]"
   >
     <div
       v-bkloading="{
@@ -778,21 +796,12 @@ defineExpose({
         },
       ]"
     >
-      <div
-        class="search-options"
-        @click="handleQueryTypeChange"
-      >
+      <div class="search-options" @click="handleQueryTypeChange">
         <span class="mode-text">{{ queryText }}</span>
-        <span
-          v-bk-tooltips.top="queryText"
-          :class="computedIconClass"
-        />
+        <span v-bk-tooltips.top="queryText" :class="computedIconClass" />
         <span class="bklog-icon bklog-qiehuan-2" />
       </div>
-      <div
-        class="search-input"
-        :class="{ disabled: isInputLoading }"
-      >
+      <div class="search-input" :class="{ disabled: isInputLoading }">
         <UiInput
           v-if="activeIndex === 0"
           v-model="uiQueryValue"
@@ -801,10 +810,7 @@ defineExpose({
           @text-to-query="handleUITextToQuery"
         >
           <template #custom-placeholder="{ isEmptyText }">
-            <slot
-              name="custom-placeholder"
-              :is-empty-text="isEmptyText"
-            />
+            <slot name="custom-placeholder" :is-empty-text="isEmptyText" />
           </template>
         </UiInput>
         <SqlQuery
@@ -815,19 +821,14 @@ defineExpose({
           @text-to-query="handleTextToQuery"
         >
           <template #custom-placeholder="{ isEmptyText }">
-            <slot
-              name="custom-placeholder"
-              :is-empty-text="isEmptyText"
-            />
+            <slot name="custom-placeholder" :is-empty-text="isEmptyText" />
           </template>
         </SqlQuery>
-        <div
-          ref="refPopTraget"
-          class="hidden-focus-pointer"
-        />
+        <div ref="refPopTraget" class="hidden-focus-pointer" />
         <div
           v-if="isShowSearchTools"
           class="search-tool items"
+          :style="{ 'padding-right': isMonitorTrace || isMonitorApm ? '4px' : '0' }"
         >
           <div
             v-show="!inspectResponse.is_legal"
@@ -844,22 +845,19 @@ defineExpose({
                 @mouseleave="handleMouseleaveInspect"
               >
                 <div class="inspect-row">
-                  <div class="inspect-title">
-                    {{ $t("语法错误") }}：
-                  </div>
+                  <div class="inspect-title">{{ $t('语法错误') }}：</div>
                   <div class="inspect-message">
                     {{ inspectResponse.message }}
                   </div>
                 </div>
-                <div
-                  v-show="inspectResponse.is_resolved"
-                  class="inspect-row"
-                >
+                <div v-show="inspectResponse.is_resolved" class="inspect-row">
                   <div class="inspect-title">
-                    <span>{{ $t("你可能想输入:") }}</span><span
+                    <span>{{ $t('你可能想输入:') }}</span
+                    ><span
                       class="inspect-keyword-replace"
                       @click="handleInspectKeywordReplace"
-                    >{{ $t("替换") }}</span>
+                      >{{ $t('替换') }}</span
+                    >
                   </div>
                   <div class="inspect-message">
                     <span>{{ inspectResponse.keyword }}</span>
@@ -909,24 +907,18 @@ defineExpose({
           />
           <slot name="search-tool" />
         </div>
-        <div
-          class="search-tool search-btn"
-          @click="handleBtnQueryClick"
-        >
-          <bk-button
-            :icon="btnIconName"
-            size="small"
-            theme="primary"
-          />
+        <div class="search-tool search-btn" @click="handleBtnQueryClick">
+          <bk-button :icon="btnIconName" size="small" theme="primary" />
         </div>
       </div>
-      <div
-        v-if="isAiLoading"
-        class="ai-progress-bar"
-      ></div>
+      <div v-if="isAiLoading" class="ai-progress-bar"></div>
     </div>
     <template v-if="searchMode === 'sql'">
-      <AiParseResultBanner :ai-query-result="aiQueryResult" :show-border="true" style="margin: 4px 0;" />
+      <AiParseResultBanner
+        :ai-query-result="aiQueryResult"
+        :show-border="true"
+        style="margin: 4px 0"
+      />
     </template>
     <template v-if="isFilterSecFocused">
       <CommonFilterSelect />
@@ -935,7 +927,7 @@ defineExpose({
   </div>
 </template>
 <style scoped lang="scss">
-  @import "./index.scss";
+@import "./index.scss";
 </style>
 <style lang="scss">
 .bklog-sql-input-loading {
@@ -952,7 +944,7 @@ defineExpose({
 
     .bk-loading-title {
       margin-top: 0;
-      background-image: linear-gradient(118deg, #235DFA 0%, #E28BED 100%);
+      background-image: linear-gradient(118deg, #235dfa 0%, #e28bed 100%);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;

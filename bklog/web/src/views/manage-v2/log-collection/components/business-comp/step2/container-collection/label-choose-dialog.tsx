@@ -188,8 +188,7 @@ export default defineComponent({
     const getTreeList = () => {
       const { bk_biz_id, bcs_cluster_id, type, namespaceStr } = props.labelParams;
       const baseQuery = { bcs_cluster_id, type, bk_biz_id };
-      const query =
-        type === 'node' ? baseQuery : { ...baseQuery, namespace: namespaceStr === '*' ? undefined : namespaceStr };
+      const query = type === 'node' ? baseQuery : { ...baseQuery, namespace: namespaceStr };
 
       treeLoading.value = true;
       $http
@@ -360,7 +359,7 @@ export default defineComponent({
        */
       if (!['pod', 'node'].includes(treeItem.type)) {
         matchSelectItemList.value = [];
-        // return;
+        return;
       }
 
       const { bk_biz_id, bcs_cluster_id, type } = props.labelParams;
