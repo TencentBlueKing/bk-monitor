@@ -360,7 +360,7 @@ class TestTaskResource(Resource):
                 node_id_list=validated_request_data["node_id_list"],
             )
         except TestTaskError as e:
-            raise CustomException(str(e), data=getattr(e, "data", None))
+            raise CustomException(e.message)
 
 
 class GenerateConfigResource(Resource):
