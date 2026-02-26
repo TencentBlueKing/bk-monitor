@@ -14,6 +14,7 @@ from typing import Any, Literal, cast
 import arrow
 from bk_monitor_base.uptime_check import (
     BEAT_STATUS,
+    TestTaskError,
     UptimeCheckGroup,
     UptimeCheckNode,
     UptimeCheckTask,
@@ -931,11 +932,15 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         node_id_list = request.data.get("node_id_list")
         if not settings.ENABLE_UPTIMECHECK_TEST:
             return Response(_("未开启拨测联通性测试，保存任务中..."))
-        return Response(
-            resource.uptime_check.test_task(
+        try:
+            result = resource.uptime_check.test_task(
                 {"bk_biz_id": bk_biz_id, "config": config, "protocol": protocol, "node_id_list": node_id_list}
             )
-        )
+        except TestTaskError as e:
+            raise CustomException(e.message)
+        except Exception as e:
+            raise CustomException(str(e))
+        return Response(result)
 
     @action(methods=["POST"], detail=True)
     def deploy(self, request: Request, pk: int | str):
