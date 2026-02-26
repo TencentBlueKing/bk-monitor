@@ -293,8 +293,8 @@ class DataIDMigrator:
         """
         构建日志 V4 链路配置 (log_v4_data_link)
 
-        注意: APM 类型不应调用此方法。APM 使用 TransferAdaptor 方案，
-        配置由 _apply_apm_v4_datalink() 直接构建。
+        注意: APM 类型不应调用此方法。APM 使用 Clean EtlConfig 方案，
+        配置由 _apply_apm_v4_datalink() + _build_apm_clean_transform() 直接构建。
 
         尝试以下方式构建配置：
         1. 如果能获取到 CollectorConfig，使用 bklog 的 EtlStorage 构建
@@ -306,11 +306,11 @@ class DataIDMigrator:
         Returns:
             log_v4_data_link 配置字典，如果无法构建则返回 None
         """
-        # APM 类型使用 TransferAdaptor 方案，不需要通过此方法构建 clean_rules
-        # TransferAdaptor 配置在 _apply_apm_v4_datalink() 中直接构建
+        # APM 类型使用 Clean EtlConfig 方案，不需要通过此方法构建 clean_rules
+        # Clean EtlConfig 配置在 _apply_apm_v4_datalink() 中直接构建
         if self.is_apm_type():
             Printer.info(
-                "APM TransferAdaptor 方案: 跳过 build_log_v4_data_link_config, 配置由 _apply_apm_v4_datalink() 构建"
+                "APM Clean EtlConfig 方案: 跳过 build_log_v4_data_link_config, 配置由 _apply_apm_v4_datalink() 构建"
             )
             return None
 
@@ -565,29 +565,28 @@ class DataIDMigrator:
 
         return default_config
 
-    def _build_apm_transfer_adaptor_transform(self, ds) -> dict:
+    def _build_apm_clean_transform(self, ds) -> dict:
         """
-        构建 APM 数据类型的 TransferAdaptor transform JSON
+        构建 APM 数据类型的 Clean transform JSON
 
-        选项 C 方案: 不手写 clean_rules，而是构造 BkFlatBatchConfig JSON，
-        让 BKBase Databus 运行时自动通过 generate_etl_rules() 生成正确的清洗规则。
+        通过手写 EtlConfig JSON rules 来描述清洗逻辑，替代原先的 TransferAdaptor(BkFlatBatchConfig) 方案。
+        这样 APM tracing 团队可以自行调整清洗流程和输出，无需跨团队沟通。
 
-        BKBase 运行时处理流程:
-        TransferAdaptor(BkFlatBatchConfig)
-          → TryInto::<EtlConfig>
-          → ResultTable.generate_etl_rules()
-          → 根据 field_list 自动生成 clean rules（含 time 字段、nested 类型等正确处理）
+        规则生成逻辑（已通过 Rust 单元测试验证输出一致性）：
+        1. json_de: __raw_data → json_data（JSON 解析）
+        2. get: json_data → items（提取 items 数组，key="items"）
+        3. iter: items → iter_item（迭代数组元素）
+        4. assign: json_data → time（时间字段，Unix Timestamp → millis）
+        5-N. assign: iter_item → {field_name}（按 field_list 动态生成）
 
         参考:
-        - bk_flat_batch.rs: BkFlatBatchConfig 结构体 + generate_etl_rules()
-        - bk_flat_batch_test_trace.rs: APM Trace 的完整 BkFlatBatchConfig JSON 示例
-        - transform.rs: TransformConfig enum, #[serde(tag = "kind")]
+        - bk_flat_batch_test_trace_clean.rs: 手写 EtlConfig JSON 的 18 条规则
+        - bk_flat_batch.rs: generate_etl_rules() 的原始逻辑
+        - compose_log_config(): Databus Clean transform 的 JSON 模板
 
         Args:
             ds: DataSource 实例
-
-        Returns:
-            TransferAdaptor transform dict，可直接嵌入 Databus spec.transforms
+            Clean transform dict，可直接嵌入 Databus spec.transforms
         """
         # 从 DataSource.to_json() 获取完整配置
         ds_json = ds.to_json(is_consul_config=False, with_rt_info=True)
@@ -598,100 +597,124 @@ class DataIDMigrator:
 
         if not ds_json.get("result_table_list"):
             raise ValueError("DataSource.to_json() 返回的 result_table_list 为空")
+        rt_info = ds_json["result_table_list"][0]
+        field_list = rt_info.get("field_list", [])
+        if not field_list:
+            raise ValueError("result_table_list[0].field_list 为空，无法生成 Clean 规则")
 
-        # 适配 mq_config: DataSource.to_json() 包含 batch_size/flush_interval/consume_rate，
-        # BkFlatBatchConfig 需要 cluster_type 和 auth_info
-        mq_config = ds_json["mq_config"]
-        # 确保有 cluster_type（来自 consul_config）
-        if "cluster_type" not in mq_config:
-            mq_config["cluster_type"] = "kafka"
-        # 确保有 auth_info
-        if "auth_info" not in mq_config:
-            mq_config["auth_info"] = {"password": "", "username": ""}
-        # 移除 BkFlatBatchConfig 不需要的字段
-        for key in ["batch_size", "flush_interval", "consume_rate"]:
-            mq_config.pop(key, None)
-
-        # 适配 result_table_list
-        adapted_rt_list = []
-        for rt_info in ds_json["result_table_list"]:
-            field_list = rt_info.get("field_list", [])
-
-            # 检查 field_list 中是否包含 time 字段（tag=timestamp）
-            # BkFlatBatchConfig 要求有 time 字段，否则 generate_etl_rules() 无法正确生成时间解析规则
-            has_time_field = any(f.get("field_name") == "time" and f.get("tag") == "timestamp" for f in field_list)
-            if not has_time_field:
-                Printer.warning("field_list 中缺少 time 字段（tag=timestamp），手动补充")
-                field_list.append(
-                    {
-                        "field_name": "time",
-                        "type": "timestamp",
-                        "tag": "timestamp",
-                        "option": {
-                            "es_type": "date",
-                            "es_format": "epoch_millis",
-                            "time_format": "yyyy-MM-dd HH:mm:ss",
-                            "time_zone": 0,
-                        },
-                    }
-                )
-
-            # 适配 option: 确保有 es_unique_field_list，且不含 separator_node_action
-            rt_option = rt_info.get("option", {})
-            if "es_unique_field_list" not in rt_option:
-                # 使用 APM Trace 默认的 unique_field_list
-                rt_option["es_unique_field_list"] = [
-                    "trace_id",
-                    "span_id",
-                    "parent_span_id",
-                    "start_time",
-                    "end_time",
-                    "span_name",
-                ]
-                Printer.warning("option 中缺少 es_unique_field_list，使用 APM Trace 默认值")
-
-            # 确保不含 separator_node_action（None 触发 ItemsObjectAction，APM 需要这个）
-            if "separator_node_action" in rt_option:
-                Printer.warning("移除 option 中的 separator_node_action（APM 需要 ItemsObjectAction）")
-                del rt_option["separator_node_action"]
-
-            adapted_rt = {
-                "bk_biz_id": rt_info["bk_biz_id"],
-                "result_table": rt_info["result_table"],
-                "schema_type": rt_info.get("schema_type", "free"),
-                "shipper_list": rt_info.get("shipper_list", []),
-                "field_list": field_list,
-                "option": rt_option,
-            }
-            adapted_rt_list.append(adapted_rt)
-
-        # 构造 TransferAdaptor transform
-        transfer_adaptor = {
-            "kind": "TransferAdaptor",
-            "bk_data_id": ds_json["bk_data_id"],
-            "data_id": ds_json["bk_data_id"],
-            "etl_config": ds_json.get("etl_config", "bk_flat_batch"),
-            "data_name": ds_json["data_name"],
-            "mq_config": mq_config,
-            "result_table_list": adapted_rt_list,
+        # 外层字段（从 json_data 直接提取或属于系统字段），不参与 iter_item 规则生成
+        OUTER_FIELDS = {
+            "iterationIndex", "__ext", "bk_host_id", "cloudId",
+            "gseIndex", "path", "serverIp", "dtEventTimeStamp", "time", "log",
         }
 
-        Printer.success("TransferAdaptor transform 构建完成")
-        Printer.kv("result_table_count", len(adapted_rt_list), indent=6)
-        for rt in adapted_rt_list:
-            Printer.kv("result_table", rt["result_table"], indent=8)
-            Printer.kv("field_count", len(rt["field_list"]), indent=8)
-            field_names = [f["field_name"] for f in rt["field_list"]]
-            Printer.kv("fields", field_names, indent=8)
+        # 字段类型映射：(bkm_type, es_type) → EtlConfig output_type
+        # 与 Rust 侧 generate_etl_rules() 的 FieldType 映射一致
+        FIELD_TYPE_MAP = {
+            ("object", "object"): "dict",
+            ("long", "long"): "long",
+            ("nested", "nested"): "nested",
+            ("int", "integer"): "long",
+            ("string", "keyword"): "string",
+            ("timestamp", "date"): "long",
+        }
 
-        return transfer_adaptor
+        def _map_field_type(field: dict) -> str:
+            """根据字段的 type + option.es_type 映射到 EtlConfig 的 output_type"""
+            bkm_type = field.get("type", "string")
+            es_type = field.get("option", {}).get("es_type", "keyword")
+            return FIELD_TYPE_MAP.get((bkm_type, es_type), "string")
+
+        # === 构建 rules 数组 ===
+        rules = []
+
+        # Rule 1: json_de — JSON 解析原始数据
+        rules.append({
+            "input_id": "__raw_data",
+            "output_id": "json_data",
+            "operator": {"type": "json_de"},
+        })
+
+        # Rule 2: get — 提取 items 数组
+        rules.append({
+            "input_id": "json_data",
+            "output_id": "items",
+            "operator": {
+                "type": "get",
+                "key_index": [{"type": "key", "value": "items"}],
+            },
+        })
+
+        # Rule 3: iter — 迭代 items
+        rules.append({
+            "input_id": "items",
+            "output_id": "iter_item",
+            "operator": {"type": "iter"},
+        })
+
+        # Rule 4: assign — time 时间字段（从 json_data 提取，Unix Timestamp → millis）
+        rules.append({
+            "input_id": "json_data",
+            "output_id": "time",
+            "operator": {
+                "type": "assign",
+                "key_index": "time",
+                "output_type": "long",
+                "alias": "time",
+                "in_place_time_parsing": {
+                    "from": {"format": "Unix Timestamp", "zone": None},
+                    "to": "millis",
+                    "interval_format": None,
+                    "now_if_parse_failed": True,
+                },
+            },
+        })
+
+        # Rules 5-N: assign — 从 iter_item 提取各业务字段
+        for field in field_list:
+            field_name = field.get("field_name", "")
+            if not field_name or field_name in OUTER_FIELDS:
+                continue
+
+            output_type = _map_field_type(field)
+            alias = field.get("description") or field.get("alias_name") or field_name
+
+            rules.append({
+                "input_id": "iter_item",
+                "output_id": field_name,
+                "operator": {
+                    "type": "assign",
+                    "key_index": field_name,
+                    "output_type": output_type,
+                    "alias": alias,
+                    "default_value": None,
+                },
+            })
+
+        # 构造 Clean transform
+        clean_transform = {
+            "kind": "Clean",
+            "rules": rules,
+            "filter_rules": "True",
+            "context_map": {
+                "use_default_value": "__parse_failure",
+            },
+        }
+
+        Printer.success("Clean transform 构建完成")
+        Printer.kv("rules_count", len(rules), indent=6)
+        Printer.kv("result_table", rt_info.get("result_table", "unknown"), indent=6)
+        field_names = [f.get("field_name") for f in field_list if f.get("field_name") not in OUTER_FIELDS]
+        Printer.kv("iter_item_fields", field_names, indent=6)
+
+        return clean_transform
 
     def _setup_apm_v4_options(self, ds, table_id: str, creator: str = "migrate_script"):
         """
         设置 APM V4 链路的 ResultTableOption
 
-        选项 C 方案下，APM 不需要在 ResultTableOption 中存储 clean_rules，
-        因为清洗规则由 BKBase 运行时通过 TransferAdaptor(BkFlatBatchConfig) 自动生成。
+        APM 使用 Clean EtlConfig 方案，清洗规则直接写在 Databus transforms 中，
+        不需要在 ResultTableOption 中存储 clean_rules。
         此方法仅设置 enable_log_v4_data_link=True 标记。
 
         Args:
@@ -700,7 +723,7 @@ class DataIDMigrator:
             creator: 创建者标识
         """
         # 设置 ResultTableOption: enable_log_v4_data_link
-        Printer.info("设置 ResultTableOption enable_log_v4_data_link=True (APM TransferAdaptor 方案)")
+        Printer.info("设置 ResultTableOption enable_log_v4_data_link=True (APM Clean EtlConfig 方案)")
         option, opt_created = models.ResultTableOption.objects.update_or_create(
             table_id=table_id,
             name=ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
@@ -716,18 +739,17 @@ class DataIDMigrator:
         else:
             Printer.info("ResultTableOption enable_log_v4_data_link 已存在，已更新")
 
-        # 注意: 选项 C 方案下，不再设置 OPTION_V4_LOG_DATA_LINK (log_v4_data_link)
-        # APM 的清洗规则由 BKBase 运行时通过 TransferAdaptor(BkFlatBatchConfig) 自动生成
+        # 注意: APM Clean EtlConfig 方案下，不再设置 OPTION_V4_LOG_DATA_LINK (log_v4_data_link)
+        # APM 的清洗规则直接写在 Databus spec.transforms 中，由 _build_apm_clean_transform() 生成
         # 而非通过 ResultTableOption 中的 clean_rules 传递
-        Printer.info("APM TransferAdaptor 方案: 跳过设置 log_v4_data_link option（清洗由 BKBase 运行时自动处理）")
+        Printer.info("APM Clean EtlConfig 方案: 跳过设置 log_v4_data_link option（清洗规则直接写在 Databus transforms 中）")
 
     def _apply_apm_v4_datalink(self, ds, table_id: str, bk_biz_id: int):
         """
-        APM 专用: 创建 V4 数据链路（TransferAdaptor 方案）
+        APM 专用: 创建 V4 数据链路（Clean EtlConfig 方案）
 
-        不使用 apply_log_datalink()，因为其内部 compose_log_config() 硬编码了 kind: "Clean"。
-        APM 需要 kind: "TransferAdaptor" + BkFlatBatchConfig，让 BKBase 运行时自动生成清洗规则。
-
+        不使用 apply_log_datalink()，因为其内部 compose_log_config() 从 ResultTableOption 读取 clean_rules。
+        APM 使用 kind: "Clean" + 手写 EtlConfig rules，规则从 DataSource.to_json() 的 field_list 动态生成。
         流程参考 apply_log_datalink() (task/datalink.py:21-131) 和
         compose_log_configs() (data_link.py:327-469)，但 Databus JSON 手动构建。
 
@@ -738,7 +760,7 @@ class DataIDMigrator:
         """
         from django.db import transaction
 
-        Printer.section("APM TransferAdaptor V4 数据链路创建")
+        Printer.section("APM Clean EtlConfig V4 数据链路创建")
 
         # 1. 如果 DataSource 是 GSE 创建的，需要在 BKBase 上注册
         if ds.created_from != DataIdCreatedFromSystem.BKDATA.value:
@@ -820,7 +842,7 @@ class DataIDMigrator:
                 datalink.save(update_fields=update_fields)
 
         # 4. 创建 ORM 配置记录 + 组装 config_list
-        Printer.info("组装 V4 链路配置 (TransferAdaptor)")
+        Printer.info("组装 V4 链路配置 (Clean EtlConfig)")
 
         with transaction.atomic():
             # 4a. ResultTableConfig ORM
@@ -887,8 +909,8 @@ class DataIDMigrator:
                 data_id_name=bkbase_data_name,
             )
 
-            # 4d. 手动构建 Databus JSON（TransferAdaptor，不用 compose_log_config 的 Clean 模板）
-            transfer_adaptor = self._build_apm_transfer_adaptor_transform(ds)
+            # 4d. 手动构建 Databus JSON（Clean EtlConfig，不用 compose_log_config 的模板）
+            clean_transform = self._build_apm_clean_transform(ds)
 
             maintainer = getattr(settings, "BK_DATA_PROJECT_MAINTAINER", "admin").split(",")
 
@@ -909,7 +931,7 @@ class DataIDMigrator:
                             "namespace": namespace,
                         }
                     ],
-                    "transforms": [transfer_adaptor],
+                    "transforms": [clean_transform],
                 },
             }
 
@@ -1479,15 +1501,15 @@ class DataIDMigrator:
         Printer.kv("bk_biz_id", bk_biz_id)
 
         if self.is_apm_type():
-            # APM 类型: 使用 TransferAdaptor 方案，直接构建 BkFlatBatchConfig 下发
-            Printer.kv("链路类型", "APM V4 链路 (TransferAdaptor)", color=Printer.CYAN)
+            # APM 类型: 使用 Clean EtlConfig 方案，手写清洗规则直接下发
+            Printer.kv("链路类型", "APM V4 链路 (Clean EtlConfig)", color=Printer.CYAN)
 
             # 设置 APM V4 的 ResultTableOption（仅 enable flag，不设 clean_rules）
             self._setup_apm_v4_options(ds, table_id)
 
-            # 构建并下发 TransferAdaptor 链路配置
+            # 构建并下发 Clean EtlConfig 链路配置
             self._apply_apm_v4_datalink(ds, table_id, bk_biz_id)
-            Printer.success("APM V4 数据链路创建成功 (TransferAdaptor)")
+            Printer.success("APM V4 数据链路创建成功 (Clean EtlConfig)")
         elif self.is_pure_log_type():
             # 日志类型: 使用 apply_log_datalink
             Printer.kv("链路类型", "日志 V4 链路", color=Printer.CYAN)
@@ -1527,7 +1549,7 @@ class DataIDMigrator:
         )
 
         if self.is_apm_type():
-            # APM 类型 (TransferAdaptor 方案): 验证 enable flag 和 BkBaseResultTable
+            # APM 类型 (Clean EtlConfig 方案): 验证 enable flag 和 BkBaseResultTable
             try:
                 option = models.ResultTableOption.objects.get(
                     table_id=table_id,
@@ -1537,7 +1559,7 @@ class DataIDMigrator:
             except models.ResultTableOption.DoesNotExist:
                 Printer.warning("ResultTableOption enable_log_v4_data_link 未找到")
 
-            # 验证 BkBaseResultTable 记录（TransferAdaptor 链路下发的产物）
+            # 验证 BkBaseResultTable 记录（Clean EtlConfig 链路下发的产物）
             bkbase_rt = models.BkBaseResultTable.objects.filter(
                 monitor_table_id=table_id,
             ).first()
@@ -1546,7 +1568,7 @@ class DataIDMigrator:
                     f"BkBaseResultTable 已创建: data_link_name={bkbase_rt.data_link_name}, status={bkbase_rt.status}"
                 )
             else:
-                Printer.warning("BkBaseResultTable 未创建，TransferAdaptor 链路可能未下发")
+                Printer.warning("BkBaseResultTable 未创建，Clean EtlConfig 链路可能未下发")
         elif self.is_pure_log_type():
             # 日志类型: 检查 ResultTableOption
             try:
