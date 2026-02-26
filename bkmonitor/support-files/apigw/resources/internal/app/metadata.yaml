@@ -932,7 +932,7 @@ paths:
   /app/metadata/get_result_table_snapshot_state/:
     post:
       operationId: get_result_table_snapshot_state
-      description: 验证ES快照仓库
+      description: 获取结果表快照状态
       tags:
       - metadata
       x-bk-apigateway-resource:

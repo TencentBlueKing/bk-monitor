@@ -6,7 +6,6 @@
 
 | 字段                | 类型     | 必选 | 描述                              |
 |-------------------|--------|----|---------------------------------|
-| bk_tenant_id      | string | 是  | 租户ID                            |
 | result_table_list | string | 是  | 结果表列表，多个结果表用英文逗号分隔              |
 | storage_type      | string | 是  | 存储类型（如：influxdb、elasticsearch等） |
 | is_plain_text     | bool   | 否  | 是否明文显示链接信息（默认false）             |
@@ -15,7 +14,6 @@
 
 ```json
 {
-    "bk_tenant_id": "system",
     "result_table_list": "system.cpu,system.mem",
     "storage_type": "influxdb",
     "is_plain_text": false

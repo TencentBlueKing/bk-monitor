@@ -6,7 +6,6 @@
 
 | 字段            | 类型     | 必选 | 描述                    |
 |---------------|--------|----|-----------------------|
-| bk_tenant_id  | string | 是  | 租户ID                  |
 | cluster_id    | int    | 否  | 存储集群ID                |
 | cluster_name  | string | 否  | 存储集群名                 |
 | cluster_type  | string | 否  | 存储集群类型                |
@@ -18,7 +17,6 @@
 
 ```json
 {
-    "bk_tenant_id": "system",
     "cluster_id": 1,
     "is_plain_text": false
 }
@@ -28,7 +26,6 @@
 
 ```json
 {
-    "bk_tenant_id": "system",
     "cluster_name": "es_cluster_01",
     "cluster_type": "elasticsearch",
     "is_plain_text": true
