@@ -12,9 +12,11 @@ import importlib
 import pkgutil
 from collections import namedtuple
 from pathlib import Path
+from typing import Literal
 
 from django.utils.module_loading import import_string
 
+Scenario = Literal["capacity", "network", "performance", "tke_gpu", "taiji_gpu"]
 Category = namedtuple("Category", ["id", "name", "children"])
 
 Metric = namedtuple("Metric", ["id", "name", "unit", "unsupported_resource", "show_chart"])
