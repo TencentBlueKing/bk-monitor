@@ -7,7 +7,7 @@ requires-python = "==3.11.*"
 dependencies = [
     "aidev-agent==1.0.3",
     "apigw-manager==4.0.4",
-    "arrow<1",
+    "arrow==0.6",
     "babel==2.14.0",
     "betterproto==2.0.0b7",
     "bk-audit==1.0.7",
@@ -100,6 +100,8 @@ dependencies = [
 
 [tool.uv]
 default-groups = ["aidev"]
+# bk-crypto-python-sdk 依赖 tongsuopy-crayon>=1.0.2b5（预发布版本），需允许预发布才能解析
+prerelease = "if-necessary-or-explicit"
 
 [tool.uv.sources]
 bk-monitor-base = { path = "../bk-monitor-base", editable = true }
