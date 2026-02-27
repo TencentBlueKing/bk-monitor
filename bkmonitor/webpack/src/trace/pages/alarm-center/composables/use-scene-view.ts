@@ -28,16 +28,18 @@ import { type MaybeRef, shallowRef, watchEffect } from 'vue';
 
 import { get } from '@vueuse/core';
 
-import { getHostSceneView } from '../services/alarm-detail';
+import { getDetailSceneView } from '../services/alarm-detail';
 
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 /**
- * @description 主机场景仪表盘视图配置 hook
+ * @description 场景仪表盘视图配置通用 hook
+ * @param bizId 业务ID
+ * @param type 场景类型 host | process
  */
-export const useHostSceneView = (bizId: MaybeRef<number>) => {
-  /** 主机监控 需要渲染的仪表盘面板配置数组 */
-  const hostDashboards = shallowRef<IPanelModel[]>(null);
+export const useSceneView = (bizId: MaybeRef<number>, type: string) => {
+  /** 需要渲染的仪表盘面板配置数组 */
+  const dashboards = shallowRef<IPanelModel[]>(null);
   /** 是否处于请求加载状态 */
   const loading = shallowRef(false);
 
@@ -46,14 +48,14 @@ export const useHostSceneView = (bizId: MaybeRef<number>) => {
    */
   const getDashboardPanels = async () => {
     loading.value = true;
-    const model = await getHostSceneView(get(bizId));
-    hostDashboards.value = model?.panels ?? [];
+    const model = await getDetailSceneView(get(bizId), type);
+    dashboards.value = model?.panels ?? [];
     loading.value = false;
   };
 
   watchEffect(getDashboardPanels);
   return {
-    hostDashboards,
+    dashboards,
     loading,
   };
 };
