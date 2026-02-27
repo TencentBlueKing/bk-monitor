@@ -27,7 +27,7 @@
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
-import { Popover } from 'bkui-vue';
+import { Message, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { searchAlert } from 'monitor-api/modules/alert_v2';
 import { useI18n } from 'vue-i18n';
@@ -35,6 +35,7 @@ import { useI18n } from 'vue-i18n';
 import { handleToAlertList, queryString } from '../../../utils';
 import TableSkeleton from '@/components/skeleton/table-skeleton';
 import AlertContentDetail from '@/pages/alarm-center/components/alarm-table/components/alert-content-detail/alert-content-detail';
+import { saveAlertContentName } from '@/pages/alarm-center/services/alert-services';
 import { AlarmLevelIconMap, AlertDataTypeMap } from '@/pages/alarm-center/typings';
 
 import type { ActionDetail } from '../../../typings/action-detail';
@@ -47,6 +48,10 @@ export default defineComponent({
     detail: {
       type: Object as PropType<ActionDetail>,
       default: null,
+    },
+    detailLoading: {
+      type: Boolean,
+      default: false,
     },
   },
   setup(props) {
@@ -146,7 +151,12 @@ export default defineComponent({
                   ),
                   content: () => (
                     <div class='alarm-alert-monitor-data-popover-content'>
-                      <AlertContentDetail alertContentDetail={row?.items?.[0]} />
+                      <AlertContentDetail
+                        alertContentDetail={row?.items?.[0]}
+                        alertId={row?.id}
+                        bizId={row?.bk_biz_id}
+                        onSave={(saveInfo, savePromiseEvent) => handleSaveContentName(saveInfo, savePromiseEvent)}
+                      />
                     </div>
                   ),
                 }}
@@ -163,7 +173,7 @@ export default defineComponent({
     watch(
       () => props.detail,
       val => {
-        if (val) {
+        if (val && !props.detailLoading) {
           init();
         }
       },
@@ -171,6 +181,36 @@ export default defineComponent({
         immediate: true,
       }
     );
+
+    /**
+     * @description 保存告警内容数据含义
+     * @param {AlertContentNameEditInfo} saveInfo 保存信息
+     * @param {AlertSavePromiseEvent} savePromiseEvent 保存事件
+     */
+    const handleSaveContentName = (saveInfo, savePromiseEvent) => {
+      saveAlertContentName(saveInfo)
+        .then(() => {
+          savePromiseEvent?.successCallback?.();
+          const targetRow = [...defenseTableData.value, ...triggerTableData.value].find(
+            item => item.id === saveInfo.alert_id
+          );
+          const alertContent = targetRow?.items?.[0];
+          if (alertContent) {
+            alertContent.name = saveInfo.data_meaning;
+          }
+          Message({
+            message: t('更新成功'),
+            theme: 'success',
+          });
+        })
+        .catch(() => {
+          savePromiseEvent?.errorCallback?.();
+          Message({
+            message: t('更新失败'),
+            theme: 'error',
+          });
+        });
+    };
 
     const handleJump = (type: 'defense' | 'trigger') => {
       const { create_time: createTime, end_time: endTime, id, converge_id: convergeId } = props.detail;
