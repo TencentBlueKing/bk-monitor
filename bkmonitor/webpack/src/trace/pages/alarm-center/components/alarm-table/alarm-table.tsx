@@ -37,7 +37,6 @@ import {
 import { useRouter } from 'vue-router';
 
 import { ALERT_STORAGE_KEY } from '../../services/alert-services';
-import { INCIDENT_STORAGE_KEY } from '../../services/incident-services';
 import {
   type AlertAllActionEnum,
   type AlertContentNameEditInfo,
@@ -190,14 +189,10 @@ export default defineComponent({
     /** 转换后的列配置 */
     const transformedColumns = computed(() => transformColumns(props.columns));
     /** 表格 setting 配置 */
-    const settings = computed(() =>
-      toValue(currentScenario).name !== INCIDENT_STORAGE_KEY
-        ? {
-            ...props.tableSettings,
-            hasCheckAll: true,
-          }
-        : null
-    );
+    const settings = computed(() => ({
+      ...props.tableSettings,
+      hasCheckAll: true,
+    }));
 
     /**
      * @description 配置表格是否能够触发事件target

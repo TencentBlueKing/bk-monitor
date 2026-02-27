@@ -34,7 +34,7 @@ import {
   watch,
 } from 'vue';
 
-import { convertDurationArray, tryURLDecodeParse } from 'monitor-common/utils';
+import { commonPageSizeSet, convertDurationArray, tryURLDecodeParse } from 'monitor-common/utils';
 import FavoriteBox, {
   type IFavorite,
   type IFavoriteGroup,
@@ -433,6 +433,7 @@ export default defineComponent({
      */
     const handlePageSizeChange = (size: number) => {
       pageSize.value = size;
+      commonPageSizeSet(size);
       handleCurrentPageChange(1);
     };
     /**
