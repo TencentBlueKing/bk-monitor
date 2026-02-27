@@ -48,6 +48,14 @@ export default defineComponent({
       type: Number,
       default: 166,
     },
+    minHeight: {
+      type: Number,
+      default: 166,
+    },
+    maxHeight: {
+      type: Number,
+      default: 300,
+    },
     /** 初始化时折叠面板默认是否展开状态 */
     defaultIsExpand: {
       type: Boolean,
@@ -119,6 +127,7 @@ export default defineComponent({
      * @param {number} height  拖拽操作后的新高度
      * */
     function handleCrossResize(height: number) {
+      console.log('height', height);
       set(containerHeight, height);
     }
 
@@ -183,7 +192,13 @@ export default defineComponent({
               </div>
             </div>
             <div class='chart-collapse-content'>{this.$slots?.default?.(this.scopedSlotsParam) || ''}</div>
-            {this.hasResize && <MonitorCrossDrag onMove={this.handleCrossResize} />}
+            {this.hasResize && (
+              <MonitorCrossDrag
+                maxHeight={this.maxHeight}
+                minHeight={this.minHeight}
+                onMove={this.handleCrossResize}
+              />
+            )}
           </div>
         </div>
       </div>
