@@ -258,26 +258,6 @@ class IndexSetAliasSettingsException(BaseIndexSetException):
     MESSAGE = _("别名冲突: {conflict_info}")
 
 
-class ParentIndexSetNotExistException(BaseIndexSetException):
-    ERROR_CODE = "331"
-    MESSAGE = _("归属索引集 [ID:{parent_index_set_id}] 不存在")
-
-
-class IndexGroupNotExistException(BaseIndexSetException):
-    ERROR_CODE = "332"
-    MESSAGE = _("索引组不存在")
-
-
-class DuplicateIndexGroupException(BaseIndexSetException):
-    ERROR_CODE = "333"
-    MESSAGE = _("该业务下已存在名称为 [{index_set_name}] 的索引集")
-
-
-class ChildIndexSetNotExistException(BaseIndexSetException):
-    ERROR_CODE = "334"
-    MESSAGE = _("子索引集 [ID:{child_index_set_id}] 不存在")
-
-
 # =================================================
 # 管理-检索
 # =================================================

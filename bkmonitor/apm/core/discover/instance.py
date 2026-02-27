@@ -73,7 +73,7 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
         instances = self.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         return self.process_duplicate_records(instances, True, True)
 
-    def discover(self, origin_data, exists_instances: dict[tuple, TopoInstanceData]):
+    def discover(self, origin_data, remain_data: dict[tuple, TopoInstanceData]):
         """
         Discover span instance
         KIND | BASE | DESC
@@ -143,8 +143,8 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
                         )
                     )
             for key in found_keys:
-                if key in exists_instances:
-                    need_update_instances.append(exists_instances[key])
+                if key in remain_data:
+                    need_update_instances.append(remain_data[key])
                 else:
                     need_create_instances.add(key)
 
@@ -167,7 +167,7 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
 
         # 使用 Mixin 的通用方法处理缓存刷新
         self.handle_cache_refresh_after_create(
-            existing_instances=list(exists_instances.values()),
+            existing_instances=list(remain_data.values()),
             created_db_instances=created_instances,
             updated_instances=need_update_instances,
         )
