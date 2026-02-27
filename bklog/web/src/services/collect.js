@@ -306,30 +306,6 @@ const getCollectorStatus = {
   method: 'post',
 };
 
-// 获取客户端日志-采集下发-日志列表数据
-const getTaskLogList = {
-  url: '/tgpa/task/',
-  method: 'get',
-};
-
-// 客户端日志-新建采集
-const createCollectionTask = {
-  url: '/tgpa/task/',
-  method: 'post',
-};
-
-// 客户端日志-获取下载链接
-const getDownloadLink = {
-  url: '/tgpa/task/download_url/',
-  method: 'get',
-};
-
-// 客户端日志-获取索引集ID
-const getTaskIndexSetId = {
-  url: '/tgpa/task/index_set_id/',
-  method: 'get',
-};
-
 // 客户端日志-用户上报列表
 const getUserReportList = {
   url: '/tgpa/report/',
