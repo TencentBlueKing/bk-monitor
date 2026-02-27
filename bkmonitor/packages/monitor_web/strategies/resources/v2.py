@@ -14,7 +14,7 @@ from typing import Any
 import arrow
 import pytz
 from django.conf import settings
-from django.db import close_old_connections, transaction
+from django.db import transaction
 from django.db.models import Count, ExpressionWrapper, F, Q, QuerySet, fields
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -88,20 +88,9 @@ from monitor_web.strategies.constant import (
 )
 from monitor_web.strategies.serializers import handle_target
 from monitor_web.tasks import update_metric_list_by_biz
+from common.decorators import db_safe_wrapper
 
 logger = logging.getLogger(__name__)
-
-
-def db_safe_wrapper(func):
-    """数据库连接安全装饰器"""
-
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        finally:
-            close_old_connections()
-
-    return wrapper
 
 
 class GetStrategyListV2Resource(Resource):

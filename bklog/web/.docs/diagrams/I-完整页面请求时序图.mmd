@@ -1,0 +1,65 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'actorBkg': '#e3f2fd', 'actorTextColor': '#1565c0', 'actorBorder': '#1976d2', 'signalColor': '#42a5f5', 'noteBkgColor': '#fff8e1'}}}%%
+sequenceDiagram
+    participant User as 用户
+    participant Browser as 浏览器
+    participant Router as Vue Router
+    participant RetrieveV3 as Retrieve V3
+    participant Store as Vuex Store
+    participant HTTP as HTTP Layer
+    participant API as Backend API
+
+    User->>Browser: 访问 /retrieve/:indexId
+
+    rect rgb(240, 248, 255)
+        Note over Router: 路由守卫
+        Browser->>Router: 路由切换
+        Router->>HTTP: 取消 cancelWhenRouteChange 请求
+        Router->>Router: 检查外部版白名单
+        Router->>RetrieveV3: 渲染组件
+    end
+
+    rect rgb(255, 248, 240)
+        Note over RetrieveV3, API: 初始化数据流
+        RetrieveV3->>RetrieveV3: updateURLArgs 解析 URL
+        RetrieveV3->>Store: commit(updateIndexItem, updateSpace)
+        
+        RetrieveV3->>Store: dispatch(getIndexSetList)
+        Store->>HTTP: request
+        HTTP->>API: GET /search/index_set/
+        API-->>HTTP: 索引集列表
+        HTTP-->>Store: 返回数据
+        Store-->>RetrieveV3: 列表数据
+    end
+
+    rect rgb(240, 255, 240)
+        Note over RetrieveV3, API: 字段信息 & 查询
+        RetrieveV3->>Store: dispatch(requestIndexSetFieldInfo)
+        Store->>HTTP: request
+        HTTP->>API: GET /search/index_set/:id/fields/
+        API-->>HTTP: 字段信息
+        HTTP-->>Store: 返回数据
+        
+        Store-->>RetrieveV3: 触发 TREND_GRAPH_SEARCH
+        Store-->>RetrieveV3: 触发 LEFT_FIELD_INFO_UPDATE
+
+        RetrieveV3->>Store: dispatch(requestIndexSetQuery)
+        Store->>HTTP: request
+        HTTP->>API: POST /search/index_set/:id/search/
+        API-->>HTTP: 检索结果
+        HTTP-->>Store: 返回数据
+        Store-->>RetrieveV3: 渲染结果
+    end
+
+    rect rgb(255, 240, 255)
+        Note over RetrieveV3, API: 并行请求
+        par 趋势图
+            RetrieveV3->>API: POST /search/index_set/:id/aggs/date_histogram/
+            API-->>RetrieveV3: 趋势数据
+        and 收藏夹
+            RetrieveV3->>Store: dispatch(requestFavoriteList)
+            Store->>API: GET /favorite/getFavoriteByGroupList
+            API-->>Store: 收藏夹数据
+        end
+    end
+
+    RetrieveV3->>User: 页面渲染完成

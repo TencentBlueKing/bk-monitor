@@ -1,0 +1,64 @@
+.dimension-analysis-drill-down-options-popover {
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px 0 #0000001a;
+
+  .header-title {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+    line-height: 32px;
+    color: #979ba5;
+  }
+
+  &-list {
+    min-width: 126px;
+    max-height: 258px;
+    overflow: auto;
+
+    .selector-item {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      padding: 0 12px;
+      cursor: pointer;
+
+      .selector-item-name {
+        padding: 0 4px 0 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 12px;
+        color: #4d4f56;
+        white-space: nowrap;
+      }
+
+      .suspicious-tag {
+        display: flex;
+        align-items: center;
+        height: 14px;
+        padding: 0 2px;
+        margin: 0 0 0 auto;
+        font-size: 10px;
+        background: #e71818;
+        border-radius: 2px;
+
+        & > span {
+          color: #fff;
+          white-space: nowrap;
+          transform: scale(0.833);
+        }
+      }
+
+      &:hover {
+        color: rgb(58 132 255);
+        background: rgb(225 236 255);
+      }
+
+      &.active {
+        color: rgb(58 132 255);
+        background: rgb(244 246 250);
+      }
+    }
+  }
+}

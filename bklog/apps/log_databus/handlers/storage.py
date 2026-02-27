@@ -110,7 +110,14 @@ class StorageHandler:
             return True
 
         if visible_config["visible_type"] == VisibleEnum.MULTI_BIZ.value:
-            return str(bk_biz_id) in [str(bk_biz["bk_biz_id"]) for bk_biz in visible_config["visible_bk_biz"]]
+            # 兼容两种数据格式：整数列表 [1, 2, 3] 或字典列表 [{"bk_biz_id": 1}, {"bk_biz_id": 2}]
+            visible_bk_biz_id_list = []
+            for bk_biz in visible_config["visible_bk_biz"]:
+                if isinstance(bk_biz, dict):
+                    visible_bk_biz_id_list.append(str(bk_biz["bk_biz_id"]))
+                else:
+                    visible_bk_biz_id_list.append(str(bk_biz))
+            return str(bk_biz_id) in visible_bk_biz_id_list
 
         if visible_config["visible_type"] == VisibleEnum.BIZ_ATTR.value:
             # 如果空间类型不是业务，需要找出该空间关联的业务再做判断(如果有)

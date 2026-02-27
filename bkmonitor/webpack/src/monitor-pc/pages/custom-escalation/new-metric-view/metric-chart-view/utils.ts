@@ -33,11 +33,11 @@ interface NestedObject<T = unknown> {
   [key: string]: NestedObject<T> | T;
 }
 export const typeEnums = {
-  '1h': window.i18n.tc('1小时前'),
-  '1d': window.i18n.tc('1天前'),
-  '7d': window.i18n.tc('7天前'),
-  '30d': window.i18n.tc('30天前'),
-  current: window.i18n.tc('当前'),
+  '1h': window.i18n.t('1小时前'),
+  '1d': window.i18n.t('1天前'),
+  '7d': window.i18n.t('7天前'),
+  '30d': window.i18n.t('30天前'),
+  current: window.i18n.t('当前'),
 };
 export const refreshList = [
   // 刷新间隔列表
@@ -122,10 +122,10 @@ export function handleTimeOffset(timeOffset: string) {
   if (match) {
     const [target, , num, type] = match;
     const map = {
-      d: window.i18n.tc('{n} 天前', { n: num }),
-      w: window.i18n.tc('{n} 周前', { n: num }),
-      M: window.i18n.tc('{n} 月前', { n: num }),
-      current: window.i18n.tc('当前'),
+      d: window.i18n.t('{n} 天前', { n: num }),
+      w: window.i18n.t('{n} 周前', { n: num }),
+      M: window.i18n.t('{n} 月前', { n: num }),
+      current: window.i18n.t('当前'),
     };
     return map[type || target];
   }
@@ -141,21 +141,21 @@ export function handleTransformTimeShift(val: string) {
     return val;
   }
   if (val === '1d') {
-    return window.i18n.tc('昨天');
+    return window.i18n.t('昨天');
   }
   if (val === '1w') {
-    return window.i18n.tc('上周');
+    return window.i18n.t('上周');
   }
   return hasMatch
     ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
-    : val.replace('current', window.i18n.tc('当前'));
+    : val.replace('current', window.i18n.t('当前'));
 }
 /**
  * @description: 在图表数据没有单位或者单位不一致时则不做单位转换 y轴label的转换用此方法做计数简化
  * @param {number} num
  * @return {*}
  */
-export function handleYAxisLabelFormatter(num: number): string {
+export function handleYAxisLabelFormatter(num: number, decimal = 3): string {
   const si = [
     { value: 1, symbol: '' },
     { value: 1e3, symbol: 'K' },
@@ -172,7 +172,7 @@ export function handleYAxisLabelFormatter(num: number): string {
       break;
     }
   }
-  return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
+  return (num / si[i].value).toFixed(decimal).replace(rx, '$1') + si[i].symbol;
 }
 export function timeToDayNum(t) {
   const regex = /^\d{4}-\d{2}-\d{2}$/;
@@ -265,7 +265,7 @@ export const handleGetMinPrecision = (data: number[], formatter: ValueFormatter,
  * @param {string} alias  指标别名
  * */
 export const formatTipsContent = (name: string, alias: string) => {
-  return `${window.i18n.tc('指标名：')}${name || '--'} <br/> ${window.i18n.tc('指标别名：')}${alias || '--'}`;
+  return `${window.i18n.t('指标名：')}${name || '--'} <br/> ${window.i18n.t('指标别名：')}${alias || '--'}`;
 };
 
 export const optimizedDeepEqual = (obj1: NestedObject, obj2: NestedObject) => {
@@ -291,7 +291,7 @@ export const optimizedDeepEqual = (obj1: NestedObject, obj2: NestedObject) => {
 /** 时间戳转化成统一的秒 */
 export const convertTimestamp = (timestamp: number | string) => {
   const num = Number(timestamp);
-  if (isNaN(num)) {
+  if (Number.isNaN(num)) {
     return timestamp;
   }
   const str = num.toString();

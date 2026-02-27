@@ -321,14 +321,14 @@ export default defineComponent({
         <bk-option
           id={option.storage_cluster_id}
           key={option.storage_cluster_id}
-          name={option.storage_cluster_name}
+          name={option.storage_display_name}
         >
           {option.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH] ? (
             <div
               class='option-slot-container'
               v-bk-overflow-tips
             >
-              <span>{option.storage_cluster_name}</span>
+              <span>{option.storage_display_name}</span>
             </div>
           ) : (
             <div
@@ -336,7 +336,7 @@ export default defineComponent({
               onClick={(e: Event) => e.stopPropagation()}
             >
               <span class='text'>
-                <span>{option.storage_cluster_name}</span>
+                <span>{option.storage_display_name}</span>
               </span>
               <span
                 class='apply-text'

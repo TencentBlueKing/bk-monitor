@@ -30,6 +30,7 @@ import { promiseTimeout, useDebounceFn, useEventListener } from '@vueuse/core';
 import { Button, Checkbox, Input, Radio, Select } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { detectOperatingSystem } from 'monitor-common/utils/navigator';
+import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../empty-status/empty-status';
@@ -37,6 +38,8 @@ import TimeConsuming from './time-consuming';
 import {
   type IFilterField,
   type IFilterItem,
+  type IGetValueFnParams,
+  type INormalWhere,
   type IValue,
   type TGetValueFn,
   ECondition,
@@ -47,8 +50,6 @@ import {
 } from './typing';
 import {
   DEFAULT_GROUP_RELATION,
-  DURATION_KEYS,
-  EXISTS_KEYS,
   fieldTypeMap,
   GROUP_RELATION_KEY,
   isNumeric,
@@ -63,6 +64,9 @@ export default defineComponent({
   name: 'UiSelectorOptions',
   props: UI_SELECTOR_OPTIONS_PROPS,
   emits: UI_SELECTOR_OPTIONS_EMITS,
+  directive: {
+    OverflowTips,
+  },
   setup(props, { emit }) {
     const { t } = useI18n();
     const elRef = useTemplateRef<HTMLDivElement>('el');
@@ -82,12 +86,12 @@ export default defineComponent({
     const isMacSystem = shallowRef(false);
 
     const wildcardItem = computed(() =>
-      checkedItem.value?.supported_operations
+      checkedItem.value?.methods
         ?.find(item => item.value === method.value)
         ?.options?.find(item => item.name === WILDCARD_KEY)
     );
     const groupRelationItem = computed(() =>
-      checkedItem.value?.supported_operations
+      checkedItem.value?.methods
         ?.find(item => item.value === method.value)
         ?.options?.find(item => item.name === GROUP_RELATION_KEY)
     );
@@ -109,25 +113,30 @@ export default defineComponent({
         alias: checkedItem.value?.alias,
         isEnableOptions: !!checkedItem.value?.isEnableOptions,
         methods:
-          checkedItem.value?.supported_operations?.map(item => ({
+          checkedItem.value?.methods?.map(item => ({
             id: item.value,
             name: item.alias,
             placeholder: item?.placeholder || '',
-            wildcardOperator: item?.wildcard_operator || '',
+            wildcardOperator: item?.wildcardValue || '',
           })) || [],
         type: checkedItem.value?.type,
       };
     });
     const placeholderStr = computed(() => {
-      return checkedItem.value?.supported_operations?.find(item => item.value === method.value)?.placeholder || '';
+      return checkedItem.value?.methods?.find(item => item.value === method.value)?.placeholder || '';
     });
     /* 是否选择了耗时 */
     const isDurationKey = computed(() => {
-      return DURATION_KEYS.includes(checkedItem.value?.name);
+      return checkedItem.value?.type === EFieldType.duration;
     });
+    const noValueMethods = computed(() => (props.noValueOfMethods.length ? props.noValueOfMethods : NOT_VALUE_METHODS));
     /* 是否选择了无需检索值的操作符 */
     const notValueOfMethod = computed(() => {
-      return NOT_VALUE_METHODS.includes(method.value);
+      return noValueMethods.value.includes(method.value);
+    });
+    /* 是否选择了全文检索或者同类型的输入形式 */
+    const isTextarea = computed(() => {
+      return checkedItem.value?.name === '*' || [EFieldType.all, EFieldType.text].includes(checkedItem.value?.type);
     });
 
     const enterSelectionDebounce = useDebounceFn((isFocus = false) => {
@@ -179,7 +188,10 @@ export default defineComponent({
               }
             }
           } else {
-            // handleCheck(props.fields[0]);
+            if (props.fields?.[0]) {
+              handleCheck(props.fields[0]);
+            }
+
             // 需要等待popover 动画执行完毕 300ms
             // setTimeout(() => {
             //   searchInputRef.value?.focus();
@@ -230,7 +242,7 @@ export default defineComponent({
       },
       isFocus = false
     ) {
-      checkedItem.value = structuredClone(item);
+      checkedItem.value = JSON.parse(JSON.stringify(item));
       values.value = value || [];
       /* 耗时字段特殊处理 */
       if (isDurationKey.value) {
@@ -241,12 +253,12 @@ export default defineComponent({
           value: (value || []).map(item => item.id),
         };
       } else {
-        method.value = methodP || item?.supported_operations?.[0]?.value || '';
+        method.value = methodP || item?.methods?.[0]?.value || '';
       }
       isWildcard.value = options?.isWildcard || false;
       groupRelation.value = options?.groupRelation || DEFAULT_GROUP_RELATION;
       const index = searchLocalFields.value.findIndex(f => f.name === item.name) || 0;
-      if (checkedItem.value.name === '*') {
+      if (isTextarea.value) {
         queryString.value = value[0]?.id || '';
       } else {
         if (cacheCheckedName.value !== item.name) {
@@ -269,23 +281,23 @@ export default defineComponent({
       } else {
         await promiseTimeout(50);
       }
-      if (checkedItem.value.name === '*' && queryString.value) {
+      if (isTextarea.value && queryString.value) {
+        const methodItem = checkedItem.value.methods[0];
         const value: IFilterItem = {
-          key: { id: checkedItem.value.name, name: t('全文') },
-          method: { id: EMethod.include, name: t('包含') },
+          key: { id: checkedItem.value?.name || '*', name: checkedItem.value?.alias || t('全文') },
+          method: { id: methodItem?.value || EMethod.include, name: methodItem?.alias || t('包含') },
           value: [{ id: queryString.value, name: queryString.value }],
           condition: { id: ECondition.and, name: 'AND' },
         };
         emit('confirm', value);
-
         return;
       }
       if (
-        EXISTS_KEYS.includes(method.value) ||
+        noValueMethods.value.includes(method.value) ||
         values.value.length ||
         (isDurationKey.value && timeConsumingValue.value.value.length)
       ) {
-        const methodName = checkedItem.value.supported_operations.find(item => item.value === method.value)?.alias;
+        const methodName = checkedItem.value.methods.find(item => item.value === method.value)?.alias;
         const opt = {};
         if (isWildcard.value) {
           opt[WILDCARD_KEY] = true;
@@ -458,7 +470,7 @@ export default defineComponent({
      * @returns {Promise<any>} 返回一个Promise，解析为查询结果数据
      *                         如果查询失败，返回空结果 {count: 0, list: []}
      */
-    function getValueFnProxy(params: { field: string; limit: number; search: string }): any | TGetValueFn {
+    function getValueFnProxy(params: IGetValueFnParams): any | TGetValueFn {
       return new Promise((resolve, _reject) => {
         props
           .getValueFn({
@@ -504,7 +516,7 @@ export default defineComponent({
     }
 
     function handleMethodChange(value) {
-      if (NOT_VALUE_METHODS.includes(value)) {
+      if (noValueMethods.value.includes(value)) {
         values.value = [];
         groupRelation.value = groupRelationItem.value?.default || DEFAULT_GROUP_RELATION;
         isWildcard.value = wildcardItem.value?.default || false;
@@ -531,6 +543,7 @@ export default defineComponent({
       timeConsumingValue,
       notValueOfMethod,
       isDurationKey,
+      isTextarea,
       getValueFnProxy,
       handleValueChange,
       handleTimeConsumingValueChange,
@@ -548,7 +561,7 @@ export default defineComponent({
   },
   render() {
     const rightRender = () => {
-      if (this.checkedItem?.name === '*') {
+      if (this.isTextarea) {
         return [
           <div
             key={'all'}
@@ -585,7 +598,7 @@ export default defineComponent({
                     clearable={false}
                     onChange={this.handleMethodChange}
                   >
-                    {this.checkedItem.supported_operations.map(item => (
+                    {this.checkedItem.methods.map(item => (
                       <Select.Option
                         id={item.value}
                         key={item.value}
@@ -625,7 +638,7 @@ export default defineComponent({
                           } as any
                         }
                         styleType={'form'}
-                        value={this.timeConsumingValue}
+                        value={this.timeConsumingValue as INormalWhere}
                         onChange={this.handleTimeConsumingValueChange}
                       />
                     ) : (
@@ -634,6 +647,8 @@ export default defineComponent({
                         ref='valueSelector'
                         fieldInfo={this.valueSelectorFieldInfo}
                         getValueFn={this.getValueFnProxy}
+                        limit={this.limit}
+                        loadDelay={this.loadDelay}
                         placeholder={''}
                         value={this.values}
                         autoFocus

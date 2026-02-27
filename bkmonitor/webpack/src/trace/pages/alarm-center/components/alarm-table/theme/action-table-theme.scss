@@ -1,0 +1,30 @@
+.alarm-table.action-table {
+  .explore-col {
+    &.explore-prefix-icon-col {
+      .action-status-icon {
+        &.icon-mc-close-fill {
+          color: #f59789;
+        }
+
+        &.icon-mc-check-fill {
+          color: #6fc5bf;
+        }
+      }
+    }
+
+    &.action-content-col {
+      /* stylelint-disable-next-line no-descending-specificity */
+      .common-table-ellipsis {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        white-space: normal;
+      }
+
+      a {
+        color: #3a84ff;
+      }
+    }
+  }
+}

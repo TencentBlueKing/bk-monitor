@@ -66,7 +66,7 @@ interface IClusterItem {
   /** 存储集群ID */
   storage_cluster_id: number | string;
   /** 存储集群名称 */
-  storage_cluster_name: string;
+  storage_display_name: string;
   /** 是否为平台集群 */
   is_platform?: boolean;
   /** 权限信息 */
@@ -300,7 +300,7 @@ export default defineComponent({
                     id={option.storage_cluster_id}
                     key={option.storage_cluster_id}
                     class='custom-no-padding-option'
-                    name={option.storage_cluster_name}
+                    name={option.storage_display_name}
                   />
                 ))}
               </bk-select>

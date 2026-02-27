@@ -9,10 +9,9 @@
     margin: 0;
 
     .v3-ai-mode-root {
-      background-color: #fff;
       margin: 0 8px 8px 8px;
+      background-color: #fff;
     }
-
   }
 
   &.is-ai-mode {
@@ -20,23 +19,32 @@
   }
 
   .bklog-ai-edit-btn {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    width: max-content;
+    padding: 6px 12px;
+    margin-right: 8px;
     font-size: 12px;
     color: #313238;
-    width: max-content;
+    cursor: pointer;
     background: #f0f1f5;
     border-radius: 16px;
-    padding: 6px 12px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    cursor: pointer;
-    margin-right: 8px;
 
     &:hover {
-      background-image: linear-gradient(-79deg, #E7E1FA 0%, #E0E9FF 100%);
+      background-image: linear-gradient(-79deg, #e7e1fa 0%, #e0e9ff 100%);
     }
   }
 }
-.fix-search-bar{
+
+.fix-search-bar {
   width: calc(100vw - var(--left-collection-width) - 20px);
+
+  &.is-monitor-apm {
+    width: calc(100vw - var(--left-collection-width) - 298px);
+  }
+
+  &.is-monitor-trace {
+    width: calc(100vw - var(--left-collection-width) - 370px);
+  }
 }

@@ -129,7 +129,10 @@ export default defineComponent({
       }
       const { bk_biz_id } = incidentDetail.value;
       const { origin, pathname } = location;
+      // 旧版告警中心路由
       const url = `${origin}${pathname}?bizId=${bk_biz_id}#/event-center?searchType=incident&activeFilterId=incident${timeRangText}`;
+      // 新版告警中心路由
+      // const url = `${origin}${pathname}?bizId=${bk_biz_id}#/trace/alarm-center?alarmType=${AlarmType.INCIDENT}${timeRangText}`;
       window.location.href = url;
     };
     /** 一期先不展示 */
@@ -330,12 +333,12 @@ export default defineComponent({
         return '00:00:00';
       }
       if (!end_time) {
-        this.showTime = this.convertTimestamp(begin_time * 1000, new Date().getTime());
+        this.showTime = this.convertTimestamp(begin_time * 1000, Date.now());
         /** 只有故障未恢复状态下才计时 */
         if (status === 'abnormal') {
           this.timer = setInterval(() => {
             if (begin_time) {
-              this.showTime = this.convertTimestamp(begin_time * 1000, new Date().getTime());
+              this.showTime = this.convertTimestamp(begin_time * 1000, Date.now());
             }
           }, 1000);
         }

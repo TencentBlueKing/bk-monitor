@@ -1,0 +1,13 @@
+.alarm-lazy-chart {
+  .explore-chart.base-chart {
+    height: 250px;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919291f;
+
+    .common-legend {
+      min-height: 32px;
+      max-height: 40%;
+      overflow: auto;
+    }
+  }
+}

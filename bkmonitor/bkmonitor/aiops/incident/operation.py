@@ -150,7 +150,8 @@ class IncidentOperationManager:
                     return
 
             # 根据故障的业务ID从字典中获取对应的接收人
-            bk_biz_id = incident_document.bk_biz_id
+            # 注意：配置中的 key 是字符串，需要转换类型
+            bk_biz_id = str(incident_document.bk_biz_id)
             chat_ids = builtin_chat_ids_dict.get(bk_biz_id, [])
             user_ids = builtin_user_ids_dict.get(bk_biz_id, [])
             # 接收人，使用内置的admin接收人，管理员组
@@ -235,6 +236,7 @@ class IncidentOperationManager:
         alert_count: int,
         assignees: list[str],
         incident_document: IncidentDocument = None,
+        incident_name: str = None,
     ) -> IncidentOperationDocument:
         """记录生成故障
         文案: 生成故障，包含{alert_count}个告警，负责人为{handlers}
@@ -244,13 +246,17 @@ class IncidentOperationManager:
         :param alert_count: 告警数量
         :param assignees: 故障负责人
         :param incident_document: 故障文档对象（可选，传入后可直接用于发送通知，避免 ES 查询延迟）
+        :param incident_name: 故障名称（用于判断是否为匿名故障）
         :return: 故障流转记录
         """
+        # 匿名故障不发送通知
+        is_anonymous = cls.is_anonymous_incident(incident_name) if incident_name else False
+
         return cls.record_operation(
             incident_id,
             IncidentOperationType.CREATE,
             operate_time,
-            send_notice=True,
+            send_notice=not is_anonymous,
             alert_count=alert_count,
             assignees=assignees,
             incident_document=incident_document,
@@ -344,7 +350,16 @@ class IncidentOperationManager:
         )
 
     @classmethod
-    def record_merge_incident(cls, operate_time: int, merge_info: dict = None):
+    def is_anonymous_incident(cls, incident_name: str) -> bool:
+        """判断是否为匿名故障（后台默认生成的临时故障名称）
+
+        :param incident_name: 故障名称
+        :return: 是否为匿名故障
+        """
+        return bool(incident_name and incident_name.startswith("new_incident_"))
+
+    @classmethod
+    def record_merge_incident(cls, operate_time: int, merge_info: dict = None, alert_count: int = None):
         """记录故障合并
         文案:
         - MERGE_TO: 故障被合并到{target_incident_name}
@@ -358,6 +373,7 @@ class IncidentOperationManager:
             "target_incident_id": 合并到的目标故障id,
             "target_incident_name": 合并到的目标故障name
             "target_created_at": 合并到的目标故障create_time
+        :param alert_count: 被合并故障的告警数量（用于匿名故障的通知展示）
         :return: 故障流转记录
         """
         merge_info = merge_info if isinstance(merge_info, dict) else {}
@@ -382,12 +398,16 @@ class IncidentOperationManager:
         origin_incident_doc_id = f"{origin_created_at}{origin_incident_id}" if origin_created_at else None
         target_incident_doc_id = f"{target_created_at}{target_incident_id}" if target_created_at else None
 
+        # 判断源故障是否为匿名故障（new_incident_xxx 格式）
+        is_anonymous = cls.is_anonymous_incident(origin_incident_name)
+
         # 给被合并故障，记录 incident_merge_to 记录
+        # 匿名故障不发送通知
         cls.record_operation(
             origin_incident_id,
             IncidentOperationType.MERGE_TO,
             operate_time,
-            send_notice=True,
+            send_notice=not is_anonymous,  # 匿名故障不发送通知
             link_incident_name=target_incident_name,
             link_incident_id=target_incident_id,
             link_incident_doc_id=target_incident_doc_id,
@@ -403,6 +423,8 @@ class IncidentOperationManager:
             link_incident_name=origin_incident_name,
             link_incident_id=origin_incident_id,
             link_incident_doc_id=origin_incident_doc_id,
+            is_anonymous_source=is_anonymous,  # 标记源故障是否为匿名故障
+            alert_count=alert_count,  # 传递告警数量
             action={"type": "link", "target": "incident", "params": ["link_incident_doc_id"]},
         )
 

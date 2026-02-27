@@ -457,6 +457,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             key={item.value}
             class='link-col'
             v-authority={{ active: !hasPermission }}
+            data-key={item.key}
             onClick={e => {
               hasPermission ? this.handleLinkClick(item, e) : this.handleShowAuthorityDetail?.(column.actionId);
             }}
@@ -471,6 +472,58 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             )}
             {item.value}
           </div>
+        ))}
+      </div>
+    );
+  }
+  // 带后缀操作的链接（第一个为主内容，其余为后缀操作按钮）
+  suffixIconFormatter(column: ITableColumn, val: ITableItem<'suffix_icon'>, row: TableRow) {
+    const hasPermission = row.permission?.[column.actionId] ?? true;
+    const [mainItem, ...suffixItems] = val || [];
+    const mainClickHandler = (e: MouseEvent) => {
+      hasPermission ? this.handleLinkClick(mainItem, e) : this.handleShowAuthorityDetail?.(column.actionId);
+    };
+    const mainIcon = mainItem?.icon ? (
+      <img
+        class='suffix-icon-img'
+        alt=''
+        src={mainItem.icon}
+      />
+    ) : null;
+    return (
+      <div class='suffix-icon-col'>
+        {mainIcon}
+        {mainItem &&
+          (column.showOverflowTooltip !== false ? (
+            <span
+              class='suffix-icon-main'
+              v-authority={{ active: !hasPermission }}
+              v-bk-overflow-tips
+              onClick={mainClickHandler}
+            >
+              {mainItem.value}
+            </span>
+          ) : (
+            <span
+              class='suffix-icon-main'
+              v-authority={{ active: !hasPermission }}
+              onClick={mainClickHandler}
+            >
+              {mainItem.value}
+            </span>
+          ))}
+        {suffixItems?.map(item => (
+          <span
+            key={item.key || item.value}
+            class='suffix-icon-btn'
+            v-authority={{ active: !hasPermission }}
+            data-key={item.key}
+            onClick={e => {
+              hasPermission ? this.handleLinkClick(item, e) : this.handleShowAuthorityDetail?.(column.actionId);
+            }}
+          >
+            {item.value}
+          </span>
         ))}
       </div>
     );
@@ -748,6 +801,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         return this.numberFormatter(value as ITableItem<'number'>);
       case 'link_list':
         return this.linkListFormatter(column, value as ITableItem<'link_list'>, row);
+      case 'suffix_icon':
+        return this.suffixIconFormatter(column, value as ITableItem<'suffix_icon'>, row);
       case 'stack_link':
         return this.stackLinkFormatter(column, value as ITableItem<'stack_link'>, row);
       case 'relation':
@@ -819,7 +874,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     const columList = this.tableColumns
       .filter(item => (item.checked || item.disabled) && !(this.readonly && ['operation'].includes(item.id)))
       .map(column => {
-        const showOverflowTooltip = ['tag', 'list', 'kv'].includes(column.type)
+        const showOverflowTooltip = ['tag', 'list', 'kv', 'suffix_icon'].includes(column.type)
           ? false
           : (column.showOverflowTooltip ?? true);
         // header-pre-icon
@@ -834,6 +889,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
                   ? () => column.renderHeader()
                   : undefined
             }
+            class-name={`table-column_${column.id}`}
             formatter={(row: TableRow) => this.handleSetFormatter(column.id, row)}
             label={column.name}
             prop={column.id}

@@ -204,6 +204,10 @@ class CheckProcessor(BaseAbnormalPushProcessor):
 
                     if (not last_point) or (int(last_point) < check_timestamp):
                         self.pull_data(item, check_timestamp)
+                        # 队列已清空,立即写入去重标记,防止锁超时后secondary worker以空队列重复检测
+                        key.LAST_CHECKPOINTS_CACHE_KEY.client.hset(
+                            last_checkpoint_cache_key, last_checkpoint_cache_field, check_timestamp
+                        )
                         self.handle_data(item, check_timestamp)
                         logger.info(
                             "[nodata] strategy({}) item({}) checkpoint({}) processing end at time({})".format(

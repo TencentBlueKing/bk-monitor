@@ -32,6 +32,7 @@ import { useResizeObserver } from '@vueuse/core';
 import { Message, Popover } from 'bkui-vue';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import { MODE_LIST } from 'monitor-pc/components/retrieval-filter/utils';
+import overflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
 import { transformFieldName } from '../../pages/trace-explore/components/trace-explore-table/constants';
@@ -42,21 +43,23 @@ import {
   type EMethod,
   type IFilterField,
   type IFilterItem,
-  type IWhereItem,
+  type INormalWhere,
   ECondition,
-  EFieldType,
   EMode,
   METHOD_MAP,
   RETRIEVAL_FILTER_EMITS,
   RETRIEVAL_FILTER_PROPS,
 } from './typing';
 import UiSelector from './ui-selector';
-import { equalWhere, getCacheUIData, setCacheUIData, traceWhereFormatter } from './utils';
+import { equalWhere, getCacheUIData, setCacheUIData } from './utils';
 
 import './retrieval-filter.scss';
 
 export default defineComponent({
   name: 'RetrievalFilter',
+  directives: {
+    overflowTips,
+  },
   props: RETRIEVAL_FILTER_PROPS,
   emits: RETRIEVAL_FILTER_EMITS,
   setup(props, { emit }) {
@@ -68,36 +71,16 @@ export default defineComponent({
     const uiValue = shallowRef<IFilterItem[]>([]);
     const cacheWhere = shallowRef([]);
     const qsValue = shallowRef('');
-    const cacheCommonWhere = shallowRef<IWhereItem[]>([]);
+    const cacheCommonWhere = shallowRef<INormalWhere[]>([]);
     const qsSelectorOptionsWidth = shallowRef(0);
     const clearKey = shallowRef('');
 
     const localFields = computed(() => {
-      return props.fields
-        .filter(item => item?.is_searched)
-        .map(item => ({
-          ...item,
-          isEnableOptions: props.notSupportEnumKeys.includes(item.name)
-            ? false
-            : !!item?.is_dimensions || item?.type === EFieldType.boolean,
-          supported_operations:
-            item?.supported_operations?.map(s => ({
-              ...s,
-              alias: s.label,
-              value: s.operator,
-            })) || [],
-        })) as IFilterField[];
-    });
-    const curFavoriteId = computed(() => props.selectFavorite?.config?.queryParams?.app_name);
-    const isDefaultResidentSetting = computed(() => {
-      if (curFavoriteId.value === props.dataId) {
-        return false;
-      }
-      return true;
+      return props.fields;
     });
     const residentSettingValue = computed(() => {
-      if (isDefaultResidentSetting.value) {
-        return props.isTraceRetrieval ? traceWhereFormatter(props.commonWhere) : props.commonWhere;
+      if (props.isDefaultResidentSetting) {
+        return props.whereFormatter(props.commonWhere);
       }
       /** 不展示默认的常驻设置，则使用收藏的常驻设置 */
       // return props.isTraceRetrieval
@@ -107,7 +90,7 @@ export default defineComponent({
       return [];
     });
     const propsCommonWhere = computed(() => {
-      return props.isTraceRetrieval ? traceWhereFormatter(props.commonWhere) : props.commonWhere;
+      return props.whereFormatter(props.commonWhere);
     });
 
     const { errorData } = useQueryStringParseErrorState();
@@ -127,8 +110,8 @@ export default defineComponent({
     watch(
       () => props.where,
       val => {
-        const traceWhere = traceWhereFormatter(val);
-        handleWatchValueFn(props.isTraceRetrieval ? traceWhere : val);
+        const traceWhere = props.whereFormatter(val);
+        handleWatchValueFn(traceWhere);
       },
       {
         immediate: true,
@@ -207,7 +190,7 @@ export default defineComponent({
       showResidentSetting.value = !showResidentSetting.value;
       if (!showResidentSetting.value && propsCommonWhere.value.some(item => item.value.length)) {
         cacheCommonWhere.value = deepClone(propsCommonWhere.value);
-        if (!isDefaultResidentSetting.value && residentSettingValue.value.length) {
+        if (!props.isDefaultResidentSetting && residentSettingValue.value.length) {
           /* 当已选择收藏的情况下添加key到设置筛选需要缓存到当前收藏下 */
           emit(
             'setFavoriteCache',
@@ -235,8 +218,7 @@ export default defineComponent({
       for (const item of cacheCommonWhere.value) {
         if (item.value?.length) {
           const field = localFields.value.find(field => field.name === item.key);
-          const methodName =
-            field.supported_operations?.find(v => v.value === item.method)?.alias || METHOD_MAP[item.method];
+          const methodName = field.methods?.find(v => v.value === item.method)?.alias || METHOD_MAP[item.method];
           uiValueAdd.push({
             key: { id: item.key, name: field?.alias || item.key },
             method: { id: item.method, name: methodName || item.method },
@@ -270,13 +252,17 @@ export default defineComponent({
      * @description 常驻设置值变化
      * @param value
      */
-    function handleCommonWhereChange(value: IWhereItem[]) {
-      const traceWhere = value.map(item => ({
-        key: item.key,
-        operator: item.method,
-        value: item.value,
-      }));
-      emit('commonWhereChange', props.isTraceRetrieval ? traceWhere : value);
+    function handleCommonWhereChange(value: INormalWhere[]) {
+      emit(
+        'commonWhereChange',
+        props.changeWhereFormatter(
+          value.map(item => ({
+            key: item.key,
+            method: item.method,
+            value: item.value,
+          })) as INormalWhere[]
+        )
+      );
     }
 
     function handleChange() {
@@ -296,24 +282,16 @@ export default defineComponent({
           });
         }
       }
-      cacheWhere.value = structuredClone(where);
-      const traceWhere = where
-        .filter(item => !!item)
-        .map(item => ({
-          key: item.key,
-          operator: item.method,
-          value: item.value,
-          options: item?.options || undefined,
-        }));
-      return props.isTraceRetrieval ? traceWhere : where;
+      cacheWhere.value = deepClone(where);
+      return props.changeWhereFormatter(where);
     }
 
-    function handleWatchValueFn(where: IWhereItem[]) {
+    function handleWatchValueFn(where: INormalWhere[]) {
       if (equalWhere(where, cacheWhere.value)) {
         /* 避免重复渲染 */
         return;
       }
-      cacheWhere.value = structuredClone(where);
+      cacheWhere.value = deepClone(where);
       const fieldsMap: Map<string, IFilterField> = new Map();
       for (const item of localFields.value) {
         fieldsMap.set(item.name, item);
@@ -335,7 +313,7 @@ export default defineComponent({
       }
       for (const w of where) {
         const cacheItem = uiCacheDataMap.get(w.key);
-        const methods = fieldsMap.get(w.key)?.supported_operations || [];
+        const methods = fieldsMap.get(w.key)?.methods || [];
         let methodName = methods.find(v => v.value === w.method)?.alias || METHOD_MAP[w.method];
         if (cacheItem) {
           methodName = cacheItem.method.id === w.method ? cacheItem.method.name : methodName;
@@ -460,7 +438,6 @@ export default defineComponent({
       showResidentSetting,
       clearKey,
       qsSelectorOptionsWidth,
-      isDefaultResidentSetting,
       localFields,
       queryStringError,
       isShowQueryStringError,
@@ -487,44 +464,53 @@ export default defineComponent({
         class='vue3_retrieval-filter__component'
       >
         <div class='retrieval-filter__component-main'>
-          <div
-            class='component-left'
-            onClick={() => this.handleChangeMode()}
-          >
-            {MODE_LIST.filter(item => item.id === this.mode).map(item => [
-              <span
-                key={`${item.id}_0`}
-                class='text'
-              >
-                {item.name}
-              </span>,
-              <div
-                key={`${item.id}_1`}
-                class='mode-icon'
-              >
-                <span class='icon-monitor icon-switch' />
-              </div>,
-            ])}
-          </div>
+          {!this.isSingleMode && (
+            <div
+              class='component-left'
+              onClick={() => this.handleChangeMode()}
+            >
+              {MODE_LIST.filter(item => item.id === this.mode).map(item => [
+                <span
+                  key={`${item.id}_0`}
+                  class='text'
+                >
+                  {item.name}
+                </span>,
+                <div
+                  key={`${item.id}_1`}
+                  class='mode-icon'
+                >
+                  <span class='icon-monitor icon-switch' />
+                </div>,
+              ])}
+            </div>
+          )}
+          {this.$slots?.default?.()}
           <div class={['filter-content', { 'bg-fff0f0': this.isShowQueryStringError }]}>
             {this.mode === EMode.ui ? (
               <UiSelector
                 clearKey={this.clearKey}
                 fields={this.localFields}
                 getValueFn={this.getValueFn}
+                limit={this.limit}
+                loadDelay={this.loadDelay}
+                noValueOfMethods={this.noValueOfMethods}
                 placeholder={this.placeholder}
                 value={this.uiValue}
+                zIndex={this.zIndex}
                 onChange={this.handleUiValueChange}
               />
             ) : (
               <QsSelector
                 clearKey={this.clearKey}
-                favoriteList={this.favoriteList}
+                favoriteList={this.isShowFavorite ? this.favoriteList : []}
                 fields={this.localFields}
                 getValueFn={this.getValueFn}
+                isShowFavorite={this.isShowFavorite}
                 placeholder={this.placeholder}
                 qsSelectorOptionsWidth={this.qsSelectorOptionsWidth}
                 value={this.qsValue}
+                zIndex={this.zIndex}
                 onChange={this.handleQsValueChange}
                 onQuery={() => this.handleQuery()}
               />
@@ -549,27 +535,31 @@ export default defineComponent({
               >
                 <span class='icon-monitor icon-mind-fill' />
               </div>
-              <div
-                class={['clear-btn', { disabled: this.operatorBtnDisabled }]}
-                v-bk-tooltips={{
-                  content: this.t('清空'),
-                  delay: 300,
-                }}
-                onClick={this.handleClear}
-              >
-                <span class='icon-monitor icon-a-Clearqingkong' />
-              </div>
-              <div
-                class={['copy-btn', { disabled: this.operatorBtnDisabled }]}
-                v-bk-tooltips={{
-                  content: this.t('复制'),
-                  delay: 300,
-                }}
-                onClick={this.handleCopy}
-              >
-                <span class='icon-monitor icon-mc-copy' />
-              </div>
-              {this.mode === EMode.ui && (
+              {this.isShowClear && (
+                <div
+                  class={['clear-btn', { disabled: this.operatorBtnDisabled }]}
+                  v-bk-tooltips={{
+                    content: this.t('清空'),
+                    delay: 300,
+                  }}
+                  onClick={this.handleClear}
+                >
+                  <span class='icon-monitor icon-a-Clearqingkong' />
+                </div>
+              )}
+              {this.isShowCopy && (
+                <div
+                  class={['copy-btn', { disabled: this.operatorBtnDisabled }]}
+                  v-bk-tooltips={{
+                    content: this.t('复制'),
+                    delay: 300,
+                  }}
+                  onClick={this.handleCopy}
+                >
+                  <span class='icon-monitor icon-mc-copy' />
+                </div>
+              )}
+              {this.mode === EMode.ui && this.isShowResident && (
                 <div
                   class={['setting-btn', { 'btn-active': this.showResidentSetting }]}
                   v-bk-tooltips={{
@@ -630,21 +620,29 @@ export default defineComponent({
                   }}
                 </Popover>
               )}
+              {this.$slots?.customRightBtns?.()}
             </div>
-            <div
-              class='search-btn'
-              onClick={this.handleClickSearchBtn}
-            >
-              <span class='icon-monitor icon-mc-search' />
-            </div>
+
+            {this.isShowSearchBtn && (
+              <div
+                class='search-btn'
+                onClick={this.handleClickSearchBtn}
+              >
+                <span class='icon-monitor icon-mc-search' />
+              </div>
+            )}
           </div>
         </div>
-        {this.showResidentSetting && this.mode !== EMode.queryString && (
+        {this.showResidentSetting && this.mode !== EMode.queryString && this.isShowResident && (
           <ResidentSetting
             defaultResidentSetting={this.defaultResidentSetting}
             fields={this.localFields}
             getValueFn={this.getValueFn}
+            handleGetUserConfig={this.handleGetUserConfig}
+            handleSetUserConfig={this.handleSetUserConfig}
             isDefaultSetting={this.isDefaultResidentSetting}
+            limit={this.limit}
+            loadDelay={this.loadDelay}
             residentSettingOnlyId={this.residentSettingOnlyId}
             value={this.residentSettingValue}
             onChange={this.handleCommonWhereChange}

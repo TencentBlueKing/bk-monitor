@@ -15,24 +15,8 @@ from core.errors.uptime_check import UptimeCheckProcessError
 
 @pytest.mark.django_db(databases="__all__")
 class TestUptimeCheckNode:
-    # def test_query_result(self, mocker):
-    #     from monitor_web.uptime_check.serializers import UptimeCheckNodeSerializer
-    #
-    #     validated_data = {
-    #         "bk_biz_id": 2,
-    #         "name": "\u4e2d\u56fd\u5e7f\u4e1c\u79fb\u52a8",
-    #         "ip": "10.0.1.16",
-    #         "carrieroperator": "\u79fb\u52a8",
-    #         "location": {"country": "\u4e2d\u56fd", "city": "\u5e7f\u4e1c"},
-    #         "plat_id": 0,
-    #         "is_common": False,
-    #     }
-    #
-    #     mocker.patch("bkmonitor.data_source.backends.base.compiler.SQLCompiler.execute_sql", return_value=[None])
-    #     assert UptimeCheckNodeSerializer().node_beat_check(validated_data)
-
     def test_query_result_no_data(self, mocker):
-        from monitor_web.uptime_check.serializers import UptimeCheckNodeSerializer
+        from monitor_web.uptime_check.views import UptimeCheckNodeViewSet
 
         validated_data = {
             "bk_biz_id": 2,
@@ -48,5 +32,10 @@ class TestUptimeCheckNode:
             "bkmonitor.data_source.backends.base.compiler.SQLCompiler.execute_sql", return_value=[]
         )
         with pytest.raises(UptimeCheckProcessError):
-            UptimeCheckNodeSerializer().node_beat_check(validated_data)
+            UptimeCheckNodeViewSet._node_beat_check(
+                bk_biz_id=validated_data["bk_biz_id"],
+                bk_host_id=validated_data.get("bk_host_id"),
+                ip=validated_data.get("ip"),
+                plat_id=validated_data.get("plat_id"),
+            )
             query_result_mock.assert_called_once()

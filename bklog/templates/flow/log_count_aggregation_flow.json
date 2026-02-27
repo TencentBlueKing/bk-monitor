@@ -114,7 +114,7 @@
       "table_name": "{{log_count_aggregation.pattern.table_name}}",
       "name": "Pattern 提取",
       "count_freq": 60,
-      "waiting_time": 0,
+      "waiting_time": 120,
       "window_time": null,
       "window_type": "scroll",
       "counter": null,

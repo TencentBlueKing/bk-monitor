@@ -999,6 +999,7 @@ class IncidentSender(Sender):
             if response["errcode"] != 0:
                 result = False
                 message = response["errmsg"]
+                logger.error(f"send.wxwork_group failed, errcode={response['errcode']}, errmsg={message}")
         except Exception as e:
             result = False
             message = str(e)

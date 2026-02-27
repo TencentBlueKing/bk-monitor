@@ -1,0 +1,48 @@
+.alarm-log-index-set-selector-pop-simple {
+  position: relative;
+  width: 694px;
+  background-color: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
+  .search-wrap {
+    display: flex;
+    align-items: center;
+    margin: 4px 8px 0;
+
+    .icon-mc-search {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  .list-wrap {
+    padding: 4px 0;
+
+    .list-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 0 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #63656e;
+      text-align: left;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+
+      &:hover {
+        color: #63656e;
+        background-color: #f5f7fa;
+      }
+
+      &.active {
+        color: #3a84ff;
+        background: #e1ecff;
+      }
+    }
+  }
+}

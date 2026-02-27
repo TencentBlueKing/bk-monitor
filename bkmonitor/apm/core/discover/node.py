@@ -104,7 +104,7 @@ class NodeDiscover(DiscoverBase):
 
         return pod_workload_mapping
 
-    def discover(self, origin_data):
+    def discover(self, origin_data, remain_data=None):
         rules_map = defaultdict(list)
 
         all_rules, other_rule = self.get_rules(_type="all")

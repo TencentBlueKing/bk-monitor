@@ -1,0 +1,47 @@
+.alarm-table.incident-table {
+  .explore-col {
+    align-items: flex-start;
+    min-height: 40px;
+
+    &.lever-rect-col {
+      align-items: unset;
+
+      .lever-rect {
+        margin-right: 8px;
+      }
+    }
+
+    &.explore-prefix-icon-col {
+      .incident-status-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        &.icon-mind-fill {
+          color: #f59789;
+        }
+
+        &.icon-mc-visual-fill {
+          color: #f8b64f;
+        }
+
+        &.icon-mc-check-fill {
+          color: #6fc5bf;
+        }
+
+        &.icon-mc-solved {
+          color: #8e9bb3;
+        }
+      }
+    }
+  }
+
+  .common-table-ellipsis:not(.tag-item) {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    word-break: break-all;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+  }
+}

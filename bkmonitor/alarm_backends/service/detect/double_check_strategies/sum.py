@@ -65,10 +65,11 @@ class DoubleCheckSumStrategy(DoubleCheckStrategy):
     data_scopes = [
         (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
         (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
     ]
 
     match_agg_method = "SUM"
-    match_algorithms_type_sequence = ["AdvancedRingRatio", "SimpleRingRatio", "Threshold"]
+    match_algorithms_type_sequence = ["IntelligentDetect", "AdvancedRingRatio", "SimpleRingRatio", "Threshold"]
 
     # 支持多个周期对比, 目前仅对比前一个周期
     default_max_history_interval_count: ClassVar[int] = 1
