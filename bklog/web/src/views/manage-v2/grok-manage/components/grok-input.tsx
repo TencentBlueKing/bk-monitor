@@ -25,20 +25,11 @@
  */
 import { defineComponent, ref, onMounted, onUnmounted, watch, type PropType, nextTick } from 'vue';
 
-import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
+import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands';
-import { bracketMatching, indentOnInput } from '@codemirror/language';
-import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
+import { bracketMatching } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
-import {
-  placeholder as cmPlaceholder,
-  keymap,
-  highlightSpecialChars,
-  drawSelection,
-  dropCursor,
-  rectangularSelection,
-  crosshairCursor,
-} from '@codemirror/view';
+import { placeholder as cmPlaceholder, keymap, highlightSpecialChars } from '@codemirror/view';
 
 import { EditorView } from 'codemirror';
 
@@ -158,18 +149,11 @@ export default defineComponent({
       const extensions = [
         // 基础编辑功能
         history(),
-        drawSelection(),
-        dropCursor(),
-        EditorState.allowMultipleSelections.of(true),
-        indentOnInput(),
-        rectangularSelection(),
-        crosshairCursor(),
-        highlightSelectionMatches(),
         highlightSpecialChars(),
         EditorView.lineWrapping,
 
         // Grok 模式下启用括号匹配高亮、自动补全（括号自动闭合等）
-        ...(props.grokMode ? [bracketMatching(), closeBrackets(), autocompletion()] : []),
+        ...(props.grokMode ? [bracketMatching(), closeBrackets()] : []),
 
         // placeholder
         cmPlaceholder(props.placeholder),
@@ -210,9 +194,7 @@ export default defineComponent({
           // Grok 模式下启用括号闭合和自动补全的键盘映射
           ...(props.grokMode ? closeBracketsKeymap : []),
           ...defaultKeymap,
-          ...searchKeymap,
           ...historyKeymap,
-          ...(props.grokMode ? completionKeymap : []),
         ]),
 
         // 单行模式下 Enter 键行为
@@ -270,9 +252,6 @@ export default defineComponent({
           },
           '.cm-scroller': {
             overflow: isTextarea ? (props.showScrollbar ? 'auto' : 'hidden') : 'hidden',
-          },
-          '.cm-gutters': {
-            display: 'none',
           },
           '.cm-placeholder': {
             color: '#c4c6cc',
@@ -510,35 +489,39 @@ export default defineComponent({
             ref={popoverRef}
             contentClass='grok-input-popover-content'
             trigger='manual'
-            options={{
-              placement: 'bottom-start',
-              hideOnClick: true,
-              appendTo: document.body,
-              theme: 'bklog-basic-light',
-              arrow: false,
-              ...(props.popoverPosition === 'cursor' ? {
-                popperOptions: {
-                  modifiers: [
-                    {
-                      name: 'offset',
-                      options: {
-                        offset: ({ reference }: { reference: { x: number; y: number; height: number } }) => {
-                          // 光标定位模式：计算光标位置相对于编辑器容器的偏移
-                          if (!editorView) return [0, 0];
-                          const cursorPos = editorView.state.selection.main.head;
-                          const cursorCoords = editorView.coordsAtPos(cursorPos);
-                          if (!cursorCoords) return [0, 0];
-                          // 计算光标位置与参考元素的偏移量
-                          const offsetX = cursorCoords.left - reference.x;
-                          const offsetY = cursorCoords.bottom - reference.y - reference.height + 4;
-                          return [offsetX, offsetY];
+            options={
+              {
+                placement: 'bottom-start',
+                hideOnClick: true,
+                appendTo: document.body,
+                theme: 'bklog-basic-light',
+                arrow: false,
+                ...(props.popoverPosition === 'cursor'
+                  ? {
+                    popperOptions: {
+                      modifiers: [
+                        {
+                          name: 'offset',
+                          options: {
+                            offset: ({ reference }: { reference: { x: number; y: number; height: number } }) => {
+                              // 光标定位模式：计算光标位置相对于编辑器容器的偏移
+                              if (!editorView) return [0, 0];
+                              const cursorPos = editorView.state.selection.main.head;
+                              const cursorCoords = editorView.coordsAtPos(cursorPos);
+                              if (!cursorCoords) return [0, 0];
+                              // 计算光标位置与参考元素的偏移量
+                              const offsetX = cursorCoords.left - reference.x;
+                              const offsetY = cursorCoords.bottom - reference.y - reference.height + 4;
+                              return [offsetX, offsetY];
+                            },
+                          },
                         },
-                      },
+                      ],
                     },
-                  ],
-                },
-              } : {}),
-            } as any}
+                  }
+                  : {}),
+              } as any
+            }
             {...{
               scopedSlots: { content: renderPopoverContent },
             }}
