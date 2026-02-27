@@ -203,8 +203,7 @@ export default defineComponent({
             theme: 'success',
           });
         })
-        .catch(err => {
-          console.log(err);
+        .catch(() => {
           savePromiseEvent?.errorCallback?.();
           Message({
             message: t('更新失败'),

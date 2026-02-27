@@ -127,7 +127,6 @@ export default defineComponent({
      * @param {number} height  拖拽操作后的新高度
      * */
     function handleCrossResize(height: number) {
-      console.log('height', height);
       set(containerHeight, height);
     }
 
