@@ -623,7 +623,6 @@ export default defineComponent({
     function handleScroll(event) {
       const el = event.target;
       const { scrollHeight, scrollTop, clientHeight } = el;
-      console.log('scrollTop', event.target.scrollTop, Math.ceil(scrollTop) + clientHeight >= scrollHeight);
       if (Math.ceil(scrollTop) + clientHeight >= scrollHeight) {
         setPaginationData(false);
       }
