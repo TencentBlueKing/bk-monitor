@@ -187,6 +187,7 @@ class LogCollectorHandler:
         storage_cluster_name_list: list = None,
         status_list: list = None,
         log_access_type_list: list = None,
+        exclude_not_completed: bool = False,
     ) -> list[dict]:
         """
          获取采集项信息
@@ -201,13 +202,15 @@ class LogCollectorHandler:
         :param storage_cluster_name_list: 集群名
         :param status_list: 采集状态
         :param log_access_type_list: 日志接入类型
+        :param exclude_not_completed: 是否排除未完成的采集项
         """
         if scenario_id_list and Scenario.LOG not in scenario_id_list:
             # 非日志采集查询，直接返回
             return []
 
         qs = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id)
-
+        if exclude_not_completed:
+            qs = qs.filter(table_id__isnull=False)
         if keyword:
             qs = qs.filter(Q(collector_config_name__icontains=keyword) | Q(table_id__icontains=keyword))
 
@@ -469,6 +472,7 @@ class LogCollectorHandler:
             storage_cluster_name_list=storage_cluster_name_list,
             status_list=status_list,
             log_access_type_list=log_access_type_list,
+            exclude_not_completed=data.get("exclude_not_completed", False),
         )
 
         lists_to_check = [
