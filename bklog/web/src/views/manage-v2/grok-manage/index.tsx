@@ -54,6 +54,7 @@ export default defineComponent({
     const { formatResponseListTimeZoneString } = useUtils();
 
     const searchKeyword = ref('');
+    const appliedKeyword = ref('');
     const isLoading = ref(false);
     const tableData = ref<{
       list: IGrokItem[];
@@ -99,7 +100,7 @@ export default defineComponent({
 
     // 是否有过滤条件
     const hasFilter = computed(() => {
-      return !!(searchKeyword.value || filterParams.value.is_builtin !== undefined || filterParams.value.updated_by);
+      return !!(appliedKeyword.value || filterParams.value.is_builtin !== undefined || filterParams.value.updated_by);
     });
 
     // 弹窗状态
@@ -196,6 +197,7 @@ export default defineComponent({
 
     // 搜索处理
     const handleSearch = () => {
+      appliedKeyword.value = searchKeyword.value;
       pagination.value.current = 1;
       fetchAllData();
     };
