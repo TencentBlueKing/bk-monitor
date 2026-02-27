@@ -62,7 +62,6 @@ const ALERT_TABLE_COLUMNS = [
     minWidth: 150,
     sorter: true,
   },
-
   {
     colKey: 'description',
     title: window.i18n.t('告警内容'),
@@ -77,14 +76,7 @@ const ALERT_TABLE_COLUMNS = [
     is_locked: false,
     minWidth: 300,
   },
-  {
-    colKey: 'bk_biz_name',
-    title: window.i18n.t('空间名'),
-    is_default: true,
-    is_locked: false,
-    minWidth: 100,
-    sorter: false,
-  },
+
   {
     colKey: 'plugin_display_name',
     title: window.i18n.t('告警来源'),
@@ -201,6 +193,15 @@ const ALERT_TABLE_COLUMNS = [
     is_default: false,
     is_locked: false,
     minWidth: 240,
+  },
+  {
+    colKey: 'bk_biz_name',
+    title: window.i18n.t('空间名'),
+    is_default: true,
+    is_locked: true,
+    minWidth: 100,
+    sorter: false,
+    fixed: 'right',
   },
   {
     colKey: 'stage_display',
