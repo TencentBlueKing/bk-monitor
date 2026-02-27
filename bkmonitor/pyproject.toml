@@ -13,7 +13,6 @@ dependencies = [
     "bk-audit==1.0.7",
     "bk-crypto-python-sdk==2.0.1",
     "bk-iam==2.0.3",
-    # 暂时不开启，待子模块拉取问题解决后再开启
     "bk-monitor-base",
     "bk-notice-sdk==1.4.2",
     "bkstorages==2.0.3",

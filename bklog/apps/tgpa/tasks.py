@@ -320,9 +320,9 @@ def periodic_sync_tgpa_reports():
             logger.warning("Time range too large, set start_time to 30 minutes ago for business: %s", bk_biz_id)
             start_time = end_time.shift(minutes=-TGPA_REPORT_MAX_TIME_RANGE_MINUTES)
 
-        # 时间偏移 1 分钟，避免数据延迟带来的影响
-        start_time = int(start_time.shift(minutes=TGPA_REPORT_OFFSET_MINUTES).timestamp() * 1000)
-        end_time = int(end_time.shift(minutes=TGPA_REPORT_OFFSET_MINUTES).timestamp() * 1000)
+        # 时间偏移 5 分钟，避免数据延迟带来的影响
+        start_time = start_time.shift(minutes=TGPA_REPORT_OFFSET_MINUTES).int_timestamp * 1000
+        end_time = end_time.shift(minutes=TGPA_REPORT_OFFSET_MINUTES).int_timestamp * 1000
 
         try:
             # 获取时间范围内的上报文件列表
