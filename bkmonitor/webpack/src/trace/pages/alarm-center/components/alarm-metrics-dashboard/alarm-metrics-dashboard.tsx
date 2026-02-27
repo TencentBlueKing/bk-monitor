@@ -95,6 +95,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 是否渲染折叠面板的 header 区域 */
+    showHeader: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: ['dataZoomChange', 'durationChange', 'restore'],
   setup(props) {
@@ -113,12 +118,20 @@ export default defineComponent({
         let transformTargets = e?.targets;
         if (transformTargets?.length) {
           const [startTime, endTime] = handleTransformToTimestamp(get(timeRange));
+          const rawInterval = props.viewOptions?.interval;
           // eslint-disable-next-line @typescript-eslint/naming-convention
-          const down_sample_range =
-            downSampleRangeComputed(props.viewOptions?.interval?.toString?.(), [startTime, endTime], 'unifyQuery') ||
-            '';
-          const [v] = down_sample_range.split('s');
-          const interval = props.viewOptions?.interval === 'auto' ? `${Math.ceil(+v / 60)}m` : down_sample_range;
+          let down_sample_range: string | undefined;
+          let interval: number | string;
+          if (rawInterval === 'auto') {
+            // auto 模式：按图表宽度动态计算 down_sample_range，从中反推 interval
+            down_sample_range = downSampleRangeComputed('auto', [startTime, endTime], 'unifyQuery') || '';
+            const [v] = down_sample_range.split('s');
+            interval = `${Math.ceil(+v / 60)}m`;
+          } else {
+            // 具体数字（如 60）：与老版本保持一致，不传 down_sample_range，interval 保持原始数字
+            down_sample_range = undefined;
+            interval = +rawInterval || 60;
+          }
           transformTargets = transformTargets.map(item => {
             return {
               ...item,
@@ -126,7 +139,7 @@ export default defineComponent({
                 ...getVariablesService().transformVariables(item.data, {
                   ...(props.viewOptions ?? {}),
                   interval,
-                  interval_second: convertToSeconds(interval),
+                  interval_second: typeof interval === 'number' ? interval : convertToSeconds(interval),
                 }),
                 down_sample_range,
               },
@@ -181,6 +194,7 @@ export default defineComponent({
           defaultHeight={0}
           description={`(${this.panelModels?.length})`}
           hasResize={false}
+          showHeader={this.showHeader}
           title={this.dashboardTitle}
         >
           <div class='alarm-metrics-chart-container'>
