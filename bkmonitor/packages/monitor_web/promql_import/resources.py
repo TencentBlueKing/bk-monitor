@@ -6,7 +6,7 @@ import re
 from collections import defaultdict
 
 import yaml
-from bk_monitor_base.strategy import THRESHOLD_ALLOWED_METHODS, get_metric_id
+from bk_monitor_base.strategy import get_metric_id
 from django.conf import settings
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -251,6 +251,14 @@ class UploadFileResource(Resource):
 
 class ImportAlertRule(ImportBaseResource):
     NOTICE_WAY_MAP = {"wechat": "weixin", "wechat_work": "rtx", "email": "mail", "sms": "sms", "phone": "voice"}
+    allowed_threshold_method = {
+        ">": "gt",
+        ">=": "gte",
+        "<": "lt",
+        "<=": "lte",
+        "==": "eq",
+        "!=": "neq",
+    }
 
     class RequestSerializer(serializers.Serializer):
         file_list = serializers.ListField(label="导入文件列表")
@@ -388,7 +396,7 @@ class ImportAlertRule(ImportBaseResource):
                                     "config": [
                                         [
                                             {
-                                                "method": THRESHOLD_ALLOWED_METHODS.get(
+                                                "method": self.allowed_threshold_method.get(
                                                     rule.get("operator", ">"), "gt"
                                                 ),
                                                 "threshold": rule.get("threshold", "0"),
