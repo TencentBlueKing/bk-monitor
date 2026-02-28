@@ -29,10 +29,13 @@ import { Component as tsc } from 'vue-tsx-support';
 import _ from 'lodash';
 
 import CompareType from './components/compare-type';
+import DecimalSelector from './components/decimal-selector';
 import GroupBy from './components/group-by';
 import IntervalCreator from './components/interval/index';
 import LimitFunction from './components/limit-function';
 import WhereCondition from './components/where-condition';
+
+import type { ChartSettingsParams } from '../../type';
 
 import type { getSceneView } from '../../../../../service';
 
@@ -42,15 +45,45 @@ type GetSceneViewParams = Parameters<typeof getSceneView>[0];
 
 interface IEmit {
   onChange: (value: GetSceneViewParams) => void;
+  onChartSettingChange: (value: ChartSettingsParams) => void;
   onMetricManage?: (tab: 'dimension' | 'metric') => 'dimension' | 'metric';
 }
 
 interface IProps {
+  chartSettingParams?: ChartSettingsParams;
   dimenstionParams?: GetSceneViewParams | null;
   exclude?: Array<'metric' | 'time'>;
   isShowExpand?: boolean;
   offsetSingle?: boolean;
   splitable?: boolean;
+}
+
+interface IResult {
+  interval: number | string;
+  metrics: string[];
+  common_conditions: {
+    key: string;
+    method: string;
+    value: string[];
+  }[];
+  compare: {
+    offset: string[];
+    type: string;
+  };
+  group_by: {
+    field: string;
+    split: boolean;
+  }[];
+  limit: {
+    function: 'bottom' | 'top';
+    limit: number;
+  };
+  where: {
+    condition: string;
+    key: string;
+    method: string;
+    value: string[];
+  }[];
 }
 
 export const createDefaultParams = (): GetSceneViewParams => ({
@@ -72,6 +105,7 @@ export const createDefaultParams = (): GetSceneViewParams => ({
 @Component
 export default class HeaderBox extends tsc<IProps, IEmit> {
   @Prop({ type: Object, default: null }) readonly dimenstionParams: IProps['dimenstionParams'];
+  @Prop({ type: Object, default: null }) readonly chartSettingParams: ChartSettingsParams;
   @Prop({ type: Boolean, default: true }) readonly isShowExpand: boolean;
   @Prop({ type: Array, default: () => [] }) readonly exclude: Array<'metric' | 'time'>;
   @Prop({ type: Boolean, default: true }) readonly splitable: IProps['splitable'];
@@ -85,6 +119,10 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
 
   isExpaned = true;
   params = createDefaultParams();
+  chartSettings: ChartSettingsParams = {
+    autoYAxis: true,
+    decimal: 0,
+  };
   calcLableWidth: () => void;
 
   @Watch('dimenstionParams', { immediate: true })
@@ -105,10 +143,22 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
     }
   }
 
+  @Watch('chartSettingParams', { immediate: true })
+  chartSettingParamsChange() {
+    if (!this.chartSettingParams) {
+      return;
+    }
+    this.chartSettings = { ...this.chartSettingParams };
+  }
+
   triggerChange() {
     this.$emit('change', {
       ...this.params,
     });
+  }
+
+  triggerChartSettingChange() {
+    this.$emit('chartSettingChange', { ...this.chartSettings });
   }
 
   handleConditionChange(payload: {
@@ -133,6 +183,11 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
   handleComparTypeChange(payload: GetSceneViewParams['compare']) {
     this.params.compare = payload;
     this.triggerChange();
+  }
+
+  handleDecimalChange(payload: ChartSettingsParams['decimal']) {
+    this.chartSettings.decimal = payload;
+    this.triggerChartSettingChange();
   }
 
   handleToogleExpand() {
@@ -210,6 +265,10 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
                 offsetSingle={this.offsetSingle}
                 value={this.params.compare}
                 onChange={this.handleComparTypeChange}
+              />
+              <DecimalSelector
+                value={this.chartSettings.decimal}
+                onChange={this.handleDecimalChange}
               />
               <div class='action-extend'>{this.$slots.actionExtend}</div>
             </div>

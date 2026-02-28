@@ -11,12 +11,14 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import logging
+import os
 import urllib.parse
 from typing import Any
 
 import requests
 from celery.schedules import crontab
 from django.conf import settings
+from kombu.utils.url import parse_url
 
 from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cluster import get_cluster
@@ -54,14 +56,32 @@ def register_alarm_cache_bmw_task():
 
     # 获取 redis 配置
     cache_redis_conf = settings.REDIS_CACHE_CONF
-    redis_options = {
-        "addrs": [f"{cache_redis_conf['host']}:{cache_redis_conf['port']}"],
-        "db": cache_redis_conf["db"],
-        "master_name": cache_redis_conf.get("master_name"),
-        "mode": "standalone" if settings.CACHE_BACKEND_TYPE == "RedisCache" else "sentinel",
-        "password": cache_redis_conf.get("password"),
-        "sentinel_password": cache_redis_conf.get("sentinel_password"),
-    }
+    if os.getenv("REDIS_CACHE_CMDB_URL"):
+        cmdb_redis_conf: dict[str, Any] = parse_url(os.getenv("REDIS_CACHE_CMDB_URL"))
+        hosts = [host.strip() for host in cmdb_redis_conf["hostname"].split(";") if host.strip()]
+        addrs = [f"{host}:{cmdb_redis_conf['port']}" for host in hosts]
+        redis_options = {
+            "addrs": addrs,
+            "db": cache_redis_conf["db"],
+            "master_name": cmdb_redis_conf["userid"],
+            "mode": "standalone" if cmdb_redis_conf["transport"] == "redis" else "sentinel",
+            "password": cmdb_redis_conf["password"],
+            "sentinel_password": cmdb_redis_conf["virtual_host"],
+        }
+    else:
+        hosts = [host.strip() for host in cache_redis_conf["host"].split(";") if host.strip()]
+        addrs = [f"{host}:{cache_redis_conf['port']}" for host in hosts]
+        redis_options = {
+            "addrs": addrs,
+            "db": cache_redis_conf["db"],
+            "master_name": cache_redis_conf.get("master_name"),
+            "mode": "standalone" if settings.CACHE_BACKEND_TYPE == "RedisCache" else "sentinel",
+            "password": cache_redis_conf.get("password"),
+            "sentinel_password": cache_redis_conf.get("sentinel_password"),
+        }
+
+    if not addrs:
+        raise ValueError("redis addrs is empty for alarm cache task registration")
 
     # 参数准备
     task_kind_params: dict[str, Any] = {

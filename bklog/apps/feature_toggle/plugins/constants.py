@@ -69,3 +69,5 @@ UNIFY_QUERY_SQL = "unify_query_sql"
 #   }
 # }
 MINI_CLUSTERING_CONFIG = "mini_clustering_config"
+
+UNIFY_QUERY_SEARCH_CLUSTERING = "unify_query_search_clustering"

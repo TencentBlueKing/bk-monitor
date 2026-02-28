@@ -33,6 +33,8 @@ export default {
   待选项列表: 'Unselected item',
   已选项列表: 'Selected item',
   查询无数据: 'No query results',
+  '- 共检索出': '- Retrieved',
+  '条结果 -': 'results -',
   数据源配置: 'Data source configuration',
   请输入组名: 'Please enter group name',
   搜索收藏名: 'Search collection name',
@@ -1264,4 +1266,17 @@ export default {
   '已上传成功，请直接检索': 'Uploaded successfully, please search directly',
   '搜索 openID、文件名称': 'Search by OpenID, file name',
   请先勾选任务: 'Please check the task first',
+  '支持字母、数字、下划线、连字符': 'Supports letters, numbers, underscores, and hyphens',
+  '支持字母、数字、下划线、连字符，不能以连字符开头':
+    'Supports letters, numbers, underscores, and hyphens, but cannot start with a hyphen',
+  '多个用户名粘贴请使用英文分号 " ; " 分隔 ，手动输入用户名请键入 Enter 保存':
+    'When pasting multiple usernames, please separate them with English semicolons ";". When manually entering usernames, press Enter to save',
+  输入检索内容: 'Enter search content',
+  直接检索: 'Search directly',
+  可输入自然语言: 'Natural language input is supported',
+  '触发 AI 解析': 'Trigger AI analysis',
+  'AI 解析': 'AI analysis',
+  'Tab 可切换为 AI 模式': 'The tab can be switched to AI mode',
+  '输入查询内容，“帮我查询最近 3 天的错误日志”（Tab 可切回普通模式）':
+    'Enter your query, "Help me check the error logs for the last 3 days" (Tab switches back to normal mode)',
 };

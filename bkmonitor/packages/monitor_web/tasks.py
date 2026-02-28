@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 import arrow
 from arrow.parser import ParserError
+from bk_monitor_base.uptime_check import UptimeCheckTaskStatus, get_task, list_tasks
 from bkstorages.exceptions import RequestError
 from celery import shared_task
 from celery.signals import task_postrun
@@ -85,7 +86,6 @@ from monitor_web.export_import.constant import ImportDetailStatus, ImportHistory
 from monitor_web.extend_account.models import UserAccessRecord
 from monitor_web.models.custom_report import CustomEventGroup
 from monitor_web.models.plugin import CollectorPluginMeta
-from monitor_web.models.uptime_check import UptimeCheckTask
 from monitor_web.plugin.constant import PLUGIN_REVERSED_DIMENSION
 from monitor_web.strategies.built_in import run_build_in
 from utils import business, count_md5
@@ -575,10 +575,8 @@ def update_uptime_check_task_status():
     定时刷新 starting 状态的拨测任务
     :return:
     """
-    from monitor_web.models.uptime_check import UptimeCheckTask
-
-    for task_id in UptimeCheckTask.objects.filter(status=UptimeCheckTask.Status.STARTING).values_list("id", flat=True):
-        update_task_running_status(task_id)
+    for task in list_tasks(query={"status": UptimeCheckTaskStatus.STARTING.value}, fields=["id"]):
+        update_task_running_status(task.id)
 
 
 @shared_task(ignore_result=True, queue="celery_resource")
@@ -586,9 +584,8 @@ def update_task_running_status(task_id):
     """
     异步查询拨测任务启动状态，更新拨测任务列表中的运行状态
     """
-    task = UptimeCheckTask.objects.get(id=task_id)
-    bk_biz_id = task.bk_biz_id
-    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+    task = get_task(task_id=task_id)
+    bk_tenant_id = task.bk_tenant_id
     set_local_tenant_id(bk_tenant_id=bk_tenant_id)
     set_local_username(username=get_admin_username(bk_tenant_id=bk_tenant_id))
     resource.uptime_check.update_task_running_status(task_id)

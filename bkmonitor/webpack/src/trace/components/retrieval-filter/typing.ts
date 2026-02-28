@@ -27,21 +27,29 @@
 import type { PropType } from 'vue';
 
 export enum EFieldType {
+  // 全文检索输入框
   all = 'all',
   boolean = 'boolean',
   date = 'date',
+  // 是否为耗时组件
+  duration = 'duration',
+  // input输入框
+  input = 'input',
   integer = 'integer',
   keyword = 'keyword',
   long = 'long',
+  // textarea 输入框
   text = 'text',
 }
 export enum EMethod {
+  containsMatchPhrase = 'contains match phrase',
   eq = 'equal',
   exclude = 'exclude',
   exists = 'exists',
   include = 'include',
   like = 'link',
   ne = 'not_equal',
+  notContainsMatchPhrase = 'not contains match phrase',
   notExists = 'not exists',
   notLike = 'not_like',
 }
@@ -76,20 +84,17 @@ export enum EQueryStringTokenType {
   value = 'value',
   valueCondition = 'value-condition',
 }
-
 export interface IFavoriteListItem {
+  groupName: string;
   id: string;
   name: string;
-  favorites: {
-    config: {
-      queryConfig: {
-        query_string: string;
-        where: IWhereItem[];
-      };
-    };
-    name: string;
-  }[];
+  config: {
+    commonWhere?: IWhereItem[];
+    queryString?: string;
+    where?: IWhereItem[];
+  };
 }
+
 export interface IFieldItem {
   /* 字段别名 */
   alias: string;
@@ -101,56 +106,86 @@ export interface IFieldItem {
   methods: IValue[];
   type?: EFieldType;
 }
-
 export interface IFilterField {
+  // 字段别名
   alias: string;
-  can_displayed?: boolean;
-  // is_option_enabled: boolean;
-  is_dimensions?: boolean;
-  is_searched?: boolean;
+  // isDimensions: boolean;
+  // 是否需要异步加载数据
   isEnableOptions?: boolean;
+  // 字段名
   name: string;
+  // 字段类型
   type: EFieldType;
-  supported_operations: {
+  // 支持的操作符
+  methods: {
+    // 操作符别名
     alias: string;
-    label?: string;
-    operator?: string;
+    // options用于是否展示通配符或者组件关系等其他选项字段
+    /* 通配符字段key */
+    // const WILDCARD_KEY = 'is_wildcard';
+    /* 组件关系字段key */
+    // const GROUP_RELATION_KEY = 'group_relation';
     options?: {
       children?: {
-        label: string;
-        value: string;
+        // 其他选项的可选项
+        label: string; // 其他选项的可选项别名
+        value: string; // 其他选项的可选项值
       }[];
-      default?: boolean | string;
-      label: string;
-      name: string;
+      default?: boolean | string; // 其他选项字段默认值
+      label: string; // 其他选项字段别名
+      name: string; // 当前暂时支持WILDCARD_KEY， GROUP_RELATION_KEY
     }[];
+    // 操作符显示的placeholder TODO(待支持)
     placeholder?: string;
-    value: EMethod;
-    wildcard_operator?: string;
-  }[]; // 支持的操作
+    // 操作符id
+    value: EMethod | string;
+    // 用于进行异步搜索时的默认操作符
+    wildcardValue?: string;
+  }[];
 }
+
 export interface IFilterItem {
   condition: { id: ECondition; name: string };
   hide?: boolean;
   isSetting?: boolean; // 是否是设置项
   key: { id: string; name: string };
-  method: { id: EMethod; name: string };
-  value: { id: string; name: string }[];
-  options?: {
-    group_relation?: string;
-    is_wildcard?: boolean;
-  };
+  method: { id: EMethod | string; name: string };
+  value: { id: number | string; name: number | string }[];
+  options?:
+    | Record<string, any>
+    | {
+        group_relation?: string;
+        is_wildcard?: boolean;
+      };
 }
+
 export interface IGetValueFnParams {
   field?: string;
   fields?: string[];
-  isInit__?: boolean; // 此字段不传给后台
+  isInit__?: boolean; // 此字段不传给后台(在聚焦或者查询的时候此值为true)
   limit?: number;
   queryString?: string;
   search?: string;
   where?: IWhereItem[];
 }
 
+export type IHandleGetUserConfig = (key: string, config?: Record<string, any>) => Promise<string[] | undefined>;
+
+export type IHandleSetUserConfig = (value: string, configId?: string) => Promise<boolean>;
+
+//  组件内部标准格式
+export interface INormalWhere {
+  condition: ECondition;
+  key: string;
+  method: EMethod | string;
+  value: Array<number | string>;
+  options:
+    | Record<string, any>
+    | {
+        group_relation?: boolean;
+        is_wildcard?: boolean;
+      };
+}
 export interface IOptionsInfo {
   count: 0;
   list: IValue[];
@@ -161,8 +196,9 @@ export interface IValue {
   name: string;
 }
 
+// 组件外部格式
 export interface IWhereItem {
-  condition?: ECondition;
+  condition?: ECondition | string;
   key: string;
   method?: EMethod | string;
   operator?: string;
@@ -180,21 +216,26 @@ export interface IWhereValueOptionsItem {
     name: string;
   }[];
 }
-
 export type TGetValueFn = (params: IGetValueFnParams) => Promise<IOptionsInfo>;
 
-interface FavList {
-  config: any;
-  create_user: string;
-  disabled?: boolean;
-  group_id: number | object;
-  groupName?: string;
-  id: number;
-  name: string;
-  update_time: string;
-  update_user: string;
-}
-export const NOT_TYPE_METHODS = [EMethod.ne, EMethod.exclude, EMethod.notExists, EMethod.notLike];
+// interface FavList {
+//   config: any;
+//   create_user: string;
+//   disabled?: boolean;
+//   group_id: number | object;
+//   groupName?: string;
+//   id: number;
+//   name: string;
+//   update_time: string;
+//   update_user: string;
+// }
+export const NOT_TYPE_METHODS = [
+  EMethod.ne,
+  EMethod.exclude,
+  EMethod.notExists,
+  EMethod.notLike,
+  EMethod.notContainsMatchPhrase,
+];
 
 export const qsSelectorOptionsDescMap = {
   ':': [
@@ -239,10 +280,12 @@ export const qsSelectorOptionsDescMap = {
 };
 
 export const RETRIEVAL_FILTER_PROPS = {
+  // 字段列表
   fields: {
     type: Array as PropType<IFilterField[]>,
     default: () => [],
   },
+  // 检索值候选项获取
   getValueFn: {
     type: Function as PropType<(params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>>,
     default: () =>
@@ -251,65 +294,137 @@ export const RETRIEVAL_FILTER_PROPS = {
         list: [],
       }),
   },
+  // ui模式数据
   where: {
     type: Array as PropType<IWhereItem[]>,
     default: () => [],
   },
+  // 常驻筛选数据
   commonWhere: {
     type: Array as PropType<IWhereItem[]>,
     default: () => [],
   },
+  // 语句模式数据
   queryString: {
     type: String,
     default: '',
   },
+  // 当前选择收藏项
   selectFavorite: {
-    type: Object as PropType<FavList>,
+    type: Object as PropType<{
+      commonWhere?: IWhereItem[];
+      where?: IWhereItem[];
+    }>,
     default: () => null,
   },
+  // 收藏列表
   favoriteList: {
     type: Array as PropType<IFavoriteListItem[]>,
     default: () => [],
   },
+  // 常驻设置唯一id
   residentSettingOnlyId: {
     type: String,
     default: '',
   },
-  dataId: {
-    type: String,
-    default: '',
+  // 是否为默认常驻设置
+  isDefaultResidentSetting: {
+    type: Boolean,
+    default: true,
   },
-  source: {
-    type: String as PropType<APIType>,
-    default: APIType.MONITOR,
-  },
+  // 当前模式
   filterMode: {
     type: String as PropType<EMode>,
     default: EMode.ui,
   },
+  // 是否包含收藏功能
   isShowFavorite: {
     type: Boolean,
     default: false,
   },
+  // 是否需要常驻设置功能
+  isShowResident: {
+    type: Boolean,
+    default: false,
+  },
+  // 是否需要复制功能
+  isShowCopy: {
+    type: Boolean,
+    default: false,
+  },
+  // 是否需要清空功能
+  isShowClear: {
+    type: Boolean,
+    default: false,
+  },
+  // 是否需要最右侧的搜索按钮
+  isShowSearchBtn: {
+    type: Boolean,
+    default: true,
+  },
+  // 当前默认是否展示常驻设置
   defaultShowResidentBtn: {
     type: Boolean,
     default: false,
   },
-  isTraceRetrieval: {
-    type: Boolean,
-    default: true,
-  },
+  // 当前默认常驻设置展示字段
   defaultResidentSetting: {
-    type: Array as PropType<string[]>,
-    default: () => [],
-  },
-  notSupportEnumKeys: {
     type: Array as PropType<string[]>,
     default: () => [],
   },
   placeholder: {
     type: String,
     default: window.i18n.t('快捷键 / ，可直接输入'),
+  },
+  // 是否是单显示模式
+  isSingleMode: {
+    type: Boolean,
+    default: false,
+  },
+  // 为了支持外部各类where条件格式可以自定义格式
+  // 将自定义格式转换为组件内支持格式
+  whereFormatter: {
+    type: Function as PropType<(where: any[]) => INormalWhere[]>,
+    default: (v: any[]) => {
+      return v;
+    },
+  },
+  // 将组件内支持格式转换为外部自定义格式
+  changeWhereFormatter: {
+    type: Function as PropType<(where: INormalWhere[]) => any[]>,
+    default: (v: INormalWhere[]) => {
+      return v;
+    },
+  },
+  // 常驻设置获取用户配置
+  handleGetUserConfig: {
+    type: Function as PropType<IHandleGetUserConfig>,
+    default: () => Promise.resolve(undefined),
+  },
+  // 常驻设置设置用户配置
+  handleSetUserConfig: {
+    type: Function as PropType<IHandleSetUserConfig>,
+    default: () => Promise.resolve(false),
+  },
+  // 延迟加载（降低加载数据时的跳动）
+  loadDelay: {
+    type: Number,
+    default: 300,
+  },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
+  },
+  // 下拉弹层z-index
+  zIndex: {
+    type: Number,
+    default: 1000,
+  },
+  // 无需检索值的操作符列表
+  noValueOfMethods: {
+    type: Array as PropType<string[]>,
+    default: () => [],
   },
 };
 export const RETRIEVAL_FILTER_EMITS = {
@@ -349,6 +464,34 @@ export const UI_SELECTOR_PROPS = {
     type: String,
     default: window.i18n.t('快捷键 / ，可直接输入'),
   },
+  loadDelay: {
+    type: Number,
+    default: 300,
+  },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
+  },
+  // 下拉弹层z-index
+  zIndex: {
+    type: Number,
+    default: 1000,
+  },
+  /** 拥有快捷键功能 */
+  hasShortcutKey: {
+    type: Boolean,
+    default: true,
+  },
+  /** tag是否有隐藏功能 */
+  hasTagHidden: {
+    type: Boolean,
+    default: true,
+  },
+  noValueOfMethods: {
+    type: Array as PropType<string[]>,
+    default: () => [],
+  },
 };
 export const UI_SELECTOR_EMITS = {
   change: (_v: IFilterItem[]) => true,
@@ -377,6 +520,19 @@ export const UI_SELECTOR_OPTIONS_PROPS = {
   keyword: {
     type: String,
     default: '',
+  },
+  loadDelay: {
+    type: Number,
+    default: 300,
+  },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
+  },
+  noValueOfMethods: {
+    type: Array as PropType<string[]>,
+    default: () => [],
   },
 };
 export const UI_SELECTOR_OPTIONS_EMITS = {
@@ -407,6 +563,16 @@ export const VALUE_TAG_SELECTOR_PROPS = {
         count: 0,
         list: [],
       }),
+  },
+  // 延迟加载
+  loadDelay: {
+    type: Number,
+    default: 300,
+  },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
   },
 };
 export const VALUE_TAG_SELECTOR_EMITS = {
@@ -505,6 +671,16 @@ export const VALUE_OPTIONS_PROPS = {
     type: Boolean,
     default: false,
   },
+  // 延迟加载
+  loadDelay: {
+    type: Number,
+    default: 300,
+  },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
+  },
 };
 export const VALUE_OPTIONS_EMITS = {
   isChecked: (_v: boolean) => true,
@@ -542,6 +718,16 @@ export const QS_SELECTOR_PROPS = {
   placeholder: {
     type: String,
     default: window.i18n.t('快捷键 / ，可直接输入'),
+  },
+  // 下拉弹层z-index
+  zIndex: {
+    type: Number,
+    default: 1000,
+  },
+  // 是否展示收藏功能
+  isShowFavorite: {
+    type: Boolean,
+    default: true,
   },
 };
 export const QS_SELECTOR_EMITS = {
@@ -585,6 +771,11 @@ export const QS_SELECTOR_OPTIONS_PROPS = {
     type: String,
     default: '',
   },
+  // 是否展示收藏功能
+  isShowFavorite: {
+    type: Boolean,
+    default: true,
+  },
 };
 export const QS_SELECTOR_OPTIONS_EMITS = {
   selectFavorite: (_v: string) => true,
@@ -598,6 +789,10 @@ export const KV_TAG_PROPS = {
   active: {
     type: Boolean,
     default: false,
+  },
+  hasTagHidden: {
+    type: Boolean,
+    default: true,
   },
 };
 export const KV_TAG_EMITS = {
@@ -629,7 +824,7 @@ export const SETTING_KV_SELECTOR_PROPS = {
     default: () => null,
   },
   value: {
-    type: Object as PropType<IWhereItem>,
+    type: Object as PropType<INormalWhere>,
     default: () => null,
   },
   maxWidth: {
@@ -644,9 +839,18 @@ export const SETTING_KV_SELECTOR_PROPS = {
         list: [],
       }),
   },
+  loadDelay: {
+    type: Number,
+    default: 300,
+  },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
+  },
 };
 export const SETTING_KV_SELECTOR_EMITS = {
-  change: (_v: IWhereItem) => true,
+  change: (_v: INormalWhere) => true,
 } as const;
 export const SETTING_KV_INPUT_PROPS = {
   fieldInfo: {
@@ -654,7 +858,7 @@ export const SETTING_KV_INPUT_PROPS = {
     default: () => null,
   },
   value: {
-    type: Object as PropType<IWhereItem>,
+    type: Object as PropType<INormalWhere>,
     default: () => null,
   },
   maxWidth: {
@@ -663,7 +867,7 @@ export const SETTING_KV_INPUT_PROPS = {
   },
 };
 export const SETTING_KV_INPUT_EMITS = {
-  change: (_v: IWhereItem) => true,
+  change: (_v: INormalWhere) => true,
 } as const;
 export const RESIDENT_SETTING_PROPS = {
   fields: {
@@ -679,7 +883,7 @@ export const RESIDENT_SETTING_PROPS = {
       }),
   },
   value: {
-    type: Array as PropType<IWhereItem[]>,
+    type: Array as PropType<INormalWhere[]>,
     default: () => [],
   },
   residentSettingOnlyId: {
@@ -694,9 +898,26 @@ export const RESIDENT_SETTING_PROPS = {
     type: Array as PropType<string[]>,
     default: () => [],
   },
+  handleGetUserConfig: {
+    type: Function as PropType<IHandleGetUserConfig>,
+    default: () => Promise.resolve(undefined),
+  },
+  handleSetUserConfig: {
+    type: Function as PropType<IHandleSetUserConfig>,
+    default: () => Promise.resolve(false),
+  },
+  loadDelay: {
+    type: Number,
+    default: 300,
+  },
+  // 滚动加载时一次拉取量
+  limit: {
+    type: Number,
+    default: 200,
+  },
 };
 export const RESIDENT_SETTING_EMITS = {
-  change: (_v: IWhereItem[]) => true,
+  change: (_v: INormalWhere[]) => true,
 } as const;
 export const TIME_CONSUMING_PROPS = {
   fieldInfo: {
@@ -708,10 +929,10 @@ export const TIME_CONSUMING_PROPS = {
     default: '',
   },
   value: {
-    type: Object as PropType<IWhereItem>,
+    type: Object as PropType<INormalWhere>,
     default: () => null,
   },
 };
 export const TIME_CONSUMING_EMITS = {
-  change: (_v: IWhereItem) => true,
+  change: (_v: INormalWhere) => true,
 } as const;

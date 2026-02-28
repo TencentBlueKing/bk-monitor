@@ -1,6 +1,20 @@
 .search-bar-wrapper {
   box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.0784313725);
 
+  // trace下log适配
+  &.trace-log-bar {
+    box-shadow: none;
+
+    .search-bar-container {
+      border: 1px solid #dcdee5;
+      border-right: none;
+    }
+
+    .filter-container-wrap {
+      box-shadow: none;
+    }
+  }
+
   .search-bar-container {
     display: flex;
     background-color: #fff;

@@ -401,6 +401,7 @@ export default defineComponent({
         RetrieveEvent.INDEX_SET_ID_CHANGE,
         RetrieveEvent.AUTO_REFRESH,
         RetrieveEvent.SORT_LIST_CHANGED,
+        RetrieveEvent.SEARCH_TIME_ZONE_CHANGE
       ],
       loadTrendData,
     );

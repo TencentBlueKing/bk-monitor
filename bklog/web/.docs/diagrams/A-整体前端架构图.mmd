@@ -1,0 +1,52 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e3f2fd', 'primaryTextColor': '#1565c0', 'primaryBorderColor': '#1976d2', 'lineColor': '#42a5f5', 'secondaryColor': '#fff3e0', 'tertiaryColor': '#f3e5f5'}}}%%
+graph TB
+    subgraph "应用入口层"
+        MAIN["main.js<br/>应用入口"]
+        APP["app.tsx<br/>根组件壳"]
+    end
+
+    subgraph "核心基础设施"
+        ROUTER["router/index.js<br/>路由系统"]
+        STORE["store/index.js<br/>Vuex 状态管理"]
+        HTTP["api/index.js<br/>HTTP 请求层"]
+        SERVICES["services/index.js<br/>API 服务定义"]
+    end
+
+    subgraph "Store 模块"
+        RETRIEVE_STORE["retrieve<br/>检索状态"]
+        COLLECT_STORE["collect<br/>采集状态"]
+        GLOBALS_STORE["globals<br/>全局状态"]
+    end
+
+    subgraph "路由模块"
+        RETRIEVE_ROUTES["retrieveRoutes<br/>检索模块"]
+        MANAGE_ROUTES["manageRoutes<br/>管理模块"]
+        DASHBOARD_ROUTES["dashboardRoutes<br/>仪表盘模块"]
+        MONITOR_ROUTES["monitorRoutes<br/>监控嵌入模块"]
+    end
+
+    subgraph "全局 UI 组件"
+        NOTICE["Notice<br/>公告组件"]
+        HEADNAV["HeadNav<br/>头部导航"]
+        AUTHDIALOG["AuthDialog<br/>鉴权弹窗"]
+        GLOBALSETTING["GlobalSettingDialog<br/>全局设置"]
+    end
+
+    MAIN --> APP
+    MAIN --> ROUTER
+    MAIN --> STORE
+    APP --> NOTICE
+    APP --> HEADNAV
+    APP --> AUTHDIALOG
+    APP --> GLOBALSETTING
+    APP --> |router-view| RETRIEVE_ROUTES
+    APP --> |router-view| MANAGE_ROUTES
+    APP --> |router-view| DASHBOARD_ROUTES
+    APP --> |router-view| MONITOR_ROUTES
+    
+    STORE --> RETRIEVE_STORE
+    STORE --> COLLECT_STORE
+    STORE --> GLOBALS_STORE
+    
+    HTTP --> SERVICES
+    STORE --> HTTP

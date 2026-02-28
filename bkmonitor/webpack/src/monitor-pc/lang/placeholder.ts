@@ -371,6 +371,7 @@ export default {
   '搜索 分组名': 'Search Groups Name',
   '搜索 收藏名称': 'Search Favorite Name',
   '请输入 关键字': 'Please enter keywords',
+  '搜索 字段名称': 'Search Field Name',
   '搜索 名称、别名': 'Search Name, Alias',
   '搜索 指标名、别名': 'Search Metric Name, Alias',
 };

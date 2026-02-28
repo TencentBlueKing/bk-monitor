@@ -353,7 +353,7 @@
     position: relative;
     width: 100%;
     overflow: hidden;
-    font-family: var(--table-fount-family);
+    font-family: var(--bklog-v3-row-ctx-font);
     font-size: var(--table-fount-size);
     line-height: 20px;
     color: var(--table-fount-color);
@@ -389,9 +389,9 @@
     }
 
     .bklog-root-field {
+      display: inline-block; // 修复内联元素基线对齐导致的 1px 差异
       margin-right: 4px;
       line-height: 20px;
-      display: inline-block; // 修复内联元素基线对齐导致的 1px 差异
       vertical-align: top; // 确保顶部对齐，避免基线对齐问题
 
       .bklog-json-view-row {
@@ -405,16 +405,16 @@
         white-space: pre-wrap;
       }
 
-      &:not(:first-child) {
-        margin-top: 1px;
-      }
+      // &:not(:first-child) {
+      //   margin-top: 1px;
+      // }
 
       .field-name {
         min-width: max-content;
 
         .black-mark {
           width: max-content;
-          padding: 2px 2px;
+          padding: 1px 2px;
           font-family: var(--bklog-v3-row-tag-font);
           font-weight: 500;
           color: #16171a;
@@ -517,8 +517,8 @@
     &.is-inline {
       .bklog-root-field {
         display: inline-flex;
-        vertical-align: top; // 确保顶部对齐，避免基线对齐问题
         word-break: break-all;
+        vertical-align: top; // 确保顶部对齐，避免基线对齐问题
 
         .segment-content {
           word-break: break-all;

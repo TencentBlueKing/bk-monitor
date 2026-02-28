@@ -1,6 +1,7 @@
 import django
 import pytest
 
+from apm.constants import ApmCacheType
 from apm.core.discover.instance import InstanceDiscover
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.models import ApmApplication, TopoInstance
@@ -100,12 +101,14 @@ class TestTopoInstance(django.test.TestCase):
 
         topo_instance = TemInstanceDiscover(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME)
 
-        topo_instance.discover(SPAN_DATA_LIST)
+        exists_data = topo_instance.list_exists()
+        topo_instance.discover(SPAN_DATA_LIST, exists_data)
         queryset = TopoInstance.objects.filter(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME)
         assert queryset.count() <= topo_instance.MAX_COUNT
 
-        topo_instance.discover(SPAN_DATA_LIST)
-        name = ApmCacheHandler.get_topo_instance_cache_key(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME)
+        exists_data = topo_instance.list_exists()
+        topo_instance.discover(SPAN_DATA_LIST, exists_data)
+        name = ApmCacheHandler.get_cache_key(ApmCacheType.TOPO_INSTANCE, bk_biz_id=BK_BIZ_ID, app_name=APP_NAME)
         cache_data = ApmCacheHandler().get_cache_data(name)
 
         assert len(cache_data) <= topo_instance.MAX_COUNT

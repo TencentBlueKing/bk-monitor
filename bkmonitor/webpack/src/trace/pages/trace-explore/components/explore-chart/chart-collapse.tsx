@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, shallowRef } from 'vue';
+import { computed, defineComponent, onMounted, shallowRef, watch } from 'vue';
 
 import { get, set } from '@vueuse/core';
 
@@ -48,6 +48,14 @@ export default defineComponent({
       type: Number,
       default: 166,
     },
+    minHeight: {
+      type: Number,
+      default: 166,
+    },
+    maxHeight: {
+      type: Number,
+      default: 300,
+    },
     /** 初始化时折叠面板默认是否展开状态 */
     defaultIsExpand: {
       type: Boolean,
@@ -64,7 +72,8 @@ export default defineComponent({
       default: 36,
     },
   },
-  setup(props, { slots }) {
+  emits: ['collapseChange'],
+  setup(props, { slots, emit }) {
     /** 折叠面板，是否展开图表 */
     const isExpand = shallowRef(true);
     /** 显示内容区域高度 -- 主要用于配合 resize 操作时使用 */
@@ -89,6 +98,15 @@ export default defineComponent({
       // 容器切换折叠状态时动画持续时长
       '--expand-animation-duration': '0.6s',
     }));
+
+    watch(
+      () => props.defaultIsExpand,
+      val => {
+        if (val !== isExpand.value) {
+          set(isExpand, val);
+        }
+      }
+    );
 
     onMounted(() => {
       initConfig();
@@ -117,6 +135,7 @@ export default defineComponent({
      */
     function handleExpandChange() {
       set(isExpand, !get(isExpand));
+      emit('collapseChange', get(isExpand));
     }
 
     /**
@@ -172,7 +191,13 @@ export default defineComponent({
               </div>
             </div>
             <div class='chart-collapse-content'>{this.$slots?.default?.(this.scopedSlotsParam) || ''}</div>
-            {this.hasResize && <MonitorCrossDrag onMove={this.handleCrossResize} />}
+            {this.hasResize && (
+              <MonitorCrossDrag
+                maxHeight={this.maxHeight}
+                minHeight={this.minHeight}
+                onMove={this.handleCrossResize}
+              />
+            )}
           </div>
         </div>
       </div>

@@ -111,6 +111,7 @@ class NewMetricChart extends CommonSimpleChart {
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: string[]) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
+  @InjectReactive({ from: 'chartSettingParams', default: {} }) readonly chartSettingParams;
   // @InjectReactive({ from: 'containerScrollTop', default: 0 }) readonly containerScrollTop: number;
   @InjectReactive('isApm') readonly isApm: boolean;
   @Ref('baseChart') readonly baseChart: HTMLElement;
@@ -262,6 +263,17 @@ class NewMetricChart extends CommonSimpleChart {
   @Watch('currentMethod', { immediate: true })
   handleCurrentMethod() {
     this.method = this.currentMethod;
+  }
+  @Watch('chartSettingParams', { immediate: true })
+  handleChartSettingParamsChange() {
+    this.options = {
+      ...this.options,
+      yAxis: {
+        ...this.options.yAxis,
+        minInterval: 10 ** -(this.chartSettingParams?.decimal ?? 0),
+        min: this.chartSettingParams?.autoYAxis ? 'dataMin' : 0,
+      },
+    };
   }
   /** 切换计算的Method */
   handleMethodChange(method: (typeof APM_CUSTOM_METHODS)[number]) {
@@ -661,16 +673,21 @@ class NewMetricChart extends CommonSimpleChart {
                 formatter: seriesList.every(item => item.unit === seriesList[0].unit)
                   ? v => {
                       if (seriesList[0].unit !== 'none') {
-                        const obj = getValueFormat(seriesList[0].unit)(v - this.minBase, seriesList[0].precision);
+                        const obj = getValueFormat(seriesList[0].unit)(
+                          v - this.minBase,
+                          this.chartSettingParams?.decimal ?? seriesList[0].precision
+                        );
                         return this.removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
                       }
                       return v;
                     }
-                  : (v: number) => handleYAxisLabelFormatter(v - this.minBase),
+                  : (v: number) => handleYAxisLabelFormatter(v - this.minBase, this.chartSettingParams?.decimal ?? 3),
               },
               splitNumber: this.height < 120 ? 2 : 4,
-              minInterval: 1,
+              minInterval: 10 ** -(this.chartSettingParams?.decimal ?? 0),
               max: 'dataMax',
+              /** 支持Y轴自适应 */
+              min: this.chartSettingParams?.autoYAxis ? 'dataMin' : 0,
               scale: false,
             },
             xAxis: {

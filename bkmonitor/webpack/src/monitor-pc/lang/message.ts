@@ -239,6 +239,7 @@ export default {
   暂无搜索: 'No search result',
   无需认证: 'No authentication',
   暂无应用: 'No applications',
+  暂无选中项: 'No selected items',
   未配置策略: 'No rules',
   搜索无数据: 'No data',
   无Agent: 'No Agent',
@@ -357,6 +358,9 @@ export default {
   当前日历没有相关日程: 'There are no relevant schedules in the current calendar',
   系统异常: 'System exception',
   执行超时: 'Execution timeout',
+  '当前检索范围，暂无告警': 'No alarms in the current search scope',
+  '当前检索范围，暂无故障': 'No failures in the current search scope',
+  '当前检索范围，暂无处理记录': 'No processing records in the current search scope',
 
   /*
  #### 提示反馈类

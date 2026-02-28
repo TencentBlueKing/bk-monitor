@@ -51,7 +51,7 @@ export default defineComponent({
   props: {
     list: {
       default: () => [],
-      type: [] as PropType<IGroupItem[]>,
+      type: Array as PropType<IGroupItem[]>,
     },
     value: {
       default: '',
@@ -176,7 +176,7 @@ export default defineComponent({
           width={480}
           extCls='group-select-component-popover'
           v-slots={{
-            default: (
+            default: () => (
               <div
                 class={['select-wrap', { 'is-focus': this.isShow }, { 'is-hover': !this.readonly }]}
                 data-set='select-wrap'
@@ -206,7 +206,7 @@ export default defineComponent({
                 />
               </div>
             ),
-            content: (
+            content: () => (
               <div ref='selectPanelRef'>
                 <div class='group-select-panel'>
                   <Input

@@ -1,5 +1,12 @@
 import type * as apiMap from '../service';
 
+export interface ChartSettingsParams {
+  /** 是否自动调整Y轴 */
+  autoYAxis: boolean;
+  /** 小数位 */
+  decimal: number;
+}
+
 export interface IColumnItem {
   colKey?: string;
   color?: string;
@@ -26,11 +33,11 @@ export interface ICommonCondition {
   method: 'eq' | 'exclude' | 'include' | 'neq' | 'nreg' | 'reg';
   value: string[];
 }
-
 export interface ICompare {
   offset: string[]; // 用于描述对比的时间偏移
   type: '' | 'metric' | 'time';
 }
+
 export interface ICondition {
   condition?: 'and' | 'or'; // 可选字段
   key: string;

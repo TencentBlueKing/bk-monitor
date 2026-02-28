@@ -65,6 +65,7 @@ test/unit/coverage
 # Editor directories and files
 .DS_Store
 .idea
+
 *.suo
 *.ntvs*
 *.njsproj
@@ -91,4 +92,3 @@ src/views/playground/*
 /monitor-trace-retrieve/*
 src/local.**
 local.cookie
-docs/

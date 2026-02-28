@@ -1,0 +1,40 @@
+.alarm-center-detail-panel-trace {
+  padding-top: 1px;
+
+  .panel-trace-table {
+    &.trace-explore-table {
+      .explore-col {
+        &.explore-text-col {
+          &:has([data-col-id='error_msg']) {
+            color: #c12626;
+          }
+        }
+      }
+
+      .explore-text-ellipsis {
+        &:has(> .explore-table-condition-menu) {
+          &:hover {
+            color: unset;
+          }
+        }
+      }
+
+      .explore-table-condition-menu {
+        cursor: unset;
+
+        &:hover {
+          color: unset;
+        }
+      }
+
+      .explore-table {
+        max-height: 370px;
+      }
+
+      /* stylelint-disable-next-line selector-class-pattern */
+      .t-table__last-full-row {
+        display: none;
+      }
+    }
+  }
+}

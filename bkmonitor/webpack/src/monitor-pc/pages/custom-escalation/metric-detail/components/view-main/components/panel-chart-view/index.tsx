@@ -36,7 +36,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import { chunkArray } from '../../../../utils';
 import LayoutChartTable from './components/layout-chart-table';
 
-import type { IMetricAnalysisConfig, RequestHandlerMap } from '../../../../type';
+import type { ChartSettingsParams, IMetricAnalysisConfig, RequestHandlerMap } from '../../../../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -53,6 +53,7 @@ interface IPanelChartViewEvents {
   onMetricManage?: (tab: 'dimension' | 'metric') => 'dimension' | 'metric';
 }
 interface IPanelChartViewProps {
+  chartSettingParams?: ChartSettingsParams;
   config?: IMetricAnalysisConfig;
   showStatisticalValue?: boolean;
   viewColumn?: number;
@@ -62,6 +63,15 @@ interface IPanelChartViewProps {
 export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChartViewEvents> {
   // 相关配置
   @Prop({ default: () => ({}) }) config: IMetricAnalysisConfig;
+
+  @ProvideReactive('chartSettingParams')
+  @Prop({
+    default: () => ({
+      autoYAxis: true,
+      decimal: 0,
+    }),
+  })
+  chartSettingParams: ChartSettingsParams;
   @Prop({ type: Boolean, default: false }) readonly showStatisticalValue: IPanelChartViewProps['showStatisticalValue'];
   @Prop({ type: Number, default: 2 }) readonly viewColumn: IPanelChartViewProps['viewColumn'];
 

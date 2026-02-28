@@ -93,8 +93,11 @@ class ApplicationConfig(BkCollectorConfig):
         for application in applications:
             bk_biz_id = application.bk_biz_id
             biz_applications.setdefault(bk_biz_id, []).append(application)
+        need_deploy_all_biz_ids = [int(i) for i in biz_applications.keys()]
+        need_deploy_all_biz_ids += [str(i) for i in biz_applications.keys()]
 
         cluster_mapping: dict = BkCollectorClusterConfig.get_cluster_mapping()
+        cluster_mapping = {k: v for k, v in cluster_mapping.items() if set(need_deploy_all_biz_ids) & set(v)}
 
         # 补充默认部署集群
         if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:

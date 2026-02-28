@@ -449,7 +449,7 @@ SERVICE_LOCK_NODATA = register_key_with_config(
         "label": "nodata.lock.strategy_{strategy_id}",
         "key_type": "string",
         "key_tpl": "detect.lock.{strategy_id}",
-        "ttl": CONST_MINUTES,
+        "ttl": 3 * CONST_MINUTES,  # 从1分钟改为3分钟,防御大策略处理超时
         "backend": "service",
     }
 )

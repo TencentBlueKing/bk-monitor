@@ -116,7 +116,9 @@ export default defineComponent({
             res && setTimeout(() => emit('refresh'), 2000);
           });
         })
-        .finally(() => (isLoading.value = false));
+        .finally(() => {
+          isLoading.value = false;
+        });
     };
     return {
       title,
@@ -136,13 +138,16 @@ export default defineComponent({
         width={640}
         class='chat-group-dialog-wrap'
         v-slots={{
-          default: [
+          default: () => [
             <div
               key={'header'}
               class='header'
             >
-              {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
-              <img src={require('../../../../../fta-solutions/static/img/we-com.svg')} />
+              {}
+              <img
+                alt=''
+                src={require('../../../../../fta-solutions/static/img/we-com.svg')}
+              />
               <span>{this.title}</span>
             </div>,
             <div
@@ -199,7 +204,7 @@ export default defineComponent({
               </div>
             </div>,
           ],
-          footer: [
+          footer: () => [
             <Button
               key={'confirm'}
               style='margin-right: 10px'

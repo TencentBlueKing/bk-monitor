@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,17 +8,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from django.db.models.query import QuerySet
-from mock import PropertyMock
+from unittest.mock import PropertyMock
 
 from bkmonitor.models import Item, NoticeGroup, Strategy
 from core.drf_resource import resource
 from bkmonitor.strategy.strategy import StrategyConfig
-from monitor_web.models.uptime_check import UptimeCheckTask
+from bk_monitor_base.uptime_check import UptimeCheckTaskModel
 
 
-class TestStrategyConfigDetailResource(object):
+class TestStrategyConfigDetailResource:
     def test_get_strategy_detail(self, mocker):
         item_instance = Item()
         item_instance.data_type_label = "time_series"
@@ -308,7 +306,7 @@ class TestStrategyConfigDetailResource(object):
             "bk_obj_type": "NONE",
             "bk_target_detail": None,
         }
-        uptimecheck_instance = UptimeCheckTask()
+        uptimecheck_instance = UptimeCheckTaskModel()
         uptimecheck_instance.name = "test_baidu"
         uptimecheck_instance.config = {"response_code": 200}
 
@@ -317,7 +315,7 @@ class TestStrategyConfigDetailResource(object):
         mocker.patch.object(StrategyConfig, "get_object", return_value=None)
         mocker.patch.object(StrategyConfig, "strategy_dict", new_callable=PropertyMock, return_value=strategy_dict)
         mocker.patch.object(StrategyConfig, "get_target_detail", return_value=target_detail)
-        mocker.patch.object(UptimeCheckTask.objects, "get", return_value=uptimecheck_instance)
+        mocker.patch.object(UptimeCheckTaskModel.objects, "get", return_value=uptimecheck_instance)
         assert resource.strategies.strategy_config_detail(bk_biz_id=2, id=1) == {
             "is_enabled": True,
             "bk_target_type": None,

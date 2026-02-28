@@ -303,7 +303,6 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ),
     "DEFAULT_RENDERER_CLASSES": ("bkmonitor.views.renderers.MonitorJSONRenderer",),
-    # 'DATETIME_FORMAT': "%Y-%m-%d %H:%M:%S",
     "EXCEPTION_HANDLER": "core.drf_resource.exceptions.custom_exception_handler",
     "DEFAULT_PAGINATION_CLASS": "monitor_api.pagination.MonitorAPIPagination",
     "PAGE_SIZE": 20,

@@ -25,7 +25,7 @@ from apps.utils import ChoicesEnum
 
 
 TGPA_BASE_DIR = "/tmp/log-search/tgpa"
-TASK_LIST_BATCH_SIZE = 500
+TASK_LIST_BATCH_SIZE = 1000
 TGPA_TASK_EXE_CODE_SUCCESS = "0"  # 文件上传成功状态码
 FEATURE_TOGGLE_TGPA_TASK = "tgpa_task"
 
@@ -155,16 +155,21 @@ TGPA_TASK_TARGET_FIELDS = ["cos_file_name", "file"]
 
 CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "file", "lineno", "cos_file_name"]
 LOG_FILE_EXPIRE_DAYS = 3
+EXTRACT_FILE_MAX_ITERATIONS = 10  # 解压文件最大迭代次数
+COS_DOWNLOAD_MAX_SIZE = 10 * 1024 * 1024 * 1024  # COS文件下载最大大小限制: 10GB
+COS_DOWNLOAD_CHUNK_SIZE = 1024 * 1024  # COS文件下载分块大小: 1MB
 
 
 class TGPATaskTypeEnum(ChoicesEnum):
     """任务类型"""
 
+    BUSINESS_LOG_V1 = 6
     SYSTEM_LOG = 7
     BUSINESS_LOG_V2 = 8
 
     _choices_labels = (
         (SYSTEM_LOG, _("系统日志捞取")),
+        (BUSINESS_LOG_V1, _("业务日志捞取")),
         (BUSINESS_LOG_V2, _("业务日志捞取V2")),
     )
 
@@ -266,3 +271,5 @@ TGPA_REPORT_SELECT_FIELDS = [
 TGPA_REPORT_FILTER_FIELDS = ["openid", "file_name"]
 TGPA_REPORT_ORDER_FIELDS = ["file_size"]
 TGPA_REPORT_LIST_BATCH_SIZE = 500  # 客户端日志上报列表批量查询大小
+TGPA_REPORT_OFFSET_MINUTES = -5  # 客户端日志上报同步偏移时间
+TGPA_REPORT_MAX_TIME_RANGE_MINUTES = 30  # 客户端日志上报同步最大时间跨度
