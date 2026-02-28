@@ -78,6 +78,7 @@ import type { SelectOptions } from '@blueking/tdesign-ui/.';
 const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
 import { Message } from 'bkui-vue';
+import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
@@ -162,6 +163,7 @@ export default defineComponent({
         filterMode: alarmStore.filterMode,
       };
     });
+    const showResidentBtn = shallowRef(false);
 
     const isCollapsed = shallowRef(false);
     const alarmId = shallowRef<string>('');
@@ -308,6 +310,7 @@ export default defineComponent({
         currentPage: page.value,
         sortOrder: ordering.value,
         showDetail: JSON.stringify(alarmDetailShow.value),
+        showResidentBtn: String(showResidentBtn.value),
       };
     });
 
@@ -356,6 +359,7 @@ export default defineComponent({
         /** 以下是兼容事件中心的URL参数 */
         searchType,
         condition,
+        showResidentBtn: queryShowResidentBtn,
       } = route.query;
 
       try {
@@ -378,6 +382,7 @@ export default defineComponent({
         } else {
           alarmStore.quickFilterValue = tryURLDecodeParse(quickFilterValue as string, []);
         }
+        showResidentBtn.value = tryURLDecodeParse<boolean>(queryShowResidentBtn as string, false);
         alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
 
         /** 兼容事件中心的bizIds */
@@ -497,6 +502,8 @@ export default defineComponent({
     };
 
     const handleFavoriteSave = async (isEdit: boolean) => {
+      const [startTime, endTime] = handleTransformToTimestamp(alarmStore.timeRange);
+      const conditions = mergeWhereList(alarmStore.conditions, alarmStore.residentCondition);
       const params = {
         config: {
           componentData: {
@@ -511,6 +518,9 @@ export default defineComponent({
           },
           queryParams: {
             ...alarmStore.commonFilterParams,
+            start_time: startTime,
+            end_time: endTime,
+            conditions,
           },
         },
       } as any;
@@ -534,17 +544,21 @@ export default defineComponent({
     };
 
     const handleFavoriteChange = data => {
-      console.log(data);
       currentFavorite.value = data || null;
       handleCurrentPageChange(1);
       if (data) {
         const favoriteConfig = data?.config;
         alarmStore.timezone = favoriteConfig?.componentData?.timezone || getDefaultTimezone();
-        alarmStore.timeRange = favoriteConfig?.componentData?.timeRange || [];
+        alarmStore.timeRange =
+          favoriteConfig?.queryParams?.start_time && favoriteConfig?.queryParams?.end_time
+            ? [favoriteConfig?.queryParams?.start_time, favoriteConfig?.queryParams?.end_time].map(item => {
+                return dayjs(item * 1000).format('YYYY-MM-DD HH:mm:ssZZ');
+              })
+            : favoriteConfig?.componentData?.timeRange || [];
         alarmStore.refreshInterval = favoriteConfig?.componentData?.refreshInterval || -1;
         alarmStore.queryString = favoriteConfig?.queryParams?.query_string || '';
-        alarmStore.conditions = favoriteConfig?.componentData?.conditions || [];
-        alarmStore.residentCondition = favoriteConfig?.componentData?.residentCondition || [];
+        alarmStore.conditions = favoriteConfig?.queryParams?.conditions || [];
+        alarmStore.residentCondition = [];
         alarmStore.quickFilterValue = favoriteConfig?.componentData?.quickFilterValue || [];
         alarmStore.filterMode = favoriteConfig?.componentData?.filterMode || EMode.ui;
         alarmStore.bizIds = favoriteConfig?.componentData?.bizIds || [-1];
@@ -596,6 +610,10 @@ export default defineComponent({
         });
     };
 
+    const handleShowResidentBtnChange = (val: boolean) => {
+      showResidentBtn.value = val;
+    };
+
     watch(
       () => data.value,
       () => {
@@ -645,6 +663,7 @@ export default defineComponent({
       retrievalSelectFavorite,
       defaultFavoriteId,
       alarmDetailDefaultTab,
+      showResidentBtn,
       setUrlParams,
       handleSelectedRowKeysChange,
       handleAlertDialogShow,
@@ -676,6 +695,7 @@ export default defineComponent({
       handleFavoriteChange,
       handleFavoriteOpenBlank,
       handleSaveAlertContentName,
+      handleShowResidentBtnChange,
     };
   },
   render() {
@@ -706,6 +726,7 @@ export default defineComponent({
             bizIds={this.alarmStore.bizIds}
             bizList={this.appStore.bizList}
             conditions={this.alarmStore.conditions}
+            defaultShowResidentBtn={this.showResidentBtn}
             favoriteList={this.retrievalFavoriteList}
             fields={this.retrievalFilterFields}
             filterMode={this.alarmStore.filterMode}
@@ -724,6 +745,7 @@ export default defineComponent({
             onQuery={this.handleQuery}
             onQueryStringChange={this.handleQueryStringChange}
             onResidentConditionChange={this.handleResidentConditionChange}
+            onShowResidentBtnChange={this.handleShowResidentBtnChange}
           />
           <div class='alarm-center-main'>
             <TraceExploreLayout
