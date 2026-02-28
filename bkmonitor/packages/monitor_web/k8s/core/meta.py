@@ -661,7 +661,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
 
     @property
     def meta_prom_with_container_gpu_memory_total(self):
-        """容器实际使用的显存（原始数据为MB，乘以1048576转换为bytes）"""
+        """容器实际使用的显存（原始数据为MB）"""
         promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
     ((count by (workload_kind, workload_name, pod_name, namespace) (
         container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
@@ -670,7 +670,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
     container_gpu_memory_total{{{self.filter.filter_string(exclude="workload")}}}
-    ))) * 1048576"""
+    )))"""
         return promql
 
     @property
@@ -703,7 +703,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
 
     @property
     def meta_prom_with_container_request_gpu_memory(self):
-        """容器申请的显存（原始数据为MB，乘以1048576转换为bytes）"""
+        """容器申请的显存（原始数据为MB）"""
         promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
     ((count by (workload_kind, workload_name, pod_name, namespace) (
         container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
@@ -712,7 +712,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
     container_request_gpu_memory{{{self.filter.filter_string(exclude="workload")}}}
-    ))) * 1048576"""
+    )))"""
         return promql
 
     @property
@@ -930,8 +930,8 @@ class K8sClusterMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_container_gpu_memory_total(self):
-        """容器实际使用的显存（原始数据为MB，乘以1048576转换为bytes）"""
-        return self.tpl_prom_with_nothing("container_gpu_memory_total") + " * 1048576"
+        """容器实际使用的显存（原始数据为MB）"""
+        return self.tpl_prom_with_nothing("container_gpu_memory_total")
 
     @property
     def meta_prom_with_container_core_utilization_percentage(self):
@@ -943,8 +943,8 @@ class K8sClusterMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_container_request_gpu_memory(self):
-        """容器申请的显存（原始数据为MB，乘以1048576转换为bytes）"""
-        return self.tpl_prom_with_nothing("container_request_gpu_memory") + " * 1048576"
+        """容器申请的显存（原始数据为MB）"""
+        return self.tpl_prom_with_nothing("container_request_gpu_memory")
 
     @property
     def meta_prom_with_container_request_gpu_utilization(self):
@@ -1275,8 +1275,8 @@ class K8sNamespaceMeta(K8sResourceMeta, NetworkWithRelation):
 
     @property
     def meta_prom_with_container_gpu_memory_total(self):
-        """容器实际使用的显存（原始数据为MB，乘以1048576转换为bytes）"""
-        return self.tpl_prom_with_nothing("container_gpu_memory_total") + " * 1048576"
+        """容器实际使用的显存（原始数据为MB）"""
+        return self.tpl_prom_with_nothing("container_gpu_memory_total")
 
     @property
     def meta_prom_with_container_core_utilization_percentage(self):
@@ -1290,8 +1290,8 @@ class K8sNamespaceMeta(K8sResourceMeta, NetworkWithRelation):
 
     @property
     def meta_prom_with_container_request_gpu_memory(self):
-        """容器申请的显存（原始数据为MB，乘以1048576转换为bytes）"""
-        return self.tpl_prom_with_nothing("container_request_gpu_memory") + " * 1048576"
+        """容器申请的显存（原始数据为MB）"""
+        return self.tpl_prom_with_nothing("container_request_gpu_memory")
 
     @property
     def meta_prom_with_container_request_gpu_utilization(self):
@@ -1569,7 +1569,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_container_gpu_memory_total(self):
-        """容器实际使用的显存（原始数据为MB，乘以1048576转换为bytes）"""
+        """容器实际使用的显存（原始数据为MB）"""
         promql = f"""(sum by (workload_kind, workload_name, namespace)
     ((count by (workload_kind, workload_name, namespace, pod_name) (
         container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
@@ -1578,7 +1578,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
       container_gpu_memory_total{{{self.filter.filter_string(exclude="workload")}}}
-    ))) * 1048576"""
+    )))"""
         return promql
 
     @property
@@ -1611,7 +1611,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_container_request_gpu_memory(self):
-        """容器申请的显存（原始数据为MB，乘以1048576转换为bytes）"""
+        """容器申请的显存（原始数据为MB）"""
         promql = f"""(sum by (workload_kind, workload_name, namespace)
     ((count by (workload_kind, workload_name, namespace, pod_name) (
         container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
@@ -1620,7 +1620,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
       container_request_gpu_memory{{{self.filter.filter_string(exclude="workload")}}}
-    ))) * 1048576"""
+    )))"""
         return promql
 
     @property
@@ -1860,7 +1860,7 @@ class K8sContainerMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_container_gpu_memory_total(self):
-        """容器实际使用的显存（原始数据为MB，乘以1048576转换为bytes）"""
+        """容器实际使用的显存（原始数据为MB）"""
         promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
     ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
         container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
@@ -1869,7 +1869,7 @@ class K8sContainerMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
       container_gpu_memory_total{{{self.filter.filter_string(exclude="workload")}}}
-    ))) * 1048576"""
+    )))"""
         return promql
 
     @property
@@ -1902,7 +1902,7 @@ class K8sContainerMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_container_request_gpu_memory(self):
-        """容器申请的显存（原始数据为MB，乘以1048576转换为bytes）"""
+        """容器申请的显存（原始数据为MB）"""
         promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
     ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
         container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
@@ -1911,7 +1911,7 @@ class K8sContainerMeta(K8sResourceMeta):
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
       container_request_gpu_memory{{{self.filter.filter_string(exclude="workload")}}}
-    ))) * 1048576"""
+    )))"""
         return promql
 
     @property

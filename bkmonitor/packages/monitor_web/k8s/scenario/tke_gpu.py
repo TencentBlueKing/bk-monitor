@@ -34,7 +34,7 @@ def get_metrics() -> list:
                 Metric(
                     id="container_gpu_memory_total",
                     name=_lazy("容器实际使用的显存"),
-                    unit="bytes",  # 原始数据为MB，已在PromQL中 * 1048576 转换
+                    unit="mbytes",  # 原始数据为MB
                     unsupported_resource=[],
                     show_chart=True,
                 ),
@@ -55,7 +55,7 @@ def get_metrics() -> list:
                 Metric(
                     id="container_request_gpu_memory",
                     name=_lazy("容器申请的显存"),
-                    unit="bytes",  # 原始数据为MB，已在PromQL中 * 1048576 转换
+                    unit="mbytes",  # 原始数据为MB
                     unsupported_resource=[],
                     show_chart=True,
                 ),
