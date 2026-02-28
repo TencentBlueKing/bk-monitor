@@ -69,14 +69,14 @@ def get_metrics() -> list:
                 Metric(
                     id="bcs_taiji_gpu:k8s_container_vgpu_gpu_mem_usage",
                     name=_lazy("太极GPU容器使用显存（GB）"),
-                    unit="percent",
+                    unit="bytes",  # 原始数据为GB，若显示异常需在PromQL中 * 1073741824
                     unsupported_resource=[],
                     show_chart=True,
                 ),
                 Metric(
                     id="bcs_taiji_gpu:k8s_container_vgpu_gpu_mem_total",
                     name=_lazy("太极GPU容器总显存（GB）"),
-                    unit="percent",
+                    unit="bytes",  # 原始数据为GB，若显示异常需在PromQL中 * 1073741824
                     unsupported_resource=[],
                     show_chart=True,
                 ),
