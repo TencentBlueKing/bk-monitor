@@ -120,7 +120,6 @@ export const useEcharts = (
 
       if (downSampleRangeComputed) {
         resultParams.down_sample_range = downSampleRangeComputed([resultParams.start_time, resultParams.end_time]);
-        console.log(resultParams.down_sample_range);
       }
 
       return $api[target.apiModule]
