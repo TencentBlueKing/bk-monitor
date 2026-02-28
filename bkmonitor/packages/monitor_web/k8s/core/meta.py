@@ -644,6 +644,132 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     )))"""
         return promql
 
+    # TKE GPU
+    @property
+    def meta_prom_with_container_gpu_utilization(self):
+        """容器实际使用的算力"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
+    ((count by (workload_kind, workload_name, pod_name, namespace) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace) (
+    container_gpu_utilization{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_gpu_memory_total(self):
+        """容器实际使用的显存（原始数据为MB）"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
+    ((count by (workload_kind, workload_name, pod_name, namespace) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace) (
+    container_gpu_memory_total{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_core_utilization_percentage(self):
+        """容器实际使用的算力占申请算力的百分比"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
+    ((count by (workload_kind, workload_name, pod_name, namespace) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace) (
+    container_core_utilization_percentage{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_mem_utilization_percentage(self):
+        """容器实际使用的显存占申请显存的百分比"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
+    ((count by (workload_kind, workload_name, pod_name, namespace) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace) (
+    container_mem_utilization_percentage{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_request_gpu_memory(self):
+        """容器申请的显存（原始数据为MB）"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
+    ((count by (workload_kind, workload_name, pod_name, namespace) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace) (
+    container_request_gpu_memory{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_request_gpu_utilization(self):
+        """容器申请的算力"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name)
+    ((count by (workload_kind, workload_name, pod_name, namespace) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace) (
+    container_request_gpu_utilization{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    # taiji GPU
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_cpu_core_used(self):
+        """太极 GPU 容器 CPU 使用核心"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_cpu_core_used")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_resource_request_cpu(self):
+        """太极 GPU 容器 CPU 申请核心"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_resource_request_cpu")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_mem_usage_bytes(self):
+        """太极 GPU 容器内存使用量"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_mem_usage_bytes")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_resource_request_mem(self):
+        """太极 GPU 容器内存申请量"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_resource_request_mem")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_gpu_used(self):
+        """太极 GPU 容器使用算力（卡数）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_gpu_used")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_resource_request_gpu(self):
+        """太极 GPU 容器申请算力（卡数）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_resource_request_gpu")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_vgpu_gpu_mem_usage(self):
+        """太极 GPU 容器使用显存（GB）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_vgpu_gpu_mem_usage")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_vgpu_gpu_mem_total(self):
+        """太极 GPU 容器总显存（GB）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_vgpu_gpu_mem_total")
+
 
 class K8sClusterMeta(K8sResourceMeta):
     resource_field = "bcs_cluster_id"
@@ -796,6 +922,74 @@ class K8sClusterMeta(K8sResourceMeta):
         filter_string = self.filter.filter_string()
         filter_string = ",".join([filter_string] + ['device!~"lo|veth.*"'])
         return self.tpl_prom_with_rate("node_network_transmit_packets_total", filter_string=filter_string)
+
+    # TKE GPU
+    @property
+    def meta_prom_with_container_gpu_utilization(self):
+        return self.tpl_prom_with_nothing("container_gpu_utilization")
+
+    @property
+    def meta_prom_with_container_gpu_memory_total(self):
+        """容器实际使用的显存（原始数据为MB）"""
+        return self.tpl_prom_with_nothing("container_gpu_memory_total")
+
+    @property
+    def meta_prom_with_container_core_utilization_percentage(self):
+        return self.tpl_prom_with_nothing("container_core_utilization_percentage")
+
+    @property
+    def meta_prom_with_container_mem_utilization_percentage(self):
+        return self.tpl_prom_with_nothing("container_mem_utilization_percentage")
+
+    @property
+    def meta_prom_with_container_request_gpu_memory(self):
+        """容器申请的显存（原始数据为MB）"""
+        return self.tpl_prom_with_nothing("container_request_gpu_memory")
+
+    @property
+    def meta_prom_with_container_request_gpu_utilization(self):
+        return self.tpl_prom_with_nothing("container_request_gpu_utilization")
+
+    # taiji GPU
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_cpu_core_used(self):
+        """太极 GPU 容器 CPU 使用核心"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_cpu_core_used")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_resource_request_cpu(self):
+        """太极 GPU 容器 CPU 申请核心"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_resource_request_cpu")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_mem_usage_bytes(self):
+        """太极 GPU 容器内存使用量"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_mem_usage_bytes")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_resource_request_mem(self):
+        """太极 GPU 容器内存申请量"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_resource_request_mem")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_gpu_used(self):
+        """太极 GPU 容器使用算力（卡数）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_gpu_used")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_resource_request_gpu(self):
+        """太极 GPU 容器申请算力（卡数）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_resource_request_gpu")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_vgpu_gpu_mem_usage(self):
+        """太极 GPU 容器使用显存（GB）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_vgpu_gpu_mem_usage")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_vgpu_gpu_mem_total(self):
+        """太极 GPU 容器总显存（GB）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_vgpu_gpu_mem_total")
 
     def tpl_prom_with_nothing(self, metric_name, exclude="", filter_string=""):
         if not filter_string:
@@ -1073,6 +1267,78 @@ class K8sNamespaceMeta(K8sResourceMeta, NetworkWithRelation):
                     sum by (namespace, pod)
                     (rate({metric_name}{{{self.pod_filters.filter_string()}}}[1m])))"""
 
+    # TKE GPU
+    @property
+    def meta_prom_with_container_gpu_utilization(self):
+        """容器实际使用的算力"""
+        return self.tpl_prom_with_nothing("container_gpu_utilization")
+
+    @property
+    def meta_prom_with_container_gpu_memory_total(self):
+        """容器实际使用的显存（原始数据为MB）"""
+        return self.tpl_prom_with_nothing("container_gpu_memory_total")
+
+    @property
+    def meta_prom_with_container_core_utilization_percentage(self):
+        """容器实际使用的算力占申请算力的百分比"""
+        return self.tpl_prom_with_nothing("container_core_utilization_percentage")
+
+    @property
+    def meta_prom_with_container_mem_utilization_percentage(self):
+        """容器实际使用的显存占申请显存的百分比"""
+        return self.tpl_prom_with_nothing("container_mem_utilization_percentage")
+
+    @property
+    def meta_prom_with_container_request_gpu_memory(self):
+        """容器申请的显存（原始数据为MB）"""
+        return self.tpl_prom_with_nothing("container_request_gpu_memory")
+
+    @property
+    def meta_prom_with_container_request_gpu_utilization(self):
+        """容器申请的算力"""
+        return self.tpl_prom_with_nothing("container_request_gpu_utilization")
+
+    # taiji GPU
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_cpu_core_used(self):
+        """太极 GPU 容器 CPU 使用核心"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_cpu_core_used")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_resource_request_cpu(self):
+        """太极 GPU 容器 CPU 申请核心"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_resource_request_cpu")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_mem_usage_bytes(self):
+        """太极 GPU 容器内存使用量"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_mem_usage_bytes")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_resource_request_mem(self):
+        """太极 GPU 容器内存申请量"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_resource_request_mem")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_gpu_used(self):
+        """太极 GPU 容器使用算力（卡数）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_gpu_used")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_resource_request_gpu(self):
+        """太极 GPU 容器申请算力（卡数）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_resource_request_gpu")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_vgpu_gpu_mem_usage(self):
+        """太极 GPU 容器使用显存（GB）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_vgpu_gpu_mem_usage")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_vgpu_gpu_mem_total(self):
+        """太极 GPU 容器总显存（GB）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_vgpu_gpu_mem_total")
+
     def tpl_prom_with_rate(self, metric_name, exclude=""):
         # 网络场景下的网络指标，默认代了前缀，需要去掉
         if metric_name.startswith("nw_"):
@@ -1286,6 +1552,142 @@ class K8sWorkloadMeta(K8sResourceMeta):
     )))"""
         return promql
 
+    # TKE GPU
+    @property
+    def meta_prom_with_container_gpu_utilization(self):
+        """容器实际使用的算力"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace)
+    ((count by (workload_kind, workload_name, namespace, pod_name) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace) (
+      container_gpu_utilization{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_gpu_memory_total(self):
+        """容器实际使用的显存（原始数据为MB）"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace)
+    ((count by (workload_kind, workload_name, namespace, pod_name) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace) (
+      container_gpu_memory_total{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_core_utilization_percentage(self):
+        """容器实际使用的算力占申请算力的百分比"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace)
+    ((count by (workload_kind, workload_name, namespace, pod_name) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace) (
+      container_core_utilization_percentage{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_mem_utilization_percentage(self):
+        """容器实际使用的显存占申请显存的百分比"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace)
+    ((count by (workload_kind, workload_name, namespace, pod_name) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace) (
+      container_mem_utilization_percentage{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_request_gpu_memory(self):
+        """容器申请的显存（原始数据为MB）"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace)
+    ((count by (workload_kind, workload_name, namespace, pod_name) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace) (
+      container_request_gpu_memory{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_request_gpu_utilization(self):
+        """容器申请的算力"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace)
+    ((count by (workload_kind, workload_name, namespace, pod_name) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace) (
+      container_request_gpu_utilization{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    # taiji GPU
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_cpu_core_used(self):
+        """太极 GPU 容器 CPU 使用核心"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace)
+    ((count by (workload_kind, workload_name, namespace, pod_name) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace) (
+      bcs_taiji_gpu:k8s_container_bs_cpu_core_used{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+        # return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_cpu_core_used")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_resource_request_cpu(self):
+        """太极 GPU 容器 CPU 申请核心"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_resource_request_cpu")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_mem_usage_bytes(self):
+        """太极 GPU 容器内存使用量"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_mem_usage_bytes")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_resource_request_mem(self):
+        """太极 GPU 容器内存申请量"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_resource_request_mem")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_gpu_used(self):
+        """太极 GPU 容器使用算力（卡数）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_gpu_used")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_resource_request_gpu(self):
+        """太极 GPU 容器申请算力（卡数）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_resource_request_gpu")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_vgpu_gpu_mem_usage(self):
+        """太极 GPU 容器使用显存（GB）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_vgpu_gpu_mem_usage")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_vgpu_gpu_mem_total(self):
+        """太极 GPU 容器总显存（GB）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_vgpu_gpu_mem_total")
+
     @classmethod
     def distinct(cls, queryset):
         query_set = (
@@ -1440,6 +1842,132 @@ class K8sContainerMeta(K8sResourceMeta):
     )))"""
 
         return promql
+
+    # TKE GPU
+    @property
+    def meta_prom_with_container_gpu_utilization(self):
+        """容器实际使用的算力"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
+    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace, container_name)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace, container_name) (
+      container_gpu_utilization{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_gpu_memory_total(self):
+        """容器实际使用的显存（原始数据为MB）"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
+    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace, container_name)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace, container_name) (
+      container_gpu_memory_total{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_core_utilization_percentage(self):
+        """容器实际使用的算力占申请算力的百分比"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
+    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace, container_name)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace, container_name) (
+      container_core_utilization_percentage{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_mem_utilization_percentage(self):
+        """容器实际使用的显存占申请显存的百分比"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
+    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace, container_name)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace, container_name) (
+      container_mem_utilization_percentage{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_request_gpu_memory(self):
+        """容器申请的显存（原始数据为MB）"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
+    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace, container_name)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace, container_name) (
+      container_request_gpu_memory{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    @property
+    def meta_prom_with_container_request_gpu_utilization(self):
+        """容器申请的算力"""
+        promql = f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
+    ((count by (workload_kind, workload_name, pod_name, namespace, container_name) (
+        container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
+    ) * 0 + 1) *
+    on(pod_name, namespace, container_name)
+    group_right(workload_kind, workload_name)
+    sum by (pod_name, namespace, container_name) (
+      container_request_gpu_utilization{{{self.filter.filter_string(exclude="workload")}}}
+    )))"""
+        return promql
+
+    # taiji GPU
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_cpu_core_used(self):
+        """太极 GPU 容器 CPU 使用核心"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_cpu_core_used")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_resource_request_cpu(self):
+        """太极 GPU 容器 CPU 申请核心"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_resource_request_cpu")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_mem_usage_bytes(self):
+        """太极 GPU 容器内存使用量"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_mem_usage_bytes")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_bs_resource_request_mem(self):
+        """太极 GPU 容器内存申请量"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_bs_resource_request_mem")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_gpu_used(self):
+        """太极 GPU 容器使用算力（卡数）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_gpu_used")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_resource_request_gpu(self):
+        """太极 GPU 容器申请算力（卡数）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_resource_request_gpu")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_vgpu_gpu_mem_usage(self):
+        """太极 GPU 容器使用显存（GB）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_vgpu_gpu_mem_usage")
+
+    @property
+    def meta_prom_with_bcs_taiji_gpu_k8s_container_vgpu_gpu_mem_total(self):
+        """太极 GPU 容器总显存（GB）"""
+        return self.tpl_prom_with_nothing("bcs_taiji_gpu:k8s_container_vgpu_gpu_mem_total")
 
 
 def load_resource_meta(resource_type: str, bk_biz_id: int, bcs_cluster_id: str) -> K8sResourceMeta | None:
