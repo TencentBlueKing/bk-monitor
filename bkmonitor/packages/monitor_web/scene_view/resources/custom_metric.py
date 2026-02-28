@@ -12,14 +12,15 @@ import logging
 from collections import defaultdict
 
 from django.db import models
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
-from monitor_web.models import CustomTSField, CustomTSTable
+from monitor_web.models import CustomTSTable
+from monitor_web.scene_view.resources.serializers import CustomMetricBaseRequestSerializer
 
 logger = logging.getLogger("monitor_web")
 
@@ -30,8 +31,8 @@ class GetCustomMetricTargetListResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务")
-        id = serializers.IntegerField(label="自定义指标分组ID")
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+        id = serializers.IntegerField(label=_("自定义指标分组 ID"))
 
     def perform_request(self, params):
         config = CustomTSTable.objects.get(
@@ -48,72 +49,85 @@ class GetCustomTsMetricGroups(Resource):
     获取自定义时序指标分组
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务")
-        time_series_group_id = serializers.IntegerField(label="自定义指标ID")
+    class RequestSerializer(CustomMetricBaseRequestSerializer):
+        pass
 
-    def perform_request(self, params: dict) -> list[dict]:
-        table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
-            pk=params["time_series_group_id"],
-            bk_tenant_id=get_request_tenant_id(),
-        )
+    def perform_request(self, params: dict) -> dict[str, list]:
+        # 从 metadata 获取指标分组列表
+        request_params = {
+            "group_id": params["time_series_group_id"],
+            "include_metrics": True,
+        }
+        if params.get("scope_prefix"):
+            request_params["scope_name"] = params["scope_prefix"]
+        metadata_result = api.metadata.query_time_series_scope(**request_params)
 
-        fields = table.get_and_sync_fields()
-        metrics = [field for field in fields if field.type == CustomTSField.MetricType.METRIC]
+        # 转换数据结构
+        metric_groups = []
+        for scope_data in metadata_result:
+            scope_id = scope_data.get("scope_id")
+            scope_name = scope_data.get("scope_name", "")
+            # 去除 scope_prefix 前缀
+            if params.get("scope_prefix") and scope_name.startswith(params["scope_prefix"]):
+                scope_name = scope_name[len(params["scope_prefix"]) :]
+            metric_list = scope_data.get("metric_list", [])
+            dimension_config = scope_data.get("dimension_config", {})
 
-        # 维度描述
-        hidden_dimensions = set()
-        dimension_descriptions = {}
-        # 公共维度
-        common_dimensions = []
-        for field in fields:
-            # 如果不是维度，则跳过
-            if field.type != CustomTSField.MetricType.DIMENSION:
-                continue
+            # 构建指标列表
+            metrics = []
+            for metric_data in metric_list:
+                metric_name = metric_data.get("metric_name", "")
+                # 过滤内置指标（APM 场景）
+                if params.get("is_apm_scenario") and any(
+                    [str(metric_name).startswith("apm_"), str(metric_name).startswith("bk_apm_")]
+                ):
+                    continue
 
-            dimension_descriptions[field.name] = field.description
+                field_config = metric_data.get("field_config", {})
+                # 如果指标隐藏或禁用，则不展示
+                if field_config.get("hidden", False) or field_config.get("disabled", False):
+                    continue
 
-            # 如果维度隐藏，则不展示
-            if field.config.get("hidden", False):
-                hidden_dimensions.add(field.name)
-                continue
+                # 构建维度列表
+                dimensions = []
+                for dimension_name in metric_data.get("tag_list", []):
+                    dim_config = dimension_config.get(dimension_name, {})
+                    # 如果维度隐藏，则不展示
+                    if dim_config.get("hidden", False):
+                        continue
+                    dimensions.append({"name": dimension_name, "alias": dim_config.get("alias", dimension_name)})
 
-            # 如果维度公共，则添加到公共维度
-            if field.config.get("common", False):
-                common_dimensions.append({"name": field.name, "alias": field.description})
-
-        # 指标分组
-        metric_groups = defaultdict(list)
-        for metric in metrics:
-            # 如果指标隐藏，则不展示
-            if metric.disabled or metric.config.get("hidden", False):
-                continue
-
-            labels = metric.config.get("label", [])
-
-            # 如果 label 为空，则使用未分组
-            if not labels:
-                labels = [_("未分组")]
-
-            # 分组
-            for group in labels:
-                metric_groups[group].append(
+                metrics.append(
                     {
-                        "metric_name": metric.name,
-                        "alias": metric.description,
-                        "dimensions": [
-                            {"name": dimension, "alias": dimension_descriptions.get(dimension, dimension)}
-                            for dimension in metric.config.get("dimensions", [])
-                            if dimension not in hidden_dimensions
-                        ],
+                        "field_id": metric_data.get("field_id"),
+                        "metric_name": metric_name,
+                        "alias": field_config.get("alias", ""),
+                        "dimensions": dimensions,
                     }
                 )
 
-        return {
-            "common_dimensions": common_dimensions,
-            "metric_groups": [{"name": group, "metrics": metric_groups[group]} for group in metric_groups],
-        }
+            # 构建公共维度列表
+            common_dimensions = []
+            for dimension_name, dim_config in dimension_config.items():
+                # 如果维度隐藏，则不展示
+                if dim_config.get("hidden", False):
+                    continue
+                # 如果维度公共，则添加到公共维度
+                if dim_config.get("common", False):
+                    common_dimensions.append({"name": dimension_name, "alias": dim_config.get("alias", dimension_name)})
+
+            metric_groups.append(
+                {
+                    "scope_id": scope_id,
+                    "name": scope_name,
+                    "metrics": metrics,
+                    "common_dimensions": common_dimensions,
+                }
+            )
+        # 对分组进行排序：default 在最前面，其他分组按字典顺序排序
+        metric_groups.sort(key=lambda g: (g.get("name") != "default", g.get("name", "")))
+
+        return {"metric_groups": metric_groups}
 
 
 class GetCustomTsDimensionValues(Resource):
@@ -121,31 +135,63 @@ class GetCustomTsDimensionValues(Resource):
     获取自定义时序维度值
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务")
-        time_series_group_id = serializers.IntegerField(label="自定义指标ID")
-        dimension = serializers.CharField(label="维度")
-        start_time = serializers.IntegerField(label="开始时间")
-        end_time = serializers.IntegerField(label="结束时间")
-        metrics = serializers.ListField(label="指标", child=serializers.CharField(), allow_empty=True)
+    class RequestSerializer(CustomMetricBaseRequestSerializer):
+        class MetricSerializer(serializers.Serializer):
+            scope_name = serializers.CharField(label=_("分组名称"), allow_blank=True, default="")
+            name = serializers.CharField(label=_("指标名称"))
+
+        dimension = serializers.CharField(label=_("维度"))
+        start_time = serializers.IntegerField(label=_("开始时间"))
+        end_time = serializers.IntegerField(label=_("结束时间"))
+        metrics = serializers.ListField(label=_("指标"), child=serializers.JSONField())
+
+        def validate(self, attrs):
+            metrics_list = []
+            for _metrics in attrs.get("metrics", []):
+                if isinstance(_metrics, str):
+                    metrics_list.append(_metrics)
+                else:
+                    s = self.MetricSerializer(data=_metrics)
+                    s.is_valid(raise_exception=True)
+                    metrics_list.append(s.validated_data["name"])
+            attrs["metrics"] = metrics_list
+            return super().validate(attrs)
 
     def perform_request(self, params: dict) -> list[dict]:
         # 如果指标为空，则返回空列表
         if not params["metrics"]:
             return []
 
-        table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
-            pk=params["time_series_group_id"],
-            bk_tenant_id=get_request_tenant_id(),
-        )
+        # 判断是否为 APM 场景
+        is_apm_scenario = params.get("is_apm_scenario")
 
-        # 如果指标只有一个，则使用精确匹配
-        data_label = table.data_label.split(",")[0]
-        if len(params["metrics"]) == 1:
-            match = f'{{__name__="bkmonitor:{data_label}:{params["metrics"][0]}"}}'
+        if is_apm_scenario:
+            data_label = "APM"
         else:
-            match = f'{{__name__=~"bkmonitor:{data_label}:({"|".join(params["metrics"])})"}}'
+            table = CustomTSTable.objects.get(
+                models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+                pk=params["time_series_group_id"],
+                bk_tenant_id=get_request_tenant_id(),
+            )
+            data_label = table.data_label.split(",")[0]
+
+        # 构建指标名称匹配部分
+        if len(params["metrics"]) == 1:
+            metric_match = f'__name__="bkmonitor:{data_label}:{params["metrics"][0]}"'
+        else:
+            metric_match = f'__name__=~"bkmonitor:{data_label}:({"|".join(params["metrics"])})"'
+
+        # 如果是 APM 场景，添加额外的标签过滤
+        label_filters = []
+        if is_apm_scenario:
+            label_filters.append(f'app_name="{params["apm_app_name"]}"')
+            label_filters.append(f'service_name="{params["apm_service_name"]}"')
+
+        # 组装完整的 PromQL 匹配表达式
+        if label_filters:
+            match = f"{{{metric_match}, {', '.join(label_filters)}}}"
+        else:
+            match = f"{{{metric_match}}}"
 
         request_params = {
             "match": [match],
@@ -164,57 +210,71 @@ class GetCustomTsGraphConfig(Resource):
     获取自定义时序图表配置
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(CustomMetricBaseRequestSerializer):
         class CompareSerializer(serializers.Serializer):
-            type = serializers.ChoiceField(choices=["time", "metric"], label="对比模式", required=False)
-            offset = serializers.ListField(label="时间对比偏移量", default=list)
+            type = serializers.ChoiceField(label=_("对比模式"), choices=["time", "metric"], required=False)
+            offset = serializers.ListField(label=_("时间对比偏移量"), default=list)
 
         class LimitSerializer(serializers.Serializer):
-            function = serializers.ChoiceField(choices=["top", "bottom"], label="限制函数", default="")
-            limit = serializers.IntegerField(label="限制数量", default=0)
+            function = serializers.ChoiceField(label=_("限制函数"), choices=["top", "bottom"], default="")
+            limit = serializers.IntegerField(label=_("限制数量"), default=0)
 
         class GroupBySerializer(serializers.Serializer):
-            field = serializers.CharField(label="聚合维度")
-            split = serializers.BooleanField(label="是否拆分", default=False)
+            field = serializers.CharField(label=_("聚合维度"))
+            split = serializers.BooleanField(label=_("是否拆分"), default=False)
 
         class ConditionSerializer(serializers.Serializer):
-            key = serializers.CharField(label="字段名")
-            method = serializers.CharField(label="运算符")
-            value = serializers.ListField(label="值")
-            condition = serializers.ChoiceField(choices=["and", "or"], label="条件", default="and")
+            key = serializers.CharField(label=_("字段名"))
+            method = serializers.CharField(label=_("运算符"))
+            value = serializers.ListField(label=_("值"))
+            condition = serializers.ChoiceField(choices=["and", "or"], label=_("条件"), default="and")
 
-        bk_biz_id = serializers.IntegerField(label="业务")
-        time_series_group_id = serializers.IntegerField(label="自定义时序ID")
-        metrics = serializers.ListField(label="查询的指标", allow_empty=True)
-        where = ConditionSerializer(label="过滤条件", many=True, allow_empty=True, default=list)
-        group_by = GroupBySerializer(label="聚合维度", many=True, allow_empty=True, default=list)
-        common_conditions = serializers.ListField(label="常用维度过滤", default=list)
-        limit = LimitSerializer(label="限制返回的series数量", default={})
-        compare = CompareSerializer(label="对比配置", default={})
-        start_time = serializers.IntegerField(label="开始时间")
-        end_time = serializers.IntegerField(label="结束时间")
+        class MetricSerializer(serializers.Serializer):
+            scope_name = serializers.CharField(label=_("分组名称"), allow_blank=True, default="")
+            name = serializers.CharField(label=_("指标名称"))
+
+        metrics = serializers.ListField(label=_("查询的指标"), default=[])
+        where = ConditionSerializer(label=_("过滤条件"), many=True, allow_empty=True, default=list)
+        group_by = GroupBySerializer(label=_("聚合维度"), many=True, allow_empty=True, default=list)
+        common_conditions = serializers.ListField(label=_("常用维度过滤"), default=list)
+        limit = LimitSerializer(label=_("限制返回的 series 数量"), default={})
+        compare = CompareSerializer(label=_("对比配置"), default={})
+        start_time = serializers.IntegerField(label=_("开始时间"))
+        end_time = serializers.IntegerField(label=_("结束时间"))
+
+        def validate(self, attrs):
+            metrics_list = []
+            for _metrics in attrs.get("metrics", []):
+                if isinstance(_metrics, str):
+                    metrics_list.append(_metrics)
+                else:
+                    s = self.MetricSerializer(data=_metrics)
+                    s.is_valid(raise_exception=True)
+                    metrics_list.append(s.validated_data["name"])
+            attrs["metrics"] = metrics_list
+            return super().validate(attrs)
 
     class ResponseSerializer(serializers.Serializer):
         class GroupSerializer(serializers.Serializer):
-            name = serializers.CharField(label="分组名称", allow_blank=True)
+            name = serializers.CharField(label=_("分组名称"), allow_blank=True)
 
             class PanelSerializer(serializers.Serializer):
-                title = serializers.CharField(label="图表标题", allow_blank=True)
-                sub_title = serializers.CharField(label="子标题", allow_blank=True)
+                title = serializers.CharField(label=_("图表标题"), allow_blank=True)
+                sub_title = serializers.CharField(label=_("子标题"), allow_blank=True)
 
                 class TargetSerializer(serializers.Serializer):
-                    expression = serializers.CharField(label="表达式")
-                    alias = serializers.CharField(label="别名", allow_blank=True)
-                    query_configs = serializers.ListField(label="查询配置")
-                    function = serializers.DictField(label="图表函数", allow_null=True, default={})
-                    metric = serializers.DictField(label="指标", allow_null=True, default={})
-                    unit = serializers.CharField(label="单位", allow_blank=True, default="")
+                    expression = serializers.CharField(label=_("表达式"))
+                    alias = serializers.CharField(label=_("别名"), allow_blank=True)
+                    query_configs = serializers.ListField(label=_("查询配置"))
+                    function = serializers.DictField(label=_("图表函数"), allow_null=True, default={})
+                    metric = serializers.DictField(label=_("指标"), allow_null=True, default={})
+                    unit = serializers.CharField(label=_("单位"), allow_blank=True, default="")
 
-                targets = TargetSerializer(label="目标", many=True)
+                targets = TargetSerializer(label=_("目标"), many=True)
 
-            panels = PanelSerializer(label="图表配置", many=True)
+            panels = PanelSerializer(label=_("图表配置"), many=True)
 
-        groups = GroupSerializer(label="分组", many=True, allow_empty=True)
+        groups = GroupSerializer(label=_("分组"), many=True, allow_empty=True)
 
     UNITY_QUERY_OPERATOR_MAPPING = {
         "reg": "req",
@@ -227,15 +287,16 @@ class GetCustomTsGraphConfig(Resource):
 
     @classmethod
     def time_or_no_compare(
-        cls, table: CustomTSTable, metrics: list[CustomTSField], params: dict, dimension_names: dict[str, str]
+        cls, result_table_id: str, data_label: str, metrics: list[dict], params: dict, dimension_names: dict[str, str]
     ) -> list[dict]:
         """
         时间对比或无对比
+        metrics: 从 metadata 获取的指标列表，格式为 [{"name": "metric_name", "alias": "别名", "dimensions": [...], "aggregate_method": "AVG"}]
         """
         # 查询拆图维度组合
         split_dimensions = [x["field"] for x in params.get("group_by", []) if x["split"]]
         series_metrics = cls.query_metric_series(
-            table=table, metrics=metrics, dimensions=split_dimensions, params=params
+            result_table_id=result_table_id, metrics=metrics, dimensions=split_dimensions, params=params
         )
 
         # 计算限制函数
@@ -268,44 +329,53 @@ class GetCustomTsGraphConfig(Resource):
 
             panels = []
             for metric in metric_list:
-                all_metric_dimensions = set(metric.config.get("dimensions", []))
+                all_metric_dimensions = set(metric.get("dimensions", []))
+                # 构建 filter_dict
+                filter_dict = {
+                    # 分组过滤条件
+                    "group_filter": {x[0]: x[1] for x in series_tuple},
+                    # 常用维度过滤
+                    "common_filter": {
+                        f"{condition['key']}__{condition['method']}": condition["value"]
+                        for condition in params.get("common_conditions", [])
+                        if condition["key"] in all_metric_dimensions
+                    },
+                }
+
+                # 如果是 APM 场景，补充 service_name 和 scope_name
+                if params.get("is_apm_scenario"):
+                    filter_dict["scope_name"] = metric["scope_name"]
+                    filter_dict["service_name"] = params["apm_service_name"]
+
                 query_config = {
                     "metrics": [
-                        {"field": metric.name, "method": metric.config.get("aggregate_method") or "AVG", "alias": "a"}
+                        {"field": metric["name"], "method": metric.get("aggregate_method") or "AVG", "alias": "a"}
                     ],
                     "interval": "$interval",
-                    "table": table.table_id,
-                    "data_label": table.data_label.split(",")[0],
+                    "table": result_table_id,
+                    "data_label": data_label.split(",")[0],
                     "data_source_label": DataSourceLabel.CUSTOM,
                     "data_type_label": DataTypeLabel.TIME_SERIES,
                     # 只使用指标的维度
                     "group_by": list(set(non_split_dimensions) & all_metric_dimensions),
                     # TODO: 考虑也按指标的维度过滤
                     "where": params.get("where", []),
-                    "functions": functions,
+                    "functions": functions + metric.get("function", []),
                     # 只使用指标的维度
-                    "filter_dict": {
-                        # 分组过滤条件
-                        "group_filter": {x[0]: x[1] for x in series_tuple},
-                        # 常用维度过滤
-                        "common_filter": {
-                            f"{condition['key']}__{condition['method']}": condition["value"]
-                            for condition in params.get("common_conditions", [])
-                            if condition["key"] in all_metric_dimensions
-                        },
-                    },
+                    "filter_dict": filter_dict,
                 }
                 panels.append(
                     {
-                        "title": metric.description or metric.name,
-                        "sub_title": f"custom:{table.data_label.split(',')[0]}:{metric.name}",
+                        "title": metric.get("alias") or metric["name"],
+                        "sub_title": f"custom:{data_label.split(',')[0]}:{metric['name']}",
                         "targets": [
                             {
                                 "expression": "a",
                                 "alias": "",
                                 "query_configs": [query_config],
                                 "function": function,
-                                "metric": {"name": metric.name, "alias": metric.description},
+                                "metric": {"name": metric["name"], "alias": metric.get("alias", "")},
+                                "unit": metric.get("unit", ""),
                             }
                         ],
                     }
@@ -316,18 +386,21 @@ class GetCustomTsGraphConfig(Resource):
 
     @classmethod
     def metric_compare(
-        cls, table: CustomTSTable, metrics: list[CustomTSField], params: dict, dimension_names: dict[str, str]
+        cls, result_table_id: str, data_label: str, metrics: list[dict], params: dict, dimension_names: dict[str, str]
     ) -> list[dict]:
         """
         指标对比
+        metrics: 从 metadata 获取的指标列表，格式为 [{"name": "metric_name", "alias": "别名", "dimensions": [...], "aggregate_method": "AVG"}]
         """
         # 查询全维度组合
         all_dimensions = [d["field"] for d in params.get("group_by", [])]
-        series_metrics = cls.query_metric_series(table=table, metrics=metrics, dimensions=all_dimensions, params=params)
+        series_metrics = cls.query_metric_series(
+            result_table_id=result_table_id, metrics=metrics, dimensions=all_dimensions, params=params
+        )
 
         # 按照拆图维度分组
         split_dimensions = {d["field"] for d in params.get("group_by", []) if d["split"]}
-        series_groups: dict[tuple[tuple[str, str]], dict[tuple[str, str], list[CustomTSField]]] = defaultdict(dict)
+        series_groups: dict[tuple[tuple[str, str]], dict[tuple[str, str], list[dict]]] = defaultdict(dict)
         for series_tuple, metric_list in series_metrics.items():
             # 计算拆图维度
             group_series = tuple((k, v) for k, v in series_tuple if k in split_dimensions)
@@ -358,43 +431,52 @@ class GetCustomTsGraphConfig(Resource):
 
                 # 一张图里包含多个指标查询
                 for metric in metric_list:
+                    # 构建 filter_dict
+                    filter_dict = {
+                        # 分组过滤条件
+                        "group_filter": {x[0]: x[1] for x in group_series},
+                        "panel_filter": {x[0]: x[1] for x in panel_series},
+                        # 常用维度过滤
+                        "common_filter": {
+                            f"{condition['key']}__{condition['method']}": condition["value"]
+                            for condition in params.get("common_conditions", [])
+                            if condition["key"] in metric.get("dimensions", [])
+                        },
+                    }
+
+                    # 如果是 APM 场景，补充 service_name 和 scope_name
+                    if params.get("is_apm_scenario"):
+                        filter_dict["scope_name"] = metric["scope_name"]
+                        filter_dict["service_name"] = params["apm_service_name"]
+
                     query_config = {
                         "metrics": [
                             {
-                                "field": metric.name,
-                                "method": metric.config.get("aggregate_method") or "AVG",
+                                "field": metric["name"],
+                                "method": metric.get("aggregate_method") or "AVG",
                                 "alias": "a",
                             }
                         ],
                         "interval": "$interval",
-                        "table": table.table_id,
-                        "data_label": table.data_label.split(",")[0],
+                        "table": result_table_id,
+                        "data_label": data_label.split(",")[0],
                         "data_source_label": DataSourceLabel.CUSTOM,
                         "data_type_label": DataTypeLabel.TIME_SERIES,
                         # 只使用指标的维度
                         "group_by": [],
                         # TODO: 考虑也按指标的维度过滤
                         "where": params.get("where", []),
-                        "functions": functions,
+                        "functions": functions + metric.get("function", []),
                         # 只使用指标的维度
-                        "filter_dict": {
-                            # 分组过滤条件
-                            "group_filter": {x[0]: x[1] for x in group_series},
-                            "panel_filter": {x[0]: x[1] for x in panel_series},
-                            # 常用维度过滤
-                            "common_filter": {
-                                f"{condition['key']}__{condition['method']}": condition["value"]
-                                for condition in params.get("common_conditions", [])
-                                if condition["key"] in metric.config.get("dimensions", [])
-                            },
-                        },
+                        "filter_dict": filter_dict,
                     }
                     targets.append(
                         {
                             "expression": "a",
                             "alias": "",
                             "query_configs": [query_config],
-                            "metric": {"name": metric.name, "alias": metric.description},
+                            "metric": {"name": metric["name"], "alias": metric.get("alias", "")},
+                            "unit": metric.get("unit", ""),
                         }
                     )
                 # 计算图表标题
@@ -412,17 +494,19 @@ class GetCustomTsGraphConfig(Resource):
 
     @classmethod
     def query_metric_series(
-        cls, table: CustomTSTable, metrics: list[CustomTSField], dimensions: list[str], params: dict
-    ) -> dict[tuple[tuple[str, str]], list[CustomTSField]]:
+        cls, result_table_id: str, metrics: list[dict], dimensions: list[str], params: dict
+    ) -> dict[tuple[tuple[str, str]], list[dict]]:
         """
         查询指标系列
+        metrics: 从 metadata 获取的指标列表
+        返回：{((维度key, 维度value),): [指标]}
         """
         # 如果维度为空，则返回所有指标
         if not dimensions:
             return {(): metrics}
 
-        # 指标字典
-        metrics_dict = {x.name: x for x in metrics}
+        # 指标字典，使用指标名作为 key
+        metrics_dict = {x["name"]: x for x in metrics}
 
         # 转换条件格式为 unify_query.query_series 所需的格式
         conditions = {"field_list": [], "condition_list": []}
@@ -445,8 +529,9 @@ class GetCustomTsGraphConfig(Resource):
         # 根据metrics的维度与待查询维度的交集，确定查询的维度
         dimensions_to_metrics = defaultdict(list)
         for metric in metrics:
-            metric_dimensions = tuple(d for d in dimensions if d in metric.config.get("dimensions", []))
-            dimensions_to_metrics[metric_dimensions].append(metric.name)
+            # 从 metadata 的指标中获取维度
+            metric_dimensions = tuple(d for d in dimensions if d in metric.get("dimensions", []))
+            dimensions_to_metrics[metric_dimensions].append(metric["name"])
 
         series_metrics = defaultdict(set)
         for dimension_tuple, metric_list in dimensions_to_metrics.items():
@@ -461,7 +546,7 @@ class GetCustomTsGraphConfig(Resource):
                     "start_time": params["start_time"],
                     "end_time": params["end_time"],
                     "metric_name": f"({'|'.join(metric_list)})",
-                    "table_id": table.table_id,
+                    "table_id": result_table_id,
                     "keys": list(dimension_tuple),
                     "conditions": conditions,
                 }
@@ -478,29 +563,102 @@ class GetCustomTsGraphConfig(Resource):
         if not params["metrics"]:
             return {"groups": []}
 
-        table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
-            pk=params["time_series_group_id"],
-            bk_tenant_id=get_request_tenant_id(),
-        )
-        metrics = CustomTSField.objects.filter(
-            time_series_group_id=params["time_series_group_id"],
-            type=CustomTSField.MetricType.METRIC,
-            name__in=params["metrics"],
-        )
+        is_apm_scenario = params.get("is_apm_scenario")
+        if is_apm_scenario:
+            result_table_id = params["result_table_id"]
+            data_label = "APM"
+        else:
+            result_table_id, data_label = (
+                CustomTSTable.objects.filter(
+                    models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
+                    pk=params["time_series_group_id"],
+                    bk_tenant_id=get_request_tenant_id(),
+                )
+                .values_list("table_id", "data_label")
+                .first()
+            )
 
+        # 从 metadata 获取指标分组列表
+        request_params = {
+            "group_id": params["time_series_group_id"],
+            "include_metrics": True,
+        }
+        if params.get("scope_prefix"):
+            request_params["scope_name"] = params["scope_prefix"]
+        metadata_result = api.metadata.query_time_series_scope(**request_params)
+
+        # 构建指标字典和维度字典
+        metrics_list = []
         dimension_names: dict[str, str] = {}
-        for dimension in CustomTSField.objects.filter(
-            type=CustomTSField.MetricType.DIMENSION, time_series_group_id=params["time_series_group_id"]
-        ):
-            dimension_names[dimension.name] = dimension.description
+
+        # 构建请求的指标集合
+        requested_metrics = set(params["metrics"])
+
+        for scope_data in metadata_result:
+            metric_list = scope_data.get("metric_list", [])
+            dimension_config = scope_data.get("dimension_config", {})
+
+            # 收集维度名称
+            for dimension_name, dim_config in dimension_config.items():
+                if not dim_config.get("hidden", False):
+                    dimension_names[dimension_name] = dim_config.get("alias", dimension_name)
+
+            # 收集指标信息
+            for metric_data in metric_list:
+                metric_name = metric_data.get("metric_name", "")
+                field_config = metric_data.get("field_config", {})
+                scope_name = metric_data.get("field_scope", "")
+
+                # 只处理请求的指标
+                if metric_name not in requested_metrics:
+                    continue
+
+                # 如果指标隐藏或禁用，则跳过
+                if field_config.get("hidden", False) or field_config.get("disabled", False):
+                    continue
+
+                # 收集指标的维度（排除隐藏的维度）
+                dimensions = [
+                    dimension_name
+                    for dimension_name in metric_data.get("tag_list", [])
+                    if not dimension_config.get(dimension_name, {}).get("hidden", False)
+                ]
+
+                # 去除 scope_prefix 前缀
+                if params.get("scope_prefix") and scope_name.startswith(params["scope_prefix"]):
+                    scope_name = scope_name[len(params["scope_prefix"]) :]
+
+                metrics_list.append(
+                    {
+                        "name": metric_name,
+                        "alias": field_config.get("alias", ""),
+                        "dimensions": dimensions,
+                        "aggregate_method": field_config.get("aggregate_method", "AVG"),
+                        "function": field_config.get("function", []),
+                        "unit": field_config.get("unit", ""),
+                        "scope_name": scope_name,
+                    }
+                )
+
         compare_config = params.get("compare", {})
         if not compare_config or compare_config.get("type") == "time":
-            groups = self.time_or_no_compare(table, metrics, params, dimension_names)
+            groups = self.time_or_no_compare(result_table_id, data_label, metrics_list, params, dimension_names)
         elif compare_config.get("type") == "metric":
-            groups = self.metric_compare(table, metrics, params, dimension_names)
+            groups = self.metric_compare(result_table_id, data_label, metrics_list, params, dimension_names)
         else:
             raise ValueError(f"Invalid compare config type: {compare_config.get('type')}")
+
+        from constants.apm import ApmMetricProcessor
+
+        table_info = {"data_label": data_label, "table_id": result_table_id}
+
+        # 根据匹配结果决定是否保留 data_label 字段
+        if ApmMetricProcessor.is_match_data_label(table_info) and ApmMetricProcessor.is_match_table_id(table_info):
+            for group in groups:
+                for panel in group.get("panels", []):
+                    for target in panel.get("targets", []):
+                        for query_config in target.get("query_configs", []):
+                            query_config.pop("data_label")
 
         return {"groups": groups}
 
@@ -527,25 +685,25 @@ class GraphDrillDownResource(Resource):
                 params = serializers.ListField(child=serializers.DictField(), allow_empty=True)
 
             data_type_label = serializers.CharField(
-                label="数据类型", default="time_series", allow_null=True, allow_blank=True
+                label=_("数据类型"), default="time_series", allow_null=True, allow_blank=True
             )
-            data_source_label = serializers.CharField(label="数据来源")
-            table = serializers.CharField(label="结果表名", allow_blank=True, default="")
-            data_label = serializers.CharField(label="数据标签", allow_blank=True, default="")
-            metrics = serializers.ListField(label="查询指标", allow_empty=True, child=MetricSerializer(), default=[])
-            where = serializers.ListField(label="过滤条件", default=[])
+            data_source_label = serializers.CharField(label=_("数据来源"))
+            table = serializers.CharField(label=_("结果表名"), allow_blank=True, default="")
+            data_label = serializers.CharField(label=_("数据标签"), allow_blank=True, default="")
+            metrics = serializers.ListField(label=_("查询指标"), allow_empty=True, child=MetricSerializer(), default=[])
+            where = serializers.ListField(label=_("过滤条件"), default=[])
             # group_by = serializers.ListField(label="聚合字段", default=[])
-            interval_unit = serializers.ChoiceField(label="聚合周期单位", choices=("s", "m"), default="s")
-            interval = serializers.CharField(label="时间间隔", default="auto")
-            filter_dict = serializers.DictField(default={}, label="过滤条件")
-            time_field = serializers.CharField(label="时间字段", allow_blank=True, allow_null=True, required=False)
+            interval_unit = serializers.ChoiceField(label=_("聚合周期单位"), choices=("s", "m"), default="s")
+            interval = serializers.CharField(label=_("时间间隔"), default="auto")
+            filter_dict = serializers.DictField(label=_("过滤条件"), default={})
+            time_field = serializers.CharField(label=_("时间字段"), allow_blank=True, allow_null=True, required=False)
 
             # 日志平台配置
-            query_string = serializers.CharField(default="", allow_blank=True, label="日志查询语句")
-            index_set_id = serializers.IntegerField(required=False, label="索引集ID", allow_null=True)
+            query_string = serializers.CharField(label=_("日志查询语句"), default="", allow_blank=True)
+            index_set_id = serializers.IntegerField(label=_("索引集ID"), required=False, allow_null=True)
 
             # 计算函数参数
-            functions = serializers.ListField(label="计算函数参数", default=[], child=FunctionSerializer())
+            functions = serializers.ListField(label=_("计算函数参数"), default=[], child=FunctionSerializer())
 
             def validate(self, attrs):
                 # 索引集和结果表参数校验
@@ -561,31 +719,31 @@ class GraphDrillDownResource(Resource):
                         pass
                 return attrs
 
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        query_configs = serializers.ListField(label="查询配置列表", allow_empty=False, child=QueryConfigSerializer())
-        expression = serializers.CharField(label="查询表达式", allow_blank=True)
-        start_time = serializers.IntegerField(label="开始时间")
-        end_time = serializers.IntegerField(label="结束时间")
-        function = serializers.DictField(label="图表函数", required=False, default=dict)
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+        query_configs = serializers.ListField(label=_("查询配置列表"), allow_empty=False, child=QueryConfigSerializer())
+        expression = serializers.CharField(label=_("查询表达式"), allow_blank=True)
+        start_time = serializers.IntegerField(label=_("开始时间"))
+        end_time = serializers.IntegerField(label=_("结束时间"))
+        function = serializers.DictField(label=_("图表函数"), required=False, default=dict)
 
-        group_by = serializers.ListField(label="下钻维度列表", allow_empty=False)
-        alert_id = serializers.IntegerField(label="告警事件ID", required=False, allow_null=True)
+        group_by = serializers.ListField(label=_("下钻维度列表"), allow_empty=False)
+        alert_id = serializers.IntegerField(label=_("告警事件ID"), required=False, allow_null=True)
         aggregation_method = serializers.ChoiceField(
-            label="聚合方法", choices=["sum", "avg", "max", "min"], required=False
+            label=_("聚合方法"), choices=["sum", "avg", "max", "min"], required=False
         )
 
     class ResponseSerializer(serializers.Serializer):
-        dimensions = serializers.DictField(label="维度值", allow_null=True)
-        value = serializers.FloatField(label="当前值", allow_null=True)
-        percentage = serializers.FloatField(label="占比", allow_null=True)
-        unit = serializers.CharField(label="单位", allow_blank=True)
+        dimensions = serializers.DictField(label=_("维度值"), allow_null=True)
+        value = serializers.FloatField(label=_("当前值"), allow_null=True)
+        percentage = serializers.FloatField(label=_("占比"), allow_null=True)
+        unit = serializers.CharField(label=_("单位"), allow_blank=True)
 
         class CompareValueSerializer(serializers.Serializer):
-            value = serializers.FloatField(label="对比值", allow_null=True)
-            offset = serializers.CharField(label="偏移量")
-            fluctuation = serializers.FloatField(label="波动值", allow_null=True)
+            value = serializers.FloatField(label=_("对比值"), allow_null=True)
+            offset = serializers.CharField(label=_("偏移量"))
+            fluctuation = serializers.FloatField(label=_("波动值"), allow_null=True)
 
-        compare_values = serializers.ListField(label="对比", default=[], child=CompareValueSerializer())
+        compare_values = serializers.ListField(label=_("对比"), default=[], child=CompareValueSerializer())
 
     many_response_data = True
 

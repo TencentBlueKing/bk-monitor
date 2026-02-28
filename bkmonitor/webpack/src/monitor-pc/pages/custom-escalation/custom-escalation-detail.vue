@@ -1610,7 +1610,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   async getGroupList() {
     const data = await customTsGroupingRuleList({
       time_series_group_id: this.detailData.time_series_group_id,
-    }).catch(() => []);
+    }).catch(() => [] as ServiceReturnType<typeof customTsGroupingRuleList>);
     this.groupList = data.map(item => ({
       name: item.name,
       matchRules: item.auto_rules,
