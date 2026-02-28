@@ -52,7 +52,10 @@ export default class IntersectionMixin extends Vue {
         }
       });
     });
-    this.intersectionObserver.observe(this.$el);
+    // 临时使用此方法解决，自定义指标直接全选分组时，偶现前两个图表不会请求数据
+    setTimeout(() => {
+      this.intersectionObserver.observe(this.$el);
+    }, 50);
   }
   unregisterObserver() {
     if (this.intersectionObserver) {

@@ -339,4 +339,5 @@ export default {
   取消固定: 'Cancel fixed',
   将字段从列表中移除: 'Remove field from list',
   更多日志: 'More logs',
+  大小写敏感: 'Case sensitive',
 };

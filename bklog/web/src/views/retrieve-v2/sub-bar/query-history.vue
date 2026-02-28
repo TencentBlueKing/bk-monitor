@@ -132,9 +132,12 @@
         };
         return textMap[searchMode] || '';
       },
+      escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      },
       getContent(item){
         return `<div><div>${this.$t('检索时间')}：${dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ssZZ')}</div>
-                <div>${this.$t('语句')}：${item.query_string}</div></div>`
+                <div>${this.$t('语句')}："${this.escapeHtml(item.query_string)}"</div></div>`
       },
       async handleClickHistoryButton(e) {
         await this.requestSearchHistory();

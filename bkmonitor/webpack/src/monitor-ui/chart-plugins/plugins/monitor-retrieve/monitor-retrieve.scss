@@ -10,4 +10,29 @@
   .bklog-icon {
     font-size: 16px;
   }
+
+  .apm-empty-log {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+
+    .text-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .text-row {
+      margin: 16px 0 24px;
+      font-size: 14px;
+      color: #979ba5;
+      text-align: left;
+    }
+
+    .bk-button {
+      width: 88px;
+    }
+  }
 }
