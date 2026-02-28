@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("metadata", "0248_auto_20260119_0334"),
+        ("metadata", "0250_databusconfig_sink_names_and_more"),
     ]
 
     operations = [
