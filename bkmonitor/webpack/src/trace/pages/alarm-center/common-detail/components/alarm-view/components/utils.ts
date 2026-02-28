@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { handleGetMinPrecision } from 'monitor-pc/pages/custom-escalation/new-metric-view/metric-chart-view/utils';
+import { handleGetMinPrecision } from 'monitor-pc/pages/custom-escalation/metric-detail/utils';
 import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 /**
  * @description: 设置精确度

@@ -162,6 +162,7 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
           <div
             ref='menuPanel'
             class='function-menu-panel'
+            id='function-menu-panel-main'
           >
             <bk-input
               class='panel-search'
