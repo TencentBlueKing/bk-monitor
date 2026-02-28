@@ -136,6 +136,9 @@ export default class NewMetricView extends tsc<object> {
   created() {
     const routerQuery = this.$route.query as Record<string, string>;
     this.currentView = routerQuery.viewTab || 'default';
+    // 从本地存储初始化时间范围
+    customEscalationViewStore.initTimeRangeFromStorage();
+    this.metricTimeRange = [customEscalationViewStore.startTime, customEscalationViewStore.endTime];
   }
 
   render() {

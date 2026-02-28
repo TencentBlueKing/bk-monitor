@@ -42,7 +42,7 @@ import MetricsSelect from './components/metrics-select';
 import PanelChartView from './components/panel-chart-view';
 import ViewColumn from './components/view-column';
 
-import type { IMetricAnalysisConfig, RequestHandlerMap } from '../../type';
+import type { ChartSettingsParams, IMetricAnalysisConfig, RequestHandlerMap } from '../../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './index.scss';
@@ -112,9 +112,18 @@ export default class ViewContent extends tsc<IProps, IEmit> {
   state = {
     showStatisticalValue: false,
     viewColumn: 2,
+    autoYAxis: true,
+    decimal: 0,
   };
 
   asideWidth = 220; // 侧边栏初始化宽度
+
+  get chartSettingParams() {
+    return {
+      autoYAxis: this.state.autoYAxis,
+      decimal: this.state.decimal,
+    };
+  }
 
   @ProvideReactive('isApm')
   get isApmMode() {
@@ -192,6 +201,10 @@ export default class ViewContent extends tsc<IProps, IEmit> {
     }
   }
 
+  handleChartSettingChange(payload: ChartSettingsParams) {
+    this.state = { ...this.state, ...payload };
+  }
+
   handleResetAsideWidth(width: number) {
     localStorage.setItem(ASIDE_WIDTH_SETTING_KEY, String(width));
   }
@@ -202,6 +215,8 @@ export default class ViewContent extends tsc<IProps, IEmit> {
       this.state = {
         viewColumn: Number.parseInt(routerQuery.viewColumn, 10) || 2,
         showStatisticalValue: routerQuery.showStatisticalValue === 'true',
+        autoYAxis: routerQuery.autoYAxis === 'true',
+        decimal: Number(routerQuery.decimal) || 0,
       };
     }
     // 分组侧栏宽度
@@ -230,11 +245,19 @@ export default class ViewContent extends tsc<IProps, IEmit> {
         <template slot='main'>
           <HeaderBox
             key={this.currentView}
+            chartSettingParams={this.chartSettingParams}
             dimenstionParams={this.dimenstionParams}
             onChange={this.handleDimensionParamsChange}
+            onChartSettingChange={this.handleChartSettingChange}
             onMetricManage={this.handleMetricManage}
           >
             <template slot='actionExtend'>
+              <bk-checkbox
+                style='margin-right: 14px;'
+                v-model={this.state.autoYAxis}
+              >
+                {this.$t('Y轴最小值自适应')}
+              </bk-checkbox>
               <bk-checkbox v-model={this.state.showStatisticalValue}>{this.$t('展示统计值')}</bk-checkbox>
               <ViewColumn
                 style='margin-left: 32px;'
@@ -244,6 +267,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
           </HeaderBox>
           <div class='metric-view-dashboard-container'>
             <PanelChartView
+              chartSettingParams={this.chartSettingParams}
               config={this.config}
               showStatisticalValue={this.state.showStatisticalValue}
               viewColumn={this.state.viewColumn}

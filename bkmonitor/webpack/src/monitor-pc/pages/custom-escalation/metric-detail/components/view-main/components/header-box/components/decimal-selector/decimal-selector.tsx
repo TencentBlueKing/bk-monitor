@@ -26,7 +26,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './index.scss';
+import './decimal-selector.scss';
 
 interface IEmit {
   onChange: (value: number) => void;

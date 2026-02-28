@@ -136,7 +136,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
   @Emit('metricManage')
   handleMetricManage(tab) {
     return tab;
-  };
+  }
 
   /** 重新获取对应的高度 */
   handleCollapseChange() {
