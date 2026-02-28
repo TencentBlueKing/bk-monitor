@@ -36,6 +36,7 @@ from apps.tgpa.constants import (
     TGPAReportSyncStatusEnum,
     TGPA_REPORT_OFFSET_MINUTES,
     TGPA_REPORT_MAX_TIME_RANGE_MINUTES,
+    TGPATaskTypeEnum,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler, TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
@@ -63,17 +64,19 @@ def fetch_and_process_tgpa_tasks():
         try:
             # 确保已经创建采集配置
             TGPACollectorConfigHandler.get_or_create_collector_config(bk_biz_id)
-            # 获取任务列表，存量的任务只同步数据，不处理任务
             task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
-            # 统一将 go_svr_task_id 转换为 int 类型，确保与数据库字段类型一致
+            # 确保与数据库字段类型一致
             for task in task_list:
                 task["go_svr_task_id"] = int(task["go_svr_task_id"])
+                task["status"] = str(task["status"])
+            # 如果是第一次同步，只创建数据，不处理任务
             if not TGPATask.objects.filter(bk_biz_id=bk_biz_id).exists():
                 TGPATask.objects.bulk_create(
                     [
                         TGPATask(
                             id=task["id"],
                             task_id=task["go_svr_task_id"],
+                            task_type=task["task_type"],
                             bk_biz_id=bk_biz_id,
                             log_path=task["log_path"],
                             task_status=task["status"],
@@ -84,6 +87,27 @@ def fetch_and_process_tgpa_tasks():
                     ]
                 )
                 continue
+            # 首次同步V1任务，只创建数据，不处理任务（针对当前已经灰度的业务，下次发版可以去掉这段逻辑）
+            have_v1_task = TGPATask.objects.filter(
+                bk_biz_id=bk_biz_id, task_type=TGPATaskTypeEnum.BUSINESS_LOG_V1.value
+            ).exists()
+            if not have_v1_task:
+                TGPATask.objects.bulk_create(
+                    [
+                        TGPATask(
+                            id=task["id"],
+                            task_id=task["go_svr_task_id"],
+                            task_type=task["task_type"],
+                            bk_biz_id=bk_biz_id,
+                            log_path=task["log_path"],
+                            task_status=task["status"],
+                            file_status=task["exe_code"],
+                            process_status=TGPATaskProcessStatusEnum.INIT.value,
+                        )
+                        for task in task_list
+                        if task["task_type"] == TGPATaskTypeEnum.BUSINESS_LOG_V1.value
+                    ]
+                )
         except Exception:
             logger.exception("Failed to sync client log tasks, business id: %s", bk_biz_id)
             continue
@@ -108,6 +132,7 @@ def fetch_and_process_tgpa_tasks():
                     task_id=task["go_svr_task_id"],
                     defaults={
                         "id": task["id"],
+                        "task_type": task["task_type"],
                         "bk_biz_id": task["cc_id"],
                         "log_path": task["log_path"],
                         "task_status": task["status"],
@@ -295,9 +320,9 @@ def periodic_sync_tgpa_reports():
             logger.warning("Time range too large, set start_time to 30 minutes ago for business: %s", bk_biz_id)
             start_time = end_time.shift(minutes=-TGPA_REPORT_MAX_TIME_RANGE_MINUTES)
 
-        # 时间偏移 1 分钟，避免数据延迟带来的影响
-        start_time = int(start_time.shift(minutes=TGPA_REPORT_OFFSET_MINUTES).timestamp() * 1000)
-        end_time = int(end_time.shift(minutes=TGPA_REPORT_OFFSET_MINUTES).timestamp() * 1000)
+        # 时间偏移 5 分钟，避免数据延迟带来的影响
+        start_time = start_time.shift(minutes=TGPA_REPORT_OFFSET_MINUTES).int_timestamp * 1000
+        end_time = end_time.shift(minutes=TGPA_REPORT_OFFSET_MINUTES).int_timestamp * 1000
 
         try:
             # 获取时间范围内的上报文件列表

@@ -400,6 +400,34 @@ export class QueryStringEditor {
   }
 }
 
+// 获取光标全局字符偏移量
+export function getGlobalOffset(editor) {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return 0;
+  const range = selection.getRangeAt(0);
+  let offset = 0;
+  const nodeStack = [editor];
+  let found = false;
+  // 前序遍历所有文本节点
+  while (nodeStack.length > 0 && !found) {
+    const node = nodeStack.pop();
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (node === range.startContainer) {
+        offset += range.startOffset;
+        found = true;
+      } else {
+        offset += node.textContent.length;
+      }
+    } else {
+      // 逆序压栈保证遍历顺序
+      for (let i = node.childNodes.length - 1; i >= 0; i--) {
+        nodeStack.push(node.childNodes[i]);
+      }
+    }
+  }
+  return offset;
+}
+
 export function getQueryStringMethods(fieldType: EFieldType) {
   if (fieldType === EFieldType.integer) {
     return [...QUERY_STRING_METHODS];
@@ -530,36 +558,8 @@ export function replaceContent(editor, content: string, isLast = false) {
   // 保持聚焦
   editor.focus();
 }
-
-// 获取光标全局字符偏移量
-function getGlobalOffset(editor) {
-  const selection = window.getSelection();
-  if (!selection.rangeCount) return 0;
-  const range = selection.getRangeAt(0);
-  let offset = 0;
-  const nodeStack = [editor];
-  let found = false;
-  // 前序遍历所有文本节点
-  while (nodeStack.length > 0 && !found) {
-    const node = nodeStack.pop();
-    if (node.nodeType === Node.TEXT_NODE) {
-      if (node === range.startContainer) {
-        offset += range.startOffset;
-        found = true;
-      } else {
-        offset += node.textContent.length;
-      }
-    } else {
-      // 逆序压栈保证遍历顺序
-      for (let i = node.childNodes.length - 1; i >= 0; i--) {
-        nodeStack.push(node.childNodes[i]);
-      }
-    }
-  }
-  return offset;
-}
 // 设置光标到指定偏移量
-function setGlobalOffset(editor, targetOffset) {
+export function setGlobalOffset(editor, targetOffset) {
   let currentOffset = 0;
   let targetNode = editor;
   let targetNodeOffset = 0;

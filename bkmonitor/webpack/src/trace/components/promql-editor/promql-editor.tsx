@@ -96,6 +96,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 是否可拉伸调整高度 */
+    resizable: {
+      type: Boolean,
+      default: true,
+    },
   },
   setup(props, { emit }) {
     const currentInstance = getCurrentInstance();
@@ -178,7 +183,14 @@ export default defineComponent({
     const initMonaco = () => {
       const finalValue = props.value !== null ? props.value : props.defaultValue;
       if (containerElement.value) {
-        const finalOptions = { ...props.options, ...editorWillMount(monaco) };
+        const { suggest, ...restDefaultOptions } = defaultOptions;
+        const finalOptions: monaco.editor.IStandaloneEditorConstructionOptions = {
+          ...restDefaultOptions,
+          suggest: suggest(),
+          ...props.options,
+          ...editorWillMount(monaco),
+        };
+
         const modelUri = props.uri?.(monaco);
         let model = null;
         if (modelUri) {
@@ -328,15 +340,17 @@ export default defineComponent({
           ref='containerElement'
           class='promql-editor'
         />
-        <div
-          class='resize-vertical-drop'
-          onMousedown={this.initResize}
-        >
-          <div class='lines'>
-            <div class='line-1' />
-            <div class='line-2' />
+        {this.resizable && (
+          <div
+            class='resize-vertical-drop'
+            onMousedown={this.initResize}
+          >
+            <div class='lines'>
+              <div class='line-1' />
+              <div class='line-2' />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   },

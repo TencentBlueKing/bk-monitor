@@ -29,6 +29,8 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 
 from apps.api import MonitorApi, UnifyQueryApi
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH, UNIFY_QUERY_SEARCH_CLUSTERING
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_ACTION_NOTICE,
@@ -54,6 +56,7 @@ from apps.log_clustering.models import (
 )
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
+from apps.log_unifyquery.handler.pattern import UnifyQueryPatternHandler
 from apps.models import model_to_dict
 from apps.utils.bkdata import BkData
 from apps.utils.db import array_hash
@@ -301,9 +304,17 @@ class PatternHandler:
         return multi_execute_func.run()
 
     def _get_pattern_aggs_result(self, index_set_id, query):
-        query["fields"] = [{"field_name": self.pattern_aggs_field, "sub_fields": self._build_aggs_group}]
-        aggs_result = AggsHandlers.terms(index_set_id, query)
-        return self._parse_pattern_aggs_result(self.pattern_aggs_field, aggs_result)
+        pattern_aggs_field = self.pattern_aggs_field
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, query.get("bk_biz_id")) and FeatureToggleObject.switch(
+            UNIFY_QUERY_SEARCH_CLUSTERING, query.get("bk_biz_id")
+        ):
+            query["index_set_ids"] = [index_set_id]
+            query["agg_field"] = pattern_aggs_field
+            return UnifyQueryPatternHandler(query).query_pattern()
+        else:
+            query["fields"] = [{"field_name": pattern_aggs_field, "sub_fields": self._build_aggs_group}]
+            aggs_result = AggsHandlers.terms(index_set_id, query)
+            return self._parse_pattern_aggs_result(pattern_aggs_field, aggs_result)
 
     @property
     def _build_aggs_group(self):

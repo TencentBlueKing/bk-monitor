@@ -52,20 +52,33 @@ const INCIDENT_TABLE_COLUMNS = [
     colKey: 'incident_name',
     title: window.i18n.t('故障名称'),
     is_default: true,
+    is_locked: true,
     width: 354,
     ellipsis: true,
+    fixed: 'left',
+  },
+  {
+    colKey: 'bk_biz_name',
+    title: window.i18n.t('空间名'),
+    is_default: true,
+    is_locked: true,
+    minWidth: 100,
+    width: 100,
+    sorter: false,
     fixed: 'left',
   },
   {
     colKey: 'status',
     title: window.i18n.t('故障状态'),
     is_default: true,
+    is_locked: true,
     width: 110,
   },
   {
     colKey: 'alert_count',
     title: window.i18n.t('告警数量'),
     is_default: true,
+    is_locked: true,
     width: 100,
     sorter: true,
   },
@@ -85,7 +98,8 @@ const INCIDENT_TABLE_COLUMNS = [
   {
     colKey: 'duration',
     title: window.i18n.t('持续时间'),
-    is_default: false,
+    is_default: true,
+    is_locked: true,
     width: 100,
   },
   {
@@ -351,6 +365,9 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
   readonly storageKey = INCIDENT_STORAGE_KEY;
   get allTableColumns(): TableColumnItem[] {
     return [...INCIDENT_TABLE_COLUMNS];
+  }
+  get analysisDefaultSettingsFields(): string[] {
+    return ['incident_name', 'incident_type', 'operator', 'duration'];
   }
   get analysisFields(): string[] {
     return ['incident_name', 'incident_type', 'operator', 'duration', 'strategy_name', 'operate_target_string'];

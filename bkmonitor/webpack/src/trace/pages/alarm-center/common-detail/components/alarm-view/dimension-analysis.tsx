@@ -105,7 +105,8 @@ export default defineComponent({
     const chartClickPointEvent = shallowRef<{ xAxis: number; yAxis: number }>(null);
     /** 是否查看大图 */
     const chartIsFullscreen = shallowRef(false);
-
+    /** 是否立即刷新图表数据 */
+    const refreshImmediate = shallowRef('');
     const {
       panel,
       viewerTimeRange,
@@ -122,18 +123,27 @@ export default defineComponent({
       graphPanel: toRef(props, 'graphPanel'),
       where,
     });
+
+    provide('refreshImmediate', refreshImmediate);
     provide('timeRange', viewerTimeRange);
 
     const getDrillDimensionsData = async () => {
       dimensionListLoading.value = true;
-      const res = await getDrillDimensions({
-        bk_biz_id: props.detail.bk_biz_id,
-        query_configs:
-          props.detail.extra_info?.strategy?.items?.[0]?.query_configs?.map(queryConfig => ({
+      const queryConfigsParams =
+        props.detail.extra_info?.strategy?.items?.[0]?.query_configs
+          ?.map(queryConfig => ({
             result_table_id: queryConfig.result_table_id,
             metric_field: queryConfig.metric_field,
             configured_dimensions: queryConfig.agg_dimension || [],
-          })) || [],
+          }))
+          ?.filter(item => item.result_table_id && item.metric_field) || [];
+      if (!queryConfigsParams.length) {
+        dimensionListLoading.value = false;
+        return [];
+      }
+      const res = await getDrillDimensions({
+        bk_biz_id: props.detail.bk_biz_id,
+        query_configs: queryConfigsParams,
       }).catch(() => []);
       dimensionListLoading.value = false;
       return res;
@@ -141,6 +151,10 @@ export default defineComponent({
 
     const graphDrillDownData = async () => {
       tableDataLoading.value = true;
+      if (!selectedDimension.value.length) {
+        tableDataLoading.value = false;
+        return [];
+      }
       const res = await graphDrillDown({
         bk_biz_id: props.detail.bk_biz_id,
         alert_id: props.detail.id,

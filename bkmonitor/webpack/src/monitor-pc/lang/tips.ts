@@ -441,4 +441,5 @@ export default {
   '并行：组间同时拨打，组内顺序依次拨打；<br>串行：多个用户组人员顺序合并后依次拨打，<br>重复人员以前置组优先':
     'Parallel: Calls are made simultaneously between groups, and sequentially within each group.<br>Serial: The personnel from multiple user groups are merged in sequence and called one by one, <br>with repeated personnel given priority based on their earlier group.',
   当前业务时区: 'Current business time zone',
+  '输入 $ 可以插入变量': 'Input $ to insert variables',
 };

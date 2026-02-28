@@ -50,7 +50,7 @@
         </span>
       </span>
       <span
-        v-if="isActiveWebConsole"
+        v-if="isActiveWebConsole && !isMonitorApm"
         class="handle-card"
         v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html' }"
       >
@@ -147,6 +147,7 @@
     data() {
       return {
         showAllHandle: false, // hove操作区域显示全部icon
+        isMonitorApm: window.__IS_MONITOR_APM__,
       };
     },
     computed: {

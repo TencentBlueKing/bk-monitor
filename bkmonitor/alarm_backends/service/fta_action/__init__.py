@@ -141,7 +141,7 @@ class BaseActionProcessor:
         :return:
         """
         if self.action.signal == ActionSignal.DEMO:
-            # 如果是调试任务，则设置样例参数
+            # 如果是调试任务,则设置样例参数
             demo_context = copy.deepcopy(DEMO_CONTEXT)
 
             event = EventDocument(**{"bk_biz_id": 2, "ip": "127.0.0.1", "bk_cloud_id": 0})
@@ -159,7 +159,8 @@ class BaseActionProcessor:
             )
             demo_context.update({"alert": alert})
             return demo_context
-        return ActionContext(self.action, alerts=self.alerts).get_dictionary()
+        self.action_context = ActionContext(self.action, alerts=self.alerts)
+        return self.action_context.get_dictionary()
 
     @property
     def inputs(self):

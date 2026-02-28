@@ -9,9 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import pytest
-
 from core.drf_resource import resource
-from monitor_web.models.uptime_check import UptimeCheckTask
 
 
 def get_mock_uptime_check_task_params_test():
@@ -93,8 +91,14 @@ def get_mock_uptime_check_task_result_deploy():
 
 
 def mock_uptime_check_task_model(mocker):
+    """Mock uptime_check_operation.get_uptime_check_task"""
+    from bk_monitor_base.uptime_check import UptimeCheckTask
+
     task = UptimeCheckTask(
+        bk_tenant_id="default",
         bk_biz_id=2,
+        id=10065,
+        name="test_task",
         protocol="HTTP",
         config={
             "headers": [
@@ -112,27 +116,34 @@ def mock_uptime_check_task_model(mocker):
             "timeout": 3000,
             "urls": "http://mail.qq.com",
         },
+        node_ids=[],
+        group_ids=[],
+        status="running",
     )
-    mocked_func = mocker.patch("monitor_web.models.uptime_check.UptimeCheckTask.objects.get", return_value=task)
+    mocked_func = mocker.patch(
+        "monitor_web.uptime_check.resources.uptime_check_operation.get_uptime_check_task",
+        return_value=task,
+    )
     return mocked_func
 
 
 @pytest.mark.django_db(databases="__all__")
 class TestGenerateSubConfig:
     def test_perform_request_test(self, mocker):
+        """测试模式下生成子配置"""
         params = get_mock_uptime_check_task_params_test()
         result = resource.uptime_check.generate_sub_config(params)
         result_expect = get_mock_uptime_check_task_result_test()
         assert result == result_expect
 
     def test_perform_request_deploy(self, mocker):
+        """部署模式下生成子配置"""
         mocked_func = mock_uptime_check_task_model(mocker)
-        mocked_func.start()
         params = {
+            "bk_biz_id": 2,
             "task_id": 10065,
         }
         result = resource.uptime_check.generate_sub_config(params)
         result_expect = get_mock_uptime_check_task_result_deploy()
         assert result == result_expect
         mocked_func.assert_called_once()
-        mocked_func.stop()

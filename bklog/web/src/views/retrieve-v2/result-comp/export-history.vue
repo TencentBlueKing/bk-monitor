@@ -518,7 +518,8 @@
             return output;
           }, [])
           .join('&');
-        const jumpUrl = `${window.SITE_URL}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${params}`;
+        const siteUrl = window.__IS_MONITOR_COMPONENT__ ? window.site_url : window.SITE_URL;
+        const jumpUrl = `${siteUrl}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${params}`;
         window.open(jumpUrl, '_blank');
       },
       /**

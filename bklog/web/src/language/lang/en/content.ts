@@ -1271,4 +1271,12 @@ export default {
     'Supports letters, numbers, underscores, and hyphens, but cannot start with a hyphen',
   '多个用户名粘贴请使用英文分号 " ; " 分隔 ，手动输入用户名请键入 Enter 保存':
     'When pasting multiple usernames, please separate them with English semicolons ";". When manually entering usernames, press Enter to save',
+  输入检索内容: 'Enter search content',
+  直接检索: 'Search directly',
+  可输入自然语言: 'Natural language input is supported',
+  '触发 AI 解析': 'Trigger AI analysis',
+  'AI 解析': 'AI analysis',
+  'Tab 可切换为 AI 模式': 'The tab can be switched to AI mode',
+  '输入查询内容，“帮我查询最近 3 天的错误日志”（Tab 可切回普通模式）':
+    'Enter your query, "Help me check the error logs for the last 3 days" (Tab switches back to normal mode)',
 };

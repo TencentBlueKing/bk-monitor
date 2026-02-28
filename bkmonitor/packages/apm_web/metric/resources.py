@@ -87,7 +87,6 @@ from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions, q_
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.common_utils import format_percent
-from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from bkmonitor.utils.time_tools import (
     get_datetime_range,
@@ -110,6 +109,7 @@ from monitor_web.scene_view.table_format import (
     CustomProgressTableFormat,
     DataPointsTableFormat,
     DataStatusTableFormat,
+    EndpointListTableFormat,
     LinkListTableFormat,
     LinkTableFormat,
     NumberTableFormat,
@@ -2252,9 +2252,26 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 url_format="/service/?filter-service_name={service}&filter-app_name={app_name}&"
                 "dashboardId=service-default-overview&sceneId=apm_service&sceneType=overview",
             )
-        # columns 默认顺序: 接口、调用类型、调用次数、错误次数、错误率、平均响应时间、状态、类型、分类、服务、操作
+
+        # 定义调用链链接格式，用于 endpoint_name 列
+        trace_link = LinkTableFormat(
+            id="trace",
+            name=_lazy("调用链"),
+            url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
+            + "&search_type=scope"
+            + "&start_time={start_time}&end_time={end_time}"
+            + "&sceneMode=span&filterMode=ui"
+            + "&where=["
+            '{{"key": "resource.service.name","operator": "equal","value": ["{service_name}"]}},'
+            '{{"key": "span_name","operator": "equal","value": ["{endpoint_name}"]}}'
+            "]",
+            target="blank",
+            event_key=SceneEventKey.SWITCH_SCENES_TYPE,
+        )
+
+        # columns 默认顺序: 接口、调用类型、调用次数、错误次数、错误率、平均响应时间、状态、类型、分类、服务
         columns = [
-            OverviewDataTableFormat(
+            EndpointListTableFormat(
                 id="endpoint_name",
                 title=_lazy("接口概览"),
                 name=_lazy("接口"),
@@ -2262,7 +2279,8 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 disabled=True,
                 width=248,
                 min_width=120,
-                max_width=300,
+                max_width=370,
+                links=[trace_link],
             ),
             StringTableFormat(
                 id="kind",
@@ -2330,35 +2348,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 min_width=120,
             ),
             service_format,
-            LinkListTableFormat(
-                id="operation",
-                name=_lazy("操作"),
-                checked=True,
-                disabled=True,
-                links=[
-                    LinkTableFormat(
-                        id="trace",
-                        name=_lazy("调用链"),
-                        url_format="/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}"
-                        + "&search_type=scope"
-                        + "&start_time={start_time}&end_time={end_time}"
-                        + "&sceneMode=span&filterMode=ui"
-                        + "&where=["
-                        '{{"key": "resource.service.name","operator": "equal","value": ["{service_name}"]}},'
-                        '{{"key": "span_name","operator": "equal","value": ["{endpoint_name}"]}}'
-                        "]",
-                        target="blank",
-                        event_key=SceneEventKey.SWITCH_SCENES_TYPE,
-                    )
-                ],
-                min_width=120,
-            ),
         ]
-
-        # 临时分享处理返回链接数据
-        request = get_request(peaceful=True)
-        if request and getattr(request, "token", None):
-            columns = [column for column in columns if column.id != "operation"]
 
         return columns
 
@@ -2598,7 +2588,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             endpoint["origin_kind"] = endpoint["kind"]
             endpoint["kind"] = SpanKindCachedEnum.from_value(endpoint["kind"]).label
             endpoint["app_name"] = application.app_name
-            endpoint["operation"] = {"trace": _lazy("调用链")}
             endpoint["origin_category_kind"] = endpoint["category_kind"]
             endpoint["category_kind"] = endpoint["category_kind"]["value"] or "--"
             endpoint["bk_biz_id"] = data["bk_biz_id"]

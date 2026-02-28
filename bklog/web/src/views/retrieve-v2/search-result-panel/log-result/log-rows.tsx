@@ -881,6 +881,7 @@ export default defineComponent({
 
     useWheel({
       target: refRootElement,
+      options: { passive: false },
       callback: (event: WheelEvent) => {
         if (shouldPreloadOnScrollDown(event)) {
           isPreloading.value = true;
@@ -891,15 +892,12 @@ export default defineComponent({
 
         const maxOffset = scrollWidth.value - offsetWidth.value;
 
-        // 检查是否按住 shift 键
         if (event.shiftKey) {
-          // 当按住 shift 键时，让 refScrollXBar 执行系统默认的横向滚动能力
           if (hasScrollX.value && refScrollXBar.value) {
+            event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation();
-            event.preventDefault();
 
-            // 使用系统默认的滚动行为，通过 refScrollXBar 执行横向滚动
             const currentScrollLeft = refScrollXBar.value.getScrollLeft?.() || 0;
             const scrollStep = event.deltaY || event.deltaX;
             const newScrollLeft = Math.max(0, Math.min(maxOffset, currentScrollLeft + scrollStep));
@@ -912,16 +910,16 @@ export default defineComponent({
         }
 
         if (event.deltaX !== 0 && hasScrollX.value) {
+          event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();
-          event.preventDefault();
           if (!isAnimating) {
             isAnimating = true;
             requestAnimationFrame(() => {
               isAnimating = false;
-              const nextOffset = scrollXOffsetLeft + event.deltaX;
-              if (nextOffset <= maxOffset && nextOffset >= 0) {
-                scrollXOffsetLeft += event.deltaX;
+              const nextOffset = Math.max(0, Math.min(maxOffset, scrollXOffsetLeft + event.deltaX));
+              if (nextOffset !== scrollXOffsetLeft) {
+                scrollXOffsetLeft = nextOffset;
                 setRowboxTransform();
                 refScrollXBar.value?.scrollLeft(nextOffset);
               }
@@ -1069,6 +1067,11 @@ export default defineComponent({
 
     const handleRowMouseup = (e: MouseEvent, item: any) => {
       if (!mousedownOnRow) {
+        RetrieveHelper.setMousedownEvent(null);
+        return;
+      }
+      // 选中文本不弹出复制等选项框
+      if (window.__IS_MONITOR_TRACE__ && window.getSelection().toString().length > 1) {
         RetrieveHelper.setMousedownEvent(null);
         return;
       }
