@@ -386,6 +386,7 @@ export default defineComponent({
               keyword={this.inputValue}
               limit={this.limit}
               loadDelay={this.loadDelay}
+              noValueOfMethods={this.noValueOfMethods}
               show={this.showSelector}
               value={this.localValue?.[this.updateActive]}
               onCancel={this.handleCancel}

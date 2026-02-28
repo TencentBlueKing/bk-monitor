@@ -1714,6 +1714,9 @@ APM_SERVICE_CACHE_APPLICATIONS = []
 # 企业微信模块化（layouts）消息通知灰度业务列表
 WECOM_LAYOUTS_BIZ_LIST = []
 
+# 允许 APM 配置指标分组维度的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+APM_METRIC_GROUP_DIMENSIONS_WHITELIST = []
+
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
 
@@ -1753,6 +1756,8 @@ IS_GLOBAL_TENANT = True
 BK_APP_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
+# 内置数据链路是按业务还是按租户申请，默认空。当为空时，按业务申请；当为 "tenant" 时，按租户申请
+SPACE_BUILTIN_DATA_LINK_MODE = os.getenv("SPACE_BUILTIN_DATA_LINK_MODE", "")
 
 # 事件中心AIOps功能灰度业务列表
 ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []

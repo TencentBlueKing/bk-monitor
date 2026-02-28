@@ -49,6 +49,16 @@ const ACTION_TABLE_COLUMNS = [
     width: 160,
   },
   {
+    colKey: 'bk_biz_name',
+    title: window.i18n.t('空间名'),
+    is_default: true,
+    is_locked: true,
+    minWidth: 100,
+    width: 100,
+    sorter: false,
+    fixed: 'left',
+  },
+  {
     colKey: 'create_time',
     title: window.i18n.t('开始时间'),
     is_default: true,

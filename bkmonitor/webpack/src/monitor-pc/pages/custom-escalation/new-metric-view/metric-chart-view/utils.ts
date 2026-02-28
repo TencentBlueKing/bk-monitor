@@ -155,7 +155,7 @@ export function handleTransformTimeShift(val: string) {
  * @param {number} num
  * @return {*}
  */
-export function handleYAxisLabelFormatter(num: number): string {
+export function handleYAxisLabelFormatter(num: number, decimal = 3): string {
   const si = [
     { value: 1, symbol: '' },
     { value: 1e3, symbol: 'K' },
@@ -172,7 +172,7 @@ export function handleYAxisLabelFormatter(num: number): string {
       break;
     }
   }
-  return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
+  return (num / si[i].value).toFixed(decimal).replace(rx, '$1') + si[i].symbol;
 }
 export function timeToDayNum(t) {
   const regex = /^\d{4}-\d{2}-\d{2}$/;

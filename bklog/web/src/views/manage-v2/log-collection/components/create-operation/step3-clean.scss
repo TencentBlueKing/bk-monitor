@@ -2,16 +2,9 @@
   width: 100%;
   height: 100%;
   position: relative;
-
   .label-form-box .label-title {
     width: 124px !important;
   }
-
-  .index-set-select {
-    width: 45%;
-    min-width: 680px;
-  }
-
   .format-error {
     color: #ea3636;
     font-size: 12px;
@@ -19,17 +12,14 @@
     margin-top: -8px;
     margin-bottom: 10px;
   }
-
   .template-btn {
     margin: 0 24px;
     color: #3a84ff;
     border-color: #3a84ff;
   }
-
   .mr-5 {
     margin-right: 5px;
   }
-
   .status-box {
     width: 148px;
     height: 40px;
@@ -44,7 +34,6 @@
     align-items: center;
     z-index: 10;
     cursor: pointer;
-
     .status-icon-box {
       width: 32px;
       height: 32px;
@@ -58,7 +47,6 @@
       backface-visibility: hidden;
       transform: translateZ(0);
     }
-
     .spinner {
       width: 30px;
       height: 30px;
@@ -66,75 +54,60 @@
       transform-origin: 50% 50%;
       animation: spin 2s linear infinite;
     }
-
     .status-icon {
       position: absolute;
       left: 12px;
     }
-
     .status-txt {
       color: #fff;
       font-size: 14px;
       text-align: center;
     }
-
     &.loading {
       .status-icon-box {
         background: url('@/images/log-collection/loading.svg') no-repeat center;
-        background-size: 32px 32px;
-        /* 固定像素，避免 contain 的细微重采样 */
+        background-size: 32px 32px; /* 固定像素，避免 contain 的细微重采样 */
         animation: spin 2s linear infinite;
       }
-
       .status-icon {
         color: #fff;
       }
-
+      
     }
-
     &.success {
       background: #3d9399;
-
       .status-icon-box {
         background: #fff;
       }
-
       .status-icon {
         font-size: 33px;
         color: #00b38f;
       }
     }
-
     &.failed {
       background: #b34747;
-
       .status-icon-box {
         background: #fff;
       }
-
       .status-icon {
         font-size: 38px;
         color: #ea3636;
       }
     }
-
     @keyframes spin {
-      from {
-        transform: rotate(0deg);
-      }
-
-      to {
-        transform: rotate(360deg);
-      }
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
     }
   }
-
   .select-group {
     width: 95%;
     display: flex;
     margin-top: 12px;
     gap: 12px;
-
     .select-item {
       width: 33%;
       display: flex;
@@ -142,7 +115,6 @@
       color: #4d4f56;
       font-size: 12px;
     }
-
     .select-title {
       display: inline-block;
       background: #fafbfd;
@@ -154,55 +126,44 @@
       line-height: 30px;
       min-width: 40px;
     }
-
     .select-box {
       flex: 1;
       min-width: 240px;
       border-left: none;
       border-radius: 0 2px 2px 0;
     }
-
     .select-input {
       width: 170px;
     }
   }
-
   .clean-setting {
     width: 100%;
-
     .clean-alert {
       border: 1px solid #a3c5fd;
       background: #f0f5ff;
       color: #4d4f56;
       margin-top: 12px;
       margin-bottom: 20px;
-
       .bk-icon {
         color: #3a84ff;
       }
     }
-
     .mt-5 {
       margin-top: 5px;
     }
-
     .example-box {
       margin-bottom: 8px;
-
       .link-icon {
         font-size: 14px;
       }
-
       .template-select {
         border: none;
         display: inline-block;
-
         &.is-focus {
           box-shadow: none;
         }
       }
     }
-
     .clean-btn {
       display: block;
       width: 80px;
@@ -211,59 +172,47 @@
       color: #3a84ff;
       font-size: 12px;
       padding: 1px 15px;
-
       &:hover {
         border: 1px solid #3a84ff;
         color: #3a84ff;
       }
-
       &.is-disabled {
         background-color: #dcdee5;
         border-color: #dcdee5;
         color: #fff;
         cursor: not-allowed;
-
         &:hover {
           background-color: #dcdee5 !important;
           border-color: #dcdee5 !important;
         }
       }
     }
-
     .checkbox-box {
       display: flex;
       align-items: center;
     }
-
     .fields-table {
       margin: 12px 0;
     }
-
     .select-item {
       width: 40%;
     }
   }
-
   .advanced-setting {
     width: 100%;
   }
-
-  .url-demo-box,
-  .debug-box {
+  .url-demo-box, .debug-box {
     display: flex;
     align-items: center;
-
     .input-box {
       width: 50%;
     }
-
     .icons {
       color: #63656e;
       margin-left: 12px;
       cursor: pointer;
     }
   }
-
   .debug-box {
     width: 50%;
     margin-top: 10px;
@@ -271,14 +220,11 @@
     align-items: center;
     font-size: 12px;
     color: #818289;
-
     .metadata-fields-item {
       display: flex;
       align-items: center;
       width: 100%;
-
-      .item-name,
-      .item-value {
+      .item-name, .item-value {
         height: 32px;
         line-height: 32px;
         background-color: #fafbfd;
@@ -288,64 +234,52 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-
       .item-name {
         width: 24%;
       }
-
       .item-value {
         width: calc(76% - 4px);
       }
-
       .symbol {
         margin: 0 4px;
         color: #979ba5;
         font-size: 14px;
       }
     }
-
+    
   }
-
   .debug-btn {
     margin-left: 12px;
     border: 1px solid #3a84ff;
     color: #3a84ff;
-
     &:hover {
       border: 1px solid #3a84ff;
       color: #3a84ff;
     }
-
     &.is-disabled {
       background-color: #dcdee5;
       border-color: #dcdee5;
       color: #fff;
       cursor: not-allowed;
-
       &:hover {
         background-color: #dcdee5 !important;
         border-color: #dcdee5 !important;
       }
     }
   }
-
   .separator-box {
     display: block;
     width: 47.5%;
-
     .select-box {
       min-width: 110px;
     }
   }
-
   .regex-box-main {
     margin-top: 12px;
-
     .title {
       font-size: 12px;
       color: #4D4F56;
       margin-bottom: 6px;
-
       .tips-icon {
         color: #979BA5;
         font-size: 14px;
@@ -354,29 +288,23 @@
     }
   }
 }
-
 .template-select-popover {
   width: 240px !important;
-
   .bk-option-content {
     padding: 0 7px 0 12px !important;
   }
-
   .template-option {
     width: 100%;
     display: flex;
     align-items: center;
-
     &:hover {
       .option-btn {
         display: inline-block;
       }
     }
-
     .option-name {
       flex: 1;
     }
-
     .option-btn {
       display: none;
       height: 24px;

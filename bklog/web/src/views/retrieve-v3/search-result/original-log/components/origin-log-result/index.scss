@@ -60,6 +60,12 @@
     padding: 0 16px;
     margin-bottom: 8px;
 
+    &.is-monitor-apm {
+      .tippy-arrow {
+        display: none !important;
+      }
+    }
+
     .search-bar-container {
       box-shadow: none;
 
@@ -160,6 +166,12 @@
                 left: 2px;
                 font-size: 12px;
                 color: #ffffff;
+
+                &.is-monitor-apm-icon {
+                  top: -8px;
+                  left: -2px;
+                  font-size: 20px;
+                }
               }
             }
           }

@@ -14,6 +14,7 @@ import logging
 import tempfile
 import time
 import uuid
+from collections import defaultdict
 from itertools import chain
 from typing import Any
 
@@ -1281,6 +1282,7 @@ class CreateTimeSeriesGroupResource(Resource):
         default_storage_config = serializers.DictField(required=False, label="默认存储参数")
         additional_options = serializers.DictField(required=False, label="附带创建的ResultTableOption")
         data_label = serializers.CharField(label="数据标签", required=False, default="")
+        metric_group_dimensions = serializers.JSONField(required=False, label="指标分组的维度key配置")
 
     def perform_request(self, validated_request_data):
         # 默认都是返回已经删除的内容
@@ -1429,6 +1431,395 @@ class QueryTimeSeriesGroupResource(Resource):
             return {"count": count, "info": results}
 
         return list(chain.from_iterable(instance.to_json_v2() for instance in query_set))
+
+
+class CreateOrUpdateTimeSeriesMetricResource(Resource):
+    """批量创建或更新自定义时序指标"""
+
+    class RequestSerializer(serializers.Serializer):
+        class MetricSerializer(serializers.Serializer):
+            """单个指标的序列化器"""
+
+            field_id = serializers.IntegerField(required=False, label="字段ID")
+            field_name = serializers.CharField(required=False, label="指标字段名称", max_length=255)
+            field_scope = serializers.CharField(required=False, label="指标数据分组", max_length=255)
+            tag_list = serializers.ListField(
+                required=False, label="Tag列表", child=serializers.CharField(), allow_null=True
+            )
+            field_config = serializers.DictField(required=False, label="字段其他配置", allow_null=True)
+            label = serializers.CharField(required=False, label="指标监控对象", max_length=255, allow_null=True)
+            scope_id = serializers.IntegerField(required=True, label="指标分组ID")
+
+        bk_tenant_id = TenantIdField(label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+        metrics = serializers.ListField(
+            required=True,
+            label="批量指标列表",
+            child=MetricSerializer(),
+            allow_empty=False,
+        )
+
+    def perform_request(self, validated_request_data):
+        """执行批量创建或更新时序指标的请求"""
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        group_id = validated_request_data.pop("group_id")
+        metrics = validated_request_data.pop("metrics")
+
+        models.TimeSeriesMetric.batch_create_or_update(metrics, bk_tenant_id, group_id)
+
+
+class QueryTimeSeriesMetricResource(Resource):
+    """
+    查询自定义时序指标列表
+
+    支持分页、搜索和排序功能
+    """
+
+    # 排序字段映射
+    ORDER_FIELD_MAPPING = {
+        "name": "field_name",
+        "update_time": "last_modify_time",
+        "-name": "-field_name",
+        "-update_time": "-last_modify_time",
+    }
+
+    class RequestSerializer(PageSerializer):
+        class QueryTimeSeriesMetricConditionSerializer(serializers.Serializer):
+            """搜索条件序列化器"""
+
+            key = serializers.ChoiceField(
+                choices=[
+                    "name",
+                    "field_config_alias",
+                    "field_config_unit",
+                    "field_config_aggregate_method",
+                    "field_config_hidden",
+                    "field_config_disabled",
+                    "scope_id",
+                    "field_id",
+                ],
+                required=True,
+                label="搜索字段",
+            )
+            values = serializers.ListField(
+                child=serializers.CharField(),
+                required=True,
+                label="搜索值列表（多个值用OR连接）",
+                min_length=1,
+            )
+            search_type = serializers.ChoiceField(
+                choices=["regex", "fuzzy", "exact"],
+                required=False,
+                default="fuzzy",
+                label="搜索类型：regex-正则表达式，fuzzy-模糊搜索，exact-精确匹配（仅对name字段有效，其他字段默认为exact）",
+            )
+
+        bk_tenant_id = TenantIdField(label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+        page = serializers.IntegerField(default=1, required=False, label="页数", min_value=1)
+        page_size = serializers.IntegerField(default=10, required=False, label="页长", min_value=1, max_value=1000)
+        conditions = serializers.ListField(
+            child=QueryTimeSeriesMetricConditionSerializer(),
+            required=False,
+            label="搜索条件列表，同一字段的多个值用OR，不同字段之间用AND",
+            allow_empty=True,
+        )
+        # 排序参数
+        order_by = serializers.ChoiceField(
+            choices=["name", "update_time", "-name", "-update_time"],
+            required=False,
+            default="-update_time",
+            label="排序字段：name-按名称升序，update_time-按更新时间升序，-name-按名称降序，-update_time-按更新时间降序",
+        )
+
+    def perform_request(self, validated_request_data):
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        group_id = validated_request_data["group_id"]
+        page = validated_request_data["page"]
+        page_size = validated_request_data["page_size"]
+        order_by = validated_request_data["order_by"]
+
+        # 验证group_id是否存在
+        if not models.TimeSeriesGroup.objects.filter(
+            time_series_group_id=group_id, bk_tenant_id=bk_tenant_id, is_delete=False
+        ).exists():
+            raise ValueError(_("自定义时序分组不存在，请确认后重试"))
+
+        # 构建查询集
+        query_set = models.TimeSeriesMetric.objects.filter(group_id=group_id)
+
+        # 应用搜索条件
+        query_set = self._apply_search_filters(query_set, validated_request_data)
+
+        # 应用排序
+        query_set = query_set.order_by(self.ORDER_FIELD_MAPPING.get(order_by))
+
+        # 分页处理
+        total = query_set.count()
+        if page_size > 0:
+            offset = (page - 1) * page_size
+            paginated_query_set = query_set[offset : offset + page_size]
+        else:
+            paginated_query_set = query_set
+
+        # 批量获取scope信息
+        scope_ids = paginated_query_set.values_list("scope_id", flat=True)
+        scopes = models.TimeSeriesScope.objects.filter(id__in=scope_ids, group_id=group_id).values("id", "scope_name")
+        scope_map = {scope["id"]: {"id": scope["id"], "name": scope["scope_name"]} for scope in scopes}
+
+        # 构建响应数据
+        results = []
+        for metric in paginated_query_set:
+            scope_info = None
+            if metric.scope_id:
+                scope_info = scope_map.get(metric.scope_id, {"id": metric.scope_id, "name": ""})
+
+            results.append(
+                {
+                    "field_id": metric.field_id,
+                    "scope": scope_info,
+                    "name": metric.field_name,
+                    "tag_list": metric.tag_list or [],
+                    "field_config": metric.field_config or {},
+                    "field_scope": metric.field_scope,
+                    "create_time": metric.create_time.timestamp() if metric.create_time else None,
+                    "update_time": metric.last_modify_time.timestamp() if metric.last_modify_time else None,
+                }
+            )
+
+        return {"metrics": results, "total": total}
+
+    def _apply_search_filters(self, query_set, validated_request_data):
+        """应用搜索过滤条件
+        同一字段的多个值用OR，不同字段之间用AND
+        """
+        conditions = validated_request_data.get("conditions", [])
+        if not conditions:
+            return query_set
+
+        # 构建查询：不同字段之间用AND，同一字段的多个值用OR
+        final_query = None
+        for condition in conditions:
+            condition_query = self._build_condition_query(condition)
+            if condition_query:
+                final_query = condition_query if final_query is None else final_query & condition_query
+
+        return query_set.filter(final_query) if final_query else query_set
+
+    @staticmethod
+    def _build_condition_query(condition):
+        """构建单个字段的查询条件（多个值用OR连接）"""
+        key = condition["key"]
+        values = condition["values"]
+        search_type = condition.get("search_type", "fuzzy" if key == "name" else "exact")
+
+        if not values:
+            return None
+
+        # 为每个值构建Q对象，然后用OR连接
+        condition_query = None
+        for value in values:
+            q_obj = None
+
+            # name字段特殊处理（支持多种搜索类型）
+            if key == "name":
+                if search_type == "regex":
+                    q_obj = Q(field_name__regex=value)
+                elif search_type == "fuzzy":
+                    q_obj = Q(field_name__icontains=value)
+                else:  # exact
+                    q_obj = Q(field_name=value)
+
+            # field_config相关字段
+            elif key == "field_config_alias":
+                q_obj = Q(field_config__alias__icontains=value)
+            elif key == "field_config_unit":
+                q_obj = Q(field_config__unit__iexact=value)
+            elif key == "field_config_aggregate_method":
+                q_obj = Q(field_config__aggregate_method__iexact=value)
+            elif key in ("field_config_hidden", "field_config_disabled"):
+                # 查询 True 时只匹配明确为 True 的记录，查询 False 时匹配所有不为 True 的记录（包括空值、不存在或为 False）
+                field_key = key.replace("field_config_", "")
+                if value.lower() in ("true", "1"):
+                    q_obj = Q(**{f"field_config__{field_key}": True})
+                else:
+                    # 匹配 field_config 为空字典、键不存在、或值不为 True 的情况
+                    q_obj = Q(**{f"field_config__{field_key}__isnull": True}) | Q(
+                        **{f"field_config__{field_key}": False}
+                    )
+
+            # 整数字段
+            elif key == "scope_id":
+                q_obj = Q(scope_id=int(value))
+            elif key == "field_id":
+                q_obj = Q(field_id=int(value))
+
+            if q_obj:
+                condition_query = q_obj if condition_query is None else condition_query | q_obj
+
+        return condition_query
+
+
+class CreateOrUpdateTimeSeriesScopeResource(Resource):
+    """
+    批量创建或更新自定义时序指标分组
+    如果指标分组已存在则更新，不存在则创建
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+
+        class ScopeSerializer(serializers.Serializer):
+            scope_id = serializers.IntegerField(required=False, label="指标分组ID")
+            scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255)
+            dimension_config = serializers.DictField(required=False, allow_null=True, label="分组下的维度配置")
+            auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
+
+        scopes = serializers.ListField(
+            required=True, child=ScopeSerializer(), label="批量创建或更新的分组列表", min_length=1
+        )
+
+    def perform_request(self, validated_request_data):
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        group_id = validated_request_data.pop("group_id")
+        scopes = validated_request_data["scopes"]
+
+        # 使用统一的事务方法批量创建或更新
+        results = models.TimeSeriesScope.bulk_create_or_update_scopes(
+            bk_tenant_id=bk_tenant_id,
+            group_id=group_id,
+            scopes=scopes,
+        )
+
+        return results
+
+
+class DeleteTimeSeriesScopeResource(Resource):
+    """
+    批量删除自定义时序指标分组
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+
+        class ScopeSerializer(serializers.Serializer):
+            scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+
+        scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量删除的分组列表", min_length=1)
+
+    def perform_request(self, validated_request_data):
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        group_id = validated_request_data.pop("group_id")
+        scopes = validated_request_data["scopes"]
+
+        models.TimeSeriesScope.bulk_delete_scopes(
+            bk_tenant_id=bk_tenant_id,
+            group_id=group_id,
+            scopes=scopes,
+        )
+
+
+class QueryTimeSeriesScopeResource(Resource):
+    """
+    查询自定义时序指标分组列表
+
+    支持通过 group_id 和 scope_ids 进行查询，返回列表结果
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+        scope_ids = serializers.ListField(
+            child=serializers.IntegerField(), required=False, label="指标分组ID列表", allow_empty=True
+        )
+        scope_name = serializers.CharField(required=False, label="指标分组名称")
+        include_metrics = serializers.BooleanField(required=False, default=False, label="是否返回指标数据")
+
+    def perform_request(self, validated_request_data):
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        group_id = validated_request_data.get("group_id")
+        scope_ids = validated_request_data.get("scope_ids")
+        scope_name = validated_request_data.get("scope_name")
+        include_metrics = validated_request_data.get("include_metrics")
+
+        if not models.TimeSeriesGroup.objects.filter(
+            time_series_group_id=group_id, bk_tenant_id=bk_tenant_id, is_delete=False
+        ).exists():
+            raise ValueError(_("自定义时序分组不存在，请确认后重试"))
+
+        query_set = models.TimeSeriesScope.objects.all()
+        if group_id is not None:
+            query_set = query_set.filter(group_id=group_id)
+        if scope_ids:
+            query_set = query_set.filter(id__in=scope_ids)
+        if scope_name:
+            query_set = query_set.filter(scope_name__icontains=scope_name)
+        results = self._build_grouped_results(query_set, group_id, include_metrics)
+
+        return results
+
+    @staticmethod
+    def _build_grouped_results(query_set, group_id, include_metrics):
+        # 使用 values() 直接获取字典数据，避免 ORM 对象创建开销
+        scopes = list(query_set.values("id", "group_id", "scope_name", "dimension_config", "auto_rules", "create_from"))
+        if not scopes:
+            return []
+
+        scope_ids = [scope["id"] for scope in scopes]
+
+        metrics_by_scope = defaultdict(list)
+
+        if include_metrics:
+            # 使用 values() 批量查询 metrics，避免 ORM 对象转换
+            all_metrics = (
+                models.TimeSeriesMetric.objects.filter(group_id=group_id, scope_id__in=scope_ids)
+                .values(
+                    "field_name",
+                    "field_id",
+                    "field_scope",
+                    "tag_list",
+                    "field_config",
+                    "create_time",
+                    "last_modify_time",
+                    "group_id",
+                    "scope_id",
+                )
+                .iterator(chunk_size=500)
+            )
+
+            for metric in all_metrics:
+                key = (metric["group_id"], metric["scope_id"])
+                metrics_by_scope[key].append(
+                    {
+                        "metric_name": metric["field_name"],
+                        "field_id": metric["field_id"],
+                        "field_scope": metric["field_scope"],
+                        "tag_list": metric["tag_list"],
+                        "field_config": metric["field_config"] or {},
+                        "create_time": metric["create_time"].timestamp() if metric["create_time"] else None,
+                        "last_modify_time": metric["last_modify_time"].timestamp()
+                        if metric["last_modify_time"]
+                        else None,
+                    }
+                )
+
+        return [
+            {
+                "scope_id": scope["id"],
+                "group_id": scope["group_id"],
+                "scope_name": scope["scope_name"],
+                "dimension_config": scope["dimension_config"] or {},
+                "auto_rules": scope["auto_rules"],
+                "metric_list": metrics_by_scope.get((scope["group_id"], scope["id"]), []),
+                "create_from": scope["create_from"],
+                "metric_count": models.TimeSeriesMetric.objects.filter(
+                    group_id=scope["group_id"], scope_id=scope["id"]
+                ).count(),
+            }
+            for scope in scopes
+        ]
 
 
 class QueryBCSMetricsResource(Resource):

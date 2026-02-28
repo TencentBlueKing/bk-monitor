@@ -105,7 +105,8 @@ export default defineComponent({
     const chartClickPointEvent = shallowRef<{ xAxis: number; yAxis: number }>(null);
     /** 是否查看大图 */
     const chartIsFullscreen = shallowRef(false);
-
+    /** 是否立即刷新图表数据 */
+    const refreshImmediate = shallowRef('');
     const {
       panel,
       viewerTimeRange,
@@ -122,6 +123,8 @@ export default defineComponent({
       graphPanel: toRef(props, 'graphPanel'),
       where,
     });
+
+    provide('refreshImmediate', refreshImmediate);
     provide('timeRange', viewerTimeRange);
 
     const getDrillDimensionsData = async () => {
