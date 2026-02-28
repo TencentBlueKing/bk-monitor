@@ -32,7 +32,7 @@ import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-ce
 // import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import AlarmDashboardGroup from '../../../components/alarm-dashboard-group/alarm-dashboard-group';
 import { useAlertHost } from '../../../composables/use-alert-host';
-import { useHostSceneView } from '../../../composables/use-host-scene-view';
+import { useSceneView } from '../../../composables/use-scene-view';
 import PanelHostSelector from './components/panel-host-selector/panel-host-selector';
 
 import type { IDataQuery } from '../../../../../plugins/typings';
@@ -49,7 +49,7 @@ export default defineComponent({
   setup(props) {
     const { bizId, interval, timeRange } = storeToRefs(useAlarmCenterDetailStore());
     const { currentTarget, targetList, loading } = useAlertHost(toRef(props, 'alertId'));
-    const { hostDashboards, loading: sceneViewLoading } = useHostSceneView(bizId);
+    const { dashboards: hostDashboards, loading: sceneViewLoading } = useSceneView(bizId, 'host');
     /** 图表执行 dataZoom 框线缩放后的时间范围 */
     const dataZoomTimeRange = shallowRef<DateValue>(null);
     /** 当前图表视图的时间范围 */
@@ -87,6 +87,17 @@ export default defineComponent({
     };
 
     /**
+     * @description 格式化series别名
+     */
+    const formatSeriesAlias = (item: any) => {
+      const dimensions = item?.dimensions ?? {};
+      const keys = Object.keys(dimensions);
+      if (!keys.length) return item.target;
+      if (keys.length === 1) return dimensions[keys[0]];
+      return keys.map(key => `${key}=${dimensions[key]}`).join('|');
+    };
+
+    /**
      * @description: 格式化图表数据
      * @param {any} data 图表接口返回的series数据
      */
@@ -94,12 +105,10 @@ export default defineComponent({
       return {
         ...data,
         query_config: data?.query_config || target.data,
-        series: data.series.map(item => {
-          return {
-            ...item,
-            alias: item?.dimensions?.device_name || item.target,
-          };
-        }),
+        series: data.series.map(item => ({
+          ...item,
+          alias: formatSeriesAlias(item),
+        })),
       };
     };
 
