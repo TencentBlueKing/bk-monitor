@@ -249,7 +249,7 @@ def build_data_sources(strategy: Strategy) -> list[DataSource]:
 
 def execute_query(
     bk_biz_id: int,
-    data_sources: list[DataSource],
+    strategy: Strategy,
     expression: str,
     functions: list[dict[str, Any]],
     start_time: int,
@@ -258,17 +258,21 @@ def execute_query(
 ) -> list[dict[str, Any]]:
     """
     执行查询。
+
+    data_sources 在设置灰度白名单后构建，避免共享实例导致 where 被 _update_params_by_advance_method 清空。
     """
     def _set_ds(_biz_list: list[int] | None):
         LogSearchTimeSeriesDataSource.LOG_UNIFY_QUERY_WHITE_BIZ_LIST = _biz_list
 
     _set_ds([bk_biz_id] if enable_gray else [])
+    data_sources: list[DataSource] = build_data_sources(strategy)
     uq: UnifyQuery = UnifyQuery(
         bk_biz_id=bk_biz_id,
         data_sources=data_sources,
         expression=expression,
         functions=functions,
     )
+
     try:
         records: list[dict[str, Any]] = uq.query_data(start_time=start_time, end_time=end_time)
     finally:
@@ -426,10 +430,10 @@ def run_reconciliation(
             item: Item = strategy.items[0]
             query_config_dict: dict[str, Any] = item.query_configs[0].to_dict()
 
-            # 构建查询参数
+            # 构建查询参数（data_sources 在 execute_query 内按需构建，避免共享实例的状态污染）
             query_params: dict[str, Any] = {
                 "bk_biz_id": bk_biz_id,
-                "data_sources": build_data_sources(strategy),
+                "strategy": strategy,
                 "expression": item.expression,
                 "functions": item.functions or [],
                 "start_time": start_time_ms,
