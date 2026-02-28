@@ -29,15 +29,14 @@ import { Component as tsc } from 'vue-tsx-support';
 import _ from 'lodash';
 
 import CompareType from './components/compare-type';
-import DecimalSelector from './components/decimal-selector';
+import DecimalSelector from './components/decimal-selector/decimal-selector';
 import GroupBy from './components/group-by';
 import IntervalCreator from './components/interval/index';
 import LimitFunction from './components/limit-function';
 import WhereCondition from './components/where-condition';
 
-import type { ChartSettingsParams } from '../../../../type';
-
 import type { getSceneView } from '../../../../../service';
+import type { ChartSettingsParams } from '../../../../type';
 
 import './index.scss';
 
@@ -115,7 +114,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
   @Emit('metricManage')
   handleMetricManage(tab: 'dimension' | 'metric') {
     return tab;
-  };
+  }
 
   isExpaned = true;
   params = createDefaultParams();

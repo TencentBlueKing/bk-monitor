@@ -72,7 +72,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
     }),
   })
   chartSettingParams: ChartSettingsParams;
-  @Prop({ type: Boolean, default: false }) readonly showStatisticalValue: IPanelChartViewProps['showStatisticalValue'];
+  @Prop({ type: Boolean, default: false }) readonlshowStatisticalValue: IPanelChartViewProps['showStatisticalValue'];
   @Prop({ type: Number, default: 2 }) readonly viewColumn: IPanelChartViewProps['viewColumn'];
 
   @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData = undefined;
@@ -136,7 +136,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
   @Emit('metricManage')
   handleMetricManage(tab) {
     return tab;
-  };
+  }
 
   /** 重新获取对应的高度 */
   handleCollapseChange() {
