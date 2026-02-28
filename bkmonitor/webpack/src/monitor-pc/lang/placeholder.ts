@@ -371,4 +371,5 @@ export default {
   '搜索 收藏名称': 'Search Favorite Name',
   '请输入 关键字': 'Please enter keywords',
   '搜索 字段名称': 'Search Field Name',
+  输入告警ID进行变量渲染: 'Enter Alarm ID to render variables',
 };
