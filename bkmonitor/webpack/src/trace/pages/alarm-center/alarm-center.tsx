@@ -379,10 +379,11 @@ export default defineComponent({
           alarmStore.quickFilterValue = tryURLDecodeParse(quickFilterValue as string, []);
         }
         alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
-
-        /** 兼容事件中心的bizIds */
-        alarmStore.bizIds =
-          typeof bizIds === 'string' ? tryURLDecodeParse(bizIds, [-1]) : bizIds.map(item => Number(item));
+        if (bizIds) {
+          /** 兼容事件中心的bizIds */
+          alarmStore.bizIds =
+            typeof bizIds === 'string' ? tryURLDecodeParse(bizIds, [-1]) : bizIds.map(item => Number(item));
+        }
         ordering.value = (sortOrder as string) || '';
         page.value = Number(currentPage || 1);
         if (favoriteId) {
