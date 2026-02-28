@@ -35,7 +35,7 @@ import IntervalCreator from './components/interval/index';
 import LimitFunction from './components/limit-function';
 import WhereCondition from './components/where-condition';
 
-import type { ChartSettingsParams } from '../../type';
+import type { ChartSettingsParams } from '../../../../type';
 
 import type { getSceneView } from '../../../../../service';
 
