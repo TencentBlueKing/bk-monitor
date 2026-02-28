@@ -47,3 +47,26 @@ class HostInstanceData(BaseInstanceData):
     bk_host_id: int | None = None
     ip: str | None = None
     topo_node_key: str | None = None
+
+
+@dataclass
+class RootEndpointInstanceData(BaseInstanceData):
+    endpoint_name: str | None = None
+    service_name: str | None = None
+    category_id: str | None = None
+
+
+@dataclass
+class RelationInstanceData(BaseInstanceData):
+    from_topo_key: str | None = None
+    to_topo_key: str | None = None
+    kind: str | None = None
+    to_topo_key_kind: str | None = None
+    to_topo_key_category: str | None = None
+
+
+@dataclass
+class RemoteServiceRelationInstanceData(BaseInstanceData):
+    topo_node_key: str | None = None
+    from_endpoint_name: str | None = None
+    category: str | None = None

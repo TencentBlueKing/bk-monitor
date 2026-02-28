@@ -41,7 +41,9 @@
   width: calc(100vw - var(--left-collection-width) - 20px);
 
   &.is-monitor-apm {
-    width: calc(100vw - var(--left-collection-width) - 298px);
+    right: 0;
+    left: 0;
+    width: auto;
   }
 
   &.is-monitor-trace {

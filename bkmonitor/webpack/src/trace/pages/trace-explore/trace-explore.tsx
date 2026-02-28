@@ -489,7 +489,7 @@ export default defineComponent({
         commonWhere.value = tryURLDecodeParse(queryCommonWhere as string, []);
         checkboxFilters.value = tryURLDecodeParse(selectedType as string, []);
         queryString.value = (query || queryQueryString) as string;
-        showResidentBtn.value = tryURLDecodeParse<boolean>(queryShowResidentBtn as string, true);
+        showResidentBtn.value = tryURLDecodeParse<boolean>(queryShowResidentBtn as string, false);
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
         if (favorite_id) {
           defaultFavoriteId.value = Number(favorite_id);

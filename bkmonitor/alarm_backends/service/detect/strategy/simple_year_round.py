@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 """
 简易同比算法
 """
@@ -15,13 +15,13 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
+from bk_monitor_base.strategy import SimpleYearRoundSerializer
 from django.utils.translation import gettext_lazy as _
 
 from alarm_backends.constants import CONST_ONE_WEEK
 from alarm_backends.service.detect.strategy.simple_ring_ratio import (
     RangeRatioAlgorithmsCollection,
 )
-from bkmonitor.strategy.serializers import SimpleYearRoundSerializer
 
 logger = logging.getLogger("detect")
 

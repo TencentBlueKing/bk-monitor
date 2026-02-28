@@ -23,33 +23,42 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const webpack = require('webpack');
-const WebpackBar = require('webpackbar');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const { resolve } = require('node:path');
-const outputUrl = resolve(__dirname, `../monitor-${process.env.MONITOR_APP}-retrieve`);
-const createMonitorConfig = config => {
-  const production = process.env.NODE_ENV === 'production';
-  const isTrace = process.env.MONITOR_APP === 'trace';
+const webpack = require("webpack");
+const WebpackBar = require("webpackbar");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const { resolve } = require("node:path");
+const outputUrl = resolve(
+  __dirname,
+  `../monitor-${process.env.MONITOR_APP}-retrieve`,
+);
+const createMonitorConfig = (config) => {
+  const production = process.env.NODE_ENV === "production";
+  const isTrace = process.env.MONITOR_APP === "trace";
   config.plugins.push(
     new CopyWebpackPlugin({
       patterns: [
         {
           from: resolve(__dirname, `./${process.env.MONITOR_APP}-package.json`),
-          to: resolve(outputUrl, './package.json'),
+          to: resolve(outputUrl, "./package.json"),
         },
         isTrace
           ? {
-              from: resolve(__dirname, '../node_modules/bk-magic-vue/dist/fonts/iconcool.*'),
-              to: resolve(outputUrl, './fonts/[name][ext]'),
+              from: resolve(
+                __dirname,
+                "../node_modules/bk-magic-vue/dist/fonts/iconcool.*",
+              ),
+              to: resolve(outputUrl, "./fonts/[name][ext]"),
             }
           : undefined,
         isTrace
           ? {
-              from: resolve(__dirname, '../node_modules/bk-magic-vue/dist/images/*.(png|svg)'),
-              to: resolve(outputUrl, './images/[name][ext]'),
+              from: resolve(
+                __dirname,
+                "../node_modules/bk-magic-vue/dist/images/*.(png|svg)",
+              ),
+              to: resolve(outputUrl, "./images/[name][ext]"),
             }
           : undefined,
       ].filter(Boolean),
@@ -57,40 +66,48 @@ const createMonitorConfig = config => {
   );
   config.plugins.push(
     new webpack.DefinePlugin({
-      NODE_ENV: JSON.stringify('production'),
+      NODE_ENV: JSON.stringify("production"),
       APP: JSON.stringify(process.env.MONITOR_APP),
       MONITOR_APP: JSON.stringify(process.env.MONITOR_APP),
     }),
   );
-  const fileLoaders = config.module.rules[1].oneOf.find(item => item.test.test('.ttf'));
-  const imgLoaders = config.module.rules[1].oneOf.find(item => item.test.test('.png'));
-  const urlLoaderOptions = fileLoaders.use.find(item => item.loader === 'url-loader').options;
-  imgLoaders.options.publicPath = '../img';
-  urlLoaderOptions.publicPath = '../fonts';
+  const fileLoaders = config.module.rules[1].oneOf.find((item) =>
+    item.test.test(".ttf"),
+  );
+  const imgLoaders = config.module.rules[1].oneOf.find((item) =>
+    item.test.test(".png"),
+  );
+  const urlLoaderOptions = fileLoaders.use.find(
+    (item) => item.loader === "url-loader",
+  ).options;
+  imgLoaders.options.publicPath = "../img";
+  urlLoaderOptions.publicPath = "../fonts";
   return {
     ...config,
     entry: {
-      main: isTrace ? './src/views/retrieve-v3/monitor/trace.ts' : './src/views/retrieve-v3/monitor/apm.ts',
+      main: isTrace
+        ? "./src/views/retrieve-v3/monitor/trace.ts"
+        : "./src/views/retrieve-v3/monitor/apm.ts",
     },
     output: {
-      filename: '[name].js',
+      filename: "[name].js",
       path: outputUrl,
       library: {
-        type: 'commonjs',
+        type: "commonjs",
       },
       environment: {
         module: false,
       },
-      chunkFormat: 'commonjs',
+      chunkFormat: "commonjs",
       module: false,
       clean: true,
-      publicPath: '',
+      publicPath: "",
     },
     resolve: {
       ...config.resolve,
       alias: {
-        vue$: 'vue/dist/vue.esm.js',
-        '@': resolve('src'),
+        vue$: "vue/dist/vue.esm.js",
+        "@": resolve("src"),
       },
     },
     experiments: {
@@ -100,7 +117,7 @@ const createMonitorConfig = config => {
       minimize: false,
       mangleExports: false,
     },
-    externalsType: 'commonjs',
+    externalsType: "commonjs",
     externals: isTrace
       ? [
           /@blueking\/date-picker/,
@@ -111,25 +128,25 @@ const createMonitorConfig = config => {
           // /bk-magic-vue/,
           // /vue-i18n/,
           // 'vue',
-          'axios',
+          "axios",
           // 'vuex',
           // 'vue-property-decorator',
-          'vuedraggable',
-          'sortablejs',
+          "vuedraggable",
+          "sortablejs",
           // 'clipboard',
           // 'vue-tsx-support',
-          'qs',
+          "qs",
           /dayjs\//,
-          'dayjs',
+          "dayjs",
           // /echarts\/*/,
           // /lodash/,
           // /vue-json-pretty/,
           ({ request }, cb) => {
-            if (request === 'echarts') {
+            if (request === "echarts") {
               return cb(undefined, request.replace(request, request));
             }
-            if (request === 'resize-detector') {
-              return cb(undefined, '@blueking/fork-resize-detector');
+            if (request === "resize-detector") {
+              return cb(undefined, "@blueking/fork-resize-detector");
             }
             cb();
           },
@@ -142,43 +159,43 @@ const createMonitorConfig = config => {
           /@blueking\/bkui-library/,
           /bk-magic-vue/,
           /vue-i18n/,
-          'vue',
-          'axios',
-          'vuex',
-          'vue-property-decorator',
-          'vuedraggable',
-          'sortablejs',
-          'clipboard',
-          'vue-tsx-support',
-          'qs',
+          "vue",
+          "axios",
+          "vuex",
+          "vue-property-decorator",
+          "vuedraggable",
+          "sortablejs",
+          "clipboard",
+          "vue-tsx-support",
+          "qs",
           /dayjs\//,
-          'dayjs',
+          "dayjs",
           // /lodash/,
           /vue-json-pretty/,
           /monaco-editor/,
           ({ request }, cb) => {
-            if (request === 'echarts') {
+            if (request === "echarts") {
               return cb(undefined, request.replace(request, request));
             }
-            if (request === 'resize-detector') {
-              return cb(undefined, '@blueking/fork-resize-detector');
+            if (request === "resize-detector") {
+              return cb(undefined, "@blueking/fork-resize-detector");
             }
             cb();
           },
         ],
     plugins: config.plugins
-      .filter(plugin => !(plugin instanceof HtmlWebpackPlugin))
-      .map(plugin => {
+      .filter((plugin) => !(plugin instanceof HtmlWebpackPlugin))
+      .map((plugin) => {
         if (plugin instanceof MiniCssExtractPlugin) {
           return new MiniCssExtractPlugin({
-            filename: 'css/main.css',
+            filename: "css/main.css",
             ignoreOrder: true,
           });
         }
         return plugin instanceof webpack.ProgressPlugin
           ? new WebpackBar({
               profile: true,
-              name: `监控日志检索组件 ${production ? 'Production模式' : 'Development模式'} 构建`,
+              name: `监控日志检索组件 ${production ? "Production模式" : "Development模式"} 构建`,
             })
           : plugin;
       }),

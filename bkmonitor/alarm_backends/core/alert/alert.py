@@ -13,6 +13,7 @@ import json
 import logging
 import time
 
+from bk_monitor_base.strategy import AlertExpressionValue
 from django.conf import settings
 from django.utils.translation import gettext as _
 from redis.exceptions import RedisError
@@ -29,7 +30,6 @@ from alarm_backends.core.cache.key import (
 from alarm_backends.core.cluster import get_cluster
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
 from bkmonitor.models import ActionInstance
-from bkmonitor.strategy.expression import AlertExpressionValue
 from bkmonitor.utils import extended_json
 from bkmonitor.utils.common_utils import count_md5
 from constants.action import ActionSignal, AssignMode
