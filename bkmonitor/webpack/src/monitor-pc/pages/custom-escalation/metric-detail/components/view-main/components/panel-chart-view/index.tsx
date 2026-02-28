@@ -72,7 +72,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
     }),
   })
   chartSettingParams: ChartSettingsParams;
-  @Prop({ type: Boolean, default: false }) readonlshowStatisticalValue: IPanelChartViewProps['showStatisticalValue'];
+  @Prop({ type: Boolean, default: false }) readonly showStatisticalValue: IPanelChartViewProps['showStatisticalValue'];
   @Prop({ type: Number, default: 2 }) readonly viewColumn: IPanelChartViewProps['viewColumn'];
 
   @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData = undefined;
