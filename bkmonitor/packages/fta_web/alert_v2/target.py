@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import abc
 import copy
 import time
-from django.db.models import Q
 from functools import cached_property
 from typing import Any
 
@@ -29,7 +28,6 @@ from apm_web.topo.handle.relation.define import (
 )
 from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.documents import AlertDocument
-from bkmonitor.models import BCSWorkload
 from bkmonitor.utils.alert_drilling import (
     build_log_search_condition,
     get_alert_dimensions,
@@ -397,9 +395,6 @@ class APMServiceTarget(BaseTarget):
         # APM 场景下资源类型都为 workload。
         return K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
 
-    # 标准 K8S workload 类型集合，用于判断 kind 字段是否为标准类型。
-    _STANDARD_WORKLOAD_KINDS: frozenset[str] = frozenset({"CronJob", "DaemonSet", "Deployment", "Job", "StatefulSet"})
-
     def _list_related_k8s_targets(self) -> list[dict[str, Any]]:
         apm_target_list: list[dict[str, Any]] = self.list_related_apm_targets()
         if not apm_target_list:
@@ -412,68 +407,25 @@ class APMServiceTarget(BaseTarget):
             service_names=[apm_target["service_name"]],
         )
 
-        workloads: list[dict[str, Any]] = entity_set.get_workloads(apm_target["service_name"])
-        kind_mapping: dict[tuple[str, str, str], str] = self._batch_resolve_standard_workload_kinds(workloads)
-
-        seen: set[tuple[str, str, str]] = set()
         target_list: list[dict[str, Any]] = []
-        for workload in workloads:
-            bcs_cluster_id: str = workload.get("bcs_cluster_id") or ""
-            namespace: str = workload.get("namespace") or ""
-            kind: str = workload.get("kind") or ""
-            name: str = workload.get("name") or ""
-            if not all((bcs_cluster_id, namespace, kind, name)):
+        for workload in entity_set.get_workloads(apm_target["service_name"]):
+            bcs_cluster_id: str = workload.get("bcs_cluster_id", "")
+            namespace: str = workload.get("namespace", "")
+            workload_kind: str = workload.get("kind", "")
+            workload_name: str = workload.get("name", "")
+
+            if not all([bcs_cluster_id, namespace, workload_kind, workload_name]):
                 continue
 
-            # 非标准 kind（如 tRPC CRD 类型）通过 BCSWorkload 表反查标准类型
-            if kind not in self._STANDARD_WORKLOAD_KINDS:
-                kind = kind_mapping.get((bcs_cluster_id, namespace, name), "")
-                if not kind:
-                    continue
-
-            workload_value: str = f"{kind}:{name}"
-            dedup_key: tuple[str, str, str] = (workload_value, bcs_cluster_id, namespace)
-            if dedup_key in seen:
-                continue
-
-            seen.add(dedup_key)
-            target_list.append({"workload": workload_value, "bcs_cluster_id": bcs_cluster_id, "namespace": namespace})
+            target_list.append(
+                {
+                    "workload": f"{workload_kind}:{workload_name}",
+                    "bcs_cluster_id": bcs_cluster_id,
+                    "namespace": namespace,
+                }
+            )
 
         return target_list
-
-    @classmethod
-    def _batch_resolve_standard_workload_kinds(
-        cls,
-        workloads: list[dict[str, Any]],
-    ) -> dict[tuple[str, str, str], str]:
-        """批量解析非标准 kind 到标准 K8S workload 类型的映射。
-
-        收集所有非标准 kind 的 workload，通过一次 BCSWorkload 查询完成 ``(bcs_cluster_id, namespace, name) -> type`` 映射。
-
-        """
-        lookup_keys: set[tuple[str, str, str]] = set()
-        for w in workloads:
-            kind: str = w.get("kind") or ""
-            if not kind or kind in cls._STANDARD_WORKLOAD_KINDS:
-                continue
-
-            key: tuple[str, str, str] = (w.get("bcs_cluster_id") or "", w.get("namespace") or "", w.get("name") or "")
-            if all(key):
-                lookup_keys.add(key)
-
-        if not lookup_keys:
-            return {}
-
-        query_filter: Q = Q()
-        for bcs_cluster_id, namespace, name in lookup_keys:
-            query_filter |= Q(bcs_cluster_id=bcs_cluster_id, namespace=namespace, name=name)
-
-        return {
-            (row["bcs_cluster_id"], row["namespace"], row["name"]): row["type"]
-            for row in BCSWorkload.objects.filter(query_filter, type__in=cls._STANDARD_WORKLOAD_KINDS).values(
-                "bcs_cluster_id", "namespace", "name", "type"
-            )
-        }
 
     def list_related_apm_targets(self) -> list[dict[str, Any]]:
         app_name, service_name = APMTargetType.parse_target(self._alert.event.target)
