@@ -214,6 +214,8 @@ export default defineComponent({
     const originalOrderMap = ref<Map<number | string, number>>(new Map());
     // 用户信息映射（username -> display_name）
     const userDisplayNameMap = ref<Map<string, string>>(new Map());
+    // 全量标签列表（用于标签管理）
+    const selectLabelList = ref<Array<{ tag_id: number; name: string; color: string; is_built_in?: boolean }>>([]);
 
     // 容器和表格高度相关
     const containerRef = ref<HTMLElement | null>(null);
@@ -513,15 +515,17 @@ export default defineComponent({
         title: t('标签'),
         colKey: 'tags',
         showTips: false,
-        cell: (h, { row }: { row: ITableRowData }) =>
-          (row.tags || []).length > 0 ? (
-            <TagMore
-              tags={row.tags}
-              title={t('标签')}
-            />
-          ) : (
-            '--'
-          ),
+        cell: (h, { row }: { row: ITableRowData }) => (
+          <TagMore
+            mode='label'
+            tags={row.tags || []}
+            rowData={row}
+            selectLabelList={selectLabelList.value}
+            title={t('标签')}
+            on-refresh-label-list={() => fetchLabelList()}
+            on-update-tags={(newTags) => handleUpdateTags(row, newTags)}
+          />
+        ),
         width: 200,
       },
       {
@@ -725,8 +729,21 @@ export default defineComponent({
       }
     };
 
+    /** 获取全量标签列表 */
+    const fetchLabelList = () => {
+      $http.request('unionSearch/unionLabelList').then(res => {
+        selectLabelList.value = res.data || [];
+      });
+    };
+
+    /** 更新行数据中的标签 */
+    const handleUpdateTags = (row: ITableRowData, newTags: Array<{ name: string;[key: string]: unknown }>) => {
+      row.tags = newTags;
+    };
+
     onMounted(() => {
       getCollectorFieldEnums();
+      fetchLabelList();
       nextTick(() => {
         if (!authGlobalInfo.value) {
           checkCreateAuth();
