@@ -242,10 +242,14 @@ ai_agent
 .tico/
 
 # ai code editor
+.codex
+.claude/
 CLAUDE.local.md
 .cursorignore
 # spec-kit 规范目录
 .specify/
+# openspec 目录
+openspec/
 
 # bk-monitor-base config file
 bk-monitor-base-config.yaml

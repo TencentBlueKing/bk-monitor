@@ -49,6 +49,16 @@ const ACTION_TABLE_COLUMNS = [
     width: 160,
   },
   {
+    colKey: 'bk_biz_name',
+    title: window.i18n.t('空间名'),
+    is_default: true,
+    is_locked: true,
+    minWidth: 100,
+    width: 100,
+    sorter: false,
+    fixed: 'left',
+  },
+  {
     colKey: 'create_time',
     title: window.i18n.t('开始时间'),
     is_default: true,
@@ -367,6 +377,9 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
   get allTableColumns(): TableColumnItem[] {
     return [...ACTION_TABLE_COLUMNS];
   }
+  get analysisDefaultSettingsFields(): string[] {
+    return ['action_name', 'action_plugin_type', 'operator', 'duration'];
+  }
   get analysisFields(): string[] {
     return ['action_name', 'action_plugin_type', 'operator', 'duration', 'strategy_name', 'operate_target_string'];
   }
@@ -419,7 +432,6 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
         total: 0,
         data: [],
       }));
-    console.info('ActionService getFilterTableList', data, '==========');
     return data;
   }
   async getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]> {
@@ -439,7 +451,6 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
         ];
       })
       .catch(() => []);
-    console.info('ActionService getQuickFilterList', data, '==========');
     return data;
   }
   async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {

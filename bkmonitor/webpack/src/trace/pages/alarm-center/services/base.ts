@@ -64,6 +64,10 @@ export abstract class AlarmService<S = AlarmType> {
    */
   abstract get allTableColumns(): TableColumnItem[];
   /**
+   * @description: 告警分析默认配置字段列表
+   */
+  abstract get analysisDefaultSettingsFields(): string[];
+  /**
    * @description: 告警分析字段列表
    */
   abstract get analysisFields(): string[];
@@ -91,8 +95,8 @@ export abstract class AlarmService<S = AlarmType> {
       return null;
     }
     const params = { ids: data.map(item => item.id) };
-    const eventCountPromise = alertEventCount(params, options).catch(() => {}) as Promise<Record<string, number>>;
-    const relateInfosPromise = alertRelatedInfo(params, options).catch(() => {});
+    const eventCountPromise = alertEventCount(params, options).catch(() => { }) as Promise<Record<string, number>>;
+    const relateInfosPromise = alertRelatedInfo(params, options).catch(() => { });
 
     const [eventCount, extendInfo] = (await Promise.allSettled([eventCountPromise, relateInfosPromise])) as [
       PromiseFulfilledResult<AlertEventCountResult>,

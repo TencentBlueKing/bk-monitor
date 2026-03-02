@@ -65,8 +65,7 @@ export default defineComponent({
     const searchMode = ref<'normal' | 'ai'>('normal');
     const aiQueryResult = ref<AiQueryResult>(DEFAULT_AI_QUERY_RESULT);
 
-    const aiFilterList = computed<string[]>(() =>
-      (store.state.aiMode.filterList ?? []).filter(f => !/^\s*\*?\s*$/.test(f)),
+    const aiFilterList = computed<string[]>(() => (store.state.aiMode.filterList ?? []).filter(f => !/^\s*\*?\s*$/.test(f)),
     );
 
     const { setRouteParamsByKeywordAndAddition } = useRetrieveParams();
@@ -83,6 +82,9 @@ export default defineComponent({
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     };
+
+    const isMonitorApm = window.__IS_MONITOR_APM__;
+    const isMonitorTrace = window.__IS_MONITOR_TRACE__;
 
     /**
      * 获取字段配置
@@ -111,8 +113,7 @@ export default defineComponent({
     /**
      * 当前搜索模式：'ui' | 'sql'
      */
-    const currentSearchMode = computed<'ui' | 'sql'>(() =>
-      store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
+    const currentSearchMode = computed<'ui' | 'sql'>(() => (store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui'),
     );
     /**
      * 更新AI助手位置
@@ -132,7 +133,7 @@ export default defineComponent({
      * 用于处理搜索栏高度变化
      * @param height 搜索栏高度
      */
-    const handleHeightChange = height => {
+    const handleHeightChange = (height) => {
       if (height === searchBarHeight.value || RetrieveHelper.aiAssitantHelper.activePosition !== 'search-bar') {
         return;
       }
@@ -147,6 +148,11 @@ export default defineComponent({
      * @param e 键盘事件
      */
     const handleTabKeyPress = (e: KeyboardEvent, isMouseClick = false) => {
+      // 如果 AI 助手未启用，则不处理 Tab 事件
+      if (!isAiAssistantActive.value) {
+        return;
+      }
+
       if (isAiLoading.value) {
         return;
       }
@@ -239,8 +245,7 @@ export default defineComponent({
           nextTick(() => {
             const searchBarEl = searchBarRef.value?.$el || searchBarRef.value;
             // 找到搜索框容器，点击后会自动触发 focus
-            const searchInputContainer =
-              searchBarEl?.querySelector?.('.search-bar-container') || searchBarEl?.querySelector?.('.search-input');
+            const searchInputContainer =              searchBarEl?.querySelector?.('.search-bar-container') || searchBarEl?.querySelector?.('.search-input');
             if (searchInputContainer) {
               searchInputContainer.click();
             }
@@ -475,7 +480,10 @@ export default defineComponent({
 
       return (
         <V2SearchBar
-          class='v3-search-bar-root fix-search-bar'
+          class={['v3-search-bar-root fix-search-bar', {
+            'is-monitor-apm': isMonitorApm,
+            'is-monitor-trace': isMonitorTrace,
+          }]}
           ref={searchBarRef}
           on-height-change={handleHeightChange}
           on-close-ai-parsed-text={handleCloseAiParsedText}

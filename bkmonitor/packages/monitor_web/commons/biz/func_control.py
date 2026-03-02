@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from api.cmdb import client
 
 # 空间功能控制
@@ -15,7 +15,7 @@ from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceFunction, SpaceTypeEnum
 from core.drf_resource import resource
 from core.errors.api import BKAPIError
-from monitor_web.models.uptime_check import UptimeCheckTask
+from bk_monitor_base.uptime_check import list_tasks
 
 
 class ControlManager:
@@ -110,7 +110,8 @@ class UCController(BaseController):
 
     @property
     def accessed(self):
-        return self.related and UptimeCheckTask.objects.filter(bk_biz_id=self.space.bk_biz_id).exists()
+        tasks = list_tasks(bk_biz_id=self.space.bk_biz_id, fields=["id"])
+        return self.related and len(tasks) > 0
 
 
 @register_controller(SpaceFunction.K8S.value)

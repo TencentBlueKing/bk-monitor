@@ -48,6 +48,7 @@ export default defineComponent({
 
     const displayFields = [
       'trace_id',
+      'trace_duration',
       'min_start_time',
       'root_span_name',
       'root_service',

@@ -51,7 +51,10 @@ export default defineComponent({
           detail={this.actionDetail}
           loading={this.loading}
         />
-        <ActionDetailContent detail={this.actionDetail} />
+        <ActionDetailContent
+          detail={this.actionDetail}
+          detailLoading={this.loading}
+        />
       </div>
     );
   },

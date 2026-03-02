@@ -85,7 +85,7 @@ export default defineComponent({
   render() {
     return (
       <Sideslider
-        width='420'
+        width='640'
         ext-cls='alarm-analysis-slider'
         is-show={this.show}
         transfer={true}
@@ -114,7 +114,7 @@ export default defineComponent({
           default: () =>
             this.loading ? (
               <div class='skeleton-wrap'>
-                {new Array(12).fill(0).map((item, i) => (
+                {new Array(12).fill(0).map((_, i) => (
                   <div
                     key={i}
                     class='skeleton-element'

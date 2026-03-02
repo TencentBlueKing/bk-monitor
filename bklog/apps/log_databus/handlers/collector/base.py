@@ -109,7 +109,7 @@ from apps.log_search.models import (
     Space,
 )
 from apps.models import model_to_dict
-from apps.utils.cache import caches_one_hour
+from apps.utils.cache import caches_ten_minute
 from apps.utils.custom_report import BK_CUSTOM_REPORT, CONFIG_OTLP_FIELD
 from apps.utils.db import array_chunk
 from apps.utils.function import map_if
@@ -735,7 +735,7 @@ class CollectorHandler:
         return [node["bk_inst_id"] for node in nodes if node["bk_obj_id"] == node_type]
 
     @staticmethod
-    @caches_one_hour(key=CACHE_KEY_CLUSTER_INFO, need_deconstruction_name="result_table_list", need_md5=True)
+    @caches_ten_minute(key=CACHE_KEY_CLUSTER_INFO, need_deconstruction_name="result_table_list", need_md5=True)
     def bulk_cluster_infos(result_table_list: list):
         """
         批量获取集群信息，单个失败不影响其他，将单个失败的 result_table 进行重试

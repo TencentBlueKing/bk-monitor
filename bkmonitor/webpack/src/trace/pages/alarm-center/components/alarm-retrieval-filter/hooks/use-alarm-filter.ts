@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
-import { docCookies } from 'monitor-common/utils/utils';
+// import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
+// import { docCookies } from 'monitor-common/utils/utils';
 
 import {
   type IGetValueFnParams,
@@ -44,51 +44,61 @@ type ICandidateValueMap = Map<
   }
 >;
 
-const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
+// const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 export const commonAlertFieldMap = {
   status: [
     {
-      id: isEn ? 'ABNORMAL' : '未恢复',
+      zhId: '未恢复',
+      id: 'ABNORMAL',
       name: window.i18n.t('未恢复'),
     },
     {
-      id: isEn ? 'RECOVERED' : '已恢复',
+      zhId: '已恢复',
+      id: 'RECOVERED',
       name: window.i18n.t('已恢复'),
     },
     {
-      id: isEn ? 'CLOSED' : '已失效',
+      zhId: '已失效',
+      id: 'CLOSED',
       name: window.i18n.t('已失效'),
     },
   ],
   severity: [
     {
-      id: isEn ? 1 : '致命',
+      zhId: '致命',
+      id: 1,
       name: window.i18n.t('致命'),
     },
     {
-      id: isEn ? 2 : '预警',
+      zhId: '预警',
+      id: 2,
       name: window.i18n.t('预警'),
     },
     {
-      id: isEn ? 3 : '提醒',
+      zhId: '提醒',
+      id: 3,
       name: window.i18n.t('提醒'),
     },
   ],
   stage: [
     {
-      id: isEn ? 'is_handled' : '已通知',
+      zhId: '已通知',
+      id: 'is_handled',
       name: window.i18n.t('已通知'),
     },
     {
-      id: isEn ? 'is_ack' : '已确认',
+      zhId: '已确认',
+      id: 'is_ack',
       name: window.i18n.t('已确认'),
     },
     {
-      id: isEn ? 'is_shielded' : '已屏蔽',
+      zhId: '已屏蔽',
+      id: 'is_shielded',
       name: window.i18n.t('已屏蔽'),
     },
     {
-      id: isEn ? 'is_blocked' : '已流控',
+      zhId: '已流控',
+      id: 'is_blocked',
       name: window.i18n.t('已流控'),
     },
   ],
@@ -96,15 +106,18 @@ export const commonAlertFieldMap = {
 const commonActionFieldMap = {
   status: [
     {
-      id: isEn ? 'RUNNING' : '执行中',
+      zhId: '执行中',
+      id: 'RUNNING',
       name: window.i18n.t('执行中'),
     },
     {
-      id: isEn ? 'SUCCESS' : '成功',
+      zhId: '成功',
+      id: 'SUCCESS',
       name: window.i18n.t('成功'),
     },
     {
-      id: isEn ? 'FAILURE' : '失败',
+      zhId: '失败',
+      id: 'FAILURE',
       name: window.i18n.t('失败'),
     },
   ],
@@ -113,33 +126,40 @@ const commonActionFieldMap = {
 const commonIncidentFieldMap = {
   status: [
     {
-      id: isEn ? 'ABNORMAL' : '未恢复',
+      zhId: '未恢复',
+      id: 'ABNORMAL',
       name: window.i18n.t('未恢复'),
     },
     {
-      id: isEn ? 'RECOVERING' : '观察中',
+      zhId: '观察中',
+      id: 'RECOVERING',
       name: window.i18n.t('观察中'),
     },
     {
-      id: isEn ? 'RECOVERED' : '已恢复',
+      zhId: '已恢复',
+      id: 'RECOVERED',
       name: window.i18n.t('已恢复'),
     },
     {
-      id: isEn ? 'CLOSED' : '已解决',
+      zhId: '已解决',
+      id: 'CLOSED',
       name: window.i18n.t('已解决'),
     },
   ],
   level: [
     {
-      id: isEn ? 'ERROR' : '致命',
+      zhId: '致命',
+      id: 'ERROR',
       name: window.i18n.t('致命'),
     },
     {
-      id: isEn ? 'INFO' : '预警',
+      zhId: '预警',
+      id: 'INFO',
       name: window.i18n.t('预警'),
     },
     {
-      id: isEn ? 'WARN' : '提醒',
+      zhId: '提醒',
+      id: 'WARN',
       name: window.i18n.t('提醒'),
     },
   ],
@@ -178,28 +198,34 @@ export function useAlarmFilter(
       return str;
     }
     return new Promise(resolve => {
-      // if (params?.isInit__) {
-      //   candidateValueMap = new Map();
-      // }
+      if (params?.isInit__) {
+        candidateValueMap = new Map();
+      }
       const searchValue = String(params.where?.[0]?.value?.[0] || '');
       const searchValueLower = searchValue.toLocaleLowerCase();
       const candidateItem = candidateValueMap.get(getMapKey(params));
 
       // 故障部分字段枚举值
       const paramsField = params?.fields?.[0];
+      const listTranslate = (list: { id: number | string; name: string; zhId: string }[]) => {
+        return list.map(item => ({
+          id: item.id,
+          name: item.name,
+        }));
+      };
       if (options().alarmType === AlarmType.ALERT && ['status', 'severity', 'stage'].includes(paramsField)) {
         resolve({
-          list: commonAlertFieldMap[paramsField],
+          list: listTranslate(commonAlertFieldMap[paramsField]),
           count: commonAlertFieldMap[paramsField].length,
         });
       } else if (options().alarmType === AlarmType.ACTION && ['status'].includes(paramsField)) {
         resolve({
-          list: commonActionFieldMap[paramsField],
+          list: listTranslate(commonActionFieldMap[paramsField]),
           count: commonActionFieldMap[paramsField].length,
         });
       } else if (options().alarmType === AlarmType.INCIDENT && ['status', 'level'].includes(paramsField)) {
         resolve({
-          list: commonIncidentFieldMap[paramsField],
+          list: listTranslate(commonIncidentFieldMap[paramsField]),
           count: commonIncidentFieldMap[paramsField].length,
         });
       } else if (candidateItem?.isEnd && !params?.queryString) {
@@ -227,7 +253,9 @@ export function useAlarmFilter(
           .getRetrievalFilterValues(
             {
               ...options().commonFilterParams,
-              conditions: [],
+              conditions: searchValue
+                ? [{ key: paramsField, method: 'include', value: [searchValue], options: { is_wildcard: true } }]
+                : [],
               fields: params.fields,
               size: params.limit,
             },

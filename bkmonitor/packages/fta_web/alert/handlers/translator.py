@@ -13,11 +13,12 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import reduce
 
+from django.conf import settings
 from django.db.models import Q
 from django.utils.translation import gettext as _
 
 from bkmonitor.models import EventPluginV2, MetricListCache, StrategyModel
-from bkmonitor.strategy.new_strategy import get_metric_id, parse_metric_id
+from bk_monitor_base.strategy import get_metric_id, parse_metric_id
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.action import ActionPluginType, ActionSignal
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -103,6 +104,8 @@ class MetricTranslator(AbstractTranslator):
             return []
 
     def translate(self, values: list[str]) -> dict:
+        if settings.ROLE == "api":
+            return {}
         if not values:
             return {}
 
@@ -128,7 +131,7 @@ class MetricTranslator(AbstractTranslator):
             return {}
 
         all_metrics = []
-        if len(queries) <= 20:
+        if len(queries) <= 3:
             # OR 查询条件较少，使用单次 OR 查询
             metrics_queryset = MetricListCache.objects.filter(bk_tenant_id=tenant_id).filter(
                 reduce(lambda x, y: x | y, queries)
