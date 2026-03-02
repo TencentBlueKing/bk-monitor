@@ -932,7 +932,7 @@ paths:
   /app/metadata/get_result_table_snapshot_state/:
     post:
       operationId: get_result_table_snapshot_state
-      description: 验证ES快照仓库
+      description: 获取结果表快照状态
       tags:
       - metadata
       x-bk-apigateway-resource:
@@ -1472,7 +1472,7 @@ paths:
   /app/metadata/update_registered_cluster/:
     post:
       operationId: metadata_update_registered_cluster
-      description: 注册集群
+      description: 更新注册的集群资源
       tags:
       - metadata
       x-bk-apigateway-resource:
@@ -1532,7 +1532,7 @@ paths:
   /app/metadata/stop_or_enable_datasource/:
     post:
       operationId: metadata_stop_or_enable_datasource
-      description: 修改指定数据源的配置信息
+      description: 批量启停数据源
       tags:
       - metadata
       x-bk-apigateway-resource:

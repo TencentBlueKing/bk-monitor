@@ -5,13 +5,13 @@
 
 ### 请求参数
 
-| 字段                | 类型   | 必选 | 描述       |
-|-------------------|------|----|----------|
-| bk_event_group_id | int  | 是  | 事件分组ID   |
-| time_range        | str  | 是  | 时间范围     |
-| need_refresh      | bool | 否  | 是否需要实时刷新 |
-| bk_biz_id         | int  | 是  | 业务ID     |
-| event_infos_limit | int  | 否  | 事件信息列表上限 |
+| 字段                | 类型   | 必选 | 描述                  |
+|-------------------|------|----|---------------------|
+| bk_event_group_id | int  | 是  | 事件分组ID              |
+| time_range        | str  | 是  | 时间范围                |
+| need_refresh      | bool | 否  | 是否需要实时刷新，默认值False  |
+| bk_biz_id         | int  | 是  | 业务ID                |
+| event_infos_limit | int  | 否  | 事件信息列表上限，默认值1000   |
 
 ### 请求参数示例
 
