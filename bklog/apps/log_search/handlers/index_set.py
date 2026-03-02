@@ -247,13 +247,14 @@ class IndexSetHandler(APIModel):
             # 清空indices，用子索引集的indices代替
             child_index_set_ids = [idx["result_table_id"] for idx in log_index_set["indices"]]
             log_index_set["indices"] = []
+            log_index_set["children"] = []
 
             for index_set_id in child_index_set_ids:
                 if index_set_id not in index_id_to_index_mapping:
                     continue
                 child_index_set = index_id_to_index_mapping[index_set_id]
                 remove_ids.add(index_set_id)
-                log_index_set.setdefault("children", []).append(child_index_set)
+                log_index_set["children"].append(child_index_set)
                 log_index_set["indices"].extend(child_index_set["indices"])
 
         index_sets = [index_set for index_set in index_sets if index_set["index_set_id"] not in remove_ids]
