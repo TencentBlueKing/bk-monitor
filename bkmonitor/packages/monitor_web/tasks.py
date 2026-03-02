@@ -575,7 +575,7 @@ def update_uptime_check_task_status():
     定时刷新 starting 状态的拨测任务
     :return:
     """
-    for task in list_tasks(query={"status": UptimeCheckTaskStatus.STARTING.value}, fields=["id"]):
+    for task in list_tasks(query={"status": UptimeCheckTaskStatus.STARTING}, fields=["id"]):
         update_task_running_status(task.id)
 
 

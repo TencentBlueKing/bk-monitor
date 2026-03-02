@@ -10,10 +10,10 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
+from bk_monitor_base.strategy import get_metric_id
 from django.utils.translation import gettext as _
 
 from bkmonitor.models import MetricListCache, StrategyModel
-from bkmonitor.strategy.new_strategy import get_metric_id
 from constants.action import ActionSignal
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
 from constants.data_source import DataSourceLabel, DataTypeLabel

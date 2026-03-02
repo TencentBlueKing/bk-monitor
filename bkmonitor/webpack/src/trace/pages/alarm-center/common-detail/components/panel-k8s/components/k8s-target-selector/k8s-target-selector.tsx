@@ -28,9 +28,12 @@ import { type PropType, computed, defineComponent } from 'vue';
 
 import { Select } from 'bkui-vue';
 
-import { type AlertK8sTargetItem, type K8sTableColumnKeysEnum } from '../../../../../typings';
+import type { AlertK8sTargetItem, K8sTableColumnKeysEnum } from '../../../../../typings';
 
 import './k8s-target-selector.scss';
+
+/** 唯一标识字段名 */
+const TARGET_UNIQUE_ID_KEY = '__target_unique_id__';
 
 export default defineComponent({
   name: 'K8sTargetSelector',
@@ -51,18 +54,45 @@ export default defineComponent({
   },
   emits: {
     /** 选择器值改变事件 */
-    change: (selectedTarget: AlertK8sTargetItem) => true,
+    change: (selectedTarget: AlertK8sTargetItem) => selectedTarget,
   },
   setup(props, { emit }) {
-    /** 选择器列表数组转换为 kv 对象结构 */
-    const targetMap = computed(() =>
-      (props.targetList ?? []).reduce((prev, curr) => {
-        const id = curr[props.groupBy];
-        if (!id) return prev;
-        prev[id] = curr;
-        return prev;
-      }, {})
+    /** 一次遍历构建选择器列表与映射对象 */
+    const targetSelectorData = computed(() =>
+      (props.targetList ?? []).reduce<{
+        targetListWithUniqueId: Array<AlertK8sTargetItem & Record<string, string>>;
+        targetMap: Record<string, AlertK8sTargetItem>;
+      }>(
+        (prev, curr) => {
+          const id = getTargetUniqueId(curr);
+          if (!id) return prev;
+          prev.targetListWithUniqueId.push({
+            ...curr,
+            [TARGET_UNIQUE_ID_KEY]: id,
+          });
+          prev.targetMap[id] = curr;
+          return prev;
+        },
+        {
+          targetListWithUniqueId: [],
+          targetMap: {},
+        }
+      )
     );
+
+    /** 当前选中对象的唯一标识 */
+    const currentTargetUniqueId = computed(() => getTargetUniqueId(props.currentTarget));
+
+    /**
+     * @method getTargetUniqueId
+     * @description 基于目标对象所有属性值生成唯一标识
+     * @param {AlertK8sTargetItem} target 目标对象
+     */
+    const getTargetUniqueId = (target?: AlertK8sTargetItem) =>
+      Object.keys(target ?? {})
+        .sort()
+        .map(key => target?.[key as K8sTableColumnKeysEnum] ?? '')
+        .join('-');
 
     /**
      * @method handleSelected
@@ -70,11 +100,14 @@ export default defineComponent({
      * @param {string} selectedId 选中的维度值
      */
     const handleSelected = (selectedId: string) => {
-      emit('change', targetMap.value[selectedId]);
+      const selectedTarget = targetSelectorData.value.targetMap[selectedId];
+      if (!selectedTarget) return;
+      emit('change', selectedTarget);
     };
 
     return {
-      targetMap,
+      targetSelectorData,
+      currentTargetUniqueId,
       handleSelected,
     };
   },
@@ -84,9 +117,9 @@ export default defineComponent({
         <Select
           displayKey={this.groupBy}
           filterable={false}
-          idKey={this.groupBy}
-          list={this.targetList}
-          modelValue={this.currentTarget?.[this.groupBy]}
+          idKey={TARGET_UNIQUE_ID_KEY}
+          list={this.targetSelectorData.targetListWithUniqueId}
+          modelValue={this.currentTargetUniqueId}
           popoverOptions={{ boundary: 'parent' }}
           onSelect={this.handleSelected}
         >
