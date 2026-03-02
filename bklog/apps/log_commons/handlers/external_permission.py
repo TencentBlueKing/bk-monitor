@@ -31,6 +31,35 @@ class ExternalPermissionHandler:
         if space_uid:
             permission_qs = permission_qs.filter(space_uid=space_uid)
 
+        permission_qs_list = list(permission_qs)
+
+        index_set_ids_map = defaultdict(set)
+
+        for permission in permission_qs_list:
+            index_set_ids_map[permission.space_uid].update(permission.resources)
+
+        for space_uid, index_set_ids in index_set_ids_map.items():
+            iam_resources = []
+            for index_set_id in index_set_ids:
+                attribute = {
+                    "bk_biz_id": self.get_bk_biz_id(space_uid),
+                    "space_uid": space_uid,
+                }
+                iam_resources.append(
+                    [ResourceEnum.INDICES.create_simple_instance(instance_id=index_set_id, attribute=attribute)]
+                )
+            if iam_resources:
+                verified_authorizer = self.get_authorizer(space_uid=space_uid)
+                # result: {index_set_id: {action_id: True / False}}
+                result = Permission(username=verified_authorizer).batch_is_allowed(
+                    actions=[ActionEnum.SEARCH_LOG], resources=iam_resources
+                )
+                for index_set_id, permission_info in result.items():
+                    index_set_id = int(index_set_id)
+                    self.log_search_manage_permission_info[(verified_authorizer, index_set_id, space_uid)] = (
+                        permission_info
+                    )
+
         if view_type != ViewTypeEnum.RESOURCE.value:
             # 获取每个被授权用户的资源、操作、授权状态信息, 合成列表
             permission_qs = permission_qs.order_by("-updated_at")
@@ -49,7 +78,7 @@ class ExternalPermissionHandler:
         else:
             # 资源 + 操作 + 状态作为 key, 获取相对应的被授权用户列表以及授权状态等
             resource_to_user = defaultdict(lambda: {"authorized_users": []})
-            for permission in permission_qs:
+            for permission in permission_qs_list:
                 status = self.get_status(permission)
                 for resource_id in permission.resources:
                     resource_key = tuple([permission.action_id, resource_id, status])
@@ -89,7 +118,6 @@ class ExternalPermissionHandler:
         """
         获取状态
         """
-
         status = TokenStatusEnum.AVAILABLE.value
 
         if obj.expire_time and timezone.now() > obj.expire_time:
@@ -111,31 +139,14 @@ class ExternalPermissionHandler:
             elif obj.action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
                 # 日志检索权限维度是索引集
                 permission_info_dict = {}
-                iam_resources = []
                 for index_set_id in obj.resources:
-                    permission_info = self.get_permission_info(authorizer, int(index_set_id), obj.space_uid)
-
-                    if permission_info is not None:
-                        permission_info_dict[index_set_id] = permission_info
-                    else:
-                        attribute = {
-                            "bk_biz_id": self.get_bk_biz_id(obj.space_uid),
-                            "space_uid": obj.space_uid,
-                        }
-                        iam_resources.append(
-                            [ResourceEnum.INDICES.create_simple_instance(instance_id=index_set_id, attribute=attribute)]
-                        )
-                if iam_resources:
-                    result = Permission(username=authorizer).batch_is_allowed(
-                        actions=[ActionEnum.SEARCH_LOG], resources=iam_resources
+                    permission_info_dict[index_set_id] = self.get_permission_info(
+                        authorizer, index_set_id, obj.space_uid
                     )
-                    permission_info_dict.update(result)
-
                 # 如果授权者没有或失去其中一个 index_set_id 下的日志检索管理权限, 则状态设为无效
-                # permission_result: {index_set_id: {action_id: True/False}}
+                # permission_info_dict: {index_set_id: {action_id: True/False}}
                 for index_set_id, permission_info in permission_info_dict.items():
                     index_set_id = int(index_set_id)
-                    self.log_search_manage_permission_info[(authorizer, index_set_id, obj.space_uid)] = permission_info
                     if index_set_id not in obj.resources:
                         continue
                     if not permission_info.get(ActionEnum.SEARCH_LOG.id, False):
