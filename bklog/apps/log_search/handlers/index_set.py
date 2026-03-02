@@ -1851,8 +1851,10 @@ class BaseIndexSetHandler:
         return True
 
     @classmethod
-    def get_index_set_table_info_list(cls, index_set: LogIndexSet, is_analysis=False):
+    def get_index_set_table_info_list(cls, index_set: LogIndexSet, is_analysis=False, parent_index_set_id=None):
         table_info_list = []
+        # 索引组场景下使用索引组ID生成table_id，否则使用当前索引集ID
+        effective_index_set_id = parent_index_set_id or index_set.index_set_id
         # Doris路由或图表分析路由
         is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(index_set.tag_ids)
         doris_table_id = index_set.doris_table_id
@@ -1863,13 +1865,13 @@ class BaseIndexSetHandler:
                 doris_table_info = {
                     "storage_type": "doris",
                     "bkbase_table_id": doris_table_id.rsplit(".", maxsplit=1)[0],
-                    "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__doris__",
+                    "table_id": f"bklog_index_set_{effective_index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__doris__",
                     "source_type": "bkdata",
                     "need_create_index": False,
                 }
                 if is_analysis:
                     doris_table_info["table_id"] = (
-                        f"bklog_index_set_{index_set.index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__analysis__"
+                        f"bklog_index_set_{effective_index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__analysis__"
                     )
                 if query_alias_settings := index_set.query_alias_settings:
                     doris_table_info["query_alias_settings"] = copy.deepcopy(query_alias_settings)
@@ -1881,7 +1883,7 @@ class BaseIndexSetHandler:
             time_field = obj.time_field or index_set.time_field
             time_field_type = obj.time_field_type or index_set.time_field_type
             table_info = {
-                "table_id": cls.get_rt_id(index_set.index_set_id, obj.result_table_id),
+                "table_id": cls.get_rt_id(effective_index_set_id, obj.result_table_id),
                 "index_set": obj.result_table_id.replace(".", "_"),
                 "source_type": obj.scenario_id,
                 "cluster_id": obj.storage_cluster_id,
@@ -1930,7 +1932,7 @@ class BaseIndexSetHandler:
                 old_nano_table_info = copy.deepcopy(table_info)
                 old_nano_table_info.update(
                     {
-                        "table_id": cls.get_rt_id(index_set.index_set_id, nano_migrate_map[obj.result_table_id]),
+                        "table_id": cls.get_rt_id(effective_index_set_id, nano_migrate_map[obj.result_table_id]),
                         "index_set": nano_migrate_map[obj.result_table_id].replace(".", "_"),
                         "origin_table_id": nano_migrate_map[obj.result_table_id],
                     }
@@ -1957,7 +1959,9 @@ class BaseIndexSetHandler:
                     child_index_sets = LogIndexSet.objects.filter(index_set_id__in=child_index_set_ids)
                     for child_index_set in child_index_sets:
                         table_infos = cls.get_index_set_table_info_list(
-                            child_index_set, is_analysis=data_label.endswith("_analysis")
+                            child_index_set,
+                            is_analysis=data_label.endswith("_analysis"),
+                            parent_index_set_id=index_set.index_set_id,
                         )
                         table_info_list.extend(table_infos)
                 else:
