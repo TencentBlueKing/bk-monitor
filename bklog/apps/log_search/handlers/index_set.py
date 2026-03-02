@@ -1507,7 +1507,7 @@ class IndexSetHandler(APIModel):
 
             self.data.query_alias_settings = alias_settings
             self.data.save()
-            objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
+            objs = self.data.get_log_index_set_data()
             collector_rts = list(CollectorConfig.objects.filter(is_nanos=True).values_list("table_id", flat=True))
             for obj in objs:
                 result_table_id = obj.result_table_id
