@@ -160,6 +160,9 @@ class PerformanceMonitor {
   }
 }
 
+// 导出单例
+export const performanceMonitor = new PerformanceMonitor();
+
 // 在开发环境下，将性能监控器挂载到 window 对象，方便调试
 if (process.env.NODE_ENV === 'development') {
   (window as any).__BKLOG_PERF_MONITOR__ = performanceMonitor;
@@ -175,9 +178,6 @@ if (process.env.NODE_ENV === 'development') {
     return summary;
   };
 }
-
-// 导出单例
-export const performanceMonitor = new PerformanceMonitor();
 
 // 导出便捷函数
 export const perfStart = (name: string, metadata?: Record<string, any>) => performanceMonitor.start(name, metadata);

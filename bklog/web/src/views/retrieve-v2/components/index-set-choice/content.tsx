@@ -36,7 +36,7 @@ import CommonList from './common-list';
 // #code const CommonList = () => null;
 // #endif
 import IndexSetList from './index-set-list';
-import useChoice, { IndexSetItem, type IndexSetType } from './use-choice';
+import useChoice, { type IndexSetItem, type IndexSetType } from './use-choice';
 
 import './content.scss';
 

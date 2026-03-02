@@ -83,6 +83,9 @@ export default defineComponent({
       justifyContent: 'center' as const,
     };
 
+    const isMonitorApm = window.__IS_MONITOR_APM__;
+    const isMonitorTrace = window.__IS_MONITOR_TRACE__;
+
     /**
      * 获取字段配置
      */
@@ -314,7 +317,6 @@ export default defineComponent({
       // );
     };
 
-
     /**
      * 处理请求响应
      * @param resp {FetchResponse<T>}
@@ -322,8 +324,15 @@ export default defineComponent({
     const handleRequestResponse = (resp?: any) => {
       const content = resp?.choices[0]?.delta?.content ?? '{}';
       try {
-        const contentObj = JSON.parse(content);
-        const { end_time: endTime, start_time: startTime, query_string: queryString = '' } = contentObj;
+        const contentObj: AiQueryContent = JSON.parse(content);
+        const {
+          end_time: endTime,
+          start_time: startTime,
+          query_string: queryString = '',
+          parse_result: parseResult,
+          explain = '',
+        } = contentObj;
+
         const queryParams = { search_mode: 'sql' };
         let needReplace = false;
         if (startTime && endTime) {
@@ -346,12 +355,14 @@ export default defineComponent({
           store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
 
           const { start_time, end_time } = queryParams as any;
-          setRouteParamsByKeywordAndAddition({ start_time, end_time })
-            .then(() => {
-              RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
-              store.dispatch('requestIndexSetQuery');
-            });
+          setRouteParamsByKeywordAndAddition({ start_time, end_time }).then(() => {
+            RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
+            store.dispatch('requestIndexSetQuery');
+          });
         }
+
+        aiQueryResult.value.parseResult = parseResult;
+        aiQueryResult.value.explain = explain;
       } catch (e) {
         console.error(e);
         bkMessage({
@@ -359,7 +370,7 @@ export default defineComponent({
           message: e.message,
         });
       }
-    }
+    };
 
     /**
      * 使用AI编辑
@@ -469,7 +480,10 @@ export default defineComponent({
 
       return (
         <V2SearchBar
-          class='v3-search-bar-root fix-search-bar'
+          class={['v3-search-bar-root fix-search-bar', {
+            'is-monitor-apm': isMonitorApm,
+            'is-monitor-trace': isMonitorTrace,
+          }]}
           ref={searchBarRef}
           on-height-change={handleHeightChange}
           on-close-ai-parsed-text={handleCloseAiParsedText}

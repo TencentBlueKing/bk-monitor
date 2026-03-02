@@ -32,6 +32,7 @@ import AutoRefresh from './auto-refresh-new.tsx';
 // #code const BarGlobalSetting = () => null;
 // #code const MoreSetting = () => null;
 // #code const WarningSetting = () => null;
+// #code const AutoRefresh = () => null;
 // #endif
 
 import * as authorityMap from '@/common/authority-map';
@@ -381,9 +382,7 @@ function handleIndexConfigSliderOpen() {
     >
       <TimeSetting ref="timeSettingRef" />
       <span class="custom-border" />
-      <AutoRefresh
-        class="custom-border-right"
-      />
+      <AutoRefresh class="custom-border-right" />
       <ShareLink v-if="!isExternal" />
       <FieldSetting
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"

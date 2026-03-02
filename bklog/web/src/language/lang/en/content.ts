@@ -1245,6 +1245,27 @@ export default {
   集群说明: 'Cluster Description',
   副本数量: 'Replica Count',
   集群备注: 'Cluster Remarks',
+  '搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人':
+    'Task ID, Name, OpenID, Create Method, Status, Stage, Creator',
+  '使用本功能，需要在您的项目中集成并初始化相应的软件开发工具包（SDK），点击查看。':
+    'To use this feature, you need to integrate and initialize the corresponding Software Development Kit (SDK) in your project. Click to view.',
+  '暂无下载链接，请在任务完成后点击下载':
+    'No download link available. Please click download after completing the task.',
+  灰度业务: 'Gray scale business',
+  '本功能为灰度业务，请联系管理员开通':
+    'This feature is currently in a phased rollout phase. Please contact the administrator to activate it.',
+  任务未完成: 'Task not completed',
+  'Windows Event 日志': 'Windows Event Log',
+  容器标准输出: 'Container Standard Output',
+  容器文件采集: 'Container File Collection',
+  开启清洗: 'Enable Cleaning',
+  停用索引集: 'Disable Index Set',
+  '索引集停用后，该索引集将无法检索。': 'After the index set is disabled, it will no longer be searchable.',
+  请确认停用类型: 'Please confirm the disable type',
+  停用采集配置: 'Disable Collection Configuration',
+  '采集项停用后，在有效期内，您仍可检索历史日志。':
+    'After the collection item is disabled, you can still search historical logs within the validity period.',
+  任务未处理完成: 'The task has not been processed completely',
   '日志上传中...': 'Log uploading...',
   '预计等待2-3分钟，窗口关闭后不会影响任务执行':
     'The estimated waiting time is 2-3 minutes. Closing the window will not affect the task execution.',
@@ -1269,25 +1290,4 @@ export default {
   'Tab 可切换为 AI 模式': 'The tab can be switched to AI mode',
   '输入查询内容，“帮我查询最近 3 天的错误日志”（Tab 可切回普通模式）':
     'Enter your query, "Help me check the error logs for the last 3 days" (Tab switches back to normal mode)',
-  '搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人':
-    'Task ID, Name, OpenID, Create Method, Status, Stage, Creator',
-  '使用本功能，需要在您的项目中集成并初始化相应的软件开发工具包（SDK），点击查看。':
-    'To use this feature, you need to integrate and initialize the corresponding Software Development Kit (SDK) in your project. Click to view.',
-  '暂无下载链接，请在任务完成后点击下载':
-    'No download link available. Please click download after completing the task.',
-  灰度业务: 'Gray scale business',
-  '本功能为灰度业务，请联系管理员开通':
-    'This feature is currently in a phased rollout phase. Please contact the administrator to activate it.',
-  任务未完成: 'Task not completed',
-  'Windows Event 日志': 'Windows Event Log',
-  容器标准输出: 'Container Standard Output',
-  容器文件采集: 'Container File Collection',
-  开启清洗: 'Enable Cleaning',
-  停用索引集: 'Disable Index Set',
-  '索引集停用后，该索引集将无法检索。': 'After the index set is disabled, it will no longer be searchable.',
-  请确认停用类型: 'Please confirm the disable type',
-  停用采集配置: 'Disable Collection Configuration',
-  '采集项停用后，在有效期内，您仍可检索历史日志。':
-    'After the collection item is disabled, you can still search historical logs within the validity period.',
-  '支持字母、数字、下划线': 'Supports letters, numbers, and underscores',
 };
