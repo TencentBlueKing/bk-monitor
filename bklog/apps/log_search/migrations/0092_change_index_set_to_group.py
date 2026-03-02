@@ -37,7 +37,7 @@ def forwards_func(apps, schema_editor):
             mapped_index_set_id = rt_id_to_index_set_id.get(index_data.result_table_id)
             if mapped_index_set_id is None:
                 print(
-                    f"WARNING: 找不到 result_table_id={index_data.result_table_id} 的原始采集索引集，采集项可能已被删除，跳过该条记录"
+                    f"WARNING: Cannot find original collector index set for result_table_id={index_data.result_table_id}, collector may have been deleted, skip"
                 )
                 continue
 
