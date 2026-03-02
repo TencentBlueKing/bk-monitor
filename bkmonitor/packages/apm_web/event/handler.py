@@ -69,7 +69,7 @@ class EventHandler:
                 "relations": [],
             }
             for workload in workloads:
-                workload.pop("update_time", None)
+                workload.pop("updated_at", None)
                 table_relation_map[EventCategory.K8S_EVENT.value]["relations"].append(workload)
 
             processed_service_relations[service_name] = list(table_relation_map.values())
