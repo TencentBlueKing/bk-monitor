@@ -105,7 +105,8 @@ export default defineComponent({
     const chartClickPointEvent = shallowRef<{ xAxis: number; yAxis: number }>(null);
     /** 是否查看大图 */
     const chartIsFullscreen = shallowRef(false);
-
+    /** 是否立即刷新图表数据 */
+    const refreshImmediate = shallowRef('');
     const {
       panel,
       viewerTimeRange,
@@ -122,6 +123,8 @@ export default defineComponent({
       graphPanel: toRef(props, 'graphPanel'),
       where,
     });
+
+    provide('refreshImmediate', refreshImmediate);
     provide('timeRange', viewerTimeRange);
 
     const getDrillDimensionsData = async () => {
@@ -204,12 +207,7 @@ export default defineComponent({
       }
     );
 
-    const handleDrillDown = (item: any) => {
-      console.log(item);
-    };
-
     const handleTableDrillDown = async (obj: { dimension: string; where: any[] }) => {
-      console.log(obj);
       const existingKeys = new Set(obj.where.map(item => item.key));
       where.value = [...where.value.filter(item => !existingKeys.has(item.key)), ...obj.where];
       selectedDimension.value = [obj.dimension];
@@ -322,7 +320,6 @@ export default defineComponent({
       spaceTimezone,
       chartIsFullscreen,
       formatterChartData,
-      handleDrillDown,
       handleTableDrillDown,
       handleShowTypeChange,
       handleMultiChange,

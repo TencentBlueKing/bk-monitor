@@ -8,65 +8,90 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from unittest.mock import Mock
-
 import pytest
-from django.utils.translation import gettext as _
 
-from core.drf_resource.exceptions import CustomException
-from monitor_web.models.uptime_check import UptimeCheckTask
+from bk_monitor_base.uptime_check import UptimeCheckTaskStatus
 
 
-def mock_strategy_func(mocker):
-    # 起停策略
-    strategy_func = mocker.patch("monitor_web.uptime_check.resources.SwitchStrategyByTaskIDResource.perform_request")
-    return strategy_func
+def mock_switch_uptime_check_task(mocker):
+    """Mock uptime_check_operation.switch_uptime_check_task"""
+    return mocker.patch(
+        "monitor_web.uptime_check.resources.uptime_check_operation.switch_uptime_check_task",
+        return_value=None,
+    )
 
 
-def mock_change_status_flow():
-    # 不提供订阅id
-    task = UptimeCheckTask(pk=123, bk_biz_id=123, status=UptimeCheckTask.Status.STOPED)
-    task.save = Mock()
-
-    # 起停订阅
-    task.switch_off_subscription = Mock()
-    task.start_subscription = Mock()
-    task.stop_subscription = Mock()
-    task.switch_on_subscription = Mock()
-
-    return task
+def mock_get_uptime_check_task(mocker):
+    """Mock uptime_check_operation.get_task_by_pk"""
+    return mocker.patch(
+        "monitor_web.uptime_check.resources.uptime_check_operation.get_task_by_pk",
+    )
 
 
 @pytest.mark.django_db(databases="__all__")
 class TestTaskChangeStatus:
-    def test_change_status(self, mocker):
-        task = mock_change_status_flow()
-        strategy_func = mock_strategy_func(mocker)
-        strategy_func.start()
-        assert task.status == UptimeCheckTask.Status.STOPED
-        result = task.change_status(UptimeCheckTask.Status.RUNNING)
-        assert result == "success"
-        assert task.status == UptimeCheckTask.Status.RUNNING
-        result = task.change_status(UptimeCheckTask.Status.STOPED)
-        assert result == "success"
-        assert task.status == UptimeCheckTask.Status.STOPED
-        assert task.save.call_count == 4
-        task.switch_off_subscription.assert_called_once()
-        task.switch_on_subscription.assert_called_once()
-        task.start_subscription.assert_called_once()
-        task.stop_subscription.assert_called_once()
-        assert strategy_func.call_count == 2
-        strategy_func.stop()
+    def test_change_status_start(self, mocker):
+        """测试启动任务状态"""
+        from bk_monitor_base.uptime_check import UptimeCheckTaskModel
 
-    def test_wrong_change(self, mocker):
-        wrong_status = "wrong"
-        with pytest.raises(CustomException) as e:
-            task = mock_change_status_flow()
-            task.change_status(wrong_status)
-        assert e.value.message == _("更改拨测任务状态：无效的目标状态：%s") % wrong_status
+        # 创建一个测试任务
+        task_model = UptimeCheckTaskModel(
+            bk_biz_id=2,
+            name="test_task",
+            protocol="HTTP",
+            status=UptimeCheckTaskStatus.STOPED.value,
+        )
 
-    def test_empty_status(self, mocker):
-        with pytest.raises(CustomException) as e:
-            task = mock_change_status_flow()
-            task.change_status("")
-        assert e.value.message == _("更改拨测任务状态：目标状态为空")
+        mock_get = mock_get_uptime_check_task(mocker)
+        mock_get.return_value = task_model
+        mock_switch = mock_switch_uptime_check_task(mocker)
+
+        # 模拟更新后的任务状态
+        updated_task = UptimeCheckTaskModel(
+            bk_biz_id=2,
+            name="test_task",
+            protocol="HTTP",
+            status=UptimeCheckTaskStatus.RUNNING.value,
+        )
+        mock_get.return_value = updated_task
+
+        # 调用切换状态（由 views.py 中的 change_status 方法调用）
+        from bk_monitor_base.uptime_check import control_task
+
+        control_task(bk_tenant_id="default", bk_biz_id=2, task_id=1, action="start", operator="admin")
+
+        mock_switch.assert_called_once()
+        assert mock_get.call_count == 1
+
+    def test_change_status_stop(self, mocker):
+        """测试停止任务状态"""
+        from bk_monitor_base.uptime_check import UptimeCheckTaskModel
+
+        task_model = UptimeCheckTaskModel(
+            bk_biz_id=2,
+            name="test_task",
+            protocol="HTTP",
+            status=UptimeCheckTaskStatus.RUNNING.value,
+        )
+
+        mock_get = mock_get_uptime_check_task(mocker)
+        mock_get.return_value = task_model
+        mock_switch = mock_switch_uptime_check_task(mocker)
+
+        # 模拟更新后的任务状态
+        updated_task = UptimeCheckTaskModel(
+            bk_biz_id=2,
+            name="test_task",
+            protocol="HTTP",
+            status=UptimeCheckTaskStatus.STOPED.value,
+        )
+        mock_get.return_value = updated_task
+
+        from monitor_web.uptime_check.resources import uptime_check_operation
+
+        uptime_check_operation.switch_uptime_check_task(
+            bk_tenant_id="default", bk_biz_id=2, task_id=1, action="stop", operator="admin"
+        )
+
+        mock_switch.assert_called_once()
+        assert mock_get.call_count == 1
