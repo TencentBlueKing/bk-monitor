@@ -417,7 +417,9 @@ export class MetricDetail {
             return {
               ...condition,
               value: condition.value.map(num => {
-                return Number.isNaN(Number(num)) || num === '' ? num : Number(num);
+                if (num === '' || Number.isNaN(Number(num))) return num;
+                const parsed = Number(num);
+                return Math.abs(parsed) > Number.MAX_SAFE_INTEGER ? String(num) : parsed;
               }),
             };
           }
