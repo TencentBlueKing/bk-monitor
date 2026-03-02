@@ -3,14 +3,14 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  padding: 16px;
+  background: #f2f6fc;
 
   .panel-tab {
     position: sticky;
-    top: 0;
+    top: -16px;
     z-index: 99;
-    background: #fff;
-    box-shadow: 0 -1px 6px 0 rgb(0 0 0 / 7.84%);
+    background: #f2f6fc;
     opacity: 1;
 
     .bk-tab-header--active {
@@ -26,16 +26,16 @@
     .alarm-view-tab {
       & > .bk-tab {
         position: sticky;
-        top: 51px;
+        top: 35px;
         z-index: 99;
-        background: #fff;
+        background: #f2f6fc;
         opacity: 1;
       }
 
       .alarm-detail-alarm-view-alarm-records {
         .alarm-records-header {
           position: sticky;
-          top: 102px;
+          top: 86px;
           z-index: 1;
           padding-top: 12px;
           margin: 0;
