@@ -1545,13 +1545,14 @@ class GetDrillDimensionsResource(Resource):
             for metric in metric_cache.values()
         )
         if not is_apm:
-            return [{"id": dimension, "name": dimension} for dimension in dimensions]
+            return dimensions
 
-        # APM 场景：对维度进行翻译，有别名的维度排在前面
-        dim_items: list[dict[str, str]] = [
-            {"id": dimension, "name": ApmAlertHelper.get_tag_label(dimension)} for dimension in dimensions
+        # APM 场景：对维度进行翻译，格式为 "{中文名}（{字段名}）"，有别名的维度排在前面
+        dim_labels: dict[str, str] = {dimension: ApmAlertHelper.get_tag_label(dimension) for dimension in dimensions}
+        translated: list[str] = [
+            f"{label}（{dimension}）" if label != dimension else dimension for dimension, label in dim_labels.items()
         ]
-        return sorted(dim_items, key=lambda item: item["id"] == item["name"])
+        return sorted(translated, key=lambda d: "（" not in d)
 
 
 class DimensionUnifyQuery(Resource):
