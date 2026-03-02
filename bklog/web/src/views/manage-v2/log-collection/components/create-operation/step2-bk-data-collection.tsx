@@ -155,6 +155,8 @@ interface IIndexSetData {
   sort_fields?: string[];
   /** 目标字段列表 */
   target_fields?: string[];
+  /** 所属索引集列表 */
+  parent_index_set_ids?: number[];
   [key: string]: unknown;
 }
 
@@ -478,7 +480,14 @@ export default defineComponent({
         store.commit('collect/updateCurIndexSet', indexSetData);
 
         // 更新配置数据
-        const { indexes, index_set_name, view_roles, storage_cluster_id, sort_fields, target_fields } = indexSetData;
+        const {
+          indexes,
+          index_set_name,
+          view_roles,
+          storage_cluster_id,
+          sort_fields, target_fields,
+          parent_index_set_ids,
+        } = indexSetData;
         configData.value = {
           ...configData.value,
           indexes: indexes || [],
@@ -487,6 +496,7 @@ export default defineComponent({
           storage_cluster_id: storage_cluster_id ?? null,
           sort_fields: sort_fields || [],
           target_fields: target_fields || [],
+          parent_index_set_ids: parent_index_set_ids || [],
         };
 
         /**

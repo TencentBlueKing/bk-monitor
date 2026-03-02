@@ -102,7 +102,7 @@ export default defineComponent({
       let stringValue = String(value);
 
       // 检查是否包含需要转义的字符：逗号、双引号、换行符(\n)、回车符(\r)
-      const needsEscape = stringValue.includes(',')
+      const needsEscape =        stringValue.includes(',')
         || stringValue.includes('"')
         || stringValue.includes('\n')
         || stringValue.includes('\r');

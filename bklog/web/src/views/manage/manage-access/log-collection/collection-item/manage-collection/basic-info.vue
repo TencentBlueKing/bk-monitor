@@ -384,7 +384,7 @@
       },
       // 自定义上报基本信息
       isCustomReport() {
-        return this.$route.name === 'custom-report-detail';
+        return this.$route.name === 'custom-report-detail' || this.$route.query.typeKey === 'custom_report';
       },
       isWinEventLog() {
         return this.collectorData.collector_scenario_id === 'wineventlog';

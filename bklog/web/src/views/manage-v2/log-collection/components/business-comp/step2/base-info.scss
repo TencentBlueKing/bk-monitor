@@ -1,14 +1,103 @@
+@import '@/scss/mixins/scroller';
+
+.base-info {
+    display: flex;
+    justify-content: space-between;
+}
+
 .base-info-box {
     width: 100%;
     height: 100%;
+
     .category-form-item {
         width: 100% !important;
     }
+
     .auto-convert {
         position: absolute;
         right: -80px;
         font-size: 14px;
         color: #3a84ff;
         cursor: pointer;
+    }
+}
+
+.help-panel-box {
+    width: 650px;
+    margin-top: -29px;
+}
+
+.help-panel-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+
+    .help-panel {
+        position: absolute;
+        z-index: 99;
+        width: 100%;
+        height: 100%;
+        padding: 0 0 0 24px;
+        color: #63656e;
+        background: #fff;
+
+        .html-container {
+            max-height: calc(100% - 40px);
+            padding-right: 24px;
+            overflow-y: auto;
+
+            @include scroller;
+        }
+
+        .top-title {
+            height: 48px;
+
+            p {
+                margin: 0;
+                font-size: 14px;
+                font-weight: 700;
+                color: #313238;
+            }
+        }
+
+        h1 {
+            margin: 26px 0 10px;
+            font-size: 12px;
+            font-weight: 700;
+
+            &:first-child {
+                margin-top: 0;
+            }
+        }
+
+        ul {
+            margin-left: 10px;
+
+            li {
+                margin-top: 8px;
+                font-size: 12px;
+                list-style: inside;
+            }
+        }
+
+        p {
+            font-size: 12px;
+        }
+
+        pre {
+            padding: 10px 14px;
+            margin: 0;
+            margin-top: 6px;
+            overflow-x: auto;
+            background: #f4f4f7;
+
+            @include scroller;
+        }
+
+        a {
+            display: inline-block;
+            margin: 10px 0;
+            color: #3a84ff;
+        }
     }
 }
