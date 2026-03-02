@@ -92,7 +92,6 @@ export default defineComponent({
   ],
   setup(props, { emit }) {
     const store = useStore();
-    const router = useRouter();
 
     const logTableRef = ref(null); // 表格引用
 

@@ -35,6 +35,9 @@ const isFocused = ref(false);
 
 // 动态 placeholder 文本
 const placeholderText = computed(() => {
+  if (window.__IS_MONITOR_APM__ || window.__IS_MONITOR_TRACE__) {
+    return ` / ${t('快速定位到搜索')}，log:error AND"name=bklog"`;
+  }
   if (isFocused.value) {
     if (isAiAssistantActive.value) {
       return `${t('可输入自然语言')}，${shortcutKey} + Enter ${t('触发 AI 解析')}`;
@@ -253,6 +256,7 @@ const createEditorInstance = () => {
     onFocusChange: (state, isFocusing) => {
       // 更新 focus 状态，用于动态显示 placeholder
       isFocused.value = isFocusing;
+
       if (isFocusing) {
         if (!(getTippyInstance()?.state?.isShown ?? false)) {
           delayShowInstance(refEditorParent.value);
