@@ -7,15 +7,17 @@
 
 | 字段   | 类型   | 必选  | 描述                |
 | ---- | ---- | --- | ----------------- |
+| bk_biz_id | int  | 是   | 业务 ID           |
 | id   | int  | 是   | 采集配置 ID           |
-| diff | bool | 否   | 是否只返回差异， 默认 False |
+| diff | bool | 否   | 是否只返回差异，默认 False |
 
 ### 请求参数示例
 
 ```json
 {
+  "bk_biz_id": 2,
   "id": 280,
-  "bk_biz_id": 2
+  "diff": false
 }
 
 ```

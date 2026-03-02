@@ -141,8 +141,7 @@ class TimeSeriesGroup(CustomGroupBase):
         result = "||".join(levels)
         return result if result else TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
 
-    @classmethod
-    def get_default_scope_info(cls, scope_name: str, metric_group_dimensions: list | None = None) -> tuple[bool, str]:
+    def is_default_scope_info(self, scope_name: str) -> tuple[bool, str]:
         default_name = TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
 
         # 快速判断：scope_name 就是 "default"
@@ -150,9 +149,9 @@ class TimeSeriesGroup(CustomGroupBase):
             return True, default_name
 
         # 基于维度配置计算
-        if metric_group_dimensions:
+        if self.metric_group_dimensions:
             # 获取最后一级的默认值
-            last_default_value = metric_group_dimensions[-1].get("default_value", default_name)
+            last_default_value = self.metric_group_dimensions[-1].get("default_value", default_name)
 
             # 判断是否为默认分组：检查最后一级是否为默认值
             scope_levels = scope_name.split("||")
@@ -1153,6 +1152,10 @@ class TimeSeriesScope(models.Model):
             or self.create_from == TimeSeriesScope.CREATE_FROM_DEFAULT
         )
 
+    @cached_property
+    def scope_name_prefix(self):
+        return self.get_scope_name_prefix(self.scope_name)
+
     @classmethod
     def get_scope_name_prefix(cls, scope_name: str) -> str:
         if not scope_name:
@@ -1210,62 +1213,48 @@ class TimeSeriesScope(models.Model):
                 scopes_to_update, ["dimension_config"], batch_size=BULK_UPDATE_BATCH_SIZE
             )
 
-    @classmethod
-    def _match_scope_by_auto_rules(cls, scope, field_name: str) -> bool:
-        if not scope.auto_rules:
+    def is_match_auto_rules(self, field_name: str) -> bool:
+        if not self.auto_rules:
             return False
 
-        for rule in scope.auto_rules:
+        for rule in self.auto_rules:
             try:
                 if re.match(rule, field_name):
                     return True
             except re.error:
                 logger.warning(
-                    f"Invalid regex pattern in auto_rules: {rule} for group_id: {scope.group_id}, "
-                    f"scope_name: {scope.scope_name}"
+                    f"Invalid regex pattern in auto_rules: {rule} for group_id: {self.group_id}, "
+                    f"scope_name: {self.scope_name}"
                 )
         return False
 
     @classmethod
     def _determine_scope_name_for_new_metric(
         cls,
+        group,
         field_name: str,
         field_scope: str,
-        prefix_to_obj: dict,
-        metric_group_dimensions: list | None = None,
+        all_scopes: list,
     ) -> tuple[str, bool]:
         # 新建场景
-        is_default, default_name = TimeSeriesGroup.get_default_scope_info(field_scope, metric_group_dimensions)
+        is_default, default_name = group.is_default_scope_info(field_scope)
         if is_default:
-            # 默认分组：尝试匹配 auto_rules
+            # 如果数据中不带分组信息，则匹配一遍页面的自动分组规则 auto_rules，尝试归属到一个用户分组下
             prefix = cls.get_scope_name_prefix(field_scope)
-            for scope in prefix_to_obj.get(prefix, []):
-                if cls._match_scope_by_auto_rules(scope, field_name):
+            for scope in all_scopes:
+                if prefix != scope.scope_name_prefix:
+                    continue
+
+                if scope.is_match_auto_rules(scope, field_name):
                     return scope.scope_name, False
             # 未匹配则使用默认分组 scope
             return default_name, True
         else:
-            # 非默认分组：直接使用对应 scope
+            # 数据中已经携带分组信息：则直接使用对应 scope
             return field_scope, False
 
     @classmethod
-    def _collect_metrics_and_dimensions(
-        cls,
-        group_id: int,
-        metric_info_list: list,
-        metric_group_dimensions: list | None = None,
-    ) -> tuple:
-        # 获取所有 scope 记录并构建索引
-        all_scopes = list(cls.objects.filter(group_id=group_id))
-
-        # 按前缀分组并排序（用于 auto_rules 匹配）
-        prefix_to_obj = defaultdict(list)
-        for scope in all_scopes:
-            prefix = cls.get_scope_name_prefix(scope.scope_name)
-            prefix_to_obj[prefix].append(scope)
-        for scopes in prefix_to_obj.values():
-            scopes.sort(key=lambda x: x.last_modify_time, reverse=True)
-
+    def _collect_metrics_and_dimensions(cls, group, metric_info_list: list) -> tuple:
         # 查询已有指标的 scope_id（用于更新场景）
         field_keys = [
             (metric_info.get("field_name"), metric_info.get("field_scope", TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME))
@@ -1276,14 +1265,16 @@ class TimeSeriesScope(models.Model):
             return {}, {}
 
         existing_metrics = TimeSeriesMetric.objects.filter(
-            group_id=group_id,
+            group_id=group.time_series_group_id,
             field_name__in=[field_name for field_name, _ in field_keys],
         ).values("field_name", "field_scope", "scope_id")
+
+        # 获取所有 scope 记录并构建索引
+        all_scopes = list(cls.objects.filter(group_id=group.time_series_group_id).order_by("-last_modify_time"))
 
         # 构建 scope_id 到 scope_name 的映射（用于已有指标）
         scope_id_to_name = {scope.id: scope.scope_name for scope in all_scopes}
         scope_id_to_name[TimeSeriesMetric.DISABLE_SCOPE_ID] = None
-
         existing_metric_scope_map = {
             (metric["field_name"], metric["field_scope"]): scope_id_to_name.get(metric["scope_id"])
             for metric in existing_metrics
@@ -1299,21 +1290,25 @@ class TimeSeriesScope(models.Model):
                 continue
 
             field_scope = metric_info.get("field_scope", TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
-            tag_list = metric_info.get("tag_value_list") or metric_info.get("tag_list") or {}
+            # 判断传入数据是否包含 values (tag_value_list/tag_list)
+            if "tag_value_list" in metric_info:
+                tag_list = list(metric_info["tag_value_list"].keys())
+            else:
+                tag_list = [tag["field_name"] for tag in metric_info.get("tag_list", [])]
 
             scope_name = existing_metric_scope_map.get((field_name, field_scope))
-            # 对 scope_id 为 DISABLE_SCOPE_ID 的记录（disabled 指标），需要通过 _determine_scope_name_for_new_metric 找到 scope_name
             if not scope_name:
+                # 不在已有指标中，或者该指标已经被disabled.  则重新激活需要重新分配分组
                 scope_name, create_from_default = cls._determine_scope_name_for_new_metric(
+                    group,
                     field_name,
                     field_scope,
-                    prefix_to_obj,
-                    metric_group_dimensions,
+                    all_scopes,
                 )
                 scope_name_to_dimensions[scope_name]["create_from_default"] = create_from_default
 
             scope_name_to_metrics[scope_name].append(metric_info)
-            scope_name_to_dimensions[scope_name]["dimensions"].update(tag_list.keys())
+            scope_name_to_dimensions[scope_name]["dimensions"].update(tag_list)
 
         # 检查并补充缺失的默认分组
         checked_prefixes = set()
@@ -1333,7 +1328,7 @@ class TimeSeriesScope(models.Model):
     @classmethod
     def _do_bulk_refresh_ts_scopes(cls, group_id: int, scope_name_to_dimensions: dict):
         # 1. 获取已存在的 scope
-        scope_name_to_obj = {
+        exists_scope_name_to_obj = {
             scope.scope_name: scope
             for scope in cls.objects.filter(group_id=group_id, scope_name__in=scope_name_to_dimensions.keys())
         }
@@ -1341,11 +1336,10 @@ class TimeSeriesScope(models.Model):
         # 2. 分别处理已存在的和不存在的 scope
         scopes_to_update = []
         scopes_to_create = []
-
         for scope_name, scope_info in scope_name_to_dimensions.items():
             dimensions = scope_info["dimensions"]
             create_from_default = scope_info["create_from_default"]
-            scope = scope_name_to_obj.get(scope_name)
+            scope = exists_scope_name_to_obj.get(scope_name)
 
             if scope:
                 # 已存在的 scope：更新维度配置
@@ -1383,9 +1377,7 @@ class TimeSeriesScope(models.Model):
         :param metric_info_list: 指标信息列表
         :return: 包含 scope_id 的新指标列表
         """
-        scope_name_to_metrics, scope_name_to_dimensions = cls._collect_metrics_and_dimensions(
-            group.time_series_group_id, metric_info_list, group.metric_group_dimensions
-        )
+        scope_name_to_metrics, scope_name_to_dimensions = cls._collect_metrics_and_dimensions(group, metric_info_list)
 
         cls._do_bulk_refresh_ts_scopes(group.time_series_group_id, scope_name_to_dimensions)
 
@@ -1715,7 +1707,6 @@ class TimeSeriesScope(models.Model):
         # 获取 TimeSeriesGroup 以获取 metric_group_dimensions
         try:
             time_series_group = TimeSeriesGroup.objects.get(time_series_group_id=group_id)
-            metric_group_dimensions = time_series_group.metric_group_dimensions
         except TimeSeriesGroup.DoesNotExist:
             raise ValueError(_("指标分组不存在: {}").format(group_id))
 
@@ -1735,10 +1726,8 @@ class TimeSeriesScope(models.Model):
         # 迁移指标和维度配置到默认分组
         scope_moves = {}
         for source_scope in time_series_scopes:
-            # 1. 使用 get_default_scope_info 方法获取默认分组信息（基于 metric_group_dimensions）
-            default_scope_name = TimeSeriesGroup.get_default_scope_info(
-                source_scope.scope_name, metric_group_dimensions
-            )[1]
+            # 1. 使用 is_default_scope_info 方法获取默认分组信息（基于 metric_group_dimensions）
+            default_scope_name = time_series_group.is_default_scope_info(source_scope.scope_name)[1]
 
             # 2. 获取或创建默认分组
             default_scope = cls.objects.get(group_id=group_id, scope_name=default_scope_name)
