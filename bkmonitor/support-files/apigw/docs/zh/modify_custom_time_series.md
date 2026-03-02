@@ -8,12 +8,13 @@
 | 列名称                  | 类型         | 必选 | 描述         |
 |----------------------|------------|----|------------|
 | bk_biz_id            | int        | 是  | 业务ID       |
-| name                 | str        | 否  | 指标名称       |
 | time_series_group_id | int        | 是  | 自定义时序ID    |
+| name                 | str        | 否  | 指标名称       |
 | metric_json          | list[dict] | 否  | 指标配置，默认值[] |
 | is_platform          | bool       | 否  | 是否为平台级指标   |
 | data_label           | str        | 否  | 数据标签       |
-| operator             | str        | 否  | 操作者        |
+| desc                 | str        | 否  | 说明         |
+| auto_discover        | bool       | 否  | 自动发现       |
 
 #### metric_json 指标配置
 

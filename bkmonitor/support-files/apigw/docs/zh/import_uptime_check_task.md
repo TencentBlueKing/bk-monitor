@@ -16,7 +16,7 @@
 | -------------- | ---- | ---- | ---------------- |
 | target_conf    | dict | 是   | 拨测任务下发配置 |
 | collector_conf | dict | 是   | 拨测任务基本配置 |
-| monitor_conf   | list | 是   | 监控策略配置     |
+| monitor_conf   | list | 否   | 监控策略配置，默认[] |
 
 ##### 拨测任务下发配置--conf_list.target_conf
 
@@ -47,8 +47,8 @@
 | --------------- | ---- | ---- | ------------------------------------------ |
 | is_common       | bool | 否   | 是否为通用节点，默认false                  |
 | name            | str  | 是   | 节点名称                                   |
+| carrieroperator | str  | 是   | 运营商(内网、联通、移动、电信、其他) |
 | location        | dict | 是   | 节点所在地区                               |
-| carrieroperator | str  | 是   | 运营商，最大长度50(内网、联通、移动、其他) |
 
 ###### 节点所在地区--conf_list.target_conf.node_list.node_conf.location
 
@@ -62,9 +62,9 @@
 | 字段     | 类型 | 必选 | 描述             |
 | -------- | ---- | ---- | ---------------- |
 | location | dict | 是   | 拨测目标所在地址 |
-| groups   | str  | 是   | 拨测任务所属分组 |
+| groups   | str  | 否   | 拨测任务所属分组，默认"" |
 | name     | str  | 是   | 拨测任务名称     |
-| protocol | str  | 是   | 拨测任务协议类型 |
+| protocol | str  | 是   | 拨测任务协议类型(TCP、UDP、HTTP、ICMP) |
 | config   | dict | 是   | 拨测任务详细配置 |
 
 ###### TCP任务config示例
@@ -111,18 +111,18 @@
 
 ###### 拨测任务详细配置(HTTP)--conf_list.collector_conf.config
 
-| 字段                 | 类型 | 描述 |
-| -------------------- | ---- | ---- |
-| urls                 | str  | 是   |
-| method               | str  | 是   |
-| headers              | list | 否   |
-| insecure_skip_verify | bool | 否   |
-| period               | int  | 否   |
-| response_format      | str  | 否   |
-| timeout              | int  | 否   |
-| response             | str  | 否   |
-| response_code        | str  | 否   |
-| request              | str  | 否   |
+| 字段                 | 类型 | 必选 | 描述 |
+| -------------------- | ---- | ---- | ---- |
+| urls                 | str  | 是   | url |
+| method               | str  | 是   | 请求方式 |
+| headers              | list | 否   | 请求头 |
+| insecure_skip_verify | bool | 否   | 是否开启ssh验证 |
+| period               | int  | 否   | 采集周期，单位min，默认60 |
+| response_format      | str  | 否   | 响应信息匹配方式(包含：in，不包含：nin，正则：reg)，默认in |
+| timeout              | int  | 否   | 期望响应时间，单位ms，默认3000 |
+| response             | str  | 否   | 期望响应内容 |
+| response_code        | str  | 否   | 期望响应码 |
+| request              | str  | 否   | 请求内容 |
 
 ##### 监控策略配置--conf_list.monitor_conf
 
