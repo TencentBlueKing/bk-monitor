@@ -34,7 +34,7 @@ import {
   watch,
 } from 'vue';
 
-import { Checkbox } from 'bkui-vue';
+import { Select } from 'bkui-vue';
 import { listAlertLog } from 'monitor-api/modules/alert_v2';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import { useI18n } from 'vue-i18n';
@@ -120,65 +120,79 @@ export default defineComponent({
       {
         id: 'CREATE',
         name: t('告警产生'),
+        icon: '🚨',
       },
       {
         id: 'CONVERGE',
         name: t('告警收敛'),
+        icon: '🎯',
       },
       {
         id: 'RECOVER',
         name: t('告警恢复'),
+        icon: '✅',
       },
       {
         id: 'RECOVERING',
         name: t('告警恢复中'),
+        icon: '🔄',
       },
       {
         id: 'CLOSE',
         name: t('告警关闭'),
+        icon: '❌',
       },
       {
         id: 'DELAY_RECOVER',
         name: t('延迟恢复'),
+        icon: '⏰',
       },
       {
         id: 'ABORT_RECOVER',
         name: t('中断恢复'),
+        icon: '🔌',
       },
       {
         id: 'SYSTEM_RECOVER',
         name: t('系统恢复'),
+        icon: '✅',
       },
       {
         id: 'SYSTEM_CLOSE',
         name: t('系统关闭'),
+        icon: '❌',
       },
       {
         id: 'ACK',
         name: t('告警确认'),
+        icon: '✔︎',
       },
       {
         id: 'SEVERITY_UP',
         name: t('告警级别调整'),
+        icon: '📉📈',
       },
       {
         id: 'ACTION',
         name: t('处理动作'),
+        icon: '🔧',
       },
       {
         id: 'ALERT_QOS',
         name: t('告警流控'),
+        icon: '🚦',
       },
       {
         id: 'EVENT_DROP',
         name: t('事件忽略'),
+        icon: '🚫',
       },
     ]);
     /**
      * 告警类型筛选默认选中所有
      */
     const checked = shallowRef(circulationFilter.value.map(item => item.id));
-    const checkAll = shallowRef(true);
+    const oldChecked = shallowRef(circulationFilter.value.map(item => item.id));
 
     /**
      * @description 告警记录数据列表链接兼容处理
@@ -359,25 +373,14 @@ export default defineComponent({
       handleGetLogList();
     };
 
-    const handleCheck = (id: string, v: boolean) => {
-      let list = [];
+    const handleToggle = (v: boolean) => {
       if (v) {
-        list = Array.from(new Set([...checked.value, id]));
+        oldChecked.value = JSON.parse(JSON.stringify(checked.value));
       } else {
-        list = checked.value.filter(item => item !== id);
+        if (JSON.stringify(checked.value) !== JSON.stringify(oldChecked.value)) {
+          handleCheckedChange(checked.value);
+        }
       }
-      checkAll.value = list.length === circulationFilter.value.length;
-      handleCheckedChange(list);
-    };
-    const handleCheckAll = (v: boolean) => {
-      checkAll.value = v;
-      let list = [];
-      if (v) {
-        list = circulationFilter.value.map(item => item.id);
-      } else {
-        list = [];
-      }
-      handleCheckedChange(list);
     };
 
     const handleOperation = (type: string) => {
@@ -417,16 +420,14 @@ export default defineComponent({
       recordData,
       emptyType,
       noticeStatusDialogState,
-      checkAll,
       preListLen,
       handleGotoShieldStrategy,
       beforeCollapseChange,
       handleNoticeDetail,
       openLink,
       handleCheckedChange,
-      handleCheck,
-      handleCheckAll,
       handleOperation,
+      handleToggle,
       t,
     };
   },
@@ -592,22 +593,30 @@ export default defineComponent({
         <div class='alarm-records-header'>
           <span class='header-title'>{this.t('节点过滤')}</span>
           <span class='header-options'>
-            <Checkbox
-              key='all'
-              modelValue={this.checkAll}
-              onChange={v => this.handleCheckAll(v)}
+            <Select
+              style={'width: 412px;'}
+              filterable={true}
+              modelValue={this.checked}
+              multiple={true}
+              selectedStyle={'checkbox'}
+              showSelectAll={true}
+              onToggle={v => {
+                this.handleToggle(v);
+              }}
+              onUpdate:modelValue={v => {
+                this.checked = v;
+              }}
             >
-              {this.t('全选')}
-            </Checkbox>
-            {this.circulationFilter.map(item => (
-              <Checkbox
-                key={item.id}
-                modelValue={this.checked.includes(item.id)}
-                onChange={v => this.handleCheck(item.id, v)}
-              >
-                {item.name}
-              </Checkbox>
-            ))}
+              {this.circulationFilter.map(item => (
+                <Select.Option
+                  id={item.id}
+                  key={item.id}
+                  name={`${item.icon} ${item.name}`}
+                >
+                  {item.icon} {item.name}
+                </Select.Option>
+              ))}
+            </Select>
           </span>
         </div>
         {this.recordData.loading ? (
