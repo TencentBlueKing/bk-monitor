@@ -189,7 +189,7 @@ export default defineComponent({
       >
         <ChartCollapse
           class='alarm-metrics-dashboard-collapse'
-          collapseShowHeight={24}
+          collapseShowHeight={20}
           defaultHeight={0}
           description={`(${this.panelModels?.length})`}
           hasResize={false}

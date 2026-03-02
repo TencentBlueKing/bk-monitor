@@ -2,6 +2,7 @@
   display: flex;
   flex: 1;
   flex-direction: column;
+  padding: 16px;
   background: #f5f7fa;
 
   .alarm-detail-panel-host-skeleton-dom {
@@ -33,26 +34,38 @@
 
   .panel-host-white-bg-container {
     flex-shrink: 0;
-    padding: 12px 24px 8px;
+    padding: 16px;
     background: #fff;
-    box-shadow: 0 0 12px 0 #00000014;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px 0 #1919290a;
 
     .host-selector-wrap {
-      display: flex;
-      align-items: center;
-      margin-bottom: 8px;
+      .host-selector-label {
+        display: inline-block;
+        margin-bottom: 6px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #4d4f56;
+      }
+
+      .host-selector-row {
+        display: flex;
+        align-items: center;
+      }
 
       .host-selector-container {
         flex: 1;
         min-width: 0;
-        max-width: 670px;
+        max-width: 480px;
       }
 
       .host-explore-link-btn {
         display: flex;
         flex-shrink: 0;
         align-items: center;
-        margin-left: 16px;
+        margin-left: 12px;
+        font-size: 12px;
         line-height: 20px;
         color: #3a84ff;
         cursor: pointer;
@@ -61,16 +74,20 @@
           color: #699df4;
         }
 
-        .icon-mc-goto {
+        .icon-mc-link {
           margin-left: 4px;
-          font-size: 15px;
+          font-size: 14px;
         }
       }
+    }
+
+    .ai-hight-card-wrap {
+      margin-top: 12px;
     }
   }
 
   .panel-host-chart-wrap {
     flex: 1;
-    padding: 12px 24px;
+    padding: 16px 0;
   }
 }
