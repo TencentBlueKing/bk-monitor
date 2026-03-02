@@ -153,6 +153,11 @@ const canDecodeHex = (str: string): boolean => {
     // 紧凑形式：长度偶数且全部十六进制
     if (s.length % 2 !== 0) return false;
     if (!/^[0-9A-Fa-f]+$/.test(s)) return false;
+
+    // 排除纯数字字符串：如端口号 "8080"、数字 ID 等
+    // 纯数字虽然是合法的十六进制字符，但更大概率是普通数值而非十六进制编码
+    if (/^\d+$/.test(s)) return false;
+
     const bytes: number[] = [];
     for (let i = 0; i < s.length; i += 2) bytes.push(parseInt(s.slice(i, i + 2), 16));
     return evaluateBytesReadability(bytes);
