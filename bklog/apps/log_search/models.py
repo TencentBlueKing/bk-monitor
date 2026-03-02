@@ -495,7 +495,9 @@ class LogIndexSet(SoftDeleteModel):
             child_index_set_ids = self.get_child_index_set_ids()
             index_set_data = LogIndexSetData.objects.filter(index_set_id__in=child_index_set_ids)
         else:
-            index_set_data = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
+            index_set_data = LogIndexSetData.objects.filter(
+                index_set_id=self.index_set_id, type=IndexSetDataType.RESULT_TABLE.value
+            )
         if has_applied:
             index_set_data = index_set_data.filter(apply_status=LogIndexSetData.Status.NORMAL)
         source_name = self.source_name
