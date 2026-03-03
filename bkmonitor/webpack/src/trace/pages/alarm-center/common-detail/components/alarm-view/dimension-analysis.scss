@@ -1,6 +1,5 @@
 .alarm-view-panel-dimension-analysis-wrap {
   margin-top: 14px;
-  margin-bottom: 16px;
   background-color: #fff;
   border: 1px solid #e4e9f2;
   border-radius: 8px;
@@ -38,6 +37,10 @@
               &::before {
                 height: unset;
               }
+            }
+
+            .custom-tools-wrapper {
+              margin-bottom: -16px;
             }
 
             & > div:last-child {
