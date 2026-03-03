@@ -595,6 +595,7 @@ export default defineComponent({
           <span class='header-options'>
             <Select
               style={'width: 412px;'}
+              clearable={false}
               filterable={true}
               modelValue={this.checked}
               multiple={true}
