@@ -1603,7 +1603,7 @@ class IndexSetHandler(APIModel):
         ]
         if to_create:
             LogIndexSetData.objects.bulk_create(to_create)
-            transaction.on_commit(lambda: BaseIndexSetHandler.bulk_sync_router(parent_index_sets))
+            BaseIndexSetHandler.sync_router(list(parent_index_sets))
 
     def remove_from_parent_index_sets(self, parent_index_set_ids: list[int]):
         """
@@ -1615,7 +1615,7 @@ class IndexSetHandler(APIModel):
         ).delete()
         # 同步路由，事务提交后执行
         parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
-        transaction.on_commit(lambda: BaseIndexSetHandler.bulk_sync_router(parent_index_sets))
+        BaseIndexSetHandler.sync_router(list(parent_index_sets))
 
     def update_parent_index_sets(self, new_parent_index_set_ids: list):
         """
@@ -1939,59 +1939,51 @@ class BaseIndexSetHandler:
         return table_info_list
 
     @classmethod
-    def sync_router(cls, index_set: LogIndexSet):
+    def sync_router(cls, index_sets: LogIndexSet | list[LogIndexSet]):
         """创建结果表路由信息"""
-        try:
-            # 统一处理普通路由和图表分析路由
-            data_label_list = [
-                cls.get_data_label(index_set.index_set_id),
-                f"{cls.get_data_label(index_set.index_set_id)}_analysis",
-            ]
-            multi_execute_func = MultiExecuteFunc()
+        if not isinstance(index_sets, list):
+            index_sets = [index_sets]
 
-            for data_label in data_label_list:
-                # 获取索引列表
-                if index_set.is_group:
-                    table_info_list = []
-                    child_index_set_ids = index_set.get_child_index_set_ids()
-                    child_index_sets = LogIndexSet.objects.filter(index_set_id__in=child_index_set_ids)
-                    for child_index_set in child_index_sets:
-                        table_infos = cls.get_index_set_table_info_list(
-                            child_index_set,
-                            is_analysis=data_label.endswith("_analysis"),
-                            parent_index_set_id=index_set.index_set_id,
-                        )
-                        table_info_list.extend(table_infos)
-                else:
-                    table_info_list = cls.get_index_set_table_info_list(
-                        index_set, is_analysis=data_label.endswith("_analysis")
-                    )
-                # 如果有索引列表，则创建路由
-                if table_info_list:
-                    request_params = {
-                        "data_label": data_label,
-                        "space_id": index_set.space_uid.split("__")[-1],
-                        "space_type": index_set.space_uid.split("__")[0],
-                        "table_info": table_info_list,
-                    }
-                    multi_execute_func.append(
-                        result_key=data_label,
-                        func=TransferApi.bulk_create_or_update_log_router,
-                        params=request_params,
-                    )
-            multi_execute_func.run()
-        except Exception as e:
-            logger.exception("create or update index set(%s) router failed：%s", index_set.index_set_id, e)
-
-    @classmethod
-    def bulk_sync_router(cls, index_sets: list[LogIndexSet]):
         multi_execute_func = MultiExecuteFunc()
         for index_set in index_sets:
-            multi_execute_func.append(
-                result_key=index_set.index_set_id,
-                func=cls.sync_router,
-                params=index_set,
-            )
+            try:
+                # 统一处理普通路由和图表分析路由
+                data_label_list = [
+                    cls.get_data_label(index_set.index_set_id),
+                    f"{cls.get_data_label(index_set.index_set_id)}_analysis",
+                ]
+                for data_label in data_label_list:
+                    # 获取索引列表
+                    if index_set.is_group:
+                        table_info_list = []
+                        child_index_set_ids = index_set.get_child_index_set_ids()
+                        child_index_sets = LogIndexSet.objects.filter(index_set_id__in=child_index_set_ids)
+                        for child_index_set in child_index_sets:
+                            table_infos = cls.get_index_set_table_info_list(
+                                child_index_set,
+                                is_analysis=data_label.endswith("_analysis"),
+                                parent_index_set_id=index_set.index_set_id,
+                            )
+                            table_info_list.extend(table_infos)
+                    else:
+                        table_info_list = cls.get_index_set_table_info_list(
+                            index_set, is_analysis=data_label.endswith("_analysis")
+                        )
+                    # 如果有索引列表，则创建路由
+                    if table_info_list:
+                        request_params = {
+                            "data_label": data_label,
+                            "space_id": index_set.space_uid.split("__")[-1],
+                            "space_type": index_set.space_uid.split("__")[0],
+                            "table_info": table_info_list,
+                        }
+                        multi_execute_func.append(
+                            result_key=data_label,
+                            func=TransferApi.bulk_create_or_update_log_router,
+                            params=request_params,
+                        )
+            except Exception as e:
+                logger.exception("create or update index set(%s) router failed：%s", index_set.index_set_id, e)
         multi_execute_func.run()
 
     def pre_update(self):
