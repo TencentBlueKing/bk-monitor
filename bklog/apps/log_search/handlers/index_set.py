@@ -1603,8 +1603,7 @@ class IndexSetHandler(APIModel):
         ]
         if to_create:
             LogIndexSetData.objects.bulk_create(to_create)
-            for parent_index_set in parent_index_sets:
-                BaseIndexSetHandler.sync_router(parent_index_set)
+            transaction.on_commit(lambda: BaseIndexSetHandler.bulk_sync_router(parent_index_sets))
 
     def remove_from_parent_index_sets(self, parent_index_set_ids: list[int]):
         """
@@ -1614,10 +1613,9 @@ class IndexSetHandler(APIModel):
             index_set_id__in=parent_index_set_ids,
             result_table_id=self.index_set_id,
         ).delete()
-        # 同步路由
+        # 同步路由，事务提交后执行
         parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
-        for parent_index_set in parent_index_sets:
-            BaseIndexSetHandler.sync_router(parent_index_set)
+        transaction.on_commit(lambda: BaseIndexSetHandler.bulk_sync_router(parent_index_sets))
 
     def update_parent_index_sets(self, new_parent_index_set_ids: list):
         """
@@ -1984,6 +1982,17 @@ class BaseIndexSetHandler:
             multi_execute_func.run()
         except Exception as e:
             logger.exception("create or update index set(%s) router failed：%s", index_set.index_set_id, e)
+
+    @classmethod
+    def bulk_sync_router(cls, index_sets: list[LogIndexSet]):
+        multi_execute_func = MultiExecuteFunc()
+        for index_set in index_sets:
+            multi_execute_func.append(
+                result_key=index_set.index_set_id,
+                func=cls.sync_router,
+                params=index_set,
+            )
+        multi_execute_func.run()
 
     def pre_update(self):
         if self.is_trace_log:
