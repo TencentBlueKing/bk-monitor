@@ -1,0 +1,103 @@
+.metric-select-metric-item {
+  &:hover,
+  &.is-active {
+    background: #f5f7fa;
+
+    .metric-edit-btn {
+      display: flex;
+    }
+  }
+
+  &.bk-tooltip > * { // apm样式污染
+    display: block;
+  }
+
+  .content-wrapper {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 32px;
+    padding-left: 40px;
+    overflow: hidden;
+    font-size: 0;
+    border-radius: 2px;
+  }
+
+  .render-metric-name {
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .metric-edit-btn {
+    display: none;
+    align-items: center;
+    height: 100%;
+    padding: 0 10px;
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: bold;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+
+  .bk-form-checkbox {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    height: 32px;
+
+    .bk-checkbox {
+      flex: 0 0 16px;
+    }
+
+    .bk-checkbox-text {
+      flex: 1;
+      overflow: hidden;
+      font-size: 12px;
+      color: #313238;
+    }
+  }
+}
+
+.tippy-tooltip.edit-metric-alias-name-theme {
+  padding: 0;
+
+  .wrapper {
+    min-width: 320px;
+    padding: 8px 16px 16px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #313238;
+  }
+
+  .title {
+    margin-bottom: 14px;
+    font-size: 16px;
+    line-height: 24px;
+    color: #313238;
+  }
+
+  .alias-item-label {
+    .bk-label-text {
+      font-size: 12px;
+      color: #4d4f56;
+    }
+  }
+
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 42px;
+    padding: 0 16px;
+    background: #fafbfd;
+    box-shadow: 0 -1px 0 0 #dcdee5;
+  }
+}
+
+// 线上环境 apm有样式污染
+#apm .bk-tooltip-content .metric-item-tooltip {
+  color: #fff;
+}

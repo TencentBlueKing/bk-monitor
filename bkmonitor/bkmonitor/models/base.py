@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import datetime
 import random
 import time
+from typing import Any
 
 import pytz
 from bkcrypto.contrib.django.fields import SymmetricTextField
@@ -537,11 +538,8 @@ class Event(Model):
             ("notify_status", "status", "end_time", "bk_biz_id", "level", "strategy_id"),
         )
 
-    @cached_property
     def origin_strategy(self):
-        from bkmonitor.strategy.new_strategy import Strategy as StrategyObj
-
-        return StrategyObj.convert_v1_to_v2(self.origin_config)
+        return self.origin_config
 
     @cached_property
     def latest_anomaly_record(self):
@@ -809,7 +807,7 @@ class Shield(AbstractRecordModel):
     end_time = models.DateTimeField(verbose_name="屏蔽结束时间")
     failure_time = models.DateTimeField(verbose_name="屏蔽失效时间")
 
-    dimension_config = JsonField(verbose_name="屏蔽维度")
+    dimension_config: dict[str, Any] = JsonField(verbose_name="屏蔽维度")  # type: ignore
     cycle_config = JsonField(verbose_name="屏蔽周期")
     notice_config = JsonField(verbose_name="通知配置")
 

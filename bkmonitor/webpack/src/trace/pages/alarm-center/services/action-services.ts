@@ -432,7 +432,6 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
         total: 0,
         data: [],
       }));
-    console.info('ActionService getFilterTableList', data, '==========');
     return data;
   }
   async getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]> {
@@ -452,7 +451,6 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
         ];
       })
       .catch(() => []);
-    console.info('ActionService getQuickFilterList', data, '==========');
     return data;
   }
   async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {

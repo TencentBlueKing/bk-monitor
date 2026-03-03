@@ -251,6 +251,14 @@ class MetricDataSource(ApmDataSourceConfigBase):
             "data_label": DEFAULT_DATA_LABEL,
             "is_split_measurement": True,
         }
+
+        # 检查是否在白名单中，只有白名单中的应用才配置 metric_group_dimensions
+        if f"{self.bk_biz_id}-{self.app_name}" in settings.APM_METRIC_GROUP_DIMENSIONS_WHITELIST:
+            params["metric_group_dimensions"] = [
+                {"key": "service_name", "default_value": "unknown_service"},
+                {"key": "scope_name", "default_value": "default"},
+            ]
+
         datalink = DataLink.get_data_link(self.bk_biz_id)
         if datalink and datalink.influxdb_cluster_name:
             params["default_storage_config"] = {"proxy_cluster_name": datalink.influxdb_cluster_name}

@@ -31,6 +31,7 @@ from bk_monitor_base.uptime_check import (
     list_groups,
     list_nodes,
     list_tasks,
+    refresh_task_status,
     save_group,
     save_node,
     save_task,
@@ -1027,11 +1028,14 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         创建拨测任务时，查询部署任务是否成功，失败则返回节点管理中部署失败错误日志
         :return:
         """
+        bk_tenant_id = cast(str, get_request_tenant_id())
         task_id = int(pk)
         bk_biz_id = int(request.query_params["bk_biz_id"])
-        task = get_task(bk_tenant_id=get_request_tenant_id(), bk_biz_id=bk_biz_id, task_id=task_id)
+        task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
         task_status = task.status.value
-        if task_status == UptimeCheckTaskStatus.START_FAILED.value:
+        result = refresh_task_status(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_ids=[task_id])
+        status = result.get(task_id, task_status)
+        if status == UptimeCheckTaskStatus.START_FAILED.value:
             error_log = list_collector_logs(task_id)
             return Response(data={"status": UptimeCheckTaskStatus.START_FAILED.value, "error_log": error_log})
         else:

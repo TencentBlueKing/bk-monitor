@@ -194,7 +194,7 @@ export default defineComponent({
           class='alarm-trend-chart-wrapper-collapse'
           defaultHeight={166}
           hasResize={true}
-          maxHeight={250}
+          maxHeight={360}
           minHeight={120}
           title={this.t('总趋势')}
         >

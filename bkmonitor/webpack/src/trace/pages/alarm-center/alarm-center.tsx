@@ -384,10 +384,11 @@ export default defineComponent({
         }
         showResidentBtn.value = tryURLDecodeParse<boolean>(queryShowResidentBtn as string, false);
         alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
-
-        /** 兼容事件中心的bizIds */
-        alarmStore.bizIds =
-          typeof bizIds === 'string' ? tryURLDecodeParse(bizIds, [-1]) : bizIds.map(item => Number(item));
+        if (bizIds) {
+          /** 兼容事件中心的bizIds */
+          alarmStore.bizIds =
+            typeof bizIds === 'string' ? tryURLDecodeParse(bizIds, [-1]) : bizIds.map(item => Number(item));
+        }
         ordering.value = (sortOrder as string) || '';
         page.value = Number(currentPage || 1);
         if (favoriteId) {
@@ -461,13 +462,15 @@ export default defineComponent({
 
     /** 上一个详情 */
     const handlePreviousDetail = () => {
-      const index = data.value.findIndex(item => item.id === alarmId.value);
+      let index = data.value.findIndex(item => item.id === alarmId.value);
+      index = index === -1 ? 0 : index;
       alarmId.value = (data.value as AlertTableItem[])[index === 0 ? data.value.length - 1 : index - 1].id;
     };
 
     /** 下一个详情 */
     const handleNextDetail = () => {
-      const index = data.value.findIndex(item => item.id === alarmId.value);
+      let index = data.value.findIndex(item => item.id === alarmId.value);
+      index = index === -1 ? 0 : index;
       alarmId.value = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 0 : index + 1].id;
     };
 

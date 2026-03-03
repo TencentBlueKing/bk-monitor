@@ -6,25 +6,26 @@
 ### 请求参数
 | 字段        | 类型   | 必选  | 描述     |
 |:----------|------|-----|--------|
-| edit_data | dict | 是   | 待修改数据  |
-| ids       | int  | 是   | 策略ID列表 |
 | bk_biz_id | int  | 是   | 业务ID   |
+| ids       | list[int]  | 是   | 策略ID列表 |
+| edit_data | dict | 是   | 待修改数据  |
 
 #### edit_data
-| 字段                  | 类型      | 描述    |
-|:--------------------|---------|-------|
-| is_enabled          | boolean | 启用状态  |
-| notice_group_list   | list    | 告警组配置 |
-| labels              | list    | 策略标签  |
-| trigger_config      | dict    | 触发条件  |
-| recovery_config     | dict    | 恢复条件  |
-| alarm_interval      | int     | 通知间隔  |
-| send_recovery_alarm | bool    | 恢复通知  |
-| message_template    | string  | 通知模板  |
-| no_data_config      | dict    | 无数据配置 |
-| target              | list    | 监控目标  |
-| actions              | list    | 处理套餐(ActionRelation)  |
-| notice              | object    | 通知套餐(NoticeRelation)  |
+| 字段                  | 类型      | 必选 | 描述    |
+|:--------------------|---------|-----|-------|
+| is_enabled          | bool | 否 | 启用状态  |
+| notice_group_list   | list[int]    | 否 | 告警组ID列表 |
+| labels              | dict    | 否 | 策略标签  |
+| trigger_config      | dict    | 否 | 触发条件  |
+| recovery_config     | dict    | 否 | 恢复条件  |
+| alarm_interval      | int     | 否 | 通知间隔（秒）  |
+| send_recovery_alarm | bool    | 否 | 是否发送恢复通知  |
+| message_template    | str  | 否 | 通知模板  |
+| no_data_config      | dict    | 否 | 无数据配置 |
+| target              | list[list[dict]]    | 否 | 监控目标  |
+| actions              | list[dict]    | 否 | 处理套餐列表(ActionRelation)  |
+| notice              | dict    | 否 | 通知套餐(NoticeRelation)  |
+| algorithms              | list[dict]    | 否 | 算法配置列表(Algorithm)  |
 
 #### ActionRelation
 

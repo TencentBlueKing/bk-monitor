@@ -440,6 +440,11 @@ export default {
     'After disabling the automatic issuance feature, new services will not automatically configure this strategy',
   '并行：组间同时拨打，组内顺序依次拨打；<br>串行：多个用户组人员顺序合并后依次拨打，<br>重复人员以前置组优先':
     'Parallel: Calls are made simultaneously between groups, and sequentially within each group.<br>Serial: The personnel from multiple user groups are merged in sequence and called one by one, <br>with repeated personnel given priority based on their earlier group.',
+  上报数据后方可配置策略: 'The strategy can only be configured after reporting the data',
+  '手动选择或筛选后的结果作为分组对象。':
+    'The results of manual selection or filtering are used as the grouping object',
+  请先选择指标: 'Please select the metric first',
+  自动匹配规则: 'Automatic matching rules',
   当前业务时区: 'Current business time zone',
   '输入 $ 可以插入变量': 'Input $ to insert variables',
 };

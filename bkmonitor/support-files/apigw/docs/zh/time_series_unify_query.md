@@ -24,7 +24,12 @@
 | format                 | str        | 否  | 输出格式，可选值为`time_series`(默认)、`heatmap`、`table`   |
 | type                   | str        | 否  | 类型，可选值为`instant`、`range`(默认)。                  |
 | series_num             | int        | 否  | 查询数据条数                                         |
-| not_time_align         | bool       | 否  | 是否不进行时间对齐，默认值为`false`                          |
+| time_alignment         | bool       | 否  | 是否保留最后一个数据点，默认值为`true`                          |
+| null_as_zero           | bool       | 否  | 是否将空值转换为0，默认值为`false`                          |
+| query_method           | str        | 否  | 查询方法，默认为`query_data`                          |
+| unit                   | str        | 否  | 单位，默认为空                                      |
+| with_metric            | bool       | 否  | 是否返回metric信息，默认为`false`                          |
+| not_time_align         | bool       | 否  | 是否不对齐时间窗口，默认值为`false`                          |
 
 #### query_configs
 

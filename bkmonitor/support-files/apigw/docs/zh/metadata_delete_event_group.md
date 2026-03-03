@@ -27,7 +27,7 @@
 | result     | bool   | 请求是否成功 |
 | code       | int    | 返回的状态码 |
 | message    | string | 描述信息   |
-| data       | dict   | 数据     |
+| data       | null   | 数据     |
 | request_id | string | 请求ID   |
 
 ### 响应参数示例
@@ -36,7 +36,7 @@
 {
   "message": "OK",
   "code": 200,
-  "data": {},
+  "data": null,
   "result": true,
   "request_id": "408233306947415bb1772a86b9536867"
 }

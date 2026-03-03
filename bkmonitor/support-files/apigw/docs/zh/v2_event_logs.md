@@ -61,26 +61,35 @@
 
 #### data 字段说明
 
-| 字段 | 类型 | 描述     |
-| ---- | ---- | -------- |
-| list | list | 事件列表 |
+| 字段         | 类型 | 描述                   |
+| ------------ | ---- | ---------------------- |
+| list         | list | 事件列表               |
+| query_config | dict | 查询配置（用于检索跳转） |
 
-#### list 字段说明
+#### list 字段说明（数组中每个元素的字段）
 
-| 字段          | 类型   | 描述                            |
-| ------------- | ------ | ------------------------------- |
-| time          | object | 数据上报时间                    |
-| type          | object | 事件等级                        |
-| event_name    | object | 事件名                          |
-| event.content | object | 内容                            |
-| target        | object | 目标                            |
-| source        | object | 事件来源                        |
-| _meta         | object | 元数据                          |
-| origin_data   | object | 原始数据                        |
-| value         | string | 字段值                          |
-| alias         | string | 显示别名                        |
-| url           | string | 链接地址（仅target字段）        |
-| detail        | object | 详细信息（仅event.content字段） |
+| 字段          | 类型   | 描述                                                                 |
+| ------------- | ------ | -------------------------------------------------------------------- |
+| time          | object | 数据上报时间，包含value（时间戳字符串）和alias（格式化时间）子字段     |
+| type          | object | 事件等级，包含value和alias子字段                                      |
+| event_name    | object | 事件名，包含value和alias子字段                                        |
+| event.content | object | 事件内容，包含value、alias和detail（详细信息）子字段                   |
+| target        | object | 目标，包含value、alias和url（链接地址）子字段                         |
+| source        | object | 事件来源，包含value和alias子字段                                      |
+| _meta         | object | 元数据，包含__data_label、__source、__domain、_time_等字段            |
+| origin_data   | object | 原始数据，包含未经处理的原始事件字段                                   |
+| 其他字段      | object | 根据不同事件类型可能包含其他维度字段，每个字段通常包含value和alias子字段 |
+
+#### 通用对象字段结构说明
+
+大部分字段（如time、type、event_name等）都是对象类型，通常包含以下子字段：
+
+| 子字段 | 类型   | 描述                                   |
+| ------ | ------ | -------------------------------------- |
+| value  | string | 字段的原始值                           |
+| alias  | string | 字段的显示别名（用于前端展示）         |
+| url    | string | 链接地址（仅部分字段如target包含）     |
+| detail | object | 详细信息（仅部分字段如event.content包含） |
 
 ### 响应参数示例
 
@@ -116,8 +125,8 @@
                     }
                 },
                 "target": {
-                    "value": "192.168.1.100",
-                    "alias": "192.168.1.100",
+                    "value": "127.0.0.1",
+                    "alias": "127.0.0.1",
                     "url": ""
                 },
                 "source": {
@@ -134,13 +143,32 @@
                     "time": "2023-12-01T10:30:00+08:00",
                     "event_name": "CPU使用率过高",
                     "event.content": "CPU使用率达到95%",
-                    "target": "192.168.1.100",
+                    "target": "127.0.0.1",
                     "domain": "system",
                     "source": "host",
                     "type": "warning"
                 }
             }
-        ]
+        ],
+        "query_config": {
+            "bk_biz_id": 2,
+            "start_time": 1701388800,
+            "end_time": 1701475200,
+            "limit": 10,
+            "offset": 0,
+            "query_configs": [
+                {
+                    "table": "system_event",
+                    "data_type_label": "event",
+                    "data_source_label": "bk_monitor",
+                    "query_string": "*error*",
+                    "filter_dict": {},
+                    "where": [],
+                    "group_by": []
+                }
+            ],
+            "sort": ["-time"]
+        }
     }
 }
 ```

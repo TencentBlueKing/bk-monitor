@@ -99,19 +99,19 @@ export const getHostTargetList = async (alertId: string) => {
 };
 
 /**
- * @description host 场景指标视图配置信息
+ * @description 获取场景指标视图配置信息
  * @param {number} bizId 业务ID
+ * @param {string} id 场景子类型 host | process
  * @returns {Promise<BookMarkModel>} 场景视图配置信息
  */
-export const getHostSceneView = async (bizId: number) => {
+export const getDetailSceneView = async (bizId: number, id: string) => {
   const sceneData = await getSceneView({
     bk_biz_id: bizId,
     scene_id: 'host',
     type: 'detail',
-    id: 'host',
+    id,
   }).catch(() => ({ id: '', panels: [], name: '' }));
 
-  // 过滤未分组
   const transformData = new BookMarkModel(sceneData || { id: '', panels: [], name: '' });
   const unGroupKey = '__UNGROUP__';
   const panels = transformData.panels;
@@ -134,7 +134,7 @@ export const getHostSceneView = async (bizId: number) => {
   transformData.panels = resultPanels;
   return transformData;
 };
-// ==============================end 详情-主机-相关接口 end==============================
+// ==============================end 详情-主机/进程-相关接口 end==============================
 
 // ==============================start 详情-容器-相关接口 start==============================
 /**

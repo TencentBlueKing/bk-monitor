@@ -1,51 +1,54 @@
-
-
 ### 功能描述
 
-获取数据标签 
-根据请求的参数，返回各个请求数据标签，包含了数据源标签及结果表各级标签
-
+查询当前已有的标签信息
 
 ### 请求参数
 
-| 字段           | 类型   | 必选 | 描述        |
-| -------------- | ------ | ---- | ----------- |
-| label_type | string | 是 | 标签分类，`source_label`, `type_label` or `result_table_label` |
-| level | int | 是 | 标签层级, 层级从1开始计算, 该配置只在`label_type`为`result_table`时生效 |
-| include_admin_only | bool | 是 | 是否展示管理员可见标签 |
-
+| 字段                 | 类型     | 必选 | 描述                                                              |
+|--------------------|--------|----|-----------------------------------------------------------------|
+| include_admin_only | bool   | 是  | 是否展示管理员可见标签                                                     |
+| label_type         | string | 否  | 标签分类，`source_label`、`type_label` 或 `result_table_label`（默认null） |
+| level              | int    | 否  | 标签层级，层级从1开始计算，该配置只在`label_type`为`result_table_label`时生效（默认null） |
+| is_plain_text      | bool   | 否  | 是否明文展示（默认false）                                                 |
 
 ### 请求参数示例
 
 ```json
 {
-    "include_admin_only": True,
-	"level": 1,
-	"label_type": "source_label"
+    "include_admin_only": true,
+    "label_type": "source_label",
+    "level": 1,
+    "is_plain_text": false
 }
 ```
 
 ### 响应参数
 
-| 字段       | 类型   | 描述         |
-| ---------- | ------ | ------------ |
-| result     | bool   | 请求是否成功 |
-| code       | int    | 返回的状态码 |
-| message    | string | 描述信息     |
-| data       | dict   | 数据         |
-| request_id | string | 请求ID       |
+| 字段      | 类型     | 描述     |
+|---------|--------|--------|
+| result  | bool   | 请求是否成功 |
+| code    | int    | 返回的状态码 |
+| message | string | 描述信息   |
+| data    | dict   | 数据     |
 
 #### data字段说明
 
-| 字段                | 类型   | 描述     |
-| ------------------- | ------ | -------- |
-| label_id | string | 标签ID（英文名）
-| label_name | string | 标签名（中文名）| 
-| label_type | string | 标签分类 |
-| level | int | 标签层级 | 
-| parent_label | string | 父级标签ID |
-| index | int | 标签在同level下的排序顺序 | 
+| 字段                 | 类型   | 描述       |
+|--------------------|------|----------|
+| source_label       | list | 数据源标签列表  |
+| type_label         | list | 数据类型标签列表 |
+| result_table_label | list | 结果表标签列表  |
 
+#### source_label、type_label、result_table_label字段说明
+
+| 字段           | 类型     | 描述              |
+|--------------|--------|-----------------|
+| label_id     | string | 标签ID（英文名）       
+| label_name   | string | 标签名（中文名）        | 
+| label_type   | string | 标签分类            |
+| level        | int    | 标签层级            | 
+| parent_label | string | 父级标签ID          |
+| index        | int    | 标签在同level下的排序顺序 |
 
 ### 响应参数示例
 
@@ -86,7 +89,6 @@
             "index": 1
         }]
     },
-    "result":true,
-    "request_id":"408233306947415bb1772a86b9536867"
+    "result":true
 }
 ```

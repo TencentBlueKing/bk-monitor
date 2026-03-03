@@ -114,7 +114,6 @@ export default defineComponent({
      */
     function handleKeyDownSlash(event) {
       const isCtrlO = (event.ctrlKey || event.metaKey) && event.key === 'o';
-      console.log(isCtrlO);
       if (isCtrlO && !showSelector.value && !['BK-WEWEB', 'INPUT'].includes(event.target?.tagName)) {
         event.preventDefault();
         handleClickComponent();

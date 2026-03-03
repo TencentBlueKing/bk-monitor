@@ -10,7 +10,7 @@
 | bk_biz_id   | int | 是   | 业务 ID    |
 | id          | int | 是   | 采集配置 ID  |
 | instance_id | str | 是   | 主机/实例 ID |
-| task_id     | int | 否   | 任务 ID    |
+| task_id     | int | 是   | 任务 ID    |
 
 ### 请求参数示例
 

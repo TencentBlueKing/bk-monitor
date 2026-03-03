@@ -863,7 +863,6 @@ export class AlertService extends AlarmService {
         total: 0,
         data: [],
       }));
-    console.info('AlertService getFilterTableList', data, '==========');
     return data;
   }
 
@@ -931,7 +930,6 @@ export class AlertService extends AlarmService {
         ];
       })
       .catch(() => []);
-    console.info('AlertService getQuickFilterList', data, '==========');
     return data;
   }
   async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {

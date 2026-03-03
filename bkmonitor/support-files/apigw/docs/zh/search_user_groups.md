@@ -7,8 +7,8 @@
 
 | 字段       | 类型 | 必选 | 描述     |
 | ---------- | ---- | ---- | -------- |
-| bk_biz_ids | list | 否   | 业务ID   |
-| ids        | list | 否   | 通知组ID |
+| bk_biz_ids | list[int] | 否   | 业务ID   |
+| ids        | list[int] | 否   | 通知组ID |
 
 ### 请求参数示例
 

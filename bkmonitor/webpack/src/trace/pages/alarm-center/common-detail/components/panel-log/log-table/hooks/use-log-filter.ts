@@ -46,7 +46,6 @@ export function useLogFilter() {
   let commonParams: any = {};
 
   function getFieldsOptionValuesProxy(params: IGetValueFnParams) {
-    console.log(params);
     function getMapKey(params: IGetValueFnParams) {
       return `____${params.fields.join('')}____`;
     }

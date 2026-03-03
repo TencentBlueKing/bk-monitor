@@ -108,12 +108,13 @@ class CollectConfigListResource(Resource):
             config = subscription_id_config_map[subscription_status["subscription_id"]]
             if not config:
                 continue
-            if error_count == 0:
+
+            if running_count + pending_count != 0:
+                operation_result = OperationResult.DEPLOYING
+            elif error_count == 0:
                 operation_result = OperationResult.SUCCESS
             elif error_count == total_count:
                 operation_result = OperationResult.FAILED
-            elif running_count + pending_count != 0:
-                operation_result = OperationResult.DEPLOYING
             else:
                 operation_result = OperationResult.WARNING
 

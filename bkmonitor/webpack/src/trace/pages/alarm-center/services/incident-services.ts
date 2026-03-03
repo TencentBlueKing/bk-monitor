@@ -418,7 +418,6 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
         total: 0,
         data: [],
       }));
-    console.info('IncidentService getFilterTableList', data, '==========');
     return data;
   }
 

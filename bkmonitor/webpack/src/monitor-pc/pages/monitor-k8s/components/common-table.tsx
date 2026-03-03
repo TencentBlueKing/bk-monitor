@@ -1028,7 +1028,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
               <bk-table-setting-content
                 key={`${this.tableKey}__settings`}
                 class='event-table-setting'
-                fields={this.tableColumns}
+                fields={this.tableColumns.filter(item => !!item.name)}
                 label-key='name'
                 selected={this.tableColumns.filter(item => item.checked || item.disabled)}
                 size={this.tableSize}
