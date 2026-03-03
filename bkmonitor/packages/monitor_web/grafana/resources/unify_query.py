@@ -1522,7 +1522,12 @@ class GetDrillDimensionsResource(Resource):
                 )
                 continue
 
-            dim_set: set[str] = {dim["id"] for dim in metric.dimensions}
+            dim_set: set[str] = set()
+            dimension_map: dict[str, str] = {}
+            for dimension in metric.dimensions:
+                dim_set.add(dimension["id"])
+                dimension_map[dimension["id"]] = dimension["name"]
+
             # 拨测指标下钻维度排除维度：业务ID/IP/云区域ID/错误码
             if metric.result_table_id.startswith("uptimecheck."):
                 dim_set -= {"bk_biz_id", "ip", "bk_cloud_id", "error_code"}
@@ -1539,20 +1544,19 @@ class GetDrillDimensionsResource(Resource):
             dimension_sets[0] if len(query_configs) == 1 else set.intersection(*dimension_sets)
         )
 
+        # APM 场景使用 ApmAlertHelper 翻译维度名，非 APM 场景使用指标缓存中的维度名
         is_apm: bool = any(
             ApmMetricProcessor.is_match_data_label({"data_label": metric.data_label})
             or ApmMetricProcessor.is_match_table_id({"table_id": metric.result_table_id})
             for metric in metric_cache.values()
         )
-        if not is_apm:
-            return dimensions
+        get_text = ApmAlertHelper.get_tag_label if is_apm else lambda dimension: dimension_map.get(dimension, dimension)
 
-        # APM 场景：对维度进行翻译，格式为 "{中文名}（{字段名}）"，有别名的维度排在前面
-        dim_labels: dict[str, str] = {dimension: ApmAlertHelper.get_tag_label(dimension) for dimension in dimensions}
-        translated: list[str] = [
-            f"{label}（{dimension}）" if label != dimension else dimension for dimension, label in dim_labels.items()
+        # 统一返回格式 {"value": "{字段名}", "text": "{中文名}"}，有别名的维度排在前面
+        translated_dimensions: list[dict[str, str]] = [
+            {"value": dimension, "text": get_text(dimension)} for dimension in dimensions
         ]
-        return sorted(translated, key=lambda d: "（" not in d)
+        return sorted(translated_dimensions, key=lambda d: d["text"] == d["value"])
 
 
 class DimensionUnifyQuery(Resource):
