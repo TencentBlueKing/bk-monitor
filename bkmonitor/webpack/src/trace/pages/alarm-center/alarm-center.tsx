@@ -83,6 +83,7 @@ import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
 import { saveAlertContentName } from './services/alert-services';
+import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
@@ -101,7 +102,13 @@ export default defineComponent({
       handleSetUserConfig: handleSetResidentSettingUserConfig,
     } = useUserConfig();
 
-    const { quickFilterList, quickFilterLoading } = useQuickFilter();
+    const {
+      quickFilterList,
+      quickFilterLoading,
+      quickFilterEmptyStatusType,
+      updateQuickFilterValue,
+      handleQuickFilteringOperation,
+    } = useQuickFilter();
     const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
     const {
       tableColumns: tableSourceColumns,
@@ -235,7 +242,7 @@ export default defineComponent({
     /** 快捷筛选 */
     const handleFilterValueChange = (filterValue: CommonCondition[]) => {
       handleCurrentPageChange(1);
-      alarmStore.quickFilterValue = filterValue;
+      updateQuickFilterValue(filterValue);
     };
     /** 告警分析添加条件 */
     const handleAddCondition = (condition: CommonCondition) => {
@@ -633,6 +640,7 @@ export default defineComponent({
     return {
       quickFilterList,
       quickFilterLoading,
+      quickFilterEmptyStatusType,
       isCollapsed,
       data,
       loading,
@@ -699,6 +707,7 @@ export default defineComponent({
       handleFavoriteOpenBlank,
       handleSaveAlertContentName,
       handleShowResidentBtnChange,
+      handleQuickFilteringOperation,
     };
   },
   render() {
@@ -760,10 +769,20 @@ export default defineComponent({
                       <QuickFiltering
                         filterList={this.quickFilterList}
                         filterValue={this.alarmStore.quickFilterValue}
+                        isFilterEmptyItem={false}
                         loading={this.quickFilterLoading}
                         onClose={this.updateIsCollapsed}
                         onUpdate:filterValue={this.handleFilterValueChange}
-                      />
+                      >
+                        {{
+                          empty: () => (
+                            <EmptyStatus
+                              type={this.quickFilterEmptyStatusType}
+                              onOperation={this.handleQuickFilteringOperation}
+                            />
+                          ),
+                        }}
+                      </QuickFiltering>
                     </div>
                   );
                 },
