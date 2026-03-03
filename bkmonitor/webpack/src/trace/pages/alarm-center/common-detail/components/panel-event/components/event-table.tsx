@@ -303,7 +303,6 @@ export default defineComponent({
     const observer = shallowRef<IntersectionObserver>();
 
     const handleExpandChange = (keys: (number | string)[]) => {
-      console.log(keys);
       expandedRowKeys.value = keys;
     };
 

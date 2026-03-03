@@ -8,48 +8,52 @@
 
 #### 接口参数
 
-| 字段            | 类型   | 必选 | 描述                     |
-| --------------- | ------ | ---- | ------------------------ |
-| bk_biz_id       | int    | 是   | 业务ID                   |
-| name            | string | 是   | 名称                     |
-| message         | string | 是   | 说明                     |
-| webhook_url     | string | 否   | 回调地址                 |
-| notice_way      | dict   | 是   | 各个级别的通知方式       |
-| id              | int    | 否   | 告警组ID，如果没有则创建 |
-| notice_receiver | list   | 是   | 通知对象列表             |
-| wxwork_group | dict | 否 | 企业微信机器人 |
+| 字段              | 类型     | 必选 | 描述                           |
+|-----------------|--------|----|------------------------------|
+| bk_biz_id       | int    | 是  | 业务ID                         |
+| name            | string | 是  | 名称                           |
+| message         | string | 是  | 说明                           |
+| webhook_url     | string | 否  | 回调地址                         |
+| notice_way      | dict   | 是  | 各个级别的通知方式                    |
+| id              | int    | 否  | 告警组ID，如果没有则创建                |
+| notice_receiver | list   | 是  | 通知对象列表，每个对象包含id和type字段       |
+| wxwork_group    | dict   | 否  | 企业微信机器人，key为告警级别，value为群会话ID |
 
 #### notice_receiver - 通知对象列表
 
-通知对象有两种类型 `user` 或 `group`。
+通知对象列表是一个数组，每个对象包含以下字段：
 
-1. user对应的通知对象为用户名
-2. group对应的是通知组
-   1. operator - 主负责人
-   2. bk_bak_operator - 备份负责人
-   3. bk_biz_tester - 测试
-   4. bk_biz_productor - 产品
-   5. bk_biz_maintainer - 运维
-   6. bk_biz_developer - 开发
+| 字段   | 类型     | 必选 | 描述     |
+|------|--------|----|--------|
+| id   | string | 是  | 通知对象ID |
+| type | string | 是  | 通知对象类别 |
+
+通知对象有两种类型 `user` 或 `group`：
+
+1. **user**: 对应的通知对象为用户名
+2. **group**: 对应的是通知组
+    1. operator - 主负责人
+    2. bk_bak_operator - 备份负责人
+    3. bk_biz_tester - 测试
+    4. bk_biz_productor - 产品
+    5. bk_biz_maintainer - 运维
+    6. bk_biz_developer - 开发
 
 #### notice_way - 通知方式
 
-各个告警级别的通知方式
+各个告警级别的通知方式，key为告警级别（字符串类型的数字，如"1"、"2"、"3"），value为通知方式数组。
 
 基础的通知方式有：
 
-* weixin
-* mail
-* voice
-* sms
+* weixin - 微信
+* mail - 邮件
+* voice - 语音
+* sms - 短信
 
 #### 示例数据
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "bk_biz_id": 2,
     "notice_receiver": [
         {
@@ -76,18 +80,19 @@
 
 ### 响应参数
 
-| 字段    | 类型   | 描述         |
-| ------- | ------ | ------------ |
+| 字段      | 类型     | 描述     |
+|---------|--------|--------|
 | result  | bool   | 请求是否成功 |
 | code    | int    | 返回的状态码 |
-| message | string | 描述信息     |
-| data    | dict   | 数据         |
+| message | string | 描述信息   |
+| data    | dict   | 数据     |
 
 #### data字段说明
 
-| 字段            | 类型   | 描述               |
-| --------------- | ------ | ------------------ |
-| id              | int    | 告警ID             |
+| 字段                | 类型  | 描述            |
+|-------------------|-----|---------------|
+| id                | int | 告警组ID         |
+| webhook_action_id | int | Webhook处理套餐ID |
 
 #### 示例数据
 
@@ -96,7 +101,8 @@
   "message": "OK",
   "code": 200,
   "data": {
-    "id": 1
+    "id": 1,
+    "webhook_action_id": 123
   },
   "result": true
 }

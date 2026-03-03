@@ -39,6 +39,9 @@ import type { CustomOptions } from '../../../trace-explore/components/explore-ch
 
 import './alarm-metrics-dashboard.scss';
 
+/** 仅以下 API 需要携带 down_sample_range */
+const DOWN_SAMPLE_RANGE_APIS = new Set(['unifyQuery', 'graphUnifyQuery']);
+
 export default defineComponent({
   name: 'AlarmMetricsDashboard',
   props: {
@@ -95,6 +98,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 是否渲染折叠面板的 header 区域 */
+    showHeader: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: ['dataZoomChange', 'durationChange', 'restore'],
   setup(props) {
@@ -113,22 +121,38 @@ export default defineComponent({
         let transformTargets = e?.targets;
         if (transformTargets?.length) {
           const [startTime, endTime] = handleTransformToTimestamp(get(timeRange));
+          const rawInterval = props.viewOptions?.interval;
+          const computedDownSampleRange = downSampleRangeComputed([startTime, endTime]);
           // eslint-disable-next-line @typescript-eslint/naming-convention
-          const down_sample_range =
-            downSampleRangeComputed(props.viewOptions?.interval?.toString?.(), [startTime, endTime], 'unifyQuery') ||
-            '';
-          const [v] = down_sample_range.split('s');
-          const interval = props.viewOptions?.interval === 'auto' ? `${Math.ceil(+v / 60)}m` : down_sample_range;
+          let down_sample_range: string;
+          let interval: number | string;
+          if (rawInterval === 'auto') {
+            // interval=auto: interval 与 down_sample_range 都使用按宽度计算的值
+            interval = computedDownSampleRange;
+            down_sample_range = computedDownSampleRange;
+          } else {
+            const originInterval = +rawInterval || 60;
+            const computedDownSampleRangeSec = convertToSeconds(computedDownSampleRange);
+            interval = originInterval;
+            // interval=number: 仅当计算值(秒)大于原 interval 时，down_sample_range 才用计算值
+            down_sample_range =
+              computedDownSampleRangeSec > originInterval ? computedDownSampleRange : `${originInterval}s`;
+          }
+          const intervalSecond = typeof interval === 'number' ? interval : convertToSeconds(interval);
+          const variableService = getVariablesService();
           transformTargets = transformTargets.map(item => {
+            const api = item.api?.split('.').pop();
+            // 兼容 grafana.graphUnifyQuery 形式，只取最后一段 API 名称判断
+            const shouldPassDownSampleRange = DOWN_SAMPLE_RANGE_APIS.has(api || '');
             return {
               ...item,
               data: {
-                ...getVariablesService().transformVariables(item.data, {
+                ...variableService.transformVariables(item.data, {
                   ...(props.viewOptions ?? {}),
                   interval,
-                  interval_second: convertToSeconds(interval),
+                  interval_second: intervalSecond,
                 }),
-                down_sample_range,
+                ...(shouldPassDownSampleRange ? { down_sample_range } : {}),
               },
             };
           });
@@ -142,25 +166,13 @@ export default defineComponent({
     });
 
     /**
-     * @description 下采样粒度计算
+     * @description 下采样粒度计算：ceil((结束时间 - 开始时间) / 图表宽度)，单位秒
      */
-    const downSampleRangeComputed = (downSampleRange: string, timeRange: number[], api: string) => {
-      if (downSampleRange === 'raw' || !['unifyQuery', 'graphUnifyQuery'].includes(api)) {
-        return undefined;
-      }
+    const downSampleRangeComputed = (timeRange: number[]) => {
       const chartDom = alarmDashboardRef?.value?.querySelector('.alarm-lazy-chart');
-      if (downSampleRange === 'auto') {
-        let width = 1;
-        if (chartDom) {
-          width = chartDom?.clientWidth ?? 1;
-        }
-        if (width <= 0) {
-          return undefined;
-        }
-        const size = (timeRange[1] - timeRange[0]) / width;
-        return size > 0 ? `${Math.ceil(size)}s` : undefined;
-      }
-      return downSampleRange;
+      const width = Math.max(chartDom?.clientWidth ?? 1, 1);
+      const size = (timeRange[1] - timeRange[0]) / width;
+      return `${Math.max(Math.ceil(size), 1)}s`;
     };
 
     return {
@@ -181,6 +193,7 @@ export default defineComponent({
           defaultHeight={0}
           description={`(${this.panelModels?.length})`}
           hasResize={false}
+          showHeader={this.showHeader}
           title={this.dashboardTitle}
         >
           <div class='alarm-metrics-chart-container'>

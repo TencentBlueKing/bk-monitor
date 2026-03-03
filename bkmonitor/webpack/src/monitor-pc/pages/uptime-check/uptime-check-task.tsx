@@ -357,7 +357,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           subTitle: this.$t('该操作仅删除任务组，不会影响组内拨测任务'),
           confirmFn: async () => {
             this.handleLoading(true);
-            const res = await destroyUptimeCheckGroup(groupData.id, {}, { needRes: true })
+            const res = await destroyUptimeCheckGroup(groupData.id, { bk_biz_id: window.bk_biz_id }, { needRes: true })
               .then(res => res.result)
               .catch(() => false);
             this.handleLoading(false);

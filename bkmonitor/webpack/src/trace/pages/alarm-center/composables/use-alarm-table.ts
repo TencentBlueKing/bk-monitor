@@ -25,6 +25,8 @@
  */
 import { onMounted, onScopeDispose, shallowRef, watchEffect } from 'vue';
 
+import { commonPageSizeGet } from 'monitor-common/utils';
+
 import { getOperatorDisabled } from '../utils';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
@@ -33,7 +35,7 @@ import type { ActionTableItem, AlertTableItem, IncidentTableItem } from '../typi
 export function useAlarmTable() {
   const alarmStore = useAlarmCenterStore();
   // 分页参数
-  const pageSize = shallowRef(50);
+  const pageSize = shallowRef(commonPageSizeGet() ?? 50);
   // 当前页
   const page = shallowRef(1);
   // 总条数
@@ -96,7 +98,7 @@ export function useAlarmTable() {
       abortController.abort();
       abortController = null;
     }
-    pageSize.value = 10;
+    pageSize.value = commonPageSizeGet() ?? 50;
     page.value = 1;
     total.value = 0;
     data.value = [];

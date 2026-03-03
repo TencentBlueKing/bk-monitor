@@ -417,4 +417,13 @@ def get_table_id_cluster_id(table_id_list: list | set, bk_tenant_id: str = DEFAU
         table_id: data_id_cluster_id.get(data_id) or "" for table_id, data_id in table_id_data_id.items()
     }
 
+    # 补充特殊配置，ResultTableOption.OPTION_BINDING_BCS_CLUSTER_ID
+    options = models.ResultTableOption.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        table_id__in=table_id_list,
+        name=models.ResultTableOption.OPTION_BINDING_BCS_CLUSTER_ID,
+    )
+    for option in options:
+        table_id_cluster_id[option.table_id] = option.value
+
     return table_id_cluster_id

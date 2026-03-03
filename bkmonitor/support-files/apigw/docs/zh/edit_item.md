@@ -140,7 +140,7 @@
 {
     "id": 1,
 	"name": "新建事项111",
-    "change_type"：0
+    "change_type": 0
 }
 ```
 

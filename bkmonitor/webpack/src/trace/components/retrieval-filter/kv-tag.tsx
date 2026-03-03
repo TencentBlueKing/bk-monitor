@@ -171,7 +171,7 @@ export default defineComponent({
                     key={`${index}_key`}
                     class='value-name'
                   >
-                    {['string', 'number'].includes(typeof item.name) ? item.name : NULL_VALUE_NAME}
+                    {['string', 'number', 'boolean'].includes(typeof item.name) ? `${item.name}` : NULL_VALUE_NAME}
                   </span>,
                 ])}
                 {this.hideCount > 0 && <span class='value-condition'>{`+${this.hideCount}`}</span>}

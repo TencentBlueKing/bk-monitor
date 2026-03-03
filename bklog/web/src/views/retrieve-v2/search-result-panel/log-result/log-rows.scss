@@ -9,6 +9,7 @@
   min-height: 400px;
   margin-top: 6px;
   overflow: hidden;
+  overscroll-behavior-x: contain;
   border-top: solid 1px #dfe0e5;
 
   .bklog-requsting-loading {

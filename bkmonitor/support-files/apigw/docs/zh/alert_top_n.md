@@ -4,27 +4,27 @@
 
 ### 请求参数
 
-| 字段                | 类型           | 必选 | 描述                                                         |
-| ------------------- | -------------- | ---- | ------------------------------------------------------------ |
-| bk_biz_ids          | List[int]      | 否   | 业务ID列表，为空时查询所有有权限的业务                       |
-| status              | List[string]   | 否   | 状态，可选 `ABNORMAL`, `CLOSED`, `RECOVERED`                 |
-| conditions          | List[Condition] | 否   | 过滤条件                                                     |
-| query_string        | string         | 否   | 查询字符串，语法：https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#query-string-query-notes |
-| start_time          | int            | 是   | 开始时间（时间戳）                                           |
-| end_time            | int            | 是   | 结束时间（时间戳）                                           |
-| username            | string         | 否   | 负责人                                                       |
-| fields              | List[string]   | 否   | 查询字段列表，支持的字段包括：`bk_biz_id`, `severity`, `status`, `strategy_id`, `assignee`, `category`, `plugin_id`, `target_type`, `ip`, `bk_cloud_id` 等 |
-| size                | int            | 否   | 获取的桶数量，默认10                                         |
-| need_time_partition | bool           | 否   | 是否需要按时间分片，默认true                                 |
+| 字段                  | 类型              | 必选 | 描述                                                                                                                                                |
+|---------------------|-----------------|----|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| bk_biz_ids          | list[int]       | 否  | 业务ID列表，为空时查询所有有权限的业务                                                                                                                              |
+| status              | list[str]       | 否  | 状态，可选 `ABNORMAL`, `CLOSED`, `RECOVERED`                                                                                                           |
+| conditions          | list[Condition] | 否  | 过滤条件                                                                                                                                              |
+| query_string        | str             | 否  | 查询字符串，语法：https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#query-string-query-notes               |
+| start_time          | int             | 是  | 开始时间（Unix时间戳，单位：秒）                                                                                                                                |
+| end_time            | int             | 是  | 结束时间（Unix时间戳，单位：秒）                                                                                                                                |
+| username            | str             | 否  | 负责人                                                                                                                                               |
+| fields              | list[str]       | 否  | 查询字段列表，支持的字段包括：`bk_biz_id`, `severity`, `status`, `strategy_id`, `assignee`, `category`, `plugin_id`, `target_type`, `ip`, `bk_cloud_id` 等，默认为空列表 |
+| size                | int             | 否  | 获取的桶数量，默认10                                                                                                                                       |
+| need_time_partition | bool            | 否  | 是否需要按时间分片，默认true                                                                                                                                  |
 
 #### 过滤条件（conditions）
 
-| 字段      | 类型   | 必须 | 描述                                                         |
-| :-------- | :----- | :--- | :----------------------------------------------------------- |
-| key       | string | 是   | 字段名                                                       |
-| value     | List   | 是   | 可取值的列表。当 `method = eq`，则满足其一即可；当`method = neq`，则全都不满足 |
-| method    | string | 是   | 匹配方式，可选 `eq`, `neq`, `include`, `exclude`, `gt`, `gte`, `lt`, `lte`，默认 `eq` |
-| condition | string | 否   | 可选 `and`, `or`, `""`                                       |
+| 字段        | 类型   | 必须 | 描述                                                                          |
+|:----------|:-----|:---|:----------------------------------------------------------------------------|
+| key       | str  | 是  | 字段名                                                                         |
+| value     | list | 是  | 可取值的列表。当 `method = eq`，则满足其一即可；当`method = neq`，则全都不满足                       |
+| method    | str  | 否  | 匹配方式，可选 `eq`, `neq`, `include`, `exclude`, `gt`, `gte`, `lt`, `lte`，默认 `eq` |
+| condition | str  | 否  | 复合条件，可选 `and`, `or`, `""`，默认 `""`                                           |
 
 ### 请求参数示例
 
@@ -52,36 +52,36 @@
 
 ### 响应参数
 
-| 字段    | 类型   | 描述               |
-| ------- | ------ | ------------------ |
-| result  | bool   | 请求是否成功       |
-| code    | int    | 返回的状态码       |
-| message | string | 描述信息           |
-| data    | dict   | TopN统计数据       |
+| 字段      | 类型     | 描述       |
+|---------|--------|----------|
+| result  | bool   | 请求是否成功   |
+| code    | int    | 返回的状态码   |
+| message | string | 描述信息     |
+| data    | dict   | TopN统计数据 |
 
 #### data字段说明
 
-| 字段      | 类型        | 描述                   |
-| --------- | ----------- | ---------------------- |
-| doc_count | int         | 总文档数量             |
-| fields    | List[Field] | 各字段的TopN统计结果   |
+| 字段        | 类型          | 描述           |
+|-----------|-------------|--------------|
+| doc_count | int         | 总文档数量        |
+| fields    | list[Field] | 各字段的TopN统计结果 |
 
 #### data.fields字段说明
 
-| 字段         | 类型         | 描述                     |
-| ------------ | ------------ | ------------------------ |
-| field        | string       | 字段名                   |
-| is_char      | bool         | 是否为字符类型字段       |
-| bucket_count | int          | 该字段的桶总数           |
-| buckets      | List[Bucket] | TopN桶列表               |
+| 字段           | 类型           | 描述        |
+|--------------|--------------|-----------|
+| field        | str          | 字段名       |
+| is_char      | bool         | 是否为字符类型字段 |
+| bucket_count | int          | 该字段的桶总数   |
+| buckets      | list[Bucket] | TopN桶列表   |
 
 #### data.fields.buckets字段说明
 
-| 字段  | 类型   | 描述           |
-| ----- | ------ | -------------- |
-| id    | string | 桶ID           |
-| name  | string | 桶显示名称     |
-| count | int    | 该桶的文档数量 |
+| 字段    | 类型  | 描述      |
+|-------|-----|---------|
+| id    | str | 桶ID     |
+| name  | str | 桶显示名称   |
+| count | int | 该桶的文档数量 |
 
 ### 响应参数示例
 

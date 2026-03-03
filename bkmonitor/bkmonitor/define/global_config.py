@@ -679,6 +679,11 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_SERVICE_CACHE_APPLICATIONS", slz.ListField(label=_("APM 按服务缓存指标的灰度应用列表"), default=[])),
         # 企业微信模块化（layouts）消息通知灰度业务列表
         ("WECOM_LAYOUTS_BIZ_LIST", slz.ListField(label=_("企业微信模块化消息通知灰度业务列表"), default=[])),
+        # metric_group_dimensions 分组配置白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+        (
+            "APM_METRIC_GROUP_DIMENSIONS_WHITELIST",
+            slz.ListField(label=_("允许 APM 配置指标分组维度的应用白名单"), default=[]),
+        ),
     ]
 )
 

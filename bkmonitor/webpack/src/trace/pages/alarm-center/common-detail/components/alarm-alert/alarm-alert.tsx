@@ -77,19 +77,20 @@ export default defineComponent({
     });
 
     const renderAlertTips = () => {
-      if (status.value === 'CLOSED') return <div class='alarm-tips'>{t('在恢复检测周期内无数据上报，告警已失效')}</div>;
+      if (status.value === 'CLOSED')
+        return <span class='alarm-tips'>{t('在恢复检测周期内无数据上报，告警已失效')}</span>;
       if (status.value === 'SHIELDED_ABNORMAL')
         return (
-          <div class='alarm-tips'>
+          <span class='alarm-tips'>
             <span class='shielded-text'>{t('屏蔽时间剩余')}:</span>
             <span class='shielded-duration'>{props.data?.shield_left_time}</span>
-          </div>
+          </span>
         );
       return (
-        <div class='alarm-tips'>
+        <span class='alarm-tips'>
           <span class='duration-text'>{t('持续时间')}:</span>
           <span class='duration-value'>{props.data?.duration}</span>
-        </div>
+        </span>
       );
     };
 
@@ -141,28 +142,17 @@ export default defineComponent({
         </span>
         <div class='separator' />
         <div class='alert-content'>
-          <div class='alarm-content'>
-            {/* <Popover
-              width={480}
-              extCls='alarm-alert-monitor-data-popover'
-              v-slots={{
-                default: () => <span class='alarm-title'>{this.data?.description},</span>,
-                content: () => (
-                  <div class='alarm-alert-monitor-data-popover-content'>
-                    <AlertMetricsConfig alertContentDetail={this.monitorDataDetail} />
-                  </div>
-                ),
-              }}
-              placement='bottom'
-              theme='light'
-              trigger='click'
-            /> */}
-
-            {/* <span class='alarm-value'>{'65% < 80%,'}</span> */}
-            <span class='alarm-title'>{this.data?.description},</span>
-          </div>
-          {this.renderAlertTips()}
+          {this.data && (
+            <span
+              class='alarm-content'
+              v-overflow-tips
+            >
+              {this.data?.description},
+            </span>
+          )}
+          {this.data && this.renderAlertTips()}
         </div>
+
         <div class='tools'>
           {this.status === 'ABNORMAL' && [
             <Button

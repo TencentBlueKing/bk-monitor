@@ -341,7 +341,6 @@ export default defineComponent({
      * @param actionId
      */
     const handleNoticeDetail = (actionId: string) => {
-      console.log(actionId, 'handleNoticeDetail');
       noticeStatusDialogState.show = true;
       noticeStatusDialogState.actionId = actionId;
     };

@@ -29,7 +29,7 @@ from apm_web.profile.resources import (  # noqa
 from apm_web.trace.resources import ListFlattenSpanResource, ListFlattenTraceResource  # noqa
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from monitor_web.scene_view.resources.base import PageListResource
-from monitor_web.scene_view.table_format import OverviewDataTableFormat
+from monitor_web.scene_view.table_format import EndpointListTableFormat, OverviewDataTableFormat
 
 
 class SidebarPageListResource(PageListResource):
@@ -116,25 +116,32 @@ class SidebarPageListResource(PageListResource):
         return {}
 
     def add_field_to_res(self, columns, data, overview_data=None):
+        """为结果数据添加 name 字段。
+
+        从概览列中提取 name 字段值，用于前端展示。
+
+        :param columns: 列格式列表
+        :param data: 数据列表
+        :param overview_data: 概览数据
         """
-        针对overview_data做处理
+        overview_column = next(
+            (c for c in columns if isinstance(c, OverviewDataTableFormat | EndpointListTableFormat)), None
+        )
+        if not overview_column:
+            return
 
-        要求
-        1. data和overview_data里每条数据需要有name字段，值为概览列的值
-        2. overview_data里面 key需要为switch_to_overview
-        """
-        overview_column = None
+        def _get_name(value: list | dict | None) -> str:
+            if isinstance(value, list) and value:
+                return value[0].get("value", "")
+            if isinstance(value, dict):
+                return value.get("value", "")
+            return ""
 
-        for column in columns:
-            if isinstance(column, OverviewDataTableFormat):
-                overview_column = column
+        for item in data:
+            item["name"] = _get_name(item.get(overview_column.id))
 
-        if overview_column:
-            for i in data:
-                i["name"] = i.get(overview_column.id).get("value")
-
-            if overview_data:
-                overview_data["name"] = overview_data.get(overview_column.id).get("value")
+        if overview_data:
+            overview_data["name"] = _get_name(overview_data.get(overview_column.id))
 
     def change_sort_column(self, current_sort, columns, data, overview_data):
         format_columns = [c.column() for c in columns]
@@ -172,18 +179,18 @@ class SidebarPageListResource(PageListResource):
         return [front[0]] + [format_sort_column] + front[1:] + back[1:]
 
     def calc_overview(self, column_formats, data):
-        """
-        计算概览数据
-        """
-        d = {}
-        for c in column_formats:
-            d[c.id] = None
+        """计算概览数据。
 
+        :param column_formats: 列格式列表
+        :param data: 原始数据列表
+        :return: 概览数据字典
+        """
+        empty_row = {c.id: None for c in column_formats}
         res = {}
 
         for column in column_formats:
             if isinstance(column, OverviewDataTableFormat):
-                # 如果为overview列 概览数据中需要保持固定结构返回
+                # OverviewDataTableFormat 列返回固定结构
                 res[column.id] = {
                     "icon": get_icon("overview"),
                     "target": "null_event",
@@ -191,28 +198,26 @@ class SidebarPageListResource(PageListResource):
                     "key": "",
                     "value": column.title,
                 }
+            elif isinstance(column, EndpointListTableFormat):
+                # EndpointListTableFormat 列返回列表格式
+                res[column.id] = [
+                    {"icon": get_icon("overview"), "target": "null_event", "url": "", "key": "", "value": column.title}
+                ]
+            elif column.overview_calculate_handler:
+                empty_row.pop(column.id)
+                value = column.overview_calculate_handler(data)
+                res[column.id] = column.format({column.id: value, **empty_row})
+            elif column.overview_calculator:
+                all_values = [
+                    i.get(column.id).get("label") if isinstance(i.get(column.id), dict) else i.get(column.id)
+                    for i in data
+                    if i.get(column.id)
+                ]
+                empty_row.pop(column.id)
+                calc_value = column.overview_calculator(all_values) if all_values else None
+                res[column.id] = column.format({column.id: calc_value, **empty_row})
             else:
-                if column.overview_calculate_handler:
-                    d.pop(column.id)
-                    v = column.overview_calculate_handler(data)
-                    if v is None:
-                        res[column.id] = column.format({column.id: None, **d})
-                    else:
-                        res[column.id] = column.format({column.id: v, **d})
-                else:
-                    if column.overview_calculator:
-                        all_values = [
-                            i.get(column.id).get("label") if isinstance(i.get(column.id), dict) else i.get(column.id)
-                            for i in data
-                            if i.get(column.id)
-                        ]
-                        d.pop(column.id)
-                        if all_values:
-                            res[column.id] = column.format({column.id: column.overview_calculator(all_values), **d})
-                        else:
-                            res[column.id] = column.format({column.id: None, **d})
-                    else:
-                        res[column.id] = None
+                res[column.id] = None
 
         return res
 
