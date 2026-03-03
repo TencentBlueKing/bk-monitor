@@ -664,7 +664,11 @@ class HistoryDetailResource(Resource):
             )
         }
         for config in config_list:
-            config["uuid"] = parse_id_to_uuid.get(config["parse_id"])
+            parse_id = config["parse_id"]
+            uuid_val = parse_id_to_uuid.get(parse_id)
+            if uuid_val is None:
+                logger.warning("ImportParse record not found for parse_id=%s, history_id=%s", parse_id, history_id)
+            config["uuid"] = uuid_val or ""
             config.update(target_map.get(config["type"], {}).get(config["config_id"], {}))
 
         label_map = {}
