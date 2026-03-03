@@ -430,7 +430,6 @@ export default defineComponent({
      */
     const formatterOptions = options => {
       options.color = COLOR_LIST;
-      options.grid.top = 24;
       const isBar = options.series[0].type === 'bar';
 
       createAxisForEventScatter(options);
@@ -438,35 +437,42 @@ export default defineComponent({
       // 为x轴添加刻度线
       Object.assign(options.xAxis[0], {
         boundaryGap: isBar,
-        axisTick: { show: true, alignWithLabel: true },
-        axisLine: { show: true },
-        splitLine: { show: true, alignWithLabel: isBar },
-        axisLabel: { ...options.xAxis[0].axisLabel, align: 'center', showMinLabel: true, showMaxLabel: true },
+        axisTick: { show: true, alignWithLabel: true, lineStyle: { color: '#C1CDE6' } },
+        axisLine: { show: true, lineStyle: { color: '#C1CDE6' } },
+        splitLine: { show: false, alignWithLabel: isBar },
+        axisLabel: { ...options.xAxis[0].axisLabel, align: 'center' },
       });
 
       // 为y轴添加刻度线
+      const hasEventYAxis = options.yAxis.length > 1 && options.yAxis[1].show;
+      options.grid.top = hasEventYAxis ? 32 : 24;
+      options.grid.left = 16;
+      options.grid.right = 16;
       for (const [index, item] of options.yAxis.entries()) {
         const isMainYAxis = index === 0;
         Object.assign(item, {
-          axisTick: { show: true },
-          axisLine: { show: true },
+          axisTick: { show: false },
+          axisLine: { show: false },
           ...(isMainYAxis && { splitLine: { show: true } }),
         });
       }
-
-      // 检测是否存在右侧y轴
-      const hasRightYAxis = options.yAxis.some(axis => axis.position === 'right');
-      // 当不存在右侧y轴时，创建一个右侧y轴来显示右边框
-      if (!hasRightYAxis) {
-        options.yAxis.push({
-          show: true,
-          position: 'right',
-          axisTick: { show: false },
-          axisLine: { show: true },
-          axisLabel: { show: false },
-          splitLine: { show: false },
-          z: 3,
-        });
+      // 使用 graphic 组件渲染 y 轴名称标签，确保与标题对齐
+      if (hasEventYAxis) {
+        const labelStyle = { fontSize: 10, fill: '#979BA5' };
+        options.graphic = [
+          {
+            type: 'text',
+            left: 16,
+            top: options.grid.top - 26,
+            style: { text: t('指标'), ...labelStyle },
+          },
+          {
+            type: 'text',
+            right: 16,
+            top: options.grid.top - 26,
+            style: { text: t('事件'), ...labelStyle },
+          },
+        ];
       }
 
       return options;
