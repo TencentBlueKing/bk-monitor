@@ -62,7 +62,7 @@ class ExternalPermissionHandler:
 
         if view_type != ViewTypeEnum.RESOURCE.value:
             # 获取每个被授权用户的资源、操作、授权状态信息, 合成列表
-            permission_qs = permission_qs.order_by("-updated_at")
+            permission_qs_list = sorted(permission_qs_list, key=lambda x: x.updated_at, reverse=True)
             permission_list = [
                 {
                     "updated_at": permission.updated_at,
@@ -73,7 +73,7 @@ class ExternalPermissionHandler:
                     "status": self.get_status(permission),
                     "space_uid": permission.space_uid,
                 }
-                for permission in permission_qs.iterator()
+                for permission in permission_qs_list
             ]
         else:
             # 资源 + 操作 + 状态作为 key, 获取相对应的被授权用户列表以及授权状态等
