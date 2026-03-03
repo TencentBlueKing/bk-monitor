@@ -1,5 +1,13 @@
 .alarm-center-detail-panel-trace {
-  padding-top: 1px;
+  padding: 16px 0;
+
+  .alarm-center-detail-panel-trace-wrapper {
+    padding: 16px;
+    background: #fff;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px 0 #1919290a;
+  }
 
   .panel-trace-table {
     &.trace-explore-table {
@@ -27,8 +35,19 @@
         }
       }
 
-      .explore-table {
-        max-height: 370px;
+      // .explore-table {
+      //   max-height: 370px;
+      // }
+
+      /* stylelint-disable-next-line selector-class-pattern */
+      .t-table .t-table__header {
+        th {
+          background-color: #f5f6fa;
+
+          .explore-header-col {
+            color: #313238;
+          }
+        }
       }
 
       /* stylelint-disable-next-line selector-class-pattern */
