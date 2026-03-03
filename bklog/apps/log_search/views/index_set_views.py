@@ -543,6 +543,8 @@ class IndexSetViewSet(ModelViewSet):
         }
         """
         response = super().retrieve(request, *args, **kwargs)
+        index_set_obj = self.get_object()
+        response.data["parent_index_set_ids"] = index_set_obj.get_parent_index_set_ids()
         response.data = IndexSetHandler.post_list([response.data])[0]
         return response
 

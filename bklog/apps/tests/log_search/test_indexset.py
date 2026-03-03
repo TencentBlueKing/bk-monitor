@@ -413,6 +413,7 @@ RETRIEVE_LIST = {
     "storage_cluster_id": 1,
     "source_id": None,
     "orders": 0,
+    "parent_index_set_ids": [],
     "pre_check_tag": True,
     "pre_check_msg": None,
     "is_active": True,
