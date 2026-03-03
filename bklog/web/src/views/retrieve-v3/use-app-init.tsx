@@ -88,7 +88,9 @@ export default () => {
 
     store.commit('updateIndexItem', routeParams);
     store.commit('updateSpace', routeParams.spaceUid);
-    store.commit('updateState', { indexId: routeParams.index_id });
+    if (routeParams.index_id !== undefined) {
+      store.commit('updateState', { indexId: routeParams.index_id });
+    }
     store.commit('updateStorage', {
       [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
     });
@@ -450,16 +452,28 @@ export default () => {
                   });
                   RetrieveHelper.setSearchingValue(false);
                 }
-
-                return;
+              } else {
+                RetrieveHelper.setSearchingValue(false);
               }
 
-              RetrieveHelper.setSearchingValue(false);
+              setSearchMode();
+              setDefaultRouteUrl();
+              if (indexId) {
+                router.replace({
+                  params: { ...route.params, indexId },
+                  query: {
+                    ...route.query,
+                    ...queryTab,
+                    unionList: unionList ? JSON.stringify(unionList) : undefined,
+                  },
+                });
+              }
             })
             .catch(err => {
-              // 请求失败时也要关闭 loading 状态，避免页面一直处于加载中
               console.error('requestIndexSetFieldInfo failed:', err);
               RetrieveHelper.setSearchingValue(false);
+              setSearchMode();
+              setDefaultRouteUrl();
             });
         }
 
@@ -482,16 +496,6 @@ export default () => {
           store.getters.isUnionSearch,
         );
 
-        if (indexId) {
-          router.replace({
-            params: { ...route.params, indexId },
-            query: {
-              ...route.query,
-              ...queryTab,
-              unionList: unionList ? JSON.stringify(unionList) : undefined,
-            },
-          });
-        }
       });
   };
 
@@ -511,9 +515,7 @@ export default () => {
   };
 
   getIndexSetList(() => {
-    setSearchMode();
     reoverRouteParams();
-    setDefaultRouteUrl();
   });
 
   const handleSpaceIdChange = () => {
