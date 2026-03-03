@@ -10,15 +10,14 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
+from bk_monitor_base.strategy import list_strategy
 from django.utils import translation
 from django.utils.functional import cached_property
 
 from bkmonitor.models import (
     MetricListCache,
     StrategyActionConfigRelation,
-    StrategyModel,
 )
-from bkmonitor.strategy.new_strategy import Strategy
 from constants.alert import EVENT_SEVERITY_DICT
 from constants.data_source import DataSourceLabel
 from core.drf_resource import resource
@@ -44,25 +43,8 @@ class StrategyCollector(BaseCollector):
 
     @cached_property
     def strategy_configs_list(self):
-        return [
-            strategy.to_dict()
-            for strategy in Strategy.from_models(StrategyModel.objects.filter(bk_biz_id__in=self.biz_info.keys()))
-        ]
+        return list_strategy(bk_biz_ids=list(self.biz_info.keys()))["data"]
 
-    @register(
-        labelnames=(
-            "bk_biz_id",
-            "bk_biz_name",
-            "data_source_label",
-            "data_type_label",
-            "parent_scenario",
-            "scenario",
-            "use_action",
-            "status",
-            "use_notice_collect",
-            "valid_status",
-        )
-    )
     def strategy_count(self, metric: Metric):
         """
         告警策略数

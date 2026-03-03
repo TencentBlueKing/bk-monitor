@@ -48,6 +48,14 @@ export default defineComponent({
       type: Number,
       default: 166,
     },
+    minHeight: {
+      type: Number,
+      default: 166,
+    },
+    maxHeight: {
+      type: Number,
+      default: 300,
+    },
     /** 初始化时折叠面板默认是否展开状态 */
     defaultIsExpand: {
       type: Boolean,
@@ -62,6 +70,11 @@ export default defineComponent({
     collapseShowHeight: {
       type: Number,
       default: 36,
+    },
+    /** 是否渲染 header 区域（包括折叠触发器和自定义区域） */
+    showHeader: {
+      type: Boolean,
+      default: true,
     },
   },
   emits: ['collapseChange'],
@@ -171,19 +184,27 @@ export default defineComponent({
       >
         <div class='chart-collapse-wrapper-collapse'>
           <div class='chart-collapse-wrapper-container'>
-            <div class='chart-collapse-header'>
-              <div
-                class='chart-collapse-header-trigger'
-                onClick={this.handleExpandChange}
-              >
-                {(this.$slots as any)?.headerTrigger?.(this.scopedSlotsParam) || this.defaultHeaderTriggerRender()}
+            {this.showHeader && (
+              <div class='chart-collapse-header'>
+                <div
+                  class='chart-collapse-header-trigger'
+                  onClick={this.handleExpandChange}
+                >
+                  {(this.$slots as any)?.headerTrigger?.(this.scopedSlotsParam) || this.defaultHeaderTriggerRender()}
+                </div>
+                <div class='chart-collapse-header-custom'>
+                  {(this.$slots as any)?.headerCustom?.(this.scopedSlotsParam) || this.defaultHeaderCustomRender()}
+                </div>
               </div>
-              <div class='chart-collapse-header-custom'>
-                {(this.$slots as any)?.headerCustom?.(this.scopedSlotsParam) || this.defaultHeaderCustomRender()}
-              </div>
-            </div>
+            )}
             <div class='chart-collapse-content'>{this.$slots?.default?.(this.scopedSlotsParam) || ''}</div>
-            {this.hasResize && <MonitorCrossDrag onMove={this.handleCrossResize} />}
+            {this.hasResize && (
+              <MonitorCrossDrag
+                maxHeight={this.maxHeight}
+                minHeight={this.minHeight}
+                onMove={this.handleCrossResize}
+              />
+            )}
           </div>
         </div>
       </div>

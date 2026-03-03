@@ -1,36 +1,37 @@
 ### 功能描述
 
-创建一个事件分组ID
-给定一个数据源和业务，创建一个归属的事件分组ID
+创建事件分组
 
 
 ### 请求参数
 
 | 字段               | 类型     | 必选 | 描述                                               |
 |------------------|--------|----|--------------------------------------------------|
-| bk_data_id       | int    | 是  | 数据源ID                                            |
-| bk_biz_id        | int    | 是  | 业务ID                                             |
+| bk_data_id       | string | 是  | 数据源ID                                            |
+| bk_biz_id        | string | 是  | 业务ID                                             |
 | event_group_name | string | 是  | 事件分组名                                            |
 | label            | string | 是  | 事件分组标签，用于表示事件监控对象，应该复用【result_table_label】类型下的标签 |
 | operator         | string | 是  | 操作者                                              |
 | event_info_list  | list   | 否  | 事件列表                                             |
+| data_label       | string | 否  | 数据标签                                             |
 
-#### event_info_list具体内容说明
+#### event_info_list具体说明
 
-| 字段         | 类型     | 必选 | 描述   |
-|------------|--------|----|------|
-| event_name | string | 是  | 事件名  |
-| dimension  | list   | 是  | 维度列表 |
+| 字段             | 类型        | 必选 | 描述   |
+|----------------|-----------|----|------|
+| event_name     | string    | 是  | 事件名  |
+| dimension_list | list[str] | 是  | 维度列表 |
 
 ### 请求参数示例
 
 ```json
 {
-  "bk_data_id": 123,
-  "bk_biz_id": 123,
+  "bk_data_id": "123",
+  "bk_biz_id": "123",
   "event_group_name": "事件分组名",
   "label": "application",
   "operator": "system",
+  "data_label": "custom_label",
   "event_info_list": [
     {
       "event_name": "usage for update",
@@ -59,27 +60,30 @@
 
 #### data字段说明
 
-| 字段               | 类型     | 描述        |
-|------------------|--------|-----------|
-| event_group_id   | int    | 新建的事件分组ID |
-| bk_data_id       | int    | 数据源ID     |
-| bk_biz_id        | int    | 业务ID      |
-| event_group_name | string | 事件分组名     |
-| label            | string | 标签        |
-| is_enable        | bool   | 是否启用      |
-| creator          | string | 创建人       |
-| create_time      | string | 创建时间      |
-| last_modify_user | string | 最后更新人     |
-| last_modify_time | string | 最后更新时间    |
-| event_info_list  | list   | 事件列表      |
+| 字段               | 类型     | 描述     |
+|------------------|--------|--------|
+| event_group_id   | int    | 事件分组ID |
+| bk_data_id       | int    | 数据源ID  |
+| bk_biz_id        | int    | 业务ID   |
+| table_id         | string | 结果表ID  |
+| event_group_name | string | 事件分组名  |
+| label            | string | 事件标签   |
+| is_enable        | bool   | 是否启用   |
+| creator          | string | 创建者    |
+| create_time      | string | 创建时间   |
+| last_modify_user | string | 最后修改者  |
+| last_modify_time | string | 最后修改时间 |
+| event_info_list  | list   | 事件列表   |
+| data_label       | string | 数据标签   |
+| status           | string | 事件组状态  |
 
-#### event_info_list说明
+#### event_info_list具体内容说明
 
-| 字段             | 类型     | 描述   |
-|----------------|--------|------|
-| bk_event_id    | int    | 事件id |
-| event_name     | string | 事件名称 |
-| dimension_list | list   | 维度列表 |
+| 字段             | 类型        | 描述   |
+|----------------|-----------|------|
+| event_id       | int       | 事件ID |
+| event_name     | string    | 事件名  |
+| dimension_list | list[str] | 维度列表 |
 
 ### 响应参数示例
 
@@ -91,30 +95,31 @@
     "event_group_id": 1001,
     "bk_data_id": 123,
     "bk_biz_id": 123,
-    "event_group_name": "事件分组名",
+    "table_id": "custom_event_123.event_group_1001",
+    "event_group_name": "event_group_name",
     "label": "application",
+    "data_label": "custom_label",
     "is_enable": true,
     "creator": "admin",
     "create_time": "2019-10-10 10:10:10",
     "last_modify_user": "admin",
     "last_modify_time": "2020-10-10 10:10:10",
+    "status": "normal",
     "event_info_list": [
       {
-        "bk_event_id": 1,
+        "event_id": 1,
         "event_name": "usage for update",
         "dimension_list": [
-          {
-            "dimension_name": "field_name"
-          }
+          "dimension_name",
+          "target"
         ]
       },
       {
-        "bk_event_id": 2,
+        "event_id": 2,
         "event_name": "usage for create",
         "dimension_list": [
-          {
-            "dimension_name": "field_name"
-          }
+          "dimension_name",
+          "target"
         ]
       }
     ]

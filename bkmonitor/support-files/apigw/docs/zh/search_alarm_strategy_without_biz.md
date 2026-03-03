@@ -6,21 +6,22 @@
 
 | 字段                | 类型      | 必选  | 描述        |
 |-------------------|---------|-----|-----------|
+| bk_biz_id         | int     | 否   | 业务ID，不传则查询全业务      |
+| scenario          | str    | 否   | 监控场景      |
+| conditions        | list[dict]    | 否   | 查询条件列表，默认为空列表      |
 | page              | int     | 否   | 页码，默认1        |
 | page_size         | int     | 否   | 每页条数，默认10     |
-| conditions        | list    | 否   | 查询条件Condition      |
-| bk_biz_id         | int     | 否   | 业务ID，不传则查全业务      |
-| scenario          | char    | 否   | 监控场景      |
-| with_notice_group | Boolean | 否   | 是否补充通知组信息 |
-| with_user_group_detail | Boolean | 否   | 补充通知组详细信息 |
+| with_user_group | bool | 否   | 是否补充告警组信息，默认false |
+| with_user_group_detail | bool | 否   | 是否补充告警组详细信息，默认false |
+| convert_dashboard | bool | 否   | 是否转换仪表盘格式，默认true |
 
 
 #### Condition
 
 | 字段   | 类型     | 必选  | 描述        |
 |-------|--------|------|--------------|
-| key   | string | 是   | 筛选条件关键字 |
-| value | list   | 是   | 筛选条件值 |
+| key   | str | 是   | 筛选条件关键字 |
+| value | list   | 是   | 筛选条件值列表 |
 
 #### Condition.key
 | 字段                      | value类型      | 描述     |
@@ -259,6 +260,15 @@
 ```
 
 ### 响应参数
+
+| 字段      | 类型          | 描述     |
+| ------- | ----------- |--------|
+| result  | bool        | 请求是否成功 |
+| code    | int         | 返回的状态码 |
+| message | string      | 描述信息   |
+| data    | list[int] | 策略信息    |
+
+#### data
 
 | 字段                      | 类型      | 描述     |
 |:------------------------|---------|--------|

@@ -1,0 +1,154 @@
+.result-preview-main {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .header-main {
+    display: flex;
+    align-items: center;
+
+    // justify-content: space-between;
+    padding: 9px 12px 0;
+    margin-bottom: 12px;
+    font-size: 12px;
+
+    .title {
+      font-weight: 700;
+      color: #313238;
+    }
+
+    .separator {
+      width: 1px;
+      height: 12px;
+      margin: 0 8px;
+      background: #dcdee5;
+    }
+
+    .only-show-changed {
+      .bk-checkbox-text {
+        font-size: 12px;
+      }
+    }
+
+    .clear-btn {
+      padding: 0;
+      margin-left: auto;
+    }
+  }
+
+  .list-main {
+    flex: 1;
+    padding: 0 6px;
+    overflow-y: auto;
+
+    .collapse-main {
+      font-family: MicrosoftYaHei;
+
+      .bk-collapse-item-header {
+        height: 20px;
+        padding: 0;
+        margin-bottom: 8px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #313238 !important;
+        user-select: none;
+
+        &:nth-child(1) {
+          display: flex;
+          flex-wrap: wrap;
+          height: auto;
+        }
+
+        .fr {
+          float: left !important;
+        }
+
+        .auto-changed-count {
+          display: inline-block;
+          margin-left: 21px !important;
+        }
+      }
+
+      .bk-collapse-item-content {
+        padding: 0 6px;
+      }
+
+      .content-list-item {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 32px;
+        padding: 0 8px;
+        margin-bottom: 2px;
+        line-height: 32px;
+        color: #4d4f56;
+        cursor: pointer;
+        background: #fff;
+        border-radius: 2px;
+        box-shadow: 0 1px 2px 0 #0000001f;
+
+        &:hover {
+          background: #e1ecff;
+
+          .close-icon {
+            display: block;
+          }
+
+          .recover-btn {
+            display: block;
+          }
+        }
+
+        .icon-main {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 16px;
+          margin-right: 4px;
+          font-size: 10px;
+          border-radius: 2px;
+        }
+
+        .added-icon {
+          color: #299e56;
+          background: #daf6e5;
+        }
+
+        .deleted-icon {
+          color: #e71818;
+          background: #ffebeb;
+        }
+
+        .changed-icon {
+          color: #e38b02;
+          background: #fdeed8;
+        }
+
+        .name-display {
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+
+          &.is-deleted {
+            color: #c4c6cc;
+            text-decoration: line-through;
+            text-decoration-color: #c4c6cc;
+          }
+        }
+
+        .close-icon {
+          display: none;
+          font-size: 12px;
+          color: #3a84ff;
+        }
+
+        .recover-btn {
+          display: none;
+          padding: 0;
+        }
+      }
+    }
+  }
+}

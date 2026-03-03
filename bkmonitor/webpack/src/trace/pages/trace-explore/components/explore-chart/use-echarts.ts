@@ -79,7 +79,8 @@ export const useEcharts = (
   $api: Record<string, () => Promise<any>>,
   params: MaybeRef<Record<string, any>>,
   customOptions: CustomOptions,
-  interactionState?: ChartInteractionState
+  interactionState?: ChartInteractionState,
+  downSampleRangeComputed?: (timeRange: number[]) => string | undefined
 ) => {
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
@@ -110,19 +111,22 @@ export const useEcharts = (
     targets.value = [];
     const [startTime, endTime] = handleTransformToTimestamp(get(timeRange) || DEFAULT_TIME_RANGE);
     const promiseList = get(panel)?.targets?.map?.(target => {
+      const resultParams = {
+        start_time: startTime,
+        end_time: endTime,
+        ...target.data,
+        ...(get(params) ?? {}),
+      };
+
+      if (downSampleRangeComputed) {
+        resultParams.down_sample_range = downSampleRangeComputed([resultParams.start_time, resultParams.end_time]);
+      }
+
       return $api[target.apiModule]
-        [target.apiFunc](
-          {
-            start_time: startTime,
-            end_time: endTime,
-            ...target.data,
-            ...(get(params) ?? {}),
-          },
-          {
-            cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
-            needMessage: false,
-          }
-        )
+        [target.apiFunc](resultParams, {
+          cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
+          needMessage: false,
+        })
         .then(res => {
           const { series, metrics, query_config } = customOptions.formatterData?.(res, target) ?? res;
           for (const metric of metrics) {
