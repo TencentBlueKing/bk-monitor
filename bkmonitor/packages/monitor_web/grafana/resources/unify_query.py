@@ -48,7 +48,6 @@ from bkmonitor.utils.time_tools import (
     parse_time_compare_abbreviation,
     time_interval_align,
 )
-from constants.apm import ApmAlertHelper, ApmMetricProcessor
 from constants.data_source import (
     GRAPH_MAX_SLIMIT,
     DataSourceLabel,
@@ -1511,6 +1510,7 @@ class GetDrillDimensionsResource(Resource):
 
         metric_cache = {(m.result_table_id, m.metric_field): m for m in metrics}
         dimension_sets: list[set[str]] = []
+        dimension_map: dict[str, str] = {}
         for config in query_configs:
             metric = metric_cache.get((config["result_table_id"], config["metric_field"]))
             if not metric:
@@ -1523,7 +1523,6 @@ class GetDrillDimensionsResource(Resource):
                 continue
 
             dim_set: set[str] = set()
-            dimension_map: dict[str, str] = {}
             for dimension in metric.dimensions:
                 dim_set.add(dimension["id"])
                 dimension_map[dimension["id"]] = dimension["name"]
@@ -1544,17 +1543,9 @@ class GetDrillDimensionsResource(Resource):
             dimension_sets[0] if len(query_configs) == 1 else set.intersection(*dimension_sets)
         )
 
-        # APM 场景使用 ApmAlertHelper 翻译维度名，非 APM 场景使用指标缓存中的维度名
-        is_apm: bool = any(
-            ApmMetricProcessor.is_match_data_label({"data_label": metric.data_label})
-            or ApmMetricProcessor.is_match_table_id({"table_id": metric.result_table_id})
-            for metric in metric_cache.values()
-        )
-        get_text = ApmAlertHelper.get_tag_label if is_apm else lambda dimension: dimension_map.get(dimension, dimension)
-
         # 统一返回格式 {"value": "{字段名}", "text": "{中文名}"}，有别名的维度排在前面
         translated_dimensions: list[dict[str, str]] = [
-            {"value": dimension, "text": get_text(dimension)} for dimension in dimensions
+            {"value": dimension, "text": dimension_map.get(dimension, dimension)} for dimension in dimensions
         ]
         return sorted(translated_dimensions, key=lambda d: d["text"] == d["value"])
 
