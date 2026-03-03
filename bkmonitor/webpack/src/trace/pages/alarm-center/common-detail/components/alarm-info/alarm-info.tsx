@@ -318,7 +318,7 @@ export default defineComponent({
         <div class='dimension-info'>
           {this.loading ? <div class='skeleton-element' /> : this.renderDimensionsInfo()}
         </div>
-        <div class='block-title mt-18'>基础信息</div>
+        <div class='block-title mt-24'>基础信息</div>
         <div class='basic-info'>
           {this.basicInfoForm.map((item, index) => (
             <div
