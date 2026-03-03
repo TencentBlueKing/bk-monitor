@@ -40,8 +40,7 @@
     display: flex;
     align-items: center;
     height: 21px;
-    padding-left: 24px;
-    margin: 15px 0;
+    margin-bottom: 16px;
     color: #313238;
 
     @include source-item;
@@ -50,8 +49,7 @@
   .relation-event-table {
     @include source-item;
 
-
-    $statusColors: #F5C78E, #70A0FF, #A3B1CC;
+    $statusColors: #f5c78e, #70a0ff, #a3b1cc;
 
     @for $i from 1 through length($statusColors) {
       .row-event-status-#{$i} {
