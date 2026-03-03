@@ -1613,7 +1613,6 @@ class IndexSetHandler(APIModel):
             index_set_id__in=parent_index_set_ids,
             result_table_id=self.index_set_id,
         ).delete()
-        # 同步路由，事务提交后执行
         parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
         BaseIndexSetHandler.sync_router(list(parent_index_sets))
 
@@ -1845,7 +1844,10 @@ class BaseIndexSetHandler:
             ),
             creator=index_set.created_by,
         )
-        self.sync_router(index_set)
+        # 同步路由,包括归属索引集
+        parent_index_set_ids = index_set.get_parent_index_set_ids()
+        parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids)
+        self.sync_router(list(parent_index_sets) + [index_set])
         return True
 
     @classmethod
