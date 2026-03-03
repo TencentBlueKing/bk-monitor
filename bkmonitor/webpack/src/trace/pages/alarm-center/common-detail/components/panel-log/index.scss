@@ -1,6 +1,12 @@
 .alarm-center-detail-panel-alarm-log {
+  margin-top: 14px;
+  background-color: #fff;
+  border: 1px solid #e4e9f2;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px 0 #1919290a;
+  padding: 16px;
   .panel-log-header {
-    padding: 8px 12px;
+    margin-bottom: 12px;
     display: flex;
     align-items: center;
     .icon-fenxiang {
@@ -12,7 +18,7 @@
     }
   }
   .panel-log-filter {
-    margin: 0 12px 8px 12px;
+    margin-bottom: 12px;
     .vue3_retrieval-filter__component {
       border: 1px solid #dcdee5;
       border-radius: 2px;
