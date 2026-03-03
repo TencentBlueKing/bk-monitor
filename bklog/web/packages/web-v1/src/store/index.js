@@ -400,6 +400,12 @@ const store = new Vuex.Store({
           }
         }
       });
+
+      state.indexId = undefined;
+
+      if (state.indexItem.ids.length === 1) {
+        state.indexId = state.indexItem.ids[0];
+      }
     },
 
     updateIndexSetOperatorConfig(state, payload) {
