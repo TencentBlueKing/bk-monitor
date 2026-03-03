@@ -70,7 +70,6 @@ export default class TimeRange extends tsc<IProps, IEvents> {
     return timezone;
   }
   render() {
-    console.info('timezone', this.timezone);
     return (
       <div style='display: inline-flex'>
         <DatePicker
