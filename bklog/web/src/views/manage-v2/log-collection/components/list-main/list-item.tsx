@@ -297,7 +297,7 @@ export default defineComponent({
       <div class='popover-del-index-set'>
         <div class='title'>{t('确认删除该索引集？')}</div>
         <div class='del-content'>
-          {t('索引集名称')}：<span class='del-index-name'>{item.label}</span>
+          {t('索引集名称')}：<span class='del-index-name'>{item.index_set_name}</span>
         </div>
         <div class='del-tips'>{t('删除索引集，不影响已有的采集项。')}</div>
         <div class='btns-box del-btns'>
@@ -318,6 +318,8 @@ export default defineComponent({
         </div>
       </div>
     );
+
+    console.log('render', props.data);
 
     return () => (
       <div
