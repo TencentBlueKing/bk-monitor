@@ -102,7 +102,7 @@ export default defineComponent({
       selectLoading.value = true;
       const data = await alertLogRelationList({
         alert_id: props.detail.id,
-      });
+      }).catch(() => []);
       indexSetList.value = data;
       handleChangeIndexSet(data?.[0]?.index_set_id || '');
       selectLoading.value = false;
@@ -474,7 +474,7 @@ export default defineComponent({
             onClick={this.handleGoLog}
           >
             <span>{this.t('更多日志')}</span>
-            <span class='icon-monitor icon-fenxiang ml-5' />
+            <span class='icon-monitor icon-fenxiang ml-6' />
           </Button>
         </div>
         <div class='panel-log-filter'>
