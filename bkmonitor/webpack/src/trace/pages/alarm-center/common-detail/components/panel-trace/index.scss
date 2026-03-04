@@ -39,13 +39,17 @@
       //   max-height: 370px;
       // }
 
-      /* stylelint-disable-next-line selector-class-pattern */
-      .t-table .t-table__header {
-        th {
-          background-color: #f5f6fa;
+      .t-table {
+        min-height: unset;
 
-          .explore-header-col {
-            color: #313238;
+      /* stylelint-disable-next-line selector-class-pattern */
+        .t-table__header {
+          th {
+            background-color: #f5f6fa;
+
+            .explore-header-col {
+              color: #313238;
+            }
           }
         }
       }
