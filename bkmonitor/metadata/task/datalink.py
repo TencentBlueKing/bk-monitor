@@ -239,3 +239,81 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
             ds.bk_data_id,
         )
         ds.delete_consul_config()
+
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def apply_apm_datalink(bk_tenant_id: str, table_id: str):
+    """创建/更新APM Tracing V4数据链路
+
+    当 TRACING_ENABLE_BKDATA 开关启用时, 新建APM应用的Trace数据源将通过BKBase数据链路处理。
+    与日志链路不同, APM的Clean EtlConfig规则从DataSource的field_list动态构建, 不依赖ResultTableOption存储。
+
+    Args:
+        bk_tenant_id: 租户ID
+        table_id: 结果表ID
+    """
+
+    # 获取结果表和数据源信息
+    rt = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+    dsrt = DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).last()
+    if not dsrt:
+        raise ValueError(f"apply_apm_datalink: tenant({bk_tenant_id}) {table_id} related datasource not found")
+    ds: DataSource = DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=dsrt.bk_data_id)
+    data_source_created_from = ds.created_from
+
+    # 判断使用V4链路还是transfer链路
+    enabled_v4_datalink_option = ResultTableOption.objects.filter(
+        bk_tenant_id=bk_tenant_id, table_id=table_id, name=ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK
+    ).first()
+    enabled_v4_datalink = enabled_v4_datalink_option and enabled_v4_datalink_option.get_value()
+    if not enabled_v4_datalink:
+        if ds.created_from != DataIdCreatedFromSystem.BKGSE.value:
+            # 禁止从V4链路切换回transfer
+            raise ValueError(f"apply_apm_datalink: tenant({bk_tenant_id}) {table_id} cannot switch back to transfer")
+        return
+
+    # 如果datasource是gse创建的, 需要在bkbase上注册
+    if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
+        ds.register_to_bkbase(bk_biz_id=rt.bk_biz_id, namespace="bklog")
+
+    # 获取或创建数据链路
+    bkbase_rt = BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, monitor_table_id=table_id).first()
+    if not bkbase_rt:
+        if rt.bk_biz_id < 0:
+            bk_biz_id_str = f"space_{-rt.bk_biz_id}"
+        else:
+            bk_biz_id_str = str(rt.bk_biz_id)
+        # 生成链路名称, 格式为bkapm_{bk_biz_id}_{16位随机字符串}
+        random_str = "".join(random.choices(string.ascii_lowercase + string.digits, k=16))
+        data_link_name = f"bkapm_{bk_biz_id_str}_{random_str}"
+
+        # 如果链路名称已存在, 则生成新的链路名称
+        while DataLink.objects.filter(data_link_name=data_link_name).exists():
+            random_str = "".join(random.choices(string.ascii_lowercase + string.digits, k=16))
+            data_link_name = f"bkapm_{bk_biz_id_str}_{random_str}"
+
+        # 创建链路
+        datalink = DataLink.objects.create(
+            bk_tenant_id=bk_tenant_id,
+            data_link_name=data_link_name,
+            namespace="bklog",
+            data_link_strategy=DataLink.BK_APM,
+            bk_data_id=ds.bk_data_id,
+            table_ids=[table_id],
+        )
+    else:
+        # 获取链路
+        datalink = DataLink.objects.get(
+            bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name, namespace="bklog"
+        )
+        update_fields: list[str] = []
+        if datalink.bk_data_id != ds.bk_data_id:
+            datalink.bk_data_id = ds.bk_data_id
+            update_fields.append("bk_data_id")
+        if datalink.table_ids != [table_id]:
+            datalink.table_ids = [table_id]
+            update_fields.append("table_ids")
+        if update_fields:
+            datalink.save(update_fields=update_fields)
+    datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)

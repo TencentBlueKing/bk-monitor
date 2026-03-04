@@ -560,6 +560,43 @@ class TraceDataSource(ApmDataSourceConfigBase):
     def to_json(self):
         return {**super().to_json(), "index_set_id": self.index_set_id}
 
+    @classmethod
+    @atomic(using=DATABASE_CONNECTION_NAME)
+    def apply_datasource(cls, bk_biz_id, app_name, **options):
+        obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not obj:
+            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
+        # 创建data_id
+        obj.create_data_id()
+        # 创建结果表
+        obj.create_or_update_result_table(**options)
+
+        option = options["option"]
+        if not option:
+            # 关闭
+            obj.stop(bk_biz_id, app_name)
+            return
+
+        # 当启用BKBase数据链路时, 设置V4链路选项并异步创建APM数据链路
+        if settings.TRACING_ENABLE_BKDATA:
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+            table_id = obj.result_table_id
+            # 设置enable_log_v4_data_link标记, 标识该结果表使用V4数据链路
+            metadata_models.ResultTableOption.objects.update_or_create(
+                table_id=table_id,
+                name=metadata_models.ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
+                bk_tenant_id=bk_tenant_id,
+                defaults={
+                    "value": "true",
+                    "value_type": metadata_models.ResultTableOption.TYPE_BOOL,
+                    "creator": "system",
+                },
+            )
+            # 异步创建/更新APM V4数据链路
+            from metadata.task.datalink import apply_apm_datalink
+
+            apply_apm_datalink.delay(bk_tenant_id, table_id)
+
     @property
     def table_id(self) -> str:
         return self.get_table_id(int(self.bk_biz_id), self.app_name)
