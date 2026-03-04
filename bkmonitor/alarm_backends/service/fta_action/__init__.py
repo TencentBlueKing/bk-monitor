@@ -141,7 +141,18 @@ class BaseActionProcessor:
         :return:
         """
         if self.action.signal == ActionSignal.DEMO:
-            # 如果是调试任务,则设置样例参数
+            # 如果是调试任务，优先检查是否关联了真实告警
+            if self.action.alerts:
+                # 关联了真实告警，使用 ActionContext 构建真实上下文
+                try:
+                    alerts = AlertDocument.mget(ids=self.action.alerts)
+                    if alerts:
+                        self.action_context = ActionContext(self.action, alerts=alerts)
+                        return self.action_context.get_dictionary()
+                except Exception:
+                    logger.exception("demo action(%s) 基于真实告警构建上下文失败，回退到静态样例", self.action.id)
+
+            # 未关联告警或获取失败，走原有静态样例
             demo_context = copy.deepcopy(DEMO_CONTEXT)
 
             event = EventDocument(**{"bk_biz_id": 2, "ip": "127.0.0.1", "bk_cloud_id": 0})

@@ -14,6 +14,7 @@ import logging
 import re
 import time
 from datetime import datetime
+from collections import defaultdict
 
 from django.utils.translation import gettext as _
 
@@ -29,7 +30,7 @@ from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models.fta import ActionConfig, ActionInstance, ActionPlugin
 from bkmonitor.utils.common_utils import count_md5
-from bkmonitor.utils.template import CustomTemplateRenderer, Jinja2Renderer
+from bkmonitor.utils.template import CustomTemplateRenderer, Jinja2Renderer, jinja_render
 from bkmonitor.utils.user import get_user_display_name
 from bkmonitor.views import serializers
 from constants.action import ActionSignal
@@ -211,3 +212,130 @@ class GetActionParamsByConfigResource(Resource):
                 key: value for key, value in alert_context.items() if isinstance(value, str)
             }
         return {"result": True, "action_configs": action_configs}
+
+
+class GetDemoActionContextResource(Resource):
+    """
+    基于真实告警预览套餐变量渲染
+
+    接收 alert_ids + 变量字典，构建告警上下文并在原始对象上完成 Jinja2 渲染后返回。
+    不传 variables 则仅返回序列化后的上下文字典。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        alert_ids = serializers.ListField(child=serializers.CharField(), required=True, label="告警ID列表")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        variables = serializers.DictField(required=False, default={}, label="待渲染的变量字典")
+
+    @classmethod
+    def build_fake_action(cls, alerts, alert_ids, bk_biz_id):
+        """构造伪 ActionInstance 用于上下文构建，不入库。参考 do_create_action 的构建逻辑。"""
+        from alarm_backends.core.control.strategy import Strategy
+        from constants.alert import EventSeverity
+
+        alert = alerts[0]
+        strategy_id = alert.strategy_id or 0
+        strategy = Strategy(strategy_id).config if strategy_id else {}
+        if not strategy:
+            strategy = alert.strategy or {}
+
+        try:
+            alert_level = alert.severity or EventSeverity.REMIND
+        except (ValueError, TypeError):
+            alert_level = EventSeverity.REMIND
+
+        # 业务ID：优先从告警事件获取，参考 do_create_action
+        try:
+            action_bk_biz_id = alert.event.bk_biz_id or bk_biz_id
+        except Exception:
+            action_bk_biz_id = bk_biz_id
+
+        assignee = cls.get_alert_assignee(alert, strategy)
+
+        alert_create_time = alert.create_time
+        alert_end_time = alert.latest_time or datetime.now()
+
+        inputs = {"alert_latest_time": alert.latest_time, "is_alert_shielded": False, "shield_ids": []}
+
+        default_dict = defaultdict(str)
+
+        return ActionInstance(
+            id=0,
+            signal=ActionSignal.DEMO,
+            strategy_id=strategy_id,
+            strategy=strategy,
+            strategy_relation_id=0,
+            dimensions=[],
+            dimension_hash="",
+            alerts=alert_ids,
+            alert_level=alert_level,
+            status="received",
+            failure_type="",
+            ex_data=default_dict,
+            create_time=alert_create_time,
+            end_time=alert_end_time,
+            update_time=alert_create_time,
+            action_plugin=default_dict,
+            action_config=default_dict,
+            action_config_id=0,
+            bk_biz_id=action_bk_biz_id,
+            is_parent_action=False,
+            parent_action_id=0,
+            sub_actions=[],
+            assignee=assignee,
+            inputs=inputs,
+            outputs=default_dict,
+            real_status="",
+            is_polled=False,
+            need_poll=False,
+            execute_times=0,
+            generate_uuid="",
+        )
+
+    @staticmethod
+    def get_alert_assignee(alert, strategy):
+        """基于策略 notice 配置，通过 AlertAssigneeManager 获取告警负责人。参考 do_create_action 中的分派逻辑。"""
+        from alarm_backends.service.fta_action.tasks.alert_assign import AlertAssigneeManager
+
+        notice = strategy.get("notice", {})
+        assignee = []
+        if notice:
+            try:
+                assign_mode = notice.get("options", {}).get("assign_mode")
+                upgrade_config = notice.get("options", {}).get("upgrade_config", {})
+                assignee_manager = AlertAssigneeManager(
+                    alert,
+                    notice_user_groups=notice.get("user_groups"),
+                    assign_mode=assign_mode,
+                    upgrade_config=upgrade_config,
+                )
+                assignee = assignee_manager.get_appointees() or assignee_manager.get_origin_notice_receivers()
+            except Exception:
+                logger.exception("通过 AlertAssigneeManager 获取 assignee 失败, alert(%s)", alert.id)
+
+        if not assignee:
+            # 兜底：从告警文档已有字段获取
+            alert_dict = alert.to_dict()
+            assignee = alert_dict.get("appointee") or alert_dict.get("assignee") or []
+
+        return assignee
+
+    def perform_request(self, validated_request_data):
+        alert_ids = validated_request_data["alert_ids"]
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        variables = validated_request_data.get("variables", {})
+
+        alerts = AlertDocument.mget(ids=alert_ids)
+        if not alerts:
+            raise ValueError(_("告警不存在或已过期: {}").format(alert_ids))
+
+        fake_action = self.build_fake_action(alerts, alert_ids, bk_biz_id)
+
+        try:
+            context = ActionContext(action=fake_action, alerts=alerts, use_alert_snap=True).get_dictionary()
+            rendered_variables = {key: jinja_render(value, context) for key, value in variables.items()}
+        except Exception as e:
+            logger.exception("基于真实告警构建上下文失败: %s", e)
+            raise ValueError(_("基于真实告警构建上下文失败: {}").format(e))
+
+        return {"variables": rendered_variables}
