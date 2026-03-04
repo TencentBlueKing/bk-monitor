@@ -35,7 +35,7 @@ def forwards_func(apps, schema_editor):
         for index_data in log_index_data_list:
             # 通过 result_table_id 找到对应的采集项索引集 ID
             mapped_index_set_id = rt_id_to_index_set_id.get(index_data.result_table_id)
-            if mapped_index_set_id:
+            if not mapped_index_set_id:
                 print(
                     f"WARNING: Cannot find original collector index set for result_table_id={index_data.result_table_id}, collector may have been deleted, skip"
                 )
