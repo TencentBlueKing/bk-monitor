@@ -44,6 +44,11 @@ class BkLogRegexpEtlStorage(EtlStorage):
         if not etl_params.get("separator_regexp"):
             raise ValidationError(_("正则表达式不能为空"))
 
+        # 兼容grok表达式
+        etl_params["separator_regexp"] = GrokHandler(etl_params["bk_biz_id"]).grok_to_regex(
+            etl_params["separator_regexp"]
+        )
+
         # 先从python获取
         regexp_match = re.compile(etl_params["separator_regexp"], re.S).match(data)
         if not regexp_match:
@@ -118,6 +123,10 @@ class BkLogRegexpEtlStorage(EtlStorage):
         """
         配置清洗入库策略，需兼容新增、编辑
         """
+        # 兼容grok表达式
+        etl_params["separator_regexp"] = GrokHandler(etl_params["bk_biz_id"]).grok_to_regex(
+            etl_params["separator_regexp"]
+        )
         # 判断字段是否都在正则表达式中定义
         for field in fields:
             if field.get("is_config_by_user") and f"<{field['field_name']}>" not in etl_params["separator_regexp"]:

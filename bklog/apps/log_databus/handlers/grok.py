@@ -244,6 +244,16 @@ class GrokHandler:
         result = grok.match(params["sample"])
         return result
 
+    def grok_to_regex(self, pattern: str) -> str:
+        """
+        将 Grok 表达式转换为正则表达式
+        利用 pygrok 库的 Grok 类，在初始化时自动将 grok 模式展开为正则表达式
+        """
+        self.validate_references_exist(pattern)
+        custom_patterns_map = self.get_custom_patterns_map()
+        grok = Grok(pattern, custom_patterns=custom_patterns_map)
+        return grok.regex_obj.pattern
+
     def replace_custom_patterns(self, pattern: str) -> str:
         """
         将自定义模式替换为正则表达式，内置模式保持原样
