@@ -87,7 +87,7 @@ export const useEcharts = (
   const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
   const refreshImmediate = inject('refreshImmediate');
 
-  const cancelTokens = [];
+  let cancelTokens = [];
   const loading = shallowRef(false);
   /** 接口请求耗时 */
   const duration = shallowRef(0);
@@ -105,6 +105,10 @@ export const useEcharts = (
   const series = shallowRef([]);
 
   const getEchartOptions = async () => {
+    for (const cb of cancelTokens) {
+      cb?.();
+    }
+    cancelTokens = [];
     const startDate = Date.now();
     loading.value = true;
     metricList.value = [];
@@ -123,10 +127,10 @@ export const useEcharts = (
       }
 
       return $api[target.apiModule]
-        [target.apiFunc](resultParams, {
-          cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
-          needMessage: false,
-        })
+      [target.apiFunc](resultParams, {
+        cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
+        needMessage: false,
+      })
         .then(res => {
           const { series, metrics, query_config } = customOptions.formatterData?.(res, target) ?? res;
           for (const metric of metrics) {
@@ -141,12 +145,12 @@ export const useEcharts = (
           targets.value.push(targetCopy);
           return series?.length
             ? series.map(item => ({
-                ...item,
-                alias: target.alias || item.alias,
-                type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
-                stack: target.data?.stack || item.stack,
-                unit: item.unit || (get(panel)?.options as { unit?: string })?.unit,
-              }))
+              ...item,
+              alias: target.alias || item.alias,
+              type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
+              stack: target.data?.stack || item.stack,
+              unit: item.unit || (get(panel)?.options as { unit?: string })?.unit,
+            }))
             : [];
         })
         .catch(() => []);

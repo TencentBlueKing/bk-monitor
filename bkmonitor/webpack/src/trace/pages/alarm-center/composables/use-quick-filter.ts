@@ -35,20 +35,44 @@ export function useQuickFilter() {
   const alarmStore = useAlarmCenterStore();
   /** 快捷筛选列表 */
   const quickFilterList = shallowRef<QuickFilterItem[]>([]);
+  /**
+   * 是否是第一次初始化
+   * 不同阶段的初始化所展示的loading效果不一致
+   */
+  const isFirstInit = shallowRef(true);
+
+  /** 最后一次操作的分类 */
+  const lastOperationCategory = shallowRef('');
+
   const quickFilterLoading = shallowRef(false);
   const quickFilterEmptyStatusType = shallowRef<EmptyStatusType>('empty');
-  const effectFunc = () => {
+
+  // 请求中止控制器
+  let abortController: AbortController | null = null;
+  const effectFunc = async () => {
+    // 中止上一次未完成的请求
+    if (abortController) {
+      abortController.abort();
+    }
+    // 创建新的中止控制器
+    abortController = new AbortController();
+    const { signal } = abortController;
+
     quickFilterLoading.value = true;
     quickFilterEmptyStatusType.value = 'empty';
-    alarmStore.alarmService
-      .getQuickFilterList(alarmStore.commonFilterParams)
-      .then(quickFilter => {
-        quickFilterList.value = quickFilter;
-      })
-      .finally(() => {
-        quickFilterLoading.value = false;
-        quickFilterEmptyStatusType.value = '500';
-      });
+    const quickFilter = await alarmStore.alarmService.getQuickFilterList(alarmStore.commonFilterParams, { signal });
+
+    // 检查请求是否已被中止，确保不会更新过期数据
+    if (signal.aborted) return;
+    const currentCategory = quickFilterList.value.find(item => item.id === lastOperationCategory.value);
+    /** 最后一次操作的分类不同步最新数量 */
+    const index = quickFilter.findIndex(item => item.id === lastOperationCategory.value);
+    if (index !== -1) {
+      quickFilter[index] = currentCategory;
+    }
+    quickFilterList.value = quickFilter;
+    isFirstInit.value = false;
+    quickFilterLoading.value = false;
   };
   watchEffect(effectFunc, { flush: 'post' });
 
@@ -72,6 +96,8 @@ export function useQuickFilter() {
     quickFilterLoading.value = false;
   });
   return {
+    isFirstInit,
+    lastOperationCategory,
     quickFilterEmptyStatusType,
     quickFilterList,
     quickFilterLoading,

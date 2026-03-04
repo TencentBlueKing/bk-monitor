@@ -103,6 +103,8 @@ export default defineComponent({
     } = useUserConfig();
 
     const {
+      isFirstInit,
+      lastOperationCategory,
       quickFilterList,
       quickFilterLoading,
       quickFilterEmptyStatusType,
@@ -240,8 +242,9 @@ export default defineComponent({
       isCollapsed.value = v;
     };
     /** 快捷筛选 */
-    const handleFilterValueChange = (filterValue: CommonCondition[]) => {
+    const handleFilterValueChange = (filterValue: CommonCondition[], category: string) => {
       handleCurrentPageChange(1);
+      lastOperationCategory.value = category;
       updateQuickFilterValue(filterValue);
     };
     /** 告警分析添加条件 */
@@ -638,6 +641,7 @@ export default defineComponent({
     });
 
     return {
+      isFirstInit,
       quickFilterList,
       quickFilterLoading,
       quickFilterEmptyStatusType,
@@ -769,7 +773,7 @@ export default defineComponent({
                       <QuickFiltering
                         filterList={this.quickFilterList}
                         filterValue={this.alarmStore.quickFilterValue}
-                        isFilterEmptyItem={false}
+                        isFirstInit={this.isFirstInit}
                         loading={this.quickFilterLoading}
                         onClose={this.updateIsCollapsed}
                         onUpdate:filterValue={this.handleFilterValueChange}
