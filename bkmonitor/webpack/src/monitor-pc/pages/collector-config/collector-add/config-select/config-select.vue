@@ -186,7 +186,7 @@ import { deepClone } from 'monitor-common/utils';
 import MonitorIpSelector from '../../../../components/monitor-ip-selector/monitor-ip-selector';
 import { transformMonitorToValue, transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import SelectHost from '../../../plugin-manager/plugin-instance/set-steps/components/select-host';
-
+import { getCustomDmsInsertParams } from '../../utils';
 export default {
   name: 'ConfigSelect',
   components: {
@@ -525,7 +525,7 @@ export default {
           this.$set(param.snmp_trap, 'version', setData.plugin.snmpv.split('_')[1]);
         }
       }
-      pluginData.configJson.forEach(item => {
+      for (const item of pluginData.configJson) {
         if (setData.collectType === 'SNMP_Trap') {
           // SNMP_Trap 用 item.key 作为键名
           if (setData.plugin.snmpv === 'snmp_v3') {
@@ -556,6 +556,14 @@ export default {
               if (this.passwordInputChangeSet.has(item.name)) {
                 plugin[item.name] = item.default;
               }
+            } else if (item.mode === 'dms_insert') {
+              const { error, message, params } = getCustomDmsInsertParams(item);
+              if (error) {
+                this.$bkMessage({ theme: 'error', message });
+                throw new Error(message);
+              }
+              console.log('params', params);
+              plugin[item.name] = params;
             } else {
               plugin[item.name] = item.default;
             }
@@ -567,7 +575,7 @@ export default {
             }
           }
         }
-      });
+      }
       if (setData.collectType === 'Log') {
         param.log = setData.log;
       } else if (setData.collectType === 'Process') {
@@ -901,7 +909,7 @@ export default {
         background: #fafbfd;
         border: 1px solid #dcdee5;
         border-left: 0;
-        border-radius: 0px 1px 1px 0px;
+        border-radius: 0 1px 1px 0;
 
         .pro-checkbox {
           margin-left: 26px;
