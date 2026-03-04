@@ -1245,7 +1245,7 @@ class TimeSeriesScope(models.Model):
                 if prefix != scope.scope_name_prefix:
                     continue
 
-                if scope.is_match_auto_rules(scope, field_name):
+                if scope.is_match_auto_rules(field_name):
                     return scope.scope_name, False
             # 未匹配则使用默认分组 scope
             return default_name, True

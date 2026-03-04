@@ -29,14 +29,17 @@ import { onScopeDispose, shallowRef, watchEffect } from 'vue';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import type { CommonCondition, QuickFilterItem } from '../typings';
+import type { EmptyStatusOperationType, EmptyStatusType } from '@/components/empty-status/empty-status';
 
 export function useQuickFilter() {
   const alarmStore = useAlarmCenterStore();
   /** 快捷筛选列表 */
   const quickFilterList = shallowRef<QuickFilterItem[]>([]);
   const quickFilterLoading = shallowRef(false);
+  const quickFilterEmptyStatusType = shallowRef<EmptyStatusType>('empty');
   const effectFunc = () => {
     quickFilterLoading.value = true;
+    quickFilterEmptyStatusType.value = 'empty';
     alarmStore.alarmService
       .getQuickFilterList(alarmStore.commonFilterParams)
       .then(quickFilter => {
@@ -44,20 +47,36 @@ export function useQuickFilter() {
       })
       .finally(() => {
         quickFilterLoading.value = false;
+        quickFilterEmptyStatusType.value = '500';
       });
   };
   watchEffect(effectFunc, { flush: 'post' });
+
   const updateQuickFilterValue = (value: CommonCondition[]) => {
     alarmStore.quickFilterValue = value;
   };
+
+  const handleQuickFilteringOperation = (operator: EmptyStatusOperationType) => {
+    if (operator === 'refresh') {
+      effectFunc();
+      return;
+    }
+
+    if (operator === 'clear-filter') {
+      updateQuickFilterValue([]);
+    }
+  };
+
   onScopeDispose(() => {
     quickFilterList.value = [];
     quickFilterLoading.value = false;
   });
   return {
+    quickFilterEmptyStatusType,
     quickFilterList,
     quickFilterLoading,
     quickFilterValue: alarmStore.quickFilterValue,
     updateQuickFilterValue,
+    handleQuickFilteringOperation,
   };
 }

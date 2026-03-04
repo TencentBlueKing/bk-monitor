@@ -28,7 +28,6 @@ import { type PropType, defineComponent, onMounted, provide, shallowReactive, sh
 import { Sideslider } from 'bkui-vue';
 import * as authMap from 'monitor-pc/pages/event-center/authority-map';
 import { storeToRefs } from 'pinia';
-import { useRouter } from 'vue-router';
 
 import DetailCommon from '../common-detail/common-detail';
 import { AlarmType } from '../typings';
@@ -70,7 +69,6 @@ export default defineComponent({
   },
   emits: ['update:show', 'previous', 'next'],
   setup(props, { emit }) {
-    const router = useRouter();
     const isFullscreen = shallowRef(false);
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     const { alarmId, actionId, alarmType, defaultTab } = storeToRefs(alarmCenterDetailStore);
@@ -137,12 +135,9 @@ export default defineComponent({
     };
 
     const handleBlank = () => {
-      router.push({
-        name: 'alarm-center-detail',
-        params: {
-          alarmId: props.alarmId,
-        },
-      });
+      const hash = `#/trace/alarm-center/detail/${props.alarmId}`;
+      const url = location.href.replace(location.hash, hash);
+      window.open(url, '_blank');
     };
 
     // 处理全屏切换事件

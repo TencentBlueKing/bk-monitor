@@ -146,7 +146,7 @@ export default class extends EventEmitter<RetrieveEvent> {
     if (['date', 'date_nanos', 'date_time', 'time'].includes(fieldType)) {
       let format = 'YYYY-MM-DD HH:mm:ss';
       if (fieldType === 'date_nanos') {
-        const milliseconds = `${data}`.toString().split('.')[1]?.length ?? 0;
+        const milliseconds = `${data}`.toString().split('.')[1]?.replace(/[^0-9]/g, '')?.length ?? 0;
         if (milliseconds > 0) {
           format = `YYYY-MM-DD HH:mm:ss.${'S'.repeat(milliseconds)}`;
         } else {

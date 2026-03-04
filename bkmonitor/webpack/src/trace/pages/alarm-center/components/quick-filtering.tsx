@@ -225,13 +225,14 @@ export default defineComponent({
           </div>
         ) : (
           <div class='filter-list'>
-            {!this.showFilterList.length && (
-              <EmptyStatus
-                showOperation={false}
-                textMap={{ 'search-empty': this.t('暂无数据') }}
-                type='search-empty'
-              />
-            )}
+            {!this.showFilterList.length &&
+              (this.$slots.empty?.() || (
+                <EmptyStatus
+                  showOperation={false}
+                  textMap={{ 'search-empty': this.t('暂无数据') }}
+                  type='search-empty'
+                />
+              ))}
             {this.showFilterList.map(item => (
               <div
                 key={item.id}
