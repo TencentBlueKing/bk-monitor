@@ -1486,6 +1486,12 @@ export default class DataRetrieval extends tsc<object> {
         this.favCheckedValue = null;
         this.favoriteSearchType === 'event' ? this.eventRetrievalRef?.handleClearQuery() : this.handleClearAll();
         break;
+
+      case 'new-tab': {
+        const href = `${location.origin}${location.pathname}?bizId=${this.bizId}#${this.$route.path}`;
+        window.open(`${href}?favorite_id=${value.id}`, '_blank');
+        break;
+      }
     }
   }
 
