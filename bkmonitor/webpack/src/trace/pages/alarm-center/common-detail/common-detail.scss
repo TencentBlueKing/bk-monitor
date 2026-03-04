@@ -20,6 +20,12 @@
     .bk-tab-content {
       display: none;
     }
+
+    .bk-tab-header-item {
+      font-size: 13px;
+      font-weight: 500;
+      color: #4e5e7a;
+    }
   }
 
   .alarm-view {
@@ -30,6 +36,12 @@
         z-index: 99;
         background: #f2f6fc;
         opacity: 1;
+
+        .bk-tab-header-item {
+          font-size: 13px;
+          font-weight: 500;
+          color: #4e5e7a;
+        }
       }
 
       .alarm-detail-alarm-view-alarm-records {
