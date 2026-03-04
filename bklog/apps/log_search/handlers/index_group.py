@@ -58,7 +58,7 @@ class IndexGroupHandler(APIModel):
         # 补充索引数量字段
         index_set_ids = [x["index_set_id"] for x in index_groups]
         index_counts = (
-            LogIndexSetData.objects.filter(index_set_id__in=index_set_ids)
+            LogIndexSetData.objects.filter(index_set_id__in=index_set_ids, type=IndexSetDataType.INDEX_SET.value)
             .values("index_set_id")
             .annotate(count=Count("index_id"))
         )
