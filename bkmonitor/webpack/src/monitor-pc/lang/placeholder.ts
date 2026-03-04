@@ -374,4 +374,5 @@ export default {
   '搜索 字段名称': 'Search Field Name',
   '搜索 名称、别名': 'Search Name, Alias',
   '搜索 指标名、别名': 'Search Metric Name, Alias',
+  '搜索 告警关键词': 'Search Alarm Keywords',
 };

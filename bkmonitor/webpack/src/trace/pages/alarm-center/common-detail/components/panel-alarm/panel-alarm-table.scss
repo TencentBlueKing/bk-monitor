@@ -1,4 +1,10 @@
 .panel-alarm-table {
+  th {
+    &.event-id-col {
+      padding-left: 56px;
+    }
+  }
+
   .panel-alarm-table-row {
     td {
       padding: 7px 16px;
@@ -20,6 +26,7 @@
 
   .t-table__expanded-row {
     td {
+      padding: 0;
       .t-table__row-full-element {
         padding: 0;
       }
@@ -141,11 +148,11 @@
     .event-id {
       display: flex;
       align-items: center;
-      padding-left: 17px;
+      padding-left: 14px;
 
       .table-expand-icon {
         display: inline-block;
-        margin-right: 8px;
+        margin-right: 30px;
         font-size: 12px;
         line-height: 12px;
         color: #979ba5;
