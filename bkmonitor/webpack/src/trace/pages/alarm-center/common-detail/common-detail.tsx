@@ -59,7 +59,7 @@ export default defineComponent({
   setup() {
     const boxWrapRef = useTemplateRef<HTMLDivElement>('boxWrap');
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmDetail, bizId, alarmId, timeRange, defaultTab } = storeToRefs(alarmCenterDetailStore);
+    const { alarmDetail, bizId, alarmId, timeRange, defaultTab, tabDisabledMap } = storeToRefs(alarmCenterDetailStore);
     const currentPanel = shallowRef(alarmDetail.value?.alarmTabList?.[0]?.name);
     const { alarmStatusOverview, alarmStatusActions, alarmStatusTotal } = useAlarmBasicInfo();
 
@@ -258,13 +258,28 @@ export default defineComponent({
           type='unborder-card'
           onUpdate:active={v => handleCurrentPanelChange(v)}
         >
-          {alarmDetail.value?.alarmTabList?.map(item => (
-            <Tab.TabPanel
-              key={item.name}
-              label={item.label}
-              name={item.name}
-            />
-          ))}
+          {alarmDetail.value?.alarmTabList?.map(item => {
+            const isDisabled = !!tabDisabledMap.value[item.name];
+            return (
+              <Tab.TabPanel
+                key={item.name}
+                label={() =>
+                  isDisabled ? (
+                    <span
+                      class='tab-label-disabled'
+                      v-bk-tooltips={{ content: window.i18n.t('暂无数据'), placement: 'top' }}
+                    >
+                      {item.label}
+                    </span>
+                  ) : (
+                    <span>{item.label}</span>
+                  )
+                }
+                disabled={isDisabled}
+                name={item.name}
+              />
+            );
+          })}
         </Tab>
         <KeepAlive>{getPanelComponent()}</KeepAlive>
         <AlarmConfirmDialog

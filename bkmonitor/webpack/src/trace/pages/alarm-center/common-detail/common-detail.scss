@@ -26,6 +26,16 @@
       font-weight: 500;
       color: #4e5e7a;
     }
+
+    .bk-tab-header-item.bk-tab-header--disabled {
+      color: #8f9fbd;
+      cursor: not-allowed;
+
+      .tab-label-disabled {
+        color: #8f9fbd;
+        cursor: not-allowed;
+      }
+    }
   }
 
   .alarm-view {
