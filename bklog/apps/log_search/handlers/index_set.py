@@ -1603,7 +1603,8 @@ class IndexSetHandler(APIModel):
         ]
         if to_create:
             LogIndexSetData.objects.bulk_create(to_create)
-            BaseIndexSetHandler.sync_router(list(parent_index_sets))
+            if self.data.is_active:
+                BaseIndexSetHandler.sync_router(list(parent_index_sets))
 
     def remove_from_parent_index_sets(self, parent_index_set_ids: list[int]):
         """
@@ -1613,8 +1614,9 @@ class IndexSetHandler(APIModel):
             index_set_id__in=parent_index_set_ids,
             result_table_id=self.index_set_id,
         ).delete()
-        parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
-        BaseIndexSetHandler.sync_router(list(parent_index_sets))
+        if self.data.is_active:
+            parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
+            BaseIndexSetHandler.sync_router(list(parent_index_sets))
 
     def update_parent_index_sets(self, new_parent_index_set_ids: list):
         """
@@ -1844,10 +1846,7 @@ class BaseIndexSetHandler:
             ),
             creator=index_set.created_by,
         )
-        # 同步路由,包括归属索引集
-        parent_index_set_ids = index_set.get_parent_index_set_ids()
-        parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids)
-        self.sync_router(list(parent_index_sets) + [index_set])
+        self.sync_router(index_set)
         return True
 
     @classmethod
@@ -2007,6 +2006,7 @@ class BaseIndexSetHandler:
         self.index_set_obj.is_trace_log = self.is_trace_log
 
         # 更新 is_active字段
+        need_sync_parent_router = False if self.index_set_obj.is_active else True
         self.index_set_obj.is_active = True
 
         # 时间字段更新
@@ -2088,10 +2088,17 @@ class BaseIndexSetHandler:
                 time_field_type=index.get("time_field_type") or self.time_field_type,
                 time_field_unit=index.get("time_field_unit") or self.time_field_unit,
             )
+
         # 更新归属索引集
         IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).update_parent_index_sets(
             self.parent_index_set_ids
         )
+
+        # 更新归属索引集的路由
+        if need_sync_parent_router:
+            parent_index_set_ids = self.index_set_obj.get_parent_index_set_ids()
+            parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids)
+            self.sync_router(list(parent_index_sets))
 
         # 更新字段快照
         sync_single_index_set_mapping_snapshot.delay(self.index_set_obj.index_set_id)
