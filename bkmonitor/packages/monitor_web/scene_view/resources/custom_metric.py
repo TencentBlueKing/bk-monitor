@@ -316,8 +316,9 @@ class GetCustomTsGraphConfig(Resource):
         non_split_dimensions: list[str] = []  # 非拆图维度
         manual_dimensions: list[str] = []  # 用户自定义输入的维度
         for _dimension_dict in params.get("group_by", []):
-            if not _dimension_dict["split"]:
-                non_split_dimensions.append(_dimension_dict["field"])
+            if _dimension_dict["split"]:
+                continue
+            non_split_dimensions.append(_dimension_dict["field"])
             if _dimension_dict["is_manual"]:
                 manual_dimensions.append(_dimension_dict["field"])
 
