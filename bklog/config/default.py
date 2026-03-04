@@ -730,6 +730,12 @@ MENUS = [
                         "feature": FEATURE_TOGGLE["log_desensitize"],
                         "icon": "moban",
                     },
+                    {
+                        "id": "grok_manage",
+                        "name": "Grok管理",
+                        "feature": "on",
+                        "icon": "grok",
+                    },
                 ],
             },
             {
