@@ -59,7 +59,7 @@ export default defineComponent({
     },
   },
   emits: {},
-  setup(props, { emit }) {
+  setup(props) {
     const { t } = useI18n();
     const classMap = {
       失败: 'failed',
@@ -68,7 +68,7 @@ export default defineComponent({
 
     const columns = computed<TdPrimaryTableProps['columns']>(() => {
       const showColumns = props.tableColumns.filter(item => props.hasColumns.includes(item.prop));
-      const columns = showColumns.map((item, i) => ({
+      const columns = showColumns.map(item => ({
         colKey: item.prop,
         title: item.label,
         align: 'center',
@@ -126,6 +126,7 @@ export default defineComponent({
           bordered={false}
           columns={this.columns}
           data={this.tableData}
+          rowKey='_id'
         />
       </div>
     );

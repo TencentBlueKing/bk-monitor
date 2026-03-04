@@ -88,7 +88,8 @@ export default defineComponent({
         return (
           <span class='alarm-tips'>
             <div class='separator' />
-            <span class='shielded-text'>{t('屏蔽时间剩余')}:</span>
+            <i class='icon-monitor icon-mc-time' />
+            <span class='shielded-text'>{t('屏蔽时间剩余')}：</span>
             <span class='shielded-duration'>{props.data?.shield_left_time}</span>
           </span>
         );
@@ -96,7 +97,8 @@ export default defineComponent({
         return (
           <span class='alarm-tips'>
             <div class='separator' />
-            <span class='duration-text'>{t('持续时间')}:</span>
+            <i class='icon-monitor icon-mc-time' />
+            <span class='duration-text'>{t('持续时间')}：</span>
             <span class='duration-value'>{props.data?.duration}</span>
           </span>
         );
@@ -150,24 +152,25 @@ export default defineComponent({
           <i class={['icon-monitor', this.statusIcon.icon]} />
         </span>
         <div class='alert-content-wrap'>
-          <div class='alert-status-text'>{this.statusIcon.name}</div>
-          <div class='alert-content'>
-            {this.data && (
-              <span
-                class='alarm-content'
-                v-overflow-tips
-              >
-                {this.data?.description}
-              </span>
-            )}
+          <div class='alert-status-text'>
+            <div class='alert-status-title'>{this.statusIcon.name}</div>
             {this.data && this.renderAlertTips()}
           </div>
+          {this.data && (
+            <div
+              class='alarm-content'
+              v-overflow-tips
+            >
+              {this.data?.description}
+            </div>
+          )}
         </div>
 
         <div class='tools'>
           {this.status === 'ABNORMAL' && [
             <Button
               key='shield'
+              class='shield-btn'
               theme='primary'
               text
               onClick={this.handleQuickShield}

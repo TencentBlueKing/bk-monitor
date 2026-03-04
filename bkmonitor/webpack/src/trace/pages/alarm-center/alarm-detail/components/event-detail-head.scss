@@ -30,14 +30,17 @@ $fatal-red: #ea3536;
 
   .level-tag-info {
     background: $blue;
+    box-shadow: 0 2px 4px 0 #3a84ff33;
   }
 
   .level-tag-warning {
     background: $yellow;
+    box-shadow: 0 2px 4px 0 #f5950033;
   }
 
   .level-tag-fatal {
     background: $fatal-red;
+    box-shadow: 0 2px 4px 0 #ea363633;
   }
 
   .event-detail-head-content {
@@ -74,9 +77,9 @@ $fatal-red: #ea3536;
 
   .event-detail-title {
     display: flex;
+    align-items: center;
 
     .basic-title-name {
-      font-family: 'PingFang SC';
       font-size: 13px;
       font-weight: 500;
       line-height: 20px;
@@ -91,17 +94,17 @@ $fatal-red: #ea3536;
       padding: 0 8px;
       margin-left: 8px;
       font-size: 11px;
+      line-height: 18px;
       font-weight: 500;
       color: #4e5e7a;
-      font-family: 'PingFang SC';
       background: #f0f4fa;
       border-radius: 999px;
-      line-height: 20px;
       cursor: pointer;
 
       .icon-float {
+        display: inline-block;
         margin-left: 6px;
-        font-size: 10px;
+        font-size: 9px;
         color: #3a84ff;
         cursor: pointer;
       }
@@ -130,9 +133,11 @@ $fatal-red: #ea3536;
     line-height: 20px;
 
     .btn-group-item {
-      width: 72px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
       height: 100%;
-      padding: 7px 0;
+      padding: 0 16px;
       color: #4e5e7a;
       text-align: center;
       cursor: pointer;

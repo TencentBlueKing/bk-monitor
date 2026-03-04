@@ -2,11 +2,11 @@
   display: flex;
   align-items: center;
   height: 56px;
-  padding: 10px 12px;
+  padding: 8px 16px 8px 12px;
   margin-bottom: 16px;
   border-radius: 8px;
   border: 1px solid transparent;
-  font-family: 'PingFang SC';
+  box-shadow: 0 1px 2px 0 #0000000a;
 
   .status-icon {
     width: 36px;
@@ -26,25 +26,11 @@
     overflow: hidden;
 
     .alert-status-text {
+      display: flex;
+      align-items: center;
       font-size: 12px;
       font-weight: 500;
       line-height: 20px;
-    }
-
-    .alert-content {
-      display: flex;
-      width: 100%;
-      align-items: center;
-      overflow: hidden;
-      line-height: 20px;
-
-      .alarm-content {
-        font-size: 12px;
-        font-weight: 500;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
 
       .separator {
         width: 1px;
@@ -56,26 +42,43 @@
       .alarm-tips {
         display: flex;
         align-items: center;
+        font-weight: 400;
         font-size: 11px;
         min-width: fit-content;
         color: #4e5e7a;
 
+        .icon-mc-time {
+          font-size: 10.5px;
+          margin-right: 4.5px;
+          vertical-align: middle;
+          color: #8f9fbd;
+        }
+
         .shielded-duration {
-          margin-left: 5px;
           font-weight: 600;
           color: #f59500;
         }
 
         .duration-value {
-          margin-left: 5px;
           font-weight: 600;
-          color: #313238;
         }
       }
+    }
+
+    .alarm-content {
+      line-height: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #111214;
     }
   }
 
   .tools {
+    display: flex;
+    align-items: center;
     color: #3a84ff;
 
     .bk-button {
@@ -83,7 +86,7 @@
     }
 
     .icon-mc-notice-shield {
-      font-size: 12px;
+      font-size: 13px;
     }
 
     .icon-fenxiang {
@@ -92,6 +95,12 @@
 
     .btn-text {
       margin-left: 5px;
+    }
+
+    .shield-btn {
+      .bk-button-text {
+        display: block;
+      }
     }
 
     .confirm-btn {
@@ -104,10 +113,14 @@
   // 未恢复
   &.ABNORMAL {
     border-color: #ffd6d6;
-    color: #c70003;
     background: #fff5f5;
 
+    .alert-status-title {
+      color: #c70003;
+    }
+
     .status-icon {
+      color: #ea3636;
       background-color: #ffdddd;
       box-shadow: 0 2px 4px 0 #ea36360f;
     }
@@ -117,9 +130,13 @@
   &.SHIELDED_ABNORMAL {
     border-color: #f9d090;
     background: #fdf4e8;
-    color: #d68301;
+
+    .alert-status-title {
+      color: #d68301;
+    }
 
     .status-icon {
+      color: #d68301;
       background-color: #fce5c0;
       box-shadow: 0 2px 4px 0 #f595000f;
     }
@@ -129,9 +146,13 @@
   &.RECOVERED {
     border-color: #a1e3ba;
     background: #ebfaf0;
-    color: #299e56;
+
+    .alert-status-title {
+      color: #299e56;
+    }
 
     .status-icon {
+      color: #2caf5e;
       background-color: #cbf0da;
       box-shadow: 0 2px 4px 0 #2caf5e0f;
     }
@@ -141,9 +162,13 @@
   &.CLOSED {
     border-color: #c9d6f0;
     background: #f7f9fc;
-    color: #4e5e7a;
+
+    .alert-status-title {
+      color: #4e5e7a;
+    }
 
     .status-icon {
+      color: #8f9fbd;
       background-color: #e4e9f2;
       box-shadow: 0 2px 4px 0 #2caf5e0f;
     }
