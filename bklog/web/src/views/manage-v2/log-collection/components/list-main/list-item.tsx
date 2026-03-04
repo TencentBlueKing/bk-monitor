@@ -319,8 +319,6 @@ export default defineComponent({
       </div>
     );
 
-    console.log('render', props.data);
-
     return () => (
       <div
         class={{
