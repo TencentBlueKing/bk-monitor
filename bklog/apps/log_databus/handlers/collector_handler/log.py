@@ -66,6 +66,7 @@ class LogCollectorHandler:
                     "collector_scenario_name": CollectorScenarioEnum.get_choice_label(collector_scenario_id),
                     "storage_cluster_id": item.get("storage_cluster_id", ""),
                     "storage_cluster_name": item.get("storage_cluster_name", ""),
+                    "storage_display_name": item.get("storage_display_name", ""),
                     "tags": item.get("tags", ""),
                     "category_id": item.get("category_id", ""),
                     "category_name": item.get("category_name", ""),
