@@ -652,8 +652,8 @@ class AlertDetailResource(Resource):
         result = AlertQueryHandler.clean_document(alert)
         result["plugin_display_name"] = PluginTranslator().translate([result["plugin_id"]])[result["plugin_id"]]
         result["extend_info"] = resource.alert.alert_related_info(ids=[alert_id]).get(alert_id, {})
-        result["graph_panel"] = graph_panel
         self.clean_graph_panel_where(graph_panel)
+        result["graph_panel"] = graph_panel
 
         topo_info = result["extend_info"].get("topo_info", "")
         result["relation_info"] = f"{topo_info} {relation_info}"
