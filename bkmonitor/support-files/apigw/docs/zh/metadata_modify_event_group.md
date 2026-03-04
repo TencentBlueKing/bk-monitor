@@ -1,8 +1,6 @@
 ### 功能描述
 
-修改一个事件分组ID
-给定一个事件分组ID，修改某些具体的信息
-
+修改事件分组
 
 ### 请求参数
 
@@ -14,13 +12,14 @@
 | operator         | string | 是  | 操作者                                              |
 | event_info_list  | list   | 否  | 事件列表                                             |
 | is_enable        | bool   | 否  | 是否停用事件组                                          |
+| data_label       | string | 否  | 数据标签                                             |
 
 #### event_info_list具体说明
 
-| 字段         | 类型     | 必选 | 描述   |
-|------------|--------|----|------|
-| event_name | string | 是  | 事件名  |
-| dimension  | list   | 是  | 维度列表 |
+| 字段             | 类型        | 必选 | 描述   |
+|----------------|-----------|----|------|
+| event_name     | string    | 是  | 事件名  |
+| dimension_list | list[str] | 是  | 维度列表 |
 
 ### 请求参数示例
 
@@ -31,6 +30,7 @@
   "label": "application",
   "operator": "system",
   "is_enable": true,
+  "data_label": "custom_label",
   "event_info_list": [
     {
       "event_name": "usage for update",
@@ -65,6 +65,7 @@
 | event_group_id   | int    | 事件分组ID |
 | bk_data_id       | int    | 数据源ID  |
 | bk_biz_id        | int    | 业务ID   |
+| table_id         | string | 结果表ID  |
 | event_group_name | string | 事件分组名  |
 | label            | string | 事件标签   |
 | is_enable        | bool   | 是否启用   |
@@ -73,21 +74,16 @@
 | last_modify_user | string | 最后修改者  |
 | last_modify_time | string | 最后修改时间 |
 | event_info_list  | list   | 事件列表   |
+| data_label       | string | 数据标签   |
+| status           | string | 事件组状态  |
 
 #### event_info_list具体内容说明
 
-| 字段          | 类型     | 描述   |
-|-------------|--------|------|
-| bk_event_id | int    | 事件ID |
-| event_name  | string | 事件名  |
-| dimension   | list   | 维度列表 |
-
-#### event_info_list.dimension具体内容说明
-
-| 字段                | 类型     | 描述    |
-|-------------------|--------|-------|
-| dimension_name    | string | 维度名   |
-| dimension_ch_name | string | 维度中文名 |
+| 字段             | 类型        | 描述   |
+|----------------|-----------|------|
+| event_id       | int       | 事件ID |
+| event_name     | string    | 事件名  |
+| dimension_list | list[str] | 维度列表 |
 
 ### 响应参数示例
 
@@ -99,14 +95,34 @@
     "event_group_id": 1001,
     "bk_data_id": 123,
     "bk_biz_id": 123,
+    "table_id": "custom_event_123.event_group_1001",
+    "event_group_name": "event_group_name",
     "label": "application",
-    "description": "use for what?",
+    "data_label": "custom_label",
     "is_enable": true,
     "creator": "admin",
     "create_time": "2019-10-10 10:10:10",
     "last_modify_user": "admin",
     "last_modify_time": "2020-10-10 10:10:10",
-    "event_info_list": []
+    "status": "normal",
+    "event_info_list": [
+      {
+        "event_id": 1,
+        "event_name": "usage for update",
+        "dimension_list": [
+          "dimension_name",
+          "target"
+        ]
+      },
+      {
+        "event_id": 2,
+        "event_name": "usage for create",
+        "dimension_list": [
+          "dimension_name",
+          "target"
+        ]
+      }
+    ]
   },
   "result": true,
   "request_id": "408233306947415bb1772a86b9536867"

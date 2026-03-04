@@ -334,6 +334,20 @@ class HistoryPointFetcher:
                 continue
 
             item_records = item.query_record(from_timestamp, until_timestamp)
+            if item.query.is_partial:
+                # 历史数据查询结果不完整（响应体超限），跳过本次缓存写入，等待下个周期重新触发。
+                # 影响：本批次依赖该 offset 历史数据的环比/同比检测失效（漏报 1 个 agg_interval），
+                #       下个周期 cache miss 后重新查询，存储恢复后自动恢复正常。
+                #       静态阈值（Threshold）等不依赖历史数据的算法不受影响。
+                logger.warning(
+                    "strategy(%s) item(%s) history query is partial, skip cache writing, time_range(%s, %s)",
+                    item.strategy.id,
+                    item.id,
+                    from_timestamp,
+                    until_timestamp,
+                )
+                continue
+
             for record in item_records:
                 point = DataRecord(item, record)
                 if point.value:
