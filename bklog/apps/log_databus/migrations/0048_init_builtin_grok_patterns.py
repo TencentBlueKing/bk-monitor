@@ -7,7 +7,7 @@ def init_builtin_grok_patterns(apps, schema_editor):
     """
     初始化内置 Grok 规则
     """
-    from pygrok import Grok
+    from apps.log_databus.grok_patterns_data import ALL_PATTERNS
 
     GrokInfo = apps.get_model("log_databus", "GrokInfo")
 
@@ -15,14 +15,14 @@ def init_builtin_grok_patterns(apps, schema_editor):
     if GrokInfo.objects.filter(is_builtin=True).exists():
         return
 
-    grok = Grok("")
-    builtin_patterns = grok.predefined_patterns
     to_create = []
-    for pattern_name, pattern in builtin_patterns.items():
+    for pattern_data in ALL_PATTERNS:
         to_create.append(
             GrokInfo(
-                name=pattern_name,
-                pattern=pattern.regex_str,
+                name=pattern_data["name"],
+                pattern=pattern_data["pattern"],
+                sample=pattern_data.get("sample", ""),
+                description=pattern_data.get("description", ""),
                 is_builtin=True,
                 bk_biz_id=0,
                 created_by="system",
