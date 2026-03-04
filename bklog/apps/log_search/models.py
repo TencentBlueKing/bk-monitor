@@ -499,6 +499,16 @@ class LogIndexSet(SoftDeleteModel):
             result = datetime_to_timestamp(temp)
         return timestamp_to_timeformat(result)
 
+    def get_log_index_set_data(self):
+        if self.is_group:
+            child_index_set_ids = self.get_child_index_set_ids()
+            index_set_data = LogIndexSetData.objects.filter(index_set_id__in=child_index_set_ids)
+        else:
+            index_set_data = LogIndexSetData.objects.filter(
+                index_set_id=self.index_set_id, type=IndexSetDataType.RESULT_TABLE.value
+            )
+        return index_set_data
+
     def get_indexes(self, has_applied=None):
         """
         返回当前索引集下的索引列表

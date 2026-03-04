@@ -28,7 +28,7 @@ from blueapps.account.models import User
 from django.conf import settings
 from django.test import TestCase, override_settings
 
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.tests.utils import FakeRedis
 
 BK_BIZ_ID = 1
@@ -592,7 +592,7 @@ class TestIndexSet(TestCase):
     @patch("apps.log_search.tasks.mapping.sync_index_set_mapping_snapshot.delay", return_value=None)
     # @patch("apps.log_search.handlers.index_set.LogIndexSetDataHandler.post_add_log.delay", return_value=True)
     @patch("apps.api.TransferApi.get_cluster_info", return_value=CLUSTER_INFO_WITH_AUTH)
-    @patch("apps.log_search.models.LogIndexSetData.objects.filter", return_value=[])
+    @patch("apps.log_search.models.LogIndexSetData.objects.filter", return_value=LogIndexSetData.objects.none())
     @patch("apps.api.BkLogApi.mapping", return_value=MAPPING_LIST)
     @patch("apps.api.TransferApi.get_result_table_storage", lambda _: CLUSTER_INFOS)
     @patch("apps.api.TransferApi.create_or_update_log_router", return_value=None)

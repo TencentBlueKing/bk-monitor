@@ -1508,7 +1508,7 @@ class IndexSetHandler(APIModel):
 
             self.data.query_alias_settings = alias_settings
             self.data.save()
-            objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
+            objs = self.data.get_log_index_set_data()
             collector_rts = list(CollectorConfig.objects.filter(is_nanos=True).values_list("table_id", flat=True))
             for obj in objs:
                 result_table_id = obj.result_table_id
@@ -1604,7 +1604,8 @@ class IndexSetHandler(APIModel):
         ]
         if to_create:
             LogIndexSetData.objects.bulk_create(to_create)
-            BaseIndexSetHandler.bulk_sync_router(parent_index_sets)
+            if self.data.is_active:
+                BaseIndexSetHandler.sync_router(list(parent_index_sets))
 
     def remove_from_parent_index_sets(self, parent_index_set_ids: list[int]):
         """
@@ -1614,9 +1615,9 @@ class IndexSetHandler(APIModel):
             index_set_id__in=parent_index_set_ids,
             result_table_id=self.index_set_id,
         ).delete()
-        # 同步路由
-        parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
-        BaseIndexSetHandler.bulk_sync_router(parent_index_sets)
+        if self.data.is_active:
+            parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
+            BaseIndexSetHandler.sync_router(list(parent_index_sets))
 
     def update_parent_index_sets(self, new_parent_index_set_ids: list):
         """
@@ -1850,8 +1851,10 @@ class BaseIndexSetHandler:
         return True
 
     @classmethod
-    def get_index_set_table_info_list(cls, index_set: LogIndexSet, is_analysis=False):
+    def get_index_set_table_info_list(cls, index_set: LogIndexSet, is_analysis=False, parent_index_set_id=None):
         table_info_list = []
+        # 索引组场景下使用索引组ID生成table_id，否则使用当前索引集ID
+        effective_index_set_id = parent_index_set_id or index_set.index_set_id
         # Doris路由或图表分析路由
         is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(index_set.tag_ids)
         doris_table_id = index_set.doris_table_id
@@ -1862,13 +1865,13 @@ class BaseIndexSetHandler:
                 doris_table_info = {
                     "storage_type": "doris",
                     "bkbase_table_id": doris_table_id.rsplit(".", maxsplit=1)[0],
-                    "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__doris__",
+                    "table_id": f"bklog_index_set_{effective_index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__doris__",
                     "source_type": "bkdata",
                     "need_create_index": False,
                 }
                 if is_analysis:
                     doris_table_info["table_id"] = (
-                        f"bklog_index_set_{index_set.index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__analysis__"
+                        f"bklog_index_set_{effective_index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__analysis__"
                     )
                 if query_alias_settings := index_set.query_alias_settings:
                     doris_table_info["query_alias_settings"] = copy.deepcopy(query_alias_settings)
@@ -1880,7 +1883,7 @@ class BaseIndexSetHandler:
             time_field = obj.time_field or index_set.time_field
             time_field_type = obj.time_field_type or index_set.time_field_type
             table_info = {
-                "table_id": cls.get_rt_id(index_set.index_set_id, obj.result_table_id),
+                "table_id": cls.get_rt_id(effective_index_set_id, obj.result_table_id),
                 "index_set": obj.result_table_id.replace(".", "_"),
                 "source_type": obj.scenario_id,
                 "cluster_id": obj.storage_cluster_id,
@@ -1929,7 +1932,7 @@ class BaseIndexSetHandler:
                 old_nano_table_info = copy.deepcopy(table_info)
                 old_nano_table_info.update(
                     {
-                        "table_id": cls.get_rt_id(index_set.index_set_id, nano_migrate_map[obj.result_table_id]),
+                        "table_id": cls.get_rt_id(effective_index_set_id, nano_migrate_map[obj.result_table_id]),
                         "index_set": nano_migrate_map[obj.result_table_id].replace(".", "_"),
                         "origin_table_id": nano_migrate_map[obj.result_table_id],
                     }
@@ -1938,57 +1941,51 @@ class BaseIndexSetHandler:
         return table_info_list
 
     @classmethod
-    def sync_router(cls, index_set: LogIndexSet):
+    def sync_router(cls, index_sets: LogIndexSet | list[LogIndexSet]):
         """创建结果表路由信息"""
-        try:
-            # 统一处理普通路由和图表分析路由
-            data_label_list = [
-                cls.get_data_label(index_set.index_set_id),
-                f"{cls.get_data_label(index_set.index_set_id)}_analysis",
-            ]
-            multi_execute_func = MultiExecuteFunc()
+        if not isinstance(index_sets, list):
+            index_sets = [index_sets]
 
-            for data_label in data_label_list:
-                # 获取索引列表
-                if index_set.is_group:
-                    table_info_list = []
-                    child_index_set_ids = index_set.get_child_index_set_ids()
-                    child_index_sets = LogIndexSet.objects.filter(index_set_id__in=child_index_set_ids)
-                    for child_index_set in child_index_sets:
-                        table_infos = cls.get_index_set_table_info_list(
-                            child_index_set, is_analysis=data_label.endswith("_analysis")
-                        )
-                        table_info_list.extend(table_infos)
-                else:
-                    table_info_list = cls.get_index_set_table_info_list(
-                        index_set, is_analysis=data_label.endswith("_analysis")
-                    )
-                # 如果有索引列表，则创建路由
-                if table_info_list:
-                    request_params = {
-                        "data_label": data_label,
-                        "space_id": index_set.space_uid.split("__")[-1],
-                        "space_type": index_set.space_uid.split("__")[0],
-                        "table_info": table_info_list,
-                    }
-                    multi_execute_func.append(
-                        result_key=data_label,
-                        func=TransferApi.bulk_create_or_update_log_router,
-                        params=request_params,
-                    )
-            multi_execute_func.run()
-        except Exception as e:
-            logger.exception("create or update index set(%s) router failed：%s", index_set.index_set_id, e)
-
-    @classmethod
-    def bulk_sync_router(cls, index_sets: list[LogIndexSet]):
         multi_execute_func = MultiExecuteFunc()
         for index_set in index_sets:
-            multi_execute_func.append(
-                result_key=index_set.index_set_id,
-                func=cls.sync_router,
-                params=index_set,
-            )
+            try:
+                # 统一处理普通路由和图表分析路由
+                data_label_list = [
+                    cls.get_data_label(index_set.index_set_id),
+                    f"{cls.get_data_label(index_set.index_set_id)}_analysis",
+                ]
+                for data_label in data_label_list:
+                    # 获取索引列表
+                    if index_set.is_group:
+                        table_info_list = []
+                        child_index_set_ids = index_set.get_child_index_set_ids()
+                        child_index_sets = LogIndexSet.objects.filter(index_set_id__in=child_index_set_ids)
+                        for child_index_set in child_index_sets:
+                            table_infos = cls.get_index_set_table_info_list(
+                                child_index_set,
+                                is_analysis=data_label.endswith("_analysis"),
+                                parent_index_set_id=index_set.index_set_id,
+                            )
+                            table_info_list.extend(table_infos)
+                    else:
+                        table_info_list = cls.get_index_set_table_info_list(
+                            index_set, is_analysis=data_label.endswith("_analysis")
+                        )
+                    # 如果有索引列表，则创建路由
+                    if table_info_list:
+                        request_params = {
+                            "data_label": data_label,
+                            "space_id": index_set.space_uid.split("__")[-1],
+                            "space_type": index_set.space_uid.split("__")[0],
+                            "table_info": table_info_list,
+                        }
+                        multi_execute_func.append(
+                            result_key=data_label,
+                            func=TransferApi.bulk_create_or_update_log_router,
+                            params=request_params,
+                        )
+            except Exception as e:
+                logger.exception("create or update index set(%s) router failed：%s", index_set.index_set_id, e)
         multi_execute_func.run()
 
     def pre_update(self):
@@ -2010,6 +2007,7 @@ class BaseIndexSetHandler:
         self.index_set_obj.is_trace_log = self.is_trace_log
 
         # 更新 is_active字段
+        need_sync_parent_router = False if self.index_set_obj.is_active else True
         self.index_set_obj.is_active = True
 
         # 时间字段更新
@@ -2091,10 +2089,17 @@ class BaseIndexSetHandler:
                 time_field_type=index.get("time_field_type") or self.time_field_type,
                 time_field_unit=index.get("time_field_unit") or self.time_field_unit,
             )
+
         # 更新归属索引集
         IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).update_parent_index_sets(
             self.parent_index_set_ids
         )
+
+        # 更新归属索引集的路由
+        if need_sync_parent_router:
+            parent_index_set_ids = self.index_set_obj.get_parent_index_set_ids()
+            parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids)
+            self.sync_router(list(parent_index_sets))
 
         # 更新字段快照
         sync_single_index_set_mapping_snapshot.delay(self.index_set_obj.index_set_id)
