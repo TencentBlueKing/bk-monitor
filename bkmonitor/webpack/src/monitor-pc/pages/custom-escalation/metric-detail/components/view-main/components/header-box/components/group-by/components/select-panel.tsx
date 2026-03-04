@@ -37,7 +37,7 @@ interface IEmit {
 }
 interface IProps {
   splitable: boolean;
-  value: { field: string; split: boolean }[];
+  value: { field: string; is_manual?: boolean; split: boolean }[];
   data: {
     alias: string;
     name: string;
@@ -51,6 +51,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   @Prop({ type: Boolean, default: false }) readonly splitable: IProps['splitable'];
 
   @Ref('popoverRef') popoverRef: HTMLDivElement;
+  @Ref('dimensionInput') readonly dimensionInputRef!: HTMLInputElement;
 
   checkedMap: Readonly<Record<string, boolean>> = {};
   renderData: Readonly<IProps['data']> = [];
@@ -83,6 +84,11 @@ export default class AppendValue extends tsc<IProps, IEmit> {
     }
     return result;
   }
+
+  get customDimensionSet() {
+    return new Set(this.customData.map(item => item.name));
+  }
+  
 
   handleFilterChange: (filterKey: string) => void;
 
@@ -132,6 +138,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
     const result = Object.entries(this.checkedMap).map(([field, split]) => ({
       field,
       split,
+      is_manual: this.customDimensionSet.has(field) ?? false,
     }));
     if (!_.isEqual(result, this.value)) {
       this.$emit('change', result);
@@ -209,9 +216,11 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   }
 
   // 打开手动输入维度框
-  handleInputShow() {
+  async handleInputShow() {
     this.filterKey = '';
     this.btmInputShow = true;
+    await this.$nextTick();
+    this.dimensionInputRef.focus();
   }
 
   // 底部手动输入回车事件
@@ -366,6 +375,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
                 {this.btmInputShow ? (
                   <div class='custom-dimension-input'>
                     <bk-input
+                      ref='dimensionInput'
                       class='dimension-input'
                       v-model={this.btmInputDimension}
                       size='small'
