@@ -60,6 +60,7 @@ from bkmonitor.models import (
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
+from bkmonitor.utils.alert_drilling import clean_where_conditions
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.range import load_agg_condition_instance
@@ -652,12 +653,19 @@ class AlertDetailResource(Resource):
         result["plugin_display_name"] = PluginTranslator().translate([result["plugin_id"]])[result["plugin_id"]]
         result["extend_info"] = resource.alert.alert_related_info(ids=[alert_id]).get(alert_id, {})
         result["graph_panel"] = graph_panel
+        self.clean_graph_panel_where(graph_panel)
 
         topo_info = result["extend_info"].get("topo_info", "")
         result["relation_info"] = f"{topo_info} {relation_info}"
         self.add_project_name(result)
         self.add_graph_extra_info(alert, result)
         return result
+
+    @staticmethod
+    def clean_graph_panel_where(graph_panel: dict) -> None:
+        for target in graph_panel.get("targets", []):
+            for query_config in target.get("data", {}).get("query_configs", []):
+                query_config["where"] = clean_where_conditions(query_config.get("where", []))
 
     @classmethod
     def add_graph_extra_info(cls, alert, data):
@@ -1318,24 +1326,7 @@ class AlertGraphQueryResource(ApiAuthResource):
                 if attrs["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH and not attrs.get("index_set_id"):
                     raise ValidationError("index_set_id can not be empty.")
 
-                # 过滤掉无效的 where 条件
-                validated_where = []
-                for condition in attrs.get("where", []):
-                    if not isinstance(condition, dict):
-                        continue
-                    value = condition.get("value")
-                    # 过滤掉 value 为 None、空列表或只包含 None 的列表
-                    if value is None:
-                        continue
-                    if isinstance(value, list):
-                        # 移除列表中的 None，如果移除后列表为空则跳过该条件
-                        filtered_value = [v for v in value if v is not None]
-                        if not filtered_value:
-                            continue
-                        condition["value"] = filtered_value
-                    validated_where.append(condition)
-
-                attrs["where"] = validated_where
+                attrs["where"] = clean_where_conditions(attrs.get("where", []))
                 return attrs
 
         id = serializers.IntegerField(label="事件ID")
