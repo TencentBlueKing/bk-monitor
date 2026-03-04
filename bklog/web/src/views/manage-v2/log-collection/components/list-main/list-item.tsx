@@ -47,7 +47,7 @@ export default defineComponent({
       default: 'all',
     },
   },
-  emits: ['choose', 'delete'],
+  emits: ['choose', 'delete', 'rename'],
   setup(props, { emit }) {
     const DEBOUNCE_DELAY_MS = 100;
     const { t } = useLocale();
@@ -225,6 +225,7 @@ export default defineComponent({
     /** 确认重命名 */
     const handleEditGroupSubmit = () => {
       handleEditGroupCancel();
+      emit('rename');
     };
 
     /** 确认删除 */
