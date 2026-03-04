@@ -81,7 +81,7 @@ class ExternalPermissionHandler:
             for permission in permission_qs_list:
                 status = self.get_status(permission)
                 for resource_id in permission.resources:
-                    resource_key = tuple([permission.action_id, resource_id, status])
+                    resource_key = (permission.action_id, resource_id, status)
                     resource_to_user[resource_key]["authorized_users"].append(permission.authorized_user)
                     resource_to_user[resource_key]["action_id"] = permission.action_id
                     resource_to_user[resource_key]["resource_id"] = resource_id
@@ -130,28 +130,29 @@ class ExternalPermissionHandler:
         if authorizer:
             if obj.action_id == ExternalPermissionActionEnum.LOG_EXTRACT.value:
                 # 日志提取权限维度是空间
-                # is_allowed_by_biz 里针对 bk_biz_id 的判断, 当非 BKCC 的时候需要传入 space_uid
-                if not self.does_the_authorizer_have_log_extract_manage_permission_into_bk_biz_id(
+                if not self.does_the_authorizer_have_log_extract_manage_permission_of_bk_biz_id(
                     authorizer, obj.space_uid
                 ):
                     # 如果授权者没有或失去该 bk_biz_id 下的日志提取管理权限, 则状态设为无效
                     status = TokenStatusEnum.INVALID.value
             elif obj.action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
                 # 日志检索权限维度是索引集
-                permission_info_dict = {}
+                permission_info_map = {}
                 for index_set_id in obj.resources:
-                    permission_info_dict[index_set_id] = self.get_permission_info(
+                    permission_info_map[index_set_id] = self.get_permission_info(
                         authorizer, index_set_id, obj.space_uid
                     )
                 # 如果授权者没有或失去其中一个 index_set_id 下的日志检索管理权限, 则状态设为无效
                 # permission_info_dict: {index_set_id: {action_id: True/False}}
-                for index_set_id, permission_info in permission_info_dict.items():
+                for index_set_id, permission_info in permission_info_map.items():
                     index_set_id = int(index_set_id)
                     if index_set_id not in obj.resources:
                         continue
                     if not permission_info.get(ActionEnum.SEARCH_LOG.id, False):
                         status = TokenStatusEnum.INVALID.value
                         break
+        else:
+            status = TokenStatusEnum.INVALID.value
 
         return status
 
@@ -162,7 +163,7 @@ class ExternalPermissionHandler:
 
         return self.log_search_manage_permission_info.get((authorizer, index_set_id, space_uid))
 
-    def does_the_authorizer_have_log_extract_manage_permission_into_bk_biz_id(self, authorizer, space_uid):
+    def does_the_authorizer_have_log_extract_manage_permission_of_bk_biz_id(self, authorizer, space_uid):
         """
         授权者是否拥有该 bk_biz_id 下的日志提取管理权限
         """
@@ -171,6 +172,7 @@ class ExternalPermissionHandler:
 
         if is_allowed is None:
             temp_bk_biz_id = self.get_bk_biz_id(space_uid)
+            # is_allowed_by_biz 里针对 bk_biz_id 的判断, 当非 BKCC 的时候需要传入 space_uid
             bk_biz_id = temp_bk_biz_id if temp_bk_biz_id > 0 else space_uid
             is_allowed = Permission(username=authorizer).is_allowed_by_biz(
                 bk_biz_id=bk_biz_id, action=ActionEnum.MANAGE_EXTRACT_CONFIG, raise_exception=False
