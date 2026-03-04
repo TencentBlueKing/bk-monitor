@@ -141,7 +141,7 @@ export default defineComponent({
     /** 常驻筛选 */
     const commonWhere = shallowRef<IWhereItem[]>([]);
     /** 是否展示常驻筛选 */
-    const showResidentBtn = shallowRef(false);
+    const showResidentBtn = shallowRef(true);
     /** 不同视角下维度字段的列表 */
     const fieldListMap = shallowRef<ExploreFieldList>({ trace: [], span: [] });
     /** table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）选中的值 */
@@ -489,7 +489,11 @@ export default defineComponent({
         commonWhere.value = tryURLDecodeParse(queryCommonWhere as string, []);
         checkboxFilters.value = tryURLDecodeParse(selectedType as string, []);
         queryString.value = (query || queryQueryString) as string;
-        showResidentBtn.value = tryURLDecodeParse<boolean>(queryShowResidentBtn as string, false);
+        if (typeof queryShowResidentBtn === 'undefined') {
+          showResidentBtn.value = true;
+        } else {
+          showResidentBtn.value = tryURLDecodeParse<boolean>(queryShowResidentBtn as string, false);
+        }
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
         if (favorite_id) {
           defaultFavoriteId.value = Number(favorite_id);
