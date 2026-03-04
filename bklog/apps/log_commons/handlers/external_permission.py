@@ -36,6 +36,8 @@ class ExternalPermissionHandler:
         index_set_ids_map = defaultdict(set)
 
         for permission in permission_qs_list:
+            if permission.action_id == ExternalPermissionActionEnum.LOG_EXTRACT.value:
+                continue
             index_set_ids_map[permission.space_uid].update(permission.resources)
 
         for space_uid, index_set_ids in index_set_ids_map.items():
