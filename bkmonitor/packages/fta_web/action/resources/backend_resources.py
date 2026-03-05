@@ -14,6 +14,7 @@ import logging
 import re
 import time
 from datetime import datetime
+from collections import defaultdict
 
 from django.utils.translation import gettext as _
 
@@ -29,7 +30,7 @@ from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models.fta import ActionConfig, ActionInstance, ActionPlugin
 from bkmonitor.utils.common_utils import count_md5
-from bkmonitor.utils.template import CustomTemplateRenderer, Jinja2Renderer
+from bkmonitor.utils.template import CustomTemplateRenderer, Jinja2Renderer, jinja_render
 from bkmonitor.utils.user import get_user_display_name
 from bkmonitor.views import serializers
 from constants.action import ActionSignal
@@ -211,3 +212,178 @@ class GetActionParamsByConfigResource(Resource):
                 key: value for key, value in alert_context.items() if isinstance(value, str)
             }
         return {"result": True, "action_configs": action_configs}
+
+
+class GetDemoActionContextResource(Resource):
+    """
+    基于真实告警预览套餐变量渲染
+
+    接收 alert_id + 变量字典，构建告警上下文并在原始对象上完成 Jinja2 渲染后返回。
+    不传 variables 则仅返回序列化后的上下文字典。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        alert_id = serializers.CharField(required=True, label="告警ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        variables = serializers.DictField(required=False, default={}, label="待渲染的变量字典")
+
+    @classmethod
+    def build_fake_action(cls, alert, bk_biz_id):
+        """构造伪 ActionInstance 用于上下文构建，不入库。参考 do_create_action 的构建逻辑。"""
+        from alarm_backends.core.control.strategy import Strategy
+        from constants.alert import EventSeverity
+
+        strategy_id = alert.strategy_id or 0
+        try:
+            strategy = Strategy(strategy_id).config if strategy_id else {}
+        except Exception as e:
+            logger.error("获取策略配置失败, strategy_id(%s): %s", strategy_id, e)
+            strategy = {}
+
+        if not strategy:
+            strategy = alert.strategy or {}
+
+        try:
+            alert_level = alert.severity or EventSeverity.REMIND
+        except (ValueError, TypeError):
+            logger.error("获取告警级别失败, alert(%s), 使用默认值 REMIND", alert.id)
+            alert_level = EventSeverity.REMIND
+
+        try:
+            action_bk_biz_id = alert.event.bk_biz_id or bk_biz_id
+        except Exception as e:
+            logger.error(
+                "从告警事件获取 bk_biz_id 失败, alert(%s): %s, 使用请求参数 bk_biz_id(%s)", alert.id, e, bk_biz_id
+            )
+            action_bk_biz_id = bk_biz_id
+
+        assignee = cls.get_alert_assignee(alert, strategy)
+        action_config, action_plugin, action_config_id = cls._resolve_action_config_and_plugin(strategy)
+
+        # 时间字段：ActionInstance 的 create_time/end_time/update_time 是 DateTimeField，需要 datetime 对象
+        alert_create_time = (
+            datetime.fromtimestamp(alert.create_time)
+            if isinstance(alert.create_time, int | float)
+            else (alert.create_time or datetime.now())
+        )
+        alert_end_time = (
+            datetime.fromtimestamp(alert.latest_time)
+            if isinstance(alert.latest_time, int | float)
+            else (alert.latest_time or datetime.now())
+        )
+        inputs = {"alert_latest_time": alert.latest_time, "is_alert_shielded": False, "shield_ids": []}
+        default_dict = defaultdict(str)
+
+        return ActionInstance(
+            id=0,
+            signal=ActionSignal.DEMO,
+            strategy_id=strategy_id,
+            strategy=strategy,
+            strategy_relation_id=0,
+            dimensions=[],
+            dimension_hash="",
+            alerts=[alert.id],
+            alert_level=alert_level,
+            status="received",
+            failure_type="",
+            ex_data=default_dict,
+            create_time=alert_create_time,
+            end_time=alert_end_time,
+            update_time=alert_create_time,
+            action_plugin=action_plugin,
+            action_config=action_config,
+            action_config_id=action_config_id,
+            bk_biz_id=action_bk_biz_id,
+            is_parent_action=False,
+            parent_action_id=0,
+            sub_actions=[],
+            assignee=assignee,
+            inputs=inputs,
+            outputs=default_dict,
+            real_status="",
+            is_polled=False,
+            need_poll=False,
+            execute_times=0,
+            generate_uuid="",
+        )
+
+    @classmethod
+    def _resolve_action_config_and_plugin(cls, strategy):
+        """从策略配置中解析 action_config、action_plugin 和 action_config_id"""
+        from alarm_backends.core.cache.action_config import ActionConfigCacheManager
+
+        default_dict = defaultdict(str)
+
+        actions = strategy.get("actions", [])
+        if not actions:
+            return default_dict, default_dict, 0
+
+        config_id = actions[0].get("config_id", None)
+
+        if not config_id:
+            return default_dict, default_dict, 0
+
+        action_config = ActionConfigCacheManager.get_action_config_by_id(config_id)
+        if not action_config:
+            logger.warning("获取 action_config 失败, config_id(%s), 使用默认值", config_id)
+            return default_dict, default_dict, 0
+
+        plugin_id = action_config.get("plugin_id")
+        try:
+            action_plugin = ActionPluginSlz(instance=ActionPlugin.objects.get(id=plugin_id)).data
+        except ActionPlugin.DoesNotExist:
+            logger.warning("获取 action_plugin 失败, plugin_id(%s), 使用默认值", plugin_id)
+            action_plugin = default_dict
+
+        return action_config, action_plugin, action_config.get("id", 0)
+
+    @staticmethod
+    def get_alert_assignee(alert, strategy):
+        """基于策略 notice 配置，通过 AlertAssigneeManager 获取告警负责人。参考 do_create_action 中的分派逻辑。"""
+        from alarm_backends.service.fta_action.tasks.alert_assign import AlertAssigneeManager
+
+        notice = strategy.get("notice", {})
+        assignee = []
+        if notice:
+            try:
+                assign_mode = notice.get("options", {}).get("assign_mode")
+                upgrade_config = notice.get("options", {}).get("upgrade_config", {})
+                assignee_manager = AlertAssigneeManager(
+                    alert,
+                    notice_user_groups=notice.get("user_groups"),
+                    assign_mode=assign_mode,
+                    upgrade_config=upgrade_config,
+                )
+                assignee = assignee_manager.get_appointees() or assignee_manager.get_origin_notice_receivers()
+            except Exception:
+                logger.exception("通过 AlertAssigneeManager 获取 assignee 失败, alert(%s)", alert.id)
+
+        if not assignee:
+            # 兜底：从告警文档已有字段获取
+            alert_dict = alert.to_dict()
+            assignee = alert_dict.get("appointee") or alert_dict.get("assignee") or []
+
+        return assignee
+
+    def perform_request(self, validated_request_data):
+        alert_id = validated_request_data["alert_id"]
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        variables = validated_request_data.get("variables", {})
+
+        alerts = AlertDocument.mget(ids=[alert_id])
+        if not alerts:
+            raise ValueError(_("告警不存在或已过期: {}").format(alert_id))
+
+        alert = alerts[0]
+        fake_action = self.build_fake_action(alert, bk_biz_id)
+        context = ActionContext(action=fake_action, alerts=alerts, use_alert_snap=True).get_dictionary()
+        rendered_variables = {}
+
+        for key, value in variables.items():
+            try:
+                rendered_variables[key] = jinja_render(value, context)
+            except Exception as e:
+                logger.exception("渲染变量[%s]失败: %s", key, e)
+                rendered_variables[key] = value
+
+        return {"variables": rendered_variables}

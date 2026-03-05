@@ -35,3 +35,21 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: batch_create_action
+  /app/action/get_demo_action_context/:
+    post:
+      operationId: get_demo_action_context
+      description: 基于真实告警预览套餐变量渲染
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/action_instance/get_demo_action_context/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: preview demo context with real alert
