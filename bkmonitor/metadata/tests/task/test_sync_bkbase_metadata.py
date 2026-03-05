@@ -300,6 +300,71 @@ def test_sync_bkbase_v4_metadata_for_metric(create_or_delete_records, mocker):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_sync_bkbase_v4_metadata_for_metric_when_duplicate_kafka_cluster(create_or_delete_records, mocker):
+    """
+    测试 Kafka 域名存在重复集群记录时，同步任务不应抛异常。
+    """
+    mocker.patch("django.conf.settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB", True)
+
+    ds = models.DataSource.objects.get(bk_data_id=50011)
+    origin_kafka_cluster = models.ClusterInfo.objects.get(cluster_id=ds.mq_cluster_id)
+
+    duplicate_kafka_cluster = models.ClusterInfo.objects.create(
+        domain_name="test2.kafka.db",
+        cluster_name="test2_duplicate",
+        cluster_type=models.ClusterInfo.TYPE_KAFKA,
+        port=9092,
+        is_default_cluster=False,
+    )
+
+    with patch("redis.StrictRedis.hgetall", return_value=redis_value_for_metric_when_cluster_exists):
+        sync_bkbase_v4_metadata("databus_v4_dataid:50011")
+
+    ds = models.DataSource.objects.get(bk_data_id=50011)
+    assert ds.mq_cluster_id == origin_kafka_cluster.cluster_id
+    assert ds.mq_cluster_id != duplicate_kafka_cluster.cluster_id
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_bkbase_v4_metadata_for_metric_when_duplicate_vm_cluster(create_or_delete_records, mocker):
+    """
+    测试 VM 域名存在重复集群记录时，应优先选择 AccessVMRecord 已关联的集群。
+    """
+    mocker.patch("django.conf.settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB", True)
+
+    preferred_vm_cluster = models.ClusterInfo.objects.create(
+        domain_name="insert_host.test",
+        cluster_name="insert_host_preferred",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        port=80,
+        is_default_cluster=False,
+    )
+    models.AccessVMRecord.objects.filter(vm_result_table_id="vm_test_metric_2").update(
+        vm_cluster_id=preferred_vm_cluster.cluster_id
+    )
+
+    duplicate_vm_cluster = models.ClusterInfo.objects.create(
+        domain_name="insert_host.test",
+        cluster_name="insert_host_duplicate",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        port=80,
+        is_default_cluster=False,
+    )
+
+    with patch("redis.StrictRedis.hgetall", return_value=redis_value_for_metric_when_cluster_exists):
+        sync_bkbase_v4_metadata("databus_v4_dataid:50011")
+
+    vm_cluster_ids = list(
+        models.AccessVMRecord.objects.filter(vm_result_table_id="vm_test_metric_2").values_list(
+            "vm_cluster_id", flat=True
+        )
+    )
+    assert vm_cluster_ids
+    assert all(cluster_id == preferred_vm_cluster.cluster_id for cluster_id in vm_cluster_ids)
+    assert preferred_vm_cluster.cluster_id != duplicate_vm_cluster.cluster_id
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records, mocker):
     """
     测试计算平台元数据同步更新能力 -- 日志链路
@@ -342,6 +407,38 @@ def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records, mocker):
 
         deleted_record = models.StorageClusterRecord.objects.get(cluster_id=1000)
         assert deleted_record.is_deleted
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_bkbase_v4_metadata_for_log_when_duplicate_es_cluster(create_or_delete_records, mocker):
+    """
+    测试 ES 域名存在重复集群记录时，应优先选择 ESStorage 已关联的集群。
+    """
+    mocker.patch("django.conf.settings.ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE", True)
+    mocker.patch("django.conf.settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB", True)
+
+    table_id = "1001_bkmonitor_log_60010.__default__"
+    es_storage = models.ESStorage.objects.get(table_id=table_id)
+    preferred_es_cluster = models.ClusterInfo.objects.get(
+        domain_name="test2.es.db", cluster_type=models.ClusterInfo.TYPE_ES
+    )
+    es_storage.storage_cluster_id = preferred_es_cluster.cluster_id
+    es_storage.save()
+
+    duplicate_es_cluster = models.ClusterInfo.objects.create(
+        domain_name="test2.es.db",
+        cluster_name="test2_es_duplicate",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        port=9200,
+        is_default_cluster=False,
+    )
+
+    with patch("redis.StrictRedis.hgetall", return_value=redis_value_for_log):
+        sync_bkbase_v4_metadata("databus_v4_dataid:60010")
+
+    es_storage.refresh_from_db()
+    assert es_storage.storage_cluster_id == preferred_es_cluster.cluster_id
+    assert es_storage.storage_cluster_id != duplicate_es_cluster.cluster_id
 
 
 @pytest.mark.django_db(databases="__all__")
