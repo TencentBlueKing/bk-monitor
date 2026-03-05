@@ -771,21 +771,18 @@ class CreateDemoActionResource(Resource):
 class PreviewDemoActionContextResource(Resource):
     """
     基于真实告警预览套餐变量渲染
-
-    接收 alert_ids + 变量字典，通过 API Client 调用后端完成 Jinja2 渲染后返回前端。
-    不传 alert_ids 则返回原始变量（不渲染）。
     """
 
     class RequestSerializer(serializers.Serializer):
-        alert_ids = serializers.ListField(child=serializers.CharField(), required=False, default=[], label="告警ID列表")
+        alert_id = serializers.CharField(required=True, label="告警ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         variables = serializers.DictField(required=True, label="待渲染的变量字典")
 
     def perform_request(self, validated_request_data):
-        alert_ids = validated_request_data.get("alert_ids", [])
-        variables = validated_request_data["variables"]
+        alert_id = validated_request_data.get("alert_id")
+        variables = validated_request_data.get("variables")
 
-        if not alert_ids:
+        if not alert_id:
             # 未传告警ID，直接返回原始变量
             return {"variables": variables}
 

@@ -218,22 +218,21 @@ class GetDemoActionContextResource(Resource):
     """
     基于真实告警预览套餐变量渲染
 
-    接收 alert_ids + 变量字典，构建告警上下文并在原始对象上完成 Jinja2 渲染后返回。
+    接收 alert_id + 变量字典，构建告警上下文并在原始对象上完成 Jinja2 渲染后返回。
     不传 variables 则仅返回序列化后的上下文字典。
     """
 
     class RequestSerializer(serializers.Serializer):
-        alert_ids = serializers.ListField(child=serializers.CharField(), required=True, label="告警ID列表")
+        alert_id = serializers.CharField(required=True, label="告警ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         variables = serializers.DictField(required=False, default={}, label="待渲染的变量字典")
 
     @classmethod
-    def build_fake_action(cls, alerts, alert_ids, bk_biz_id):
+    def build_fake_action(cls, alert, bk_biz_id):
         """构造伪 ActionInstance 用于上下文构建，不入库。参考 do_create_action 的构建逻辑。"""
         from alarm_backends.core.control.strategy import Strategy
         from constants.alert import EventSeverity
 
-        alert = alerts[0]
         strategy_id = alert.strategy_id or 0
         try:
             strategy = Strategy(strategy_id).config if strategy_id else {}
@@ -283,7 +282,7 @@ class GetDemoActionContextResource(Resource):
             strategy_relation_id=0,
             dimensions=[],
             dimension_hash="",
-            alerts=alert_ids,
+            alerts=[alert.id],
             alert_level=alert_level,
             status="received",
             failure_type="",
@@ -367,15 +366,16 @@ class GetDemoActionContextResource(Resource):
         return assignee
 
     def perform_request(self, validated_request_data):
-        alert_ids = validated_request_data["alert_ids"]
+        alert_id = validated_request_data["alert_id"]
         bk_biz_id = validated_request_data["bk_biz_id"]
         variables = validated_request_data.get("variables", {})
 
-        alerts = AlertDocument.mget(ids=alert_ids)
+        alerts = AlertDocument.mget(ids=[alert_id])
         if not alerts:
-            raise ValueError(_("告警不存在或已过期: {}").format(alert_ids))
+            raise ValueError(_("告警不存在或已过期: {}").format(alert_id))
 
-        fake_action = self.build_fake_action(alerts, alert_ids, bk_biz_id)
+        alert = alerts[0]
+        fake_action = self.build_fake_action(alert, bk_biz_id)
         context = ActionContext(action=fake_action, alerts=alerts, use_alert_snap=True).get_dictionary()
         rendered_variables = {}
 
