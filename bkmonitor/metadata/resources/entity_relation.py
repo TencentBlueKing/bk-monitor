@@ -174,7 +174,7 @@ class EntityHandler:
         - Field:   namespace (空 namespace 映射为 NAMESPACE_ALL="__all__")
         - Value:   JSON string of {name: redisJsonData, ...}
         - Channel: {Key}{ENTITY_REDIS_CHANNEL_SUFFIX}  (e.g. bkmonitorv3:entity:ResourceDefinition:channel)
-        - Message: JSON string of {namespace, name, kind}
+        - Message: JSON string of {namespace, kind}
 
         Args:
             entity: 触发变更的实体对象（用于提取 kind/namespace 信息及发布通知）
@@ -208,8 +208,8 @@ class EntityHandler:
                 # 该 namespace 下已无实体，删除整个字段
                 RedisTools.hdel(redis_key, [namespace])
 
-            # 发布变更通知
-            msg = json.dumps({"namespace": namespace, "name": entity.name, "kind": kind})
+            # 发布变更通知（只需 namespace + kind，消费端按 namespace 全量 reload）
+            msg = json.dumps({"namespace": namespace, "kind": kind})
             RedisTools.publish(channel, [msg])
 
             logger.info(

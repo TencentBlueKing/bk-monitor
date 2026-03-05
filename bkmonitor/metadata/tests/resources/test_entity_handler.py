@@ -505,7 +505,6 @@ class TestEntityHandlerRedisSync:
         assert pub_args[0][0] == channel
         assert json.loads(pub_args[0][1][0]) == {
             "namespace": metadata.get("namespace") or NAMESPACE_ALL,
-            "name": metadata["name"],
             "kind": kind,
         }
 
