@@ -235,28 +235,44 @@ class GetDemoActionContextResource(Resource):
 
         alert = alerts[0]
         strategy_id = alert.strategy_id or 0
-        strategy = Strategy(strategy_id).config if strategy_id else {}
+        try:
+            strategy = Strategy(strategy_id).config if strategy_id else {}
+        except Exception as e:
+            logger.error("获取策略配置失败, strategy_id(%s): %s", strategy_id, e)
+            strategy = {}
+
         if not strategy:
             strategy = alert.strategy or {}
 
         try:
             alert_level = alert.severity or EventSeverity.REMIND
         except (ValueError, TypeError):
+            logger.error("获取告警级别失败, alert(%s), 使用默认值 REMIND", alert.id)
             alert_level = EventSeverity.REMIND
 
-        # 业务ID：优先从告警事件获取，参考 do_create_action
         try:
             action_bk_biz_id = alert.event.bk_biz_id or bk_biz_id
-        except Exception:
+        except Exception as e:
+            logger.error(
+                "从告警事件获取 bk_biz_id 失败, alert(%s): %s, 使用请求参数 bk_biz_id(%s)", alert.id, e, bk_biz_id
+            )
             action_bk_biz_id = bk_biz_id
 
         assignee = cls.get_alert_assignee(alert, strategy)
+        action_config, action_plugin, action_config_id = cls._resolve_action_config_and_plugin(strategy)
 
-        alert_create_time = alert.create_time
-        alert_end_time = alert.latest_time or datetime.now()
-
+        # 时间字段：ActionInstance 的 create_time/end_time/update_time 是 DateTimeField，需要 datetime 对象
+        alert_create_time = (
+            datetime.fromtimestamp(alert.create_time)
+            if isinstance(alert.create_time, int | float)
+            else (alert.create_time or datetime.now())
+        )
+        alert_end_time = (
+            datetime.fromtimestamp(alert.latest_time)
+            if isinstance(alert.latest_time, int | float)
+            else (alert.latest_time or datetime.now())
+        )
         inputs = {"alert_latest_time": alert.latest_time, "is_alert_shielded": False, "shield_ids": []}
-
         default_dict = defaultdict(str)
 
         return ActionInstance(
@@ -275,9 +291,9 @@ class GetDemoActionContextResource(Resource):
             create_time=alert_create_time,
             end_time=alert_end_time,
             update_time=alert_create_time,
-            action_plugin=default_dict,
-            action_config=default_dict,
-            action_config_id=0,
+            action_plugin=action_plugin,
+            action_config=action_config,
+            action_config_id=action_config_id,
             bk_biz_id=action_bk_biz_id,
             is_parent_action=False,
             parent_action_id=0,
@@ -291,6 +307,36 @@ class GetDemoActionContextResource(Resource):
             execute_times=0,
             generate_uuid="",
         )
+
+    @classmethod
+    def _resolve_action_config_and_plugin(cls, strategy):
+        """从策略配置中解析 action_config、action_plugin 和 action_config_id"""
+        from alarm_backends.core.cache.action_config import ActionConfigCacheManager
+
+        default_dict = defaultdict(str)
+
+        actions = strategy.get("actions", [])
+        if not actions:
+            return default_dict, default_dict, 0
+
+        config_id = actions[0].get("config_id", None)
+
+        if not config_id:
+            return default_dict, default_dict, 0
+
+        action_config = ActionConfigCacheManager.get_action_config_by_id(config_id)
+        if not action_config:
+            logger.warning("获取 action_config 失败, config_id(%s), 使用默认值", config_id)
+            return default_dict, default_dict, 0
+
+        plugin_id = action_config.get("plugin_id")
+        try:
+            action_plugin = ActionPluginSlz(instance=ActionPlugin.objects.get(id=plugin_id)).data
+        except ActionPlugin.DoesNotExist:
+            logger.warning("获取 action_plugin 失败, plugin_id(%s), 使用默认值", plugin_id)
+            action_plugin = default_dict
+
+        return action_config, action_plugin, action_config.get("id", 0)
 
     @staticmethod
     def get_alert_assignee(alert, strategy):
@@ -330,12 +376,14 @@ class GetDemoActionContextResource(Resource):
             raise ValueError(_("告警不存在或已过期: {}").format(alert_ids))
 
         fake_action = self.build_fake_action(alerts, alert_ids, bk_biz_id)
+        context = ActionContext(action=fake_action, alerts=alerts, use_alert_snap=True).get_dictionary()
+        rendered_variables = {}
 
-        try:
-            context = ActionContext(action=fake_action, alerts=alerts, use_alert_snap=True).get_dictionary()
-            rendered_variables = {key: jinja_render(value, context) for key, value in variables.items()}
-        except Exception as e:
-            logger.exception("基于真实告警构建上下文失败: %s", e)
-            raise ValueError(_("基于真实告警构建上下文失败: {}").format(e))
+        for key, value in variables.items():
+            try:
+                rendered_variables[key] = jinja_render(value, context)
+            except Exception as e:
+                logger.exception("渲染变量[%s]失败: %s", key, e)
+                rendered_variables[key] = value
 
         return {"variables": rendered_variables}
