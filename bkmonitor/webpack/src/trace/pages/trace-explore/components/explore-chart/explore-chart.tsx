@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, useTemplateRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, toRef, useTemplateRef, watch } from 'vue';
 import { getCurrentInstance } from 'vue';
 import { shallowRef } from 'vue';
 
@@ -34,10 +34,9 @@ import ChartSkeleton from '../../../../components/skeleton/chart-skeleton';
 // import { useTraceExploreStore } from '@/store/modules/explore';
 import ChartTitle from '../../../../plugins/components/chart-title';
 import CommonLegend from '../../../../plugins/components/common-legend';
-import { useChartLegend } from './use-chart-legend';
+import { type LegendCustomOptions, useChartLegend } from './use-chart-legend';
 import { useChartTitleEvent } from './use-chart-title-event';
-import { useEcharts } from './use-echarts';
-import { useTraceExploreStore } from '@/store/modules/explore';
+import { type CustomOptions, useEcharts } from './use-echarts';
 
 import type { DataZoomEvent } from './types';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -46,26 +45,62 @@ import './explore-chart.scss';
 export default defineComponent({
   name: 'ExploreChart',
   props: {
+    /** 面板数据配置 */
     panel: {
       type: Object as PropType<PanelModel>,
       required: true,
     },
+    /** 是否显示图表 Title 组件 */
+    showTitle: {
+      type: Boolean,
+      default: true,
+    },
+    /** 查询参数 */
+    params: {
+      type: Object as PropType<Record<string, any>>,
+      default: () => ({}),
+    },
+    customOptions: {
+      type: Object as PropType<CustomOptions>,
+      default: () => ({}),
+    },
+    /** 图例配置 */
+    customLegendOptions: {
+      type: Object as PropType<LegendCustomOptions>,
+      default: () => ({}),
+    },
+    /** 是否展示复位按钮 */
+    showRestore: {
+      type: Boolean,
+      default: false,
+    },
+    /** 所有联动图表中存在有一个图表触发 hover 是否展示所有联动图表的 tooltip(默认 false) */
+    hoverAllTooltips: {
+      type: Boolean,
+      default: false,
+    },
   },
-  setup(props) {
-    const store = useTraceExploreStore();
+  emits: ['dataZoomChange', 'durationChange', 'restore'],
+  setup(props, { emit }) {
     const { t } = useI18n();
-    // const panelModels = shallowRef<PanelModel[]>([]);
-    // const dashboardId = random(10);
-    // const traceStore = useTraceExploreStore();
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const instance = getCurrentInstance();
     const chartRef = useTemplateRef<HTMLElement>('chart');
+    const chartMainRef = useTemplateRef<HTMLElement>('chartMain');
     const mouseIn = shallowRef(false);
     const panel = computed(() => props.panel);
-    const { options, loading, metricList, targets, series } = useEcharts(
+    const params = computed(() => props.params);
+
+    const { options, loading, metricList, targets, series, duration, chartId } = useEcharts(
       panel,
-      chartRef,
-      instance.appContext.config.globalProperties.$api
+      chartMainRef,
+      instance.appContext.config.globalProperties.$api,
+      params,
+      props.customOptions,
+      {
+        isMouseOver: mouseIn,
+        hoverAllTooltips: toRef(props, 'hoverAllTooltips'),
+      }
     );
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
@@ -74,14 +109,14 @@ export default defineComponent({
       series,
       chartRef
     );
-    const { legendData, handleSelectLegend } = useChartLegend(options);
+    const { legendData, handleSelectLegend } = useChartLegend(options, chartId, props.customLegendOptions);
     const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
-      if (!mouseIn.value) return;
-      const xAxisData = echartOptions.xAxis[0]?.data;
-      if (!xAxisData.length || xAxisData.length <= 2) return;
       chartInstance.value.dispatchAction({
         type: 'restore',
       });
+      if (!mouseIn.value) return;
+      const xAxisData = echartOptions.xAxis[0]?.data;
+      if (!xAxisData.length || xAxisData.length <= 2) return;
       let { startValue, endValue } = event.batch[0];
       startValue = Math.max(0, startValue);
       endValue = Math.min(endValue, xAxisData.length - 1);
@@ -96,11 +131,19 @@ export default defineComponent({
       if (!startTime) {
         startTime = xAxisData[0];
       }
-      store.updateTimeRange([startTime, endTime]);
+      emit('dataZoomChange', [startTime, endTime]);
     };
     const handleMouseInChange = (v: boolean) => {
       mouseIn.value = v;
     };
+
+    watch(
+      () => duration.value,
+      val => {
+        emit('durationChange', val);
+      }
+    );
+
     watch(
       [loading, options],
       async () => {
@@ -139,7 +182,7 @@ export default defineComponent({
         ref='chart'
         class='explore-chart'
       >
-        {this.panel && (
+        {this.panel && this.showTitle && (
           <ChartTitle
             class='draggable-handle'
             dragging={this.panel.dragging}
@@ -161,15 +204,29 @@ export default defineComponent({
           <ChartSkeleton />
         ) : this.options ? (
           <>
-            <VueEcharts
-              ref='echart'
-              group={this.panel.dashboardId}
-              option={this.options}
-              autoresize
-              onDatazoom={e => this.handleDataZoom(e, this.options)}
-              onMouseout={() => this.handleMouseInChange(true)}
+            <div
+              ref='chartMain'
+              class='base-chart-container'
+              onMouseout={() => this.handleMouseInChange(false)}
               onMouseover={() => this.handleMouseInChange(true)}
-            />
+            >
+              <VueEcharts
+                ref='echart'
+                group={this.panel.dashboardId}
+                option={this.options}
+                autoresize
+                onDatazoom={e => this.handleDataZoom(e, this.options)}
+              />
+
+              {this.showRestore && (
+                <span
+                  class='chart-restore'
+                  onClick={() => this.$emit('restore')}
+                >
+                  {this.$t('复位')}
+                </span>
+              )}
+            </div>
             <CommonLegend
               legendData={this.legendData}
               onSelectLegend={this.handleSelectLegend}

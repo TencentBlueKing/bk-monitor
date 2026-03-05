@@ -25,6 +25,7 @@ from .custom_report import (
     LogSubscriptionConfig,
     TimeSeriesGroup,
     TimeSeriesMetric,
+    TimeSeriesScope,
     TimeSeriesTag,
 )
 from .data_link import (  # noqa
@@ -37,6 +38,7 @@ from .data_link import (  # noqa
     LogResultTableConfig,
     ResultTableConfig,
     VMStorageBindingConfig,
+    DorisStorageBindingConfig,
 )
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .es_snapshot import (
@@ -128,6 +130,7 @@ __all__ = [
     "LogGroup",
     "TimeSeriesGroup",
     "TimeSeriesMetric",
+    "TimeSeriesScope",
     "TimeSeriesTag",
     "CustomReportSubscription",
     "LogSubscriptionConfig",

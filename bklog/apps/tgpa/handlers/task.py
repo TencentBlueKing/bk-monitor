@@ -27,6 +27,7 @@ from django.utils.functional import cached_property
 from apps.api import TGPATaskApi
 from apps.tgpa.constants import TGPA_BASE_DIR, TGPATaskTypeEnum, TASK_LIST_BATCH_SIZE
 from apps.tgpa.handlers.base import TGPAFileHandler
+from apps.tgpa.handlers.decrypt import get_decrypt_handler
 from apps.tgpa.models import TGPATask
 from apps.utils.thread import MultiExecuteFunc
 
@@ -44,6 +45,8 @@ class TGPATaskHandler:
         self.task_id = self.task_info["go_svr_task_id"]
         self.temp_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "task", str(self.task_id), "temp")
         self.output_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "task", str(self.task_id), "output")
+        # 解密处理器实例
+        self.decrypt_handler = get_decrypt_handler(bk_biz_id)
 
     @cached_property
     def meta_fields(self):
@@ -127,7 +130,11 @@ class TGPATaskHandler:
         """
         获取任务列表
         """
-        params["task_type"] = TGPATaskTypeEnum.BUSINESS_LOG_V2.value  # 目前只支持这种类型的任务
+        # 支持v1和v2业务日志捞取任务
+        task_types = ",".join(
+            [str(TGPATaskTypeEnum.BUSINESS_LOG_V1.value), str(TGPATaskTypeEnum.BUSINESS_LOG_V2.value)]
+        )
+        params["task_type"] = task_types
         # 第一次请求只获取1条数据，用于获取总数
         first_request_params = params.copy()
         first_request_params.update({"offset": 0, "limit": 1})
@@ -160,9 +167,13 @@ class TGPATaskHandler:
         """
         分页获取任务列表，用于前端
         """
+        # 支持v1和v2业务日志捞取任务
+        task_types = ",".join(
+            [str(TGPATaskTypeEnum.BUSINESS_LOG_V1.value), str(TGPATaskTypeEnum.BUSINESS_LOG_V2.value)]
+        )
         request_params = {
             "cc_id": params["bk_biz_id"],
-            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "task_type": task_types,
             "offset": (params["page"] - 1) * params["pagesize"],
             "limit": params["pagesize"],
         }
@@ -218,5 +229,5 @@ class TGPATaskHandler:
         """
         下载并处理文件
         """
-        file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields)
+        file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields, self.decrypt_handler)
         file_handler.download_and_process_file(self.task_info["file_name"])

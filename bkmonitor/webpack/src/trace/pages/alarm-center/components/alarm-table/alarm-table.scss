@@ -1,0 +1,111 @@
+/* stylelint-disable selector-class-pattern */
+
+@use './theme/alert-table-theme';
+@use './theme/incident-table-theme';
+@use './theme/action-table-theme';
+
+.alarm-table-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .alarm-table {
+    flex-grow: 1;
+    flex-basis: auto;
+
+    .t-table {
+      .t-table__content {
+        .t-table__body {
+          .t-table__first-full-row {
+            td {
+              // 保证表格内容不足以撑满表格区域时，行高度不自适应增高
+              height: 0;
+            }
+          }
+
+          tr:not(.t-table__row--full) {
+            // 保证表格内容不足以撑满表格区域时，行高度不自适应增高
+            td.alarm-first-col {
+              height: 0;
+              padding-top: 0;
+              padding-bottom: 0;
+            }
+
+            &:hover {
+              .explore-tags-col {
+                .tag-item {
+                  background-color: var(--tag-hover-bg-color);
+                }
+
+                .collapse-tag {
+                  background-color: #dcdee5;
+                }
+              }
+            }
+          }
+
+          td:last-child {
+            width: 40px;
+            max-width: 40px;
+          }
+        }
+      }
+    }
+  }
+
+  .explore-col {
+    line-height: 20px;
+
+    &.lever-rect-col {
+      display: flex;
+      align-items: center;
+
+      .lever-rect {
+        position: relative;
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        width: 3px;
+        height: 20px;
+        margin-right: 5px;
+
+        &::before {
+          position: absolute;
+          left: 0;
+          width: 100%;
+          height: 12px;
+          content: '';
+          background-color: var(--lever-rect-color);
+        }
+      }
+
+      .lever-rect-text {
+        color: #3a84ff;
+        cursor: pointer;
+
+        & > span {
+          vertical-align: text-bottom;
+        }
+      }
+    }
+
+    &.explore-prefix-icon-col {
+      .prefix-icon {
+        margin-right: 4px;
+      }
+    }
+  }
+
+  .ellipsis-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .alarm-table-first-full-row {
+    position: sticky;
+    right: var(--td-comp-paddingLR-s);
+    left: var(--td-comp-paddingLR-s);
+    width: calc(100% - var(--td-comp-paddingLR-s) - var(--td-comp-paddingLR-s));
+  }
+}

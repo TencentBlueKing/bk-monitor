@@ -50,6 +50,7 @@ const handleTimezoneChange = (timezone) => {
   store.commit('updateIndexItemParams', { timezone });
   updateTimezone(timezone);
   store.dispatch('requestIndexSetQuery');
+  RetrieveHelper.fire(RetrieveEvent.SEARCH_TIME_ZONE_CHANGE, timezone);
   setRouteParams();
 };
 

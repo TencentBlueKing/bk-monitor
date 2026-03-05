@@ -109,7 +109,7 @@ from apps.log_search.models import (
     Space,
 )
 from apps.models import model_to_dict
-from apps.utils.cache import caches_one_hour
+from apps.utils.cache import caches_ten_minute
 from apps.utils.custom_report import BK_CUSTOM_REPORT, CONFIG_OTLP_FIELD
 from apps.utils.db import array_chunk
 from apps.utils.function import map_if
@@ -729,7 +729,7 @@ class CollectorHandler:
         return [node["bk_inst_id"] for node in nodes if node["bk_obj_id"] == node_type]
 
     @staticmethod
-    @caches_one_hour(key=CACHE_KEY_CLUSTER_INFO, need_deconstruction_name="result_table_list", need_md5=True)
+    @caches_ten_minute(key=CACHE_KEY_CLUSTER_INFO, need_deconstruction_name="result_table_list", need_md5=True)
     def bulk_cluster_infos(result_table_list: list):
         """
         批量获取集群信息，单个失败不影响其他，将单个失败的 result_table 进行重试
@@ -840,9 +840,8 @@ class CollectorHandler:
                 {"cluster_config": {"cluster_id": -1, "cluster_name": ""}, "storage_config": {"retention": 0}},
             )
             _data["storage_cluster_id"] = cluster_info["cluster_config"]["cluster_id"]
-            _data["storage_cluster_name"] = (
-                cluster_info["cluster_config"].get("display_name") or cluster_info["cluster_config"]["cluster_name"]
-            )
+            _data["storage_cluster_name"] = cluster_info["cluster_config"].get("cluster_name", "")
+            _data["storage_display_name"] = cluster_info["cluster_config"].get("display_name", "")
             _data["retention"] = cluster_info["storage_config"]["retention"]
             # table_id
             if _data.get("table_id"):
@@ -1536,10 +1535,16 @@ class CollectorHandler:
             collector_config.bk_app_code,
         )
 
-        NOTIFY_EVENT(content=content,
-                     dimensions={"space_uid": space_uid, "collector_name": collector_config.collector_config_name,
-                                 "collector_id": collector_config.collector_config_id,
-                                 "enable_v4": collector_config.enable_v4, "msg_type": "create_collector_config"})
+        NOTIFY_EVENT(
+            content=content,
+            dimensions={
+                "space_uid": space_uid,
+                "collector_name": collector_config.collector_config_name,
+                "collector_id": collector_config.collector_config_id,
+                "enable_v4": collector_config.enable_v4,
+                "msg_type": "create_collector_config",
+            },
+        )
 
     @staticmethod
     def get_data_link_id(bk_biz_id: int, data_link_id: int = 0) -> int:

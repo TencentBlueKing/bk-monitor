@@ -43,6 +43,8 @@ import {
   type ExploreConditionMenuItem,
   type ExploreTableColumn,
   type GetTableCellRenderValue,
+  type TableCellRenderContext,
+  type TableCellRenderer,
   ExploreTableColumnTypeEnum,
 } from '../typing';
 
@@ -53,6 +55,8 @@ import type { SlotReturnValue } from 'tdesign-vue-next';
 interface UseExploreTableColumnConfig {
   /** 当前选中的应用 Name */
   appName: MaybeRef<string>;
+  /** 支持排序的字段类型 */
+  canSortFieldTypes: MaybeRef<Set<string> | string[]>;
   /** 需要显示渲染的列名数组 */
   displayFields: MaybeRef<string[]>;
   /** 是否启用点击弹出操作下拉菜单 */
@@ -61,20 +65,22 @@ interface UseExploreTableColumnConfig {
   fieldsWidthConfig: MaybeRef<Record<string, number>>;
   /** 当前激活的视角(span | trace)  */
   mode: MaybeRef<'span' | 'trace'>;
+  /** 表格渲染上下文 */
+  renderContext: TableCellRenderContext;
   /** 表格行数据唯一 key 字段 */
   rowKeyField: MaybeRef<string>;
   /** 表格排序信息 */
   sortContainer: MaybeRef<SortInfo>;
   /** 表格所有列字段配置数组(接口原始结构) */
   sourceFieldConfigs: MaybeRef<IDimensionField[]>;
+  /** 表格单元格渲染 */
+  tableCellRender: TableCellRenderer;
   /** 点击显示下拉操作menu */
   handleConditionMenuShow: (triggerDom: HTMLElement, conditionMenuTarget: ActiveConditionMenuTarget) => void;
   /** 点击展示 span | trace 详情抽屉页 */
   handleSliderShowChange: (mode: 'span' | 'trace', id: string) => void;
   /** 点击排序回调 */
   handleSortChange: (sortEvent: TableSort) => void;
-  /** 表格单元格渲染 */
-  tableCellRender: (column: ExploreTableColumn, row: Record<string, any>) => SlotReturnValue;
   /** 表头单元格渲染 */
   tableHeaderCellRender: (title: string, tipText: string, column: ExploreTableColumn) => () => SlotReturnValue;
 }
@@ -85,6 +91,7 @@ interface UseExploreTableColumnConfig {
  */
 export const useExploreColumnConfig = ({
   appName,
+  canSortFieldTypes,
   displayFields,
   enabledClickMenu,
   sourceFieldConfigs,
@@ -92,6 +99,7 @@ export const useExploreColumnConfig = ({
   mode,
   rowKeyField,
   sortContainer,
+  renderContext,
   tableHeaderCellRender,
   tableCellRender,
   handleConditionMenuShow,
@@ -103,6 +111,10 @@ export const useExploreColumnConfig = ({
   const { t } = useI18n();
   const traceStore = useTraceStore();
 
+  /** 支持排序的字段类型(Set 结构) */
+  const canSortFieldTypesSet = computed(() => {
+    return new Set(get(canSortFieldTypes) ?? CAN_TABLE_SORT_FIELD_TYPES);
+  });
   /** table 所有列字段信息(字段设置使用) */
   const tableColumns = computed(() => {
     return (get(sourceFieldConfigs) ?? []).reduce(
@@ -139,12 +151,12 @@ export const useExploreColumnConfig = ({
           column.title = fieldItem?.alias || column.title;
         }
         const tipText = column.headerDescription || column.colKey;
-        column.sorter = column.sorter != null ? column.sorter : CAN_TABLE_SORT_FIELD_TYPES.has(fieldItem?.type);
+        column.sorter = column.sorter != null ? column.sorter : get(canSortFieldTypesSet).has(fieldItem?.type);
         column.width = get(fieldsWidthConfig)?.[colKey] || column.width;
         // 表格列表头渲染方法
         const tableHeaderTitle = tableHeaderCellRender(column.title as string, tipText, column);
         // 表格单元格渲染方法
-        const tableCell = (_, { row }) => tableCellRender(column, row);
+        const tableCell = (_, { row }) => tableCellRender(row, column, renderContext);
 
         return {
           ...defaultTableConfig,
@@ -286,16 +298,17 @@ export const useExploreColumnConfig = ({
           fixed: 'left',
           suffixSlot: row =>
             (
-              <i
-                class='icon-monitor icon-Tracing'
-                v-bk-tooltips={{ content: t('查看关联 Trace'), delay: 400 }}
+              <span
+                class='trace-link-btn'
                 onClick={() => {
-                  // 记录“需要在 trace 侧滑中定位/高亮的 span”
+                  // 记录"需要在 trace 侧滑中定位/高亮的 span"
                   traceStore.setExternalLocateSpan(row.trace_id, row.span_id);
                   // 打开 trace 侧滑
                   handleSliderShowChange('trace', row.trace_id);
                 }}
-              />
+              >
+                {t('调用链')}
+              </span>
             ) as unknown as VNode,
           clickCallback: row => handleSliderShowChange('span', row.span_id),
         },
@@ -369,7 +382,7 @@ export const useExploreColumnConfig = ({
           title: t('所属 Trace'),
           width: 240,
           clickCallback: row => {
-            // 记录“需要在 trace 侧滑中定位/高亮的 span”
+            // 记录"需要在 trace 侧滑中定位/高亮的 span"
             traceStore.setExternalLocateSpan(row.trace_id, row.span_id);
             // 打开 trace 侧滑
             handleSliderShowChange('trace', row.trace_id);
@@ -542,8 +555,8 @@ export const useExploreColumnConfig = ({
           return value.map(v => ({
             alias: SPAN_KIND_MAPS[v]?.alias,
             value: v,
-            tagColor: '#63656e',
-            tagBgColor: 'rgba(151,155,165,.1)',
+            tagColor: '#4D4F56',
+            tagBgColor: '#F0F1F5',
           }));
         },
       },

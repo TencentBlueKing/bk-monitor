@@ -33,6 +33,7 @@
 
   import FieldsSetting from '../../result-comp/update/fields-setting';
   import BkLogPopover from '@/components/bklog-popover';
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
   import $http from '@/api';
 
   const store = useStore();
@@ -204,21 +205,28 @@
     }
   };
 
-  const handleClickSelectConfig = item => {
+  const handleClickSelectConfig = async (item) => {
     handlePopoverHide();
     store.commit('retrieve/updateFiledSettingConfigID', item.id);
+    store.commit('updateState', { localSort: false });
     store.commit('updateIsSetDefaultTableColumn', false);
-    store
-      .dispatch('userFieldConfigChange', {
-        displayFields: item.display_fields,
-        sortList: item.sort_list,
-        fieldsWidth: {},
-      })
-      .then(() => {
-        store.commit('resetVisibleFields', item.display_fields);
-        store.commit('updateIsSetDefaultTableColumn');
-        emit('select-fields-config', item.display_fields);
-      });
+    
+    // 先等待用户配置保存完成
+    await store.dispatch('userFieldConfigChange', {
+      displayFields: item.display_fields,
+      sortList: item.sort_list,
+      fieldsWidth: {},
+    });
+
+    // 更新本地显示字段状态
+    store.commit('resetVisibleFields', item.display_fields);
+    store.commit('updateIsSetDefaultTableColumn');
+    emit('select-fields-config', item.display_fields);
+
+    // 应用模板后重新请求数据
+    await store.dispatch('requestIndexSetFieldInfo');
+    await store.dispatch('requestIndexSetQuery');
+    RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
   };
 
   const isPopoverInstance = () => {

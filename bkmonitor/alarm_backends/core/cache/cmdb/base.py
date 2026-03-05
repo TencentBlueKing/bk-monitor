@@ -21,7 +21,7 @@ from constants.common import DEFAULT_TENANT_ID
 class CMDBCacheManager(ABC):
     cache = Cache("cache-cmdb")
     cache_type: str
-    CACHE_TIMEOUT = 60 * 60 * 24
+    CACHE_TIMEOUT = 60 * 60 * 24 * 7
 
     @staticmethod
     def _get_cache_key_prefix(bk_tenant_id: str) -> str:

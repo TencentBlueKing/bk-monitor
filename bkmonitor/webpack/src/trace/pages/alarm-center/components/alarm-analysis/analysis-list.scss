@@ -1,0 +1,56 @@
+.analysis-list {
+  .analysis-item {
+    display: flex;
+    justify-content: space-between;
+    height: 26px;
+    margin-top: 8px;
+
+    .analysis-item-info {
+      flex: 1;
+      overflow: hidden;
+      font-size: 12px;
+
+      .text-wrap {
+        display: flex;
+        align-items: center;
+        line-height: 20px;
+
+        .item-name {
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          color: #4d4f56;
+          white-space: nowrap;
+        }
+
+        .item-count {
+          color: #5ab8a8;
+        }
+
+        .item-percent {
+          margin-left: 4px;
+          font-weight: 700;
+          color: #5ab8a8;
+        }
+      }
+
+      .bk-progress {
+        display: block;
+
+        .progress-bar {
+          background: #e9edf5;
+        }
+      }
+    }
+
+    .analysis-item-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 40px;
+      margin-left: 8px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+}

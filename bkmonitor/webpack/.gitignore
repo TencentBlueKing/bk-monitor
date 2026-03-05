@@ -100,3 +100,9 @@ src/mermaid/
 /packages
 /.codecc
 .codecc
+.bkwikiairc
+
+.trae
+
+monitor-vue3-components
+monitor-vue2-components

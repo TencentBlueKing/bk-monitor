@@ -60,12 +60,18 @@ class IncidentNoticeHelper:
         incident_key_alias = kwargs.get("incident_key_alias") or incident_key
 
         # 计算故障持续时间
-        # 对于观察通知，计算观察时长（当前时间到end_time的差值）
+        # 对于观察通知，从 kwargs 中获取 last_minutes（已在 operation.py 中计算好）
         # 对于其他通知，使用正常的持续时间计算
-        observe_duration_info = None
-        if operation_type == IncidentOperationType.OBSERVE and incident.end_time:
-            # 观察通知：计算已观察时长（当前时间 - end_time，因为end_time在观察状态下表示观察开始时间）
-            observe_duration_info = cls._format_observe_duration(incident.end_time)
+        observe_duration_info = {
+            "duration_msg": "",
+            "duration_range": [],
+            "duration_range_msg": "",
+        }
+        if operation_type == IncidentOperationType.OBSERVE:
+            operation_start_time = incident.end_time or None
+            # 直接从 end_time（观察开始时间）计算到当前时间的观察时长
+            observe_duration_info = cls._format_observe_duration(observe_start_time=operation_start_time)
+
         end_time_for_duration = incident.end_time if incident.end_time else None
         duration_info = cls._format_duration(incident.begin_time, end_time_for_duration)
 
@@ -76,8 +82,16 @@ class IncidentNoticeHelper:
         incident_reason = cls._get_incident_reason(incident)
 
         # 获取故障状态
+        # 专用状态事件（恢复/观察/重开）优先使用事件语义，避免通知时序导致读取到旧状态
+        operation_status_mapping = {
+            IncidentOperationType.RECOVER: IncidentStatus.RECOVERED,
+            IncidentOperationType.OBSERVE: IncidentStatus.RECOVERING,
+            IncidentOperationType.REOPEN: IncidentStatus.ABNORMAL,
+        }
+        if operation_type in operation_status_mapping:
+            status = operation_status_mapping[operation_type].alias
         # 如果是状态更新通知，优先使用新状态值
-        if operation_type == IncidentOperationType.UPDATE and incident_key == "status" and to_value:
+        elif operation_type == IncidentOperationType.UPDATE and incident_key == "status" and to_value:
             try:
                 status = IncidentStatus(to_value).alias
             except (ValueError, AttributeError):
@@ -99,6 +113,22 @@ class IncidentNoticeHelper:
 
         # 故障合并信息
         link_incident_name = kwargs.get("link_incident_name")
+        is_anonymous_source = kwargs.get("is_anonymous_source", False)  # 源故障是否为匿名故障
+        merge_alert_count = kwargs.get("alert_count")  # 合并的告警数量
+
+        # 构建 MERGE 通知的 subtitle
+        def _get_merge_subtitle(incident_name: str) -> str:
+            if is_anonymous_source:
+                # 匿名故障：使用告警数量或简化描述
+                if merge_alert_count:
+                    return f"{merge_alert_count} 条关联告警并入故障【{incident_name}】"
+                else:
+                    return f"检测到关联告警并入故障【{incident_name}】"
+            elif link_incident_name:
+                # 正常故障：显示故障名称
+                return f"原故障【{link_incident_name}】并入故障【{incident_name}】"
+            else:
+                return ""
 
         # 默认标题
         subtitle = ""
@@ -111,22 +141,16 @@ class IncidentNoticeHelper:
                 IncidentOperationType.REOPEN: "故障重新打开",
                 IncidentOperationType.UPDATE: "故障更新",
                 IncidentOperationType.MERGE: "故障合并",
-                IncidentOperationType.MERGE_TO: "故障合并",
+                IncidentOperationType.MERGE_TO: "故障被合并",
             }
             subtitle_map = {
-                IncidentOperationType.CREATE: f"【{duration_info['duration_range'][0]}】发生【{incident.incident_name}】",
                 IncidentOperationType.OBSERVE: f"故障当前状态 观察中，已观察【{observe_duration_info['duration_msg']}】",
                 IncidentOperationType.RECOVER: f"【{incident.incident_name}】故障已恢复",
                 IncidentOperationType.REOPEN: "故障在观察期间重新打开",
                 IncidentOperationType.UPDATE: f"【{incident_key_alias}】原始值：{from_value} → 最新值：{to_value}"
                 if incident_key
                 else "故障状态更新",
-                IncidentOperationType.MERGE: f"故障【{link_incident_name}】合并入当前故障"
-                if link_incident_name
-                else "故障合并",
-                IncidentOperationType.MERGE_TO: f"当前故障合并到【{link_incident_name}】"
-                if link_incident_name
-                else "故障合并",
+                IncidentOperationType.MERGE: _get_merge_subtitle(incident.incident_name),
             }
             title = title_map.get(operation_type, "故障通知")
             subtitle = subtitle_map.get(operation_type, "")
@@ -159,11 +183,11 @@ class IncidentNoticeHelper:
         :param observe_start_time: 观察开始时间戳
         :return: 格式化的观察时长字典
         """
-        if not observe_start_time:
-            return {"duration_msg": _("未知"), "duration_range": ["", ""], "duration_range_msg": ""}
 
         current_time = int(time.time())
-        duration_seconds = current_time - observe_start_time
+        if not observe_start_time:
+            observe_start_time = current_time
+        duration_seconds = max(current_time - observe_start_time, 0)
 
         # 将时间戳转换为本地时区的格式化字符串
         tz_name = timezone.get_current_timezone().zone
@@ -396,7 +420,15 @@ class IncidentNoticeHelper:
                 notice_receivers=chat_ids,
             )
 
-            logger.info(f"Sent wxwork_bot notice for incident {incident.incident_id} to {len(chat_ids)} chat(s)")
+            # 检查发送结果
+            failed_chats = [chat_id for chat_id, res in result.items() if not res.get("result", False)]
+            if failed_chats:
+                logger.warning(
+                    f"Failed to send wxwork_bot notice for incident {incident.incident_id} "
+                    f"to {len(failed_chats)} chat(s): {result}"
+                )
+            else:
+                logger.info(f"Sent wxwork_bot notice for incident {incident.incident_id} to {len(chat_ids)} chat(s)")
 
             return result
 

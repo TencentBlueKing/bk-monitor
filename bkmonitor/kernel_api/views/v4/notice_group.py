@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from bk_monitor_base.strategy import NoticeGroupSerializer
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -25,7 +26,6 @@ from bkmonitor.models import (
     StrategyActionConfigRelation,
     UserGroup,
 )
-from bkmonitor.strategy.serializers import NoticeGroupSerializer
 from constants.action import ActionSignal, NoticeWay, NotifyStep
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -38,7 +38,9 @@ class SearchNoticeGroupResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_ids = serializers.ListField(child=serializers.IntegerField(required=True, label="业务ID"), required=False)
+        bk_biz_ids = serializers.ListField(
+            child=serializers.IntegerField(required=True, label="业务ID"), required=False
+        )
         ids = serializers.ListField(child=serializers.IntegerField(required=True, label="告警组ID"), required=False)
 
     def perform_request(self, params):
@@ -142,7 +144,7 @@ class SaveNoticeGroupResource(Resource):
         if instance:
             raise ValidationError(_("通知组名称已存在"))
 
-        return super(SaveNoticeGroupResource, self).validate_request_data(request_data)
+        return super().validate_request_data(request_data)
 
     def perform_request(self, validated_request_data):
         if validated_request_data.get("id"):
@@ -196,7 +198,7 @@ class SaveNoticeGroupResource(Resource):
             if not action_config:
                 action_config = ActionConfig(
                     **{
-                        "name": "[webhook] {}".format(user_group.name),
+                        "name": f"[webhook] {user_group.name}",
                         "plugin_id": 2,
                         "bk_biz_id": user_group.bk_biz_id,
                         "execute_config": {
@@ -226,7 +228,7 @@ class SaveNoticeGroupResource(Resource):
                     }
                 )
 
-            action_config.name = "[webhook] {}".format(user_group.name)
+            action_config.name = f"[webhook] {user_group.name}"
             action_config.execute_config["template_detail"]["url"] = validated_request_data["webhook_url"]
             action_config.save()
 
@@ -310,7 +312,9 @@ class SearchUserGroupResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_ids = serializers.ListField(child=serializers.IntegerField(required=True, label="业务ID"), required=False)
+        bk_biz_ids = serializers.ListField(
+            child=serializers.IntegerField(required=True, label="业务ID"), required=False
+        )
         ids = serializers.ListField(child=serializers.IntegerField(required=True, label="告警组ID"), required=False)
         name = serializers.CharField(required=False, label="告警组名称")
 
@@ -399,8 +403,8 @@ class DeleteUserGroupResource(Resource):
         if not_allowed_groups:
             # 如果存在不允许删除的告警组，直接返回错误
             raise NoticeGroupHasStrategy(
-                "Follow groups(%s) are to not allowed to delete because of "
-                "these user groups have been related to some strategies" % ",".join(not_allowed_groups)
+                "Follow groups({}) are to not allowed to delete because of "
+                "these user groups have been related to some strategies".format(",".join(not_allowed_groups))
             )
         deleted_group_ids = list(deleted_user_group_queryset.values_list("id", flat=True))
         DutyArrange.objects.filter(user_group_id__in=deleted_group_ids).delete()
@@ -415,7 +419,9 @@ class SearchDutyRuleResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_ids = serializers.ListField(child=serializers.IntegerField(required=True, label="业务ID"), required=False)
+        bk_biz_ids = serializers.ListField(
+            child=serializers.IntegerField(required=True, label="业务ID"), required=False
+        )
         ids = serializers.ListField(child=serializers.IntegerField(required=True, label="规则组ID"), required=False)
         name = serializers.CharField(required=False)
 
@@ -504,8 +510,8 @@ class DeleteDutyRuleResource(Resource):
         if not_allowed_rules:
             # 如果存在不允许删除的告警规则组，直接返回错误
             raise NoticeGroupHasStrategy(
-                "Follow duty rules(%s) are to not allowed to delete because of "
-                "these rules have been related to some user groups" % ",".join(not_allowed_rules)
+                "Follow duty rules({}) are to not allowed to delete because of "
+                "these rules have been related to some user groups".format(",".join(not_allowed_rules))
             )
         deleted_rule_ids = list(deleted_duty_rule_queryset.values_list("id", flat=True))
         DutyArrange.objects.filter(duty_rule_id__in=deleted_rule_ids).delete()

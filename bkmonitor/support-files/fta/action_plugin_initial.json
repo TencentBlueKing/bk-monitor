@@ -689,7 +689,7 @@
     "is_builtin": true,
     "is_deleted": false,
     "is_peripheral": true,
-    "name": "新版ITSM流程服务",
+    "name": "IT服务管理中心",
     "plugin_key": "itsmv4",
     "plugin_source": "peripheral",
     "plugin_type": "common",
@@ -868,7 +868,7 @@
                 "request_data_mapping": {
                     "bk_template_id": "{{template_id}}"
                 },
-                "resource_data": "response.pipeline_tree.constants.*",
+                "resource_data": "response.pipeline_tree.constants.* | [?show_type == 'show']",
                 "mapping": {
                     "key": "{{key}}",
                     "name": "{{name}}",
@@ -884,6 +884,7 @@
                 "name": "创建分析处置平台任务",
                 "resource_class": "CreateTaskResource",
                 "resource_module": "api.bk_incident.default",
+                "render_inputs": true,
                 "inputs": [
                     {
                         "key": "bk_biz_id",
@@ -899,7 +900,7 @@
                     },
                     {
                         "key": "constants",
-                        "value": "execute_config.template_detail_dict",
+                        "value": "merge(execute_config.template_detail_dict, `{\"${_event_context}\":\"{{alarm.callback_message}}\"}`)",
                         "type": "dict",
                         "format": "jmespath"
                     },

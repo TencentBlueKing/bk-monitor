@@ -1,0 +1,16 @@
+.suspicious-dimension-panel {
+  .tips {
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #313238;
+  }
+
+  .link-text {
+    color: #3a84ff;
+    cursor: pointer;
+
+    &:hover {
+      color: #699df4;
+    }
+  }
+}

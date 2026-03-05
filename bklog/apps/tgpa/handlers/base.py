@@ -45,7 +45,11 @@ from apps.tgpa.constants import (
     TGPA_TASK_COLLECTOR_CONFIG_NAME,
     TGPA_TASK_SORT_FIELDS,
     TGPA_TASK_TARGET_FIELDS,
+    EXTRACT_FILE_MAX_ITERATIONS,
+    COS_DOWNLOAD_MAX_SIZE,
+    COS_DOWNLOAD_CHUNK_SIZE,
 )
+from apps.tgpa.handlers.decrypt import BaseDecryptHandler
 from apps.utils.bcs import Bcs
 from apps.utils.log import logger
 
@@ -53,11 +57,13 @@ from apps.utils.log import logger
 class TGPAFileHandler:
     """TGPA文件处理"""
 
-    def __init__(self, temp_dir, output_dir, meta_fields=None):
+    def __init__(self, temp_dir, output_dir, meta_fields=None, decrypt_handler: BaseDecryptHandler = None):
         # temp_dir: 临时目录，处理完成后删除; output_dir: 输出目录，存放处理后的文件
         self.temp_dir = temp_dir
         self.output_dir = output_dir
         self.meta_fields = meta_fields or {}
+        # decrypt_handler: 解密处理器，用于解密日志文件，如果为None则不进行解密
+        self.decrypt_handler = decrypt_handler
 
     def download_file(self, file_name):
         """
@@ -74,8 +80,30 @@ class TGPAFileHandler:
 
         save_path = os.path.join(self.temp_dir, file_name)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        with open(save_path, "wb") as f:
-            f.write(response["Body"].get_raw_stream().read())
+
+        # 允许2倍容差，防止传输编码等差异
+        content_length = int(response.get("Content-Length", COS_DOWNLOAD_MAX_SIZE))
+        max_size = min(content_length * 2, COS_DOWNLOAD_MAX_SIZE)
+
+        # 分块读取文件，防止内存占用过大，同时避免文件流被提前消费导致无限循环写入
+        chunk_size = COS_DOWNLOAD_CHUNK_SIZE
+        read_len = 0
+        try:
+            with open(save_path, "wb") as fp:
+                while True:
+                    chunk = response["Body"].read(chunk_size)
+                    if not chunk:
+                        break
+                    read_len += len(chunk)
+
+                    if read_len > max_size:
+                        raise Exception(f"文件 {file_name} 大小超过最大限制 {max_size} 字节")
+                    fp.write(chunk)
+        except Exception:
+            # 异常时清理已下载的临时文件
+            if os.path.exists(save_path):
+                os.remove(save_path)
+            raise
 
         return save_path
 
@@ -121,6 +149,27 @@ class TGPAFileHandler:
                 log_entry.update(self.meta_fields)
                 output_file.write(f"{ujson.dumps(log_entry, ensure_ascii=False)}\n")
 
+    @classmethod
+    def extract_nested_zip(cls, extract_dir):
+        """
+        递归解压目录中的所有zip文件
+        :param extract_dir: 路径
+        """
+        iteration_count = 0
+        while iteration_count < EXTRACT_FILE_MAX_ITERATIONS:
+            iteration_count += 1
+            zip_files = [f for f in Path(extract_dir).rglob("*.zip") if f.is_file() and zipfile.is_zipfile(f)]
+            if not zip_files:
+                break
+
+            for zip_file in zip_files:
+                try:
+                    with zipfile.ZipFile(zip_file, "r") as zip_ref:
+                        zip_ref.extractall(zip_file.parent)
+                    os.remove(zip_file)
+                except Exception as e:
+                    logger.exception("Failed to extract zip file %s: %s", zip_file, e)
+
     def download_and_process_file(self, file_name):
         """
         下载并处理文件
@@ -130,10 +179,16 @@ class TGPAFileHandler:
         with zipfile.ZipFile(compressed_file_path, "r") as zip_ref:
             zip_ref.extractall(self.temp_dir)
 
+        # 递归解压嵌套的压缩包
+        self.extract_nested_zip(self.temp_dir)
+
         # 查找并处理日志文件，忽略异常，防止单个文件处理失败导致整个任务失败
         log_files = self.find_log_files(self.temp_dir)
         for log_file_path in log_files:
             try:
+                # 如果配置了解密处理器，先对文件进行解密
+                if self.decrypt_handler:
+                    self.decrypt_handler.decrypt_file(os.path.join(self.temp_dir, log_file_path))
                 self.process_log_file(log_file_path)
             except Exception as e:
                 logger.exception("Failed to process log file %s: %s", log_file_path, e)

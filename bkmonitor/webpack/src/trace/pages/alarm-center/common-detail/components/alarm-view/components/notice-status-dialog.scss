@@ -1,0 +1,19 @@
+.notice-status-dialog-content {
+    position: relative;
+
+    .notice-failed {
+      display: flex;
+      width: 12px;
+      height: 12px;
+      background-image: url("../../../../../../static/img/notice-failed.svg");
+      background-size: cover;
+    }
+
+    .notice-success {
+      display: flex;
+      width: 12px;
+      height: 12px;
+      background: url("../../../../../../static/img/notice-success.svg");
+      background-size: cover;
+    }
+}

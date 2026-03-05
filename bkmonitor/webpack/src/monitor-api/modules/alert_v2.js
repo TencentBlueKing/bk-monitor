@@ -50,6 +50,7 @@ export const alertTraces = request('POST', 'fta/alert/v2/alert/traces/');
 export const alertLogRelationList = request('GET', 'fta/alert/v2/alert/log_relation_list/');
 export const quickAlertShield = request('GET', 'fta/alert/v2/alert/quick_shield/');
 export const quickAlertAck = request('GET', 'fta/alert/v2/alert/quick_ack/');
+export const editDataMeaning = request('POST', 'fta/alert/alert/edit_data_meaning/');
 
 export default {
   listAllowedBiz,
@@ -102,4 +103,5 @@ export default {
   alertLogRelationList,
   quickAlertShield,
   quickAlertAck,
+  editDataMeaning
 };

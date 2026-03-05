@@ -1,19 +1,39 @@
-.explore-tags-col {
-  --tag-height: 23px;
+.explore-tags-col.bk-common-tag-show {
+  --tag-height: 22px;
+
   display: flex;
-  column-gap: 4px;
-  align-items: center;
   flex-wrap: wrap;
+
+  // 避免在 自适应行高表格 在tag组件计算时高度样式会出现抖动，
+  // 所以 根元素.explore-tags-col 和 .item-tags 都需要设置 flex-wrap: nowrap 不允许换行
+  flex-wrap: nowrap;
+  align-items: center;
   height: var(--tag-height);
 
+  &.explore-col {
+    min-height: var(--tag-height);
+  }
+
+  .item-tags {
+    // 避免在 自适应行高表格 在tag组件计算时高度样式会出现抖动，
+    // 所以 根元素 和 tag-item 都需要设置 flex-wrap: nowrap 不允许换行
+    flex-wrap: nowrap;
+  }
+
   .tag-item {
-    display: flex;
+    display: inline-flex;
     flex-shrink: 0;
     align-items: center;
+    max-width: 180px;
     height: var(--tag-height);
     padding: 0 8px;
     color: var(--tag-color);
     background-color: var(--tag-bg-color);
     border-radius: 2px;
+
+    &:hover {
+      color: var(--tag-hover-color);
+      background-color: var(--tag-hover-bg-color);
+    }
   }
 }

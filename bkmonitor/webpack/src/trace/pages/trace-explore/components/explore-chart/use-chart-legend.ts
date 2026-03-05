@@ -26,10 +26,20 @@
 
 import { type ShallowRef, shallowRef, watch } from 'vue';
 
-import type { ILegendItem, LegendActionType, ValueFormatter } from './types';
+import type { ValueFormatter } from './types';
+import type { ILegendItem, LegendActionType } from '@/plugins/typings';
 
-export const useChartLegend = (options: ShallowRef<any, any>) => {
-  const legendData = shallowRef([]);
+export interface LegendCustomOptions {
+  legendClick?: (actionType: LegendActionType, item: ILegendItem, legendData: ILegendItem[]) => ILegendItem[];
+  legendData?: (legendData: ILegendItem[]) => ILegendItem[];
+}
+
+export const useChartLegend = (
+  options: ShallowRef<any, any>,
+  chartId: ShallowRef<string, string>,
+  customOptions: LegendCustomOptions
+) => {
+  const legendData = shallowRef<ILegendItem[]>([]);
   const seriesList = shallowRef([]);
 
   function getLegendData(series: any[]) {
@@ -44,7 +54,7 @@ export const useChartLegend = (options: ShallowRef<any, any>) => {
         min: '',
         avg: 0,
         total: 0,
-        color: seriesItem?.color || options.value.color[index],
+        color: seriesItem?.color || seriesItem?.itemStyle?.color || options.value.color[index],
         show: true,
         minSource: 0,
         maxSource: 0,
@@ -82,8 +92,9 @@ export const useChartLegend = (options: ShallowRef<any, any>) => {
         legendDataTemp.push(legendItem);
       }
     }
-    legendData.value = legendDataTemp;
+    legendData.value = customOptions.legendData?.(legendDataTemp) ?? legendDataTemp;
   }
+
   function handleGetMinPrecision(data: number[], formatter: ValueFormatter, unit: string) {
     if (!data || data.length === 0) {
       return 0;
@@ -118,26 +129,51 @@ export const useChartLegend = (options: ShallowRef<any, any>) => {
   }
 
   function handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
+    if (item.disabled) return;
     if (legendData.value.length < 2) {
       return;
     }
     const setSeriesFilter = () => {
-      // const copyOptions = { ...options.value };
       const showNames = [];
       for (const l of legendData.value) {
         l.show && showNames.push(l.name);
       }
       options.value = {
         ...options.value,
-        series: seriesList.value?.filter(s => showNames.includes(s.name)),
+        series: seriesList.value.map(series => {
+          const isShow = showNames.includes(series.name);
+          const diff = isShow
+            ? {
+                data: series.data,
+                markPoint: series.markPoint,
+                markLine: series.markLine,
+                markArea: series.markArea,
+              }
+            : {
+                data: [],
+                markPoint: {},
+                markLine: {},
+                markArea: {},
+              };
+          return {
+            ...series,
+            ...diff,
+          };
+        }),
       };
     };
+
+    if (customOptions.legendClick) {
+      legendData.value = customOptions.legendClick(actionType, item, legendData.value);
+      setSeriesFilter();
+      return;
+    }
     if (actionType === 'shift-click') {
       legendData.value = legendData.value.map(l => {
         if (l.name === item.name) {
           return {
             ...l,
-            show: !l.show,
+            show: l.disabled || !l.show,
           };
         }
         return l;
@@ -146,23 +182,22 @@ export const useChartLegend = (options: ShallowRef<any, any>) => {
     } else if (actionType === 'click') {
       const hasOtherShow = legendData.value
         .filter(item => !item.hidden)
-        .some(set => set.name !== item.name && set.show);
+        .some(set => set.name !== item.name && set.show && !set.disabled);
       legendData.value = legendData.value.map(l => {
         return {
           ...l,
-          show: l.name === item.name || !hasOtherShow,
+          show: l.disabled || l.name === item.name || !hasOtherShow,
         };
       });
       setSeriesFilter();
     }
   }
 
-  const { stop } = watch(
-    () => options.value,
-    v => {
-      if (v?.series) {
-        getLegendData(v.series);
-        stop();
+  watch(
+    () => chartId.value,
+    () => {
+      if (options.value?.series) {
+        getLegendData(options.value.series);
       }
     },
     {

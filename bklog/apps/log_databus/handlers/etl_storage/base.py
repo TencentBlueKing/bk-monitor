@@ -54,7 +54,7 @@ from apps.log_search.constants import (
     FieldDataTypeEnum,
     FieldDateFormatEnum,
 )
-from apps.utils import is_match_variate
+from apps.utils import is_match_variate, md5_sum
 from apps.utils.codecs import unicode_str_decode
 from apps.utils.db import array_group
 
@@ -970,7 +970,9 @@ class EtlStorage:
             from apps.log_databus.tasks.collector import modify_result_table
 
             modify_result_table.delay(params)
-            cache.delete(CACHE_KEY_CLUSTER_INFO.format(table_id))
+
+            md5_key = md5_sum(CACHE_KEY_CLUSTER_INFO.format(table_id))
+            cache.delete(md5_key)
 
         if not instance.table_id:
             instance.table_id = table_id
@@ -1072,10 +1074,8 @@ class EtlStorage:
         collector_config = {"etl_params": result_table_config.get("option", {})}
         if result_table_storage:
             collector_config["storage_cluster_id"] = result_table_storage["cluster_config"]["cluster_id"]
-            collector_config["storage_cluster_name"] = (
-                result_table_storage["cluster_config"].get("display_name")
-                or result_table_storage["cluster_config"]["cluster_name"]
-            )
+            collector_config["storage_cluster_name"] = result_table_storage["cluster_config"].get("cluster_name", "")
+            collector_config["storage_display_name"] = result_table_storage["cluster_config"].get("display_name", "")
             collector_config["retention"] = result_table_storage["storage_config"].get("retention")
             collector_config["allocation_min_days"] = result_table_storage["storage_config"].get("warm_phase_days")
 
@@ -1508,6 +1508,8 @@ class EtlStorage:
             from apps.log_databus.tasks.collector import modify_result_table
 
             modify_result_table.delay(params)
-            cache.delete(CACHE_KEY_CLUSTER_INFO.format(table_id))
+
+            md5_key = md5_sum(CACHE_KEY_CLUSTER_INFO.format(table_id))
+            cache.delete(md5_key)
 
         return {"table_id": table_id, "params": params}

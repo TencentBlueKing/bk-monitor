@@ -75,6 +75,7 @@ export default {
   '{0}个成功': ' successes: {0}',
   '{0}个失败': ' failed: {0}',
   '{0}个导入中': 'Importing: {0}',
+  '已选 {0} 项': 'Selected {0} Items',
   '已选{0}项': 'Selected {0} Items',
   '展开 1 层': 'Expand 1 Layer',
   '收起 1 层': 'Collapse 1 Layer',
@@ -133,6 +134,7 @@ export default {
   '共产生{0}个高危告警和{1}个其他告警': 'high-risk alarms : {0}, other alarm : {1}',
   '已选择 {n}': 'selected {n}',
   '已选择{0}个策略': '{0} rules selected',
+  '已选择 {0} 条告警': '{0} alarms selected',
   '已选择 {n} 个主机': 'Selected {n} hosts',
   '已选择 {n} 个动态分组': 'Selected {n} dynamic groups',
   '已选择{count}条': 'Selected {count} Items',
@@ -230,6 +232,26 @@ export default {
   '当出现了 HTTP 类型的 span 并且调用的 Url(attributes.http.url) 为 `https://example.com/path/to/docs`，将会匹配出 `example.com` 自定义服务，以及此 span 的 span_name 将会覆盖为`path/to/docs':
     'When a span of HTTP type appears and the calling Url (attributes.http.url) is `https://example.com/path/to/docs`, the `example.com` custom service will be matched, and the span_name of this span will be overwritten with `path/to/docs',
   '如需使用该功能，请联系管理员': 'To use this feature, please contact the administrator',
+  '{0} 个表达式': '{0} expressions',
+  '输入表达式后，必须点击预览，方可生效':
+    'After entering the expression, you must click the preview button to take effect',
+  '支持 JS 正则匹配方式，如子串前匹配go_, 模糊匹配(.*?)_total':
+    'Supports JS regular expression matching, such as substring prefix matching go_, fuzzy matching (.*?)_total',
+  '根据分组规则自动发现并分组指标。': 'Automatically discover and group metrics according to grouping rules.',
+  '删除后该分组下的指标将自动挪入<默认分组>':
+    'After deletion, the metrics in the group will be automatically moved to <Default>',
+  和内置分组名冲突: 'Conflict with built-in group names',
+  长度不能超过20个字符: 'The length cannot exceed 20 characters',
+  '该指标已预设分组，暂不支持页面修改。':
+    'The metric has already been preset, and modification is not supported on the page.',
+  '搜索 名称、别名、单位、汇聚方法、显/隐': 'Search name, alias, unit, aggregation method, show/hide',
+  '手动选择指标作为分组对象，仅支持未分组指标。':
+    'Manual selection of metrics as grouping objects only supports ungrouped metrics.',
+  '{0} 变更': '{0} changed',
+  '{0} 新增': '{0} added',
+  '{0} 移除': '{0} deleted',
+  仅显示变更项: 'Only show changed items',
+  暂无变更: 'No changes',
 
   // 故障
   影响空间: 'Affected space',
@@ -353,6 +375,8 @@ export default {
   'Profiling 查询参数': 'Profiling query parameters',
   调用拓扑: 'Call topology',
   查看指引: 'View guide',
+  '{0} 试试': 'Try {0}',
+  多选数据: 'Multi-select data',
   '共{0}个': '{0} items in total',
   '{0}个周期内累积满足{1}次检测算法': '{0} periods of time, cumulative {1} times of detection algorithm',
   启停: 'Start/Stop',
@@ -392,4 +416,12 @@ export default {
   '请输入结果表名称, 非必需': 'Please enter the result table name, optional',
   '请输入相关指标, 非必需': 'Please enter the related metrics, optional',
   手动创建: 'Manual create',
+  至次日: 'To the next day',
+  维度下钻分析: 'Dimension drill-down analysis',
+  全字段检索: 'Full field search',
+  选择指标: 'Select metrics',
+  模糊搜索: 'Fuzzy search',
+  正则表达式: 'Regular expression',
+  '根据规则自动发现未来新指标，存量指标不生效。':
+    'Automatically discover new metrics according to rules, existing metrics do not take effect.',
 };

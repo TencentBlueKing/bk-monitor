@@ -64,7 +64,7 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span @click.stop>{{ row.storage_cluster_name }}</span>
+                  <span @click.stop>{{ row.storage_display_name }}</span>
                 </div>
               </bk-radio>
             </template>
