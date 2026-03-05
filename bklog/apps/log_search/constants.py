@@ -925,8 +925,8 @@ class FieldDataTypeEnum(ChoicesEnum):
         return {
             "ip": "string",
             "keyword": "string",
-            "integer": "float",
-            "long": "float",
+            "integer": "int",
+            "long": "long",
             "float": "float",
             "double": "float",
             "object": "object",
