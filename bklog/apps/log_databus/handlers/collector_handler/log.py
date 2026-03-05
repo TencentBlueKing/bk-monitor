@@ -560,8 +560,8 @@ class LogCollectorHandler:
                 cluster["cluster_config"].get("custom_option"),
                 cluster["cluster_config"]["registered_system"],
             ):
-                if cluster_name := cluster["cluster_config"].get("cluster_name"):
-                    metadata_cluster_names.add(cluster_name)
+                if display_name := cluster["cluster_config"].get("display_name"):
+                    metadata_cluster_names.add(display_name)
         return metadata_cluster_names
 
     def get_collector_field_enums(self):
