@@ -85,7 +85,7 @@ def get_alert_relation_info(alert: AlertDocument, length_limit=True):
             content = get_alert_info_for_log_clustering_new_class(alert, label.split("/")[-1])
             break
         # 日志聚类数量告警具有特定标签，格式 "LogClustering/Count/{index_set_id}"
-        # 根据前缀可识别出来
+        # 根据前缀可识别出来UnifyQueryDataSources
         elif label.startswith("LogClustering/Count/"):
             content = get_alert_info_for_log_clustering_count(alert, label.split("/")[-1])
             break
