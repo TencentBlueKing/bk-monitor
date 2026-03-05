@@ -20,7 +20,6 @@ the project delivered to anyone in the future.
 """
 
 from django.db import transaction
-from django.db.models import Count
 
 from apps.iam import Permission, ResourceEnum
 from apps.log_search.constants import IndexSetDataType
@@ -55,14 +54,23 @@ class IndexGroupHandler(APIModel):
         index_groups = LogIndexSet.objects.filter(is_group=True, space_uid=params["space_uid"]).values(
             "index_set_id", "index_set_name"
         )
-        # 补充索引数量字段
-        index_set_ids = [x["index_set_id"] for x in index_groups]
-        index_counts = (
-            LogIndexSetData.objects.filter(index_set_id__in=index_set_ids, type=IndexSetDataType.INDEX_SET.value)
-            .values("index_set_id")
-            .annotate(count=Count("index_id"))
+
+        # 补充索引数量字段（仅统计当前空间的子索引集，排除关联空间的索引集）
+        current_space_index_set_ids = set(
+            LogIndexSet.objects.filter(space_uid=params["space_uid"], is_group=False).values_list(
+                "index_set_id", flat=True
+            )
         )
-        index_counts_dict = {x["index_set_id"]: x["count"] for x in index_counts}
+
+        index_group_ids = [x["index_set_id"] for x in index_groups]
+        child_records = LogIndexSetData.objects.filter(
+            index_set_id__in=index_group_ids, type=IndexSetDataType.INDEX_SET.value
+        ).values_list("index_set_id", "result_table_id")
+
+        index_counts_dict = {}
+        for group_id, child_id in child_records:
+            if int(child_id) in current_space_index_set_ids:
+                index_counts_dict[group_id] = index_counts_dict.get(group_id, 0) + 1
         for x in index_groups:
             x["index_count"] = index_counts_dict.get(x["index_set_id"], 0)
             x["deletable"] = True  # TODO: 先给前端一个字段，后续需要判断索引组是否可以删除
