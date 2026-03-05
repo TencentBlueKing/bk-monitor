@@ -118,6 +118,8 @@ export default defineComponent({
       () => props.show,
       newVal => {
         if (!newVal) {
+          alarmId.value = '';
+          actionId.value = '';
           alarmDetail.value = null;
           actionDetail.value = null;
         }
