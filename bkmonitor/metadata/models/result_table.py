@@ -575,7 +575,7 @@ class ResultTable(models.Model):
     def apply_datalink(self, force_update: bool = False) -> None:
         """创建数据链路"""
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
-        from metadata.task.datalink import apply_event_group_datalink, apply_log_datalink
+        from metadata.task.datalink import apply_apm_datalink, apply_event_group_datalink, apply_log_datalink
         from metadata.task.tasks import access_bkdata_vm
 
         # 获取数据源ID
@@ -625,6 +625,9 @@ class ResultTable(models.Model):
             # 如果存在日志V4数据链路配置，则创建日志V4数据链路
             if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
                 apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+            # 如果存在APM V4数据链路配置，则创建apm V4数据链路
+            elif options and options.get(ResultTableOption.OPTION_ENABLE_V4_APM_DATA_LINK, False):
+                apply_apm_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
             # 如果存在事件组V4数据链路配置或默认启用事件组V4数据链路，则创建事件组V4数据链路
             elif datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
                 apply_event_group_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
@@ -2845,6 +2848,7 @@ class ResultTableOption(OptionBase):
 
     OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK = "enable_v4_event_group_data_link"
     OPTION_ENABLE_V4_LOG_DATA_LINK = "enable_log_v4_data_link"
+    OPTION_ENABLE_V4_APM_DATA_LINK = "enable_v4_apm_data_link"
     OPTION_V4_LOG_DATA_LINK = "log_v4_data_link"
 
     # 选项类型
