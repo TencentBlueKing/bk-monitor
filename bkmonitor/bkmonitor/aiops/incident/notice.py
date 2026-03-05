@@ -129,15 +129,15 @@ class IncidentNoticeHelper:
             if is_anonymous_source:
                 # 匿名故障：使用告警数量或简化描述
                 if merge_alert_count:
-                    return f"{merge_alert_count} 条关联告警 并入故障 {incident_display}"
+                    return f"{merge_alert_count}条关联告警并入故障{incident_display}"
                 else:
-                    return f"检测到关联告警 并入故障 {incident_display}"
+                    return f"检测到关联告警并入故障{incident_display}"
             elif link_incident_name:
                 # 正常故障：显示故障名称
                 return (
-                    f"原故障 {link_incident_display} 并入故障 {incident_display}"
+                    f"原故障{link_incident_display}并入故障{incident_display}"
                     if link_incident_display
-                    else f"原故障 {link_incident_name} 并入故障 {incident_display}"
+                    else f"原故障{link_incident_name}并入故障{incident_display}"
                 )
             else:
                 return ""
