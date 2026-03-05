@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import html
 import json
 import logging
 import re
@@ -1643,6 +1644,9 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
             return False
         return bk_biz_id not in black_list and str(bk_biz_id) not in black_list
 
+    def _get_unify_query_string(self) -> str:
+        return self.query_string or "*"
+
     def to_unify_query_config(self) -> list[dict]:
         group_by: list[str] = self._get_group_by()
         base_query: dict[str, Any] = {
@@ -1655,7 +1659,7 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
             "field_name": "",
             "time_field": self.time_field,
             "dimensions": group_by,
-            "query_string": self.query_string or "*",
+            "query_string": self._get_unify_query_string(),
             "conditions": self._get_conditions(),
             "function": [],
             "time_aggregation": {},
@@ -2066,7 +2070,10 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
     EXTRA_DISTINCT_FIELD = None
     EXTRA_AGG_DIMENSIONS = []
 
-    # 用于灰度对账的临时白名单列表（类成员变量），对账完成后会清空此列表以恢复正常逻辑
+    WILDCARD_PATTERN: str = "*"
+    QUERY_SPECIAL_REGEX = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT")
+
+    # 用于灰度对账的临时白名单列表（类成员变量），对账完成后会清空此列表以恢复正常逻辑。
     LOG_UNIFY_QUERY_WHITE_BIZ_LIST: list[int] | None = None
 
     def __init__(self, *args, **kwargs):
@@ -2087,11 +2094,25 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
 
     @classmethod
     def _fetch_white_list(cls) -> list[str | int]:
-        # 如果类成员白名单列表不为空，优先使用它（用于灰度对账测试）
+        # 仅用于命令行对账，线上环境恒定为 None。
         if cls.LOG_UNIFY_QUERY_WHITE_BIZ_LIST is not None:
             return cls.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
 
+        # 白名单优先级：环境变量 > 动态 DB 配置。
+        if settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV:
+            return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV
+
         return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
+
+    def _get_unify_query_string(self) -> str:
+        # 背景：没有切换 UnifyQuery 的场景直调日志平台 API，此处对其日志平台对 query_string 的处理逻辑。
+        # Ref：https://github.com/TencentBlueKing/bk-monitor/blob/master/bklog/apps/log_esquery/esquery/builder/query_string_builder.py#L46
+        query_string: str = html.unescape(self.query_string) if self.query_string else ""
+        if query_string.strip() == "":
+            return self.WILDCARD_PATTERN
+        if self.QUERY_SPECIAL_REGEX.search(query_string):
+            return query_string
+        return f"{self.WILDCARD_PATTERN}{query_string}{self.WILDCARD_PATTERN}"
 
     def switch_unify_query(self, bk_biz_id: int):
         # 如果数据源在 UnifyQueryDataSources 列表中，则使用 unify-query 查询
