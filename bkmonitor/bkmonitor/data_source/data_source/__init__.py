@@ -2228,7 +2228,8 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
             kwargs.pop("limit")
 
         if isinstance(dimension_field, list):
-            assert len(dimension_field) > 0, _("维度查询参数，维度字段是必须的")
+            if not dimension_field:
+                raise ValueError(_("维度查询参数，维度字段是必须的"))
             dimension_field = dimension_field[0]
 
         return super().query_dimensions(dimension_field, start_time, end_time, *args, **kwargs)[:limit]
