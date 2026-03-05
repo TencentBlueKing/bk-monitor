@@ -173,8 +173,8 @@ class AlertEventBaseResource(Resource, abc.ABC):
 
         filter_q: Q = Q()
         workload: str | None = related_k8s_target.pop("workload", "")
-        if workload and target.TARGET_TYPE == K8STargetType.WORKLOAD:
-            # 工作负载类型，按 kind 和 name 查询
+        if workload:
+            # 存在 workload 字段时，按 kind 和 name 查询（覆盖 K8S Workload 告警和 Host 告警关联 workload 场景）
             kind, name = workload.split(":")
             filter_q &= Q(kind=kind, name=name)
             if related_k8s_target.get("namespace"):
