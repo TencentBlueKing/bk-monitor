@@ -779,13 +779,6 @@ class PreviewDemoActionContextResource(Resource):
         variables = serializers.DictField(required=True, label="待渲染的变量字典")
 
     def perform_request(self, validated_request_data):
-        alert_id = validated_request_data.get("alert_id")
-        variables = validated_request_data.get("variables")
-
-        if not alert_id:
-            # 未传告警ID，直接返回原始变量
-            return {"variables": variables}
-
         result = api.monitor.get_demo_action_context_backend(**validated_request_data)
 
         return result
