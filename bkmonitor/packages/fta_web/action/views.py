@@ -182,5 +182,5 @@ class ActionInstanceViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.action.create_demo_action, endpoint="create_demo_action"),
         ResourceRoute("GET", resource.action.get_demo_action_detail, endpoint="get_demo_action_detail"),
         ResourceRoute("POST", resource.action.assign_alert, endpoint="assign_alert"),
-        ResourceRoute("POST", resource.action.preview_demo_context, endpoint="preview_demo_context"),
+        ResourceRoute("POST", resource.action.preview_demo_action_context, endpoint="preview_demo_action_context"),
     ]

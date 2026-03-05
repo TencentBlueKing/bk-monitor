@@ -768,7 +768,7 @@ class CreateDemoActionResource(Resource):
         return {"action_id": demo_action.id}
 
 
-class PreviewDemoContextResource(Resource):
+class PreviewDemoActionContextResource(Resource):
     """
     基于真实告警预览套餐变量渲染
 
@@ -789,7 +789,6 @@ class PreviewDemoContextResource(Resource):
             # 未传告警ID，直接返回原始变量
             return {"variables": variables}
 
-        # 调用后台接口，由后端在原始对象上下文中完成渲染
         result = api.monitor.get_demo_action_context_backend(**validated_request_data)
 
         return result
