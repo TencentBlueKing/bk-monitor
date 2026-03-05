@@ -177,7 +177,8 @@ export default defineComponent({
     watch(
       () => defaultTab.value,
       newVal => {
-        handleCurrentPanelChange(newVal || alarmDetail.value?.alarmTabList?.[0]?.name);
+        const target = newVal && !tabDisabledMap.value[newVal] ? newVal : alarmDetail.value?.alarmTabList?.[0]?.name;
+        handleCurrentPanelChange(target);
       },
       { immediate: true }
     );
