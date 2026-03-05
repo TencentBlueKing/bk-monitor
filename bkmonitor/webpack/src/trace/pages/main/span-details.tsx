@@ -96,6 +96,7 @@ export default defineComponent({
     isFullscreen: { type: Boolean, default: false } /* 当前是否为全屏状态 */,
     isPageLoading: { type: Boolean, default: false },
     activeTab: { type: String, default: 'BasicInfo' },
+    defaultExpand: { type: Boolean, default: false } /* 是否默认展开所有详情项 */,
   },
   emits: ['show', 'prevNextClicked'],
   setup(props, { emit }) {
@@ -217,6 +218,8 @@ export default defineComponent({
         Object.assign(info, deepClone(tempInfo));
         localShow.value = value;
         if (value) {
+          // 根据 defaultExpand 参数决定是否强制展开所有项
+          getSpanDetailExpandUserConfig();
           // 这里提前执行，如果是碰到异步加载，这里会报错，这里做了兼容处理。
           if (!props.isPageLoading) getDetails();
           if (props.isFullscreen && !document.querySelector('.bk-modal-outside')) {
@@ -259,11 +262,21 @@ export default defineComponent({
     );
 
     const getSpanDetailExpandUserConfig = () => {
-      const res = window.localStorage.getItem(TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY);
-      /** 默认展开所有 */
-      basicInfoExpand.value = res
-        ? JSON.parse(res)
-        : [EListItemType.tags, EListItemType.stageTime, EListItemType.resource, EListItemType.events];
+      const allExpandTypes = [
+        EListItemType.tags,
+        EListItemType.stageTime,
+        EListItemType.resource,
+        EListItemType.events,
+      ];
+      // 如果 defaultExpand 为 true，强制展开所有项
+      if (props.defaultExpand) {
+        basicInfoExpand.value = allExpandTypes;
+        window.localStorage.setItem(TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY, JSON.stringify(allExpandTypes));
+        return;
+      }
+      // 缓存有值则取缓存，否则默认展开所有项
+      const cachedExpand = window.localStorage.getItem(TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY);
+      basicInfoExpand.value = cachedExpand ? JSON.parse(cachedExpand) : allExpandTypes;
     };
 
     onMounted(() => {
