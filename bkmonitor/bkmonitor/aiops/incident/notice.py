@@ -82,8 +82,16 @@ class IncidentNoticeHelper:
         incident_reason = cls._get_incident_reason(incident)
 
         # 获取故障状态
+        # 专用状态事件（恢复/观察/重开）优先使用事件语义，避免通知时序导致读取到旧状态
+        operation_status_mapping = {
+            IncidentOperationType.RECOVER: IncidentStatus.RECOVERED,
+            IncidentOperationType.OBSERVE: IncidentStatus.RECOVERING,
+            IncidentOperationType.REOPEN: IncidentStatus.ABNORMAL,
+        }
+        if operation_type in operation_status_mapping:
+            status = operation_status_mapping[operation_type].alias
         # 如果是状态更新通知，优先使用新状态值
-        if operation_type == IncidentOperationType.UPDATE and incident_key == "status" and to_value:
+        elif operation_type == IncidentOperationType.UPDATE and incident_key == "status" and to_value:
             try:
                 status = IncidentStatus(to_value).alias
             except (ValueError, AttributeError):
