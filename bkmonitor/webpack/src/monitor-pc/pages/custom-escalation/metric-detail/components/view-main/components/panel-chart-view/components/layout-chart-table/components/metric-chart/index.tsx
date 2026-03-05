@@ -876,6 +876,21 @@ class NewMetricChart extends CommonSimpleChart {
    */
   handleAllMetricClick() {
     const copyPanel = this.getCopyPanel();
+    // 跳转添加策略需要排除那边没有的参数，否则策略无法产生告警
+    const excludedIds = new Set(['bottom', 'top']);
+    copyPanel.targets = (copyPanel.targets || []).map(target => {
+      return {
+        ...target,
+        query_configs: target.query_configs.map(config => {
+          const needsFilter = config.functions?.some(func => excludedIds.has(func.id));
+          if (!needsFilter) return config; // 非排除id 直接返回
+          return {
+            ...config,
+            functions: config.functions.filter(func => !excludedIds.has(func.id))
+          };
+        })
+      };
+    });
     this.handleAddStrategy(copyPanel as any, null, {}, true);
   }
   /**
