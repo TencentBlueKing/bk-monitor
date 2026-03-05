@@ -173,6 +173,7 @@ class ResourceDefinition(EntityMeta):
             "name": self.name,
             "fields": self.fields,
             "labels": self.labels,
+            "generation": self.generation,
         }
 
 
@@ -239,4 +240,5 @@ class RelationDefinition(EntityMeta):
             "is_directional": self.is_directional,
             "is_belongs_to": self.is_belongs_to,
             "labels": self.labels,
+            "generation": self.generation,
         }

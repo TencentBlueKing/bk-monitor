@@ -26,6 +26,7 @@ from metadata.utils.redis_tools import RedisTools
 logger = logging.getLogger("metadata")
 
 ENTITY_REDIS_KEY_PREFIX = "bkmonitorv3:entity"
+ENTITY_REDIS_CHANNEL_SUFFIX = ":channel"
 REDIS_SYNC_KINDS = ("ResourceDefinition", "RelationDefinition")
 # 空 namespace 的映射值
 NAMESPACE_ALL = "__all__"
@@ -92,7 +93,7 @@ class EntityHandler:
                 entity.save()
 
         # 同步到 Redis（仅对特定类型）
-        self._sync_to_redis(entity)
+        self._rebuild_redis_cache(entity)
 
         return entity.to_json()
 
@@ -155,22 +156,28 @@ class EntityHandler:
         except self.model_class.DoesNotExist:
             raise EntityNotFoundError(context={"namespace": namespace, "name": name})
 
-        # 先从 Redis 删除
-        self._delete_from_redis(entity)
-
+        # 先 DB 删除，再 Redis 删除（DB 优先策略，保证一致性）
         entity.delete()
 
-    def _sync_to_redis(self, entity: EntityMeta) -> None:
-        """
-        同步实体到 Redis，供 bmw SchemaProvider 消费
+        # 从 DB 全量重建该 namespace 的 Redis 缓存
+        self._rebuild_redis_cache(entity)
 
-        Redis 数据结构:
-        - Key: bkmonitorv3:entity:{Kind}
-        - Field: namespace (空的映射到 __all__)
-        - Value: {name: jsonData, name2: jsonData2, ...}
+    def _rebuild_redis_cache(self, entity: EntityMeta) -> None:
+        """
+        按 kind + namespace 从 DB 全量重建 Redis 缓存，供 bmw SchemaProvider 消费。
+
+        采用全量覆盖策略，避免 read-modify-write 的并发竞态问题。
+        每次 apply/delete 后，从 DB 查询该 kind + namespace 下的全部实体，直接覆盖写入 Redis。
+
+        Redis 数据契约:
+        - Key:     {ENTITY_REDIS_KEY_PREFIX}:{Kind}  (e.g. bkmonitorv3:entity:ResourceDefinition)
+        - Field:   namespace (空 namespace 映射为 NAMESPACE_ALL="__all__")
+        - Value:   JSON string of {name: redisJsonData, ...}
+        - Channel: {Key}{ENTITY_REDIS_CHANNEL_SUFFIX}  (e.g. bkmonitorv3:entity:ResourceDefinition:channel)
+        - Message: JSON string of {namespace, name, kind}
 
         Args:
-            entity: 实体对象
+            entity: 触发变更的实体对象（用于提取 kind/namespace 信息及发布通知）
         """
         kind = entity.get_kind()
 
@@ -185,83 +192,38 @@ class EntityHandler:
 
         try:
             redis_key = f"{ENTITY_REDIS_KEY_PREFIX}:{kind}"
-            channel = f"{redis_key}:channel"
+            channel = f"{redis_key}{ENTITY_REDIS_CHANNEL_SUFFIX}"
             namespace = entity.namespace or NAMESPACE_ALL
 
-            # 获取该 namespace 下的现有实体
-            existing_data = RedisTools.hget(redis_key, namespace)
-            if existing_data:
-                entities = json.loads(existing_data)
+            # 从 DB 查询该 kind + namespace 下的全部实体，全量重建
+            db_entities = self.model_class.objects.filter(namespace=entity.namespace)
+            entities = {}
+            for e in db_entities:
+                entities[e.name] = e.to_redis_json()
+
+            if entities:
+                # 全量覆盖写入 Redis
+                RedisTools.hset_to_redis(redis_key, namespace, json.dumps(entities))
             else:
-                entities = {}
+                # 该 namespace 下已无实体，删除整个字段
+                RedisTools.hdel(redis_key, [namespace])
 
-            # 更新/添加当前实体
-            entities[entity.name] = entity.to_redis_json()
-
-            # 写入 Redis
-            RedisTools.hset_to_redis(redis_key, namespace, json.dumps(entities))
-
-            # 发布变更通知（使用映射后的 namespace，与 Redis Hash Field 保持一致）
+            # 发布变更通知
             msg = json.dumps({"namespace": namespace, "name": entity.name, "kind": kind})
             RedisTools.publish(channel, [msg])
 
-            logger.info("sync entity to redis: kind=%s, namespace=%s, name=%s", kind, namespace, entity.name)
-
-        except Exception as e:
-            # Redis 同步失败不影响主流程，只记录日志
-            logger.exception(
-                "failed to sync entity to redis: kind=%s, namespace=%s, name=%s, error=%s",
+            logger.info(
+                "rebuild redis cache: kind=%s, namespace=%s, name=%s, entity_count=%d",
                 kind,
-                entity.namespace,
+                namespace,
                 entity.name,
-                e,
+                len(entities),
             )
 
-    def _delete_from_redis(self, entity: EntityMeta) -> None:
-        """
-        从 Redis 删除实体
-
-        Args:
-            entity: 实体对象
-        """
-        kind = entity.get_kind()
-
-        # 只对特定类型进行 Redis 同步
-        if kind not in REDIS_SYNC_KINDS:
-            return
-
-        try:
-            redis_key = f"{ENTITY_REDIS_KEY_PREFIX}:{kind}"
-            channel = f"{redis_key}:channel"
-            namespace = entity.namespace or NAMESPACE_ALL
-
-            # 获取该 namespace 下的现有实体
-            existing_data = RedisTools.hget(redis_key, namespace)
-            if not existing_data:
-                return
-
-            entities = json.loads(existing_data)
-
-            # 删除实体
-            if entity.name in entities:
-                del entities[entity.name]
-
-                # 如果 namespace 下没有实体了，删除整个字段
-                if not entities:
-                    RedisTools.hdel(redis_key, [namespace])
-                else:
-                    RedisTools.hset_to_redis(redis_key, namespace, json.dumps(entities))
-
-                # 发布变更通知（使用映射后的 namespace，与 Redis Hash Field 保持一致）
-                msg = json.dumps({"namespace": namespace, "name": entity.name, "kind": kind})
-                RedisTools.publish(channel, [msg])
-
-                logger.info("delete entity from redis: kind=%s, namespace=%s, name=%s", kind, namespace, entity.name)
-
         except Exception as e:
             # Redis 同步失败不影响主流程，只记录日志
             logger.exception(
-                "failed to delete entity from redis: kind=%s, namespace=%s, name=%s, error=%s",
+                "failed to rebuild redis cache: kind=%s, namespace=%s, name=%s, error=%s",
                 kind,
                 entity.namespace,
                 entity.name,

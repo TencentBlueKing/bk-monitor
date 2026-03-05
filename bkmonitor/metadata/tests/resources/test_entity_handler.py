@@ -17,6 +17,7 @@ from rest_framework.exceptions import ValidationError
 from core.errors.metadata import EntityNotFoundError, UnsupportedKindError
 from metadata.models.entity_relation import CustomRelationStatus, RelationDefinition, ResourceDefinition
 from metadata.resources.entity_relation import (
+    ENTITY_REDIS_CHANNEL_SUFFIX,
     ENTITY_REDIS_KEY_PREFIX,
     NAMESPACE_ALL,
     REDIS_SYNC_KINDS,
@@ -453,24 +454,14 @@ class TestEntityHandlerRedisSync:
         RelationDefinition.objects.filter(namespace=NAMESPACE_ALL, name__startswith="test_").delete()
 
     @pytest.mark.parametrize(
-        "case_id,model_class,metadata,spec,expected_redis_data",
+        "case_id,model_class,metadata,spec",
         [
-            # ResourceDefinition 同步
             (
                 "resource_definition",
                 ResourceDefinition,
                 {"namespace": NAMESPACE_ALL, "name": "test_pod", "labels": {"source": "cmdb"}},
                 {"fields": [{"namespace": "k8s", "name": "pod_name", "required": True}]},
-                {
-                    "test_pod": {
-                        "namespace": NAMESPACE_ALL,
-                        "name": "test_pod",
-                        "labels": {"source": "cmdb"},
-                        "fields": [{"namespace": "k8s", "name": "pod_name", "required": True}],
-                    }
-                },
             ),
-            # RelationDefinition 同步
             (
                 "relation_definition",
                 RelationDefinition,
@@ -482,28 +473,14 @@ class TestEntityHandlerRedisSync:
                     "is_directional": False,
                     "is_belongs_to": True,
                 },
-                {
-                    "test_pod_node": {
-                        "namespace": NAMESPACE_ALL,
-                        "name": "test_pod_node",
-                        "labels": {},
-                        "from_resource": "pod",
-                        "to_resource": "node",
-                        "category": "static",
-                        "is_directional": False,
-                        "is_belongs_to": True,
-                    }
-                },
             ),
         ],
     )
     @patch("metadata.resources.entity_relation.RedisTools")
-    def test_sync_to_redis(
-        self, mock_redis, cleanup_definition_data, case_id, model_class, metadata, spec, expected_redis_data
+    def test_rebuild_redis_cache_on_apply(
+        self, mock_redis, cleanup_definition_data, case_id, model_class, metadata, spec
     ):
-        """验证 ResourceDefinition/RelationDefinition 同步到 Redis 的数据结构"""
-        mock_redis.hget.return_value = None
-
+        """验证 apply 后从 DB 全量重建 Redis 缓存"""
         handler = EntityHandler(model_class=model_class)
         handler.apply(metadata=metadata, spec=spec)
 
@@ -514,14 +491,20 @@ class TestEntityHandlerRedisSync:
 
         assert call_args[0][0] == redis_key
         assert call_args[0][1] == (metadata.get("namespace") or NAMESPACE_ALL)
-        assert json.loads(call_args[0][2]) == expected_redis_data
 
-        # 验证 Publish 通知
-        channel = f"{redis_key}:channel"
+        # 验证写入数据包含该实体，且包含 generation 字段
+        written_data = json.loads(call_args[0][2])
+        assert metadata["name"] in written_data
+        entity_data = written_data[metadata["name"]]
+        assert "generation" in entity_data
+        assert entity_data["name"] == metadata["name"]
+
+        # 验证 Publish 通知使用正确的 channel 常量
+        channel = f"{redis_key}{ENTITY_REDIS_CHANNEL_SUFFIX}"
         pub_args = mock_redis.publish.call_args
         assert pub_args[0][0] == channel
         assert json.loads(pub_args[0][1][0]) == {
-            "namespace": metadata.get("namespace"),
+            "namespace": metadata.get("namespace") or NAMESPACE_ALL,
             "name": metadata["name"],
             "kind": kind,
         }
@@ -537,57 +520,63 @@ class TestEntityHandlerRedisSync:
             spec={"from_resource": "src", "to_resource": "dst"},
         )
 
-        mock_redis.hget.assert_not_called()
         mock_redis.hset_to_redis.assert_not_called()
         mock_redis.publish.assert_not_called()
 
     @patch("metadata.resources.entity_relation.RedisTools")
-    def test_delete_updates_redis(self, mock_redis, cleanup_definition_data):
-        """删除时从 Redis 移除实体，保留同 namespace 下其他实体"""
-        mock_redis.hget.return_value = None
-
+    def test_delete_rebuilds_redis_with_remaining(self, mock_redis, cleanup_definition_data):
+        """删除实体后，从 DB 全量重建 Redis，保留同 namespace 下其他实体"""
         handler = EntityHandler(model_class=ResourceDefinition)
+
+        # 创建两个实体
         handler.apply(
             metadata={"namespace": NAMESPACE_ALL, "name": "test_del"},
             spec={"fields": []},
         )
-
-        # 模拟 Redis 中有两个实体
-        mock_redis.hget.return_value = json.dumps({
-            "test_del": {"name": "test_del"},
-            "other": {"name": "other"},
-        }).encode()
+        handler.apply(
+            metadata={"namespace": NAMESPACE_ALL, "name": "test_keep"},
+            spec={"fields": [{"namespace": "k8s", "name": "pod", "required": True}]},
+        )
         mock_redis.reset_mock()
 
+        # 删除一个实体
         handler.delete(namespace=NAMESPACE_ALL, name="test_del")
 
-        # 验证删除后只剩 other
+        # 验证 DB 中只剩 test_keep
+        assert not ResourceDefinition.objects.filter(namespace=NAMESPACE_ALL, name="test_del").exists()
+        assert ResourceDefinition.objects.filter(namespace=NAMESPACE_ALL, name="test_keep").exists()
+
+        # 验证 Redis 全量重建只包含 test_keep
         call_args = mock_redis.hset_to_redis.call_args
-        assert json.loads(call_args[0][2]) == {"other": {"name": "other"}}
+        written_data = json.loads(call_args[0][2])
+        assert "test_del" not in written_data
+        assert "test_keep" in written_data
 
     @patch("metadata.resources.entity_relation.RedisTools")
     def test_delete_last_entity_calls_hdel(self, mock_redis, cleanup_definition_data):
-        """删除 namespace 下最后一个实体时，调用 hdel 而非 hset"""
-        mock_redis.hget.return_value = None
-
+        """删除 namespace 下最后一个实体时，调用 hdel 清除整个字段"""
         handler = EntityHandler(model_class=ResourceDefinition)
+
+        # 创建一个实体
         handler.apply(
             metadata={"namespace": NAMESPACE_ALL, "name": "test_last"},
             spec={"fields": []},
         )
-
-        mock_redis.hget.return_value = json.dumps({"test_last": {"name": "test_last"}}).encode()
         mock_redis.reset_mock()
 
+        # 删除最后一个实体
         handler.delete(namespace=NAMESPACE_ALL, name="test_last")
 
+        # 验证 DB 中已无实体
+        assert not ResourceDefinition.objects.filter(namespace=NAMESPACE_ALL, name="test_last").exists()
+
+        # 验证调用 hdel 而非 hset
         mock_redis.hdel.assert_called_once()
         mock_redis.hset_to_redis.assert_not_called()
 
     @patch("metadata.resources.entity_relation.RedisTools")
     def test_redis_error_not_affect_db(self, mock_redis, cleanup_definition_data):
         """Redis 异常不影响数据库操作"""
-        mock_redis.hget.return_value = None
         mock_redis.hset_to_redis.side_effect = Exception("Redis connection failed")
 
         handler = EntityHandler(model_class=ResourceDefinition)
