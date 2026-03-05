@@ -1,0 +1,22 @@
+.auto-group-main {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+
+  .regex-list-main {
+    flex: 1;
+    overflow-y: auto;
+
+    .add-item-btn {
+      width: 100%;
+      height: 40px;
+      background: #e1ecff;
+      opacity: 0.8;
+
+      &:hover {
+        opacity: 1;
+      }
+    }
+  }
+}

@@ -39,7 +39,7 @@ from bkmonitor.data_source import (
 from bkmonitor.data_source.unify_query.query import UnifyQuery
 from bkmonitor.models import BCSCluster, MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
-from bkmonitor.strategy.new_strategy import get_metric_id
+from bk_monitor_base.strategy import get_metric_id
 from bkmonitor.utils.range import load_agg_condition_instance
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -578,6 +578,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         unit = serializers.CharField(label="单位", default="", allow_blank=True)
         with_metric = serializers.BooleanField(label="是否返回metric信息", default=True)
         not_time_align = serializers.BooleanField(label="是否不对齐时间窗口", required=False, default=False)
+        custom_metric_methods = serializers.DictField(label="自定义统计指标方法", required=False, default=None)
 
         @classmethod
         def to_str(cls, value):
@@ -915,6 +916,10 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
     统一查询接口 (适配图表展示)
     """
 
+    CUSTOM_METRIC_METHODS = {
+        "INC": {"method": "SUM", "function": {"id": "increase", "params": [{"id": "window", "value": "1m"}]}}
+    }
+
     def get_unit(self, metrics: list[dict], params: dict) -> str:
         """
         获取单位信息
@@ -932,6 +937,20 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
                 return ""
 
         return metrics[0].get("unit", "")
+
+    @classmethod
+    def fill_custom_metric_method(cls, config):
+        """
+        替换自定义统计指标方法
+        :param config: 查询配置
+        """
+        metric_functions = {func["id"]: func for func in config.get("functions", []) if func.get("id")}
+        for metric in config.get("metrics", []):
+            if metric["method"] in cls.CUSTOM_METRIC_METHODS:
+                custom_method_config = cls.CUSTOM_METRIC_METHODS[metric["method"]]
+                metric["method"] = custom_method_config["method"]
+                metric_functions[custom_method_config["function"]["id"]] = custom_method_config["function"]
+        config["functions"] = list(metric_functions.values())
 
     def data_format(self, params, data):
         """
@@ -1127,6 +1146,10 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
         return data
 
     def perform_request(self, params):
+        # 替换自定义统计指标方法
+        for config in params["query_configs"]:
+            self.fill_custom_metric_method(config)
+
         raw_query_result = super().perform_request(params)
         points = raw_query_result["series"]
         if not points:
@@ -1486,7 +1509,8 @@ class GetDrillDimensionsResource(Resource):
         )
 
         metric_cache = {(m.result_table_id, m.metric_field): m for m in metrics}
-        all_dimensions: list[set] = []
+        dimension_sets: list[set[str]] = []
+        dimension_map: dict[str, str] = {}
         for config in query_configs:
             metric = metric_cache.get((config["result_table_id"], config["metric_field"]))
             if not metric:
@@ -1498,24 +1522,32 @@ class GetDrillDimensionsResource(Resource):
                 )
                 continue
 
-            dimensions = {dim["id"] for dim in metric.dimensions}
+            dim_set: set[str] = set()
+            for dimension in metric.dimensions:
+                dim_set.add(dimension["id"])
+                dimension_map[dimension["id"]] = dimension["name"]
+
             # 拨测指标下钻维度排除维度：业务ID/IP/云区域ID/错误码
             if metric.result_table_id.startswith("uptimecheck."):
-                dimensions -= {"bk_biz_id", "ip", "bk_cloud_id", "error_code"}
+                dim_set -= {"bk_biz_id", "ip", "bk_cloud_id", "error_code"}
 
             # 排除该指标已配置的维度
-            all_dimensions.append(dimensions - set(config["configured_dimensions"]))
+            dimension_sets.append(dim_set - set(config["configured_dimensions"]))
 
-        if not all_dimensions:
+        if not dimension_sets:
             logger.warning("no valid metrics found for bk_biz_id=%s, query_configs=%s", bk_biz_id, query_configs)
             return []
 
-        # 单指标：返回该指标的所有可用维度
-        if len(query_configs) == 1:
-            return sorted(all_dimensions[0])
+        # 如果是单指标，则返回该指标的所有可用维度；如果是多指标，则返回所有指标的共同维度（交集）
+        dimensions: list[str] = sorted(
+            dimension_sets[0] if len(query_configs) == 1 else set.intersection(*dimension_sets)
+        )
 
-        # 多指标：返回所有指标的共同维度（交集）
-        return sorted(set.intersection(*all_dimensions))
+        # 统一返回格式 {"value": "{字段名}", "text": "{中文名}"}，有别名的维度排在前面
+        translated_dimensions: list[dict[str, str]] = [
+            {"value": dimension, "text": dimension_map.get(dimension, dimension)} for dimension in dimensions
+        ]
+        return sorted(translated_dimensions, key=lambda d: d["text"] == d["value"])
 
 
 class DimensionUnifyQuery(Resource):

@@ -37,7 +37,7 @@ from bkmonitor.utils.text import convert_filename
 from bkmonitor.utils.time_tools import now
 from bkmonitor.utils.user import get_local_username
 from bkmonitor.views import serializers
-from constants.strategy import TargetFieldType
+from constants.strategy import TargetFieldType, DataTarget
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.tasks import step
 from core.errors.export_import import (
@@ -71,6 +71,7 @@ from monitor_web.models import (
     TargetNodeType,
     TargetObjectType,
     UploadedFileInfo,
+    DataTargetMapping,
 )
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.strategies.default_settings.datalink.v1 import DEFAULT_DATALINK_COLLECTING_FLAG
@@ -622,21 +623,52 @@ class HistoryDetailResource(Resource):
         strategy_to_items = {}
         for item_instance in item_instances:
             strategy_to_items[item_instance.strategy_id] = item_instance
+
+        # 批量查询 QueryConfigModel，避免在循环中通过 instance.target_type 触发 N 次单条 SQL 查询
+        strategy_query_configs = {
+            qc.strategy_id: qc
+            for qc in QueryConfigModel.objects.filter(strategy_id__in=strategy_ids).only(
+                "strategy_id", "data_source_label", "data_type_label"
+            )
+        }
+
         target_map = {ConfigType.COLLECT: {}, ConfigType.STRATEGY: {}}
         for instance in collect_instances:
             target_map[ConfigType.COLLECT][str(instance.id)] = {
                 "target_type": instance.target_object_type,
                 "exist_target": True if instance.deployment_config.target_nodes else False,
             }
+        data_target_map = dict(
+            [(DataTarget.HOST_TARGET, "HOST"), (DataTarget.SERVICE_TARGET, "SERVICE"), (DataTarget.NONE_TARGET, None)]
+        )
         for instance in strategy_instances:
-            target = strategy_to_items[instance.id].target
+            item = strategy_to_items.get(instance.id)
+            target = item.target if item else None
+            qc = strategy_query_configs.get(instance.id)
+            if qc:
+                raw_target = DataTargetMapping.get_data_target(
+                    instance.scenario, qc.data_source_label, qc.data_type_label
+                )
+                target_type = data_target_map.get(raw_target)
+            else:
+                target_type = None
             target_map[ConfigType.STRATEGY][str(instance.id)] = {
-                "target_type": instance.target_type,
+                "target_type": target_type,
                 "exist_target": target and target[0],
             }
 
+        parse_id_to_uuid = {
+            parse.id: parse.uuid
+            for parse in ImportParse.objects.filter(id__in=[config["parse_id"] for config in config_list]).only(
+                "id", "uuid"
+            )
+        }
         for config in config_list:
-            config["uuid"] = ImportParse.objects.get(id=config["parse_id"]).uuid
+            parse_id = config["parse_id"]
+            uuid_val = parse_id_to_uuid.get(parse_id)
+            if uuid_val is None:
+                logger.warning("ImportParse record not found for parse_id=%s, history_id=%s", parse_id, history_id)
+            config["uuid"] = uuid_val or ""
             config.update(target_map.get(config["type"], {}).get(config["config_id"], {}))
 
         label_map = {}

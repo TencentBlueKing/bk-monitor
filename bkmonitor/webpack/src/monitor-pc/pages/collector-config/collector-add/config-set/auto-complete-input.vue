@@ -338,7 +338,7 @@ export default class StrategySetTarget extends Vue {
       if (v.type === 'file') {
         this.params = v.default.filename;
       } else if (v.type === 'custom') {
-        this.customTypeParams = Object.entries(v.default).map(item => item.join(':'));
+        this.customTypeParams = Array.isArray(v.default) ? v.default : Object.entries(v.default).map(item => item.join(':'));
       } else {
         if (this.isPasswordInput) {
           // 密码输入框的情况下无需显示密码内容

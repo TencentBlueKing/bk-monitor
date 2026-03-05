@@ -367,14 +367,18 @@ export default defineComponent({
       spanDetails.value = span;
     }
 
+    /** 是否默认展开span详情内容 */
+    const spanDetailDefaultExpand = ref(false);
+
     /** 点击span事件 */
-    const handleSpanClick = (span: Span, isEventTab = false) => {
+    const handleSpanClick = (span: Span, isEventTab = false, defaultExpand = false) => {
       if (!haveReadSpanIds.value.includes(span.spanID)) {
         haveReadSpanIds.value.push(span.spanID);
       }
       showSpanDetails.value = true;
       spanDetails.value = span;
       activeTab.value = isEventTab ? 'Event' : 'BasicInfo';
+      spanDetailDefaultExpand.value = defaultExpand;
     };
 
     /** 获取跨应用span */
@@ -455,6 +459,7 @@ export default defineComponent({
       handlePrevNextClicked,
       handleToggleCollapse,
       activeTab,
+      spanDetailDefaultExpand,
     };
   },
 
@@ -484,6 +489,7 @@ export default defineComponent({
         />
         <SpanDetails
           activeTab={this.activeTab}
+          defaultExpand={this.spanDetailDefaultExpand}
           isFullscreen={this.isFullscreen}
           isShowPrevNextButtons={true}
           show={this.showSpanDetails}

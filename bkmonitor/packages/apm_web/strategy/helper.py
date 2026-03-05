@@ -52,7 +52,7 @@ def get_id_strategy_map(bk_biz_id: int, ids: Iterable[int]) -> dict[int, dict[st
     if not ids:
         return {}
 
-    strategies: list[dict[str, Any]] = resource.strategies.plain_strategy_list_v2(
+    strategies: list[dict[str, Any]] = resource.strategies.plain_strategy_list(
         {"bk_biz_id": bk_biz_id, "ids": list(ids)}
     )
     return {

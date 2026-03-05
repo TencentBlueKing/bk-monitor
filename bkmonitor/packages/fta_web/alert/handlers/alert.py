@@ -27,7 +27,7 @@ from luqum.tree import FieldGroup, OrOperation, Phrase, SearchField, Word
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
 from bkmonitor.models import ActionInstance, ConvergeRelation, MetricListCache, Shield
 from bkmonitor.models.fta.action import ActionConfig
-from bkmonitor.strategy.new_strategy import get_metric_id
+from bk_monitor_base.strategy import get_metric_id
 from bkmonitor.utils.ip import exploded_ip
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import hms_string

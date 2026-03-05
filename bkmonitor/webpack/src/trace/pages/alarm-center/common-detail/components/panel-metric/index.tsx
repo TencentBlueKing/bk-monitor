@@ -23,15 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 export default defineComponent({
   name: 'PanelMetric',
   props: {
     id: String as PropType<string>,
   },
-  setup(props) {
-    console.log(props.id);
+  setup(_) {
     return () => (
       <div class='alarm-center-detail-panel-alarm'>
         <div>hello alarm</div>

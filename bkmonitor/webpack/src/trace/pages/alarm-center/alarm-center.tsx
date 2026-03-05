@@ -34,7 +34,7 @@ import {
   watch,
 } from 'vue';
 
-import { convertDurationArray, tryURLDecodeParse } from 'monitor-common/utils';
+import { commonPageSizeSet, convertDurationArray, tryURLDecodeParse } from 'monitor-common/utils';
 import FavoriteBox, {
   type IFavorite,
   type IFavoriteGroup,
@@ -78,10 +78,12 @@ import type { SelectOptions } from '@blueking/tdesign-ui/.';
 const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
 import { Message } from 'bkui-vue';
+import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
 import { saveAlertContentName } from './services/alert-services';
+import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
@@ -100,7 +102,15 @@ export default defineComponent({
       handleSetUserConfig: handleSetResidentSettingUserConfig,
     } = useUserConfig();
 
-    const { quickFilterList, quickFilterLoading } = useQuickFilter();
+    const {
+      isFirstInit,
+      lastOperationCategory,
+      quickFilterList,
+      quickFilterLoading,
+      quickFilterEmptyStatusType,
+      updateQuickFilterValue,
+      handleQuickFilteringOperation,
+    } = useQuickFilter();
     const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
     const {
       tableColumns: tableSourceColumns,
@@ -162,6 +172,7 @@ export default defineComponent({
         filterMode: alarmStore.filterMode,
       };
     });
+    const showResidentBtn = shallowRef(false);
 
     const isCollapsed = shallowRef(false);
     const alarmId = shallowRef<string>('');
@@ -231,9 +242,10 @@ export default defineComponent({
       isCollapsed.value = v;
     };
     /** 快捷筛选 */
-    const handleFilterValueChange = (filterValue: CommonCondition[]) => {
+    const handleFilterValueChange = (filterValue: CommonCondition[], category: string) => {
       handleCurrentPageChange(1);
-      alarmStore.quickFilterValue = filterValue;
+      lastOperationCategory.value = category;
+      updateQuickFilterValue(filterValue);
     };
     /** 告警分析添加条件 */
     const handleAddCondition = (condition: CommonCondition) => {
@@ -308,6 +320,7 @@ export default defineComponent({
         currentPage: page.value,
         sortOrder: ordering.value,
         showDetail: JSON.stringify(alarmDetailShow.value),
+        showResidentBtn: String(showResidentBtn.value),
       };
     });
 
@@ -356,6 +369,7 @@ export default defineComponent({
         /** 以下是兼容事件中心的URL参数 */
         searchType,
         condition,
+        showResidentBtn: queryShowResidentBtn,
       } = route.query;
 
       try {
@@ -378,11 +392,13 @@ export default defineComponent({
         } else {
           alarmStore.quickFilterValue = tryURLDecodeParse(quickFilterValue as string, []);
         }
+        showResidentBtn.value = tryURLDecodeParse<boolean>(queryShowResidentBtn as string, false);
         alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
-
-        /** 兼容事件中心的bizIds */
-        alarmStore.bizIds =
-          typeof bizIds === 'string' ? tryURLDecodeParse(bizIds, [-1]) : bizIds.map(item => Number(item));
+        if (bizIds) {
+          /** 兼容事件中心的bizIds */
+          alarmStore.bizIds =
+            typeof bizIds === 'string' ? tryURLDecodeParse(bizIds, [-1]) : bizIds.map(item => Number(item));
+        }
         ordering.value = (sortOrder as string) || '';
         page.value = Number(currentPage || 1);
         if (favoriteId) {
@@ -433,6 +449,7 @@ export default defineComponent({
      */
     const handlePageSizeChange = (size: number) => {
       pageSize.value = size;
+      commonPageSizeSet(size);
       handleCurrentPageChange(1);
     };
     /**
@@ -455,13 +472,15 @@ export default defineComponent({
 
     /** 上一个详情 */
     const handlePreviousDetail = () => {
-      const index = data.value.findIndex(item => item.id === alarmId.value);
+      let index = data.value.findIndex(item => item.id === alarmId.value);
+      index = index === -1 ? 0 : index;
       alarmId.value = (data.value as AlertTableItem[])[index === 0 ? data.value.length - 1 : index - 1].id;
     };
 
     /** 下一个详情 */
     const handleNextDetail = () => {
-      const index = data.value.findIndex(item => item.id === alarmId.value);
+      let index = data.value.findIndex(item => item.id === alarmId.value);
+      index = index === -1 ? 0 : index;
       alarmId.value = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 0 : index + 1].id;
     };
 
@@ -496,6 +515,8 @@ export default defineComponent({
     };
 
     const handleFavoriteSave = async (isEdit: boolean) => {
+      const [startTime, endTime] = handleTransformToTimestamp(alarmStore.timeRange);
+      const conditions = mergeWhereList(alarmStore.conditions, alarmStore.residentCondition);
       const params = {
         config: {
           componentData: {
@@ -510,6 +531,9 @@ export default defineComponent({
           },
           queryParams: {
             ...alarmStore.commonFilterParams,
+            start_time: startTime,
+            end_time: endTime,
+            conditions,
           },
         },
       } as any;
@@ -533,17 +557,21 @@ export default defineComponent({
     };
 
     const handleFavoriteChange = data => {
-      console.log(data);
       currentFavorite.value = data || null;
       handleCurrentPageChange(1);
       if (data) {
         const favoriteConfig = data?.config;
         alarmStore.timezone = favoriteConfig?.componentData?.timezone || getDefaultTimezone();
-        alarmStore.timeRange = favoriteConfig?.componentData?.timeRange || [];
+        alarmStore.timeRange =
+          favoriteConfig?.queryParams?.start_time && favoriteConfig?.queryParams?.end_time
+            ? [favoriteConfig?.queryParams?.start_time, favoriteConfig?.queryParams?.end_time].map(item => {
+                return dayjs(item * 1000).format('YYYY-MM-DD HH:mm:ssZZ');
+              })
+            : favoriteConfig?.componentData?.timeRange || [];
         alarmStore.refreshInterval = favoriteConfig?.componentData?.refreshInterval || -1;
         alarmStore.queryString = favoriteConfig?.queryParams?.query_string || '';
-        alarmStore.conditions = favoriteConfig?.componentData?.conditions || [];
-        alarmStore.residentCondition = favoriteConfig?.componentData?.residentCondition || [];
+        alarmStore.conditions = favoriteConfig?.queryParams?.conditions || [];
+        alarmStore.residentCondition = [];
         alarmStore.quickFilterValue = favoriteConfig?.componentData?.quickFilterValue || [];
         alarmStore.filterMode = favoriteConfig?.componentData?.filterMode || EMode.ui;
         alarmStore.bizIds = favoriteConfig?.componentData?.bizIds || [-1];
@@ -595,6 +623,10 @@ export default defineComponent({
         });
     };
 
+    const handleShowResidentBtnChange = (val: boolean) => {
+      showResidentBtn.value = val;
+    };
+
     watch(
       () => data.value,
       () => {
@@ -609,8 +641,10 @@ export default defineComponent({
     });
 
     return {
+      isFirstInit,
       quickFilterList,
       quickFilterLoading,
+      quickFilterEmptyStatusType,
       isCollapsed,
       data,
       loading,
@@ -644,6 +678,7 @@ export default defineComponent({
       retrievalSelectFavorite,
       defaultFavoriteId,
       alarmDetailDefaultTab,
+      showResidentBtn,
       setUrlParams,
       handleSelectedRowKeysChange,
       handleAlertDialogShow,
@@ -675,6 +710,8 @@ export default defineComponent({
       handleFavoriteChange,
       handleFavoriteOpenBlank,
       handleSaveAlertContentName,
+      handleShowResidentBtnChange,
+      handleQuickFilteringOperation,
     };
   },
   render() {
@@ -705,6 +742,7 @@ export default defineComponent({
             bizIds={this.alarmStore.bizIds}
             bizList={this.appStore.bizList}
             conditions={this.alarmStore.conditions}
+            defaultShowResidentBtn={this.showResidentBtn}
             favoriteList={this.retrievalFavoriteList}
             fields={this.retrievalFilterFields}
             filterMode={this.alarmStore.filterMode}
@@ -723,6 +761,7 @@ export default defineComponent({
             onQuery={this.handleQuery}
             onQueryStringChange={this.handleQueryStringChange}
             onResidentConditionChange={this.handleResidentConditionChange}
+            onShowResidentBtnChange={this.handleShowResidentBtnChange}
           />
           <div class='alarm-center-main'>
             <TraceExploreLayout
@@ -734,10 +773,20 @@ export default defineComponent({
                       <QuickFiltering
                         filterList={this.quickFilterList}
                         filterValue={this.alarmStore.quickFilterValue}
+                        isFirstInit={this.isFirstInit}
                         loading={this.quickFilterLoading}
                         onClose={this.updateIsCollapsed}
                         onUpdate:filterValue={this.handleFilterValueChange}
-                      />
+                      >
+                        {{
+                          empty: () => (
+                            <EmptyStatus
+                              type={this.quickFilterEmptyStatusType}
+                              onOperation={this.handleQuickFilteringOperation}
+                            />
+                          ),
+                        }}
+                      </QuickFiltering>
                     </div>
                   );
                 },

@@ -62,7 +62,6 @@ const ALERT_TABLE_COLUMNS = [
     minWidth: 150,
     sorter: true,
   },
-
   {
     colKey: 'description',
     title: window.i18n.t('告警内容'),
@@ -77,14 +76,7 @@ const ALERT_TABLE_COLUMNS = [
     is_locked: false,
     minWidth: 300,
   },
-  {
-    colKey: 'bk_biz_name',
-    title: window.i18n.t('空间名'),
-    is_default: true,
-    is_locked: false,
-    minWidth: 100,
-    sorter: false,
-  },
+
   {
     colKey: 'plugin_display_name',
     title: window.i18n.t('告警来源'),
@@ -201,6 +193,15 @@ const ALERT_TABLE_COLUMNS = [
     is_default: false,
     is_locked: false,
     minWidth: 240,
+  },
+  {
+    colKey: 'bk_biz_name',
+    title: window.i18n.t('空间名'),
+    is_default: true,
+    is_locked: true,
+    minWidth: 100,
+    sorter: false,
+    fixed: 'right',
   },
   {
     colKey: 'stage_display',
@@ -798,12 +799,16 @@ export class AlertService extends AlarmService {
   }
   async getAnalysisTopNData(
     params: Partial<CommonFilterParams>,
-    isAll = false
+    isAll = false,
+    options?: RequestOptions
   ): Promise<AnalysisTopNDataResponse<AnalysisFieldAggItem>> {
-    const data = await alertTopN({
-      ...params,
-      size: isAll ? 100 : 10,
-    }).catch(() => ({
+    const data = await alertTopN(
+      {
+        ...params,
+        size: isAll ? 100 : 10,
+      },
+      options
+    ).catch(() => ({
       doc_count: 0,
       fields: [],
     }));
@@ -862,17 +867,19 @@ export class AlertService extends AlarmService {
         total: 0,
         data: [],
       }));
-    console.info('AlertService getFilterTableList', data, '==========');
     return data;
   }
 
-  async getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]> {
-    const data = await searchAlert({
-      ...params,
-      page_size: 0, // 不返回告警列表数据
-      show_overview: true, // 是否展示概览
-      show_aggs: true, // 是否展示聚合
-    })
+  async getQuickFilterList(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<QuickFilterItem[]> {
+    const data = await searchAlert(
+      {
+        ...params,
+        page_size: 0, // 不返回告警列表数据
+        show_overview: true, // 是否展示概览
+        show_aggs: true, // 是否展示聚合
+      },
+      options
+    )
       .then(({ aggs, overview }) => {
         const myAlarmList = [];
         const alarmStatusList = [];
@@ -930,7 +937,6 @@ export class AlertService extends AlarmService {
         ];
       })
       .catch(() => []);
-    console.info('AlertService getQuickFilterList', data, '==========');
     return data;
   }
   async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {

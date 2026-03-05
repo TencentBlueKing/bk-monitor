@@ -9,9 +9,10 @@
 |----------------|--------|------|---------------------------------|
 | id             | int    | 否    | 轮值规则ID（source_type为DB的时候必填）     |
 | bk_biz_id      | int    | 是    | 业务ID                            |
-| begin_time | string | 是    | 预览生效开始时间（日期时间格式）                |
-| days           | int    | 否    | 默认生效时间开始30天                     |
-| source_type    | string | 否    | 数据来源类型 `API（接口参数）` `DB（DB存储内容）` |
+| begin_time     | string | 否    | 预览生效开始时间（日期时间格式，如：`2023-12-01 00:00:00`），默认为空字符串                |
+| days           | int    | 否    | 预览天数，默认30天                     |
+| timezone       | string | 否    | 时区，默认`Asia/Shanghai`                     |
+| source_type    | string | 否    | 数据来源类型 `API（接口参数）` `DB（DB存储内容）`，默认`API` |
 | config         | dict   | 否    | 数据来源类型为API的时候必填，格式参考保存轮值规则      |
 
 ### 请求参数示例

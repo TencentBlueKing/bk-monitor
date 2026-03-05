@@ -7,10 +7,10 @@
 
 | 字段        | 类型          | 必选  | 描述                  |
 | --------- | ----------- | --- | ------------------- |
-| bk_biz_id | int         | 是   | 业务 ID                |
-| labels    | List\[str\] | 是   | 标签列表                |
-| action    | str         | 是   | 操作类型\["on", "off"\] |
-| force     | bool        | 否   | 是否强制操作, 默认为 false   |
+| bk_biz_id | int         | 是   | 业务ID                |
+| labels    | list[str] | 是   | 标签列表                |
+| action    | str         | 是   | 操作类型，可选值：`on`（启用）、`off`（停用） |
+| force     | bool        | 否   | 是否强制操作，默认为false。如果为false，则只操作未被修改过的策略（创建时间和更新时间差小于等于1秒）   |
 
 ### 请求参数示例
 
@@ -29,7 +29,7 @@
 | result  | bool        | 请求是否成功 |
 | code    | int         | 返回的状态码 |
 | message | string      | 描述信息   |
-| data    | List\[int\] | 策略 ID 列表 |
+| data    | list[int] | 成功启停的策略ID列表 |
 
 ### 响应参数示例
 
