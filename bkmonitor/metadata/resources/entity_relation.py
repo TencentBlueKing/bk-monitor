@@ -191,7 +191,7 @@ class EntityHandler:
             # 获取该 namespace 下的现有实体
             existing_data = RedisTools.hget(redis_key, namespace)
             if existing_data:
-                entities = json.loads(existing_data.decode("utf-8"))
+                entities = json.loads(existing_data)
             else:
                 entities = {}
 
@@ -201,8 +201,8 @@ class EntityHandler:
             # 写入 Redis
             RedisTools.hset_to_redis(redis_key, namespace, json.dumps(entities))
 
-            # 发布变更通知
-            msg = json.dumps({"namespace": entity.namespace, "name": entity.name, "kind": kind})
+            # 发布变更通知（使用映射后的 namespace，与 Redis Hash Field 保持一致）
+            msg = json.dumps({"namespace": namespace, "name": entity.name, "kind": kind})
             RedisTools.publish(channel, [msg])
 
             logger.info("sync entity to redis: kind=%s, namespace=%s, name=%s", kind, namespace, entity.name)
@@ -240,7 +240,7 @@ class EntityHandler:
             if not existing_data:
                 return
 
-            entities = json.loads(existing_data.decode("utf-8"))
+            entities = json.loads(existing_data)
 
             # 删除实体
             if entity.name in entities:
@@ -252,8 +252,8 @@ class EntityHandler:
                 else:
                     RedisTools.hset_to_redis(redis_key, namespace, json.dumps(entities))
 
-                # 发布变更通知
-                msg = json.dumps({"namespace": entity.namespace, "name": entity.name, "kind": kind})
+                # 发布变更通知（使用映射后的 namespace，与 Redis Hash Field 保持一致）
+                msg = json.dumps({"namespace": namespace, "name": entity.name, "kind": kind})
                 RedisTools.publish(channel, [msg])
 
                 logger.info("delete entity from redis: kind=%s, namespace=%s, name=%s", kind, namespace, entity.name)
