@@ -147,7 +147,8 @@ class BaseActionProcessor:
                 try:
                     alerts = AlertDocument.mget(ids=self.action.alerts)
                     if alerts:
-                        self.action_context = ActionContext(self.action, alerts=alerts)
+                        self._fix_demo_action_fields(alerts)
+                        self.action_context = ActionContext(self.action, alerts=alerts, use_alert_snap=True)
                         return self.action_context.get_dictionary()
                 except Exception:
                     logger.exception("demo action(%s) 基于真实告警构建上下文失败，回退到静态样例", self.action.id)
@@ -172,6 +173,58 @@ class BaseActionProcessor:
             return demo_context
         self.action_context = ActionContext(self.action, alerts=self.alerts)
         return self.action_context.get_dictionary()
+
+    def _fix_demo_action_fields(self, alerts):
+        """基于真实告警修正 demo action 上不符合真实场景的字段，前端传入的字段(action_config/action_plugin/bk_biz_id)不修改。"""
+        from alarm_backends.core.control.strategy import Strategy
+        from alarm_backends.service.fta_action.tasks.alert_assign import AlertAssigneeManager
+        from constants.alert import EventSeverity
+
+        alert = alerts[0]
+
+        # 1. 修正 strategy_id 和 strategy
+        strategy_id = alert.strategy_id or 0
+        strategy = {}
+        if strategy_id:
+            try:
+                strategy = Strategy(strategy_id).config or {}
+            except Exception:
+                logger.warning("获取策略配置失败, strategy_id(%s)", strategy_id)
+        if not strategy:
+            strategy = alert.strategy or {}
+
+        self.action.strategy_id = strategy_id
+        self.action.strategy = strategy
+
+        # 2. 修正 alert_level
+        try:
+            self.action.alert_level = alert.severity or EventSeverity.REMIND
+        except (ValueError, TypeError):
+            self.action.alert_level = EventSeverity.REMIND
+
+        # 3. 修正 assignee
+        notice = strategy.get("notice", {})
+        if notice:
+            try:
+                assignee_manager = AlertAssigneeManager(
+                    alert,
+                    notice_user_groups=notice.get("user_groups"),
+                    assign_mode=notice.get("options", {}).get("assign_mode"),
+                    upgrade_config=notice.get("options", {}).get("upgrade_config", {}),
+                )
+                real_assignee = assignee_manager.get_appointees() or assignee_manager.get_origin_notice_receivers()
+                if real_assignee:
+                    self.action.assignee = real_assignee
+            except Exception:
+                logger.warning("demo action(%s) 通过 AlertAssigneeManager 获取 assignee 失败", self.action.id)
+
+        # 4. 补全 inputs
+        self.action.inputs = {
+            "alert_latest_time": alert.latest_time,
+            "is_alert_shielded": False,
+            "shield_ids": [],
+        }
+        self.action.save()
 
     @property
     def inputs(self):
