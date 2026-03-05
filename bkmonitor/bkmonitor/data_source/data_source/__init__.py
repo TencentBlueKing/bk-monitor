@@ -2098,11 +2098,7 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
         if cls.LOG_UNIFY_QUERY_WHITE_BIZ_LIST is not None:
             return cls.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
 
-        # 白名单优先级：环境变量 > 动态 DB 配置。
-        if settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV:
-            return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV
-
-        return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
+        return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV
 
     def _get_unify_query_string(self) -> str:
         # 背景：没有切换 UnifyQuery 的场景直调日志平台 API，此处对其日志平台对 query_string 的处理逻辑。
