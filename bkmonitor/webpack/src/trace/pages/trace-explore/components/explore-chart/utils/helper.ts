@@ -24,6 +24,34 @@
  * IN THE SOFTWARE.
  */
 
-export * from './bind-series-mark-config';
-export * from './formatter';
-export * from './helper';
+import type { MergeResult } from '../types';
+
+/**
+ * @description 尝试合并两个有序数组，判断它们是否只存在首尾差异（中间重叠部分完全一致）
+ * @param arr1 - 第一个有序数组
+ * @param arr2 - 第二个有序数组
+ * @returns 合并结果对象，包含合并后的数组及各自的首尾补齐数量；不可合并时返回 null
+ */
+export const mergeOverlappingArrays = (arr1: number[], arr2: number[]): MergeResult | null => {
+  if (!arr1.length || !arr2.length) return null;
+  const merged = Array.from(new Set([...arr1, ...arr2])).sort((a, b) => a - b);
+  const findOffset = (merged: number[], arr: number[]): number => {
+    const idx = merged.indexOf(arr[0]);
+    if (idx === -1) return -1;
+    if (idx + arr.length > merged.length) return -1;
+    for (let i = 0; i < arr.length; i++) {
+      if (merged[idx + i] !== arr[i]) return -1;
+    }
+    return idx;
+  };
+  const offset1 = findOffset(merged, arr1);
+  const offset2 = findOffset(merged, arr2);
+  if (offset1 === -1 || offset2 === -1) return null;
+  return {
+    head1: offset1,
+    head2: offset2,
+    merged,
+    tail1: merged.length - offset1 - arr1.length,
+    tail2: merged.length - offset2 - arr2.length,
+  };
+};

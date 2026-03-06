@@ -249,9 +249,14 @@ export default defineComponent({
          * 事件和日志的告警点y轴设置为1，其他告警y轴设置为0
          */
         for (const anomaly of props.detail.anomaly_timestamps) {
-          const index = datapoints.findIndex(item => Number(String(item[1]).slice(0, -3)) >= anomaly);
-          if (index > -1 && Number(String(datapoints[index][1]).slice(0, -3)) !== anomaly) {
-            datapoints.splice(index, 0, [isEventOrLogAlarm.value ? 1 : 0, anomaly * 1000]);
+          const timestamp = anomaly * 1000;
+          for (const s of series) {
+            const points = s.datapoints;
+            if (!points) continue;
+            const idx = points.findIndex(item => Number(String(item[1]).slice(0, -3)) >= anomaly);
+            if (idx > -1 && Number(String(points[idx][1]).slice(0, -3)) !== anomaly) {
+              points.splice(idx, 0, [isEventOrLogAlarm.value ? 1 : 0, timestamp]);
+            }
           }
         }
 
@@ -260,9 +265,14 @@ export default defineComponent({
          */
         const markAreaPoint = [firstAnomalyTimeStr, beginTimeStr, endTimeStr];
         for (const point of markAreaPoint) {
-          const index = datapoints.findIndex(item => item[1] >= Number(point));
-          if (index > -1 && datapoints[index][1] !== Number(point)) {
-            datapoints.splice(index, 0, [0, Number(point)]);
+          const timestamp = Number(point);
+          for (const s of series) {
+            const points = s.datapoints;
+            if (!points) continue;
+            const idx = points.findIndex(item => item[1] >= timestamp);
+            if (idx > -1 && points[idx][1] !== timestamp) {
+              points.splice(idx, 0, [0, timestamp]);
+            }
           }
         }
 
@@ -398,16 +408,17 @@ export default defineComponent({
 
       const eventSeries = options.series[eventSeriesIndex];
       const hasEventData = eventSeries.datapoints.some(e => e[0] > 0);
-      const shouldCreateNewXAxis = eventSeries.xAxisIndex === 0;
+      // const shouldCreateNewXAxis = eventSeries.xAxisIndex === 0;
 
-      // 为事件散点图创建独立的x轴
-      if (shouldCreateNewXAxis) {
-        options.xAxis.push({
-          show: false,
-          type: 'category',
-          data: eventSeries.datapoints.map(e => e[1]),
-        });
-      }
+      // // 为事件散点图创建独立的x轴
+      // if (shouldCreateNewXAxis) {
+      //   options.xAxis.push({
+      //     show: false,
+      //     type: 'category',
+      //     data: eventSeries.datapoints.map(e => e[1]),
+      //   });
+      // }
+
       // 为事件散点图创建独立的y轴
       options.yAxis.push({
         scale: true,
@@ -421,7 +432,7 @@ export default defineComponent({
         splitLine: { show: false },
       });
 
-      eventSeries.xAxisIndex = shouldCreateNewXAxis ? options.xAxis.length - 1 : eventSeries.xAxisIndex;
+      // eventSeries.xAxisIndex = shouldCreateNewXAxis ? options.xAxis.length - 1 : eventSeries.xAxisIndex;
       eventSeries.yAxisIndex = options.yAxis.length - 1;
     };
 

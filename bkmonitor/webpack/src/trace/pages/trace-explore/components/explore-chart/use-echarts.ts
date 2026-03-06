@@ -44,6 +44,7 @@ import {
   handleSetMarkTimeRange,
   handleSetThresholdArea,
   handleSetThresholdLine,
+  mergeOverlappingArrays,
 } from './utils';
 
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
@@ -184,12 +185,13 @@ export const useEcharts = (
   const createSeries = (series: SeriesItem[]) => {
     const xAllData = new Set<number>();
     let xAxisIndex = -1;
-    const xAxis = [];
+    const xAxis: any[] = [];
     const seriesData: EchartSeriesItem[] = [];
-    let preXData = [];
+    /** 记录每个 xAxisIndex 对应的当前 xData 快照，用于后续系列的合并判断 */
+    const xAxisDataMap = new Map<number, number[]>();
     for (const data of series) {
-      const list = [];
-      const xData = [];
+      const list: { value: any }[] = [];
+      const xData: number[] = [];
       for (const point of data.datapoints) {
         xData.push(point[1]);
         xAllData.add(point[1]);
@@ -197,10 +199,52 @@ export const useEcharts = (
           value: point[0],
         });
       }
-      const isEqual = preXData.length && arraysEqual(preXData, xData);
+      let reuseAxisIndex = -1;
+      // 遍历所有已有的 xAxis，尝试找到一个可以复用的
+      for (const [axisIdx, axisData] of xAxisDataMap) {
+        if (arraysEqual(axisData, xData)) {
+          reuseAxisIndex = axisIdx;
+          break;
+        }
+        const mergeResult = mergeOverlappingArrays(axisData, xData);
+        if (mergeResult) {
+          reuseAxisIndex = axisIdx;
+          const { head1, head2, merged, tail1, tail2 } = mergeResult;
+          // 如果合并后比已有的 xAxis 更长，更新 xAxis 数据
+          if (head1 > 0 || tail1 > 0) {
+            xAxis[axisIdx].data = [...merged];
+            // 为之前复用同一 xAxisIndex 的系列补点
+            for (const prevSeries of seriesData) {
+              if (prevSeries.xAxisIndex === axisIdx) {
+                const prevData = prevSeries.data as { value: any }[];
+                for (let i = 0; i < head1; i++) {
+                  prevData.unshift({ value: null });
+                }
+                for (let i = 0; i < tail1; i++) {
+                  prevData.push({ value: null });
+                }
+              }
+            }
+          }
+          // 为当前系列在首尾补 null 值
+          for (let i = head2 - 1; i >= 0; i--) {
+            xData.unshift(merged[i]);
+            list.unshift({ value: null });
+          }
+          for (let i = 0; i < tail2; i++) {
+            xData.push(merged[merged.length - tail2 + i]);
+            list.push({ value: null });
+          }
+          // 更新该 xAxisIndex 的 xData 快照为合并后的完整数据
+          xAxisDataMap.set(axisIdx, [...merged]);
+          break;
+        }
+      }
 
-      if (!isEqual) {
+      const canReuse = reuseAxisIndex !== -1;
+      if (!canReuse) {
         xAxisIndex += 1;
+        reuseAxisIndex = xAxisIndex;
       }
       const unitFormatter = getValueFormat(data.unit);
       // 获取y轴上可设置的最小的精确度
@@ -221,7 +265,7 @@ export const useEcharts = (
       const seriesItem: EchartSeriesItem = {
         name: data.alias || data.target || '',
         data: list,
-        xAxisIndex: xAxisIndex,
+        xAxisIndex: reuseAxisIndex,
         type: data.type,
         stack: data.stack,
         unit: data.unit,
@@ -269,10 +313,10 @@ export const useEcharts = (
 
       seriesData.push(seriesItem);
 
-      if (!isEqual) {
-        xAxis.push(...createXAxis(xData, { show: xAxisIndex === 0 }));
+      if (!canReuse) {
+        xAxis.push(...createXAxis(xData, { show: reuseAxisIndex === 0 }));
+        xAxisDataMap.set(reuseAxisIndex, [...xData]);
       }
-      preXData = [...xData];
     }
     return {
       xData: Array.from(xAllData).sort(),
