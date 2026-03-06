@@ -128,10 +128,10 @@ export const useEcharts = (
       }
 
       return $api[target.apiModule]
-      [target.apiFunc](resultParams, {
-        cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
-        needMessage: false,
-      })
+        [target.apiFunc](resultParams, {
+          cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
+          needMessage: false,
+        })
         .then(res => {
           const { series, metrics, query_config } = customOptions.formatterData?.(res, target) ?? res;
           for (const metric of metrics) {
@@ -146,12 +146,12 @@ export const useEcharts = (
           targets.value.push(targetCopy);
           return series?.length
             ? series.map(item => ({
-              ...item,
-              alias: target.alias || item.alias,
-              type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
-              stack: target.data?.stack || item.stack,
-              unit: item.unit || (get(panel)?.options as { unit?: string })?.unit,
-            }))
+                ...item,
+                alias: target.alias || item.alias,
+                type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
+                stack: target.data?.stack || item.stack,
+                unit: item.unit || (get(panel)?.options as { unit?: string })?.unit,
+              }))
             : [];
         })
         .catch(() => []);
@@ -212,31 +212,29 @@ export const useEcharts = (
           const { head1, head2, merged, tail1, tail2 } = mergeResult;
           // 如果合并后比已有的 xAxis 更长，更新 xAxis 数据
           if (head1 > 0 || tail1 > 0) {
-            xAxis[axisIdx].data = [...merged];
+            xAxis[axisIdx].data = merged;
+            const headNulls = Array.from({ length: head1 }, () => ({ value: null }));
+            const tailNulls = Array.from({ length: tail1 }, () => ({ value: null }));
             // 为之前复用同一 xAxisIndex 的系列补点
             for (const prevSeries of seriesData) {
               if (prevSeries.xAxisIndex === axisIdx) {
                 const prevData = prevSeries.data as { value: any }[];
-                for (let i = 0; i < head1; i++) {
-                  prevData.unshift({ value: null });
-                }
-                for (let i = 0; i < tail1; i++) {
-                  prevData.push({ value: null });
-                }
+                prevData.unshift(...headNulls);
+                prevData.push(...tailNulls);
               }
             }
           }
           // 为当前系列在首尾补 null 值
-          for (let i = head2 - 1; i >= 0; i--) {
-            xData.unshift(merged[i]);
-            list.unshift({ value: null });
+          if (head2 > 0) {
+            xData.unshift(...merged.slice(0, head2));
+            list.unshift(...Array.from({ length: head2 }, () => ({ value: null })));
           }
-          for (let i = 0; i < tail2; i++) {
-            xData.push(merged[merged.length - tail2 + i]);
-            list.push({ value: null });
+          if (tail2 > 0) {
+            xData.push(...merged.slice(merged.length - tail2));
+            list.push(...Array.from({ length: tail2 }, () => ({ value: null })));
           }
           // 更新该 xAxisIndex 的 xData 快照为合并后的完整数据
-          xAxisDataMap.set(axisIdx, [...merged]);
+          xAxisDataMap.set(axisIdx, merged);
           break;
         }
       }
