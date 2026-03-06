@@ -203,6 +203,45 @@ class TGPAFileHandler:
         # 清理临时文件
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
+    def download_and_repack_file(self, file_name):
+        """
+        下载文件、解压、解密，然后重新打包为zip文件。
+        如果没有配置解密处理器，则直接返回原始下载文件路径，无需额外处理。
+        :param file_name: COS上的文件名
+        :return: 文件路径
+        """
+        # 下载压缩包
+        saved_path = self.download_file(file_name)
+
+        # 没有解密处理器，直接返回原始文件，temp_dir由调用方负责清理
+        if not self.decrypt_handler:
+            return saved_path
+
+        try:
+            # 递归解压
+            self.extract_nested_zip(self.temp_dir)
+
+            # 解密所有文件
+            self._decrypt_all_files(self.temp_dir)
+
+            # 将整个临时目录重新打包为zip文件
+            os.makedirs(self.output_dir, exist_ok=True)
+            base_name = os.path.basename(file_name)
+            output_zip_path = os.path.join(self.output_dir, base_name)
+            if not output_zip_path.endswith(".zip"):
+                output_zip_path += ".zip"
+
+            temp_dir_path = Path(self.temp_dir)
+            with zipfile.ZipFile(output_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                for file_path in temp_dir_path.rglob("*"):
+                    if file_path.is_file():
+                        zipf.write(str(file_path), str(file_path.relative_to(temp_dir_path)))
+
+            return output_zip_path
+        finally:
+            # 打包完成后清理临时目录
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
+
     @staticmethod
     def clear_expired_files(days=LOG_FILE_EXPIRE_DAYS):
         """

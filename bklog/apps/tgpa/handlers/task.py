@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 
 import math
 import os
+import shutil
 
 from django.utils.functional import cached_property
 
@@ -231,3 +232,36 @@ class TGPATaskHandler:
         """
         file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields, self.decrypt_handler)
         file_handler.download_and_process_file(self.task_info["file_name"])
+
+    @staticmethod
+    def stream_download_file(bk_biz_id, file_name):
+        """
+        下载、解密、重新打包文件，并返回流式迭代器和文件信息（独立方法，不依赖实例属性）
+        :param bk_biz_id: 业务ID
+        :param file_name: COS上的文件名
+        :return: (file_iterator, file_name, file_size)
+        """
+        # 使用文件名（去扩展名）作为临时目录标识
+        file_base_name = os.path.splitext(file_name)[0]
+        temp_dir = os.path.join(TGPA_BASE_DIR, str(bk_biz_id), "download", file_base_name, "temp")
+        output_dir = os.path.join(TGPA_BASE_DIR, str(bk_biz_id), "download", file_base_name, "output")
+
+        decrypt_handler = get_decrypt_handler(bk_biz_id)
+        file_handler = TGPAFileHandler(temp_dir, output_dir, decrypt_handler=decrypt_handler)
+        result_path = file_handler.download_and_repack_file(file_name)
+
+        result_file_name = os.path.basename(result_path)
+        file_size = os.path.getsize(result_path)
+
+        def file_iterator(chunk_size=8192):
+            """文件流式读取迭代器"""
+            try:
+                with open(result_path, "rb") as f:
+                    while chunk := f.read(chunk_size):
+                        yield chunk
+            finally:
+                # 流式传输完成后清理临时目录和输出目录
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                shutil.rmtree(output_dir, ignore_errors=True)
+
+        return file_iterator(), result_file_name, file_size
