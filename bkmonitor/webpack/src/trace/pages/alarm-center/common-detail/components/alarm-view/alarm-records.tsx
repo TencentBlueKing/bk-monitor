@@ -45,21 +45,54 @@ import type { AlarmDetail } from '../../../typings/detail';
 
 import './alarm-records.scss';
 
+const TypeEnum = {
+  CREATE: 'CREATE',
+  CONVERGE: 'CONVERGE',
+  RECOVER: 'RECOVER',
+  CLOSE: 'CLOSE',
+  RECOVERING: 'RECOVERING',
+  DELAY_RECOVER: 'DELAY_RECOVER',
+  ABORT_RECOVER: 'ABORT_RECOVER',
+  SYSTEM_RECOVER: 'SYSTEM_RECOVER',
+  SYSTEM_CLOSE: 'SYSTEM_CLOSE',
+  ACK: 'ACK',
+  SEVERITY_UP: 'SEVERITY_UP',
+  ACTION: 'ACTION',
+  ALERT_QOS: 'ALERT_QOS',
+  EVENT_DROP: 'EVENT_DROP',
+} as const;
+
 const OperateMap = {
-  CREATE: `【${window.i18n.t('告警产生')}】`,
-  CONVERGE: `【${window.i18n.t('告警收敛')}】`,
-  RECOVER: `【${window.i18n.t('告警恢复')}】`,
-  CLOSE: `【${window.i18n.t('告警失效')}】`,
-  RECOVERING: `【${window.i18n.t('告警恢复中')}】`,
-  DELAY_RECOVER: `【${window.i18n.t('延迟恢复')}】`,
-  ABORT_RECOVER: `【${window.i18n.t('中断恢复')}】`,
-  SYSTEM_RECOVER: `【${window.i18n.t('告警恢复')}】`,
-  SYSTEM_CLOSE: `【${window.i18n.t('告警关闭')}】`,
-  ACK: `【${window.i18n.t('告警确认')}】`,
-  SEVERITY_UP: `【${window.i18n.t('告警级别调整')}】`,
-  ACTION: `【${window.i18n.t('告警处理')}】`,
-  ALERT_QOS: `【${window.i18n.t('告警流控')}】`,
-  EVENT_DROP: `【${window.i18n.t('事件忽略')}】`,
+  [TypeEnum.CREATE]: `【${window.i18n.t('告警产生')}】`,
+  [TypeEnum.CONVERGE]: `【${window.i18n.t('告警收敛')}】`,
+  [TypeEnum.RECOVER]: `【${window.i18n.t('告警恢复')}】`,
+  [TypeEnum.CLOSE]: `【${window.i18n.t('告警失效')}】`,
+  [TypeEnum.RECOVERING]: `【${window.i18n.t('告警恢复中')}】`,
+  [TypeEnum.DELAY_RECOVER]: `【${window.i18n.t('延迟恢复')}】`,
+  [TypeEnum.ABORT_RECOVER]: `【${window.i18n.t('中断恢复')}】`,
+  [TypeEnum.SYSTEM_RECOVER]: `【${window.i18n.t('系统恢复')}】`,
+  [TypeEnum.SYSTEM_CLOSE]: `【${window.i18n.t('系统关闭')}】`,
+  [TypeEnum.ACK]: `【${window.i18n.t('告警确认')}】`,
+  [TypeEnum.SEVERITY_UP]: `【${window.i18n.t('告警级别调整')}】`,
+  [TypeEnum.ACTION]: `【${window.i18n.t('处理动作')}】`,
+  [TypeEnum.ALERT_QOS]: `【${window.i18n.t('告警流控')}】`,
+  [TypeEnum.EVENT_DROP]: `【${window.i18n.t('事件忽略')}】`,
+};
+const iconMap = {
+  [TypeEnum.CREATE]: '🚨',
+  [TypeEnum.CONVERGE]: '🎯',
+  [TypeEnum.RECOVER]: '✅',
+  [TypeEnum.CLOSE]: '❌',
+  [TypeEnum.RECOVERING]: '🔄',
+  [TypeEnum.DELAY_RECOVER]: '⏰',
+  [TypeEnum.ABORT_RECOVER]: '🔌',
+  [TypeEnum.SYSTEM_RECOVER]: '✅',
+  [TypeEnum.SYSTEM_CLOSE]: '❌',
+  [TypeEnum.ACK]: '✔︎',
+  [TypeEnum.SEVERITY_UP]: '📉📈',
+  [TypeEnum.ACTION]: '🔧',
+  [TypeEnum.ALERT_QOS]: '🚦',
+  [TypeEnum.EVENT_DROP]: '🚫',
 };
 
 const getListEventLog = async params => {
@@ -436,7 +469,8 @@ export default defineComponent({
       return (
         <div class='item-title'>
           <span class='item-title-icon'>
-            <i class={['icon-monitor', item.logIcon]} />
+            {iconMap[item.operate]}
+            {/* <i class={['icon-monitor', item.logIcon]} /> */}
           </span>
           <span class='item-title-date'>{item.expand ? item.time : item.expandTime}</span>
         </div>
@@ -599,6 +633,7 @@ export default defineComponent({
               filterable={true}
               modelValue={this.checked}
               multiple={true}
+              multiple-mode={'tag'}
               selectedStyle={'checkbox'}
               showSelectAll={true}
               onToggle={v => {
@@ -608,15 +643,32 @@ export default defineComponent({
                 this.checked = v;
               }}
             >
-              {this.circulationFilter.map(item => (
-                <Select.Option
-                  id={item.id}
-                  key={item.id}
-                  name={`${item.icon} ${item.name}`}
-                >
-                  {item.icon} {item.name}
-                </Select.Option>
-              ))}
+              {{
+                default: () =>
+                  this.circulationFilter.map(item => (
+                    <Select.Option
+                      id={item.id}
+                      key={item.id}
+                      name={`${item.icon} ${item.name}`}
+                    >
+                      {item.icon} {item.name}
+                    </Select.Option>
+                  )),
+                tag: ({ selected }) => {
+                  return this.checked.length === this.circulationFilter.length ? (
+                    this.$t('全部')
+                  ) : (
+                    <span
+                      style={'overflow: hidden; text-overflow: ellipsis;'}
+                      v-overflow-tips={{
+                        placement: 'top',
+                      }}
+                    >
+                      {selected.map(item => item.label).join(',')}
+                    </span>
+                  );
+                },
+              }}
             </Select>
           </span>
         </div>
