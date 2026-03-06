@@ -35,6 +35,12 @@
       border: 1px solid #dcdee5;
       border-radius: 2px;
       box-shadow: none;
+
+      .retrieval-filter__component-main .component-right .search-btn {
+        position: relative;
+        top: -1px;
+        height: calc(100% + 2px);
+      }
     }
   }
 }

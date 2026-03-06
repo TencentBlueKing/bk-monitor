@@ -1,3 +1,4 @@
+/* stylelint-disable no-descending-specificity */
 .alarm-view-panel-dimension-analysis-wrap {
   margin-top: 14px;
   background-color: #fff;
@@ -80,6 +81,7 @@
     display: flex;
     min-height: 300px;
     max-height: 540px;
+    padding: 0 16px 16px;
 
     .dimension-analysis-left {
       width: 160px;
@@ -124,6 +126,7 @@
           &.active {
             cursor: default;
             background: #fff;
+            box-shadow: 1px 1px 4px 0 #0000001a;
 
             .icon-monitor {
               color: #3a84ff;
