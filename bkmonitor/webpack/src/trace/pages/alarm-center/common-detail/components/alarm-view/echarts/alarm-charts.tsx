@@ -356,17 +356,23 @@ export default defineComponent({
     };
 
     /**
-     * @description 处理series， 事件和日志告警对于告警点的柱状图需要变颜色
+     * @description 处理series，事件和日志告警对于告警点的柱状图需要变颜色。
+     * 通过 alignedDatapoints（与 data 索引对齐的 datapoints 副本）直接按下标匹配，无需手动计算偏移。
+     * @param series - 单个系列数据
+     * @returns 处理后的系列数据
      */
     const formatterGraphQueryCurrentSeries = series => {
       if (isEventOrLogAlarm.value && series?.type === 'bar') {
         series.itemStyle = { ...(series?.itemStyle ?? {}), color: '#3A84FF' };
+        const dp = series.alignedDatapoints ?? series.datapoints;
         for (const ponit of props.detail.anomaly_timestamps) {
-          const index = series.datapoints.findIndex(item => Number(String(item[1]).slice(0, -3)) === ponit);
-          series.data[index] = {
-            ...series.data[index],
-            itemStyle: { color: ANOMALY_COLOR },
-          };
+          const index = dp.findIndex(item => Number(String(item[1]).slice(0, -3)) === ponit);
+          if (index >= 0 && index < series.data.length) {
+            series.data[index] = {
+              ...series.data[index],
+              itemStyle: { color: ANOMALY_COLOR },
+            };
+          }
         }
       }
       return series;

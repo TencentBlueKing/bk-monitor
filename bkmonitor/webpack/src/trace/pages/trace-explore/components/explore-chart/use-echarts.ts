@@ -192,6 +192,8 @@ export const useEcharts = (
     for (const data of series) {
       const list: { value: any }[] = [];
       const xData: number[] = [];
+      /** 与 data（list）索引对齐的 datapoints 副本，头尾补 null 后仍能通过下标一一对应 */
+      const alignedDatapoints: [null | number, number][] = data.datapoints.map(p => [...p] as [null | number, number]);
       for (const point of data.datapoints) {
         xData.push(point[1]);
         xAllData.add(point[1]);
@@ -215,23 +217,35 @@ export const useEcharts = (
             xAxis[axisIdx].data = merged;
             const headNulls = Array.from({ length: head1 }, () => ({ value: null }));
             const tailNulls = Array.from({ length: tail1 }, () => ({ value: null }));
+            const headNullDps: [null, number][] = merged.slice(0, head1).map(ts => [null, ts]);
+            const tailNullDps: [null, number][] = merged.slice(merged.length - tail1).map(ts => [null, ts]);
             // 为之前复用同一 xAxisIndex 的系列补点
             for (const prevSeries of seriesData) {
               if (prevSeries.xAxisIndex === axisIdx) {
                 const prevData = prevSeries.data as { value: any }[];
                 prevData.unshift(...headNulls);
                 prevData.push(...tailNulls);
+                // 同步更新 alignedDatapoints 保持与 data 索引对齐
+                const prevAligned = prevSeries.alignedDatapoints as [null | number, number][];
+                if (prevAligned) {
+                  prevAligned.unshift(...headNullDps);
+                  prevAligned.push(...tailNullDps);
+                }
               }
             }
           }
           // 为当前系列在首尾补 null 值
           if (head2 > 0) {
+            const headDps: [null, number][] = merged.slice(0, head2).map(ts => [null, ts]);
             xData.unshift(...merged.slice(0, head2));
             list.unshift(...Array.from({ length: head2 }, () => ({ value: null })));
+            alignedDatapoints.unshift(...headDps);
           }
           if (tail2 > 0) {
+            const tailDps: [null, number][] = merged.slice(merged.length - tail2).map(ts => [null, ts]);
             xData.push(...merged.slice(merged.length - tail2));
             list.push(...Array.from({ length: tail2 }, () => ({ value: null })));
+            alignedDatapoints.push(...tailDps);
           }
           // 更新该 xAxisIndex 的 xData 快照为合并后的完整数据
           xAxisDataMap.set(axisIdx, merged);
@@ -286,6 +300,7 @@ export const useEcharts = (
         },
         z: data.z || 3,
         ...data,
+        alignedDatapoints,
       };
 
       // 处理 markPoints（告警点）

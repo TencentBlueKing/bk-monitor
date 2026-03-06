@@ -46,6 +46,8 @@ export interface DataZoomEvent {
 export type DecimalCount = null | number | undefined;
 
 export interface EchartSeriesItem {
+  /** 与 data 索引对齐的 datapoints 副本，头尾因 xAxis 合并补了 [null, timestamp] 占位 */
+  alignedDatapoints?: [null | number, number][];
   data: number[] | { value: any }[];
   markArea?: IMarkAreaConfig;
   markLine?: IMarkLineConfig;
