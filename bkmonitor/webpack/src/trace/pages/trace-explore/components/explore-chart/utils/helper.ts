@@ -34,6 +34,9 @@ import type { MergeResult } from '../types';
  */
 export const mergeOverlappingArrays = (arr1: number[], arr2: number[]): MergeResult | null => {
   if (!arr1.length || !arr2.length) return null;
+  // 两个数组必须存在交集才能合并，完全不重叠的数据不应合并到同一 xAxis
+  const set1 = new Set(arr1);
+  if (!arr2.some(v => set1.has(v))) return null;
   const merged = Array.from(new Set([...arr1, ...arr2])).sort((a, b) => a - b);
   const findOffset = (merged: number[], arr: number[]): number => {
     const idx = merged.indexOf(arr[0]);
