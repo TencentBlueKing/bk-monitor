@@ -35,7 +35,7 @@ import './ai-diagnostic-info-card.scss';
 export default defineComponent({
   name: 'AiDiagnosticInfo',
   setup() {
-    const { t } = useI18n();
+    useI18n();
 
     const experienceShow = shallowRef(false);
 
@@ -44,7 +44,6 @@ export default defineComponent({
     };
 
     return {
-      t,
       experienceShow,
       handleExperienceShow,
     };
@@ -54,41 +53,47 @@ export default defineComponent({
       <AiHighlightCard
         class='ai-diagnostic-info-card'
         v-slots={{
+          title: () => (
+            <div class='ai-diagnostic-info-card-title'>
+              <span class='title-text'>{this.$t('诊断概率')}</span>
+              <span class='value'>85%</span>
+            </div>
+          ),
           content: () => (
             <div class='ai-diagnostic-info-content'>
               <div class='ai-diagnostic-info-item'>
-                <div class='info-item-label'>{this.t('告警问题：')}</div>
+                <div class='info-item-label'>{this.$t('告警问题：')}</div>
                 <div class='info-item-content'>
                   当前服务 (activity-microservices.msgcenter) 调用接口(trpc.cj.trpc2s.activitiyscvr/SendAwardSync)
                   的成功率为 <span class='bold'>65%</span>
                 </div>
               </div>
               <div class='ai-diagnostic-info-item'>
-                <div class='info-item-label'>{this.t('告警原因：')}</div>
+                <div class='info-item-label'>{this.$t('告警原因：')}</div>
                 <div class='info-item-content'>
                   被调接口 (trpc.cj.trpc2s.activitiyscvr/SendAwardSync) 服务所在主机 10.0.2.12 网络不通导致
                 </div>
               </div>
               <div class='ai-diagnostic-info-item'>
-                <div class='info-item-label'>{this.t('关联故障：')}</div>
+                <div class='info-item-label'>{this.$t('关联故障：')}</div>
                 <div class='info-item-content'>
                   <span class='link-text'>【Pod】BcsPod(activity-10111-deployment-bys)引起的故障</span>
                 </div>
               </div>
               <div class='ai-diagnostic-info-item'>
-                <div class='info-item-label'>{this.t('处理建议：')}</div>
-                <div class='info-item-content'>我是一个文本占位</div>
+                <div class='info-item-label'>{this.$t('处理建议：')}</div>
+                <div class='info-item-content'>重启服务器，或联系网络管理员检查服务器网络是否正常</div>
               </div>
               <div class='ai-diagnostic-info-item'>
-                <div class='info-item-label'>{this.t('处理经验：')}</div>
+                <div class='info-item-label'>{this.$t('处理经验：')}</div>
                 <div class='info-item-content'>
-                  <span class='empty'>{this.t('无')}</span>
+                  <span class='empty'>{this.$t('无')}</span>
                   <span
                     class='link-text'
                     onClick={this.handleExperienceShow}
                   >
                     <i class='icon-monitor icon-bianji' />
-                    {this.t('这个告警我有经验')}
+                    {this.$t('这个告警我有经验')}
                   </span>
                 </div>
               </div>
@@ -96,8 +101,7 @@ export default defineComponent({
             </div>
           ),
         }}
-        faviconSize={32}
-        title='诊断概率：85%'
+        faviconSize={44}
       />
     );
   },

@@ -26,8 +26,10 @@
 import { type PropType, defineComponent, shallowRef } from 'vue';
 
 import DimensionPanel from './components/dimension-panel';
+import EventPanel from './components/event-panel';
 import LinkPanel from './components/link-panel';
 import LogPanel from './components/log-panel';
+import MetricPanel from './components/metric-panel';
 import { DiagnosticTypeEnum, DiagnosticTypeIconMap, DiagnosticTypeMap } from './constant';
 
 import type { IDiagnosticAnalysisItem } from './typing';
@@ -59,7 +61,9 @@ export default defineComponent({
         case DiagnosticTypeEnum.LOG:
           return <LogPanel data={props.data.list} />;
         case DiagnosticTypeEnum.EVENT:
-          return <LogPanel data={props.data.list} />;
+          return <EventPanel data={props.data.list} />;
+        case DiagnosticTypeEnum.Metic:
+          return <MetricPanel data={props.data.list} />;
       }
     };
 
@@ -77,9 +81,10 @@ export default defineComponent({
             class='analysis-panel-wrapper-header'
             onClick={() => this.toggleExpand(!this.isExpand)}
           >
-            <i class='icon-monitor icon-mc-arrow-right arrow-icon' />
             <i class={['icon-monitor', 'analysis-type-icon', DiagnosticTypeIconMap[this.data.type]]} />
             <span class='panel-title'>{DiagnosticTypeMap[this.data.type]}</span>
+            {this.data.list.length > 1 && <span class='count-tag'>2</span>}
+            <i class='icon-monitor icon-arrow-right-copy arrow-icon' />
           </div>
           <div class='analysis-panel-wrapper-content'>{this.renderAnalysisPanel()}</div>
         </div>

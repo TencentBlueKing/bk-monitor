@@ -33,7 +33,7 @@ import DetailCommon from '../common-detail/common-detail';
 import { AlarmType } from '../typings';
 import ActionDetailHead from './components/action-detail-head';
 import ActionDetail from './components/action-detail/action-detail';
-// import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
+import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
 import EventDetailHead from './components/event-detail-head';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 import { getAuthorityMap, useAuthorityStore } from '@/store/modules/authority';
@@ -174,7 +174,7 @@ export default defineComponent({
           return (
             <div class='alarm-center-detail-wrapper'>
               <DetailCommon />
-              {/* <DiagnosticAnalysis /> */}
+              <DiagnosticAnalysis />
             </div>
           );
         case AlarmType.ACTION:

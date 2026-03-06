@@ -40,6 +40,14 @@ export default defineComponent({
     data: {
       type: Object as PropType<ISuspiciousGroup>,
     },
+    showAbnormality: {
+      type: Boolean,
+      default: false,
+    },
+    abnormalityRate: {
+      type: Number,
+      default: 0,
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -71,7 +79,7 @@ export default defineComponent({
             class='group-header'
             onClick={this.toggleExpand}
           >
-            <i class='icon-monitor icon-arrow-right arrow-icon' />
+            <i class='icon-monitor icon-mc-arrow-right arrow-icon' />
             <div
               class={['group-name', { 'link-text': !!this.data?.groupHeader.name.link }]}
               onClick={e => {
@@ -81,6 +89,12 @@ export default defineComponent({
               {this.data?.groupHeader.name.title}
               {!!this.data?.groupHeader.name.link && <i class='icon-monitor icon-fenxiang' />}
             </div>
+            {this.showAbnormality && (
+              <div class='abnormality-tag'>
+                <span class='abnormality-label'>{this.t('异常程度')}</span>
+                <span class='abnormality-value'>{this.abnormalityRate}%</span>
+              </div>
+            )}
             {this.data?.groupHeader.detail && (
               <div
                 class='link-text'
@@ -112,7 +126,7 @@ export default defineComponent({
               {this.data?.reason.link && (
                 <span class='link-text'>
                   <i class='icon-monitor icon-xiangqing1' />
-                  {this.t('分析详情')}
+                  {this.$t('分析详情')}
                 </span>
               )}
             </div>

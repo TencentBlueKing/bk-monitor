@@ -3,6 +3,9 @@
   grid-template-rows: 0fr;
   grid-template-columns: 100%;
   overflow: hidden;
+  background-color: #fff;
+  border: 1px solid #ced9f0;
+  border-radius: 4px;
   transition: grid-template-rows 0.6s ease;
 
   .link-text {
@@ -22,30 +25,43 @@
   }
 
   .suspicious-analysis-group-wrapper {
-    min-height: 26px;
-    border: 1px solid #eaebf0;
-    border-radius: 2px;
+    min-height: 32px;
 
     .group-header {
       display: flex;
       align-items: center;
-      height: 26px;
+      height: 32px;
       cursor: pointer;
-      background: #eaebf0;
+      background: #e9edf5;
 
       .arrow-icon {
+        margin: 0 6px 0 8px;
+        font-size: 12px;
         transition: transform 0.1s;
       }
 
-      .icon-monitor {
-        font-size: 24px;
-      }
-
       .group-name {
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 20px;
+        color: #4e5e7a;
+
         .icon-fenxiang {
           margin-left: 6px;
           font-size: 12px;
         }
+      }
+
+      .abnormality-tag {
+        padding: 0 6px;
+        margin-right: 8px;
+        margin-left: auto;
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 20px;
+        color: #c12726;
+        background: #fff;
+        border-radius: 999px;
       }
     }
 
@@ -53,19 +69,20 @@
       .error-info-item {
         display: flex;
         align-items: center;
-        height: 24px;
         background: #fff;
 
         .error-info-name {
           width: 110px;
           padding-left: 24px;
           font-size: 12px;
-          color: #757880;
+          line-height: 24px;
+          color: #4e5e7a;
         }
 
         .error-info-value {
           font-size: 12px;
-          color: #313238;
+          line-height: 24px;
+          color: #111214;
         }
 
         &.even {
@@ -77,9 +94,9 @@
     .suspicious-reason {
       display: flex;
       align-items: center;
-      height: 24px;
+      height: 32px;
       padding-right: 8px;
-      padding-left: 24px;
+      padding-left: 26px;
       border-top: 1px solid #eaebf0;
 
       .reason {
@@ -90,12 +107,13 @@
     }
 
     .error-content {
-      padding: 8px 24px;
-      background: #f8fafd;
+      padding: 8px 16px;
+      background: #fafbfc;
+      border-top: 1px solid #e4e9f2;
 
       .error-content-item {
         .error-content-item-name {
-          font-weight: 700;
+          font-weight: 600;
           line-height: 20px;
           color: #313238;
         }
@@ -103,7 +121,7 @@
         .error-content-item-value {
           font-size: 12px;
           line-height: 20px;
-          color: #313238;
+          color: #4d4f56;
         }
 
         & + .error-content-item {
@@ -126,6 +144,6 @@
   }
 
   & + .suspicious-analysis-group {
-    margin-top: 8px;
+    margin-top: 12px;
   }
 }

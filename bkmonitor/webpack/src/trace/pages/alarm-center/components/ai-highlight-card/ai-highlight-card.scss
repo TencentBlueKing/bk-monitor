@@ -1,4 +1,6 @@
 .ai-highlight-card {
+  display: flex;
+
   // 边框宽度
   --border-width: 1px;
 
@@ -10,7 +12,7 @@
   // 如设置为 0px 则四个边框的颜色是属于 同一线性渐变 延申的
   --left-special-border-width: var(--border-left-width);
 
-  padding: 6px 4px;
+  padding: 8px 12px 8px 10px;
   background-image:
     linear-gradient(96deg, #f5f7ff 0%, #eff3fe 100%), linear-gradient(180deg, #235dfa 0%, #c383ee 100%),
     linear-gradient(90deg, #235dfa 0%, #c383ee 100%);
@@ -35,6 +37,11 @@
       flex-shrink: 0;
       width: var(--ai-favicon-size);
       height: var(--ai-favicon-size);
+      padding: 5px;
+      background: linear-gradient(90deg, #f5f7ff 0%, #fffcff 100%);
+      border: 1px solid #fff;
+      border-radius: 6px;
+      box-shadow: 0 4px 8px 0 #4d67f733;
 
       & > img {
         width: 100%;
@@ -44,7 +51,7 @@
     }
 
     .ai-highlight-card-header-title {
-      margin-left: 4px;
+      margin-left: 8px;
 
       /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
       font-family: PingFangHK-Semibold;
@@ -57,7 +64,6 @@
 
   .ai-highlight-card-main {
     padding-left: calc(var(--ai-favicon-size) + 4px);
-    margin-top: 4px;
 
     /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
     font-family: PingFangSC-Regular;

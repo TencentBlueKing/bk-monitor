@@ -34,7 +34,7 @@ import type { ISuspiciousGroup } from '../typing';
 import './dimension-panel.scss';
 
 export default defineComponent({
-  name: 'DimensionPanel',
+  name: 'EventPanel',
   props: {
     data: {
       type: Array as PropType<ISuspiciousGroup[]>,
@@ -48,24 +48,17 @@ export default defineComponent({
       t,
     };
   },
-
   render() {
     return (
       <div class='suspicious-dimension-panel'>
-        <i18n-t
-          class='tips'
-          keypath='经过 {0} 分析，发现以下可疑维度（组合）：'
-          tag='div'
-        >
-          <span class='link-text'>{this.t('维度下钻分析')}</span>
-        </i18n-t>
+        <div class='tips'>
+          {this.$t('下面这些指标维度，在过去时间里产生过相似的告警事件，希望能够帮助您进一步分析告警可能原因。')}
+        </div>
         <div class='dimension-group-list'>
           {this.data.map(item => (
             <SuspiciousAnalysisGroup
               key={item.id}
-              abnormalityRate={90}
               data={item}
-              showAbnormality={true}
             />
           ))}
         </div>
