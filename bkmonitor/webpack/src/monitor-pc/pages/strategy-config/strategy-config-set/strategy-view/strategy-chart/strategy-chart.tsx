@@ -427,6 +427,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                 bkmonitor_strategy_id: bkmonitorStrategyId,
                 custom_event_name,
                 curRealMetric,
+                query_string,
               }) => {
                 dataSourceLabel = curRealMetric?.data_source_label || dataSourceLabel;
                 dataTypeLabel = curRealMetric?.data_type_label || dataTypeLabel;
@@ -477,6 +478,11 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                         }
                       : { index_set_id: extendFields.index_set_id || '' };
                 }
+                let queryString = '';
+                // 自定义事件查询 需要携带查询语句
+                if (query_string && dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
+                  queryString = query_string;
+                }
                 const tableValue = () => {
                   if (dataSourceLabel === 'bk_monitor' && dataTypeLabel === 'alert') {
                     return 'strategy'; // 此类情况table固定为strategy
@@ -524,6 +530,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                   filter_dict: getFieldDict(),
                   functions: isDetect ? [] : func,
                   target: this.strategyTarget || [],
+                  query_string: queryString,
                   ...logParam,
                 };
                 const tempAggDimension = [...agg_dimension];
