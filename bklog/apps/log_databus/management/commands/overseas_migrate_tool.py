@@ -2,7 +2,8 @@ import os
 from collections import defaultdict
 
 from django.core.management import BaseCommand, CommandError
-from django.db import transaction, IntegrityError
+from django.db import connection, transaction, IntegrityError
+from django.db.models import Max
 from django.forms import model_to_dict
 
 from apps.api import OverseasMigrateApi
@@ -32,6 +33,23 @@ from home_application.management.commands.migrate_tool import (
 )
 
 PROJECT_PATH = os.getcwd()
+
+
+def modify_auto_increment(model_class, increment_value, id_field="id"):
+    """
+    id自增计数器修改
+    """
+    # 获取表中最大id
+    max_id = model_class.objects.aggregate(max_id=Max(id_field))["max_id"]
+    if not max_id:
+        max_id = 0
+    # 如果表中最大的id小于偏移值, 则将id自增计数器的值设置为偏移值, 防止新环境表中数据增加造成旧环境数据迁移失败
+    if increment_value > max_id:
+        table_name = model_class._meta.db_table
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                sql = f"ALTER TABLE {table_name} AUTO_INCREMENT = %s"
+                cursor.execute(sql, [increment_value])
 
 
 class Command(BaseCommand):
@@ -77,6 +95,22 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        # 设置每张表中id自增计数器的值
+        modify_auto_increment(LogIndexSet, 10000, "index_set_id")
+        modify_auto_increment(LogIndexSetData, 10000, "index_id")
+        modify_auto_increment(CollectorConfig, 10000, "collector_config_id")
+        modify_auto_increment(ContainerCollectorConfig, 10000, "id")
+        modify_auto_increment(AiopsModel, 10000, "id")
+        modify_auto_increment(AiopsModelExperiment, 10000, "id")
+        modify_auto_increment(AiopsSignatureAndPattern, 100000, "id")
+        modify_auto_increment(ClusteringConfig, 10000, "id")
+        modify_auto_increment(ClusteringRemark, 10000, "id")
+        modify_auto_increment(ClusteringSubscription, 10000, "id")
+        modify_auto_increment(NoticeGroup, 10000, "id")
+        modify_auto_increment(RegexTemplate, 10000, "id")
+        modify_auto_increment(SampleSet, 10000, "id")
+        modify_auto_increment(SignatureStrategySettings, 10000, "id")
+
         dir_path = options["dir_path"]
 
         json_filepath_dict = {
