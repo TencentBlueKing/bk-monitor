@@ -28,6 +28,7 @@ from apm_web.topo.handle.relation.define import (
 )
 from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.documents import AlertDocument
+from bkmonitor.models import BCSPod
 from bkmonitor.utils.alert_drilling import (
     build_log_search_condition,
     get_alert_dimensions,
@@ -489,6 +490,37 @@ class HostTarget(DefaultTarget):
     """主机目标对象"""
 
     TARGET_TYPE = EventTargetType.HOST
+
+    def _get_k8s_resource_type(self) -> str:
+        return K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
+
+    def _list_related_k8s_targets(self) -> list[dict[str, Any]]:
+        """从主机 IP 关联 K8S 工作负载。
+
+        通过 BCSPod 表的 node_ip 字段查询该主机上运行的 Pod，提取去重后的 workload 信息。
+
+        :return: 关联 K8S 工作负载信息列表
+        """
+        ip: str | None = self._get_dimension_value(["ip", "bk_target_ip"], self._alert.event.ip)
+        if not ip:
+            return []
+
+        # 同一 workload 下通常有多个 Pod 副本运行在同一节点上，使用 distinct 去重
+        workloads: list[dict[str, str]] = list(
+            BCSPod.objects.filter(bk_biz_id=self._alert.event.bk_biz_id, node_ip=ip)
+            .values("bcs_cluster_id", "namespace", "workload_type", "workload_name")
+            .distinct()
+        )
+
+        return [
+            {
+                "workload": f"{w['workload_type']}:{w['workload_name']}",
+                "bcs_cluster_id": w["bcs_cluster_id"],
+                "namespace": w["namespace"],
+            }
+            for w in workloads
+            if all([w["bcs_cluster_id"], w["namespace"], w["workload_type"], w["workload_name"]])
+        ]
 
     def list_related_host_targets(self) -> list[dict[str, Any]]:
         return [
