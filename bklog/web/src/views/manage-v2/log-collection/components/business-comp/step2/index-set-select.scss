@@ -2,8 +2,13 @@
     width: 100%;
 }
 .index-set-select-extension {
-    text-align: center;
-    cursor: pointer;
+    .add-index-set-btn {
+        display: block;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        cursor: pointer;
+    }
     .icon-plus-circle {
         margin-right: 5px;
     }
