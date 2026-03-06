@@ -12,8 +12,8 @@
 
   padding: 6px 4px;
   background-image:
-    linear-gradient(96deg, #f5f7ff 0%, #eff3fe 100%), linear-gradient(180deg, #235dfa 0%, #c383ee 100%),
-    linear-gradient(90deg, #235dfa 0%, #c383ee 100%);
+    linear-gradient(153deg, #eff3ff 0%, #f7f9ff 100%), linear-gradient(180deg, #5d7eff 0%, #5d7eff 100%),
+    linear-gradient(158deg, rgb(184 195 255 / 60%) 0%, rgb(230 198 255 / 100%) 100%);
   background-repeat: no-repeat;
   background-position:
     100% 100%,
@@ -26,7 +26,7 @@
     calc(100% + 2 * var(--border-width)) calc(100% + 2 * var(--border-width));
   border: var(--border-width) solid transparent;
   border-left-width: var(--border-left-width);
-  border-radius: 2px;
+  border-radius: 4px;
 
   .ai-highlight-card-header {
     display: flex;
@@ -35,6 +35,11 @@
       flex-shrink: 0;
       width: var(--ai-favicon-size);
       height: var(--ai-favicon-size);
+      padding: 6px;
+      background: linear-gradient(90deg, #f5f7ff 0%, #fffcff 100%);
+      border: 1px solid #fff;
+      border-radius: 6px;
+      box-shadow: 0 4px 8px 0 #4d67f733;
 
       & > img {
         width: 100%;
