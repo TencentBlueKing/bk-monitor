@@ -1,10 +1,67 @@
 .alarm-view-panel-dimension-analysis-wrap {
+  margin-top: 14px;
+  background-color: #fff;
+  border: 1px solid #e4e9f2;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px 0 #1919290a;
+
   .alarm-dimension-chart {
     width: 100%;
     height: 240px;
     background-color: #fff;
+    border-radius: 8px;
 
     .dimension-chart {
+      border-radius: 8px;
+
+      .title-wrapper {
+        .chart-title {
+          padding: 12px 34px 3px 16px;
+
+          .main-title {
+            min-height: 22px;
+
+            .title-name {
+              font-size: 14px;
+              font-weight: 500;
+              line-height: 22px;
+            }
+
+            .icon-hint.tips-icon {
+              width: 22px;
+              height: 22px;
+              margin-left: 0;
+              font-size: 12px;
+              color: #8f9fbd;
+
+              &::before {
+                height: unset;
+              }
+            }
+
+            .custom-tools-wrapper {
+              margin-bottom: -16px;
+            }
+
+            & > div:last-child {
+              margin-bottom: -16px;
+
+              .icon-monitor.icon-mc-more.more-icon {
+                width: 22px;
+                height: 22px;
+                color: #4d4f56;
+              }
+            }
+          }
+
+          .sub-title {
+            height: 20px;
+            line-height: 20px;
+            color: #8f9fbd;
+          }
+        }
+      }
+
       .custom-tools-wrapper {
         .dimension-chart-fullscreen {
           margin-right: 6px;
@@ -23,13 +80,13 @@
     display: flex;
     min-height: 300px;
     max-height: 540px;
-    border-top: 1px solid #dcdee5;
 
     .dimension-analysis-left {
       width: 160px;
       min-width: 160px;
       overflow-y: auto;
       background: #f3f6fa;
+      border-radius: 8px;
     }
 
     .dimension-analysis-right {
@@ -37,7 +94,9 @@
       flex: 1;
       flex-direction: column;
       max-width: calc(100% - 160px);
+      overflow: hidden;
       background: #fff;
+      border-bottom-right-radius: 8px;
 
       .type-select {
         display: flex;
@@ -45,7 +104,7 @@
         width: fit-content;
         height: 32px;
         padding: 0 4px;
-        margin: 8px;
+        margin: 0 0 14px 12px;
         background: #f0f1f5;
         border-radius: 2px;
 
@@ -111,6 +170,7 @@
 
       .dimension-analysis-data {
         flex: 1;
+        margin-left: 12px;
       }
     }
   }

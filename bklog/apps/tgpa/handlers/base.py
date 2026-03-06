@@ -49,6 +49,7 @@ from apps.tgpa.constants import (
     COS_DOWNLOAD_MAX_SIZE,
     COS_DOWNLOAD_CHUNK_SIZE,
 )
+from apps.tgpa.handlers.decrypt import BaseDecryptHandler
 from apps.utils.bcs import Bcs
 from apps.utils.log import logger
 
@@ -56,11 +57,13 @@ from apps.utils.log import logger
 class TGPAFileHandler:
     """TGPA文件处理"""
 
-    def __init__(self, temp_dir, output_dir, meta_fields=None):
+    def __init__(self, temp_dir, output_dir, meta_fields=None, decrypt_handler: BaseDecryptHandler = None):
         # temp_dir: 临时目录，处理完成后删除; output_dir: 输出目录，存放处理后的文件
         self.temp_dir = temp_dir
         self.output_dir = output_dir
         self.meta_fields = meta_fields or {}
+        # decrypt_handler: 解密处理器，用于解密日志文件，如果为None则不进行解密
+        self.decrypt_handler = decrypt_handler
 
     def download_file(self, file_name):
         """
@@ -183,6 +186,9 @@ class TGPAFileHandler:
         log_files = self.find_log_files(self.temp_dir)
         for log_file_path in log_files:
             try:
+                # 如果配置了解密处理器，先对文件进行解密
+                if self.decrypt_handler:
+                    self.decrypt_handler.decrypt_file(os.path.join(self.temp_dir, log_file_path))
                 self.process_log_file(log_file_path)
             except Exception as e:
                 logger.exception("Failed to process log file %s: %s", log_file_path, e)

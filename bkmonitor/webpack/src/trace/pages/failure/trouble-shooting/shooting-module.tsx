@@ -229,13 +229,13 @@ export function createShootingModule(
             </div>
           ),
           default: () => (
-            <span
+            <div
               class={`log-tips__default log-tips__${popoverType}`}
               data-index={index}
               onMouseenter={e => options.handleMouseEnter(e, index, popoverType)}
             >
               {content}
-            </span>
+            </div>
           ),
         }}
       </Popover>
@@ -343,9 +343,14 @@ export function createShootingModule(
               <span
                 key={ele.strategy_id}
                 class='dimensional-footer-item'
-                onClick={() => options.goDetail(ele)}
               >
-                <span class='blue-txt'>
+                <span
+                  class='blue-txt'
+                  onClick={(e: MouseEvent) => {
+                    e.stopPropagation();
+                    options.goDetail(ele);
+                  }}
+                >
                   {ele.strategy_name} - {ele.strategy_id}
                 </span>
               </span>
@@ -374,7 +379,6 @@ export function createShootingModule(
             }}
             header-icon='right-shape'
             list={options.contentList?.alerts_analysis || []}
-            accordion
           />
         )}
       </div>
@@ -470,7 +474,6 @@ export function createShootingModule(
         }}
         header-icon='right-shape'
         list={item.contents || []}
-        accordion
       />
     );
   };
@@ -576,7 +579,6 @@ export function createShootingModule(
             }}
             header-icon='right-shape'
             list={Object.values(options.contentList?.logs_analysis)[0] || []}
-            accordion
           />
         )}
       </>
@@ -668,7 +670,6 @@ export function createShootingModule(
             }}
             header-icon='right-shape'
             list={options.contentList?.trace_analysis || []}
-            accordion
           />
         )}
       </>

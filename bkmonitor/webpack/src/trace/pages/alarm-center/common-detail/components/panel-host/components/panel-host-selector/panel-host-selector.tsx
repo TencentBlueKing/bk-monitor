@@ -28,7 +28,7 @@ import { type PropType, computed, defineComponent } from 'vue';
 
 import { Select } from 'bkui-vue';
 
-import { type AlertHostTargetItem } from '../../../../../typings';
+import type { AlertHostTargetItem } from '../../../../../typings';
 
 import './panel-host-selector.scss';
 
@@ -47,7 +47,7 @@ export default defineComponent({
   },
   emits: {
     /** 选择器值改变事件 */
-    change: (selectedTarget: AlertHostTargetItem) => true,
+    change: (selectedTarget: AlertHostTargetItem) => selectedTarget,
   },
   setup(props, { emit }) {
     /** 选择器列表数组转换为 kv 对象结构 */
@@ -89,23 +89,17 @@ export default defineComponent({
           {{
             trigger: () => (
               <div class='host-selector-trigger-container'>
-                <div class='trigger-prefix'>
-                  <span>{window.i18n.t('主机')}：</span>
-                </div>
                 <div class='trigger-main'>
                   <span class='selected-text'>{this.currentTarget?.display_name ?? '--'}</span>
-
-                  <span class='selected-description'>{`(${this.currentTarget?.bk_host_name ?? '--'})`}</span>
                 </div>
                 <div class='trigger-suffix'>
-                  <i class='icon-monitor icon-mc-triangle-down' />
+                  <i class='icon-monitor icon-arrow-down' />
                 </div>
               </div>
             ),
             optionRender: ({ item }) => (
               <div class='host-selector-item'>
                 <span class='item-display-name'>{item?.display_name ?? '--'}</span>
-                {<span class='item-description'>{`(${item?.bk_host_name ?? '--'})`}</span>}
               </div>
             ),
           }}

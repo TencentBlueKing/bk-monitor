@@ -65,7 +65,7 @@ export default class UseTextSegmentation {
     const convertObjToArray = (root: object, isValue = false) => {
       const result: Record<string, any>[] = [];
 
-      if (typeof root === 'object') {
+      if (typeof root === 'object' && root !== null) {
         if (Array.isArray(root)) {
           result.push({
             text: '[',

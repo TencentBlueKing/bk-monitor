@@ -7,11 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar, List, Tuple, Type, Union
+from typing import TYPE_CHECKING, ClassVar
 
 import arrow
 from django.conf import settings
@@ -38,7 +39,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def make_sure_strategy_ids_type(strategy_ids: Union[str, List[str], List[int]]) -> List[int]:
+def make_sure_strategy_ids_type(strategy_ids: str | list[str] | list[int]) -> list[int]:
     """保证策略ID列表类型"""
     # "1,2,3,4"
     if isinstance(strategy_ids, str):
@@ -57,7 +58,7 @@ def get_default_strategy_ids():
 class DoubleCheckSumStrategy(DoubleCheckStrategy):
     """针对Sum聚合的二次确认策略"""
 
-    match_strategy_ids: List[int] = field(default_factory=get_default_strategy_ids)
+    match_strategy_ids: list[int] = field(default_factory=get_default_strategy_ids)
 
     name = "SUM"
     DOUBLE_CHECK_CONTEXT_VALUE = "SUSPECTED_MISSING_POINTS"
@@ -100,7 +101,7 @@ class DoubleCheckSumStrategy(DoubleCheckStrategy):
 
         return True
 
-    def get_offsets_by_algorithm(self, algorithm_type: str) -> Union[List[int], List[Tuple[int, int]]]:
+    def get_offsets_by_algorithm(self, algorithm_type: str) -> list[int] | list[tuple[int, int]]:
         """通过检测算法来获取时间偏移量"""
         detector_cls = load_detector_cls(algorithm_type)
         if not issubclass(detector_cls, HistoryPointFetcher):
@@ -112,7 +113,7 @@ class DoubleCheckSumStrategy(DoubleCheckStrategy):
             )
             return [(i + 1) * self.agg_interval for i in range(self.default_max_history_interval_count)]
 
-        detector_cls: Union[Type[HistoryPointFetcher], Type[BasicAlgorithmsCollection]]
+        detector_cls: type[HistoryPointFetcher] | type[BasicAlgorithmsCollection]
         detector = detector_cls(self.type_algorithm_map.get(algorithm_type).get("config", {}), self.item.unit)
         logger.debug(
             "[二次确认] strategy(%s),item(%s) detector.get_history_offsets(self.item): %s",
@@ -122,7 +123,7 @@ class DoubleCheckSumStrategy(DoubleCheckStrategy):
         )
         return detector.get_history_offsets(self.item)
 
-    def double_check(self, outputs: List[dict]):
+    def double_check(self, outputs: list[dict]):
         """针对 SUM 聚合进行二次确认
         outputs 列表内单个数据示例：
             {'data': {'__debug__': True,
@@ -155,7 +156,7 @@ class DoubleCheckSumStrategy(DoubleCheckStrategy):
         # 策略定义的偏移量
         offset_list = self.get_offsets_by_algorithm(algorithm_type)
         logger.info(
-            "[二次检测] strategy({}),item({}) 策略定义的时间偏移量: {}".format(self.item.strategy.id, self.item.id, offset_list)
+            f"[二次检测] strategy({self.item.strategy.id}),item({self.item.id}) 策略定义的时间偏移量: {offset_list}"
         )
         for offset in offset_list:
             if isinstance(offset, tuple):
@@ -165,9 +166,7 @@ class DoubleCheckSumStrategy(DoubleCheckStrategy):
 
             if from_timestamp > data_start_time - _max:
                 logger.debug(
-                    "[二次检测] strategy({}),item({}) from_timestamp changed: {}-> {}".format(
-                        self.item.strategy.id, self.item.id, from_timestamp, data_start_time - _max
-                    )
+                    f"[二次检测] strategy({self.item.strategy.id}),item({self.item.id}) from_timestamp changed: {from_timestamp}-> {data_start_time - _max}"
                 )
                 from_timestamp = data_start_time - _max
                 # until_timestamp 基于历史数据的查询, 不会有负数offset, 因此 until_timestamp 就可以肯定一定是最新异常点的时间
@@ -178,6 +177,7 @@ class DoubleCheckSumStrategy(DoubleCheckStrategy):
             logger.warning(
                 f"[skip][二次检测] strategy({self.item.strategy.id}),item({self.item.id}) 策略偏移量过大, 超过最近30个周期, 二次确认跳过"
             )
+            return None
 
         # 2. 查出数据点数（时间范围包含了异常点时刻+检测算法偏移时刻的全部点）
         counter_data = self.countable_item.query_record(start_time=from_timestamp, end_time=until_timestamp)
@@ -226,7 +226,7 @@ class DoubleCheckSumStrategy(DoubleCheckStrategy):
             )
             if not self.check_points_missing(now_points, former_points, former_points_length_times, lacking_threshold):
                 logger.info(
-                    "[二次检测] strategy(%s),item(%s) 与前%s周期对比不存在数据缺失, " "重新获取数据以确认异常数值是否变化",
+                    "[二次检测] strategy(%s),item(%s) 与前%s周期对比不存在数据缺失, 重新获取数据以确认异常数值是否变化",
                     self.item.strategy.id,
                     self.item.id,
                     interval_list,
@@ -259,9 +259,7 @@ class DoubleCheckSumStrategy(DoubleCheckStrategy):
                             dimensions_md5=_dimension_md5,
                             alert=alert_level,
                         )
-                        CHECK_RESULT_CACHE_KEY.client.zrem(
-                            check_cache_key, "{}|{}".format(_point_timestamp, ANOMALY_LABEL)
-                        )
+                        CHECK_RESULT_CACHE_KEY.client.zrem(check_cache_key, f"{_point_timestamp}|{ANOMALY_LABEL}")
                     if "__debug__" in anomaly_point["data"]:
                         for point in origin_points:
                             logger.info(f"[二次检测] new point: {point.__dict__}")
@@ -280,19 +278,20 @@ class DoubleCheckSumStrategy(DoubleCheckStrategy):
                 continue
             marked_total += 1
             logger.info(
-                f"[二次检测] strategy({self.item.strategy.id}),item({self.item.id}) " f"在前 {interval_list} 周期发现存在数据缺失"
+                f"[二次检测] strategy({self.item.strategy.id}),item({self.item.id}) "
+                f"在前 {interval_list} 周期发现存在数据缺失"
             )
             context = anomaly_point.get("context", {})
             context.update({self.DOUBLE_CHECK_CONTEXT_KEY: self.DOUBLE_CHECK_CONTEXT_VALUE})
             anomaly_point["context"] = context
             for _, anomaly_info in anomaly_point["anomaly"].items():
-                anomaly_info["anomaly_message"] += _lazy(" --- 经过二次确认后, 判定为疑似异常, 原因：对比 {} 秒前, 异常发生时存在数据缺失").format(
-                    [i * self.agg_interval for i in interval_list]
-                )
+                anomaly_info["anomaly_message"] += _lazy(
+                    " --- 经过二次确认后, 判定为疑似异常, 原因：对比 {} 秒前, 异常发生时存在数据缺失"
+                ).format([i * self.agg_interval for i in interval_list])
 
                 logger.info(
                     "[二次检测] strategy({}),item({}) ({}): anomaly_message changed: {}".format(
-                        self.item.strategy.id, self.item.id, anomaly_info['anomaly_id'], anomaly_info['anomaly_message']
+                        self.item.strategy.id, self.item.id, anomaly_info["anomaly_id"], anomaly_info["anomaly_message"]
                     )
                 )
 
@@ -307,8 +306,8 @@ class DoubleCheckSumStrategy(DoubleCheckStrategy):
 
     def check_points_missing(
         self,
-        now_data_points: List[int],
-        former_points: List[int],
+        now_data_points: list[int],
+        former_points: list[int],
         former_points_length_times: int,
         lacking_threshold: float,
     ) -> bool:
@@ -354,7 +353,7 @@ class DoubleCheckSumStrategy(DoubleCheckStrategy):
             self.item.id,
             self.type_algorithm_map,
         )
-        detector: Union[HistoryPointFetcher, BasicAlgorithmsCollection] = detector_cls(
+        detector: HistoryPointFetcher | BasicAlgorithmsCollection = detector_cls(
             self.type_algorithm_map.get(algorithm_type).get("config", {}), self.item.unit
         )
         logger.debug(
@@ -376,12 +375,7 @@ class DoubleCheckSumStrategy(DoubleCheckStrategy):
             key.DATA_SIGNAL_KEY.client.lpush(key.DATA_SIGNAL_KEY.get_key(), *[self.item.strategy.strategy_id])
 
         logger.info(
-            "[二次检测] output_key({output_key}) "
-            "strategy({strategy_id}), item({item_id}), "
-            "push records({records_length}).".format(
-                output_key=output_key,
-                strategy_id=self.item.strategy.strategy_id,
-                item_id=self.item.id,
-                records_length=len(points),
-            )
+            f"[二次检测] output_key({output_key}) "
+            f"strategy({self.item.strategy.strategy_id}), item({self.item.id}), "
+            f"push records({len(points)})."
         )

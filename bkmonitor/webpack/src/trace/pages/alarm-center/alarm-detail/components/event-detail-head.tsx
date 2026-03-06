@@ -26,8 +26,6 @@
 
 import { computed, defineComponent, reactive, shallowRef, watch } from 'vue';
 
-import { Message } from 'bkui-vue';
-import { copyText } from 'monitor-common/utils/utils';
 import { deepClone } from 'monitor-common/utils/utils';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
@@ -102,13 +100,13 @@ export default defineComponent({
         {
           id: 'previous',
           title: t('上一个'),
-          icon: 'icon-back-left',
+          icon: 'icon-last-one',
           isShow: props.showStepBtn,
         },
         {
           id: 'next',
           title: t('下一个'),
-          icon: 'icon-back-right',
+          icon: 'icon-next-one',
           isShow: props.showStepBtn,
         },
         {
@@ -194,7 +192,7 @@ export default defineComponent({
       return (
         <div class={['level-tag', className]}>
           <i class={`icon-monitor ${level[severity]?.icon} sign-icon`} />
-          {label}
+          <span class='level-tag-text'>{label}</span>
         </div>
       );
     };
@@ -280,31 +278,33 @@ export default defineComponent({
       <div class='event-detail-head-main'>
         {this.getTagComponent(this.alarmDetail?.severity)}
         <div class='event-detail-head-content'>
-          <span class='event-id'>
+          <div class='event-id'>
             ID: {this.alarmId}
             <TemporaryShareNew
               formatTokenParams={this.formatShareTokenParams}
               type='event'
             />
-          </span>
-          {this.alarmDetail?.alert_name && (
-            <span
-              class='basic-title-name'
-              v-bk-tooltips={{ content: this.alarmDetail?.alert_name, allowHTML: false, placements: ['bottom'] }}
-            >
-              {this.alarmDetail?.alert_name}
-            </span>
-          )}
+          </div>
+          <div class='event-detail-title'>
+            {this.alarmDetail?.alert_name && (
+              <span
+                class='basic-title-name'
+                v-overflow-tips
+              >
+                {this.alarmDetail?.alert_name}
+              </span>
+            )}
 
-          {this.alarmDetail?.plugin_id ? (
-            <span
-              class='btn-strategy-detail'
-              onClick={this.toStrategyDetail}
-            >
-              <span>{this.t('来源：{0}', [this.alarmDetail?.plugin_display_name])}</span>
-              <i class='icon-monitor icon-fenxiang icon-float' />
-            </span>
-          ) : undefined}
+            {this.alarmDetail?.plugin_id ? (
+              <span
+                class='btn-strategy-detail'
+                onClick={this.toStrategyDetail}
+              >
+                <span>{this.t('来源：{0}', [this.alarmDetail?.plugin_display_name])}</span>
+                <i class='icon-monitor icon-fenxiang icon-float' />
+              </span>
+            ) : undefined}
+          </div>
         </div>
         <div class='event-detail-head-btn-group'>
           {this.btnGroupObject
