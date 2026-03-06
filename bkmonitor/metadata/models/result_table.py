@@ -99,6 +99,7 @@ class ResultTable(models.Model):
     label = models.CharField(verbose_name="结果表标签", max_length=128, default=Label.RESULT_TABLE_LABEL_OTHER)
     # 数据标签
     data_label: str = models.CharField("数据标签", max_length=128, default="", null=True, blank=True)  # pyright: ignore [reportAssignmentType]
+    labels = models.JSONField("扩展标签", default=dict, blank=True)
     is_builtin = models.BooleanField("是否内置", default=False)
     bk_biz_id_alias = models.CharField("业务ID别名", max_length=128, default="", null=True, blank=True)
 
@@ -333,6 +334,7 @@ class ResultTable(models.Model):
         time_option=None,
         create_storage=True,
         data_label: str | None = None,
+        labels: dict[str, Any] | None = None,
         is_builtin=False,
         bk_biz_id_alias=None,
     ):
@@ -360,6 +362,7 @@ class ResultTable(models.Model):
         :param time_option: 时间字段的配置内容
         :param create_storage: 是否创建存储，默认为 True
         :param data_label: 数据标签
+        :param labels: 扩展标签
         :param is_builtin: 是否为系统内置的结果表
         :param bk_biz_id_alias: 结果表所属业务名称
         :return: result_table instance | raise Exception
@@ -435,6 +438,7 @@ class ResultTable(models.Model):
             bk_biz_id=bk_biz_id,
             label=label,
             data_label=data_label or "",
+            labels=labels or {},
             is_builtin=is_builtin,
             bk_biz_id_alias=bk_biz_id_alias,
         )
@@ -1135,6 +1139,7 @@ class ResultTable(models.Model):
         is_enable=None,
         time_option=None,
         data_label=None,
+        labels=None,
         need_delete_storages=None,
         bk_biz_id_alias=None,
     ):
@@ -1153,6 +1158,7 @@ class ResultTable(models.Model):
         :param is_enable: 是否启用结果表
         :param time_option: 时间字段配置
         :param data_label: 数据标签
+        :param labels: 扩展标签
         :param need_delete_storages 需要删除额外存储配置
         :param bk_biz_id_alias: 结果表业务ID别名
         :return: True | raise Exception
@@ -1437,6 +1443,10 @@ class ResultTable(models.Model):
         # 是否需要修改数据标签
         if data_label is not None:
             self.data_label = data_label
+
+        # 是否需要修改扩展标签
+        if labels is not None:
+            self.labels = labels
 
         self.last_modify_user = operator
         self.save()
@@ -1738,6 +1748,7 @@ class ResultTable(models.Model):
             "bk_data_id": self.data_source.bk_data_id if self.default_storage != ClusterInfo.TYPE_BKDATA else None,
             "is_enable": self.is_enable,
             "data_label": self.data_label,
+            "labels": self.labels or {},
         }
 
         if query_alias_settings:
@@ -1769,6 +1780,7 @@ class ResultTable(models.Model):
             "label": self.label,
             "is_enable": self.is_enable,
             "data_label": self.data_label,
+            "labels": self.labels or {},
         }
 
     def get_tag_values(self, tag_name):
