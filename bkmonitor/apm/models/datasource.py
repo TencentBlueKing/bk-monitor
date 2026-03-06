@@ -40,12 +40,12 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
 from constants.apm import (
+    DEFAULT_DATA_LABEL,
+    TRACE_RESULT_TABLE_OPTION,
     FlowType,
     OtlpKey,
     SpanKind,
-    TRACE_RESULT_TABLE_OPTION,
     TraceDataSourceConfig,
-    DEFAULT_DATA_LABEL,
 )
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
@@ -606,12 +606,14 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
         # 当启用BKBase数据链路时, 设置V4链路选项并异步创建APM数据链路
         if settings.TRACING_ENABLE_BKDATA:
+            from metadata.task.datalink import apply_apm_datalink
+
             bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
             table_id = obj.result_table_id
-            # 设置enable_v4_apm_data_link标记, 标识该结果表使用V4 APM数据链路
+            # 复用日志V4开关标记
             metadata_models.ResultTableOption.objects.update_or_create(
                 table_id=table_id,
-                name=metadata_models.ResultTableOption.OPTION_ENABLE_V4_APM_DATA_LINK,
+                name=metadata_models.ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
                 bk_tenant_id=bk_tenant_id,
                 defaults={
                     "value": "true",
@@ -619,6 +621,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
                     "creator": "system",
                 },
             )
+            apply_apm_datalink.delay(bk_tenant_id=bk_tenant_id, table_id=table_id)
 
     @property
     def table_id(self) -> str:
