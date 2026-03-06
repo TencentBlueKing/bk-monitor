@@ -209,6 +209,24 @@ export default defineComponent({
     });
 
     /**
+     * @description 二分查找有序 datapoints 中第一个时间戳 >= target 的索引
+     * @param points - 有序的 datapoints 数组
+     * @param target - 目标时间戳
+     * @returns 第一个 >= target 的索引，不存在则返回 -1
+     */
+    const findInsertIndex = (points: any[], target: number): number => {
+      let lo = 0;
+      let hi = points.length - 1;
+      if (hi < 0 || points[hi][1] < target) return -1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (points[mid][1] < target) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    };
+
+    /**
      * @description 格式化图表数据，添加异常点、告警标记等辅助系列
      * @param data - 原始图表数据
      * @param {IDataQuery} target - 图表配置
@@ -243,40 +261,35 @@ export default defineComponent({
 
       // 为主要系列添加 markPoints 和 markTimeRange，利用 use-monitor-echarts 的处理逻辑
       if (series.length > 0) {
-        const mainSeries = series[0];
         /**
-         * 异常告警点时间不在图表x轴上，补充告警点的时间
-         * 事件和日志的告警点y轴设置为1，其他告警y轴设置为0
+         * @description 在所有系列的 datapoints 中插入缺失的时间点
+         * @param timestamp - 需要插入的时间戳（毫秒）
+         * @param value - 插入点的 y 值
          */
-        for (const anomaly of props.detail.anomaly_timestamps) {
-          const timestamp = anomaly * 1000;
+        const insertMissingPoint = (timestamp: number, value: number) => {
           for (const s of series) {
             const points = s.datapoints;
             if (!points) continue;
-            const idx = points.findIndex(item => Number(String(item[1]).slice(0, -3)) >= anomaly);
-            if (idx > -1 && Number(String(points[idx][1]).slice(0, -3)) !== anomaly) {
-              points.splice(idx, 0, [isEventOrLogAlarm.value ? 1 : 0, timestamp]);
+            const idx = findInsertIndex(points, timestamp);
+            if (idx > -1 && points[idx][1] !== timestamp) {
+              points.splice(idx, 0, [value, timestamp]);
             }
           }
+        };
+
+        /** 异常告警点时间不在图表x轴上，补充告警点的时间 */
+        const anomalyValue = isEventOrLogAlarm.value ? 1 : 0;
+        for (const anomaly of props.detail.anomaly_timestamps) {
+          insertMissingPoint(anomaly * 1000, anomalyValue);
         }
 
-        /**
-         * 填充不在图表时间轴上的告警面积分割点
-         */
-        const markAreaPoint = [firstAnomalyTimeStr, beginTimeStr, endTimeStr];
-        for (const point of markAreaPoint) {
-          const timestamp = Number(point);
-          for (const s of series) {
-            const points = s.datapoints;
-            if (!points) continue;
-            const idx = points.findIndex(item => item[1] >= timestamp);
-            if (idx > -1 && points[idx][1] !== timestamp) {
-              points.splice(idx, 0, [0, timestamp]);
-            }
-          }
+        /** 填充不在图表时间轴上的告警面积分割点 */
+        for (const point of [firstAnomalyTimeStr, beginTimeStr, endTimeStr]) {
+          insertMissingPoint(Number(point), 0);
         }
 
         // 设置标记点（异常点 + 致命告警图标）
+        const mainSeries = series[0];
         mainSeries.markPoints = [
           ...(isEventOrLogAlarm.value && mainSeries?.type === 'bar'
             ? []
