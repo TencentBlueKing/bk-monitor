@@ -47,7 +47,7 @@ export default defineComponent({
       default: 'all',
     },
   },
-  emits: ['choose', 'delete'],
+  emits: ['choose', 'delete', 'rename'],
   setup(props, { emit }) {
     const DEBOUNCE_DELAY_MS = 100;
     const { t } = useLocale();
@@ -225,6 +225,7 @@ export default defineComponent({
     /** 确认重命名 */
     const handleEditGroupSubmit = () => {
       handleEditGroupCancel();
+      emit('rename');
     };
 
     /** 确认删除 */
@@ -297,7 +298,7 @@ export default defineComponent({
       <div class='popover-del-index-set'>
         <div class='title'>{t('确认删除该索引集？')}</div>
         <div class='del-content'>
-          {t('索引集名称')}：<span class='del-index-name'>{item.label}</span>
+          {t('索引集名称')}：<span class='del-index-name'>{item.index_set_name}</span>
         </div>
         <div class='del-tips'>{t('删除索引集，不影响已有的采集项。')}</div>
         <div class='btns-box del-btns'>
