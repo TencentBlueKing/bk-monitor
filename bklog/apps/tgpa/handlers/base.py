@@ -173,7 +173,7 @@ class TGPAFileHandler:
     def _decrypt_all_files(self, dir_path: str) -> None:
         """解密目录下所有文件，明文文件会被自动跳过"""
         for file in Path(dir_path).rglob("*"):
-            if not file.is_file() or file.suffix == ".zip":
+            if not file.is_file():
                 continue
             try:
                 self.decrypt_handler.decrypt_file(str(file))
@@ -184,12 +184,8 @@ class TGPAFileHandler:
         """
         下载并处理文件
         """
-        # 下载压缩包、解压
-        compressed_file_path = self.download_file(file_name)
-        with zipfile.ZipFile(compressed_file_path, "r") as zip_ref:
-            zip_ref.extractall(self.temp_dir)
-
-        # 递归解压嵌套的压缩包
+        # 下载压缩包并递归解压
+        self.download_file(file_name)
         self.extract_nested_zip(self.temp_dir)
 
         # 先解密所有文件，再通过 MIME 类型发现日志文件
