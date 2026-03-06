@@ -30,6 +30,8 @@ DEFAULT_LABEL = "host_process"
 DEFAULT_DATA_LABEL = "data_label_1"
 DEFAULT_DATA_LABEL_ONE = "data_label_modify"
 DEFAULT_DATA_LABEL_NOT_EXIST = "data_label_not_exist"
+DEFAULT_LABELS = {"env": "test"}
+DEFAULT_LABELS_ONE = {"env": "prod", "module": "metadata"}
 DEFAULT_CLUSTER_ID = 10000
 DEFAULT_RT_ID = "table_0"
 DEFAULT_RT_ID_ONE = "table_1"
@@ -95,18 +97,25 @@ def test_create_and_modify_result_table_resource(create_and_delete_record):
         default_storage=models.ClusterInfo.TYPE_INFLUXDB,
         operator=OPERATOR,
         data_label=DEFAULT_DATA_LABEL,
+        labels=DEFAULT_LABELS,
     )
     result_table = CreateResultTableResource().request(**params)
     assert models.ResultTable.objects.filter(table_id=table_id, data_label=DEFAULT_DATA_LABEL).exists()
+    assert models.ResultTable.objects.filter(table_id=table_id, labels=DEFAULT_LABELS).exists()
     # 修改结果表数据标签
     assert ModifyResultTableResource().request(
-        operator=OPERATOR, table_id=result_table["table_id"], data_label=DEFAULT_DATA_LABEL_ONE
+        operator=OPERATOR,
+        table_id=result_table["table_id"],
+        data_label=DEFAULT_DATA_LABEL_ONE,
+        labels=DEFAULT_LABELS_ONE,
     )
     assert not models.ResultTable.objects.filter(table_id=table_id, data_label=DEFAULT_DATA_LABEL).exists()
     assert models.ResultTable.objects.filter(table_id=table_id, data_label=DEFAULT_DATA_LABEL_ONE).exists()
+    assert models.ResultTable.objects.filter(table_id=table_id, labels=DEFAULT_LABELS_ONE).exists()
 
     rt = QueryResultTableSourceResource().request(table_id=table_id)
     assert rt.get("data_label") == DEFAULT_DATA_LABEL_ONE
+    assert rt.get("labels") == DEFAULT_LABELS_ONE
 
 
 def test_create_and_modify_event_group_resource(create_and_delete_record):
