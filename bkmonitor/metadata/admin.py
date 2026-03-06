@@ -234,6 +234,30 @@ class BkAppSpaceRecordAdmin(admin.ModelAdmin):
     list_filter = ("bk_app_code", "space_uid")
 
 
+class ResourceDefinitionAdmin(admin.ModelAdmin):
+    list_display = ("namespace", "name", "uid", "generation", "labels", "create_time", "update_time")
+    search_fields = ("namespace", "name")
+    list_filter = ("namespace",)
+
+
+class RelationDefinitionAdmin(admin.ModelAdmin):
+    list_display = (
+        "namespace",
+        "name",
+        "from_resource",
+        "to_resource",
+        "category",
+        "is_directional",
+        "is_belongs_to",
+        "uid",
+        "generation",
+        "create_time",
+        "update_time",
+    )
+    search_fields = ("namespace", "name", "from_resource", "to_resource")
+    list_filter = ("namespace", "category", "is_directional", "is_belongs_to")
+
+
 admin.site.register(models.InfluxDBClusterInfo, InfluxdbClusterAdmin)
 admin.site.register(models.InfluxDBHostInfo, InfluxdbHostAdmin)
 admin.site.register(models.InfluxDBStorage, InfluxDBStorageAdmin)
@@ -265,3 +289,5 @@ admin.site.register(models.DataLink, DataLinkAdmin)
 admin.site.register(models.BkBaseResultTable, BkBaseResultTableAdmin)
 admin.site.register(models.StorageClusterRecord, StorageClusterRecordAdmin)
 admin.site.register(models.BkAppSpaceRecord, BkAppSpaceRecordAdmin)
+admin.site.register(models.ResourceDefinition, ResourceDefinitionAdmin)
+admin.site.register(models.RelationDefinition, RelationDefinitionAdmin)

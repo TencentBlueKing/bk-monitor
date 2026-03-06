@@ -95,25 +95,27 @@ export default defineComponent({
   render() {
     return (
       <div class='alarm-center-detail-panel-trace'>
-        <TraceExploreTable
-          class='panel-trace-table'
-          appName={this.traceQueryConfig?.app_name || ''}
-          canSortFieldTypes={[]}
-          displayFields={this.displayFields}
-          enabledClickMenu={false}
-          enabledDisplayFieldSetting={false}
-          enableStatistics={false}
-          mode='trace'
-          scrollContainerSelector='.alarm-center-detail-box'
-          showHeaderIcon={false}
-          showOperation={false}
-          sourceFieldConfigs={ALERT_TRACE_FIELD_CONFIGS as unknown as IDimensionField[]}
-          tableData={this.traceList}
-          tableHasScrollLoading={this.tableHasMoreData}
-          tableLoading={this.tableLoading}
-          onScrollToEnd={this.handleScrollToEnd}
-          onSliderShow={this.handleSliderShow}
-        />
+        <div class='alarm-center-detail-panel-trace-wrapper'>
+          <TraceExploreTable
+            class='panel-trace-table'
+            appName={this.traceQueryConfig?.app_name || ''}
+            canSortFieldTypes={[]}
+            displayFields={this.displayFields}
+            enabledClickMenu={false}
+            enabledDisplayFieldSetting={false}
+            enableStatistics={false}
+            mode='trace'
+            scrollContainerSelector='.alarm-center-detail-box'
+            showHeaderIcon={false}
+            showOperation={false}
+            sourceFieldConfigs={ALERT_TRACE_FIELD_CONFIGS as unknown as IDimensionField[]}
+            tableData={this.traceList}
+            tableHasScrollLoading={this.tableHasMoreData}
+            tableLoading={this.tableLoading}
+            onScrollToEnd={this.handleScrollToEnd}
+            onSliderShow={this.handleSliderShow}
+          />
+        </div>
       </div>
     );
   },
