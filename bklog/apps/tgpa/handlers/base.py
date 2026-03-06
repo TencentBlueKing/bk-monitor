@@ -170,6 +170,16 @@ class TGPAFileHandler:
                 except Exception as e:
                     logger.exception("Failed to extract zip file %s: %s", zip_file, e)
 
+    def _decrypt_all_files(self, dir_path: str) -> None:
+        """解密目录下所有文件，明文文件会被自动跳过"""
+        for file in Path(dir_path).rglob("*"):
+            if not file.is_file() or file.suffix == ".zip":
+                continue
+            try:
+                self.decrypt_handler.decrypt_file(str(file))
+            except Exception:
+                logger.warning("Skipping file due to decryption failure: %s", file)
+
     def download_and_process_file(self, file_name):
         """
         下载并处理文件
@@ -182,13 +192,14 @@ class TGPAFileHandler:
         # 递归解压嵌套的压缩包
         self.extract_nested_zip(self.temp_dir)
 
+        # 先解密所有文件，再通过 MIME 类型发现日志文件
+        if self.decrypt_handler:
+            self._decrypt_all_files(self.temp_dir)
+
         # 查找并处理日志文件，忽略异常，防止单个文件处理失败导致整个任务失败
         log_files = self.find_log_files(self.temp_dir)
         for log_file_path in log_files:
             try:
-                # 如果配置了解密处理器，先对文件进行解密
-                if self.decrypt_handler:
-                    self.decrypt_handler.decrypt_file(os.path.join(self.temp_dir, log_file_path))
                 self.process_log_file(log_file_path)
             except Exception as e:
                 logger.exception("Failed to process log file %s: %s", log_file_path, e)
