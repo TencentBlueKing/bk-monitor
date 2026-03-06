@@ -97,7 +97,7 @@
   }
 }
 
-// 线上环境 apm有样式污染
-#apm .bk-tooltip-content .metric-item-tooltip {
+.bk-tooltip-content .metric-item-tooltip, // 指标管理顶部-查看数据 跳转到可视化页面有样式污染
+#apm .bk-tooltip-content .metric-item-tooltip { // 线上环境 apm有样式污染
   color: #fff;
 }
