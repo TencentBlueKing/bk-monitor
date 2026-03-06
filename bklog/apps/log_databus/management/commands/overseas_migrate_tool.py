@@ -43,7 +43,7 @@ def modify_auto_increment(model_class, increment_value, id_field="id"):
     max_id = model_class.objects.aggregate(max_id=Max(id_field))["max_id"]
     if not max_id:
         max_id = 0
-    # 如果表中最大的id小于偏移值, 则将id自增计数器的值设置为偏移值, 防止新环境表中数据增加造成旧环境数据迁移失败
+    # 如果表中最大的id小于偏移量, 则将id自增计数器的值设置为偏移量, 防止新环境表中数据增加造成旧环境数据迁移失败
     if increment_value > max_id:
         table_name = model_class._meta.db_table
         with transaction.atomic():
@@ -95,7 +95,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        # 设置每张表中id自增计数器的值
+        # 设置id偏移量
         modify_auto_increment(LogIndexSet, 10000, "index_set_id")
         modify_auto_increment(LogIndexSetData, 10000, "index_id")
         modify_auto_increment(CollectorConfig, 10000, "collector_config_id")
