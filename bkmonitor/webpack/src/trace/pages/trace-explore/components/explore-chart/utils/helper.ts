@@ -28,8 +28,8 @@ import type { MergeResult } from '../types';
 
 /**
  * @description 尝试合并两个有序数组，判断它们是否只存在首尾差异（中间重叠部分完全一致）
- * @param arr1 - 第一个有序数组
- * @param arr2 - 第二个有序数组
+ * @param arr1 - 第一个有序数组（元素必须唯一且严格递增）
+ * @param arr2 - 第二个有序数组（元素必须唯一且严格递增）
  * @returns 合并结果对象，包含合并后的数组及各自的首尾补齐数量；不可合并时返回 null
  */
 export const mergeOverlappingArrays = (arr1: number[], arr2: number[]): MergeResult | null => {
