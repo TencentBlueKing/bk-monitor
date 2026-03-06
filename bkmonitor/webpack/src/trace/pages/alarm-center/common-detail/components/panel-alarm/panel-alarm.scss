@@ -1,8 +1,13 @@
 .alarm-center-detail-panel-convergent-alarm {
-  background-color: #fff;
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e4e9f2;
+  background: #fff;
+  box-shadow: 0 1px 2px 0 #1919290a;
 
   .search-input {
-    padding: 16px;
+    margin-bottom: 16px;
   }
 
   .bk-pagination {

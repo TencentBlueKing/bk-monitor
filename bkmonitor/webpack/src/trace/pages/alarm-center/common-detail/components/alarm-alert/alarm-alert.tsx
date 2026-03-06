@@ -78,20 +78,32 @@ export default defineComponent({
 
     const renderAlertTips = () => {
       if (status.value === 'CLOSED')
-        return <span class='alarm-tips'>{t('在恢复检测周期内无数据上报，告警已失效')}</span>;
+        return (
+          <span class='alarm-tips'>
+            <div class='separator' />
+            {t('在恢复检测周期内无数据上报，告警已失效')}
+          </span>
+        );
       if (status.value === 'SHIELDED_ABNORMAL')
         return (
           <span class='alarm-tips'>
-            <span class='shielded-text'>{t('屏蔽时间剩余')}:</span>
+            <div class='separator' />
+            <i class='icon-monitor icon-mc-time' />
+            <span class='shielded-text'>{t('屏蔽时间剩余')}：</span>
             <span class='shielded-duration'>{props.data?.shield_left_time}</span>
           </span>
         );
-      return (
-        <span class='alarm-tips'>
-          <span class='duration-text'>{t('持续时间')}:</span>
-          <span class='duration-value'>{props.data?.duration}</span>
-        </span>
-      );
+      if (status.value === 'ABNORMAL') {
+        return (
+          <span class='alarm-tips'>
+            <div class='separator' />
+            <i class='icon-monitor icon-mc-time' />
+            <span class='duration-text'>{t('持续时间')}：</span>
+            <span class='duration-value'>{props.data?.duration}</span>
+          </span>
+        );
+      }
+      return undefined;
     };
 
     /** 告警确认 */
@@ -138,25 +150,27 @@ export default defineComponent({
       <div class={['alarm-center-detail-alarm-alert', this.status]}>
         <span class='status-icon'>
           <i class={['icon-monitor', this.statusIcon.icon]} />
-          <span class='status-text'>{this.statusIcon.name}</span>
         </span>
-        <div class='separator' />
-        <div class='alert-content'>
+        <div class='alert-content-wrap'>
+          <div class='alert-status-text'>
+            <div class='alert-status-title'>{this.statusIcon.name}</div>
+            {this.data && this.renderAlertTips()}
+          </div>
           {this.data && (
-            <span
+            <div
               class='alarm-content'
               v-overflow-tips
             >
-              {this.data?.description},
-            </span>
+              {this.data?.description}
+            </div>
           )}
-          {this.data && this.renderAlertTips()}
         </div>
 
         <div class='tools'>
           {this.status === 'ABNORMAL' && [
             <Button
               key='shield'
+              class='shield-btn'
               theme='primary'
               text
               onClick={this.handleQuickShield}
@@ -167,6 +181,7 @@ export default defineComponent({
             !this.data?.is_ack && (
               <Button
                 key='confirm'
+                class='confirm-btn'
                 size='small'
                 theme='primary'
                 onClick={this.handleAlarmConfirm}
