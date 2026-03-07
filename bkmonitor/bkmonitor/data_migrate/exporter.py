@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections import OrderedDict
 from collections.abc import Sequence
+from itertools import chain
 from pathlib import Path
 from typing import Any
 
@@ -75,23 +76,17 @@ def _build_queryset(
     return queryset.order_by("pk")
 
 
-def _append_fetcher_objects(
-    container: OrderedDict[tuple[str, Any], Model],
-    fetchers: Sequence[FetcherResultType],
-) -> None:
-    """按 fetcher 配置查询并去重收集模型实例。"""
+def _iter_fetcher_objects(fetchers: Sequence[FetcherResultType]):
+    """按 fetcher 配置流式查询并去重返回模型实例。"""
+    seen_object_keys: set[tuple[str, Any]] = set()
     for model_cls, filters, exclude in fetchers:
         queryset = _build_queryset(model_cls, filters, exclude)
-        for instance in queryset:
+        for instance in queryset.iterator(chunk_size=10000):
             object_key = (instance._meta.label_lower, instance.pk)
-            container.setdefault(object_key, instance)
-
-
-def _collect_fetcher_objects(fetchers: Sequence[FetcherResultType]) -> list[Model]:
-    """按单个模块的 fetcher 配置收集并去重模型实例。"""
-    objects: OrderedDict[tuple[str, Any], Model] = OrderedDict()
-    _append_fetcher_objects(objects, fetchers)
-    return list(objects.values())
+            if object_key in seen_object_keys:
+                continue
+            seen_object_keys.add(object_key)
+            yield instance
 
 
 def _get_biz_module_fetchers(bk_biz_id: int) -> OrderedDict[str, list[FetcherResultType]]:
@@ -174,7 +169,7 @@ def _collect_cluster_ids(table_ids: Sequence[str]) -> list[int]:
     return sorted(cluster_id for cluster_id in cluster_ids if cluster_id is not None)
 
 
-def _serialize_objects(export_objects: Sequence[Model], format: str, indent: int) -> str:
+def _serialize_objects(export_objects, format: str, indent: int, stream=None) -> str | None:
     """固定按原始主键和外键值序列化对象。"""
     return serializers.serialize(
         format,
@@ -182,18 +177,20 @@ def _serialize_objects(export_objects: Sequence[Model], format: str, indent: int
         use_natural_foreign_keys=False,
         use_natural_primary_keys=False,
         indent=indent,
+        stream=stream,
     )
 
 
 def _write_fixture_file(
     file_path: Path,
-    export_objects: Sequence[Model],
+    export_objects,
     format: str,
     indent: int,
 ) -> None:
     """将单个模块对象集合写入 fixture 文件。"""
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(_serialize_objects(export_objects, format=format, indent=indent), encoding=DEFAULT_ENCODING)
+    with file_path.open("w", encoding=DEFAULT_ENCODING) as stream:
+        _serialize_objects(export_objects, format=format, indent=indent, stream=stream)
 
 
 def _write_json_file(file_path: Path, payload: dict[str, Any]) -> None:
@@ -205,21 +202,19 @@ def _write_json_file(file_path: Path, payload: dict[str, Any]) -> None:
     )
 
 
-def _build_sequences_payload(export_objects: Sequence[Model]) -> dict[str, Any]:
+def _update_sequences_state(model_state: dict[str, dict[str, Any]], export_object: Model) -> None:
     """
-    基于本次导出的对象构建顶层自增游标信息。
+    增量更新顶层自增游标信息。
 
-    自增游标属于整张表，不属于某个业务目录，因此统一写到导出根目录。
+    导出时不再把所有对象累积到内存，而是在写出模块文件的同时更新模型状态。
     """
-    model_state: dict[str, dict[str, Any]] = {}
-
-    for export_object in export_objects:
-        model_cls = export_object.__class__
+    model_cls = export_object.__class__
+    model_label = model_cls._meta.label
+    state = model_state.get(model_label)
+    if state is None:
         current_start = get_auto_increment_start(model_cls)
         if current_start is None:
-            continue
-
-        model_label = model_cls._meta.label
+            return
         state = model_state.setdefault(
             model_label,
             {
@@ -229,12 +224,32 @@ def _build_sequences_payload(export_objects: Sequence[Model]) -> dict[str, Any]:
                 "exported_max_pk": None,
             },
         )
-        object_pk = export_object.pk
-        if isinstance(object_pk, int):
-            previous_max_pk = state["exported_max_pk"]
-            state["exported_max_pk"] = object_pk if previous_max_pk is None else max(previous_max_pk, object_pk)
 
+    object_pk = export_object.pk
+    if isinstance(object_pk, int):
+        previous_max_pk = state["exported_max_pk"]
+        state["exported_max_pk"] = object_pk if previous_max_pk is None else max(previous_max_pk, object_pk)
+
+
+def _build_sequences_payload(model_state: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """将增量维护的模型状态包装为顶层游标文件结构。"""
     return {"models": model_state}
+
+
+def _track_sequence_state(export_objects, model_state: dict[str, dict[str, Any]]):
+    """在序列化写文件的同时更新自增游标状态。"""
+    for export_object in export_objects:
+        _update_sequences_state(model_state, export_object)
+        yield export_object
+
+
+def _peek_export_objects(export_objects):
+    """探测流式对象是否为空，避免为空模块创建无意义文件。"""
+    iterator = iter(export_objects)
+    first_object = next(iterator, None)
+    if first_object is None:
+        return None
+    return chain([first_object], iterator)
 
 
 def _apply_sequences_payload(sequences_payload: dict[str, Any]) -> None:
@@ -288,7 +303,7 @@ def export_biz_data_to_directory(
     target_directory = Path(directory_path)
     target_directory.mkdir(parents=True, exist_ok=True)
 
-    all_export_objects: list[Model] = []
+    sequences_state: dict[str, dict[str, Any]] = {}
     manifest: dict[str, Any] = {
         "version": 1,
         "format": format,
@@ -301,18 +316,17 @@ def export_biz_data_to_directory(
 
     if 0 in normalized_bk_biz_ids:
         for module_name, fetchers in _get_global_module_fetchers().items():
-            module_objects = _collect_fetcher_objects(fetchers)
-            if not module_objects:
+            module_objects = _peek_export_objects(_iter_fetcher_objects(fetchers))
+            if module_objects is None:
                 continue
             relative_file_path = Path("global") / f"{module_name}.{format}"
             _write_fixture_file(
                 target_directory / relative_file_path,
-                module_objects,
+                _track_sequence_state(module_objects, sequences_state),
                 format=format,
                 indent=indent,
             )
             manifest["global_files"].append(relative_file_path.as_posix())
-            all_export_objects.extend(module_objects)
 
     for bk_biz_id in normalized_bk_biz_ids:
         if bk_biz_id == 0:
@@ -320,21 +334,20 @@ def export_biz_data_to_directory(
 
         biz_relative_files: list[str] = []
         for module_name, fetchers in _get_biz_module_fetchers(bk_biz_id).items():
-            module_objects = _collect_fetcher_objects(fetchers)
-            if not module_objects:
+            module_objects = _peek_export_objects(_iter_fetcher_objects(fetchers))
+            if module_objects is None:
                 continue
             relative_file_path = Path("biz") / str(bk_biz_id) / f"{module_name}.{format}"
             _write_fixture_file(
                 target_directory / relative_file_path,
-                module_objects,
+                _track_sequence_state(module_objects, sequences_state),
                 format=format,
                 indent=indent,
             )
             biz_relative_files.append(relative_file_path.as_posix())
-            all_export_objects.extend(module_objects)
         manifest["biz_files"][str(bk_biz_id)] = biz_relative_files
 
-    _write_json_file(target_directory / "sequences.json", _build_sequences_payload(all_export_objects))
+    _write_json_file(target_directory / "sequences.json", _build_sequences_payload(sequences_state))
     _write_json_file(target_directory / "manifest.json", manifest)
     return target_directory
 

@@ -88,6 +88,16 @@ class JsonField(models.TextField):
     def from_db_value(self, value, expression, connection):
         return json.loads(value or "null")
 
+    def value_to_string(self, obj):
+        """
+        导出 Django fixture 时返回 Python 对象本身，而不是 TextField 的字符串化结果。
+
+        这个字段虽然底层存储是 TEXT，但模型层拿到的是 dict/list 等 Python 对象。
+        如果沿用 TextField 默认实现，Django serializer 会把它转成 ``str(value)``，
+        最终导出成单引号的 Python repr，后续再导入时会变成错误的普通字符串。
+        """
+        return self.value_from_object(obj)
+
 
 class EventStatusField(models.IntegerField):
     description = "Modify status value"
@@ -136,6 +146,10 @@ class SymmetricJsonField(SymmetricTextField):
     def from_db_value(self, value, expression, connection, context=None):
         value = super().from_db_value(value, expression, connection, context)
         return json.loads(value or "null")
+
+    def value_to_string(self, obj):
+        """导出 Django fixture 时保留解密后的 Python 对象结构。"""
+        return self.value_from_object(obj)
 
 
 class ReadWithUnderscoreField(models.CharField):
