@@ -13,8 +13,8 @@ def get_uptimecheck_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:
     biz_filters = None if bk_biz_id is None else {"bk_biz_id": bk_biz_id}
 
     return [
-        (UptimeCheckTask, biz_filters, None),
         (UptimeCheckNode, biz_filters, None),
+        (UptimeCheckTask, biz_filters, None),
         (UptimeCheckTaskSubscription, biz_filters, None),
         (UptimeCheckGroup, biz_filters, None),
     ]

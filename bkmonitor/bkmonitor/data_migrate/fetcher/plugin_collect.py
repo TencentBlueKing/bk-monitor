@@ -35,8 +35,8 @@ def get_collect_config_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]
     collect_filters = None if bk_biz_id is None else {"bk_biz_id": bk_biz_id}
 
     return [
-        (CollectConfigMeta, collect_filters, {"bk_biz_id": 0}),
         (DeploymentConfigVersion, {"config_meta_id__in": collect_config_ids}, None),
+        (CollectConfigMeta, collect_filters, {"bk_biz_id": 0}),
     ]
 
 
@@ -57,7 +57,7 @@ def get_collector_plugin_fetcher(bk_biz_id: int | None) -> list[FetcherResultTyp
 
     return [
         (CollectorPluginMeta, plugin_filters, None),
-        (PluginVersionHistory, {"plugin_id__in": plugin_ids}, None),
         (CollectorPluginConfig, {"id__in": plugin_config_ids}, None),
         (CollectorPluginInfo, {"id__in": plugin_info_ids}, None),
+        (PluginVersionHistory, {"plugin_id__in": plugin_ids}, None),
     ]

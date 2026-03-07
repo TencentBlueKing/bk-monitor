@@ -91,8 +91,8 @@ def _build_biz_export_context(
     module_fetchers: OrderedDict[str, list[FetcherResultType]] = OrderedDict(
         [
             ("strategy", get_strategy_fetcher(bk_biz_id)),
-            ("collect_config", get_collect_config_fetcher(bk_biz_id)),
             ("collector_plugin", get_collector_plugin_fetcher(bk_biz_id)),
+            ("collect_config", get_collect_config_fetcher(bk_biz_id)),
             ("uptimecheck", get_uptimecheck_fetcher(bk_biz_id)),
             ("report", get_report_fetcher(bk_biz_id)),
             ("query", get_query_template_fetcher(bk_biz_id)),
