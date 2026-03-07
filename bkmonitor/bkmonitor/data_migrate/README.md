@@ -2,7 +2,7 @@
 
 用于基于 Django ORM 做业务数据目录化导入导出。
 
-当前只保留三个公开入口：
+当前公开入口：
 
 - `apply_auto_increment_from_directory`
 - `export_biz_data_to_directory`
@@ -26,7 +26,7 @@
 
 ```bash
 python manage.py data_migrate export \
-  --directory /tmp/bkmonitor-data-export \
+  --directory /tmp \
   --bk-biz-ids 2 3 0
 ```
 
@@ -34,6 +34,8 @@ python manage.py data_migrate export \
 
 - `bk_biz_ids` 为要导出的业务 ID 列表
 - `0` 代表全局数据
+- command 会先在系统临时目录生成导出目录，再打成 zip 包
+- 最终只把 zip 文件输出到 `--directory` 指定目录下
 - 可选参数：
   - `--format`
   - `--indent`
@@ -45,6 +47,10 @@ python manage.py data_migrate export \
 python manage.py data_migrate import \
   --directory /tmp/bkmonitor-data-export
 ```
+
+说明：
+
+- `import` 读取的是已经解压好的导出目录，不直接读取 zip 文件
 
 可选参数：
 
@@ -60,7 +66,7 @@ python manage.py data_migrate apply-sequences \
 
 说明：
 
-- 只读取导出目录中的 `sequences.json`
+- 读取的是已经解压好的导出目录中的 `sequences.json`
 - 不执行数据导入
 - 适合在确认导入完成后单独恢复游标
 
@@ -74,7 +80,7 @@ python manage.py data_migrate replace-tenant-id \
 
 说明：
 
-- handler 直接原地修改导出目录中的 fixture 文件
+- handler 读取和修改的是已经解压好的导出目录中的 fixture 文件
 - 当前已实现第一个 handler：按业务替换 `bk_tenant_id`
 - 只有记录字段里真实存在 `bk_tenant_id` 时才会替换
 - 全局目录视为 `bk_biz_id=0`
@@ -96,10 +102,11 @@ python manage.py data_migrate sanitize-cluster-info \
 - 会把 `domain_name`、`port`、`username`、`password` 以及 SSL/SASL 相关连接字段改成假数据
 - 目的是避免迁移后继续连接旧环境的存储集群
 - 这个 handler 也是目录级原地修改，可在 export 后、import 前单独执行
+- 同样要求先解压 zip，再对目录执行
 
 ## 导出目录结构
 
-导出结果是一个目录，而不是单个大文件。
+`export` 命令最终输出的是一个 zip 包，zip 解压后的目录结构如下：
 
 ```text
 export_root/

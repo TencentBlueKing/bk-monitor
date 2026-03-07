@@ -8,9 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import argparse
 import json
+import shutil
+import tempfile
+from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
+from django.utils import timezone
 
 from bkmonitor.data_migrate import (
     apply_auto_increment_from_directory,
@@ -25,12 +30,33 @@ class Command(BaseCommand):
     help = "按目录结构导入导出监控业务迁移数据"
 
     def add_arguments(self, parser):
+        parser.formatter_class = argparse.RawTextHelpFormatter
+        parser.epilog = (
+            "调用示例:\n"
+            "  导出业务和全局数据:\n"
+            "    python manage.py data_migrate export --directory /tmp/output --bk-biz-ids 2 3 0\n"
+            "\n"
+            "  导入已解压的导出目录:\n"
+            "    python manage.py data_migrate import --directory /tmp/bkmonitor-data-migrate-20260307120000\n"
+            "\n"
+            "  导入时关闭单文件事务:\n"
+            "    python manage.py data_migrate import --directory /tmp/bkmonitor-data-migrate-20260307120000 --disable-atomic\n"
+            "\n"
+            "  恢复自增游标:\n"
+            "    python manage.py data_migrate apply-sequences --directory /tmp/bkmonitor-data-migrate-20260307120000\n"
+            "\n"
+            "  按业务替换 bk_tenant_id:\n"
+            '    python manage.py data_migrate replace-tenant-id --directory /tmp/bkmonitor-data-migrate-20260307120000 --biz-tenant-id-map \'{"*":"tenant-a","2":"tenant-b"}\'\n'
+            "\n"
+            "  脱敏 ClusterInfo 连接配置:\n"
+            "    python manage.py data_migrate sanitize-cluster-info --directory /tmp/bkmonitor-data-migrate-20260307120000"
+        )
         parser.add_argument(
             "action",
             choices=["export", "import", "apply-sequences", "replace-tenant-id", "sanitize-cluster-info"],
             help="执行导出、导入、恢复游标或 handler 处理",
         )
-        parser.add_argument("--directory", required=True, help="导出目录或导入目录")
+        parser.add_argument("--directory", required=True, help="导出 zip 输出目录，或导入目录")
         parser.add_argument(
             "--bk-biz-ids",
             nargs="+",
@@ -51,58 +77,84 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         action = options["action"]
-        directory = options["directory"]
+        handlers = {
+            "export": self._handle_export,
+            "import": self._handle_import,
+            "apply-sequences": self._handle_apply_sequences,
+            "replace-tenant-id": self._handle_replace_tenant_id,
+            "sanitize-cluster-info": self._handle_sanitize_cluster_info,
+        }
+        handlers[action](options)
 
-        if action == "export":
-            bk_biz_ids = options.get("bk_biz_ids") or []
-            if not bk_biz_ids:
-                raise CommandError("export 动作必须提供 --bk-biz-ids")
+    def _handle_export(self, options):
+        bk_biz_ids = options.get("bk_biz_ids") or []
+        if not bk_biz_ids:
+            raise CommandError("export 动作必须提供 --bk-biz-ids")
 
+        output_directory = Path(options["directory"])
+        output_directory.mkdir(parents=True, exist_ok=True)
+        archive_name = f"bkmonitor-data-migrate-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+
+        with tempfile.TemporaryDirectory(prefix="bkmonitor-data-migrate-") as temp_directory:
+            export_directory = Path(temp_directory) / archive_name
             export_biz_data_to_directory(
-                directory_path=directory,
+                directory_path=export_directory,
                 bk_biz_ids=bk_biz_ids,
                 format=options["format"],
                 indent=options["indent"],
             )
-            self.stdout.write(self.style.SUCCESS(f"export completed: {directory}"))
-            return
-
-        if action == "import":
-            import_biz_data_from_directory(
-                directory_path=directory,
-                atomic=not options["disable_atomic"],
+            archive_path = shutil.make_archive(
+                base_name=str(Path(temp_directory) / archive_name),
+                format="zip",
+                root_dir=temp_directory,
+                base_dir=archive_name,
             )
-            self.stdout.write(self.style.SUCCESS(f"import completed: {directory}"))
-            return
+            target_archive_path = output_directory / f"{archive_name}.zip"
+            if target_archive_path.exists():
+                target_archive_path.unlink()
+            shutil.move(archive_path, target_archive_path)
 
-        if action == "replace-tenant-id":
-            raw_mapping = options.get("biz_tenant_id_map")
-            if not raw_mapping:
-                raise CommandError("replace-tenant-id 动作必须提供 --biz-tenant-id-map")
-            try:
-                loaded_mapping = json.loads(raw_mapping)
-                biz_tenant_id_map = {
-                    ("*" if str(biz_id) == "*" else int(biz_id)): tenant_id
-                    for biz_id, tenant_id in loaded_mapping.items()
-                }
-            except (TypeError, ValueError, json.JSONDecodeError) as error:
-                raise CommandError(f"--biz-tenant-id-map 不是合法 JSON 映射: {error}") from error
+        self.stdout.write(self.style.SUCCESS(f"export completed: {target_archive_path}"))
 
-            replace_tenant_id_in_directory(
-                directory_path=directory,
-                biz_tenant_id_map=biz_tenant_id_map,
-            )
-            self.stdout.write(self.style.SUCCESS(f"replace tenant id completed: {directory}"))
-            return
+    def _handle_import(self, options):
+        directory = options["directory"]
+        import_biz_data_from_directory(
+            directory_path=directory,
+            atomic=not options["disable_atomic"],
+        )
+        self.stdout.write(self.style.SUCCESS(f"import completed: {directory}"))
 
-        if action == "sanitize-cluster-info":
-            sanitize_cluster_info_in_directory(
-                directory_path=directory,
-            )
-            self.stdout.write(self.style.SUCCESS(f"sanitize cluster info completed: {directory}"))
-            return
-
+    def _handle_apply_sequences(self, options):
+        directory = options["directory"]
         apply_auto_increment_from_directory(
             directory_path=directory,
         )
         self.stdout.write(self.style.SUCCESS(f"apply sequences completed: {directory}"))
+
+    def _handle_replace_tenant_id(self, options):
+        directory = options["directory"]
+        biz_tenant_id_map = self._load_biz_tenant_id_map(options.get("biz_tenant_id_map"))
+        replace_tenant_id_in_directory(
+            directory_path=directory,
+            biz_tenant_id_map=biz_tenant_id_map,
+        )
+        self.stdout.write(self.style.SUCCESS(f"replace tenant id completed: {directory}"))
+
+    def _handle_sanitize_cluster_info(self, options):
+        directory = options["directory"]
+        sanitize_cluster_info_in_directory(
+            directory_path=directory,
+        )
+        self.stdout.write(self.style.SUCCESS(f"sanitize cluster info completed: {directory}"))
+
+    def _load_biz_tenant_id_map(self, raw_mapping):
+        if not raw_mapping:
+            raise CommandError("replace-tenant-id 动作必须提供 --biz-tenant-id-map")
+
+        try:
+            loaded_mapping = json.loads(raw_mapping)
+            return {
+                ("*" if str(biz_id) == "*" else int(biz_id)): tenant_id for biz_id, tenant_id in loaded_mapping.items()
+            }
+        except (TypeError, ValueError, json.JSONDecodeError) as error:
+            raise CommandError(f"--biz-tenant-id-map 不是合法 JSON 映射: {error}") from error
