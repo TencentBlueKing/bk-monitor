@@ -381,7 +381,8 @@ class DutyArrangeSlz(DutyBaseInfoSlz):
             "group_type": internal_data.get("group_type", DutyGroupType.SPECIFIED),
             "group_number": internal_data.get("group_number", 0),
         }
-        internal_data["hash"] = count_md5(hash_data)
+        # duty_users/users 顺序有业务语义（决定通知优先级），使用 list_sort=False 保留顺序信息
+        internal_data["hash"] = count_md5(hash_data, list_sort=False)
 
         return internal_data
 
@@ -561,7 +562,8 @@ class DutyRuleDetailSlz(DutyRuleSlz):
             "end_time": internal_data.get("end_time", ""),
             "duty_arranges": [d["hash"] for d in internal_data.get("duty_arranges")],
         }
-        internal_data["hash"] = count_md5(hash_data)
+        # duty_arranges 顺序反映班次排列，使用 list_sort=False 保留顺序信息
+        internal_data["hash"] = count_md5(hash_data, list_sort=False)
         return internal_data
 
     def to_representation(self, instance):
