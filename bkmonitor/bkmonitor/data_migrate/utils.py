@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,22 @@ from django.db import DEFAULT_DB_ALIAS, connections, router, transaction
 from django.db.models import Max, Model, QuerySet
 
 ModelType = type[Model] | str
+
+
+def read_json_file(file_path: str | Path, encoding: str = "utf-8") -> Any:
+    """读取 JSON 文件并返回反序列化后的对象。"""
+    return json.loads(Path(file_path).read_text(encoding=encoding))
+
+
+def write_json_file(file_path: str | Path, payload: Any, encoding: str = "utf-8") -> Path:
+    """将对象按 JSON 格式写入文件。"""
+    target_file_path = Path(file_path)
+    target_file_path.parent.mkdir(parents=True, exist_ok=True)
+    target_file_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True),
+        encoding=encoding,
+    )
+    return target_file_path
 
 
 def _resolve_model(model: ModelType) -> type[Model]:

@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from bkmonitor.data_migrate import (
     apply_auto_increment_from_directory,
+    export_auto_increment_to_directory,
     export_biz_data_to_directory,
     import_biz_data_from_directory,
     replace_tenant_id_in_directory,
@@ -35,6 +36,9 @@ class Command(BaseCommand):
             "调用示例:\n"
             "  导出业务和全局数据:\n"
             "    python manage.py data_migrate export --directory /tmp/output --bk-biz-ids 2 3 0\n"
+            "\n"
+            "  导出时同时生成 sequences.json:\n"
+            "    python manage.py data_migrate export --directory /tmp/output --bk-biz-ids 2 3 0 --with-sequences\n"
             "\n"
             "  导入已解压的导出目录:\n"
             "    python manage.py data_migrate import --directory /tmp/bkmonitor-data-migrate-20260307120000\n"
@@ -62,6 +66,11 @@ class Command(BaseCommand):
             nargs="+",
             type=int,
             help="导出时的业务 ID 列表，0 代表全局数据；仅 export 动作需要",
+        )
+        parser.add_argument(
+            "--with-sequences",
+            action="store_true",
+            help="导出时额外生成 sequences.json；默认不导出游标，仅 export 动作需要",
         )
         parser.add_argument("--format", default="json", help="导出文件格式，默认 json；仅 export 动作需要")
         parser.add_argument("--indent", type=int, default=2, help="导出文件缩进，默认 2；仅 export 动作需要")
@@ -103,6 +112,8 @@ class Command(BaseCommand):
                 format=options["format"],
                 indent=options["indent"],
             )
+            if options["with_sequences"]:
+                export_auto_increment_to_directory(export_directory)
             archive_path = shutil.make_archive(
                 base_name=str(Path(temp_directory) / archive_name),
                 format="zip",

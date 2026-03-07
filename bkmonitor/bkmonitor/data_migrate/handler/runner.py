@@ -1,23 +1,14 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
 from django.utils import timezone
 
-from bkmonitor.data_migrate.exporter import DEFAULT_ENCODING
 from bkmonitor.data_migrate.handler.base import BaseDirectoryHandler, HandlerExecutionError
 from bkmonitor.data_migrate.handler.cluster import SanitizeClusterInfoHandler
 from bkmonitor.data_migrate.handler.tenant import ReplaceTenantIdHandler
-
-
-def _load_json_file(file_path: Path) -> Any:
-    return json.loads(file_path.read_text(encoding=DEFAULT_ENCODING))
-
-
-def _write_json_file(file_path: Path, payload: Any) -> None:
-    file_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding=DEFAULT_ENCODING)
+from bkmonitor.data_migrate.utils import read_json_file, write_json_file
 
 
 def _iter_manifest_files(manifest: dict[str, Any]) -> list[tuple[int, str]]:
@@ -52,16 +43,16 @@ def apply_handler_to_directory(
     """
     target_directory = Path(directory_path)
     manifest_path = target_directory / "manifest.json"
-    manifest = _load_json_file(manifest_path)
+    manifest = read_json_file(manifest_path)
 
     for biz_id, relative_file_path in _iter_manifest_files(manifest):
         file_path = target_directory / relative_file_path
-        records = _load_json_file(file_path)
+        records = read_json_file(file_path)
         if not isinstance(records, list):
             raise HandlerExecutionError(handler.name, file_path, "fixture payload is not a list")
         changed = handler.handle_records(records=records, biz_id=biz_id, relative_file_path=relative_file_path)
         if changed:
-            _write_json_file(file_path, records)
+            write_json_file(file_path, records)
 
     manifest.setdefault("handlers", []).append(
         {
@@ -69,7 +60,7 @@ def apply_handler_to_directory(
             "applied_at": timezone.now().isoformat(),
         }
     )
-    _write_json_file(manifest_path, manifest)
+    write_json_file(manifest_path, manifest)
     return target_directory
 
 

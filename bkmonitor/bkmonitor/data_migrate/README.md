@@ -5,6 +5,7 @@
 当前公开入口：
 
 - `apply_auto_increment_from_directory`
+- `export_auto_increment_to_directory`
 - `export_biz_data_to_directory`
 - `import_biz_data_from_directory`
 - `replace_tenant_id_in_directory`
@@ -36,10 +37,21 @@ python manage.py data_migrate export \
 - `0` 代表全局数据
 - command 会先在系统临时目录生成导出目录，再打成 zip 包
 - 最终只把 zip 文件输出到 `--directory` 指定目录下
+- 默认**不**导出 `sequences.json`
 - 可选参数：
   - `--format`
   - `--indent`
+  - `--with-sequences`
 - 不允许显式指定 `using`，统一走项目默认数据库路由
+
+如果需要同时导出游标信息：
+
+```bash
+python manage.py data_migrate export \
+  --directory /tmp \
+  --bk-biz-ids 2 3 0 \
+  --with-sequences
+```
 
 ### 导入
 
@@ -69,6 +81,7 @@ python manage.py data_migrate apply-sequences \
 - 读取的是已经解压好的导出目录中的 `sequences.json`
 - 不执行数据导入
 - 适合在确认导入完成后单独恢复游标
+- 如果导出时没有使用 `--with-sequences`，这里不会生效
 
 ### 执行 handler
 
@@ -111,7 +124,6 @@ python manage.py data_migrate sanitize-cluster-info \
 ```text
 export_root/
   manifest.json
-  sequences.json
   global/
     *.json
   biz/
@@ -126,6 +138,16 @@ export_root/
 - `manifest.json`
   - 导出清单
   - 记录导出格式、业务列表、全局文件列表、每个业务的模块文件列表
+  - 记录 `export_stats`
+    - `0` 代表全局统计
+    - 其他 key 为具体业务 ID
+    - 每个范围下会记录 `model_counts`
+    - 业务范围下还会记录导出过程中通过 `find_biz_table_and_data_id` 收敛出的：
+      - `tables`
+        - 包含 `table_id` 和 `table_name_zh`
+      - `datasources`
+        - 包含 `bk_data_id` 和 `data_name`
+  - 如果额外导出了游标文件，还会记录 `sequence_file`
   - 如果执行过 handler，还会记录 `handlers` 历史
 - `sequences.json`
   - 顶层自增游标信息
@@ -148,7 +170,7 @@ export_root/
 
 ## 自增游标恢复逻辑
 
-导出时会生成顶层 `sequences.json`，记录每个自增主键模型的：
+当导出时显式使用 `--with-sequences`，会生成顶层 `sequences.json`，记录每个自增主键模型的：
 
 - `current_start`
 - `reserved_start`
@@ -166,6 +188,13 @@ export_root/
 - `exported_max_pk + 1`
 
 这样可以降低导入后再次写入或二次导入时的主键冲突风险。
+
+游标模型清单由代码中的固定枚举决定，支持两种写法：
+
+- `app_label`
+  - 自动展开该 app 下所有模型，例如 `apm`
+- `app_label.ModelName`
+  - 仅指定单个模型
 
 ## 当前约束
 
