@@ -65,6 +65,26 @@ class TGPAFileHandler:
         # decrypt_handler: 解密处理器，用于解密日志文件，如果为None则不进行解密
         self.decrypt_handler = decrypt_handler
 
+    @staticmethod
+    def get_cos_file_info(file_name):
+        """
+        通过COS head_object获取文件信息
+        :param file_name: COS上的文件名
+        :return: dict，包含文件大小等信息，例如 {"content_length": 1024, ...}
+        """
+        config = CosConfig(
+            SecretId=settings.TGPA_TASK_QCLOUD_SECRET_ID,
+            SecretKey=settings.TGPA_TASK_QCLOUD_SECRET_KEY,
+            Region=settings.TGPA_TASK_QCLOUD_COS_REGION,
+            Domain=settings.TGPA_TASK_QCLOUD_COS_DOMAIN,
+        )
+        client = CosS3Client(config)
+        head_response = client.head_object(Bucket=settings.TGPA_TASK_QCLOUD_COS_BUCKET, Key=file_name)
+        return {
+            "content_length": int(head_response.get("Content-Length", 0)),
+            "content_type": head_response.get("Content-Type", ""),
+        }
+
     def download_file(self, file_name):
         """
         从腾讯云COS下载文件

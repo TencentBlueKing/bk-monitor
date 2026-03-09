@@ -22,11 +22,21 @@ the project delivered to anyone in the future.
 import math
 import os
 import shutil
+import uuid
 
 from django.utils.functional import cached_property
 
 from apps.api import TGPATaskApi
-from apps.tgpa.constants import TGPA_BASE_DIR, TGPATaskTypeEnum, TASK_LIST_BATCH_SIZE, TGPA_DOWNLOAD_DIR
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.tgpa.constants import (
+    TGPA_BASE_DIR,
+    TGPATaskTypeEnum,
+    TASK_LIST_BATCH_SIZE,
+    TGPA_DOWNLOAD_DIR,
+    FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE,
+    FEATURE_TOGGLE_TGPA_TASK,
+)
+from apps.tgpa.exceptions import FileSizeExceedLimitException
 from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.tgpa.handlers.decrypt import get_decrypt_handler
 from apps.tgpa.models import TGPATask
@@ -241,9 +251,17 @@ class TGPATaskHandler:
         :param file_name: COS上的文件名
         :return: (file_iterator, file_name, file_size)
         """
-        # 使用文件名（去扩展名）作为临时目录标识
-        file_base_name = os.path.splitext(file_name)[0]
-        base_dir = os.path.join(TGPA_DOWNLOAD_DIR, str(bk_biz_id), file_base_name)
+        # 下载前通过COS head_object获取文件大小，超过限制则拒绝下载
+        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+        feature_config = feature_toggle.feature_config
+        max_size = feature_config.get("tgpa_file_download_max_size", FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE)
+        file_info = TGPAFileHandler.get_cos_file_info(file_name)
+        if file_info["content_length"] > max_size:
+            raise FileSizeExceedLimitException()
+
+        # 使用UUID作为临时目录标识，避免前端传入的file_name导致路径穿越风险，同时避免并发请求的目录冲突
+        unique_id = uuid.uuid4().hex
+        base_dir = os.path.join(TGPA_DOWNLOAD_DIR, str(bk_biz_id), unique_id)
         temp_dir = os.path.join(base_dir, "temp")
         output_dir = os.path.join(base_dir, "output")
 
