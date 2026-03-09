@@ -8,7 +8,9 @@
 - `export_auto_increment_to_directory`
 - `export_biz_data_to_directory`
 - `import_biz_data_from_directory`
+- `disable_models_in_directory`
 - `replace_tenant_id_in_directory`
+- `restore_disabled_models_in_directory`
 - `sanitize_cluster_info_in_directory`
 
 代码导出位置见 [__init__.py](/Users/unique0lai/Documents/Codes/bk-monitor/bk-monitor/worktrees/data-migrate/bkmonitor/bkmonitor/data_migrate/__init__.py)。
@@ -18,7 +20,9 @@
 - `python manage.py data_migrate apply-sequences ...`
 - `python manage.py data_migrate export ...`
 - `python manage.py data_migrate import ...`
+- `python manage.py data_migrate disable-models ...`
 - `python manage.py data_migrate replace-tenant-id ...`
+- `python manage.py data_migrate restore-disabled-models ...`
 - `python manage.py data_migrate sanitize-cluster-info ...`
 
 ## 使用方式
@@ -63,9 +67,14 @@ python manage.py data_migrate import \
 说明：
 
 - `import` 读取的是已经解压好的导出目录，不直接读取 zip 文件
+- 默认按 `manifest.json` 中记录的业务列表全量导入
+- 如果显式传入 `--bk-biz-ids`，则只导入对应业务
+- `0` 代表同时导入 `global/` 下的全局数据
 
 可选参数：
 
+- `--bk-biz-ids`
+  - 仅导入指定业务 ID 列表
 - `--disable-atomic`
   - 是否按单个文件事务导入
 
@@ -116,6 +125,53 @@ python manage.py data_migrate sanitize-cluster-info \
 - 目的是避免迁移后继续连接旧环境的存储集群
 - 这个 handler 也是目录级原地修改，可在 export 后、import 前单独执行
 - 同样要求先解压 zip，再对目录执行
+
+### 按模型关闭数据
+
+```bash
+python manage.py data_migrate disable-models \
+  --directory /tmp/bkmonitor-data-export \
+  --models monitor_web.CollectConfigMeta
+```
+
+说明：
+
+- 也是目录级原地修改
+- 不同模型的关闭方式不同，但统一由一个 handler 入口处理
+- 会把每条被修改记录的原始字段值写入独立的 `recovery_records/` 目录，按“批次 / 业务 / 模型”拆分，方便后续恢复
+- 当前已支持：
+  - `bkmonitor.StrategyModel`
+    - 会将 `is_enabled` 改为 `False`
+  - `monitor.UptimeCheckTask`
+    - 会将 `status` 改为 `stoped`
+  - `metadata.DataSource`
+    - 会将 `is_enable` 改为 `False`
+  - `metadata.EventGroup`
+    - 会将 `is_enable` 改为 `False`
+  - `metadata.LogGroup`
+    - 会将 `is_enable` 改为 `False`
+  - `metadata.ResultTable`
+    - 会将 `is_enable` 改为 `False`
+  - `metadata.TimeSeriesGroup`
+    - 会将 `is_enable` 改为 `False`
+  - `monitor_web.CollectConfigMeta`
+    - 会将 `last_operation` 改为 `STOP`
+    - 会将 `operation_result` 改为 `SUCCESS`
+- 只支持代码中已注册的模型；未注册模型会直接报错
+
+### 恢复按模型关闭的数据
+
+```bash
+python manage.py data_migrate restore-disabled-models \
+  --directory /tmp/bkmonitor-data-export
+```
+
+说明：
+
+- 默认恢复最近一次尚未恢复的 `disable-models` 执行结果
+- 恢复依据来自 `recovery_records/` 目录中的按“批次 / 业务 / 模型”拆分记录
+- 恢复成功后，会在对应的 `disable-models` 记录上补 `restored_at`
+- 同时会追加一条 `restore_disable_models` 执行历史
 
 ## 导出目录结构
 

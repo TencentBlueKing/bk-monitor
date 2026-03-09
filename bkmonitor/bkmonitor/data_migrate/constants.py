@@ -3,6 +3,7 @@ DEFAULT_ENCODING = "utf-8"
 EXPORT_QUERYSET_CHUNK_SIZE = 10000
 
 SEQUENCE_FILE_NAME = "sequences.json"
+RECOVERY_RECORDS_DIRECTORY_NAME = "recovery_records"
 
 SEQUENCE_MODEL_SPECS: tuple[str, ...] = (
     "apm",
