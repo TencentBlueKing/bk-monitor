@@ -26,7 +26,7 @@ import shutil
 from django.utils.functional import cached_property
 
 from apps.api import TGPATaskApi
-from apps.tgpa.constants import TGPA_BASE_DIR, TGPATaskTypeEnum, TASK_LIST_BATCH_SIZE
+from apps.tgpa.constants import TGPA_BASE_DIR, TGPATaskTypeEnum, TASK_LIST_BATCH_SIZE, TGPA_DOWNLOAD_DIR
 from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.tgpa.handlers.decrypt import get_decrypt_handler
 from apps.tgpa.models import TGPATask
@@ -243,8 +243,9 @@ class TGPATaskHandler:
         """
         # 使用文件名（去扩展名）作为临时目录标识
         file_base_name = os.path.splitext(file_name)[0]
-        temp_dir = os.path.join(TGPA_BASE_DIR, str(bk_biz_id), "download", file_base_name, "temp")
-        output_dir = os.path.join(TGPA_BASE_DIR, str(bk_biz_id), "download", file_base_name, "output")
+        base_dir = os.path.join(TGPA_DOWNLOAD_DIR, str(bk_biz_id), file_base_name)
+        temp_dir = os.path.join(base_dir, "temp")
+        output_dir = os.path.join(base_dir, "output")
 
         decrypt_handler = get_decrypt_handler(bk_biz_id)
         file_handler = TGPAFileHandler(temp_dir, output_dir, decrypt_handler=decrypt_handler)
@@ -260,8 +261,6 @@ class TGPATaskHandler:
                     while chunk := f.read(chunk_size):
                         yield chunk
             finally:
-                # 流式传输完成后清理临时目录和输出目录
-                shutil.rmtree(temp_dir, ignore_errors=True)
-                shutil.rmtree(output_dir, ignore_errors=True)
+                shutil.rmtree(base_dir, ignore_errors=True)
 
         return file_iterator(), result_file_name, file_size

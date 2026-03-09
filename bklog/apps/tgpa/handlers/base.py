@@ -213,7 +213,7 @@ class TGPAFileHandler:
         # 下载压缩包
         saved_path = self.download_file(file_name)
 
-        # 没有解密处理器，直接返回原始文件，temp_dir由调用方负责清理
+        # 没有解密处理器，不需要处理，直接返回原始文件
         if not self.decrypt_handler:
             return saved_path
 
