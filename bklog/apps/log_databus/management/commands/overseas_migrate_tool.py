@@ -96,20 +96,20 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # 设置id偏移量
-        modify_auto_increment(LogIndexSet, 10000, "index_set_id")
-        modify_auto_increment(LogIndexSetData, 10000, "index_id")
-        modify_auto_increment(CollectorConfig, 10000, "collector_config_id")
-        modify_auto_increment(ContainerCollectorConfig, 10000, "id")
-        modify_auto_increment(AiopsModel, 10000, "id")
-        modify_auto_increment(AiopsModelExperiment, 10000, "id")
-        modify_auto_increment(AiopsSignatureAndPattern, 100000, "id")
-        modify_auto_increment(ClusteringConfig, 10000, "id")
-        modify_auto_increment(ClusteringRemark, 10000, "id")
-        modify_auto_increment(ClusteringSubscription, 10000, "id")
-        modify_auto_increment(NoticeGroup, 10000, "id")
-        modify_auto_increment(RegexTemplate, 10000, "id")
-        modify_auto_increment(SampleSet, 10000, "id")
-        modify_auto_increment(SignatureStrategySettings, 10000, "id")
+        modify_auto_increment(LogIndexSet, 50000, "index_set_id")
+        modify_auto_increment(LogIndexSetData, 50000, "index_id")
+        modify_auto_increment(CollectorConfig, 50000, "collector_config_id")
+        modify_auto_increment(ContainerCollectorConfig, 50000, "id")
+        modify_auto_increment(AiopsModel, 50000, "id")
+        modify_auto_increment(AiopsModelExperiment, 50000, "id")
+        modify_auto_increment(AiopsSignatureAndPattern, 150000, "id")
+        modify_auto_increment(ClusteringConfig, 50000, "id")
+        modify_auto_increment(ClusteringRemark, 50000, "id")
+        modify_auto_increment(ClusteringSubscription, 50000, "id")
+        modify_auto_increment(NoticeGroup, 50000, "id")
+        modify_auto_increment(RegexTemplate, 50000, "id")
+        modify_auto_increment(SampleSet, 50000, "id")
+        modify_auto_increment(SignatureStrategySettings, 50000, "id")
 
         dir_path = options["dir_path"]
 
