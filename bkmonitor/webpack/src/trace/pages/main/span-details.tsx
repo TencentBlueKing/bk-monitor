@@ -210,56 +210,6 @@ export default defineComponent({
     provide('spanId', spanId);
     // 用作 Event 栏的首行打开。
     let isInvokeOnceFlag = true;
-    /* 初始化 */
-    watch(
-      () => props.show,
-      (value: boolean) => {
-        // 异步加载数据时，需要重置数据，不然会看到上一次打开的数据。
-        Object.assign(info, deepClone(tempInfo));
-        localShow.value = value;
-        if (value) {
-          // 根据 defaultExpand 参数决定是否强制展开所有项
-          getSpanDetailExpandUserConfig();
-          // 这里提前执行，如果是碰到异步加载，这里会报错，这里做了兼容处理。
-          if (!props.isPageLoading) getDetails();
-          if (props.isFullscreen && !document.querySelector('.bk-modal-outside')) {
-            const maskEle = document.createElement('div');
-            maskEle.className = 'bk-modal-outside';
-            document.querySelector('.span-details-sideslider')?.appendChild(maskEle);
-          }
-        } else {
-          isInvokeOnceFlag = true;
-          activeTab.value = 'BasicInfo';
-          // countOfInfo.value = {};
-          fullscreen.value = false;
-        }
-      },
-      {
-        immediate: true,
-      }
-    );
-
-    // 上面监听 props.show 里会直接执行 getDetails() ，这里因为要添加loading，
-    // 且需要保证之前用到该组件的地方能正常运行，这里添加兼容代码。保证使用loading与否，都可以正常显示数据。
-    watch(
-      () => props.isPageLoading,
-      (value: boolean) => {
-        if (!value) {
-          getDetails();
-        }
-      }
-    );
-
-    watch(
-      () => props.spanDetails,
-      val => {
-        // 仅当详情面板显示时才加载数据，避免隐藏状态下的无效加载
-        if (val && props.show && (!props.withSideSlider || (props.isShowPrevNextButtons && Object.keys(val).length))) {
-          getDetails();
-        }
-      },
-      { immediate: true, deep: true }
-    );
 
     const getSpanDetailExpandUserConfig = () => {
       const allExpandTypes = [
@@ -278,10 +228,6 @@ export default defineComponent({
       const cachedExpand = window.localStorage.getItem(TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY);
       basicInfoExpand.value = cachedExpand ? JSON.parse(cachedExpand) : allExpandTypes;
     };
-
-    onMounted(() => {
-      getSpanDetailExpandUserConfig();
-    });
 
     /** 获取 span 类型描述 */
     function getTypeText() {
@@ -985,13 +931,6 @@ export default defineComponent({
           })}
         </div>
       </div>
-    );
-
-    watch(
-      () => props.activeTab,
-      val => {
-        activeTab.value = val as TabName;
-      }
     );
 
     const tabList = [
@@ -1711,6 +1650,68 @@ export default defineComponent({
         {detailsMain()}
       </Sideslider>
     );
+
+    /* 初始化 */
+    watch(
+      () => props.show,
+      (value: boolean) => {
+        // 异步加载数据时，需要重置数据，不然会看到上一次打开的数据。
+        Object.assign(info, deepClone(tempInfo));
+        localShow.value = value;
+        if (value) {
+          // 根据 defaultExpand 参数决定是否强制展开所有项
+          getSpanDetailExpandUserConfig();
+          // 这里提前执行，如果是碰到异步加载，这里会报错，这里做了兼容处理。
+          if (!props.isPageLoading) getDetails();
+          if (props.isFullscreen && !document.querySelector('.bk-modal-outside')) {
+            const maskEle = document.createElement('div');
+            maskEle.className = 'bk-modal-outside';
+            document.querySelector('.span-details-sideslider')?.appendChild(maskEle);
+          }
+        } else {
+          isInvokeOnceFlag = true;
+          activeTab.value = 'BasicInfo';
+          // countOfInfo.value = {};
+          fullscreen.value = false;
+        }
+      },
+      {
+        immediate: true,
+      }
+    );
+
+    // 上面监听 props.show 里会直接执行 getDetails() ，这里因为要添加loading，
+    // 且需要保证之前用到该组件的地方能正常运行，这里添加兼容代码。保证使用loading与否，都可以正常显示数据。
+    watch(
+      () => props.isPageLoading,
+      (value: boolean) => {
+        if (!value) {
+          getDetails();
+        }
+      }
+    );
+
+    watch(
+      () => props.activeTab,
+      val => {
+        activeTab.value = val as TabName;
+      }
+    );
+
+    watch(
+      () => props.spanDetails,
+      val => {
+        // 仅当详情面板显示时才加载数据，避免隐藏状态下的无效加载
+        if (val && props.show && (!props.withSideSlider || (props.isShowPrevNextButtons && Object.keys(val).length))) {
+          getDetails();
+        }
+      },
+      { immediate: true, deep: true }
+    );
+
+    onMounted(() => {
+      getSpanDetailExpandUserConfig();
+    });
 
     return {
       localShow,
