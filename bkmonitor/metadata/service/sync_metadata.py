@@ -34,12 +34,7 @@ def parse_time(time_str):
         return None
 
 
-def sync_kafka_metadata(
-    bk_tenant_id: str,
-    kafka_info: dict[str, Any],
-    ds: models.DataSource,
-    bk_data_id: int,
-):
+def sync_kafka_metadata(bk_tenant_id: str, kafka_info: dict[str, Any], ds: models.DataSource, bk_data_id: int):
     """
     同步 Kafka 元数据信息
     @param bk_tenant_id: 租户ID
@@ -48,37 +43,9 @@ def sync_kafka_metadata(
     @param bk_data_id: 数据源 ID
     """
     kafka_cluster = None
-    kafka_clusters = models.ClusterInfo.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        cluster_type=models.ClusterInfo.TYPE_KAFKA,
-        domain_name=kafka_info["host"],
-    ).order_by("-last_modify_time", "-cluster_id")
-    duplicate_count = kafka_clusters.count()
-    if ds.mq_cluster_id:
-        kafka_cluster = kafka_clusters.filter(cluster_id=ds.mq_cluster_id).first()
-        if kafka_cluster and duplicate_count > 1:
-            logger.warning(
-                "sync_kafka_metadata: found duplicate kafka clusters,prefer ds bound cluster,bk_tenant_id->[%s],"
-                "domain_name->[%s],count->[%s],preferred_cluster_id->[%s]",
-                bk_tenant_id,
-                kafka_info["host"],
-                duplicate_count,
-                kafka_cluster.cluster_id,
-            )
-
-    if not kafka_cluster:
-        kafka_cluster = kafka_clusters.first()
-        if kafka_cluster and duplicate_count > 1:
-            logger.warning(
-                "sync_kafka_metadata: found duplicate kafka clusters,use latest cluster,bk_tenant_id->[%s],"
-                "domain_name->[%s],count->[%s],selected_cluster_id->[%s]",
-                bk_tenant_id,
-                kafka_info["host"],
-                duplicate_count,
-                kafka_cluster.cluster_id,
-            )
-
-    if not kafka_cluster:
+    try:
+        kafka_cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, domain_name=kafka_info["host"])
+    except models.ClusterInfo.DoesNotExist:
         logger.info(
             "sync_kafka_metadata: data different,kafka_cluster does not exist,try to create,data->[%s],"
             "bk_data_id->[%s]",
@@ -94,9 +61,7 @@ def sync_kafka_metadata(
         # 如果 Kafka 集群信息不存在，创建新集群
         if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
             logger.info(
-                "sync_kafka_metadata: try to write to db,switch on,data->[%s],bk_data_id->[%s]",
-                kafka_info,
-                bk_data_id,
+                "sync_kafka_metadata: try to write to db,switch on,data->[%s],bk_data_id->[%s]", kafka_info, bk_data_id
             )
             kafka_cluster = models.ClusterInfo.objects.create(
                 bk_tenant_id=bk_tenant_id,
@@ -109,9 +74,7 @@ def sync_kafka_metadata(
 
     if not kafka_cluster:
         logger.error(
-            "sync_kafka_metadata: kafka_cluster does not exist,data->[%s],bk_data_id->[%s]",
-            kafka_info,
-            bk_data_id,
+            "sync_kafka_metadata: kafka_cluster does not exist,data->[%s],bk_data_id->[%s]", kafka_info, bk_data_id
         )
         return
 
@@ -141,9 +104,7 @@ def sync_kafka_metadata(
     except models.KafkaTopicInfo.DoesNotExist:
         # 如果 KafkaTopicInfo 不存在，创建新 KafkaTopicInfo
         kafka_topic_ins = models.KafkaTopicInfo.objects.create(
-            bk_data_id=bk_data_id,
-            topic=kafka_info["topic"],
-            partition=kafka_info["partitions"],
+            bk_data_id=bk_data_id, topic=kafka_info["topic"], partition=kafka_info["partitions"]
         )
 
     # 更新 DataSource 信息，按需更新
@@ -158,10 +119,7 @@ def sync_kafka_metadata(
             kafka_topic_ins.pk,
         )
         if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
-            logger.info(
-                "sync_kafka_metadata: try to write to db,switch on,data->[%s]",
-                kafka_info,
-            )
+            logger.info("sync_kafka_metadata: try to write to db,switch on,data->[%s]", kafka_info)
             ds.mq_cluster_id = kafka_cluster.cluster_id
             ds.mq_config_id = kafka_topic_ins.pk
             ds.save()
@@ -190,36 +148,9 @@ def sync_es_metadata(bk_tenant_id: str, es_info: list[dict[str, Any]], table_id:
 
     # 先同步当前ES信息
     current_es_info = es_info_sorted[0]
-    es_clusters = models.ClusterInfo.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        cluster_type=models.ClusterInfo.TYPE_ES,
-        domain_name=current_es_info["host"],
-    ).order_by("-last_modify_time", "-cluster_id")
-    duplicate_count = es_clusters.count()
-    if es_storage.storage_cluster_id:
-        es_cluster = es_clusters.filter(cluster_id=es_storage.storage_cluster_id).first()
-        if es_cluster and duplicate_count > 1:
-            logger.warning(
-                "sync_es_metadata: found duplicate es clusters,prefer storage bound cluster,table_id->[%s],"
-                "domain_name->[%s],count->[%s],preferred_cluster_id->[%s]",
-                table_id,
-                current_es_info["host"],
-                duplicate_count,
-                es_cluster.cluster_id,
-            )
-
-    if not es_cluster:
-        es_cluster = es_clusters.first()
-        if es_cluster and duplicate_count > 1:
-            logger.warning(
-                "sync_es_metadata: found duplicate es clusters,use latest cluster,table_id->[%s],domain_name->[%s],"
-                "count->[%s],selected_cluster_id->[%s]",
-                table_id,
-                current_es_info["host"],
-                duplicate_count,
-                es_cluster.cluster_id,
-            )
-    if not es_cluster:
+    try:
+        es_cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, domain_name=current_es_info["host"])
+    except models.ClusterInfo.DoesNotExist:
         # 如果 ES 集群信息不存在，创建新集群（理论上不应出现这种情况）
         logger.error(
             "sync_es_metadata: data different,es cluster does not exist,please check,table_id->[%s],es_info->[%s]",
@@ -227,11 +158,7 @@ def sync_es_metadata(bk_tenant_id: str, es_info: list[dict[str, Any]], table_id:
             es_info,
         )
         if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
-            logger.info(
-                "sync_es_metadata: try to write to db,switch on,data->[%s],table_id->[%s]",
-                es_info,
-                table_id,
-            )
+            logger.info("sync_es_metadata: try to write to db,switch on,data->[%s],table_id->[%s]", es_info, table_id)
             models.ClusterInfo.objects.create(
                 bk_tenant_id=bk_tenant_id,
                 domain_name=current_es_info["host"],
@@ -255,11 +182,7 @@ def sync_es_metadata(bk_tenant_id: str, es_info: list[dict[str, Any]], table_id:
             es_cluster.cluster_id,
         )
         if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
-            logger.info(
-                "sync_es_metadata: try to write to db,switch on,data->[%s],table_id->[%s]",
-                es_info,
-                table_id,
-            )
+            logger.info("sync_es_metadata: try to write to db,switch on,data->[%s],table_id->[%s]", es_info, table_id)
             es_storage.storage_cluster_id = es_cluster.cluster_id
             es_storage.save()
 
@@ -268,9 +191,7 @@ def sync_es_metadata(bk_tenant_id: str, es_info: list[dict[str, Any]], table_id:
         return
 
     logger.info(
-        "sync_es_metadata: start to sync history es cluster record,table_id->[%s],es_info->[%s]",
-        table_id,
-        es_info,
+        "sync_es_metadata: start to sync history es cluster record,table_id->[%s],es_info->[%s]", table_id, es_info
     )
 
     # 解析所有集群信息，收集cluster_id和启用/停用时间
@@ -279,39 +200,7 @@ def sync_es_metadata(bk_tenant_id: str, es_info: list[dict[str, Any]], table_id:
     for idx, info in enumerate(es_info_sorted):
         host = info["host"]
         try:
-            es_host_clusters = models.ClusterInfo.objects.filter(
-                bk_tenant_id=bk_tenant_id,
-                cluster_type=models.ClusterInfo.TYPE_ES,
-                domain_name=host,
-            ).order_by("-last_modify_time", "-cluster_id")
-            host_duplicate_count = es_host_clusters.count()
-            cluster = None
-            if idx == 0 and es_storage.storage_cluster_id:
-                cluster = es_host_clusters.filter(cluster_id=es_storage.storage_cluster_id).first()
-                if cluster and host_duplicate_count > 1:
-                    logger.warning(
-                        "sync_es_metadata: found duplicate es clusters in history,prefer storage bound cluster,"
-                        "table_id->[%s],host->[%s],count->[%s],preferred_cluster_id->[%s]",
-                        table_id,
-                        host,
-                        host_duplicate_count,
-                        cluster.cluster_id,
-                    )
-
-            if not cluster:
-                cluster = es_host_clusters.first()
-                if cluster and host_duplicate_count > 1:
-                    logger.warning(
-                        "sync_es_metadata: found duplicate es clusters in history,use latest cluster,"
-                        "table_id->[%s],host->[%s],count->[%s],selected_cluster_id->[%s]",
-                        table_id,
-                        host,
-                        host_duplicate_count,
-                        cluster.cluster_id,
-                    )
-            if not cluster:
-                logger.error("sync_es_metadata: cluster not exists, host=%s", host)
-                continue
+            cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, domain_name=host)
             enable_time = info["update_time"]
             # 停用时间：上一条更晚记录的启用时间（若存在）
             disable_time = parse_time(es_info_sorted[idx - 1]["update_time"]) if idx > 0 else None
@@ -324,8 +213,8 @@ def sync_es_metadata(bk_tenant_id: str, es_info: list[dict[str, Any]], table_id:
                 }
             )
             valid_cluster_ids.append(cluster.cluster_id)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("sync_es_metadata: get cluster failed, host->[%s],error->[%s]", host, e)
+        except models.ClusterInfo.DoesNotExist:
+            logger.error(f"sync_es_metadata: cluster not exists, host={host}")
             continue
 
     # 标记不在当前有效列表中的记录为已删除
@@ -373,11 +262,7 @@ def sync_es_metadata(bk_tenant_id: str, es_info: list[dict[str, Any]], table_id:
                 if update_fields:
                     record.save(update_fields=update_fields)
         except Exception as e:  # pylint: disable=broad-except
-            logger.error(
-                "sync_es_metadata: failed to sync es metadata,table_id->[%s],error->[%s]",
-                table_id,
-                e,
-            )
+            logger.error("sync_es_metadata: failed to sync es metadata,table_id->[%s],error->[%s]", table_id, e)
             continue
 
     # 确保最新的记录is_current=True（防止并发问题）
@@ -417,35 +302,17 @@ def sync_vm_metadata(bk_tenant_id: str, vm_info: dict[str, dict[str, Any]]):
         )
         if not access_vm_records:  # 若不存在对应的VMRT接入记录,记录日志并跳过
             logger.warning(
-                "sync_vm_metadata: access_vm_record does not exist,vm_result_table_id->[%s]",
-                vm_result_table_id,
+                "sync_vm_metadata: access_vm_record does not exist,vm_result_table_id->[%s]", vm_result_table_id
             )
             continue
-        exists_cluster_ids = list(
-            access_vm_records.exclude(vm_cluster_id__isnull=True).values_list("vm_cluster_id", flat=True).distinct()
-        )
 
-        vm_clusters = models.ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id,
-            cluster_type=models.ClusterInfo.TYPE_VM,
-            domain_name=detail["insert_host"],
-        )
-
-        # 如果存在多个集群，优先选择已存在的集群
-        vm_cluster: models.ClusterInfo | None = None
-        if len(exists_cluster_ids) > 1:
-            for cluster_id in exists_cluster_ids:
-                cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
-                if cluster:
-                    vm_clusters = vm_clusters.filter(cluster_id=cluster_id)
-                    break
-        elif len(exists_cluster_ids) == 1:
-            vm_cluster = vm_clusters[0]
-        else:
+        vm_cluster = None
+        try:
+            vm_cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, domain_name=detail["insert_host"])
+        except models.ClusterInfo.DoesNotExist:
             # 如果 VM 集群信息不存在，创建新集群
             logger.info(
-                "sync_vm_metadata: data different,vm cluster does not exist,try to create it,detail->[%s]",
-                detail,
+                "sync_vm_metadata: data different,vm cluster does not exist,try to create it,detail->[%s]", detail
             )
             # 激活元数据一致性写入模式的情况下才进行写入
             if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
