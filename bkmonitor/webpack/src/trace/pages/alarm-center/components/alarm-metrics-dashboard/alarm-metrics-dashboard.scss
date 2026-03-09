@@ -33,7 +33,7 @@
     .chart-collapse-content {
       .alarm-metrics-chart-container {
         display: grid;
-        grid-template-columns: repeat(var(--dashboard-grid-col), 1fr);
+        grid-template-columns: repeat(var(--dashboard-grid-col), minmax(0, 1fr));
         gap: 12px;
         padding-top: 8px;
       }
