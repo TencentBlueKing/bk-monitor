@@ -79,7 +79,7 @@ class _BKLoginApi:
             after_request=get_user_after,
         )
 
-        if self.use_apigw:
+        if settings.ENABLE_MULTI_TENANT_MODE:
             self.list_tenant = DataAPI(
                 method="GET",
                 url=settings.PAAS_API_HOST + "/api/bk-user/prod/api/v3/open/tenants/",

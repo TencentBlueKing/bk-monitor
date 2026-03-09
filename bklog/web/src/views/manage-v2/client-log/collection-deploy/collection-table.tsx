@@ -130,9 +130,7 @@ export default defineComponent({
     });
 
     // 使用检索任务 Hook
-    const { searchTask } = useSearchTask({
-      indexSetId: props.indexSetId,
-    });
+    const { searchTask } = useSearchTask();
 
     // 任务状态选项
     const taskStatuses = [
@@ -245,7 +243,7 @@ export default defineComponent({
           value: row.task_id,
         },
       ];
-      searchTask(conditions, [row.processed_at, 'now']);
+      searchTask(props.indexSetId, conditions, [row.processed_at, 'now']);
     };
 
     // 任务名称插槽
