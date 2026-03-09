@@ -92,9 +92,7 @@ def apply_auto_increment_from_directory(directory_path: str | Path) -> None:
     """
     target_directory = Path(directory_path)
     manifest = read_json_file(target_directory / "manifest.json", encoding=DEFAULT_ENCODING)
-    sequence_file = manifest.get("sequence_file")
-    if not sequence_file:
-        return
+    sequence_file = manifest.get("sequence_file") or SEQUENCE_FILE_NAME
     sequence_path = target_directory / sequence_file
     if not sequence_path.exists():
         return

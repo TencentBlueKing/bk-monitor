@@ -41,21 +41,11 @@ python manage.py data_migrate export \
 - `0` 代表全局数据
 - command 会先在系统临时目录生成导出目录，再打成 zip 包
 - 最终只把 zip 文件输出到 `--directory` 指定目录下
-- 默认**不**导出 `sequences.json`
+- 默认会导出 `sequences.json`
 - 可选参数：
   - `--format`
   - `--indent`
-  - `--with-sequences`
 - 不允许显式指定 `using`，统一走项目默认数据库路由
-
-如果需要同时导出游标信息：
-
-```bash
-python manage.py data_migrate export \
-  --directory /tmp \
-  --bk-biz-ids 2 3 0 \
-  --with-sequences
-```
 
 ### 导入
 
@@ -90,7 +80,6 @@ python manage.py data_migrate apply-sequences \
 - 读取的是已经解压好的导出目录中的 `sequences.json`
 - 不执行数据导入
 - 适合在确认导入完成后单独恢复游标
-- 如果导出时没有使用 `--with-sequences`，这里不会生效
 
 ### 执行 handler
 
@@ -226,7 +215,7 @@ export_root/
 
 ## 自增游标恢复逻辑
 
-当导出时显式使用 `--with-sequences`，会生成顶层 `sequences.json`，记录每个自增主键模型的：
+导出时会生成顶层 `sequences.json`，记录每个自增主键模型的：
 
 - `current_start`
 - `reserved_start`

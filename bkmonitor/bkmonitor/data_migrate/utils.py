@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ from django.db import DEFAULT_DB_ALIAS, connections, router, transaction
 from django.db.models import Max, Model, QuerySet
 
 ModelType = type[Model] | str
+MYSQL_AUTO_INCREMENT_REGEX = re.compile(r"\bAUTO_INCREMENT=(\d+)\b")
 
 
 def read_json_file(file_path: str | Path, encoding: str = "utf-8") -> Any:
@@ -133,16 +135,13 @@ def _get_auto_increment_start_from_metadata(model_cls: type[Model], using: str |
 
     with connection.cursor() as cursor:
         if connection.vendor == "mysql":
-            cursor.execute(
-                """
-                SELECT AUTO_INCREMENT
-                FROM information_schema.TABLES
-                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s
-                """,
-                [table_name],
-            )
+            quoted_table_name = _quote_qualified_name(connection, table_name)
+            cursor.execute(f"SHOW CREATE TABLE {quoted_table_name}")
             row = cursor.fetchone()
-            return row[0] if row and row[0] is not None else None
+            if not row or len(row) < 2 or not row[1]:
+                return None
+            match = MYSQL_AUTO_INCREMENT_REGEX.search(str(row[1]))
+            return int(match.group(1)) if match else None
 
         if connection.vendor == "sqlite":
             cursor.execute("SELECT seq FROM sqlite_sequence WHERE name = %s", [table_name])

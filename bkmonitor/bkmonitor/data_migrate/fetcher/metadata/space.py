@@ -1,5 +1,5 @@
 from bkmonitor.data_migrate.fetcher.base import FetcherResultType
-from metadata.models.space.space import Space, SpaceDataSource, SpaceResource, SpaceType
+from metadata.models.space.space import Space, SpaceDataSource, SpaceResource
 
 
 def get_metadata_space_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:
@@ -21,7 +21,7 @@ def get_metadata_space_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]
         space_filters = {"space_type_id": "bkcc", "space_id": str(bk_biz_id)}
 
     return [
-        (SpaceType, None, None),
+        # (SpaceType, None, None),
         (Space, space_filters, None),
         (SpaceDataSource, space_filters, None),
         (SpaceResource, space_filters, None),
