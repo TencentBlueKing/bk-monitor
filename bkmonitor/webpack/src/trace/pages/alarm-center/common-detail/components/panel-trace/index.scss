@@ -35,14 +35,10 @@
         }
       }
 
-      // .explore-table {
-      //   max-height: 370px;
-      // }
-
       .t-table {
         min-height: unset;
 
-      /* stylelint-disable-next-line selector-class-pattern */
+        /* stylelint-disable-next-line selector-class-pattern */
         .t-table__header {
           th {
             background-color: #f5f6fa;
@@ -57,6 +53,18 @@
       /* stylelint-disable-next-line selector-class-pattern */
       .t-table__last-full-row {
         display: none;
+      }
+
+      .explore-table-skeleton {
+        position: relative;
+        top: -5px;
+        display: none;
+        visibility: visible;
+
+        &.explore-skeleton-show-all,
+        &.explore-skeleton-show-body {
+          display: block;
+        }
       }
     }
   }

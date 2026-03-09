@@ -26,3 +26,4 @@
 
 export * from './bind-series-mark-config';
 export * from './formatter';
+export * from './helper';
