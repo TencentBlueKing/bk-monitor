@@ -1450,6 +1450,9 @@ class AlertGraphQueryResource(ApiAuthResource):
             # 离群检测算法不需要异常点
             mark_points = []
 
+        longest_series = {"datapoints": []}
+        current_series_list = []
+
         # 遍历所有 series，给 time_offset 为 current 的 series 添加标记
         for series in data:
             time_offset = series.get("time_offset", "current")
@@ -1469,6 +1472,21 @@ class AlertGraphQueryResource(ApiAuthResource):
             # 所有当前时间的 series 都添加异常点标记和阈值线
             series["markPoints"] = mark_points
             series["thresholds"] = threshold_line
+
+            if len(series["datapoints"]) > len(longest_series["datapoints"]):
+                longest_series = series
+
+            current_series_list.append(series)
+
+        # 以最长的 series 的时间戳为基准，对齐所有 current series 的 datapoints
+        if current_series_list and longest_series["datapoints"]:
+            base_timestamps = [point[1] for point in longest_series["datapoints"]]
+            for series in current_series_list:
+                if series is longest_series:
+                    continue
+
+                ts_to_value = {point[1]: point[0] for point in series["datapoints"]}
+                series["datapoints"] = [[ts_to_value.get(ts), ts] for ts in base_timestamps]
 
         return result
 
