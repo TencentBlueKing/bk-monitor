@@ -16,6 +16,7 @@ export const getActionConfigByAlerts = request('POST', 'fta/action/instances/get
 export const createDemoAction = request('POST', 'fta/action/instances/create_demo_action/');
 export const getDemoActionDetail = request('GET', 'fta/action/instances/get_demo_action_detail/');
 export const assignAlert = request('POST', 'fta/action/instances/assign_alert/');
+export const previewDemoActionContext = request('POST', 'fta/action/instances/preview_demo_action_context/');
 
 export default {
   getPlugins,
@@ -34,4 +35,5 @@ export default {
   createDemoAction,
   getDemoActionDetail,
   assignAlert,
+  previewDemoActionContext
 };
