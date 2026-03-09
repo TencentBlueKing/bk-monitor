@@ -71,6 +71,8 @@ class JsonField(models.TextField):
         django.core.exceptions.ValidationError if the data can't be converted.
         Returns the converted value. Subclasses should override this.
         """
+        if value in ("", None):
+            return None
         if isinstance(value, str):
             try:
                 return json.loads(value)
@@ -139,9 +141,39 @@ class SymmetricJsonField(SymmetricTextField):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def get_db_prep_value(self, value, connection, prepared=False):
-        value = json.dumps(value)
-        return super().get_db_prep_value(value, connection, prepared)
+    def get_prep_value(self, value):
+        """
+        入库前先将 Python 对象序列化成 JSON 字符串，再交给加密字段逻辑处理。
+
+        这里不再复用 ``SymmetricFieldMixin.get_prep_value``，而是直接完成 JSON 序列化
+        和加密，避免在某些 Django 调用链里 value 以原始 Python 对象形态再次进入
+        ``bkcrypto`` 的字符串加密逻辑。
+        """
+        if value is None:
+            return value
+        if not isinstance(value, str):
+            value = json.dumps(value, cls=DatetimeEncoder)
+        return self.encrypt(value)
+
+    def to_python(self, value):
+        """
+        兼容 Django fixture 导入时的两种输入形态：
+
+        - 新版导出会直接给到 dict/list 等 Python 对象
+        - 某些历史数据或表单链路仍可能给到字符串
+
+        对于字符串，这里沿用 SymmetricTextField 的解密逻辑，再反序列化成 JSON；
+        对于已经是 Python 对象的值，则直接返回，避免把 dict 当成密文解密。
+        """
+        if not isinstance(value, str):
+            return value
+
+        try:
+            value = super().to_python(value)
+        except Exception:
+            # 兼容已经是明文 JSON 字符串的场景。
+            pass
+        return json.loads(value or "null")
 
     def from_db_value(self, value, expression, connection, context=None):
         value = super().from_db_value(value, expression, connection, context)
