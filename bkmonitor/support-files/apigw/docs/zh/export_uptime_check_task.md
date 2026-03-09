@@ -185,25 +185,25 @@
 
 #### 监控触发条件配置--data.conf_list.monitor_conf.alarm_level_config
 
-字段  | 类型  |描述  |
-------|-------|-------|
-1 | dict |告警级别对应的告警触发配置,表示为致命告警 |
-2 | dict |告警级别对应的告警触发配置，表现为预警告警 |
-3 | dict |告警级别对应的告警触发配置，表现为提醒告警 |
+| 字段 | 类型  |描述  |
+|----|-------|-------|
+| 1  | dict |告警级别对应的告警触发配置,表示为致命告警 |
+| 2  | dict |告警级别对应的告警触发配置，表现为预警告警 |
+|  3 | dict |告警级别对应的告警触发配置，表现为提醒告警 |
 
 #### 告警级别对应的告警触发配置--data.conf_list.monitor_conf.alarm_level_config.1
 
-字段  | 类型  | 描述  |
-------|-------|-------|
-alarm_start_time | str |  当日开始告警时间 |
-alarm_end_time | str |  当日结束告警时间 |
-detect_algorithm | list | 检测算法配置 |
-is_recovery | str | 自动恢复 |
-monitor_level | int | 告警级别，1致命、2预警、3提醒 |
-notify_way | list |通知方式，mail邮件、wechat微信、sms短信、phone电话 |
-phone_receiver | list | 电话通知对象，账号名 |
-responsible | list | 其他通知人列表 |
-role_list | list |  通知人分组，在业务管理中配置 |
+| 字段               | 类型  | 描述  |
+|------------------|-------|-------|
+| alarm_start_time | str |  当日开始告警时间 |
+| alarm_end_time   | str |  当日结束告警时间 |
+| detect_algorithm | list | 检测算法配置 |
+| is_recovery      | str | 自动恢复 |
+| monitor_level    | int | 告警级别，1致命、2预警、3提醒 |
+| notify_way       | list |通知方式，mail邮件、wechat微信、sms短信、phone电话 |
+| phone_receiver   | list | 电话通知对象，账号名 |
+| responsible      | list | 其他通知人列表 |
+|  role_list       | list |  通知人分组，在业务管理中配置 |
 
 #### 检测算法配置--data.conf_list.monitor_conf.alarm_level_config.1.detect_algorithm
 
@@ -214,19 +214,19 @@ role_list | list |  通知人分组，在业务管理中配置 |
 
 #### 检测算法详细配置(静态阈值)--data.conf_list.monitor_conf.alarm_level_config.1.detect_algorithm.config
 
-|字段  | 类型  | 描述  |
-|------|-------|-------|
-threshold | int | 比较值 |
-method | str | 比较方式 |
-message | str | 说明 |
+| 字段        | 类型  | 描述  |
+|-----------|-------|-------|
+| threshold | int | 比较值 |
+| method    | str | 比较方式 |
+|  message  | str | 说明 |
 
 #### 检测算法详细配置(同比、环比)--data.conf_list.monitor_conf.alarm_level_config.1.detect_algorithm.config
 
-|字段  | 类型  | 描述  |
-|------|-------|-------|
-ceil | int | 大于设定值告警 |
-floor | str | 低于设定值告警 |
-message | str | 说明 |
+| 字段       | 类型  | 描述  |
+|----------|-------|-------|
+| ceil     | int | 大于设定值告警 |
+| floor    | str | 低于设定值告警 |
+|  message | str | 说明 |
 
 ### 响应参数示例
 

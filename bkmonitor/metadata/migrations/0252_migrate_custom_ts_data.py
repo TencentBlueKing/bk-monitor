@@ -15,7 +15,7 @@ CREATE_FROM_DEFAULT = "default"
 CREATE_FROM_USER = "user"
 
 # 批处理配置
-BULK_CREATE_BATCH_SIZE = 500  # bulk_create 的批次大小
+BULK_BATCH_SIZE = 500  # bulk_create 的批次大小
 
 
 def migrate_custom_ts_field_to_time_series(apps, schema_editor):
@@ -184,21 +184,50 @@ def migrate_scope(apps, bk_tenant_id, dimension_fields, group_id, metric_fields,
         if rule_name and rule_name in scope_info:
             scope_info[rule_name]["auto_rules"] = rule.get("auto_rules", [])
 
-    # 批量创建所有 Scope
-    scopes_to_create = [
-        TimeSeriesScope(
-            group_id=group_id,
-            scope_name=scope_name,
-            dimension_config=info["dim_configs"],
-            auto_rules=info["auto_rules"],
-            create_from=CREATE_FROM_DEFAULT if info["is_default"] else CREATE_FROM_USER,
+    existing_scope_names = {
+        item["scope_name"]: item["id"]
+        for item in TimeSeriesScope.objects.filter(group_id=group_id, scope_name__in=scope_info.keys()).values(
+            "scope_name", "id"
         )
-        for scope_name, info in scope_info.items()
-    ]
+    }
+
+    # 批量创建所有 Scope
+    scopes_to_create = []
+    scopes_to_update = []
+    for scope_name, info in scope_info.items():
+        if scope_name in existing_scope_names:
+            scopes_to_update.append(
+                TimeSeriesScope(
+                    id=existing_scope_names[scope_name],
+                    group_id=group_id,
+                    scope_name=scope_name,
+                    dimension_config=info["dim_configs"],
+                    auto_rules=info["auto_rules"],
+                    create_from=CREATE_FROM_DEFAULT if info["is_default"] else CREATE_FROM_USER,
+                )
+            )
+        else:
+            scopes_to_create.append(
+                TimeSeriesScope(
+                    group_id=group_id,
+                    scope_name=scope_name,
+                    dimension_config=info["dim_configs"],
+                    auto_rules=info["auto_rules"],
+                    create_from=CREATE_FROM_DEFAULT if info["is_default"] else CREATE_FROM_USER,
+                )
+            )
 
     if scopes_to_create:
-        TimeSeriesScope.objects.bulk_create(scopes_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
+        TimeSeriesScope.objects.bulk_create(scopes_to_create, batch_size=BULK_BATCH_SIZE)
         stats["scopes_created"] += len(scopes_to_create)
+
+    if scopes_to_update:
+        TimeSeriesScope.objects.bulk_update(
+            scopes_to_update,
+            ["dimension_config", "auto_rules", "create_from"],
+            batch_size=BULK_BATCH_SIZE,
+        )
+        stats["scopes_updated"] += len(scopes_to_update)
 
     # 只查询需要的字段,减少内存占用
     return {
@@ -239,7 +268,7 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
 
         scope_id = scope_name_to_id.get(scope_name)
         field_name = field.get("name")
-        existing = existing_metrics.get((scope_name, field_name))
+        existing = existing_metrics.get((DEFAULT_DATA_SCOPE_NAME, field_name))
 
         if existing:
             existing.scope_id = scope_id
@@ -265,13 +294,13 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
 
     # 批量保存 Metric
     if metrics_to_create:
-        TimeSeriesMetric.objects.bulk_create(metrics_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
+        TimeSeriesMetric.objects.bulk_create(metrics_to_create, batch_size=BULK_BATCH_SIZE)
         stats["metrics_created"] += len(metrics_to_create)
     if metrics_to_update:
         TimeSeriesMetric.objects.bulk_update(
             metrics_to_update,
             ["scope_id", "field_config", "field_scope", "create_time"],
-            batch_size=BULK_CREATE_BATCH_SIZE,
+            batch_size=BULK_BATCH_SIZE,
         )
         stats["metrics_updated"] += len(metrics_to_update)
 

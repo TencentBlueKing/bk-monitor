@@ -18,7 +18,7 @@ from django.db.models import Q
 from django.utils.translation import gettext as _
 
 from bkmonitor.models import EventPluginV2, MetricListCache, StrategyModel
-from bkmonitor.strategy.new_strategy import get_metric_id, parse_metric_id
+from bk_monitor_base.strategy import get_metric_id, parse_metric_id
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.action import ActionPluginType, ActionSignal
 from constants.data_source import DataSourceLabel, DataTypeLabel

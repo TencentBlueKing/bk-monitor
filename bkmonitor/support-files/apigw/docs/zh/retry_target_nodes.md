@@ -9,7 +9,7 @@
 | ----------- | ---- | ---- | ---------------- |
 | bk_biz_id   | int  | 是   | 业务 ID          |
 | id          | int  | 是   | 采集配置ID       |
-| instance_id | int  | 是   | 需要重试的实例id |
+| instance_id | str  | 是   | 需要重试的实例id |
 
 
 
@@ -17,9 +17,9 @@
 
 ```json
 {
-  "bk_bix_id": 2,
+  "bk_biz_id": 2,
   "id": 100,
-  "instance_id": 101
+  "instance_id": "host|instance|host|101"
 }
 ```
 
@@ -27,7 +27,7 @@
 
 | 字段    | 类型 | 描述         |
 | ------- | ---- | ------------ |
-| resul   | bool | 请求是否成功 |
+| result  | bool | 请求是否成功 |
 | code    | int  | 返回的状态码 |
 | message | str  | 描述信息     |
 | data    | str  | 响应结果     |

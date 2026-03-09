@@ -29,10 +29,9 @@ import { get } from '@vueuse/core';
 import { storeToRefs } from 'pinia';
 
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
-// import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import AlarmDashboardGroup from '../../../components/alarm-dashboard-group/alarm-dashboard-group';
 import { useAlertHost } from '../../../composables/use-alert-host';
-import { useHostSceneView } from '../../../composables/use-host-scene-view';
+import { useSceneView } from '../../../composables/use-scene-view';
 import PanelHostSelector from './components/panel-host-selector/panel-host-selector';
 
 import type { IDataQuery } from '../../../../../plugins/typings';
@@ -49,7 +48,7 @@ export default defineComponent({
   setup(props) {
     const { bizId, interval, timeRange } = storeToRefs(useAlarmCenterDetailStore());
     const { currentTarget, targetList, loading } = useAlertHost(toRef(props, 'alertId'));
-    const { hostDashboards, loading: sceneViewLoading } = useHostSceneView(bizId);
+    const { dashboards: hostDashboards, loading: sceneViewLoading } = useSceneView(bizId, 'host');
     /** 图表执行 dataZoom 框线缩放后的时间范围 */
     const dataZoomTimeRange = shallowRef<DateValue>(null);
     /** 当前图表视图的时间范围 */
@@ -87,6 +86,17 @@ export default defineComponent({
     };
 
     /**
+     * @description 格式化series别名
+     */
+    const formatSeriesAlias = (item: any) => {
+      const dimensions = item?.dimensions ?? {};
+      const keys = Object.keys(dimensions);
+      if (!keys.length) return item.target;
+      if (keys.length === 1) return dimensions[keys[0]];
+      return keys.map(key => `${key}=${dimensions[key]}`).join('|');
+    };
+
+    /**
      * @description: 格式化图表数据
      * @param {any} data 图表接口返回的series数据
      */
@@ -94,12 +104,10 @@ export default defineComponent({
       return {
         ...data,
         query_config: data?.query_config || target.data,
-        series: data.series.map(item => {
-          return {
-            ...item,
-            alias: item?.dimensions?.device_name || item.target,
-          };
-        }),
+        series: data.series.map(item => ({
+          ...item,
+          alias: formatSeriesAlias(item),
+        })),
       };
     };
 
@@ -167,31 +175,34 @@ export default defineComponent({
       <div class={['alarm-center-detail-panel-host', this.loading ? 'is-loading' : '']}>
         <div class='panel-host-white-bg-container'>
           <div class='host-selector-wrap'>
-            <div class='host-selector-container'>
-              <PanelHostSelector
-                currentTarget={this.currentTarget}
-                targetList={this.targetList}
-                onChange={target => {
-                  this.currentTarget = target;
-                }}
-              />
-              {this.createSkeletonDom()}
-            </div>
-            <div
-              class='host-explore-link-btn'
-              onClick={this.handleToPerformance}
-            >
-              <span class='link-text'>{window.i18n.t('主机检索')}</span>
-              <i class='icon-monitor icon-mc-goto' />
+            <div class='host-selector-label'>{window.i18n.t('主机')}</div>
+            <div class='host-selector-row'>
+              <div class='host-selector-container'>
+                <PanelHostSelector
+                  currentTarget={this.currentTarget}
+                  targetList={this.targetList}
+                  onChange={target => {
+                    this.currentTarget = target;
+                  }}
+                />
+                {this.createSkeletonDom()}
+              </div>
+              <div
+                class='host-explore-link-btn'
+                onClick={this.handleToPerformance}
+              >
+                <span class='link-text'>{window.i18n.t('主机监控')}</span>
+                <i class='icon-monitor icon-mc-link' />
+              </div>
             </div>
           </div>
-          <div class='ai-hight-card-wrap'>
-            {/* <AiHighlightCard
+          {/* <div class='ai-hight-card-wrap'>
+            <AiHighlightCard
               content='该模块哈哈哈哈哈，我是一段随意的文本占位。'
               title={`${window.i18n.t('AI 分析结论')}：`}
-            /> */}
+            />
             {this.createSkeletonDom()}
-          </div>
+          </div> */}
         </div>
         <div class='panel-host-chart-wrap'>
           <AlarmDashboardGroup

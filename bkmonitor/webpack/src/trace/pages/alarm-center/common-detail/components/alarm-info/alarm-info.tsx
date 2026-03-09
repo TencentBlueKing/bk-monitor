@@ -238,9 +238,10 @@ export default defineComponent({
           <span class='total'>{handleStatusString.value}</span>
           {handleStatusString.value !== '--' && (
             <span
-              class='icon-monitor icon-xiangqing1'
+              class='operate-btn'
               onClick={handleAlarmStatusDetailShow}
             >
+              <i class='icon-monitor icon-xiangqing1' />
               {t('详情')}
             </span>
           )}
@@ -258,14 +259,20 @@ export default defineComponent({
               key='manual-process'
               onClick={() => emit('manualProcess')}
             >
-              <span class='icon-monitor icon-chuli'>{t('手动处理')}</span>
+              <span class='operate-btn'>
+                <i class='icon-monitor icon-chuli' />
+                {t('手动处理')}
+              </span>
             </span>,
             <span
               key='manual-dispatch'
               onClick={() => emit('alarmDispatch')}
             >
               <span class='alarm-dispatch'>
-                <span class='icon-monitor icon-fenpai'>{t('告警分派')}</span>
+                <span class='operate-btn'>
+                  <i class='icon-monitor icon-fenpai' />
+                  {t('告警分派')}
+                </span>
               </span>
             </span>,
           ]}
@@ -318,7 +325,7 @@ export default defineComponent({
         <div class='dimension-info'>
           {this.loading ? <div class='skeleton-element' /> : this.renderDimensionsInfo()}
         </div>
-        <div class='block-title mt-18'>基础信息</div>
+        <div class='block-title'>基础信息</div>
         <div class='basic-info'>
           {this.basicInfoForm.map((item, index) => (
             <div

@@ -246,6 +246,7 @@ class CreateResultTableResource(Resource):
         time_option = serializers.DictField(required=False, label="时间字段选项配置", default=None)
         is_sync_db = serializers.BooleanField(required=False, label="是否需要同步创建真实表", default=True)
         data_label = serializers.CharField(required=False, label="数据标签", default="")
+        labels = serializers.DictField(required=False, label="扩展标签", default=dict)
 
     def perform_request(self, request_data):
         query_alias_settings = request_data.pop("query_alias_settings", [])
@@ -415,6 +416,7 @@ class ModifyResultTableResource(Resource):
         is_reserved_check = serializers.BooleanField(required=False, label="检查内置字段", default=True)
         time_option = serializers.DictField(required=False, label="时间字段选项配置", default=None, allow_null=True)
         data_label = serializers.CharField(required=False, label="数据标签", default=None)
+        labels = serializers.DictField(required=False, label="扩展标签", default=None)
         need_delete_storages = serializers.DictField(required=False, label="需要删除的额外存储", default=None)
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:

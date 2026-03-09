@@ -83,6 +83,7 @@ import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
 import { saveAlertContentName } from './services/alert-services';
+import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
@@ -101,7 +102,14 @@ export default defineComponent({
       handleSetUserConfig: handleSetResidentSettingUserConfig,
     } = useUserConfig();
 
-    const { quickFilterList, quickFilterLoading } = useQuickFilter();
+    const {
+      isFirstInit,
+      quickFilterList,
+      quickFilterLoading,
+      quickFilterEmptyStatusType,
+      updateQuickFilterValue,
+      handleQuickFilteringOperation,
+    } = useQuickFilter();
     const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
     const {
       tableColumns: tableSourceColumns,
@@ -233,9 +241,12 @@ export default defineComponent({
       isCollapsed.value = v;
     };
     /** 快捷筛选 */
-    const handleFilterValueChange = (filterValue: CommonCondition[]) => {
+    const handleFilterValueChange = (filterValue: CommonCondition[], category: string) => {
       handleCurrentPageChange(1);
-      alarmStore.quickFilterValue = filterValue;
+      alarmStore.lastQuickFilterOperationCategory = category;
+      alarmStore.lastQuickFilterOperationCategoryData =
+        quickFilterList.value.find(item => item.id === category) || null;
+      updateQuickFilterValue(filterValue);
     };
     /** 告警分析添加条件 */
     const handleAddCondition = (condition: CommonCondition) => {
@@ -303,6 +314,8 @@ export default defineComponent({
         conditions: JSON.stringify(alarmStore.conditions),
         residentCondition: JSON.stringify(alarmStore.residentCondition),
         quickFilterValue: JSON.stringify(alarmStore.quickFilterValue),
+        /** 最后一次操作的快速过滤条件分类数据 */
+        lastQuickFilterCategoryData: JSON.stringify(alarmStore.lastQuickFilterOperationCategoryData),
         filterMode: alarmStore.filterMode,
         alarmType: alarmStore.alarmType,
         alarmId: alarmId.value,
@@ -356,10 +369,12 @@ export default defineComponent({
         showDetail,
         alarmId: alarmIdParams,
         favorite_id: favoriteId,
+        showResidentBtn: queryShowResidentBtn,
+        /** 最后一次操作的快速过滤条件分类数据 */
+        lastQuickFilterCategoryData,
         /** 以下是兼容事件中心的URL参数 */
         searchType,
         condition,
-        showResidentBtn: queryShowResidentBtn,
       } = route.query;
 
       try {
@@ -381,13 +396,22 @@ export default defineComponent({
           }));
         } else {
           alarmStore.quickFilterValue = tryURLDecodeParse(quickFilterValue as string, []);
+          alarmStore.lastQuickFilterOperationCategoryData = tryURLDecodeParse(
+            lastQuickFilterCategoryData as string,
+            null
+          );
+          alarmStore.lastQuickFilterOperationCategory = alarmStore.lastQuickFilterOperationCategoryData?.id || '';
         }
         showResidentBtn.value = tryURLDecodeParse<boolean>(queryShowResidentBtn as string, false);
         alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
-
-        /** 兼容事件中心的bizIds */
-        alarmStore.bizIds =
-          typeof bizIds === 'string' ? tryURLDecodeParse(bizIds, [-1]) : bizIds.map(item => Number(item));
+        if (bizIds) {
+          /** 兼容事件中心的bizIds */
+          if (typeof bizIds === 'string') {
+            alarmStore.bizIds = Number.isNaN(Number(bizIds)) ? tryURLDecodeParse(bizIds, [-1]) : [Number(bizIds)];
+          } else {
+            alarmStore.bizIds = bizIds.map(item => Number(item));
+          }
+        }
         ordering.value = (sortOrder as string) || '';
         page.value = Number(currentPage || 1);
         if (favoriteId) {
@@ -461,13 +485,15 @@ export default defineComponent({
 
     /** 上一个详情 */
     const handlePreviousDetail = () => {
-      const index = data.value.findIndex(item => item.id === alarmId.value);
+      let index = data.value.findIndex(item => item.id === alarmId.value);
+      index = index === -1 ? 0 : index;
       alarmId.value = (data.value as AlertTableItem[])[index === 0 ? data.value.length - 1 : index - 1].id;
     };
 
     /** 下一个详情 */
     const handleNextDetail = () => {
-      const index = data.value.findIndex(item => item.id === alarmId.value);
+      let index = data.value.findIndex(item => item.id === alarmId.value);
+      index = index === -1 ? 0 : index;
       alarmId.value = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 0 : index + 1].id;
     };
 
@@ -628,8 +654,10 @@ export default defineComponent({
     });
 
     return {
+      isFirstInit,
       quickFilterList,
       quickFilterLoading,
+      quickFilterEmptyStatusType,
       isCollapsed,
       data,
       loading,
@@ -696,6 +724,7 @@ export default defineComponent({
       handleFavoriteOpenBlank,
       handleSaveAlertContentName,
       handleShowResidentBtnChange,
+      handleQuickFilteringOperation,
     };
   },
   render() {
@@ -757,10 +786,20 @@ export default defineComponent({
                       <QuickFiltering
                         filterList={this.quickFilterList}
                         filterValue={this.alarmStore.quickFilterValue}
+                        isFirstInit={this.isFirstInit}
                         loading={this.quickFilterLoading}
                         onClose={this.updateIsCollapsed}
                         onUpdate:filterValue={this.handleFilterValueChange}
-                      />
+                      >
+                        {{
+                          empty: () => (
+                            <EmptyStatus
+                              type={this.quickFilterEmptyStatusType}
+                              onOperation={this.handleQuickFilteringOperation}
+                            />
+                          ),
+                        }}
+                      </QuickFiltering>
                     </div>
                   );
                 },

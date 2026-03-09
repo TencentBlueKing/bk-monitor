@@ -387,12 +387,16 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
   }
   async getAnalysisTopNData(
     params: Partial<CommonFilterParams>,
-    isAll = false
+    isAll = false,
+    options?: RequestOptions
   ): Promise<AnalysisTopNDataResponse<AnalysisFieldAggItem>> {
-    const data = await incidentTopN({
-      ...params,
-      size: isAll ? 100 : 10,
-    }).catch(() => ({
+    const data = await incidentTopN(
+      {
+        ...params,
+        size: isAll ? 100 : 10,
+      },
+      options
+    ).catch(() => ({
       doc_count: 0,
       fields: [],
     }));
@@ -418,7 +422,6 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
         total: 0,
         data: [],
       }));
-    console.info('IncidentService getFilterTableList', data, '==========');
     return data;
   }
 
@@ -446,13 +449,16 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
     return data;
   }
 
-  async getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]> {
+  async getQuickFilterList(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<QuickFilterItem[]> {
     const level = await this.getIncidentLevelList(params);
-    const data = await incidentOverview({
-      ...params,
-      show_overview: true, // 是否展示概览
-      show_aggs: true, // 是否展示聚合
-    })
+    const data = await incidentOverview(
+      {
+        ...params,
+        show_overview: true, // 是否展示概览
+        show_aggs: true, // 是否展示聚合
+      },
+      options
+    )
       .then(({ overview }) => {
         const myIncidentList = [];
         const incidentLevelList = [];

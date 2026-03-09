@@ -80,15 +80,24 @@
       }
     }
 
+    .t-table__expandable-icon-cell {
+      vertical-align: top;
+      padding: 4px 12px;
+      .t-table__expand-box {
+        height: auto;
+      }
+    }
     .col-td {
       padding: 4px 12px;
+      vertical-align: top;
     }
 
     &.t-table__custom-scroll .t-table--scroll-horizontal:hover::-webkit-scrollbar {
       height: 7px !important;
     }
 
-    &.t-table__custom-scroll .t-table--scroll-vertical:hover, .t-table.t-table__custom-scroll .t-table--scroll-horizontal:hover {
+    &.t-table__custom-scroll .t-table--scroll-vertical:hover,
+    .t-table.t-table__custom-scroll .t-table--scroll-horizontal:hover {
       height: 7px;
     }
   }

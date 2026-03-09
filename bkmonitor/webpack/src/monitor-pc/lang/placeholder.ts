@@ -315,6 +315,7 @@ export default {
   基于策略选择: 'Policy-based selection',
   '可输入规则名称，标签搜索': 'Enter Rule name, label search',
   请输入搜索或筛选: 'Please enter search or filter',
+  支持正则匹配: 'Support regular expressions',
 
   '选择应用/服务': 'Select Application/Service',
   请输入关键字或标签: 'Please enter keywords or tags',
@@ -372,4 +373,7 @@ export default {
   '请输入 关键字': 'Please enter keywords',
   '搜索 字段名称': 'Search Field Name',
   输入告警ID进行变量渲染: 'Enter Alarm ID to render variables',
+  '搜索 名称、别名': 'Search Name, Alias',
+  '搜索 指标名、别名': 'Search Metric Name, Alias',
+  '搜索 告警关键词': 'Search Alarm Keywords',
 };
