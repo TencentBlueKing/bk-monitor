@@ -26,16 +26,12 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { createDemoAction, getDemoActionDetail } from 'monitor-api/modules/action';
+import { createDemoAction, getDemoActionDetail, previewDemoActionContext } from 'monitor-api/modules/action';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
 import SimpleForm from '../components/simple-form';
 import HttpCallBack from './http-callback';
 import { type IPeripheral, type IWebhook, transformMealContentParams } from './meal-content-data';
-
-const previewDemoActionContext = request('POST', '/fta/action/instances/preview_demo_action_context/');
-
-import { request } from 'monitor-api/base';
 
 import './meal-debug-dialog.scss';
 
@@ -124,9 +120,9 @@ export default class MealDebugDialog extends tsc<IProps> {
   // 调试数据替换周边系统变量数据
   setDebugPeripheralData() {
     const variableMap = {};
-    this.debugPeripheralForm.forEach(item => {
+    for (const item of this.debugPeripheralForm) {
       variableMap[item.key] = item.value;
-    });
+    }
     this.debugData.peripheral.data.templateDetail = variableMap;
   }
 
@@ -340,6 +336,9 @@ export default class MealDebugDialog extends tsc<IProps> {
    * @return {*}
    */
   async handlePreviewDemoAction() {
+    if (!this.alertId) {
+      return;
+    }
     this.previewDemoActionLoading = true;
     const variables = {};
     for (const item of this.debugPeripheralForm) {
@@ -347,15 +346,13 @@ export default class MealDebugDialog extends tsc<IProps> {
       variables[item.label] = typeof value === 'undefined' ? item.value : value;
     }
     const data = await previewDemoActionContext({
-      alert_ids: [this.alertId],
+      alert_id: this.alertId,
       variables: variables,
-    }).catch(() => ({
-      variables: {},
-    }));
+    }).catch(() => ({}));
     this.handleDebugPeripheralDataChange(
       this.debugPeripheralForm.map(item => ({
         ...item,
-        value: typeof data?.variables?.[item.label] === 'undefined' ? item.value : data.variables[item.label],
+        value: typeof data?.[item.label] === 'undefined' ? item.value : data[item.label],
       }))
     );
     this.previewDemoActionLoading = false;
