@@ -1,12 +1,13 @@
 import json
 import os
+import sys
 from datetime import datetime, date
+from typing import Any
 
 from django.core.management import BaseCommand, CommandError
 from django.db import connection, DatabaseError
 
 from bkm_space.utils import bk_biz_id_to_space_uid
-from home_application.management.commands.migrate_tool import parse_str_int_list, Prompt, parse_str_list
 
 PROJECT_PATH = os.getcwd()
 
@@ -231,3 +232,96 @@ class DateTimeEncoder(json.JSONEncoder):
         if isinstance(obj, datetime | date):
             return obj.strftime("%Y-%m-%d %H:%M:%S")
         return super().default(obj)
+
+
+class JsonFile:
+    """json文件读写"""
+
+    @classmethod
+    def read(cls, filepath: str, encoding: str = "utf-8") -> Any:
+        with open(filepath, encoding=encoding) as f:
+            return json.load(f)
+
+
+def parse_str_int_list(str_list: str) -> list[int]:
+    """解析字符串为int列表"""
+    try:
+        if not str_list:
+            return []
+        return [int(i) for i in str_list.split(",") if i]
+    except Exception:
+        raise Exception(f"解析失败: {str_list}, 请输入逗号分隔的数字")
+
+
+def parse_str_list(str_list: str) -> list[str]:
+    """解析字符串为字符串列表"""
+    try:
+        if not str_list:
+            return []
+        return str_list.split(",")
+    except Exception:
+        raise Exception(f"解析失败: {str_list}, 请输入逗号分隔的字符")
+
+
+class PromptColorEnum:
+    """提示颜色枚举"""
+
+    DEBUG = "cyan"
+    INFO = "green"
+    WARNING = "blue"
+    ERROR = "red"
+    PANIC = "red"
+
+
+class Prompt:
+    """提示"""
+
+    COLORS = {
+        "black": "\033[30m",
+        "red": "\033[31m",
+        "green": "\033[32m",
+        "yellow": "\033[33m",
+        "blue": "\033[34m",
+        "magenta": "\033[35m",
+        "cyan": "\033[36m",
+        "white": "\033[37m",
+        "reset": "\033[0m",
+    }
+
+    @classmethod
+    def print(cls, msg: Any, **kwargs):
+        if kwargs:
+            for key, value in kwargs.items():
+                msg = msg.replace(f"{{{key}}}", f"{value}")
+        print(msg)
+
+    @classmethod
+    def fprint(cls, level: str, msg: Any, **kwargs):
+        color = cls.COLORS[PromptColorEnum.__dict__[level.upper()]]
+        msg = f"{color}[{level.upper()}]{cls.COLORS['reset']}\t" + msg
+        if kwargs:
+            for key, value in kwargs.items():
+                msg = msg.replace(f"{{{key}}}", f"{color}{value}{cls.COLORS['reset']}")
+        print(msg)
+
+    @classmethod
+    def debug(cls, msg: Any, **kwargs):
+        if os.environ.get("DEBUG", "False"):
+            cls.fprint("debug", msg, **kwargs)
+
+    @classmethod
+    def info(cls, msg: Any, **kwargs):
+        cls.fprint("info", msg, **kwargs)
+
+    @classmethod
+    def warning(cls, msg: Any, **kwargs):
+        cls.fprint("warning", msg, **kwargs)
+
+    @classmethod
+    def error(cls, msg: Any, **kwargs):
+        cls.fprint("error", msg, **kwargs)
+
+    @classmethod
+    def panic(cls, msg: Any, **kwargs):
+        cls.fprint("panic", msg, **kwargs)
+        sys.exit(1)
