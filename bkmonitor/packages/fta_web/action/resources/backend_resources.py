@@ -272,7 +272,6 @@ class GetDemoActionContextResource(Resource):
             else (alert.latest_time or datetime.now())
         )
         inputs = {"alert_latest_time": alert.latest_time, "is_alert_shielded": False, "shield_ids": []}
-        default_dict = defaultdict(str)
 
         return ActionInstance(
             id=0,
@@ -286,7 +285,7 @@ class GetDemoActionContextResource(Resource):
             alert_level=alert_level,
             status="received",
             failure_type="",
-            ex_data=default_dict,
+            ex_data=defaultdict(str),
             create_time=alert_create_time,
             end_time=alert_end_time,
             update_time=alert_create_time,
@@ -299,7 +298,7 @@ class GetDemoActionContextResource(Resource):
             sub_actions=[],
             assignee=assignee,
             inputs=inputs,
-            outputs=default_dict,
+            outputs=defaultdict(str),
             real_status="",
             is_polled=False,
             need_poll=False,
