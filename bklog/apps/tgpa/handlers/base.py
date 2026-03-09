@@ -230,10 +230,7 @@ class TGPAFileHandler:
         :param file_name: COS上的文件名
         :return: 文件路径
         """
-        # 下载压缩包
         saved_path = self.download_file(file_name)
-
-        # 没有解密处理器，不需要处理，直接返回原始文件
         if not self.decrypt_handler:
             return saved_path
 
@@ -245,8 +242,6 @@ class TGPAFileHandler:
             os.makedirs(self.output_dir, exist_ok=True)
             base_name = os.path.basename(file_name)
             output_zip_path = os.path.join(self.output_dir, base_name)
-            if not output_zip_path.endswith(".zip"):
-                output_zip_path += ".zip"
 
             temp_dir_path = Path(self.temp_dir)
             with zipfile.ZipFile(output_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:

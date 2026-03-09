@@ -35,6 +35,7 @@ from apps.tgpa.constants import (
     TGPA_DOWNLOAD_DIR,
     FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE,
     FEATURE_TOGGLE_TGPA_TASK,
+    TGPA_FILE_DOWNLOAD_CHUNK_SIZE,
 )
 from apps.tgpa.exceptions import FileSizeExceedLimitException
 from apps.tgpa.handlers.base import TGPAFileHandler
@@ -272,7 +273,7 @@ class TGPATaskHandler:
         result_file_name = os.path.basename(result_path)
         file_size = os.path.getsize(result_path)
 
-        def file_iterator(chunk_size=8192):
+        def file_iterator(chunk_size=TGPA_FILE_DOWNLOAD_CHUNK_SIZE):
             """文件流式读取迭代器"""
             try:
                 with open(result_path, "rb") as f:
