@@ -1,0 +1,27 @@
+.suspicious-link-panel {
+  .link-text {
+    color: #3a84ff;
+    cursor: pointer;
+
+    .icon-monitor {
+      margin-right: 4px;
+      font-size: 12px;
+    }
+
+    &:hover {
+      color: #699df4;
+    }
+  }
+
+  .link-group-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    .group-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}

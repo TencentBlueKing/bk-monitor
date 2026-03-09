@@ -32,7 +32,7 @@ import LogPanel from './components/log-panel';
 import MetricPanel from './components/metric-panel';
 import { DiagnosticTypeEnum, DiagnosticTypeIconMap, DiagnosticTypeMap } from './constant';
 
-import type { IDiagnosticAnalysisItem } from './typing';
+import type { DiagnosticTypeEnumType } from './typing';
 
 import './analysis-panel.scss';
 
@@ -40,9 +40,9 @@ import './analysis-panel.scss';
 export default defineComponent({
   name: 'AnalysisPanel',
   props: {
-    data: {
-      type: Object as PropType<IDiagnosticAnalysisItem>,
-      default: () => ({}),
+    type: {
+      type: String as PropType<DiagnosticTypeEnumType>,
+      default: '',
     },
   },
   setup(props) {
@@ -53,17 +53,17 @@ export default defineComponent({
     };
 
     const renderAnalysisPanel = () => {
-      switch (props.data.type) {
+      switch (props.type) {
         case DiagnosticTypeEnum.DIMENSION:
-          return <DimensionPanel data={props.data.list} />;
+          return <DimensionPanel />;
         case DiagnosticTypeEnum.LINK:
-          return <LinkPanel data={props.data.list} />;
+          return <LinkPanel />;
         case DiagnosticTypeEnum.LOG:
-          return <LogPanel data={props.data.list} />;
+          return <LogPanel />;
         case DiagnosticTypeEnum.EVENT:
-          return <EventPanel data={props.data.list} />;
+          return <EventPanel />;
         case DiagnosticTypeEnum.Metic:
-          return <MetricPanel data={props.data.list} />;
+          return <MetricPanel />;
       }
     };
 
@@ -81,9 +81,9 @@ export default defineComponent({
             class='analysis-panel-wrapper-header'
             onClick={() => this.toggleExpand(!this.isExpand)}
           >
-            <i class={['icon-monitor', 'analysis-type-icon', DiagnosticTypeIconMap[this.data.type]]} />
-            <span class='panel-title'>{DiagnosticTypeMap[this.data.type]}</span>
-            {this.data.list.length > 1 && <span class='count-tag'>2</span>}
+            <i class={['icon-monitor', 'analysis-type-icon', DiagnosticTypeIconMap[this.type]]} />
+            <span class='panel-title'>{DiagnosticTypeMap[this.type]}</span>
+            <span class='count-tag'>2</span>
             <i class='icon-monitor icon-arrow-right-copy arrow-icon' />
           </div>
           <div class='analysis-panel-wrapper-content'>{this.renderAnalysisPanel()}</div>

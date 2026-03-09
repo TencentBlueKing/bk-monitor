@@ -1,4 +1,4 @@
-.suspicious-dimension-panel {
+.suspicious-event-panel {
   .tips {
     margin-bottom: 12px;
     font-size: 12px;
@@ -20,7 +20,7 @@
     }
   }
 
-  .dimension-group-list {
+  .event-group-list {
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -37,18 +37,12 @@
         text-overflow: ellipsis;
         font-size: 12px;
         font-weight: 500;
-        color: #4e5e7a;
         white-space: nowrap;
-      }
 
-      .abnormality-tag {
-        flex-shrink: 0;
-        padding: 0 6px;
-        font-size: 11px;
-        font-weight: 500;
-        color: #c12726;
-        background: #fff;
-        border-radius: 999px;
+        .icon-monitor {
+          margin-left: 5px;
+          font-size: 11px;
+        }
       }
     }
 

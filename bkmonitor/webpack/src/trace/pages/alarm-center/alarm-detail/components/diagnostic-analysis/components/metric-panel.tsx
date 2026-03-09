@@ -23,44 +23,61 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 
-import { useI18n } from 'vue-i18n';
-
+import AnalysisTable from './analysis-table';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
-import type { ISuspiciousGroup } from '../typing';
-
-import './dimension-panel.scss';
+import './metric-panel.scss';
 
 export default defineComponent({
-  name: 'EventPanel',
-  props: {
-    data: {
-      type: Array as PropType<ISuspiciousGroup[]>,
-      default: () => [],
-    },
-  },
+  name: 'MetricPanel',
+  props: {},
   setup() {
-    const { t } = useI18n();
-
-    return {
-      t,
-    };
+    return {};
   },
   render() {
     return (
-      <div class='suspicious-dimension-panel'>
+      <div class='suspicious-metric-panel'>
         <div class='tips'>
           {this.$t('下面这些指标维度，在过去时间里产生过相似的告警事件，希望能够帮助您进一步分析告警可能原因。')}
         </div>
-        <div class='dimension-group-list'>
-          {this.data.map(item => (
-            <SuspiciousAnalysisGroup
-              key={item.id}
-              data={item}
-            />
-          ))}
+        <div class='metric-group-list'>
+          <SuspiciousAnalysisGroup>
+            {{
+              title: () => (
+                <div class='group-title'>
+                  <span class='group-name'>指标：证书剩余天数（cert_shengyu_days）</span>
+                  <span
+                    class='link-text'
+                    onClick={e => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    <i class='icon-monitor icon-zhibiaojiansuo' />
+                    指标检索
+                  </span>
+                </div>
+              ),
+              default: () => (
+                <AnalysisTable
+                  tableData={[
+                    { name: '主机名', value: 'VM-156-110-centos' },
+                    { name: '目标IP', value: '11.185.157.110' },
+                    { name: '管控区域', value: '0' },
+                  ]}
+                  contentData={[]}
+                />
+              ),
+              footer: () => (
+                <div class='footer-content'>
+                  <span class='reason'>
+                    可疑原因：在（2025-04-16 00:00:00 ～ 2025-04-17 00:00:00）时间段内，告警产生具有相似性。
+                  </span>
+                </div>
+              ),
+            }}
+          </SuspiciousAnalysisGroup>
         </div>
       </div>
     );
