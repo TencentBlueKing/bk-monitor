@@ -155,55 +155,66 @@ class BaseTarget(abc.ABC):
         """
         raise NotImplementedError
 
-    def _build_relation_qs(
-        self,
-        target_type: type[Source],
-    ) -> list[dict[str, Any]]:
-        """构建 K8S 资源关联关系查询参数。
+    def _build_k8s_source_info(self) -> dict[str, Any] | None:
+        """构建 K8S 资源关联关系查询所需的 source_info。
 
-        将 K8S 目标数据转换为关联关系查询所需的 source_info 格式，并生成 RelationQ 查询参数列表。
+        将 K8S 目标数据转换为关联关系查询所需的 source_info 格式。
 
-        :param target_type: 关联目标类型（如 SourceService、SourceDatasource）
-        :return: RelationQ 查询参数列表
+        :return: source_info 字典，无可用数据时返回 None
         """
         related_k8s_targets: list[dict[str, Any]] = self._list_related_k8s_targets()
         if not related_k8s_targets:
-            return []
+            return None
 
-        qs: list[dict[str, Any]] = []
-        start_time, end_time = self._get_time_range()
+        source_info: dict[str, Any] = copy.deepcopy(related_k8s_targets[0])
+        if not source_info.get("bcs_cluster_id"):
+            return None
+
         resource_type: str = self._get_k8s_resource_type()
         is_workload_type: bool = resource_type == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
 
-        for related_k8s_target in related_k8s_targets:
-            source_info: dict[str, Any] = copy.deepcopy(related_k8s_target)
-            if not source_info.get("bcs_cluster_id"):
-                continue
+        workload: str = source_info.pop("workload", "")
+        if workload and is_workload_type:
+            kind, name = workload.split(":", 1)
+            source_info[kind.lower()] = name
+            source_info["name"] = kind.lower()
+        else:
+            source_info["name"] = resource_type
 
-            workload: str = source_info.pop("workload", "")
-            if workload and is_workload_type:
-                kind, name = workload.split(":", 1)
-                source_info[kind.lower()] = name
-                source_info["name"] = kind.lower()
-            else:
-                source_info["name"] = resource_type
+        return source_info
 
-            paths: list[type[Source]] = [SourceK8sPod]
-            if resource_type == K8S_RESOURCE_TYPE[K8STargetType.NODE]:
-                # 关联关系默认按最短路返回，因此 Node 需要同时尝试 Pod 与 Node 路径，提升关联准确性。
-                paths = [SourceK8sPod, SourceK8sNode]
+    def _build_relation_qs(
+        self,
+        source_info: dict[str, Any],
+        target_type: type[Source],
+    ) -> list[dict[str, Any]]:
+        """构建 K8S 资源关联关系查询参数列表。
 
-            for path in paths:
-                qs.extend(
-                    RelationQ.generate_q(
-                        bk_biz_id=self._alert.event.bk_biz_id,
-                        source_info=source_info,
-                        target_type=target_type,
-                        start_time=start_time,
-                        end_time=end_time,
-                        path_resource=[path],
-                    )
+        基于 source_info 和目标类型生成 RelationQ 查询参数。Node 类型会同时尝试 Pod 与 Node 两条路径。
+
+        :param source_info: 由 _build_k8s_source_info 构建的 source_info 字典
+        :param target_type: 关联目标类型（如 SourceService、SourceDatasource）
+        :return: RelationQ 查询参数列表
+        """
+        start_time, end_time = self._get_time_range()
+
+        paths: list[type[Source]] = [SourceK8sPod]
+        if source_info["name"] == SourceK8sNode.name:
+            # 关联关系默认按最短路返回，因此 Node 需要同时尝试 Pod 与 Node 路径，提升关联准确性。
+            paths = [SourceK8sPod, SourceK8sNode]
+
+        qs: list[dict[str, Any]] = []
+        for path in paths:
+            qs.extend(
+                RelationQ.generate_q(
+                    bk_biz_id=self._alert.event.bk_biz_id,
+                    source_info=source_info,
+                    target_type=target_type,
+                    start_time=start_time,
+                    end_time=end_time,
+                    path_resource=[path],
                 )
+            )
 
         return qs
 
@@ -246,30 +257,29 @@ class BaseTarget(abc.ABC):
 
         :return: APM 目标信息列表
         """
-        qs: list[dict[str, Any]] = self._build_relation_qs(target_type=SourceService)
+        source_info: dict[str, Any] | None = self._build_k8s_source_info()
+        if not source_info:
+            return []
+
+        qs: list[dict[str, Any]] = self._build_relation_qs(source_info, target_type=SourceService)
         if not qs:
             return []
 
-        apm_target_list: list[dict[str, Any]] = []
-        dedupe_keys: set[str] = set()
+        apm_target_list: set[frozenset] = set()
         for relation in RelationQ.query(qs, fill_with_empty=True):
             if not relation:
                 continue
 
             for node in relation.nodes:
-                source_info: dict[str, Any] = node.source_info.to_source_info()
-                app_name: str = source_info.get("apm_application_name", "")
-                service_name: str = source_info.get("apm_service_name", "")
+                node_source_info: dict[str, Any] = node.source_info.to_source_info()
+                app_name: str = node_source_info.get("apm_application_name", "")
+                service_name: str = node_source_info.get("apm_service_name", "")
                 if not app_name or not service_name:
                     continue
 
-                dedupe_key: str = f"{app_name}:{service_name}"
-                if dedupe_key in dedupe_keys:
-                    continue
-                dedupe_keys.add(dedupe_key)
-                apm_target_list.append({"app_name": app_name, "service_name": service_name})
+                apm_target_list.add(frozenset({"app_name": app_name, "service_name": service_name}.items()))
 
-        return apm_target_list
+        return [dict(target) for target in apm_target_list]
 
     @abc.abstractmethod
     def list_related_log_targets(self) -> list[dict[str, Any]]:
@@ -359,12 +369,16 @@ class BaseK8STarget(BaseTarget):
         return [target]
 
     def list_related_log_targets(self) -> list[dict[str, Any]]:
-        qs: list[dict[str, Any]] = self._build_relation_qs(target_type=SourceDatasource)
+        source_info: dict[str, Any] | None = self._build_k8s_source_info()
+        if not source_info:
+            return []
+
+        qs: list[dict[str, Any]] = self._build_relation_qs(source_info, target_type=SourceDatasource)
         if not qs:
             return []
 
         addition: list[dict[str, Any]] = []
-        namespace: str | int | None = self._get_dimension_value(["namespace"])
+        namespace: str | None = source_info.get("namespace")
         if namespace:
             addition.append(
                 {
@@ -378,11 +392,11 @@ class BaseK8STarget(BaseTarget):
         # Case1 - 从维度中获取 Pod 名称
         # Case2 - 如果是 Workload 目标，则使用 contains 方式模糊匹配 Pod 名称
         pod: str | None = self._get_dimension_value(["pod", "pod_name"])
-        workload_name: str | None = self._get_dimension_value(["workload_name"])
-        is_workload_type: bool = self._get_k8s_resource_type() == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
+        # workload 类型时 source_info 中存在以 kind 为 key 的值（如 deployment=bkm-web），非 workload 类型时为 None
+        workload_name: str | None = source_info.get(source_info["name"])
         if pod:
             addition.append({"field": "__ext.io_kubernetes_pod", "operator": "=", "value": [pod]})
-        elif is_workload_type and workload_name:
+        elif workload_name:
             addition.append({"field": "__ext.io_kubernetes_pod", "operator": "contains", "value": [workload_name]})
 
         # 使用主机 IP 进一步过滤日志
