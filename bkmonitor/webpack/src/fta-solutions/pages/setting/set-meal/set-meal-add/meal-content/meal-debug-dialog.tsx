@@ -348,11 +348,11 @@ export default class MealDebugDialog extends tsc<IProps> {
     const data = await previewDemoActionContext({
       alert_id: this.alertId,
       variables: variables,
-    }).catch(() => ({}));
+    }).catch(() => ({ variables: {} }));
     this.handleDebugPeripheralDataChange(
       this.debugPeripheralForm.map(item => ({
         ...item,
-        value: typeof data?.[item.label] === 'undefined' ? item.value : data[item.label],
+        value: typeof data?.variables?.[item.label] === 'undefined' ? item.value : data.variables[item.label],
       }))
     );
     setTimeout(() => {
