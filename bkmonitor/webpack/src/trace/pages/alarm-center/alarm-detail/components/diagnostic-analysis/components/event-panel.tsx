@@ -56,7 +56,7 @@ export default defineComponent({
                   </span>
 
                   <span
-                    class='link-text'
+                    class='link-text detail-link'
                     onClick={e => {
                       e.stopPropagation();
                     }}

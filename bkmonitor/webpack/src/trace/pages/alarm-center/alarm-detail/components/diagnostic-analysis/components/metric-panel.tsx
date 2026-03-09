@@ -49,7 +49,7 @@ export default defineComponent({
                 <div class='group-title'>
                   <span class='group-name'>指标：证书剩余天数（cert_shengyu_days）</span>
                   <span
-                    class='link-text'
+                    class='link-text detail-link'
                     onClick={e => {
                       e.stopPropagation();
                     }}

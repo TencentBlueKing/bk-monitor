@@ -33,6 +33,10 @@
         color: #4e5e7a;
         white-space: nowrap;
       }
+
+      .link-text {
+        flex-shrink: 0;
+      }
     }
   }
 }

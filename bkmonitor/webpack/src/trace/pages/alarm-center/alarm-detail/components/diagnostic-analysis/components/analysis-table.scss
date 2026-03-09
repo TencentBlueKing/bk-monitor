@@ -7,6 +7,7 @@
       background: #fafbfc;
 
       .analysis-table-name {
+        flex-shrink: 0;
         width: 110px;
         padding-left: 24px;
         font-size: 12px;

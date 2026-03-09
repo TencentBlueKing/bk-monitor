@@ -40,6 +40,10 @@
         color: #4e5e7a;
         white-space: nowrap;
       }
+
+      .detail-link {
+        flex-shrink: 0;
+      }
     }
 
     .footer-content {
