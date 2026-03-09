@@ -15,6 +15,7 @@ import math
 import re
 import time
 from collections import defaultdict
+from typing import Any
 
 from django.conf import settings
 from django.db import models
@@ -795,6 +796,7 @@ class TimeSeriesGroup(CustomGroupBase):
         enable_field_black_list=None,
         metric_info_list=None,
         data_label: str | None = None,
+        options: dict[str, Any] | None = None,
     ):
         """
         修改一个自定义时序组
@@ -806,6 +808,7 @@ class TimeSeriesGroup(CustomGroupBase):
         :param enable_field_black_list: 黑名单的启用状态，bool,
         :param metric_info_list: metric信息
         :param data_label: 数据标签
+        :param options: 结果表选项内容
         :return: True or raise
         """
         return self.modify_custom_group(
@@ -817,6 +820,7 @@ class TimeSeriesGroup(CustomGroupBase):
             field_list=field_list,
             enable_field_black_list=enable_field_black_list,
             data_label=data_label,
+            options=options,
         )
 
     @atomic(config.DATABASE_CONNECTION_NAME)

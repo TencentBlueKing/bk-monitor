@@ -1304,6 +1304,7 @@ class ModifyTimeSeriesGroupResource(Resource):
         metric_info_list = serializers.ListField(required=False, label="metric信息", default=None)
         enable_field_black_list = serializers.BooleanField(required=False, label="黑名单的启用状态", default=None)
         data_label = serializers.CharField(label="数据标签", required=False, default=None)
+        options = serializers.DictField(required=False, label="结果表选项内容", default=None)
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")

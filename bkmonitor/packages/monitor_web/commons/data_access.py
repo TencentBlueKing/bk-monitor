@@ -396,8 +396,10 @@ class PluginDataAccessor:
                     }
                 )
                 if operation == "create":
+                    options: dict[str, Any] = {"enable_plugin_v4_data_link": True}
                     if self.etl_config == "bk_exporter":
-                        param.update({"option": {"enable_default_value": False}})
+                        options["enable_default_value"] = False
+                    param["option"] = options
                     func_list.append(api.metadata.create_result_table)
                 else:
                     func_list.append(api.metadata.modify_result_table)
@@ -565,6 +567,7 @@ class PluginDataAccessor:
                 "is_split_measurement": is_split_measurement,
                 "metric_info_list": metric_info_list,
                 "data_label": self.data_label,
+                "options": {"enable_plugin_v4_data_link": True},
             }
             # 插件数据在这里需要去掉业务id
             # 单指标单表，不需要补齐schema: "enable_default_value": False,
