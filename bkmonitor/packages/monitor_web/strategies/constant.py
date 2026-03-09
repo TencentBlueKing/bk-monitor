@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
@@ -15,7 +15,7 @@ from bkmonitor.models import AlgorithmModel
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
-class Scenario(object):
+class Scenario:
     UPTIME_CHECK = "uptimecheck"
     HOST = "HOST"
     SERVICE = "SERVICE"
@@ -119,13 +119,21 @@ class ValueableList:
                     "name": _lazy("运维人员字符串"),
                     "description": "admin,user1",
                 },
-                {"id": "target.business.bk_biz_tester_string", "name": _lazy("测试人员字符串"), "description": "admin,user1"},
+                {
+                    "id": "target.business.bk_biz_tester_string",
+                    "name": _lazy("测试人员字符串"),
+                    "description": "admin,user1",
+                },
                 {
                     "id": "target.business.bk_biz_productor_string",
                     "name": _lazy("产品人员字符串"),
                     "description": "admin,user1",
                 },
-                {"id": "target.business.operator_string", "name": _lazy("操作人员字符串"), "description": "admin,user1"},
+                {
+                    "id": "target.business.operator_string",
+                    "name": _lazy("操作人员字符串"),
+                    "description": "admin,user1",
+                },
                 {"id": "target.host.module_string", "name": _lazy("模块名"), "description": "module1,module2"},
                 {"id": "target.host.set_string", "name": _lazy("集群名"), "description": "set1,set2"},
                 {"id": "target.host.bk_host_id", "name": _lazy("主机ID"), "description": "1"},
@@ -143,7 +151,11 @@ class ValueableList:
                 {"id": "target.host.bk_host_innerip", "name": _lazy("内网IP"), "description": "127.0.0.1,127.0.0.2"},
                 {"id": "target.service_instance.service_instance_id", "name": _lazy("服务实例ID"), "description": "1"},
                 {"id": "target.service_instance.name", "name": _lazy("服务实例名"), "description": "xxx_127.0.1.11"},
-                {"id": "target.service_instances.service_instance_id", "name": _lazy("服务实例ID"), "description": "1,2"},
+                {
+                    "id": "target.service_instances.service_instance_id",
+                    "name": _lazy("服务实例ID"),
+                    "description": "1,2",
+                },
                 {
                     "id": "target.service_instances.name",
                     "name": _lazy("服务实例名"),
@@ -156,7 +168,11 @@ class ValueableList:
                     "name": _lazy("进程名称"),
                     "description": _lazy("进程1"),
                 },
-                {"id": 'target.process["process_name"].bk_func_name', "name": _lazy("进程功能名称"), "description": "java"},
+                {
+                    "id": 'target.process["process_name"].bk_func_name',
+                    "name": _lazy("进程功能名称"),
+                    "description": "java",
+                },
                 {"id": 'target.process["process_name"].bind_ip', "name": _lazy("绑定IP"), "description": "127.0.1.10"},
                 {"id": 'target.process["process_name"].port', "name": _lazy("绑定端口"), "description": "1,2,3-5,7-10"},
             ],
@@ -166,19 +182,24 @@ class ValueableList:
             "name": _lazy("告警变量"),
             "description": {"format": "{{a.b}}", "object": None, "field": None},
             "items": [
-                {"id": 'alarm.dimensions["dimension_name"].display_name', "name": _lazy("维度名"), "description": "目标IP"},
+                {
+                    "id": 'alarm.dimensions["dimension_name"].display_name',
+                    "name": _lazy("维度名"),
+                    "description": "目标IP",
+                },
                 {
                     "id": 'alarm.dimensions["dimension_name"].display_value',
                     "name": _lazy("维度值"),
                     "description": "127.0.0.1",
                 },
                 {"id": "alarm.target_string", "name": _lazy("告警目标"), "description": "127.0.1.10,127.0.1.11"},
-                {"id": "alarm.dimension_string", "name": _lazy("告警维度(除目标)"), "description": _lazy("磁盘=C,主机名=xxx")},
+                {
+                    "id": "alarm.dimension_string",
+                    "name": _lazy("告警维度(除目标)"),
+                    "description": _lazy("磁盘=C,主机名=xxx"),
+                },
                 {"id": "alarm.collect_count", "name": _lazy("汇总事件数量"), "description": "10"},
                 {"id": "alarm.notice_from", "name": _lazy("消息来源"), "description": _lazy("蓝鲸监控")},
-                {"id": "alarm.company", "name": _lazy("企业标识"), "description": _lazy("蓝鲸")},
-                {"id": "alarm.data_source_name", "name": _lazy("数据来源名称"), "description": _lazy("计算平台")},
-                {"id": "alarm.data_source", "name": _lazy("数据来源"), "description": "BKMONITOR"},
                 {"id": "alarm.detail_url", "name": _lazy("详情链接"), "description": ""},
                 {"id": "alarm.current_value", "name": _lazy("当前值"), "description": "1.1"},
                 {"id": "alarm.target_type", "name": _lazy("目标类型"), "description": "IP/INSTANCE/TOPO"},
@@ -195,7 +216,11 @@ class ValueableList:
                 {"id": "strategy.scenario", "name": _lazy("场景"), "description": "os"},
                 {"id": "strategy.source_type", "name": _lazy("数据来源"), "description": "BKMONITOR"},
                 {"id": "strategy.bk_biz_id", "name": _lazy("业务ID"), "description": "2"},
-                {"id": "strategy.item.result_table_id", "name": _lazy("结果表名称"), "description": "system.cpu_detail"},
+                {
+                    "id": "strategy.item.result_table_id",
+                    "name": _lazy("结果表名称"),
+                    "description": "system.cpu_detail",
+                },
                 {"id": "strategy.item.name", "name": _lazy("指标名称"), "description": _lazy("空闲率")},
                 {"id": "strategy.item.metric_field", "name": _lazy("指标字段"), "description": "idle"},
                 {"id": "strategy.item.unit", "name": _lazy("单位"), "description": "%"},
