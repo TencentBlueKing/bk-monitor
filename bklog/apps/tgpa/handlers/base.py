@@ -238,10 +238,7 @@ class TGPAFileHandler:
             return saved_path
 
         try:
-            # 递归解压
             self.extract_nested_zip(self.temp_dir)
-
-            # 解密所有文件
             self._decrypt_all_files(self.temp_dir)
 
             # 将整个临时目录重新打包为zip文件
@@ -256,10 +253,8 @@ class TGPAFileHandler:
                 for file_path in temp_dir_path.rglob("*"):
                     if file_path.is_file():
                         zipf.write(str(file_path), str(file_path.relative_to(temp_dir_path)))
-
             return output_zip_path
         finally:
-            # 打包完成后清理临时目录
             shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @staticmethod

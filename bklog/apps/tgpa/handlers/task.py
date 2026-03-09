@@ -246,7 +246,7 @@ class TGPATaskHandler:
     @staticmethod
     def stream_download_file(bk_biz_id, file_name):
         """
-        下载、解密、重新打包文件，并返回流式迭代器和文件信息（独立方法，不依赖实例属性）
+        下载、解密、重新打包文件，并返回流式迭代器和文件信息
         :param bk_biz_id: 业务ID
         :param file_name: COS上的文件名
         :return: (file_iterator, file_name, file_size)
@@ -259,7 +259,7 @@ class TGPATaskHandler:
         if file_info["content_length"] > max_size:
             raise FileSizeExceedLimitException()
 
-        # 使用UUID作为临时目录标识，避免前端传入的file_name导致路径穿越风险，同时避免并发请求的目录冲突
+        # 使用UUID作为临时目录标识，避免并发请求的目录冲突
         unique_id = uuid.uuid4().hex
         base_dir = os.path.join(TGPA_DOWNLOAD_DIR, str(bk_biz_id), unique_id)
         temp_dir = os.path.join(base_dir, "temp")
