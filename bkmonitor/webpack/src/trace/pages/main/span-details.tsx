@@ -86,6 +86,8 @@ const guideInfoData: Record<string, IGuideInfo> = {
 };
 
 type TabName = 'BasicInfo' | 'Container' | 'Event' | 'Host' | 'Index' | 'Log' | 'Process' | 'Profiling';
+/** 不需要解码的属性名白名单 */
+const UNDECODED_PROPERTY_NAMES_WHITELIST = ['net.peer.port'];
 export default defineComponent({
   name: 'SpanDetails',
   props: {
@@ -819,7 +821,11 @@ export default defineComponent({
                   <span class='icon-monitor icon-mind-fill' />
                 </div>
               ) : (
-                <div class='right'>{formatContent(item.content, item.isFormat)}</div>
+                <div class='right'>
+                  {UNDECODED_PROPERTY_NAMES_WHITELIST.includes(item.label)
+                    ? item.content
+                    : formatContent(item.content, item.isFormat)}
+                </div>
               )}
               {isJson(item.content) && (
                 <Button
