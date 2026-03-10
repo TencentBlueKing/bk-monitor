@@ -44,7 +44,7 @@ SUPERVISOR_SERVER = "unix:///var/run/bkmonitorv3/monitor-supervisor.sock"
 SUPERVISOR_USERNAME = ""
 SUPERVISOR_PASSWORD = ""
 
-INSTALLED_APPS += (  # noqa: F405
+INSTALLED_APPS += (  # noqa: F405,F821
     "django_celery_beat",
     "django_celery_results",
     "django_elasticsearch_dsl",
@@ -139,6 +139,7 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.action_config.refresh_total", "*/60 * * * *", "global"),
     ("alarm_backends.core.cache.action_config.refresh_latest_5_minutes", "* * * * *", "global"),
     ("alarm_backends.core.cache.assign", "* * * * *", "global"),
+    ("alarm_backends.core.cache.issue", "*/5 * * * *", "global"),
     ("alarm_backends.core.cache.calendar", "* * * * *", "global"),
     ("alarm_backends.core.cache.subscribe", "* * * * *", "global"),
     # api cache
@@ -183,7 +184,7 @@ DEFAULT_CRONTAB = [
     ("metadata.task.sync_space.refresh_bkcc_space_name", "*/6 * * * *", "global"),
 ]
 
-if BCS_API_GATEWAY_HOST:
+if BCS_API_GATEWAY_HOST:  # noqa: F821
     DEFAULT_CRONTAB += [
         # bcs资源同步
         ("api.bcs.tasks.sync_bcs_cluster_to_db", "*/15 * * * *", "global"),
@@ -383,7 +384,7 @@ LOGGING = {
     "disable_existing_loggers": False,
     "loggers": {
         "": {"level": LOGGER_LEVEL, "handlers": LOGGER_HANDLERS},
-        **{k: {"level": v, "handlers": LOGGER_HANDLERS} for k, v in LOG_LEVEL_MAP.items()},
+        **{k: {"level": v, "handlers": LOGGER_HANDLERS} for k, v in LOG_LEVEL_MAP.items()},  # noqa: F821
     },
     "handlers": {
         "console": {"class": "logging.StreamHandler", "level": LOGGER_LEVEL, "formatter": "standard"},
@@ -391,7 +392,7 @@ LOGGING = {
             "class": "logging.handlers.WatchedFileHandler",
             "level": LOGGER_LEVEL,
             "formatter": "standard",
-            "filename": os.path.join(LOG_PATH, f"{LOG_FILE_PREFIX}kernel.log"),
+            "filename": os.path.join(LOG_PATH, f"{LOG_FILE_PREFIX}kernel.log"),  # noqa: F821
             "encoding": "utf-8",
         },
     },
@@ -463,7 +464,8 @@ LICENSE_PORT = os.environ.get("BK_LICENSE_PORT", "8443")
 LICENSE_REQ_INTERVAL = [20, 60, 120]  # 连续请求n次，每次请求间隔(单位：秒)
 
 RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_VHOST, RABBITMQ_USER, RABBITMQ_PASS, _ = get_rabbitmq_settings(
-    app_code=APP_CODE, backend=True
+    app_code=APP_CODE,  # noqa: F821
+    backend=True,
 )
 
 # esb组件地址
