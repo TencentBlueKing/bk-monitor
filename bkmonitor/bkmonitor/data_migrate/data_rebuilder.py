@@ -3,9 +3,11 @@ from metadata.models import DataSource, DataSourceResultTable, EventGroup, LogGr
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR
 from metadata.models.space.constants import EtlConfigs
 from metadata.task.tasks import check_bkcc_space_builtin_datalink
-from monitor_web.commons.data_access import PluginDataAccessor
+from monitor_web.commons.data_access import PluginDataAccessor, UptimecheckDataAccessor
 from monitor_web.models.collecting import CollectConfigMeta
 from monitor_web.models.plugin import CollectorPluginMeta
+from monitor_web.models.uptime_check import UptimeCheckTask
+from monitor_web.plugin.manager.process import ProcessPluginManager
 
 
 def rebuild_system_data(bk_tenant_id: str, bk_biz_id: int):
@@ -80,20 +82,59 @@ def rebuild_collect_plugins(bk_tenant_id: str, bk_biz_id: int, collect_config_id
     # 获取插件对应的数据源/结果表/自定义上报
     for plugin in plugins:
         if plugin.plugin_type in [CollectorPluginMeta.PluginType.SNMP_TRAP, CollectorPluginMeta.PluginType.LOG]:
-            pass
+            event_group = EventGroup.objects.get(event_group_name=f"{plugin.plugin_type}_{plugin.plugin_id}")
+            rebuild_event_group(bk_tenant_id, bk_biz_id, [event_group.event_group_id])
         elif plugin.plugin_type == CollectorPluginMeta.PluginType.PROCESS:
-            pass
+            group_ids = list(
+                TimeSeriesGroup.objects.filter(
+                    bk_tenant_id=bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    time_series_group_name__in=["process_perf", "process_port"],
+                ).values_list("time_series_group_id", flat=True)
+            )
+            if group_ids:
+                rebuild_time_series_group(bk_tenant_id, bk_biz_id, group_ids)
+            else:
+                ProcessPluginManager(plugin, operator="system").touch(bk_biz_id)
         else:
             accessor = PluginDataAccessor(plugin.current_version, operator="system")
             data_source = DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=accessor.get_data_id())
-            _enable_plugin_data_source_and_related_models(bk_tenant_id, bk_biz_id, data_source)
-            accessor.access()
+
+            time_series_group = TimeSeriesGroup.objects.filter(
+                bk_tenant_id=bk_tenant_id, bk_data_id=data_source.bk_data_id
+            ).first()
+            if time_series_group:
+                rebuild_time_series_group(bk_tenant_id, bk_biz_id, [time_series_group.time_series_group_id])
+            else:
+                accessor.access()
 
     # 启用采集配置
     for collect_config in collect_configs:
         resource.collecting.toggle_collect_config_status(
             bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, id=collect_config.pk, action="enable"
         )
+
+
+def rebuild_uptime_check(bk_tenant_id: str, bk_biz_id: int):
+    """重建拨测数据
+    Args:
+        bk_tenant_id (str): 租户ID
+        bk_biz_id (int): 业务ID
+    """
+    tasks = UptimeCheckTask.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+    if not tasks.exists():
+        return
+
+    # 启用独立数据源模式
+    tasks.update(indepentent_dataid=True)
+
+    # 启用或重建自定义上
+    accessor = UptimecheckDataAccessor(tasks[0])
+    accessor.access()
+
+    # 部署任务
+    for task in tasks:
+        task.deploy()
 
 
 def rebuild_time_series_group(bk_tenant_id: str, bk_biz_id: int, time_series_group_ids: list[int]):
