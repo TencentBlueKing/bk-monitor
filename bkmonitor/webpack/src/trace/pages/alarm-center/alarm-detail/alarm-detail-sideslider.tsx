@@ -79,7 +79,7 @@ export default defineComponent({
       showDetail: authorityStore.getAuthorityDetail,
     });
 
-    const showAiAnalysis = shallowRef(false);
+    const showAiAnalysis = shallowRef(true);
 
     provide('authority', authority);
 
