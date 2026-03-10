@@ -35,17 +35,35 @@ class StrategyIssueConfig(AbstractRecordModel):
 
     VALID_CONDITION_METHODS = {"eq", "neq", "include", "exclude", "reg", "nreg"}
 
+    @classmethod
+    def _validate_condition_item(cls, cond: dict, effective_dimensions: set | None = None):
+        if not isinstance(cond, dict):
+            raise ValidationError({"conditions": f"conditions 条目必须为 dict，当前为 {type(cond)}"})
+
+        required_keys = {"key", "method", "value"}
+        missing = required_keys - set(cond.keys())
+        if missing:
+            raise ValidationError({"conditions": f"conditions 条目缺少字段: {sorted(missing)}"})
+
+        key = cond.get("key")
+        method = cond.get("method")
+        value = cond.get("value")
+
+        if not isinstance(key, str) or not key:
+            raise ValidationError({"conditions": "conditions.key 必须为非空字符串"})
+        if method not in cls.VALID_CONDITION_METHODS:
+            raise ValidationError({"conditions": f"不支持的 method: {method}"})
+        if value is None:
+            raise ValidationError({"conditions": "conditions.value 不能为空"})
+        if effective_dimensions is not None and key not in effective_dimensions:
+            raise ValidationError({"conditions": f"conditions.key={key} 不在可用维度集合中"})
+
     def clean(self):
         if not self.alert_levels or not set(self.alert_levels).issubset({1, 2, 3}):
             raise ValidationError({"alert_levels": "alert_levels 必须为 [1,2,3] 的非空子集"})
 
         for cond in self.conditions:
-            if not isinstance(cond, dict):
-                raise ValidationError({"conditions": f"conditions 条目必须为 dict，当前为 {type(cond)}"})
-            if cond.get("method") not in self.VALID_CONDITION_METHODS:
-                raise ValidationError({"conditions": f"不支持的 method: {cond.get('method')}"})
-            if self.aggregate_dimensions and cond.get("key") not in self.aggregate_dimensions:
-                raise ValidationError({"conditions": f"conditions.key={cond.get('key')} 不在 aggregate_dimensions 中"})
+            self._validate_condition_item(cond, set(self.aggregate_dimensions) if self.aggregate_dimensions else None)
 
 
 class StrategyIssueConfigService:
@@ -84,14 +102,10 @@ class StrategyIssueConfigService:
     @classmethod
     def validate_conditions(cls, conditions: list, effective_dimensions: set):
         for cond in conditions:
-            if not isinstance(cond, dict):
-                raise ValueError(f"conditions 条目必须为 dict，当前为 {type(cond)}")
-            if cond.get("method") not in cls.VALID_CONDITION_METHODS:
-                raise ValueError(f"不支持的 method: {cond.get('method')}")
-            if cond.get("key") not in effective_dimensions:
-                raise ValueError(
-                    f"conditions.key={cond.get('key')} 不在可用维度集合中，当前可用维度为: {effective_dimensions}"
-                )
+            try:
+                StrategyIssueConfig._validate_condition_item(cond, effective_dimensions)
+            except ValidationError as e:
+                raise ValueError(e.message_dict.get("conditions", [str(e)])[0])
 
     @classmethod
     def save(cls, strategy_id: int, config_data: dict) -> StrategyIssueConfig:

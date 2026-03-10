@@ -80,17 +80,12 @@ class IssueDocument(BaseDocument):
             return int(self.create_time)
         return self.parse_timestamp_by_id(self.id)
 
-    def to_dict(self, include_meta=False, skip_empty=True):
-        result = super().to_dict(include_meta=include_meta, skip_empty=skip_empty)
-        for name, field_type in self._fields.items():
-            if name not in result:
-                if isinstance(field_type, field.Keyword) and field_type._multi:
-                    result[name] = []
-                elif isinstance(field_type, field.Object):
-                    result[name] = {}
-                else:
-                    result[name] = None
-        return result
+    def to_cache_dict(self):
+        """
+        Redis 缓存使用完整结构，避免读取端出现字段缺失。
+        注意：ES 更新路径必须保留 to_dict(skip_empty=True) 的默认行为，防止局部更新误清空字段。
+        """
+        return super().to_dict(skip_empty=False)
 
     # ── 状态机方法 ──
 
@@ -199,7 +194,9 @@ class IssueDocument(BaseDocument):
         from alarm_backends.core.cache.key import ISSUE_ACTIVE_CONTENT_KEY
 
         cache_key = ISSUE_ACTIVE_CONTENT_KEY.get_key(strategy_id=self.strategy_id)
-        ISSUE_ACTIVE_CONTENT_KEY.client.set(cache_key, json.dumps(self.to_dict()), ex=ISSUE_ACTIVE_CONTENT_KEY.ttl)
+        ISSUE_ACTIVE_CONTENT_KEY.client.set(
+            cache_key, json.dumps(self.to_cache_dict()), ex=ISSUE_ACTIVE_CONTENT_KEY.ttl
+        )
 
     def _delete_redis_cache(self) -> None:
         """删除 Redis 热缓存（Issue 变为非活跃后）"""

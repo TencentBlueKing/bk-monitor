@@ -93,13 +93,44 @@ class IssueAggregationProcessor:
             return True
 
         alert_dimensions = self._get_alert_dimensions()
-        agg_condition = [
-            {"key": cond["key"], "method": cond["method"], "value": cond["value"]}
-            for cond in conditions
-            if all(k in cond for k in ("key", "method", "value"))
-        ]
+        agg_condition = []
+        for cond in conditions:
+            if not isinstance(cond, dict):
+                logger.warning(
+                    "IssueAggregationProcessor: invalid condition type, strategy_id=%s, alert_id=%s, condition=%s",
+                    self.strategy_id,
+                    self.alert.id,
+                    cond,
+                )
+                return False
+
+            if any(k not in cond for k in ("key", "method", "value")):
+                logger.warning(
+                    "IssueAggregationProcessor: invalid condition format, strategy_id=%s, alert_id=%s, condition=%s",
+                    self.strategy_id,
+                    self.alert.id,
+                    cond,
+                )
+                return False
+
+            if not cond.get("key") or cond.get("value") is None:
+                logger.warning(
+                    "IssueAggregationProcessor: invalid condition value, strategy_id=%s, alert_id=%s, condition=%s",
+                    self.strategy_id,
+                    self.alert.id,
+                    cond,
+                )
+                return False
+
+            agg_condition.append({"key": cond["key"], "method": cond["method"], "value": cond["value"]})
+
         if not agg_condition:
-            return True
+            logger.warning(
+                "IssueAggregationProcessor: conditions present but empty after parse, strategy_id=%s, alert_id=%s",
+                self.strategy_id,
+                self.alert.id,
+            )
+            return False
 
         try:
             matcher = gen_condition_matcher(agg_condition)

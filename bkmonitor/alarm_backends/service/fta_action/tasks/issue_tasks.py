@@ -20,6 +20,8 @@ from constants.issue import IssueStatus
 logger = logging.getLogger("fta_action.issue")
 
 ORPHAN_ISSUE_THRESHOLD_SECONDS = 300
+ISSUE_SCAN_PAGE_SIZE = 500
+ALERT_SCAN_PAGE_SIZE = 500
 
 
 @app.task(ignore_result=True, queue="celery_action_cron")
@@ -31,14 +33,7 @@ def sync_issue_alert_stats():
       3) 重算 impact_scope
       4) 检测 orphan issue 并触发监控告警
     """
-    search = (
-        IssueDocument.search(all_indices=True).filter("terms", status=IssueStatus.ACTIVE_STATUSES).params(size=1000)
-    )
-    hits = search.execute().hits
-    if not hits:
-        return
-
-    for hit in hits:
+    for hit in _iter_issue_hits():
         issue = IssueDocument(**hit.to_dict())
         try:
             _process_single_issue(issue)
@@ -88,9 +83,9 @@ def _process_single_issue(issue: IssueDocument):
         update_time=now,
     )
     try:
-        IssueDocument.bulk_create([update_doc], action=BulkActionType.UPSERT)
+        IssueDocument.bulk_create([update_doc], action=BulkActionType.UPDATE)
     except Exception:
-        logger.exception("sync_issue_alert_stats: UPSERT failed, issue_id=%s", issue.id)
+        logger.exception("sync_issue_alert_stats: UPDATE failed, issue_id=%s", issue.id)
 
 
 def _backfill_unlinked_alerts(issue: IssueDocument):
@@ -104,52 +99,47 @@ def _backfill_unlinked_alerts(issue: IssueDocument):
     except (TypeError, ValueError):
         return
 
-    search = (
+    base_search = (
         AlertDocument.search(all_indices=True)
         .filter("term", strategy_id=str(issue.strategy_id))
         .filter("range", begin_time={"gte": issue_create_time})
         .exclude("exists", field="issue_id")
-        .params(size=500)
     )
-    hits = search.execute().hits
-    if not hits:
-        return
 
-    update_docs = []
-    for hit in hits:
-        update_docs.append(AlertDocument(id=hit.id, issue_id=issue.id))
+    total = 0
+    for hits in _iter_alert_hit_batches(base_search):
+        update_docs = [AlertDocument(id=hit.id, issue_id=issue.id) for hit in hits]
+        try:
+            AlertDocument.bulk_create(update_docs, action=BulkActionType.UPSERT)
+            total += len(update_docs)
+        except Exception:
+            logger.exception("sync_issue_alert_stats: backfill failed, issue_id=%s", issue.id)
+            return
 
-    try:
-        AlertDocument.bulk_create(update_docs, action=BulkActionType.UPSERT)
-        logger.info(
-            "sync_issue_alert_stats: backfilled %d unlinked alerts for issue_id=%s",
-            len(update_docs),
-            issue.id,
-        )
-    except Exception:
-        logger.exception("sync_issue_alert_stats: backfill failed, issue_id=%s", issue.id)
+    if total:
+        logger.info("sync_issue_alert_stats: backfilled %d unlinked alerts for issue_id=%s", total, issue.id)
 
 
 def _build_impact_scope(issue_id: str) -> dict:
     """按关联告警汇总影响范围快照"""
-    search = AlertDocument.search(all_indices=True).filter("term", issue_id=issue_id).params(size=200)
-    hits = search.execute().hits
-    if not hits:
-        return {}
-
+    base_search = AlertDocument.search(all_indices=True).filter("term", issue_id=issue_id)
     hosts = set()
     services = set()
-    for hit in hits:
-        dimensions = hit.to_dict().get("dimensions") or []
-        for dim in dimensions:
-            if not isinstance(dim, dict):
-                continue
-            key = dim.get("key", "")
-            value = dim.get("value", "")
-            if key in ("bk_target_ip", "ip", "bk_host_id") and value:
-                hosts.add(str(value))
-            elif key in ("bk_target_service_instance_id", "service_instance_id") and value:
-                services.add(str(value))
+    for hits in _iter_alert_hit_batches(base_search, sort_fields=["id"]):
+        for hit in hits:
+            dimensions = hit.to_dict().get("dimensions") or []
+            for dim in dimensions:
+                if not isinstance(dim, dict):
+                    continue
+                key = dim.get("key", "")
+                value = dim.get("value", "")
+                if key in ("bk_target_ip", "ip", "bk_host_id") and value:
+                    hosts.add(str(value))
+                elif key in ("bk_target_service_instance_id", "service_instance_id") and value:
+                    services.add(str(value))
+
+    if not hosts and not services:
+        return {}
 
     return {
         "host_count": len(hosts),
@@ -157,3 +147,40 @@ def _build_impact_scope(issue_id: str) -> dict:
         "hosts": list(hosts)[:50],
         "services": list(services)[:50],
     }
+
+
+def _iter_issue_hits():
+    search = (
+        IssueDocument.search(all_indices=True)
+        .filter("terms", status=IssueStatus.ACTIVE_STATUSES)
+        .sort("create_time", "id")
+    )
+    search_after = None
+    while True:
+        current = search.params(size=ISSUE_SCAN_PAGE_SIZE)
+        if search_after:
+            current = current.extra(search_after=search_after)
+        hits = current.execute().hits
+        if not hits:
+            break
+        yield from hits
+        search_after = getattr(hits[-1].meta, "sort", None)
+        if not search_after:
+            break
+
+
+def _iter_alert_hit_batches(base_search, sort_fields=None):
+    sort_fields = sort_fields or ["begin_time", "id"]
+    search = base_search.sort(*sort_fields)
+    search_after = None
+    while True:
+        current = search.params(size=ALERT_SCAN_PAGE_SIZE)
+        if search_after:
+            current = current.extra(search_after=search_after)
+        hits = current.execute().hits
+        if not hits:
+            break
+        yield hits
+        search_after = getattr(hits[-1].meta, "sort", None)
+        if not search_after:
+            break
