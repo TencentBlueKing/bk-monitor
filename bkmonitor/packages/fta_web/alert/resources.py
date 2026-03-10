@@ -1478,15 +1478,14 @@ class AlertGraphQueryResource(ApiAuthResource):
 
             current_series_list.append(series)
 
-        # 以最长的 series 的时间戳为基准，对齐所有 current series 的 datapoints
+        # 以最长的 series 的时间戳为基准，对短的 series 尾部补齐 null 值
         if current_series_list and longest_series["datapoints"]:
-            base_timestamps = [point[1] for point in longest_series["datapoints"]]
+            max_len = len(longest_series["datapoints"])
+            tail_timestamps = [point[1] for point in longest_series["datapoints"]]
             for series in current_series_list:
-                if series is longest_series:
-                    continue
-
-                ts_to_value = {point[1]: point[0] for point in series["datapoints"]}
-                series["datapoints"] = [[ts_to_value.get(ts), ts] for ts in base_timestamps]
+                cur_len = len(series["datapoints"])
+                if cur_len < max_len:
+                    series["datapoints"].extend([[None, ts] for ts in tail_timestamps[cur_len:]])
 
         return result
 
