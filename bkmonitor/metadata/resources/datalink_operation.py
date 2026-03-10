@@ -417,3 +417,282 @@ class SpaceDataLinkMetaReport(Resource):
             logger.info("SpaceDataLinkMetaReport: send msg to->[%s], result->[%s]", rtx, res)
 
         return {"message": f"空间 {space_name} 的链路元信息报表已生成", "raw_data": all_data}
+
+
+class SyncBkBaseResultTableFieldsResource(Resource):
+    """
+    同步 BKBase 结果表字段到监控平台
+
+    根据传入的 result_table_id（VMRT），从 BKBase 获取结果表结构，
+    并同步字段（维度和指标）到本地 ResultTableField 表，最后推送路由。
+
+    使用场景：预计算 v4 接口接入，无需自动发现，直接同步字段。
+    """
+
+    # BKBase 字段类型到监控平台字段类型的映射
+    FIELD_TYPE_MAPPING = {
+        "int": models.ResultTableField.FIELD_TYPE_INT,
+        "long": models.ResultTableField.FIELD_TYPE_LONG,
+        "float": models.ResultTableField.FIELD_TYPE_FLOAT,
+        "double": models.ResultTableField.FIELD_TYPE_FLOAT,
+        "string": models.ResultTableField.FIELD_TYPE_STRING,
+        "text": models.ResultTableField.FIELD_TYPE_STRING,
+        "boolean": models.ResultTableField.FIELD_TYPE_BOOLEAN,
+        "timestamp": models.ResultTableField.FIELD_TYPE_TIMESTAMP,
+    }
+
+    # 需要忽略的系统字段
+    IGNORED_FIELDS = {"timestamp", "_startTime_", "_endTime_", "time"}
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        result_table_ids = serializers.ListField(
+            child=serializers.CharField(),
+            label="BKBase结果表ID列表（VMRT）",
+            help_text="例如：['100864_DsRecordUpload_TotalGame_1min_group']",
+            min_length=1,
+        )
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
+        result_table_ids = validated_request_data["result_table_ids"]
+
+        logger.info(
+            "SyncBkBaseResultTableFieldsResource: start to sync fields for result_table_ids->[%s], bk_tenant_id->[%s]",
+            result_table_ids,
+            bk_tenant_id,
+        )
+
+        results = []
+        updated_table_ids = []
+
+        for vmrt in result_table_ids:
+            try:
+                # 同步单个结果表的字段
+                result = self._sync_single_result_table(bk_tenant_id, vmrt)
+                results.append(result)
+                if result.get("status") == "success":
+                    updated_table_ids.append(result["table_id"])
+            except Exception as e:
+                logger.exception(
+                    "SyncBkBaseResultTableFieldsResource: failed to sync fields for vmrt->[%s], error->[%s]",
+                    vmrt,
+                    e,
+                )
+                results.append(
+                    {
+                        "vmrt": vmrt,
+                        "status": "failed",
+                        "message": str(e),
+                    }
+                )
+
+        # 将成功更新的字段推送路由
+        if updated_table_ids:
+            logger.info(
+                "SyncBkBaseResultTableFieldsResource: pushing router for table_ids->[%s]",
+                updated_table_ids,
+            )
+            SpaceTableIDRedis().push_table_id_detail(
+                table_id_list=updated_table_ids,
+                is_publish=True,
+                bk_tenant_id=bk_tenant_id,
+            )
+
+        return {
+            "total": len(result_table_ids),
+            "success_count": len(updated_table_ids),
+            "results": results,
+        }
+
+    def _sync_single_result_table(self, bk_tenant_id: str, vmrt: str) -> dict[str, Any]:
+        """
+        同步单个 BKBase 结果表的字段
+
+        :param bk_tenant_id: 租户ID
+        :param vmrt: BKBase 结果表ID（VMRT）
+        :return: 同步结果
+        """
+        # 构建监控平台的 table_id
+        table_id = f"{vmrt}.__default__".lower()
+
+        # 检查结果表是否存在
+        if not models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists():
+            raise ValueError(f"结果表 {table_id} 不存在，请先创建结果表")
+
+        # 从 BKBase 获取结果表结构
+        logger.info(
+            "SyncBkBaseResultTableFieldsResource: fetching result table info from bkdata for vmrt->[%s]",
+            vmrt,
+        )
+        table_info = api.bkdata.get_result_table(bk_tenant_id=bk_tenant_id, result_table_id=vmrt)
+
+        if not table_info:
+            raise ValueError(f"无法从 BKBase 获取结果表 {vmrt} 的信息")
+
+        fields = table_info.get("fields", [])
+        if not fields:
+            raise ValueError(f"结果表 {vmrt} 没有字段信息")
+
+        # 解析字段，区分维度和指标
+        metrics = []
+        dimensions = []
+        for field in fields:
+            field_name = field.get("field_name", "")
+
+            # 跳过系统字段
+            if field_name in self.IGNORED_FIELDS:
+                continue
+
+            field_data = {
+                "field_name": field_name,
+                "field_type": self._map_field_type(field.get("field_type", "string")),
+                "description": field.get("description", "") or field.get("field_alias", "") or field_name,
+                "is_dimension": field.get("is_dimension", False),
+            }
+
+            if field_data["is_dimension"]:
+                dimensions.append(field_data)
+            else:
+                metrics.append(field_data)
+
+        # 同步字段到数据库
+        created_count, updated_count = self._sync_fields_to_db(
+            bk_tenant_id=bk_tenant_id,
+            table_id=table_id,
+            metrics=metrics,
+            dimensions=dimensions,
+        )
+
+        logger.info(
+            "SyncBkBaseResultTableFieldsResource: synced fields for table_id->[%s], "
+            "created->[%d], updated->[%d], metrics->[%d], dimensions->[%d]",
+            table_id,
+            created_count,
+            updated_count,
+            len(metrics),
+            len(dimensions),
+        )
+
+        return {
+            "vmrt": vmrt,
+            "table_id": table_id,
+            "status": "success",
+            "metrics_count": len(metrics),
+            "dimensions_count": len(dimensions),
+            "created_count": created_count,
+            "updated_count": updated_count,
+        }
+
+    def _map_field_type(self, bkdata_field_type: str) -> str:
+        """
+        将 BKBase 字段类型映射为监控平台字段类型
+
+        :param bkdata_field_type: BKBase 字段类型
+        :return: 监控平台字段类型
+        """
+        return self.FIELD_TYPE_MAPPING.get(
+            bkdata_field_type.lower(),
+            models.ResultTableField.FIELD_TYPE_STRING,
+        )
+
+    def _sync_fields_to_db(
+        self,
+        bk_tenant_id: str,
+        table_id: str,
+        metrics: list[dict],
+        dimensions: list[dict],
+    ) -> tuple[int, int]:
+        """
+        同步字段到数据库，不存在则新建，存在则更新
+
+        :param bk_tenant_id: 租户ID
+        :param table_id: 结果表ID
+        :param metrics: 指标字段列表
+        :param dimensions: 维度字段列表
+        :return: (创建数量, 更新数量)
+        """
+        created_count = 0
+        updated_count = 0
+
+        all_fields = []
+        for field in metrics:
+            all_fields.append(
+                {
+                    **field,
+                    "tag": models.ResultTableField.FIELD_TAG_METRIC,
+                }
+            )
+        for field in dimensions:
+            all_fields.append(
+                {
+                    **field,
+                    "tag": models.ResultTableField.FIELD_TAG_DIMENSION,
+                }
+            )
+
+        # 从结果表中获取现有字段
+        existing_fields = {
+            f.field_name: f
+            for f in models.ResultTableField.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                table_id=table_id,
+            )
+        }
+
+        fields_to_create = []
+        fields_to_update = []
+
+        for field_data in all_fields:
+            field_name = field_data["field_name"]
+            existing_field = existing_fields.get(field_name)
+
+            if existing_field:
+                # 更新现有字段
+                need_update = False
+                if existing_field.field_type != field_data["field_type"]:
+                    existing_field.field_type = field_data["field_type"]
+                    need_update = True
+                if existing_field.tag != field_data["tag"]:
+                    existing_field.tag = field_data["tag"]
+                    need_update = True
+                if existing_field.description != field_data["description"]:
+                    existing_field.description = field_data["description"]
+                    need_update = True
+
+                if need_update:
+                    existing_field.last_modify_user = "system"
+                    fields_to_update.append(existing_field)
+            else:
+                # 创建新字段
+                fields_to_create.append(
+                    models.ResultTableField(
+                        bk_tenant_id=bk_tenant_id,
+                        table_id=table_id,
+                        field_name=field_name,
+                        field_type=field_data["field_type"],
+                        description=field_data["description"],
+                        tag=field_data["tag"],
+                        is_config_by_user=True,
+                        creator="system",
+                        last_modify_user="system",
+                    )
+                )
+
+        # 批量创建
+        if fields_to_create:
+            models.ResultTableField.objects.bulk_create(fields_to_create, batch_size=100)
+            created_count = len(fields_to_create)
+
+        # 批量更新
+        if fields_to_update:
+            models.ResultTableField.objects.bulk_update(
+                fields_to_update,
+                fields=["field_type", "tag", "description", "last_modify_user", "last_modify_time"],
+                batch_size=100,
+            )
+            updated_count = len(fields_to_update)
+
+        return created_count, updated_count
