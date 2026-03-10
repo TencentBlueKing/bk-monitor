@@ -162,8 +162,8 @@ class BaseTarget(abc.ABC):
         resource_type: str = self._get_k8s_resource_type()
         target_list: list[dict[str, Any]] = self._list_related_k8s_targets()
         for target in target_list:
-            # 补充资源类型字段
-            target[resource_type] = self._alert.event.target
+            # 若未设置资源类型字段，则进行补充
+            target.setdefault(resource_type, self._alert.event.target)
 
         return {"resource_type": resource_type, "target_list": target_list}
 

@@ -119,9 +119,7 @@ export default defineComponent({
     });
 
     // 使用检索任务 Hook
-    const { searchTask } = useSearchTask({
-      indexSetId: props.indexSetId,
-    });
+    const { searchTask } = useSearchTask();
 
     // 分页变化事件处理函数
     const handlePageChange = (current: number) => {
@@ -323,7 +321,7 @@ export default defineComponent({
           value: row.file_name,
         },
       ];
-      searchTask(conditions);
+      searchTask(props.indexSetId, conditions);
     };
 
     // 下载文件

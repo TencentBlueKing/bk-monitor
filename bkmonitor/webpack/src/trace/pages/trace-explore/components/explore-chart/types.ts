@@ -38,15 +38,17 @@ export interface DataZoomBatchItem {
   startValue: number;
   type: string; // "datazoom"
 }
+
 export interface DataZoomEvent {
   batch: Array<DataZoomBatchItem>;
   type: string; // "datazoom"
 }
-
 export type DecimalCount = null | number | undefined;
 
 export interface EchartSeriesItem {
-  data: number[];
+  /** 与 data 索引对齐的 datapoints 副本，头尾因 xAxis 合并补了 [null, timestamp] 占位 */
+  alignedDatapoints?: [null | number, number][];
+  data: number[] | { value: number | null }[];
   markArea?: IMarkAreaConfig;
   markLine?: IMarkLineConfig;
   markPoint?: IMarkPointConfig;
@@ -101,6 +103,7 @@ export interface IMarkAreaConfig {
     show?: boolean;
   };
 }
+
 /** markArea 数据项 */
 export interface IMarkAreaDataItem {
   name?: string;
@@ -150,7 +153,6 @@ export interface IMarkLineDataItem {
     show?: boolean;
   };
 }
-
 /** markPoint 配置 */
 export interface IMarkPointConfig {
   data?: IMarkPointDataItem[];
@@ -200,6 +202,20 @@ export interface IThreshold {
 }
 
 export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
+
+/** 两个有序数组合并结果 */
+export interface MergeResult {
+  /** arr1 需要在头部补齐的点数 */
+  head1: number;
+  /** arr2 需要在头部补齐的点数 */
+  head2: number;
+  /** 合并去重排序后的完整数组 */
+  merged: number[];
+  /** arr1 需要在尾部补齐的点数 */
+  tail1: number;
+  /** arr2 需要在尾部补齐的点数 */
+  tail2: number;
+}
 
 export type Series = SeriesItem[];
 

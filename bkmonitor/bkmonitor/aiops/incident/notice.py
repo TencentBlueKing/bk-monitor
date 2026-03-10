@@ -82,8 +82,16 @@ class IncidentNoticeHelper:
         incident_reason = cls._get_incident_reason(incident)
 
         # 获取故障状态
+        # 专用状态事件（恢复/观察/重开）优先使用事件语义，避免通知时序导致读取到旧状态
+        operation_status_mapping = {
+            IncidentOperationType.RECOVER: IncidentStatus.RECOVERED,
+            IncidentOperationType.OBSERVE: IncidentStatus.RECOVERING,
+            IncidentOperationType.REOPEN: IncidentStatus.ABNORMAL,
+        }
+        if operation_type in operation_status_mapping:
+            status = operation_status_mapping[operation_type].alias
         # 如果是状态更新通知，优先使用新状态值
-        if operation_type == IncidentOperationType.UPDATE and incident_key == "status" and to_value:
+        elif operation_type == IncidentOperationType.UPDATE and incident_key == "status" and to_value:
             try:
                 status = IncidentStatus(to_value).alias
             except (ValueError, AttributeError):
@@ -97,30 +105,42 @@ class IncidentNoticeHelper:
         # 获取故障负责人
         assignees = ", ".join(incident.assignees) if incident.assignees else _("未分配")
 
-        # 构建故障详情URL
-        url = cls._get_incident_url(incident)
-
         # 通知时间
         notify_time = datetime.fromtimestamp(int(time.time())).strftime("%Y-%m-%d %H:%M:%S")
 
         # 故障合并信息
         link_incident_name = kwargs.get("link_incident_name")
+        link_incident_doc_id = kwargs.get("link_incident_doc_id")
         is_anonymous_source = kwargs.get("is_anonymous_source", False)  # 源故障是否为匿名故障
         merge_alert_count = kwargs.get("alert_count")  # 合并的告警数量
 
+        # 构建故障详情URL
+        url = cls._get_incident_url(incident)
+        link_incident_url = (
+            cls._get_incident_url(incident, incident_doc_id=link_incident_doc_id) if link_incident_doc_id else ""
+        )
+
         # 构建 MERGE 通知的 subtitle
-        def _get_merge_subtitle() -> str:
+        def _get_merge_subtitle(incident_name: str) -> str:
+            incident_display = f"[{incident_name}]({url})" if incident_name else "当前故障"
+            link_incident_display = (
+                f"[{link_incident_name}]({link_incident_url})" if link_incident_name and link_incident_url else None
+            )
             if is_anonymous_source:
                 # 匿名故障：使用告警数量或简化描述
                 if merge_alert_count:
-                    return f"合并入 {merge_alert_count} 条关联告警"
+                    return f"{merge_alert_count}条关联告警并入故障{incident_display}"
                 else:
-                    return "检测到关联告警合并入当前故障"
+                    return f"检测到关联告警并入故障{incident_display}"
             elif link_incident_name:
                 # 正常故障：显示故障名称
-                return f"故障【{link_incident_name}】合并入当前故障"
+                return (
+                    f"原故障{link_incident_display}并入故障{incident_display}"
+                    if link_incident_display
+                    else f"原故障{link_incident_name}并入故障{incident_display}"
+                )
             else:
-                return "故障合并"
+                return ""
 
         # 默认标题
         subtitle = ""
@@ -133,20 +153,16 @@ class IncidentNoticeHelper:
                 IncidentOperationType.REOPEN: "故障重新打开",
                 IncidentOperationType.UPDATE: "故障更新",
                 IncidentOperationType.MERGE: "故障合并",
-                IncidentOperationType.MERGE_TO: "故障合并",
+                IncidentOperationType.MERGE_TO: "故障被合并",
             }
             subtitle_map = {
-                IncidentOperationType.CREATE: f"【{duration_info['duration_range'][0]}】发生【{incident.incident_name}】",
                 IncidentOperationType.OBSERVE: f"故障当前状态 观察中，已观察【{observe_duration_info['duration_msg']}】",
                 IncidentOperationType.RECOVER: f"【{incident.incident_name}】故障已恢复",
                 IncidentOperationType.REOPEN: "故障在观察期间重新打开",
                 IncidentOperationType.UPDATE: f"【{incident_key_alias}】原始值：{from_value} → 最新值：{to_value}"
                 if incident_key
                 else "故障状态更新",
-                IncidentOperationType.MERGE: _get_merge_subtitle(),
-                IncidentOperationType.MERGE_TO: f"当前故障合并到【{link_incident_name}】"
-                if link_incident_name
-                else "故障合并",
+                IncidentOperationType.MERGE: _get_merge_subtitle(incident.incident_name),
             }
             title = title_map.get(operation_type, "故障通知")
             subtitle = subtitle_map.get(operation_type, "")
@@ -182,8 +198,8 @@ class IncidentNoticeHelper:
 
         current_time = int(time.time())
         if not observe_start_time:
-            observe_start_time = current_time + 3600
-        duration_seconds = observe_start_time - current_time
+            observe_start_time = current_time
+        duration_seconds = max(current_time - observe_start_time, 0)
 
         # 将时间戳转换为本地时区的格式化字符串
         tz_name = timezone.get_current_timezone().zone
@@ -313,16 +329,17 @@ class IncidentNoticeHelper:
         return incident.incident_reason or incident.incident_name
 
     @classmethod
-    def _get_incident_url(cls, incident: IncidentDocument) -> str:
+    def _get_incident_url(cls, incident: IncidentDocument, incident_doc_id: str = None) -> str:
         """
         构建故障详情URL
 
         :param incident: 故障文档对象
+        :param incident_doc_id: 指定故障文档ID（可选，默认使用当前 incident.id）
         :return: 故障详情URL
         """
         # 构建故障详情页面URL
         site_url = settings.BK_MONITOR_HOST.rstrip("/")
-        return f"{site_url}/?bizId={incident.bk_biz_id}#/trace/incident/detail/{incident.id}"
+        return f"{site_url}/?bizId={incident.bk_biz_id}#/trace/incident/detail/{incident_doc_id or incident.id}"
 
     @classmethod
     def send_incident_notice(

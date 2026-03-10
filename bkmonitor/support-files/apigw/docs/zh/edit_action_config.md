@@ -2,85 +2,125 @@
 
 编辑处理套餐
 
-
 ### 请求参数
 
-| 字段           | 类型   | 必选 | 描述                                                         |
-| -------------- | ------ | ---- | ------------------------------------------------------------ |
-| name           | String | 是   | 名称                                                         |
-| plugin_id      | Int    | 是   | 插件ID，可选项：2（HTTP回调），3（作业平台），4（标准运维），5（流程服务），6（标准运维公共流程） |
-| desc           | String | 否   | 描述                                                         |
-| execute_config | Dict   | 是   | 执行参数（根据plug_in对应的 plugin_type不同，所需参数也不同） |
-| id             | Int    | 是   | 处理套餐ID                                                   |
-| bk_biz_id      | Int    | 是   | 业务ID                                                       |
+| 字段             | 类型   | 必选 | 描述                                                          |
+|----------------|------|----|-------------------------------------------------------------|
+| id             | int  | 是  | 处理套餐ID                                                      |
+| bk_biz_id      | int  | 是  | 业务ID                                                        |
+| name           | str  | 否  | 名称                                                          |
+| plugin_id      | int  | 否  | 插件ID，选项：1（通知），2（HTTP回调），3（作业平台），4（标准运维），5（流程服务），6（标准运维公共流程） |
+| desc           | str  | 否  | 描述                                                          |
+| execute_config | dict | 否  | 执行参数（根据plug_in对应的 plugin_type不同，所需参数也不同）                    |
 
-#### 执行参数（plugin_id为2时）
+#### execute_config 基本结构
 
-| 字段                 | 类型   | 必选 | 描述                                                     |
-| -------------------- | ------ | ---- | -------------------------------------------------------- |
-| method               | String | 否   | 请求方法，可选（"POST","GET","PUT"）默认"GET"            |
-| url                  | String | 是   | 回调地址                                                 |
-| headers              | List   | 否   | 请求头                                                   |
-| authorize            | Dict   | 否   | 认证信息                                                 |
-| body                 | Dict   | 否   | 请求体                                                   |
-| query_params         | List   | 否   | 请求参数                                                 |
-| failed_retry         | Dict   | 否   | 失败重试机制                                             |
-| need_poll            | Bool   | 否   | 是否需要告警（默认是）                                   |
-| notify_interval      | Int    | 否   | 告警周期（按s为单位，最小1分支，默认1h）                 |
-| interval_notify_mode | String | 否   | 告警方法（可选"increasing", "standard"，默认"standard"） |
+| 字段              | 类型   | 描述                |
+|-----------------|------|-------------------|
+| template_detail | dict | 模板详情              |
+| template_id     | str  | 周边系统的模板ID         |
+| timeout         | int  | 执行超时时间（单位秒，默认600） |
 
-##### execute_config.template_detail.headers
+#### template_detail 参数说明（plugin_id=2，HTTP回调时）
 
-| 字段       | 类型   | 必选 | 描述     |
-| ---------- | ------ | ---- | -------- |
-| key        | String | 是   | 字段名   |
-| value      | String | 否   | 字段值   |
-| desc       | String | 否   | 描述     |
-| is_builtin | Bool   | 否   | 是否内嵌 |
-| is_enabled | Bool   | 否   | 是否启用 |
+| 字段                   | 类型   | 必选 | 描述                                            |
+|----------------------|------|----|-----------------------------------------------|
+| method               | str  | 否  | 请求方法，可选（"POST","GET","PUT"）默认"GET"            |
+| url                  | str  | 否  | 回调地址                                          |
+| headers              | list | 否  | 请求头（KVPair格式，见下文）                             |
+| authorize            | dict | 否  | 认证信息（见下文）                                     |
+| body                 | dict | 否  | 请求体（见下文）                                      |
+| query_params         | list | 否  | 查询参数（KVPair格式，见下文）                            |
+| failed_retry         | dict | 否  | 失败重试机制（见下文）                                   |
+| need_poll            | bool | 否  | 是否需要轮询（默认true）                                |
+| notify_interval      | int  | 否  | 通知间隔（单位秒，最小60，默认3600）                         |
+| interval_notify_mode | str  | 否  | 通知模式（可选"increasing", "standard"，默认"standard"） |
 
-##### execute_config.template_detail.authorize
+##### KVPair 格式说明（用于 headers、query_params）
 
-| 字段        | 类型   | 必选 | 描述                                              |
-| ----------- | ------ | ---- | ------------------------------------------------- |
-| auth_type   | String | 是   | 类型（可选"none", "basic_auth", "bearer_token" ） |
-| auth_config | Dict   | 否   | 配置信息                                          |
+| 字段         | 类型   | 必选 | 描述   |
+|------------|------|----|------|
+| key        | str  | 是  | 字段名  |
+| value      | str  | 否  | 字段值  |
+| desc       | str  | 否  | 描述   |
+| is_builtin | bool | 否  | 是否内置 |
+| is_enabled | bool | 否  | 是否启用 |
 
-##### execute_config.template_detail.body
+##### authorize 认证信息
 
-| 字段         | 类型   | 必选 | 描述                                                         |
-| ------------ | ------ | ---- | ------------------------------------------------------------ |
-| data_type    | String | 否   | 类型（可选"default", "raw", "form_data", "x_www_form_urlencoded"） |
-| params       | List   | 否   | 与execute_config.headers参数配置一样                         |
-| content      | String | 否   | 当type为raw时这里配置相关内容                                |
-| content_type | String | 否   | 内容类型（可选"text","json", "html","xml"默认"text"）        |
+| 字段                   | 类型   | 必选 | 描述                                            |
+|----------------------|------|----|-----------------------------------------------|
+| auth_type            | str  | 是  | 认证类型（可选"none", "basic_auth", "bearer_token" ） |
+| auth_config          | dict | 否  | 认证配置信息                                        |
+| insecure_skip_verify | bool | 否  | 是否跳过SSL验证                                     |
 
-##### execute_config.template_detail.query_params
+##### body 请求体
 
-| 字段       | 类型   | 必选 | 描述     |
-| ---------- | ------ | ---- | -------- |
-| key        | String | 是   | 字段名   |
-| value      | String | 否   | 字段值   |
-| desc       | String | 否   | 描述     |
-| is_builtin | Bool   | 否   | 是否内嵌 |
-| is_enabled | Bool   | 否   | 是否启用 |
+| 字段           | 类型   | 必选 | 描述                                                             |
+|--------------|------|----|----------------------------------------------------------------|
+| data_type    | str  | 否  | 数据类型（可选"default", "raw", "form_data", "x_www_form_urlencoded"） |
+| params       | list | 否  | 参数列表（KVPair格式）                                                 |
+| content      | str  | 否  | 请求内容（当data_type为raw时使用）                                        |
+| content_type | str  | 否  | 内容类型（可选"text","json", "html","xml"，默认"text"）                   |
 
-##### execute_config.template_detail.failed_retry
+##### query_params 查询参数
 
-| 字段            | 类型 | 必选 | 描述                  |
-| --------------- | ---- | ---- | --------------------- |
-| is_enabled      | Bool | 否   | 是否启用              |
-| value           | Int  | 否   | 处理时间              |
-| max_retry_times | Int  | 是   | 最大重试时间（最小0） |
-| retry_interval  | Int  | 是   | 重试间隔（最小0）     |
+使用 KVPair 格式，见上文。
 
-#### 执行参数（plugin_id为其他选项时）
+##### failed_retry 失败重试机制
 
-| 字段            | 类型   | 必选 | 描述                            |
-| --------------- | ------ | ---- | ------------------------------- |
-| template_id     | String | 是   | 周边系统的模版ID                |
-| template_detail | Dict   | 是   | 模版详情（默认{}）              |
-| timeout         | Int    | 是   | 执行超时时间（单位s，默认600s） |
+| 字段              | 类型   | 必选 | 描述            |
+|-----------------|------|----|---------------|
+| is_enabled      | bool | 否  | 是否启用          |
+| timeout         | int  | 否  | 超时时间（单位秒）     |
+| max_retry_times | int  | 是  | 最大重试次数（最小0）   |
+| retry_interval  | int  | 是  | 重试间隔（单位秒，最小0） |
+
+#### template_detail 参数说明（plugin_id=1，通知时）
+
+| 字段                   | 类型   | 必选 | 描述          |
+|----------------------|------|----|-------------|
+| template             | list | 否  | 通知模板配置（见下文） |
+| voice_notice         | str  | 否  | 语音通知模式      |
+| need_poll            | bool | 否  | 是否需要轮询      |
+| notify_interval      | int  | 否  | 通知间隔（单位秒）   |
+| interval_notify_mode | str  | 否  | 通知模式        |
+
+##### template 通知模板配置
+
+| 字段           | 类型  | 必选 | 描述   |
+|--------------|-----|----|------|
+| signal       | str | 否  | 触发信号 |
+| message_tmpl | str | 否  | 消息模板 |
+| title_tmpl   | str | 否  | 标题模板 |
+
+#### template_detail 参数说明（其他 plugin_id 时）
+
+对于作业平台（plugin_id=3）、标准运维（plugin_id=4,6）、流程服务（plugin_id=5）等其他类型的插件，`template_detail` 的内容*
+*由第三方平台的模板参数动态定义**。
+
+**不同平台的参数格式**：
+
+##### 作业平台（plugin_id=3）
+
+`template_detail` 的参数对应作业平台执行方案中的**全局变量**：
+
+- **key 格式**：`{变量id}_{变量类型}`（例如：`1_1` 表示 id=1, type=1 的字符串变量）
+- **value**：变量的值
+
+##### 标准运维（plugin_id=4,6）
+
+`template_detail` 的参数对应标准运维流程中的**全局变量**：
+
+- **key**：标准运维中定义的变量 key（通常格式为 `${var_name}`）
+- **value**：变量的值
+
+##### 流程服务（plugin_id=5）
+
+`template_detail` 的参数对应流程服务中的**表单字段**：
+
+- **key**：流程服务中定义的字段 key
+- **value**：字段的值
 
 ### 请求参数示例
 
@@ -124,95 +164,136 @@
 
 ### 响应参数
 
-| 字段    | 类型   | 描述         |
-| ------- | ------ | ------------ |
-| result  | Bool   | 请求是否成功 |
-| code    | Int    | 返回的状态码 |
-| message | String | 描述信息     |
-| data    | Dict   | 处理套餐信息 |
+| 字段      | 类型   | 描述     |
+|---------|------|--------|
+| result  | bool | 请求是否成功 |
+| code    | int  | 返回的状态码 |
+| message | str  | 描述信息   |
+| data    | dict | 处理套餐信息 |
 
 #### data字段说明
 
-| 字段           | 类型   | 描述                                                         |
-| -------------- | ------ | ------------------------------------------------------------ |
-| bk_biz_id      | Int    | 业务ID                                                       |
-| name           | String | 名称                                                         |
-| plugin_id      | Int    | 插件ID，可选项：2（HTTP回调），3（作业平台），4（标准运维），5（流程服务），6（标准运维公共流程） |
-| desc           | String | 描述                                                         |
-| execute_config | Dict   | 执行参数（根据plug_in对应的 plugin_type不同，所需参数也不同） |
-| id             | Int    | 处理套餐ID                                                   |
-| create_time    | String | 创建时间                                                     |
-| create_user    | String | 创建用户                                                     |
-| update_time    | String | 更新时间                                                     |
-| update_user    | String | 更新用户                                                     |
+| 字段             | 类型   | 描述                                       |
+|----------------|------|------------------------------------------|
+| bk_biz_id      | str  | 业务ID                                     |
+| id             | int  | 处理套餐ID                                   |
+| name           | str  | 名称                                       |
+| plugin_id      | str  | 插件ID                                     |
+| desc           | str  | 描述                                       |
+| execute_config | dict | 执行参数（根据plug_in对应的 plugin_type不同，返回参数也不同） |
+| create_time    | str  | 创建时间                                     |
+| create_user    | str  | 创建用户                                     |
+| update_time    | str  | 更新时间                                     |
+| update_user    | str  | 更新用户                                     |
 
-#### 执行参数（plugin_id为2时）
+#### execute_config 基本结构
 
-| 字段                 | 类型   | 描述                                                     |
-| -------------------- | ------ | -------------------------------------------------------- |
-| method               | String | 请求方法，可选（"POST","GET","PUT"）默认"GET"            |
-| url                  | String | 回调地址                                                 |
-| headers              | List   | 请求头                                                   |
-| authorize            | Dict   | 认证信息                                                 |
-| body                 | Dict   | 请求体                                                   |
-| query_params         | List   | 请求参数                                                 |
-| failed_retry         | Dict   | 失败重试机制                                             |
-| need_poll            | Bool   | 是否需要告警（默认是）                                   |
-| notify_interval      | Int    | 告警周期（按s为单位，最小1分钟，默认1h）                 |
-| interval_notify_mode | String | 告警方法（可选"increasing", "standard"，默认"standard"） |
+| 字段              | 类型   | 描述        |
+|-----------------|------|-----------|
+| template_detail | dict | 模板详情      |
+| template_id     | str  | 周边系统的模板ID |
+| timeout         | int  | 执行超时时间    |
 
-##### execute_config.template_detail.headers
+#### template_detail 参数说明（plugin_id="2"，HTTP回调时）
 
-| 字段       | 类型   | 描述     |
-| ---------- | ------ | -------- |
-| key        | String | 字段名   |
-| value      | String | 字段值   |
-| desc       | String | 描述     |
-| is_builtin | Bool   | 是否内嵌 |
-| is_enabled | Bool   | 是否启用 |
+| 字段                   | 类型   | 描述                 |
+|----------------------|------|--------------------|
+| method               | str  | 请求方法               |
+| url                  | str  | 回调地址               |
+| headers              | list | 请求头（KVPair格式，见下文）  |
+| authorize            | dict | 认证信息（见下文）          |
+| body                 | dict | 请求体（见下文）           |
+| query_params         | list | 查询参数（KVPair格式，见下文） |
+| failed_retry         | dict | 失败重试机制（见下文）        |
+| need_poll            | bool | 是否需要轮询             |
+| notify_interval      | int  | 通知间隔               |
+| interval_notify_mode | str  | 通知模式               |
 
-##### execute_config.template_detail.authorize
+##### KVPair 格式说明（用于 headers、query_params）
 
-| 字段        | 类型   | 描述                                              |
-| ----------- | ------ | ------------------------------------------------- |
-| auth_type   | String | 类型（可选"none", "basic_auth", "bearer_token" ） |
-| auth_config | Dict   | 配置信息                                          |
+| 字段         | 类型   | 描述   |
+|------------|------|------|
+| key        | str  | 字段名  |
+| value      | str  | 字段值  |
+| desc       | str  | 描述   |
+| is_builtin | bool | 是否内置 |
+| is_enabled | bool | 是否启用 |
 
-##### execute_config.template_detail.body
+##### authorize 认证信息
 
-| 字段         | 类型   | 描述                                                         |
-| ------------ | ------ | ------------------------------------------------------------ |
-| data_type    | String | 类型（可选"default", "raw", "form_data", "x_www_form_urlencoded"） |
-| params       | List   | 与execute_config.headers参数配置一样                         |
-| content      | String | 当type为raw时这里配置相关内容                                |
-| content_type | String | 内容类型（可选"text","json", "html","xml"默认"text"）        |
+| 字段                   | 类型   | 描述        |
+|----------------------|------|-----------|
+| auth_type            | str  | 认证类型      |
+| auth_config          | dict | 认证配置信息    |
+| insecure_skip_verify | bool | 是否跳过SSL验证 |
 
-##### execute_config.template_detail.query_params
+##### body 请求体
 
-| 字段       | 类型   | 描述     |
-| ---------- | ------ | -------- |
-| key        | String | 字段名   |
-| value      | String | 字段值   |
-| desc       | String | 描述     |
-| is_builtin | Bool   | 是否内嵌 |
-| is_enabled | Bool   | 是否启用 |
+| 字段           | 类型   | 描述             |
+|--------------|------|----------------|
+| data_type    | str  | 数据类型           |
+| params       | list | 参数列表（KVPair格式） |
+| content      | str  | 请求内容           |
+| content_type | str  | 内容类型           |
 
-##### execute_config.template_detail.failed_retry
+##### query_params 查询参数
 
-| 字段            | 类型 | 描述                  |
-| --------------- | ---- | --------------------- |
-| is_enabled      | Bool | 是否启用              |
-| value           | Int  | 处理时间              |
-| max_retry_times | Int  | 最大重试时间（最小0） |
-| retry_interval  | Int  | 重试间隔（最小0）     |
+使用 KVPair 格式，见上文。
 
-#### 执行参数（plugin_id为其他选项时）
+##### failed_retry 失败重试机制
 
-| 字段            | 类型   | 描述                            |
-| --------------- | ------ | ------------------------------- |
-| template_id     | String | 周边系统的模版ID                |
-| template_detail | Dict   | 模版详情（默认{}）              |
-| timeout         | Int    | 执行超时时间（单位s，默认600s） |
+| 字段              | 类型   | 描述            |
+|-----------------|------|---------------|
+| is_enabled      | bool | 是否启用          |
+| timeout         | int  | 超时时间（单位秒）     |
+| max_retry_times | int  | 最大重试次数（最小0）   |
+| retry_interval  | int  | 重试间隔（单位秒，最小0） |
+
+#### template_detail 参数说明（plugin_id="1"，通知时）
+
+| 字段                   | 类型   | 描述          |
+|----------------------|------|-------------|
+| template             | list | 通知模板配置（见下文） |
+| voice_notice         | str  | 语音通知模式      |
+| need_poll            | bool | 是否需要轮询      |
+| notify_interval      | int  | 通知间隔（单位秒）   |
+| interval_notify_mode | str  | 通知模式        |
+
+##### template 通知模板配置
+
+| 字段           | 类型  | 描述   |
+|--------------|-----|------|
+| signal       | str | 触发信号 |
+| message_tmpl | str | 消息模板 |
+| title_tmpl   | str | 标题模板 |
+
+#### template_detail 参数说明（其他 plugin_id 时）
+
+对于作业平台（plugin_id="3"）、标准运维（plugin_id="4","6"）、流程服务（plugin_id="5"）等其他类型的插件，`template_detail` 的内容
+**由第三方平台的模板参数动态定义**。
+
+**不同平台的参数格式**：
+
+##### 作业平台（plugin_id="3"）
+
+`template_detail` 的参数对应作业平台执行方案中的**全局变量**：
+
+- **key 格式**：`{变量id}_{变量类型}`（例如：`1_1` 表示 id=1, type=1 的字符串变量）
+- **value**：变量的值
+
+##### 标准运维（plugin_id="4","6"）
+
+`template_detail` 的参数对应标准运维流程中的**全局变量**：
+
+- **key**：标准运维中定义的变量 key（通常格式为 `${var_name}`）
+- **value**：变量的值
+
+##### 流程服务（plugin_id="5"）
+
+`template_detail` 的参数对应流程服务中的**表单字段**：
+
+- **key**：流程服务中定义的字段 key
+- **value**：字段的值
 
 ### 响应参数示例
 
@@ -251,8 +332,9 @@
         },
         "name": "测试新建处理套餐",
         "desc": "测试新建处理套餐1111",
+        "plugin_id": "2",
         "is_enabled": false,
-        "bk_biz_id": 2,
+        "bk_biz_id": "2",
         "id": 1,
         "create_time": "2022-02-25 11:01:25+0800",
 		"create_user": "admin",

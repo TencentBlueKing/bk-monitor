@@ -1,52 +1,48 @@
 ### 功能描述
 
-图表数据查询 
-根据给定的sql表达式查询指定的存储引擎  
+获取时序数据
 
+### 请求参数
 
-
-| 字段           | 类型   | 必选 | 描述        |
-| -------------- | ------ | ---- | ----------- |
-| sql            | string | 是   | SQL查询语句 |
-| prefer_storage | string | 否   | 查询引擎(默认influxdb)    |
-| bk_username    | string | 否   | 白名单的app_code必填      |
+| 字段  | 类型     | 必选 | 描述      |
+|-----|--------|----|---------|
+| sql | string | 是  | SQL查询语句 |
 
 ### 请求参数示例
 
 ```json
 {
-    "bk_username":"admin",
-    "sql":"select max(in_use) as _in_use from 3_system_disk where time >= \"1m\" group by ip, bk_cloud_id, bk_supplier_id, device_name, minute1 order by time desc limit 1"
+    "sql": "select max(in_use) as _in_use from 3_system_disk where time >= \"1m\" group by ip, bk_cloud_id, bk_supplier_id, device_name, minute1 order by time desc limit 1"
 }
 ```
 
->sql中的结果表名为biz_id + db_name + table_name  
+> sql中的结果表名为biz_id + db_name + table_name
 >
 >Biz_id：业务id  
->Db_name: 数据库名  
->Table_name: 数据表名  
->例：2_system_cpu_detail：业务2下的system库的cpu_detail表  
->查询一个小时内的单核cpu的使用率的sql语句：  
->Select Mean(usage) as usage from 2_system_detail where time > '1h' group by ip,device_name,minute1 limit 10  
+> Db_name: 数据库名  
+> Table_name: 数据表名  
+> 例：2_system_cpu_detail：业务2下的system库的cpu_detail表  
+> 查询一个小时内的单核cpu的使用率的sql语句：  
+> Select Mean(usage) as usage from 2_system_detail where time > '1h' group by ip,device_name,minute1 limit 10
 
->上面请求实例中结果表3_system_disk表示：业务3下的system库中的disk表  
+> 上面请求实例中结果表3_system_disk表示：业务3下的system库中的disk表
 
->注意：上述的库和表并非和时序存储中的实际物理库、表对应。而是指'源数据管理模块'的库表
+> 注意：上述的库和表并非和时序存储中的实际物理库、表对应。而是指'源数据管理模块'的库表
 
 ### 响应参数
 
-| 字段       | 类型   | 描述               |
-| ---------- | ------ | ------------------ |
-| result     | bool   | 请求是否成功       |
-| code       | int    | 返回的状态码       |
-| message    | string | 描述信息           |
+| 字段         | 类型     | 描述         |
+|------------|--------|------------|
+| result     | bool   | 请求是否成功     |
+| code       | int    | 返回的状态码     |
+| message    | string | 描述信息       |
 | data       | list   | 更新成功的策略id表 |
-| request_id | string | 请求id             |
+| request_id | string | 请求id       |
 
 #### data字段说明
 
-| 字段         | 类型   | 描述     |
-| ------------ | ------ | -------- |
+| 字段           | 类型     | 描述   |
+|--------------|--------|------|
 | list         | list   | 查询结果 |
 | totalRecords | int    | 总记录数 |
 | timetaken    | float  | 查询耗时 |

@@ -8,16 +8,20 @@
         min-width: 0;
 
         .chart-icon {
+          margin-left: 2px;
           color: #979ba5;
         }
 
         .chart-trigger-title {
-          font-weight: 400;
+          margin-left: 2px;
+          font-size: 14px;
+          font-weight: 500;
+          color: #000;
         }
 
         .chart-trigger-description {
           margin-left: 4px;
-          color: #979ba5;
+          color: #8f9fbd;
         }
       }
 
@@ -29,9 +33,9 @@
     .chart-collapse-content {
       .alarm-metrics-chart-container {
         display: grid;
-        grid-template-columns: repeat(var(--dashboard-grid-col), 1fr);
+        grid-template-columns: repeat(var(--dashboard-grid-col), minmax(0, 1fr));
         gap: 12px;
-        padding-top: 12px;
+        padding-top: 8px;
       }
     }
 

@@ -2,7 +2,6 @@
 
 订阅报表测试
 
-
 #### 接口参数
 
 | 字段              | 类型   | 必选 | 描述     |
@@ -35,11 +34,10 @@
 
 #### channels.subscribers
 
-| 字段         | 类型   | 必选 | 描述                        |
-|------------|------|----|---------------------------|
-| id         | str  | 是  | 订阅者ID                     |
-| type       | str  | 否  | 订阅者类型 ("user" 或者 "group") |
-| is_enabled | bool | 是  | 是否启用                      |
+| 字段         | 类型   | 必选 | 描述   |
+|------------|------|----|------|
+| username   | str  | 是  | 渠道账户 |
+| is_enabled | bool | 否  | 是否启用 |
 
 #### report_contents
 
@@ -49,6 +47,8 @@
 | content_details  | str       | 是  | 子内容说明      |
 | row_pictures_num | int       | 是  | 一行几幅图      |
 | graphs           | list[str] | 是  | 图表Panels信息 |
+| width            | int       | 否  | 单图宽度       |
+| height           | int       | 否  | 单图高度       |
 
 #### frequency
 
@@ -95,8 +95,7 @@
       "channel_name": "email",
       "subscribers": [
         {
-          "id": "001",
-          "type": "user",
+          "username": "user@example.com",
           "is_enabled": true
         }
       ]

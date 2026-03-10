@@ -7,7 +7,7 @@
 
 | 字段名       | 类型          | 必选 | 描述       |
 | ------------ |-------------| ---- |----------|
-| bk_tenant_id | Int         | 是   | 租户ID     |
+| bk_tenant_id | String      | 是   | 租户ID     |
 | calendar_ids | List(int)   | 是   | 日历列表     |
 | time         | Int         | 是   | 查询事项的时间点 |
 | start_time   | Int         | 否   | 查询详情开始时间 |
@@ -48,7 +48,7 @@
 | repeat      | Dict   | 重复事项配置信息               |
 | is_first    | Bool   | 是否是第一个事项               |
 | parent_id   | Int    | 父事项ID（默认为空）           |
-| Light_color | String | 浅色底色（由所属日历底色决定） |
+| light_color | String | 浅色底色（由所属日历底色决定） |
 
 #### 重复事项配置信息（repeat）
 

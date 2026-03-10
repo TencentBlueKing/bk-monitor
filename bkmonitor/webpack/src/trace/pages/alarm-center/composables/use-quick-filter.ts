@@ -24,40 +24,88 @@
  * IN THE SOFTWARE.
  */
 
-import { onScopeDispose, shallowRef, watchEffect } from 'vue';
+import { onScopeDispose, shallowRef, watch, watchEffect } from 'vue';
 
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import type { CommonCondition, QuickFilterItem } from '../typings';
+import type { EmptyStatusOperationType, EmptyStatusType } from '@/components/empty-status/empty-status';
 
 export function useQuickFilter() {
   const alarmStore = useAlarmCenterStore();
   /** 快捷筛选列表 */
   const quickFilterList = shallowRef<QuickFilterItem[]>([]);
+  /**
+   * 是否是第一次初始化
+   * 不同阶段的初始化所展示的loading效果不一致
+   */
+  const isFirstInit = shallowRef(true);
+
   const quickFilterLoading = shallowRef(false);
-  const effectFunc = () => {
+  const quickFilterEmptyStatusType = shallowRef<EmptyStatusType>('empty');
+
+  // 请求中止控制器
+  let abortController: AbortController | null = null;
+  const effectFunc = async () => {
+    // 中止上一次未完成的请求
+    if (abortController) {
+      abortController.abort();
+    }
+    // 创建新的中止控制器
+    abortController = new AbortController();
+    const { signal } = abortController;
+
     quickFilterLoading.value = true;
-    alarmStore.alarmService
-      .getQuickFilterList(alarmStore.commonFilterParams)
-      .then(quickFilter => {
-        quickFilterList.value = quickFilter;
-      })
-      .finally(() => {
-        quickFilterLoading.value = false;
-      });
+    quickFilterEmptyStatusType.value = 'empty';
+    const quickFilter = await alarmStore.alarmService.getQuickFilterList(alarmStore.commonFilterParams, { signal });
+    // 检查请求是否已被中止，确保不会更新过期数据
+    if (signal.aborted) return;
+    /** 最后一次操作的分类不同步最新数量 */
+    const index = quickFilter.findIndex(item => item.id === alarmStore.lastQuickFilterOperationCategory);
+    if (index !== -1 && alarmStore.lastQuickFilterOperationCategoryData) {
+      quickFilter[index] = alarmStore.lastQuickFilterOperationCategoryData;
+    }
+    quickFilterList.value = quickFilter;
+    isFirstInit.value = false;
+    quickFilterLoading.value = false;
   };
   watchEffect(effectFunc, { flush: 'post' });
+
+  const unWatchAlarmType = watch(
+    () => alarmStore.alarmType,
+    () => {
+      /** 切换告警类型，重置状态以及缓存当前最后一次操作的分类以及数据 */
+      isFirstInit.value = true;
+    }
+  );
+
   const updateQuickFilterValue = (value: CommonCondition[]) => {
     alarmStore.quickFilterValue = value;
   };
+
+  const handleQuickFilteringOperation = (operator: EmptyStatusOperationType) => {
+    if (operator === 'refresh') {
+      effectFunc();
+      return;
+    }
+
+    if (operator === 'clear-filter') {
+      updateQuickFilterValue([]);
+    }
+  };
+
   onScopeDispose(() => {
     quickFilterList.value = [];
     quickFilterLoading.value = false;
+    unWatchAlarmType?.();
   });
   return {
+    isFirstInit,
+    quickFilterEmptyStatusType,
     quickFilterList,
     quickFilterLoading,
     quickFilterValue: alarmStore.quickFilterValue,
     updateQuickFilterValue,
+    handleQuickFilteringOperation,
   };
 }

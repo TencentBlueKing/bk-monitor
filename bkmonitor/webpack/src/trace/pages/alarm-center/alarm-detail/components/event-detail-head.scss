@@ -9,51 +9,60 @@ $fatal-red: #ea3536;
   height: 100%;
 
   .level-tag {
-    width: 40px;
-    height: 40px;
-    margin-right: 8px;
-    font-size: 12px;
-    line-height: 18px;
-    color: #fff;
+    width: 36px;
+    height: 36px;
     text-align: center;
+    color: #ffffff;
     background: #e6e7e8;
-    border-radius: 2px;
+    border-radius: 6px;
 
     .sign-icon {
       display: block;
       margin-top: 3px;
+      font-size: 12px;
+    }
+
+    .level-tag-text {
+      font-size: 11px;
+      line-height: 20px;
     }
   }
 
   .level-tag-info {
     background: $blue;
+    box-shadow: 0 2px 4px 0 #3a84ff33;
   }
 
   .level-tag-warning {
     background: $yellow;
+    box-shadow: 0 2px 4px 0 #f5950033;
   }
 
   .level-tag-fatal {
     background: $fatal-red;
+    box-shadow: 0 2px 4px 0 #ea363633;
   }
 
   .event-detail-head-content {
     flex: 1;
     height: 100%;
+    padding: 6px 8px;
     line-height: 16px;
+    overflow: hidden;
   }
 
   .event-id {
     display: block;
     font-size: 12px;
-    line-height: 24px;
-    color: #757880;
+    line-height: 20px;
+    color: #8f9fbd;
 
     .temporary-share {
       display: inline-block;
       margin-left: 2px;
 
       .temporary-share-icon {
+        font-size: 10px;
         margin-left: 4px;
       }
     }
@@ -66,9 +75,40 @@ $fatal-red: #ea3536;
     }
   }
 
-  .basic-title-name {
-    font-size: 13px;
-    color: #000;
+  .event-detail-title {
+    display: flex;
+    align-items: center;
+
+    .basic-title-name {
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 20px;
+      color: #313238;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .btn-strategy-detail {
+      flex-shrink: 0;
+      padding: 0 8px;
+      margin-left: 8px;
+      font-size: 11px;
+      line-height: 18px;
+      font-weight: 500;
+      color: #4e5e7a;
+      background: #f0f4fa;
+      border-radius: 999px;
+      cursor: pointer;
+
+      .icon-float {
+        display: inline-block;
+        margin-left: 6px;
+        font-size: 9px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
   }
 
   .skeleton-element {
@@ -86,22 +126,6 @@ $fatal-red: #ea3536;
     }
   }
 
-  .btn-strategy-detail {
-    padding: 4px 8px;
-    margin-left: 8px;
-    font-size: 12px;
-    color: #4d4f56;
-    background: #f0f1f5;
-    border-radius: 2px;
-
-    .icon-float {
-      margin-left: 6px;
-      font-size: 10px;
-      color: #3a84ff;
-      cursor: pointer;
-    }
-  }
-
   .event-detail-head-btn-group {
     display: flex;
     align-items: center;
@@ -109,13 +133,15 @@ $fatal-red: #ea3536;
     line-height: 20px;
 
     .btn-group-item {
-      width: 72px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
       height: 100%;
-      padding: 7px 0;
-      color: #4d4f56;
+      padding: 0 16px;
+      color: #4e5e7a;
       text-align: center;
       cursor: pointer;
-      border-left: 1px solid #f5f7fa;
+      border-left: 1px solid #f2f6fc;
 
       &:hover {
         background: #f5f7fa;
