@@ -551,6 +551,11 @@ class SyncBkBaseResultTableFieldsResource(Resource):
                 "field_type": self._map_field_type(field.get("field_type", "string")),
                 "description": field.get("description", "") or field.get("field_alias", "") or field_name,
                 "is_dimension": field.get("is_dimension", False),
+                # 保留 BKBase 侧的原始操作人和时间信息
+                "created_by": field.get("created_by", ""),
+                "created_at": field.get("created_at", ""),
+                "updated_by": field.get("updated_by", ""),
+                "updated_at": field.get("updated_at", ""),
             }
 
             if field_data["is_dimension"]:
@@ -608,6 +613,11 @@ class SyncBkBaseResultTableFieldsResource(Resource):
         """
         同步字段到数据库，不存在则新建，存在则更新
 
+        更新策略：
+        - field_type 和 tag：始终以 BKBase 为准，更新
+        - description：仅当本地描述为空或与字段名相同时才更新，保护用户自定义描述
+        - creator/last_modify_user：使用 BKBase 侧的原始操作人信息
+
         :param bk_tenant_id: 租户ID
         :param table_id: 结果表ID
         :param metrics: 指标字段列表
@@ -649,6 +659,11 @@ class SyncBkBaseResultTableFieldsResource(Resource):
             field_name = field_data["field_name"]
             existing_field = existing_fields.get(field_name)
 
+            creator = field_data.get("created_by") or "system"
+            updater = field_data.get("updated_by") or "system"
+            # 解析 BKBase 侧的时间，格式为 "2026-02-04 11:59:55"
+            updated_at = self._parse_bkdata_datetime(field_data.get("updated_at"))
+
             if existing_field:
                 # 更新现有字段
                 need_update = False
@@ -663,7 +678,9 @@ class SyncBkBaseResultTableFieldsResource(Resource):
                     need_update = True
 
                 if need_update:
-                    existing_field.last_modify_user = "system"
+                    existing_field.last_modify_user = updater
+                    if updated_at:
+                        existing_field.last_modify_time = updated_at
                     fields_to_update.append(existing_field)
             else:
                 # 创建新字段
@@ -675,9 +692,9 @@ class SyncBkBaseResultTableFieldsResource(Resource):
                         field_type=field_data["field_type"],
                         description=field_data["description"],
                         tag=field_data["tag"],
-                        is_config_by_user=True,
-                        creator="system",
-                        last_modify_user="system",
+                        is_config_by_user=False,
+                        creator=creator,
+                        last_modify_user=updater,
                     )
                 )
 
@@ -696,3 +713,26 @@ class SyncBkBaseResultTableFieldsResource(Resource):
             updated_count = len(fields_to_update)
 
         return created_count, updated_count
+
+    @staticmethod
+    def _parse_bkdata_datetime(datetime_str: str | None):
+        """
+        解析 BKBase 返回的时间字符串
+
+        :param datetime_str: 时间字符串，格式为 "2026-02-04 11:59:55"
+        :return: datetime 对象，解析失败返回 None
+        """
+        if not datetime_str:
+            return None
+
+        from datetime import datetime
+
+        from django.utils import timezone
+
+        try:
+            # BKBase 返回的时间格式为 "2026-02-04 11:59:55"
+            naive_dt = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
+            # 转换为带时区的时间（假设为服务器本地时区）
+            return timezone.make_aware(naive_dt)
+        except (ValueError, TypeError):
+            return None
