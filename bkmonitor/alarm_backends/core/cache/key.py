@@ -396,9 +396,7 @@ CHECK_RESULT_CACHE_KEY = register_key_with_config(
         "(score: 数据时间戳(int), name：正常->'timestamp|value' 异常: 'timestamp|{ANOMALY_LABEL}')",
         "key_type": "sorted_set",
         # 这里的key_tpl修改后，需要同步修改LAST_CHECKPOINTS_CACHE_KEY的field_tpl
-        "key_tpl": "{prefix}.detect.result.{{strategy_id}}.{{item_id}}.{{dimensions_md5}}.{{level}}".format(
-            prefix=KEY_PREFIX
-        ),
+        "key_tpl": f"{KEY_PREFIX}.detect.result.{{strategy_id}}.{{item_id}}.{{dimensions_md5}}.{{level}}",
         "ttl": int(settings.CHECK_RESULT_TTL_HOURS) * CONST_ONE_HOUR,
         "backend": "service",
     }
@@ -997,6 +995,26 @@ ACCESS_BATCH_DATA_RESULT_KEY = register_key_with_config(
         "key_type": "list",
         "key_tpl": "access.batch.result.{strategy_group_key}.{timestamp}",
         "ttl": 300,
+        "backend": "service",
+    }
+)
+
+ISSUE_ACTIVE_CONTENT_KEY = register_key_with_config(
+    {
+        "label": "[issue]活跃Issue热缓存",
+        "key_type": "string",
+        "key_tpl": "issue.active.content.{strategy_id}",
+        "ttl": 30 * CONST_MINUTES,
+        "backend": "service",
+    }
+)
+
+ISSUE_STRATEGY_LOCK = register_key_with_config(
+    {
+        "label": "[issue]Issue策略级分布式锁",
+        "key_type": "string",
+        "key_tpl": "issue.strategy.lock.{strategy_id}",
+        "ttl": 60,
         "backend": "service",
     }
 )
