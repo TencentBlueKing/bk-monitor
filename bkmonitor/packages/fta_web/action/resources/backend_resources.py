@@ -381,8 +381,9 @@ class GetDemoActionContextResource(Resource):
         for key, value in variables.items():
             try:
                 rendered_variables[key] = jinja_render(value, context)
-            except Exception as e:
-                logger.exception("渲染变量[%s]失败: %s", key, e)  # lgtm[py/clear-text-logging-sensitive-data]
+            except Exception:
+                # Avoid logging potentially sensitive data contained in the exception message
+                logger.exception("渲染变量[%s]失败", key)
                 rendered_variables[key] = value
 
         return {"variables": rendered_variables}
