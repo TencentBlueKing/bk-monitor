@@ -130,7 +130,7 @@ class TGPAReportHandler:
 
         if keyword:
             fields = keyword_fields if keyword_fields else TGPA_REPORT_FILTER_FIELDS
-            should_conditions = [{"match_phrase": {field: keyword}} for field in fields]
+            should_conditions = [{"wildcard": {field: {"value": f"*{keyword}*"}}} for field in fields]
             must_conditions.append({"bool": {"should": should_conditions, "minimum_should_match": 1}})
 
         # 默认时间范围：当前时间到七天前
@@ -212,7 +212,22 @@ class TGPAReportHandler:
         sort_list = []
         order_field, order_type = params.get("order_field"), params.get("order_type")
         if order_field and order_type:
-            sort_list.append({order_field: {"order": order_type.lower()}})
+            if order_field == "file_size":
+                # file_size 在 ES 中是 keyword 类型，直接排序会按字典序，需要转换为数值排序
+                sort_list.append(
+                    {
+                        "_script": {
+                            "type": "number",
+                            "script": {
+                                "source": "Long.parseLong(doc['file_size'].value)",
+                                "lang": "painless",
+                            },
+                            "order": order_type.lower(),
+                        }
+                    }
+                )
+            else:
+                sort_list.append({order_field: {"order": order_type.lower()}})
         sort_list.append({"dtEventTimeStamp": {"order": "desc"}})
 
         body = {
