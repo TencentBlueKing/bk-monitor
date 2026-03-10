@@ -150,32 +150,35 @@ export default defineComponent({
       <div class={['alarm-center-detail-panel-k8s', this.loading ? 'is-loading' : '']}>
         <div class='panel-k8s-white-bg-container'>
           <div class='k8s-selector-wrap'>
-            <div class='k8s-selector-container'>
-              <K8sTargetSelector
-                currentTarget={this.currentTarget}
-                groupBy={this.groupBy}
-                targetList={this.targetList}
-                onChange={target => {
-                  this.currentTarget = target;
-                }}
-              />
-              {this.createSkeletonDom()}
-            </div>
-            <div
-              class={`k8s-link-btn ${!this.canLinkTok8s ? 'disabled' : ''}`}
-              onClick={this.handleToK8s}
-            >
-              <span class='link-text'>{window.i18n.t('容器监控')}</span>
-              <i class='icon-monitor icon-mc-goto' />
+            <div class='k8s-selector-label'>{this.groupBy || '--'}</div>
+            <div class='k8s-selector-row'>
+              <div class='k8s-selector-container'>
+                <K8sTargetSelector
+                  currentTarget={this.currentTarget}
+                  groupBy={this.groupBy}
+                  targetList={this.targetList}
+                  onChange={target => {
+                    this.currentTarget = target;
+                  }}
+                />
+                {this.createSkeletonDom()}
+              </div>
+              <div
+                class={`k8s-link-btn ${!this.canLinkTok8s ? 'disabled' : ''}`}
+                onClick={this.handleToK8s}
+              >
+                <span class='link-text'>{window.i18n.t('容器监控')}</span>
+                <i class='icon-monitor icon-mc-link' />
+              </div>
             </div>
           </div>
-          <div class='ai-hight-card-wrap'>
-            {/* <AiHighlightCard
+          {/* <div class='ai-hight-card-wrap'>
+            <AiHighlightCard
               content={`tE monitor_web，incident，resources, fronted_resources. IncidentHandlersResource 这个 span 中，发生了一个类型为 TypeError 的异常。异常信息为'<' not supported between instances of 'str' and 'int'. 这表明在代表中存在一个比较操作。试图将字符串和整数进行比较，导致了类型错误。`}
               title={`${window.i18n.t('AI 分析结论')}：`}
-            /> */}
+            />
             {this.createSkeletonDom()}
-          </div>
+          </div> */}
           <div class='k8s-scene-selector-wrap'>
             <K8sSceneSelector
               scene={this.scene}
@@ -206,7 +209,12 @@ export default defineComponent({
             onRestore={this.handleDataZoomTimeRangeChange}
           >
             {{
-              customBaseChart: renderContext => <K8SCustomChart {...renderContext} />,
+              customBaseChart: renderContext => (
+                <K8SCustomChart
+                  class='base-chart'
+                  {...renderContext}
+                />
+              ),
             }}
           </AlarmDashboardGroup>
         </div>

@@ -71,7 +71,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const isFullscreen = shallowRef(false);
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmId, actionId, alarmType, defaultTab } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId, actionId, alarmType, defaultTab, alarmDetail, actionDetail } = storeToRefs(alarmCenterDetailStore);
     const authorityStore = useAuthorityStore();
     const authority = shallowReactive<IAuthority>({
       map: authMap,
@@ -112,6 +112,18 @@ export default defineComponent({
         }
       },
       { immediate: true }
+    );
+
+    watch(
+      () => props.show,
+      newVal => {
+        if (!newVal) {
+          alarmId.value = '';
+          actionId.value = '';
+          alarmDetail.value = null;
+          actionDetail.value = null;
+        }
+      }
     );
 
     const init = async () => {

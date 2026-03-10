@@ -265,7 +265,7 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
                 '"measurement":"__default__","source_type":"bkdata","options":{},'
                 '"storage_type":"elasticsearch","storage_cluster_records":[{'
                 '"storage_id":3,"enable_time":1747130440}],'
-                '"data_label":"bkdata_index_set_6788","field_alias":{}}'
+                '"data_label":"bkdata_index_set_6788","labels":{},"field_alias":{}}'
             )
 
             detail_string = detail_string.replace(

@@ -2,12 +2,60 @@
   height: 100%;
   padding-bottom: 12px;
   background: #fff;
+  border-radius: 8px;
+
+  .title-wrapper {
+    .chart-title {
+      padding: 12px 34px 3px 16px;
+
+      .main-title {
+        min-height: 22px;
+
+        .title-name {
+          font-size: 14px;
+          font-weight: 500;
+          line-height: 22px;
+        }
+
+        .icon-hint.tips-icon {
+          width: 22px;
+          height: 22px;
+          margin-left: 0;
+          font-size: 12px;
+          color: #8f9fbd;
+
+          &::before {
+            height: unset;
+          }
+        }
+
+        & > div:last-child {
+          margin-bottom: -16px;
+
+          .icon-monitor.icon-mc-more.more-icon {
+            width: 22px;
+            height: 22px;
+            color: #4d4f56;
+          }
+        }
+      }
+
+      .sub-title {
+        height: 20px;
+        line-height: 20px;
+        color: #8f9fbd;
+      }
+    }
+  }
 
   .common-legend {
     column-gap: 24px;
     justify-content: flex-start;
+    padding: 0 16px;
 
     .common-legend-item {
+      margin-left: 0;
+
       .legend-icon {
         width: 10px;
         height: 2px;
