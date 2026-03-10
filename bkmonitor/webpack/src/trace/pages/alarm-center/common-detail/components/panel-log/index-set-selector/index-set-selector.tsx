@@ -26,7 +26,7 @@
 
 import { type PropType, computed, defineComponent, onUnmounted, shallowRef, useTemplateRef } from 'vue';
 
-import { useEventListener } from '@vueuse/core';
+// import { useEventListener } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import { useTippy } from 'vue-tippy';
 
@@ -63,12 +63,12 @@ export default defineComponent({
       return props.indexSetList.find(item => item.index_set_id === props.value) || null;
     });
 
-    let cleanup = () => {};
+    const cleanup = () => {};
 
     init();
 
     function init() {
-      cleanup = useEventListener(window, 'keydown', handleKeyDownSlash);
+      // cleanup = useEventListener(window, 'keydown', handleKeyDownSlash);
     }
 
     onUnmounted(() => {
@@ -93,7 +93,7 @@ export default defineComponent({
         interactive: true,
         onHidden: () => {
           destroyPopoverInstance();
-          cleanup = useEventListener(window, 'keydown', handleKeyDownSlash);
+          // cleanup = useEventListener(window, 'keydown', handleKeyDownSlash);
         },
       });
       popoverInstance.value?.show();
@@ -112,14 +112,14 @@ export default defineComponent({
      * 当按下Ctrl+O(Windows/Linux)或Cmd+O(Mac)且选择器未显示且不在输入框中时,触发组件点击事件并执行清理
      * @param {KeyboardEvent} event 键盘事件对象
      */
-    function handleKeyDownSlash(event) {
-      const isCtrlO = (event.ctrlKey || event.metaKey) && event.key === 'o';
-      if (isCtrlO && !showSelector.value && !['BK-WEWEB', 'INPUT'].includes(event.target?.tagName)) {
-        event.preventDefault();
-        handleClickComponent();
-        cleanup();
-      }
-    }
+    // function handleKeyDownSlash(event) {
+    //   const isCtrlO = (event.ctrlKey || event.metaKey) && event.key === 'o';
+    //   if (isCtrlO && !showSelector.value && !['BK-WEWEB', 'INPUT'].includes(event.target?.tagName)) {
+    //     event.preventDefault();
+    //     handleClickComponent();
+    //     cleanup();
+    //   }
+    // }
 
     function handleClickComponent(event?: MouseEvent) {
       event?.stopPropagation();
@@ -133,7 +133,9 @@ export default defineComponent({
 
     function handleSelect(indexSetId: number | string) {
       destroyPopoverInstance();
-      emit('change', indexSetId);
+      if (indexSetId !== props.value) {
+        emit('change', indexSetId);
+      }
     }
 
     return {
@@ -161,10 +163,10 @@ export default defineComponent({
             data-placeholder={this.curIndexSet ? '' : this.t('请选择索引集')}
           >
             <span class='name'>{this.curIndexSet?.index_set_name || ''}</span>
-            <span class='alias' />
+            {/* <span class='alias' /> */}
           </span>
           <span class='index-set-trigger-icon'>
-            <span class='icon-monitor icon-mc-arrow-down' />
+            <span class='icon-monitor icon-arrow-down' />
           </span>
         </div>
         <div style={{ display: 'none' }}>

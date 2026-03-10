@@ -4,7 +4,7 @@
   background-image: linear-gradient(to right, #a3b1cc, #a3b1cc), linear-gradient(#f5f7fa, #f5f7fa);
   background-repeat: no-repeat;
   background-size:
-    3px 100%,
+    4px 100%,
     100% 100%;
 
   .view-header {
@@ -69,14 +69,13 @@
           background-color: #fff;
         }
 
-
         .item-label {
           display: flex;
           flex-shrink: 0;
           column-gap: 4px;
           width: 210px;
           color: #4d4f56;
-        
+
           .option-icon {
             display: inline-flex;
             align-items: center;

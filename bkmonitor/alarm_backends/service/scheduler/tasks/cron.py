@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import functools
 import logging
@@ -29,16 +29,16 @@ def task_duration(task_name, queue_name=None):
         @functools.wraps(_func)
         def _inner(*args, **kwargs):
             start = time.time()
-            logger.info("^[Cron Task](%s)" % task_name)
+            logger.info(f"^[Cron Task]({task_name})")
             exception = None
             try:
                 return _func(*args, **kwargs)
             except Exception as e:
-                logger.exception("![Cron Task]({}) error: {}".format(task_name, e))
+                logger.exception(f"![Cron Task]({task_name}) error: {e}")
                 exception = e
             finally:
                 time_cost = time.time() - start
-                logger.info("$[Cron Task]({}) cost: {}".format(task_name, time_cost))
+                logger.info(f"$[Cron Task]({task_name}) cost: {time_cost}")
                 metrics.CRON_TASK_EXECUTE_TIME.labels(task_name=task_name, queue=queue_name).observe(time_cost)
                 metrics.CRON_TASK_EXECUTE_COUNT.labels(
                     task_name=task_name,
@@ -59,7 +59,7 @@ def _get_func(module_path, queue=None):
             process_func = import_string(module_path)
             process_func = getattr(process_func, "main", process_func)
         except ImportError:
-            process_func = import_string("%s.main" % module_path)
+            process_func = import_string(f"{module_path}.main")
 
         return task_duration(module_path, queue)(process_func)(*args, **kwargs)
 
@@ -88,6 +88,10 @@ queue_define = {
 
 for queue, crontab_tasks in queue_define.items():
     for module_name, cron_expr, run_type in crontab_tasks:
+        # 仅在进程启动注册 beat 任务时生效；修改配置后需重启调度进程
+        if module_name in settings.EXCLUDE_WORKER_TASKS:
+            continue
+
         # 全局任务在非默认集群不执行
         if run_type == "global" and not get_cluster().is_default():
             continue

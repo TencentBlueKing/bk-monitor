@@ -39,6 +39,7 @@ def create_or_delete_records(mocker):
         table_id="1001_bklog.stdout",
         table_name_zh="stdout",
         data_label="bklog_index_set_1001",
+        labels={"scene": "log"},
         is_custom_table=False,
     )
     models.ClusterInfo.objects.create(
@@ -107,6 +108,7 @@ def test_compose_es_table_id_detail_v2(create_or_delete_records):
             {"storage_id": 11, "enable_time": enable_timestamp},
         ],
         "data_label": "bklog_index_set_1001",
+        "labels": {"scene": "log"},
         "field_alias": {},
     }
     expected = {"1001_bklog.stdout": expected_json}
@@ -122,6 +124,7 @@ def test_compose_es_table_id_detail_v2(create_or_delete_records):
         "storage_type": "elasticsearch",
         "storage_cluster_records": [],
         "data_label": "",
+        "labels": {},
         "field_alias": {},
     }
     expected = {"test_system_event": expected_json}
@@ -143,11 +146,11 @@ def test_push_es_table_id_details(create_or_delete_records):
                 '"source_type":"log","options":{},"storage_type":"elasticsearch",'
                 '"storage_cluster_records":[{"storage_id":13,"enable_time":0},'
                 '{"storage_id":12,"enable_time":1572652800},'
-                '{"storage_id":11,"enable_time":1575244800}],"data_label":"bklog_index_set_1001","field_alias":{}}',
+                '{"storage_id":11,"enable_time":1575244800}],"data_label":"bklog_index_set_1001","labels":{"scene":"log"},"field_alias":{}}',
                 "test_system_event.__default__": '{"storage_id":11,"db":null,"measurement":"__default__",'
                 '"source_type":"log","options":{},'
                 '"storage_type":"elasticsearch",'
-                '"storage_cluster_records":[],"data_label":"","field_alias":{}}',
+                '"storage_cluster_records":[],"data_label":"","labels":{},"field_alias":{}}',
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用

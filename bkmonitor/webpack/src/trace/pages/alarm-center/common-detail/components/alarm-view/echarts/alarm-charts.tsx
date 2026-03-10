@@ -209,6 +209,24 @@ export default defineComponent({
     });
 
     /**
+     * @description 二分查找有序 datapoints 中第一个时间戳 >= target 的索引
+     * @param points - 有序的 datapoints 数组
+     * @param target - 目标时间戳
+     * @returns 第一个 >= target 的索引，不存在则返回 -1
+     */
+    const findInsertIndex = (points: any[], target: number): number => {
+      let lo = 0;
+      let hi = points.length - 1;
+      if (hi < 0 || points[hi][1] < target) return -1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (points[mid][1] < target) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    };
+
+    /**
      * @description 格式化图表数据，添加异常点、告警标记等辅助系列
      * @param data - 原始图表数据
      * @param {IDataQuery} target - 图表配置
@@ -243,30 +261,35 @@ export default defineComponent({
 
       // 为主要系列添加 markPoints 和 markTimeRange，利用 use-monitor-echarts 的处理逻辑
       if (series.length > 0) {
-        const mainSeries = series[0];
         /**
-         * 异常告警点时间不在图表x轴上，补充告警点的时间
-         * 事件和日志的告警点y轴设置为1，其他告警y轴设置为0
+         * @description 在所有系列的 datapoints 中插入缺失的时间点
+         * @param timestamp - 需要插入的时间戳（毫秒）
+         * @param value - 插入点的 y 值
          */
-        for (const anomaly of props.detail.anomaly_timestamps) {
-          const index = datapoints.findIndex(item => Number(String(item[1]).slice(0, -3)) >= anomaly);
-          if (index > -1 && Number(String(datapoints[index][1]).slice(0, -3)) !== anomaly) {
-            datapoints.splice(index, 0, [isEventOrLogAlarm.value ? 1 : 0, anomaly * 1000]);
+        const insertMissingPoint = (timestamp: number, value: number) => {
+          for (const s of series) {
+            const points = s.datapoints;
+            if (!points) continue;
+            const idx = findInsertIndex(points, timestamp);
+            if (idx > -1 && points[idx][1] !== timestamp) {
+              points.splice(idx, 0, [value, timestamp]);
+            }
           }
+        };
+
+        /** 异常告警点时间不在图表x轴上，补充告警点的时间 */
+        const anomalyValue = isEventOrLogAlarm.value ? 1 : 0;
+        for (const anomaly of props.detail.anomaly_timestamps) {
+          insertMissingPoint(anomaly * 1000, anomalyValue);
         }
 
-        /**
-         * 填充不在图表时间轴上的告警面积分割点
-         */
-        const markAreaPoint = [firstAnomalyTimeStr, beginTimeStr, endTimeStr];
-        for (const point of markAreaPoint) {
-          const index = datapoints.findIndex(item => item[1] >= Number(point));
-          if (index > -1 && datapoints[index][1] !== Number(point)) {
-            datapoints.splice(index, 0, [0, Number(point)]);
-          }
+        /** 填充不在图表时间轴上的告警面积分割点 */
+        for (const point of [firstAnomalyTimeStr, beginTimeStr, endTimeStr]) {
+          insertMissingPoint(Number(point), 0);
         }
 
         // 设置标记点（异常点 + 致命告警图标）
+        const mainSeries = series[0];
         mainSeries.markPoints = [
           ...(isEventOrLogAlarm.value && mainSeries?.type === 'bar'
             ? []
@@ -333,17 +356,23 @@ export default defineComponent({
     };
 
     /**
-     * @description 处理series， 事件和日志告警对于告警点的柱状图需要变颜色
+     * @description 处理series，事件和日志告警对于告警点的柱状图需要变颜色。
+     * 通过 alignedDatapoints（与 data 索引对齐的 datapoints 副本）直接按下标匹配，无需手动计算偏移。
+     * @param series - 单个系列数据
+     * @returns 处理后的系列数据
      */
     const formatterGraphQueryCurrentSeries = series => {
       if (isEventOrLogAlarm.value && series?.type === 'bar') {
         series.itemStyle = { ...(series?.itemStyle ?? {}), color: '#3A84FF' };
+        const dp = series.alignedDatapoints ?? series.datapoints;
         for (const ponit of props.detail.anomaly_timestamps) {
-          const index = series.datapoints.findIndex(item => Number(String(item[1]).slice(0, -3)) === ponit);
-          series.data[index] = {
-            ...series.data[index],
-            itemStyle: { color: ANOMALY_COLOR },
-          };
+          const index = dp.findIndex(item => Number(String(item[1]).slice(0, -3)) === ponit);
+          if (index >= 0 && index < series.data.length) {
+            series.data[index] = {
+              ...series.data[index],
+              itemStyle: { color: ANOMALY_COLOR },
+            };
+          }
         }
       }
       return series;
@@ -398,16 +427,17 @@ export default defineComponent({
 
       const eventSeries = options.series[eventSeriesIndex];
       const hasEventData = eventSeries.datapoints.some(e => e[0] > 0);
-      const shouldCreateNewXAxis = eventSeries.xAxisIndex === 0;
+      // const shouldCreateNewXAxis = eventSeries.xAxisIndex === 0;
 
-      // 为事件散点图创建独立的x轴
-      if (shouldCreateNewXAxis) {
-        options.xAxis.push({
-          show: false,
-          type: 'category',
-          data: eventSeries.datapoints.map(e => e[1]),
-        });
-      }
+      // // 为事件散点图创建独立的x轴
+      // if (shouldCreateNewXAxis) {
+      //   options.xAxis.push({
+      //     show: false,
+      //     type: 'category',
+      //     data: eventSeries.datapoints.map(e => e[1]),
+      //   });
+      // }
+
       // 为事件散点图创建独立的y轴
       options.yAxis.push({
         scale: true,
@@ -421,7 +451,7 @@ export default defineComponent({
         splitLine: { show: false },
       });
 
-      eventSeries.xAxisIndex = shouldCreateNewXAxis ? options.xAxis.length - 1 : eventSeries.xAxisIndex;
+      // eventSeries.xAxisIndex = shouldCreateNewXAxis ? options.xAxis.length - 1 : eventSeries.xAxisIndex;
       eventSeries.yAxisIndex = options.yAxis.length - 1;
     };
 
@@ -430,7 +460,6 @@ export default defineComponent({
      */
     const formatterOptions = options => {
       options.color = COLOR_LIST;
-      options.grid.top = 24;
       const isBar = options.series[0].type === 'bar';
 
       createAxisForEventScatter(options);
@@ -438,35 +467,42 @@ export default defineComponent({
       // 为x轴添加刻度线
       Object.assign(options.xAxis[0], {
         boundaryGap: isBar,
-        axisTick: { show: true, alignWithLabel: true },
-        axisLine: { show: true },
-        splitLine: { show: true, alignWithLabel: isBar },
-        axisLabel: { ...options.xAxis[0].axisLabel, align: 'center', showMinLabel: true, showMaxLabel: true },
+        axisTick: { show: true, alignWithLabel: true, lineStyle: { color: '#C1CDE6' } },
+        axisLine: { show: true, lineStyle: { color: '#C1CDE6' } },
+        splitLine: { show: false, alignWithLabel: isBar },
+        axisLabel: { ...options.xAxis[0].axisLabel, align: 'center' },
       });
 
       // 为y轴添加刻度线
+      const hasEventYAxis = options.yAxis.length > 1 && options.yAxis[1].show;
+      options.grid.top = hasEventYAxis ? 32 : 24;
+      options.grid.left = 16;
+      options.grid.right = 16;
       for (const [index, item] of options.yAxis.entries()) {
         const isMainYAxis = index === 0;
         Object.assign(item, {
-          axisTick: { show: true },
-          axisLine: { show: true },
+          axisTick: { show: false },
+          axisLine: { show: false },
           ...(isMainYAxis && { splitLine: { show: true } }),
         });
       }
-
-      // 检测是否存在右侧y轴
-      const hasRightYAxis = options.yAxis.some(axis => axis.position === 'right');
-      // 当不存在右侧y轴时，创建一个右侧y轴来显示右边框
-      if (!hasRightYAxis) {
-        options.yAxis.push({
-          show: true,
-          position: 'right',
-          axisTick: { show: false },
-          axisLine: { show: true },
-          axisLabel: { show: false },
-          splitLine: { show: false },
-          z: 3,
-        });
+      // 使用 graphic 组件渲染 y 轴名称标签，确保与标题对齐
+      if (hasEventYAxis) {
+        const labelStyle = { fontSize: 10, fill: '#979BA5' };
+        options.graphic = [
+          {
+            type: 'text',
+            left: 16,
+            top: options.grid.top - 26,
+            style: { text: t('指标'), ...labelStyle },
+          },
+          {
+            type: 'text',
+            right: 16,
+            top: options.grid.top - 26,
+            style: { text: t('事件'), ...labelStyle },
+          },
+        ];
       }
 
       return options;

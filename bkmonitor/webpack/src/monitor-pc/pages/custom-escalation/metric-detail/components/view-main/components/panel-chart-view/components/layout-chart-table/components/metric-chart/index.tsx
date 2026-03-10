@@ -770,7 +770,12 @@ class NewMetricChart extends CommonSimpleChart {
   generateRandomDashboardId() {
     return Math.random().toString(36).substr(2, 9);
   }
-  getCopyPanel() {
+  /**
+   * @description: 跳转新增策略不需要functions中bottom和top，会导致添加的策略无法产生告警
+   * @param {boolean} isAddStrategy 是否新增策略
+   * @return {*}
+   */
+  getCopyPanel(isAddStrategy = false) {
     const [startTime, endTime] = this.handleTime();
     let copyPanel = JSON.parse(JSON.stringify(this.panel));
     const targets = copyPanel.targets.map(item => ({
@@ -781,6 +786,7 @@ class NewMetricChart extends CommonSimpleChart {
         query_configs: item.query_configs.map(config => ({
           ...config,
           interval: this.viewOptions?.interval || 'auto',
+          functions: isAddStrategy ? config.functions?.filter(f => !['bottom', 'top'].includes(f.id)) : config.functions,
         })),
       },
     }));
@@ -824,7 +830,7 @@ class NewMetricChart extends CommonSimpleChart {
       }
       case 'strategy': {
         // 新增策略
-        const copyPanel = this.getCopyPanel();
+        const copyPanel = this.getCopyPanel(true);
         this.handleAddStrategy(copyPanel as any, null, {}, true);
         break;
       }
@@ -875,7 +881,7 @@ class NewMetricChart extends CommonSimpleChart {
    * @return {*}
    */
   handleAllMetricClick() {
-    const copyPanel = this.getCopyPanel();
+    const copyPanel = this.getCopyPanel(true);
     this.handleAddStrategy(copyPanel as any, null, {}, true);
   }
   /**
@@ -884,7 +890,7 @@ class NewMetricChart extends CommonSimpleChart {
    * @return {*}
    */
   handleMetricClick(metric: IExtendMetricData) {
-    const copyPanel: PanelModel = this.getCopyPanel();
+    const copyPanel: PanelModel = this.getCopyPanel(true);
     this.handleAddStrategy(copyPanel, metric, {});
   }
   /** 获取当前指标的维度列表长度 */

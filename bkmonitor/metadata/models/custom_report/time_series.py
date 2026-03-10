@@ -575,7 +575,7 @@ class TimeSeriesGroup(CustomGroupBase):
                     tag_value_list = {}
                     for dim_name in group_info.get("dimensions", []):
                         tag_value_list[dim_name] = {
-                            "last_update_time": update_time,
+                            "last_update_time": update_time // 1000,
                             "values": [],
                         }
 
@@ -586,13 +586,14 @@ class TimeSeriesGroup(CustomGroupBase):
                         ),
                         "last_modify_time": latest_update_time // 1000,
                         "tag_value_list": tag_value_list,
+                        "is_active": True,
                     }
                     ret_data.append(item)
             else:
                 tag_value_list = {}
                 for d in md["dimensions"]:
                     tag_value_list[d["name"]] = {
-                        "last_update_time": d["update_time"],
+                        "last_update_time": d["update_time"] // 1000,
                         "values": [v["value"] for v in d["values"]],
                     }
                 item = {
@@ -600,6 +601,7 @@ class TimeSeriesGroup(CustomGroupBase):
                     "field_scope": TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME,
                     "last_modify_time": md["update_time"] // 1000,
                     "tag_value_list": tag_value_list,
+                    "is_active": True,
                 }
                 ret_data.append(item)
         return ret_data
@@ -1245,7 +1247,7 @@ class TimeSeriesScope(models.Model):
                 if prefix != scope.scope_name_prefix:
                     continue
 
-                if scope.is_match_auto_rules(scope, field_name):
+                if scope.is_match_auto_rules(field_name):
                     return scope.scope_name, False
             # 未匹配则使用默认分组 scope
             return default_name, True
@@ -1328,10 +1330,7 @@ class TimeSeriesScope(models.Model):
     @classmethod
     def _do_bulk_refresh_ts_scopes(cls, group_id: int, scope_name_to_dimensions: dict):
         # 1. 获取已存在的 scope
-        exists_scope_name_to_obj = {
-            scope.scope_name: scope
-            for scope in cls.objects.filter(group_id=group_id, scope_name__in=scope_name_to_dimensions.keys())
-        }
+        exists_scope_name_to_obj = {scope.scope_name: scope for scope in cls.objects.filter(group_id=group_id)}
 
         # 2. 分别处理已存在的和不存在的 scope
         scopes_to_update = []
@@ -1381,11 +1380,9 @@ class TimeSeriesScope(models.Model):
 
         cls._do_bulk_refresh_ts_scopes(group.time_series_group_id, scope_name_to_dimensions)
 
-        # 获取所有 scope 并构建 scope_name 到 scope_id 的映射
-        all_scopes = cls.objects.filter(
-            group_id=group.time_series_group_id, scope_name__in=scope_name_to_dimensions.keys()
-        )
-        scope_name_to_id = {scope.scope_name: scope.id for scope in all_scopes}
+        # 重新获取所有 scope 并构建 scope_name 到 scope_id 的映射
+        all_scopes = cls.objects.filter(group_id=group.time_series_group_id).values("scope_name", "id")
+        scope_name_to_id = {scope["scope_name"]: scope["id"] for scope in all_scopes}
 
         # 为每个指标添加 scope_id
         new_metric_info_list = []
