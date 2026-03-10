@@ -117,5 +117,16 @@
       height: 48px;
       margin-bottom: 20px;
     }
+
+    .alert-id-wrap {
+      margin-bottom: 24px;
+
+      .err-msg {
+        margin-top: 4px;
+        font-size: 12px;
+        color: #ea3636;
+        overflow-wrap: break-word;
+      }
+    }
   }
 }
