@@ -171,10 +171,10 @@ class BaseTarget(abc.ABC):
             return []
 
         resource_type: str = self._get_k8s_resource_type()
-        is_workload_type: bool = resource_type == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
+        is_workload: bool = resource_type == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
 
         workload: str = source_info.pop("workload", "")
-        if workload and is_workload_type:
+        if workload and is_workload:
             kind, name = workload.split(":", 1)
             source_info[kind.lower()] = name
             source_info["name"] = kind.lower()
@@ -266,7 +266,7 @@ class BaseTarget(abc.ABC):
         if not qs:
             return []
 
-        apm_target_list: set[frozenset] = set()
+        apm_target_set: set[frozenset] = set()
         for relation in RelationQ.query(qs, fill_with_empty=True):
             if not relation:
                 continue
@@ -278,9 +278,9 @@ class BaseTarget(abc.ABC):
                 if not app_name or not service_name:
                     continue
 
-                apm_target_list.add(frozenset({"app_name": app_name, "service_name": service_name}.items()))
+                apm_target_set.add(frozenset({"app_name": app_name, "service_name": service_name}.items()))
 
-        return [dict(target) for target in apm_target_list]
+        return [dict(target) for target in apm_target_set]
 
     @abc.abstractmethod
     def list_related_log_targets(self) -> list[dict[str, Any]]:
