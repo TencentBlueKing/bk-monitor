@@ -26,7 +26,7 @@ from .bcs_workload import *  # noqa
 from .config import GlobalConfig  # noqa
 from .fta import *  # noqa
 from .home import *  # noqa
-from .issue import StrategyIssueConfig  # noqa
+from .issue import StrategyIssueConfig, StrategyIssueConfigManager  # noqa
 from .metric_list_cache import *  # noqa
 from .report import *  # noqa
 from .statistics import *  # noqa
