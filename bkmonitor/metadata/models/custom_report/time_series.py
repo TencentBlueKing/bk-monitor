@@ -20,6 +20,7 @@ from django.conf import settings
 from django.db import models
 from django.db import utils as django_db_utils
 from django.db.transaction import atomic
+from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.timezone import make_aware
 from django.utils.timezone import now as tz_now
@@ -2060,7 +2061,10 @@ class TimeSeriesMetric(models.Model):
         if inactive_metrics:
             # 批量更新不在返回列表中的指标为非活跃状态
             field_ids = [old_metric_to_ids.get(k) for k in inactive_metrics]
-            cls.objects.filter(group_id=group_id, field_id__in=field_ids, is_active=True).update(is_active=False)
+            cls.objects.filter(group_id=group_id, field_id__in=field_ids, is_active=True).update(
+                is_active=False,
+                last_modify_time=timezone.now(),  # 如果将指标置为不活跃，把最后修改时间置为当前时间。提供给刷新路由的逻辑做判断
+            )
             logger.info(
                 "bulk_refresh_ts_metrics: set inactive metrics for group_id->[%s], metrics->[%s]",
                 group_id,
