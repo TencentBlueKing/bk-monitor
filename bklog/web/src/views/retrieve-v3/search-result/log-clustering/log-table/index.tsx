@@ -607,6 +607,7 @@ export default defineComponent({
       pagination.value.count = 0;
       setTimeout(() => {
         displayType.value = value;
+        updateTableList();
         setPaginationCount();
         tableLoading.value = false;
       });
