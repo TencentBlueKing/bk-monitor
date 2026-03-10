@@ -426,19 +426,15 @@ export default defineComponent({
       (newVal, oldVal) => {
         if (newVal === oldVal) return;
 
-        // grokMode 变化时重建编辑器
+        // grokMode 变化时重建编辑器，直接用当前内容初始化，避免触发 docChanged 导致误触发自动补全
         const currentValue = editorView?.state.doc.toString() || props.value;
         destroyEditor();
         nextTick(() => {
-          initEditor();
-          // 恢复之前的内容
-          if (editorView && currentValue) {
-            editorView.dispatch({
-              changes: {
-                from: 0,
-                to: editorView.state.doc.length,
-                insert: currentValue,
-              },
+          if (editorRef.value) {
+            const state = createState(currentValue);
+            editorView = new EditorView({
+              state,
+              parent: editorRef.value,
             });
           }
         });
