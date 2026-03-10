@@ -8,6 +8,7 @@ from django.utils import timezone
 from bkmonitor.data_migrate.constants import RECOVERY_RECORDS_DIRECTORY_NAME
 from bkmonitor.data_migrate.handler.base import BaseDirectoryHandler, HandlerExecutionError
 from bkmonitor.data_migrate.handler.cluster import SanitizeClusterInfoHandler
+from bkmonitor.data_migrate.handler.cluster_id import ReplaceClusterIdHandler
 from bkmonitor.data_migrate.handler.model_disable import DisableModelsHandler
 from bkmonitor.data_migrate.handler.tenant import ReplaceTenantIdHandler
 from bkmonitor.data_migrate.utils import read_json_file, write_json_file
@@ -207,6 +208,40 @@ def sanitize_cluster_info_in_directory(
         directory_path=directory_path,
         handler=SanitizeClusterInfoHandler(),
     )
+
+
+def replace_cluster_id_in_directory(
+    directory_path: str | Path,
+    cluster_id_map: dict[int | str, int | str],
+) -> Path:
+    """按映射替换导出目录中的 cluster_id 引用。"""
+    handler = ReplaceClusterIdHandler(cluster_id_map=cluster_id_map)
+    target_directory = apply_handler_to_directory(
+        directory_path=directory_path,
+        handler=handler,
+    )
+
+    manifest_path = target_directory / "manifest.json"
+    manifest = read_json_file(manifest_path)
+    for scope_stats in manifest.get("export_stats", {}).values():
+        if not isinstance(scope_stats, dict):
+            continue
+        clusters = scope_stats.get("clusters")
+        if not isinstance(clusters, list):
+            continue
+        for cluster in clusters:
+            if not isinstance(cluster, dict) or "cluster_id" not in cluster:
+                continue
+            try:
+                source_cluster_id = int(cluster["cluster_id"])
+            except (TypeError, ValueError):
+                continue
+            if source_cluster_id not in handler.cluster_id_map:
+                continue
+            cluster["cluster_id"] = handler.cluster_id_map[source_cluster_id]
+
+    write_json_file(manifest_path, manifest)
+    return target_directory
 
 
 def disable_models_in_directory(

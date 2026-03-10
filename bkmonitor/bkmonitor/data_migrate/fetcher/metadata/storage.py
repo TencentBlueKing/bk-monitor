@@ -1,15 +1,9 @@
 from collections.abc import Sequence
 
 from bkmonitor.data_migrate.fetcher.base import FetcherResultType
-from metadata.models.es_snapshot import EsSnapshot, EsSnapshotIndice, EsSnapshotRepository, EsSnapshotRestore
+from metadata.models.es_snapshot import EsSnapshot, EsSnapshotIndice
 from metadata.models.result_table import ESFieldQueryAliasOption
-from metadata.models.storage import (
-    ClusterInfo,
-    DorisStorage,
-    ESStorage,
-    KafkaStorage,
-    StorageClusterRecord,
-)
+from metadata.models.storage import DorisStorage, ESStorage, KafkaStorage, StorageClusterRecord
 
 
 def _normalize_table_ids(table_ids: Sequence[str] | None) -> list[str]:
@@ -29,10 +23,10 @@ def get_metadata_cluster_info_fetcher(cluster_ids: Sequence[int] | None) -> list
     ``ClusterInfo`` 独立于具体 ``table_id`` 迁移，因此单独提供一个入口。
     ``ClusterConfig`` 当前先不导出。
     """
-    normalized_cluster_ids = _normalize_cluster_ids(cluster_ids)
-    filters = {"cluster_id__in": normalized_cluster_ids} if normalized_cluster_ids else None
+    # normalized_cluster_ids = _normalize_cluster_ids(cluster_ids)
+    # filters = {"cluster_id__in": normalized_cluster_ids} if normalized_cluster_ids else None
     return [
-        (ClusterInfo, filters, None),
+        # (ClusterInfo, filters, None),
         # ClusterConfig 先不迁移，等集群注册配置是否需要跟随迁移进一步确认后再恢复。
         # cluster_queryset = ClusterInfo.objects.filter(**filters) if filters else ClusterInfo.objects.all()
         # cluster_names = cluster_queryset.values_list("cluster_name", flat=True)
@@ -88,10 +82,10 @@ def get_metadata_storage_by_table_ids_fetcher(table_ids: Sequence[str] | None) -
         # (AccessVMRecord, {"result_table_id__in": normalized_table_ids}, None),
         (KafkaStorage, {"table_id__in": normalized_table_ids}, None),
         (DorisStorage, {"table_id__in": normalized_table_ids}, None),
-        (StorageClusterRecord, {"table_id__in": normalized_table_ids}, None),
+        (StorageClusterRecord, {"table_id__in": normalized_table_ids, "is_current": True}, None),
         (ESFieldQueryAliasOption, {"table_id__in": normalized_table_ids}, None),
-        (EsSnapshot, {"table_id__in": normalized_table_ids}, None),
-        (EsSnapshotIndice, {"table_id__in": normalized_table_ids}, None),
-        (EsSnapshotRepository, {"repository_name__in": snapshot_repo_names}, None),
-        (EsSnapshotRestore, {"table_id__in": normalized_table_ids}, None),
+        # (EsSnapshot, {"table_id__in": normalized_table_ids}, None),
+        # (EsSnapshotIndice, {"table_id__in": normalized_table_ids}, None),
+        # (EsSnapshotRepository, {"repository_name__in": snapshot_repo_names}, None),
+        # (EsSnapshotRestore, {"table_id__in": normalized_table_ids}, None),
     ]

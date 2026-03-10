@@ -1,5 +1,3 @@
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
-
 from apm.models import (
     ApdexConfig,
     ApmApplication,
@@ -9,11 +7,8 @@ from apm.models import (
     BcsClusterDefaultApplicationRelation,
     BkdataFlowConfig,
     CustomServiceConfig,
-    DataLink,
     DbConfig,
     EbpfApplicationConfig,
-    Endpoint,
-    HostInstance,
     LicenseConfig,
     LogDataSource,
     MetricDataSource,
@@ -23,15 +18,11 @@ from apm.models import (
     ProfileService,
     QpsConfig,
     RemoteServiceDiscover,
-    RemoteServiceRelation,
-    RootEndpoint,
     SamplerConfig,
     SubscriptionConfig,
-    TopoInstance,
-    TopoNode,
-    TopoRelation,
     TraceDataSource,
 )
+from bkmonitor.data_migrate.fetcher.base import FetcherResultType
 
 
 def get_apm_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:
@@ -42,6 +33,11 @@ def get_apm_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:
     ``DataLink``、``SubscriptionConfig`` 这类允许存在平台默认记录的表，
     在 ``bk_biz_id=None`` 时也会自然带出全局配置。
     """
+
+    # 当 bk_biz_id 为 0 时，不返回任何数据
+    if bk_biz_id == 0:
+        return []
+
     filters = None if bk_biz_id is None else {"bk_biz_id": bk_biz_id}
     return [
         (ApmApplication, filters, None),
@@ -53,7 +49,7 @@ def get_apm_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:
         (LogDataSource, filters, None),
         (TraceDataSource, filters, None),
         (ProfileDataSource, filters, None),
-        (DataLink, filters, None),
+        # (DataLink, filters, None),
         (BkdataFlowConfig, filters, None),
         (ApmTopoDiscoverRule, filters, None),
         (ApmInstanceDiscover, filters, None),
@@ -67,11 +63,11 @@ def get_apm_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:
         (LicenseConfig, filters, None),
         (DbConfig, filters, None),
         (ProbeConfig, filters, None),
-        (RootEndpoint, filters, None),
-        (Endpoint, filters, None),
-        (TopoNode, filters, None),
-        (TopoRelation, filters, None),
-        (TopoInstance, filters, None),
-        (HostInstance, filters, None),
-        (RemoteServiceRelation, filters, None),
+        # (RootEndpoint, filters, None),
+        # (Endpoint, filters, None),
+        # (TopoNode, filters, None),
+        # (TopoRelation, filters, None),
+        # (TopoInstance, filters, None),
+        # (HostInstance, filters, None),
+        # (RemoteServiceRelation, filters, None),
     ]

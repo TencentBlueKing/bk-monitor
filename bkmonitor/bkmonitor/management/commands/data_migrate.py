@@ -23,6 +23,7 @@ from bkmonitor.data_migrate import (
     export_auto_increment_to_directory,
     export_biz_data_to_directory,
     import_biz_data_from_directory,
+    replace_cluster_id_in_directory,
     replace_tenant_id_in_directory,
     restore_disabled_models_in_directory,
     sanitize_cluster_info_in_directory,
@@ -54,6 +55,9 @@ class Command(BaseCommand):
             "  按业务替换 bk_tenant_id:\n"
             '    python manage.py data_migrate replace-tenant-id --directory /tmp/bkmonitor-data-migrate-20260307120000 --biz-tenant-id-map \'{"*":"tenant-a","2":"tenant-b"}\'\n'
             "\n"
+            "  替换 cluster_id 引用:\n"
+            '    python manage.py data_migrate replace-cluster-id --directory /tmp/bkmonitor-data-migrate-20260307120000 --cluster-id-map \'{"3":10003,"10":10010}\'\n'
+            "\n"
             "  脱敏 ClusterInfo 连接配置:\n"
             "    python manage.py data_migrate sanitize-cluster-info --directory /tmp/bkmonitor-data-migrate-20260307120000\n"
             "\n"
@@ -70,6 +74,7 @@ class Command(BaseCommand):
                 "import",
                 "apply-sequences",
                 "replace-tenant-id",
+                "replace-cluster-id",
                 "sanitize-cluster-info",
                 "disable-models",
                 "restore-disabled-models",
@@ -95,6 +100,10 @@ class Command(BaseCommand):
             help='租户替换映射 JSON，形如 \'{"*":"tenant-a","2":"tenant-b"}\'；仅 replace-tenant-id 动作需要',
         )
         parser.add_argument(
+            "--cluster-id-map",
+            help='集群 ID 替换映射 JSON，形如 \'{"3":10003,"10":10010}\'；仅 replace-cluster-id 动作需要',
+        )
+        parser.add_argument(
             "--models",
             nargs="+",
             help="需要关闭的模型列表，形如 monitor_web.CollectConfigMeta；仅 disable-models 动作需要",
@@ -107,6 +116,7 @@ class Command(BaseCommand):
             "import": self._handle_import,
             "apply-sequences": self._handle_apply_sequences,
             "replace-tenant-id": self._handle_replace_tenant_id,
+            "replace-cluster-id": self._handle_replace_cluster_id,
             "sanitize-cluster-info": self._handle_sanitize_cluster_info,
             "disable-models": self._handle_disable_models,
             "restore-disabled-models": self._handle_restore_disabled_models,
@@ -172,6 +182,15 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS(f"replace tenant id completed: {directory}"))
 
+    def _handle_replace_cluster_id(self, options):
+        directory = options["directory"]
+        cluster_id_map = self._load_cluster_id_map(options.get("cluster_id_map"))
+        replace_cluster_id_in_directory(
+            directory_path=directory,
+            cluster_id_map=cluster_id_map,
+        )
+        self.stdout.write(self.style.SUCCESS(f"replace cluster id completed: {directory}"))
+
     def _handle_sanitize_cluster_info(self, options):
         directory = options["directory"]
         sanitize_cluster_info_in_directory(
@@ -214,3 +233,16 @@ class Command(BaseCommand):
             }
         except (TypeError, ValueError, json.JSONDecodeError) as error:
             raise CommandError(f"--biz-tenant-id-map 不是合法 JSON 映射: {error}") from error
+
+    def _load_cluster_id_map(self, raw_mapping):
+        if not raw_mapping:
+            raise CommandError("replace-cluster-id 动作必须提供 --cluster-id-map")
+
+        try:
+            loaded_mapping = json.loads(raw_mapping)
+            return {
+                int(source_cluster_id): int(target_cluster_id)
+                for source_cluster_id, target_cluster_id in loaded_mapping.items()
+            }
+        except (TypeError, ValueError, json.JSONDecodeError) as error:
+            raise CommandError(f"--cluster-id-map 不是合法 JSON 映射: {error}") from error

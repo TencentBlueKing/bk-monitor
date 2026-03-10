@@ -100,6 +100,27 @@ python manage.py data_migrate replace-tenant-id \
 - 如果同时配置具体业务和 `"*"`，具体业务优先
 - 执行历史会追加记录到 `manifest.json` 的 `handlers` 字段中
 
+### 替换 Cluster ID 引用
+
+```bash
+python manage.py data_migrate replace-cluster-id \
+  --directory /tmp/bkmonitor-data-export \
+  --cluster-id-map '{"3":10003,"10":10010}'
+```
+
+说明：
+
+- 也是目录级原地修改
+- 会同步替换当前迁移包中与 `metadata.ClusterInfo` 关联的主键和引用字段
+- 当前覆盖：
+  - `metadata.ClusterInfo.pk`
+  - `metadata.DataSource.mq_cluster_id`
+  - `metadata.KafkaStorage.storage_cluster_id`
+  - `metadata.ESStorage.storage_cluster_id`
+  - `metadata.DorisStorage.storage_cluster_id`
+  - `metadata.StorageClusterRecord.cluster_id`
+- 同时会更新 `manifest.json -> export_stats -> <scope> -> clusters` 中的 `cluster_id`
+
 ### 脱敏 ClusterInfo 连接配置
 
 ```bash

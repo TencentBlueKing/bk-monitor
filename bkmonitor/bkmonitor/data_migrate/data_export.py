@@ -37,6 +37,7 @@ from bkmonitor.data_migrate.fetcher.strategy import get_strategy_fetcher
 from bkmonitor.data_migrate.fetcher.uptimecheck import get_uptimecheck_fetcher
 from bkmonitor.data_migrate.utils import _resolve_using, write_json_file
 from metadata.models import DataSource, ResultTable
+from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, KafkaStorage
 
 
 def _normalize_bk_biz_ids(bk_biz_ids: Sequence[int] | None) -> list[int]:
@@ -155,6 +156,7 @@ def _build_scope_export_stats(
     scope_type: str,
     tables: Sequence[dict[str, Any]] | None = None,
     datasources: Sequence[dict[str, Any]] | None = None,
+    clusters: Sequence[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """初始化单个统计范围的导出元数据。"""
     return {
@@ -162,6 +164,7 @@ def _build_scope_export_stats(
         "model_counts": {},
         "tables": list(tables or []),
         "datasources": list(datasources or []),
+        "clusters": list(clusters or []),
     }
 
 
@@ -208,6 +211,49 @@ def _build_data_source_export_refs(data_ids: Sequence[int]) -> list[dict[str, An
             "data_name": data_name_map.get(data_id),
         }
         for data_id in normalized_data_ids
+    ]
+
+
+def _build_cluster_export_refs(table_ids: Sequence[str], data_ids: Sequence[int]) -> list[dict[str, Any]]:
+    """统计本次导出中被 DataSource/Storage 实际引用到的集群摘要。"""
+    normalized_table_ids = list(table_ids)
+    normalized_data_ids = list(data_ids)
+    cluster_ids: set[int] = set()
+
+    if normalized_data_ids:
+        cluster_ids.update(
+            cluster_id
+            for cluster_id in DataSource.objects.filter(bk_data_id__in=normalized_data_ids).values_list(
+                "mq_cluster_id", flat=True
+            )
+            if cluster_id is not None
+        )
+
+    if normalized_table_ids:
+        for storage_model in (KafkaStorage, ESStorage, DorisStorage):
+            cluster_ids.update(
+                cluster_id
+                for cluster_id in storage_model.objects.filter(table_id__in=normalized_table_ids).values_list(
+                    "storage_cluster_id", flat=True
+                )
+                if cluster_id is not None
+            )
+
+    if not cluster_ids:
+        return []
+
+    cluster_rows = ClusterInfo.objects.filter(cluster_id__in=sorted(cluster_ids)).values(
+        "cluster_id", "cluster_name", "display_name", "cluster_type"
+    )
+    cluster_map = {row["cluster_id"]: row for row in cluster_rows}
+    return [
+        {
+            "cluster_id": cluster_id,
+            "cluster_name": cluster_map.get(cluster_id, {}).get("cluster_name"),
+            "display_name": cluster_map.get(cluster_id, {}).get("display_name"),
+            "cluster_type": cluster_map.get(cluster_id, {}).get("cluster_type"),
+        }
+        for cluster_id in sorted(cluster_ids)
     ]
 
 
@@ -273,6 +319,7 @@ def export_biz_data_to_directory(
             "biz",
             tables=_build_table_export_refs(table_ids),
             datasources=_build_data_source_export_refs(data_ids),
+            clusters=_build_cluster_export_refs(table_ids, data_ids),
         )
         biz_relative_files: list[str] = []
         for module_name, fetchers in module_fetchers.items():
