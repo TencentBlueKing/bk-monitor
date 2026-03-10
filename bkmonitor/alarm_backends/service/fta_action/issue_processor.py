@@ -13,7 +13,7 @@ import logging
 import time
 from typing import Optional
 
-from alarm_backends.core.cache.issue import StrategyIssueConfigCache
+from alarm_backends.core.cache.issue import StrategyIssueConfigCacheManager
 from alarm_backends.core.cache.key import ISSUE_ACTIVE_CONTENT_KEY, ISSUE_STRATEGY_LOCK
 from alarm_backends.core.control.item import gen_condition_matcher
 from alarm_backends.core.lock import RedisLock
@@ -48,7 +48,7 @@ class IssueAggregationProcessor:
         """执行 Issue 聚合，返回 True 表示成功关联，False 表示跳过或锁失败"""
         # Step 1: 读配置（缓存 → MySQL）
         config = self._get_strategy_config()
-        if not config or not config.is_enabled:
+        if not config or not config.get("is_enabled", True):
             return False
 
         # Step 2: 快速失败校验
@@ -105,11 +105,11 @@ class IssueAggregationProcessor:
         strategy_id = self.strategy.get("id")
         if not strategy_id:
             return None
-        return StrategyIssueConfigCache.get(strategy_id)
+        return StrategyIssueConfigCacheManager.get_config_by_strategy_id(strategy_id)
 
     def _check_alert_level(self, config) -> bool:
         """检查告警级别是否在配置的生效级别列表中"""
-        alert_levels = config.alert_levels
+        alert_levels = config.get("alert_levels", [])
         if not alert_levels:
             return False
         severity = self.alert.severity
@@ -122,7 +122,7 @@ class IssueAggregationProcessor:
         conditions 字段格式：[{"key": ..., "method": ..., "value": [...]}]
         字段缺失或不命中时按"不满足条件"处理，直接跳过。
         """
-        conditions = config.conditions
+        conditions = config.get("conditions", [])
         if not conditions:
             return True  # 无过滤条件视为全量命中
 
@@ -231,9 +231,9 @@ class IssueAggregationProcessor:
                     impact_scope[dim.key] = dim.value
 
         aggregate_config = {
-            "aggregate_dimensions": config.aggregate_dimensions,
-            "conditions": config.conditions,
-            "alert_levels": config.alert_levels,
+            "aggregate_dimensions": config.get("aggregate_dimensions", []),
+            "conditions": config.get("conditions", []),
+            "alert_levels": config.get("alert_levels", []),
         }
 
         issue = IssueDocument(

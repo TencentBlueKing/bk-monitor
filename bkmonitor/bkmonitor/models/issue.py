@@ -75,8 +75,8 @@ class StrategyIssueConfig(AbstractRecordModel):
 def invalidate_strategy_issue_config_cache(sender, instance, **kwargs):
     """配置写入/删除后主动失效 Redis 缓存"""
     try:
-        from alarm_backends.core.cache.issue import StrategyIssueConfigCache
+        from alarm_backends.core.cache.issue import StrategyIssueConfigCacheManager
 
-        StrategyIssueConfigCache.invalidate(instance.strategy_id)
+        StrategyIssueConfigCacheManager.invalidate(instance.strategy_id)
     except Exception:  # NOCC:broad-except(避免信号异常影响主流程)
         pass
