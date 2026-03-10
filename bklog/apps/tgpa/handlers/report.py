@@ -19,7 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import json
 import os
 
 import arrow
@@ -27,6 +26,7 @@ from django.utils.functional import cached_property
 
 from apps.api import BkDataQueryApi
 from apps.log_esquery.esquery.builder.query_index_optimizer import QueryIndexOptimizer
+from apps.log_esquery.esquery.client.QueryClientBkData import QueryClientBkData
 from apps.log_search.models import Scenario
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.tgpa.constants import (
@@ -145,9 +145,9 @@ class TGPAReportHandler:
         return {"bool": {"must": must_conditions}}
 
     @classmethod
-    def _build_es_params(cls, result_table_id, body, start_time=None, end_time=None):
+    def _get_optimized_index(cls, result_table_id, start_time=None, end_time=None):
         """
-        构建ES查询参数
+        获取经过时间优化后的索引名
         """
         if not start_time:
             start_time = int(arrow.now().shift(days=-7).timestamp() * 1000)
@@ -160,16 +160,13 @@ class TGPAReportHandler:
             start_time=arrow.get(start_time / 1000),
             end_time=arrow.get(end_time / 1000),
         )
-        index = optimizer.index
-        sql = json.dumps({"index": index, "body": body})
-        return {"prefer_storage": "es", "sql": sql}
+        return optimizer.index
 
     @classmethod
-    def _parse_es_response(cls, api_result):
+    def _parse_es_response(cls, es_response):
         """
         解析 bk-data ES查询返回结果
         """
-        es_response = api_result.get("list", {})
         if not es_response or not isinstance(es_response, dict):
             return 0, []
 
@@ -193,11 +190,13 @@ class TGPAReportHandler:
         """
         获取客户端日志上报文件数量
         """
+        result_table_id = cls._get_result_table_id()
         es_query = cls._build_es_query(bk_biz_id, start_time=start_time, end_time=end_time)
         body = {"query": es_query, "size": 0}
-        params = cls._build_es_params(cls._get_result_table_id(), body, start_time=start_time, end_time=end_time)
-        api_result = BkDataQueryApi.query(params)
-        total, _ = cls._parse_es_response(api_result)
+        index = cls._get_optimized_index(result_table_id, start_time=start_time, end_time=end_time)
+        client = QueryClientBkData()
+        es_response = client.query(index=index, body=body)
+        total, _ = cls._parse_es_response(es_response)
         return total
 
     @classmethod
@@ -252,12 +251,12 @@ class TGPAReportHandler:
         }
 
         # 查询ES并解析响应
-        api_result = BkDataQueryApi.query(
-            cls._build_es_params(
-                result_table_id, body, start_time=params.get("start_time"), end_time=params.get("end_time")
-            )
+        index = cls._get_optimized_index(
+            result_table_id, start_time=params.get("start_time"), end_time=params.get("end_time")
         )
-        total, items = cls._parse_es_response(api_result)
+        client = QueryClientBkData()
+        es_response = client.query(index=index, body=body)
+        total, items = cls._parse_es_response(es_response)
 
         # 格式化字段别名: real_name -> file_path, cc_id -> bk_biz_id
         for item in items:
