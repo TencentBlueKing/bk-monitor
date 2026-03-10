@@ -32,7 +32,7 @@ interface IEvents {
   onChange?: Iform[];
 }
 interface Iform {
-  lable?: string;
+  label?: string;
   placeholder?: string;
   required?: boolean;
   subTitle?: string;
@@ -62,9 +62,12 @@ export default class SimpleForm extends tsc<IProps, IEvents> {
       <div class='meal-content-simple-form'>
         {this.forms.length ? (
           this.forms.map((item, index) => [
-            <div class={'title'}>
+            <div
+              key={`title_${index}`}
+              class={'title'}
+            >
               <span class={{ required: !!item?.required }}>
-                {item.lable}
+                {item.label}
                 {!!item?.subTitle && (
                   <span
                     class='sub-title'
@@ -75,11 +78,14 @@ export default class SimpleForm extends tsc<IProps, IEvents> {
                 )}
               </span>
             </div>,
-            <div class='wrap'>
+            <div
+              key={`wrap_${index}`}
+              class='wrap'
+            >
               <bk-input
                 placeholder={
                   item?.placeholder ||
-                  this.$t('输入需要调试的{0}参数', [`${item.lable?.replace(/\{\{(.*?)\}\}|(\s)/g, '') || ''}`])
+                  this.$t('输入需要调试的{0}参数', [`${item.label?.replace(/\{\{(.*?)\}\}|(\s)/g, '') || ''}`])
                 }
                 behavior='simplicity'
                 value={item.value}
