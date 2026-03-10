@@ -1483,9 +1483,9 @@ class AlertGraphQueryResource(ApiAuthResource):
             max_len = len(longest_series["datapoints"])
             tail_timestamps = [point[1] for point in longest_series["datapoints"]]
             for series in current_series_list:
-                # 从后往前找到最后一个非 None 值的位置，作为有效长度
+                # 从后往前找到最后一个有效数值的位置，作为有效长度
                 cur_len = len(series["datapoints"])
-                while cur_len > 0 and series["datapoints"][cur_len - 1][0] is None:
+                while cur_len > 0 and not isinstance(series["datapoints"][cur_len - 1][0], int | float):
                     cur_len -= 1
                 if cur_len < max_len:
                     # 截断尾部 None 点，再按基准时间戳补齐
