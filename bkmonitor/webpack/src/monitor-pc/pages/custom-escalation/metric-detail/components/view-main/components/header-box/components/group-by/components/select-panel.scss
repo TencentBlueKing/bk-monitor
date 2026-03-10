@@ -1,0 +1,151 @@
+.group-by-select-panel {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 6px;
+  color: #3a84ff;
+  cursor: pointer;
+  background: #e1ecff;
+  border-radius: 2px;
+
+  &.is-disabled {
+    color: #dcdee5;
+    background: #f5f7fa;
+  }
+}
+
+.tippy-tooltip.group-by-select-panel-theme {
+  padding: 0;
+  background-color: #fff !important;
+
+  .highlight-wrap {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    width: 296px;
+  }
+
+  .highlight {
+    max-width: calc(100% - 72px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #3a84ff;
+    white-space: nowrap;
+  }
+
+  .wrapper {
+    min-width: 320px;
+  }
+
+  .dimension-list {
+    max-height: 300px;
+    margin-top: 4px;
+    margin-bottom: 8px;
+    overflow-y: auto;
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 32px;
+    padding: 0 12px;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f7fa;
+    }
+
+    .bk-form-checkbox {
+      flex: 1;
+      line-height: 32px;
+
+      .bk-checkbox-text {
+        font-size: 12px;
+      }
+    }
+  }
+
+  .dimension-name {
+    padding-left: 4px;
+    color: #9da4b3;
+  }
+
+  .custom-dimension-wrap {
+    position: relative;
+    height: 32px;
+    line-height: 1;
+
+    &::after {
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      content: '';
+      border-top: 1px solid #eaebf0;
+    }
+  }
+
+  .custom-dimension-entry {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    cursor: pointer;
+    background-color: #fafbfd;
+
+    .bk-icon {
+      margin-right: 3px;
+    }
+  }
+
+  .custom-dimension-input {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100%;
+    padding: 0 6px;
+    font-size: 12px;
+
+    .dimension-input {
+      flex: 1;
+
+      .bk-form-input {
+        height: 22px;
+        font-size: 12px;
+        line-height: 22px;
+      }
+    }
+  
+    .icon-wrap {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      margin-left: 6px;
+      line-height: 20px;
+      text-align: center;
+      cursor: pointer;
+      border: 1px solid #caccd1;
+      border-radius: 2px;
+
+      &.is-disabled {
+        user-select: none;
+        opacity: 0.3;
+      }
+    }
+  
+    .icon-mc-check-small {
+      font-size: 18px;
+      color: #2baf5e;
+    }
+  
+    .icon-mc-close {
+      font-size: 18px;
+      color: #eb3a3b;
+    }
+  }
+}

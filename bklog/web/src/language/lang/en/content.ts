@@ -1290,4 +1290,10 @@ export default {
   'Tab 可切换为 AI 模式': 'The tab can be switched to AI mode',
   '输入查询内容，“帮我查询最近 3 天的错误日志”（Tab 可切回普通模式）':
     'Enter your query, "Help me check the error logs for the last 3 days" (Tab switches back to normal mode)',
+  点击切换排序: 'Click to switch sorting',
+  '当前升序(点击切换)': 'Current ascending (click to switch)',
+  '当前降序(点击切换)': 'Current descending (click to switch)',
+  设置排序字段: 'Set sorting field',
+  排序字段设置: 'Sort field settings',
+  至少需要配置一个排序字段: 'At least one sorting field needs to be configured',
 };

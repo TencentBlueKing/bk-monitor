@@ -88,7 +88,9 @@ export default () => {
 
     store.commit('updateIndexItem', routeParams);
     store.commit('updateSpace', routeParams.spaceUid);
-    store.commit('updateState', { indexId: routeParams.index_id });
+    if (routeParams.index_id !== undefined) {
+      store.commit('updateState', { indexId: routeParams.index_id });
+    }
     store.commit('updateStorage', {
       [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
     });
@@ -151,45 +153,52 @@ export default () => {
     return { width: '100%' };
   });
 
+  const resolveAdditionKeyword = (): Promise<void> => {
+    const { search_mode: searchMode, addition, keyword } = route.query;
+
+    if (!searchMode && addition?.length > 4 && keyword?.length > 0) {
+      store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+
+      const resolver = new RouteUrlResolver({
+        route,
+        resolveFieldList: ['addition'],
+      });
+      const target = resolver.convertQueryToStore<RouteParams>();
+
+      if (target.addition?.length) {
+        return $http
+          .request('retrieve/generateQueryString', {
+            data: { addition: target.addition },
+          })
+          .then(res => {
+            if (res.result) {
+              const newKeyword = `${keyword} AND ${res.data?.querystring}`;
+              store.commit('updateIndexItemParams', { keyword: newKeyword });
+            }
+          })
+          .catch(err => {
+            console.error(err);
+          });
+      }
+    }
+
+    return Promise.resolve();
+  };
+
   const setSearchMode = () => {
     const { search_mode: searchMode, addition, keyword } = route.query;
 
-    // 此时说明来自旧版URL，同时带有 addition 和 keyword
-    // 这种情况下需要将 addition 转换为 keyword 进行查询合并
-    // 同时设置 search_mode 为 sql
     if (!searchMode) {
       if (addition?.length > 4 && keyword?.length > 0) {
-        // 这里不好做同步请求，所以直接设置 search_mode 为 sql
+        const mergedKeyword = store.state.indexItem.keyword;
         router.push({
-          query: { ...route.query, search_mode: 'sql', addition: '[]' },
+          query: {
+            ...route.query,
+            search_mode: 'sql',
+            keyword: mergedKeyword,
+            addition: '[]',
+          },
         });
-        const resolver = new RouteUrlResolver({
-          route,
-          resolveFieldList: ['addition'],
-        });
-        const target = resolver.convertQueryToStore<RouteParams>();
-
-        if (target.addition?.length) {
-          $http
-            .request('retrieve/generateQueryString', {
-              data: {
-                addition: target.addition,
-              },
-            })
-            .then(res => {
-              if (res.result) {
-                const newKeyword = `${keyword} AND ${res.data?.querystring}`;
-                router.replace({
-                  query: { ...route.query, keyword: newKeyword, addition: [] },
-                });
-                store.commit('updateIndexItemParams', { keyword: newKeyword });
-              }
-            })
-            .catch(err => {
-              console.error(err);
-            });
-        }
-
         return;
       }
 
@@ -425,42 +434,56 @@ export default () => {
 
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
-          store
-            .dispatch('requestIndexSetFieldInfo')
-            .then(resp => {
-              RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-              RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
+          resolveAdditionKeyword().then(() => {
+            store
+              .dispatch('requestIndexSetFieldInfo')
+              .then(resp => {
+                RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+                RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
 
-              if (
-                route.query.tab === 'origin' ||
-                route.query.tab === undefined ||
-                route.query.tab === null ||
-                route.query.tab === ''
-              ) {
-                if (resp?.data?.fields?.length) {
-                  store.dispatch('requestIndexSetQuery').then(() => {
+                if (
+                  route.query.tab === 'origin' ||
+                  route.query.tab === undefined ||
+                  route.query.tab === null ||
+                  route.query.tab === ''
+                ) {
+                  if (resp?.data?.fields?.length) {
+                    store.dispatch('requestIndexSetQuery').then(() => {
+                      RetrieveHelper.setSearchingValue(false);
+                    });
+                  }
+
+                  if (!resp?.data?.fields?.length) {
+                    store.commit('updateIndexSetQueryResult', {
+                      is_error: true,
+                      exception_msg: 'index-set-field-not-found',
+                    });
                     RetrieveHelper.setSearchingValue(false);
-                  });
-                }
-
-                if (!resp?.data?.fields?.length) {
-                  store.commit('updateIndexSetQueryResult', {
-                    is_error: true,
-                    exception_msg: 'index-set-field-not-found',
-                  });
+                  }
+                } else {
                   RetrieveHelper.setSearchingValue(false);
                 }
 
-                return;
-              }
-
-              RetrieveHelper.setSearchingValue(false);
-            })
-            .catch(err => {
-              // 请求失败时也要关闭 loading 状态，避免页面一直处于加载中
-              console.error('requestIndexSetFieldInfo failed:', err);
-              RetrieveHelper.setSearchingValue(false);
-            });
+                setSearchMode();
+                setDefaultRouteUrl();
+                if (indexId) {
+                  router.replace({
+                    params: { ...route.params, indexId },
+                    query: {
+                      ...route.query,
+                      ...queryTab,
+                      unionList: unionList ? JSON.stringify(unionList) : undefined,
+                    },
+                  });
+                }
+              })
+              .catch(err => {
+                console.error('requestIndexSetFieldInfo failed:', err);
+                RetrieveHelper.setSearchingValue(false);
+                setSearchMode();
+                setDefaultRouteUrl();
+              });
+          });
         }
 
         if (!indexSetIdList.value.length) {
@@ -482,16 +505,6 @@ export default () => {
           store.getters.isUnionSearch,
         );
 
-        if (indexId) {
-          router.replace({
-            params: { ...route.params, indexId },
-            query: {
-              ...route.query,
-              ...queryTab,
-              unionList: unionList ? JSON.stringify(unionList) : undefined,
-            },
-          });
-        }
       });
   };
 
@@ -511,9 +524,7 @@ export default () => {
   };
 
   getIndexSetList(() => {
-    setSearchMode();
     reoverRouteParams();
-    setDefaultRouteUrl();
   });
 
   const handleSpaceIdChange = () => {

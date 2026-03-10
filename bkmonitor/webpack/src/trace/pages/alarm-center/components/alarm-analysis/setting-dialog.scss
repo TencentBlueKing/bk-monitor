@@ -27,7 +27,7 @@
       }
 
       .search-input {
-        margin: 8px 0 12px 0;
+        margin: 8px 0 12px;
       }
 
       .select-group-wrap {
@@ -82,7 +82,7 @@
           align-items: center;
           height: 36px;
           padding: 0 10px;
-          background: #ffffff;
+          background: #fff;
           border-radius: 2px;
           box-shadow: 0 1px 2px 0 #00000029;
 
@@ -98,14 +98,14 @@
 
             .icon-mc-tuozhuai {
               font-size: 12px;
-              cursor: pointer;
+              cursor: move;
             }
 
             .item-label {
               margin-left: 9px;
-              color: #4d4f56;
               overflow: hidden;
               text-overflow: ellipsis;
+              color: #4d4f56;
               white-space: nowrap;
             }
           }

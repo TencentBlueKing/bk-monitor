@@ -6,17 +6,21 @@
 
 ### 请求参数
 
-| 字段                     | 类型   | 必选 | 描述       |
-|------------------------|------|----|----------|
-| event_group_id         | int  | 是  | 事件分组ID   |
-| with_result_table_info | bool | 否  | 事件分组存储信息 | 
+| 字段                     | 类型   | 必选 | 描述         |
+|------------------------|------|----|------------|
+| event_group_id         | int  | 是  | 事件分组ID     |
+| with_result_table_info | bool | 否  | 是否需要带结果表信息 |
+| need_refresh           | bool | 否  | 是否需要实时刷新   |
+| event_infos_limit      | int  | 否  | 事件信息列表上限   |
 
 ### 请求参数示例
 
 ```json
 {
   "event_group_id": 123,
-  "with_result_table_info": true
+  "with_result_table_info": true,
+  "need_refresh": false,
+  "event_infos_limit": 100
 }
 ```
 

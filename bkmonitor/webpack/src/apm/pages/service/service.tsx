@@ -305,6 +305,7 @@ export default class Service extends tsc<object> {
           <CommonPage
             key={this.pageKey}
             ref='commonPageRef'
+            class={'apm-service-page'}
             backToOverviewKey={this.backToOverviewKey}
             defaultDashboardId={this.dashboardId}
             defaultViewOptions={this.viewOptions}

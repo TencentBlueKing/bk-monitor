@@ -25,6 +25,7 @@ from .custom_report import (
     LogSubscriptionConfig,
     TimeSeriesGroup,
     TimeSeriesMetric,
+    TimeSeriesScope,
     TimeSeriesTag,
 )
 from .data_link import (  # noqa
@@ -57,6 +58,8 @@ from .record_rule import RecordRule, ResultTableFlow
 from .entity_relation import (
     CustomRelationStatus,
     EntityMeta,
+    RelationDefinition,
+    ResourceDefinition,
 )
 from .result_table import (
     CMDBLevelRecord,
@@ -127,6 +130,7 @@ __all__ = [
     "LogGroup",
     "TimeSeriesGroup",
     "TimeSeriesMetric",
+    "TimeSeriesScope",
     "TimeSeriesTag",
     "CustomReportSubscription",
     "LogSubscriptionConfig",
@@ -162,4 +166,6 @@ __all__ = [
     # resource relation
     "EntityMeta",
     "CustomRelationStatus",
+    "ResourceDefinition",
+    "RelationDefinition",
 ]

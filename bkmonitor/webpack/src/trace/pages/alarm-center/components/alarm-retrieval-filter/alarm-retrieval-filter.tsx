@@ -130,6 +130,10 @@ export default defineComponent({
       }>,
       default: () => null,
     },
+    defaultShowResidentBtn: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     conditionChange: (_v: CommonCondition[]) => true,
@@ -139,6 +143,7 @@ export default defineComponent({
     query: () => true,
     bizIdsChange: (_v: (number | string)[]) => true,
     favoriteSave: (_isEdit: boolean) => true,
+    showResidentBtnChange: (_v: boolean) => true,
   },
   setup(_props, { emit }) {
     const { t } = useI18n();
@@ -176,6 +181,9 @@ export default defineComponent({
     const handleFavoriteSave = val => {
       emit('favoriteSave', val);
     };
+    const handleShowResidentBtnChange = val => {
+      emit('showResidentBtnChange', val);
+    };
 
     return {
       showAlarmModule,
@@ -187,6 +195,7 @@ export default defineComponent({
       handleResidentConditionChange,
       handleBizIdsChange,
       handleFavoriteSave,
+      handleShowResidentBtnChange,
       ...useSpaceSelect(),
     };
   },
@@ -203,6 +212,7 @@ export default defineComponent({
           }));
         }}
         commonWhere={this.residentCondition}
+        defaultShowResidentBtn={this.defaultShowResidentBtn}
         favoriteList={this.favoriteList}
         fields={this.fields}
         filterMode={this.filterMode}
@@ -223,6 +233,7 @@ export default defineComponent({
         onModeChange={this.handleFilterModeChange}
         onQueryStringChange={this.handleQueryStringChange}
         onSearch={this.handleQuery}
+        onShowResidentBtnChange={this.handleShowResidentBtnChange}
         onWhereChange={this.handleConditionChange}
       >
         {{

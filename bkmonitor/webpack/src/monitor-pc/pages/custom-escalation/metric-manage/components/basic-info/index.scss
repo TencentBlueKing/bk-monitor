@@ -1,0 +1,79 @@
+.detail-information {
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 10%);
+
+  .detail-information-title {
+    margin-bottom: 16px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #313238;
+  }
+
+  .detail-information-content {
+    display: flex;
+    flex-flow: column wrap;
+    height: 160px;
+
+    .detail-information-row {
+      display: flex;
+      align-items: center;
+      width: 300px;
+      height: 32px;
+      line-height: 16px;
+
+      .row-label {
+        flex-shrink: 0;
+        width: 75px;
+        margin-right: 12px;
+        color: #4d4f56;
+        text-align: right;
+      }
+
+      .row-content {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #313238;
+        white-space: nowrap;
+      }
+
+      .copy-icon {
+        margin-left: 4px;
+        font-size: 14px;
+
+        // color: #699df4;
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+
+      .bk-form-control {
+        width: auto;
+      }
+
+      .edit-name {
+        font-size: 24px;
+        color: #979ba5;
+
+        &:hover {
+          color: #3a84ff;
+          cursor: pointer;
+        }
+      }
+
+      .bk-form-input {
+        height: 28px;
+      }
+
+      .bottom-text {
+        padding-top: 2px;
+        font-size: 11px;
+      }
+    }
+  }
+}

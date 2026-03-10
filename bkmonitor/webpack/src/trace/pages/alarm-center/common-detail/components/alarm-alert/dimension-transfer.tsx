@@ -174,7 +174,6 @@ export default defineComponent({
 
     /** 同步搜索框内容 */
     const handleSearchValueChange = (value: string, field: string) => {
-      console.log(value);
       if (field === 'local') {
         searchValue.value = value;
       } else {

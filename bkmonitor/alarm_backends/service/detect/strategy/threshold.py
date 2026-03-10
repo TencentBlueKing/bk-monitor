@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 """
 静态阈值算法
 """
@@ -16,11 +16,10 @@ specific language governing permissions and limitations under the License.
 import ast
 import logging
 
+from bk_monitor_base.strategy import THRESHOLD_ALLOWED_METHODS, ThresholdSerializer
 from django.utils.safestring import mark_safe
-from six.moves import zip
 
 from alarm_backends.service.detect.strategy import BasicAlgorithmsCollection, ExprDetectAlgorithms
-from bkmonitor.strategy.serializers import ThresholdSerializer, allowed_threshold_method
 from core.errors.alarm_backends.detect import InvalidThresholdConfig
 
 logger = logging.getLogger("detect")
@@ -46,11 +45,9 @@ class AndThreshold(BasicAlgorithmsCollection):
         for t_config in self.validated_config:
             method = t_config["method"]
             threshold = t_config["threshold"]
-            comp = allowed_threshold_method[method]
+            comp = THRESHOLD_ALLOWED_METHODS[method]
             expr_list.append(
-                "unit_convert_min(value, unit) {comp} unit_convert_min({threshold}, unit, algorithm_unit)".format(
-                    comp=comp, threshold=threshold
-                )
+                f"unit_convert_min(value, unit) {comp} unit_convert_min({threshold}, unit, algorithm_unit)"
             )
             tpl_list.append(self.desc_tpl.format(method_desc=mark_safe(comp.replace("==", "=")), threshold=threshold))
 

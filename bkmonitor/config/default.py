@@ -1706,7 +1706,14 @@ APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 # 事件 UnifyQuery 查询业务黑名单
 EVENT_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
-# 日志 UnifyQuery 查询业务白名单
+# 日志 UnifyQuery 查询业务白名单（环境变量，逗号分隔业务 ID，优先级高于 DB 配置）
+_log_uq_white_biz_env = os.getenv("LOG_UNIFY_QUERY_WHITE_BIZ_LIST", "")
+LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV = (
+    [int(biz_id.strip()) for biz_id in _log_uq_white_biz_env.split(",") if biz_id.strip()]
+    if _log_uq_white_biz_env
+    else []
+)
+# 日志 UnifyQuery 查询业务白名单（DB 动态配置）
 LOG_UNIFY_QUERY_WHITE_BIZ_LIST = []
 
 # APM 调用分析启用全局指标的应用列表
@@ -1717,6 +1724,9 @@ APM_SERVICE_CACHE_APPLICATIONS = []
 
 # 企业微信模块化（layouts）消息通知灰度业务列表
 WECOM_LAYOUTS_BIZ_LIST = []
+
+# 允许 APM 配置指标分组维度的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+APM_METRIC_GROUP_DIMENSIONS_WHITELIST = []
 
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
@@ -1757,6 +1767,8 @@ IS_GLOBAL_TENANT = True
 BK_APP_TENANT_ID = "system"
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = ["system"]
+# 内置数据链路是按业务还是按租户申请，默认空。当为空时，按业务申请；当为 "tenant" 时，按租户申请
+SPACE_BUILTIN_DATA_LINK_MODE = os.getenv("SPACE_BUILTIN_DATA_LINK_MODE", "")
 
 # 事件中心AIOps功能灰度业务列表
 ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []

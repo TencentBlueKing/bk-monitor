@@ -14,16 +14,15 @@ import logging
 from pathlib import Path
 
 import yaml
+from bk_monitor_base.strategy import StrategySerializer
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ErrorDetail, ValidationError
 
-from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.request import get_request_tenant_id
 from core.errors.plugin import PluginParseError
 from monitor_web.export_import.constant import ImportDetailStatus
 from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, Signature
 from monitor_web.plugin.manager import PluginManagerFactory
-
 
 logger = logging.getLogger("monitor_web")
 
@@ -206,11 +205,11 @@ class StrategyConfigParse(BaseParse):
 
         return_data = {
             "file_status": ImportDetailStatus.SUCCESS,
-            "config": Strategy.convert_v1_to_v2(self.file_content),
+            "config": self.file_content,
             "name": self.file_content.get("name"),
         }
 
-        serializers = Strategy.Serializer(data=return_data["config"])
+        serializers = StrategySerializer(data=return_data["config"])
         try:
             serializers.is_valid(raise_exception=True)
         except ValidationError as e:

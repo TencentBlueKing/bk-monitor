@@ -1,0 +1,18 @@
+.apm-custom-graph-v2.bk-monitor-new-metric-view {
+    width: 100%;
+    height: 100%;
+    background-color: #f5f7fa;
+  
+    .bk-resize-layout-main {
+      display: flex;
+      flex-direction: column;
+  
+      .metric-view-dashboard-container {
+        flex: 1;
+        padding: 0 12px 12px;
+        margin-top: 12px;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
+      }
+    }
+  }

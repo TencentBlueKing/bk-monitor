@@ -435,10 +435,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
-        (
-            "ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME",
-            slz.BooleanField(label="是否开启dataid注册时能够指定集群名称", default=False),
-        ),
+        ("EXCLUDE_WORKER_TASKS", slz.ListField(label="排除特定的worker任务(需要重启alarm-beat生效)", default=[])),
     ]
 )
 
@@ -683,6 +680,11 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_SERVICE_CACHE_APPLICATIONS", slz.ListField(label=_("APM 按服务缓存指标的灰度应用列表"), default=[])),
         # 企业微信模块化（layouts）消息通知灰度业务列表
         ("WECOM_LAYOUTS_BIZ_LIST", slz.ListField(label=_("企业微信模块化消息通知灰度业务列表"), default=[])),
+        # metric_group_dimensions 分组配置白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+        (
+            "APM_METRIC_GROUP_DIMENSIONS_WHITELIST",
+            slz.ListField(label=_("允许 APM 配置指标分组维度的应用白名单"), default=[]),
+        ),
     ]
 )
 
