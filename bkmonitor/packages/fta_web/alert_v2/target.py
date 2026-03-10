@@ -155,20 +155,20 @@ class BaseTarget(abc.ABC):
         """
         raise NotImplementedError
 
-    def _build_k8s_source_info(self) -> dict[str, Any] | None:
-        """构建 K8S 资源关联关系查询所需的 source_info。
+    def _build_k8s_source_infos(self) -> list[dict[str, Any]]:
+        """构建 K8S 资源关联关系查询所需的 source_info 列表。
 
         将 K8S 目标数据转换为关联关系查询所需的 source_info 格式。
 
-        :return: source_info 字典，无可用数据时返回 None
+        :return: source_info 字典列表，无可用数据时返回空列表
         """
-        related_k8s_targets: list[dict[str, Any]] = self._list_related_k8s_targets()
+        related_k8s_targets: list[dict[str, Any]] = self.list_related_k8s_targets().get("target_list", [])
         if not related_k8s_targets:
-            return None
+            return []
 
         source_info: dict[str, Any] = copy.deepcopy(related_k8s_targets[0])
         if not source_info.get("bcs_cluster_id"):
-            return None
+            return []
 
         resource_type: str = self._get_k8s_resource_type()
         is_workload_type: bool = resource_type == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
@@ -181,21 +181,22 @@ class BaseTarget(abc.ABC):
         else:
             source_info["name"] = resource_type
 
-        return source_info
+        return [source_info]
 
     def _build_relation_qs(
         self,
-        source_info: dict[str, Any],
+        source_infos: list[dict[str, Any]],
         target_type: type[Source],
     ) -> list[dict[str, Any]]:
         """构建 K8S 资源关联关系查询参数列表。
 
-        基于 source_info 和目标类型生成 RelationQ 查询参数。Node 类型会同时尝试 Pod 与 Node 两条路径。
+        基于 source_infos 和目标类型生成 RelationQ 查询参数。Node 类型会同时尝试 Pod 与 Node 两条路径。
 
-        :param source_info: 由 _build_k8s_source_info 构建的 source_info 字典
+        :param source_infos: 由 _build_k8s_source_infos 构建的 source_info 字典列表
         :param target_type: 关联目标类型（如 SourceService、SourceDatasource）
         :return: RelationQ 查询参数列表
         """
+        source_info: dict[str, Any] = source_infos[0]
         start_time, end_time = self._get_time_range()
 
         paths: list[type[Source]] = [SourceK8sPod]
@@ -257,11 +258,11 @@ class BaseTarget(abc.ABC):
 
         :return: APM 目标信息列表
         """
-        source_info: dict[str, Any] | None = self._build_k8s_source_info()
-        if not source_info:
+        source_infos: list[dict[str, Any]] = self._build_k8s_source_infos()
+        if not source_infos:
             return []
 
-        qs: list[dict[str, Any]] = self._build_relation_qs(source_info, target_type=SourceService)
+        qs: list[dict[str, Any]] = self._build_relation_qs(source_infos, target_type=SourceService)
         if not qs:
             return []
 
@@ -369,14 +370,15 @@ class BaseK8STarget(BaseTarget):
         return [target]
 
     def list_related_log_targets(self) -> list[dict[str, Any]]:
-        source_info: dict[str, Any] | None = self._build_k8s_source_info()
-        if not source_info:
+        source_infos: list[dict[str, Any]] = self._build_k8s_source_infos()
+        if not source_infos:
             return []
 
-        qs: list[dict[str, Any]] = self._build_relation_qs(source_info, target_type=SourceDatasource)
+        qs: list[dict[str, Any]] = self._build_relation_qs(source_infos, target_type=SourceDatasource)
         if not qs:
             return []
 
+        source_info: dict[str, Any] = source_infos[0]
         addition: list[dict[str, Any]] = []
         namespace: str | None = source_info.get("namespace")
         if namespace:
@@ -391,13 +393,20 @@ class BaseK8STarget(BaseTarget):
         # 使用 Pod 更精确地过滤日志
         # Case1 - 从维度中获取 Pod 名称
         # Case2 - 如果是 Workload 目标，则使用 contains 方式模糊匹配 Pod 名称
-        pod: str | None = self._get_dimension_value(["pod", "pod_name"])
-        # workload 类型时 source_info 中存在以 kind 为 key 的值（如 deployment=bkm-web），非 workload 类型时为 None
-        workload_name: str | None = source_info.get(source_info["name"])
+        pod: str | None = source_info.get(K8S_RESOURCE_TYPE[K8STargetType.POD])
+        if not pod:
+            pod = self._get_dimension_value(["pod", "pod_name"])
+        is_workload: bool = self._get_k8s_resource_type() == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
         if pod:
             addition.append({"field": "__ext.io_kubernetes_pod", "operator": "=", "value": [pod]})
-        elif workload_name:
-            addition.append({"field": "__ext.io_kubernetes_pod", "operator": "contains", "value": [workload_name]})
+        elif is_workload:
+            addition.append(
+                {
+                    "field": "__ext.io_kubernetes_pod",
+                    "operator": "contains",
+                    "value": [source_info[source_info["name"]]],
+                }
+            )
 
         # 使用主机 IP 进一步过滤日志
         if not pod:
