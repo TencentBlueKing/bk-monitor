@@ -25,9 +25,12 @@ from apps.utils import ChoicesEnum
 
 
 TGPA_BASE_DIR = "/tmp/log-search/tgpa"
+TGPA_DOWNLOAD_DIR = "/tmp/log-search/tgpa_file_download"
 TASK_LIST_BATCH_SIZE = 1000
 TGPA_TASK_EXE_CODE_SUCCESS = "0"  # 文件上传成功状态码
 FEATURE_TOGGLE_TGPA_TASK = "tgpa_task"
+FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE = 1024 * 1024 * 10  # 10MB
+TGPA_FILE_DOWNLOAD_CHUNK_SIZE = 1024 * 1024  # 1MB
 
 TGPA_TASK_COLLECTOR_CONFIG_NAME = "客户端日志"
 TGPA_TASK_COLLECTOR_CONFIG_NAME_EN = "tgpa_task_client_log"
@@ -156,7 +159,7 @@ TGPA_TASK_TARGET_FIELDS = ["cos_file_name", "file"]
 CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "file", "lineno", "cos_file_name"]
 LOG_FILE_EXPIRE_DAYS = 3
 EXTRACT_FILE_MAX_ITERATIONS = 10  # 解压文件最大迭代次数
-COS_DOWNLOAD_MAX_SIZE = 10 * 1024 * 1024 * 1024  # COS文件下载最大大小限制: 10GB
+COS_DOWNLOAD_MAX_SIZE = 1024 * 1024 * 1024  # COS文件下载最大大小限制: 1GB
 COS_DOWNLOAD_CHUNK_SIZE = 1024 * 1024  # COS文件下载分块大小: 1MB
 
 
