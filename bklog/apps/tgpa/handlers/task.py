@@ -37,7 +37,6 @@ from apps.tgpa.constants import (
     FEATURE_TOGGLE_TGPA_TASK,
     TGPA_FILE_DOWNLOAD_CHUNK_SIZE,
 )
-from apps.tgpa.exceptions import FileSizeExceedLimitException
 from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.tgpa.handlers.decrypt import get_decrypt_handler
 from apps.tgpa.models import TGPATask
@@ -252,13 +251,18 @@ class TGPATaskHandler:
         :param file_name: COS上的文件名
         :return: (file_iterator, file_name, file_size)
         """
-        # 下载前通过COS head_object获取文件大小，超过限制则拒绝下载
+        # 下载前通过COS head_object获取文件大小，判断是否超过限制
         feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
         feature_config = feature_toggle.feature_config
         max_size = feature_config.get("tgpa_file_download_max_size", FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE)
         file_info = TGPAFileHandler.get_cos_file_info(file_name)
         if file_info["content_length"] > max_size:
-            raise FileSizeExceedLimitException()
+            # 超限：直接从COS流式转发，不落盘，节省服务器磁盘和内存资源
+            return (
+                TGPAFileHandler.stream_from_cos(file_name),
+                os.path.basename(file_name),
+                file_info["content_length"],
+            )
 
         # 使用UUID作为临时目录标识，避免并发请求的目录冲突
         unique_id = uuid.uuid4().hex
