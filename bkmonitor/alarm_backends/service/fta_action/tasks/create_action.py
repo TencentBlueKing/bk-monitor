@@ -821,6 +821,25 @@ class CreateActionProcessor:
             alert_logs.append(Alert.create_qos_log(qos_alerts, current_qos_count, len(qos_alerts)))
         if alert_logs:
             AlertLog.bulk_create(alert_logs)
+
+        # Issue 聚合（与处理套餐并行，不互斥）
+        if self.alerts and self.strategy_id:
+            from alarm_backends.core.cache.strategy import StrategyCacheManager
+            from alarm_backends.service.fta_action.issue_processor import IssueAggregationProcessor
+
+            strategy = StrategyCacheManager.get_strategy_by_id(self.strategy_id)
+            if strategy:
+                for alert in self.alerts:
+                    try:
+                        IssueAggregationProcessor(alert, strategy).process()
+                    except Exception as e:
+                        logger.exception(
+                            "IssueAggregationProcessor failed: alert_id=%s, strategy_id=%s, err=%s",
+                            alert.id,
+                            self.strategy_id,
+                            e,
+                        )
+
         return new_actions
 
     @staticmethod

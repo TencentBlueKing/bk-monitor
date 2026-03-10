@@ -1000,3 +1000,24 @@ ACCESS_BATCH_DATA_RESULT_KEY = register_key_with_config(
         "backend": "service",
     }
 )
+
+# ── Issues 模块 Redis Keys ────────────────────────────────────────────────────
+ISSUE_ACTIVE_CONTENT_KEY = register_key_with_config(
+    {
+        "label": "[issue]活跃 Issue 热缓存",
+        "key_type": "string",
+        "key_tpl": "issue.active.content.{strategy_id}",
+        "ttl": 30 * CONST_MINUTES,  # 30min
+        "backend": "service",
+    }
+)
+
+ISSUE_STRATEGY_LOCK = register_key_with_config(
+    {
+        "label": "[issue]Issue 策略级分布式锁",
+        "key_type": "string",
+        "key_tpl": "issue.strategy.lock.{strategy_id}",
+        "ttl": 60,  # 60s
+        "backend": "service",
+    }
+)

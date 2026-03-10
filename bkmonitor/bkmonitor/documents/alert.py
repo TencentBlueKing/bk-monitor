@@ -100,6 +100,8 @@ class AlertDocument(BaseDocument):
 
     # 某个告警只会属于某一个故障，不可能同属于多个故障（否则这多个故障也应该属于一个故障）
     incident_id = field.Keyword()
+    # 所属 Issue 的 ES _id；null 表示未关联（backward compatible，新增字段）
+    issue_id = field.Keyword()
 
     dedupe_md5 = field.Keyword()
 

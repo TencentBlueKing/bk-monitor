@@ -17,6 +17,7 @@ from .incident import (  # noqa
     IncidentOperationDocument,
     IncidentSnapshotDocument,
 )
+from .issue import IssueActivityDocument, IssueDocument  # noqa
 from .log import AlertLog  # noqa
 
 ALL_DOCUMENTS = [
@@ -28,4 +29,6 @@ ALL_DOCUMENTS = [
     IncidentNoticeDocument,
     IncidentOperationDocument,
     IncidentSnapshotDocument,
+    IssueDocument,
+    IssueActivityDocument,
 ]
