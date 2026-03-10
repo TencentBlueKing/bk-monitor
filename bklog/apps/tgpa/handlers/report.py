@@ -26,6 +26,8 @@ import arrow
 from django.utils.functional import cached_property
 
 from apps.api import BkDataQueryApi
+from apps.log_esquery.esquery.builder.query_index_optimizer import QueryIndexOptimizer
+from apps.log_search.models import Scenario
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.tgpa.constants import (
     TGPA_REPORT_FILTER_FIELDS,
@@ -143,12 +145,23 @@ class TGPAReportHandler:
         return {"bool": {"must": must_conditions}}
 
     @classmethod
-    def _build_es_params(cls, result_table_id, body):
+    def _build_es_params(cls, result_table_id, body, start_time=None, end_time=None):
         """
         构建ES查询参数
         """
-        # ES查询时结果表需要加_*后缀，用于匹配所有分片索引
-        sql = json.dumps({"index": f"{result_table_id}_*", "body": body})
+        if not start_time:
+            start_time = int(arrow.now().shift(days=-7).timestamp() * 1000)
+        if not end_time:
+            end_time = int(arrow.now().timestamp() * 1000)
+
+        optimizer = QueryIndexOptimizer(
+            indices=result_table_id,
+            scenario_id=Scenario.BKDATA,
+            start_time=arrow.get(start_time / 1000),
+            end_time=arrow.get(end_time / 1000),
+        )
+        index = optimizer.index
+        sql = json.dumps({"index": index, "body": body})
         return {"prefer_storage": "es", "sql": sql}
 
     @classmethod
@@ -176,13 +189,13 @@ class TGPAReportHandler:
         return total, items
 
     @classmethod
-    def get_report_count(cls, bk_biz_id):
+    def get_report_count(cls, bk_biz_id, start_time=None, end_time=None):
         """
         获取客户端日志上报文件数量
         """
-        es_query = cls._build_es_query(bk_biz_id)
+        es_query = cls._build_es_query(bk_biz_id, start_time=start_time, end_time=end_time)
         body = {"query": es_query, "size": 0}
-        params = cls._build_es_params(cls._get_result_table_id(), body)
+        params = cls._build_es_params(cls._get_result_table_id(), body, start_time=start_time, end_time=end_time)
         api_result = BkDataQueryApi.query(params)
         total, _ = cls._parse_es_response(api_result)
         return total
@@ -239,7 +252,11 @@ class TGPAReportHandler:
         }
 
         # 查询ES并解析响应
-        api_result = BkDataQueryApi.query(cls._build_es_params(result_table_id, body))
+        api_result = BkDataQueryApi.query(
+            cls._build_es_params(
+                result_table_id, body, start_time=params.get("start_time"), end_time=params.get("end_time")
+            )
+        )
         total, items = cls._parse_es_response(api_result)
 
         # 格式化字段别名: real_name -> file_path, cc_id -> bk_biz_id
