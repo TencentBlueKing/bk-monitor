@@ -80,6 +80,7 @@ def create_or_delete_records(mocker):
         table_id="1001_bklog.stdout",
         table_name_zh="stdout",
         data_label="bklog_index_set_1001,bklog_index_set_1002",
+        labels={"scene": "log"},
         is_custom_table=False,
         bk_tenant_id="riot",
     )
@@ -147,7 +148,7 @@ def test_push_table_id_detail_with_tenant_for_metric(create_or_delete_records):
                 '"measurement_type'
                 '":"bk_traditional_measurement",'
                 '"bcs_cluster_id":"",'
-                '"data_label":"","bk_data_id":50010}'
+                '"data_label":"","labels":{},"bk_data_id":50010}'
             }
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:result_table_detail", expected)
@@ -182,7 +183,7 @@ def test_push_table_id_detail_without_tenant_for_metric(create_or_delete_records
                 '"measurement_type'
                 '":"bk_traditional_measurement",'
                 '"bcs_cluster_id":"",'
-                '"data_label":"","bk_data_id":50010}'
+                '"data_label":"","labels":{},"bk_data_id":50010}'
             }
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
             mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:result_table_detail", expected)
@@ -207,7 +208,7 @@ def test_push_table_id_detail_with_tenant_for_log(create_or_delete_records):
             )
 
             expected = {
-                "1001_bklog.stdout|riot": '{"storage_id":11,"db":null,"measurement":"__default__","source_type":"log","options":{},"storage_type":"elasticsearch","storage_cluster_records":[{"storage_id":13,"enable_time":0},{"storage_id":12,"enable_time":1572652800},{"storage_id":11,"enable_time":1575244800}],"data_label":"bklog_index_set_1001,bklog_index_set_1002","field_alias":{}}'
+                "1001_bklog.stdout|riot": '{"storage_id":11,"db":null,"measurement":"__default__","source_type":"log","options":{},"storage_type":"elasticsearch","storage_cluster_records":[{"storage_id":13,"enable_time":0},{"storage_id":12,"enable_time":1572652800},{"storage_id":11,"enable_time":1575244800}],"data_label":"bklog_index_set_1001,bklog_index_set_1002","labels":{"scene":"log"},"field_alias":{}}'
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
@@ -234,7 +235,7 @@ def test_push_table_id_detail_with_tenant_for_log(create_or_delete_records):
                 '"source_type":"log","options":{},"storage_type":"elasticsearch",'
                 '"storage_cluster_records":[{"storage_id":13,"enable_time":0},'
                 '{"storage_id":12,"enable_time":1572652800},{"storage_id":11,'
-                '"enable_time":1575244800}],"data_label":"bklog_index_set_1001,bklog_index_set_1002","field_alias":{}}'
+                '"enable_time":1575244800}],"data_label":"bklog_index_set_1001,bklog_index_set_1002","labels":{"scene":"log"},"field_alias":{}}'
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
@@ -260,7 +261,7 @@ def test_push_table_id_detail_without_tenant_for_log(create_or_delete_records):
             )
 
             expected = {
-                "1001_bklog.stdout": '{"storage_id":11,"db":null,"measurement":"__default__","source_type":"log","options":{},"storage_type":"elasticsearch","storage_cluster_records":[{"storage_id":13,"enable_time":0},{"storage_id":12,"enable_time":1572652800},{"storage_id":11,"enable_time":1575244800}],"data_label":"bklog_index_set_1001,bklog_index_set_1002","field_alias":{}}'
+                "1001_bklog.stdout": '{"storage_id":11,"db":null,"measurement":"__default__","source_type":"log","options":{},"storage_type":"elasticsearch","storage_cluster_records":[{"storage_id":13,"enable_time":0},{"storage_id":12,"enable_time":1572652800},{"storage_id":11,"enable_time":1575244800}],"data_label":"bklog_index_set_1001,bklog_index_set_1002","labels":{"scene":"log"},"field_alias":{}}'
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
@@ -287,7 +288,7 @@ def test_push_table_id_detail_without_tenant_for_log(create_or_delete_records):
                 '"source_type":"log","options":{},"storage_type":"elasticsearch",'
                 '"storage_cluster_records":[{"storage_id":13,"enable_time":0},'
                 '{"storage_id":12,"enable_time":1572652800},{"storage_id":11,'
-                '"enable_time":1575244800}],"data_label":"bklog_index_set_1001,bklog_index_set_1002","field_alias":{}}'
+                '"enable_time":1575244800}],"data_label":"bklog_index_set_1001,bklog_index_set_1002","labels":{"scene":"log"},"field_alias":{}}'
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用

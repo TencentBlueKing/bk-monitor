@@ -49,6 +49,7 @@ from apps.tgpa.constants import (
     COS_DOWNLOAD_MAX_SIZE,
     COS_DOWNLOAD_CHUNK_SIZE,
 )
+from apps.tgpa.handlers.decrypt import BaseDecryptHandler
 from apps.utils.bcs import Bcs
 from apps.utils.log import logger
 
@@ -56,11 +57,13 @@ from apps.utils.log import logger
 class TGPAFileHandler:
     """TGPA文件处理"""
 
-    def __init__(self, temp_dir, output_dir, meta_fields=None):
+    def __init__(self, temp_dir, output_dir, meta_fields=None, decrypt_handler: BaseDecryptHandler = None):
         # temp_dir: 临时目录，处理完成后删除; output_dir: 输出目录，存放处理后的文件
         self.temp_dir = temp_dir
         self.output_dir = output_dir
         self.meta_fields = meta_fields or {}
+        # decrypt_handler: 解密处理器，用于解密日志文件，如果为None则不进行解密
+        self.decrypt_handler = decrypt_handler
 
     def download_file(self, file_name):
         """
@@ -167,17 +170,27 @@ class TGPAFileHandler:
                 except Exception as e:
                     logger.exception("Failed to extract zip file %s: %s", zip_file, e)
 
+    def _decrypt_all_files(self, dir_path: str) -> None:
+        """解密目录下所有文件，明文文件会被自动跳过"""
+        for file in Path(dir_path).rglob("*"):
+            if not file.is_file():
+                continue
+            try:
+                self.decrypt_handler.decrypt_file(str(file))
+            except Exception:
+                logger.warning("Skipping file due to decryption failure: %s", file)
+
     def download_and_process_file(self, file_name):
         """
         下载并处理文件
         """
-        # 下载压缩包、解压
-        compressed_file_path = self.download_file(file_name)
-        with zipfile.ZipFile(compressed_file_path, "r") as zip_ref:
-            zip_ref.extractall(self.temp_dir)
-
-        # 递归解压嵌套的压缩包
+        # 下载压缩包并递归解压
+        self.download_file(file_name)
         self.extract_nested_zip(self.temp_dir)
+
+        # 先解密所有文件，再通过 MIME 类型发现日志文件
+        if self.decrypt_handler:
+            self._decrypt_all_files(self.temp_dir)
 
         # 查找并处理日志文件，忽略异常，防止单个文件处理失败导致整个任务失败
         log_files = self.find_log_files(self.temp_dir)

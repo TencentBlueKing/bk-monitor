@@ -174,8 +174,8 @@ class BkLogJsonEtlStorage(EtlStorage):
             }
         ])
         
-        # 4. 从iter_item提取data字段作为原文
-        if etl_params.get("retain_original_text"):
+        # 4. 从iter_string提取日志原文（保留原文 或 保留清洗失败时均需要）
+        if etl_params.get("retain_original_text") or etl_params.get("record_parse_failure"):
             rules.append({
                 "input_id": "iter_item",
                 "output_id": "log",
@@ -192,11 +192,13 @@ class BkLogJsonEtlStorage(EtlStorage):
         rules.extend(iteration_index_rules)
         
         # 5. JSON解析（解析iter_string中的JSON）
+        json_de_error_strategy = "null" if etl_params.get("record_parse_failure") else "drop"
         rules.append({
             "input_id": "iter_string",
             "output_id": "bk_separator_object",
             "operator": {
-                "type": "json_de"
+                "type": "json_de",
+                "error_strategy": json_de_error_strategy
             }
         })
         

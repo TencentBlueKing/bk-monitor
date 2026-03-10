@@ -45,22 +45,19 @@ def process_service_relation(bk_biz_id, app_name, service_name, indexes_mapping,
     result = []
     relations = ServiceLogHandler.get_log_relations(bk_biz_id, app_name, [service_name])
     for relation in relations:
+        relation_index_ids = {str(index_id) for index_id in relation.value_list}
         if relation.related_bk_biz_id != bk_biz_id:
             relation_full_indexes = get_biz_index_sets_with_cache(bk_biz_id=relation.related_bk_biz_id)
             indexes_mapping[relation.related_bk_biz_id] = relation_full_indexes
-            index_info = next(
-                (i for i in relation_full_indexes if i["index_set_id"] in relation.value_list),
-                None,
-            )
+            matched = [i for i in relation_full_indexes if str(i["index_set_id"]) in relation_index_ids]
         else:
-            index_info = next(
-                (i for i in indexes_mapping.get(bk_biz_id, []) if i["index_set_id"] in relation.value_list),
-                None,
-            )
-        if index_info:
+            matched = [
+                i for i in indexes_mapping.get(bk_biz_id, []) if str(i["index_set_id"]) in relation_index_ids
+            ]
+        for index_info in matched:
+            index_info = {**index_info}
             if overwrite_method:
                 index_info["addition"] = overwrite_method(overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME)
-
             result.append(index_info)
     return result
 

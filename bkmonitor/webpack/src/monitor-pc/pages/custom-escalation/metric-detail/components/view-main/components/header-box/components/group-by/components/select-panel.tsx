@@ -37,7 +37,7 @@ interface IEmit {
 }
 interface IProps {
   splitable: boolean;
-  value: { field: string; split: boolean }[];
+  value: { field: string; is_manual?: boolean; split: boolean }[];
   data: {
     alias: string;
     name: string;
@@ -51,21 +51,66 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   @Prop({ type: Boolean, default: false }) readonly splitable: IProps['splitable'];
 
   @Ref('popoverRef') popoverRef: HTMLDivElement;
+  @Ref('dimensionInput') readonly dimensionInputRef!: HTMLInputElement;
 
   checkedMap: Readonly<Record<string, boolean>> = {};
   renderData: Readonly<IProps['data']> = [];
+  customData: IProps['data'] = []; // 自定义添加的维度
   hasSelectedAll = false;
   isPanelShow = false;
+  filterKey = ''; // 聚合维度搜索内容
+  btmInputShow = false; // 底部输入框显示
+  btmInputDimension = ''; // 底部手动输入聚合维度
+
+  get allData() {
+    return _.filter([...this.customData, ...this.renderData], item => {
+      const keyWord = this.filterKey.toLocaleLowerCase();
+      return item.name.toLocaleLowerCase().includes(keyWord) || item.alias.toLocaleLowerCase().includes(keyWord);
+    });
+  }
 
   get isSelectDisabled() {
     return this.data.length < 1;
   }
+
+  // 搜索的自定义维度是否在已存在
+  get hasExactMatch() {
+    let result = false;
+    const targetVal = this.btmInputShow ? this.btmInputDimension : this.filterKey;
+    // return this.renderData.some(item => item.alias === this.filterKey || item.name === this.filterKey);
+    result = this.renderData.some(item => item.alias === targetVal || item.name === targetVal);
+    if (this.customData.length && !result) {
+      result = this.customData.some(item => item.alias === targetVal || item.name === targetVal);
+    }
+    return result;
+  }
+
+  get customDimensionSet() {
+    return new Set(this.customData.map(item => item.name));
+  }
+  
 
   handleFilterChange: (filterKey: string) => void;
 
   @Watch('data', { immediate: true })
   dataChange() {
     this.renderData = Object.freeze(this.data);
+    this.initCustomDimension();
+  }
+
+  // 直接输入添加维度
+  addCustomDimension() {
+    this.customData.unshift({
+      name: this.filterKey,
+      alias: '',
+    });
+  }
+
+  handleKeyUp(value: string, e: KeyboardEvent) {
+    if (value !== '' && e.code === 'Enter') {
+      // 没有匹配的维度才添加
+      !this.hasExactMatch && this.addCustomDimension();
+    }
   }
 
   handleShowPopover() {
@@ -77,7 +122,11 @@ export default class AppendValue extends tsc<IProps, IEmit> {
     this.checkedMap = Object.freeze(
       this.value.reduce((result, item) => Object.assign(result, { [item.field]: item.split }), {})
     );
-    this.hasSelectedAll = _.every(this.renderData, item => _.has(this.checkedMap, item.name));
+    this.hasSelectedAll = _.every(this.allData, item => _.has(this.checkedMap, item.name));
+    // this.hasSelectedAll =
+    //   _.every(this.renderData, item => _.has(this.checkedMap, item.name)) &&
+    //   (!this.customData.length || _.every(this.customData, item => _.has(this.checkedMap, item.name)));
+
   }
 
   handlePopoverShow() {
@@ -89,6 +138,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
     const result = Object.entries(this.checkedMap).map(([field, split]) => ({
       field,
       split,
+      is_manual: this.customDimensionSet.has(field) ?? false,
     }));
     if (!_.isEqual(result, this.value)) {
       this.$emit('change', result);
@@ -98,15 +148,22 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   handleToggleAll(checkAll: boolean) {
     const latestCheckedMap = { ...this.checkedMap };
     if (checkAll) {
-      this.renderData.forEach(item => {
+      this.allData.forEach(item => {
         latestCheckedMap[item.name] = false;
       });
+      // this.renderData.forEach(item => {
+      //   latestCheckedMap[item.name] = false;
+      // });
     } else {
-      this.renderData.forEach(item => {
+      this.allData.forEach(item => {
         delete latestCheckedMap[item.name];
       });
+      // this.renderData.forEach(item => {
+      //   delete latestCheckedMap[item.name];
+      // });
     }
     this.checkedMap = Object.freeze(latestCheckedMap);
+    this.hasSelectedAll = checkAll;
   }
 
   handleToggleCheck(dimensionName: string) {
@@ -129,20 +186,67 @@ export default class AppendValue extends tsc<IProps, IEmit> {
     this.checkedMap = Object.freeze(latestCheckedMap);
   }
 
+  // 自定义输入的维度回显
+  initCustomDimension() {
+    if (this.renderData.length) {
+      const customDimensionArr = this.value.filter(item => !this.renderData.some(data => data.name === item.field));
+      this.customData = customDimensionArr.map(item => ({ name: item.field, alias: '' }));
+    }
+  }
+
+  // 手动输入添加维度
+  handleInputDimension() {
+    if (!this.btmInputDimension || this.hasExactMatch) return;
+    this.customData.unshift({
+      name: this.btmInputDimension,
+      alias: '',
+    });
+    this.handleResetInputDimension();
+  }
+
+  // 关闭手动输入添加维度
+  handleCloseInputDimension() {
+    this.handleResetInputDimension();
+  }
+
+  // 重置手动输入框状态
+  handleResetInputDimension() {
+    this.btmInputDimension = '';
+    this.btmInputShow = false;
+  }
+
+  // 打开手动输入维度框
+  async handleInputShow() {
+    this.filterKey = '';
+    this.btmInputShow = true;
+    await this.$nextTick();
+    this.dimensionInputRef.focus();
+  }
+
+  // 底部手动输入回车事件
+  handleInputKeyDown(val: string, e: KeyboardEvent) {
+    if (e.key === 'Enter' && !!val) {
+      this.handleInputDimension();
+    }
+  }
+
   created() {
     this.handleFilterChange = _.throttle((filterKey: string) => {
-      if (!filterKey) {
-        this.renderData = Object.freeze(this.data);
-      } else {
-        this.renderData = Object.freeze(
-          _.filter(this.data, item => {
-            const keyWord = filterKey.toLocaleLowerCase();
-            return item.name.toLocaleLowerCase().includes(keyWord) || item.alias.toLocaleLowerCase().includes(keyWord);
-          })
-        );
+      // if (!filterKey) {
+      //   this.renderData = Object.freeze(this.data);
+      // } else {
+      //   this.renderData = Object.freeze(
+      //     _.filter(this.data, item => {
+      //       const keyWord = filterKey.toLocaleLowerCase();
+      //       return item.name.toLocaleLowerCase().includes(keyWord) || item.alias.toLocaleLowerCase().includes(keyWord);
+      //     })
+      //   );
+      // }
+      this.hasSelectedAll = !!this.allData.length && _.every(this.allData, item => _.has(this.checkedMap, item.name));
+      // 搜索框输入内容时，重置底部手动输入框
+      if (this.btmInputShow) {
+        this.handleResetInputDimension();
       }
-
-      this.hasSelectedAll = _.every(this.renderData, item => _.has(this.checkedMap, item.name));
     }, 300);
   }
 
@@ -226,13 +330,30 @@ export default class AppendValue extends tsc<IProps, IEmit> {
             <div>
               <div style='padding: 0 8px'>
                 <bk-input
+                  v-model={this.filterKey}
                   behavior='simplicity'
                   clearable={true}
                   placeholder={this.$t('请输入 关键字')}
                   onChange={this.handleFilterChange}
+                  onKeyup={this.handleKeyUp}
                 />
               </div>
-              {this.renderData.length > 0 && (
+              {this.filterKey && !this.hasExactMatch && (
+                <div key='customInput'>
+                  <div
+                    class='item'
+                    onClick={this.addCustomDimension}
+                  >
+                    <i18n
+                      class='highlight-wrap'
+                      path='直接输入 "{0}"'
+                    >
+                      <span class='highlight'>{this.filterKey}</span>
+                    </i18n>
+                  </div>
+                </div>
+              )}
+              {this.allData.length > 0 && (
                 <div class='dimension-list'>
                   <div class='item'>
                     <bk-checkbox
@@ -244,12 +365,45 @@ export default class AppendValue extends tsc<IProps, IEmit> {
                       {this.$t('全部')}
                     </bk-checkbox>
                   </div>
-                  {this.renderData.map(renderDimensionItem)}
+                  {this.allData.length > 0 && this.allData.map(renderDimensionItem)}
                 </div>
               )}
-              {this.renderData.length < 1 && (
+              {this.allData.length < 1 && (
                 <div style='color: #63656e; line-height: 32px; text-align: center;'>{this.$t('无匹配数据')}</div>
               )}
+              <div class='custom-dimension-wrap'>
+                {this.btmInputShow ? (
+                  <div class='custom-dimension-input'>
+                    <bk-input
+                      ref='dimensionInput'
+                      class='dimension-input'
+                      v-model={this.btmInputDimension}
+                      size='small'
+                      onKeydown={this.handleInputKeyDown}
+                    />
+                    <div
+                      class={['icon-wrap', { 'is-disabled': this.hasExactMatch }]}
+                      onClick={this.handleInputDimension}
+                    >
+                      <i class='icon-monitor icon-mc-check-small' />
+                    </div>
+                    <div
+                      class='icon-wrap'
+                      onClick={this.handleCloseInputDimension}
+                    >
+                      <i class='icon-monitor icon-mc-close' />
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    class='custom-dimension-entry'
+                    onClick={this.handleInputShow}
+                  >
+                    <i class='bk-icon icon-plus-circle' />
+                    {this.$t('手动输入')}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

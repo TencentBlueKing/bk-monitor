@@ -750,16 +750,38 @@ class CreateDemoActionResource(Resource):
     def perform_request(self, validated_request_data):
         action_config = validated_request_data
         action_plugin = ActionPluginSlz(instance=ActionPlugin.objects.get(id=validated_request_data["plugin_id"])).data
+
+        # 支持传入 alert_id，关联真实告警
+        alert_id = validated_request_data.get("alert_id")
+        alerts = [alert_id] if alert_id else []
+
         demo_action = ActionInstance.objects.create(
             signal="demo",
             strategy_id=0,
             alert_level=1,
+            alerts=alerts,
             action_config=action_config,
             action_plugin=action_plugin,
             bk_biz_id=action_config["bk_biz_id"],
             assignee=[get_request_username()],
         )
         return {"action_id": demo_action.id}
+
+
+class PreviewDemoActionContextResource(Resource):
+    """
+    基于真实告警预览套餐变量渲染
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        alert_id = serializers.CharField(required=True, label="告警ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        variables = serializers.DictField(required=True, label="待渲染的变量字典")
+
+    def perform_request(self, validated_request_data):
+        result = api.monitor.get_demo_action_context_backend(**validated_request_data)
+
+        return result
 
 
 class GetDemoActionDetailResource(Resource):

@@ -160,3 +160,26 @@ def merge_dimensions_into_conditions(
             filter_conditions.append(condition)
 
     return filter_conditions
+
+
+def clean_where_conditions(where: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """清洗 where 过滤条件列表。
+
+    过滤掉 value 为 None、空列表或仅包含 None 的无效条件，
+    同时移除有效条件列表中混杂的 None 值。
+
+    :param where: where 过滤条件列表
+    :return: 清洗后的过滤条件列表
+    """
+    cleaned: list[dict[str, Any]] = []
+    for condition in where:
+        value = condition.get("value")
+        if value is None:
+            continue
+        if isinstance(value, list):
+            filtered_value = [v for v in value if v is not None]
+            if not filtered_value:
+                continue
+            condition["value"] = filtered_value
+        cleaned.append(condition)
+    return cleaned
