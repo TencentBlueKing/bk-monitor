@@ -253,7 +253,10 @@ class GetDemoActionContextResource(Resource):
             action_bk_biz_id = alert.event.bk_biz_id or bk_biz_id
         except Exception as e:
             logger.error(
-                "从告警事件获取 bk_biz_id 失败, alert(%s): %s, 使用请求参数 bk_biz_id(%s)", alert.id, e, bk_biz_id
+                "从告警事件获取 bk_biz_id 失败, alert(%s): %s, 使用请求参数 bk_biz_id(%s)",
+                alert.id,
+                type(e).__name__,
+                bk_biz_id,
             )
             action_bk_biz_id = bk_biz_id
 
@@ -382,7 +385,7 @@ class GetDemoActionContextResource(Resource):
             try:
                 rendered_variables[key] = jinja_render(value, context)
             except Exception as e:
-                logger.exception("渲染变量[%s]失败: %s", key, e)
+                logger.error("渲染变量[%s]失败: %s", key, type(e).__name__)
                 rendered_variables[key] = value
 
         return {"variables": rendered_variables}
