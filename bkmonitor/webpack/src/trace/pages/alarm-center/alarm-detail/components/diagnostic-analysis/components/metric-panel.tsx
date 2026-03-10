@@ -36,7 +36,7 @@ export default defineComponent({
     return (
       <div class='suspicious-metric-panel'>
         <div class='tips'>
-          {this.$t('下面这些指标维度，在过去时间里产生过相似的告警事件，希望能够帮助您进一步分析告警可能原因。')}
+          下面这些指标维度，在过去时间里产生过相似的告警事件，希望能够帮助您进一步分析告警可能原因。
         </div>
         <div class='metric-group-list'>
           <SuspiciousAnalysisGroup>

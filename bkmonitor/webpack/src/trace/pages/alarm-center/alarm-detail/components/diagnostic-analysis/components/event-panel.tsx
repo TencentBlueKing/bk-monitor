@@ -35,7 +35,7 @@ export default defineComponent({
   render() {
     return (
       <div class='suspicious-event-panel'>
-        <div class='tips'>{this.$t('通过分析告警产生前 1 小时时间窗口事件，可疑事件为：')}</div>
+        <div class='tips'>通过分析告警产生前 1 小时时间窗口事件，可疑事件为：</div>
         <div class='event-group-list'>
           <SuspiciousAnalysisGroup>
             {{

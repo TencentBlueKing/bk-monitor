@@ -49,7 +49,7 @@ export default defineComponent({
                 <div class='group-title'>
                   <span class='group-name'>异常维度（组合）1</span>
                   <div class='abnormality-tag'>
-                    <span class='abnormality-label'>{this.$t('异常程度')}</span>
+                    <span class='abnormality-label'>异常程度</span>
                     <span class='abnormality-value'>90%</span>
                   </div>
                 </div>

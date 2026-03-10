@@ -34,12 +34,6 @@ import { DiagnosticTypeEnum } from './constant';
 import './diagnostic-analysis.scss';
 export default defineComponent({
   name: 'DiagnosticAnalysis',
-  props: {
-    show: {
-      type: Boolean,
-      default: true,
-    },
-  },
   emits: ['close'],
   setup(_, { emit }) {
     const { t } = useI18n();

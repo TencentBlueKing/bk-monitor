@@ -40,7 +40,7 @@ export default defineComponent({
             {{
               title: () => (
                 <div class='group-title'>
-                  <span class='group-name'>{this.$t('日志内容摘要')}</span>
+                  <span class='group-name'>日志内容摘要</span>
                   <span
                     class='link-text'
                     onClick={e => {

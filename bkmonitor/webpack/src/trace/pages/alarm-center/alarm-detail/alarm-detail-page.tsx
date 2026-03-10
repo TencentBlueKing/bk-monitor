@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, provide, shallowReactive, watch } from 'vue';
+import { defineComponent, onMounted, provide, shallowReactive, shallowRef, watch } from 'vue';
 
 import * as authMap from 'monitor-pc/pages/event-center/authority-map';
 import { storeToRefs } from 'pinia';
 
 import DetailCommon from '../common-detail/common-detail';
-// import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
+import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
 import EventDetailHead from './components/event-detail-head';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 import { getAuthorityMap, useAuthorityStore } from '@/store/modules/authority';
@@ -56,6 +56,8 @@ export default defineComponent({
       showDetail: authorityStore.getAuthorityDetail,
     });
 
+    const showAiAnalysis = shallowRef(false);
+
     provide('authority', authority);
 
     watch(
@@ -72,12 +74,18 @@ export default defineComponent({
       authority.auth = await getAuthorityMap(authMap);
     };
 
+    const handleAiAnalysisShowChange = (show: boolean) => {
+      showAiAnalysis.value = show;
+    };
+
     onMounted(() => {
       init();
     });
 
     return {
       alarmDetail,
+      showAiAnalysis,
+      handleAiAnalysisShowChange,
     };
   },
   render() {
@@ -89,10 +97,11 @@ export default defineComponent({
           showBlankBtn={false}
           showFullScreenBtn={false}
           showStepBtn={false}
+          onAiAnalysisShowChange={() => this.handleAiAnalysisShowChange(!this.showAiAnalysis)}
         />
         <div class='alarm-center-detail-page-content'>
           <DetailCommon />
-          {/* <DiagnosticAnalysis /> */}
+          {this.showAiAnalysis && <DiagnosticAnalysis onClose={() => this.handleAiAnalysisShowChange(false)} />}
         </div>
       </div>
     );
