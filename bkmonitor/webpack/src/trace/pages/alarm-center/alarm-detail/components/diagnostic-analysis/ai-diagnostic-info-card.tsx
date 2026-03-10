@@ -26,8 +26,6 @@
 
 import { defineComponent, shallowRef } from 'vue';
 
-import { useI18n } from 'vue-i18n';
-
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import HandleExperience from './handle-experience';
 
@@ -35,8 +33,6 @@ import './ai-diagnostic-info-card.scss';
 export default defineComponent({
   name: 'AiDiagnosticInfo',
   setup() {
-    useI18n();
-
     const experienceShow = shallowRef(false);
 
     const handleExperienceShow = () => {

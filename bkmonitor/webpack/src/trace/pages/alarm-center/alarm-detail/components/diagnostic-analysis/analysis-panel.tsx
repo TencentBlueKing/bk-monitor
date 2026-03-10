@@ -36,6 +36,15 @@ import type { DiagnosticTypeEnumType } from './typing';
 
 import './analysis-panel.scss';
 
+/** 分析面板渲染函数映射表 */
+const PANEL_RENDER_MAP: Record<DiagnosticTypeEnumType, () => any> = {
+  [DiagnosticTypeEnum.DIMENSION]: () => <DimensionPanel />,
+  [DiagnosticTypeEnum.LINK]: () => <LinkPanel />,
+  [DiagnosticTypeEnum.LOG]: () => <LogPanel />,
+  [DiagnosticTypeEnum.EVENT]: () => <EventPanel />,
+  [DiagnosticTypeEnum.METRIC]: () => <MetricPanel />,
+};
+
 /** 分析面板 */
 export default defineComponent({
   name: 'AnalysisPanel',
@@ -45,35 +54,24 @@ export default defineComponent({
       default: '',
     },
   },
-  setup(props) {
+  setup() {
     const isExpand = shallowRef(true);
 
     const toggleExpand = (expand: boolean) => {
       isExpand.value = expand;
     };
 
-    const renderAnalysisPanel = () => {
-      switch (props.type) {
-        case DiagnosticTypeEnum.DIMENSION:
-          return <DimensionPanel />;
-        case DiagnosticTypeEnum.LINK:
-          return <LinkPanel />;
-        case DiagnosticTypeEnum.LOG:
-          return <LogPanel />;
-        case DiagnosticTypeEnum.EVENT:
-          return <EventPanel />;
-        case DiagnosticTypeEnum.METRIC:
-          return <MetricPanel />;
-      }
-    };
-
     return {
       isExpand,
       toggleExpand,
-      renderAnalysisPanel,
     };
   },
   render() {
+    const renderAnalysisPanel = () => {
+      const renderFn = PANEL_RENDER_MAP[this.type];
+      return renderFn ? renderFn() : null;
+    };
+
     return (
       <div class={['analysis-panel', { expand: this.isExpand }]}>
         <div class='analysis-panel-wrapper'>
@@ -86,7 +84,7 @@ export default defineComponent({
             <span class='count-tag'>2</span>
             <i class='icon-monitor icon-arrow-right-copy arrow-icon' />
           </div>
-          <div class='analysis-panel-wrapper-content'>{this.renderAnalysisPanel()}</div>
+          <div class='analysis-panel-wrapper-content'>{renderAnalysisPanel()}</div>
         </div>
       </div>
     );

@@ -32,10 +32,6 @@ import './link-panel.scss';
 
 export default defineComponent({
   name: 'LinkPanel',
-  props: {},
-  setup() {
-    return {};
-  },
   render() {
     return (
       <div class='suspicious-link-panel'>

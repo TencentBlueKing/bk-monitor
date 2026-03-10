@@ -10,13 +10,17 @@
       @extend %group-title;
 
       .group-name {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        &.link-text {
+          color: #3a84ff;
 
-        &.link-text .icon-monitor {
-          margin-left: 5px;
-          font-size: 11px;
+          &:hover {
+            color: #699df4;
+          }
+
+          .icon-monitor {
+            margin-left: 5px;
+            font-size: 11px;
+          }
         }
       }
 

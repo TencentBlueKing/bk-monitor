@@ -32,10 +32,6 @@ import './metric-panel.scss';
 
 export default defineComponent({
   name: 'MetricPanel',
-  props: {},
-  setup() {
-    return {};
-  },
   render() {
     return (
       <div class='suspicious-metric-panel'>

@@ -32,10 +32,6 @@ import './log-panel.scss';
 
 export default defineComponent({
   name: 'LogPanel',
-  props: {},
-  setup() {
-    return {};
-  },
   render() {
     return (
       <div class='suspicious-log-panel'>

@@ -68,9 +68,9 @@ export default defineComponent({
                 class='detail-text-item'
               >
                 <div class='detail-text-item-name'>{item.title}</div>
-                {item.value.map(value => (
+                {item.value.map((value, idx) => (
                   <div
-                    key={value}
+                    key={`${item.title}-${idx}`}
                     class='detail-text-item-value'
                   >
                     {value}

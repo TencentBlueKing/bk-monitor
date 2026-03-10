@@ -32,10 +32,6 @@ import './event-panel.scss';
 
 export default defineComponent({
   name: 'EventPanel',
-  props: {},
-  setup() {
-    return {};
-  },
   render() {
     return (
       <div class='suspicious-event-panel'>

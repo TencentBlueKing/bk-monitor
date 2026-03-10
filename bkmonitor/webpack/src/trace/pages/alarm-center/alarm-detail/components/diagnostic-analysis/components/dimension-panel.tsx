@@ -32,11 +32,6 @@ import './dimension-panel.scss';
 
 export default defineComponent({
   name: 'DimensionPanel',
-  props: {},
-  setup() {
-    return {};
-  },
-
   render() {
     return (
       <div class='suspicious-dimension-panel'>
