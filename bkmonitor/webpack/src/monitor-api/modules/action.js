@@ -35,5 +35,5 @@ export default {
   createDemoAction,
   getDemoActionDetail,
   assignAlert,
-  previewDemoActionContext,
+  previewDemoActionContext
 };
