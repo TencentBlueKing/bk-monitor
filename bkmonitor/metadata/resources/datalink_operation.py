@@ -546,11 +546,16 @@ class SyncBkBaseResultTableFieldsResource(Resource):
             if field_name in self.IGNORED_FIELDS:
                 continue
 
+            field_type = self._map_field_type(field.get("field_type", "string"))
+            is_dimension = field.get("is_dimension", False)
+            if field_type in ["string", "text"]:
+                is_dimension = True
+
             field_data = {
                 "field_name": field_name,
-                "field_type": self._map_field_type(field.get("field_type", "string")),
+                "field_type": field_type,
                 "description": field.get("description", "") or field.get("field_alias", "") or field_name,
-                "is_dimension": field.get("is_dimension", False),
+                "is_dimension": is_dimension,
                 # 保留 BKBase 侧的原始操作人和时间信息
                 "created_by": field.get("created_by", ""),
                 "created_at": field.get("created_at", ""),
@@ -612,11 +617,6 @@ class SyncBkBaseResultTableFieldsResource(Resource):
     ) -> tuple[int, int]:
         """
         同步字段到数据库，不存在则新建，存在则更新
-
-        更新策略：
-        - field_type 和 tag：始终以 BKBase 为准，更新
-        - description：仅当本地描述为空或与字段名相同时才更新，保护用户自定义描述
-        - creator/last_modify_user：使用 BKBase 侧的原始操作人信息
 
         :param bk_tenant_id: 租户ID
         :param table_id: 结果表ID
