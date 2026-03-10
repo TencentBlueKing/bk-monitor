@@ -150,7 +150,7 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
         cache_key = f"{bk_biz_id}-{app_name}-{service_name}-{span_id}-log_relation_list"
 
     cache_call = using_cache(CacheType.APM(FIVE_MIN_SECONDS))
-    index_info_list = []
+    index_info_list = cache_call.get_value(cache_key)
     if index_info_list:
         yield from index_info_list
     else:
