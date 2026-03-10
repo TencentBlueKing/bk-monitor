@@ -94,10 +94,8 @@ def _collect_normal_plugin_data(bk_biz_id: int, table_ids: set[str], data_ids: s
         if plugin is None:
             continue
         _add_data_ids(data_ids, [bk_data_id])
-        version = plugin.current_version
-        for metric in version.info.metric_json:
-            table_id = PluginVersionHistory.get_result_table_id(plugin, metric["table_name"]).lower()
-            _add_table_ids(table_ids, [table_id])
+        table_id = PluginVersionHistory.get_result_table_id(plugin, "__default__").lower()
+        _add_table_ids(table_ids, [table_id])
 
 
 def _collect_event_plugin_data(bk_biz_id: int, table_ids: set[str], data_ids: set[int]) -> None:
