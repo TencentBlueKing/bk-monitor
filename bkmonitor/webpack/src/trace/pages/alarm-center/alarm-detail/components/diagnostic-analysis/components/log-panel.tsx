@@ -25,7 +25,7 @@
  */
 import { defineComponent } from 'vue';
 
-import AnalysisTable from './analysis-table';
+import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
 import './log-panel.scss';
@@ -57,7 +57,7 @@ export default defineComponent({
                 </div>
               ),
               default: () => (
-                <AnalysisTable
+                <AnalysisDetailContent
                   contentData={[
                     {
                       title: '运维视角分析',

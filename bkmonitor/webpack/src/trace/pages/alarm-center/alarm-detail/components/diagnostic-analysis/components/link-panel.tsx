@@ -25,7 +25,7 @@
  */
 import { defineComponent } from 'vue';
 
-import AnalysisTable from './analysis-table';
+import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
 import './link-panel.scss';
@@ -44,11 +44,13 @@ export default defineComponent({
             {{
               title: () => (
                 <div class='group-title'>
-                  {this.$t('调用链')}：<span class='link-name link-text'>7160731cd9fe607033c1ae7d7a5f449b</span>
+                  <div class='group-name'>
+                    {this.$t('调用链')}：<span class='link-name link-text'>7160731cd9fe607033c1ae7d7a5f449b</span>
+                  </div>
                 </div>
               ),
               default: () => (
-                <AnalysisTable
+                <AnalysisDetailContent
                   contentData={[
                     {
                       title: '错误情况',

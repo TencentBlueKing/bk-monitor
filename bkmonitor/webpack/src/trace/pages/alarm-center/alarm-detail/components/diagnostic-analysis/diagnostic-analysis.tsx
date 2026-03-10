@@ -48,20 +48,25 @@ export default defineComponent({
     /** 是否固定 */
     const isFixed = shallowRef(false);
 
-    const analysisPanelRefs = shallowRef<InstanceType<typeof AnalysisPanel>[]>([]);
+    /** 分析面板 ref 映射 */
+    const analysisPanelRefs = shallowRef<Map<string, InstanceType<typeof AnalysisPanel>>>(new Map());
 
-    // 设置 ref 的函数
-    const setItemRef = (el, index: number) => {
+    /**
+     * 设置 ref
+     * @param el 组件实例
+     * @param type 诊断类型
+     */
+    const setItemRef = (el: InstanceType<typeof AnalysisPanel> | null, type: string) => {
       if (el) {
-        analysisPanelRefs.value[index] = el;
+        analysisPanelRefs.value.set(type, el);
       } else {
-        analysisPanelRefs.value.splice(index, 1);
+        analysisPanelRefs.value.delete(type);
       }
     };
 
     const handleAllExpandChange = () => {
       isAllExpand.value = !isAllExpand.value;
-      for (const item of analysisPanelRefs.value) {
+      for (const item of analysisPanelRefs.value.values()) {
         item?.toggleExpand(isAllExpand.value);
       }
     };
@@ -76,6 +81,7 @@ export default defineComponent({
 
     return {
       t,
+      DiagnosticTypeEnum,
       isAllExpand,
       isFixed,
       setItemRef,
@@ -122,16 +128,16 @@ export default defineComponent({
               <AiDiagnosticInfoCard />
 
               {[
-                DiagnosticTypeEnum.DIMENSION,
-                DiagnosticTypeEnum.LINK,
-                DiagnosticTypeEnum.LOG,
-                DiagnosticTypeEnum.EVENT,
-                DiagnosticTypeEnum.Metic,
-              ].map((item, index) => (
+                this.DiagnosticTypeEnum.DIMENSION,
+                this.DiagnosticTypeEnum.LINK,
+                this.DiagnosticTypeEnum.LOG,
+                this.DiagnosticTypeEnum.EVENT,
+                this.DiagnosticTypeEnum.METRIC,
+              ].map(type => (
                 <AnalysisPanel
-                  key={item}
-                  ref={el => this.setItemRef(el, index)}
-                  type={item}
+                  key={type}
+                  ref={el => this.setItemRef(el as InstanceType<typeof AnalysisPanel>, type)}
+                  type={type}
                 />
               ))}
             </div>

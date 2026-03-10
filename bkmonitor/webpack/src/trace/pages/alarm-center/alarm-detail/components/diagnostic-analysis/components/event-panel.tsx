@@ -25,7 +25,7 @@
  */
 import { defineComponent } from 'vue';
 
-import AnalysisTable from './analysis-table';
+import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
 import './event-panel.scss';
@@ -67,7 +67,7 @@ export default defineComponent({
                 </div>
               ),
               default: () => (
-                <AnalysisTable
+                <AnalysisDetailContent
                   contentData={[]}
                   tableData={[]}
                 />

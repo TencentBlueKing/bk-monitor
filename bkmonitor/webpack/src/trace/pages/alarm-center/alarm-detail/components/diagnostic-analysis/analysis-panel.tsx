@@ -62,7 +62,7 @@ export default defineComponent({
           return <LogPanel />;
         case DiagnosticTypeEnum.EVENT:
           return <EventPanel />;
-        case DiagnosticTypeEnum.Metic:
+        case DiagnosticTypeEnum.METRIC:
           return <MetricPanel />;
       }
     };

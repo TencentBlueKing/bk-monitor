@@ -27,3 +27,15 @@
 import type { DiagnosticTypeEnum } from './constant';
 import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
 export type DiagnosticTypeEnumType = GetEnumTypeTool<typeof DiagnosticTypeEnum>;
+
+/** 内容项 */
+export interface IContentItem {
+  title: string;
+  value: string[];
+}
+
+/** 表格项 */
+export interface ITableItem {
+  name: string;
+  value: string;
+}

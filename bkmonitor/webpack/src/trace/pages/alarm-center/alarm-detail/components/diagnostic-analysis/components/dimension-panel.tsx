@@ -25,7 +25,7 @@
  */
 import { defineComponent } from 'vue';
 
-import AnalysisTable from './analysis-table';
+import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
 import './dimension-panel.scss';
@@ -60,7 +60,7 @@ export default defineComponent({
                 </div>
               ),
               default: () => (
-                <AnalysisTable
+                <AnalysisDetailContent
                   tableData={[
                     { name: '主机名', value: 'VM-156-110-centos' },
                     { name: '目标IP', value: '11.185.157.110' },

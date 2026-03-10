@@ -25,20 +25,12 @@
  */
 import { type PropType, defineComponent } from 'vue';
 
-import './analysis-table.scss';
+import type { IContentItem, ITableItem } from '../typing';
 
-export interface IContentItem {
-  title: string;
-  value: string[];
-}
-
-export interface ITableItem {
-  name: string;
-  value: string;
-}
+import './analysis-detail-content.scss';
 
 export default defineComponent({
-  name: 'AnalysisTable',
+  name: 'AnalysisDetailContent',
   props: {
     tableData: {
       type: Array as PropType<ITableItem[]>,
@@ -54,32 +46,32 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='suspicious-analysis-table'>
+      <div class='analysis-detail-content'>
         {this.tableData.length > 0 && (
-          <div class='analysis-table'>
+          <div class='detail-table'>
             {this.tableData.map((item, index) => (
               <div
                 key={item.name}
-                class={['analysis-table-item', { even: index % 2 === 0 }]}
+                class={['detail-table-item', { even: index % 2 === 0 }]}
               >
-                <div class='analysis-table-name'>{item.name}</div>
-                <div class='analysis-table-value'>{item.value}</div>
+                <div class='detail-table-name'>{item.name}</div>
+                <div class='detail-table-value'>{item.value}</div>
               </div>
             ))}
           </div>
         )}
         {this.contentData.length > 0 && (
-          <div class='analysis-content'>
+          <div class='detail-text-content'>
             {this.contentData.map(item => (
               <div
                 key={item.title}
-                class='analysis-content-item'
+                class='detail-text-item'
               >
-                <div class='analysis-content-item-name'>{item.title}</div>
+                <div class='detail-text-item-name'>{item.title}</div>
                 {item.value.map(value => (
                   <div
                     key={value}
-                    class='analysis-content-item-value'
+                    class='detail-text-item-value'
                   >
                     {value}
                   </div>

@@ -29,7 +29,7 @@ export const DiagnosticTypeEnum = {
   LINK: 'link',
   LOG: 'log',
   EVENT: 'event',
-  Metic: 'metric',
+  METRIC: 'metric',
 } as const;
 
 export const DiagnosticTypeMap = {
@@ -37,7 +37,7 @@ export const DiagnosticTypeMap = {
   [DiagnosticTypeEnum.LINK]: window.i18n.t('可疑调用链'),
   [DiagnosticTypeEnum.LOG]: window.i18n.t('可疑日志'),
   [DiagnosticTypeEnum.EVENT]: window.i18n.t('可疑事件'),
-  [DiagnosticTypeEnum.Metic]: window.i18n.t('相关性指标'),
+  [DiagnosticTypeEnum.METRIC]: window.i18n.t('相关性指标'),
 };
 
 export const DiagnosticTypeIconMap = {
@@ -45,5 +45,5 @@ export const DiagnosticTypeIconMap = {
   [DiagnosticTypeEnum.LINK]: 'icon-Tracing',
   [DiagnosticTypeEnum.LOG]: 'icon-a-logrizhi',
   [DiagnosticTypeEnum.EVENT]: 'icon-shijianjiansuo',
-  [DiagnosticTypeEnum.Metic]: 'icon-zhibiaojiansuo',
+  [DiagnosticTypeEnum.METRIC]: 'icon-zhibiaojiansuo',
 };
