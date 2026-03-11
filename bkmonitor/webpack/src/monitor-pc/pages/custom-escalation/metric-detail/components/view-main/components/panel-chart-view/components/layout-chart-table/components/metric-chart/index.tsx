@@ -433,7 +433,12 @@ class NewMetricChart extends CommonSimpleChart {
     const parts = [];
     for (const key of keys) {
       const info = dimensions.find(item => item.name === key);
-      parts.push(`${info.alias || info.name}=${obj[key]}`);
+      // 可能存在自定义输入维度的情况
+      if (info) {
+        parts.push(`${info.alias || info.name}=${obj[key]}`);
+        continue;
+      }
+      parts.push(key);
     }
     const separator = '|';
     return parts.join(separator);
