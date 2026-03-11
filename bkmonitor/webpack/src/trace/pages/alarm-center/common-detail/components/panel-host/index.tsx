@@ -52,6 +52,10 @@ export default defineComponent({
     const { dashboards: hostDashboards, loading: sceneViewLoading } = useSceneView(bizId, 'host');
     /** 图表执行 dataZoom 框线缩放后的时间范围 */
     const dataZoomTimeRange = shallowRef<DateValue>(null);
+    /** 是否可以跳转到主机检索页面 */
+    const canLinkToPerformance = computed(() => {
+      return get(currentTarget) && get(targetList)?.length;
+    });
     /** 当前图表视图的时间范围 */
     const viewerTimeRange = computed<DateValue>(() => get(dataZoomTimeRange) ?? get(timeRange));
     /** 图表请求参数变量 */
@@ -116,6 +120,7 @@ export default defineComponent({
      * @description 跳转主机检索页面
      */
     const handleToPerformance = () => {
+      if (!get(canLinkToPerformance)) return;
       const target = get(currentTarget);
       const ip = target?.bk_target_ip ?? '0.0.0.0';
       const cloudId = target?.bk_cloud_id ?? '0';
@@ -158,6 +163,7 @@ export default defineComponent({
     return {
       bizId,
       currentTarget,
+      canLinkToPerformance,
       sceneViewLoading,
       hostDashboards,
       targetList,
@@ -189,7 +195,7 @@ export default defineComponent({
                 {this.createSkeletonDom()}
               </div>
               <div
-                class='host-explore-link-btn'
+                class={`host-explore-link-btn ${!this.canLinkToPerformance ? 'disabled' : ''}`}
                 onClick={this.handleToPerformance}
               >
                 <span class='link-text'>{window.i18n.t('主机监控')}</span>
