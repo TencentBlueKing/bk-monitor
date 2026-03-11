@@ -29,6 +29,7 @@ import { computed, defineComponent, ref } from 'vue';
 import { clearTableFilter, downFile } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
+
 import { t } from '@/hooks/use-locale';
 import * as authorityMap from '../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
@@ -37,7 +38,6 @@ import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../constant';
 import { TaskStatus, TaskScene } from './types';
 import { useTableSetting } from '../hooks/use-table-setting';
 import { useSearchTask } from '../hooks/use-search-task';
-import http from '@/api';
 
 import './collection-table.scss';
 
@@ -199,26 +199,18 @@ export default defineComponent({
     };
 
     // 下载文件
-    const downloadFile = async (id: number, status: number) => {
+    const downloadFile = async (fileName: string, status: number) => {
       if (status !== TaskStatus.COMPLETED) {
         return;
       }
       if (props.isAllowedDownload) {
-        try {
-          const params = {
-            query: {
-              bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-              id,
-            },
-          };
-          const response = await http.request('collect/getDownloadLink', params);
-          const downloadUrl = response.data.url;
-          if (downloadUrl) {
-            downFile(downloadUrl);
-          }
-        } catch (error) {
-          console.warn('获取下载链接失败:', error);
-        }
+        const baseURL = window.AJAX_URL_PREFIX;
+        const params = new URLSearchParams({
+          bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+          file_name: fileName,
+        });
+        const downloadUrl = `${baseURL}/tgpa/task/download_file/?${params.toString()}`;
+        downFile(downloadUrl, fileName);
       } else {
         const paramData = {
           action_ids: [authorityMap.DOWNLOAD_FILE_AUTH],
@@ -392,7 +384,7 @@ export default defineComponent({
               v-cursor={{
                 active: row.status === TaskStatus.COMPLETED && !props.isAllowedDownload,
               }}
-              on-click={() => downloadFile(row.id, row.status)}
+              on-click={() => downloadFile(row.file_name, row.status)}
             >
               {t('下载文件')}
             </bk-button>
