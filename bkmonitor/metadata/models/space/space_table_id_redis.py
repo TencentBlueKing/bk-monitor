@@ -812,6 +812,13 @@ class SpaceTableIDRedis:
             self._compose_record_rule_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
         )
 
+        # 追加 BKBase 短链路结果表（预计算 v4 主动拉取的结果表）
+        _values.update(
+            self._compose_bkbase_short_chain_table_ids(
+                space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id
+            )
+        )
+
         # 追加ES结果表
         _values.update(self._compose_es_table_ids(space_type, space_id))
         # 追加Doris结果表
@@ -1300,6 +1307,34 @@ class SpaceTableIDRedis:
             bk_tenant_id,
         )
         objs = RecordRule.objects.filter(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
+        return {obj.table_id: {"filters": []} for obj in objs}
+
+    def _compose_bkbase_short_chain_table_ids(
+        self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID
+    ) -> dict[str, dict]:
+        """
+        组装 BKBase 短链路结果表（预计算 v4 主动拉取的结果表）
+
+        这些结果表是通过 SyncBkBaseResultTableFieldsResource 接口主动从 BKBase 拉取创建的，
+        不走常规的数据源->结果表关联链路，因此需要单独处理以纳入空间路由。
+
+        :param space_type: 空间类型
+        :param space_id: 空间ID
+        :param bk_tenant_id: 租户ID
+        :return: {table_id: {"filters": []}} 格式的结果
+        """
+        logger.info(
+            "_compose_bkbase_short_chain_table_ids: space_type->[%s],space_id->[%s],bk_tenant_id->[%s]",
+            space_type,
+            space_id,
+            bk_tenant_id,
+        )
+        # 查询该空间下的所有短链路结果表
+        objs = models.BkBaseShortChainResultTable.objects.filter(
+            space_type=space_type,
+            space_id=space_id,
+            bk_tenant_id=bk_tenant_id,
+        )
         return {obj.table_id: {"filters": []} for obj in objs}
 
     def _compose_es_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):

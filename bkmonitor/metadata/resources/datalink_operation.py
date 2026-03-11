@@ -449,32 +449,64 @@ class SyncBkBaseResultTableFieldsResource(Resource):
         result_table_ids = serializers.ListField(
             child=serializers.CharField(),
             label="BKBase结果表ID列表（VMRT）",
-            help_text="例如：['100864_DsRecordUpload_TotalGame_1min_group']",
+            help_text="例如：['00001_TotalGame_1min_group']，前缀数字为业务ID（space_id）",
             min_length=1,
         )
+        data_label = serializers.CharField(
+            label="数据标签",
+            required=False,
+            allow_blank=True,
+            default="",
+            help_text="可选的数据标签，用于推送 data_label 路由",
+        )
+
+    # BKBase 短链路固定使用 bkcc 空间类型
+    BKBASE_SHORT_CHAIN_SPACE_TYPE = "bkcc"
 
     def perform_request(self, validated_request_data: dict[str, Any]):
         from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         result_table_ids = validated_request_data["result_table_ids"]
+        data_label = validated_request_data.get("data_label", "")
+        # BKBase 短链路固定使用 bkcc 空间类型
+        space_type = self.BKBASE_SHORT_CHAIN_SPACE_TYPE
 
         logger.info(
-            "SyncBkBaseResultTableFieldsResource: start to sync fields for result_table_ids->[%s], bk_tenant_id->[%s]",
+            "SyncBkBaseResultTableFieldsResource: start to sync fields for result_table_ids->[%s], bk_tenant_id->[%s],"
+            "data_label->[%s], space_type->[%s]",
             result_table_ids,
             bk_tenant_id,
+            data_label,
+            space_type,
         )
 
         results = []
         updated_table_ids = []
+        # 收集所有需要更新空间路由的 space_id 集合
+        space_ids_to_update: set[str] = set()
 
         for vmrt in result_table_ids:
             try:
+                # 从 vmrt 中提取 space_id（VMRT 格式: {biz_id}_{data_name}）
+                space_id = self._extract_space_id_from_vmrt(vmrt)
+                if not space_id:
+                    raise ValueError(f"无法从 VMRT '{vmrt}' 中解析 space_id，VMRT 应以数字前缀开头，如 '100864_xxx'")
+
                 # 同步单个结果表的字段
-                result = self._sync_single_result_table(bk_tenant_id, vmrt)
+                result = self._sync_single_result_table(
+                    bk_tenant_id=bk_tenant_id,
+                    vmrt=vmrt,
+                    data_label=data_label,
+                    space_type=space_type,
+                    space_id=space_id,
+                )
                 results.append(result)
                 if result.get("status") == "success":
                     updated_table_ids.append(result["table_id"])
+                    # 收集需要更新的 space_id
+                    if space_id:
+                        space_ids_to_update.add(space_id)
             except Exception as e:
                 logger.exception(
                     "SyncBkBaseResultTableFieldsResource: failed to sync fields for vmrt->[%s], error->[%s]",
@@ -495,11 +527,40 @@ class SyncBkBaseResultTableFieldsResource(Resource):
                 "SyncBkBaseResultTableFieldsResource: pushing router for table_ids->[%s]",
                 updated_table_ids,
             )
-            SpaceTableIDRedis().push_table_id_detail(
+            space_redis = SpaceTableIDRedis()
+
+            # 1. 推送结果表详情路由(在哪个集群查询， 有哪些字段可以查询)
+            space_redis.push_table_id_detail(
                 table_id_list=updated_table_ids,
                 is_publish=True,
                 bk_tenant_id=bk_tenant_id,
             )
+
+            # 2. 推送空间路由(这个空间下有哪些结果表可以查询)
+            for sid in space_ids_to_update:
+                logger.info(
+                    "SyncBkBaseResultTableFieldsResource: pushing space_table_ids for space_type->[%s], space_id->[%s]",
+                    space_type,
+                    sid,
+                )
+                space_redis.push_space_table_ids(
+                    space_type=space_type,
+                    space_id=sid,
+                    is_publish=True,
+                )
+
+            # 3. 如果提供了 data_label，推送 data_label 路由(这个标签对应哪些结果表)
+            if data_label:
+                logger.info(
+                    "SyncBkBaseResultTableFieldsResource: pushing data_label_table_ids for data_label->[%s]",
+                    data_label,
+                )
+                space_redis.push_data_label_table_ids(
+                    data_label_list=[data_label],
+                    table_id_list=updated_table_ids,
+                    is_publish=True,
+                    bk_tenant_id=bk_tenant_id,
+                )
 
         return {
             "total": len(result_table_ids),
@@ -507,12 +568,36 @@ class SyncBkBaseResultTableFieldsResource(Resource):
             "results": results,
         }
 
-    def _sync_single_result_table(self, bk_tenant_id: str, vmrt: str) -> dict[str, Any]:
+    @staticmethod
+    def _extract_space_id_from_vmrt(vmrt: str) -> str:
+        """
+        从 VMRT 中提取 space_id
+
+        VMRT 格式通常为: {biz_id}_{data_name}，如 "100864_DsRecordUpload_TotalGame_1min_group"
+        :param vmrt: BKBase 结果表ID
+        :return: 提取的 space_id
+        """
+        parts = vmrt.split("_")
+        if parts and parts[0].isdigit():
+            return parts[0]
+        return ""
+
+    def _sync_single_result_table(
+        self,
+        bk_tenant_id: str,
+        vmrt: str,
+        data_label: str = "",
+        space_type: str = "bkcc",
+        space_id: str = "",
+    ) -> dict[str, Any]:
         """
         同步单个 BKBase 结果表的字段
 
         :param bk_tenant_id: 租户ID
         :param vmrt: BKBase 结果表ID（VMRT）
+        :param data_label: 数据标签（可选）
+        :param space_type: 空间类型
+        :param space_id: 空间ID
         :return: 同步结果
         """
         # 构建监控平台的 table_id
@@ -576,6 +661,22 @@ class SyncBkBaseResultTableFieldsResource(Resource):
             dimensions=dimensions,
         )
 
+        # 更新或创建 BkBaseShortChainResultTable 记录（用于短链路空间路由）
+        self._update_short_chain_record(
+            bk_tenant_id=bk_tenant_id,
+            table_id=table_id,
+            vmrt=vmrt,
+            space_type=space_type,
+            space_id=space_id,
+            data_label=data_label,
+        )
+
+        # 如果提供了 data_label，更新结果表的 data_label
+        if data_label:
+            models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).update(
+                data_label=data_label
+            )
+
         logger.info(
             "SyncBkBaseResultTableFieldsResource: synced fields for table_id->[%s], "
             "created->[%d], updated->[%d], metrics->[%d], dimensions->[%d]",
@@ -594,7 +695,50 @@ class SyncBkBaseResultTableFieldsResource(Resource):
             "dimensions_count": len(dimensions),
             "created_count": created_count,
             "updated_count": updated_count,
+            "space_type": space_type,
+            "space_id": space_id,
+            "data_label": data_label,
         }
+
+    def _update_short_chain_record(
+        self,
+        bk_tenant_id: str,
+        table_id: str,
+        vmrt: str,
+        space_type: str,
+        space_id: str,
+        data_label: str,
+    ) -> None:
+        """
+        更新或创建 BkBaseShortChainResultTable 记录
+
+        :param bk_tenant_id: 租户ID
+        :param table_id: 监控平台结果表ID
+        :param vmrt: BKBase 结果表ID
+        :param space_type: 空间类型
+        :param space_id: 空间ID
+        :param data_label: 数据标签
+        """
+        defaults = {
+            "bkbase_rt_id": vmrt,
+            "space_type": space_type,
+            "space_id": space_id,
+            "data_label": data_label,
+        }
+        _, created = models.BkBaseShortChainResultTable.objects.update_or_create(
+            bk_tenant_id=bk_tenant_id,
+            table_id=table_id,
+            defaults=defaults,
+        )
+        logger.info(
+            "SyncBkBaseResultTableFieldsResource: %s BkBaseShortChainResultTable for table_id->[%s], "
+            "vmrt->[%s], space_type->[%s], space_id->[%s]",
+            "created" if created else "updated",
+            table_id,
+            vmrt,
+            space_type,
+            space_id,
+        )
 
     def _map_field_type(self, bkdata_field_type: str) -> str:
         """

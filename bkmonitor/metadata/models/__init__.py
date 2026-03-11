@@ -15,7 +15,7 @@ from .bcs import (
     ReplaceConfig,
     ServiceMonitorInfo,
 )
-from .bkdata import BkBaseResultTable
+from .bkdata import BkBaseResultTable, BkBaseShortChainResultTable
 from .common import Label
 from .custom_report import (
     CustomReportSubscription,
@@ -163,6 +163,7 @@ __all__ = [
     "RecordRule",
     "ResultTableFlow",
     "BkBaseResultTable",
+    "BkBaseShortChainResultTable",
     # resource relation
     "EntityMeta",
     "CustomRelationStatus",
