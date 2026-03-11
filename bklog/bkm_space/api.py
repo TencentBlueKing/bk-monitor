@@ -21,7 +21,8 @@ class AbstractSpaceApi(metaclass=abc.ABCMeta):
         # TODO: 需实现该接口
         raise NotImplementedError
 
-    def batch_get_space_detail(self, space_uids: set[str]) -> dict:
+    @classmethod
+    def batch_get_space_detail(cls, space_uids: set[str]) -> dict:
         """
         批量查看具体空间实例详情
         :param space_uids: 空间唯一标识集合

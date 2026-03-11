@@ -77,8 +77,8 @@ class AuthorizerSettings:
         bk_biz_id = space_uid_to_bk_biz_id(space_uid)
         obj = cls.get_or_create()
         if bk_biz_id in obj.biz_id_white_list:
-            return True, obj
-        return False, None
+            return True
+        return False
 
     @classmethod
     def get_or_create(cls):
@@ -116,10 +116,10 @@ class AuthorizerSettings:
 
     @classmethod
     def get_authorizer(cls, space_uid: str = "") -> str:
-        is_switch, obj = cls.switch(space_uid=space_uid)
-        if not space_uid or not is_switch or not obj:
+        if not space_uid or not cls.switch(space_uid=space_uid):
             return ""
         bk_biz_id = space_uid_to_bk_biz_id(space_uid)
+        obj = cls.get_or_create()
         return obj.feature_config.get(str(bk_biz_id), "")
 
     @classmethod
@@ -444,65 +444,6 @@ class ExternalPermission(OperateRecordModel):
         ExternalPermissionApplyRecord.objects.create(**validated_request_data, operate=OperateEnum.DELETE.value)
         cls.objects.filter(id__in=del_permission_ids).delete()
         return {"delete_permission_ids": list(del_permission_ids)}
-
-    @classmethod
-    def list(cls, space_uid: str = "", view_type: str = ViewTypeEnum.USER.value):
-        """
-        1. 基于被授权人视角
-        2. 基于实例资源视角
-        """
-        authorizer = AuthorizerSettings.get_authorizer(space_uid=space_uid)
-        permission_qs = ExternalPermission.objects.all()
-        if space_uid:
-            permission_qs = permission_qs.filter(space_uid=space_uid)
-        if view_type != ViewTypeEnum.RESOURCE.value:
-            permission_qs = permission_qs.order_by("-updated_at")
-            permission_list = [
-                {
-                    "updated_at": permission.updated_at,
-                    "authorized_user": permission.authorized_user,
-                    "action_id": permission.action_id,
-                    "resources": permission.resources,
-                    "expire_time": permission.expire_time,
-                    "status": permission.status,
-                    "space_uid": permission.space_uid,
-                }
-                for permission in permission_qs.iterator()
-            ]
-        else:
-            resource_to_user = defaultdict(lambda: {"authorized_users": []})
-            for permission in permission_qs:
-                for resource_id in permission.resources:
-                    resource_key = tuple([permission.action_id, resource_id, permission.status])
-                    resource_to_user[resource_key]["authorized_users"].append(permission.authorized_user)
-                    resource_to_user[resource_key]["action_id"] = permission.action_id
-                    resource_to_user[resource_key]["resource_id"] = resource_id
-                    resource_to_user[resource_key]["status"] = permission.status
-                    resource_to_user[resource_key]["space_uid"] = permission.space_uid
-                    if "created_at" not in resource_to_user[resource_key]:
-                        resource_to_user[resource_key]["created_at"] = permission.created_at
-                    elif permission.created_at and permission.created_at < resource_to_user[resource_key]["created_at"]:
-                        resource_to_user[resource_key]["created_at"] = permission.created_at
-
-            permission_list = list(resource_to_user.values())
-            # 按创建时间倒序排列
-            permission_list.sort(key=lambda x: x["created_at"], reverse=True)
-
-        # 获取所有的空间ID，构造空间名称映射
-        space_uids = {permission["space_uid"] for permission in permission_list}
-        space_names = {}
-        for space_uid in space_uids:
-            space_info = SpaceApi.get_space_detail(space_uid=space_uid)
-            if space_info:
-                space_names[space_uid] = space_info.space_name
-
-        for permission in permission_list:
-            if not space_uid:
-                permission["authorizer"] = AuthorizerSettings.get_authorizer(space_uid=permission["space_uid"])
-            else:
-                permission["authorizer"] = authorizer
-            permission["space_name"] = space_names.get(permission["space_uid"], "")
-        return permission_list
 
     @classmethod
     def create_or_update_authorizer(cls, space_uid: str, authorizer: str):

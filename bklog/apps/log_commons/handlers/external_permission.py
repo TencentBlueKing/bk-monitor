@@ -40,25 +40,25 @@ class ExternalPermissionHandler:
                 continue
             index_set_ids_map[permission.space_uid].update(permission.resources)
 
-        for space_uid, index_set_ids in index_set_ids_map.items():
+        for key_space_uid, index_set_ids in index_set_ids_map.items():
             iam_resources = []
             for index_set_id in index_set_ids:
                 attribute = {
-                    "bk_biz_id": self.get_bk_biz_id(space_uid),
-                    "space_uid": space_uid,
+                    "bk_biz_id": self.get_bk_biz_id(key_space_uid),
+                    "space_uid": key_space_uid,
                 }
                 iam_resources.append(
                     [ResourceEnum.INDICES.create_simple_instance(instance_id=index_set_id, attribute=attribute)]
                 )
             if iam_resources:
-                verified_authorizer = self.get_authorizer(space_uid=space_uid)
+                verified_authorizer = self.get_authorizer(space_uid=key_space_uid)
                 # result: {index_set_id: {action_id: True / False}}
                 result = Permission(username=verified_authorizer).batch_is_allowed(
                     actions=[ActionEnum.SEARCH_LOG], resources=iam_resources
                 )
                 for index_set_id, permission_info in result.items():
                     index_set_id = int(index_set_id)
-                    self.log_search_manage_permission_info[(verified_authorizer, index_set_id, space_uid)] = (
+                    self.log_search_manage_permission_info[(verified_authorizer, index_set_id, key_space_uid)] = (
                         permission_info
                     )
 
@@ -150,7 +150,7 @@ class ExternalPermissionHandler:
                     index_set_id = int(index_set_id)
                     if index_set_id not in obj.resources:
                         continue
-                    if not permission_info.get(ActionEnum.SEARCH_LOG.id, False):
+                    if not permission_info or not permission_info.get(ActionEnum.SEARCH_LOG.id, False):
                         status = TokenStatusEnum.INVALID.value
                         break
         else:

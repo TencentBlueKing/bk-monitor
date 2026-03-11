@@ -118,7 +118,7 @@ class ExternalPermissionViewSet(APIViewSet):
         }
         """
         data = self.params_valid(ListExternalPermissionSLZ)
-        return Response(ExternalPermissionHandler.list(**data))
+        return Response(ExternalPermissionHandler().list(**data))
 
     @list_route(methods=["get"], url_path="action")
     def list_action(self, request):
