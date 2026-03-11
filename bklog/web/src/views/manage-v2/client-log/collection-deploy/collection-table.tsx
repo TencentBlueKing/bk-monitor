@@ -26,7 +26,8 @@
 
 import { computed, defineComponent, ref } from 'vue';
 
-import { clearTableFilter, downFile } from '@/common/util';
+import { clearTableFilter, blobDownload } from '@/common/util';
+import { axiosInstance } from '@/api';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 
@@ -204,13 +205,20 @@ export default defineComponent({
         return;
       }
       if (props.isAllowedDownload) {
-        const baseURL = window.AJAX_URL_PREFIX;
-        const params = new URLSearchParams({
-          bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-          file_name: fileName,
-        });
-        const downloadUrl = `${baseURL}/tgpa/task/download_file/?${params.toString()}`;
-        downFile(downloadUrl, fileName);
+        axiosInstance
+          .get('/tgpa/task/download_file/', {
+            params: {
+              bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+              file_name: fileName,
+            },
+            responseType: 'blob',
+          })
+          .then((res) => {
+            blobDownload(res.data, fileName);
+          })
+          .catch((error) => {
+            console.error('下载失败:', error);
+          });
       } else {
         const paramData = {
           action_ids: [authorityMap.DOWNLOAD_FILE_AUTH],
