@@ -87,13 +87,15 @@ def rebuild_collect_plugins(bk_tenant_id: str, bk_biz_id: int, collect_config_id
         )
 
 
-def rebuild_uptime_check(bk_tenant_id: str, bk_biz_id: int):
+def rebuild_uptime_check(bk_tenant_id: str, bk_biz_id: int, task_ids: list[int] | None = None):
     """重建拨测数据
     Args:
         bk_tenant_id (str): 租户ID
         bk_biz_id (int): 业务ID
     """
-    tasks = UptimeCheckTask.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+    tasks = UptimeCheckTask.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, is_delete=False)
+    if task_ids:
+        tasks = tasks.filter(task_id__in=task_ids)
     if not tasks.exists():
         return
 
