@@ -29,6 +29,7 @@ import { get } from '@vueuse/core';
 import { storeToRefs } from 'pinia';
 
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
+// import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import AlarmDashboardGroup from '../../../components/alarm-dashboard-group/alarm-dashboard-group';
 import { useAlertHost } from '../../../composables/use-alert-host';
 import { useSceneView } from '../../../composables/use-scene-view';
@@ -198,8 +199,25 @@ export default defineComponent({
           </div>
           {/* <div class='ai-hight-card-wrap'>
             <AiHighlightCard
-              content='该模块哈哈哈哈哈，我是一段随意的文本占位。'
-              title={`${window.i18n.t('AI 分析结论')}：`}
+              v-slots={{
+                content: () => (
+                  <div class='ai-content-wrap'>
+                    <span class='title'>{this.$t('AI 分析结论')}：</span>
+                    <ul class='list'>
+                      <li>
+                        <div class='list-item'>
+                          <span class='title'>磁盘：</span>
+                          <span class='desc'>(设备名: /dev/dba，挂载点: /data, 使用率 97%)</span>
+                          <div class='status'>
+                            <div class='dot' />
+                            <span class='text'>异常</span>
+                          </div>
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+                ),
+              }}
             />
             {this.createSkeletonDom()}
           </div> */}

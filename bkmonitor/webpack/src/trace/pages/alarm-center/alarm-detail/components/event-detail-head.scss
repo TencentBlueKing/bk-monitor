@@ -11,8 +11,8 @@ $fatal-red: #ea3536;
   .level-tag {
     width: 36px;
     height: 36px;
+    color: #fff;
     text-align: center;
-    color: #ffffff;
     background: #e6e7e8;
     border-radius: 6px;
 
@@ -47,8 +47,8 @@ $fatal-red: #ea3536;
     flex: 1;
     height: 100%;
     padding: 6px 8px;
-    line-height: 16px;
     overflow: hidden;
+    line-height: 16px;
   }
 
   .event-id {
@@ -62,8 +62,8 @@ $fatal-red: #ea3536;
       margin-left: 2px;
 
       .temporary-share-icon {
-        font-size: 10px;
         margin-left: 4px;
+        font-size: 10px;
       }
     }
 
@@ -80,12 +80,12 @@ $fatal-red: #ea3536;
     align-items: center;
 
     .basic-title-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
       font-size: 13px;
       font-weight: 500;
       line-height: 20px;
       color: #313238;
-      overflow: hidden;
-      text-overflow: ellipsis;
       white-space: nowrap;
     }
 
@@ -94,12 +94,12 @@ $fatal-red: #ea3536;
       padding: 0 8px;
       margin-left: 8px;
       font-size: 11px;
-      line-height: 18px;
       font-weight: 500;
+      line-height: 18px;
       color: #4e5e7a;
+      cursor: pointer;
       background: #f0f4fa;
       border-radius: 999px;
-      cursor: pointer;
 
       .icon-float {
         display: inline-block;
@@ -135,16 +135,46 @@ $fatal-red: #ea3536;
     .btn-group-item {
       display: flex;
       flex-direction: column;
+      align-items: center;
       justify-content: center;
       height: 100%;
       padding: 0 16px;
       color: #4e5e7a;
-      text-align: center;
       cursor: pointer;
       border-left: 1px solid #f2f6fc;
 
       &:hover {
         background: #f5f7fa;
+      }
+    }
+
+    .ai {
+      border-left: 1px solid #f2f6fc;
+
+      .ai-favicon {
+        width: 20px;
+        height: 20px;
+        line-height: 20px;
+        text-align: center;
+
+        img {
+          width: 16px;
+          height: 15px;
+          vertical-align: middle;
+        }
+      }
+
+      .text {
+        font-size: 12px;
+        line-height: 20px;
+        background: linear-gradient(98deg, #4667f3 3.74%, #d287ea 96.48%);
+        background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      &:hover {
+        background: linear-gradient(113deg, #4165f41a 0%, #ce86ea1a 100%);
       }
     }
 

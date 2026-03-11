@@ -28,49 +28,48 @@ import { defineComponent } from 'vue';
 import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
-import './event-panel.scss';
+import './metric-panel.scss';
 
 export default defineComponent({
-  name: 'EventPanel',
+  name: 'MetricPanel',
   render() {
     return (
-      <div class='suspicious-event-panel'>
-        <div class='tips'>通过分析告警产生前 1 小时时间窗口事件，可疑事件为：</div>
-        <div class='event-group-list'>
+      <div class='suspicious-metric-panel'>
+        <div class='tips'>
+          下面这些指标维度，在过去时间里产生过相似的告警事件，希望能够帮助您进一步分析告警可能原因。
+        </div>
+        <div class='metric-group-list'>
           <SuspiciousAnalysisGroup>
             {{
               title: () => (
                 <div class='group-title'>
-                  <span
-                    class='group-name link-text'
-                    onClick={e => {
-                      e.stopPropagation();
-                    }}
-                  >
-                    五一大版本发布
-                    <i class='icon-monitor icon-fenxiang' />
-                  </span>
-
+                  <span class='group-name'>指标：证书剩余天数（cert_shengyu_days）</span>
                   <span
                     class='link-text detail-link'
                     onClick={e => {
                       e.stopPropagation();
                     }}
                   >
-                    <i class='icon-monitor icon-xiangqing1' />
-                    分析详情
+                    <i class='icon-monitor icon-zhibiaojiansuo' />
+                    指标检索
                   </span>
                 </div>
               ),
               default: () => (
                 <AnalysisDetailContent
+                  tableData={[
+                    { name: '主机名', value: 'VM-156-110-centos' },
+                    { name: '目标IP', value: '11.185.157.110' },
+                    { name: '管控区域', value: '0' },
+                  ]}
                   contentData={[]}
-                  tableData={[]}
                 />
               ),
               footer: () => (
                 <div class='footer-content'>
-                  <span class='reason'>可疑原因：该时间关联的服务跟告警服务相同</span>
+                  <span class='reason'>
+                    可疑原因：在（2025-04-16 00:00:00 ～ 2025-04-17 00:00:00）时间段内，告警产生具有相似性。
+                  </span>
                 </div>
               ),
             }}
