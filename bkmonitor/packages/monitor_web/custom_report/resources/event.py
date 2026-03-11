@@ -287,7 +287,7 @@ class GetCustomEventGroup(Resource):
         )
 
         # 获取事件名对应的最近一条事件
-        for last_event in qs.add_query(q.distinct("event_name").order_by("-time")):
+        for last_event in qs.add_query(q.distinct("event_name").order_by("time desc")):
             last_event.pop("_meta", None)
             result[last_event["event_name"]]["last_event_content"] = last_event
             result[last_event["event_name"]]["last_change_time"] = date_convert(
