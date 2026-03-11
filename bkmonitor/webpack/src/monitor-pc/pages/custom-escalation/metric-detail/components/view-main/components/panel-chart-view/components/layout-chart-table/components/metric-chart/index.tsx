@@ -437,8 +437,8 @@ class NewMetricChart extends CommonSimpleChart {
       if (info) {
         parts.push(`${info.alias || info.name}=${obj[key]}`);
         continue;
-      }
-      parts.push(key);
+      };
+      parts.push(`${key}=${obj[key]}`);
     }
     const separator = '|';
     return parts.join(separator);
