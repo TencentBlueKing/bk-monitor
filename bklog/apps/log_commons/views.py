@@ -35,6 +35,7 @@ from apps.constants import ExternalPermissionActionEnum
 from apps.generic import APIViewSet
 from apps.log_commons.cc import get_maintainers
 from apps.log_commons.exceptions import BaseCommonsException
+from apps.log_commons.handlers.external_permission import ExternalPermissionHandler
 from apps.log_commons.models import (
     AuthorizerSettings,
     ExternalPermission,
@@ -117,7 +118,7 @@ class ExternalPermissionViewSet(APIViewSet):
         }
         """
         data = self.params_valid(ListExternalPermissionSLZ)
-        return Response(ExternalPermission.list(**data))
+        return Response(ExternalPermissionHandler().list(**data))
 
     @list_route(methods=["get"], url_path="action")
     def list_action(self, request):

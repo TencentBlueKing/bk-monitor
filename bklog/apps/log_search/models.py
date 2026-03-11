@@ -1387,6 +1387,25 @@ class SpaceApi(AbstractSpaceApi):
             return SpaceDefine.from_dict(TransferApi.get_space_detail({"id": id, "no_request": True}))
 
     @classmethod
+    def batch_get_space_detail(cls, space_uids: set[str]) -> dict:
+        if not space_uids:
+            return {}
+
+        objs = Space.objects.filter(space_uid__in=space_uids)
+
+        space_detail_map = {obj.space_uid: cls._init_space(obj) for obj in objs}
+
+        need_http_space_uids = space_uids - set(space_detail_map.keys())
+
+        for space_uid in need_http_space_uids:
+            space_type, space_id = cls.parse_space_uid(space_uid)
+            space_detail_map[space_uid] = SpaceDefine.from_dict(
+                TransferApi.get_space_detail({"space_type_id": space_type, "space_id": space_id, "no_request": True})
+            )
+
+        return space_detail_map
+
+    @classmethod
     def list_spaces(cls) -> list[SpaceDefine]:
         return [cls._init_space(space) for space in Space.objects.all()]
 
