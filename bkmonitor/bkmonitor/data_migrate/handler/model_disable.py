@@ -64,10 +64,10 @@ def _disable_uptimecheck_task(record: dict[str, Any]) -> dict[str, Any]:
 
 MODEL_DISABLE_HANDLERS: dict[str, RecordHandler] = {
     # "metadata.datasource": _disable_result_table,
-    "metadata.eventgroup": _disable_result_table,
-    "metadata.loggroup": _disable_result_table,
+    # "metadata.eventgroup": _disable_result_table,
+    # "metadata.loggroup": _disable_result_table,
     "metadata.resulttable": _disable_result_table,
-    "metadata.timeseriesgroup": _disable_result_table,
+    # "metadata.timeseriesgroup": _disable_result_table,
     "bkmonitor.strategymodel": _disable_strategy_model,
     "monitor.uptimechecktask": _disable_uptimecheck_task,
     "monitor_web.collectconfigmeta": _disable_collect_config_meta,

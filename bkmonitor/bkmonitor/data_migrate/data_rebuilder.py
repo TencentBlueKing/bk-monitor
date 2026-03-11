@@ -1,5 +1,12 @@
 from core.drf_resource import resource
-from metadata.models import DataSource, DataSourceResultTable, EventGroup, LogGroup, ResultTable, TimeSeriesGroup
+from metadata.models import (
+    DataSource,
+    DataSourceResultTable,
+    EventGroup,
+    ResultTable,
+    ResultTableOption,
+    TimeSeriesGroup,
+)
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR
 from metadata.models.space.constants import EtlConfigs
 from metadata.task.tasks import check_bkcc_space_builtin_datalink
@@ -19,41 +26,6 @@ def rebuild_system_data(bk_tenant_id: str, bk_biz_id: int):
     """
     # 检查并重新接入系统数据
     check_bkcc_space_builtin_datalink([(bk_tenant_id, bk_biz_id)])
-
-
-def _enable_plugin_data_source_and_related_models(bk_tenant_id: str, bk_biz_id: int, data_source: DataSource):
-    """启用数据源和相关模型
-
-    Args:
-        data_source (DataSource): 数据源
-    """
-    # 启用数据源
-    namespace: str = (
-        BKBASE_NAMESPACE_BK_LOG
-        if data_source.etl_config in [EtlConfigs.BK_FLAT_BATCH.value, EtlConfigs.BK_STANDARD_V2_EVENT.value]
-        else BKBASE_NAMESPACE_BK_MONITOR
-    )
-    if not data_source.register_to_gse():
-        raise ValueError(f"数据源{data_source.bk_data_id}注册到gse失败")
-    data_source.register_to_bkbase(bk_biz_id=bk_biz_id, namespace=namespace)
-    data_source.save(update_fields=["is_enable"])
-
-    table_ids = list(
-        DataSourceResultTable.objects.filter(
-            bk_tenant_id=data_source.bk_tenant_id, bk_data_id=data_source.bk_data_id
-        ).values_list("table_id", flat=True)
-    )
-
-    # 启用关联时序分组
-    TimeSeriesGroup.objects.filter(bk_tenant_id=data_source.bk_tenant_id, table_id__in=table_ids).update(is_enable=True)
-    # 启用关联事件分组
-    EventGroup.objects.filter(bk_tenant_id=data_source.bk_tenant_id, table_id__in=table_ids).update(is_enable=True)
-    # 启用关联日志分组
-    LogGroup.objects.filter(bk_tenant_id=data_source.bk_tenant_id, table_id__in=table_ids).update(is_enable=True)
-
-    # 这里仅仅做状态字段变更，后续由插件会除非变更逻辑
-    tables = ResultTable.objects.filter(bk_tenant_id=data_source.bk_tenant_id, table_id__in=table_ids)
-    tables.update(is_enable=True)
 
 
 def rebuild_collect_plugins(bk_tenant_id: str, bk_biz_id: int, collect_config_ids: list[int]):
@@ -137,7 +109,7 @@ def rebuild_uptime_check(bk_tenant_id: str, bk_biz_id: int):
         task.deploy()
 
 
-def rebuild_time_series_group(bk_tenant_id: str, bk_biz_id: int, time_series_group_ids: list[int]):
+def rebuild_time_series_group(bk_tenant_id: str, bk_biz_id: int, time_series_group_ids: list[int] | None = None):
     """重建时序分组
 
     Args:
@@ -145,9 +117,10 @@ def rebuild_time_series_group(bk_tenant_id: str, bk_biz_id: int, time_series_gro
         bk_biz_id (int): 业务ID
         time_series_group_ids (list[int]): 时序分组ID列表
     """
-    time_series_groups = TimeSeriesGroup.objects.filter(
-        bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, time_series_group_id__in=time_series_group_ids
-    )
+    time_series_groups = TimeSeriesGroup.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, is_delete=False)
+    if time_series_group_ids:
+        time_series_groups = time_series_groups.filter(time_series_group_id__in=time_series_group_ids)
+
     data_ids = list(time_series_groups.values_list("bk_data_id", flat=True))
     table_ids = list(time_series_groups.values_list("table_id", flat=True))
 
@@ -165,7 +138,7 @@ def rebuild_time_series_group(bk_tenant_id: str, bk_biz_id: int, time_series_gro
         result_table.modify(operator="system", is_enable=True)
 
 
-def rebuild_event_group(bk_tenant_id: str, bk_biz_id: int, event_group_ids: list[int]):
+def rebuild_event_group(bk_tenant_id: str, bk_biz_id: int, event_group_ids: list[int] | None = None):
     """重建事件分组
 
     Args:
@@ -173,12 +146,14 @@ def rebuild_event_group(bk_tenant_id: str, bk_biz_id: int, event_group_ids: list
         bk_biz_id (int): 业务ID
         event_group_ids (list[int]): 事件分组ID列表
     """
-    event_groups = EventGroup.objects.filter(
-        bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, event_group_id__in=event_group_ids
-    )
+    event_groups = EventGroup.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, is_delete=False)
+    if event_group_ids:
+        event_groups = event_groups.filter(event_group_id__in=event_group_ids)
+
     data_ids = list(event_groups.values_list("bk_data_id", flat=True))
     table_ids = list(event_groups.values_list("table_id", flat=True))
 
+    # 数据源路由重建
     data_sources = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=data_ids)
     for data_source in data_sources:
         if not data_source.register_to_gse():
@@ -188,4 +163,38 @@ def rebuild_event_group(bk_tenant_id: str, bk_biz_id: int, event_group_ids: list
     EventGroup.objects.filter(bk_tenant_id=bk_tenant_id, event_group_id__in=event_group_ids).update(is_enable=True)
     result_tables = ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=table_ids)
     for result_table in result_tables:
+        # 默认启用V4事件组数据链路
+        v4_option = ResultTableOption.objects.filter(
+            table_id=result_table.table_id,
+            bk_tenant_id=bk_tenant_id,
+            name=ResultTableOption.OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK,
+        ).first()
+        if not v4_option:
+            ResultTableOption.create_option(
+                table_id=result_table.table_id,
+                bk_tenant_id=bk_tenant_id,
+                name=ResultTableOption.OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK,
+                value="true",
+                creator="system",
+            )
         result_table.modify(operator="system", is_enable=True)
+
+
+def rebuild_bklog_data_source_route(bk_tenant_id: str, bk_biz_id: int):
+    """重建bklog数据源路由
+    Args:
+        bk_tenant_id (str): 租户ID
+        bk_biz_id (int): 业务ID
+    """
+    result_tables = ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+    related_data_ids = list(
+        DataSourceResultTable.objects.filter(table_id__in=result_tables.values_list("table_id", flat=True))
+        .values_list("bk_data_id", flat=True)
+        .distinct()
+    )
+    data_sources = DataSource.objects.filter(
+        bk_tenant_id=bk_tenant_id, etl_config=EtlConfigs.BK_FLAT_BATCH.value, bk_data_id__in=related_data_ids
+    )
+
+    for data_source in data_sources:
+        data_source.register_to_gse()
