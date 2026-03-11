@@ -174,8 +174,14 @@ export default defineComponent({
           </div>
           {/* <div class='ai-hight-card-wrap'>
             <AiHighlightCard
-              content={`tE monitor_web，incident，resources, fronted_resources. IncidentHandlersResource 这个 span 中，发生了一个类型为 TypeError 的异常。异常信息为'<' not supported between instances of 'str' and 'int'. 这表明在代表中存在一个比较操作。试图将字符串和整数进行比较，导致了类型错误。`}
-              title={`${window.i18n.t('AI 分析结论')}：`}
+              v-slots={{
+                content: () => (
+                  <div class='ai-content-wrap'>
+                    <span class='title'>{this.$t('AI 分析结论')}: </span>
+                    <span class='desc'>{`tE monitor_web，incident，resources, fronted_resources. IncidentHandlersResource 这个 span 中，发生了一个类型为 TypeError 的异常。异常信息为'<' not supported between instances of 'str' and 'int'. 这表明在代表中存在一个比较操作。试图将字符串和整数进行比较，导致了类型错误。`}</span>
+                  </div>
+                ),
+              }}
             />
             {this.createSkeletonDom()}
           </div> */}
