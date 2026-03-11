@@ -32,7 +32,7 @@ from bkmonitor.documents.action import ActionInstanceDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models import GlobalConfig
 from bkmonitor.models.fta import ActionConfig, ActionInstance, ActionPlugin
-from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.template import AlarmNoticeTemplate, NoticeRowRenderer
 from bkmonitor.utils.user import get_user_display_name
 from bkmonitor.views import serializers
@@ -46,7 +46,7 @@ from constants.action import (
     ChatMessageType,
     ConvergeFunction,
 )
-from core.drf_resource import Resource, api
+from core.drf_resource import Resource, api, resource
 from fta_web.action.tasks import notify_to_appointee, scheduled_register_bk_plugin
 from fta_web.action.utils import parse_bk_plugin_deployed_info
 
@@ -779,6 +779,19 @@ class PreviewDemoActionContextResource(Resource):
         variables = serializers.DictField(required=True, label="待渲染的变量字典")
 
     def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+
+        # 业务权限认证，参考 BaseBizQueryHandler.parse_biz_item
+        try:
+            req = get_request()
+            authorized_bizs = resource.space.get_bk_biz_ids_by_user(req.user)
+            if bk_biz_id not in authorized_bizs:
+                raise PermissionError(_("当前用户无该业务({})的访问权限").format(bk_biz_id))
+        except PermissionError:
+            raise
+        except Exception:
+            pass
+
         result = api.monitor.get_demo_action_context_backend(**validated_request_data)
 
         return result
