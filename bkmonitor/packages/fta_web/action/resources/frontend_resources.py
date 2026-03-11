@@ -36,6 +36,7 @@ from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.template import AlarmNoticeTemplate, NoticeRowRenderer
 from bkmonitor.utils.user import get_user_display_name
 from bkmonitor.views import serializers
+from rest_framework.exceptions import PermissionDenied
 from constants.action import (
     CONVERGE_DIMENSION,
     CONVERGE_FUNCTION,
@@ -782,15 +783,10 @@ class PreviewDemoActionContextResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
 
         # 业务权限认证，参考 BaseBizQueryHandler.parse_biz_item
-        try:
-            req = get_request()
-            authorized_bizs = resource.space.get_bk_biz_ids_by_user(req.user)
-            if bk_biz_id not in authorized_bizs:
-                raise PermissionError(_("当前用户无该业务({})的访问权限").format(bk_biz_id))
-        except PermissionError:
-            raise
-        except Exception:
-            pass
+        req = get_request()
+        authorized_bizs = resource.space.get_bk_biz_ids_by_user(req.user)
+        if bk_biz_id not in authorized_bizs:
+            raise PermissionDenied(_("当前用户无该业务({})的访问权限").format(bk_biz_id))
 
         result = api.monitor.get_demo_action_context_backend(**validated_request_data)
 
