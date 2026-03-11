@@ -17,6 +17,7 @@ from django.conf import settings
 from django.template import TemplateDoesNotExist
 from django.utils import translation
 from django.utils.translation import gettext as _
+from rest_framework.exceptions import PermissionDenied
 
 from api.monitor.default import (
     BatchCreateActionBackendResource,
@@ -36,7 +37,6 @@ from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.template import AlarmNoticeTemplate, NoticeRowRenderer
 from bkmonitor.utils.user import get_user_display_name
 from bkmonitor.views import serializers
-from rest_framework.exceptions import PermissionDenied
 from constants.action import (
     CONVERGE_DIMENSION,
     CONVERGE_FUNCTION,
@@ -783,7 +783,9 @@ class PreviewDemoActionContextResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
 
         # 业务权限认证，参考 BaseBizQueryHandler.parse_biz_item
-        req = get_request()
+        req = get_request(peaceful=True)
+        if req is None:
+            raise PermissionDenied(_("获取用户信息失败，无法进行权限校验"))
         authorized_bizs = resource.space.get_bk_biz_ids_by_user(req.user)
         if bk_biz_id not in authorized_bizs:
             raise PermissionDenied(_("当前用户无该业务({})的访问权限").format(bk_biz_id))
