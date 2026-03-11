@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import json
 
 from django.conf import settings
 from django.core.management import BaseCommand
@@ -36,10 +37,20 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("-b", "--bk_biz_id", type=int, required=True, help="业务 ID")
         parser.add_argument("-a", "--app_name", type=str, required=True, help="APM 应用名称")
+        parser.add_argument(
+            "--metric_group_dimensions_file",
+            type=str,
+            help="自定义 metric_group_dimensions 的 JSON 文件路径，文件内容需为 JSON 数组",
+        )
 
     def handle(self, *args, **options):
         bk_biz_id = options["bk_biz_id"]
         app_name = options["app_name"]
+        file_path = options.get("metric_group_dimensions_file")
+        metric_group_dimensions = APM_METRIC_GROUP_DIMENSIONS
+        if file_path:
+            with open(file_path, encoding="utf-8") as file_handler:
+                metric_group_dimensions = json.load(file_handler)
 
         # 1. 检查白名单
         whitelist = settings.APM_METRIC_GROUP_DIMENSIONS_WHITELIST
@@ -87,9 +98,9 @@ class Command(BaseCommand):
             f"TimeSeriesGroup: group_id={ts_group.time_series_group_id}, "
             f"当前 metric_group_dimensions={ts_group.metric_group_dimensions}"
         )
-        ts_group.metric_group_dimensions = APM_METRIC_GROUP_DIMENSIONS
+        ts_group.metric_group_dimensions = metric_group_dimensions
         ts_group.save(update_fields=["metric_group_dimensions"])
-        self.stdout.write(f"已更新 metric_group_dimensions -> {APM_METRIC_GROUP_DIMENSIONS}")
+        self.stdout.write(f"已更新 metric_group_dimensions -> {metric_group_dimensions}")
 
         # 6. 查找 DataLink 实例
         bkbase_data_name = compose_bkdata_data_id_name(data_source.data_name)
