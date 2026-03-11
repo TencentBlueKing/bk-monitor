@@ -23,6 +23,7 @@ from metadata import models
 from metadata.models.space.ds_rt import get_space_table_id_data_id
 from metadata.models.space.utils import get_related_spaces
 from metadata.utils.basic import get_biz_id_by_space_uid
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 logger = logging.getLogger("metadata")
 
@@ -464,8 +465,6 @@ class SyncBkBaseResultTableFieldsResource(Resource):
     BKBASE_SHORT_CHAIN_SPACE_TYPE = "bkcc"
 
     def perform_request(self, validated_request_data: dict[str, Any]):
-        from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         result_table_ids = validated_request_data["result_table_ids"]
         data_label = validated_request_data.get("data_label", "")
@@ -666,8 +665,7 @@ class SyncBkBaseResultTableFieldsResource(Resource):
             bk_tenant_id=bk_tenant_id,
             table_id=table_id,
             vmrt=vmrt,
-            space_type=space_type,
-            space_id=space_id,
+            bk_biz_id=int(space_id),
             data_label=data_label,
         )
 
@@ -705,8 +703,7 @@ class SyncBkBaseResultTableFieldsResource(Resource):
         bk_tenant_id: str,
         table_id: str,
         vmrt: str,
-        space_type: str,
-        space_id: str,
+        bk_biz_id: int,
         data_label: str,
     ) -> None:
         """
@@ -715,14 +712,12 @@ class SyncBkBaseResultTableFieldsResource(Resource):
         :param bk_tenant_id: 租户ID
         :param table_id: 监控平台结果表ID
         :param vmrt: BKBase 结果表ID
-        :param space_type: 空间类型
-        :param space_id: 空间ID
+        :param bk_biz_id: 业务ID
         :param data_label: 数据标签
         """
         defaults = {
             "bkbase_rt_id": vmrt,
-            "space_type": space_type,
-            "space_id": space_id,
+            "bk_biz_id": bk_biz_id,
             "data_label": data_label,
         }
         _, created = models.BkBaseShortChainResultTable.objects.update_or_create(
@@ -732,12 +727,11 @@ class SyncBkBaseResultTableFieldsResource(Resource):
         )
         logger.info(
             "SyncBkBaseResultTableFieldsResource: %s BkBaseShortChainResultTable for table_id->[%s], "
-            "vmrt->[%s], space_type->[%s], space_id->[%s]",
+            "vmrt->[%s], bk_biz_id->[%s]",
             "created" if created else "updated",
             table_id,
             vmrt,
-            space_type,
-            space_id,
+            bk_biz_id,
         )
 
     def _map_field_type(self, bkdata_field_type: str) -> str:

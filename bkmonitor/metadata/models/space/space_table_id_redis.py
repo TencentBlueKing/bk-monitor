@@ -1318,21 +1318,24 @@ class SpaceTableIDRedis:
         这些结果表是通过 SyncBkBaseResultTableFieldsResource 接口主动从 BKBase 拉取创建的，
         不走常规的数据源->结果表关联链路，因此需要单独处理以纳入空间路由。
 
-        :param space_type: 空间类型
-        :param space_id: 空间ID
+        :param space_type: 空间类型（仅支持 bkcc）
+        :param space_id: 空间ID（在 bkcc 空间下等价于 bk_biz_id）
         :param bk_tenant_id: 租户ID
         :return: {table_id: {"filters": []}} 格式的结果
         """
+        # 仅支持 bkcc 空间类型
+        if space_type != SpaceTypes.BKCC.value:
+            return {}
+
         logger.info(
             "_compose_bkbase_short_chain_table_ids: space_type->[%s],space_id->[%s],bk_tenant_id->[%s]",
             space_type,
             space_id,
             bk_tenant_id,
         )
-        # 查询该空间下的所有短链路结果表
+        # 查询该业务下的所有短链路结果表
         objs = models.BkBaseShortChainResultTable.objects.filter(
-            space_type=space_type,
-            space_id=space_id,
+            bk_biz_id=int(space_id),
             bk_tenant_id=bk_tenant_id,
         )
         return {obj.table_id: {"filters": []} for obj in objs}

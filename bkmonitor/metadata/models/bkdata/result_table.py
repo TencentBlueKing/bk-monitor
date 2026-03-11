@@ -98,12 +98,10 @@ class BkBaseShortChainResultTable(models.Model):
     bk_tenant_id = models.CharField("租户ID", max_length=256, default="system")
     # 监控平台本地结果表ID，如 "00001_xxx.__default__"
     table_id = models.CharField("监控平台结果表ID", max_length=128, db_index=True)
-    # BKBase 原始结果表ID（VMRT），如 "100864_DsRecordUpload_TotalGame_1min_group"
+    # BKBase 原始结果表ID（VMRT）
     bkbase_rt_id = models.CharField("BKBase结果表ID", max_length=128, db_index=True)
-    # 所属空间类型
-    space_type = models.CharField("空间类型", max_length=64, default="bkcc")
-    # 所属空间ID
-    space_id = models.CharField("空间ID", max_length=128)
+    # 所属业务ID（在 bkcc 空间类型下等价于 space_id）
+    bk_biz_id = models.IntegerField("业务ID", db_index=True)
     # 数据标签，可选
     data_label = models.CharField("数据标签", max_length=128, default="", blank=True)
 
