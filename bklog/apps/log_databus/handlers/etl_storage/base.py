@@ -156,10 +156,12 @@ class EtlStorage:
         return type_mapping.get(field_type, "string")
 
     @staticmethod
-    def _convert_v3_to_v4_time_format(v3_time_format: str) -> dict:
+    def _convert_v3_to_v4_time_format(v3_time_format: str, time_zone: int = None) -> dict:
         """
         将V3时间格式转换为V4 in_place_time_parsing配置
         :param v3_time_format: V3版本的时间格式字符串
+        :param time_zone: 用户配置的时区偏移（如8表示UTC+8），仅对不含内嵌时区的格式生效；
+                          None时保持mapping默认值（zone=0即UTC）
         :return: V4版本的in_place_time_parsing配置字典
         """
         # V3到V4时间格式映射表
@@ -214,16 +216,22 @@ class EtlStorage:
         format_config = time_format_mapping.get(v3_time_format)
         if not format_config:
             # 如果找不到映射，使用默认配置
+            zone = time_zone if time_zone is not None else 0
             return {
-                "from": {"format": "%Y-%m-%d %H:%M:%S", "zone": 0},
+                "from": {"format": "%Y-%m-%d %H:%M:%S", "zone": zone},
                 "interval_format": None,
                 "to": "millis",
                 "now_if_parse_failed": True,
             }
 
-        # 构建V4 in_place_time_parsing配置
+        # zone=None表示格式本身内嵌了时区信息（如%z、%:z），此时忽略用户time_zone
+        # zone=0表示格式不含时区信息，可被用户time_zone覆盖
+        zone = format_config["zone"]
+        if zone is not None and time_zone is not None:
+            zone = time_zone
+
         return {
-            "from": {"format": format_config["format"], "zone": format_config["zone"]},
+            "from": {"format": format_config["format"], "zone": zone},
             "interval_format": None,
             "to": "millis",
             "now_if_parse_failed": True,
@@ -287,6 +295,11 @@ class EtlStorage:
             # 判断是否为用户指定的时间字段：有real_path说明时间来源于bk_separator_object而非json_data
             has_user_time_field = "real_path" in time_field.get("option", {})
 
+            # 读取用户配置的时区偏移
+            user_time_zone = time_field.get("option", {}).get("time_zone")
+            if user_time_zone is not None:
+                user_time_zone = int(user_time_zone)
+
             if has_user_time_field:
                 # 用户指定了时间字段，dtEventTimeStamp需要从bk_separator_object提取
                 # 与dtEventTimeStampNanos同理，延迟到bk_separator_object之后生成
@@ -296,6 +309,7 @@ class EtlStorage:
                     "time_field_type": time_field_type,
                     "description": time_field.get("description"),
                     "v3_time_format": v3_time_format,
+                    "time_zone": user_time_zone,
                 }
             else:
                 # 默认：从json_data.utctime提取（GSE上报的采集时间）
@@ -327,6 +341,7 @@ class EtlStorage:
                 built_in_config["_nanos_time_field"] = {
                     "time_alias_name": time_alias_name,
                     "v3_time_format": v3_time_format,
+                    "time_zone": user_time_zone,
                 }
 
         return rules
@@ -382,7 +397,9 @@ class EtlStorage:
         rules = []
         user_time_field = built_in_config.get("_user_time_field")
         if user_time_field:
-            v4_time_parsing = self._convert_v3_to_v4_time_format(user_time_field["v3_time_format"])
+            v4_time_parsing = self._convert_v3_to_v4_time_format(
+                user_time_field["v3_time_format"], time_zone=user_time_field.get("time_zone")
+            )
 
             rules.append(
                 {
@@ -418,7 +435,9 @@ class EtlStorage:
             v3_time_format = nanos_time_field["v3_time_format"]
 
             # 获取纳秒级时间格式的V4配置
-            nanos_v4_time_parsing = self._convert_v3_to_v4_time_format(v3_time_format)
+            nanos_v4_time_parsing = self._convert_v3_to_v4_time_format(
+                v3_time_format, time_zone=nanos_time_field.get("time_zone")
+            )
             # 纳秒级时间解析的输出应为strict_date_optional_time_nanos格式字符串，与ES mapping保持一致
             nanos_v4_time_parsing["to"] = "strict_date_optional_time_nanos"
 
