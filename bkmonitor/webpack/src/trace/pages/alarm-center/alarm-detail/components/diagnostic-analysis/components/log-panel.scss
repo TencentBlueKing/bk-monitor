@@ -1,0 +1,23 @@
+@import './common';
+
+.suspicious-log-panel {
+  @extend %panel-container;
+
+  .log-group-list {
+    @extend %group-list;
+
+    .group-title {
+      @extend %group-title;
+
+      .group-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .link-text {
+        flex-shrink: 0;
+      }
+    }
+  }
+}

@@ -102,17 +102,10 @@ export default defineComponent({
       selectLoading.value = true;
       const data = await alertLogRelationList({
         alert_id: props.detail.id,
-      });
+      }).catch(() => []);
       indexSetList.value = data;
-      selectIndexSet.value = data?.[0]?.index_set_id || '';
-      where.value = (data?.[0]?.addition || []).map(item => ({
-        key: item.field,
-        method: item.operator,
-        value: item.value,
-      }));
-      selectIndexSet.value = indexSetList.value[0]?.index_set_id || '';
+      handleChangeIndexSet(data?.[0]?.index_set_id || '');
       selectLoading.value = false;
-      tableRefreshKey.value = random(6);
     }
 
     const timeParams = () => {
@@ -133,30 +126,32 @@ export default defineComponent({
         sortList: [],
       }
     ) {
-      const data = await getLogIndexSetSearch(selectIndexSet.value, {
-        bk_biz_id: props.detail?.bk_biz_id || window.bk_biz_id,
-        size: params.size,
-        ...timeParams(),
-        addition:
-          filterMode.value === EMode.ui
-            ? where.value.map(item => ({
-                field: item.key,
-                operator: item.method,
-                value: item.value,
-              }))
-            : [],
-        begin: params.offset,
-        ip_chooser: {},
-        host_scopes: {},
-        interval: 'auto',
-        search_mode: filterMode.value === EMode.ui ? 'ui' : 'sql',
-        sort_list: [...(params?.sortList || []), ...defaultSortList.value],
-        keyword: filterMode.value !== EMode.ui ? keyword.value : '',
-      })
-        .then(res => {
-          return res;
-        })
-        .catch(() => null);
+      const data = selectIndexSet.value
+        ? await getLogIndexSetSearch(selectIndexSet.value, {
+            bk_biz_id: props.detail?.bk_biz_id || window.bk_biz_id,
+            size: params.size,
+            ...timeParams(),
+            addition:
+              filterMode.value === EMode.ui
+                ? where.value.map(item => ({
+                    field: item.key,
+                    operator: item.method,
+                    value: item.value,
+                  }))
+                : [],
+            begin: params.offset,
+            ip_chooser: {},
+            host_scopes: {},
+            interval: 'auto',
+            search_mode: filterMode.value === EMode.ui ? 'ui' : 'sql',
+            sort_list: [...(params?.sortList || []), ...defaultSortList.value],
+            keyword: filterMode.value !== EMode.ui ? keyword.value : '',
+          })
+            .then(res => {
+              return res;
+            })
+            .catch(() => null)
+        : null;
       return data;
     }
 
@@ -165,12 +160,14 @@ export default defineComponent({
       if (fieldsData.value) {
         return fieldsData.value;
       }
-      const data = await getLogFieldsData(selectIndexSet.value, {
-        is_realtime: 'True',
-        ...timeParams(),
-      })
-        .then(res => res)
-        .catch(() => null);
+      const data = selectIndexSet.value
+        ? await getLogFieldsData(selectIndexSet.value, {
+            is_realtime: 'True',
+            ...timeParams(),
+          })
+            .then(res => res)
+            .catch(() => null)
+        : null;
       setLogFilterParams({
         index_set_id: selectIndexSet.value,
         ...timeParams(),
@@ -249,22 +246,23 @@ export default defineComponent({
       ];
     });
 
-    const handleDisplayColumnFieldsChange = (val: string[]) => {
-      updateUserFiledTableConfig({
-        index_set_config: {
-          displayFields: val,
-          // fieldsWidth: {},
-          // filterAddition: [],
-          // filterSetting: [],
-          // fixedFilterAddition: false,
-          // sortList: [],
-        },
-        index_set_id: String(selectIndexSet.value),
-        index_set_type: 'single',
-      }).then(() => {
-        fieldsData.value = null;
-        tableRefreshKey.value = random(6);
-      });
+    const handleDisplayColumnFieldsChange = async (val: string[]) => {
+      if (selectIndexSet.value) {
+        await updateUserFiledTableConfig({
+          index_set_config: {
+            displayFields: val,
+            // fieldsWidth: {},
+            // filterAddition: [],
+            // filterSetting: [],
+            // fixedFilterAddition: false,
+            // sortList: [],
+          },
+          index_set_id: String(selectIndexSet.value),
+          index_set_type: 'single',
+        });
+      }
+      fieldsData.value = null;
+      tableRefreshKey.value = random(6);
     };
 
     /**
@@ -274,12 +272,16 @@ export default defineComponent({
     function handleChangeIndexSet(indexSetId: number | string) {
       selectIndexSet.value = indexSetId;
       const item = indexSetList.value.find(item => item.index_set_id === indexSetId);
-      filterMode.value = EMode.ui;
-      where.value = (item?.addition || []).map(item => ({
-        key: item.field,
-        method: item.operator,
-        value: item.value,
-      }));
+      filterMode.value = item?.keyword && item?.keyword !== '*' ? EMode.queryString : EMode.ui;
+      if (filterMode.value === EMode.ui) {
+        where.value = (item?.addition || []).map(item => ({
+          key: item.field,
+          method: item.operator,
+          value: item.value,
+        }));
+      } else {
+        keyword.value = item?.keyword || '';
+      }
       fieldsData.value = null;
       tableRefreshKey.value = random(8);
     }
@@ -288,7 +290,21 @@ export default defineComponent({
      * 跳转日志搜索页
      */
     function handleGoLog() {
-      const url = `${window.bk_log_search_url}#/retrieve/${selectIndexSet.value}?bizId=${props.detail?.bk_biz_id || (relatedBkBizId.value === -1 ? window.cc_biz_id : relatedBkBizId.value)}`;
+      const additionStr =
+        filterMode.value === EMode.ui && where.value.length
+          ? encodeURIComponent(
+              JSON.stringify(
+                where.value.map(w => ({
+                  field: w.key,
+                  operator: w.method,
+                  value: w.value,
+                }))
+              )
+            )
+          : '';
+      const timeParamsObj = timeParams();
+      const timeStr = `&start_time=${timeParamsObj.start_time}&end_time=${timeParamsObj.end_time}`;
+      const url = `${window.bk_log_search_url}#/retrieve/${selectIndexSet.value}?bizId=${props.detail?.bk_biz_id || (relatedBkBizId.value === -1 ? window.cc_biz_id : relatedBkBizId.value)}${filterMode.value === EMode.ui ? '&search_mode=ui' : '&search_mode=sql'}${additionStr ? `&addition=${additionStr}` : ''}${filterMode.value === EMode.queryString ? `&keyword=${keyword.value}` : ''}${timeStr}`;
       window.open(url, '_blank');
     }
 
@@ -458,7 +474,7 @@ export default defineComponent({
             onClick={this.handleGoLog}
           >
             <span>{this.t('更多日志')}</span>
-            <span class='icon-monitor icon-fenxiang ml-5' />
+            <span class='icon-monitor icon-fenxiang ml-6' />
           </Button>
         </div>
         <div class='panel-log-filter'>
@@ -467,6 +483,7 @@ export default defineComponent({
             filterMode={this.filterMode}
             getValueFn={this.getFieldsOptionValuesProxy}
             isShowClear={true}
+            noValueOfMethods={['exists', 'not exists', 'is false', 'is true']}
             queryString={this.keyword}
             where={this.where}
             zIndex={4000}

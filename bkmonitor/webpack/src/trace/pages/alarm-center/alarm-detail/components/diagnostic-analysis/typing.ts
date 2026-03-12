@@ -28,31 +28,14 @@ import type { DiagnosticTypeEnum } from './constant';
 import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
 export type DiagnosticTypeEnumType = GetEnumTypeTool<typeof DiagnosticTypeEnum>;
 
-export interface IDiagnosticAnalysisItem {
-  list: ISuspiciousGroup[];
-  type: DiagnosticTypeEnumType;
+/** 内容项 */
+export interface IContentItem {
+  title: string;
+  value: string[];
 }
 
-/** 可疑分析组 */
-export interface ISuspiciousGroup {
-  /** 错误内容 */
-  errorContent: { title: string; value: string[] }[];
-  /** 错误信息 */
-  errorInfo: { name: string; value: string }[];
-  id: string;
-  groupHeader: {
-    detail?: {
-      link: string;
-      title: string;
-    };
-    name: {
-      link?: string;
-      title: string;
-    };
-  };
-  /** 原因 */
-  reason?: {
-    content: string;
-    link?: string;
-  };
+/** 表格项 */
+export interface ITableItem {
+  name: string;
+  value: string;
 }

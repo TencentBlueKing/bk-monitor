@@ -1,16 +1,39 @@
+@import './common';
+
 .suspicious-dimension-panel {
-  .tips {
-    margin-bottom: 8px;
-    font-size: 12px;
-    color: #313238;
-  }
+  @extend %panel-container;
 
-  .link-text {
-    color: #3a84ff;
-    cursor: pointer;
+  .dimension-group-list {
+    @extend %group-list;
 
-    &:hover {
-      color: #699df4;
+    .group-title {
+      @extend %group-title;
+
+      .group-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .abnormality-tag {
+        flex-shrink: 0;
+        padding: 0 6px;
+        font-size: 11px;
+        font-weight: 500;
+        color: #c12726;
+        background: #fff;
+        border-radius: 999px;
+      }
+    }
+
+    .footer-content {
+      line-height: 24px;
+
+      @extend %footer-content;
+
+      .link-text {
+        flex-shrink: 0;
+      }
     }
   }
 }

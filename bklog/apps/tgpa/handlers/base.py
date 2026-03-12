@@ -49,6 +49,7 @@ from apps.tgpa.constants import (
     COS_DOWNLOAD_MAX_SIZE,
     COS_DOWNLOAD_CHUNK_SIZE,
 )
+from apps.tgpa.handlers.decrypt import BaseDecryptHandler
 from apps.utils.bcs import Bcs
 from apps.utils.log import logger
 
@@ -56,23 +57,57 @@ from apps.utils.log import logger
 class TGPAFileHandler:
     """TGPA文件处理"""
 
-    def __init__(self, temp_dir, output_dir, meta_fields=None):
+    def __init__(self, temp_dir, output_dir, meta_fields=None, decrypt_handler: BaseDecryptHandler = None):
         # temp_dir: 临时目录，处理完成后删除; output_dir: 输出目录，存放处理后的文件
         self.temp_dir = temp_dir
         self.output_dir = output_dir
         self.meta_fields = meta_fields or {}
+        # decrypt_handler: 解密处理器，用于解密日志文件，如果为None则不进行解密
+        self.decrypt_handler = decrypt_handler
 
-    def download_file(self, file_name):
-        """
-        从腾讯云COS下载文件
-        """
+    @staticmethod
+    def _get_cos_client():
+        """获取COS客户端实例"""
         config = CosConfig(
             SecretId=settings.TGPA_TASK_QCLOUD_SECRET_ID,
             SecretKey=settings.TGPA_TASK_QCLOUD_SECRET_KEY,
             Region=settings.TGPA_TASK_QCLOUD_COS_REGION,
             Domain=settings.TGPA_TASK_QCLOUD_COS_DOMAIN,
         )
-        client = CosS3Client(config)
+        return CosS3Client(config)
+
+    @staticmethod
+    def get_cos_file_info(file_name):
+        """
+        通过COS head_object获取文件信息
+        :param file_name: COS上的文件名
+        :return: dict，包含文件大小等信息，例如 {"content_length": 1024, ...}
+        """
+        client = TGPAFileHandler._get_cos_client()
+        head_response = client.head_object(Bucket=settings.TGPA_TASK_QCLOUD_COS_BUCKET, Key=file_name)
+        return {
+            "content_length": int(head_response.get("Content-Length", 0)),
+            "content_type": head_response.get("Content-Type", ""),
+        }
+
+    @staticmethod
+    def stream_from_cos(file_name, chunk_size=COS_DOWNLOAD_CHUNK_SIZE):
+        """
+        从COS流式读取文件
+        """
+        client = TGPAFileHandler._get_cos_client()
+        response = client.get_object(Bucket=settings.TGPA_TASK_QCLOUD_COS_BUCKET, Key=file_name)
+        while True:
+            chunk = response["Body"].read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
+
+    def download_file(self, file_name):
+        """
+        从腾讯云COS下载文件
+        """
+        client = TGPAFileHandler._get_cos_client()
         response = client.get_object(Bucket=settings.TGPA_TASK_QCLOUD_COS_BUCKET, Key=file_name)
 
         save_path = os.path.join(self.temp_dir, file_name)
@@ -167,17 +202,27 @@ class TGPAFileHandler:
                 except Exception as e:
                     logger.exception("Failed to extract zip file %s: %s", zip_file, e)
 
+    def _decrypt_all_files(self, dir_path: str) -> None:
+        """解密目录下所有文件，明文文件会被自动跳过"""
+        for file in Path(dir_path).rglob("*"):
+            if not file.is_file():
+                continue
+            try:
+                self.decrypt_handler.decrypt_file(str(file))
+            except Exception:
+                logger.warning("Skipping file due to decryption failure: %s", file)
+
     def download_and_process_file(self, file_name):
         """
         下载并处理文件
         """
-        # 下载压缩包、解压
-        compressed_file_path = self.download_file(file_name)
-        with zipfile.ZipFile(compressed_file_path, "r") as zip_ref:
-            zip_ref.extractall(self.temp_dir)
-
-        # 递归解压嵌套的压缩包
+        # 下载压缩包并递归解压
+        self.download_file(file_name)
         self.extract_nested_zip(self.temp_dir)
+
+        # 先解密所有文件，再通过 MIME 类型发现日志文件
+        if self.decrypt_handler:
+            self._decrypt_all_files(self.temp_dir)
 
         # 查找并处理日志文件，忽略异常，防止单个文件处理失败导致整个任务失败
         log_files = self.find_log_files(self.temp_dir)
@@ -189,6 +234,35 @@ class TGPAFileHandler:
 
         # 清理临时文件
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def download_and_repack_file(self, file_name):
+        """
+        下载文件、解压、解密，然后重新打包为zip文件。
+        如果没有配置解密处理器，则直接返回原始下载文件路径，无需额外处理。
+        :param file_name: COS上的文件名
+        :return: 文件路径
+        """
+        saved_path = self.download_file(file_name)
+        if not self.decrypt_handler:
+            return saved_path
+
+        try:
+            self.extract_nested_zip(self.temp_dir)
+            self._decrypt_all_files(self.temp_dir)
+
+            # 将整个临时目录重新打包为zip文件
+            os.makedirs(self.output_dir, exist_ok=True)
+            base_name = os.path.basename(file_name)
+            output_zip_path = os.path.join(self.output_dir, base_name)
+
+            temp_dir_path = Path(self.temp_dir)
+            with zipfile.ZipFile(output_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                for file_path in temp_dir_path.rglob("*"):
+                    if file_path.is_file():
+                        zipf.write(str(file_path), str(file_path.relative_to(temp_dir_path)))
+            return output_zip_path
+        finally:
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @staticmethod
     def clear_expired_files(days=LOG_FILE_EXPIRE_DAYS):

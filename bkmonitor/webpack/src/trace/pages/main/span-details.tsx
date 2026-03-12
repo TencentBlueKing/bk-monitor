@@ -86,6 +86,8 @@ const guideInfoData: Record<string, IGuideInfo> = {
 };
 
 type TabName = 'BasicInfo' | 'Container' | 'Event' | 'Host' | 'Index' | 'Log' | 'Process' | 'Profiling';
+/** 不需要解码的属性名白名单 */
+const UNDECODED_PROPERTY_NAMES_WHITELIST = ['net.peer.port'];
 export default defineComponent({
   name: 'SpanDetails',
   props: {
@@ -96,6 +98,7 @@ export default defineComponent({
     isFullscreen: { type: Boolean, default: false } /* 当前是否为全屏状态 */,
     isPageLoading: { type: Boolean, default: false },
     activeTab: { type: String, default: 'BasicInfo' },
+    defaultExpand: { type: Boolean, default: false } /* 是否默认展开所有详情项 */,
   },
   emits: ['show', 'prevNextClicked'],
   setup(props, { emit }) {
@@ -209,65 +212,24 @@ export default defineComponent({
     provide('spanId', spanId);
     // 用作 Event 栏的首行打开。
     let isInvokeOnceFlag = true;
-    /* 初始化 */
-    watch(
-      () => props.show,
-      (value: boolean) => {
-        // 异步加载数据时，需要重置数据，不然会看到上一次打开的数据。
-        Object.assign(info, deepClone(tempInfo));
-        localShow.value = value;
-        if (value) {
-          // 这里提前执行，如果是碰到异步加载，这里会报错，这里做了兼容处理。
-          if (!props.isPageLoading) getDetails();
-          if (props.isFullscreen && !document.querySelector('.bk-modal-outside')) {
-            const maskEle = document.createElement('div');
-            maskEle.className = 'bk-modal-outside';
-            document.querySelector('.span-details-sideslider')?.appendChild(maskEle);
-          }
-        } else {
-          isInvokeOnceFlag = true;
-          activeTab.value = 'BasicInfo';
-          // countOfInfo.value = {};
-          fullscreen.value = false;
-        }
-      },
-      {
-        immediate: true,
-      }
-    );
-
-    // 上面监听 props.show 里会直接执行 getDetails() ，这里因为要添加loading，
-    // 且需要保证之前用到该组件的地方能正常运行，这里添加兼容代码。保证使用loading与否，都可以正常显示数据。
-    watch(
-      () => props.isPageLoading,
-      (value: boolean) => {
-        if (!value) {
-          getDetails();
-        }
-      }
-    );
-
-    watch(
-      () => props.spanDetails,
-      val => {
-        if (val && (!props.withSideSlider || (props.isShowPrevNextButtons && Object.keys(val).length))) {
-          getDetails();
-        }
-      },
-      { immediate: true, deep: true }
-    );
 
     const getSpanDetailExpandUserConfig = () => {
-      const res = window.localStorage.getItem(TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY);
-      /** 默认展开所有 */
-      basicInfoExpand.value = res
-        ? JSON.parse(res)
-        : [EListItemType.tags, EListItemType.stageTime, EListItemType.resource, EListItemType.events];
+      const allExpandTypes = [
+        EListItemType.tags,
+        EListItemType.stageTime,
+        EListItemType.resource,
+        EListItemType.events,
+      ];
+      // 如果 defaultExpand 为 true，强制展开所有项
+      if (props.defaultExpand) {
+        basicInfoExpand.value = allExpandTypes;
+        window.localStorage.setItem(TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY, JSON.stringify(allExpandTypes));
+        return;
+      }
+      // 缓存有值则取缓存，否则默认展开所有项
+      const cachedExpand = window.localStorage.getItem(TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY);
+      basicInfoExpand.value = cachedExpand ? JSON.parse(cachedExpand) : allExpandTypes;
     };
-
-    onMounted(() => {
-      getSpanDetailExpandUserConfig();
-    });
 
     /** 获取 span 类型描述 */
     function getTypeText() {
@@ -859,7 +821,11 @@ export default defineComponent({
                   <span class='icon-monitor icon-mind-fill' />
                 </div>
               ) : (
-                <div class='right'>{formatContent(item.content, item.isFormat)}</div>
+                <div class='right'>
+                  {UNDECODED_PROPERTY_NAMES_WHITELIST.includes(item.label)
+                    ? item.content
+                    : formatContent(item.content, item.isFormat)}
+                </div>
               )}
               {isJson(item.content) && (
                 <Button
@@ -971,13 +937,6 @@ export default defineComponent({
           })}
         </div>
       </div>
-    );
-
-    watch(
-      () => props.activeTab,
-      val => {
-        activeTab.value = val as TabName;
-      }
     );
 
     const tabList = [
@@ -1149,9 +1108,9 @@ export default defineComponent({
           const { indexId, unionList, start_time, end_time, addition } = spanDetailQueryStore.queryData;
           let url = '';
           if (unionList) {
-            url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time ? dayjs(start_time).valueOf() : ''}&end_time=${end_time ? dayjs(end_time).valueOf() : ''}&addition=${addition || ''}&unionList=${unionList}`;
+            url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time || ''}&end_time=${end_time || ''}&addition=${addition || ''}&unionList=${unionList}`;
           } else {
-            url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time ? dayjs(start_time).valueOf() : ''}&end_time=${end_time ? dayjs(end_time).valueOf() : ''}&addition=${addition || ''}`;
+            url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time || ''}&end_time=${end_time || ''}&addition=${addition || ''}`;
           }
           window.open(url, '_blank');
           return;
@@ -1697,6 +1656,68 @@ export default defineComponent({
         {detailsMain()}
       </Sideslider>
     );
+
+    /* 初始化 */
+    watch(
+      () => props.show,
+      (value: boolean) => {
+        // 异步加载数据时，需要重置数据，不然会看到上一次打开的数据。
+        Object.assign(info, deepClone(tempInfo));
+        localShow.value = value;
+        if (value) {
+          // 根据 defaultExpand 参数决定是否强制展开所有项
+          getSpanDetailExpandUserConfig();
+          // 这里提前执行，如果是碰到异步加载，这里会报错，这里做了兼容处理。
+          if (!props.isPageLoading) getDetails();
+          if (props.isFullscreen && !document.querySelector('.bk-modal-outside')) {
+            const maskEle = document.createElement('div');
+            maskEle.className = 'bk-modal-outside';
+            document.querySelector('.span-details-sideslider')?.appendChild(maskEle);
+          }
+        } else {
+          isInvokeOnceFlag = true;
+          activeTab.value = 'BasicInfo';
+          // countOfInfo.value = {};
+          fullscreen.value = false;
+        }
+      },
+      {
+        immediate: true,
+      }
+    );
+
+    // 上面监听 props.show 里会直接执行 getDetails() ，这里因为要添加loading，
+    // 且需要保证之前用到该组件的地方能正常运行，这里添加兼容代码。保证使用loading与否，都可以正常显示数据。
+    watch(
+      () => props.isPageLoading,
+      (value: boolean) => {
+        if (!value) {
+          getDetails();
+        }
+      }
+    );
+
+    watch(
+      () => props.activeTab,
+      val => {
+        activeTab.value = val as TabName;
+      }
+    );
+
+    watch(
+      () => props.spanDetails,
+      val => {
+        // 仅当详情面板显示时才加载数据，避免隐藏状态下的无效加载
+        if (val && props.show && (!props.withSideSlider || (props.isShowPrevNextButtons && Object.keys(val).length))) {
+          getDetails();
+        }
+      },
+      { immediate: true, deep: true }
+    );
+
+    onMounted(() => {
+      getSpanDetailExpandUserConfig();
+    });
 
     return {
       localShow,

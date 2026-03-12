@@ -1,0 +1,42 @@
+@import './common';
+
+.suspicious-event-panel {
+  @extend %panel-container;
+
+  .event-group-list {
+    @extend %group-list;
+
+    .group-title {
+      @extend %group-title;
+
+      .group-name {
+        &.link-text {
+          color: #3a84ff;
+
+          &:hover {
+            color: #699df4;
+          }
+
+          .icon-monitor {
+            margin-left: 5px;
+            font-size: 11px;
+          }
+        }
+      }
+
+      .detail-link {
+        flex-shrink: 0;
+      }
+    }
+
+    .footer-content {
+      line-height: 24px;
+
+      @extend %footer-content;
+
+      .link-text {
+        flex-shrink: 0;
+      }
+    }
+  }
+}

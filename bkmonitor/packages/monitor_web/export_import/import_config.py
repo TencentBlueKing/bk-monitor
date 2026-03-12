@@ -19,7 +19,6 @@ from api.grafana.exporter import DashboardExporter
 from bk_dataview.api import get_or_create_org
 from bkmonitor.action.serializers import DutyRuleDetailSlz, UserGroupDetailSlz
 from bkmonitor.models import ActionConfig, DutyRule, StrategyModel, UserGroup
-from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.local import local
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.data_source import DataSourceLabel
@@ -271,7 +270,6 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                 while create_config["name"] in existed_name_to_id:
                     create_config["name"] = f"{create_config['name']}_clone"
 
-            create_config = Strategy.convert_v1_to_v2(create_config)
             create_config["bk_biz_id"] = bk_biz_id
 
             action_list = create_config["actions"] + [create_config["notice"]]

@@ -26,7 +26,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { createDemoAction, getDemoActionDetail } from 'monitor-api/modules/action';
+import { createDemoAction, getDemoActionDetail, previewDemoActionContext } from 'monitor-api/modules/action';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
 import SimpleForm from '../components/simple-form';
@@ -84,9 +84,16 @@ export default class MealDebugDialog extends tsc<IProps> {
 
   top = 130;
 
+  alertId = '';
+  previewDemoActionLoading = false;
+  // 错误信息
+  errorMsg = '';
+
   @Watch('show')
   handleWatchShow(v: boolean) {
     if (v) {
+      this.alertId = '';
+      this.errorMsg = '';
       if (this.debugData.type === 'peripheral') {
         this.peripheralVerify();
       } else {
@@ -116,9 +123,9 @@ export default class MealDebugDialog extends tsc<IProps> {
   // 调试数据替换周边系统变量数据
   setDebugPeripheralData() {
     const variableMap = {};
-    this.debugPeripheralForm.forEach(item => {
+    for (const item of this.debugPeripheralForm) {
       variableMap[item.key] = item.value;
-    });
+    }
     this.debugData.peripheral.data.templateDetail = variableMap;
   }
 
@@ -158,7 +165,7 @@ export default class MealDebugDialog extends tsc<IProps> {
     const actionId = await createDemoAction({
       execute_config: executeConfigData,
       plugin_id: this.pluginId,
-      creator: 'username',
+      alert_id: this.alertId || undefined,
       name: this.mealName || undefined,
     })
       .then(data => data.action_id)
@@ -176,6 +183,7 @@ export default class MealDebugDialog extends tsc<IProps> {
   getDebugStatus() {
     let timer = null;
 
+    // biome-ignore lint/suspicious/noAsyncPromiseExecutor: <explanation>
     return new Promise(async resolve => {
       if (!this.isQueryStatus) {
         resolve({});
@@ -325,6 +333,52 @@ export default class MealDebugDialog extends tsc<IProps> {
     return statusMap[this.debugStatusData?.status];
   }
 
+  /**
+   * @description: 预览调试
+   * @param {*}
+   * @return {*}
+   */
+  async handlePreviewDemoAction() {
+    if (!this.alertId) {
+      return;
+    }
+    this.previewDemoActionLoading = true;
+    const variables = {};
+    for (const item of this.debugPeripheralForm) {
+      const value = this.debugData?.peripheral?.data?.templateDetail?.[item.key];
+      variables[item.label] = typeof value === 'undefined' ? item.value : value;
+    }
+    const data = await previewDemoActionContext(
+      {
+        alert_id: this.alertId,
+        variables: variables,
+      },
+      { needMessage: false }
+    )
+      .then(res => {
+        this.errorMsg = '';
+        return res;
+      })
+      .catch(err => {
+        this.errorMsg = err?.error_details?.detail || '';
+        return { variables: {} };
+      });
+    this.handleDebugPeripheralDataChange(
+      this.debugPeripheralForm.map(item => ({
+        ...item,
+        value: typeof data?.variables?.[item.label] === 'undefined' ? item.value : data.variables[item.label],
+      }))
+    );
+    setTimeout(() => {
+      this.peripheralVerify();
+    }, 50);
+    this.previewDemoActionLoading = false;
+  }
+
+  handleClearErrorMsg() {
+    this.errorMsg = '';
+  }
+
   render() {
     return (
       <div>
@@ -341,14 +395,29 @@ export default class MealDebugDialog extends tsc<IProps> {
           value={this.show}
           on-cancel={() => this.handleShowChange(false)}
         >
-          {this.debugData.type === 'peripheral' && (
+          {this.debugData.type === 'peripheral' && [
             <bk-alert
+              key={'tips'}
               class='mb-24'
               title={this.$t('注意，该功能会调实际套餐去执行，请确认测试变量后再进行测试执行。')}
               type='warning'
               closable
-            />
-          )}
+            />,
+            <div
+              key={'alert-id'}
+              class={'alert-id-wrap'}
+            >
+              <bk-input
+                v-model={this.alertId}
+                placeholder={this.$t('输入告警ID进行变量渲染')}
+                clearable
+                onClear={() => this.handleClearErrorMsg()}
+                onEnter={() => this.handlePreviewDemoAction()}
+                onFocus={() => this.handleClearErrorMsg()}
+              />
+              {!!this.errorMsg && <div class='err-msg'>{this.errorMsg}</div>}
+            </div>,
+          ]}
           <div>
             {this.debugData.type === 'webhook' && (
               <HttpCallBack
@@ -358,12 +427,20 @@ export default class MealDebugDialog extends tsc<IProps> {
                 onChange={data => this.handleDebugWebhookDataChange(data)}
               />
             )}
-            {this.debugData.type === 'peripheral' && (
-              <SimpleForm
-                forms={this.debugPeripheralForm}
-                onChange={data => this.handleDebugPeripheralDataChange(data)}
-              />
-            )}
+            {this.debugData.type === 'peripheral' &&
+              (this.previewDemoActionLoading ? (
+                new Array(this.debugPeripheralForm.length).fill(null).map((_, index) => (
+                  <div
+                    key={index}
+                    class='skeleton-element simple-form-loading'
+                  />
+                ))
+              ) : (
+                <SimpleForm
+                  forms={this.debugPeripheralForm}
+                  onChange={data => this.handleDebugPeripheralDataChange(data)}
+                />
+              ))}
           </div>
           <div slot='footer'>
             <bk-button

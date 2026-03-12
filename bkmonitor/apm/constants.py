@@ -581,6 +581,9 @@ class ApmCacheType:
     TOPO_INSTANCE = "topo_instance"
     ENDPOINT = "endpoint"
     HOST = "host"
+    ROOT_ENDPOINT = "root_endpoint"
+    RELATION = "relation"
+    REMOTE_SERVICE_RELATION = "remote_service_relation"
 
 
 class ApmCacheConfig:
@@ -594,6 +597,9 @@ class ApmCacheConfig:
         ApmCacheType.TOPO_INSTANCE: "BKMONITOR_{}_{}_APM_TOPO_INSTANCE_HEARTBEAT_{}_{}",
         ApmCacheType.ENDPOINT: "BKMONITOR_{}_{}_APM_ENDPOINT_HEARTBEAT_{}_{}",
         ApmCacheType.HOST: "BKMONITOR_{}_{}_APM_HOST_HEARTBEAT_{}_{}",
+        ApmCacheType.ROOT_ENDPOINT: "BKMONITOR_{}_{}_APM_ROOT_ENDPOINT_HEARTBEAT_{}_{}",
+        ApmCacheType.RELATION: "BKMONITOR_{}_{}_APM_RELATION_HEARTBEAT_{}_{}",
+        ApmCacheType.REMOTE_SERVICE_RELATION: "BKMONITOR_{}_{}_APM_REMOTE_SERVICE_RELATION_HEARTBEAT_{}_{}",
     }
 
     # 缓存过期时间（秒）
@@ -601,6 +607,9 @@ class ApmCacheConfig:
         ApmCacheType.TOPO_INSTANCE: 7 * 24 * 60 * 60,  # 7天
         ApmCacheType.ENDPOINT: 7 * 24 * 60 * 60,  # 7天
         ApmCacheType.HOST: 7 * 24 * 60 * 60,  # 7天
+        ApmCacheType.ROOT_ENDPOINT: 7 * 24 * 60 * 60,  # 7天
+        ApmCacheType.RELATION: 7 * 24 * 60 * 60,  # 7天
+        ApmCacheType.REMOTE_SERVICE_RELATION: 7 * 24 * 60 * 60,  # 7天
     }
 
     @classmethod

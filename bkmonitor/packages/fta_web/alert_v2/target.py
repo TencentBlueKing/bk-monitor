@@ -25,6 +25,7 @@ from apm_web.topo.handle.relation.define import (
     Relation,
     Source,
     SourceK8sPod,
+    SourceService,
 )
 from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.documents import AlertDocument
@@ -154,6 +155,70 @@ class BaseTarget(abc.ABC):
         """
         raise NotImplementedError
 
+    def _build_k8s_source_infos(self) -> list[dict[str, Any]]:
+        """构建 K8S 资源关联关系查询所需的 source_info 列表。
+
+        将 K8S 目标数据转换为关联关系查询所需的 source_info 格式。
+
+        :return: source_info 字典列表，无可用数据时返回空列表
+        """
+        related_k8s_targets: list[dict[str, Any]] = self.list_related_k8s_targets().get("target_list", [])
+        if not related_k8s_targets:
+            return []
+
+        source_info: dict[str, Any] = copy.deepcopy(related_k8s_targets[0])
+        if not source_info.get("bcs_cluster_id"):
+            return []
+
+        resource_type: str = self._get_k8s_resource_type()
+        is_workload: bool = resource_type == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
+
+        workload: str = source_info.pop("workload", "")
+        if workload and is_workload:
+            kind, name = workload.split(":", 1)
+            source_info[kind.lower()] = name
+            source_info["name"] = kind.lower()
+        else:
+            source_info["name"] = resource_type
+
+        return [source_info]
+
+    def _build_relation_qs(
+        self,
+        source_infos: list[dict[str, Any]],
+        target_type: type[Source],
+    ) -> list[dict[str, Any]]:
+        """构建 K8S 资源关联关系查询参数列表。
+
+        基于 source_infos 和目标类型生成 RelationQ 查询参数。Node 类型会同时尝试 Pod 与 Node 两条路径。
+
+        :param source_infos: 由 _build_k8s_source_infos 构建的 source_info 字典列表
+        :param target_type: 关联目标类型（如 SourceService、SourceDatasource）
+        :return: RelationQ 查询参数列表
+        """
+        source_info: dict[str, Any] = source_infos[0]
+        start_time, end_time = self._get_time_range()
+
+        paths: list[type[Source]] = [SourceK8sPod]
+        if source_info["name"] == SourceK8sNode.name:
+            # 关联关系默认按最短路返回，因此 Node 需要同时尝试 Pod 与 Node 路径，提升关联准确性。
+            paths = [SourceK8sPod, SourceK8sNode]
+
+        qs: list[dict[str, Any]] = []
+        for path in paths:
+            qs.extend(
+                RelationQ.generate_q(
+                    bk_biz_id=self._alert.event.bk_biz_id,
+                    source_info=source_info,
+                    target_type=target_type,
+                    start_time=start_time,
+                    end_time=end_time,
+                    path_resource=[path],
+                )
+            )
+
+        return qs
+
     def list_related_k8s_targets(self) -> dict[str, str | list]:
         """获取关联 K8S 目标信息。
 
@@ -162,8 +227,8 @@ class BaseTarget(abc.ABC):
         resource_type: str = self._get_k8s_resource_type()
         target_list: list[dict[str, Any]] = self._list_related_k8s_targets()
         for target in target_list:
-            # 补充资源类型字段
-            target[resource_type] = self._alert.event.target
+            # 若未设置资源类型字段，则进行补充
+            target.setdefault(resource_type, self._alert.event.target)
 
         return {"resource_type": resource_type, "target_list": target_list}
 
@@ -186,13 +251,36 @@ class BaseTarget(abc.ABC):
         }
         return [target]
 
-    @abc.abstractmethod
     def list_related_apm_targets(self) -> list[dict[str, Any]]:
         """获取关联 APM 目标信息。
 
+        默认实现：基于关联关系从 K8S 资源反查 APM 服务。
+
         :return: APM 目标信息列表
         """
-        raise NotImplementedError
+        source_infos: list[dict[str, Any]] = self._build_k8s_source_infos()
+        if not source_infos:
+            return []
+
+        qs: list[dict[str, Any]] = self._build_relation_qs(source_infos, target_type=SourceService)
+        if not qs:
+            return []
+
+        apm_target_set: set[frozenset] = set()
+        for relation in RelationQ.query(qs, fill_with_empty=True):
+            if not relation:
+                continue
+
+            for node in relation.nodes:
+                node_source_info: dict[str, Any] = node.source_info.to_source_info()
+                app_name: str = node_source_info.get("apm_application_name", "")
+                service_name: str = node_source_info.get("apm_service_name", "")
+                if not app_name or not service_name:
+                    continue
+
+                apm_target_set.add(frozenset({"app_name": app_name, "service_name": service_name}.items()))
+
+        return [dict(target) for target in apm_target_set]
 
     @abc.abstractmethod
     def list_related_log_targets(self) -> list[dict[str, Any]]:
@@ -281,79 +369,53 @@ class BaseK8STarget(BaseTarget):
 
         return [target]
 
-    def list_related_apm_targets(self) -> list[dict[str, Any]]:
-        return []
-
     def list_related_log_targets(self) -> list[dict[str, Any]]:
-        related_k8s_targets: list[dict[str, Any]] = self.list_related_k8s_targets().get("target_list", [])
-        if not related_k8s_targets:
+        source_infos: list[dict[str, Any]] = self._build_k8s_source_infos()
+        if not source_infos:
             return []
 
-        qs: list[dict[str, Any]] = []
-        start_time, end_time = self._get_time_range()
-        related_k8s_target: dict[str, Any] = related_k8s_targets[0]
-        if not related_k8s_target.get("bcs_cluster_id"):
-            return []
-
-        resource_type: str = self._get_k8s_resource_type()
-        workload: str | None = related_k8s_target.pop("workload", "")
-        is_workload: bool = workload and resource_type == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
-        if is_workload:
-            kind, name = workload.split(":", 1)
-            related_k8s_target[kind.lower()] = name
-            related_k8s_target["name"] = kind.lower()
-        else:
-            related_k8s_target["name"] = resource_type
-
-        paths: list[type[Source]] = [SourceK8sPod]
-        if resource_type == K8S_RESOURCE_TYPE[K8STargetType.NODE]:
-            # 关联关系默认按最短路返回，因此 Node 需要额外关联 Pod，才能找到尽可能准确的日志索引。
-            paths: list[type[Source]] = [SourceK8sPod, SourceK8sNode]
-
-        for path in paths:
-            qs.extend(
-                RelationQ.generate_q(
-                    bk_biz_id=self._alert.event.bk_biz_id,
-                    source_info=related_k8s_target,
-                    target_type=SourceDatasource,
-                    start_time=start_time,
-                    end_time=end_time,
-                    path_resource=[path],
-                )
-            )
-
+        qs: list[dict[str, Any]] = self._build_relation_qs(source_infos, target_type=SourceDatasource)
         if not qs:
             return []
 
+        source_info: dict[str, Any] = source_infos[0]
         addition: list[dict[str, Any]] = []
-        if "namespace" in related_k8s_target:
+        namespace: str | None = source_info.get("namespace")
+        if namespace:
             addition.append(
                 {
                     "operator": "=",
                     "field": "__ext.io_kubernetes_pod_namespace",
-                    "value": [related_k8s_target["namespace"]],
+                    "value": [namespace],
                 }
             )
 
         # 使用 Pod 更精确地过滤日志
         # Case1 - 从维度中获取 Pod 名称
         # Case2 - 如果是 Workload 目标，则使用 contains 方式模糊匹配 Pod 名称
-        pod: str | None = related_k8s_target.get(K8STargetType.POD)
+        pod: str | None = source_info.get(K8S_RESOURCE_TYPE[K8STargetType.POD])
         if not pod:
             pod = self._get_dimension_value(["pod", "pod_name"])
+        is_workload: bool = self._get_k8s_resource_type() == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
         if pod:
             addition.append({"field": "__ext.io_kubernetes_pod", "operator": "=", "value": [pod]})
         elif is_workload:
-            __, name = workload.split(":", 1)
-            addition.append({"field": "__ext.io_kubernetes_pod", "operator": "contains", "value": [name]})
+            addition.append(
+                {
+                    "field": "__ext.io_kubernetes_pod",
+                    "operator": "contains",
+                    "value": [source_info[source_info["name"]]],
+                }
+            )
 
-        # 使用 主机 IP 进一步过滤日志
+        # 使用主机 IP 进一步过滤日志
         if not pod:
             # 有 Pod 的情况下已经可以精确匹配了，无需增加主机过滤。
             related_host_targets: list[dict[str, Any]] = self.list_related_host_targets()
             if related_host_targets:
-                host_target: dict[str, Any] = related_host_targets[0]
-                addition.append({"field": "serverIp", "operator": "=", "value": [host_target["bk_target_ip"]]})
+                addition.append(
+                    {"field": "serverIp", "operator": "=", "value": [related_host_targets[0]["bk_target_ip"]]}
+                )
 
         related_log_targets: list[dict[str, Any]] = []
         for related_log_target in self._list_related_log_targets(self._alert.event.bk_biz_id, qs):

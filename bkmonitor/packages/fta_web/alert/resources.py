@@ -60,6 +60,7 @@ from bkmonitor.models import (
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
+from bkmonitor.utils.alert_drilling import clean_where_conditions
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.range import load_agg_condition_instance
@@ -651,6 +652,7 @@ class AlertDetailResource(Resource):
         result = AlertQueryHandler.clean_document(alert)
         result["plugin_display_name"] = PluginTranslator().translate([result["plugin_id"]])[result["plugin_id"]]
         result["extend_info"] = resource.alert.alert_related_info(ids=[alert_id]).get(alert_id, {})
+        self.clean_graph_panel_where(graph_panel)
         result["graph_panel"] = graph_panel
 
         topo_info = result["extend_info"].get("topo_info", "")
@@ -658,6 +660,12 @@ class AlertDetailResource(Resource):
         self.add_project_name(result)
         self.add_graph_extra_info(alert, result)
         return result
+
+    @staticmethod
+    def clean_graph_panel_where(graph_panel: dict) -> None:
+        for target in graph_panel.get("targets", []):
+            for query_config in target.get("data", {}).get("query_configs", []):
+                query_config["where"] = clean_where_conditions(query_config.get("where", []))
 
     @classmethod
     def add_graph_extra_info(cls, alert, data):
@@ -1318,24 +1326,7 @@ class AlertGraphQueryResource(ApiAuthResource):
                 if attrs["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH and not attrs.get("index_set_id"):
                     raise ValidationError("index_set_id can not be empty.")
 
-                # 过滤掉无效的 where 条件
-                validated_where = []
-                for condition in attrs.get("where", []):
-                    if not isinstance(condition, dict):
-                        continue
-                    value = condition.get("value")
-                    # 过滤掉 value 为 None、空列表或只包含 None 的列表
-                    if value is None:
-                        continue
-                    if isinstance(value, list):
-                        # 移除列表中的 None，如果移除后列表为空则跳过该条件
-                        filtered_value = [v for v in value if v is not None]
-                        if not filtered_value:
-                            continue
-                        condition["value"] = filtered_value
-                    validated_where.append(condition)
-
-                attrs["where"] = validated_where
+                attrs["where"] = clean_where_conditions(attrs.get("where", []))
                 return attrs
 
         id = serializers.IntegerField(label="事件ID")
@@ -1459,6 +1450,9 @@ class AlertGraphQueryResource(ApiAuthResource):
             # 离群检测算法不需要异常点
             mark_points = []
 
+        longest_series = {"datapoints": []}
+        current_series_list = []
+
         # 遍历所有 series，给 time_offset 为 current 的 series 添加标记
         for series in data:
             time_offset = series.get("time_offset", "current")
@@ -1478,6 +1472,25 @@ class AlertGraphQueryResource(ApiAuthResource):
             # 所有当前时间的 series 都添加异常点标记和阈值线
             series["markPoints"] = mark_points
             series["thresholds"] = threshold_line
+
+            if len(series["datapoints"]) > len(longest_series["datapoints"]):
+                longest_series = series
+
+            current_series_list.append(series)
+
+        # 以最长的 series 的时间戳为基准，对短的 series 尾部补齐 null 值
+        if current_series_list and longest_series["datapoints"]:
+            max_len = len(longest_series["datapoints"])
+            tail_timestamps = [point[1] for point in longest_series["datapoints"]]
+            for series in current_series_list:
+                # 从后往前找到最后一个有效数值的位置，作为有效长度
+                cur_len = len(series["datapoints"])
+                while cur_len > 0 and not isinstance(series["datapoints"][cur_len - 1][0], int | float):
+                    cur_len -= 1
+                if cur_len < max_len:
+                    # 截断尾部 None 点，再按基准时间戳补齐
+                    series["datapoints"] = series["datapoints"][:cur_len]
+                    series["datapoints"].extend([[None, ts] for ts in tail_timestamps[cur_len:]])
 
         return result
 

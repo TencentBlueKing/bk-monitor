@@ -1,15 +1,26 @@
 .panel-alarm-table {
+  th {
+    &.event-id-col {
+      padding-left: 56px;
+    }
+  }
+
   .panel-alarm-table-row {
     td {
-      height: 72px;
+      padding: 7px 16px;
+      height: 56px;
 
       .cell {
         overflow: hidden;
         text-overflow: ellipsis;
         display: -webkit-box;
-        -webkit-line-clamp: 3;
+        -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
       }
+    }
+
+    .event-id-col {
+      padding-left: 0;
     }
   }
 
@@ -30,7 +41,6 @@
   .detail-form {
     position: relative;
     width: 100%;
-    max-width: 970px;
     margin-bottom: 6px;
     padding-left: 15px;
     background-color: #fbfbfb;
@@ -114,39 +124,53 @@
     }
   }
 
-  .event-id {
-    display: flex;
-    align-items: center;
-
-    .table-expand-icon {
-      display: inline-block;
-      margin-right: 8px;
-      font-size: 14px;
-      line-height: 12px;
-      transition: transform 0.3s;
-      cursor: pointer;
-
-      &.rotate-90 {
-        transform: rotate(90deg);
-      }
-    }
+  .event-id-col {
+    position: relative;
 
     .event-status {
-      max-width: 130px;
-      height: 16px;
-      padding-left: 4px;
-      overflow: hidden;
-      line-height: 16px;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      border-left: 4px solid #699df4;
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 4px;
+      height: 53px;
+      transform: translateY(-50%);
+      border-radius: 0 2px 2px 0;
 
-      $statusColors: #ea3635 #ff9c00 #699df4;
+      $statusColors: #ea3635 #f5c78e #70a0ff;
 
       @for $i from 1 through length($statusColors) {
         &.status-#{$i} {
-          border-left-color: nth($statusColors, $i);
+          background: nth($statusColors, $i);
         }
+      }
+    }
+
+    .event-id {
+      display: flex;
+      align-items: center;
+      padding-left: 14px;
+
+      .table-expand-icon {
+        display: inline-block;
+        margin-right: 30px;
+        font-size: 12px;
+        line-height: 12px;
+        color: #979ba5;
+        transition: transform 0.3s;
+        cursor: pointer;
+
+        &.rotate-90 {
+          transform: rotate(90deg);
+        }
+      }
+
+      .event-id-text {
+        max-width: 130px;
+        height: 16px;
+        overflow: hidden;
+        line-height: 16px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     }
   }
@@ -161,11 +185,15 @@
     .tags-item {
       display: inline-block;
       max-width: 100%;
-      padding: 6px 11px;
+      padding: 0 8px;
+      line-height: 22px;
+      font-size: 12px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      color: #4d4f56;
       background: #f0f1f5;
+      border-radius: 2px;
     }
   }
 }

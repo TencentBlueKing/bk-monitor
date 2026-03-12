@@ -10,18 +10,19 @@ specific language governing permissions and limitations under the License.
 
 import datetime
 from collections import defaultdict
-from typing import Any
 from collections.abc import Iterable
+from typing import Any
 
-from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
+from bk_monitor_base.strategy import THRESHOLD_ALLOWED_METHODS
 from django.db.models import QuerySet
-from rest_framework import serializers
+from django.utils import timezone
 from django.utils.functional import cached_property
+from django.utils.translation import gettext_lazy as _
+from rest_framework import serializers
 
-from bkmonitor.strategy.serializers import allowed_threshold_method
-from apm_web.models import StrategyTemplate, StrategyInstance
+from apm_web.models import StrategyInstance, StrategyTemplate
 from apm_web.strategy.helper import get_user_groups, simplify_conditions
+
 from . import constants
 
 
@@ -54,7 +55,7 @@ class UserGroupSerializer(serializers.Serializer):
 
 class AlgorithmSerializer(serializers.Serializer):
     class ThresholdAlgorithmConfigSerializer(serializers.Serializer):
-        method = serializers.ChoiceField(label=_("检测方法"), choices=allowed_threshold_method)
+        method = serializers.ChoiceField(label=_("检测方法"), choices=list(THRESHOLD_ALLOWED_METHODS.keys()))
         threshold = serializers.FloatField(label=_("阈值"))
 
     class YearRoundAndRingRatioAlgorithmConfigSerializer(serializers.Serializer):
