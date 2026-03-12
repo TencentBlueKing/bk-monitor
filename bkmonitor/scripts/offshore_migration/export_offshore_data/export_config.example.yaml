@@ -1,0 +1,189 @@
+# ============================================================================
+# 监控配置导出配置文件示例
+# ============================================================================
+# 
+# 本配置文件用于配置监控平台的配置数据导出功能
+# 支持导出告警策略、仪表盘、采集配置等多种资源类型
+#
+# 使用方法:
+#   python scripts/export_config.py --config scripts/export_config.example.yaml
+#   或
+#   python manage.py shell < scripts/example_usage.py
+#
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# 导出配置 (export)
+# ----------------------------------------------------------------------------
+export:
+  # 业务ID列表
+  # 作用: 指定要导出哪些业务的配置数据
+  # 类型: 整数列表
+  # 示例:
+  #   - 导出指定业务: [100, 101, 102]
+  #   - 导出所有业务: [] (空列表)
+  # 注意: 空列表 [] 表示导出所有业务的配置
+  bk_biz_ids: []
+  
+  # 资源类型列表
+  # 作用: 指定要导出哪些类型的资源
+  # 类型: 字符串列表
+  # 可选值:
+  #   - strategy: 告警策略
+  #   - user_group: 告警组
+  #   - duty_rule: 轮值规则
+  #   - action_config: 处理套餐
+  #   - action_plugin: 响应动作插件
+  #   - alert_assign_group: 告警分派组
+  #   - shield: 告警屏蔽
+  #   - dashboard: 仪表盘
+  #   - collect_config: 数据采集配置
+  #   - collector_plugin: 采集插件
+  #   - custom_ts_table: 自定义时序表
+  #   - custom_ts_group: 自定义时序分组
+  # 示例:
+  #   - 导出指定资源: ["strategy", "dashboard", "user_group"]
+  #   - 导出所有资源: [] (空列表)
+  # 注意: 空列表 [] 表示导出所有资源类型
+  resources: []
+  
+  # 输出目录
+  # 作用: 指定导出数据的保存目录
+  # 类型: 字符串（相对路径或绝对路径）
+  # 示例:
+  #   - 相对路径: "./export_data"
+  #   - 绝对路径: "/tmp/monitor_export"
+  # 注意: 如果目录不存在会自动创建，文件名格式: monitor_config_export_YYYYMMDD_HHMMSS.json
+  output_dir: ./export_data
+
+# ----------------------------------------------------------------------------
+# 适配层配置 (adapters)
+# ----------------------------------------------------------------------------
+# 适配层用于在导出过程中对数据进行转换和适配，以适应目标环境
+adapters:
+  
+  # 域名映射配置
+  # 作用: 替换导出数据中的域名，适用于跨环境迁移
+  # 类型: 字典，键为旧域名，值为新域名或环境变量
+  # 示例:
+  #   domain_mapping:
+  #     "https://old-domain.com": "https://new-domain.com"
+  #     "http://test.example.com": "${NEW_DOMAIN}"  # 使用环境变量
+  # 注意: 
+  #   - 如果不需要域名替换，可以删除此配置项或设置为空字典 {}
+  #   - 支持环境变量引用，格式: ${ENV_VAR_NAME}
+  #   - 会递归替换所有字符串字段中的域名
+  domain_mapping:
+    "https://old-domain.com": "${NEW_DOMAIN}"
+    # "http://test.example.com": "https://prod.example.com"
+  
+  # 业务ID映射配置
+  # 作用: 处理业务ID的映射关系，适用于业务ID在不同环境不一致的场景
+  # 类型: 字典
+  # 配置项:
+  #   - auto: 是否自动标记需要映射的业务ID（布尔值，默认: true）
+  #   - mapping: 手动映射关系（字典，可选）
+  # 
+  # auto 参数说明:
+  #   - true: 导出时标记需要映射的业务ID，实际映射在导入时进行
+  #           会在数据中添加 _biz_id_mapping_required: true 标记
+  #           适用于导出时不确定目标业务ID的场景（推荐）
+  #   - false: 不自动标记，需要提供 mapping 配置进行手动映射
+  #            适用于导出时已确定业务ID映射关系的场景
+  #
+  # mapping 参数说明:
+  #   - 格式: "原业务ID": "目标业务ID"（字符串格式）
+  #   - 优先级: 手动映射 > 自动标记
+  #   - 如果同时设置了 auto: true 和 mapping，会优先使用 mapping
+  #
+  # 示例 1: 自动模式（推荐，延迟映射）
+  biz_id_mapping:
+    auto: true
+    # 导出时只标记，导入时再映射
+  
+  # 示例 2: 手动映射模式
+  # biz_id_mapping:
+  #   auto: false
+  #   mapping:
+  #     "100": "200"  # 原业务ID 100 → 目标业务ID 200
+  #     "101": "201"  # 原业务ID 101 → 目标业务ID 201
+  
+  # 示例 3: 混合模式（自动 + 部分手动映射）
+  # biz_id_mapping:
+  #   auto: true
+  #   mapping:
+  #     "100": "200"  # 优先使用手动映射
+  #     # 其他业务ID会在导入时自动映射
+  
+  # 用户信息处理配置
+  # 作用: 处理导出数据中的用户字段（如创建人、更新人等）
+  # 类型: 字典
+  # 配置项:
+  #   - strategy: 处理策略（字符串，可选值: keep/replace/remove，默认: keep）
+  #   - default_user: 默认用户（字符串，仅在 strategy=replace 时使用，默认: "admin"）
+  #
+  # strategy 参数说明:
+  #   - keep: 保留原始用户信息（默认，推荐用于同环境迁移）
+  #   - replace: 将所有用户字段替换为 default_user 指定的用户
+  #              适用于跨环境迁移且目标环境用户体系不同的场景
+  #   - remove: 清空用户字段（设置为空字符串）
+  #             适用于不需要保留用户信息的场景
+  #
+  # 处理的字段:
+  #   - create_user, update_user, created_by, updated_by
+  #
+  # 示例 1: 保留原始用户（默认）
+  user_mapping:
+    strategy: "keep"
+    # default_user: "admin"  # keep 策略下不需要此配置
+  
+  # 示例 2: 替换为默认用户
+  # user_mapping:
+  #   strategy: "replace"
+  #   default_user: "admin"
+  
+  # 示例 3: 清空用户字段
+  # user_mapping:
+  #   strategy: "remove"
+  
+  # 敏感字段处理配置（可选）
+  # 作用: 处理导出数据中的敏感字段（如密码、密钥等）
+  # 类型: 字典
+  # 配置项:
+  #   - strategy: 处理策略（字符串，可选值: keep/mask/mark，默认: keep）
+  #   - fields: 敏感字段关键词列表（列表，可选）
+  #   - mask_value: 遮蔽值（字符串，仅在 strategy=mask 时使用，默认: "***MASKED***"）
+  #   - mark_prefix: 标记前缀（字符串，仅在 strategy=mark 时使用，默认: "__SENSITIVE__:"）
+  #
+  # strategy 参数说明:
+  #   - keep: 保留原始值，不做任何处理（默认，推荐用于可信环境迁移）
+  #   - mask: 遮蔽敏感字段值，导入时需要手动重新配置
+  #           适用于需要保护敏感信息的场景
+  #   - mark: 标记敏感字段但保留原值，导入时会提示用户确认
+  #           适用于需要提醒但保留值的场景
+  #
+  # fields 参数说明:
+  #   - 默认包含: ["token", "password", "secret", "app_secret"]
+  #   - 字段名包含这些关键词的字段会被识别为敏感字段
+  #   - 匹配不区分大小写
+  #
+  # 注意: 
+  #   - 如果 strategy=keep，此配置项会被忽略（适配器不会启用）
+  #   - 如果不需要敏感字段处理，可以删除此配置项
+  #
+  # 示例 1: 保留原始值（默认，推荐）
+  # sensitive_fields_config:
+  #   strategy: "keep"
+  
+  # 示例 2: 遮蔽敏感字段
+  # sensitive_fields_config:
+  #   strategy: "mask"
+  #   fields: ["token", "password", "secret", "app_secret", "api_key"]
+  #   mask_value: "***MASKED***"
+  
+  # 示例 3: 标记敏感字段
+  # sensitive_fields_config:
+  #   strategy: "mark"
+  #   fields: ["token", "password", "secret"]
+  #   mark_prefix: "__SENSITIVE__:"
+
