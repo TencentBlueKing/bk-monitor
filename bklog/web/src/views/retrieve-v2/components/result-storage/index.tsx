@@ -169,7 +169,7 @@ export default defineComponent({
               v-bk-tooltips={{ content: sortStatus.value === 'desc' ? $t('当前降序(点击切换)') : (sortStatus.value === 'asc' ? $t('当前升序(点击切换)') : $t('点击切换排序')), placement: 'top' }}
             >
               <span class='bklog-option-item'>
-                {$t('日志时间排序')}
+                {$t('日志排序')}
               </span>
               <span class='bk-table-caret-wrapper'>
                 <i
