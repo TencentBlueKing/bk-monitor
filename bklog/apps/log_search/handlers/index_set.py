@@ -1416,6 +1416,42 @@ class IndexSetHandler(APIModel):
             "collector_config_name": collector_config.collector_config_name,
         }
 
+    @staticmethod
+    def get_rt_alias_settings(index_set_id, alias_settings):
+        """
+        获取每个RT对应的别名配置列表
+        """
+        search_handler_esquery = SearchHandler(index_set_id, {})
+        multi_result = search_handler_esquery.get_all_fields_by_index_id(need_merge=False)
+        result_table_mappings = defaultdict(list)
+        field_name_mappings = {}
+        for result_table_id, (field_result, display_fields) in multi_result.items():
+            field_name_list = []
+            for i in field_result:
+                _filed_name = i["field_name"]
+                field_name_list.append(_filed_name)
+                result_table_mappings[_filed_name].append(result_table_id)
+            field_name_mappings[result_table_id] = field_name_list
+
+        # 存储别名对应的字段及其所属rt列表
+        alias_field_map = defaultdict(list)
+        query_alias_mappings = defaultdict(list)
+
+        for alias_setting in alias_settings:
+            field_name = alias_setting["field_name"]
+            query_alias = alias_setting["query_alias"]
+
+            # 存储别名对应的字段和rt列表
+            rt_list = result_table_mappings.get(field_name, [])
+            alias_field_map[query_alias].append({"field_name": field_name, "rt_list": rt_list})
+
+            # 为当前字段所属的所有rt添加别名配置
+            for _result_table_id, _field_name_list in field_name_mappings.items():
+                if field_name in _field_name_list:
+                    query_alias_mappings[_result_table_id].append(alias_setting)
+
+        return query_alias_mappings, alias_field_map
+
     @transaction.atomic()
     def update_alias_settings(self, alias_settings):
         # 纳秒字段别名不支持用户修改
@@ -1423,36 +1459,7 @@ class IndexSetHandler(APIModel):
         is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.data.tag_ids)
         multi_execute_func = MultiExecuteFunc()
         if not is_doris:
-            search_handler_esquery = SearchHandler(self.index_set_id, {})
-            multi_result = search_handler_esquery.get_all_fields_by_index_id(need_merge=False)
-            result_table_mappings = defaultdict(list)
-            field_name_mappings = {}
-            for result_table_id, (field_result, display_fields) in multi_result.items():
-                field_name_list = []
-                for i in field_result:
-                    _filed_name = i["field_name"]
-                    field_name_list.append(_filed_name)
-                    result_table_mappings[_filed_name].append(result_table_id)
-                field_name_mappings[result_table_id] = field_name_list
-
-            # 存储别名对应的字段及其所属rt列表
-            alias_field_map = defaultdict(list)
-            query_alias_mappings = defaultdict(list)
-            query_alias_to_rt_mappings = defaultdict(list)
-
-            for alias_setting in alias_settings:
-                field_name = alias_setting["field_name"]
-                query_alias = alias_setting["query_alias"]
-
-                # 存储别名对应的字段和rt列表
-                rt_list = result_table_mappings.get(field_name, [])
-                alias_field_map[query_alias].append({"field_name": field_name, "rt_list": rt_list})
-
-                # 为当前字段所属的所有rt添加别名配置
-                for _result_table_id, _field_name_list in field_name_mappings.items():
-                    if field_name in _field_name_list:
-                        query_alias_mappings[_result_table_id].append(alias_setting)
-                        query_alias_to_rt_mappings[query_alias].append(_result_table_id)
+            query_alias_mappings, alias_field_map = self.get_rt_alias_settings(self.index_set_id, alias_settings)
 
             # 检查同名别名的字段rt列表是否有交集
             for query_alias, fields in alias_field_map.items():
@@ -1792,6 +1799,18 @@ class BaseIndexSetHandler:
                     params=doris_params,
                 )
             else:
+                # 获取按RT粒度的别名配置
+                rt_alias_mappings = {}
+                if index_set.query_alias_settings:
+                    try:
+                        rt_alias_mappings, _ = IndexSetHandler.get_rt_alias_settings(
+                            index_set.index_set_id, index_set.query_alias_settings
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "get rt alias settings for index set(%s) failed: %s, ", index_set.index_set_id, e
+                        )
+
                 for obj in objs:
                     time_field = obj.time_field or index_set.time_field
                     time_field_type = obj.time_field_type or index_set.time_field_type
@@ -1830,8 +1849,8 @@ class BaseIndexSetHandler:
                         ],
                     }
 
-                    if query_alias_settings := index_set.query_alias_settings:
-                        table_info["query_alias_settings"] = copy.deepcopy(query_alias_settings)
+                    if rt_alias_list := rt_alias_mappings.get(obj.result_table_id, []):
+                        table_info["query_alias_settings"] = copy.deepcopy(rt_alias_list)
 
                     if table_info["source_type"] == Scenario.LOG:
                         table_info["origin_table_id"] = obj.result_table_id
