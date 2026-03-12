@@ -71,6 +71,7 @@ export const useChartTooltips = (
                   ${valueObj.text} ${valueObj.suffix || ''}</span>
                   </li>`;
     });
+    liHtmlList = liHtmlList.filter(Boolean);
     if (liHtmlList?.length < 1) return '';
     // 如果超出屏幕高度，则分列展示，100为预估预留空间（表头 + tooltip 内边距等），22为每行高度
     const maxLen = Math.ceil((window.innerHeight - 100) / 22);

@@ -14,6 +14,12 @@
     border: 1px solid #c4c6cc;
     border-color: transparent transparent #c4c6cc;
 
+    .variable-text {
+      margin: 0 2px;
+      font-family: MicrosoftYaHei-Bold, sans-serif;
+      font-weight: 700;
+    }
+
     &:focus {
       border-color: transparent transparent #3a84ff !important;
     }

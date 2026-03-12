@@ -29,6 +29,7 @@ import { type PropType, computed, defineComponent, reactive, shallowRef, watch }
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Dialog, Loading, Select } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { random } from 'lodash';
 import { subActionDetail } from 'monitor-api/modules/alert_v2';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { useI18n } from 'vue-i18n';
@@ -142,7 +143,7 @@ export default defineComponent({
       await subActionDetail({ parent_action_id: actionId })
         .then(data => {
           noticeData.tableData = Object.keys(data || {}).map(key => {
-            const temp: any = { target: key };
+            const temp: any = { target: key, _id: random(3) };
             for (const subKey of Object.keys(data[key] || {})) {
               if (!noticeData.hasColumns.includes(subKey)) {
                 noticeData.hasColumns.push(subKey);

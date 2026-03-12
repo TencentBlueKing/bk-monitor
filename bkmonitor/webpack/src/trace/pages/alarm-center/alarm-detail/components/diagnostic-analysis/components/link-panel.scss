@@ -1,0 +1,17 @@
+@import './common';
+
+.suspicious-link-panel {
+  @extend %panel-container;
+
+  .link-group-list {
+    @extend %group-list;
+
+    .group-title {
+      @extend %group-title;
+
+      .link-name {
+        margin-left: 4px;
+      }
+    }
+  }
+}

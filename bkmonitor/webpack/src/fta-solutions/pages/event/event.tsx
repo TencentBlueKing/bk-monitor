@@ -732,9 +732,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             query[key] = {};
           }
         } else if (key === 'bizIds') {
-          query[key] = Array.isArray(val)
+          const parsed = Array.isArray(val)
             ? val.map(id => +id)
             : tryURLDecodeParse(val, [+(val || this.$store.getters.bizId || -1)]);
+          query[key] = Array.isArray(parsed) ? parsed : [+parsed];
         } else if (['from', 'to'].includes(key)) {
           key === 'from' && this.$set(this.timeRange, 0, val);
           key === 'to' && this.$set(this.timeRange, 1, val);

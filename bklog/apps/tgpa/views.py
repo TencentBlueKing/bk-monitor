@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.http import StreamingHttpResponse
 from rest_framework.response import Response
 
 from apps.api import TGPATaskApi
@@ -42,6 +43,7 @@ from apps.tgpa.serializers import (
     RetrieveSyncRecordSerializer,
     GetCountInfoSerializer,
     GetUsernameListSerializer,
+    DownloadFileSerializer,
 )
 from apps.tgpa.tasks import fetch_and_process_tgpa_reports
 from bkm_search_module.constants import list_route
@@ -70,7 +72,7 @@ class TGPATaskViewSet(APIViewSet):
     def get_permissions(self):
         if self.action == "create":
             return [BusinessActionPermission([ActionEnum.CREATE_CLIENT_LOG_TASK])]
-        if self.action == "get_download_url":
+        if self.action in ("get_download_url", "download_file"):
             return [BusinessActionPermission([ActionEnum.DOWNLOAD_CLIENT_LOG])]
         return [ViewBusinessPermission()]
 
@@ -118,6 +120,25 @@ class TGPATaskViewSet(APIViewSet):
             res["index_set_id"] = collector_config.index_set_id
             res["collector_config_id"] = collector_config.collector_config_id
         return Response(res)
+
+    @list_route(methods=["GET"], url_path="download_file")
+    def download_file(self, request, *args, **kwargs):
+        """
+        下载客户端日志文件（下载、解压、解密、重新打包后流式返回）
+        """
+        params = self.params_valid(DownloadFileSerializer)
+        file_iterator, file_name, file_size = TGPATaskHandler.stream_download_file(
+            bk_biz_id=params["bk_biz_id"],
+            file_name=params["file_name"],
+        )
+
+        response = StreamingHttpResponse(
+            file_iterator,
+            content_type="application/zip",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{file_name}"'
+        response["Content-Length"] = file_size
+        return response
 
     @list_route(methods=["GET"], url_path="username_list")
     def get_username_list(self, request, *args, **kwargs):

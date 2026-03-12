@@ -23,43 +23,58 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 
-import { useI18n } from 'vue-i18n';
-
+import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
-import type { ISuspiciousGroup } from '../typing';
-
-import './dimension-panel.scss';
+import './event-panel.scss';
 
 export default defineComponent({
   name: 'EventPanel',
-  props: {
-    data: {
-      type: Array as PropType<ISuspiciousGroup[]>,
-      default: () => [],
-    },
-  },
-  setup() {
-    const { t } = useI18n();
-
-    return {
-      t,
-    };
-  },
-
   render() {
     return (
-      <div class='suspicious-dimension-panel'>
-        <span>{this.t('通过分析告警产生前 1 小时时间窗口事件，可疑事件为：')}</span>
-        <div class='dimension-group-list'>
-          {this.data.map(item => (
-            <SuspiciousAnalysisGroup
-              key={item.id}
-              data={item}
-            />
-          ))}
+      <div class='suspicious-event-panel'>
+        <div class='tips'>通过分析告警产生前 1 小时时间窗口事件，可疑事件为：</div>
+        <div class='event-group-list'>
+          <SuspiciousAnalysisGroup>
+            {{
+              title: () => (
+                <div class='group-title'>
+                  <span
+                    class='group-name link-text'
+                    onClick={e => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    五一大版本发布
+                    <i class='icon-monitor icon-fenxiang' />
+                  </span>
+
+                  <span
+                    class='link-text detail-link'
+                    onClick={e => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    <i class='icon-monitor icon-xiangqing1' />
+                    分析详情
+                  </span>
+                </div>
+              ),
+              default: () => (
+                <AnalysisDetailContent
+                  contentData={[]}
+                  tableData={[]}
+                />
+              ),
+              footer: () => (
+                <div class='footer-content'>
+                  <span class='reason'>可疑原因：该时间关联的服务跟告警服务相同</span>
+                </div>
+              ),
+            }}
+          </SuspiciousAnalysisGroup>
         </div>
       </div>
     );

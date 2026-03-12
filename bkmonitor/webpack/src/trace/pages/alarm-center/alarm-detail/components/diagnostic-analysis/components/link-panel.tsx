@@ -23,39 +23,51 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 
-import { useI18n } from 'vue-i18n';
-
+import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
-import type { ISuspiciousGroup } from '../typing';
+import './link-panel.scss';
 
 export default defineComponent({
   name: 'LinkPanel',
-  props: {
-    data: {
-      type: Array as PropType<ISuspiciousGroup[]>,
-      default: () => [],
-    },
-  },
-  setup() {
-    const { t } = useI18n();
-
-    return {
-      t,
-    };
-  },
   render() {
     return (
       <div class='suspicious-link-panel'>
         <div class='link-group-list'>
-          {this.data.map(item => (
-            <SuspiciousAnalysisGroup
-              key={item.id}
-              data={item}
-            />
-          ))}
+          <SuspiciousAnalysisGroup>
+            {{
+              title: () => (
+                <div class='group-title'>
+                  <div class='group-name'>
+                    {this.$t('调用链')}：<span class='link-name link-text'>7160731cd9fe607033c1ae7d7a5f449b</span>
+                  </div>
+                </div>
+              ),
+              default: () => (
+                <AnalysisDetailContent
+                  contentData={[
+                    {
+                      title: '错误情况',
+                      value: [
+                        "IE monitor_web，incident，resources, fronted_resources. IncidentHandlersResource 这个 span 中，发生了一个类型为 TypeError 的异常。异常信息为'<' not supported between instances of 'str' and 'int'. 这表明在代表中存在一个比较操作。试图将字符串和整数进行比较，导致了类型错误。",
+                      ],
+                    },
+                    {
+                      title: '错误详情',
+                      value: [
+                        '异常类型：TypeError',
+                        "异常信息：'<' not supported between instances of 'str' and 'int'",
+                      ],
+                    },
+                    { title: '堆栈跟踪', value: ['Transaction:Transaction root'] },
+                  ]}
+                  tableData={[]}
+                />
+              ),
+            }}
+          </SuspiciousAnalysisGroup>
         </div>
       </div>
     );

@@ -1,0 +1,49 @@
+.analysis-detail-content {
+  .detail-table {
+    .detail-table-item {
+      display: flex;
+      align-items: center;
+      height: 24px;
+      background: #fff;
+
+      .detail-table-name {
+        width: 110px;
+        padding-left: 24px;
+        font-size: 12px;
+        color: #757880;
+      }
+
+      .detail-table-value {
+        font-size: 12px;
+        color: #313238;
+      }
+
+      &.even {
+        background: #f8fafd;
+      }
+    }
+  }
+
+  .detail-text-content {
+    padding: 8px 24px;
+    background: #f8fafd;
+
+    .detail-text-item {
+      .detail-text-item-name {
+        font-weight: 700;
+        line-height: 20px;
+        color: #313238;
+      }
+
+      .detail-text-item-value {
+        font-size: 12px;
+        line-height: 20px;
+        color: #313238;
+      }
+
+      & + .detail-text-item {
+        margin-top: 20px;
+      }
+    }
+  }
+}

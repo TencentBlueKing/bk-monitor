@@ -337,8 +337,13 @@
       this.getCollectList();
     },
     beforeDestroy() {
+      // 标记组件已销毁，防止异步回调中再创建定时器
+      this.isDestroyed = true;
       // 清除定时器
-      this.timer && clearInterval(this.timer);
+      if (this.timer) {
+        clearInterval(this.timer);
+        this.timer = null;
+      }
     },
     mounted() {
       // 容器日志展示容器日志的内容
@@ -369,6 +374,10 @@
         this.dataSec = { totalLenght: 0 };
         this.dataFal = { totalLenght: 0 };
         this.dataPen = { totalLenght: 0 };
+
+        // 组件已销毁则不再查询状态
+        if (this.isDestroyed) return;
+
         this.$http
           .request('source/collectList', {
             params: {
@@ -434,6 +443,9 @@
                 this.initPageConf(this.dataFir.contents);
                 this.loadPage();
               }
+
+              // 组件已销毁则不再创建定时器
+              if (this.isDestroyed) return;
 
               //  如果存在执行中添加定时器
               if (this.dataPen.totalLenght === 0) {

@@ -12,6 +12,10 @@
     margin-left: 16px;
   }
 
+  .icon-mc-share {
+    font-size: 16px;
+  }
+
   .share-wrap {
     padding: 0 16px;
     display: flex;
@@ -39,7 +43,6 @@
       align-items: center;
     }
 
-
     .share-link {
       display: flex;
       align-items: center;
@@ -53,7 +56,7 @@
         align-items: center;
         padding: 0 8px;
         flex: 1;
-        user-select: none
+        user-select: none;
       }
 
       &-btn {

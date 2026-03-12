@@ -78,7 +78,7 @@ class ScopeQueryFilterMixin:
 
     def get_query_scope_filters(self, params: dict) -> dict[str, str]:
         """返回基于 scope_prefix 的查询过滤器"""
-        return {"scope_name": params["scope_prefix"]}
+        return {"scope_name": params.get("scope_prefix", "")}
 
 
 class DefaultScopeNameMixin:
@@ -86,7 +86,7 @@ class DefaultScopeNameMixin:
 
     def get_default_scope_name(self, params: dict[str, Any]) -> str:
         """返回默认的 scope_name（带前缀的 UNGROUP_SCOPE_NAME）"""
-        return params["scope_prefix"] + UNGROUP_SCOPE_NAME
+        return params.get("scope_prefix", "") + UNGROUP_SCOPE_NAME
 
 
 class DefaultFieldScopeMixin:
@@ -94,4 +94,4 @@ class DefaultFieldScopeMixin:
 
     def is_default_field_scope(self, field_scope: str, params: dict) -> bool:
         """判断是否为默认字段 scope"""
-        return field_scope == params["scope_prefix"] + DEFAULT_FIELD_SCOPE
+        return field_scope == params.get("scope_prefix", "") + DEFAULT_FIELD_SCOPE
