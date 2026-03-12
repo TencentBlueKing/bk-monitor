@@ -242,9 +242,7 @@ class EtlStorage:
         for field in built_in_fields:
             field_name = field["field_name"]
             alias_name = field.get("alias_name", field_name)
-            # 优先使用es_type确定output_type，内置字段的field_type可能与es_type不一致
-            # 例如gseIndex/cloudId/bk_host_id的field_type为float，但es_type为long/integer
-            field_type = field.get("option", {}).get("es_type") or field["field_type"]
+            field_type = field["field_type"]
 
             # 跳过log、iterationIndex字段，它会在后面单独处理
             if field_name in ["log", "iterationIndex"]:
