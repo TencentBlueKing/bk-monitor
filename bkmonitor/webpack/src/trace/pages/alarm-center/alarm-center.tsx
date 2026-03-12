@@ -82,6 +82,8 @@ import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
+import IssuesDetail from './alarm-issues/issues-detail/issues-detail';
+import IssuesTable from './alarm-issues/issues-table/issues-table';
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
@@ -806,46 +808,52 @@ export default defineComponent({
                 default: () => {
                   return (
                     <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
-                      <div class='chart-trend'>
-                        <AlarmTrendChart total={this.total} />
-                      </div>
-                      {this.alarmStore.alarmType !== AlarmType.INCIDENT && (
+                      {this.alarmStore.alarmType !== AlarmType.ISSUES && (
+                        <div class='chart-trend'>
+                          <AlarmTrendChart total={this.total} />
+                        </div>
+                      )}
+                      {![AlarmType.INCIDENT, AlarmType.ISSUES].includes(this.alarmStore.alarmType) && (
                         <div class='alarm-analysis'>
                           <AlarmAnalysis onConditionChange={this.handleAddCondition} />
                         </div>
                       )}
                       <div class='alarm-center-table'>
-                        <AlarmTable
-                          pagination={{
-                            currentPage: this.page,
-                            pageSize: this.pageSize,
-                            total: this.total,
-                          }}
-                          tableSettings={{
-                            checked: this.storageColumns,
-                            fields: this.allTableFields,
-                            disabled: this.lockedTableFields,
-                          }}
-                          columns={this.tableSourceColumns}
-                          data={this.data}
-                          defaultActiveRowKeys={this.defaultActiveRowKeys}
-                          isSelectedFollower={this.isSelectedFollower}
-                          loading={this.loading}
-                          selectedRowKeys={this.selectedRowKeys}
-                          sort={this.ordering}
-                          timeRange={this.alarmStore.timeRange}
-                          onCurrentPageChange={this.handleCurrentPageChange}
-                          onDisplayColFieldsChange={displayColFields => {
-                            this.storageColumns = displayColFields;
-                          }}
-                          onOpenAlertDialog={this.handleAlertDialogShow}
-                          onPageSizeChange={this.handlePageSizeChange}
-                          onSaveAlertContentName={this.handleSaveAlertContentName}
-                          onSelectionChange={this.handleSelectedRowKeysChange}
-                          onShowActionDetail={this.handleShowActionDetail}
-                          onShowAlertDetail={this.handleShowAlertDetail}
-                          onSortChange={sort => this.handleSortChange(sort as string)}
-                        />
+                        {this.alarmStore.alarmType === AlarmType.ISSUES ? (
+                          <IssuesTable />
+                        ) : (
+                          <AlarmTable
+                            pagination={{
+                              currentPage: this.page,
+                              pageSize: this.pageSize,
+                              total: this.total,
+                            }}
+                            tableSettings={{
+                              checked: this.storageColumns,
+                              fields: this.allTableFields,
+                              disabled: this.lockedTableFields,
+                            }}
+                            columns={this.tableSourceColumns}
+                            data={this.data}
+                            defaultActiveRowKeys={this.defaultActiveRowKeys}
+                            isSelectedFollower={this.isSelectedFollower}
+                            loading={this.loading}
+                            selectedRowKeys={this.selectedRowKeys}
+                            sort={this.ordering}
+                            timeRange={this.alarmStore.timeRange}
+                            onCurrentPageChange={this.handleCurrentPageChange}
+                            onDisplayColFieldsChange={displayColFields => {
+                              this.storageColumns = displayColFields;
+                            }}
+                            onOpenAlertDialog={this.handleAlertDialogShow}
+                            onPageSizeChange={this.handlePageSizeChange}
+                            onSaveAlertContentName={this.handleSaveAlertContentName}
+                            onSelectionChange={this.handleSelectedRowKeysChange}
+                            onShowActionDetail={this.handleShowActionDetail}
+                            onShowAlertDetail={this.handleShowAlertDetail}
+                            onSortChange={sort => this.handleSortChange(sort as string)}
+                          />
+                        )}
                       </div>
                     </div>
                   );
@@ -858,17 +866,20 @@ export default defineComponent({
               onUpdate:isCollapsed={this.updateIsCollapsed}
             />
           </div>
-
-          <AlarmCenterDetail
-            alarmId={this.alarmId}
-            alarmType={this.alarmStore.alarmType}
-            defaultTab={this.alarmDetailDefaultTab}
-            show={this.alarmDetailShow}
-            showStepBtn={this.data.length > 1}
-            onNext={this.handleNextDetail}
-            onPrevious={this.handlePreviousDetail}
-            onUpdate:show={this.handleDetailShowChange}
-          />
+          {this.alarmStore.alarmType === AlarmType.ISSUES ? (
+            <IssuesDetail />
+          ) : (
+            <AlarmCenterDetail
+              alarmId={this.alarmId}
+              alarmType={this.alarmStore.alarmType}
+              defaultTab={this.alarmDetailDefaultTab}
+              show={this.alarmDetailShow}
+              showStepBtn={this.data.length > 1}
+              onNext={this.handleNextDetail}
+              onPrevious={this.handlePreviousDetail}
+              onUpdate:show={this.handleDetailShowChange}
+            />
+          )}
 
           <AlertOperationDialogs
             alarmBizId={this.alertDialogBizId}

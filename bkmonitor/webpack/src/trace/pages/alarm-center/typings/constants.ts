@@ -29,6 +29,7 @@ export enum AlarmType {
   ACTION = 'action',
   ALERT = 'alert',
   INCIDENT = 'incident',
+  ISSUES = 'issues',
 }
 
 /** 告警场景中数据所有可操作的事件枚举 */
@@ -87,6 +88,10 @@ export const alarmTypeMap: { label: string; value: AlarmType }[] = [
   {
     label: window.i18n.t('故障'),
     value: AlarmType.INCIDENT,
+  },
+  {
+    label: 'Issues',
+    value: AlarmType.ISSUES,
   },
   {
     label: window.i18n.t('处理记录'),
