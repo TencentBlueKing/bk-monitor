@@ -159,6 +159,9 @@ export default class ManualGroup extends tsc<any> {
     this.tableData.pagination.count = filteredMetrics.length;
     this.$nextTick(() => {
       this.handleManualListChange();
+      // 搜索或者切换每页条数后首次选择失效问题
+      this.isSearchChange = false;
+      this.isPageChange = false;
     });
   }
 
