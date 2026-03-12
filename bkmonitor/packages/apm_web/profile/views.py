@@ -341,19 +341,26 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         }
 
     @classmethod
+    def get_query_limit_params(cls, essentials: dict, data_type: str) -> dict:
+        """根据服务规模返回 samples/export 查询 limit 参数"""
+        if not essentials["is_ebpf"] and cls.is_large_service(
+            essentials["bk_biz_id"], essentials["app_name"], essentials["service_name"], data_type
+        ):
+            rows = LARGE_SERVICE_MAX_QUERY_SIZE
+        else:
+            rows = NORMAL_SERVICE_MAX_QUERY_SIZE
+
+        return {"limit": {"offset": 0, "rows": rows}}
+
+    @classmethod
     def get_query_params(cls, request_data):
         serializer = ProfileQuerySerializer(data=request_data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
         essentials = cls.get_essentials(data)
-        # 根据是否是大应用调整获取的消息条数 避免接口耗时过长
-        if not essentials["is_ebpf"] and cls.is_large_service(
-            essentials["bk_biz_id"], essentials["app_name"], essentials["service_name"], data["data_type"]
-        ):
-            extra_params = {"limit": {"offset": 0, "rows": LARGE_SERVICE_MAX_QUERY_SIZE}}
-        else:
-            extra_params = {"limit": {"offset": 0, "rows": NORMAL_SERVICE_MAX_QUERY_SIZE}}
+        # 根据是否是大应用调整获取的消息条数，避免接口耗时过长
+        extra_params = cls.get_query_limit_params(essentials, data["data_type"])
 
         return data, essentials, extra_params
 
@@ -746,6 +753,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         app_name = essentials["app_name"]
         service_name = essentials["service_name"]
         result_table_id = essentials["result_table_id"]
+        extra_params = self.get_query_limit_params(essentials, validated_data["data_type"])
 
         start, end = self.enlarge_duration(
             validated_data["start"], validated_data["end"], offset=validated_data["offset"]
@@ -763,6 +771,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             converter=ConverterType.Profile,
             agg_method=validated_data["agg_method"],
             agg_interval=self.get_agg_interval(start, end),
+            extra_params=extra_params,
         )
 
         # transfer data
