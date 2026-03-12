@@ -190,7 +190,6 @@ class EtlStorage:
             "yyyyMMddTHHmmss.SSSSSSZ": {"format": "%Y%m%dT%H%M%S.%6f%:z", "zone": None},
             "yyyy-MM-ddTHH:mm:ss.SSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%3f%:z", "zone": None},
             "yyyy-MM-ddTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": None},
-            "YYYY-MM-DDTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": None},
             "ISO8601": {"format": "%+", "zone": None},
             "yyyy-MM-ddTHH:mm:ssZ": {"format": "%Y-%m-%dT%H:%M:%S%:z", "zone": None},
             "yyyy-MM-ddTHH:mm:ss.SSSSSSZZ": {"format": "%Y-%m-%dT%H:%M:%S.%6f%:z", "zone": None},
@@ -284,40 +283,25 @@ class EtlStorage:
             time_fmt = time_fmts.get(v3_time_format, {})
             is_nanos = time_fmt.get("es_format", "epoch_millis") == "strict_date_optional_time_nanos"
 
-            # 判断是否为用户指定的时间字段：有real_path说明时间来源于bk_separator_object而非json_data
-            has_user_time_field = "real_path" in time_field.get("option", {})
-
-            if has_user_time_field:
-                # 用户指定了时间字段，dtEventTimeStamp需要从bk_separator_object提取
-                # 与dtEventTimeStampNanos同理，延迟到bk_separator_object之后生成
-                built_in_config["_user_time_field"] = {
-                    "time_field_name": time_field_name,
-                    "time_alias_name": time_alias_name,
-                    "time_field_type": time_field_type,
-                    "description": time_field.get("description"),
-                    "v3_time_format": v3_time_format,
+            rules.append(
+                {
+                    "input_id": "json_data",
+                    "output_id": time_field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": time_alias_name,
+                        "alias": time_field_name,
+                        "desc": time_field.get("description"),
+                        "input_type": None,
+                        "output_type": self._get_output_type(time_field_type),
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": v4_time_parsing,
+                        "default_value": None,
+                    },
                 }
-            else:
-                # 默认：从json_data.utctime提取（GSE上报的采集时间）
-                rules.append(
-                    {
-                        "input_id": "json_data",
-                        "output_id": time_field_name,
-                        "operator": {
-                            "type": "assign",
-                            "key_index": time_alias_name,
-                            "alias": time_field_name,
-                            "desc": time_field.get("description"),
-                            "input_type": None,
-                            "output_type": self._get_output_type(time_field_type),
-                            "fixed_value": None,
-                            "is_time_field": None,
-                            "time_format": None,
-                            "in_place_time_parsing": v4_time_parsing,
-                            "default_value": None,
-                        },
-                    }
-                )
+            )
 
             # 如果是纳秒级时间格式，记录需要生成dtEventTimeStampNanos字段
             # 注意：dtEventTimeStampNanos规则需要在bk_separator_object之后生成，因为用户指定的时间字段在bk_separator_object中
@@ -371,38 +355,6 @@ class EtlStorage:
                 )
                 break
 
-        return rules
-
-    def _build_user_dt_event_time_field_v4(self, built_in_config: dict) -> list:
-        """
-        构建V4版本的dtEventTimeStamp字段规则（当用户指定了时间字段时，从bk_separator_object提取）
-        :param built_in_config: 内置配置，包含_user_time_field信息
-        :return: dtEventTimeStamp字段规则列表；若无用户时间字段则返回空列表
-        """
-        rules = []
-        user_time_field = built_in_config.get("_user_time_field")
-        if user_time_field:
-            v4_time_parsing = self._convert_v3_to_v4_time_format(user_time_field["v3_time_format"])
-
-            rules.append(
-                {
-                    "input_id": self.separator_node_name,
-                    "output_id": user_time_field["time_field_name"],
-                    "operator": {
-                        "type": "assign",
-                        "key_index": user_time_field["time_alias_name"],
-                        "alias": user_time_field["time_field_name"],
-                        "desc": user_time_field.get("description"),
-                        "input_type": None,
-                        "output_type": self._get_output_type(user_time_field["time_field_type"]),
-                        "fixed_value": None,
-                        "is_time_field": None,
-                        "time_format": None,
-                        "in_place_time_parsing": v4_time_parsing,
-                        "default_value": None,
-                    },
-                }
-            )
         return rules
 
     def _build_nanos_time_field_v4(self, built_in_config: dict) -> list:
@@ -824,7 +776,6 @@ class EtlStorage:
 
                 nano_time_field = copy.deepcopy(time_field)
                 nano_time_field["field_name"] = "dtEventTimeStampNanos"
-                nano_time_field["field_type"] = "long" if field["option"]["time_format"] == "epoch_micros" else "string"
                 nano_time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
                 nano_time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
                 nano_time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")

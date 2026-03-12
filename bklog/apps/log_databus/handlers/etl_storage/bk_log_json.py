@@ -174,9 +174,8 @@ class BkLogJsonEtlStorage(EtlStorage):
             }
         ])
         
-        # 4. 从iter_item提取日志原文（保留原文 或 保留清洗失败日志时均需要）
-        # enable_retain_content: 当原始数据不符合JSON格式时，不丢弃数据，直接强制写入log字段
-        if etl_params.get("retain_original_text") or etl_params.get("enable_retain_content"):
+        # 4. 从iter_string提取日志原文（保留原文 或 保留清洗失败时均需要）
+        if etl_params.get("retain_original_text") or etl_params.get("record_parse_failure"):
             rules.append({
                 "input_id": "iter_item",
                 "output_id": "log",
@@ -187,14 +186,13 @@ class BkLogJsonEtlStorage(EtlStorage):
                     "output_type": "string"
                 }
             })
-
+        
         # 4.1. 提取iterationIndex字段（从iter_item提取，参考v3的flat_field处理）
         iteration_index_rules = self._build_iteration_index_field_v4(built_in_config)
         rules.extend(iteration_index_rules)
-
+        
         # 5. JSON解析（解析iter_string中的JSON）
-        # enable_retain_content=True时使用"null"策略，解析失败不丢弃数据，将字段置空
-        json_de_error_strategy = "null" if etl_params.get("enable_retain_content") else "drop"
+        json_de_error_strategy = "null" if etl_params.get("record_parse_failure") else "drop"
         rules.append({
             "input_id": "iter_string",
             "output_id": "bk_separator_object",
@@ -209,26 +207,23 @@ class BkLogJsonEtlStorage(EtlStorage):
             if field.get("is_delete"):
                 continue
                 
-            target_field  = field.get("alias_name") or field["field_name"]
-
+            source_field = field.get("alias_name") or field["field_name"]
+            
             rules.append({
                 "input_id": "bk_separator_object",
-                "output_id": target_field ,
+                "output_id": field["field_name"],
                 "operator": {
                     "type": "assign",
-                    "key_index":  field["field_name"],
-                    "alias": target_field,
+                    "key_index": source_field,
+                    "alias": field["field_name"],
                     "output_type": self._get_output_type(field["field_type"])
                 }
             })
 
-        # 6.1. 处理用户指定的时间字段作为dtEventTimeStamp（从bk_separator_object提取）
-        rules.extend(self._build_user_dt_event_time_field_v4(built_in_config))
-
-        # 6.2. 处理dtEventTimeStampNanos字段（从用户指定的时间字段提取）
+        # 6.1. 处理dtEventTimeStampNanos字段（从用户指定的时间字段提取）
         rules.extend(self._build_nanos_time_field_v4(built_in_config))
 
-        # 6.3. 处理ext_json字段
+        # 6.2. 处理ext_json字段
         rules.extend(self._build_extra_json_field_v4(etl_params, fields))
 
 
