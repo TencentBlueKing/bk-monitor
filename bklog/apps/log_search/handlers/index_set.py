@@ -1961,9 +1961,9 @@ class BaseIndexSetHandler:
                 update_params.update({"scenario_id": _scenario_id})
             if _storage_cluster_id := index.get("storage_cluster_id"):
                 update_params.update({"storage_cluster_id": _storage_cluster_id})
-            if _time_field_type := index.get("time_field_type"):
+            if _time_field_type := index.get("time_field_type") or self.time_field_type:
                 update_params.update({"time_field_type": _time_field_type})
-            if _time_field_unit := index.get("time_field_unit"):
+            if _time_field_unit := index.get("time_field_unit") or self.time_field_unit:
                 update_params.update({"time_field_unit": _time_field_unit})
             IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).update_index(
                 index["bk_biz_id"], index["result_table_id"], update_params
