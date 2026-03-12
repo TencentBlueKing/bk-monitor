@@ -244,4 +244,6 @@ export default {
   预警告警时段: 'Pre-alarm time period',
   致命告警时段: 'Fatal alarm time period',
   缩放: 'DataZoom',
+
+  诊断概率: 'Diagnostic probability',
 };

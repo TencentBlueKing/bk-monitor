@@ -69,7 +69,12 @@
         color: #3a84ff;
         cursor: pointer;
 
-        &:hover {
+        &.disabled {
+          color: #dcdee5;
+          cursor: not-allowed;
+        }
+
+        &:not(.disabled):hover {
           color: #699df4;
         }
 
@@ -82,6 +87,50 @@
 
     .ai-hight-card-wrap {
       margin-top: 12px;
+
+      .ai-highlight-card-main {
+        padding-left: 0;
+      }
+
+      .ai-content-wrap {
+        .title {
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 20px;
+          color: #313238;
+        }
+
+        .list {
+          padding-left: 20px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #313238;
+
+          li {
+            list-style: disc;
+          }
+
+          .list-item {
+            display: flex;
+            align-items: center;
+
+            .status {
+              display: flex;
+              align-items: center;
+              color: #ea3636;
+
+              .dot {
+                width: 8px;
+                height: 8px;
+                margin: 0 4px;
+                background-color: #ffebeb;
+                border: 1px solid #ea3636;
+                border-radius: 50%;
+              }
+            }
+          }
+        }
+      }
     }
   }
 

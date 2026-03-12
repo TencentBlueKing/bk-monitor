@@ -29,6 +29,7 @@ import { get } from '@vueuse/core';
 import { storeToRefs } from 'pinia';
 
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
+// import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import AlarmDashboardGroup from '../../../components/alarm-dashboard-group/alarm-dashboard-group';
 import { useAlertHost } from '../../../composables/use-alert-host';
 import { useSceneView } from '../../../composables/use-scene-view';
@@ -51,6 +52,10 @@ export default defineComponent({
     const { dashboards: hostDashboards, loading: sceneViewLoading } = useSceneView(bizId, 'host');
     /** 图表执行 dataZoom 框线缩放后的时间范围 */
     const dataZoomTimeRange = shallowRef<DateValue>(null);
+    /** 是否可以跳转到主机检索页面 */
+    const canLinkToPerformance = computed(() => {
+      return get(currentTarget) && get(targetList)?.length;
+    });
     /** 当前图表视图的时间范围 */
     const viewerTimeRange = computed<DateValue>(() => get(dataZoomTimeRange) ?? get(timeRange));
     /** 图表请求参数变量 */
@@ -115,6 +120,7 @@ export default defineComponent({
      * @description 跳转主机检索页面
      */
     const handleToPerformance = () => {
+      if (!get(canLinkToPerformance)) return;
       const target = get(currentTarget);
       const ip = target?.bk_target_ip ?? '0.0.0.0';
       const cloudId = target?.bk_cloud_id ?? '0';
@@ -157,6 +163,7 @@ export default defineComponent({
     return {
       bizId,
       currentTarget,
+      canLinkToPerformance,
       sceneViewLoading,
       hostDashboards,
       targetList,
@@ -188,7 +195,7 @@ export default defineComponent({
                 {this.createSkeletonDom()}
               </div>
               <div
-                class='host-explore-link-btn'
+                class={`host-explore-link-btn ${!this.canLinkToPerformance ? 'disabled' : ''}`}
                 onClick={this.handleToPerformance}
               >
                 <span class='link-text'>{window.i18n.t('主机监控')}</span>
@@ -198,8 +205,25 @@ export default defineComponent({
           </div>
           {/* <div class='ai-hight-card-wrap'>
             <AiHighlightCard
-              content='该模块哈哈哈哈哈，我是一段随意的文本占位。'
-              title={`${window.i18n.t('AI 分析结论')}：`}
+              v-slots={{
+                content: () => (
+                  <div class='ai-content-wrap'>
+                    <span class='title'>{this.$t('AI 分析结论')}：</span>
+                    <ul class='list'>
+                      <li>
+                        <div class='list-item'>
+                          <span class='title'>磁盘：</span>
+                          <span class='desc'>(设备名: /dev/dba，挂载点: /data, 使用率 97%)</span>
+                          <div class='status'>
+                            <div class='dot' />
+                            <span class='text'>异常</span>
+                          </div>
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+                ),
+              }}
             />
             {this.createSkeletonDom()}
           </div> */}

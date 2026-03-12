@@ -25,15 +25,20 @@
  */
 
 import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { bkMessage } from 'bk-magic-vue';
 import { bkMessage } from 'bk-magic-vue';
 
 import { BK_LOG_STORAGE } from '../../../../store/store.type';
 
 import BkLogPopover from '@/components/bklog-popover';
+import BkLogPopover from '@/components/bklog-popover';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import TableSort from '../../result-comp/update/table-sort.vue';
+import { isEqual } from 'lodash-es';
 import TableSort from '../../result-comp/update/table-sort.vue';
 import { isEqual } from 'lodash-es';
 import './index.scss';
@@ -59,7 +64,75 @@ export default defineComponent({
     const userSortFields = computed(() => store.state.indexFieldInfo?.user_custom_config?.sortList ?? []);
     const defaultSortFields = computed(() =>
       (store.state.indexFieldInfo?.default_sort_list ?? []).map(([field, order]) => [field, order ?? 'desc']),
+    const sortStatus = ref<undefined | 'asc' | 'desc'>(undefined);
+
+    const userSortFields = computed(() => store.state.indexFieldInfo?.user_custom_config?.sortList ?? []);
+    const defaultSortFields = computed(() =>
+      (store.state.indexFieldInfo?.default_sort_list ?? []).map(([field, order]) => [field, order ?? 'desc']),
     );
+    const localSortFields = computed(() => {
+      return userSortFields.value.length ? userSortFields.value : defaultSortFields.value;
+    });
+
+    const showSortSetting = ref(false);
+    const displaySortFields = ref([]);
+    const tableSortRef = ref(null);
+    const fieldsSettingPopperRef = ref(null);
+
+    const tippyOptions: any = {
+      arrow: false,
+      hideOnClick: false,
+      trigger: 'click',
+      interactive: true,
+      placement: 'bottom-start',
+      theme: 'light',
+      onShow: () => {
+        let sortList = structuredClone(localSortFields.value);
+        if (sortStatus.value !== undefined) {
+          sortList = sortList.map(item => [item[0], sortStatus.value]);
+        }
+        displaySortFields.value = sortList;
+        showSortSetting.value = true;
+      },
+      onHide: () => {
+        showSortSetting.value = false;
+      },
+    };
+
+    const handleConfirm = async () => {
+      const updateSortList = tableSortRef.value?.shadowSort;
+      if (!updateSortList?.length) {
+        bkMessage({ theme: 'warning', message: $t('至少需要配置一个排序字段') });
+        return;
+      }
+      const oldSortList = userSortFields.value;
+      const isSortListChanged = !isEqual(oldSortList, updateSortList);
+
+      fieldsSettingPopperRef.value?.hide();
+
+      store.commit('updateState', { localSort: false });
+
+      await store.dispatch('userFieldConfigChange', {
+        sortList: updateSortList,
+      });
+
+      if (isSortListChanged) {
+        await store.dispatch('requestIndexSetFieldInfo');
+        await store.dispatch('requestIndexSetQuery');
+        RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
+      }
+    };
+
+    const handleCancel = () => {
+      fieldsSettingPopperRef.value?.hide();
+    };
+
+    const handleBeforeHide = (e) => {
+      if (e.target?.closest?.('.bklog-v3-popover-tag')) {
+        return false;
+      }
+      return true;
+    };
     const localSortFields = computed(() => {
       return userSortFields.value.length ? userSortFields.value : defaultSortFields.value;
     });
@@ -145,14 +218,30 @@ export default defineComponent({
         // 点击文字区域，按 undefined → asc → desc → undefined 循环切换
         const sortOrderSequence: Array<undefined | 'asc' | 'desc'> = [undefined, 'asc', 'desc'];
         const currentIndex = sortOrderSequence.indexOf(sortStatus.value);
+    const handleShowLogTimeChange = async (target?: 'asc' | 'desc') => {
+      if (target !== undefined) {
+        // 点击箭头直接指定排序方向，再次点击已激活的箭头则取消排序
+        sortStatus.value = sortStatus.value === target ? undefined : target;
+      } else {
+        // 点击文字区域，按 undefined → asc → desc → undefined 循环切换
+        const sortOrderSequence: Array<undefined | 'asc' | 'desc'> = [undefined, 'asc', 'desc'];
+        const currentIndex = sortOrderSequence.indexOf(sortStatus.value);
         const nextIndex = (currentIndex + 1) % sortOrderSequence.length;
+        sortStatus.value = sortOrderSequence[nextIndex];
+      }
         sortStatus.value = sortOrderSequence[nextIndex];
       }
 
       let sortList = localSortFields.value;
       if (sortStatus.value !== undefined) {
         sortList = localSortFields.value.map(item => [item[0], sortStatus.value]);
+      let sortList = localSortFields.value;
+      if (sortStatus.value !== undefined) {
+        sortList = localSortFields.value.map(item => [item[0], sortStatus.value]);
       }
+      displaySortFields.value = sortList;
+      await store.dispatch('requestIndexSetFieldInfo');
+      await store.dispatch('requestIndexSetQuery', { defaultSortList: sortList });
       displaySortFields.value = sortList;
       await store.dispatch('requestIndexSetFieldInfo');
       await store.dispatch('requestIndexSetQuery', { defaultSortList: sortList });
@@ -163,6 +252,10 @@ export default defineComponent({
       <div class='bklog-v3-storage'>
         {IS_SORT_TIME_SHOW && (
           <div class='switch-label log-sort'>
+            <div
+              class='sort-time'
+              on-click={() => handleShowLogTimeChange()}
+              v-bk-tooltips={{ content: sortStatus.value === 'desc' ? $t('当前降序(点击切换)') : (sortStatus.value === 'asc' ? $t('当前升序(点击切换)') : $t('点击切换排序')), placement: 'top' }}
             <div
               class='sort-time'
               on-click={() => handleShowLogTimeChange()}

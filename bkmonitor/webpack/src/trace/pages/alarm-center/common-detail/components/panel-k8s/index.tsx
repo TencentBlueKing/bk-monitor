@@ -26,7 +26,7 @@
 import { type PropType, computed, defineComponent, shallowRef, toRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
-import { K8sNewTabEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
+import { K8sNewTabEnum, K8sTableColumnKeysEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 import { storeToRefs } from 'pinia';
 
 import { handleTransformToTimestampMs } from '../../../../../components/time-range/utils';
@@ -43,6 +43,19 @@ import type { DateValue } from '@blueking/date-picker';
 
 import './index.scss';
 
+/**
+ * @description 根据 groupBy 值解析出 groupBy 列表
+ * @param groupByValue - 当前 groupBy 维度值
+ * @returns groupBy 列表
+ */
+const resolveGroupByList = (groupByValue?: K8sTableColumnKeysEnum): K8sTableColumnKeysEnum[] => {
+  if (!groupByValue) return [];
+  if (groupByValue === K8sTableColumnKeysEnum.WORKLOAD) {
+    return [K8sTableColumnKeysEnum.WORKLOAD, K8sTableColumnKeysEnum.POD];
+  }
+  return [groupByValue];
+};
+
 export default defineComponent({
   name: 'PanelK8s',
   props: {
@@ -58,6 +71,7 @@ export default defineComponent({
       groupBy,
       currentTarget,
       bizId,
+      timeRange,
     });
     /** 图表执行 dataZoom 框线缩放后的时间范围 */
     const dataZoomTimeRange = shallowRef<DateValue>(null);
@@ -92,12 +106,13 @@ export default defineComponent({
       // @ts-expect-error
       const { bcs_cluster_id: cluster, ...target } = get(currentTarget) ?? {};
 
+      const groupByList = resolveGroupByList(get(groupBy));
       const searchParams = new URLSearchParams({
         cluster,
         from: String(startTime),
         to: String(endTime),
         scene: get(scene),
-        groupBy: JSON.stringify(get(groupBy) ? [get(groupBy)] : []),
+        groupBy: JSON.stringify(groupByList),
         activeTab: K8sNewTabEnum.CHART,
         filterBy: JSON.stringify(Object.fromEntries(Object.entries(target).map(([key, value]) => [key, [value]]))),
       });
@@ -174,8 +189,14 @@ export default defineComponent({
           </div>
           {/* <div class='ai-hight-card-wrap'>
             <AiHighlightCard
-              content={`tE monitor_web，incident，resources, fronted_resources. IncidentHandlersResource 这个 span 中，发生了一个类型为 TypeError 的异常。异常信息为'<' not supported between instances of 'str' and 'int'. 这表明在代表中存在一个比较操作。试图将字符串和整数进行比较，导致了类型错误。`}
-              title={`${window.i18n.t('AI 分析结论')}：`}
+              v-slots={{
+                content: () => (
+                  <div class='ai-content-wrap'>
+                    <span class='title'>{this.$t('AI 分析结论')}: </span>
+                    <span class='desc'>{`tE monitor_web，incident，resources, fronted_resources. IncidentHandlersResource 这个 span 中，发生了一个类型为 TypeError 的异常。异常信息为'<' not supported between instances of 'str' and 'int'. 这表明在代表中存在一个比较操作。试图将字符串和整数进行比较，导致了类型错误。`}</span>
+                  </div>
+                ),
+              }}
             />
             {this.createSkeletonDom()}
           </div> */}

@@ -28,6 +28,7 @@ import {
   type PropType,
   defineComponent,
   nextTick,
+  onDeactivated,
   onMounted,
   onUnmounted,
   shallowRef,
@@ -228,6 +229,9 @@ export default defineComponent({
     onUnmounted(() => {
       observer.value.disconnect();
       resizeObserver.value.disconnect();
+    });
+    onDeactivated(() => {
+      expandedRowKeys.value = [];
     });
 
     return {

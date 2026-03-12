@@ -13,10 +13,6 @@
     background: #f2f6fc;
     opacity: 1;
 
-    .bk-tab-header--active {
-      font-weight: 700;
-    }
-
     .bk-tab-content {
       display: none;
     }
@@ -25,6 +21,11 @@
       font-size: 13px;
       font-weight: 500;
       color: #4e5e7a;
+    }
+
+    .bk-tab-header--active {
+      font-weight: 500;
+      color: #3a84ff;
     }
   }
 
@@ -41,6 +42,11 @@
           font-size: 13px;
           font-weight: 500;
           color: #4e5e7a;
+        }
+
+        .bk-tab-header--active {
+          font-weight: 500;
+          color: #3a84ff;
         }
       }
 

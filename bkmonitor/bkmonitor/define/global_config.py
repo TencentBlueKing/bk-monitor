@@ -435,6 +435,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
+        ("EXCLUDE_WORKER_TASKS", slz.ListField(label="排除特定的worker任务(需要重启alarm-beat生效)", default=[])),
     ]
 )
 
@@ -683,6 +684,11 @@ STANDARD_CONFIGS = OrderedDict(
         (
             "APM_METRIC_GROUP_DIMENSIONS_WHITELIST",
             slz.ListField(label=_("允许 APM 配置指标分组维度的应用白名单"), default=[]),
+        ),
+        # APM 自定义指标 V2 开启的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+        (
+            "APM_CUSTOM_METRIC_V2_ENABLED_LIST",
+            slz.ListField(label=_("APM 自定义指标 V2 开启的应用白名单"), default=[]),
         ),
     ]
 )

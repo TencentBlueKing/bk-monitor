@@ -161,7 +161,10 @@ class SQLCompiler(compiler.SQLCompiler):
     def _parser_order_by(self):
         sort_list: list[dict[str, str]] = []
         for ordering in self.query.order_by:
-            if len(ordering.split()) == 1:
+            if ordering.startswith("-") and len(ordering.split()) == 1:
+                # 支持: "-time" → {"time": "desc"}
+                field, order = ordering[1:], "desc"
+            elif len(ordering.split()) == 1:
                 field, order = ordering, "asc"
             else:
                 field, order = ordering.split(maxsplit=1)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from core.drf_resource import resource
@@ -27,6 +25,7 @@ class ActionInstanceViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.action.itsm_callback, endpoint="itsm_callback"),
         ResourceRoute("POST", resource.action.batch_create_action, endpoint="batch_create_action"),
         ResourceRoute("POST", resource.action.get_action_params_by_config, endpoint="get_action_params_by_config"),
+        ResourceRoute("POST", resource.action.get_demo_action_context, endpoint="get_demo_action_context"),
     ]
 
 
