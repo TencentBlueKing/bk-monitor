@@ -23,52 +23,63 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
-import './suspicious-analysis-group.scss';
+import type { IContentItem, ITableItem } from '../typing';
+
+import './analysis-detail-content.scss';
 
 export default defineComponent({
-  name: 'SuspiciousAnalysisGroup',
+  name: 'AnalysisDetailContent',
   props: {
-    defaultExpand: {
-      type: Boolean,
-      default: true,
+    tableData: {
+      type: Array as PropType<ITableItem[]>,
+      default: () => [],
+    },
+    contentData: {
+      type: Array as PropType<IContentItem[]>,
+      default: () => [],
     },
   },
-  setup(props) {
-    const expand = shallowRef(props.defaultExpand);
-
-    const toggleExpand = () => {
-      expand.value = !expand.value;
-    };
-
-    const unWatchExpand = watch(
-      () => props.defaultExpand,
-      val => {
-        expand.value = val;
-        unWatchExpand();
-      }
-    );
-
-    return {
-      expand,
-      toggleExpand,
-    };
+  setup() {
+    return {};
   },
   render() {
     return (
-      <div class={['suspicious-analysis-group', { expand: this.expand }]}>
-        <div class='suspicious-analysis-group-wrapper'>
-          <div
-            class='group-header'
-            onClick={this.toggleExpand}
-          >
-            <i class='icon-monitor icon-mc-arrow-right arrow-icon' />
-            {this.$slots.title?.()}
+      <div class='analysis-detail-content'>
+        {this.tableData.length > 0 && (
+          <div class='detail-table'>
+            {this.tableData.map((item, index) => (
+              <div
+                key={item.name}
+                class={['detail-table-item', { even: index % 2 === 0 }]}
+              >
+                <div class='detail-table-name'>{item.name}</div>
+                <div class='detail-table-value'>{item.value}</div>
+              </div>
+            ))}
           </div>
-          <div class='group-content'>{this.$slots.default?.()}</div>
-          {this.$slots.footer && <div class='group-footer'>{this.$slots.footer?.()}</div>}
-        </div>
+        )}
+        {this.contentData.length > 0 && (
+          <div class='detail-text-content'>
+            {this.contentData.map(item => (
+              <div
+                key={item.title}
+                class='detail-text-item'
+              >
+                <div class='detail-text-item-name'>{item.title}</div>
+                {item.value.map((value, idx) => (
+                  <div
+                    key={`${item.title}-${idx}`}
+                    class='detail-text-item-value'
+                  >
+                    {value}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   },

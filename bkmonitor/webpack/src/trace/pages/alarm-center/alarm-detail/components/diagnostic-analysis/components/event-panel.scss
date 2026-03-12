@@ -1,28 +1,31 @@
 @import './common';
 
-.suspicious-dimension-panel {
+.suspicious-event-panel {
   @extend %panel-container;
 
-  .dimension-group-list {
+  .event-group-list {
     @extend %group-list;
 
     .group-title {
       @extend %group-title;
 
       .group-name {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        &.link-text {
+          color: #3a84ff;
+
+          &:hover {
+            color: #699df4;
+          }
+
+          .icon-monitor {
+            margin-left: 5px;
+            font-size: 11px;
+          }
+        }
       }
 
-      .abnormality-tag {
+      .detail-link {
         flex-shrink: 0;
-        padding: 0 6px;
-        font-size: 11px;
-        font-weight: 500;
-        color: #c12726;
-        background: #fff;
-        border-radius: 999px;
       }
     }
 
