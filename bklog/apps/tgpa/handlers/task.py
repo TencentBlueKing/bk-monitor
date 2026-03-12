@@ -118,6 +118,7 @@ class TGPATaskHandler:
                     "comment": task["comment"],
                     "created_by": task["created_by"],
                     "created_at": task["created_at"],
+                    "file_name": task["file_name"],
                 }
             )
         return result_list
@@ -127,9 +128,12 @@ class TGPATaskHandler:
         """
         获取任务总数
         """
+        task_types = ",".join(
+            [str(TGPATaskTypeEnum.BUSINESS_LOG_V1.value), str(TGPATaskTypeEnum.BUSINESS_LOG_V2.value)]
+        )
         params = {
             "cc_id": bk_biz_id,
-            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "task_type": task_types,
             "offset": 0,
             "limit": 1,
         }
