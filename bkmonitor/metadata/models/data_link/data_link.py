@@ -400,7 +400,6 @@ class DataLink(models.Model):
                     "es_cluster_name": es_storage.storage_cluster.cluster_name,
                     "timezone": es_storage.time_zone,
                     "table_id": table_id,
-                    "bkbase_result_table_name": self.data_link_name,
                 },
             )
 
@@ -414,7 +413,6 @@ class DataLink(models.Model):
                 data_id_name=bkbase_data_name,
                 defaults={
                     "bk_data_id": data_source.bk_data_id,
-                    "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{self.data_link_name}"],
                 },
             )
 
