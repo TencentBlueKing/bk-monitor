@@ -840,6 +840,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
 
         group_id = params.get("group_id")
         bk_biz_id = int(params["bk_biz_id"])
+        task_id = params.get("id")
         name = params.get("name")
         bk_tenant_id = cast(str, get_request_tenant_id())
         # 获取分组
@@ -848,19 +849,21 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         get_available = params.get("get_available") == "true"
         get_task_duration = params.get("get_task_duration") == "true"
 
+        query: dict[str, Any] = {}
+        if group_id:
+            query["group_ids"] = [int(group_id)]
+        if task_id:
+            query["task_ids"] = [int(task_id)]
+        if name:
+            query["name"] = name
+
         # 如果传入plain参数，则返回简单数据
         if params.get("plain", False):
             task_id = params.get("id")
             tasks = list_tasks(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
-                query={
-                    "group_ids": [int(group_id)] if group_id else None,
-                    "task_ids": [int(task_id)] if task_id else None,
-                    "name": name,
-                }
-                if group_id or task_id
-                else None,
+                query=query,
                 order_by=params.get("ordering"),
             )
             if task_id:
@@ -881,12 +884,6 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
                 )
             else:
                 return Response([{"id": t.id, "name": t.name, "bk_biz_id": t.bk_biz_id} for t in tasks])
-
-        query = {}
-        if group_id:
-            query["group_ids"] = [int(group_id)]
-        if name:
-            query["name"] = name
 
         tasks = list_tasks(
             bk_tenant_id=bk_tenant_id,
