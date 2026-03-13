@@ -837,6 +837,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
 
         group_id = params.get("group_id")
         bk_biz_id = int(params["bk_biz_id"])
+        name = params.get("name")
         bk_tenant_id = cast(str, get_request_tenant_id())
         # 获取分组
         get_groups = params.get("get_groups", False)
@@ -853,6 +854,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
                 query={
                     "group_ids": [int(group_id)] if group_id else None,
                     "task_ids": [int(task_id)] if task_id else None,
+                    "name": name,
                 }
                 if group_id or task_id
                 else None,
