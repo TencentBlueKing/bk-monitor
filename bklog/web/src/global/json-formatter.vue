@@ -205,7 +205,7 @@
       return RetrieveHelper.formatTimeZoneValue(content, field.field_type, timezone);
     }
 
-    return content || '--';
+    return content !== null && content !== undefined && content !== '' ? content : '--';
   };
 
   const getFieldValue = field => {
