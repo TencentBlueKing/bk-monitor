@@ -83,3 +83,35 @@ class BkBaseResultTable(models.Model):
         except DataBusConfig.DoesNotExist:
             logger.error("data_link->[%s],do not have databus->[%s]", self.data_link_name, self.bkbase_rt_name)
             return None
+
+
+class BkBaseShortChainResultTable(models.Model):
+    """
+    BKBase 短链路结果表映射
+    记录原始 BKBase 结果表（VMRT）与监控平台本地结果表（table_id）之间的映射关系。
+
+    用于：
+    1. 在 _compose_bkcc_space_table_ids 中将短链路表纳入空间路由
+    2. 在 push_bkbase_table_id_detail 中组装结果表详情
+    """
+
+    bk_tenant_id = models.CharField("租户ID", max_length=256, default="system")
+    # 监控平台本地结果表ID，如 "00001_xxx.__default__"
+    table_id = models.CharField("监控平台结果表ID", max_length=128, db_index=True)
+    # BKBase 原始结果表ID（VMRT）
+    bkbase_rt_id = models.CharField("BKBase结果表ID", max_length=128, db_index=True)
+    # 所属业务ID（在 bkcc 空间类型下等价于 space_id）
+    bk_biz_id = models.IntegerField("业务ID", db_index=True)
+    # 数据标签，可选
+    data_label = models.CharField("数据标签", max_length=128, default="", blank=True)
+
+    create_time = models.DateTimeField("创建时间", auto_now_add=True)
+    last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
+
+    class Meta:
+        verbose_name = "BKBase短链路结果表映射"
+        verbose_name_plural = "BKBase短链路结果表映射"
+        unique_together = ("bk_tenant_id", "table_id")
+
+    def __str__(self):
+        return f"BkBaseShortChain: {self.bkbase_rt_id} -> {self.table_id}"
