@@ -882,7 +882,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         tasks = list_tasks(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
-            query={"group_ids": [int(group_id)]} if group_id else None,
+            query={"group_ids": [int(group_id)], "name": name} if group_id else None,
             order_by=params.get("ordering"),
         )
 
