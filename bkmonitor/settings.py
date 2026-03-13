@@ -13,7 +13,7 @@ import os
 import sys
 
 import monkey
-from config.tools.environment import ENVIRONMENT, ROLE
+from config.tools.environment import ENVIRONMENT, PLATFORM, ROLE
 
 try:
     import MySQLdb  # noqa
@@ -27,6 +27,9 @@ except ImportError:
 
 patch_module = ["json", "shutil", "furl", "re"]
 patch_target = {_module: None for _module in patch_module}
+
+if PLATFORM == "ieod":
+    patch_target.update({"bk_monitor_base": None})
 
 # patch backend celery beat only
 if "redbeat.RedBeatScheduler" in sys.argv:
