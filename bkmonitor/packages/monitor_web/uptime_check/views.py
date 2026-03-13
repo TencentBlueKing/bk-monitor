@@ -812,11 +812,10 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         operator: str = request.user.username
 
         task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
-        # 运行中/启动中/停止中/停止失败的任务，要求先执行停用，避免删除过程中配置状态不一致
+        # 运行中/启动中/停止失败的任务，要求先执行停用，避免删除过程中配置状态不一致
         if task.status in (
             UptimeCheckTaskStatus.RUNNING,
             UptimeCheckTaskStatus.STARTING,
-            UptimeCheckTaskStatus.STOPING,
             UptimeCheckTaskStatus.STOP_FAILED,
         ):
             raise CustomException(_("任务正在运行，请先停止任务后再删除"))
