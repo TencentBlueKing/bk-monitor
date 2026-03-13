@@ -274,17 +274,25 @@ class AlertQueryTransformer(BaseQueryTransformer):
                     node, context = new_node, new_context
                     break
 
-            node = self._expand_assign_tags_fallback(node)
+            node = self._expand_assign_tags_fallback(node, context)
 
             yield from self.generic_visit(node, context)
 
-    def _expand_assign_tags_fallback(self, node):
+    def _expand_assign_tags_fallback(self, node, context):
         """
         对 ASSIGN_TAGS_FALLBACK_FIELDS 中的字段自动扩展 OR 查询。
         将 event.ip:"127.0.0.1" 扩展为：
           (event.ip:"127.0.0.1") OR nested(assign_tags, key="ip" AND value.raw="127.0.0.1")
         这样传统主机告警（event.ip 有值）和 K8s 告警（assign_tags 中有 ip）都能被搜到。
+
+        注意：必须通过 context 中的 assign_tags_expanded 标记防止重入。
+        因为 generic_visit → clone_children → visit_iter 会递归遍历替换后节点的子节点，
+        其中包含原始的 SearchField("event.ip", ...) ，会再次触发 visit_search_field，
+        如果不加防护就会无限递归。
         """
+        if context.get("assign_tags_expanded"):
+            return node
+
         if not isinstance(node, SearchField):
             return node
 
@@ -292,6 +300,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
         if not assign_tag_key:
             return node
 
+        context["assign_tags_expanded"] = True
         self.has_nested_field = True
         # 构造 nested assign_tags 查询节点
         nested_node = SearchField(
