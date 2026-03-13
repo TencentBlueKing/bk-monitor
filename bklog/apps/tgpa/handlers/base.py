@@ -196,8 +196,20 @@ class TGPAFileHandler:
 
             for zip_file in zip_files:
                 try:
+                    if iteration_count == 1:
+                        # 第一层压缩包直接解压到所在目录（第一层只有一个压缩包，即下载下来的压缩包）
+                        extract_target = zip_file.parent
+                    else:
+                        # 嵌套的子压缩包解压到以zip文件名命名的子目录，避免同名文件覆盖
+                        # 如果同名路径已存在，循环添加递增后缀避免冲突
+                        extract_target = zip_file.parent / zip_file.stem
+                        suffix_count = 1
+                        while extract_target.exists():
+                            extract_target = zip_file.parent / f"{zip_file.stem}_{suffix_count}"
+                            suffix_count += 1
+                        extract_target.mkdir(exist_ok=True)
                     with zipfile.ZipFile(zip_file, "r") as zip_ref:
-                        zip_ref.extractall(zip_file.parent)
+                        zip_ref.extractall(extract_target)
                     os.remove(zip_file)
                 except Exception as e:
                     logger.exception("Failed to extract zip file %s: %s", zip_file, e)
