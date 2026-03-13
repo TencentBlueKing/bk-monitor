@@ -84,6 +84,7 @@ class PatternHandler:
         self._remark_config = query.get("remark_config", RemarkConfigEnum.ALL.value)
         self._owner_config = query.get("owner_config", OwnerConfigEnum.ALL.value)
         self._owners = query.get("owners", [])
+        self.bkdata_select_fields = NEW_CLASS_QUERY_FIELDS[:]
 
     def pattern_search(self):
         """
@@ -276,6 +277,26 @@ class PatternHandler:
         copy_query = copy.deepcopy(self._query)
         copy_query.setdefault("addition", []).append(new_class_signature_query_condition)
 
+        # 添加其他聚合字段的过滤条件
+        extra_condition_fields = [field for field in self.bkdata_select_fields if field not in NEW_CLASS_QUERY_FIELDS]
+        for extra_condition_field in extra_condition_fields:
+            extra_condition_values = list(
+                {
+                    new_class_tuple[self.bkdata_select_fields.index(extra_condition_field)]
+                    for new_class_tuple in new_class_query_result
+                    if new_class_tuple and len(new_class_tuple) > self.bkdata_select_fields.index(extra_condition_field)
+                }
+            )
+            if extra_condition_values:
+                copy_query["addition"].append(
+                    {
+                        "field": extra_condition_field,
+                        "operator": "is one of",
+                        "value": extra_condition_values,
+                        "condition": "and",
+                    }
+                )
+
         multi_execute_func = MultiExecuteFunc()
         multi_execute_func.append(
             "pattern_aggs",
@@ -408,10 +429,10 @@ class PatternHandler:
         elif self._clustering_config.new_cls_strategy_output:
             # 新类异常检测逻辑适配
             try:
-                select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
+                self.bkdata_select_fields = NEW_CLASS_QUERY_FIELDS[:] + (self._clustering_config.group_fields or [])
                 new_classes = (
                     BkData(self._clustering_config.new_cls_strategy_output)
-                    .select(*select_fields)
+                    .select(*self.bkdata_select_fields)
                     .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
                     .where(IS_NEW_PATTERN_PREFIX, "=", 1)
                     .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
@@ -419,25 +440,25 @@ class PatternHandler:
                 )
             except Exception:  # pylint: disable=broad-except
                 # 分组字段不存在导致查询失败时，退化到不按分组聚合
-                select_fields = NEW_CLASS_QUERY_FIELDS
+                self.bkdata_select_fields = NEW_CLASS_QUERY_FIELDS[:]
                 new_classes = (
                     BkData(self._clustering_config.new_cls_strategy_output)
-                    .select(*select_fields)
+                    .select(*self.bkdata_select_fields)
                     .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
                     .where(IS_NEW_PATTERN_PREFIX, "=", 1)
                     .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
                     .query()
                 )
         else:
-            select_fields = NEW_CLASS_QUERY_FIELDS
+            self.bkdata_select_fields = NEW_CLASS_QUERY_FIELDS[:]
             new_classes = (
                 BkData(self._clustering_config.new_cls_pattern_rt)
-                .select(*select_fields)
+                .select(*self.bkdata_select_fields)
                 .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.new_class_field)
                 .time_range(int(start_time.timestamp(), int(end_time.timestamp())))
                 .query()
             )
-        return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
+        return {tuple(str(new_class[field]) for field in self.bkdata_select_fields) for new_class in new_classes}
 
     def _get_pattern_data(self, patterns):
         if not patterns:
