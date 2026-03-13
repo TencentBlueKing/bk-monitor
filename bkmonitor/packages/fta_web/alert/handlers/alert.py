@@ -22,7 +22,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from elasticsearch_dsl import Q
 from elasticsearch_dsl.response.aggs import BucketData
-from luqum.tree import FieldGroup, OrOperation, Phrase, SearchField, Word
+from luqum.tree import AndOperation, FieldGroup, OrOperation, Phrase, SearchField, Word
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
 from bkmonitor.models import ActionInstance, ConvergeRelation, MetricListCache, Shield
@@ -187,7 +187,14 @@ def _query_alert_ids_from_db(
 
 
 class AlertQueryTransformer(BaseQueryTransformer):
-    NESTED_KV_FIELDS = {"tags": "event.tags"}
+    NESTED_KV_FIELDS = {"tags": "event.tags", "assign_tags": "assign_tags"}
+
+    # 需要同时搜索 assign_tags 的字段映射：es_field → assign_tags 中对应的 key
+    ASSIGN_TAGS_FALLBACK_FIELDS = {
+        "event.ip": "ip",
+        "event.bk_cloud_id": "bk_cloud_id",
+    }
+
     VALUE_TRANSLATE_FIELDS = {
         "severity": EVENT_SEVERITY,
         "status": EVENT_STATUS,
@@ -266,7 +273,47 @@ class AlertQueryTransformer(BaseQueryTransformer):
                 if new_node is not None:
                     node, context = new_node, new_context
                     break
+
+            node = self._expand_assign_tags_fallback(node, context)
+
             yield from self.generic_visit(node, context)
+
+    def _expand_assign_tags_fallback(self, node, context):
+        """
+        对 ASSIGN_TAGS_FALLBACK_FIELDS 中的字段自动扩展 OR 查询。
+        将 event.ip:"127.0.0.1" 扩展为：
+          (event.ip:"127.0.0.1") OR nested(assign_tags, key="ip" AND value.raw="127.0.0.1")
+        这样传统主机告警（event.ip 有值）和 K8s 告警（assign_tags 中有 ip）都能被搜到。
+
+        注意：必须通过 context 中的 assign_tags_expanded 标记防止重入。
+        因为 generic_visit → clone_children → visit_iter 会递归遍历替换后节点的子节点，
+        其中包含原始的 SearchField("event.ip", ...) ，会再次触发 visit_search_field，
+        如果不加防护就会无限递归。
+        """
+        if context.get("assign_tags_expanded"):
+            return node
+
+        if not isinstance(node, SearchField):
+            return node
+
+        assign_tag_key = self.ASSIGN_TAGS_FALLBACK_FIELDS.get(node.name)
+        if not assign_tag_key:
+            return node
+
+        context["assign_tags_expanded"] = True
+        self.has_nested_field = True
+        # 构造 nested assign_tags 查询节点
+        nested_node = SearchField(
+            "assign_tags",
+            FieldGroup(
+                AndOperation(
+                    SearchField("key", Word(assign_tag_key)),
+                    SearchField("value.raw", node.expr),
+                )
+            ),
+        )
+        # 用 OR 组合原始条件和 nested 条件
+        return FieldGroup(OrOperation(node, nested_node))
 
     def visit_word(self, node: Word, context: dict):
         if context.get("ignore_word"):
