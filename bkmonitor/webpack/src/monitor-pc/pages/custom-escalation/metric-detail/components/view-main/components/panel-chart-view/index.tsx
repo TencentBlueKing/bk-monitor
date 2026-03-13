@@ -197,10 +197,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const config = {
       ...this.config,
-      metrics: this.config.metrics.map(item => ({
-        ...item,
-        scope_name: item.scope_name, // 分组名称
-      })),
+      metrics: this.config.metrics.map(({ scope_name, ...item }) => item),
     };
     const params = {
       ...config,
