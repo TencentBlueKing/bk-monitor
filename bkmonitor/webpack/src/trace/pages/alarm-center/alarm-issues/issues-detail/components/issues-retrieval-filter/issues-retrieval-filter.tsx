@@ -141,6 +141,7 @@ export default defineComponent({
         loadDelay={0}
         queryString={this.queryString}
         where={this.conditions}
+        zIndex={9999}
         onModeChange={this.handleFilterModeChange}
         onQueryStringChange={this.handleQueryStringChange}
         onSearch={this.handleQuery}
