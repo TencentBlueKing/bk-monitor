@@ -266,10 +266,8 @@ class UptimeCheckTaskListResource(Resource):
             task_group_ids = task.pop("group_ids", [])
             task_data_mapping[task["id"]].update(
                 url=url,
-                nodes=[copy.deepcopy(node_mapping[node_id]) for node_id in task_node_ids if node_id in node_mapping],
-                groups=[
-                    copy.deepcopy(group_mapping[group_id]) for group_id in task_group_ids if group_id in group_mapping
-                ],
+                nodes=[node_mapping[node_id] for node_id in task_node_ids if node_id in node_mapping],
+                groups=[group_mapping[group_id] for group_id in task_group_ids if group_id in group_mapping],
                 task_duration=0,
                 available=0,
             )
