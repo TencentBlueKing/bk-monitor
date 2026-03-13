@@ -1,0 +1,150 @@
+.issues-detail-head-main {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+
+  .level-tag {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+
+    .sign-icon {
+      display: block;
+      font-size: 12px;
+    }
+
+    .level-tag-text {
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    &.history {
+      background-color: #ffedd1;
+      color: #f09305;
+    }
+  }
+
+  .issues-detail-head-content {
+    flex: 1;
+    height: 100%;
+    padding: 6px 8px;
+    overflow: hidden;
+    line-height: 16px;
+  }
+
+  .issues-id {
+    display: block;
+    font-size: 12px;
+    line-height: 20px;
+    color: #8f9fbd;
+
+    .temporary-share {
+      display: inline-block;
+      margin-left: 2px;
+
+      .temporary-share-icon {
+        margin-left: 4px;
+        font-size: 10px;
+      }
+    }
+
+    .icon-copy-link {
+      margin-left: 6px;
+      font-size: 14px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  .issues-detail-title {
+    display: flex;
+    align-items: center;
+
+    .basic-title-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 20px;
+      color: #313238;
+      white-space: nowrap;
+    }
+
+    .btn-strategy-detail {
+      flex-shrink: 0;
+      padding: 0 8px;
+      margin-left: 8px;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 18px;
+      color: #4e5e7a;
+      cursor: pointer;
+      background: #f0f4fa;
+      border-radius: 999px;
+
+      .icon-float {
+        display: inline-block;
+        margin-left: 6px;
+        font-size: 9px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+  }
+
+  .skeleton-element {
+    &.issues-detail-title {
+      flex: 1;
+      height: 40px;
+      margin: 6px 8px;
+    }
+
+    &.btn-item {
+      width: 68px;
+      height: 42px;
+      padding: 0;
+      margin-left: 5px;
+    }
+  }
+
+  .issues-detail-head-btn-group {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    line-height: 20px;
+
+    .btn-group-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 0 16px;
+      color: #4e5e7a;
+      cursor: pointer;
+      border-left: 1px solid #f2f6fc;
+
+      &:hover {
+        background: #f5f7fa;
+      }
+    }
+
+    .btn-item-icon {
+      display: block;
+    }
+
+    .btn-text {
+      font-size: 12px;
+    }
+
+    .icon-back-left,
+    .icon-back-right {
+      font-size: 24px;
+    }
+  }
+}

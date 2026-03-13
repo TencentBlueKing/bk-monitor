@@ -82,7 +82,7 @@ import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
-import IssuesDetail from './alarm-issues/issues-detail/issues-detail';
+import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
 import IssuesTable from './alarm-issues/issues-table/issues-table';
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
@@ -190,6 +190,8 @@ export default defineComponent({
     const isShowFavorite = shallowRef(false);
     const editFavoriteData = shallowRef<IFavoriteGroup['favorites'][number]>(null);
     const editFavoriteShow = shallowRef(false);
+
+    const issuesDetailShow = shallowRef(false);
     /**
      * @description 检索栏字段列表
      */
@@ -694,6 +696,7 @@ export default defineComponent({
       defaultFavoriteId,
       alarmDetailDefaultTab,
       showResidentBtn,
+      issuesDetailShow,
       setUrlParams,
       handleSelectedRowKeysChange,
       handleAlertDialogShow,
@@ -867,7 +870,12 @@ export default defineComponent({
             />
           </div>
           {this.alarmStore.alarmType === AlarmType.ISSUES ? (
-            <IssuesDetail />
+            <IssuesDetailSideSlider
+              show={this.issuesDetailShow}
+              onUpdate:show={show => {
+                this.issuesDetailShow = show;
+              }}
+            />
           ) : (
             <AlarmCenterDetail
               alarmId={this.alarmId}

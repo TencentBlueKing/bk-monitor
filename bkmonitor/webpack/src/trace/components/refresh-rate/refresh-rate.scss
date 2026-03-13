@@ -5,10 +5,6 @@
     height: 32px;
     cursor: pointer;
 
-    &:hover {
-      color: #3a84ff;
-    }
-
     .trigger-name {
       position: relative;
       display: flex;
@@ -32,7 +28,7 @@
       }
 
       &:before {
-        content: "";
+        content: '';
         width: 1px;
         height: 14px;
         background-color: #dcdee5;
@@ -51,7 +47,7 @@
 
   .icon-arrow {
     margin-left: 5px;
-    transition: transform .2s ease-in-out;
+    transition: transform 0.2s ease-in-out;
 
     &.is-show {
       transform: rotate(180deg);
@@ -69,7 +65,7 @@
       border-radius: 2px;
       background-color: #eaf3ff;
     }
-  
+
     &.active {
       border-radius: 2px;
       background-color: #eaf3ff;
