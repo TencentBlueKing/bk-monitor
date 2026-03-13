@@ -19,6 +19,7 @@ from bk_monitor_base.uptime_check import (
     UptimeCheckTask,
     UptimeCheckTaskProtocol,
     UptimeCheckTaskStatus,
+    batch_count_node_tasks,
     control_task,
     delete_group,
     delete_node,
@@ -387,9 +388,13 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
         except Exception as e:
             logger.exception(f"Failed to get uptime check node status: {e}")
 
+        # 批量统计所有节点的任务数，避免 N+1 查询问题
+        node_ids = [node.id for node in nodes]
+        node_task_count_map = batch_count_node_tasks(node_ids=node_ids)
+
         for node in nodes:
-            # 统计任务数（通过任务列表获取）
-            task_num = len(list_tasks(bk_tenant_id=bk_tenant_id, query={"node_ids": [node.id]}, fields=["id"]))
+            # 从预计算的映射中获取任务数
+            task_num = node_task_count_map.get(node.id, 0)
             host_instance = get_by_node(node.model_dump(), node_to_host)
             beat_version = ""
             if not host_instance:

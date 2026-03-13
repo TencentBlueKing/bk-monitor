@@ -248,18 +248,64 @@ class UptimeCheckTaskListResource(Resource):
         bk_tenant_id = cast(str, get_request_tenant_id())
         query_group = {}
         task_data_mapping = {}
+
+        # 批量预加载所有节点和分组信息，避免 N+1 查询问题
+        all_node_ids: set[int] = set()
+        all_group_ids: set[int] = set()
+        task_node_ids_map: dict[int, list[int]] = {}
+        task_group_ids_map: dict[int, list[int]] = {}
+
         for task in task_data:
+            task_id = task["id"]
+            node_ids = task.get("node_ids", [])
+            group_ids = task.get("group_ids", [])
+            all_node_ids.update(node_ids)
+            all_group_ids.update(group_ids)
+            task_node_ids_map[task_id] = node_ids
+            task_group_ids_map[task_id] = group_ids
+
+        # 一次性查询所有节点
+        all_nodes_map: dict[int, dict[str, Any]] = {}
+        if all_node_ids:
+            nodes = list_nodes(bk_tenant_id=bk_tenant_id, query={"node_ids": list(all_node_ids)})
+            for node in nodes:
+                node_config = node.model_dump(exclude={"update_time", "create_time"})
+                node_config["is_deleted"] = False
+                all_nodes_map[node.id] = node_config
+
+        # 一次性查询所有分组
+        all_groups_map: dict[int, dict[str, Any]] = {}
+        if all_group_ids:
+            groups = list_groups(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                query={"group_ids": list(all_group_ids)},
+            )
+            for group in groups:
+                all_groups_map[group.id] = {"id": group.id, "name": group.name}
+
+        for task in task_data:
+            task_id = task["id"]
             # 兼容旧字段名
             task["status"] = task["status"].value
             task["indepentent_dataid"] = task.get("independent_dataid", False)
             protocol_data: dict[str, Any] = query_group.setdefault(task["protocol"], {})
-            protocol_data.setdefault(task["config"].get("period", 60), []).append(str(task["id"]))
-            task_data_mapping[task["id"]] = task
+            protocol_data.setdefault(task["config"].get("period", 60), []).append(str(task_id))
+            task_data_mapping[task_id] = task
             url = get_uptime_check_task_url_list(task)
-            task_data_mapping[task["id"]].update(
+
+            # 从预加载的映射中获取节点和分组信息
+            task_nodes = [all_nodes_map[nid] for nid in task_node_ids_map[task_id] if nid in all_nodes_map]
+            task_groups = [all_groups_map[gid] for gid in task_group_ids_map[task_id] if gid in all_groups_map]
+
+            # 移除原始的 node_ids 和 group_ids 字段
+            task.pop("node_ids", None)
+            task.pop("group_ids", None)
+
+            task_data_mapping[task_id].update(
                 url=url,
-                nodes=self.get_nodes(bk_tenant_id, task.pop("node_ids", [])),
-                groups=self.get_groups(bk_tenant_id, bk_biz_id, task.pop("group_ids", [])),
+                nodes=task_nodes,
+                groups=task_groups,
                 task_duration=0,
                 available=0,
             )
