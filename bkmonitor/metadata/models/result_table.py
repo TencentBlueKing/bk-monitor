@@ -575,7 +575,10 @@ class ResultTable(models.Model):
     def apply_datalink(self, force_update: bool = False) -> None:
         """创建数据链路"""
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
-        from metadata.task.datalink import apply_event_group_datalink, apply_log_datalink
+        from metadata.task.datalink import (
+            apply_event_group_datalink,
+            apply_log_datalink,
+        )
         from metadata.task.tasks import access_bkdata_vm
 
         # 获取数据源ID

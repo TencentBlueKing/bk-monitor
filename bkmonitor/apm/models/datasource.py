@@ -40,12 +40,12 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
 from constants.apm import (
+    DEFAULT_DATA_LABEL,
+    TRACE_RESULT_TABLE_OPTION,
     FlowType,
     OtlpKey,
     SpanKind,
-    TRACE_RESULT_TABLE_OPTION,
     TraceDataSourceConfig,
-    DEFAULT_DATA_LABEL,
 )
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
@@ -551,6 +551,77 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     def to_json(self):
         return {**super().to_json(), "index_set_id": self.index_set_id}
+
+    def create_data_id(self):
+        """
+        创建数据源ID
+        当启用BKBase V4数据链路时, 通过 metadata API 创建数据源,
+        metadata 内部会自动处理 V4 逻辑:
+          create_data_source() 检测 etl_config="bk_flat_batch" 在 ENABLE_V4_DATALINK_ETL_CONFIGS 中
+          → 调用 apply_for_data_id_from_bkdata(event_type="log")
+          → namespace 自动推断为 "bklog"
+          → created_from 自动设为 BKDATA
+        否则走原有GSE链路
+        """
+        if self.bk_data_id != -1:
+            return self.bk_data_id
+
+        if settings.TRACING_ENABLE_BKDATA:
+            # 通过 metadata API 创建数据源, V4 逻辑由 metadata 内部处理
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+            operator = get_global_user(bk_tenant_id=bk_tenant_id)
+            data_id_info = resource.metadata.create_data_id(
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "bk_biz_id": self.bk_biz_id,
+                    "data_name": self.data_name,
+                    "operator": operator,
+                    "data_description": self.data_name,
+                    **self.DATA_ID_PARAM,
+                }
+            )
+            self.bk_data_id = data_id_info["bk_data_id"]
+            self.save()
+            return self.bk_data_id
+
+        # 原有GSE链路
+        return super().create_data_id()
+
+    @classmethod
+    @atomic(using=DATABASE_CONNECTION_NAME)
+    def apply_datasource(cls, bk_biz_id, app_name, **options):
+        obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not obj:
+            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
+        # 创建data_id
+        obj.create_data_id()
+        # 创建结果表
+        obj.create_or_update_result_table(**options)
+
+        option = options["option"]
+        if not option:
+            # 关闭
+            obj.stop(bk_biz_id, app_name)
+            return
+
+        # 当启用BKBase数据链路时, 设置V4链路选项并异步创建APM数据链路
+        if settings.TRACING_ENABLE_BKDATA:
+            from metadata.task.datalink import apply_apm_datalink
+
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+            table_id = obj.result_table_id
+            # 复用日志V4开关标记
+            metadata_models.ResultTableOption.objects.update_or_create(
+                table_id=table_id,
+                name=metadata_models.ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
+                bk_tenant_id=bk_tenant_id,
+                defaults={
+                    "value": "true",
+                    "value_type": metadata_models.ResultTableOption.TYPE_BOOL,
+                    "creator": "system",
+                },
+            )
+            apply_apm_datalink.delay(bk_tenant_id=bk_tenant_id, table_id=table_id)
 
     @property
     def table_id(self) -> str:
