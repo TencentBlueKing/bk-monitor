@@ -6,6 +6,8 @@
   flex-direction: column;
   height: 100%;
 
+  --td-text-color-primary: #4e5e7a;
+
   .issues-table-main {
     flex-grow: 1;
     flex-basis: auto;
@@ -13,50 +15,14 @@
 
   // ===================== Issues 名称列 =====================
   .issues-name-col {
-    display: flex;
-    align-items: flex-start;
-    line-height: 20px;
-
-    .issues-level-bar {
-      position: relative;
-      display: inline-flex;
-      flex-shrink: 0;
-      width: 3px;
-      height: 50px;
-      margin-top: 2px;
-      margin-right: 8px;
-
-      &::before {
-        position: absolute;
-        top: 50%;
-        left: 0;
-        width: 100%;
-        height: 36px;
-        content: '';
-        background-color: var(--issues-level-color, #3a84ff);
-        border-radius: 2px;
-        transform: translateY(-50%);
-      }
-    }
-
-    .issues-name-content {
-      flex: 1;
-      min-width: 0;
-      padding: 4px 0;
-    }
+    min-width: 0;
 
     .issues-name-title {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 500;
-      color: #3a84ff;
-      white-space: nowrap;
+      line-height: 24px;
+      color: #3974ff;
       cursor: pointer;
-
-      &:hover {
-        text-decoration: underline;
-      }
     }
 
     .issues-name-exception {
@@ -64,63 +30,53 @@
       overflow: hidden;
       text-overflow: ellipsis;
       font-size: 12px;
-      color: #979ba5;
       white-space: nowrap;
     }
 
     .issues-name-meta {
       display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-top: 4px;
-    }
-
-    .issues-type-tag {
-      display: inline-flex;
       gap: 4px;
       align-items: center;
-      height: 20px;
-      padding: 0 6px;
-      font-size: 12px;
-      color: #63656e;
-      background-color: #f0f1f5;
-      border-radius: 2px;
+      margin-top: 6px;
 
-      .type-dot {
-        display: inline-block;
-        width: 6px;
-        height: 6px;
-        background-color: var(--issues-type-color, #2dcb56);
-        border-radius: 50%;
+      .issues-type-tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        color: var(--issues-type-color, #21a380);
+        background-color: var(--issues-type-bg, #e1f5f0);
+        border-radius: 4px;
+
+        .icon-monitor {
+          font-size: 12px;
+        }
       }
-    }
 
-    .issues-alert-count {
-      display: inline-flex;
-      gap: 2px;
-      align-items: center;
-      font-size: 12px;
-      color: #979ba5;
+      .issues-alert-count {
+        display: inline-flex;
+        gap: 2px;
+        align-items: center;
+        height: 18px;
+        padding: 3px 4px;
+        font-size: 11px;
+        color: #8f9fbd;
+        background: #f0f4fa;
+        border-radius: 4px;
 
-      .icon-mc-alarm {
-        font-size: 14px;
+        .icon-shijianjiansuo {
+          font-size: 11px;
+        }
       }
     }
   }
 
   // ===================== 时间列 =====================
   .issues-time-col {
-    line-height: 20px;
-
-    .time-relative {
-      font-size: 12px;
-      color: #313238;
-    }
-
     .time-absolute {
-      margin-top: 2px;
-      font-size: 12px;
-      color: #979ba5;
+      margin-top: 4px;
+      color: #8f9fbd;
     }
   }
 
@@ -162,21 +118,19 @@
 
   // ===================== 影响范围列 =====================
   .issues-impact-col {
-    line-height: 20px;
-
     .impact-row {
       display: flex;
       font-size: 12px;
 
       .impact-label {
         flex-shrink: 0;
-        color: #979ba5;
+        color: #8f9fbd;
       }
 
       .impact-value {
         overflow: hidden;
         text-overflow: ellipsis;
-        color: #313238;
+        color: #4e5e7a;
         white-space: nowrap;
       }
     }
@@ -186,32 +140,41 @@
   .issues-priority-col {
     display: flex;
     align-items: center;
-    justify-content: center;
     cursor: pointer;
 
-    .priority-icon {
-      font-size: 16px;
-      transition: transform 0.2s;
+    .priority-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 32px;
+      height: 24px;
+      padding: 0 6px;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 24px;
+      border-radius: 4px;
+      transition: opacity 0.2s;
     }
 
-    &:hover .priority-icon {
-      transform: scale(1.2);
+    &:hover .priority-tag {
+      opacity: 0.85;
     }
   }
 
   // ===================== 状态列 =====================
   .issues-status-col {
     display: flex;
-    gap: 4px;
     align-items: center;
 
-    .status-icon {
-      font-size: 14px;
-    }
-
-    .status-text {
+    .status-tag {
+      display: inline-flex;
+      gap: 2px;
+      align-items: center;
+      height: 24px;
+      padding: 0 8px;
       font-size: 12px;
-      color: #63656e;
+      font-weight: 500;
+      border-radius: 12px;
     }
   }
 
@@ -264,11 +227,8 @@
 
   .priority-menu-item {
     display: flex;
-    gap: 6px;
     align-items: center;
     padding: 6px 12px;
-    font-size: 12px;
-    color: #63656e;
     cursor: pointer;
     transition: background-color 0.15s;
 
@@ -277,17 +237,21 @@
     }
 
     &.is-active {
-      color: #3a84ff;
       background-color: #e1ecff;
     }
 
     /* stylelint-disable-next-line no-descending-specificity */
-    .priority-icon {
-      font-size: 14px;
-    }
-
-    .priority-text {
-      flex: 1;
+    .priority-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 32px;
+      height: 24px;
+      padding: 0 6px;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 24px;
+      border-radius: 4px;
     }
   }
 }

@@ -28,10 +28,10 @@ import { shallowRef } from 'vue';
 
 import { Button, Dialog, Input } from 'bkui-vue';
 
-import { type IssuePriority, IssuePriorityEnum, IssuesPriorityMap } from './typings';
+import { IssuePriorityEnum, IssuesPriorityMap } from '../constant';
 
 import type { IUsePopoverTools } from '../../components/alarm-table/hooks/use-popover';
-import type { IssueItem } from './typings';
+import type { IssueItem, IssuePriorityType } from '../typing';
 
 export interface UseIssuesHandlersOptions {
   /** click popover 工具（基础设施依赖） */
@@ -41,7 +41,7 @@ export interface UseIssuesHandlersOptions {
   /** 标记已解决回调 */
   markResolvedEmit: (id: string) => void;
   /** 优先级变更回调 */
-  priorityChangeEmit: (id: string, priority: IssuePriority) => void;
+  priorityChangeEmit: (id: string, priority: IssuePriorityType) => void;
   /** 显示 Issue 详情回调 */
   showDetailEmit: (id: string) => void;
 }
@@ -49,8 +49,7 @@ export interface UseIssuesHandlersOptions {
 export type UseIssuesHandlersReturnType = ReturnType<typeof useIssuesHandlers>;
 
 /** 优先级选项列表 */
-const PRIORITY_OPTIONS: IssuePriority[] = [
-  IssuePriorityEnum.CRITICAL,
+const PRIORITY_OPTIONS: IssuePriorityType[] = [
   IssuePriorityEnum.HIGH,
   IssuePriorityEnum.MEDIUM,
   IssuePriorityEnum.LOW,
@@ -145,11 +144,15 @@ export const useIssuesHandlers = ({
                 clickPopoverTools.hidePopover();
               }}
             >
-              <i
-                style={{ color: config.color }}
-                class={`priority-icon ${config.prefixIcon}`}
-              />
-              <span class='priority-text'>{config.alias}</span>
+              <span
+                style={{
+                  backgroundColor: config.bgColor,
+                  color: config.color,
+                }}
+                class='priority-tag'
+              >
+                {config.alias}
+              </span>
             </div>
           );
         })}

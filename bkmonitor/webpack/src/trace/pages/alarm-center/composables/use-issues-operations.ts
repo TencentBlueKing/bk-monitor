@@ -26,9 +26,9 @@
 
 import type { ShallowRef } from 'vue';
 
-import { IssueStatusEnum } from '../alarm-issues/issues-table/typings';
+import { IssueStatusEnum } from '../alarm-issues/constant';
 
-import type { IssueItem, IssuePriority } from '../alarm-issues/issues-table/typings';
+import type { IssueItem, IssuePriorityType } from '../alarm-issues/typing';
 
 export interface UseIssuesOperationsOptions {
   /** 完整数据集的响应式引用（由 useIssuesTable 提供） */
@@ -83,7 +83,7 @@ export function useIssuesOperations({ allData }: UseIssuesOperationsOptions) {
    * @param id - Issue ID
    * @param priority - 新优先级
    */
-  const handlePriorityChange = (id: string, priority: IssuePriority) => {
+  const handlePriorityChange = (id: string, priority: IssuePriorityType) => {
     updateIssueItem(id, { priority });
   };
 

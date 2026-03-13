@@ -24,16 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onBeforeUnmount, onMounted, useTemplateRef } from 'vue';
+import { type PropType, defineComponent, onBeforeUnmount, onMounted, useTemplateRef } from 'vue';
 
 import CommonTable from '../../components/alarm-table/components/common-table/common-table';
 import { usePopover } from '../../components/alarm-table/hooks/use-popover';
 import { CONTENT_SCROLL_ELEMENT_CLASS_NAME } from '../../typings';
-import { getIssuesColumns } from './issues-columns';
+import { useIssuesColumns } from './issues-columns';
 import { useIssuesHandlers } from './use-issues-handlers';
 
 import type { TablePagination } from '../../typings';
-import type { IssueItem, IssuePriority } from './typings';
+import type { IssueItem, IssuePriorityType } from '../typing';
 import type { SelectOptions } from 'tdesign-vue-next';
 
 import './issues-table.scss';
@@ -73,13 +73,10 @@ export default defineComponent({
     showDetail: (id: string) => typeof id === 'string',
     assign: (id: string, assignee: string[]) => typeof id === 'string' && Array.isArray(assignee),
     markResolved: (id: string) => typeof id === 'string',
-    priorityChange: (id: string, priority: IssuePriority) => typeof id === 'string' && !!priority,
+    priorityChange: (id: string, priority: IssuePriorityType) => typeof id === 'string' && !!priority,
   },
   setup(_props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
-
-    // ===================== 基础设施 =====================
-
     /** click 场景使用的 popover 工具 */
     const clickPopoverTools = usePopover({
       showDelay: 100,
@@ -89,13 +86,10 @@ export default defineComponent({
         theme: 'light alarm-center-popover max-width-50vw text-wrap padding-0',
       },
     });
-
     /** 滚动容器元素 */
     let scrollContainer: HTMLElement = null;
     /** 滚动结束后回调逻辑执行计时器 */
     let scrollPointerEventsTimer: null | ReturnType<typeof setTimeout> = null;
-
-    // ===================== 交互逻辑（hook 层） =====================
 
     const { handleShowDetail, handleAssignClick, handleMarkResolved, handlePriorityClick, renderAssignDialog } =
       useIssuesHandlers({
@@ -106,19 +100,13 @@ export default defineComponent({
         priorityChangeEmit: (id, priority) => emit('priorityChange', id, priority),
       });
 
-    // ===================== 列配置（配置层） =====================
-
     /** Issues 表格列配置 */
-    const columns = computed(() =>
-      getIssuesColumns({
-        handleShowDetail,
-        handleAssignClick,
-        handleMarkResolved,
-        handlePriorityClick,
-      })
-    );
-
-    // ===================== 滚动优化 =====================
+    const { columns } = useIssuesColumns({
+      handleShowDetail,
+      handleAssignClick,
+      handleMarkResolved,
+      handlePriorityClick,
+    });
 
     // 配置表格是否能够触发事件 target
     const updateTablePointerEvents = (val: 'auto' | 'none') => {
@@ -152,8 +140,6 @@ export default defineComponent({
       scrollContainer = null;
     };
 
-    // ===================== 事件处理 =====================
-
     /**
      * @description 处理行选择变化
      * @param keys - 选中行 keys
@@ -162,8 +148,6 @@ export default defineComponent({
     const handleSelectionChange = (keys?: (number | string)[], options?: SelectOptions<unknown>) => {
       emit('selectionChange', (keys ?? []) as string[], options);
     };
-
-    // ===================== 生命周期 =====================
 
     onMounted(() => {
       addScrollListener();

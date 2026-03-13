@@ -24,319 +24,316 @@
  * IN THE SOFTWARE.
  */
 
+import { computed } from 'vue';
+
 import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 
 import { ExploreTableColumnTypeEnum } from '../../../trace-explore/components/trace-explore-table/typing';
-import { AlarmLevelIconMap } from '../../typings';
-import { IssuesPriorityMap, IssuesStatusMap, IssuesTypeMap } from './typings';
-import 'dayjs/locale/zh-cn';
+import { IssuesPriorityMap, IssuesStatusMap, IssuesTypeMap } from '../constant';
 
-import type { BaseTableColumn } from '../../../trace-explore/components/trace-explore-table/typing';
-import type { IssueItem } from './typings';
+import type {
+  BaseTableColumn,
+  TableCellRenderContext,
+} from '../../../trace-explore/components/trace-explore-table/typing';
+import type { IssueItem } from '../typing';
 import type { UseIssuesHandlersReturnType } from './use-issues-handlers';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
-dayjs.extend(relativeTime);
-dayjs.locale('zh-cn');
-
-/** 列配置工厂函数的交互上下文类型（从 useIssuesHandlers 返回值中提取） */
-export type IssuesColumnsContext = Pick<
+/** useIssuesColumns 入参：从 useIssuesHandlers 返回值中提取交互处理函数 */
+type IssuesColumnsHandlers = Pick<
   UseIssuesHandlersReturnType,
   'handleAssignClick' | 'handleMarkResolved' | 'handlePriorityClick' | 'handleShowDetail'
 >;
 
-// ===================== 列渲染方法 =====================
-
 /**
- * @description Issues 名称列渲染（三行结构）
- * @param row - Issue 行数据
- * @param context - 交互上下文
- * @returns 渲染 DOM
+ * @description Issues 表格列配置 Composable，通过闭包捕获交互处理函数，
+ *              所有 cellRenderer 入参与 TableCellRenderer 签名严格一致
+ * @param handlers - 交互处理函数（由 useIssuesHandlers 提供）
+ * @returns {{ columns: ComputedRef<BaseTableColumn[]> }} 响应式列配置
  */
-const renderIssueName = (row: IssueItem, context: IssuesColumnsContext): SlotReturnValue => {
-  const levelConfig = AlarmLevelIconMap?.[row.severity];
-  const typeConfig = IssuesTypeMap[row.issue_type];
-  return (
-    <div class='issues-name-col'>
-      {/* 左侧色标 */}
-      <i
-        style={{ '--issues-level-color': levelConfig?.iconColor || '#3A84FF' }}
-        class='issues-level-bar'
-      />
-      <div class='issues-name-content'>
-        {/* 第1行：Issue 标题 */}
-        <div
-          class='issues-name-title'
-          onClick={() => context.handleShowDetail(row.id)}
-        >
-          {row.issue_name}
-        </div>
-        {/* 第2行：关键报错信息 */}
-        <div class='issues-name-exception'>{row.exception_type}</div>
-        {/* 第3行：Issues 类型 + 告警事件数量 */}
-        <div class='issues-name-meta'>
-          <span
-            style={{ '--issues-type-color': typeConfig?.color || '#2DCB56' }}
-            class='issues-type-tag'
-          >
-            <i class='type-dot' />
-            {typeConfig?.alias || row.issue_type}
-          </span>
-          <span class='issues-alert-count'>
-            <i class='icon-monitor icon-mc-alarm' />
-            {row.alert_count}
-          </span>
-        </div>
-      </div>
-    </div>
-  ) as unknown as SlotReturnValue;
-};
-
-/**
- * @description 时间列渲染（相对时间 + 绝对时间两行结构）
- * @param timestamp - 时间戳（秒）
- * @returns 渲染 DOM
- */
-const renderTimeCell = (timestamp: number): SlotReturnValue => {
-  if (!timestamp) return (<span>--</span>) as unknown as SlotReturnValue;
-  const dayjsInstance = dayjs.unix(timestamp);
-  const relativeStr = dayjsInstance.fromNow();
-  const absoluteStr = dayjsInstance.format('YYYY-MM-DD HH:mm:ss');
-  return (
-    <div class='issues-time-col'>
-      <div class='time-relative'>{relativeStr}</div>
-      <div class='time-absolute'>{absoluteStr}</div>
-    </div>
-  ) as unknown as SlotReturnValue;
-};
-
-/**
- * @description 趋势列渲染（占位柱状条）
- * @param row - Issue 行数据
- * @returns 渲染 DOM
- */
-const renderTrendCell = (row: IssueItem): SlotReturnValue => {
-  const maxVal = Math.max(...(row.trend_data || []), 1);
-  const total = (row.trend_data || []).reduce((sum, v) => sum + v, 0);
-  return (
-    <div class='issues-trend-col'>
-      <div class='trend-bars'>
-        {(row.trend_data || []).map((val, i) => (
-          <div
-            key={i}
-            style={{ height: `${Math.max((val / maxVal) * 100, 2)}%` }}
-            class='trend-bar'
-          />
-        ))}
-      </div>
-      <span class='trend-total'>{total}</span>
-    </div>
-  ) as unknown as SlotReturnValue;
-};
-
-/**
- * @description 影响范围列渲染
- * @param row - Issue 行数据
- * @returns 渲染 DOM
- */
-const renderImpactCell = (row: IssueItem): SlotReturnValue => {
-  return (
-    <div class='issues-impact-col'>
-      <div class='impact-row'>
-        <span class='impact-label'>{window.i18n.t('服务')}：</span>
-        <span class='impact-value'>{row.impact_service || '--'}</span>
-      </div>
-      <div class='impact-row'>
-        <span class='impact-label'>{window.i18n.t('主机')}：</span>
-        <span class='impact-value'>{row.impact_host_count ?? '--'}</span>
-      </div>
-    </div>
-  ) as unknown as SlotReturnValue;
-};
-
-/**
- * @description 优先级列渲染（可点击更改）
- * @param row - Issue 行数据
- * @param context - 交互上下文
- * @returns 渲染 DOM
- */
-const renderPriorityCell = (row: IssueItem, context: IssuesColumnsContext): SlotReturnValue => {
-  const config = IssuesPriorityMap[row.priority];
-  return (
-    <div
-      class='issues-priority-col'
-      onClick={(e: MouseEvent) => context.handlePriorityClick(e, row)}
-    >
-      <i
-        style={{ color: config?.color }}
-        class={`priority-icon ${config?.prefixIcon}`}
-      />
-    </div>
-  ) as unknown as SlotReturnValue;
-};
-
-/**
- * @description 状态列渲染
- * @param row - Issue 行数据
- * @returns 渲染 DOM
- */
-const renderStatusCell = (row: IssueItem): SlotReturnValue => {
-  const config = IssuesStatusMap[row.status];
-  return (
-    <div class='issues-status-col'>
-      <i
-        style={{ color: config?.color }}
-        class={`status-icon ${config?.prefixIcon}`}
-      />
-      <span class='status-text'>{config?.alias || row.status}</span>
-    </div>
-  ) as unknown as SlotReturnValue;
-};
-
-/**
- * @description 负责人列渲染（区分已指派/未指派）
- * @param row - Issue 行数据
- * @param context - 交互上下文
- * @returns 渲染 DOM
- */
-const renderAssigneeCell = (row: IssueItem, context: IssuesColumnsContext): SlotReturnValue => {
-  const hasAssignee = row.assignee?.length > 0;
-  if (!hasAssignee) {
-    return (
-      <div class='issues-assignee-col'>
-        <span
-          class='assignee-unassigned'
-          onClick={() => context.handleAssignClick(row)}
-        >
-          {window.i18n.t('未指派')}
-        </span>
-      </div>
-    ) as unknown as SlotReturnValue;
-  }
-  return (
-    <div class='issues-assignee-col'>
-      {row.assignee.map(user => (
-        <span
-          key={user}
-          class='assignee-tag'
-        >
-          {user}
-        </span>
-      ))}
-    </div>
-  ) as unknown as SlotReturnValue;
-};
-
-/**
- * @description 操作列渲染
- * @param row - Issue 行数据
- * @param context - 交互上下文
- * @returns 渲染 DOM
- */
-const renderOperationCell = (row: IssueItem, context: IssuesColumnsContext): SlotReturnValue => {
-  return (
-    <div class='issues-operation-col'>
-      <span
-        class='operation-btn'
-        onClick={() => context.handleMarkResolved(row.id)}
-      >
-        {window.i18n.t('标为已解决')}
-      </span>
-    </div>
-  ) as unknown as SlotReturnValue;
-};
-
-// ===================== 列配置工厂函数 =====================
-
-/**
- * @description 获取 Issues 表格列配置
- * @param context - 交互上下文对象（由 useIssuesHandlers 提供的处理函数）
- * @returns BaseTableColumn[] 列配置数组
- */
-export const getIssuesColumns = (context: IssuesColumnsContext): BaseTableColumn[] => {
-  return [
-    // 多选列
+export const useIssuesColumns = (handlers: IssuesColumnsHandlers) => {
+  /** Issues 表格列配置 */
+  const columns = computed<BaseTableColumn[]>(() => [
     {
       colKey: 'row-select',
       type: 'multiple',
-      width: 50,
-      minWidth: 50,
+      width: 30,
+      minWidth: 30,
       fixed: 'left',
     },
-    // Issues 名称
     {
       colKey: 'issue_name',
       title: 'Issues',
-      minWidth: 280,
+      minWidth: 200,
       fixed: 'left',
-      cellRenderer: (row, _column, _renderCtx) => renderIssueName(row, context),
+      cellRenderer: renderIssueName,
     },
-    // 标签
     {
       colKey: 'tags',
       title: window.i18n.t('标签'),
       minWidth: 180,
       renderType: ExploreTableColumnTypeEnum.TAGS,
     },
-    // 最后出现时间
     {
       colKey: 'last_seen',
       title: window.i18n.t('最后出现时间'),
       width: 180,
       sorter: true,
-      cellRenderer: (row, _column, _renderCtx) => renderTimeCell(row.last_seen),
+      cellRenderer: renderTimeCell,
     },
-    // 最早发生时间
     {
       colKey: 'first_seen',
       title: window.i18n.t('最早发生时间'),
       width: 180,
       sorter: true,
-      cellRenderer: (row, _column, _renderCtx) => renderTimeCell(row.first_seen),
+      cellRenderer: renderTimeCell,
     },
-    // 趋势
     {
       colKey: 'trend_data',
       title: window.i18n.t('趋势'),
       width: 160,
-      cellRenderer: (row, _column, _renderCtx) => renderTrendCell(row),
+      cellRenderer: renderTrendCell,
     },
-    // 影响范围
     {
       colKey: 'impact_service',
       title: window.i18n.t('影响范围'),
       minWidth: 160,
-      cellRenderer: (row, _column, _renderCtx) => renderImpactCell(row),
+      cellRenderer: renderImpactCell,
     },
-    // 优先级
     {
       colKey: 'priority',
       title: window.i18n.t('优先级'),
       width: 80,
-      cellRenderer: (row, _column, _renderCtx) => renderPriorityCell(row, context),
+      cellRenderer: renderPriorityCell,
     },
-    // 状态
     {
       colKey: 'status',
       title: window.i18n.t('状态'),
       width: 120,
-      cellRenderer: (row, _column, _renderCtx) => renderStatusCell(row),
+      cellRenderer: renderStatusCell,
     },
-    // 负责人
     {
       colKey: 'assignee',
       title: window.i18n.t('负责人'),
       minWidth: 120,
-      cellRenderer: (row, _column, _renderCtx) => renderAssigneeCell(row, context),
+      cellRenderer: renderAssigneeCell,
     },
-    // 操作
     {
       colKey: 'operation',
       title: window.i18n.t('操作'),
       width: 120,
       fixed: 'right',
-      cellRenderer: (row, _column, _renderCtx) => renderOperationCell(row, context),
+      cellRenderer: renderOperationCell,
     },
-  ];
+  ]);
+
+  /**
+   * @description Issues 名称列渲染（三行结构：标题 + 异常类型 + 元信息标签）
+   * @param row - 当前行 Issue 数据
+   * @param columns - 列配置，用于判断是否启用省略号
+   * @param renderCtx - 表格单元格渲染上下文
+   * @returns 名称列 JSX
+   */
+  const renderIssueName = (
+    row: IssueItem,
+    columns: BaseTableColumn,
+    renderCtx: TableCellRenderContext
+  ): SlotReturnValue => {
+    const typeConfig = IssuesTypeMap[row.issue_type];
+    return (
+      <div class='issues-name-col'>
+        <div
+          class={`issues-name-title ${renderCtx.isEnabledCellEllipsis(columns)}`}
+          onClick={() => handlers.handleShowDetail(row.id)}
+        >
+          {row.issue_name}
+        </div>
+        <div class={`issues-name-exception ${renderCtx.isEnabledCellEllipsis(columns)}`}>{row.exception_type}</div>
+        <div class='issues-name-meta'>
+          <span
+            style={{
+              '--issues-type-bg': typeConfig?.bgColor || '#E1F5F0',
+              '--issues-type-color': typeConfig?.color || '#21A380',
+            }}
+            class='issues-type-tag'
+            title={typeConfig?.alias || row.issue_type}
+          >
+            <i class={typeConfig?.icon} />
+          </span>
+          <span class='issues-alert-count'>
+            <i class='icon-monitor icon-shijianjiansuo' />
+            {row.alert_count}
+          </span>
+        </div>
+      </div>
+    ) as unknown as SlotReturnValue;
+  };
+
+  /**
+   * @description 时间列渲染（相对时间 + 绝对时间双行结构，通过 column.colKey 动态读取时间字段）
+   * @param row - 当前行 Issue 数据
+   * @param column - 列配置，通过 colKey 确定读取的时间字段
+   * @param _renderCtx - 表格单元格渲染上下文（未使用）
+   * @returns 时间列 JSX
+   */
+  const renderTimeCell = (
+    row: IssueItem,
+    column: BaseTableColumn,
+    _renderCtx: TableCellRenderContext
+  ): SlotReturnValue => {
+    const timestamp = row[column.colKey as string] as number;
+    if (!timestamp) return (<span>--</span>) as unknown as SlotReturnValue;
+    const dayjsInstance = dayjs.unix(timestamp);
+    return (
+      <div class='issues-time-col'>
+        <div class='time-relative'>{dayjsInstance.fromNow()}</div>
+        <div class='time-absolute'>{dayjsInstance.format('YYYY-MM-DD HH:mm:ss')}</div>
+      </div>
+    ) as unknown as SlotReturnValue;
+  };
+
+  /**
+   * @description 趋势列渲染（柱状迷你图 + 事件总数）
+   * @param row - 当前行 Issue 数据
+   * @returns 趋势列 JSX
+   */
+  const renderTrendCell = (row: IssueItem): SlotReturnValue => {
+    const trendData = row.trend_data || [];
+    const maxVal = Math.max(...trendData, 1);
+    const total = trendData.reduce((sum, v) => sum + v, 0);
+    return (
+      <div class='issues-trend-col'>
+        <div class='trend-bars'>
+          {trendData.map((val, i) => (
+            <div
+              key={i}
+              style={{ height: `${Math.max((val / maxVal) * 100, 2)}%` }}
+              class='trend-bar'
+            />
+          ))}
+        </div>
+        <span class='trend-total'>{total}</span>
+      </div>
+    ) as unknown as SlotReturnValue;
+  };
+
+  /**
+   * @description 影响范围列渲染（服务名 + 主机数双行展示）
+   * @param row - 当前行 Issue 数据
+   * @returns 影响范围列 JSX
+   */
+  const renderImpactCell = (row: IssueItem): SlotReturnValue => {
+    return (
+      <div class='issues-impact-col'>
+        <div class='impact-row'>
+          <span class='impact-label'>{window.i18n.t('服务')}：</span>
+          <span class='impact-value'>{row.impact_service || '--'}</span>
+        </div>
+        <div class='impact-row'>
+          <span class='impact-label'>{window.i18n.t('主机')}：</span>
+          <span class='impact-value'>{row.impact_host_count ?? '--'}</span>
+        </div>
+      </div>
+    ) as unknown as SlotReturnValue;
+  };
+
+  /**
+   * @description 优先级列渲染（色块标签，显示优先级文字，点击触发优先级选择弹出框）
+   * @param row - 当前行 Issue 数据
+   * @returns 优先级列 JSX
+   */
+  const renderPriorityCell = (row: IssueItem): SlotReturnValue => {
+    const config = IssuesPriorityMap[row.priority];
+    return (
+      <div
+        class='issues-priority-col'
+        onClick={(e: MouseEvent) => handlers.handlePriorityClick(e, row)}
+      >
+        <span
+          style={{
+            backgroundColor: config?.bgColor,
+            color: config?.color,
+          }}
+          class='priority-tag'
+        >
+          {config?.alias ?? '--'}
+        </span>
+      </div>
+    ) as unknown as SlotReturnValue;
+  };
+
+  /**
+   * @description 状态列渲染（圆角胶囊标签：状态图标 + 状态文字）
+   * @param row - 当前行 Issue 数据
+   * @returns 状态列 JSX
+   */
+  const renderStatusCell = (row: IssueItem): SlotReturnValue => {
+    const config = IssuesStatusMap[row.status];
+    return (
+      <div class='issues-status-col'>
+        <span
+          style={{
+            backgroundColor: config?.bgColor,
+            color: config?.color,
+          }}
+          class='status-tag'
+        >
+          <i class={`status-icon ${config?.icon}`} />
+          <span class='status-text'>{config?.alias || row.status}</span>
+        </span>
+      </div>
+    ) as unknown as SlotReturnValue;
+  };
+
+  /**
+   * @description 负责人列渲染（已指派显示用户标签列表 / 未指派显示可点击的指派入口）
+   * @param row - 当前行 Issue 数据
+   * @returns 负责人列 JSX
+   */
+  const renderAssigneeCell = (row: IssueItem): SlotReturnValue => {
+    if (!row.assignee?.length) {
+      return (
+        <div class='issues-assignee-col'>
+          <span
+            class='assignee-unassigned'
+            onClick={() => handlers.handleAssignClick(row)}
+          >
+            {window.i18n.t('未指派')}
+          </span>
+        </div>
+      ) as unknown as SlotReturnValue;
+    }
+    return (
+      <div class='issues-assignee-col'>
+        {row.assignee.map(user => (
+          <span
+            key={user}
+            class='assignee-tag'
+          >
+            {user}
+          </span>
+        ))}
+      </div>
+    ) as unknown as SlotReturnValue;
+  };
+
+  /**
+   * @description 操作列渲染（「标为已解决」快捷操作按钮）
+   * @param row - 当前行 Issue 数据
+   * @returns 操作列 JSX
+   */
+  const renderOperationCell = (row: IssueItem): SlotReturnValue => {
+    return (
+      <div class='issues-operation-col'>
+        <span
+          class='operation-btn'
+          onClick={() => handlers.handleMarkResolved(row.id)}
+        >
+          {window.i18n.t('标为已解决')}
+        </span>
+      </div>
+    ) as unknown as SlotReturnValue;
+  };
+
+  return { columns };
 };

@@ -28,7 +28,7 @@ import { computed, onScopeDispose, shallowRef } from 'vue';
 
 import { generateMockIssues } from '../alarm-issues/issues-table/mock-data';
 
-import type { IssueItem } from '../alarm-issues/issues-table/typings';
+import type { IssueItem } from '../alarm-issues/typing';
 import type { TablePagination } from '../typings';
 
 /** 默认分页配置 */

@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { IssuePriorityEnum, IssueStatusEnum, IssueTypeEnum } from './typings';
+import { IssuePriorityEnum, IssueStatusEnum, IssueTypeEnum } from '../constant';
 
-import type { IssueItem, IssuePriority, IssueStatus, IssueType } from './typings';
+import type { IssueItem, IssuePriorityType, IssueStatusType, IssueTypeType } from '../typing';
 
 /** 模拟用户名列表 */
 const MOCK_USERS = ['carmelu', 'nekzhang', 'liuwei', 'zhangsan', 'wangwu'];
@@ -34,7 +34,7 @@ const MOCK_USERS = ['carmelu', 'nekzhang', 'liuwei', 'zhangsan', 'wangwu'];
 /** 模拟异常类型列表 */
 const MOCK_EXCEPTIONS = [
   'NullpointerException',
-  'IndexOutOfBoundsException',
+  'IndexOutOfBoundsExceptionIndexOutOfBoundsException',
   'TimeoutException',
   'ConnectionRefusedException',
   'IllegalArgumentException',
@@ -43,7 +43,7 @@ const MOCK_EXCEPTIONS = [
 /** 模拟 Issue 名称列表 */
 const MOCK_ISSUE_NAMES = [
   '异常登录日志告警',
-  'sn.lobby服务故障引发集群...',
+  'sn.lobby服务故障引发集群lobby服务故障引发集群',
   'API网关响应超时告警',
   '内存使用率超过阈值',
   '磁盘IO延迟过高告警',
@@ -65,18 +65,21 @@ const MOCK_TAG_GROUPS = [
 const MOCK_SERVICES = ['zone-100012', 'lobby-753453453223...', 'gateway-10086', 'db-master-001'];
 
 /** 优先级取值列表 */
-const PRIORITIES: IssuePriority[] = [
-  IssuePriorityEnum.CRITICAL,
+const PRIORITIES: IssuePriorityType[] = [
   IssuePriorityEnum.HIGH,
   IssuePriorityEnum.MEDIUM,
   IssuePriorityEnum.LOW,
 ];
 
 /** 状态取值列表 */
-const STATUSES: IssueStatus[] = [IssueStatusEnum.PENDING_REVIEW, IssueStatusEnum.UNRESOLVED, IssueStatusEnum.RESOLVED];
+const STATUSES: IssueStatusType[] = [
+  IssueStatusEnum.PENDING_REVIEW,
+  IssueStatusEnum.UNRESOLVED,
+  IssueStatusEnum.RESOLVED,
+];
 
 /** Issue 类型取值列表 */
-const ISSUE_TYPES: IssueType[] = [IssueTypeEnum.NEW, IssueTypeEnum.REGRESSION];
+const ISSUE_TYPES: IssueTypeType[] = [IssueTypeEnum.NEW, IssueTypeEnum.REGRESSION];
 
 // 随机取数组元素
 const randomPick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
