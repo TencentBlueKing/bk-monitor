@@ -810,14 +810,19 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
             raise DRFValidationError({"bk_biz_id": _("参数缺失")})
         bk_biz_id = int(cast(int | str, bk_biz_id_raw))
         operator: str = request.user.username
-
         task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
         # 运行中/启动中/停止失败的任务，要求先执行停用，避免删除过程中配置状态不一致
-        if task.status in (
-            UptimeCheckTaskStatus.RUNNING,
-            UptimeCheckTaskStatus.STARTING,
-        ):
-            raise CustomException(_("任务正在运行，请先停止任务后再删除"))
+        try:
+            if task.status in (
+                UptimeCheckTaskStatus.RUNNING,
+                UptimeCheckTaskStatus.STARTING,
+            ):
+                logger.info(f"拨测任务{task_id}正在运行，执行停止操作")
+                control_task(
+                    bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id, action="stop", operator=operator
+                )
+        except Exception as e:
+            logger.error(f"拨测任务{task_id}停止失败: {e}")
 
         delete_task(
             bk_tenant_id=bk_tenant_id,
