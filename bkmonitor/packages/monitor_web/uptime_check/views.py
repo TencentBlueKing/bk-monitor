@@ -367,6 +367,17 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
 
         # 将节点解析成cmdb主机，存放在以host_id 和 ip+cloud_id 为key 的 字典里
         node_to_host = resource.uptime_check.get_node_host_dict(bk_tenant_id=bk_tenant_id, nodes=nodes)
+        node_ids = [node.id for node in nodes]
+        node_task_count_mapping = {node_id: 0 for node_id in node_ids}
+        if node_ids:
+            # 批量查询节点关联任务，避免在节点循环中逐个调用 list_tasks 产生 N+1 查询
+            related_tasks = list_tasks(
+                bk_tenant_id=bk_tenant_id, query={"node_ids": node_ids}, fields=["id", "node_ids"]
+            )
+            for task in related_tasks:
+                for node_id in task.node_ids:
+                    if node_id in node_task_count_mapping:
+                        node_task_count_mapping[node_id] += 1
 
         result = []
         bk_host_ids = {host.bk_host_id for host in node_to_host.values()}
@@ -388,8 +399,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
             logger.exception(f"Failed to get uptime check node status: {e}")
 
         for node in nodes:
-            # 统计任务数（通过任务列表获取）
-            task_num = len(list_tasks(bk_tenant_id=bk_tenant_id, query={"node_ids": [node.id]}, fields=["id"]))
+            task_num = node_task_count_mapping.get(node.id, 0)
             host_instance = get_by_node(node.model_dump(), node_to_host)
             beat_version = ""
             if not host_instance:
