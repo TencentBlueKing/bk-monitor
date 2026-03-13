@@ -606,6 +606,12 @@ class ResultTable(models.Model):
                 and datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
             )
             if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
+                # 插件开启V4链路需要配置option
+                if datasource.etl_config in [EtlConfigs.BK_EXPORTER, EtlConfigs.BK_STANDARD] and (
+                    not options or not options.get(ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK, False)
+                ):
+                    return
+
                 # NOTE: 使用 on_commit 确保事务提交后再执行异步任务，避免事务未提交但异步任务先执行的情况
                 # 提取变量值到局部变量，确保闭包捕获的是值而不是引用
                 bk_data_id = datasource.bk_data_id
@@ -2858,6 +2864,7 @@ class ResultTableOption(OptionBase):
     OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK = "enable_v4_event_group_data_link"
     OPTION_ENABLE_V4_LOG_DATA_LINK = "enable_log_v4_data_link"
     OPTION_V4_LOG_DATA_LINK = "log_v4_data_link"
+    OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
 
     # 选项类型
