@@ -383,6 +383,7 @@ dev = [
     { name = "celery-types", specifier = ">=0.23.0,<0.25.0" },
     { name = "django-types", specifier = ">=0.22.0,<0.23.0" },
     { name = "elasticmock", specifier = "==1.8.1" },
+    { name = "fakeredis", specifier = ">=2.26.1,<2.27.0" },
     { name = "ipython", specifier = ">=9.3.0,<9.4.0" },
     { name = "pre-commit", specifier = ">=4.2.0,<4.3.0" },
     { name = "pytest", specifier = ">=7.0.0,<7.1.0" },
