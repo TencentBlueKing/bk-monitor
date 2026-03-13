@@ -816,7 +816,6 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         if task.status in (
             UptimeCheckTaskStatus.RUNNING,
             UptimeCheckTaskStatus.STARTING,
-            UptimeCheckTaskStatus.STOP_FAILED,
         ):
             raise CustomException(_("任务正在运行，请先停止任务后再删除"))
 
