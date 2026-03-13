@@ -3331,12 +3331,12 @@ class ESFieldQueryAliasOption(BaseModel):
                     table_id=table_id,
                     bk_tenant_id=bk_tenant_id,
                     query_alias=query_alias,
+                    is_deleted=False,
                     defaults={
                         "field_path": field_path,
                         "path_type": path_type,
                         "updater": operator,
                         "creator": operator,
-                        "is_deleted": False,
                     },
                 )
                 if not created:
