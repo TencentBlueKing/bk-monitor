@@ -2073,9 +2073,6 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
     WILDCARD_PATTERN: str = "*"
     QUERY_SPECIAL_REGEX = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT")
 
-    # 背景：日志平台存在 ES、Doris 等数据源，time 是 unify-query 统一的时间字段，切换 uq 应该将 _index 替换为 time。
-    FIELD_NAME_REPLACE_MAPPING: dict[str, str] = {"_index": "time"}
-
     # 用于灰度对账的临时白名单列表（类成员变量），对账完成后会清空此列表以恢复正常逻辑。
     LOG_UNIFY_QUERY_WHITE_BIZ_LIST: list[int] | None = None
 
@@ -2143,13 +2140,6 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
         if "__dist_05" in (self.query_string or ""):
             suffix = "_clustered"
         return f"bklog_index_set_{self.index_set_id}{suffix}"
-
-    def to_unify_query_config(self) -> list[dict]:
-        query_list: list[dict] = super().to_unify_query_config()
-        for query in query_list:
-            field_name: str | None = query.get("field_name")
-            query["field_name"] = self.FIELD_NAME_REPLACE_MAPPING.get(field_name, field_name)
-        return query_list
 
     @classmethod
     def init_by_query_config(cls, query_config: dict, *args, bk_biz_id: int, name="", **kwargs):

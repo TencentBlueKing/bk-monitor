@@ -252,6 +252,7 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
     metrics_to_create = []
     metrics_to_update = []
 
+    already_created = set()
     for field in metric_fields:
         scope_name = get_scope_name(field, DEFAULT_DATA_SCOPE_NAME)
         tag_list = field.get("config", {}).get("dimensions", [])
@@ -264,7 +265,11 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
         field_config_data = field.get("config", {})
         for key in METRIC_CONFIG_FIELDS:
             if key in field_config_data:
-                field_config[key] = field_config_data[key]
+                if key == "function":
+                    # 兼容function为{}的场景，将其转换为列表[]
+                    field_config["function"] = field_config_data[key] or []
+                else:
+                    field_config[key] = field_config_data[key]
 
         scope_id = scope_name_to_id.get(scope_name)
         field_name = field.get("name")
@@ -277,6 +282,10 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
             existing.create_time = field.get("create_time")
             metrics_to_update.append(existing)
         else:
+            if (group_id, DEFAULT_DATA_SCOPE_NAME, field_name) in already_created:
+                # 重复的指标记录，跳过
+                continue
+            already_created.add((group_id, DEFAULT_DATA_SCOPE_NAME, field_name))
             metrics_to_create.append(
                 TimeSeriesMetric(
                     group_id=group_id,

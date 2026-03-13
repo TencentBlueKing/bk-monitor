@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 from unittest.mock import MagicMock
-from typing import Any
 
 import pytest
 from django.conf import settings
@@ -505,71 +504,6 @@ class TestDataSource:
             "start_time": 123,
             "end_time": 654,
         }
-
-    def test_log_search_time_series_to_unify_query_config_replace_index_field(self):
-        query_config: dict[str, Any] = {
-            "extend_fields": {
-                "time_field": "dtEventTimeStamp",
-                "scenario_name": "采集接入",
-                "index_set_id": 1,
-                "scenario_id": "log",
-                "storage_cluster_id": 1,
-                "storage_cluster_name": "",
-            },
-            "agg_dimension": [],
-            "unit_conversion": 1.0,
-            "result_table_id": "2_bklog.nginx_access_error_1",
-            "index_set_id": 1,
-            "agg_interval": 60,
-            "agg_method": "COUNT",
-            "agg_condition": [],
-            "query_string": "*",
-            "id": 1,
-            "unit": "",
-            "create_time": 1614599379,
-            "update_time": 1614599379,
-            "create_user": "admin",
-            "update_user": "admin",
-            "rt_query_config_id": 1,
-        }
-        data_source: LogSearchTimeSeriesDataSource = LogSearchTimeSeriesDataSource.init_by_query_config(
-            query_config, bk_biz_id=1
-        )
-        query_list: list[dict[str, Any]] = data_source.to_unify_query_config()
-        assert query_list[0]["field_name"] == "time"
-
-    def test_log_search_time_series_to_unify_query_config_keep_normal_field(self):
-        query_config: dict[str, Any] = {
-            "extend_fields": {
-                "time_field": "dtEventTimeStamp",
-                "scenario_name": "采集接入",
-                "index_set_id": 1,
-                "scenario_id": "log",
-                "storage_cluster_id": 1,
-                "storage_cluster_name": "",
-            },
-            "agg_dimension": [],
-            "metric_field": "status",
-            "unit_conversion": 1.0,
-            "result_table_id": "2_bklog.nginx_access_error_1",
-            "index_set_id": 1,
-            "agg_interval": 60,
-            "agg_method": "COUNT",
-            "agg_condition": [],
-            "query_string": "*",
-            "id": 1,
-            "unit": "",
-            "create_time": 1614599379,
-            "update_time": 1614599379,
-            "create_user": "admin",
-            "update_user": "admin",
-            "rt_query_config_id": 1,
-        }
-        data_source: LogSearchTimeSeriesDataSource = LogSearchTimeSeriesDataSource.init_by_query_config(
-            query_config, bk_biz_id=1
-        )
-        query_list: list[dict[str, Any]] = data_source.to_unify_query_config()
-        assert query_list[0]["field_name"] == "status"
 
     def test_log_search_log_query_data(self, mock_es_query_search):
         query_config = {

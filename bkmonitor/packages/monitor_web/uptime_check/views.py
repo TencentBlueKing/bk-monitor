@@ -638,7 +638,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         bk_biz_id = int(params["bk_biz_id"])
 
         # 查询任务
-        task_define = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
+        task_define = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
         data: dict[str, Any] = task_define.model_dump(exclude={"bk_tenant_id"})
         data["status"] = task_define.status.value
 
@@ -810,16 +810,19 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
             raise DRFValidationError({"bk_biz_id": _("参数缺失")})
         bk_biz_id = int(cast(int | str, bk_biz_id_raw))
         operator: str = request.user.username
-
         task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
-        # 运行中/启动中/停止中/停止失败的任务，要求先执行停用，避免删除过程中配置状态不一致
-        if task.status in (
-            UptimeCheckTaskStatus.RUNNING,
-            UptimeCheckTaskStatus.STARTING,
-            UptimeCheckTaskStatus.STOPING,
-            UptimeCheckTaskStatus.STOP_FAILED,
-        ):
-            raise CustomException(_("任务正在运行，请先停止任务后再删除"))
+        # 运行中/启动中/停止失败的任务，要求先执行停用，避免删除过程中配置状态不一致
+        try:
+            if task.status in (
+                UptimeCheckTaskStatus.RUNNING,
+                UptimeCheckTaskStatus.STARTING,
+            ):
+                logger.info(f"拨测任务{task_id}正在运行，执行停止操作")
+                control_task(
+                    bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id, action="stop", operator=operator
+                )
+        except Exception as e:
+            logger.error(f"拨测任务{task_id}停止失败: {e}")
 
         delete_task(
             bk_tenant_id=bk_tenant_id,
@@ -837,6 +840,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
 
         group_id = params.get("group_id")
         bk_biz_id = int(params["bk_biz_id"])
+        name = params.get("name")
         bk_tenant_id = cast(str, get_request_tenant_id())
         # 获取分组
         get_groups = params.get("get_groups", False)
@@ -853,6 +857,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
                 query={
                     "group_ids": [int(group_id)] if group_id else None,
                     "task_ids": [int(task_id)] if task_id else None,
+                    "name": name,
                 }
                 if group_id or task_id
                 else None,
@@ -877,10 +882,16 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
             else:
                 return Response([{"id": t.id, "name": t.name, "bk_biz_id": t.bk_biz_id} for t in tasks])
 
+        query = {}
+        if group_id:
+            query["group_ids"] = [int(group_id)]
+        if name:
+            query["name"] = name
+
         tasks = list_tasks(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
-            query={"group_ids": [int(group_id)]} if group_id else None,
+            query=query,
             order_by=params.get("ordering"),
         )
 
