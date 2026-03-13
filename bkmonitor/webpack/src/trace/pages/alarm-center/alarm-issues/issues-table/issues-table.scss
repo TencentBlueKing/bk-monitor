@@ -1,4 +1,317 @@
+/* stylelint-disable selector-class-pattern */
+
 .issues-table {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   height: 100%;
+
+  .issues-table-main {
+    flex-grow: 1;
+    flex-basis: auto;
+  }
+
+  // ===================== Issues 名称列 =====================
+  .issues-name-col {
+    display: flex;
+    align-items: flex-start;
+    line-height: 20px;
+
+    .issues-level-bar {
+      position: relative;
+      display: inline-flex;
+      flex-shrink: 0;
+      width: 3px;
+      height: 50px;
+      margin-top: 2px;
+      margin-right: 8px;
+
+      &::before {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: 100%;
+        height: 36px;
+        content: '';
+        background-color: var(--issues-level-color, #3a84ff);
+        border-radius: 2px;
+        transform: translateY(-50%);
+      }
+    }
+
+    .issues-name-content {
+      flex: 1;
+      min-width: 0;
+      padding: 4px 0;
+    }
+
+    .issues-name-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      font-weight: 500;
+      color: #3a84ff;
+      white-space: nowrap;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+
+    .issues-name-exception {
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      color: #979ba5;
+      white-space: nowrap;
+    }
+
+    .issues-name-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    .issues-type-tag {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+      height: 20px;
+      padding: 0 6px;
+      font-size: 12px;
+      color: #63656e;
+      background-color: #f0f1f5;
+      border-radius: 2px;
+
+      .type-dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        background-color: var(--issues-type-color, #2dcb56);
+        border-radius: 50%;
+      }
+    }
+
+    .issues-alert-count {
+      display: inline-flex;
+      gap: 2px;
+      align-items: center;
+      font-size: 12px;
+      color: #979ba5;
+
+      .icon-mc-alarm {
+        font-size: 14px;
+      }
+    }
+  }
+
+  // ===================== 时间列 =====================
+  .issues-time-col {
+    line-height: 20px;
+
+    .time-relative {
+      font-size: 12px;
+      color: #313238;
+    }
+
+    .time-absolute {
+      margin-top: 2px;
+      font-size: 12px;
+      color: #979ba5;
+    }
+  }
+
+  // ===================== 趋势列 =====================
+  .issues-trend-col {
+    display: flex;
+    gap: 4px;
+    align-items: flex-end;
+    height: 32px;
+
+    .trend-bars {
+      display: flex;
+      flex: 1;
+      gap: 1px;
+      align-items: flex-end;
+      height: 100%;
+    }
+
+    .trend-bar {
+      flex: 1;
+      min-width: 2px;
+      max-width: 6px;
+      background-color: #a3c5fd;
+      border-radius: 1px 1px 0 0;
+      transition: background-color 0.2s;
+
+      &:hover {
+        background-color: #3a84ff;
+      }
+    }
+
+    .trend-total {
+      flex-shrink: 0;
+      font-size: 12px;
+      font-weight: 500;
+      color: #3a84ff;
+    }
+  }
+
+  // ===================== 影响范围列 =====================
+  .issues-impact-col {
+    line-height: 20px;
+
+    .impact-row {
+      display: flex;
+      font-size: 12px;
+
+      .impact-label {
+        flex-shrink: 0;
+        color: #979ba5;
+      }
+
+      .impact-value {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #313238;
+        white-space: nowrap;
+      }
+    }
+  }
+
+  // ===================== 优先级列 =====================
+  .issues-priority-col {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+
+    .priority-icon {
+      font-size: 16px;
+      transition: transform 0.2s;
+    }
+
+    &:hover .priority-icon {
+      transform: scale(1.2);
+    }
+  }
+
+  // ===================== 状态列 =====================
+  .issues-status-col {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+
+    .status-icon {
+      font-size: 14px;
+    }
+
+    .status-text {
+      font-size: 12px;
+      color: #63656e;
+    }
+  }
+
+  // ===================== 负责人列 =====================
+  .issues-assignee-col {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+
+    .assignee-tag {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 8px;
+      font-size: 12px;
+      color: #63656e;
+      background-color: #f0f1f5;
+      border-radius: 2px;
+    }
+
+    .assignee-unassigned {
+      font-size: 12px;
+      color: #3a84ff;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  // ===================== 操作列 =====================
+  .issues-operation-col {
+    .operation-btn {
+      font-size: 12px;
+      color: #3a84ff;
+      cursor: pointer;
+
+      &:hover {
+        color: #699df4;
+      }
+    }
+  }
+}
+
+// ===================== 优先级下拉菜单（popover 内容，全局作用域） =====================
+.issues-priority-menu {
+  padding: 4px 0;
+
+  .priority-menu-item {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #63656e;
+    cursor: pointer;
+    transition: background-color 0.15s;
+
+    &:hover {
+      background-color: #f5f7fa;
+    }
+
+    &.is-active {
+      color: #3a84ff;
+      background-color: #e1ecff;
+    }
+
+    /* stylelint-disable-next-line no-descending-specificity */
+    .priority-icon {
+      font-size: 14px;
+    }
+
+    .priority-text {
+      flex: 1;
+    }
+  }
+}
+
+// ===================== 指派负责人弹窗样式（全局作用域） =====================
+.issues-assign-dialog-content {
+  .assign-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .assign-label {
+      font-size: 14px;
+      color: #313238;
+
+      .required {
+        margin-left: 2px;
+        color: #ea3636;
+      }
+    }
+  }
+}
+
+.issues-assign-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
 }
