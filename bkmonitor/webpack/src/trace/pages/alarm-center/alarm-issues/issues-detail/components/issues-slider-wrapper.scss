@@ -1,0 +1,20 @@
+.issues-slider-wrapper {
+  display: flex;
+  gap: 16px;
+  height: 100%;
+  padding: 16px;
+  background-color: #f2f6fc;
+  overflow-y: auto;
+
+  .issues-slider-left-panel {
+    flex: 1;
+  }
+
+  .issues-slider-right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 368px;
+    flex-shrink: 0;
+  }
+}
