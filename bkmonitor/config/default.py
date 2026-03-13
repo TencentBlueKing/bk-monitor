@@ -1724,6 +1724,9 @@ WECOM_LAYOUTS_BIZ_LIST = []
 # 允许 APM 配置指标分组维度的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
 APM_METRIC_GROUP_DIMENSIONS_WHITELIST = []
 
+# APM 自定义指标 V2 开启的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+APM_CUSTOM_METRIC_V2_ENABLED_LIST = []
+
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
 

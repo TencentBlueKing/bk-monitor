@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 
 from rest_framework import serializers
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from apm_web.models.application import Application
 
@@ -38,7 +39,9 @@ class BaseRequestSerializer(serializers.Serializer):
         # 2. 调用父类的 to_internal_value
         validated_data = super().to_internal_value(data)
 
-        # 3. 补充 scope_prefix
-        validated_data["scope_prefix"] = validated_data["service_name"] + "||"
+        # 3. 仅当应用在 APM_METRIC_GROUP_DIMENSIONS_WHITELIST 白名单中时才设置 scope_prefix
+        app_key = f"{validated_data['bk_biz_id']}-{validated_data['app_name']}"
+        if app_key in settings.APM_METRIC_GROUP_DIMENSIONS_WHITELIST:
+            validated_data["scope_prefix"] = validated_data["service_name"] + "||"
 
         return validated_data

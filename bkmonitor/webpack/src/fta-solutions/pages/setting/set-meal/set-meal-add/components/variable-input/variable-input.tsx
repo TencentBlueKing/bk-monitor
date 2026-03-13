@@ -185,7 +185,7 @@ export default class VariableInput extends tsc<IVariableInput> {
       .map(item => {
         if (isVariableName(item)) {
           variables.push(item);
-          return `<span style="color: #E54488;">${xssFilter(item)}</span>`;
+          return `<span class="variable-text">${xssFilter(item)}</span>`;
         }
         return xssFilter(item);
       })

@@ -168,7 +168,7 @@ class ActionInstanceViewSet(ResourceViewSet):
     def get_permissions(self):
         if self.action in ["get_action_config_by_alerts", "create_chat_group"]:
             return [BusinessActionPermission([ActionEnum.VIEW_EVENT])]
-        if self.action in ["create_demo_action", "get_demo_action_detail"]:
+        if self.action in ["create_demo_action", "get_demo_action_detail", "preview_demo_action_context"]:
             return [BusinessActionPermission([ActionEnum.VIEW_RULE])]
         if self.action in ["get_action_params", "batch_create", "assign_alert"]:
             return [BusinessActionPermission([ActionEnum.MANAGE_RULE, ActionEnum.MANAGE_EVENT])]
@@ -182,4 +182,5 @@ class ActionInstanceViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.action.create_demo_action, endpoint="create_demo_action"),
         ResourceRoute("GET", resource.action.get_demo_action_detail, endpoint="get_demo_action_detail"),
         ResourceRoute("POST", resource.action.assign_alert, endpoint="assign_alert"),
+        ResourceRoute("POST", resource.action.preview_demo_action_context, endpoint="preview_demo_action_context"),
     ]
