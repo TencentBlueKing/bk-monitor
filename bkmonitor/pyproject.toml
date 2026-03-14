@@ -215,5 +215,6 @@ docstring-code-format = true
 [tool.pyright]
 exclude = ["tests"]
 extraPaths = ["packages"]
+stubPath = "typings"
 typeCheckingMode = "standard"
 reportIncompatibleVariableOverride = false

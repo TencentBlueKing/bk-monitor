@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,12 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from django.core.management.base import BaseCommand
 
-from core.drf_resource.management.stub_file_generator import update_stub_file
+from core.drf_resource.stubgen import generate_entrypoint_type_stubs
 
 
 class Command(BaseCommand):
     def handle(self, **kwargs):
-        update_stub_file()
+        generate_entrypoint_type_stubs()

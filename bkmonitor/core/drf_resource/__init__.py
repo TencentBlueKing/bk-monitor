@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from core.drf_resource.base import Resource
 from core.drf_resource.contrib import APIResource, CacheResource, FaultTolerantResource
 from core.drf_resource.management.root import adapter, api, resource
+from core.drf_resource.stubgen import generate_entrypoint_type_stubs
 
 __author__ = "蓝鲸智云"
 __copyright__ = "Copyright (c)   2012-2021 Tencent BlueKing. All Rights Reserved."
@@ -32,4 +33,13 @@ __doc__ = """
         # 如果在${platform}/resources.py里面有相同定义，会重载default.py下的resource
     """
 
-__all__ = ["Resource", "FaultTolerantResource", "CacheResource", "APIResource", "adapter", "api", "resource"]
+__all__ = [
+    "Resource",
+    "FaultTolerantResource",
+    "CacheResource",
+    "APIResource",
+    "adapter",
+    "api",
+    "resource",
+    "generate_entrypoint_type_stubs",
+]
