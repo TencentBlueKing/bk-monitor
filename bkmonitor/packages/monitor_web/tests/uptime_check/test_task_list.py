@@ -230,43 +230,8 @@ TASK_LIST_RESULT_DATA = [
 ]
 
 
-class MockRequest:
-    def __init__(self, method, params=None):
-        params = params or {}
-        if method.upper() == "GET":
-            self.query_params = params
-
-        if method.upper() == "POST":
-            self.data = params
-
-
-class MockUptimeCheckCardQuerySet:
-    def filter(self):
-        pass
-
-
 @pytest.mark.django_db(databases="__all__")
-class TestTaskList:
-    # def test_list(self, mocker):
-    #     from monitor_web.uptime_check.views import UptimeCheckTaskViewSet
-    #
-    #     mock_request = MockRequest("get", {"bk_biz_id": 2})
-    #     result_list = {"task_data": TASK_LIST_RESULT_DATA, "group_data": [], "has_node": True}
-    #     get_queryset_mock = mocker.patch("monitor_web.uptime_check.views.UptimeCheckTaskViewSet.get_queryset")
-    #     filter_queryset_mock = mocker.patch(
-    #         "rest_framework.generics.GenericAPIView.filter_queryset", return_value=TASK_DATA
-    #     )
-    #     uptime_check_task_list_mock = mocker.patch(
-    #         "monitor_web.uptime_check.resources.UptimeCheckTaskListResource.request", return_value=result_list
-    #     )
-    #     uptime_check_task_viewset = UptimeCheckTaskViewSet()
-    #     setattr(uptime_check_task_viewset, "request", mock_request)
-    #     result = uptime_check_task_viewset.list(request=mock_request)
-    #     assert result.data == result_list
-    #     get_queryset_mock.assert_called_once()
-    #     filter_queryset_mock.assert_called_once()
-    #     uptime_check_task_list_mock.assert_called_once()
-
+class TestUptimeCheckCard:
     def test_uptime_check_task_list(self, mocker):
         params = {
             "bk_biz_id": 2,

@@ -27,7 +27,7 @@ from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.statistics.metric import Metric, register
 from metadata.models import TimeSeriesGroup
-from monitor.models import UptimeCheckTask
+from bk_monitor_base.uptime_check import list_tasks
 from monitor_web.models.custom_report import CustomEventGroup
 from monitor_web.statistics.v2.base import TIME_RANGE, BaseCollector
 from utils.business import ACTIVE_BIZ_LAST_VISIT_TIME
@@ -43,12 +43,11 @@ class BusinessCollector(BaseCollector):
 
     @cached_property
     def uptime_check_biz_count(self) -> int:
-        return (
-            UptimeCheckTask.objects.filter(bk_biz_id__in=list(self.biz_info.keys()))
-            .values("bk_biz_id")
-            .distinct()
-            .count()
-        )
+        tasks = list_tasks(fields=["id", "bk_biz_id"])
+        valid_biz_ids = set(self.biz_info.keys())
+        # 统计有拨测任务的业务数
+        task_biz_ids = {task.bk_biz_id for task in tasks if task.bk_biz_id in valid_biz_ids}
+        return len(task_biz_ids)
 
     @cached_property
     def custom_time_series_biz_count(self) -> int:
