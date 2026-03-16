@@ -28,6 +28,7 @@ import { computed, shallowRef, watchEffect } from 'vue';
 
 import { useStorage } from '@vueuse/core';
 
+import { type RequestOptions } from '../services/base';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import type { AnalysisListItem, AnalysisTopNDataResponse } from '../typings';
@@ -60,38 +61,51 @@ export function useAlarmAnalysis() {
     ...alarmStore.alarmService.analysisDefaultSettingsFields,
   ]);
 
+  let fieldAbortController: AbortController | null = null;
+  let dimensionAbortController: AbortController | null = null;
+
   const effectFunc = () => {
     analysisFieldTopNLoading.value = true;
-    getAnalysisDimensionFields();
+    getAnalysisDimensionData(dimensionTags.value.map(item => item.id));
     getAnalysisFieldData(analysisFields.value);
   };
 
   /** 获取分析字段TopN数据 */
   const getAnalysisFieldData = async (fields: string[], isAll = false) => {
-    getAnalysisDataByFields(fields, isAll)
-      .then(analysisTopN => {
-        analysisFieldTopNData.value = {
-          doc_count: analysisTopN.doc_count,
-          fields: analysisTopN.fields.map(item => ({
-            ...item,
-            name: analysisFieldsMap.value[item.field] || item.field,
-          })),
-        };
-      })
-      .finally(() => {
-        analysisFieldTopNLoading.value = false;
-      });
-  };
+    // 中止上一次未完成的请求
+    if (fieldAbortController) {
+      fieldAbortController.abort();
+    }
+    // 创建新的中止控制器
+    fieldAbortController = new AbortController();
+    const { signal } = fieldAbortController;
 
-  /** 获取告警分析维度Tag列表 */
-  const getAnalysisDimensionFields = () => {
-    getAnalysisDimensionData(dimensionTags.value.map(item => item.id));
+    const analysisTopN = await getAnalysisDataByFields(fields, isAll, { signal });
+    // 检查请求是否已被中止，确保不会更新过期数据
+    if (signal.aborted) return;
+    analysisFieldTopNData.value = {
+      doc_count: analysisTopN.doc_count,
+      fields: analysisTopN.fields.map(item => ({
+        ...item,
+        name: analysisFieldsMap.value[item.field] || item.field,
+      })),
+    };
+    analysisFieldTopNLoading.value = false;
   };
 
   /** 获取分析 dimension Tag列表对应的TopN数据 */
   const getAnalysisDimensionData = async (fields: string[], isAll = false) => {
+    // 中止上一次未完成的请求
+    if (dimensionAbortController) {
+      dimensionAbortController.abort();
+    }
+    // 创建新的中止控制器
+    dimensionAbortController = new AbortController();
+    const { signal } = dimensionAbortController;
     analysisDimensionLoading.value = true;
-    const data = await getAnalysisDataByFields(fields, isAll);
+    const data = await getAnalysisDataByFields(fields, isAll, { signal });
+    // 检查请求是否已被中止，确保不会更新过期数据
+    if (signal.aborted) return;
     analysisDimensionTopNData.value = {
       doc_count: data.doc_count,
       fields: data.fields.map(item => ({
@@ -109,14 +123,16 @@ export function useAlarmAnalysis() {
    */
   const getAnalysisDataByFields = async (
     fields: string[],
-    isAll = false
+    isAll = false,
+    options?: RequestOptions
   ): Promise<AnalysisTopNDataResponse<Omit<AnalysisListItem, 'name'>>> => {
     const data = await alarmStore.alarmService.getAnalysisTopNData(
       {
         ...alarmStore.commonFilterParams,
         fields: fields,
       },
-      isAll
+      isAll,
+      options
     );
 
     return {

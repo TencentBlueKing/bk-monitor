@@ -6,20 +6,21 @@
 
 | 字段                | 类型      | 必选  | 描述        |
 |-------------------|---------|-----|-----------|
+| bk_biz_id         | int     | 是   | 业务ID      |
+| scenario          | str    | 否   | 监控场景      |
+| conditions        | list[dict]    | 否   | 查询条件列表，默认为空列表     |
 | page              | int     | 否   | 页码，默认1        |
 | page_size         | int     | 否   | 每页条数，默认10     |
-| conditions        | list    | 否   | 查询条件Condition     |
-| bk_biz_id         | int     | 是   | 业务ID      |
-| scenario          | char    | 否   | 监控场景      |
-| with_user_group | Boolean | 否   | 是否补充通知组信息 |
-| with_user_group_detail | Boolean | 否   | 补充通知组详细信息 |
+| with_user_group | bool | 否   | 是否补充告警组信息，默认false |
+| with_user_group_detail | bool | 否   | 是否补充告警组详细信息，默认false |
+| convert_dashboard | bool | 否   | 是否转换仪表盘格式，默认true |
 
 #### Condition
 
 | 字段   | 类型     | 必选  | 描述        |
 |-------|--------|------|--------------|
-| key   | string | 是   | 筛选条件关键字 |
-| value | list   | 是   | 筛选条件值 |
+| key   | str | 是   | 筛选条件关键字 |
+| value | list   | 是   | 筛选条件值列表 |
 
 #### Condition.key
 | 字段                      | value类型      | 描述     |
@@ -123,22 +124,37 @@
 
 ### 响应参数
 
+| 字段    | 类型   | 描述     |
+| ------- | ------ |--------|
+| result  | bool   | 请求是否成功 |
+| code    | int    | 返回的状态码 |
+| message | str    | 描述信息   |
+| data    | dict   | 策略信息   |
+
+#### data字段说明
+
 | 字段                   | 类型   | 描述                     |
 |:---------------------|------|------------------------|
-| data_source_list     | list | 数据源列表(DataSource)      |
-| user_group_list    | list | 通知组列表(UserGroup)     |
 | scenario_list        | list | 监控对象列表(Scenario)       |
-| strategy_config_list | int  | 策略配置列表(StrategyConfig) |
+| strategy_config_list | list  | 策略配置列表(StrategyConfig) |
+| data_source_list     | list | 数据源列表(DataSource)      |
 | strategy_label_list  | list | 策略标签列表(StrategyLabel)  |
+| strategy_status_list | list | 策略状态列表(StrategyStatus) |
+| user_group_list    | list | 告警组列表(UserGroup)     |
+| action_config_list | list | 处理套餐列表(ActionConfig) |
+| alert_level_list | list | 告警级别列表(AlertLevel) |
+| invalid_type_list | list | 失效类型列表(InvalidType) |
+| algorithm_type_list | list | 算法类型列表(AlgorithmType) |
+| total | int | 策略总数 |
 
 #### data_source_list
 
 | 字段                | 类型     | 描述         |
 |-------------------|--------|------------|
-| type              | string | 数据类型       |
-| name              | string | 数据名称       |
-| data_type_label   | string | 数据类型标签     |
-| data_source_label | string | 数据源标签      |
+| type              | str | 数据类型       |
+| name              | str | 数据名称       |
+| data_type_label   | str | 数据类型标签     |
+| data_source_label | str | 数据源标签      |
 | count             | int    | 按数据源统计策略数量 |
 
 
@@ -146,51 +162,94 @@
 
 | 字段                | 类型   | 描述          |
 |-------------------|------|-------------|
-| user_group_id   | list | 通知组ID       |
-| user_group_name | dict | 通知组名称       |
-| count             | int  | 按通知组统计的策略数量 |
+| user_group_id   | int | 告警组ID       |
+| user_group_name | str | 告警组名称       |
+| count             | int  | 按告警组统计的策略数量 |
 
 #### scenario_list
 
 | 字段           | 类型     | 描述           |
 |--------------|--------|--------------|
-| id           | dict   | 监控对象ID       |
-| display_name | string | 监控对象名称       |
-| count        | string | 按监控对象统计的策略数量 |
+| id           | str   | 监控对象ID       |
+| display_name | str | 监控对象名称       |
+| count        | int | 按监控对象统计的策略数量 |
 
 #### strategy_config_list
 | 字段                      | 类型      | 描述     |
 |:------------------------|---------|--------|
-| actions                 | list    | 处理套餐列表   |
-| notice                 | list    | 通知套餐列表   |
-| source                  | string  | 策略来源   |
-| detects                 | list    | 检测配置列表 |
 | id                      | int     | 策略ID   |
-| items                   | list    | 监控项表   |
-| labels                  | list    | 策略标签列表 |
-| name                    | string  | 策略名称   |
-| scenario                | string  | 监控对象   |
-| is_enabled              | Boolean | 是否开启   |
-| update_time             | string  | 创建策略时间 |
-| create_time             | string  | 创建策略时间 |
-| update_user             | string  | 创建策略者  |
-| create_user             | string  | 创建策略者  |
-| alert_count             | int     | 告警次数   |
-| type                    | string  | 策略类型   |
-| shield_info             | dict    | 屏蔽配置信息 |
-| shield_info.is_shielded | Boolean | 是否屏蔽   |
-| add_allowed             | Boolean | 允许添加   |
-| data_source_type        | string  | 数据源类型  |
+| version                 | str  | 策略版本   |
 | bk_biz_id               | int     | 业务ID   |
+| name                    | str  | 策略名称   |
+| source                  | str  | 策略来源   |
+| scenario                | str  | 监控对象   |
+| type                    | str  | 策略类型   |
+| items                   | list    | 监控项列表   |
+| detects                 | list    | 检测配置列表 |
+| actions                 | list    | 处理套餐列表   |
+| notice                 | dict    | 通知套餐   |
+| labels                  | list    | 策略标签列表 |
+| is_enabled              | bool | 是否启用   |
+| update_time             | str  | 更新时间 |
+| create_time             | str  | 创建时间 |
+| update_user             | str  | 更新者  |
+| create_user             | str  | 创建者  |
+| alert_count             | int     | 告警次数   |
+| shield_alert_count      | int     | 屏蔽告警次数   |
+| shield_info             | dict    | 屏蔽配置信息 |
+| shield_info.is_shielded | bool | 是否屏蔽   |
+| add_allowed             | bool | 允许添加   |
+| data_source_type        | str  | 数据源类型  |
+| config_source           | str  | 配置来源（UI/YAML）  |
 
 
 #### strategy_label_list
 
 | 字段         | 类型     | 描述           |
 |------------|--------|--------------|
-| label_name | string | 策略标签名称       | 
-| id         | int    | 策略标签ID       |
-| count      | string | 按策略标签统计的策略数量 |
+| label_name | str | 策略标签名称       | 
+| id         | str    | 策略标签ID       |
+| count      | int | 按策略标签统计的策略数量 |
+
+#### strategy_status_list
+
+| 字段   | 类型  | 描述     |
+|------|-----|--------|
+| id   | str | 状态ID   |
+| name | str | 状态名称   |
+| count | int | 按状态统计的策略数量 |
+
+#### action_config_list
+
+| 字段   | 类型  | 描述     |
+|------|-----|--------|
+| id   | int | 处理套餐ID   |
+| name | str | 处理套餐名称   |
+| count | int | 按处理套餐统计的策略数量 |
+
+#### alert_level_list
+
+| 字段   | 类型  | 描述     |
+|------|-----|--------|
+| id   | int | 告警级别ID   |
+| name | str | 告警级别名称   |
+| count | int | 按告警级别统计的策略数量 |
+
+#### invalid_type_list
+
+| 字段   | 类型  | 描述     |
+|------|-----|--------|
+| id   | str | 失效类型ID   |
+| name | str | 失效类型名称   |
+| count | int | 按失效类型统计的策略数量 |
+
+#### algorithm_type_list
+
+| 字段   | 类型  | 描述     |
+|------|-----|--------|
+| id   | str | 算法类型ID   |
+| name | str | 算法类型名称   |
+| count | int | 按算法类型统计的策略数量 |
 
 ### 响应参数示例
 

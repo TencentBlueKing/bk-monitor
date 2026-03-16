@@ -21,12 +21,24 @@ the project delivered to anyone in the future.
 
 import math
 import os
+import shutil
+import uuid
 
 from django.utils.functional import cached_property
 
 from apps.api import TGPATaskApi
-from apps.tgpa.constants import TGPA_BASE_DIR, TGPATaskTypeEnum, TASK_LIST_BATCH_SIZE
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.tgpa.constants import (
+    TGPA_BASE_DIR,
+    TGPATaskTypeEnum,
+    TASK_LIST_BATCH_SIZE,
+    TGPA_DOWNLOAD_DIR,
+    FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE,
+    FEATURE_TOGGLE_TGPA_TASK,
+    TGPA_FILE_DOWNLOAD_CHUNK_SIZE,
+)
 from apps.tgpa.handlers.base import TGPAFileHandler
+from apps.tgpa.handlers.decrypt import get_decrypt_handler
 from apps.tgpa.models import TGPATask
 from apps.utils.thread import MultiExecuteFunc
 
@@ -44,6 +56,8 @@ class TGPATaskHandler:
         self.task_id = self.task_info["go_svr_task_id"]
         self.temp_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "task", str(self.task_id), "temp")
         self.output_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "task", str(self.task_id), "output")
+        # 解密处理器实例
+        self.decrypt_handler = get_decrypt_handler(bk_biz_id)
 
     @cached_property
     def meta_fields(self):
@@ -104,6 +118,7 @@ class TGPATaskHandler:
                     "comment": task["comment"],
                     "created_by": task["created_by"],
                     "created_at": task["created_at"],
+                    "file_name": task["file_name"],
                 }
             )
         return result_list
@@ -113,9 +128,12 @@ class TGPATaskHandler:
         """
         获取任务总数
         """
+        task_types = ",".join(
+            [str(TGPATaskTypeEnum.BUSINESS_LOG_V1.value), str(TGPATaskTypeEnum.BUSINESS_LOG_V2.value)]
+        )
         params = {
             "cc_id": bk_biz_id,
-            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "task_type": task_types,
             "offset": 0,
             "limit": 1,
         }
@@ -226,5 +244,50 @@ class TGPATaskHandler:
         """
         下载并处理文件
         """
-        file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields)
+        file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields, self.decrypt_handler)
         file_handler.download_and_process_file(self.task_info["file_name"])
+
+    @staticmethod
+    def stream_download_file(bk_biz_id, file_name):
+        """
+        下载、解密、重新打包文件，并返回流式迭代器和文件信息
+        :param bk_biz_id: 业务ID
+        :param file_name: COS上的文件名
+        :return: (file_iterator, file_name, file_size)
+        """
+        # 下载前通过COS head_object获取文件大小，判断是否超过限制
+        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+        feature_config = feature_toggle.feature_config
+        max_size = feature_config.get("tgpa_file_download_max_size", FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE)
+        file_info = TGPAFileHandler.get_cos_file_info(file_name)
+        if file_info["content_length"] > max_size:
+            # 超限：直接从COS流式转发，不落盘，节省服务器磁盘和内存资源
+            return (
+                TGPAFileHandler.stream_from_cos(file_name),
+                os.path.basename(file_name),
+                file_info["content_length"],
+            )
+
+        # 使用UUID作为临时目录标识，避免并发请求的目录冲突
+        unique_id = uuid.uuid4().hex
+        base_dir = os.path.join(TGPA_DOWNLOAD_DIR, str(bk_biz_id), unique_id)
+        temp_dir = os.path.join(base_dir, "temp")
+        output_dir = os.path.join(base_dir, "output")
+
+        decrypt_handler = get_decrypt_handler(bk_biz_id)
+        file_handler = TGPAFileHandler(temp_dir, output_dir, decrypt_handler=decrypt_handler)
+        result_path = file_handler.download_and_repack_file(file_name)
+
+        result_file_name = os.path.basename(result_path)
+        file_size = os.path.getsize(result_path)
+
+        def file_iterator(chunk_size=TGPA_FILE_DOWNLOAD_CHUNK_SIZE):
+            """文件流式读取迭代器"""
+            try:
+                with open(result_path, "rb") as f:
+                    while chunk := f.read(chunk_size):
+                        yield chunk
+            finally:
+                shutil.rmtree(base_dir, ignore_errors=True)
+
+        return file_iterator(), result_file_name, file_size

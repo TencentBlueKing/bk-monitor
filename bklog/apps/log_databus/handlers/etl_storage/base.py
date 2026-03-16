@@ -371,8 +371,8 @@ class EtlStorage:
 
             # 获取纳秒级时间格式的V4配置
             nanos_v4_time_parsing = self._convert_v3_to_v4_time_format(v3_time_format)
-            # 纳秒级时间解析的输出应为nanos
-            nanos_v4_time_parsing["to"] = "nanos"
+            # 纳秒级时间解析的输出应为strict_date_optional_time_nanos格式字符串，与ES mapping保持一致
+            nanos_v4_time_parsing["to"] = "strict_date_optional_time_nanos"
 
             rules.append(
                 {
@@ -384,7 +384,7 @@ class EtlStorage:
                         "alias": "dtEventTimeStampNanos",
                         "desc": "纳秒级时间戳",
                         "input_type": None,
-                        "output_type": "long",
+                        "output_type": "string",
                         "fixed_value": None,
                         "is_time_field": None,
                         "time_format": None,

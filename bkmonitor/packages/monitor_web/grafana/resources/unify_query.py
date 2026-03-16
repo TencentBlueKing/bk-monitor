@@ -547,6 +547,28 @@ class UnifyQueryRawResource(ApiAuthResource):
                         attrs["interval"] = int(attrs["interval"]) * 60
                     except ValueError:
                         pass
+
+                # 过滤掉无效的 where 条件
+                validated_where = []
+                for condition in attrs.get("where", []):
+                    if not isinstance(condition, dict):
+                        continue
+                    value = condition.get("value")
+                    # 过滤掉 value 为 None、空列表或只包含 None 的列表
+                    if value is None:
+                        continue
+                    if isinstance(value, list):
+                        # 移除列表中的 None，如果移除后列表为空则跳过该条件
+                        filtered_value = [v for v in value if v is not None]
+                        if not filtered_value:
+                            continue
+                        # 创建新字典，避免修改原对象
+                        validated_condition = {**condition, "value": filtered_value}
+                        validated_where.append(validated_condition)
+                    else:
+                        validated_where.append(condition)
+
+                attrs["where"] = validated_where
                 return attrs
 
         target = serializers.ListField(default=[], label="监控目标")
@@ -1509,7 +1531,8 @@ class GetDrillDimensionsResource(Resource):
         )
 
         metric_cache = {(m.result_table_id, m.metric_field): m for m in metrics}
-        all_dimensions: list[set] = []
+        dimension_sets: list[set[str]] = []
+        dimension_map: dict[str, str] = {}
         for config in query_configs:
             metric = metric_cache.get((config["result_table_id"], config["metric_field"]))
             if not metric:
@@ -1521,24 +1544,32 @@ class GetDrillDimensionsResource(Resource):
                 )
                 continue
 
-            dimensions = {dim["id"] for dim in metric.dimensions}
+            dim_set: set[str] = set()
+            for dimension in metric.dimensions:
+                dim_set.add(dimension["id"])
+                dimension_map[dimension["id"]] = dimension["name"]
+
             # 拨测指标下钻维度排除维度：业务ID/IP/云区域ID/错误码
             if metric.result_table_id.startswith("uptimecheck."):
-                dimensions -= {"bk_biz_id", "ip", "bk_cloud_id", "error_code"}
+                dim_set -= {"bk_biz_id", "ip", "bk_cloud_id", "error_code"}
 
             # 排除该指标已配置的维度
-            all_dimensions.append(dimensions - set(config["configured_dimensions"]))
+            dimension_sets.append(dim_set - set(config["configured_dimensions"]))
 
-        if not all_dimensions:
+        if not dimension_sets:
             logger.warning("no valid metrics found for bk_biz_id=%s, query_configs=%s", bk_biz_id, query_configs)
             return []
 
-        # 单指标：返回该指标的所有可用维度
-        if len(query_configs) == 1:
-            return sorted(all_dimensions[0])
+        # 如果是单指标，则返回该指标的所有可用维度；如果是多指标，则返回所有指标的共同维度（交集）
+        dimensions: list[str] = sorted(
+            dimension_sets[0] if len(query_configs) == 1 else set.intersection(*dimension_sets)
+        )
 
-        # 多指标：返回所有指标的共同维度（交集）
-        return sorted(set.intersection(*all_dimensions))
+        # 统一返回格式 {"value": "{字段名}", "text": "{中文名}"}，有别名的维度排在前面
+        translated_dimensions: list[dict[str, str]] = [
+            {"value": dimension, "text": dimension_map.get(dimension, dimension)} for dimension in dimensions
+        ]
+        return sorted(translated_dimensions, key=lambda d: d["text"] == d["value"])
 
 
 class DimensionUnifyQuery(Resource):

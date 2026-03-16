@@ -2,7 +2,7 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  background: #f5f7fa;
+  padding: 16px 0;
 
   .alarm-detail-panel-host-skeleton-dom {
     position: absolute;
@@ -33,37 +33,102 @@
 
   .panel-host-white-bg-container {
     flex-shrink: 0;
-    padding: 12px 24px 8px;
+    padding: 16px;
     background: #fff;
-    box-shadow: 0 0 12px 0 #00000014;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px 0 #1919290a;
 
     .host-selector-wrap {
-      display: flex;
-      align-items: center;
-      margin-bottom: 8px;
+      .host-selector-label {
+        display: inline-block;
+        margin-bottom: 6px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #4d4f56;
+      }
+
+      .host-selector-row {
+        display: flex;
+        align-items: center;
+      }
 
       .host-selector-container {
         flex: 1;
         min-width: 0;
-        max-width: 670px;
+        max-width: 480px;
       }
 
       .host-explore-link-btn {
         display: flex;
         flex-shrink: 0;
         align-items: center;
-        margin-left: 16px;
+        margin-left: 12px;
+        font-size: 12px;
         line-height: 20px;
         color: #3a84ff;
         cursor: pointer;
 
-        &:hover {
+        &.disabled {
+          color: #dcdee5;
+          cursor: not-allowed;
+        }
+
+        &:not(.disabled):hover {
           color: #699df4;
         }
 
-        .icon-mc-goto {
+        .icon-mc-link {
           margin-left: 4px;
-          font-size: 15px;
+          font-size: 14px;
+        }
+      }
+    }
+
+    .ai-hight-card-wrap {
+      margin-top: 12px;
+
+      .ai-highlight-card-main {
+        padding-left: 0;
+      }
+
+      .ai-content-wrap {
+        .title {
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 20px;
+          color: #313238;
+        }
+
+        .list {
+          padding-left: 20px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #313238;
+
+          li {
+            list-style: disc;
+          }
+
+          .list-item {
+            display: flex;
+            align-items: center;
+
+            .status {
+              display: flex;
+              align-items: center;
+              color: #ea3636;
+
+              .dot {
+                width: 8px;
+                height: 8px;
+                margin: 0 4px;
+                background-color: #ffebeb;
+                border: 1px solid #ea3636;
+                border-radius: 50%;
+              }
+            }
+          }
         }
       }
     }
@@ -71,6 +136,6 @@
 
   .panel-host-chart-wrap {
     flex: 1;
-    padding: 12px 24px;
+    padding: 16px 0;
   }
 }

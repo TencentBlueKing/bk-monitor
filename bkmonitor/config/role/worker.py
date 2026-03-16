@@ -20,9 +20,9 @@ from config.tools.redis import get_cache_redis_settings, get_redis_settings
 
 from ..tools.environment import (
     DJANGO_CONF_MODULE,
+    ENVIRONMENT,
     IS_CONTAINER_MODE,
     NEW_ENV,
-    ENVIRONMENT,
 )
 
 # 按照环境变量中的配置，加载对应的配置文件
@@ -313,6 +313,9 @@ LONG_TASK_CRONTAB = [
     # 新版链路状态自动兜底刷新,15min 一次
     ("metadata.task.refresh_data_link.refresh_data_link_status", "*/15 * * * *", "global"),
 ]
+
+# 排除特定的定时任务
+EXCLUDE_WORKER_TASKS = []
 
 AES_X_KEY_FIELD = "SAAS_SECRET_KEY"
 

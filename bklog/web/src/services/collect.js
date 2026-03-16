@@ -293,12 +293,6 @@ const createCollectionTask = {
   method: 'post',
 };
 
-// 客户端日志-获取下载链接
-const getDownloadLink = {
-  url: '/tgpa/task/download_url/',
-  method: 'get',
-};
-
 // 客户端日志-获取索引集ID
 const getTaskIndexSetId = {
   url: '/tgpa/task/index_set_id/',
@@ -391,7 +385,6 @@ export {
   getCollectorStatus,
   getTaskLogList,
   createCollectionTask,
-  getDownloadLink,
   getTaskIndexSetId,
   getUserReportList,
   syncUserReport,

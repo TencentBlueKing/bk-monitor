@@ -1108,19 +1108,19 @@ export default defineComponent({
         key: 'sourceLogInfo',
         renderFn: renderSourceLogInfo,
         subTitle: () => {
-          if (!props.isEdit) {
-            return (
-              <span
-                class='config-import'
-                on-click={() => {
-                  isIndexConfigImport.value = true;
-                }}
-              >
-                {t('索引配置导入')}
-                <i class='bklog-icon bklog-import-daoru config-import-icon' />
-              </span>
-            );
-          }
+          // if (!props.isEdit) {
+          //   return (
+          //     <span
+          //       class='config-import'
+          //       on-click={() => {
+          //         isIndexConfigImport.value = true;
+          //       }}
+          //     >
+          //       {t('索引配置导入')}
+          //       <i class='bklog-icon bklog-import-daoru config-import-icon' />
+          //     </span>
+          //   );
+          // }
         },
       },
       {

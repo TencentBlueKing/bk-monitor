@@ -29,15 +29,15 @@ logger = logging.getLogger("incident.operation")
 
 
 class IncidentOperationManager:
-    # 需要触发通知的操作类型
+    # 需要触发通知的操作类型（临时屏蔽除 生成/恢复/合并 外的通知，后续可直接放开）
     NOTICE_TRIGGER_OPERATIONS = [
         IncidentOperationType.CREATE,
-        IncidentOperationType.OBSERVE,
+        # IncidentOperationType.OBSERVE,
         IncidentOperationType.RECOVER,
-        IncidentOperationType.REOPEN,
-        IncidentOperationType.UPDATE,
+        # IncidentOperationType.REOPEN,
+        # IncidentOperationType.UPDATE,
         IncidentOperationType.MERGE,
-        IncidentOperationType.MERGE_TO,
+        # IncidentOperationType.MERGE_TO,
     ]
 
     @classmethod

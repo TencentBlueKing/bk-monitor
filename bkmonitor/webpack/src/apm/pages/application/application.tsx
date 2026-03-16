@@ -162,6 +162,7 @@ export default class Application extends tsc<undefined> {
           selectOption: {
             value: appName,
             selectList: [],
+            loading: false,
           },
         },
         {

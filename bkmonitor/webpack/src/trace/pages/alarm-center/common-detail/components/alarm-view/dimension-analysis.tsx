@@ -197,7 +197,15 @@ export default defineComponent({
           dimensionListLoading.value = true;
           tableDataLoading.value = true;
           const dimensionsData = await getDrillDimensionsData();
-          dimensionList.value = dimensionsData.map(item => ({ id: item, name: item }));
+          dimensionList.value = dimensionsData.map(item => {
+            if (typeof item === 'object') {
+              return {
+                id: item.value,
+                name: item.text,
+              };
+            }
+            return { id: item, name: item };
+          });
           selectedDimension.value = dimensionList.value.length ? [dimensionList.value[0].id] : [];
           graphDrillDownData();
         }

@@ -420,6 +420,7 @@ class SpaceTableIDRedis:
                 "measurement": "",  # 现阶段不关注存储类型
                 "storage_type": "bk_sql",
                 "data_label": record.data_label,
+                "labels": record.labels or {},
                 "fields": fields,
             }
 
@@ -544,7 +545,7 @@ class SpaceTableIDRedis:
             field_op="table_id__in",
             filter_data=table_ids,
             value_func="values",
-            value_field_list=["table_id", "schema_type", "data_label"],
+            value_field_list=["table_id", "schema_type", "data_label", "labels"],
             other_filter=other_filter,
         )
 
@@ -578,6 +579,7 @@ class SpaceTableIDRedis:
             detail["measurement_type"] = measurement_type_dict.get(table_id) or ""
             detail["bcs_cluster_id"] = table_id_cluster_id.get(table_id) or ""
             detail["data_label"] = _table_id_dict.get(table_id, {}).get("data_label") or ""
+            detail["labels"] = _table_id_dict.get(table_id, {}).get("labels") or {}
             detail["bk_data_id"] = table_id_data_id.get(table_id, 0)
             _table_id_detail[table_id] = detail
 
@@ -641,6 +643,7 @@ class SpaceTableIDRedis:
                 "measurement_type": "bk_split_measurement",
                 "bcs_cluster_id": "",
                 "data_label": "",
+                "labels": {},
                 "storage_type": models.RecordRule.STORAGE_TYPE,
                 "bk_data_id": None,
             }
@@ -706,9 +709,9 @@ class SpaceTableIDRedis:
             tid_options = models.ResultTableOption.objects.filter(
                 table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
             ).values("table_id", "name", "value", "value_type")
-            data_label_map = models.ResultTable.objects.filter(
+            rt_meta_qs = models.ResultTable.objects.filter(
                 table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
-            ).values("table_id", "data_label")
+            ).values("table_id", "data_label", "labels")
             # 构建字段别名map
             field_alias_map = self._get_field_alias_map(table_id_list, bk_tenant_id)
         else:
@@ -722,14 +725,17 @@ class SpaceTableIDRedis:
             tid_options = models.ResultTableOption.objects.filter(table_id__in=tids, bk_tenant_id=bk_tenant_id).values(
                 "table_id", "name", "value", "value_type"
             )
-            data_label_map = models.ResultTable.objects.filter(table_id__in=tids, bk_tenant_id=bk_tenant_id).values(
-                "table_id", "data_label"
+            rt_meta_qs = models.ResultTable.objects.filter(table_id__in=tids, bk_tenant_id=bk_tenant_id).values(
+                "table_id", "data_label", "labels"
             )
             # 构建字段别名map
             field_alias_map = self._get_field_alias_map(tids, bk_tenant_id)
 
-        # data_label字典 {table_id:data_label}
-        data_label_map_dict = {item["table_id"]: item["data_label"] for item in data_label_map}
+        # data_label/labels字典 {table_id: {...}}
+        rt_meta_map_dict = {
+            item["table_id"]: {"data_label": item["data_label"], "labels": item.get("labels") or {}}
+            for item in rt_meta_qs
+        }
         tid_options_map = {}
         for option in tid_options:
             try:
@@ -771,7 +777,8 @@ class SpaceTableIDRedis:
                 "options": tid_options_map.get(tid) or {},
                 "storage_type": models.ESStorage.STORAGE_TYPE,
                 "storage_cluster_records": storage_record,
-                "data_label": data_label_map_dict.get(tid, ""),
+                "data_label": rt_meta_map_dict.get(tid, {}).get("data_label", ""),
+                "labels": rt_meta_map_dict.get(tid, {}).get("labels", {}),
                 "field_alias": field_alias_map.get(tid, {}),  # 字段查询别名
             }
 

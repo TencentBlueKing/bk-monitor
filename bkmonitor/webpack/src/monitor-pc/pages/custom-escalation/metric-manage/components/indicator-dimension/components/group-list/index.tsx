@@ -141,7 +141,16 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
             id: activeGroup?.scopeId || 0,
             name: activeGroup?.name || '',
           });
+          return;
         }
+        // 没选中指标时，需要指定选中状态为全部分组，否则添加指标时没有正确数据
+        this.changeSelectedLabel(
+          {
+            id: -1,
+            name: ALL_LABEL,
+          },
+          true
+        );
         return;
       }
       this.changeSelectedLabel(

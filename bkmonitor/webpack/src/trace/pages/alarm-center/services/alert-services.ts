@@ -799,12 +799,16 @@ export class AlertService extends AlarmService {
   }
   async getAnalysisTopNData(
     params: Partial<CommonFilterParams>,
-    isAll = false
+    isAll = false,
+    options?: RequestOptions
   ): Promise<AnalysisTopNDataResponse<AnalysisFieldAggItem>> {
-    const data = await alertTopN({
-      ...params,
-      size: isAll ? 100 : 10,
-    }).catch(() => ({
+    const data = await alertTopN(
+      {
+        ...params,
+        size: isAll ? 100 : 10,
+      },
+      options
+    ).catch(() => ({
       doc_count: 0,
       fields: [],
     }));
@@ -866,13 +870,16 @@ export class AlertService extends AlarmService {
     return data;
   }
 
-  async getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]> {
-    const data = await searchAlert({
-      ...params,
-      page_size: 0, // 不返回告警列表数据
-      show_overview: true, // 是否展示概览
-      show_aggs: true, // 是否展示聚合
-    })
+  async getQuickFilterList(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<QuickFilterItem[]> {
+    const data = await searchAlert(
+      {
+        ...params,
+        page_size: 0, // 不返回告警列表数据
+        show_overview: true, // 是否展示概览
+        show_aggs: true, // 是否展示聚合
+      },
+      options
+    )
       .then(({ aggs, overview }) => {
         const myAlarmList = [];
         const alarmStatusList = [];
