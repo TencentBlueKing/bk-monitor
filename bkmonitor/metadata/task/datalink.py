@@ -6,11 +6,19 @@ import string
 from pydantic import ValidationError
 
 from alarm_backends.service.scheduler.app import app
-from metadata.models import DataSource, DataSourceResultTable, ResultTable, ResultTableOption
+from metadata.models import (
+    DataSource,
+    DataSourceResultTable,
+    ResultTable,
+    ResultTableOption,
+)
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.data_link import DataLink
-from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig, ESStorageBindingConfig
+from metadata.models.data_link.data_link_configs import (
+    DorisStorageBindingConfig,
+    ESStorageBindingConfig,
+)
 from metadata.models.result_table import LogV4DataLinkOption
 from metadata.models.storage import DorisStorage, ESStorage
 
@@ -241,12 +249,11 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
         ds.delete_consul_config()
 
 
-
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def apply_apm_datalink(bk_tenant_id: str, table_id: str):
     """创建/更新APM Tracing V4数据链路
 
-    当 TRACING_ENABLE_BKDATA 开关启用时, 新建APM应用的Trace数据源将通过BKBase数据链路处理。
+    当 ENABLE_TRACING_BKDATA 开关启用时, 新建APM应用的Trace数据源将通过BKBase数据链路处理。
     与日志链路不同, APM的Clean EtlConfig规则从DataSource的field_list动态构建, 不依赖ResultTableOption存储。
 
     Args:
@@ -347,6 +354,22 @@ def apply_apm_datalink(bk_tenant_id: str, table_id: str):
             doris_binding_config.delete_config()
 
     # 清理transfer链路配置
+    if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
+        logger.info(
+            "apply_apm_datalink: tenant(%s) %s datasource created_from change to bkdata, clean consul config for datasource->[%s]",
+            bk_tenant_id,
+            table_id,
+            ds.bk_data_id,
+        )
+        ds.delete_consul_config()
+    if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
+        logger.info(
+            "apply_apm_datalink: tenant(%s) %s datasource created_from change to bkdata, clean consul config for datasource->[%s]",
+            bk_tenant_id,
+            table_id,
+            ds.bk_data_id,
+        )
+        ds.delete_consul_config()
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
         logger.info(
             "apply_apm_datalink: tenant(%s) %s datasource created_from change to bkdata, clean consul config for datasource->[%s]",

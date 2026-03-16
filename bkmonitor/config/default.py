@@ -28,10 +28,10 @@ from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
 from .tools.elasticsearch import get_es7_settings
+from .tools.environment import IS_CONTAINER_MODE  # noqa
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
-    IS_CONTAINER_MODE,  # noqa
     PAAS_VERSION,
     PLATFORM,
     ROLE,
@@ -1555,7 +1555,7 @@ ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == 
 # 插件数据是否启用接入V4链路，默认开启
 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "true").lower() == "true"
 # APM Tracing 是否启用 BKBase 数据链路（创建新 APM 应用时走 BKBase 而非 Transfer）
-TRACING_ENABLE_BKDATA = os.getenv("TRACING_ENABLE_BKDATA", "false").lower() == "true"
+ENABLE_TRACING_BKDATA = os.getenv("ENABLE_TRACING_BKDATA", "false").lower() == "true"
 # 是否启用influxdb，默认关闭
 ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
 # 是否开启空间内置数据链路初始化

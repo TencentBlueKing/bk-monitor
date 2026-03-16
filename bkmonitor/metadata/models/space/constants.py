@@ -159,7 +159,7 @@ if settings.ENABLE_PLUGIN_ACCESS_V4_DATA_LINK:
     ENABLE_V4_DATALINK_ETL_CONFIGS.extend([EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value])
 
 # 若启用APM Tracing接入BKBase数据链路，则将bk_flat_batch也加入到V4数据链路
-if settings.TRACING_ENABLE_BKDATA:
+if settings.ENABLE_TRACING_BKDATA:
     ENABLE_V4_DATALINK_ETL_CONFIGS.append(EtlConfigs.BK_FLAT_BATCH.value)
 
 # 系统内置数据-清洗类型列表

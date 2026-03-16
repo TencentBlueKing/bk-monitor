@@ -80,7 +80,9 @@ class ResultTable(models.Model):
     # TABLE_NAME是具体指标集合，例如cpu, mem等
     id = models.BigAutoField(primary_key=True)
     table_id = models.CharField("结果表名", db_index=True, max_length=128)
-    bk_tenant_id: str = models.CharField("租户ID", max_length=256, null=True, default="system")  # pyright: ignore [reportAssignmentType]
+    bk_tenant_id: str = models.CharField(
+        "租户ID", max_length=256, null=True, default="system"
+    )  # pyright: ignore [reportAssignmentType]
     table_name_zh = models.CharField("结果表中文名", max_length=128)
     is_custom_table = models.BooleanField("是否自定义结果表")
     schema_type = models.CharField("schema配置方案", max_length=64, choices=SCHEMA_TYPE_CHOICES)
@@ -98,7 +100,9 @@ class ResultTable(models.Model):
     # 数据表标签，默认是其他类型
     label = models.CharField(verbose_name="结果表标签", max_length=128, default=Label.RESULT_TABLE_LABEL_OTHER)
     # 数据标签
-    data_label: str = models.CharField("数据标签", max_length=128, default="", null=True, blank=True)  # pyright: ignore [reportAssignmentType]
+    data_label: str = models.CharField(
+        "数据标签", max_length=128, default="", null=True, blank=True
+    )  # pyright: ignore [reportAssignmentType]
     is_builtin = models.BooleanField("是否内置", default=False)
     bk_biz_id_alias = models.CharField("业务ID别名", max_length=128, default="", null=True, blank=True)
 
@@ -576,6 +580,7 @@ class ResultTable(models.Model):
         """创建数据链路"""
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
         from metadata.task.datalink import (
+            apply_apm_datalink,
             apply_event_group_datalink,
             apply_log_datalink,
         )
@@ -627,7 +632,28 @@ class ResultTable(models.Model):
         elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
             # 如果存在日志V4数据链路配置，则创建日志V4数据链路
             if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
-                apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+                # 按 etl_config 区分 APM Trace (bk_flat_batch) 和 Log
+                if datasource.etl_config == EtlConfigs.BK_FLAT_BATCH.value:
+                    apply_apm_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+                else:
+                    apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+            # APM V4 自动检测: DataSource 由 BKBase 创建且 etl_config 为 bk_flat_batch
+            elif (
+                datasource.created_from == DataIdCreatedFromSystem.BKDATA.value
+                and datasource.etl_config == EtlConfigs.BK_FLAT_BATCH.value
+            ):
+                # 自动设置 V4 链路选项 (apply_apm_datalink 内部会读取此 option)
+                ResultTableOption.objects.update_or_create(
+                    table_id=self.table_id,
+                    name=ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
+                    bk_tenant_id=self.bk_tenant_id,
+                    defaults={
+                        "value": "true",
+                        "value_type": ResultTableOption.TYPE_BOOL,
+                        "creator": "system",
+                    },
+                )
+                apply_apm_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
             # 如果存在事件组V4数据链路配置或默认启用事件组V4数据链路，则创建事件组V4数据链路
             elif datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
                 apply_event_group_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)

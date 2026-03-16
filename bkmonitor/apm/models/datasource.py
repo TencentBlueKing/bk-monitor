@@ -567,7 +567,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
         if self.bk_data_id != -1:
             return self.bk_data_id
 
-        if settings.TRACING_ENABLE_BKDATA:
+        if settings.ENABLE_TRACING_BKDATA:
             # V4: 绕过基类的 APM DataLink 查询, 直接创建数据源
             bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
             operator = get_global_user(bk_tenant_id=bk_tenant_id)
@@ -605,54 +605,25 @@ class TraceDataSource(ApmDataSourceConfigBase):
             obj.stop(bk_biz_id, app_name)
             return
 
-        # V4 数据链路触发 (判断依据: 数据源是否由 BKBase 创建)
-        obj.trigger_v4_datalink_if_needed()
+        # 委托 metadata 层处理数据链路路由 (V4 或 GSE, 由 metadata 自动判断)
+        obj.apply_datalink()
 
-    def trigger_v4_datalink_if_needed(self):
-        """根据数据源的创建来源判断是否需要触发 V4 数据链路.
+    def apply_datalink(self):
+        """委托 metadata 层的 ResultTable.apply_datalink() 处理数据链路路由.
 
-        与直接检查 settings.TRACING_ENABLE_BKDATA 不同, 这里通过 DataSource.created_from
-        进行事实判断: 只有当 metadata 层确实为该数据源走了 BKBase V4 路径时才触发.
-        这与 Log / Event 类型的 V4 触发方式对齐.
+        由于 APM 创建结果表时使用 is_sync_db=False, metadata 内部的 apply_datalink()
+        不会被自动调用. 此方法在 APM 业务流程完成后显式触发, 让 metadata 统一决定
+        走 V4 数据链路(apply_apm_datalink) 还是 GSE 链路(refresh_consul_config).
         """
-        from metadata.models import DataSource
-        from metadata.models.constants import DataIdCreatedFromSystem
-        from metadata.task.datalink import apply_apm_datalink
+        from metadata.models import ResultTable
 
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
-
         try:
-            ds = DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=self.bk_data_id)
-        except DataSource.DoesNotExist:
-            logger.warning(
-                "trigger_v4_datalink_if_needed: DataSource not found for bk_data_id=%s, skip",
-                self.bk_data_id,
-            )
+            rt = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=self.result_table_id)
+        except ResultTable.DoesNotExist:
+            logger.warning("apply_datalink: ResultTable not found for table_id=%s, skip", self.result_table_id)
             return
-
-        if ds.created_from != DataIdCreatedFromSystem.BKDATA.value:
-            return  # 非 V4 链路, 无需触发
-
-        table_id = self.result_table_id
-        logger.info(
-            "trigger_v4_datalink_if_needed: bk_data_id=%s table_id=%s created_from=%s, triggering APM datalink",
-            self.bk_data_id,
-            table_id,
-            ds.created_from,
-        )
-
-        # 设置 V4 链路选项 (复用日志 V4 开关标记)
-        metadata_models.ResultTableOption.objects.update_or_create(
-            table_id=table_id,
-            name=metadata_models.ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
-            bk_tenant_id=bk_tenant_id,
-            defaults={
-                "value": "true",
-                "value_type": metadata_models.ResultTableOption.TYPE_BOOL,
-                "creator": "system",
-            },
-        )
-        apply_apm_datalink.delay(bk_tenant_id=bk_tenant_id, table_id=table_id)
+        rt.apply_datalink()
 
     @property
     def table_id(self) -> str:
