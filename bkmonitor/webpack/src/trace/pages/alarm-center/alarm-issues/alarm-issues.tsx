@@ -23,13 +23,59 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { defineComponent } from 'vue';
+
+import { useIssuesOperations } from '../composables/use-issues-operations';
+import { useIssuesTable } from '../composables/use-issues-table';
+import IssuesTable from './issues-table/issues-table';
 
 import './alarm-issues.scss';
 
 export default defineComponent({
   name: 'AlarmIssues',
   setup() {
-    return () => <div class='alarm-issues'>AlarmIssues</div>;
+    // ===================== 表格数据管理 =====================
+
+    const {
+      allData,
+      tableData,
+      pagination,
+      sort,
+      selectedRowKeys,
+      loading,
+      handleCurrentPageChange,
+      handlePageSizeChange,
+      handleSortChange,
+      handleSelectionChange,
+    } = useIssuesTable();
+
+    // ===================== 业务操作 =====================
+
+    const { handleAssign, handleMarkResolved, handlePriorityChange, handleShowDetail } = useIssuesOperations({
+      allData,
+    });
+
+    // ===================== 渲染 =====================
+
+    return () => (
+      <div class='alarm-issues'>
+        <IssuesTable
+          data={tableData.value}
+          loading={loading.value}
+          pagination={pagination.value}
+          selectedRowKeys={selectedRowKeys.value}
+          sort={sort.value}
+          onAssign={handleAssign}
+          onCurrentPageChange={handleCurrentPageChange}
+          onMarkResolved={handleMarkResolved}
+          onPageSizeChange={handlePageSizeChange}
+          onPriorityChange={handlePriorityChange}
+          onSelectionChange={handleSelectionChange}
+          onShowDetail={handleShowDetail}
+          onSortChange={handleSortChange}
+        />
+      </div>
+    );
   },
 });
