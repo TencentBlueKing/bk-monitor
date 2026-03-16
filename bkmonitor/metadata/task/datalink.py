@@ -271,7 +271,7 @@ def apply_apm_datalink(bk_tenant_id: str, table_id: str):
 
     # 判断使用V4链路还是transfer链路
     enabled_v4_datalink_option = ResultTableOption.objects.filter(
-        bk_tenant_id=bk_tenant_id, table_id=table_id, name=ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK
+        bk_tenant_id=bk_tenant_id, table_id=table_id, name=ResultTableOption.OPTION_ENABLE_V4_TRACING_DATA_LINK
     ).first()
     enabled_v4_datalink = enabled_v4_datalink_option and enabled_v4_datalink_option.get_value()
     if not enabled_v4_datalink:
@@ -354,22 +354,6 @@ def apply_apm_datalink(bk_tenant_id: str, table_id: str):
             doris_binding_config.delete_config()
 
     # 清理transfer链路配置
-    if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
-        logger.info(
-            "apply_apm_datalink: tenant(%s) %s datasource created_from change to bkdata, clean consul config for datasource->[%s]",
-            bk_tenant_id,
-            table_id,
-            ds.bk_data_id,
-        )
-        ds.delete_consul_config()
-    if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
-        logger.info(
-            "apply_apm_datalink: tenant(%s) %s datasource created_from change to bkdata, clean consul config for datasource->[%s]",
-            bk_tenant_id,
-            table_id,
-            ds.bk_data_id,
-        )
-        ds.delete_consul_config()
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
         logger.info(
             "apply_apm_datalink: tenant(%s) %s datasource created_from change to bkdata, clean consul config for datasource->[%s]",

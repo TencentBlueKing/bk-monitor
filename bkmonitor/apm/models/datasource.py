@@ -588,6 +588,13 @@ class TraceDataSource(ApmDataSourceConfigBase):
         # GSE: 走基类逻辑 (含 APM DataLink 的 mq_cluster/transfer_cluster 查询)
         return super().create_data_id()
 
+    def _build_result_table_option(self):
+        """构建结果表 option, V4 时声明 enable_v4_tracing_data_link"""
+        option = dict(TRACE_RESULT_TABLE_OPTION)
+        if settings.ENABLE_TRACING_BKDATA:
+            option["enable_v4_tracing_data_link"] = True
+        return option
+
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id, app_name, **options):
@@ -673,7 +680,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             "is_time_field_only": True,
             "bk_biz_id": self.bk_biz_id,
             "label": "application_check",
-            "option": TRACE_RESULT_TABLE_OPTION,
+            "option": self._build_result_table_option(),
             "time_option": {
                 "es_type": "date",
                 "es_format": "epoch_millis",

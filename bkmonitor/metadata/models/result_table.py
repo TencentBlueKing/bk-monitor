@@ -630,31 +630,13 @@ class ResultTable(models.Model):
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("create_result_table: access vm error: %s", e)
         elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
-            # 如果存在日志V4数据链路配置，则创建日志V4数据链路
-            if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
-                # 按 etl_config 区分 APM Trace (bk_flat_batch) 和 Log
-                if datasource.etl_config == EtlConfigs.BK_FLAT_BATCH.value:
-                    apply_apm_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
-                else:
-                    apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
-            # APM V4 自动检测: DataSource 由 BKBase 创建且 etl_config 为 bk_flat_batch
-            elif (
-                datasource.created_from == DataIdCreatedFromSystem.BKDATA.value
-                and datasource.etl_config == EtlConfigs.BK_FLAT_BATCH.value
-            ):
-                # 自动设置 V4 链路选项 (apply_apm_datalink 内部会读取此 option)
-                ResultTableOption.objects.update_or_create(
-                    table_id=self.table_id,
-                    name=ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
-                    bk_tenant_id=self.bk_tenant_id,
-                    defaults={
-                        "value": "true",
-                        "value_type": ResultTableOption.TYPE_BOOL,
-                        "creator": "system",
-                    },
-                )
+            # APM Tracing V4 数据链路
+            if options and options.get(ResultTableOption.OPTION_ENABLE_V4_TRACING_DATA_LINK, False):
                 apply_apm_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
-            # 如果存在事件组V4数据链路配置或默认启用事件组V4数据链路，则创建事件组V4数据链路
+            # 日志 V4 数据链路
+            elif options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
+                apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+            # 事件组 V4 数据链路
             elif datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
                 apply_event_group_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         else:
@@ -2874,6 +2856,7 @@ class ResultTableOption(OptionBase):
 
     OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK = "enable_v4_event_group_data_link"
     OPTION_ENABLE_V4_LOG_DATA_LINK = "enable_log_v4_data_link"
+    OPTION_ENABLE_V4_TRACING_DATA_LINK = "enable_v4_tracing_data_link"
     OPTION_V4_LOG_DATA_LINK = "log_v4_data_link"
 
     # 选项类型
