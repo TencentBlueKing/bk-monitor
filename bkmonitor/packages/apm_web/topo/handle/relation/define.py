@@ -184,12 +184,12 @@ class SourceK8sDeployment(Source):
 class SourceK8sDaemonSet(Source):
     bcs_cluster_id: str
     namespace: str
-    deamonset: str
+    daemonset: str
     name: str = SourceType.DAEMON_SET.value
 
     @property
     def display_name(self):
-        return self.deamonset
+        return self.daemonset
 
 
 @SourceProvider.registry_source

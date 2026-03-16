@@ -138,7 +138,7 @@ class SourceType(ChoicesEnum):
     SYSTEM = "system"
     DATA_SOURCE = "datasource"
     DEPLOYMENT = "deployment"
-    DAEMON_SET = "deamonset"
+    DAEMON_SET = "daemonset"
     STATEFUL_SET = "statefulset"
 
     _choices_labels = (
