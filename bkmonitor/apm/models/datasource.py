@@ -554,20 +554,21 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     def create_data_id(self):
         """
-        创建数据源ID
-        当启用BKBase V4数据链路时, 通过 metadata API 创建数据源,
-        metadata 内部会自动处理 V4 逻辑:
-          create_data_source() 检测 etl_config="bk_flat_batch" 在 ENABLE_V4_DATALINK_ETL_CONFIGS 中
-          → 调用 apply_for_data_id_from_bkdata(event_type="log")
-          → namespace 自动推断为 "bklog"
-          → created_from 自动设为 BKDATA
-        否则走原有GSE链路
+        创建数据源 ID
+
+        V4 路径: 直接调用 resource.metadata.create_data_id(), 不经过基类的
+        DataLink.get_data_link() 查询 (APM DataLink 的 mq_cluster/transfer_cluster
+        仅用于 GSE 链路, 会干扰 V4 的 BKBase Kafka 分配).
+        metadata 内部 create_data_source() 会根据 etl_config=bk_flat_batch 命中
+        ENABLE_V4_DATALINK_ETL_CONFIGS, 自动走 apply_for_data_id_from_bkdata().
+
+        GSE 路径: 走基类逻辑, 支持 APM DataLink 的 mq_cluster/transfer_cluster.
         """
         if self.bk_data_id != -1:
             return self.bk_data_id
 
         if settings.TRACING_ENABLE_BKDATA:
-            # 通过 metadata API 创建数据源, V4 逻辑由 metadata 内部处理
+            # V4: 绕过基类的 APM DataLink 查询, 直接创建数据源
             bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
             operator = get_global_user(bk_tenant_id=bk_tenant_id)
             data_id_info = resource.metadata.create_data_id(
@@ -584,7 +585,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             self.save()
             return self.bk_data_id
 
-        # 原有GSE链路
+        # GSE: 走基类逻辑 (含 APM DataLink 的 mq_cluster/transfer_cluster 查询)
         return super().create_data_id()
 
     @classmethod
@@ -604,24 +605,54 @@ class TraceDataSource(ApmDataSourceConfigBase):
             obj.stop(bk_biz_id, app_name)
             return
 
-        # 当启用BKBase数据链路时, 设置V4链路选项并异步创建APM数据链路
-        if settings.TRACING_ENABLE_BKDATA:
-            from metadata.task.datalink import apply_apm_datalink
+        # V4 数据链路触发 (判断依据: 数据源是否由 BKBase 创建)
+        obj.trigger_v4_datalink_if_needed()
 
-            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
-            table_id = obj.result_table_id
-            # 复用日志V4开关标记
-            metadata_models.ResultTableOption.objects.update_or_create(
-                table_id=table_id,
-                name=metadata_models.ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
-                bk_tenant_id=bk_tenant_id,
-                defaults={
-                    "value": "true",
-                    "value_type": metadata_models.ResultTableOption.TYPE_BOOL,
-                    "creator": "system",
-                },
+    def trigger_v4_datalink_if_needed(self):
+        """根据数据源的创建来源判断是否需要触发 V4 数据链路.
+
+        与直接检查 settings.TRACING_ENABLE_BKDATA 不同, 这里通过 DataSource.created_from
+        进行事实判断: 只有当 metadata 层确实为该数据源走了 BKBase V4 路径时才触发.
+        这与 Log / Event 类型的 V4 触发方式对齐.
+        """
+        from metadata.models import DataSource
+        from metadata.models.constants import DataIdCreatedFromSystem
+        from metadata.task.datalink import apply_apm_datalink
+
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+
+        try:
+            ds = DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=self.bk_data_id)
+        except DataSource.DoesNotExist:
+            logger.warning(
+                "trigger_v4_datalink_if_needed: DataSource not found for bk_data_id=%s, skip",
+                self.bk_data_id,
             )
-            apply_apm_datalink.delay(bk_tenant_id=bk_tenant_id, table_id=table_id)
+            return
+
+        if ds.created_from != DataIdCreatedFromSystem.BKDATA.value:
+            return  # 非 V4 链路, 无需触发
+
+        table_id = self.result_table_id
+        logger.info(
+            "trigger_v4_datalink_if_needed: bk_data_id=%s table_id=%s created_from=%s, triggering APM datalink",
+            self.bk_data_id,
+            table_id,
+            ds.created_from,
+        )
+
+        # 设置 V4 链路选项 (复用日志 V4 开关标记)
+        metadata_models.ResultTableOption.objects.update_or_create(
+            table_id=table_id,
+            name=metadata_models.ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
+            bk_tenant_id=bk_tenant_id,
+            defaults={
+                "value": "true",
+                "value_type": metadata_models.ResultTableOption.TYPE_BOOL,
+                "creator": "system",
+            },
+        )
+        apply_apm_datalink.delay(bk_tenant_id=bk_tenant_id, table_id=table_id)
 
     @property
     def table_id(self) -> str:
