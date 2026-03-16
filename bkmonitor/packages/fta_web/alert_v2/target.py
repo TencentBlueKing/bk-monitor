@@ -29,6 +29,7 @@ from apm_web.topo.handle.relation.define import (
 )
 from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.documents import AlertDocument
+from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.alert_drilling import (
     build_log_search_condition,
     get_alert_dimensions,
@@ -138,6 +139,31 @@ class BaseTarget(abc.ABC):
                 log_targets.append(log_target)
 
         return log_targets
+
+    def _list_related_apm_log_targets(
+        self,
+        apm_targets: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """获取 APM 服务关联的日志索引集列表。
+
+        :param apm_targets: APM 目标列表，每个元素包含 app_name 和 service_name
+        :return: APM 服务关联的日志索引集列表
+        """
+        if not apm_targets:
+            return []
+
+        start_time, end_time = self._get_time_range()
+        apm_target: dict[str, Any] = apm_targets[0]
+
+        return list(
+            log_relation_list(
+                bk_biz_id=self._alert.event.bk_biz_id,
+                app_name=apm_target["app_name"],
+                service_name=apm_target["service_name"],
+                start_time=start_time,
+                end_time=end_time,
+            )
+        )
 
     @abc.abstractmethod
     def _get_k8s_resource_type(self) -> str:
@@ -369,7 +395,7 @@ class BaseK8STarget(BaseTarget):
 
         return [target]
 
-    def list_related_log_targets(self) -> list[dict[str, Any]]:
+    def _k8s_related_log_targets(self) -> list[dict[str, Any]]:
         source_infos: list[dict[str, Any]] = self._build_k8s_source_infos()
         if not source_infos:
             return []
@@ -417,11 +443,31 @@ class BaseK8STarget(BaseTarget):
                     {"field": "serverIp", "operator": "=", "value": [related_host_targets[0]["bk_target_ip"]]}
                 )
 
-        related_log_targets: list[dict[str, Any]] = []
-        for related_log_target in self._list_related_log_targets(self._alert.event.bk_biz_id, qs):
-            related_log_target.setdefault("addition", []).extend(addition)
-            related_log_targets.append(related_log_target)
-        return related_log_targets
+        k8s_log_targets: list[dict[str, Any]] = []
+        for log_target in self._list_related_log_targets(self._alert.event.bk_biz_id, qs):
+            log_target.setdefault("addition", []).extend(addition)
+            k8s_log_targets.append(log_target)
+
+        return k8s_log_targets
+
+    def _apm_related_log_targets(self) -> list[dict[str, Any]]:
+        return self._list_related_apm_log_targets(self.list_related_apm_targets())
+
+    def list_related_log_targets(self) -> list[dict[str, Any]]:
+        """获取容器类告警关联的日志目标信息。
+
+        并发查询 K8S 路径和 APM 路径的日志索引集，最后按 index_set_id 去重合并。
+        """
+        with ThreadPool(2) as pool:
+            k8s_future = pool.apply_async(self._k8s_related_log_targets)
+            apm_future = pool.apply_async(self._apm_related_log_targets)
+
+            k8s_log_targets: list[dict[str, Any]] = k8s_future.get() or []
+            apm_log_targets: list[dict[str, Any]] = apm_future.get() or []
+
+        # 去重
+        existing_index_set_ids: set[int] = {target["index_set_id"] for target in k8s_log_targets}
+        return k8s_log_targets + [t for t in apm_log_targets if t["index_set_id"] not in existing_index_set_ids]
 
 
 class K8SPodTarget(BaseK8STarget):
@@ -530,21 +576,7 @@ class APMServiceTarget(BaseTarget):
         return target_hosts
 
     def list_related_log_targets(self) -> list[dict[str, Any]]:
-        apm_target_list: list[dict[str, Any]] = self.list_related_apm_targets()
-        if not apm_target_list:
-            return []
-
-        apm_target: dict[str, Any] = apm_target_list[0]
-        start_time, end_time = self._get_time_range()
-        return list(
-            log_relation_list(
-                bk_biz_id=self._alert.event.bk_biz_id,
-                app_name=apm_target["app_name"],
-                service_name=apm_target["service_name"],
-                start_time=start_time,
-                end_time=end_time,
-            )
-        )
+        return self._list_related_apm_log_targets(self.list_related_apm_targets())
 
 
 class HostTarget(DefaultTarget):
