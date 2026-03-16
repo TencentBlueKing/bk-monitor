@@ -62,14 +62,10 @@ const MOCK_TAG_GROUPS = [
 ];
 
 /** 模拟影响服务列表 */
-const MOCK_SERVICES = ['zone-100012', 'lobby-753453453223...', 'gateway-10086', 'db-master-001'];
+const MOCK_SERVICES = ['zone-100012', 'lobby-753453453223753453453223', 'gateway-10086', 'db-master-001'];
 
 /** 优先级取值列表 */
-const PRIORITIES: IssuePriorityType[] = [
-  IssuePriorityEnum.HIGH,
-  IssuePriorityEnum.MEDIUM,
-  IssuePriorityEnum.LOW,
-];
+const PRIORITIES: IssuePriorityType[] = [IssuePriorityEnum.HIGH, IssuePriorityEnum.MEDIUM, IssuePriorityEnum.LOW];
 
 /** 状态取值列表 */
 const STATUSES: IssueStatusType[] = [

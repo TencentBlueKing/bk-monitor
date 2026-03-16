@@ -246,4 +246,9 @@ export default {
   缩放: 'DataZoom',
 
   诊断概率: 'Diagnostic probability',
+
+  // ISSUES
+  指派负责人: 'Assign owner',
+  批量指派负责人: 'Batch assign owner',
+  批量修改优先级: 'Batch modify priority',
 };

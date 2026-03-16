@@ -525,4 +525,11 @@ export default {
   上一个: 'Previous',
   下一个: 'Next',
   分析详情: 'Analysis Details',
+
+  // ISSUES
+  标为已解决: 'Mark as Resolved',
+  未指派: 'Unassigned',
+  'button-高': 'High',
+  'button-中': 'Medium',
+  'button-低': 'Low',
 };

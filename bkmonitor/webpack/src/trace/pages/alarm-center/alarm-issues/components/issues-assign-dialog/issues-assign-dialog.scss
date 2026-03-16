@@ -1,0 +1,23 @@
+// ===================== 指派负责人弹窗样式 =====================
+.issues-assign-dialog-content {
+  .assign-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .assign-label {
+      font-size: 14px;
+      color: #313238;
+
+      .required {
+        margin-left: 2px;
+        color: #ea3636;
+      }
+    }
+  }
+}
+
+.issues-assign-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+}

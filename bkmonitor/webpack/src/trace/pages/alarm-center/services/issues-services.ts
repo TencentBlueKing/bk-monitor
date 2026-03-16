@@ -37,16 +37,76 @@ import type {
 } from '../typings';
 import type { AlarmType } from '../typings';
 
-const ISSUES_TABLE_COLUMNS = [
+/** Issues 表格静态列配置（纯数据，不含渲染逻辑） */
+const ISSUES_TABLE_COLUMNS: TableColumnItem[] = [
   {
-    colKey: 'id',
-    title: 'ID',
+    colKey: 'issue_name',
+    title: 'Issues',
+    minWidth: 200,
+    fixed: 'left',
     is_default: true,
     is_locked: true,
-    fixed: 'left',
-    width: 160,
   },
-] as const;
+  {
+    colKey: 'tags',
+    title: window.i18n.t('标签'),
+    minWidth: 180,
+    is_default: true,
+  },
+  {
+    colKey: 'last_seen',
+    title: window.i18n.t('最后出现时间'),
+    width: 180,
+    sorter: true,
+    is_default: true,
+  },
+  {
+    colKey: 'first_seen',
+    title: window.i18n.t('最早发生时间'),
+    width: 180,
+    sorter: true,
+    is_default: true,
+  },
+  {
+    colKey: 'trend_data',
+    title: window.i18n.t('趋势'),
+    width: 160,
+    is_default: true,
+  },
+  {
+    colKey: 'impact_service',
+    title: window.i18n.t('影响范围'),
+    minWidth: 160,
+    is_default: true,
+  },
+  {
+    colKey: 'priority',
+    title: window.i18n.t('优先级'),
+    width: 86,
+    minWidth: 84,
+    is_default: true,
+  },
+  {
+    colKey: 'status',
+    title: window.i18n.t('状态'),
+    width: 120,
+    is_default: true,
+  },
+  {
+    colKey: 'assignee',
+    title: window.i18n.t('负责人'),
+    minWidth: 120,
+    is_default: true,
+  },
+  {
+    colKey: 'operation',
+    title: window.i18n.t('操作'),
+    width: 120,
+    fixed: 'right',
+    is_default: true,
+    is_locked: true,
+  },
+];
 
 export const ISSUES_FILTER_FIELDS: IFilterField[] = [
   {

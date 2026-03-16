@@ -447,4 +447,10 @@ export default {
   自动匹配规则: 'Automatic matching rules',
   当前业务时区: 'Current business time zone',
   '输入 $ 可以插入变量': 'Input $ to insert variables',
+
+  // ISSUES
+  新问题: 'New Issue',
+  回归问题: 'Regression Issue',
+  待审核: 'Pending Review',
+  未解决: 'Unresolved',
 };

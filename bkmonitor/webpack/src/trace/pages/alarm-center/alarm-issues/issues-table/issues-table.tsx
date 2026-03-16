@@ -24,15 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, onBeforeUnmount, onMounted, useTemplateRef } from 'vue';
+import { type PropType, computed, defineComponent, useTemplateRef } from 'vue';
 
 import CommonTable from '../../components/alarm-table/components/common-table/common-table';
 import { usePopover } from '../../components/alarm-table/hooks/use-popover';
-import { CONTENT_SCROLL_ELEMENT_CLASS_NAME } from '../../typings';
-import { useIssuesColumns } from './issues-columns';
+import { useTableScrollOptimize } from '../../composables/use-table-scroll-optimize';
+import { useIssuesColumnsRenderer } from './hooks/use-issues-columns-renderer';
 import { useIssuesHandlers } from './use-issues-handlers';
 
-import type { TablePagination } from '../../typings';
+import type { TableColumnItem, TablePagination } from '../../typings';
 import type { IssueItem, IssuePriorityType } from '../typing';
 import type { SelectOptions } from 'tdesign-vue-next';
 
@@ -41,6 +41,11 @@ import './issues-table.scss';
 export default defineComponent({
   name: 'IssuesTable',
   props: {
+    /** 表格列配置（静态列，由外部传入） */
+    columns: {
+      type: Array as PropType<TableColumnItem[]>,
+      default: () => [],
+    },
     /** 表格渲染数据 */
     data: {
       type: Array as PropType<IssueItem[]>,
@@ -64,18 +69,31 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    /** 滚动容器的 CSS 选择器（用于滚动优化及表头/滚动条吸附） */
+    scrollContainerSelector: {
+      type: String,
+      required: true,
+    },
+
+    headerAffixedTop: {
+      type: Object as PropType<{ container: string }>,
+    },
+    horizontalScrollAffixedBottom: {
+      type: Object as PropType<{ container: string }>,
+    },
   },
   emits: {
     currentPageChange: (currentPage: number) => typeof currentPage === 'number',
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
-    selectionChange: (selectedRowKeys: string[], _options?: SelectOptions<unknown>) => Array.isArray(selectedRowKeys),
+    selectionChange: (selectedRowKeys: string[], options?: SelectOptions<any>) =>
+      Array.isArray(selectedRowKeys) && options,
     showDetail: (id: string) => typeof id === 'string',
-    assign: (id: string, assignee: string[]) => typeof id === 'string' && Array.isArray(assignee),
+    assignClick: (id: IssueItem['id'], data: IssueItem) => typeof id === 'string' && !!data,
     markResolved: (id: string) => typeof id === 'string',
     priorityChange: (id: string, priority: IssuePriorityType) => typeof id === 'string' && !!priority,
   },
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
     /** click 场景使用的 popover 工具 */
     const clickPopoverTools = usePopover({
@@ -86,59 +104,35 @@ export default defineComponent({
         theme: 'light alarm-center-popover max-width-50vw text-wrap padding-0',
       },
     });
-    /** 滚动容器元素 */
-    let scrollContainer: HTMLElement = null;
-    /** 滚动结束后回调逻辑执行计时器 */
-    let scrollPointerEventsTimer: null | ReturnType<typeof setTimeout> = null;
 
-    const { handleShowDetail, handleAssignClick, handleMarkResolved, handlePriorityClick, renderAssignDialog } =
-      useIssuesHandlers({
-        clickPopoverTools,
-        showDetailEmit: id => emit('showDetail', id),
-        assignEmit: (id, assignee) => emit('assign', id, assignee),
-        markResolvedEmit: id => emit('markResolved', id),
-        priorityChangeEmit: (id, priority) => emit('priorityChange', id, priority),
-      });
+    const { handleShowDetail, handleAssignClick, handleMarkResolved, handlePriorityClick } = useIssuesHandlers({
+      clickPopoverTools,
+      showDetailEmit: id => emit('showDetail', id),
+      assignClickEmit: (id, data) => emit('assignClick', id, data),
+      markResolvedEmit: id => emit('markResolved', id),
+      priorityChangeEmit: (id, priority) => emit('priorityChange', id, priority),
+    });
 
-    /** Issues 表格列配置 */
-    const { columns } = useIssuesColumns({
+    /** Issues 列渲染器 */
+    const { transformColumns } = useIssuesColumnsRenderer({
+      clickPopoverTools,
       handleShowDetail,
       handleAssignClick,
       handleMarkResolved,
       handlePriorityClick,
     });
 
-    // 配置表格是否能够触发事件 target
-    const updateTablePointerEvents = (val: 'auto' | 'none') => {
-      const tableDom = tableRef?.value?.$el;
-      if (!tableDom) return;
-      tableDom.style.pointerEvents = val;
-    };
+    /** 转换后的列配置 */
+    const transformedColumns = computed(() => transformColumns(props.columns));
 
-    // 滚动触发事件
-    const handleScroll = () => {
-      updateTablePointerEvents('none');
-      clickPopoverTools.hidePopover();
-      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
-      scrollPointerEventsTimer = setTimeout(() => {
-        updateTablePointerEvents('auto');
-      }, 600);
-    };
-
-    // 添加滚动监听
-    const addScrollListener = () => {
-      removeScrollListener();
-      scrollContainer = document.querySelector(`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`);
-      if (!scrollContainer) return;
-      scrollContainer.addEventListener('scroll', handleScroll);
-    };
-
-    // 移除滚动监听
-    const removeScrollListener = () => {
-      if (!scrollContainer) return;
-      scrollContainer.removeEventListener('scroll', handleScroll);
-      scrollContainer = null;
-    };
+    /** 表格滚动优化：滚动时禁用 pointerEvents 并隐藏 popover */
+    useTableScrollOptimize({
+      targetElement: tableRef,
+      scrollContainerSelector: props.scrollContainerSelector,
+      onScroll: () => {
+        clickPopoverTools.hidePopover();
+      },
+    });
 
     /**
      * @description 处理行选择变化
@@ -149,19 +143,9 @@ export default defineComponent({
       emit('selectionChange', (keys ?? []) as string[], options);
     };
 
-    onMounted(() => {
-      addScrollListener();
-    });
-
-    onBeforeUnmount(() => {
-      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
-      removeScrollListener();
-    });
-
     return {
-      columns,
+      transformedColumns,
       handleSelectionChange,
-      renderAssignDialog,
     };
   },
   render() {
@@ -170,15 +154,11 @@ export default defineComponent({
         <CommonTable
           ref='tableRef'
           class='issues-table-main'
-          headerAffixedTop={{
-            container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-          }}
-          horizontalScrollAffixedBottom={{
-            container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-          }}
           autoFillSpace={!this.data?.length}
-          columns={this.columns}
+          columns={this.transformedColumns}
           data={this.data}
+          headerAffixedTop={this.headerAffixedTop}
+          horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           loading={this.loading}
           pagination={this.pagination}
           selectedRowKeys={this.selectedRowKeys}
@@ -188,9 +168,6 @@ export default defineComponent({
           onSelectChange={this.handleSelectionChange}
           onSortChange={sort => this.$emit('sortChange', sort)}
         />
-
-        {/* 指派负责人弹窗 DOM 挂载 */}
-        <div style='display: none;'>{this.renderAssignDialog()}</div>
       </div>
     );
   },

@@ -243,6 +243,7 @@ export default defineComponent({
           isSelectedFollower={this.isSelectedFollower}
           loading={this.loading}
           pagination={this.pagination}
+          scrollContainerSelector={null}
           selectedRowKeys={this.selectedRowKeys}
           sort={this.ordering}
           tableSettings={this.tableSettings}

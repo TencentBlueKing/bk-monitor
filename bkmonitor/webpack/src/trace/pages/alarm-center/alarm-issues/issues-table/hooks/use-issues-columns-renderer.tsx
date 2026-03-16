@@ -24,131 +24,57 @@
  * IN THE SOFTWARE.
  */
 
-import { computed } from 'vue';
-
 import dayjs from 'dayjs';
 
-import { ExploreTableColumnTypeEnum } from '../../../trace-explore/components/trace-explore-table/typing';
-import { IssuesPriorityMap, IssuesStatusMap, IssuesTypeMap } from '../constant';
+import { ExploreTableColumnTypeEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
+import { IssuesPriorityMap, IssuesStatusMap, IssuesTypeMap } from '../../constant';
 
 import type {
   BaseTableColumn,
   TableCellRenderContext,
-} from '../../../trace-explore/components/trace-explore-table/typing';
-import type { IssueItem } from '../typing';
-import type { UseIssuesHandlersReturnType } from './use-issues-handlers';
+} from '../../../../trace-explore/components/trace-explore-table/typing';
+import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
+import type { TableColumnItem } from '../../../typings';
+import type { IssueItem } from '../../typing';
+import type { UseIssuesHandlersReturnType } from '../use-issues-handlers';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
-/** useIssuesColumns 入参：从 useIssuesHandlers 返回值中提取交互处理函数 */
-type IssuesColumnsHandlers = Pick<
-  UseIssuesHandlersReturnType,
-  'handleAssignClick' | 'handleMarkResolved' | 'handlePriorityClick' | 'handleShowDetail'
->;
+/** useIssuesColumnsRenderer 入参：从 useIssuesHandlers 返回值中提取交互处理函数 */
+export type IssuesColumnsRendererCtx = UseIssuesHandlersReturnType & { clickPopoverTools: IUsePopoverTools };
 
 /**
- * @description Issues 表格列配置 Composable，通过闭包捕获交互处理函数，
- *              所有 cellRenderer 入参与 TableCellRenderer 签名严格一致
- * @param handlers - 交互处理函数（由 useIssuesHandlers 提供）
- * @returns {{ columns: ComputedRef<BaseTableColumn[]> }} 响应式列配置
+ * @method useIssuesColumnsRenderer issue表格列渲染器 hook
+ * @description 无状态 hook，只充当表格列渲染器职责
+ * @param rendererCtx - 交互处理函数（由 useIssuesHandlers 提供）
+ * @returns {{ transformColumns: (columns: TableColumnItem[]) => BaseTableColumn[] }} 列转换函数
  */
-export const useIssuesColumns = (handlers: IssuesColumnsHandlers) => {
-  /** Issues 表格列配置 */
-  const columns = computed<BaseTableColumn[]>(() => [
-    {
-      colKey: 'row-select',
-      type: 'multiple',
-      width: 30,
-      minWidth: 30,
-      fixed: 'left',
-    },
-    {
-      colKey: 'issue_name',
-      title: 'Issues',
-      minWidth: 200,
-      fixed: 'left',
-      cellRenderer: renderIssueName,
-    },
-    {
-      colKey: 'tags',
-      title: window.i18n.t('标签'),
-      minWidth: 180,
-      renderType: ExploreTableColumnTypeEnum.TAGS,
-    },
-    {
-      colKey: 'last_seen',
-      title: window.i18n.t('最后出现时间'),
-      width: 180,
-      sorter: true,
-      cellRenderer: renderTimeCell,
-    },
-    {
-      colKey: 'first_seen',
-      title: window.i18n.t('最早发生时间'),
-      width: 180,
-      sorter: true,
-      cellRenderer: renderTimeCell,
-    },
-    {
-      colKey: 'trend_data',
-      title: window.i18n.t('趋势'),
-      width: 160,
-      cellRenderer: renderTrendCell,
-    },
-    {
-      colKey: 'impact_service',
-      title: window.i18n.t('影响范围'),
-      minWidth: 160,
-      cellRenderer: renderImpactCell,
-    },
-    {
-      colKey: 'priority',
-      title: window.i18n.t('优先级'),
-      width: 80,
-      cellRenderer: renderPriorityCell,
-    },
-    {
-      colKey: 'status',
-      title: window.i18n.t('状态'),
-      width: 120,
-      cellRenderer: renderStatusCell,
-    },
-    {
-      colKey: 'assignee',
-      title: window.i18n.t('负责人'),
-      minWidth: 120,
-      cellRenderer: renderAssigneeCell,
-    },
-    {
-      colKey: 'operation',
-      title: window.i18n.t('操作'),
-      width: 120,
-      fixed: 'right',
-      cellRenderer: renderOperationCell,
-    },
-  ]);
-
+export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) => {
   /**
    * @description Issues 名称列渲染（三行结构：标题 + 异常类型 + 元信息标签）
    * @param row - 当前行 Issue 数据
-   * @param columns - 列配置，用于判断是否启用省略号
+   * @param column - 列配置，用于判断是否启用省略号
    * @param renderCtx - 表格单元格渲染上下文
    * @returns 名称列 JSX
    */
   const renderIssueName = (
     row: IssueItem,
-    columns: BaseTableColumn,
+    column: BaseTableColumn,
     renderCtx: TableCellRenderContext
   ): SlotReturnValue => {
     const typeConfig = IssuesTypeMap[row.issue_type];
     return (
       <div class='issues-name-col'>
-        <div
-          class={`issues-name-title ${renderCtx.isEnabledCellEllipsis(columns)}`}
-          onClick={() => handlers.handleShowDetail(row.id)}
-        >
-          {row.issue_name}
+        <div class={`issues-name-title ${renderCtx.isEnabledCellEllipsis(column)}`}>
+          <span
+            class='issues-name-title-text'
+            onClick={() => rendererCtx.handleShowDetail(row.id)}
+          >
+            {row.issue_name}
+          </span>
         </div>
-        <div class={`issues-name-exception ${renderCtx.isEnabledCellEllipsis(columns)}`}>{row.exception_type}</div>
+        <div class={`issues-name-exception ${renderCtx.isEnabledCellEllipsis(column)}`}>
+          <span class='issues-name-exception-text'>{row.exception_type}</span>
+        </div>
         <div class='issues-name-meta'>
           <span
             style={{
@@ -173,13 +99,13 @@ export const useIssuesColumns = (handlers: IssuesColumnsHandlers) => {
    * @description 时间列渲染（相对时间 + 绝对时间双行结构，通过 column.colKey 动态读取时间字段）
    * @param row - 当前行 Issue 数据
    * @param column - 列配置，通过 colKey 确定读取的时间字段
-   * @param _renderCtx - 表格单元格渲染上下文（未使用）
+   * @param renderCtx - 表格单元格渲染上下文（未使用）
    * @returns 时间列 JSX
    */
   const renderTimeCell = (
     row: IssueItem,
     column: BaseTableColumn,
-    _renderCtx: TableCellRenderContext
+    renderCtx: TableCellRenderContext
   ): SlotReturnValue => {
     const timestamp = row[column.colKey as string] as number;
     if (!timestamp) return (<span>--</span>) as unknown as SlotReturnValue;
@@ -187,7 +113,9 @@ export const useIssuesColumns = (handlers: IssuesColumnsHandlers) => {
     return (
       <div class='issues-time-col'>
         <div class='time-relative'>{dayjsInstance.fromNow()}</div>
-        <div class='time-absolute'>{dayjsInstance.format('YYYY-MM-DD HH:mm:ss')}</div>
+        <div class={`time-absolute ${renderCtx.isEnabledCellEllipsis(column)}`}>
+          {dayjsInstance.format('YYYY-MM-DD HH:mm:ss')}
+        </div>
       </div>
     ) as unknown as SlotReturnValue;
   };
@@ -222,23 +150,29 @@ export const useIssuesColumns = (handlers: IssuesColumnsHandlers) => {
    * @param row - 当前行 Issue 数据
    * @returns 影响范围列 JSX
    */
-  const renderImpactCell = (row: IssueItem): SlotReturnValue => {
+  const renderImpactCell = (
+    row: IssueItem,
+    column: BaseTableColumn,
+    renderCtx: TableCellRenderContext
+  ): SlotReturnValue => {
     return (
       <div class='issues-impact-col'>
         <div class='impact-row'>
-          <span class='impact-label'>{window.i18n.t('服务')}：</span>
-          <span class='impact-value'>{row.impact_service || '--'}</span>
+          <span class='impact-label'>{window.i18n.t('服务')} ：</span>
+          <span class={`impact-value is-string ${renderCtx.isEnabledCellEllipsis(column)}`}>
+            {row.impact_service || '--'}
+          </span>
         </div>
         <div class='impact-row'>
-          <span class='impact-label'>{window.i18n.t('主机')}：</span>
-          <span class='impact-value'>{row.impact_host_count ?? '--'}</span>
+          <span class='impact-label'>{window.i18n.t('主机')} ：</span>
+          <span class='impact-value is-number'>{row.impact_host_count ?? '--'}</span>
         </div>
       </div>
     ) as unknown as SlotReturnValue;
   };
 
   /**
-   * @description 优先级列渲染（色块标签，显示优先级文字，点击触发优先级选择弹出框）
+   * @description 优先级列渲染（色块标签 + hover 高亮 wrapper，点击触发优先级选择弹出框）
    * @param row - 当前行 Issue 数据
    * @returns 优先级列 JSX
    */
@@ -246,18 +180,23 @@ export const useIssuesColumns = (handlers: IssuesColumnsHandlers) => {
     const config = IssuesPriorityMap[row.priority];
     return (
       <div
-        class='issues-priority-col'
-        onClick={(e: MouseEvent) => handlers.handlePriorityClick(e, row)}
+        class={[
+          'issues-priority-col',
+          { 'is-active': rendererCtx.clickPopoverTools?.popoverInstance?.value?.instanceKey === `${row.id}-priority` },
+        ]}
+        onClick={(e: MouseEvent) => rendererCtx.handlePriorityClick(e, row)}
       >
-        <span
-          style={{
-            backgroundColor: config?.bgColor,
-            color: config?.color,
-          }}
-          class='priority-tag'
-        >
-          {config?.alias ?? '--'}
-        </span>
+        <div class='priority-tag-wrapper'>
+          <div
+            style={{
+              backgroundColor: config?.bgColor,
+              color: config?.color,
+            }}
+            class='priority-tag'
+          >
+            {config?.alias ?? '--'}
+          </div>
+        </div>
       </div>
     ) as unknown as SlotReturnValue;
   };
@@ -296,10 +235,11 @@ export const useIssuesColumns = (handlers: IssuesColumnsHandlers) => {
         <div class='issues-assignee-col'>
           <span
             class='assignee-unassigned'
-            onClick={() => handlers.handleAssignClick(row)}
+            onClick={() => rendererCtx.handleAssignClick(row)}
           >
             {window.i18n.t('未指派')}
           </span>
+          <i class='icon-monitor icon-mc-arrow-down' />
         </div>
       ) as unknown as SlotReturnValue;
     }
@@ -327,7 +267,7 @@ export const useIssuesColumns = (handlers: IssuesColumnsHandlers) => {
       <div class='issues-operation-col'>
         <span
           class='operation-btn'
-          onClick={() => handlers.handleMarkResolved(row.id)}
+          onClick={() => rendererCtx.handleMarkResolved(row.id)}
         >
           {window.i18n.t('标为已解决')}
         </span>
@@ -335,5 +275,32 @@ export const useIssuesColumns = (handlers: IssuesColumnsHandlers) => {
     ) as unknown as SlotReturnValue;
   };
 
-  return { columns };
+  /** cellRenderer / renderType 映射表：按 colKey 定义各列的渲染配置 */
+  const columnsRendererMap: Record<string, Partial<BaseTableColumn>> = {
+    'row-select': { type: 'multiple', width: 30, minWidth: 30, fixed: 'left' },
+    issue_name: { cellRenderer: renderIssueName },
+    tags: { renderType: ExploreTableColumnTypeEnum.TAGS },
+    last_seen: { cellRenderer: renderTimeCell },
+    first_seen: { cellRenderer: renderTimeCell },
+    trend_data: { cellRenderer: renderTrendCell },
+    impact_service: { cellRenderer: renderImpactCell },
+    priority: { cellRenderer: renderPriorityCell },
+    status: { cellRenderer: renderStatusCell },
+    assignee: { cellRenderer: renderAssigneeCell },
+    operation: { cellRenderer: renderOperationCell },
+  };
+
+  /**
+   * @description 将静态列配置与 cellRenderer 按 colKey 合并，返回完整列配置
+   * @param columns - 外部传入的静态列配置
+   * @returns 合并后的完整列配置
+   */
+  const transformColumns = (columns: TableColumnItem[]): BaseTableColumn[] => {
+    return columns.map(col => {
+      const renderer = columnsRendererMap[col.colKey as string];
+      return renderer ? { ...col, ...renderer } : { ...col };
+    });
+  };
+
+  return { transformColumns };
 };

@@ -8,6 +8,15 @@
 
   --td-text-color-primary: #4e5e7a;
 
+  %btn-hover {
+    color: #3974ff;
+    cursor: pointer;
+
+    &:hover {
+      color: #5594fa;
+    }
+  }
+
   .issues-table-main {
     flex-grow: 1;
     flex-basis: auto;
@@ -21,8 +30,10 @@
       font-size: 13px;
       font-weight: 500;
       line-height: 24px;
-      color: #3974ff;
-      cursor: pointer;
+
+      .issues-name-title-text {
+        @extend %btn-hover;
+      }
     }
 
     .issues-name-exception {
@@ -128,10 +139,15 @@
       }
 
       .impact-value {
+        margin-left: 2px;
         overflow: hidden;
         text-overflow: ellipsis;
         color: #4e5e7a;
         white-space: nowrap;
+
+        &.is-number {
+          @extend %btn-hover;
+        }
       }
     }
   }
@@ -142,28 +158,40 @@
     align-items: center;
     cursor: pointer;
 
+    .priority-tag-wrapper {
+      display: inline-flex;
+      align-items: center;
+      width: 68px;
+      height: 32px;
+      padding-left: 6px;
+      border-radius: 4px;
+      transition: background-color 0.2s ease;
+    }
+
     .priority-tag {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 32px;
-      height: 24px;
+      width: 24px;
+      height: 22px;
       padding: 0 6px;
       font-size: 12px;
       font-weight: 500;
-      line-height: 24px;
       border-radius: 4px;
-      transition: opacity 0.2s;
     }
 
-    &:hover .priority-tag {
-      opacity: 0.85;
+    &:hover,
+    &.is-active {
+      .priority-tag-wrapper {
+        background-color: #f0f4fa;
+      }
     }
   }
 
   // ===================== 状态列 =====================
   .issues-status-col {
     display: flex;
+    column-gap: 2px;
     align-items: center;
 
     .status-tag {
@@ -175,6 +203,10 @@
       font-size: 12px;
       font-weight: 500;
       border-radius: 12px;
+
+      .status-icon {
+        font-size: 14px;
+      }
     }
   }
 
@@ -223,6 +255,7 @@
 
 // ===================== 优先级下拉菜单（popover 内容，全局作用域） =====================
 .issues-priority-menu {
+  width: 68px;
   padding: 4px 0;
 
   .priority-menu-item {
@@ -254,28 +287,4 @@
       border-radius: 4px;
     }
   }
-}
-
-// ===================== 指派负责人弹窗样式（全局作用域） =====================
-.issues-assign-dialog-content {
-  .assign-field {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-
-    .assign-label {
-      font-size: 14px;
-      color: #313238;
-
-      .required {
-        margin-left: 2px;
-        color: #ea3636;
-      }
-    }
-  }
-}
-
-.issues-assign-dialog-footer {
-  display: flex;
-  justify-content: flex-end;
 }

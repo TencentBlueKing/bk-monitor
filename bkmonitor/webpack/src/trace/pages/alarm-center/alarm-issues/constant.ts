@@ -56,6 +56,18 @@ export const IssueTypeEnum = {
   REGRESSION: 'regression',
 } as const;
 
+/** Issues 批量操作枚举 */
+export const IssuesBatchActionEnum = {
+  /** 指派负责人 */
+  ASSIGN: 'assign',
+  /** 添加跟进信息 */
+  FOLLOW_UP: 'follow_up',
+  /** 修改优先级 */
+  PRIORITY: 'priority',
+  /** 标记为已解决 */
+  RESOLVE: 'resolve',
+} as const;
+
 /** Issues 活跃节点类型枚举 */
 export const IssueActiveNodeTypeEnum = {
   /** 首次出现 */
@@ -99,17 +111,17 @@ export const IssuesStatusMap: Record<IssueStatusType, MapEntry> = {
 /** Issues 优先级映射 */
 export const IssuesPriorityMap: Record<IssuePriorityType, MapEntry> = {
   [IssuePriorityEnum.HIGH]: {
-    alias: window.i18n.t('高'),
+    alias: window.i18n.t('button-高'),
     bgColor: '#E54040',
     color: '#FFFFFF',
   },
   [IssuePriorityEnum.MEDIUM]: {
-    alias: window.i18n.t('中'),
+    alias: window.i18n.t('button-中'),
     bgColor: '#FAA41E',
     color: '#FFFFFF',
   },
   [IssuePriorityEnum.LOW]: {
-    alias: window.i18n.t('低'),
+    alias: window.i18n.t('button-低'),
     bgColor: '#8F9FBD',
     color: '#FFFFFF',
   },

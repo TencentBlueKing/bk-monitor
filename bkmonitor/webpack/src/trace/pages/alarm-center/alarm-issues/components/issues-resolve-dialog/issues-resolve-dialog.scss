@@ -1,0 +1,33 @@
+// ===================== 批量标记已解决确认弹窗样式 =====================
+.issues-resolve-dialog-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0 8px;
+
+  .resolve-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    margin-bottom: 16px;
+
+    .resolve-warning-icon {
+      font-size: 42px;
+      color: #ff9c01;
+    }
+  }
+
+  .resolve-message {
+    font-size: 16px;
+    font-weight: 600;
+    color: #313238;
+    text-align: center;
+  }
+}
+
+.issues-resolve-dialog-footer {
+  display: flex;
+  justify-content: center;
+}

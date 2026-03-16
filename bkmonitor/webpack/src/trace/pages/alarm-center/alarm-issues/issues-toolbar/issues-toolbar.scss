@@ -1,0 +1,58 @@
+.issues-toolbar {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+
+  .issues-toolbar-bar {
+    display: flex;
+    column-gap: 8px;
+    align-items: center;
+    padding: 12px;
+
+    .bk-button {
+      height: 32px;
+      font-size: 13px;
+      border-radius: 4px;
+
+      &.issues-toolbar-batch-btn {
+        padding: 0 16px;
+
+        .issues-toolbar-batch-btn-wrap {
+          display: flex;
+          gap: 6px;
+          align-items: center;
+
+          .issues-toolbar-batch-btn-text {
+            font-size: 13px;
+          }
+
+          .icon-monitor.toolbar-btn-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 12px;
+            height: 12px;
+            font-size: 20px;
+          }
+        }
+      }
+
+      &.issues-toolbar-export-btn {
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        line-height: 22px;
+        color: #4e5e7a;
+        border: 1px solid #c1cde5;
+      }
+    }
+  }
+
+  .issues-toolbar-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+}
