@@ -1,18 +1,34 @@
 import json
 import os
+import sys
 from datetime import datetime, date
+from typing import Any
 
 from django.core.management import BaseCommand, CommandError
 from django.db import connection, DatabaseError
 
 from bkm_space.utils import bk_biz_id_to_space_uid
-from home_application.management.commands.migrate_tool import parse_str_int_list, Prompt, parse_str_list
 
 PROJECT_PATH = os.getcwd()
 
 
+def str_to_bool(value):
+    """
+    将字符串转换为布尔值，支持多种常见写法
+    """
+    if isinstance(value, bool):
+        return value
+    lower_value = value.lower().strip()
+    if lower_value in ("true", "1", "yes", "y"):
+        return True
+    elif lower_value in ("false", "0", "no", "n"):
+        return False
+    else:
+        raise CommandError(f"无效的布尔值: {value}, 请使用 True/False、1/0、yes/no、y/n")
+
+
 class Command(BaseCommand):
-    """海外迁移指令类"""
+    """数据库导出 .json 文件指令类"""
 
     def add_arguments(self, parser):
         parser.add_argument("-b", "--bk_biz_id", help="需要导出的业务, 不传时导出所有的业务", type=int, default=0)
@@ -20,7 +36,13 @@ class Command(BaseCommand):
             "--index_set_ids", help="需要导出的索引集 ID, 不传时导出所有的索引集, 例如: 1,2,3", type=str, default=""
         )
         parser.add_argument("-p", "--path", help="导出文件保存目录, 默认为根目录", type=str, default=PROJECT_PATH)
-        parser.add_argument("-om", "--overseas_migrate", help="海外数据迁移", type=bool, default=False)
+        parser.add_argument(
+            "-om",
+            "--overseas_migrate",
+            help="是否为海外数据迁移, 例如: True/False、1/0、yes/no、y/n",
+            type=str_to_bool,
+            default=False,
+        )
         parser.add_argument(
             "--table_names",
             help="需要导出的表名, 例如: log_search_logindexset,log_search_logindexsetdata",
@@ -210,3 +232,96 @@ class DateTimeEncoder(json.JSONEncoder):
         if isinstance(obj, datetime | date):
             return obj.strftime("%Y-%m-%d %H:%M:%S")
         return super().default(obj)
+
+
+class JsonFile:
+    """json文件读写"""
+
+    @classmethod
+    def read(cls, filepath: str, encoding: str = "utf-8") -> Any:
+        with open(filepath, encoding=encoding) as f:
+            return json.load(f)
+
+
+def parse_str_int_list(str_list: str) -> list[int]:
+    """解析字符串为int列表"""
+    try:
+        if not str_list:
+            return []
+        return [int(i) for i in str_list.split(",") if i]
+    except Exception:
+        raise Exception(f"解析失败: {str_list}, 请输入逗号分隔的数字")
+
+
+def parse_str_list(str_list: str) -> list[str]:
+    """解析字符串为字符串列表"""
+    try:
+        if not str_list:
+            return []
+        return str_list.split(",")
+    except Exception:
+        raise Exception(f"解析失败: {str_list}, 请输入逗号分隔的字符")
+
+
+class PromptColorEnum:
+    """提示颜色枚举"""
+
+    DEBUG = "cyan"
+    INFO = "green"
+    WARNING = "blue"
+    ERROR = "red"
+    PANIC = "red"
+
+
+class Prompt:
+    """提示"""
+
+    COLORS = {
+        "black": "\033[30m",
+        "red": "\033[31m",
+        "green": "\033[32m",
+        "yellow": "\033[33m",
+        "blue": "\033[34m",
+        "magenta": "\033[35m",
+        "cyan": "\033[36m",
+        "white": "\033[37m",
+        "reset": "\033[0m",
+    }
+
+    @classmethod
+    def print(cls, msg: Any, **kwargs):
+        if kwargs:
+            for key, value in kwargs.items():
+                msg = msg.replace(f"{{{key}}}", f"{value}")
+        print(msg)
+
+    @classmethod
+    def fprint(cls, level: str, msg: Any, **kwargs):
+        color = cls.COLORS[PromptColorEnum.__dict__[level.upper()]]
+        msg = f"{color}[{level.upper()}]{cls.COLORS['reset']}\t" + msg
+        if kwargs:
+            for key, value in kwargs.items():
+                msg = msg.replace(f"{{{key}}}", f"{color}{value}{cls.COLORS['reset']}")
+        print(msg)
+
+    @classmethod
+    def debug(cls, msg: Any, **kwargs):
+        if os.environ.get("DEBUG", "False"):
+            cls.fprint("debug", msg, **kwargs)
+
+    @classmethod
+    def info(cls, msg: Any, **kwargs):
+        cls.fprint("info", msg, **kwargs)
+
+    @classmethod
+    def warning(cls, msg: Any, **kwargs):
+        cls.fprint("warning", msg, **kwargs)
+
+    @classmethod
+    def error(cls, msg: Any, **kwargs):
+        cls.fprint("error", msg, **kwargs)
+
+    @classmethod
+    def panic(cls, msg: Any, **kwargs):
+        cls.fprint("panic", msg, **kwargs)
+        sys.exit(1)
