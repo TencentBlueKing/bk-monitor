@@ -29,6 +29,7 @@ import { computed, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import TemporaryShareNew from '../../../../../components/temporary-share/temporary-share-new';
+import { IssuesTypeMap, IssueTypeEnum } from '../../constant';
 
 import './issues-slider-header.scss';
 
@@ -59,6 +60,18 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+
+    const iconMap = computed(() => {
+      const aliasMap = {
+        [IssueTypeEnum.REGRESSION]: t('回归'),
+        [IssueTypeEnum.NEW]: t('新'),
+      };
+
+      return {
+        ...IssuesTypeMap.new,
+        alias: aliasMap.new,
+      };
+    });
 
     /** 右侧操作按钮 */
     const btnGroupObject = computed(() => {
@@ -99,7 +112,7 @@ export default defineComponent({
     };
 
     return {
-      t,
+      iconMap,
       btnGroupObject,
       handleBtnClick,
     };
@@ -118,9 +131,12 @@ export default defineComponent({
       );
     return (
       <div class='issues-detail-head-main'>
-        <div class={['level-tag', 'history']}>
-          <i class={'icon-monitor icon-lishi sign-icon'} />
-          <span class='level-tag-text'>回归</span>
+        <div
+          style={{ color: this.iconMap.color, backgroundColor: this.iconMap.bgColor }}
+          class='level-tag'
+        >
+          <i class={['icon-monitor', 'sign-icon', this.iconMap.icon]} />
+          <span class='level-tag-text'>{this.iconMap.alias}</span>
         </div>
         <div class='issues-detail-head-content'>
           <div class='issues-id'>

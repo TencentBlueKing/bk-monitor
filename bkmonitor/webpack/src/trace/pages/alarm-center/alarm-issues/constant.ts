@@ -56,6 +56,22 @@ export const IssueTypeEnum = {
   REGRESSION: 'regression',
 } as const;
 
+/** Issues 活跃节点类型枚举 */
+export const IssueActiveNodeTypeEnum = {
+  /** 首次出现 */
+  FIRST: 'first',
+  /** 状态变更 */
+  STATUS: 'status',
+  /** 用户评论 */
+  COMMENT: 'comment',
+  /** 指派 */
+  DISPATCH: 'dispatch',
+  /** 拆分 */
+  SPLIT: 'split',
+  /** 合并 */
+  MERGE: 'merge',
+} as const;
+
 // ===================== 常量映射 =====================
 
 /** Issues 状态映射 */
@@ -84,17 +100,17 @@ export const IssuesStatusMap: Record<IssueStatusType, MapEntry> = {
 export const IssuesPriorityMap: Record<IssuePriorityType, MapEntry> = {
   [IssuePriorityEnum.HIGH]: {
     alias: window.i18n.t('高'),
-    bgColor: '#EA3636',
+    bgColor: '#E54040',
     color: '#FFFFFF',
   },
   [IssuePriorityEnum.MEDIUM]: {
     alias: window.i18n.t('中'),
-    bgColor: '#FF9C01',
+    bgColor: '#FAA41E',
     color: '#FFFFFF',
   },
   [IssuePriorityEnum.LOW]: {
     alias: window.i18n.t('低'),
-    bgColor: '#979BA5',
+    bgColor: '#8F9FBD',
     color: '#FFFFFF',
   },
 };
@@ -112,5 +128,33 @@ export const IssuesTypeMap: Record<IssueTypeType, MapEntry> = {
     bgColor: '#FFEDD1',
     color: '#F09305',
     icon: 'icon-monitor icon-lishi',
+  },
+};
+
+/** Issues 活跃节点类型icon映射*/
+export const IssuesActiveNodeIconMap = {
+  [IssueActiveNodeTypeEnum.FIRST]: {
+    icon: '🚨',
+    alias: window.i18n.t('首次出现'),
+  },
+  [IssueActiveNodeTypeEnum.STATUS]: {
+    icon: '🔄',
+    alias: window.i18n.t('状态流转：'),
+  },
+  [IssueActiveNodeTypeEnum.COMMENT]: {
+    icon: '',
+    alias: window.i18n.t('用户评论'),
+  },
+  [IssueActiveNodeTypeEnum.DISPATCH]: {
+    icon: '📥',
+    alias: window.i18n.t('指派负责人：'),
+  },
+  [IssueActiveNodeTypeEnum.SPLIT]: {
+    icon: '✂️',
+    alias: window.i18n.t('Issue 拆分'),
+  },
+  [IssueActiveNodeTypeEnum.MERGE]: {
+    icon: '📦',
+    alias: window.i18n.t('Issue 合并'),
   },
 };

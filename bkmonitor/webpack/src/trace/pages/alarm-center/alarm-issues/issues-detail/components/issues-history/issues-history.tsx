@@ -40,7 +40,16 @@ export default defineComponent({
         class='issues-history'
         title={this.$t('历史 Issue')}
       >
-        <div>xxxxx</div>
+        <div class='issues-history-list'>
+          <div class='issues-history-item'>
+            <div class='item-title'>异常登录日志告警</div>
+            <div class='item-time'>15s ago</div>
+          </div>
+          <div class='issues-history-item'>
+            <div class='item-title'>异常登录日志告警2</div>
+            <div class='item-time'>18s ago</div>
+          </div>
+        </div>
       </BasicCard>
     );
   },
