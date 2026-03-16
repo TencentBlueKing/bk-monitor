@@ -19,13 +19,16 @@ from apm_web.handlers.log_handler import ServiceLogHandler, get_biz_index_sets_w
 from apm_web.strategy.dispatch import EntitySet
 from apm_web.log.resources import log_relation_list
 from apm_web.topo.handle.relation.define import (
-    SourceSystem,
-    SourceDatasource,
-    SourceK8sNode,
     Relation,
     Source,
+    SourceDatasource,
+    SourceK8sDaemonSet,
+    SourceK8sDeployment,
+    SourceK8sNode,
     SourceK8sPod,
+    SourceK8sStatefulSet,
     SourceService,
+    SourceSystem,
 )
 from apm_web.topo.handle.relation.query import RelationQ
 from bkmonitor.documents import AlertDocument
@@ -63,7 +66,7 @@ class BaseTarget(abc.ABC):
         :return: 维度键值对字典
         :rtype: dict[str, int | str]
         """
-        dimensions: dict[str, int | str] = {tag["key"]: tag["value"] for tag in self._alert.event.tags}
+        dimensions: dict[str, int | str] = {tag["key"]: tag.get("value") for tag in self._alert.event.tags}
 
         # dimensions 有一些额外的关联信息，也需要补充进来。
         for d in self._alert.dimensions:
@@ -551,6 +554,53 @@ class HostTarget(DefaultTarget):
     """主机目标对象"""
 
     TARGET_TYPE = EventTargetType.HOST
+
+    def _get_k8s_resource_type(self) -> str:
+        return K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
+
+    def _list_related_k8s_targets(self) -> list[dict[str, Any]]:
+        if not self._alert.event.ip:
+            return []
+
+        start_time, end_time = self._get_time_range()
+        workload_source_types: list[type[Source]] = [SourceK8sDeployment, SourceK8sDaemonSet, SourceK8sStatefulSet]
+        qs: list[dict[str, Any]] = []
+        for workload_source_type in workload_source_types:
+            qs.extend(
+                RelationQ.generate_q(
+                    bk_biz_id=self._alert.event.bk_biz_id,
+                    source_info=SourceSystem(bk_target_ip=self._alert.event.ip),
+                    target_type=workload_source_type,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+            )
+
+        k8s_target_set: set[frozenset] = set()
+        for relation in RelationQ.query(qs, fill_with_empty=True):
+            if not relation:
+                continue
+
+            for node in relation.nodes:
+                info: dict[str, Any] = node.source_info.to_source_info()
+                bcs_cluster_id: str = info.get("bcs_cluster_id", "")
+                namespace: str = info.get("namespace", "")
+                workload_kind: str = node.source_type
+                workload_name: str = info.get(workload_kind, "")
+                if not all([bcs_cluster_id, namespace, workload_kind, workload_name]):
+                    continue
+
+                k8s_target_set.add(
+                    frozenset(
+                        {
+                            "workload": f"{workload_kind}:{workload_name}",
+                            "bcs_cluster_id": bcs_cluster_id,
+                            "namespace": namespace,
+                        }.items()
+                    )
+                )
+
+        return [dict(target) for target in k8s_target_set]
 
     def list_related_host_targets(self) -> list[dict[str, Any]]:
         return [
