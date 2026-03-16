@@ -17,6 +17,8 @@ from rest_framework import serializers
 
 from metadata.models.common import BaseModel
 
+NAMESPACE_ALL = "__all__"
+
 
 class EntityMeta(BaseModel):
     """
@@ -38,10 +40,10 @@ class EntityMeta(BaseModel):
     )
 
     uid = models.UUIDField(_("唯一标识符"), default=uuid.uuid4, editable=False, unique=True, db_index=True)
-    generation = models.BigIntegerField(_("世代号"), default=1, help_text=_("跟踪资源规格变更次数"))
-    namespace = models.CharField(_("命名空间"), max_length=128, db_index=True)
+    generation = models.BigIntegerField(_("generation"), default=1, help_text=_("跟踪资源规格变更次数"))
+    namespace = models.CharField(_("命名空间"), max_length=128, blank=True, db_index=True)
     name = models.CharField(_("资源名称"), max_length=128)
-    labels = models.JSONField(_("资源标签"), default=dict)
+    labels = models.JSONField(_("资源标签"), default=dict, blank=True)
 
     class Meta:
         unique_together = ("namespace", "name")
@@ -148,7 +150,7 @@ class ResourceDefinition(EntityMeta):
     """
 
     fields = models.JSONField(
-        _("字段定义列表"), default=list, help_text=_("资源的字段定义，每个字段包含 namespace, name, required")
+        _("字段定义列表"), default=list, blank=True, help_text=_("资源的字段定义，每个字段包含 namespace, name, required")
     )
 
     class Meta:
@@ -169,7 +171,7 @@ class ResourceDefinition(EntityMeta):
         - labels: map[string]string
         """
         return {
-            "namespace": self.namespace,
+            "namespace": self.namespace or NAMESPACE_ALL,
             "name": self.name,
             "fields": self.fields,
             "labels": self.labels,
@@ -232,7 +234,7 @@ class RelationDefinition(EntityMeta):
         - labels: map[string]string
         """
         return {
-            "namespace": self.namespace,
+            "namespace": self.namespace or NAMESPACE_ALL,
             "name": self.name,
             "from_resource": self.from_resource,
             "to_resource": self.to_resource,

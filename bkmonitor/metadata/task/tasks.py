@@ -81,6 +81,13 @@ def refresh_custom_log_report_config(log_group_id=None):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def refresh_entity_definition_to_redis():
+    from metadata.task.entity_relation import refresh_entity_definition_to_redis as _refresh
+
+    _refresh()
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def access_to_bk_data_task(bk_tenant_id, table_id):
     try:
         bkdata_storage = models.BkDataStorage.objects.get(table_id=table_id)
