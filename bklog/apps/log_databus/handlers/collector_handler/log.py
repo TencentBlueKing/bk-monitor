@@ -185,7 +185,7 @@ class LogCollectorHandler:
         collector_scenario_id_list: list = None,
         created_by_list: list = None,
         updated_by_list: list = None,
-        storage_cluster_name_list: list = None,
+        storage_display_name_list: list = None,
         status_list: list = None,
         log_access_type_list: list = None,
     ) -> list[dict]:
@@ -199,7 +199,7 @@ class LogCollectorHandler:
         :param collector_scenario_id_list: 日志类型
         :param created_by_list: 创建者
         :param updated_by_list: 创建者
-        :param storage_cluster_name_list: 集群名
+        :param storage_display_name_list: 集群名
         :param status_list: 采集状态
         :param log_access_type_list: 日志接入类型
         """
@@ -259,7 +259,7 @@ class LogCollectorHandler:
         tmp_result_list = []
         collector_id_list = []
         for collector_config in collector_configs:
-            if storage_cluster_name_list and collector_config["storage_cluster_name"] not in storage_cluster_name_list:
+            if storage_display_name_list and collector_config["storage_display_name"] not in storage_display_name_list:
                 continue
             tmp_result_list.append(collector_config)
             collector_id_list.append(collector_config["collector_config_id"])
@@ -289,7 +289,7 @@ class LogCollectorHandler:
         result_table_id_list: list = None,
         created_by_list: list = None,
         updated_by_list: list = None,
-        storage_cluster_name_list: list = None,
+        storage_display_name_list: list = None,
         log_access_type_list: list = None,
     ) -> list[dict]:
         """
@@ -301,7 +301,7 @@ class LogCollectorHandler:
         :param result_table_id_list: 结果表ID
         :param created_by_list: 创建者
         :param updated_by_list: 创建者
-        :param storage_cluster_name_list: 集群名
+        :param storage_display_name_list: 集群名
         :param log_access_type_list: 日志接入类型
         """
         _scenario_id_list = []
@@ -420,8 +420,8 @@ class LogCollectorHandler:
                 }
             )
         result_list = IndexSetHandler.post_list(result_list)
-        if storage_cluster_name_list:
-            result_list = list(filter(lambda x: x["storage_cluster_name"] in storage_cluster_name_list, result_list))
+        if storage_display_name_list:
+            result_list = list(filter(lambda x: x["storage_display_name"] in storage_display_name_list, result_list))
         return result_list
 
     def get_log_collectors(self, data):
@@ -435,7 +435,7 @@ class LogCollectorHandler:
         created_at_list = []
         updated_by_list = []
         status_list = []
-        storage_cluster_name_list = []
+        storage_display_name_list = []
         log_access_type_list = []
         for item in conditions:
             if item["key"] == "scenario_id":
@@ -452,8 +452,8 @@ class LogCollectorHandler:
                 updated_by_list = item["value"]
             elif item["key"] == "status":
                 status_list = item["value"]
-            elif item["key"] == "storage_cluster_name":
-                storage_cluster_name_list = item["value"]
+            elif item["key"] == "storage_display_name":
+                storage_display_name_list = item["value"]
             elif item["key"] == "log_access_type":
                 log_access_type_list = item["value"]
 
@@ -467,7 +467,7 @@ class LogCollectorHandler:
             collector_scenario_id_list=collector_scenario_id_list,
             created_by_list=created_at_list,
             updated_by_list=updated_by_list,
-            storage_cluster_name_list=storage_cluster_name_list,
+            storage_display_name_list=storage_display_name_list,
             status_list=status_list,
             log_access_type_list=log_access_type_list,
         )
@@ -489,7 +489,7 @@ class LogCollectorHandler:
                 result_table_id_list=bk_data_name_list,
                 created_by_list=created_at_list,
                 updated_by_list=updated_by_list,
-                storage_cluster_name_list=storage_cluster_name_list,
+                storage_display_name_list=storage_display_name_list,
                 log_access_type_list=log_access_type_list,
             )
 
@@ -598,7 +598,7 @@ class LogCollectorHandler:
         cluster_names = self.get_metadata_cluster_names() | self.get_bkdata_cluster_names()
         cluster_name_dict = [{"key": item, "value": item} for item in cluster_names if item]
 
-        return {"created_by": created_by_dict, "updated_by": updated_by_dict, "storage_cluster_name": cluster_name_dict}
+        return {"created_by": created_by_dict, "updated_by": updated_by_dict, "storage_display_name": cluster_name_dict}
 
     @staticmethod
     def get_collector_status(collector_id_list):
