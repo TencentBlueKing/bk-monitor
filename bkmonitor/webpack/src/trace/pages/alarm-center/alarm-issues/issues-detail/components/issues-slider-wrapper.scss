@@ -3,18 +3,19 @@
   gap: 16px;
   height: 100%;
   padding: 16px;
-  background-color: #f2f6fc;
   overflow-y: auto;
+  background-color: #f2f6fc;
 
   .issues-slider-left-panel {
     flex: 1;
+    overflow: hidden auto;
   }
 
   .issues-slider-right-panel {
     display: flex;
+    flex-shrink: 0;
     flex-direction: column;
     gap: 16px;
     width: 368px;
-    flex-shrink: 0;
   }
 }

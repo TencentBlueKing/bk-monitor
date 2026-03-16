@@ -191,7 +191,7 @@ export default defineComponent({
     const editFavoriteData = shallowRef<IFavoriteGroup['favorites'][number]>(null);
     const editFavoriteShow = shallowRef(false);
 
-    const issuesDetailShow = shallowRef(false);
+    const issuesDetailShow = shallowRef(true);
     /**
      * @description 检索栏字段列表
      */

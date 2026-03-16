@@ -111,6 +111,18 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    headerAffixedTop: {
+      type: Object as PropType<{ container: string }>,
+      default: () => ({
+        container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
+      }),
+    },
+    horizontalScrollAffixedBottom: {
+      type: Object as PropType<{ container: string }>,
+      default: () => ({
+        container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
+      }),
+    },
   },
   emits: {
     currentPageChange: (currentPage: number) => typeof currentPage === 'number',
@@ -283,17 +295,13 @@ export default defineComponent({
                   ) as unknown as SlotReturnValue
               : null
           }
-          headerAffixedTop={{
-            container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-          }}
-          horizontalScrollAffixedBottom={{
-            container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-          }}
           autoFillSpace={!this.data?.length}
           columns={this.transformedColumns}
           data={this.data}
           defaultActiveRowKeys={this.defaultActiveRowKeys}
           empty={this.tableEmpty}
+          headerAffixedTop={this.headerAffixedTop}
+          horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           loading={this.loading}
           pagination={this.pagination}
           selectedRowKeys={this.selectedRowKeys}

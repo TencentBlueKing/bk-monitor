@@ -23,38 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
-
-import { DEFAULT_TIME_RANGE } from 'trace/components/time-range/utils';
-
-import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
-import IssuesDetailAlarmTable from './issues-detail-alarm-table/issues-detail-alarm-table';
-import IssuesHistory from './issues-history/issues-history';
-import IssuesProcessRecord from './issues-process-record/issues-process-record';
-import IssuesRetrievalFilter from './issues-retrieval-filter/issues-retrieval-filter';
-
-import './issues-slider-wrapper.scss';
-
-export default defineComponent({
-  name: 'IssuesSliderWrapper',
-  props: {},
-  setup() {},
-  render() {
-    return (
-      <div class='issues-slider-wrapper'>
-        <div class='issues-slider-left-panel'>
-          <IssuesRetrievalFilter />
-          <IssuesDetailAlarmTable
-            class='mt-16'
-            timeRange={DEFAULT_TIME_RANGE}
-          />
-        </div>
-        <div class='issues-slider-right-panel'>
-          <IssuesBasicInfo />
-          <IssuesProcessRecord />
-          <IssuesHistory />
-        </div>
-      </div>
-    );
-  },
-});
+.issues-retrieval-filter {
+  // 样式内容
+}
