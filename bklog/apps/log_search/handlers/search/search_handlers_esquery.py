@@ -3104,7 +3104,7 @@ class UnionSearchHandler:
         """
         获取字段mapping信息
         """
-        index_set_ids = data.get("index_set_ids")
+        index_set_ids = list(set(data.get("index_set_ids")))
         start_time = data.get("start_time", "")
         end_time = data.get("end_time", "")
 
@@ -3251,7 +3251,7 @@ class UnionSearchHandler:
         """
         from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
-        index_set_ids = data.get("index_set_ids")
+        index_set_ids = list(set(data.get("index_set_ids")))
         start_time = data.get("start_time", "")
         end_time = data.get("end_time", "")
 
