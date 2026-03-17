@@ -93,38 +93,7 @@
 
   // ===================== 趋势列 =====================
   .issues-trend-col {
-    display: flex;
-    gap: 4px;
-    align-items: flex-end;
-    height: 32px;
-
-    .trend-bars {
-      display: flex;
-      flex: 1;
-      gap: 1px;
-      align-items: flex-end;
-      height: 100%;
-    }
-
-    .trend-bar {
-      flex: 1;
-      min-width: 2px;
-      max-width: 6px;
-      background-color: #a3c5fd;
-      border-radius: 1px 1px 0 0;
-      transition: background-color 0.2s;
-
-      &:hover {
-        background-color: #3a84ff;
-      }
-    }
-
-    .trend-total {
-      flex-shrink: 0;
-      font-size: 12px;
-      font-weight: 500;
-      color: #3a84ff;
-    }
+    padding: 0 10px 0 0;
   }
 
   // ===================== 影响范围列 =====================

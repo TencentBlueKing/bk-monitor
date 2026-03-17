@@ -24,9 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+import type { MaybeRef } from 'vue';
+
+import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 
 import { ExploreTableColumnTypeEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
+import MiniBarChart from '../../components/mini-bar-chart/mini-bar-chart';
 import { IssuesPriorityMap, IssuesRegressionMap, IssuesStatusMap } from '../../constant';
 
 import type {
@@ -36,25 +40,28 @@ import type {
 import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
 import type { TableColumnItem } from '../../../typings';
 import type { IssueItem } from '../../typing';
-import type { UseIssuesHandlersReturnType } from '../use-issues-handlers';
+import type { UseIssuesHandlersReturnType } from './use-issues-handlers';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
-/** useIssuesColumnsRenderer 入参：从 useIssuesHandlers 返回值中提取交互处理函数 */
-export type IssuesColumnsRendererCtx = UseIssuesHandlersReturnType & { clickPopoverTools: IUsePopoverTools };
+/** useIssuesColumnsRenderer 入参：useIssuesHandlers 返回的交互处理函数 + clickPopoverTools 弹出框工具 */
+export type IssuesColumnsRendererCtx = {
+  /** 图表联动 ID（相同 group 的 MiniBarChart 实例会联动 tooltip / 高亮） */
+  chartGroupId?: MaybeRef<string>;
+  clickPopoverTools: IUsePopoverTools;
+} & UseIssuesHandlersReturnType;
 
 /**
- * @method useIssuesColumnsRenderer issue表格列渲染器 hook
- * @description 无状态 hook，只充当表格列渲染器职责
- * @param rendererCtx - 交互处理函数（由 useIssuesHandlers 提供）
+ * @description Issues 表格列渲染器 hook，负责将静态列配置与各列的自定义渲染逻辑合并
+ * @param {IssuesColumnsRendererCtx} rendererCtx - 交互处理函数、clickPopoverTools 弹出框工具及可选的 chartGroupId 图表联动 ID
  * @returns {{ transformColumns: (columns: TableColumnItem[]) => BaseTableColumn[] }} 列转换函数
  */
 export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) => {
   /**
-   * @description Issues 名称列渲染（三行结构：标题 + 异常信息 + 元信息标签）
-   * @param row - 当前行 Issue 数据
-   * @param column - 列配置，用于判断是否启用省略号
-   * @param renderCtx - 表格单元格渲染上下文
-   * @returns 名称列 JSX
+   * @description Issues 名称列渲染（三行结构：标题 + 异常消息 + 元信息行（回归类型图标 + 告警数量））
+   * @param {IssueItem} row - 当前行 Issue 数据
+   * @param {BaseTableColumn} column - 列配置，用于判断是否启用省略号
+   * @param {TableCellRenderContext} renderCtx - 表格单元格渲染上下文，提供 isEnabledCellEllipsis 等工具方法
+   * @returns {SlotReturnValue} 名称列 JSX
    */
   const renderIssueName = (
     row: IssueItem,
@@ -97,10 +104,10 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
 
   /**
    * @description 时间列渲染（相对时间 + 绝对时间双行结构，通过 column.colKey 动态读取时间字段）
-   * @param row - 当前行 Issue 数据
-   * @param column - 列配置，通过 colKey 确定读取的时间字段
-   * @param renderCtx - 表格单元格渲染上下文（未使用）
-   * @returns 时间列 JSX
+   * @param {IssueItem} row - 当前行 Issue 数据
+   * @param {BaseTableColumn} column - 列配置，通过 colKey 确定读取的时间字段
+   * @param {TableCellRenderContext} renderCtx - 表格单元格渲染上下文，用于绝对时间行的省略号判断
+   * @returns {SlotReturnValue} 时间列 JSX
    */
   const renderTimeCell = (
     row: IssueItem,
@@ -121,37 +128,28 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   };
 
   /**
-   * @description 趋势列渲染（柱状迷你图 + 事件总数）
-   * @param row - 当前行 Issue 数据
-   * @returns 趋势列 JSX
+   * @description 趋势列渲染（MiniBarChart 柱状迷你图 + 告警总数，支持通过 chartGroupId 进行图表联动）
+   * @param {IssueItem} row - 当前行 Issue 数据
+   * @returns {SlotReturnValue} 趋势列 JSX
    */
   const renderTrendCell = (row: IssueItem): SlotReturnValue => {
-    const trendData = row.trend || [];
-    const values = trendData.map(item => item[1]);
-    const maxVal = Math.max(...values, 1);
-    const total = values.reduce((sum, v) => sum + v, 0);
     return (
       <div class='issues-trend-col'>
-        <div class='trend-bars'>
-          {values.map((val, i) => (
-            <div
-              key={i}
-              style={{ height: `${Math.max((val / maxVal) * 100, 2)}%` }}
-              class='trend-bar'
-            />
-          ))}
-        </div>
-        <span class='trend-total'>{total}</span>
+        <MiniBarChart
+          data={row.trend || []}
+          group={get(rendererCtx.chartGroupId)}
+          total={row.alert_count}
+        />
       </div>
     ) as unknown as SlotReturnValue;
   };
 
   /**
-   * @description 影响范围列渲染（遍历 impact_scope 中的维度展示）
-   * @param row - 当前行 Issue 数据
-   * @param column - 列配置
-   * @param renderCtx - 表格单元格渲染上下文
-   * @returns 影响范围列 JSX
+   * @description 影响范围列渲染（校验 impact_scope 有效性后，组合 hosts 和 services 维度展示标签+值列表）
+   * @param {IssueItem} row - 当前行 Issue 数据
+   * @param {BaseTableColumn} column - 列配置，用于省略号判断
+   * @param {TableCellRenderContext} renderCtx - 表格单元格渲染上下文，提供 isEnabledCellEllipsis 等工具方法
+   * @returns {SlotReturnValue} 影响范围列 JSX
    */
   const renderImpactCell = (
     row: IssueItem,
@@ -181,9 +179,9 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   };
 
   /**
-   * @description 优先级列渲染（色块标签 + hover 高亮 wrapper，点击触发优先级选择弹出框）
-   * @param row - 当前行 Issue 数据
-   * @returns 优先级列 JSX
+   * @description 优先级列渲染（色块标签，当 popover 激活时高亮当前行，点击触发优先级选择弹出框）
+   * @param {IssueItem} row - 当前行 Issue 数据
+   * @returns {SlotReturnValue} 优先级列 JSX
    */
   const renderPriorityCell = (row: IssueItem): SlotReturnValue => {
     const config = IssuesPriorityMap[row.priority];
@@ -212,8 +210,8 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
 
   /**
    * @description 状态列渲染（圆角胶囊标签：状态图标 + 状态文字）
-   * @param row - 当前行 Issue 数据
-   * @returns 状态列 JSX
+   * @param {IssueItem} row - 当前行 Issue 数据
+   * @returns {SlotReturnValue} 状态列 JSX
    */
   const renderStatusCell = (row: IssueItem): SlotReturnValue => {
     const config = IssuesStatusMap[row.status];
@@ -235,10 +233,10 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
 
   /**
    * @description 负责人列渲染（已指派使用 UserTagsCell 显示用户标签 / 未指派显示可点击的指派入口）
-   * @param row - 当前行 Issue 数据
-   * @param column - 列配置
-   * @param renderCtx - 表格单元格渲染上下文
-   * @returns 负责人列 JSX
+   * @param {IssueItem} row - 当前行 Issue 数据
+   * @param {BaseTableColumn} column - 列配置
+   * @param {TableCellRenderContext} renderCtx - 表格单元格渲染上下文
+   * @returns {SlotReturnValue} 负责人列 JSX
    */
   const renderAssigneeCell = (
     row: IssueItem,
@@ -266,9 +264,9 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   };
 
   /**
-   * @description 操作列渲染（仅 is_resolved=false 时显示「标为已解决」按钮）
-   * @param row - 当前行 Issue 数据
-   * @returns 操作列 JSX
+   * @description 操作列渲染（始终显示「标为已解决」按钮，is_resolved=true 时按钮置为禁用样式）
+   * @param {IssueItem} row - 当前行 Issue 数据
+   * @returns {SlotReturnValue} 操作列 JSX
    */
   const renderOperationCell = (row: IssueItem): SlotReturnValue => {
     return (
@@ -283,7 +281,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     ) as unknown as SlotReturnValue;
   };
 
-  /** cellRenderer / renderType 映射表：按 colKey 定义各列的渲染配置 */
+  /** 列渲染配置映射表：按 colKey 定义各列的 cellRenderer / renderType / 布局等配置 */
   const columnsRendererMap: Record<string, Partial<BaseTableColumn>> = {
     'row-select': { type: 'multiple', width: 30, minWidth: 30, fixed: 'left' },
     name: { cellRenderer: renderIssueName },
@@ -299,9 +297,9 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   };
 
   /**
-   * @description 将静态列配置与 cellRenderer 按 colKey 合并，返回完整列配置
-   * @param columns - 外部传入的静态列配置
-   * @returns 合并后的完整列配置
+   * @description 将外部静态列配置与 columnsRendererMap 中的渲染配置按 colKey 合并，生成完整列定义
+   * @param {TableColumnItem[]} columns - 外部传入的静态列配置
+   * @returns {BaseTableColumn[]} 合并渲染配置后的完整列定义数组
    */
   const transformColumns = (columns: TableColumnItem[]): BaseTableColumn[] => {
     return columns.map(col => {

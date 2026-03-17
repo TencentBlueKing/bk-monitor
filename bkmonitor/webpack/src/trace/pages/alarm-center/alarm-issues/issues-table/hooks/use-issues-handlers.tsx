@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { IssuePriorityEnum, IssuesPriorityMap } from '../constant';
+import { IssuePriorityEnum, IssuesPriorityMap } from '../../constant';
 
-import type { IUsePopoverTools } from '../../components/alarm-table/hooks/use-popover';
-import type { IssueItem, IssuePriorityType } from '../typing';
+import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
+import type { IssueItem, IssuePriorityType } from '../../typing';
 
 export interface UseIssuesHandlersOptions {
   /** click popover 工具（基础设施依赖） */
@@ -49,8 +49,8 @@ const PRIORITY_OPTIONS: IssuePriorityType[] = [IssuePriorityEnum.P0, IssuePriori
 
 /**
  * @description Issues 场景私有交互逻辑 hook
- * @param options - 外部回调和基础设施依赖
- * @returns 交互处理函数和弹窗渲染方法
+ * @param {UseIssuesHandlersOptions} options - 外部回调和基础设施依赖
+ * @returns {UseIssuesHandlersReturnType} 交互处理函数和弹窗渲染方法
  */
 export const useIssuesHandlers = ({
   clickPopoverTools,
@@ -87,8 +87,8 @@ export const useIssuesHandlers = ({
 
   /**
    * @description 优先级列点击，弹出优先级选择下拉菜单
-   * @param e - 鼠标事件
-   * @param row - 当前 Issue 行数据
+   * @param {MouseEvent} e - 鼠标事件
+   * @param {IssueItem} row - 当前 Issue 行数据
    */
   const handlePriorityClick = (e: MouseEvent, row: IssueItem) => {
     const menuDom = (
