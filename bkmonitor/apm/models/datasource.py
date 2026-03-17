@@ -568,24 +568,25 @@ class TraceDataSource(ApmDataSourceConfigBase):
             return self.bk_data_id
 
         if settings.ENABLE_TRACING_BKDATA:
-            # V4: 绕过基类的 APM DataLink 查询, 直接创建数据源
             bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
-            operator = get_global_user(bk_tenant_id=bk_tenant_id)
-            data_id_info = resource.metadata.create_data_id(
-                {
-                    "bk_tenant_id": bk_tenant_id,
-                    "bk_biz_id": self.bk_biz_id,
-                    "data_name": self.data_name,
-                    "operator": operator,
-                    "data_description": self.data_name,
-                    **self.DATA_ID_PARAM,
-                }
-            )
+            try:
+                data_id_info = resource.metadata.query_data_source(bk_tenant_id=bk_tenant_id, data_name=self.data_name)
+            except metadata_models.DataSource.DoesNotExist:
+                operator = get_global_user(bk_tenant_id=bk_tenant_id)
+                data_id_info = resource.metadata.create_data_id(
+                    {
+                        "bk_tenant_id": bk_tenant_id,
+                        "bk_biz_id": self.bk_biz_id,
+                        "data_name": self.data_name,
+                        "operator": operator,
+                        "data_description": self.data_name,
+                        **self.DATA_ID_PARAM,
+                    }
+                )
             self.bk_data_id = data_id_info["bk_data_id"]
             self.save()
             return self.bk_data_id
 
-        # GSE: 走基类逻辑 (含 APM DataLink 的 mq_cluster/transfer_cluster 查询)
         return super().create_data_id()
 
     def _build_result_table_option(self):
@@ -601,18 +602,14 @@ class TraceDataSource(ApmDataSourceConfigBase):
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not obj:
             obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
-        # 创建data_id
         obj.create_data_id()
-        # 创建结果表
         obj.create_or_update_result_table(**options)
 
         option = options["option"]
         if not option:
-            # 关闭
             obj.stop(bk_biz_id, app_name)
             return
 
-        # 委托 metadata 层处理数据链路路由 (V4 或 GSE, 由 metadata 自动判断)
         obj.apply_datalink()
 
     def apply_datalink(self):
