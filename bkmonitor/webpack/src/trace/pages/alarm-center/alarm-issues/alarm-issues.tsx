@@ -83,11 +83,11 @@ export default defineComponent({
 
     /**
      * @description 确认指派负责人
-     * @param assignee - 负责人
+     * @param assignee - 负责人列表
      */
-    const handleAssignConfirm = (assignee: string) => {
+    const handleAssignConfirm = (assignee: string[]) => {
       if (!assignTarget.value) return;
-      handleAssign(assignTarget.value.id, [assignee]);
+      handleAssign(assignTarget.value.id, assignee);
       assignDialogVisible.value = false;
       assignTarget.value = null;
     };

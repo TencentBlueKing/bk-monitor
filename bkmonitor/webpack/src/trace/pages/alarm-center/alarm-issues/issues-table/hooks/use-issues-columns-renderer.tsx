@@ -27,7 +27,7 @@
 import dayjs from 'dayjs';
 
 import { ExploreTableColumnTypeEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
-import { IssuesPriorityMap, IssuesStatusMap, IssuesTypeMap } from '../../constant';
+import { IssuesPriorityMap, IssuesRegressionMap, IssuesStatusMap } from '../../constant';
 
 import type {
   BaseTableColumn,
@@ -50,7 +50,7 @@ export type IssuesColumnsRendererCtx = UseIssuesHandlersReturnType & { clickPopo
  */
 export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) => {
   /**
-   * @description Issues 名称列渲染（三行结构：标题 + 异常类型 + 元信息标签）
+   * @description Issues 名称列渲染（三行结构：标题 + 异常信息 + 元信息标签）
    * @param row - 当前行 Issue 数据
    * @param column - 列配置，用于判断是否启用省略号
    * @param renderCtx - 表格单元格渲染上下文
@@ -61,7 +61,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     column: BaseTableColumn,
     renderCtx: TableCellRenderContext
   ): SlotReturnValue => {
-    const typeConfig = IssuesTypeMap[row.issue_type];
+    const regressionConfig = IssuesRegressionMap[String(row.is_regression)];
     return (
       <div class='issues-name-col'>
         <div class={`issues-name-title ${renderCtx.isEnabledCellEllipsis(column)}`}>
@@ -69,22 +69,22 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
             class='issues-name-title-text'
             onClick={() => rendererCtx.handleShowDetail(row.id)}
           >
-            {row.issue_name}
+            {row.name}
           </span>
         </div>
         <div class={`issues-name-exception ${renderCtx.isEnabledCellEllipsis(column)}`}>
-          <span class='issues-name-exception-text'>{row.exception_type}</span>
+          <span class='issues-name-exception-text'>{row.anomaly_message}</span>
         </div>
         <div class='issues-name-meta'>
           <span
             style={{
-              '--issues-type-bg': typeConfig?.bgColor || '#E1F5F0',
-              '--issues-type-color': typeConfig?.color || '#21A380',
+              '--issues-type-bg': regressionConfig?.bgColor || '#E1F5F0',
+              '--issues-type-color': regressionConfig?.color || '#21A380',
             }}
             class='issues-type-tag'
-            title={typeConfig?.alias || row.issue_type}
+            title={regressionConfig?.alias ?? '--'}
           >
-            <i class={typeConfig?.icon} />
+            <i class={regressionConfig?.icon} />
           </span>
           <span class='issues-alert-count'>
             <i class='icon-monitor icon-shijianjiansuo' />
@@ -126,13 +126,14 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
    * @returns 趋势列 JSX
    */
   const renderTrendCell = (row: IssueItem): SlotReturnValue => {
-    const trendData = row.trend_data || [];
-    const maxVal = Math.max(...trendData, 1);
-    const total = trendData.reduce((sum, v) => sum + v, 0);
+    const trendData = row.trend || [];
+    const values = trendData.map(item => item[1]);
+    const maxVal = Math.max(...values, 1);
+    const total = values.reduce((sum, v) => sum + v, 0);
     return (
       <div class='issues-trend-col'>
         <div class='trend-bars'>
-          {trendData.map((val, i) => (
+          {values.map((val, i) => (
             <div
               key={i}
               style={{ height: `${Math.max((val / maxVal) * 100, 2)}%` }}
@@ -146,8 +147,10 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   };
 
   /**
-   * @description 影响范围列渲染（服务名 + 主机数双行展示）
+   * @description 影响范围列渲染（遍历 impact_scope 中的维度展示）
    * @param row - 当前行 Issue 数据
+   * @param column - 列配置
+   * @param renderCtx - 表格单元格渲染上下文
    * @returns 影响范围列 JSX
    */
   const renderImpactCell = (
@@ -155,18 +158,24 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     column: BaseTableColumn,
     renderCtx: TableCellRenderContext
   ): SlotReturnValue => {
+    const scope = row.impact_scope;
+    if (!scope || !('hosts' in scope)) {
+      return (<span>--</span>) as unknown as SlotReturnValue;
+    }
+    const dimensions = [scope.hosts, scope.services].filter(Boolean);
     return (
       <div class='issues-impact-col'>
-        <div class='impact-row'>
-          <span class='impact-label'>{window.i18n.t('服务')} ：</span>
-          <span class={`impact-value is-string ${renderCtx.isEnabledCellEllipsis(column)}`}>
-            {row.impact_service || '--'}
-          </span>
-        </div>
-        <div class='impact-row'>
-          <span class='impact-label'>{window.i18n.t('主机')} ：</span>
-          <span class='impact-value is-number'>{row.impact_host_count ?? '--'}</span>
-        </div>
+        {dimensions.map((dim, idx) => (
+          <div
+            key={idx}
+            class='impact-row'
+          >
+            <span class='impact-label'>{dim.label} ：</span>
+            <span class={`impact-value is-string ${renderCtx.isEnabledCellEllipsis(column)}`}>
+              {dim.items?.length ? dim.items.join(', ') : '--'}
+            </span>
+          </div>
+        ))}
       </div>
     ) as unknown as SlotReturnValue;
   };
@@ -225,7 +234,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   };
 
   /**
-   * @description 负责人列渲染（已指派显示用户标签列表 / 未指派显示可点击的指派入口）
+   * @description 负责人列渲染（已指派显示用户标签 / 未指派显示可点击的指派入口）
    * @param row - 当前行 Issue 数据
    * @returns 负责人列 JSX
    */
@@ -258,7 +267,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   };
 
   /**
-   * @description 操作列渲染（「标为已解决」快捷操作按钮）
+   * @description 操作列渲染（仅 is_resolved=false 时显示「标为已解决」按钮）
    * @param row - 当前行 Issue 数据
    * @returns 操作列 JSX
    */
@@ -266,7 +275,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     return (
       <div class='issues-operation-col'>
         <span
-          class='operation-btn'
+          class={['operation-btn', { 'is-disabled': row.is_resolved }]}
           onClick={() => rendererCtx.handleMarkResolved(row.id)}
         >
           {window.i18n.t('标为已解决')}
@@ -278,12 +287,12 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   /** cellRenderer / renderType 映射表：按 colKey 定义各列的渲染配置 */
   const columnsRendererMap: Record<string, Partial<BaseTableColumn>> = {
     'row-select': { type: 'multiple', width: 30, minWidth: 30, fixed: 'left' },
-    issue_name: { cellRenderer: renderIssueName },
-    tags: { renderType: ExploreTableColumnTypeEnum.TAGS },
-    last_seen: { cellRenderer: renderTimeCell },
-    first_seen: { cellRenderer: renderTimeCell },
-    trend_data: { cellRenderer: renderTrendCell },
-    impact_service: { cellRenderer: renderImpactCell },
+    name: { cellRenderer: renderIssueName },
+    labels: { renderType: ExploreTableColumnTypeEnum.TAGS },
+    last_alert_time: { cellRenderer: renderTimeCell },
+    first_alert_time: { cellRenderer: renderTimeCell },
+    trend: { cellRenderer: renderTrendCell },
+    impact_scope: { cellRenderer: renderImpactCell },
     priority: { cellRenderer: renderPriorityCell },
     status: { cellRenderer: renderStatusCell },
     assignee: { cellRenderer: renderAssigneeCell },

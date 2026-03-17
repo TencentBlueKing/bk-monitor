@@ -29,7 +29,7 @@ import { computed, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import TemporaryShareNew from '../../../../../components/temporary-share/temporary-share-new';
-import { IssuesTypeMap, IssueTypeEnum } from '../../constant';
+import { IssuesRegressionMap } from '../../constant';
 
 import './issues-slider-header.scss';
 
@@ -62,14 +62,12 @@ export default defineComponent({
     const { t } = useI18n();
 
     const iconMap = computed(() => {
-      const aliasMap = {
-        [IssueTypeEnum.REGRESSION]: t('回归'),
-        [IssueTypeEnum.NEW]: t('新'),
-      };
-
+      // TODO: 后续从 props 接收 is_regression 字段动态决定
+      const isRegression = false;
+      const config = IssuesRegressionMap[String(isRegression)];
       return {
-        ...IssuesTypeMap.new,
-        alias: aliasMap.new,
+        ...config,
+        alias: isRegression ? t('回归') : t('新'),
       };
     });
 

@@ -102,10 +102,10 @@ export default defineComponent({
             >
               <div class={['basic-info-value', { 'is-active': this.priorityPopoverShow }]}>
                 <div
-                  style={{ color: IssuesPriorityMap.high.color, backgroundColor: IssuesPriorityMap.high.bgColor }}
+                  style={{ color: IssuesPriorityMap.P0.color, backgroundColor: IssuesPriorityMap.P0.bgColor }}
                   class='priority-tag'
                 >
-                  {IssuesPriorityMap.high.alias}
+                  {IssuesPriorityMap.P0.alias}
                 </div>
               </div>
             </Popover>

@@ -61,12 +61,12 @@ export function useIssuesOperations({ allData }: UseIssuesOperationsOptions) {
   /**
    * @description 指派负责人
    * @param id - Issue ID
-   * @param assignee - 负责人列表
+   * @param assignee - 负责人用户名列表
    */
   const handleAssign = (id: string, assignee: string[]) => {
     updateIssueItem(id, {
       assignee,
-      ...(assignee.length > 0 ? { status: IssueStatusEnum.UNRESOLVED } : {}),
+      ...(assignee.length ? { status: IssueStatusEnum.UNRESOLVED } : {}),
     });
   };
 

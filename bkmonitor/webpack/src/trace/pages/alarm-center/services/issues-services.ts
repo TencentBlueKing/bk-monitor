@@ -40,7 +40,7 @@ import type { AlarmType } from '../typings';
 /** Issues 表格静态列配置（纯数据，不含渲染逻辑） */
 const ISSUES_TABLE_COLUMNS: TableColumnItem[] = [
   {
-    colKey: 'issue_name',
+    colKey: 'name',
     title: 'Issues',
     minWidth: 200,
     fixed: 'left',
@@ -48,33 +48,33 @@ const ISSUES_TABLE_COLUMNS: TableColumnItem[] = [
     is_locked: true,
   },
   {
-    colKey: 'tags',
+    colKey: 'labels',
     title: window.i18n.t('标签'),
     minWidth: 180,
     is_default: true,
   },
   {
-    colKey: 'last_seen',
+    colKey: 'last_alert_time',
     title: window.i18n.t('最后出现时间'),
     width: 180,
     sorter: true,
     is_default: true,
   },
   {
-    colKey: 'first_seen',
+    colKey: 'first_alert_time',
     title: window.i18n.t('最早发生时间'),
     width: 180,
     sorter: true,
     is_default: true,
   },
   {
-    colKey: 'trend_data',
+    colKey: 'trend',
     title: window.i18n.t('趋势'),
     width: 160,
     is_default: true,
   },
   {
-    colKey: 'impact_service',
+    colKey: 'impact_scope',
     title: window.i18n.t('影响范围'),
     minWidth: 160,
     is_default: true,

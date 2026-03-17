@@ -45,7 +45,7 @@ export interface UseIssuesHandlersOptions {
 export type UseIssuesHandlersReturnType = ReturnType<typeof useIssuesHandlers>;
 
 /** 优先级选项列表 */
-const PRIORITY_OPTIONS: IssuePriorityType[] = [IssuePriorityEnum.HIGH, IssuePriorityEnum.MEDIUM, IssuePriorityEnum.LOW];
+const PRIORITY_OPTIONS: IssuePriorityType[] = [IssuePriorityEnum.P0, IssuePriorityEnum.P1, IssuePriorityEnum.P2];
 
 /**
  * @description Issues 场景私有交互逻辑 hook

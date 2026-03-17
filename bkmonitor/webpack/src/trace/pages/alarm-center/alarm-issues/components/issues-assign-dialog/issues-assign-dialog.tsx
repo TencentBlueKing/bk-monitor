@@ -40,7 +40,7 @@ export default defineComponent({
     },
   },
   emits: {
-    confirm: (assignee: string) => typeof assignee === 'string',
+    confirm: (assignee: string[]) => Array.isArray(assignee),
     cancel: () => true,
     'update:isShow': (val: boolean) => typeof val === 'boolean',
   },
@@ -64,7 +64,12 @@ export default defineComponent({
     const handleConfirm = () => {
       const value = assignInputValue.value?.trim();
       if (!value) return;
-      emit('confirm', value);
+      const assignees = value
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+      if (!assignees.length) return;
+      emit('confirm', assignees);
     };
 
     /**

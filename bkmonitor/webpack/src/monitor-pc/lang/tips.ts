@@ -453,4 +453,5 @@ export default {
   回归问题: 'Regression Issue',
   待审核: 'Pending Review',
   未解决: 'Unresolved',
+  归档: 'Archived',
 };

@@ -24,18 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import type { IssuePriorityType, IssueStatusType, IssueTypeType, MapEntry } from './typing';
+import type { IssuePriorityType, IssueStatusType, MapEntry } from './typing';
 
 // ===================== 枚举常量 =====================
 
 /** Issues 优先级枚举 */
 export const IssuePriorityEnum = {
   /** 高 */
-  HIGH: 'high',
+  P0: 'P0',
   /** 中 */
-  MEDIUM: 'medium',
+  P1: 'P1',
   /** 低 */
-  LOW: 'low',
+  P2: 'P2',
 } as const;
 
 /** Issues 状态枚举 */
@@ -46,14 +46,16 @@ export const IssueStatusEnum = {
   RESOLVED: 'resolved',
   /** 未解决 */
   UNRESOLVED: 'unresolved',
+  /** 归档 */
+  ARCHIVED: 'archived',
 } as const;
 
-/** Issues 类型枚举 */
-export const IssueTypeEnum = {
-  /** 新问题 */
-  NEW: 'new',
+/** Issues 是否回归映射枚举（true=回归问题，false=新问题） */
+export const IssueRegressionEnum = {
   /** 回归问题 */
-  REGRESSION: 'regression',
+  REGRESSION: true,
+  /** 新问题 */
+  NEW: false,
 } as const;
 
 /** Issues 批量操作枚举 */
@@ -106,36 +108,42 @@ export const IssuesStatusMap: Record<IssueStatusType, MapEntry> = {
     color: '#21A380',
     bgColor: '#EDFAF6',
   },
+  [IssueStatusEnum.ARCHIVED]: {
+    alias: window.i18n.t('归档'),
+    icon: 'icon-monitor icon-guidang',
+    color: '#6F7F9A',
+    bgColor: '#E9EDF5',
+  },
 };
 
 /** Issues 优先级映射 */
 export const IssuesPriorityMap: Record<IssuePriorityType, MapEntry> = {
-  [IssuePriorityEnum.HIGH]: {
+  [IssuePriorityEnum.P0]: {
     alias: window.i18n.t('button-高'),
     bgColor: '#E54040',
     color: '#FFFFFF',
   },
-  [IssuePriorityEnum.MEDIUM]: {
+  [IssuePriorityEnum.P1]: {
     alias: window.i18n.t('button-中'),
     bgColor: '#FAA41E',
     color: '#FFFFFF',
   },
-  [IssuePriorityEnum.LOW]: {
+  [IssuePriorityEnum.P2]: {
     alias: window.i18n.t('button-低'),
     bgColor: '#8F9FBD',
     color: '#FFFFFF',
   },
 };
 
-/** Issues 类型映射 */
-export const IssuesTypeMap: Record<IssueTypeType, MapEntry> = {
-  [IssueTypeEnum.NEW]: {
+/** Issues 回归类型映射（key 为 is_regression 布尔值的字符串形式） */
+export const IssuesRegressionMap: Record<string, MapEntry> = {
+  false: {
     alias: window.i18n.t('新问题'),
     bgColor: '#E1F5F0',
     color: '#21A380',
     icon: 'icon-monitor icon-New',
   },
-  [IssueTypeEnum.REGRESSION]: {
+  true: {
     alias: window.i18n.t('回归问题'),
     bgColor: '#FFEDD1',
     color: '#F09305',
