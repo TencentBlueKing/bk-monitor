@@ -678,8 +678,6 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_SERVICE_CACHE_APPLICATIONS", slz.ListField(label=_("APM 按服务缓存指标的灰度应用列表"), default=[])),
         # 企业微信模块化（layouts）消息通知灰度业务列表
         ("WECOM_LAYOUTS_BIZ_LIST", slz.ListField(label=_("企业微信模块化消息通知灰度业务列表"), default=[])),
-        # APM Tracing 是否启用 BKBase V4 数据链路
-        ("ENABLE_TRACING_BKDATA", slz.BooleanField(label=_("APM Tracing 是否启用 BKBase V4 数据链路"), default=False)),
     ]
 )
 
