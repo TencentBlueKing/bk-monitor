@@ -67,7 +67,9 @@ class BaseTarget(abc.ABC):
         :return: 维度键值对字典
         :rtype: dict[str, int | str]
         """
-        dimensions: dict[str, int | str] = {tag["key"]: tag.get("value") for tag in self._alert.event.tags}
+        dimensions: dict[str, int | str] = {
+            tag["key"]: tag["value"] for tag in self._alert.event.tags if hasattr(tag, "value")
+        }
 
         # dimensions 有一些额外的关联信息，也需要补充进来。
         for d in self._alert.dimensions:
