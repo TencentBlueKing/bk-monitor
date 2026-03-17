@@ -49,17 +49,15 @@ class UnifyQueryPatternHandler(UnifyQueryHandler):
 
         result = self.query_ts_reference(query_condition)
 
-        self.deal_with_result_clustering_dimensions_order(result, dimensions)
-
-        return result
+        return self.deal_with_result_clustering_dimensions_order(result, dimensions)
 
     @staticmethod
-    def deal_with_result_clustering_dimensions_order(result: dict, dimensions: list) -> None:
+    def deal_with_result_clustering_dimensions_order(result: dict, dimensions: list) -> dict:
         """
         处理结果聚类维度顺序
         """
         if not result or not result.get("series") or not dimensions:
-            return
+            return result
 
         for item in result["series"]:
             group_keys = item.get("group_keys", [])
@@ -85,6 +83,8 @@ class UnifyQueryPatternHandler(UnifyQueryHandler):
 
             item["group_keys"] = reordered_group_keys
             item["group_values"] = reordered_group_values
+
+        return result
 
     @staticmethod
     def handle_result_formats(result: dict) -> list:
