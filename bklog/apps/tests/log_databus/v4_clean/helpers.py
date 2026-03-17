@@ -2,6 +2,9 @@
 """
 V4 清洗规则测试 — 公共断言 helpers 和 ETL 类型列表
 """
+import difflib
+import json
+
 from apps.log_databus.handlers.etl_storage.bk_log_text import BkLogTextEtlStorage
 from apps.log_databus.handlers.etl_storage.bk_log_json import BkLogJsonEtlStorage
 from apps.log_databus.handlers.etl_storage.bk_log_delimiter import BkLogDelimiterEtlStorage
@@ -13,6 +16,45 @@ ALL_ETL_CLASSES = [
     ("delimiter", BkLogDelimiterEtlStorage),
     ("regexp", BkLogRegexpEtlStorage),
 ]
+
+
+def rules_diff(actual, expected):
+    """生成人类可读的规则差异"""
+    actual_str = json.dumps(actual, indent=2, ensure_ascii=False, sort_keys=True)
+    expected_str = json.dumps(expected, indent=2, ensure_ascii=False, sort_keys=True)
+    diff = difflib.unified_diff(
+        expected_str.splitlines(),
+        actual_str.splitlines(),
+        fromfile="expected",
+        tofile="actual",
+        lineterm="",
+    )
+    return "\n".join(diff)
+
+
+def assert_v4_result_equal(test_case, actual, expected, scenario_name=""):
+    """全量比对 V4 清洗结果，失败时逐条定位差异"""
+    actual_rules = actual["clean_rules"]
+    expected_rules = expected["clean_rules"]
+
+    test_case.assertEqual(
+        len(actual_rules), len(expected_rules),
+        f"[{scenario_name}] 规则数量不匹配: actual={len(actual_rules)}, expected={len(expected_rules)}\n"
+        f"{rules_diff(actual_rules, expected_rules)}"
+    )
+
+    for i, (a, e) in enumerate(zip(actual_rules, expected_rules)):
+        test_case.assertEqual(
+            a, e,
+            f"[{scenario_name}] Rule[{i}] 不匹配:\n"
+            f"  actual:   {json.dumps(a, ensure_ascii=False)}\n"
+            f"  expected: {json.dumps(e, ensure_ascii=False)}"
+        )
+
+    test_case.assertEqual(actual.get("es_storage_config"), expected.get("es_storage_config"),
+                          f"[{scenario_name}] es_storage_config 不匹配")
+    test_case.assertEqual(actual.get("doris_storage_config"), expected.get("doris_storage_config"),
+                          f"[{scenario_name}] doris_storage_config 不匹配")
 
 
 def find_rules_by_output(rules, output_id):
