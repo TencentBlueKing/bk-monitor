@@ -620,24 +620,38 @@ class QueryTimeSeriesMetricResource(MetaDataAPIGWResource):
                 child=serializers.CharField(),
                 required=True,
                 label="搜索值列表（多个值用OR连接）",
-                min_length=1,
+                min_length=0,
             )
             search_type = serializers.ChoiceField(
-                choices=["regex", "fuzzy", "exact"],
+                choices=["regex", "fuzzy", "exact", "case_sensitive"],
                 required=False,
                 default="fuzzy",
-                label="搜索类型：regex-正则表达式，fuzzy-模糊搜索，exact-精确匹配（仅对name字段有效，其他字段默认为exact）",
+                label="搜索类型：regex-正则表达式，fuzzy-模糊搜索，exact-精确匹配，case_sensitive-区分大小写精确匹配（仅对name字段有效，其他字段默认为exact）",
             )
 
         bk_tenant_id = TenantIdField(label="租户ID")
         group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
         page = serializers.IntegerField(default=1, required=False, label="页数", min_value=1)
-        page_size = serializers.IntegerField(default=10, required=False, label="页长", min_value=1, max_value=1000)
+        page_size = serializers.IntegerField(
+            default=10, required=False, label="页长，-1 表示不分页", min_value=-1, max_value=100000
+        )
         conditions = serializers.ListField(
             child=QueryTimeSeriesMetricConditionSerializer(),
             required=False,
-            label="搜索条件列表，同一字段的多个值用OR，不同字段之间用AND",
+            label="搜索条件列表，同一字段的多个值用OR，不同字段之间的连接方式由condition_connector决定",
             allow_empty=True,
+        )
+        mandatory_conditions = serializers.ListField(
+            child=QueryTimeSeriesMetricConditionSerializer(),
+            required=False,
+            label="强制过滤条件列表，始终以 AND 方式与其他条件组合，不受 condition_connector 影响",
+            allow_empty=True,
+        )
+        condition_connector = serializers.ChoiceField(
+            choices=["and", "or"],
+            required=False,
+            default="and",
+            label="不同字段之间的连接方式：and-且（交集），or-或（并集）",
         )
         order_by = serializers.ChoiceField(
             choices=["name", "update_time", "-name", "-update_time"],

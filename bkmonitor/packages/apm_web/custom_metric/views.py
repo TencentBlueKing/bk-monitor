@@ -42,7 +42,7 @@ class CustomMetricViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute(
-            "GET",
+            "POST",
             ApmGetCustomTsFields,
             endpoint="get_custom_ts_fields",
             decorators=[user_visit_record],

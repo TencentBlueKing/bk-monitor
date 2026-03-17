@@ -20,7 +20,6 @@ from apm_web.custom_metric.utils import (
 )
 from monitor_web.custom_report.constants import DEFAULT_FIELD_SCOPE
 from monitor_web.custom_report.handlers.metric.query import (
-    ScopeQueryMetricResponseDTO,
     ScopeQueryConverter,
 )
 from monitor_web.custom_report.resources.metric import (
@@ -39,34 +38,39 @@ class ApmGetCustomTsFields(ScopeQueryFilterMixin, GetCustomTsFields):
     class RequestSerializer(BaseRequestSerializer, GetCustomTsFields.RequestSerializer):
         pass
 
-    def get_movable(self, metric_obj: ScopeQueryMetricResponseDTO, params: dict) -> bool:
+    def get_movable(self, metric_obj, params: dict) -> bool:
         return metric_obj.field_scope == params.get("scope_prefix", "") + DEFAULT_FIELD_SCOPE
 
-    @scope_prefix_handler(output_field=["dimensions.scope.name", "metrics.scope.name"])
+    def get_extra_conditions(self, params: dict) -> list[dict]:
+        """APM 场景：通过 scope_prefix 查找对应的 scope_ids，注入到查询条件中"""
+        scope_prefix = params.get("scope_prefix", "")
+        if not scope_prefix:
+            return []
+
+        # 先查出带前缀的 scope，获取 scope_ids
+        converter = ScopeQueryConverter(params["time_series_group_id"])
+        scope_objs = converter.query_time_series_scope(scope_name=scope_prefix, include_metrics=False)
+        scope_ids = [str(obj.id) for obj in scope_objs]
+        if scope_ids:
+            return [{"key": "scope_id", "values": scope_ids, "search_type": "exact"}]
+        return []
+
+    @scope_prefix_handler(output_field="list.scope_name")
     def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
         result = super().perform_request(params)
 
-        # 过滤内置指标及其专有维度
-        if not result.get("metrics"):
+        # 过滤内置指标（以 apm_ 或 bk_apm_ 开头）
+        if not result.get("list"):
             return result
 
-        # 过滤内置指标（以 apm_ 或 bk_apm_ 开头）
         filtered_metrics = []
-        for metric in result["metrics"]:
+        for metric in result["list"]:
             metric_name = str(metric["name"])
             if not (metric_name.startswith("apm_") or metric_name.startswith("bk_apm_")):
                 filtered_metrics.append(metric)
 
-        result["metrics"] = filtered_metrics
-
-        # 收集过滤后指标使用的所有维度名称
-        used_dimension_names = set()
-        for metric in filtered_metrics:
-            if metric.get("dimensions"):
-                used_dimension_names.update(metric["dimensions"])
-
-        # 只保留被使用的维度配置
-        result["dimensions"] = [d for d in result.get("dimensions", []) if d["name"] in used_dimension_names]
+        result["list"] = filtered_metrics
+        result["total"] = len(filtered_metrics)
 
         return result
 
@@ -108,8 +112,8 @@ class ApmCreateOrUpdateGroupingRule(ScopeQueryFilterMixin, DefaultScopeNameMixin
     class RequestSerializer(BaseRequestSerializer, CreateOrUpdateGroupingRule.RequestSerializer):
         pass
 
-    @scope_prefix_handler(input_field="name", output_field="name")
-    def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
+    @scope_prefix_handler(input_field="name")
+    def perform_request(self, params: dict[str, Any]) -> None:
         return super().perform_request(params)
 
 

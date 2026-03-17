@@ -1507,24 +1507,38 @@ class QueryTimeSeriesMetricResource(Resource):
                 child=serializers.CharField(),
                 required=True,
                 label="搜索值列表（多个值用OR连接）",
-                min_length=1,
+                min_length=0,
             )
             search_type = serializers.ChoiceField(
-                choices=["regex", "fuzzy", "exact"],
+                choices=["regex", "fuzzy", "exact", "case_sensitive"],
                 required=False,
                 default="fuzzy",
-                label="搜索类型：regex-正则表达式，fuzzy-模糊搜索，exact-精确匹配（仅对name字段有效，其他字段默认为exact）",
+                label="搜索类型：regex-正则表达式，fuzzy-模糊搜索，exact-精确匹配，case_sensitive-区分大小写精确匹配（仅对name字段有效，其他字段默认为exact）",
             )
 
         bk_tenant_id = TenantIdField(label="租户ID")
         group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
         page = serializers.IntegerField(default=1, required=False, label="页数", min_value=1)
-        page_size = serializers.IntegerField(default=10, required=False, label="页长", min_value=1, max_value=1000)
+        page_size = serializers.IntegerField(
+            default=10, required=False, label="页长，-1 表示不分页", min_value=-1, max_value=100000
+        )
         conditions = serializers.ListField(
             child=QueryTimeSeriesMetricConditionSerializer(),
             required=False,
-            label="搜索条件列表，同一字段的多个值用OR，不同字段之间用AND",
+            label="搜索条件列表，同一字段的多个值用OR，不同字段之间的连接方式由condition_connector决定",
             allow_empty=True,
+        )
+        mandatory_conditions = serializers.ListField(
+            child=QueryTimeSeriesMetricConditionSerializer(),
+            required=False,
+            label="强制过滤条件列表，始终以 AND 方式与其他条件组合，不受 condition_connector 影响",
+            allow_empty=True,
+        )
+        condition_connector = serializers.ChoiceField(
+            choices=["and", "or"],
+            required=False,
+            default="and",
+            label="不同字段之间的连接方式：and-且（交集），or-或（并集）",
         )
         # 排序参数
         order_by = serializers.ChoiceField(
@@ -1558,7 +1572,7 @@ class QueryTimeSeriesMetricResource(Resource):
 
         # 分页处理
         total = query_set.count()
-        if page_size > 0:
+        if page_size != -1:
             offset = (page - 1) * page_size
             paginated_query_set = query_set[offset : offset + page_size]
         else:
@@ -1593,18 +1607,44 @@ class QueryTimeSeriesMetricResource(Resource):
 
     def _apply_search_filters(self, query_set, validated_request_data):
         """应用搜索过滤条件
-        同一字段的多个值用OR，不同字段之间用AND
+        mandatory_conditions 始终以 AND 方式与其他条件组合，不受 condition_connector 影响。
+        conditions 中同一字段的多个值用OR，不同字段之间的连接方式由condition_connector决定（默认AND）。
+        最终查询逻辑：mandatory_conditions AND (user_conditions)
         """
         conditions = validated_request_data.get("conditions", [])
-        if not conditions:
-            return query_set
+        mandatory_conditions = validated_request_data.get("mandatory_conditions", [])
+        connector = validated_request_data.get("condition_connector", "and")
 
-        # 构建查询：不同字段之间用AND，同一字段的多个值用OR
-        final_query = None
+        # 1. 构建用户条件查询（受 condition_connector 控制）
+        user_query = None
         for condition in conditions:
             condition_query = self._build_condition_query(condition)
             if condition_query:
-                final_query = condition_query if final_query is None else final_query & condition_query
+                if user_query is None:
+                    user_query = condition_query
+                elif connector == "or":
+                    user_query = user_query | condition_query
+                else:
+                    user_query = user_query & condition_query
+
+        # 2. 构建强制条件查询（始终 AND）
+        mandatory_query = None
+        for condition in mandatory_conditions:
+            condition_query = self._build_condition_query(condition)
+            if condition_query:
+                if mandatory_query is None:
+                    mandatory_query = condition_query
+                else:
+                    mandatory_query = mandatory_query & condition_query
+
+        # 3. 组合：mandatory AND user_conditions
+        final_query = None
+        if mandatory_query and user_query:
+            final_query = mandatory_query & user_query
+        elif mandatory_query:
+            final_query = mandatory_query
+        elif user_query:
+            final_query = user_query
 
         return query_set.filter(final_query) if final_query else query_set
 
@@ -1629,6 +1669,8 @@ class QueryTimeSeriesMetricResource(Resource):
                     q_obj = Q(field_name__regex=value)
                 elif search_type == "fuzzy":
                     q_obj = Q(field_name__icontains=value)
+                elif search_type == "case_sensitive":
+                    q_obj = Q(field_name__contains=value)
                 else:  # exact
                     q_obj = Q(field_name=value)
 
@@ -2453,9 +2495,7 @@ class ListResultTableSnapshotResource(Resource):
             query &= Q(target_snapshot_repository_name__in=repository_names)
 
         result_queryset = models.EsSnapshot.objects.filter(query)
-        snapshot_pairs = list(
-            result_queryset.values_list("table_id", "target_snapshot_repository_name").distinct()
-        )
+        snapshot_pairs = list(result_queryset.values_list("table_id", "target_snapshot_repository_name").distinct())
         table_ids = list({table_id for table_id, _ in snapshot_pairs})
         repository_names = list({repository_name for _, repository_name in snapshot_pairs})
 
@@ -2466,8 +2506,7 @@ class ListResultTableSnapshotResource(Resource):
         for snapshot in result_queryset:
             snapshot_json = snapshot.to_self_json()
             table_id_doc_count_and_store_size = all_doc_count_and_store_size.get(
-                (snapshot.table_id, snapshot.target_snapshot_repository_name),
-                {}
+                (snapshot.table_id, snapshot.target_snapshot_repository_name), {}
             )
             snapshot_json["doc_count"] = table_id_doc_count_and_store_size.get("doc_count", 0)
             snapshot_json["store_size"] = table_id_doc_count_and_store_size.get("store_size", 0)

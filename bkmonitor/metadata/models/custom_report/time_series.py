@@ -2459,6 +2459,7 @@ class TimeSeriesMetric(models.Model):
         updatable_fields = ["field_config", "label", "tag_list", "scope_id", "last_modify_time"]
         records_to_update = []
         scope_moves = defaultdict(list)
+        moving_metrics_by_scope = defaultdict(list)
 
         for metric, validated_request_data in metrics_to_update:
             # 保存原始的 tag_list 和 scope_id，用于检测变化
@@ -2494,17 +2495,61 @@ class TimeSeriesMetric(models.Model):
             if scope_changed and source_scope.create_from == TimeSeriesScope.CREATE_FROM_DATA:
                 raise ValueError(f"数据自动创建的指标分组不允许修改，请确认后重试。分组ID: {original_scope_id}")
 
+            # 收集发生 scope 移动的指标，用于后续冲突检查
+            if scope_changed:
+                moving_metrics_by_scope[new_scope.id].append(metric)
+
             tag_list_changed = set(original_tag_list) != set(metric.tag_list or [])
 
             # 如果 scope 发生变化或者 tag_list 发生变化，记录需要移动的指标
             if scope_changed or tag_list_changed:
                 scope_moves[(source_scope, new_scope)].append(metric)
 
+        # 检查移动到目标 scope 后是否存在 field_name 冲突
+        if moving_metrics_by_scope:
+            cls._validate_scope_move_conflicts(moving_metrics_by_scope)
+
         # 批量更新所有指标的字段
         if records_to_update:
             cls.objects.bulk_update(records_to_update, updatable_fields, batch_size=BULK_UPDATE_BATCH_SIZE)
 
         TimeSeriesScope.update_dimension_config_and_metrics_scope_id(scope_moves=scope_moves)
+
+    @classmethod
+    def _validate_scope_move_conflicts(cls, moving_metrics_by_scope: dict):
+        """检查指标移动到目标 scope 后是否存在 field_name 冲突
+
+        :param moving_metrics_by_scope: {target_scope_id: [metric, ...]}
+        """
+        for target_scope_id, metrics in moving_metrics_by_scope.items():
+            moving_field_names = [m.field_name for m in metrics]
+
+            # 1. 检查移动批次内部是否有重复的 field_name
+            if len(moving_field_names) != len(set(moving_field_names)):
+                seen = set()
+                duplicates = []
+                for name in moving_field_names:
+                    if name in seen and name not in duplicates:
+                        duplicates.append(name)
+                    seen.add(name)
+                raise ValueError(
+                    f"同一批次中存在重复的指标名称[{', '.join(duplicates)}]，不允许移动到同一分组"
+                )
+
+            # 2. 检查目标 scope 中是否已有同名指标（排除正在移动的指标自身）
+            moving_field_ids = {m.field_id for m in metrics}
+            existing_conflicts = cls.objects.filter(
+                scope_id=target_scope_id,
+                field_name__in=moving_field_names,
+            ).exclude(
+                field_id__in=moving_field_ids
+            ).values_list("field_name", flat=True)
+
+            if existing_conflicts:
+                conflicting_names = list(existing_conflicts)
+                raise ValueError(
+                    f"目标分组中已存在同名指标[{', '.join(conflicting_names)}]，请修改指标名称后重试"
+                )
 
     @classmethod
     def _validate_field_name_conflicts(cls, metrics_to_create):
