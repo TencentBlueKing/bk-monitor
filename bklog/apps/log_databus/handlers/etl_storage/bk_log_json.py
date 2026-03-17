@@ -131,6 +131,7 @@ class BkLogJsonEtlStorage(EtlStorage):
         构建JSON类型的V4 clean_rules配置
         包含完整的数据流转规则：原始数据 -> JSON解析 -> 字段提取 -> JSON解析 -> 字段映射
         """
+        self._validate_v4_reserved_fields(fields)
         rules = []
         
         # 1. JSON解析阶段（原始数据 -> json_data）
@@ -232,54 +233,9 @@ class BkLogJsonEtlStorage(EtlStorage):
         rules.extend(self._build_extra_json_field_v4(etl_params, fields))
 
 
-        # 7. Path字段处理（根据separator_configs配置）
-        separator_configs = built_in_config.get("option", {}).get("separator_configs", [])
-        if separator_configs:
-            separator_config = separator_configs[0]
-            path_regexp = separator_config.get("separator_regexp", "")
-            if path_regexp:
-                # 从json_data提取path字段
-                rules.append({
-                    "input_id": "json_data",
-                    "output_id": "path",
-                    "operator": {
-                        "type": "get",
-                        "key_index": [
-                            {
-                                "type": "key",
-                                "value": "filename"
-                            }
-                        ],
-                        "missing_strategy": None
-                    }
-                })
-                
-                # 从path字段提取路径信息
-                rules.append({
-                    "input_id": "path",
-                    "output_id": "bk_separator_object_path",
-                    "operator": {
-                        "type": "regex",
-                        "regex": path_regexp
-                    }
-                })
-                
-                # 提取路径字段
-                import re
-                pattern = re.compile(path_regexp)
-                match_fields = list(pattern.groupindex.keys())
-                for field_name in match_fields:
-                    rules.append({
-                        "input_id": "bk_separator_object_path",
-                        "output_id": field_name,
-                        "operator": {
-                            "type": "assign",
-                            "key_index": field_name,
-                            "alias": field_name,
-                            "output_type": "string"
-                        }
-                    })
-        
+        # 7. Path字段处理
+        rules.extend(self._build_path_regex_rules_v4(etl_params, built_in_config))
+
         return {
             "clean_rules": rules,
             "es_storage_config": {

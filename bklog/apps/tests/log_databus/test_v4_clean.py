@@ -10,6 +10,9 @@ V4 清洗规则单元测试
 2. 将输出（JSON→Python 语法转换后）替换 test_v4_clean_snapshots.py
 3. 人工核对后运行全部测试确认通过
 """
+import copy
+import difflib
+import json
 from unittest import TestCase
 
 from apps.log_databus.handlers.etl_storage.bk_log_text import BkLogTextEtlStorage
@@ -31,8 +34,105 @@ from apps.tests.log_databus.test_v4_clean_snapshots import (
     EXPECTED_DELIMITER_TIME_FIELD,
     EXPECTED_JSON_EPOCH_MILLIS,
 )
-from apps.tests.log_databus.v4_clean.helpers import assert_v4_result_equal
-from apps.tests.log_databus.v4_clean.testdata.built_in_configs import get_fresh_config
+
+
+# ============================================================
+# 公共 built_in_config
+# ============================================================
+BUILT_IN_CONFIG = {
+    "option": {
+        "es_unique_field_list": [
+            "cloudId", "serverIp", "path", "gseIndex",
+            "iterationIndex", "bk_host_id", "dtEventTimeStamp"
+        ],
+        "separator_node_source": "",
+        "separator_node_action": "",
+        "separator_node_name": "",
+    },
+    "fields": [
+        {"field_name": "bk_host_id", "field_type": "float", "tag": "dimension",
+         "alias_name": "bk_host_id", "description": "主机ID",
+         "option": {"es_type": "integer"}},
+        {"field_name": "__ext", "field_type": "object", "tag": "dimension",
+         "alias_name": "ext", "description": "额外信息字段",
+         "option": {"es_type": "object"}},
+        {"field_name": "cloudId", "field_type": "float", "tag": "dimension",
+         "alias_name": "cloudid", "description": "云区域ID",
+         "option": {"es_type": "integer"}},
+        {"field_name": "serverIp", "field_type": "string", "tag": "dimension",
+         "alias_name": "ip", "description": "ip",
+         "option": {"es_type": "keyword"}},
+        {"field_name": "path", "field_type": "string", "tag": "dimension",
+         "alias_name": "filename", "description": "日志路径",
+         "option": {"es_type": "keyword"}},
+        {"field_name": "gseIndex", "field_type": "float", "tag": "dimension",
+         "alias_name": "gseindex", "description": "gse索引",
+         "option": {"es_type": "long"}},
+        {"field_name": "iterationIndex", "field_type": "float", "tag": "dimension",
+         "alias_name": "iterationindex", "description": "迭代ID",
+         "option": {"es_type": "integer"}, "flat_field": True},
+    ],
+    "time_field": {
+        "field_name": "dtEventTimeStamp",
+        "field_type": "timestamp",
+        "alias_name": "utctime",
+        "description": "数据时间",
+        "tag": "timestamp",
+        "option": {
+            "time_zone": 8,
+            "time_format": "yyyy-MM-dd HH:mm:ss",
+            "es_type": "date",
+            "es_format": "epoch_millis",
+        },
+    },
+}
+
+
+def _get_fresh_built_in_config():
+    """每次测试都获取独立副本，避免测试间互相影响"""
+    return copy.deepcopy(BUILT_IN_CONFIG)
+
+
+def _rules_diff(actual, expected):
+    """生成人类可读的规则差异"""
+    actual_str = json.dumps(actual, indent=2, ensure_ascii=False, sort_keys=True)
+    expected_str = json.dumps(expected, indent=2, ensure_ascii=False, sort_keys=True)
+    diff = difflib.unified_diff(
+        expected_str.splitlines(),
+        actual_str.splitlines(),
+        fromfile="expected",
+        tofile="actual",
+        lineterm="",
+    )
+    return "\n".join(diff)
+
+
+def _assert_v4_result_equal(test_case, actual, expected, scenario_name=""):
+    """全量比对 V4 清洗结果，失败时逐条定位差异"""
+    actual_rules = actual["clean_rules"]
+    expected_rules = expected["clean_rules"]
+
+    # 先比规则数量
+    test_case.assertEqual(
+        len(actual_rules), len(expected_rules),
+        f"[{scenario_name}] 规则数量不匹配: actual={len(actual_rules)}, expected={len(expected_rules)}\n"
+        f"{_rules_diff(actual_rules, expected_rules)}"
+    )
+
+    # 逐条比对，精确定位差异
+    for i, (a, e) in enumerate(zip(actual_rules, expected_rules)):
+        test_case.assertEqual(
+            a, e,
+            f"[{scenario_name}] Rule[{i}] 不匹配:\n"
+            f"  actual:   {json.dumps(a, ensure_ascii=False)}\n"
+            f"  expected: {json.dumps(e, ensure_ascii=False)}"
+        )
+
+    # 比对 es_storage_config 和 doris_storage_config
+    test_case.assertEqual(actual.get("es_storage_config"), expected.get("es_storage_config"),
+                          f"[{scenario_name}] es_storage_config 不匹配")
+    test_case.assertEqual(actual.get("doris_storage_config"), expected.get("doris_storage_config"),
+                          f"[{scenario_name}] doris_storage_config 不匹配")
 
 
 # ============================================================
@@ -46,8 +146,8 @@ class TestV4CleanText(TestCase):
 
     def test_basic_text(self):
         """场景1：直接入库 — 基础场景"""
-        result = self.storage.build_log_v4_data_link([], {}, get_fresh_config())
-        assert_v4_result_equal(self, result, EXPECTED_TEXT_BASIC, "场景1-直接入库")
+        result = self.storage.build_log_v4_data_link([], {}, _get_fresh_built_in_config())
+        _assert_v4_result_equal(self, result, EXPECTED_TEXT_BASIC, "场景1-直接入库")
 
 
 # ============================================================
@@ -73,8 +173,8 @@ class TestV4CleanJson(TestCase):
              "description": "日志内容", "is_analyzed": True, "is_dimension": False,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
-        assert_v4_result_equal(self, result, EXPECTED_JSON_RETAIN_ORIGINAL, "场景2-JSON多字段+保留原文")
+        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        _assert_v4_result_equal(self, result, EXPECTED_JSON_RETAIN_ORIGINAL, "场景2-JSON多字段+保留原文")
 
     def test_json_alias_and_delete_and_time_field(self):
         """场景3：JSON 清洗 — 别名 + 删除字段 + 用户时间字段"""
@@ -91,8 +191,8 @@ class TestV4CleanJson(TestCase):
              "description": "调试信息", "is_analyzed": False, "is_dimension": False,
              "is_time": False, "is_delete": True, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
-        assert_v4_result_equal(self, result, EXPECTED_JSON_ALIAS_DELETE_TIME, "场景3-JSON别名+删除+时间")
+        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        _assert_v4_result_equal(self, result, EXPECTED_JSON_ALIAS_DELETE_TIME, "场景3-JSON别名+删除+时间")
 
     def test_json_retain_extra_json_and_enable_retain_content(self):
         """场景4：JSON 清洗 — retain_extra_json + enable_retain_content（保留清洗失败日志）"""
@@ -102,23 +202,22 @@ class TestV4CleanJson(TestCase):
              "description": "日志级别", "is_analyzed": False, "is_dimension": True,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
-        assert_v4_result_equal(self, result, EXPECTED_JSON_EXTRA_AND_FAILURE, "场景4-JSON-ext_json+解析失败")
+        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        _assert_v4_result_equal(self, result, EXPECTED_JSON_EXTRA_AND_FAILURE, "场景4-JSON-ext_json+解析失败")
 
     def test_json_with_path_separator_configs(self):
-        """场景8：JSON 清洗 — 含 path 正则提取"""
-        etl_params = {"retain_original_text": False}
+        """场景8：JSON 清洗 — 含 path 正则提取（从 etl_params 传入，模拟真实调用链）"""
+        etl_params = {
+            "retain_original_text": False,
+            "path_regexp": r"/data/logs/(?P<app_name>[^/]+)/(?P<log_type>[^/]+)\.log",
+        }
         fields = [
             {"field_name": "level", "alias_name": "", "field_type": "string",
              "is_analyzed": False, "is_dimension": True, "is_time": False,
              "is_delete": False, "option": {}},
         ]
-        built_in_config = get_fresh_config()
-        built_in_config["option"]["separator_configs"] = [
-            {"separator_regexp": r"/data/logs/(?P<app_name>[^/]+)/(?P<log_type>[^/]+)\.log"}
-        ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, built_in_config)
-        assert_v4_result_equal(self, result, EXPECTED_JSON_PATH_SEPARATOR, "场景8-JSON-path正则")
+        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        _assert_v4_result_equal(self, result, EXPECTED_JSON_PATH_SEPARATOR, "场景8-JSON-path正则")
 
 
 # ============================================================
@@ -144,8 +243,8 @@ class TestV4CleanDelimiter(TestCase):
              "description": "耗时", "is_analyzed": False, "is_dimension": True,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
-        assert_v4_result_equal(self, result, EXPECTED_DELIMITER_BASIC, "场景5-分隔符基础")
+        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        _assert_v4_result_equal(self, result, EXPECTED_DELIMITER_BASIC, "场景5-分隔符基础")
 
     def test_delimiter_with_delete_and_skip_index(self):
         """场景6：分隔符清洗 — 含删除字段 + 跳过索引"""
@@ -158,8 +257,8 @@ class TestV4CleanDelimiter(TestCase):
             {"field_name": "value", "alias_name": "", "field_type": "int", "field_index": 5,
              "is_analyzed": False, "is_dimension": True, "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
-        assert_v4_result_equal(self, result, EXPECTED_DELIMITER_DELETE_SKIP, "场景6-分隔符删除+跳索引")
+        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        _assert_v4_result_equal(self, result, EXPECTED_DELIMITER_DELETE_SKIP, "场景6-分隔符删除+跳索引")
 
 
 # ============================================================
@@ -189,8 +288,8 @@ class TestV4CleanRegexp(TestCase):
              "description": "HTTP方法", "is_analyzed": False, "is_dimension": True,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
-        assert_v4_result_equal(self, result, EXPECTED_REGEXP_BASIC, "场景7-正则基础")
+        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        _assert_v4_result_equal(self, result, EXPECTED_REGEXP_BASIC, "场景7-正则基础")
 
 
 # ============================================================
@@ -214,8 +313,8 @@ class TestV4CleanJsonNew(TestCase):
              "description": "操作", "is_analyzed": False, "is_dimension": True,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
-        assert_v4_result_equal(self, result, EXPECTED_JSON_ISO8601_TIME, "场景9-JSON-ISO8601时间")
+        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        _assert_v4_result_equal(self, result, EXPECTED_JSON_ISO8601_TIME, "场景9-JSON-ISO8601时间")
 
     def test_json_non_json_retain_content(self):
         """场景10：JSON + enable_retain_content + 非 JSON 日志"""
@@ -225,8 +324,8 @@ class TestV4CleanJsonNew(TestCase):
              "description": "日志级别", "is_analyzed": False, "is_dimension": True,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
-        assert_v4_result_equal(self, result, EXPECTED_JSON_NON_JSON_RETAIN, "场景10-非JSON保留原文")
+        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        _assert_v4_result_equal(self, result, EXPECTED_JSON_NON_JSON_RETAIN, "场景10-非JSON保留原文")
 
     def test_json_epoch_millis_time_field(self):
         """场景12：JSON + epoch_millis 时间格式"""
@@ -240,8 +339,8 @@ class TestV4CleanJsonNew(TestCase):
              "description": "事件", "is_analyzed": False, "is_dimension": True,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
-        assert_v4_result_equal(self, result, EXPECTED_JSON_EPOCH_MILLIS, "场景12-JSON-epoch_millis")
+        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        _assert_v4_result_equal(self, result, EXPECTED_JSON_EPOCH_MILLIS, "场景12-JSON-epoch_millis")
 
 
 # ============================================================
@@ -271,5 +370,5 @@ class TestV4CleanDelimiterNew(TestCase):
              "description": "消息", "is_analyzed": True, "is_dimension": False,
              "is_time": False, "is_delete": False, "option": {}},
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
-        assert_v4_result_equal(self, result, EXPECTED_DELIMITER_TIME_FIELD, "场景11-分隔符+时间字段")
+        result = self.storage.build_log_v4_data_link(fields, etl_params, _get_fresh_built_in_config())
+        _assert_v4_result_equal(self, result, EXPECTED_DELIMITER_TIME_FIELD, "场景11-分隔符+时间字段")

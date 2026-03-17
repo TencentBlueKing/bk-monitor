@@ -37,6 +37,8 @@ from apps.log_databus.constants import (
     CACHE_KEY_CLUSTER_INFO,
     FIELD_TEMPLATE,
     PARSE_FAILURE_FIELD,
+    V4_RESERVED_FIELD_NAMES,
+    V4_RESERVED_MINUTE_PATTERN,
     EtlConfig,
     MetadataTypeEnum,
     MIN_FLATTENED_SUPPORT_VERSION,
@@ -68,6 +70,7 @@ class EtlStorage:
     etl_config = None
     separator_node_name = "bk_separator_object"
     path_separator_node_name = "bk_separator_object_path"
+    separator_key_is_index = False
 
     @classmethod
     def get_instance(cls, etl_config=None):
@@ -129,6 +132,77 @@ class EtlStorage:
         :return: clean_rules配置字典
         """
         raise NotImplementedError(_("V4版本clean_rules构建功能暂未实现"))
+
+    @staticmethod
+    def _is_v4_reserved_field(field_name: str) -> bool:
+        lower_name = field_name.lower()
+        if lower_name in V4_RESERVED_FIELD_NAMES:
+            return True
+        if lower_name.startswith(V4_RESERVED_MINUTE_PATTERN) and lower_name[len(V4_RESERVED_MINUTE_PATTERN):].isdigit():
+            return True
+        return False
+
+    @classmethod
+    def _validate_v4_reserved_fields(cls, fields: list):
+        for field in fields:
+            if field.get("is_delete"):
+                continue
+            field_name = field.get("alias_name") or field["field_name"]
+            if cls._is_v4_reserved_field(field_name):
+                raise ValidationError(
+                    _("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}"
+                )
+
+    @staticmethod
+    def _get_path_regexp(etl_params: dict, built_in_config: dict) -> str:
+        """
+        获取路径正则：优先从 etl_params["path_regexp"] 取（真实调用链），
+        built_in_config["option"]["separator_configs"] 作为 fallback。
+        """
+        path_regexp = etl_params.get("path_regexp", "")
+        if path_regexp:
+            return path_regexp
+        separator_configs = built_in_config.get("option", {}).get("separator_configs", [])
+        if separator_configs:
+            return separator_configs[0].get("separator_regexp", "")
+        return ""
+
+    def _build_path_regex_rules_v4(self, etl_params: dict, built_in_config: dict) -> list:
+        """构建 path regex 提取规则"""
+        path_regexp = self._get_path_regexp(etl_params, built_in_config)
+        if not path_regexp:
+            return []
+
+        rules = [
+            {
+                "input_id": "json_data",
+                "output_id": "path",
+                "operator": {
+                    "type": "get",
+                    "key_index": [{"type": "key", "value": "filename"}],
+                    "missing_strategy": None,
+                },
+            },
+            {
+                "input_id": "path",
+                "output_id": "bk_separator_object_path",
+                "operator": {"type": "regex", "regex": path_regexp},
+            },
+        ]
+
+        pattern = re.compile(path_regexp)
+        for field_name in pattern.groupindex.keys():
+            rules.append({
+                "input_id": "bk_separator_object_path",
+                "output_id": field_name,
+                "operator": {
+                    "type": "assign",
+                    "key_index": field_name,
+                    "alias": field_name,
+                    "output_type": "string",
+                },
+            })
+        return rules
 
     @staticmethod
     def get_es_field_type(field):
@@ -310,6 +384,7 @@ class EtlStorage:
                     "description": time_field.get("description"),
                     "v3_time_format": v3_time_format,
                     "time_zone": user_time_zone,
+                    "field_index": time_field.get("option", {}).get("field_index"),
                 }
             else:
                 # 默认：从json_data.utctime提取（GSE上报的采集时间）
@@ -342,6 +417,7 @@ class EtlStorage:
                     "time_alias_name": time_alias_name,
                     "v3_time_format": v3_time_format,
                     "time_zone": user_time_zone,
+                    "field_index": time_field.get("option", {}).get("field_index"),
                 }
 
         return rules
@@ -401,13 +477,19 @@ class EtlStorage:
                 user_time_field["v3_time_format"], time_zone=user_time_field.get("time_zone")
             )
 
+            field_index = user_time_field.get("field_index")
+            if self.separator_key_is_index and field_index is not None:
+                key_index = str(field_index - 1)
+            else:
+                key_index = user_time_field["time_alias_name"]
+
             rules.append(
                 {
                     "input_id": self.separator_node_name,
                     "output_id": user_time_field["time_field_name"],
                     "operator": {
                         "type": "assign",
-                        "key_index": user_time_field["time_alias_name"],
+                        "key_index": key_index,
                         "alias": user_time_field["time_field_name"],
                         "desc": user_time_field.get("description"),
                         "input_type": None,
@@ -441,13 +523,19 @@ class EtlStorage:
             # 纳秒级时间解析的输出应为strict_date_optional_time_nanos格式字符串，与ES mapping保持一致
             nanos_v4_time_parsing["to"] = "strict_date_optional_time_nanos"
 
+            field_index = nanos_time_field.get("field_index")
+            if self.separator_key_is_index and field_index is not None:
+                key_index = str(field_index - 1)
+            else:
+                key_index = time_alias_name
+
             rules.append(
                 {
                     "input_id": self.separator_node_name,
                     "output_id": "dtEventTimeStampNanos",
                     "operator": {
                         "type": "assign",
-                        "key_index": time_alias_name,
+                        "key_index": key_index,
                         "alias": "dtEventTimeStampNanos",
                         "desc": "纳秒级时间戳",
                         "input_type": None,

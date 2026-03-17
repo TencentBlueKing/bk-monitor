@@ -261,6 +261,29 @@ DEFAULT_COLLECTOR_LENGTH = 2
 # 解析失败字段名
 PARSE_FAILURE_FIELD = "__parse_failure"
 
+# V4清洗管道保留字段：管道内部节点名 + BKBase V4内置字段
+V4_RESERVED_FIELD_NAMES = {
+    # 管道内部节点名（output_id / input_id）
+    "json_data",
+    "items",
+    "iter_item",
+    "iter_string",
+    "bk_separator_object",
+    "bk_separator_object_path",
+    # BKBase V4 内置保留字段
+    "__time",
+    "dteventtimestamp",
+    "dteventtime",
+    "localtime",
+    "thedate",
+    "now",
+    "dt_year",
+    "dt_month",
+    "dt_day",
+    "dt_hour",
+}
+V4_RESERVED_MINUTE_PATTERN = "minute"
+
 
 class AsyncStatus:
     RUNNING = "RUNNING"

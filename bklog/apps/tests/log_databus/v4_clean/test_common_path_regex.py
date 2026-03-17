@@ -1,22 +1,18 @@
 # -*- coding: utf-8 -*-
 """
 组件测试：path regex 提取
-4 ETL 类型 × path regex 配置
+验证 path_regexp 从 etl_params 传入时（真实调用链），4 ETL 类型均正确生成规则
 """
+import copy
 from unittest import TestCase
 
 from apps.tests.log_databus.v4_clean.helpers import (
     ALL_ETL_CLASSES,
     find_rules_by_output,
-    find_rules_by_type,
     get_output_ids,
-    assert_rule_exists,
     assert_rule_absent,
 )
-from apps.tests.log_databus.v4_clean.testdata.built_in_configs import (
-    get_fresh_config,
-    make_path_regex_config,
-)
+from apps.tests.log_databus.v4_clean.testdata.built_in_configs import get_fresh_config
 from apps.tests.log_databus.v4_clean.testdata.field_fixtures import SINGLE_STRING_FIELD, DELIMITER_FIELDS
 from apps.tests.log_databus.v4_clean.testdata.etl_params_fixtures import (
     EMPTY_PARAMS,
@@ -26,17 +22,18 @@ from apps.tests.log_databus.v4_clean.testdata.etl_params_fixtures import (
 )
 
 
-def _get_etl_params(etl_name):
-    """根据 ETL 类型返回所需的最小 etl_params"""
-    if etl_name == "text":
-        return EMPTY_PARAMS
-    elif etl_name == "json":
-        return JSON_NO_RETAIN
-    elif etl_name == "delimiter":
-        return DELIMITER_BASIC
-    elif etl_name == "regexp":
-        return REGEXP_BASIC
-    return EMPTY_PARAMS
+def _get_etl_params(etl_name, path_regexp=""):
+    """根据 ETL 类型返回 etl_params，可选注入 path_regexp"""
+    base = {
+        "text": EMPTY_PARAMS,
+        "json": JSON_NO_RETAIN,
+        "delimiter": DELIMITER_BASIC,
+        "regexp": REGEXP_BASIC,
+    }.get(etl_name, EMPTY_PARAMS)
+    params = copy.deepcopy(base)
+    if path_regexp:
+        params["path_regexp"] = path_regexp
+    return params
 
 
 def _get_fields(etl_name):
@@ -49,40 +46,37 @@ def _get_fields(etl_name):
 
 
 class TestCommonPathRegex(TestCase):
-    """测试 path regex 在所有 ETL 类型的 build_log_v4_data_link 中的行为"""
+    """测试 path regex 从 etl_params["path_regexp"] 传入时在所有 ETL 类型中的行为"""
 
     PATH_REGEXP = r"/data/logs/(?P<app_name>[^/]+)/(?P<log_type>[^/]+)\.log"
 
     def test_path_regex_generates_rules(self):
-        """配置 path regex 时应生成 path get + regex + assign 规则"""
+        """etl_params 含 path_regexp 时应生成 path get + regex + assign 规则"""
         for etl_name, etl_cls in ALL_ETL_CLASSES:
             with self.subTest(etl=etl_name):
                 storage = etl_cls()
-                config = make_path_regex_config(self.PATH_REGEXP)
+                config = get_fresh_config()
                 fields = _get_fields(etl_name)
-                etl_params = _get_etl_params(etl_name)
+                etl_params = _get_etl_params(etl_name, path_regexp=self.PATH_REGEXP)
                 result = storage.build_log_v4_data_link(fields, etl_params, config)
                 rules = result["clean_rules"]
 
-                # path get 规则（注意：built-in 中也有 output_id="path" 的 assign 规则）
                 path_get_rules = [r for r in find_rules_by_output(rules, "path")
                                   if r["operator"]["type"] == "get"]
                 self.assertEqual(len(path_get_rules), 1)
                 self.assertEqual(path_get_rules[0]["input_id"], "json_data")
 
-                # regex 规则
                 regex_rules = find_rules_by_output(rules, "bk_separator_object_path")
                 self.assertEqual(len(regex_rules), 1)
                 self.assertEqual(regex_rules[0]["operator"]["type"], "regex")
                 self.assertEqual(regex_rules[0]["operator"]["regex"], self.PATH_REGEXP)
 
-                # 提取的命名组字段
                 output_ids = get_output_ids(rules)
                 self.assertIn("app_name", output_ids)
                 self.assertIn("log_type", output_ids)
 
     def test_no_path_regex_no_path_rules(self):
-        """未配置 path regex 时不应生成 path 相关规则"""
+        """etl_params 无 path_regexp 且 built_in_config 无 separator_configs 时不应生成规则"""
         for etl_name, etl_cls in ALL_ETL_CLASSES:
             with self.subTest(etl=etl_name):
                 storage = etl_cls()
@@ -93,24 +87,53 @@ class TestCommonPathRegex(TestCase):
                 rules = result["clean_rules"]
                 assert_rule_absent(self, rules, "bk_separator_object_path")
 
-    def test_empty_separator_regexp_no_path_rules(self):
-        """separator_regexp 为空字符串时不应生成 path 规则"""
+    def test_empty_path_regexp_no_rules(self):
+        """etl_params["path_regexp"] 为空字符串时不应生成 path 规则"""
         for etl_name, etl_cls in ALL_ETL_CLASSES:
             with self.subTest(etl=etl_name):
                 storage = etl_cls()
                 config = get_fresh_config()
-                config["option"]["separator_configs"] = [{"separator_regexp": ""}]
+                fields = _get_fields(etl_name)
+                etl_params = _get_etl_params(etl_name, path_regexp="")
+                result = storage.build_log_v4_data_link(fields, etl_params, config)
+                rules = result["clean_rules"]
+                assert_rule_absent(self, rules, "bk_separator_object_path")
+
+    def test_fallback_to_built_in_config(self):
+        """etl_params 无 path_regexp 时应 fallback 到 built_in_config["option"]["separator_configs"]"""
+        for etl_name, etl_cls in ALL_ETL_CLASSES:
+            with self.subTest(etl=etl_name):
+                storage = etl_cls()
+                config = get_fresh_config()
+                config["option"]["separator_configs"] = [
+                    {"separator_regexp": self.PATH_REGEXP}
+                ]
                 fields = _get_fields(etl_name)
                 etl_params = _get_etl_params(etl_name)
                 result = storage.build_log_v4_data_link(fields, etl_params, config)
                 rules = result["clean_rules"]
-                assert_rule_absent(self, rules, "bk_separator_object_path")
+                regex_rules = find_rules_by_output(rules, "bk_separator_object_path")
+                self.assertEqual(len(regex_rules), 1)
+
+    def test_etl_params_takes_priority(self):
+        """etl_params["path_regexp"] 应优先于 built_in_config separator_configs"""
+        other_regexp = r"/var/log/(?P<service>[^/]+)/app\.log"
+        storage = ALL_ETL_CLASSES[1][1]()  # JSON
+        config = get_fresh_config()
+        config["option"]["separator_configs"] = [
+            {"separator_regexp": other_regexp}
+        ]
+        etl_params = _get_etl_params("json", path_regexp=self.PATH_REGEXP)
+        result = storage.build_log_v4_data_link(SINGLE_STRING_FIELD, etl_params, config)
+        rules = result["clean_rules"]
+        regex_rules = find_rules_by_output(rules, "bk_separator_object_path")
+        self.assertEqual(regex_rules[0]["operator"]["regex"], self.PATH_REGEXP)
 
     def test_path_field_assigns_have_correct_types(self):
         """path 提取的字段 assign 规则应有正确的 output_type"""
         storage = ALL_ETL_CLASSES[1][1]()  # JSON
-        config = make_path_regex_config(self.PATH_REGEXP)
-        result = storage.build_log_v4_data_link(SINGLE_STRING_FIELD, JSON_NO_RETAIN, config)
+        etl_params = _get_etl_params("json", path_regexp=self.PATH_REGEXP)
+        result = storage.build_log_v4_data_link(SINGLE_STRING_FIELD, etl_params, get_fresh_config())
         rules = result["clean_rules"]
         for field_name in ["app_name", "log_type"]:
             matched = find_rules_by_output(rules, field_name)
