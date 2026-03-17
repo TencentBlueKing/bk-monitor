@@ -84,6 +84,7 @@ class PatternHandler:
         self._remark_config = query.get("remark_config", RemarkConfigEnum.ALL.value)
         self._owner_config = query.get("owner_config", OwnerConfigEnum.ALL.value)
         self._owners = query.get("owners", [])
+        self.other_agg_fields_query_condition = []
 
     def pattern_search(self):
         """
@@ -276,6 +277,10 @@ class PatternHandler:
         copy_query = copy.deepcopy(self._query)
         copy_query.setdefault("addition", []).append(new_class_signature_query_condition)
 
+        # 添加其他聚合字段查询条件
+        for query_condition in self.other_agg_fields_query_condition:
+            copy_query["addition"].append(query_condition)
+
         multi_execute_func = MultiExecuteFunc()
         multi_execute_func.append(
             "pattern_aggs",
@@ -434,9 +439,10 @@ class PatternHandler:
                 BkData(self._clustering_config.new_cls_pattern_rt)
                 .select(*select_fields)
                 .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.new_class_field)
-                .time_range(int(start_time.timestamp(), int(end_time.timestamp())))
+                .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
                 .query()
             )
+        self.deal_with_other_agg_fields_query_condition(new_classes)
         return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
 
     def _get_pattern_data(self, patterns):
@@ -677,3 +683,26 @@ class PatternHandler:
         for owner in owners:
             result.update(owner)
         return list(result)
+
+    def deal_with_other_agg_fields_query_condition(self, new_classes):
+        """
+        处理其他聚合字段查询条件
+        """
+        if not new_classes:
+            return
+
+        agg_fields_query_condition_values_map = {}
+        for new_class in new_classes:
+            for agg_field, value in new_class.items():
+                if agg_field in NEW_CLASS_QUERY_FIELDS:
+                    continue
+                agg_fields_query_condition_values_map.setdefault(agg_field, []).append(value)
+
+        for agg_field, values in agg_fields_query_condition_values_map.items():
+            query_condition = {
+                "field": agg_field,
+                "operator": "is one of",
+                "value": list(set(values)),
+                "condition": "and",
+            }
+            self.other_agg_fields_query_condition.append(query_condition)
