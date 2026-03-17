@@ -456,10 +456,14 @@ class UnifyQueryHandler:
     def _transform_additions(self, index_info):
         field_list = []
         condition_list = []
+        # query_string 的转换只需在首次调用时执行
+        query_string_transformed = getattr(self, "_query_string_transformed", False)
         new_addition = self._combine_addition_ip_chooser(index_info=index_info)
         for addition in new_addition:
             # 全文检索key & 存量query_string转换
             if addition["field"] in ["*", "__query_string__"]:
+                if query_string_transformed:
+                    continue
                 value_list = addition["value"] if isinstance(addition["value"], list) else addition["value"].split(",")
                 new_value_list = []
                 for value in value_list:
@@ -492,6 +496,8 @@ class UnifyQueryHandler:
                 condition_list.extend(new_condition_list)
         for field in field_list:
             field["value"] = [str(value) for value in field["value"]]
+
+        self._query_string_transformed = True
         return {"field_list": field_list, "condition_list": condition_list}
 
     def _init_sort(self) -> list:

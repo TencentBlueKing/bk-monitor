@@ -2714,7 +2714,14 @@ class UnionSearchHandler:
         if search_dict is None:
             search_dict = {}
         self.search_dict = search_dict
-        self.union_configs = search_dict.get("union_configs", [])
+        # 对 union_configs 按 index_set_id 去重，保留首次出现的配置
+        seen_ids = set()
+        unique_configs = []
+        for config in search_dict.get("union_configs", []):
+            if config["index_set_id"] not in seen_ids:
+                seen_ids.add(config["index_set_id"])
+                unique_configs.append(config)
+        self.union_configs = unique_configs
         self.sort_list = search_dict.get("sort_list", [])
         if search_dict.get("index_set_ids", []):
             self.index_set_ids = list(set(search_dict["index_set_ids"]))
