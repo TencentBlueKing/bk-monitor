@@ -1,4 +1,3 @@
-import { makeMap } from 'monitor-common/utils/make-map';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 /*
  * Tencent is pleased to support the open source community by making
@@ -53,6 +52,9 @@ class CustomEscalationViewStore extends VuexModule {
   public metricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
   public startTime = DEFAULT_TIME_RANGE[0];
   public timeSeriesGroupId = -1;
+
+  /** 汇聚周期是否为「自动」模式，用于图表请求不传 down_sample_range */
+  public isIntervalAuto = true;
 
   // 过滤条件(并集)：通过currentSelectedGroupNameList在metricGroupList中找到对应的common_dimensions
   get commonDimensionList() {
@@ -157,6 +159,11 @@ class CustomEscalationViewStore extends VuexModule {
   @Mutation
   public updateTimeSeriesGroupId(payload: number) {
     this.timeSeriesGroupId = payload;
+  }
+
+  @Mutation
+  public setIntervalAuto(payload: boolean) {
+    this.isIntervalAuto = payload;
   }
 }
 
