@@ -23,41 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+.issues-detail-alarm-panel {
+  padding: 6px 16px 16px;
+  background: #fff;
+  border: 1px solid #e4e9f2;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px 0 #1919290a;
 
-import type {
-  IssueActiveNodeTypeEnum,
-  IssueDetailTabEnum,
-  IssuePriorityEnum,
-  IssuesBatchActionEnum,
-  IssueStatusEnum,
-} from '../constant';
-import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
+  .event-detail-head-main {
+    margin-bottom: 8px;
+  }
 
-/** Issues 活跃节点类型 */
-export type IssueActiveNodeType = GetEnumTypeTool<typeof IssueActiveNodeTypeEnum>;
+  .alarm-center-detail-box {
+    padding: 0;
+    background: #fff;
 
-/** Issues 详情 Tab 类型 */
-export type IssueDetailTabType = GetEnumTypeTool<typeof IssueDetailTabEnum>;
+    .panel-tab {
+      background: #fff;
+    }
 
-/** Issues 优先级类型 */
-export type IssuePriorityType = GetEnumTypeTool<typeof IssuePriorityEnum>;
+    .alarm-view-tab {
+      background: #fff;
 
-/** Issues 批量操作类型 */
-export type IssuesBatchActionType = GetEnumTypeTool<typeof IssuesBatchActionEnum>;
-
-/** Issues 状态类型 */
-export type IssueStatusType = GetEnumTypeTool<typeof IssueStatusEnum>;
-
-// ===================== 接口定义 =====================
-
-/** 映射条目通用结构 */
-export interface MapEntry {
-  /** 显示别名 */
-  alias: string;
-  /** 背景颜色值 */
-  bgColor?: string;
-  /** 颜色值 */
-  color: string;
-  /** 图标类名 */
-  icon?: string;
+      & > .bk-tab {
+        background: #fff;
+      }
+    }
+  }
 }

@@ -28,6 +28,16 @@ import type { IssuePriorityType, IssueStatusType, MapEntry } from './typing';
 
 // ===================== 枚举常量 =====================
 
+/** Issues 详情 Tab 枚举 */
+export const IssueDetailTabEnum = {
+  /** 最近的告警 */
+  LATEST: 'latest',
+  /** 最早的告警 */
+  EARLIEST: 'earliest',
+  /** 告警列表 */
+  LIST: 'list',
+} as const;
+
 /** Issues 优先级枚举 */
 export const IssuePriorityEnum = {
   /** 高 */
