@@ -32,8 +32,8 @@ import type { IssueItem, IssuePriorityType } from '../typing';
 export interface UseIssuesHandlersOptions {
   /** click popover 工具（基础设施依赖） */
   clickPopoverTools: IUsePopoverTools;
-  /** 点击指派按钮回调（将 ID 及行数据交由上层处理） */
-  assignClickEmit: (id: IssueItem['id'], data: IssueItem) => void;
+  /** 点击指派按钮回调 */
+  assignClickEmit: (id: IssueItem['id'], row: IssueItem) => void;
   /** 标记已解决回调 */
   markResolvedEmit: (id: string) => void;
   /** 优先级变更回调 */
@@ -61,15 +61,15 @@ export const useIssuesHandlers = ({
 }: UseIssuesHandlersOptions) => {
   /**
    * @description 点击 Issue 名称展示详情抽屉
-   * @param id - Issue ID
+   * @param {IssueItem} row - 当前 Issue 行数据
    */
-  const handleShowDetail = (id: string) => {
-    showDetailEmit(id);
+  const handleShowDetail = (row: IssueItem) => {
+    showDetailEmit(row.id);
   };
 
   /**
-   * @description 点击负责人触发指派（将 ID 及行数据交由上层处理弹窗）
-   * @param row - 当前 Issue 行数据
+   * @description 点击负责人触发指派（将行数据交由上层处理弹窗）
+   * @param {IssueItem} row - 当前 Issue 行数据
    */
   const handleAssignClick = (row: IssueItem) => {
     assignClickEmit(row.id, row);
@@ -77,10 +77,12 @@ export const useIssuesHandlers = ({
 
   /**
    * @description 标记 Issue 已解决
-   * @param id - Issue ID
+   * @param {IssueItem} row - 当前 Issue 行数据
    */
-  const handleMarkResolved = (id: string) => {
-    markResolvedEmit(id);
+  const handleMarkResolved = (row: IssueItem) => {
+    // 如果 Issue 已解决，不触发
+    if (row.is_resolved) return;
+    markResolvedEmit(row.id);
   };
 
   /**

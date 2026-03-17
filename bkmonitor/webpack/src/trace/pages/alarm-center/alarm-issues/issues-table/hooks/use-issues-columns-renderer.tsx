@@ -67,7 +67,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
         <div class={`issues-name-title ${renderCtx.isEnabledCellEllipsis(column)}`}>
           <span
             class='issues-name-title-text'
-            onClick={() => rendererCtx.handleShowDetail(row.id)}
+            onClick={() => rendererCtx.handleShowDetail(row)}
           >
             {row.name}
           </span>
@@ -234,36 +234,35 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   };
 
   /**
-   * @description 负责人列渲染（已指派显示用户标签 / 未指派显示可点击的指派入口）
+   * @description 负责人列渲染（已指派使用 UserTagsCell 显示用户标签 / 未指派显示可点击的指派入口）
    * @param row - 当前行 Issue 数据
+   * @param column - 列配置
+   * @param renderCtx - 表格单元格渲染上下文
    * @returns 负责人列 JSX
    */
-  const renderAssigneeCell = (row: IssueItem): SlotReturnValue => {
+  const renderAssigneeCell = (
+    row: IssueItem,
+    column: BaseTableColumn,
+    renderCtx: TableCellRenderContext
+  ): SlotReturnValue => {
     if (!row.assignee?.length) {
       return (
-        <div class='issues-assignee-col'>
-          <span
-            class='assignee-unassigned'
-            onClick={() => rendererCtx.handleAssignClick(row)}
-          >
-            {window.i18n.t('未指派')}
-          </span>
-          <i class='icon-monitor icon-mc-arrow-down' />
+        <div
+          class='issues-assignee-unassigned-col '
+          onClick={() => rendererCtx.handleAssignClick(row)}
+        >
+          <div class='assignee-tag-wrapper'>
+            <span class='assignee-unassigned'>{window.i18n.t('未指派')}</span>
+            <i class='icon-monitor icon-mc-arrow-down' />
+          </div>
         </div>
       ) as unknown as SlotReturnValue;
     }
-    return (
-      <div class='issues-assignee-col'>
-        {row.assignee.map(user => (
-          <span
-            key={user}
-            class='assignee-tag'
-          >
-            {user}
-          </span>
-        ))}
-      </div>
-    ) as unknown as SlotReturnValue;
+    return renderCtx.cellRenderHandleMap[ExploreTableColumnTypeEnum.USER_TAGS]?.(
+      row,
+      column,
+      renderCtx
+    ) as SlotReturnValue;
   };
 
   /**
@@ -276,7 +275,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
       <div class='issues-operation-col'>
         <span
           class={['operation-btn', { 'is-disabled': row.is_resolved }]}
-          onClick={() => rendererCtx.handleMarkResolved(row.id)}
+          onClick={() => rendererCtx.handleMarkResolved(row)}
         >
           {window.i18n.t('标为已解决')}
         </span>
@@ -295,7 +294,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     impact_scope: { cellRenderer: renderImpactCell },
     priority: { cellRenderer: renderPriorityCell },
     status: { cellRenderer: renderStatusCell },
-    assignee: { cellRenderer: renderAssigneeCell },
+    assignee: { cellRenderer: renderAssigneeCell, attrs: { class: 'issues-assignee-cell' } },
     operation: { cellRenderer: renderOperationCell },
   };
 

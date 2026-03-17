@@ -205,36 +205,48 @@
       border-radius: 12px;
 
       .status-icon {
+        width: 14px;
+        height: 14px;
         font-size: 14px;
+        line-height: 17px;
       }
     }
   }
 
   // ===================== 负责人列 =====================
-  .issues-assignee-col {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    align-items: center;
-
-    .assignee-tag {
-      display: inline-flex;
+  .issues-assignee-cell {
+    .issues-assignee-unassigned-col {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
       align-items: center;
-      height: 22px;
-      padding: 0 8px;
-      font-size: 12px;
-      color: #63656e;
-      background-color: #f0f1f5;
-      border-radius: 2px;
-    }
-
-    .assignee-unassigned {
-      font-size: 12px;
-      color: #3a84ff;
       cursor: pointer;
 
+      .assignee-tag-wrapper {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        height: 32px;
+        padding: 0 6px 0 8px;
+        border-radius: 4px;
+        transition: background-color 0.2s ease;
+
+        .icon-mc-arrow-down {
+          font-size: 12px;
+          color: #8f9fbd;
+        }
+      }
+
       &:hover {
-        text-decoration: underline;
+        .assignee-tag-wrapper {
+          background-color: #f0f4fa;
+        }
+      }
+    }
+
+    .explore-user-tags-col {
+      .bk-tag {
+        border-radius: 4px !important;
       }
     }
   }
@@ -243,11 +255,12 @@
   .issues-operation-col {
     .operation-btn {
       font-size: 12px;
-      color: #3a84ff;
-      cursor: pointer;
 
-      &:hover {
-        color: #699df4;
+      @extend %btn-hover;
+
+      &.is-disabled {
+        color: #c1cde6;
+        cursor: not-allowed;
       }
     }
   }
