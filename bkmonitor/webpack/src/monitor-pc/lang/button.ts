@@ -532,4 +532,5 @@ export default {
   'button-高': 'High',
   'button-中': 'Medium',
   'button-低': 'Low',
+  标记为已解决: 'Mark as Resolved',
 };

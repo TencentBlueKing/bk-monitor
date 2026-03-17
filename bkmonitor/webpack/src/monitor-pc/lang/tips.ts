@@ -451,7 +451,8 @@ export default {
   // ISSUES
   新问题: 'New Issue',
   回归问题: 'Regression Issue',
+  新: 'New',
+  回归: 'Regression',
   待审核: 'Pending Review',
-  未解决: 'Unresolved',
   归档: 'Archived',
 };

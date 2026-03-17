@@ -251,4 +251,17 @@ export default {
   指派负责人: 'Assign owner',
   批量指派负责人: 'Batch assign owner',
   批量修改优先级: 'Batch modify priority',
+
+  // Issues 活动节点
+  首次出现: 'First occurrence',
+  '状态流转：': 'Status transition:',
+  用户评论: 'User comment',
+  '指派负责人：': 'Assign owner:',
+  'Issue 拆分': 'Issue split',
+  'Issue 合并': 'Issue merge',
+
+  // Issues 详情组件
+  问题活动: 'Issue Activity',
+  输入评论: 'Input comment',
+  '历史 Issue': 'History Issue',
 };

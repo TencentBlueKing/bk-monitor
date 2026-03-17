@@ -25,8 +25,10 @@
  */
 import { defineComponent, shallowRef, useTemplateRef } from 'vue';
 
-import { Popover } from 'bkui-vue';
+import { Button, Message, Popover } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
+import UserSelector from '../../../../../../components/user-selector/user-selector';
 import { IssuesPriorityMap } from '../../../constant';
 import BasicCard from '../basic-card/basic-card';
 
@@ -35,28 +37,58 @@ import './issues-basic-info.scss';
 export default defineComponent({
   name: 'IssuesBasicInfo',
   setup() {
+    const { t } = useI18n();
     const priorityPopoverShow = shallowRef(false);
     const priorityPopover = useTemplateRef<InstanceType<typeof Popover>>('priorityPopover');
 
+    /** 负责人 */
+    const userList = shallowRef<string[]>([]);
+
+    /**
+     * issues 优先级列表
+     */
     const issuesPriorityList = Object.entries(IssuesPriorityMap).map(([key, value]) => ({
       ...value,
       id: key,
     }));
 
+    /** 优先级弹窗显示状态 */
     const handlePopoverChange = (show: boolean) => {
       priorityPopoverShow.value = show;
     };
 
+    /**
+     * 修改优先级
+     * @param id 优先级id
+     */
     const handlePriorityClick = (id: string) => {
       console.log(id);
       priorityPopover.value?.hide();
     };
 
+    const handleResponsiblePersonChange = (users: string[]) => {
+      console.log(users);
+      userList.value = users;
+      if (users.length === 0) {
+        Message({
+          theme: 'error',
+          message: t('最少选择一个负责人'),
+        });
+      }
+    };
+
+    const handleConfirm = () => {
+      console.log('handleConfirm');
+    };
+
     return {
       issuesPriorityList,
       priorityPopoverShow,
+      userList,
       handlePopoverChange,
       handlePriorityClick,
+      handleResponsiblePersonChange,
+      handleConfirm,
     };
   },
   render() {
@@ -116,8 +148,11 @@ export default defineComponent({
               <span class='title'>{this.$t('负责人')}</span>
             </div>
             <div class='basic-info-value'>
-              <div class='user-tag'>carrielu</div>
-              <div class='user-tag'>nekzhang</div>
+              <UserSelector
+                modelValue={this.userList}
+                placeholder={this.$t('请选择负责人')}
+                onUpdate:modelValue={this.handleResponsiblePersonChange}
+              />
             </div>
           </div>
           <div class='basic-info-item influence'>
@@ -131,7 +166,7 @@ export default defineComponent({
                 <div class='value'>BCS-K8s-5234</div>
               </div>
               <div class='influence-item'>
-                <div class='label'>{this.$t('pod')}：</div>
+                <div class='label'>Pod：</div>
                 <div class='value'>lobby-7534534532323lfse345</div>
               </div>
               <div class='influence-item'>
@@ -154,6 +189,13 @@ export default defineComponent({
             </div>
             <div class='basic-info-value'>8months ago</div>
           </div>
+          <Button
+            class='confirm-btn'
+            theme='primary'
+            onClick={this.handleConfirm}
+          >
+            {this.$t('标记为已解决')}
+          </Button>
         </div>
       </BasicCard>
     );

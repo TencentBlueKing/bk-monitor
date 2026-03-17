@@ -35,14 +35,6 @@
         }
       }
 
-      .user-tag {
-        padding: 0 8px;
-        line-height: 20px;
-        color: #4e5e7a;
-        background-color: #f0f4fa;
-        border-radius: 4px;
-      }
-
       &.priority {
         .basic-info-value {
           padding: 5px 8px;
@@ -50,14 +42,23 @@
       }
 
       &.user {
-        .basic-info-value {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 4px;
-          padding: 6px 8px;
+        .tags-container-collapsed {
+          border: none;
+          padding-left: 8px;
+          cursor: pointer;
+
+          .bk-tag {
+            color: #4e5e7a;
+          }
+
+          .bk-tag-close {
+            display: none !important;
+          }
 
           &:hover {
-            .user-tag {
+            background-color: #f0f4fa;
+
+            .bk-tag {
               background-color: #fff;
             }
           }
@@ -103,6 +104,12 @@
           }
         }
       }
+    }
+
+    .confirm-btn {
+      width: 100%;
+      margin-top: 16px;
+      border-radius: 4px;
     }
   }
 }

@@ -1,0 +1,290 @@
+.issues-activity {
+  .comment-input-wrapper {
+    .comment-input-collapsed {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      padding: 0 8px;
+      border-radius: 6px;
+      background-color: #f0f4fa;
+      cursor: pointer;
+
+      .placeholder {
+        font-size: 12px;
+        color: #8f9fbd;
+      }
+
+      &:hover {
+        background-color: #e9edf5;
+      }
+    }
+
+    .comment-input-expanded {
+      border: 1px solid #3974ff;
+      border-radius: 6px;
+      background-color: #fff;
+      overflow: hidden;
+
+      .comment-textarea {
+        border: none;
+        width: 100%;
+        box-shadow: none;
+
+        textarea {
+          padding: 6px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #313238;
+          resize: none;
+        }
+      }
+
+      .comment-input-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: end;
+        padding: 6px;
+        gap: 6px;
+
+        .rich-text-btn {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #3974ff;
+          cursor: pointer;
+
+          .icon-monitor {
+            font-size: 14px;
+          }
+
+          &:hover {
+            color: #699df4;
+          }
+        }
+
+        .send-btn {
+          height: 24px;
+          padding: 4px;
+          font-size: 16px;
+          color: #fff;
+          border: none;
+          border-radius: 4px;
+
+          .icon-monitor {
+            font-size: 16px;
+          }
+        }
+      }
+    }
+  }
+
+  .activity-item {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+
+    &-line {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 32px;
+      flex-shrink: 0;
+      padding-top: 8px;
+
+      .line-icon {
+        flex-shrink: 0;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: #e9edf5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        color: #63656e;
+        overflow: hidden;
+
+        .user-avatar {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .icon-monitor {
+          font-size: 16px;
+        }
+      }
+
+      .line {
+        width: 2px;
+        flex: 1;
+        min-height: 16px;
+        transform: translateY(8px);
+        border-radius: 2px;
+        background-color: #c1cde6;
+      }
+    }
+
+    &-content {
+      flex: 1;
+      min-width: 0;
+      padding-top: 6px;
+
+      .content-header {
+        line-height: 32px;
+
+        .title-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 12px;
+
+          .action,
+          .user {
+            color: #313238;
+            font-weight: 500;
+          }
+
+          .time {
+            color: #979ba5;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            cursor: pointer;
+          }
+        }
+      }
+
+      .content-body {
+        padding: 12px;
+        background-color: #f5f7fa;
+        border-radius: 4px;
+        font-size: 12px;
+        line-height: 20px;
+      }
+    }
+  }
+
+  // Issue 拆分
+  .split-content {
+    .desc {
+      color: #63656e;
+      margin-bottom: 4px;
+    }
+
+    .issue-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+
+      .issue-item {
+        position: relative;
+        padding-left: 12px;
+        margin-bottom: 4px;
+
+        &::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 8px;
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background-color: #3a84ff;
+        }
+
+        .link {
+          color: #3a84ff;
+          cursor: pointer;
+
+          &:hover {
+            color: #699df4;
+          }
+        }
+      }
+    }
+  }
+
+  // Issue 合并
+  .merge-content {
+    .desc {
+      color: #63656e;
+    }
+
+    .link {
+      color: #3a84ff;
+      cursor: pointer;
+
+      &:hover {
+        color: #699df4;
+      }
+    }
+  }
+
+  // 评论内容
+  .comment-content {
+    position: relative;
+    display: inline;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+    word-break: break-all;
+
+    .comment-text {
+      display: inline;
+
+      // 超过三行时截断
+      &.is-clamped {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding-right: 18px; // 为 icon 预留空间
+      }
+    }
+
+    .comment-icon {
+      display: inline;
+      margin-left: 4px;
+      font-size: 12px;
+      color: #3a84ff;
+      cursor: pointer;
+
+      &:hover {
+        color: #699df4;
+      }
+    }
+
+    // 超过三行时，icon 使用绝对定位固定在右下角
+    .comment-text.is-clamped + .comment-icon {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      margin-left: 0;
+      background: linear-gradient(to right, transparent, #f5f7fa 8px);
+      padding-left: 8px;
+    }
+  }
+}
+
+// 富文本编辑弹窗
+.comment-markdown-dialog {
+  .bk-dialog-content {
+    margin-top: 24px;
+  }
+
+  .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .markdown-editor-wrapper {
+    height: 420px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background-color: #f7f9fc;
+  }
+}
