@@ -261,6 +261,14 @@ export default defineComponent({
     };
 
     /**
+     * @description 表格高亮行发生变化时的回调
+     * @param {Array<string | number>} activeRowKeys 高亮行
+     */
+    const handleActiveChange = (rowKeys: Array<number | string>) => {
+      activeRowKeys.value = rowKeys;
+    };
+
+    /**
      * @description 表格最后一行渲染方法(默认填充一个 div 占位)
      * @returns {SlotReturnValue} 表格最后一行dom内容
      */
@@ -316,6 +324,7 @@ export default defineComponent({
       handleDisplayColFieldsChange,
       tableLastFullRowRender,
       tableEmptyRender,
+      handleActiveChange,
     };
   },
   render() {
@@ -324,10 +333,10 @@ export default defineComponent({
         <PrimaryTable
           ref='tableRef'
           class={`common-table ${this.tableSkeletonConfig?.tableClass}`}
-          v-model:activeRowKeys={this.activeRowKeys}
           v-slots={{
             empty: this.tableEmptyRender,
           }}
+          activeRowKeys={this.activeRowKeys}
           activeRowType='single'
           bkUiSettings={this.tableSettings}
           columns={this.tableColumns}
@@ -347,6 +356,7 @@ export default defineComponent({
           size={this.tableSize}
           sort={this.tableSort}
           tableLayout='fixed'
+          onActiveChange={this.handleActiveChange}
           onDisplayColumnsChange={this.handleDisplayColFieldsChange}
           onSelectChange={this.handleSelectChange}
           onSortChange={this.handleSortChange}
