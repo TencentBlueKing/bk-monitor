@@ -26,8 +26,9 @@
 
 import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
-import dayjs from 'dayjs';
 import VueEcharts from 'vue-echarts';
+
+import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 
 import type { BarSeriesOption } from 'echarts/charts';
 import type { GridComponentOption, TooltipComponentOption } from 'echarts/components';
@@ -122,7 +123,7 @@ export default defineComponent({
             if (!mouseIn.value && !props.hoverAllTooltips) return '';
             const item = Array.isArray(params) ? params[0] : params;
             if (!item) return '';
-            const time = dayjs(item.name as number).format('YYYY-MM-DD HH:mm');
+            const time = formatTraceTableDate(item.name as number);
             const value = item.value ?? 0;
             return `<div><div>${time}</div><div>${window.i18n.t('数量')}：${value}</div></div>`;
           }) as TooltipComponentOption['formatter'],

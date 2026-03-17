@@ -29,6 +29,7 @@ import type { MaybeRef } from 'vue';
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 
+import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import { ExploreTableColumnTypeEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
 import MiniBarChart from '../../components/mini-bar-chart/mini-bar-chart';
 import { IssuesPriorityMap, IssuesRegressionMap, IssuesStatusMap } from '../../constant';
@@ -116,13 +117,11 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   ): SlotReturnValue => {
     const timestamp = row[column.colKey as string] as number;
     if (!timestamp) return (<span>--</span>) as unknown as SlotReturnValue;
-    const dayjsInstance = dayjs.unix(timestamp);
+    const alias = formatTraceTableDate(timestamp);
     return (
       <div class='issues-time-col'>
-        <div class='time-relative'>{dayjsInstance.fromNow()}</div>
-        <div class={`time-absolute ${renderCtx.isEnabledCellEllipsis(column)}`}>
-          {dayjsInstance.format('YYYY-MM-DD HH:mm:ss')}
-        </div>
+        <div class='time-relative'>{dayjs.unix(timestamp).fromNow()}</div>
+        <div class={`time-absolute ${renderCtx.isEnabledCellEllipsis(column)}`}>{alias}</div>
       </div>
     ) as unknown as SlotReturnValue;
   };
@@ -189,7 +188,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
       <div
         class={[
           'issues-priority-col',
-          { 'is-active': rendererCtx.clickPopoverTools?.popoverInstance?.value?.instanceKey === `${row.id}-priority` },
+          { 'is-active': get(rendererCtx.clickPopoverTools?.popoverInstance)?.instanceKey === `${row.id}-priority` },
         ]}
         onClick={(e: MouseEvent) => rendererCtx.handlePriorityClick(e, row)}
       >
