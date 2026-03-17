@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import BkButton from 'bkui-vue/lib/button';
 import BkDropdown, { BkDropdownItem, BkDropdownMenu } from 'bkui-vue/lib/dropdown';
@@ -53,6 +53,9 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+
+    /** 批量操作下拉菜单是否展开 */
+    const dropdownShow = shallowRef(false);
 
     /** 是否有选中行 */
     const hasSelection = computed(() => props.selectedRowKeys.length > 0);
@@ -93,6 +96,7 @@ export default defineComponent({
     };
 
     return {
+      dropdownShow,
       hasSelection,
       batchActions,
       handleBatchAction,
@@ -105,20 +109,25 @@ export default defineComponent({
         {/* 顶部工具栏 */}
         <div class='issues-toolbar-bar'>
           <BkDropdown
+            isShow={this.dropdownShow}
             trigger='click'
-            onHide={() => {}}
-            onShow={() => {}}
+            onHide={() => {
+              this.dropdownShow = false;
+            }}
+            onShow={() => {
+              this.dropdownShow = true;
+            }}
           >
             {{
               default: () => (
                 <BkButton
-                  class={'issues-toolbar-batch-btn'}
+                  class='issues-toolbar-batch-btn'
                   disabled={!this.hasSelection}
                   theme='primary'
                 >
                   <div class='issues-toolbar-batch-btn-wrap'>
                     <span class='issues-toolbar-batch-btn-text'>{this.$t('批量操作')}</span>
-                    <i class='icon-monitor icon-arrow-down toolbar-btn-icon' />
+                    <i class={['icon-monitor icon-arrow-down toolbar-btn-icon', { 'is-active': this.dropdownShow }]} />
                   </div>
                 </BkButton>
               ),
