@@ -972,6 +972,7 @@ class TestEtl(TestCase):
         etl_params = {
             "separator_regexp": "(?P<request_ip>[\\d\\.]+)[^[]+\\[(?P<request_time>[^]]+)\\]",
             "retain_original_text": True,
+            "bk_biz_id": 2,
         }
 
         # 创建EtlStorage实例
