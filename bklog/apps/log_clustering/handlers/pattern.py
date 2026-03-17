@@ -75,7 +75,7 @@ class PatternHandler:
     def __init__(self, index_set_id, query):
         self._index_set_id = index_set_id
         self._pattern_level = query.get("pattern_level", PatternEnum.LEVEL_05.value)
-        self._show_new_pattern = query.get("show_new_pattern", False)
+        self._only_new_class_query = query.get("show_new_pattern", False)
         self._year_on_year_hour = query.get("year_on_year_hour", 0)
         self._group_by = query.get("group_by", [])
         self._clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
@@ -108,10 +108,7 @@ class PatternHandler:
             }
         }
         """
-        if self._show_new_pattern:
-            result = self._new_class_multi_query()
-        else:
-            result = self._multi_query()
+        result = self._multi_query(only_new_class_query=self._only_new_class_query)
         pattern_aggs = result.get("pattern_aggs", [])
         year_on_year_result = result.get("year_on_year_result", {})
         new_class = result.get("new_class", set())
@@ -255,70 +252,38 @@ class PatternHandler:
             result = [pattern for pattern in result if pattern["owners"] and set(self._owners) & set(pattern["owners"])]
         return result
 
-    def _new_class_multi_query(self):
-        new_class_query_result = self._get_new_class()
-        new_class_signature_list = [
-            new_class_tuple[0]
-            for new_class_tuple in new_class_query_result
-            if new_class_tuple and len(new_class_tuple) > 0
-        ]
-
-        if not new_class_signature_list:
-            return {"pattern_aggs": [], "year_on_year_result": {}, "new_class": set()}
-
-        # 添加新类日志数据指纹 ID 列表作为条件查询的参数
-        new_class_signature_query_condition = {
-            "field": self.pattern_aggs_field,
-            "operator": "is one of",
-            "value": new_class_signature_list,
-            "condition": "and",
-        }
-
-        copy_query = copy.deepcopy(self._query)
-        copy_query.setdefault("addition", []).append(new_class_signature_query_condition)
-
-        # 添加其他聚合字段查询条件
-        for query_condition in self.other_agg_fields_query_condition:
-            copy_query["addition"].append(query_condition)
-
+    def _multi_query(self, only_new_class_query=False):
         multi_execute_func = MultiExecuteFunc()
         multi_execute_func.append(
             "pattern_aggs",
-            lambda p: self._get_pattern_aggs_result(p["index_set_id"], p["query"]),
-            {"index_set_id": self._index_set_id, "query": copy_query},
+            lambda p: self._get_pattern_aggs_result(p["index_set_id"], p["query"], p["only_new_class_query"]),
+            {"index_set_id": self._index_set_id, "query": self._query, "only_new_class_query": only_new_class_query},
         )
         multi_execute_func.append(
-            "year_on_year_result", lambda p: self._get_year_on_year_aggs_result(p["query"]), {"query": copy_query}
+            "year_on_year_result",
+            lambda p: self._get_year_on_year_aggs_result(p["only_new_class_query"]),
+            {"only_new_class_query": only_new_class_query},
         )
-
-        multi_result = multi_execute_func.run()
-
-        multi_result["new_class"] = new_class_query_result
-
-        return multi_result
-
-    def _multi_query(self):
-        multi_execute_func = MultiExecuteFunc()
-        multi_execute_func.append(
-            "pattern_aggs",
-            lambda p: self._get_pattern_aggs_result(p["index_set_id"], p["query"]),
-            {"index_set_id": self._index_set_id, "query": self._query},
-        )
-        multi_execute_func.append("year_on_year_result", lambda: self._get_year_on_year_aggs_result())
         multi_execute_func.append("new_class", lambda: self._get_new_class())
         return multi_execute_func.run()
 
-    def _get_pattern_aggs_result(self, index_set_id, query):
+    def _get_pattern_aggs_result(self, index_set_id, query, only_new_class_query=False):
+        copy_query = copy.deepcopy(query)
+
+        if only_new_class_query:
+            query_conditions = self._get_new_class_query_conditions()
+            copy_query.setdefault("addition", []).extend(query_conditions)
+
         pattern_aggs_field = self.pattern_aggs_field
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, query.get("bk_biz_id")) and FeatureToggleObject.switch(
-            UNIFY_QUERY_SEARCH_CLUSTERING, query.get("bk_biz_id")
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, copy_query.get("bk_biz_id")) and FeatureToggleObject.switch(
+            UNIFY_QUERY_SEARCH_CLUSTERING, copy_query.get("bk_biz_id")
         ):
-            query["index_set_ids"] = [index_set_id]
-            query["agg_field"] = pattern_aggs_field
-            return UnifyQueryPatternHandler(query).query_pattern()
+            copy_query["index_set_ids"] = [index_set_id]
+            copy_query["agg_field"] = pattern_aggs_field
+            return UnifyQueryPatternHandler(copy_query).query_pattern()
         else:
-            query["fields"] = [{"field_name": pattern_aggs_field, "sub_fields": self._build_aggs_group}]
-            aggs_result = AggsHandlers.terms(index_set_id, query)
+            copy_query["fields"] = [{"field_name": pattern_aggs_field, "sub_fields": self._build_aggs_group}]
+            aggs_result = AggsHandlers.terms(index_set_id, copy_query)
             return self._parse_pattern_aggs_result(pattern_aggs_field, aggs_result)
 
     @property
@@ -332,20 +297,19 @@ class PatternHandler:
             aggs_group = aggs_group["sub_fields"]
         return aggs_group_reuslt
 
-    def _get_year_on_year_aggs_result(self, query=None) -> dict:
+    def _get_year_on_year_aggs_result(self, only_new_class_query=False) -> dict:
         if self._year_on_year_hour == MIN_COUNT:
             return {}
-        if query:
-            new_query = copy.deepcopy(query)
-        else:
-            new_query = copy.deepcopy(self._query)
+        new_query = copy.deepcopy(self._query)
         start_time, end_time = generate_time_range_shift(
             new_query["start_time"], new_query["end_time"], self._year_on_year_hour * HOUR_MINUTES
         )
         new_query["start_time"] = start_time.strftime("%Y-%m-%d %H:%M:%S")
         new_query["end_time"] = end_time.strftime("%Y-%m-%d %H:%M:%S")
         new_query["time_range"] = "customized"
-        buckets = self._get_pattern_aggs_result(self._index_set_id, new_query)
+        buckets = self._get_pattern_aggs_result(
+            self._index_set_id, new_query, only_new_class_query=only_new_class_query
+        )
         for bucket in buckets:
             bucket["key"] = f"{bucket['key']}|{bucket.get('group', '')}"
         return array_hash(buckets, "key", "doc_count")
@@ -403,10 +367,44 @@ class PatternHandler:
             bucket = result_buckets
         return bucket
 
+    def _get_new_class_query_conditions(self):
+        select_fields, new_classes = self.bkdata_query_new_classes()
+
+        agg_fields_query_condition = []
+
+        if not new_classes:
+            return []
+
+        agg_fields_query_condition_values_map = {}
+        for new_class in new_classes:
+            for agg_field, value in new_class.items():
+                agg_fields_query_condition_values_map.setdefault(agg_field, []).append(value)
+
+        if "signature" in agg_fields_query_condition_values_map:
+            agg_fields_query_condition_values_map[self.pattern_aggs_field] = agg_fields_query_condition_values_map.pop(
+                "signature", []
+            )
+
+        for agg_field, values in agg_fields_query_condition_values_map.items():
+            query_condition = {
+                "field": agg_field,
+                "operator": "is one of",
+                "value": list(set(values)),
+                "condition": "and",
+            }
+            agg_fields_query_condition.append(query_condition)
+
+        return agg_fields_query_condition
+
     def _get_new_class(self):
+        select_fields, new_classes = self.bkdata_query_new_classes()
+        return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
+
+    def bkdata_query_new_classes(self):
         start_time, end_time = generate_time_range(
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
+        select_fields = []
         if self._clustering_config.use_mini_link:
             # TODO: 使用监控新类告警结果判定
             new_classes = []
@@ -442,8 +440,7 @@ class PatternHandler:
                 .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
                 .query()
             )
-        self.deal_with_other_agg_fields_query_condition(new_classes)
-        return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
+        return select_fields, new_classes
 
     def _get_pattern_data(self, patterns):
         if not patterns:
@@ -683,26 +680,3 @@ class PatternHandler:
         for owner in owners:
             result.update(owner)
         return list(result)
-
-    def deal_with_other_agg_fields_query_condition(self, new_classes):
-        """
-        处理其他聚合字段查询条件
-        """
-        if not new_classes:
-            return
-
-        agg_fields_query_condition_values_map = {}
-        for new_class in new_classes:
-            for agg_field, value in new_class.items():
-                if agg_field in NEW_CLASS_QUERY_FIELDS:
-                    continue
-                agg_fields_query_condition_values_map.setdefault(agg_field, []).append(value)
-
-        for agg_field, values in agg_fields_query_condition_values_map.items():
-            query_condition = {
-                "field": agg_field,
-                "operator": "is one of",
-                "value": list(set(values)),
-                "condition": "and",
-            }
-            self.other_agg_fields_query_condition.append(query_condition)
