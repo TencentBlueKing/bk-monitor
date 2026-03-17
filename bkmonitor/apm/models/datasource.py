@@ -552,43 +552,6 @@ class TraceDataSource(ApmDataSourceConfigBase):
     def to_json(self):
         return {**super().to_json(), "index_set_id": self.index_set_id}
 
-    def create_data_id(self):
-        """
-        创建数据源 ID
-
-        V4 路径: 直接调用 resource.metadata.create_data_id(), 不经过基类的
-        DataLink.get_data_link() 查询 (APM DataLink 的 mq_cluster/transfer_cluster
-        仅用于 GSE 链路, 会干扰 V4 的 BKBase Kafka 分配).
-        metadata 内部 create_data_source() 会根据 etl_config=bk_flat_batch 命中
-        ENABLE_V4_DATALINK_ETL_CONFIGS, 自动走 apply_for_data_id_from_bkdata().
-
-        GSE 路径: 走基类逻辑, 支持 APM DataLink 的 mq_cluster/transfer_cluster.
-        """
-        if self.bk_data_id != -1:
-            return self.bk_data_id
-
-        if settings.ENABLE_TRACING_BKDATA:
-            bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
-            try:
-                data_id_info = resource.metadata.query_data_source(bk_tenant_id=bk_tenant_id, data_name=self.data_name)
-            except metadata_models.DataSource.DoesNotExist:
-                operator = get_global_user(bk_tenant_id=bk_tenant_id)
-                data_id_info = resource.metadata.create_data_id(
-                    {
-                        "bk_tenant_id": bk_tenant_id,
-                        "bk_biz_id": self.bk_biz_id,
-                        "data_name": self.data_name,
-                        "operator": operator,
-                        "data_description": self.data_name,
-                        **self.DATA_ID_PARAM,
-                    }
-                )
-            self.bk_data_id = data_id_info["bk_data_id"]
-            self.save()
-            return self.bk_data_id
-
-        return super().create_data_id()
-
     def _build_result_table_option(self):
         """构建结果表 option, V4 时声明 enable_v4_tracing_data_link"""
         option = dict(TRACE_RESULT_TABLE_OPTION)
