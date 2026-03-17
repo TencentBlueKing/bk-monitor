@@ -145,12 +145,23 @@ export default class extends EventEmitter<RetrieveEvent> {
   formatTimeZoneValue(data: number | string, fieldType: string, timezone: string = 'Asia/Shanghai') {
     if (['date', 'date_nanos', 'date_time', 'time'].includes(fieldType)) {
       let format = 'YYYY-MM-DD HH:mm:ss';
-      if (fieldType === 'date_nanos') {
-        const milliseconds = `${data}`.toString().split('.')[1]?.replace(/[^0-9]/g, '')?.length ?? 0;
-        if (milliseconds > 0) {
-          format = `YYYY-MM-DD HH:mm:ss.${'S'.repeat(milliseconds)}`;
+      if (fieldType === 'date_nanos' || fieldType === 'date') {
+        const dataStr = `${data}`;
+        const decimalPart = dataStr.split('.')[1]?.replace(/[^0-9]/g, '') ?? '';
+        const decimalLen = decimalPart.length;
+
+        if (decimalLen > 0) {
+          format = `YYYY-MM-DD HH:mm:ss.${'S'.repeat(Math.min(decimalLen, 9))}`;
         } else {
-          format = 'YYYY-MM-DD HH:mm:ss.SSS';
+          const pureDigits = dataStr.replace(/^<mark>|<\/mark>$/gi, '');
+          const extraDigits = /^\d+$/.test(pureDigits) ? Math.min(Math.max(pureDigits.length - 10, 0), 9) : 0;
+
+          // date_nanos 无小数时默认毫秒精度；date 仅在超出秒级部分非全0时补充精度
+          if (fieldType === 'date_nanos') {
+            format = `YYYY-MM-DD HH:mm:ss.${'S'.repeat(extraDigits || 3)}`;
+          } else if (extraDigits > 0 && !/^.{10}0+$/.test(pureDigits)) {
+            format = `YYYY-MM-DD HH:mm:ss.${'S'.repeat(extraDigits)}`;
+          }
         }
       }
 
