@@ -27,7 +27,7 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
+import CycleInput from './components/cycle-input/cycle-input';
 
 import './index.scss';
 
@@ -63,7 +63,6 @@ export default class IntervalCreator extends tsc<IProps> {
           class='form-interval'
           v-model={this.interval}
           hasExpanded={true}
-          needAuto={false}
           onChange={(v: number) => this.handleIntervalChange(v)}
         />
       </div>

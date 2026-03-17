@@ -178,6 +178,10 @@ class NewMetricChart extends CommonSimpleChart {
   downSampleRange = 'auto';
   // 图表是否在视图范围内
   chartIntoView = false;
+
+  /** 组件是否正在销毁中 */
+  isBeforeDestroying = false;
+
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
   }
@@ -499,6 +503,7 @@ class NewMetricChart extends CommonSimpleChart {
    */
   @Debounce(300)
   async getPanelData(start_time?: string, end_time?: string) {
+    if (this.isBeforeDestroying) return;
     this.legendData = [];
     this.legendSorts = [];
     this.initialized = false;
@@ -553,7 +558,9 @@ class NewMetricChart extends CommonSimpleChart {
           unify_query_param: {
             ...newParams.unify_query_param,
           },
-          down_sample_range: this.downSampleRangeComputed(this.downSampleRange, [startTime, endTime]),
+          ...(customEscalationViewStore.isIntervalAuto
+            ? {}
+            : { down_sample_range: this.downSampleRangeComputed(this.downSampleRange, [startTime, endTime]) }),
         });
         return graphUnifyQuery(...paramsArr, {
           cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -610,7 +617,6 @@ class NewMetricChart extends CommonSimpleChart {
           seriesResult.map(item => ({
             name: item.name,
             cursor: 'auto',
-            // biome-ignore lint/style/noCommaOperator: <explanation>
             data: item.datapoints.reduce((pre, cur) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: this.panel.options?.unit || item.unit,
@@ -791,7 +797,9 @@ class NewMetricChart extends CommonSimpleChart {
         query_configs: item.query_configs.map(config => ({
           ...config,
           interval: this.viewOptions?.interval || 'auto',
-          functions: isAddStrategy ? config.functions?.filter(f => !['bottom', 'top'].includes(f.id)) : config.functions,
+          functions: isAddStrategy
+            ? config.functions?.filter(f => !['bottom', 'top'].includes(f.id))
+            : config.functions,
         })),
       },
     }));
@@ -991,6 +999,9 @@ class NewMetricChart extends CommonSimpleChart {
       }
       this.$emit('zrMouseover', { value: axesInfo[0].value });
     }
+  }
+  beforeDestroy() {
+    this.isBeforeDestroying = true;
   }
   render() {
     return (
