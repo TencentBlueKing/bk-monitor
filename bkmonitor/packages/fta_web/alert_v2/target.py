@@ -581,7 +581,18 @@ class APMServiceTarget(BaseTarget):
         return target_hosts
 
     def list_related_log_targets(self) -> list[dict[str, Any]]:
-        return self._list_related_apm_log_targets(self.list_related_apm_targets())
+        apm_target_list: list[dict[str, Any]] = self.list_related_apm_targets()
+        if not apm_target_list:
+            return []
+
+        log_targets: list[dict[str, Any]] = self._list_related_apm_log_targets(apm_target_list)
+
+        # 将 APM 应用相关的日志索引集排到最前面（注：日志采集项名称会将 APM 应用名的中划线替换为下划线，且长度不足 5 时会加 otlp_ 前缀）
+        log_config_name: str = apm_target_list[0]["app_name"].replace("-", "_")
+        if len(log_config_name) < 5:
+            log_config_name = f"otlp_{log_config_name}"
+        log_targets.sort(key=lambda t: log_config_name not in t.get("index_set_name", ""))
+        return log_targets
 
 
 class HostTarget(DefaultTarget):
