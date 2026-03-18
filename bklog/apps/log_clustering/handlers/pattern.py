@@ -271,7 +271,7 @@ class PatternHandler:
         new_class_signature_query_condition = {
             "field": self.pattern_aggs_field,
             "operator": "is one of",
-            "value": new_class_signature_list,
+            "value": list(set(new_class_signature_list)),
             "condition": "and",
         }
 
