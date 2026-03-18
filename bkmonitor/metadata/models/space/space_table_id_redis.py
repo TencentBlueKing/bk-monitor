@@ -1543,6 +1543,33 @@ class SpaceTableIDRedis:
         v3_group_ids = set(table_id_ts_group_id.values()) - v4_group_ids
         return v3_group_ids, v4_group_ids
 
+    def _filter_v4_ts_metric_fields(self, group_ids: set[int], begin_time: datetime.datetime) -> list[dict]:
+        """V4 链路下，指标满足活跃或近期更新任一条件即可"""
+        if not group_ids:
+            return []
+
+        active_fields = filter_model_by_in_page(
+            model=models.TimeSeriesMetric,
+            field_op="group_id__in",
+            filter_data=group_ids,
+            value_func="values",
+            value_field_list=["field_name", "group_id"],
+            other_filter={"is_active": True},
+        )
+        recent_fields = filter_model_by_in_page(
+            model=models.TimeSeriesMetric,
+            field_op="group_id__in",
+            filter_data=group_ids,
+            value_func="values",
+            value_field_list=["field_name", "group_id"],
+            other_filter={"last_modify_time__gte": begin_time},
+        )
+        return list(
+            {
+                (data["group_id"], data["field_name"]): data for data in itertools.chain(active_fields, recent_fields)
+            }.values()
+        )
+
     def _filter_ts_info(self, table_ids: set, bk_tenant_id: str = DEFAULT_TENANT_ID) -> dict:
         """根据结果表获取对应的时序数据"""
         if not table_ids:
@@ -1566,23 +1593,14 @@ class SpaceTableIDRedis:
         begin_time = tz_now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
 
         if settings.ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE:
-            # V4 链路同时使用 is_active 和过期时间过滤，V3/兜底场景仍只使用过期时间过滤
+            # V4 链路满足 is_active 或近期更新任一条件即可，V3/兜底场景仍只使用过期时间过滤
             v3_group_ids, v4_group_ids = self._get_ts_metric_group_ids_by_datalink_version(
                 table_id_ts_group_id=table_id_ts_group_id,
                 bk_tenant_id=bk_tenant_id,
             )
             ts_group_fields = []
             if v4_group_ids:
-                ts_group_fields.extend(
-                    filter_model_by_in_page(
-                        model=models.TimeSeriesMetric,
-                        field_op="group_id__in",
-                        filter_data=v4_group_ids,
-                        value_func="values",
-                        value_field_list=["field_name", "group_id"],
-                        other_filter={"is_active": True, "last_modify_time__gte": begin_time},
-                    )
-                )
+                ts_group_fields.extend(self._filter_v4_ts_metric_fields(group_ids=v4_group_ids, begin_time=begin_time))
             if v3_group_ids:
                 ts_group_fields.extend(
                     filter_model_by_in_page(

@@ -67,8 +67,11 @@ def build_filter_model_stub(metric_queries: list[dict]) -> tuple[callable, datet
 
         if model is redis_module.models.TimeSeriesMetric:
             metric_queries.append({"group_ids": set(filter_data), "other_filter": other_filter})
-            if other_filter == {"is_active": True, "last_modify_time__gte": begin_time}:
-                return [{"field_name": "v4_active_recent", "group_id": V4_GROUP_ID}]
+            if other_filter == {"is_active": True}:
+                return [
+                    {"field_name": "v4_active_recent", "group_id": V4_GROUP_ID},
+                    {"field_name": "v4_active_stale", "group_id": V4_GROUP_ID},
+                ]
             if other_filter == {"last_modify_time__gte": begin_time}:
                 result = []
                 if V3_GROUP_ID in set(filter_data):
@@ -106,10 +109,11 @@ def test_filter_ts_info_use_is_active_only_for_v4(settings, monkeypatch):
 
     assert result["group_id_field_map"] == {
         V3_GROUP_ID: {"v3_active_recent", "v3_inactive_recent"},
-        V4_GROUP_ID: {"v4_active_recent"},
+        V4_GROUP_ID: {"v4_active_recent", "v4_active_stale", "v4_inactive_recent"},
     }
     assert metric_queries == [
-        {"group_ids": {V4_GROUP_ID}, "other_filter": {"is_active": True, "last_modify_time__gte": begin_time}},
+        {"group_ids": {V4_GROUP_ID}, "other_filter": {"is_active": True}},
+        {"group_ids": {V4_GROUP_ID}, "other_filter": {"last_modify_time__gte": begin_time}},
         {"group_ids": {V3_GROUP_ID}, "other_filter": {"last_modify_time__gte": begin_time}},
     ]
 
