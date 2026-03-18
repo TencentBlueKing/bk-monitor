@@ -68,7 +68,8 @@
       }
 
       .filter-group-children {
-        padding: 2px 0 5px 8px;
+        padding: 0 0 0 8px;
+        margin: 4px 0 8px 0;
 
         .t-tree {
           &.no-multi-level {
@@ -78,7 +79,11 @@
           }
 
           .t-tree__item {
-            height: 27px;
+            height: 24px;
+
+            & + .t-tree__item {
+              margin-top: 2px;
+            }
 
             &.t-tree__item--open {
               .t-tree__icon {
@@ -101,6 +106,7 @@
             .t-tree__label {
               padding: 0;
               margin-left: 0;
+              height: 100%;
 
               &.t-is-checked {
                 background-color: inherit;
@@ -108,6 +114,7 @@
 
               .t-checkbox__label {
                 flex: 1;
+                height: 100%;
               }
             }
           }
@@ -115,9 +122,14 @@
           .condition-tree-item {
             display: flex;
             align-items: center;
+            height: 100%;
+
+            .item-icon-wrapper {
+              margin-right: 4px;
+            }
 
             .item-icon {
-              margin-right: 4px;
+              line-height: normal;
               font-size: 13px;
             }
 
@@ -141,6 +153,51 @@
               font-size: 12px;
               font-weight: 700;
               color: #a3b1cc;
+            }
+
+            &.regression {
+              .item-icon-wrapper {
+                text-align: center;
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+              }
+            }
+
+            &.regression-true {
+              .item-icon-wrapper {
+                background-color: #ffedd1;
+              }
+            }
+
+            &.regression-false {
+              .item-icon-wrapper {
+                background-color: #e1f5f0;
+              }
+            }
+
+            &.priority {
+              .item-name {
+                padding: 0 6px;
+                height: 20px;
+                border-radius: 4px;
+              }
+            }
+
+            &.priority-P0 {
+              .item-name {
+                background-color: #e54040;
+              }
+            }
+            &.priority-P1 {
+              .item-name {
+                background-color: #faa41e;
+              }
+            }
+            &.priority-P2 {
+              .item-name {
+                background-color: #8f9fbd;
+              }
             }
           }
         }

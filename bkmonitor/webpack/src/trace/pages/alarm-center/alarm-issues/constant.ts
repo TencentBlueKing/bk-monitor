@@ -24,6 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+import dispatchIcon from '../../../static/img/issues/dispatch.png';
+import firstIcon from '../../../static/img/issues/first.png';
+import mergeIcon from '../../../static/img/issues/merge.png';
+import splitIcon from '../../../static/img/issues/split.png';
+import statusIcon from '../../../static/img/issues/status.png';
+
 import type { IssuePriorityType, IssueStatusType, MapEntry } from './typing';
 
 // ===================== 枚举常量 =====================
@@ -78,6 +84,14 @@ export const IssuesBatchActionEnum = {
   PRIORITY: 'priority',
   /** 标记为已解决 */
   RESOLVE: 'resolve',
+} as const;
+
+/** Issues 负责人枚举 */
+export const IssueAssigneeEnum = {
+  /** 分派给我 */
+  ASSIGNED_TO_ME: 'my_assignee',
+  /** 未分派 */
+  UNASSIGNED: 'no_assignee',
 } as const;
 
 /** Issues 活跃节点类型枚举 */
@@ -145,6 +159,20 @@ export const IssuesPriorityMap: Record<IssuePriorityType, MapEntry> = {
   },
 };
 
+/** Issues 负责人映射 */
+export const IssuesAssigneeMap = {
+  [IssueAssigneeEnum.ASSIGNED_TO_ME]: {
+    alias: window.i18n.t('分派给我'),
+    icon: 'icon-monitor icon-gaojingfenpai',
+    color: '#8F9FBD',
+  },
+  [IssueAssigneeEnum.UNASSIGNED]: {
+    alias: window.i18n.t('未分派'),
+    icon: 'icon-monitor icon-bangzhu',
+    color: '#8F9FBD',
+  },
+};
+
 /** Issues 回归类型映射（key 为 is_regression 布尔值的字符串形式） */
 export const IssuesRegressionMap: Record<string, MapEntry> = {
   false: {
@@ -161,14 +189,14 @@ export const IssuesRegressionMap: Record<string, MapEntry> = {
   },
 };
 
-/** Issues 活跃节点类型icon映射*/
+/** Issues 活跃节点类型icon映射 */
 export const IssuesActiveNodeIconMap = {
   [IssueActiveNodeTypeEnum.FIRST]: {
-    icon: '🚨',
+    icon: firstIcon,
     alias: window.i18n.t('首次出现'),
   },
   [IssueActiveNodeTypeEnum.STATUS]: {
-    icon: '🔄',
+    icon: statusIcon,
     alias: window.i18n.t('状态流转：'),
   },
   [IssueActiveNodeTypeEnum.COMMENT]: {
@@ -176,15 +204,15 @@ export const IssuesActiveNodeIconMap = {
     alias: window.i18n.t('用户评论'),
   },
   [IssueActiveNodeTypeEnum.DISPATCH]: {
-    icon: '📥',
+    icon: dispatchIcon,
     alias: window.i18n.t('指派负责人：'),
   },
   [IssueActiveNodeTypeEnum.SPLIT]: {
-    icon: '✂️',
+    icon: splitIcon,
     alias: window.i18n.t('Issue 拆分'),
   },
   [IssueActiveNodeTypeEnum.MERGE]: {
-    icon: '📦',
+    icon: mergeIcon,
     alias: window.i18n.t('Issue 合并'),
   },
 };

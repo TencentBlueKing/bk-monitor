@@ -248,11 +248,22 @@ export default defineComponent({
     const renderSplitActivity = () => {
       const splitNode = activeNodeMap[IssueActiveNodeTypeEnum.SPLIT];
       return renderActivityItem({
-        icon: <span>{splitNode.icon}</span>,
+        icon: (
+          <img
+            class='activity-icon'
+            alt=''
+            src={splitNode.icon}
+          />
+        ),
         title: (
           <div class='title-row'>
             <span class='action'>{splitNode.alias}</span>
-            <span class='time'>8months ago</span>
+            <span
+              class='time'
+              v-bk-tooltips={{ content: '2025-08-01 00:00:00' }}
+            >
+              8months ago
+            </span>
           </div>
         ),
         content: (
@@ -277,11 +288,22 @@ export default defineComponent({
     const renderMergeActivity = () => {
       const mergeNode = activeNodeMap[IssueActiveNodeTypeEnum.MERGE];
       return renderActivityItem({
-        icon: <span>{mergeNode.icon}</span>,
+        icon: (
+          <img
+            class='activity-icon'
+            alt=''
+            src={mergeNode.icon}
+          />
+        ),
         title: (
           <div class='title-row'>
             <span class='action'>{mergeNode.alias}</span>
-            <span class='time'>8months ago</span>
+            <span
+              class='time'
+              v-bk-tooltips={{ content: '2025-08-01 00:00:00' }}
+            >
+              8months ago
+            </span>
           </div>
         ),
         content: (
@@ -329,7 +351,12 @@ export default defineComponent({
         title: (
           <div class='title-row'>
             <span class='user'>lililiu(刘莉莉)</span>
-            <span class='time'>8months ago</span>
+            <span
+              class='time'
+              v-bk-tooltips={{ content: '2025-08-01 00:00:00' }}
+            >
+              8months ago
+            </span>
           </div>
         ),
         content: (
@@ -355,11 +382,25 @@ export default defineComponent({
     const renderStatusActivity = () => {
       const statusNode = activeNodeMap[IssueActiveNodeTypeEnum.STATUS];
       return renderActivityItem({
-        icon: <span>{statusNode.icon}</span>,
+        icon: (
+          <img
+            class='activity-icon'
+            alt=''
+            src={statusNode.icon}
+          />
+        ),
         title: (
           <div class='title-row'>
-            <span class='action'>{statusNode.alias}{t('未解决')}</span>
-            <span class='time'>8months ago</span>
+            <span class='action'>
+              {statusNode.alias}
+              {t('未解决')}
+            </span>
+            <span
+              class='time'
+              v-bk-tooltips={{ content: '2025-08-01 00:00:00' }}
+            >
+              8months ago
+            </span>
           </div>
         ),
       });
@@ -371,11 +412,22 @@ export default defineComponent({
     const renderDispatchActivity = () => {
       const dispatchNode = activeNodeMap[IssueActiveNodeTypeEnum.DISPATCH];
       return renderActivityItem({
-        icon: <span>{dispatchNode.icon}</span>,
+        icon: (
+          <img
+            class='activity-icon'
+            alt=''
+            src={dispatchNode.icon}
+          />
+        ),
         title: (
           <div class='title-row'>
             <span class='action'>{dispatchNode.alias}carrielu、edwinwu</span>
-            <span class='time'>8months ago</span>
+            <span
+              class='time'
+              v-bk-tooltips={{ content: '2025-08-01 00:00:00' }}
+            >
+              8months ago
+            </span>
           </div>
         ),
       });
@@ -387,11 +439,22 @@ export default defineComponent({
     const renderFirstActivity = () => {
       const firstNode = activeNodeMap[IssueActiveNodeTypeEnum.FIRST];
       return renderActivityItem({
-        icon: <span>{firstNode.icon}</span>,
+        icon: (
+          <img
+            class='activity-icon'
+            alt=''
+            src={firstNode.icon}
+          />
+        ),
         title: (
           <div class='title-row'>
             <span class='action'>{firstNode.alias}</span>
-            <span class='time'>8months ago</span>
+            <span
+              class='time'
+              v-bk-tooltips={{ content: '2025-08-01 00:00:00' }}
+            >
+              8months ago
+            </span>
           </div>
         ),
         showLine: false,

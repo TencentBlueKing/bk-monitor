@@ -46,6 +46,7 @@ export default defineComponent({
     },
   },
   emits: {
+    alarmTypeChange: (_value: AlarmType) => true,
     favoriteShowChange: (_value: boolean) => true,
   },
   setup(props, { emit }) {
@@ -54,7 +55,7 @@ export default defineComponent({
     const appStore = useAppStore();
 
     function handleAlarmTypeChange(value: AlarmType) {
-      alarmStore.handleAlarmTypeChange(value);
+      emit('alarmTypeChange', value);
     }
 
     function handleImmediateRefreshChange(value: string) {

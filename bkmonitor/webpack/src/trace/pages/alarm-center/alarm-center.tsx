@@ -115,6 +115,7 @@ export default defineComponent({
       updateQuickFilterValue,
       handleQuickFilteringOperation,
     } = useQuickFilter();
+
     const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
     const {
       tableColumns: tableSourceColumns,
@@ -265,6 +266,12 @@ export default defineComponent({
         currentFavorite.value = null;
       }
     );
+
+    /** 告警类型切换 */
+    const handleAlarmTypeChange = (value: AlarmType) => {
+      alarmStore.handleAlarmTypeChange(value);
+      isFirstInit.value = true;
+    };
 
     const updateIsCollapsed = (v: boolean) => {
       isCollapsed.value = v;
@@ -747,6 +754,7 @@ export default defineComponent({
       handleDetailShowChange,
       handlePreviousDetail,
       handleNextDetail,
+      handleAlarmTypeChange,
       handleFavoriteShowChange,
       handleFavoriteSave,
       handleEditFavoriteShow,
@@ -794,6 +802,7 @@ export default defineComponent({
           <AlarmCenterHeader
             class='alarm-center-header'
             isShowFavorite={this.isShowFavorite}
+            onAlarmTypeChange={this.handleAlarmTypeChange}
             onFavoriteShowChange={this.handleFavoriteShowChange}
           />
           <AlarmRetrievalFilter
@@ -832,6 +841,7 @@ export default defineComponent({
                       <QuickFiltering
                         filterList={this.quickFilterList}
                         filterValue={this.alarmStore.quickFilterValue}
+                        isFilterEmptyItem={false}
                         isFirstInit={this.isFirstInit}
                         loading={this.quickFilterLoading}
                         onClose={this.updateIsCollapsed}

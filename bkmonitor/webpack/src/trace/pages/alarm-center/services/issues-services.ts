@@ -25,6 +25,7 @@
  */
 import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
+import { IssuesAssigneeMap, IssuesPriorityMap, IssuesRegressionMap, IssuesStatusMap } from '../alarm-issues/constant';
 import { type RequestOptions, AlarmService } from './base';
 
 import type {
@@ -179,7 +180,110 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     _params: Partial<CommonFilterParams>,
     _options?: RequestOptions
   ): Promise<QuickFilterItem[]> {
-    return [];
+    const aggs = [
+      {
+        id: 'priority',
+        name: '优先级',
+        count: 128,
+        children: [
+          { id: 'P0', name: '高', count: 15 },
+          { id: 'P1', name: '中', count: 53 },
+          { id: 'P2', name: '低', count: 60 },
+        ],
+      },
+      {
+        id: 'status',
+        name: '状态',
+        count: 128,
+        children: [
+          { id: 'pending_review', name: '待审核', count: 30 },
+          { id: 'unresolved', name: '未解决', count: 12 },
+          { id: 'resolved', name: '已解决', count: 80 },
+          { id: 'archived', name: '归档', count: 6 },
+        ],
+      },
+      {
+        id: 'assignee',
+        name: '负责人',
+        count: 30,
+        children: [
+          { id: 'my_assignee', name: '我负责的', count: 20 },
+          { id: 'no_assignee', name: '未分配', count: 10 },
+        ],
+      },
+      {
+        id: 'is_regression',
+        name: '类型',
+        count: 128,
+        children: [
+          { id: 'true', name: '回归问题', count: 8 },
+          { id: 'false', name: '新问题', count: 120 },
+        ],
+      },
+    ];
+
+    const res = aggs.map(agg => {
+      if (agg.id === 'priority') {
+        return {
+          ...agg,
+          children: agg.children.map(child => {
+            const priority = IssuesPriorityMap[child.id];
+            return {
+              ...child,
+              name: priority.alias || child.name,
+              textColor: priority?.color,
+              extCls: `priority priority-${child.id}`,
+            };
+          }),
+        };
+      }
+      if (agg.id === 'status') {
+        return {
+          ...agg,
+          children: agg.children.map(child => {
+            const status = IssuesStatusMap[child.id];
+            return {
+              ...child,
+              name: status.alias || child.name,
+              icon: status?.icon,
+              iconColor: status?.color,
+              textColor: status?.color,
+            };
+          }),
+        };
+      }
+      if (agg.id === 'assignee') {
+        return {
+          ...agg,
+          children: agg.children.map(child => {
+            const assignee = IssuesAssigneeMap[child.id];
+            return {
+              ...child,
+              name: assignee.alias || child.name,
+              icon: assignee?.icon,
+              iconColor: assignee?.color,
+            };
+          }),
+        };
+      }
+      if (agg.id === 'is_regression') {
+        return {
+          ...agg,
+          children: agg.children.map(child => {
+            const regression = IssuesRegressionMap[child.id];
+            return {
+              ...child,
+              name: regression.alias || child.name,
+              icon: regression?.icon,
+              iconColor: regression?.color,
+              extCls: `regression regression-${child.id}`,
+            };
+          }),
+        };
+      }
+      return agg;
+    });
+    return res;
   }
   async getRetrievalFilterValues(_params: Partial<CommonFilterParams>, _config = {}) {
     return { doc_count: 0, fields: [] };
