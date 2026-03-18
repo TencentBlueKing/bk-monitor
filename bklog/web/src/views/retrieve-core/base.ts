@@ -169,14 +169,14 @@ export default class extends EventEmitter<RetrieveEvent> {
         const value = `${data}`.replace(/^<mark>/i, '').replace(/<\/mark>$/i, '');
 
         if (/^\d+$/.test(value)) {
-          return `<mark>${formatTimeZoneString(Number(value), timezone, format, false)}</mark>`;
+          return `<mark>${formatTimeZoneString(this.normalizeTimestampToMs(Number(value)), timezone, format, false)}</mark>`;
         }
 
         return `<mark>${formatTimeZoneString(value, timezone, format, false)}</mark>`;
       }
 
       if (/^\d+$/.test(`${data}`)) {
-        return formatTimeZoneString(Number(data), timezone, format, false) || data || '--';
+        return formatTimeZoneString(this.normalizeTimestampToMs(Number(data)), timezone, format, false) || data || '--';
       }
 
       return formatTimeZoneString(data, timezone, format, false) || data || '--';
@@ -185,6 +185,14 @@ export default class extends EventEmitter<RetrieveEvent> {
     return data || '--';
   }
 
+
+  private normalizeTimestampToMs(ts: number): number {
+    const len = `${ts}`.length;
+    if (len <= 10) return ts * 1000;
+    if (len <= 13) return ts;
+    if (len <= 16) return Math.floor(ts / 1000);
+    return Math.floor(ts / 1000000);
+  }
 
   getRegExp(reg: RegExp | boolean | number | string, flgs?: string, fullMatch = false, formatRegStr = true): RegExp {
     return StaticUtil.getRegExp(reg, flgs, fullMatch, formatRegStr);
