@@ -26,6 +26,7 @@
 import { type PropType, defineComponent, KeepAlive, shallowRef } from 'vue';
 
 import { Tab } from 'bkui-vue';
+import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 
 import { IssueDetailTabEnum } from '../../constant';
 import IssuesActivity from './issues-activity/issues-activity';
@@ -50,6 +51,11 @@ const TAB_LIST: { label: string; name: IssueDetailTabType }[] = [
 export default defineComponent({
   name: 'IssuesSliderWrapper',
   props: {
+    /** Issue ID */
+    issueId: {
+      type: String,
+      default: '',
+    },
     /** 告警ID */
     alarmId: {
       type: String,
@@ -59,12 +65,51 @@ export default defineComponent({
       type: Array as PropType<TimeRangeType>,
       default: () => DEFAULT_TIME_RANGE,
     },
+    /** 筛选条件 */
+    conditions: {
+      type: Array as PropType<IWhereItem[]>,
+      default: () => [],
+    },
+    /** 查询字符串 */
+    queryString: {
+      type: String,
+      default: '',
+    },
+    /** 查询模式 */
+    filterMode: {
+      type: String as PropType<EMode>,
+      default: EMode.ui,
+    },
   },
-  setup(props) {
+  emits: {
+    conditionChange: (_v: IWhereItem[]) => true,
+    queryStringChange: (_v: string) => true,
+    filterModeChange: (_v: EMode) => true,
+  },
+  setup(props, { emit }) {
     const currentTab = shallowRef<IssueDetailTabType>(IssueDetailTabEnum.LATEST);
 
     const handleTabChange = (tab: IssueDetailTabType) => {
       currentTab.value = tab;
+    };
+
+    /** 新开告警详情页 */
+    const handleShowAlertDetail = (id: string) => {
+      const hash = `#/trace/alarm-center/detail/${id}`;
+      const url = location.href.replace(location.hash, hash);
+      window.open(url, '_blank');
+    };
+
+    const handleConditionChange = (val: IWhereItem[]) => {
+      emit('conditionChange', val);
+    };
+
+    const handleQueryStringChange = (val: string) => {
+      emit('queryStringChange', val);
+    };
+
+    const handleFilterModeChange = (val: EMode) => {
+      emit('filterModeChange', val);
     };
 
     const getPanelComponent = () => {
@@ -73,7 +118,14 @@ export default defineComponent({
         case IssueDetailTabEnum.EARLIEST:
           return <IssuesDetailAlarmPanel alarmId={props.alarmId} />;
         case IssueDetailTabEnum.LIST:
-          return <IssuesDetailAlarmTable timeRange={props.timeRange} />;
+          return (
+            <IssuesDetailAlarmTable
+              conditions={props.conditions}
+              queryString={props.queryString}
+              timeRange={props.timeRange}
+              onShowAlertDetail={handleShowAlertDetail}
+            />
+          );
         default:
           return null;
       }
@@ -83,13 +135,24 @@ export default defineComponent({
       currentTab,
       handleTabChange,
       getPanelComponent,
+      handleConditionChange,
+      handleQueryStringChange,
+      handleFilterModeChange,
     };
   },
   render() {
     return (
       <div class='issues-slider-wrapper'>
         <div class='issues-slider-left-panel'>
-          <IssuesRetrievalFilter />
+          <IssuesRetrievalFilter
+            conditions={this.conditions}
+            filterMode={this.filterMode}
+            queryString={this.queryString}
+            timeRange={this.timeRange}
+            onConditionChange={this.handleConditionChange}
+            onFilterModeChange={this.handleFilterModeChange}
+            onQueryStringChange={this.handleQueryStringChange}
+          />
           <Tab
             class='issues-alarm-tab'
             active={this.currentTab}

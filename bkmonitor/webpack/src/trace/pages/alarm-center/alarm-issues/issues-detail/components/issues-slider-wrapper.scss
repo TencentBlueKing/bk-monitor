@@ -3,8 +3,8 @@
   display: flex;
   gap: 8px;
   height: 100%;
-  padding: 0 16px 16px;
-  overflow-y: auto;
+  padding: 0 0 16px 16px;
+  overflow: hidden;
   background-color: #f2f6fc;
 
   .issues-slider-left-panel {
@@ -15,6 +15,7 @@
     .issues-retrieval-filter {
       position: sticky;
       top: -1px;
+      z-index: 51;
       margin-top: 16px;
       border: 1px solid #e4e9f2;
       border-radius: 8px;
@@ -32,7 +33,7 @@
     .issues-alarm-tab {
       position: sticky;
       top: 49px;
-      z-index: 10;
+      z-index: 51;
       margin-bottom: 16px;
       background: #f2f6fc;
       opacity: 1;
@@ -57,6 +58,8 @@
     flex-direction: column;
     gap: 16px;
     width: 368px;
+    padding-right: 16px;
+    overflow-y: auto;
 
     .issues-basic-info {
       margin-top: 16px;

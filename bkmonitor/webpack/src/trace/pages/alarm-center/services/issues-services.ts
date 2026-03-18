@@ -1,3 +1,4 @@
+import { alertTopN } from 'monitor-api/modules/alert_v2';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -138,6 +139,350 @@ export const ISSUES_FILTER_FIELDS: IFilterField[] = [
       {
         alias: '!=',
         value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'name',
+    alias: window.i18n.t('Issue 名称'),
+    type: EFieldType.text,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+      {
+        alias: window.i18n.t('包含'),
+        value: 'include',
+      },
+      {
+        alias: window.i18n.t('不包含'),
+        value: 'exclude',
+      },
+    ],
+  },
+  {
+    name: 'status',
+    alias: window.i18n.t('状态'),
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'priority',
+    alias: window.i18n.t('优先级'),
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'assignee',
+    alias: window.i18n.t('负责人'),
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'strategy_id',
+    alias: window.i18n.t('策略 ID'),
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'strategy_name',
+    alias: window.i18n.t('策略名称'),
+    type: EFieldType.text,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+      {
+        alias: window.i18n.t('包含'),
+        value: 'include',
+      },
+      {
+        alias: window.i18n.t('不包含'),
+        value: 'exclude',
+      },
+    ],
+  },
+  {
+    name: 'bk_biz_id',
+    alias: window.i18n.t('业务 ID'),
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'labels',
+    alias: window.i18n.t('标签'),
+    type: EFieldType.keyword,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'is_regression',
+    alias: window.i18n.t('是否回归'),
+    type: EFieldType.boolean,
+    isEnableOptions: true,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'alert_count',
+    alias: window.i18n.t('告警数量'),
+    type: EFieldType.integer,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+      {
+        alias: '>',
+        value: 'gt',
+      },
+      {
+        alias: '>=',
+        value: 'gte',
+      },
+      {
+        alias: '<',
+        value: 'lt',
+      },
+      {
+        alias: '<=',
+        value: 'lte',
+      },
+    ],
+  },
+  {
+    name: 'first_alert_time',
+    alias: window.i18n.t('首次告警时间'),
+    type: EFieldType.integer,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+      {
+        alias: '>',
+        value: 'gt',
+      },
+      {
+        alias: '>=',
+        value: 'gte',
+      },
+      {
+        alias: '<',
+        value: 'lt',
+      },
+      {
+        alias: '<=',
+        value: 'lte',
+      },
+    ],
+  },
+  {
+    name: 'last_alert_time',
+    alias: window.i18n.t('最近告警时间'),
+    type: EFieldType.integer,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+      {
+        alias: '>',
+        value: 'gt',
+      },
+      {
+        alias: '>=',
+        value: 'gte',
+      },
+      {
+        alias: '<',
+        value: 'lt',
+      },
+      {
+        alias: '<=',
+        value: 'lte',
+      },
+    ],
+  },
+  {
+    name: 'create_time',
+    alias: window.i18n.t('创建时间'),
+    type: EFieldType.integer,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+      {
+        alias: '>',
+        value: 'gt',
+      },
+      {
+        alias: '>=',
+        value: 'gte',
+      },
+      {
+        alias: '<',
+        value: 'lt',
+      },
+      {
+        alias: '<=',
+        value: 'lte',
+      },
+    ],
+  },
+  {
+    name: 'update_time',
+    alias: window.i18n.t('更新时间'),
+    type: EFieldType.integer,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+      {
+        alias: '>',
+        value: 'gt',
+      },
+      {
+        alias: '>=',
+        value: 'gte',
+      },
+      {
+        alias: '<',
+        value: 'lt',
+      },
+      {
+        alias: '<=',
+        value: 'lte',
+      },
+    ],
+  },
+  {
+    name: 'resolved_time',
+    alias: window.i18n.t('解决时间'),
+    type: EFieldType.integer,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+      {
+        alias: '>',
+        value: 'gt',
+      },
+      {
+        alias: '>=',
+        value: 'gte',
+      },
+      {
+        alias: '<',
+        value: 'lt',
+      },
+      {
+        alias: '<=',
+        value: 'lte',
       },
     ],
   },
@@ -285,7 +630,17 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     });
     return res;
   }
-  async getRetrievalFilterValues(_params: Partial<CommonFilterParams>, _config = {}) {
-    return { doc_count: 0, fields: [] };
+
+  async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {
+    const data = await alertTopN(
+      {
+        ...params,
+      },
+      config
+    ).catch(() => ({
+      doc_count: 0,
+      fields: [],
+    }));
+    return data;
   }
 }

@@ -28,6 +28,7 @@ import { defineComponent, shallowRef } from 'vue';
 import { Sideslider } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
+import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 
 import IssuesSliderHeader from './components/issues-slider-header';
 import IssuesSliderWrapper from './components/issues-slider-wrapper';
@@ -44,6 +45,16 @@ export default defineComponent({
       type: Boolean,
       required: true,
     },
+    /** Issue ID */
+    issueId: {
+      type: String,
+      default: '',
+    },
+    /** 告警ID */
+    alarmId: {
+      type: String,
+      default: '',
+    },
   },
   emits: ['update:show'],
   setup(_, { emit }) {
@@ -52,6 +63,10 @@ export default defineComponent({
     const timezone = shallowRef(getDefaultTimezone());
     const refreshInterval = shallowRef(-1);
     const refreshImmediate = shallowRef(random(4));
+    // 筛选条件状态
+    const conditions = shallowRef<IWhereItem[]>([]);
+    const queryString = shallowRef('');
+    const filterMode = shallowRef<EMode>(EMode.ui);
 
     const handleShowChange = (isShow: boolean) => {
       emit('update:show', isShow);
@@ -73,16 +88,34 @@ export default defineComponent({
       refreshInterval.value = value;
     };
 
+    const handleConditionChange = (val: IWhereItem[]) => {
+      conditions.value = val;
+    };
+
+    const handleQueryStringChange = (val: string) => {
+      queryString.value = val;
+    };
+
+    const handleFilterModeChange = (val: EMode) => {
+      filterMode.value = val;
+    };
+
     return {
       isFullscreen,
       timeRange,
       timezone,
       refreshInterval,
+      conditions,
+      queryString,
+      filterMode,
       handleShowChange,
       handleTimeRangeChange,
       handleTimezoneChange,
       handleImmediateRefresh,
       handleRefreshChange,
+      handleConditionChange,
+      handleQueryStringChange,
+      handleFilterModeChange,
     };
   },
   render() {
@@ -114,7 +147,17 @@ export default defineComponent({
           ),
           default: () => (
             <div class='issues-detail-side-slider-content'>
-              <IssuesSliderWrapper />
+              <IssuesSliderWrapper
+                alarmId={this.alarmId}
+                conditions={this.conditions}
+                filterMode={this.filterMode}
+                issueId={this.issueId}
+                queryString={this.queryString}
+                timeRange={this.timeRange}
+                onConditionChange={this.handleConditionChange}
+                onFilterModeChange={this.handleFilterModeChange}
+                onQueryStringChange={this.handleQueryStringChange}
+              />
             </div>
           ),
         }}
