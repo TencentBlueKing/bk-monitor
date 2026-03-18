@@ -85,6 +85,8 @@ class PatternHandler:
         self._owner_config = query.get("owner_config", OwnerConfigEnum.ALL.value)
         self._owners = query.get("owners", [])
         self.other_agg_fields_query_condition = []
+        self._new_classes = None
+        self._select_fields = None
 
     def pattern_search(self):
         """
@@ -229,6 +231,8 @@ class PatternHandler:
                     "strategy_enabled": strategy_enabled,
                 }
             )
+        if self._only_new_class_query:
+            result = map_if(result, if_func=lambda x: x["is_new_class"])
         result = self._get_remark_and_owner(result)
         return result
 
@@ -368,7 +372,7 @@ class PatternHandler:
         return bucket
 
     def _get_new_class_query_conditions(self):
-        select_fields, new_classes = self.bkdata_query_new_classes()
+        select_fields, new_classes = self._get_new_classes()
 
         agg_fields_query_condition = []
 
@@ -378,7 +382,8 @@ class PatternHandler:
         agg_fields_query_condition_values_map = {}
         for new_class in new_classes:
             for agg_field, value in new_class.items():
-                agg_fields_query_condition_values_map.setdefault(agg_field, []).append(value)
+                if agg_field == "signature":
+                    agg_fields_query_condition_values_map.setdefault(agg_field, []).append(value)
 
         if "signature" in agg_fields_query_condition_values_map:
             agg_fields_query_condition_values_map[self.pattern_aggs_field] = agg_fields_query_condition_values_map.pop(
@@ -397,10 +402,21 @@ class PatternHandler:
         return agg_fields_query_condition
 
     def _get_new_class(self):
-        select_fields, new_classes = self.bkdata_query_new_classes()
+        select_fields, new_classes = self._get_new_classes()
         return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
 
-    def bkdata_query_new_classes(self):
+    def _get_new_classes(self):
+        if self._select_fields is not None and self._new_classes is not None:
+            return self._select_fields, self._new_classes
+
+        select_fields, new_classes = self._bkdata_query_new_classes()
+
+        self._select_fields = select_fields
+        self._new_classes = new_classes
+
+        return select_fields, new_classes
+
+    def _bkdata_query_new_classes(self):
         start_time, end_time = generate_time_range(
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
