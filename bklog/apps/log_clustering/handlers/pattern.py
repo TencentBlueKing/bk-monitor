@@ -84,7 +84,6 @@ class PatternHandler:
         self._remark_config = query.get("remark_config", RemarkConfigEnum.ALL.value)
         self._owner_config = query.get("owner_config", OwnerConfigEnum.ALL.value)
         self._owners = query.get("owners", [])
-        self.other_agg_fields_query_condition = []
         self._new_classes = None
         self._select_fields = None
 
