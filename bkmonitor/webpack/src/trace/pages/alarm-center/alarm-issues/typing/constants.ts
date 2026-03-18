@@ -47,17 +47,3 @@ export type IssuesBatchActionType = GetEnumTypeTool<typeof IssuesBatchActionEnum
 
 /** Issues 状态类型 */
 export type IssueStatusType = GetEnumTypeTool<typeof IssueStatusEnum>;
-
-// ===================== 接口定义 =====================
-
-/** 映射条目通用结构 */
-export interface MapEntry {
-  /** 显示别名 */
-  alias: string;
-  /** 背景颜色值 */
-  bgColor?: string;
-  /** 颜色值 */
-  color: string;
-  /** 图标类名 */
-  icon?: string;
-}

@@ -128,7 +128,7 @@ export const generateMockIssues = (count = 20): IssueItem[] => {
       is_regression: isRegression,
       strategy_id: strategy.id,
       strategy_name: strategy.name,
-      bk_biz_id: '2',
+      bk_biz_id: 2,
       bk_biz_name: '蓝鲸',
       labels: MOCK_LABEL_GROUPS[index % MOCK_LABEL_GROUPS.length],
       alert_count: trend.reduce((sum, item) => sum + item[1], 0),

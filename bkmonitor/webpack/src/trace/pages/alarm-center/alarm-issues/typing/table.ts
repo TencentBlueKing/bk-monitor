@@ -67,7 +67,7 @@ export interface IssueItem extends Record<string, unknown> {
   /** 负责人用户名列表，空数组表示未指派 */
   assignee: string[];
   /** 所属业务 ID */
-  bk_biz_id: string;
+  bk_biz_id: number;
   /** 业务名称 */
   bk_biz_name: string;
   /** 创建时间（秒级时间戳） */

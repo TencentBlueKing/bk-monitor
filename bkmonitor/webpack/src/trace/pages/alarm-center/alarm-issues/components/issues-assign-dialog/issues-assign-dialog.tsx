@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import { Button, Dialog, Input } from 'bkui-vue';
+
+import type { IssuesAssigneeDialogEvent } from '../../typing';
 
 import './issues-assign-dialog.scss';
 
@@ -38,30 +40,45 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 空间业务id */
+    issuesBizId: {
+      type: Number,
+    },
+    /** 当前操作的 Issues ID 列表 */
+    issuesIds: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    /** 弹窗标题 */
+    title: {
+      type: String,
+    },
   },
   emits: {
-    confirm: (assignee: string[]) => Array.isArray(assignee),
+    success: (event: IssuesAssigneeDialogEvent[]) => Array.isArray(event),
     cancel: () => true,
     'update:isShow': (val: boolean) => typeof val === 'boolean',
   },
   setup(props, { emit }) {
     /** 指派负责人输入值 */
     const assignInputValue = shallowRef('');
+    /** 提交中 loading 状态 */
+    const loading = shallowRef(false);
 
-    // 每次弹窗打开时清空输入值
-    watch(
-      () => props.isShow,
-      val => {
-        if (val) {
-          assignInputValue.value = '';
-        }
-      }
-    );
+    /**
+     * @description 获取弹窗标题
+     * @returns { string } 弹窗标题
+     */
+    const getTitle = () => {
+      if (props.title) return props.title;
+      if (props.issuesIds?.length > 1) return window.i18n.t('批量指派负责人');
+      return window.i18n.t('指派负责人');
+    };
 
     /**
      * @description 确认指派
      */
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
       const value = assignInputValue.value?.trim();
       if (!value) return;
       const assignees = value
@@ -69,7 +86,25 @@ export default defineComponent({
         .map(s => s.trim())
         .filter(Boolean);
       if (!assignees.length) return;
-      emit('confirm', assignees);
+
+      loading.value = true;
+      try {
+        // TODO: 接入后端 API — 调用指派负责人接口
+        // const res = await assignIssues({
+        //   bk_biz_id: props.issuesBizId,
+        //   issue_ids: props.issuesIds,
+        //   assignee: assignees,
+        // });
+        const succeeded: IssuesAssigneeDialogEvent[] = props.issuesIds.map(id => ({
+          assignee: assignees,
+          issue_id: id,
+          status: '' as IssuesAssigneeDialogEvent['status'],
+          update_time: Date.now() / 1000,
+        }));
+        emit('success', succeeded);
+      } finally {
+        loading.value = false;
+      }
     };
 
     /**
@@ -79,8 +114,21 @@ export default defineComponent({
       emit('cancel');
     };
 
+    // 每次弹窗打开时清空输入值
+    watch(
+      () => props.isShow,
+      val => {
+        if (val) {
+          assignInputValue.value = '';
+          loading.value = false;
+        }
+      }
+    );
+
     return {
       assignInputValue,
+      loading,
+      getTitle,
       handleConfirm,
       handleCancel,
     };
@@ -99,6 +147,7 @@ export default defineComponent({
                 </span>
                 <Input
                   v-model={this.assignInputValue}
+                  disabled={this.loading}
                   placeholder={window.i18n.t('请输入')}
                 />
               </div>
@@ -108,19 +157,25 @@ export default defineComponent({
             <div class='issues-assign-dialog-footer'>
               <Button
                 style='margin-right: 8px'
-                disabled={!this.assignInputValue?.trim()}
+                disabled={!this.assignInputValue?.trim() || this.loading}
+                loading={this.loading}
                 theme='primary'
                 onClick={this.handleConfirm}
               >
                 {window.i18n.t('确定')}
               </Button>
-              <Button onClick={this.handleCancel}>{window.i18n.t('取消')}</Button>
+              <Button
+                disabled={this.loading}
+                onClick={this.handleCancel}
+              >
+                {window.i18n.t('取消')}
+              </Button>
             </div>
           ),
         }}
         header-position='left'
         isShow={this.isShow}
-        title={window.i18n.t('指派负责人')}
+        title={this.getTitle()}
         onUpdate:isShow={(v: boolean) => {
           this.$emit('update:isShow', v);
         }}

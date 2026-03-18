@@ -24,7 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-export * from './common';
-export * from './constants';
-export * from './dialog';
-export * from './table';
+/** 映射条目通用结构 */
+export interface MapEntry {
+  /** 显示别名 */
+  alias: string;
+  /** 背景颜色值 */
+  bgColor?: string;
+  /** 颜色值 */
+  color: string;
+  /** 图标类名 */
+  icon?: string;
+}

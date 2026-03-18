@@ -82,10 +82,12 @@ import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
+import { useIssuesDialogs } from './alarm-issues/components/issues-operation-dialogs/hooks/use-issues-dialogs';
+import IssuesOperationDialogs from './alarm-issues/components/issues-operation-dialogs/issues-operation-dialogs';
+import { IssuesBatchActionEnum } from './alarm-issues/constant';
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
 import IssuesTable from './alarm-issues/issues-table/issues-table';
 import IssuesToolbar from './alarm-issues/issues-toolbar/issues-toolbar';
-import { useIssuesOperations } from './composables/use-issues-operations';
 import { useIssuesTable } from './composables/use-issues-table';
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
@@ -151,11 +153,23 @@ export default defineComponent({
     } = useIssuesTable();
 
     const {
-      handleAssign: handleIssuesAssign,
-      handleMarkResolved: handleIssuesMarkResolved,
-      handlePriorityChange: handleIssuesPriorityChange,
-      handleShowDetail: handleIssuesShowDetail,
-    } = useIssuesOperations({ allData: issuesAllData });
+      issuesDialogShow,
+      issuesDialogType,
+      issuesDialogIds,
+      issuesDialogBizId,
+      issuesDialogParam,
+      handleIssuesDialogShow,
+      handleIssuesDialogHide,
+      handleIssuesDialogSuccess,
+    } = useIssuesDialogs(issuesAllData);
+
+    /**
+     * @description 展示 Issue 详情
+     * @param {string} _id - Issue ID
+     */
+    const handleIssuesShowDetail = (_id: string) => {
+      // TODO: 接入详情抽屉逻辑
+    };
 
     const favoriteBox = useTemplateRef<ComponentPublicInstance<typeof FavoriteBox>>('favoriteBox');
     const allFavoriteList = computed(() => {
@@ -772,9 +786,14 @@ export default defineComponent({
       handleIssuesPageSizeChange,
       handleIssuesSortChange,
       handleIssuesSelectionChange,
-      handleIssuesAssign,
-      handleIssuesMarkResolved,
-      handleIssuesPriorityChange,
+      handleIssuesDialogShow,
+      handleIssuesDialogHide,
+      handleIssuesDialogSuccess,
+      issuesDialogShow,
+      issuesDialogType,
+      issuesDialogIds,
+      issuesDialogBizId,
+      issuesDialogParam,
       handleIssuesShowDetail,
     };
   },
@@ -874,7 +893,10 @@ export default defineComponent({
                       )}
                       <div class='alarm-center-table'>
                         {this.alarmStore.alarmType === AlarmType.ISSUES ? (
-                          <IssuesToolbar selectedRowKeys={this.issuesSelectedRowKeys}>
+                          <IssuesToolbar
+                            batchAction={action => this.handleIssuesDialogShow(action, this.issuesSelectedRowKeys)}
+                            issuesIds={this.issuesSelectedRowKeys}
+                          >
                             <IssuesTable
                               columns={this.tableSourceColumns}
                               data={this.issuesTableData}
@@ -885,11 +907,17 @@ export default defineComponent({
                               scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
                               selectedRowKeys={this.issuesSelectedRowKeys}
                               sort={this.issuesSort}
-                              onAssign={this.handleIssuesAssign}
+                              onAssignClick={(id, data) =>
+                                this.handleIssuesDialogShow(IssuesBatchActionEnum.ASSIGN, id, data)
+                              }
                               onCurrentPageChange={this.handleIssuesCurrentPageChange}
-                              onMarkResolved={this.handleIssuesMarkResolved}
+                              onMarkResolved={(id: string) =>
+                                this.handleIssuesDialogShow(IssuesBatchActionEnum.RESOLVE, id)
+                              }
                               onPageSizeChange={this.handleIssuesPageSizeChange}
-                              onPriorityChange={this.handleIssuesPriorityChange}
+                              onPriorityChange={(id: string) =>
+                                this.handleIssuesDialogShow(IssuesBatchActionEnum.PRIORITY, id)
+                              }
                               onSelectionChange={this.handleIssuesSelectionChange}
                               onShowDetail={this.handleIssuesShowDetail}
                               onSortChange={this.handleIssuesSortChange}
@@ -973,6 +1001,20 @@ export default defineComponent({
             onUpdate:show={() => {
               this.handleAlertDialogHide();
               this.setUrlParams({ autoShowAlertAction: '' });
+            }}
+          />
+
+          <IssuesOperationDialogs
+            dialogParam={this.issuesDialogParam}
+            dialogType={this.issuesDialogType}
+            issuesBizId={this.issuesDialogBizId}
+            issuesIds={this.issuesDialogIds}
+            show={this.issuesDialogShow}
+            onSuccess={this.handleIssuesDialogSuccess}
+            onUpdate:show={(v: boolean) => {
+              if (!v) {
+                this.handleIssuesDialogHide();
+              }
             }}
           />
         </div>

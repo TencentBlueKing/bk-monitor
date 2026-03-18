@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef } from 'vue';
+import { defineComponent } from 'vue';
 
-import { useIssuesOperations } from '../composables/use-issues-operations';
 import { useIssuesTable } from '../composables/use-issues-table';
 import { useAlarmTableColumns } from '../composables/use-table-columns';
 import { CONTENT_SCROLL_ELEMENT_CLASS_NAME } from '../typings';
-import IssuesAssignDialog from './components/issues-assign-dialog/issues-assign-dialog';
+import { useIssuesDialogs } from './components/issues-operation-dialogs/hooks/use-issues-dialogs';
+import IssuesOperationDialogs from './components/issues-operation-dialogs/issues-operation-dialogs';
+import { IssuesBatchActionEnum } from './constant';
 import IssuesTable from './issues-table/issues-table';
 import IssuesToolbar from './issues-toolbar/issues-toolbar';
 
@@ -58,53 +59,42 @@ export default defineComponent({
       handleSelectionChange,
     } = useIssuesTable();
 
-    // ===================== 业务操作 =====================
-
-    const { handleAssign, handleMarkResolved, handlePriorityChange, handleShowDetail } = useIssuesOperations({
-      allData,
-    });
-
-    // ===================== 指派弹窗状态 =====================
-
-    /** 指派弹窗是否可见 */
-    const assignDialogVisible = shallowRef(false);
-    /** 当前指派目标 Issue */
-    const assignTarget = shallowRef<IssueItem | null>(null);
+    const {
+      issuesDialogShow,
+      issuesDialogType,
+      issuesDialogIds,
+      issuesDialogBizId,
+      issuesDialogParam,
+      handleIssuesDialogShow,
+      handleIssuesDialogHide,
+      handleIssuesDialogSuccess,
+    } = useIssuesDialogs(allData);
 
     /**
-     * @description 表格点击指派按钮，打开指派弹窗
-     * @param _id - Issue ID
-     * @param data - 当前 Issue 行数据
+     * @description 展示 Issue 详情
+     * @param {IssueItem['id']} _id - Issue ID
      */
-    const handleAssignClick = (_id: IssueItem['id'], data: IssueItem) => {
-      assignTarget.value = data;
-      assignDialogVisible.value = true;
+    const handleShowDetail = (_id: IssueItem['id']) => {
+      // TODO: 接入详情抽屉逻辑
     };
 
     /**
-     * @description 确认指派负责人
-     * @param assignee - 负责人列表
+     * @description 表格点击指派按钮，打开指派弹窗（单条操作）
+     * @param {IssueItem['id']} id - Issue ID
+     * @param {IssueItem} data - 当前 Issue 行数据
      */
-    const handleAssignConfirm = (assignee: string[]) => {
-      if (!assignTarget.value) return;
-      handleAssign(assignTarget.value.id, assignee);
-      assignDialogVisible.value = false;
-      assignTarget.value = null;
-    };
-
-    /**
-     * @description 取消指派
-     */
-    const handleAssignCancel = () => {
-      assignDialogVisible.value = false;
-      assignTarget.value = null;
+    const handleAssignClick = (id: IssueItem['id'], data: IssueItem) => {
+      handleIssuesDialogShow(IssuesBatchActionEnum.ASSIGN, id, data);
     };
 
     // ===================== 渲染 =====================
 
     return () => (
       <div class='alarm-issues'>
-        <IssuesToolbar selectedRowKeys={selectedRowKeys.value}>
+        <IssuesToolbar
+          batchAction={action => handleIssuesDialogShow(action, selectedRowKeys.value)}
+          issuesIds={selectedRowKeys.value}
+        >
           <IssuesTable
             columns={tableColumns.value}
             data={tableData.value}
@@ -115,21 +105,26 @@ export default defineComponent({
             sort={sort.value}
             onAssignClick={handleAssignClick}
             onCurrentPageChange={handleCurrentPageChange}
-            onMarkResolved={handleMarkResolved}
+            onMarkResolved={(id: string) => handleIssuesDialogShow(IssuesBatchActionEnum.RESOLVE, id)}
             onPageSizeChange={handlePageSizeChange}
-            onPriorityChange={handlePriorityChange}
+            onPriorityChange={(id: string) => handleIssuesDialogShow(IssuesBatchActionEnum.PRIORITY, id)}
             onSelectionChange={handleSelectionChange}
             onShowDetail={handleShowDetail}
             onSortChange={handleSortChange}
           />
         </IssuesToolbar>
 
-        <IssuesAssignDialog
-          isShow={assignDialogVisible.value}
-          onCancel={handleAssignCancel}
-          onConfirm={handleAssignConfirm}
-          onUpdate:isShow={(v: boolean) => {
-            assignDialogVisible.value = v;
+        <IssuesOperationDialogs
+          dialogParam={issuesDialogParam.value}
+          dialogType={issuesDialogType.value}
+          issuesBizId={issuesDialogBizId.value}
+          issuesIds={issuesDialogIds.value}
+          show={issuesDialogShow.value}
+          onSuccess={handleIssuesDialogSuccess}
+          onUpdate:show={(v: boolean) => {
+            if (!v) {
+              handleIssuesDialogHide();
+            }
           }}
         />
       </div>
