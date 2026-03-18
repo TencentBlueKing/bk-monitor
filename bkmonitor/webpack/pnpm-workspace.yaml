@@ -12,7 +12,7 @@ onlyBuiltDependencies:
   - 'simple-git-hooks'
 
 overrides:
-  bk-magic-vue: 2.5.10-beta.5
+  bk-magic-vue: 2.5.10-beta.18
   eslint: $eslint
   monaco-editor: 0.44.0
   semver: ^7.7.2

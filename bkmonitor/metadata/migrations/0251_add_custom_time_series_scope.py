@@ -61,8 +61,8 @@ class Migration(migrations.Migration):
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("group_id", models.IntegerField(db_index=True, verbose_name="自定义时序数据源ID")),
                 ("scope_name", models.CharField(db_collation="utf8_bin", max_length=255, verbose_name="指标分组名")),
-                ("dimension_config", models.JSONField(default={}, verbose_name="分组下的维度配置")),
-                ("auto_rules", models.JSONField(default=[], verbose_name="自动分组的匹配规则列表")),
+                ("dimension_config", models.JSONField(default=dict, verbose_name="分组下的维度配置")),
+                ("auto_rules", models.JSONField(default=list, verbose_name="自动分组的匹配规则列表")),
                 (
                     "create_from",
                     models.CharField(
