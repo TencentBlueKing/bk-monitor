@@ -37,12 +37,15 @@ from apps.constants import (
     UserOperationTypeEnum,
 )
 from apps.decorators import user_operation_record
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.iam import Permission, ResourceEnum
 from apps.log_databus.constants import (
     BKLOG_RESULT_TABLE_PATTERN,
+    ClusterTypeEnum,
     DEFAULT_ES_SCHEMA,
     DEFAULT_ES_TAGS,
     DEFAULT_ES_TRANSPORT,
+    DORIS_STORAGE_CLUSTER,
     NODE_ATTR_PREFIX_BLACKLIST,
     REGISTERED_SYSTEM_DEFAULT,
     STORAGE_CLUSTER_TYPE,
@@ -149,18 +152,37 @@ class StorageHandler:
             return BizProperty.objects.filter(q_filter).exists()
         return False
 
-    def get_cluster_groups(self, bk_biz_id, is_default=True, enable_archive=False):
+    def get_cluster_groups(
+        self, bk_biz_id, cluster_query_type=ClusterTypeEnum.ES.value, is_default=True, enable_archive=False
+    ):
         """
         获取集群列表
-        :param bk_biz_id:
-        :param is_default:
+        :param bk_biz_id: bk_biz_id
+        :param cluster_query_type: 集群类型
+        :param is_default: 是否查询公共集群
+        :param enable_archive: 是否只查询可归档集群
         :return:
         """
-        cluster_infos = []
+        multi_execute_func = MultiExecuteFunc()
 
-        for cluster_type in [STORAGE_CLUSTER_TYPE, DORIS_CLUSTER_TYPE]:
-            cluster_info = TransferApi.get_cluster_info({"cluster_type": cluster_type})
-            cluster_infos.extend(cluster_info)
+        cluster_infos = []
+        cluster_types = []
+
+        if cluster_query_type == ClusterTypeEnum.ALL.value or cluster_query_type == ClusterTypeEnum.ES.value:
+            cluster_types.append(STORAGE_CLUSTER_TYPE)
+
+        if (
+            cluster_query_type == ClusterTypeEnum.ALL.value or cluster_query_type == ClusterTypeEnum.DORIS.value
+        ) and FeatureToggleObject.switch(DORIS_STORAGE_CLUSTER, bk_biz_id):
+            cluster_types.append(DORIS_CLUSTER_TYPE)
+
+        for cluster_type in cluster_types:
+            multi_execute_func.append(cluster_type, TransferApi.get_cluster_info, {"cluster_type": cluster_type})
+
+        result = multi_execute_func.run()
+
+        for cluster_type, cluster_info_list in result.items():
+            cluster_infos.extend(cluster_info_list)
 
         cluster_groups = self.filter_cluster_groups(
             cluster_infos,
@@ -211,15 +233,24 @@ class StorageHandler:
             if i
         ]
 
-    def get_cluster_groups_filter(self, bk_biz_id, is_default=True, enable_archive=False):
+    def get_cluster_groups_filter(
+        self,
+        bk_biz_id,
+        cluster_query_type=ClusterTypeEnum.ES.value,
+        is_default=True,
+        enable_archive=False,
+    ):
         """
         获取集群列表并过滤
-        :param bk_biz_id:
-        :param is_default:
-        :param data_link_id: 链路ID
+        :param bk_biz_id: bk_biz_id
+        :param cluster_query_type: 集群查询类型
+        :param is_default: 是否查询公共集群
+        :param enable_archive: 是否只查询可归档集群
         :return:
         """
-        cluster_groups = self.get_cluster_groups(bk_biz_id, is_default=is_default, enable_archive=enable_archive)
+        cluster_groups = self.get_cluster_groups(
+            bk_biz_id, cluster_query_type=cluster_query_type, is_default=is_default, enable_archive=enable_archive
+        )
 
         # 排序：第三方集群 > 默认集群
         cluster_groups.sort(key=lambda c: c["priority"])
@@ -253,13 +284,15 @@ class StorageHandler:
     ):
         """
         筛选集群，并判断集群是否可编辑
-        :param cluster_groups:
-        :param bk_biz_id:
-        :param is_default:
+        :param cluster_groups: 集群信息列表
+        :param bk_biz_id: bk_biz_id
+        :param is_default: 是否查询公共集群
+        :param enable_archive: 是否只查询可归档的集群
         :return:
         """
         # 筛选集群 & 判断是否可编辑
         cluster_data = list()
+        es_config = get_es_config(bk_biz_id)
 
         def get_storage_info(cluster_id):
             used = StorageUsed.objects.filter(
@@ -282,7 +315,7 @@ class StorageHandler:
 
             if cluster_type == STORAGE_CLUSTER_TYPE:
                 is_append, after_filter_cluster_obj = cls.filter_es_cluster(
-                    bk_biz_id, is_default, post_visible, cluster_obj
+                    bk_biz_id, is_default, post_visible, cluster_obj, es_config
                 )
             elif cluster_type == DORIS_CLUSTER_TYPE:
                 is_append, after_filter_cluster_obj = cls.filter_doris_cluster(
@@ -306,10 +339,9 @@ class StorageHandler:
         ]
 
     @classmethod
-    def filter_es_cluster(cls, bk_biz_id, is_default, post_visible, cluster_obj):
+    def filter_es_cluster(cls, bk_biz_id, is_default, post_visible, cluster_obj, es_config):
         from apps.log_search.handlers.index_set import IndexSetHandler
 
-        es_config = get_es_config(bk_biz_id)
         custom_option = cluster_obj["cluster_config"]["custom_option"]
 
         # 判断是否有setup_config配置
@@ -473,6 +505,8 @@ class StorageHandler:
     def filter_doris_cluster(cls, bk_biz_id, is_default, post_visible, cluster_obj):
         from apps.log_search.handlers.index_set import IndexSetHandler
 
+        es_config = get_es_config(bk_biz_id)
+
         default_custom_option = {
             "admin": [cluster_obj["cluster_config"]["creator"]],
             "setup_config": {},
@@ -494,11 +528,8 @@ class StorageHandler:
         if not cluster_obj["cluster_config"].get("custom_option"):
             cluster_obj["cluster_config"]["custom_option"] = {}
 
-        # 公共集群: 凭据信息和域名置空处理, 并添加不允许编辑标签
-        if (
-            cluster_obj["cluster_config"].get("registered_system", REGISTERED_SYSTEM_DEFAULT)
-            == REGISTERED_SYSTEM_DEFAULT
-        ):
+        # 公共集群: 密码空置处理, 添加不可编辑标签
+        if cluster_obj["cluster_config"].get("registered_system") == REGISTERED_SYSTEM_DEFAULT:
             if not is_default:
                 return False, cluster_obj
 
@@ -508,6 +539,7 @@ class StorageHandler:
             # doris 集群不可编辑
             cluster_obj["is_editable"] = False
             cluster_obj["auth_info"]["password"] = ""
+            cluster_obj["cluster_config"]["max_retention"] = es_config["ES_PUBLIC_STORAGE_DURATION"]
             # 默认集群权重: 推荐集群 > 其他
             cluster_obj["priority"] = 1 if cluster_obj["cluster_config"].get("is_default_cluster") else 2
 
@@ -543,7 +575,7 @@ class StorageHandler:
 
             return True, cluster_obj
 
-        # 非公共集群, 筛选bk_biz_id, 密码置空处理, 并添加可编辑标签
+        # 非公共集群: 筛选bk_biz_id, 密码空置处理, 添加不可编辑标签
         custom_biz_id = cluster_obj["cluster_config"]["custom_option"].get("bk_biz_id")
         custom_visible_bk_biz = cluster_obj["cluster_config"]["custom_option"].get("visible_bk_biz", [])
 
@@ -580,13 +612,11 @@ class StorageHandler:
                     for bk_biz_id in custom_visible_bk_biz
                 ],
             }
-
         # 如果可见范围配置不存在, 则直接为当前业务可见
         elif not cluster_obj["cluster_config"]["custom_option"].get("visible_config"):
             cluster_obj["cluster_config"]["custom_option"]["visible_config"] = {
                 "visible_type": VisibleEnum.CURRENT_BIZ.value,
             }
-
         # 如果可见范围是多业务可见，则补充业务使用情况
         elif (
             cluster_obj["cluster_config"]["custom_option"]["visible_config"].get("visible_type", "")
@@ -635,19 +665,41 @@ class StorageHandler:
     def is_platform_cluster(visible_type):
         return visible_type in [VisibleEnum.ALL_BIZ.value, VisibleEnum.BIZ_ATTR.value, VisibleEnum.MULTI_BIZ.value]
 
-    def list(self, bk_biz_id, cluster_id=None, is_default=True, enable_archive=False):
+    def list(
+        self,
+        bk_biz_id,
+        cluster_query_type=ClusterTypeEnum.ES.value,
+        cluster_id=None,
+        is_default=True,
+        enable_archive=False,
+    ):
         """
         存储集群列表
         :return:
         """
-        cluster_infos = []
+        multi_execute_func = MultiExecuteFunc()
 
-        for cluster_type in [STORAGE_CLUSTER_TYPE, DORIS_CLUSTER_TYPE]:
+        cluster_infos = []
+        cluster_types = []
+
+        if cluster_query_type == ClusterTypeEnum.ALL.value or cluster_query_type == ClusterTypeEnum.ES.value:
+            cluster_types.append(STORAGE_CLUSTER_TYPE)
+
+        if (
+            cluster_query_type == ClusterTypeEnum.ALL.value or cluster_query_type == ClusterTypeEnum.DORIS.value
+        ) and FeatureToggleObject.switch(DORIS_STORAGE_CLUSTER, bk_biz_id):
+            cluster_types.append(DORIS_CLUSTER_TYPE)
+
+        for cluster_type in cluster_types:
             params = {"cluster_type": cluster_type}
             if cluster_id:
                 params["cluster_id"] = cluster_id
-            cluster_info = TransferApi.get_cluster_info(params)
-            cluster_infos.extend(cluster_info)
+            multi_execute_func.append(cluster_type, TransferApi.get_cluster_info, params)
+
+        result = multi_execute_func.run()
+
+        for cluster_type, cluster_info_list in result.items():
+            cluster_infos.extend(cluster_info_list)
 
         if cluster_id:
             cluster_infos = self._get_cluster_nodes(cluster_infos)
@@ -661,6 +713,8 @@ class StorageHandler:
 
     def _get_cluster_nodes(self, cluster_info: builtins.list[dict]):
         for cluster in cluster_info:
+            if cluster.get("cluster_type", STORAGE_CLUSTER_TYPE) == DORIS_CLUSTER_TYPE:
+                continue
             cluster_id = cluster.get("cluster_config").get("cluster_id")
             nodes_stats = EsRoute(
                 scenario_id=Scenario.ES, storage_cluster_id=cluster_id, raise_exception=False
@@ -692,6 +746,8 @@ class StorageHandler:
             ).cluster_stats()
 
         for cluster in cluster_info:
+            if cluster.get("cluster_type", STORAGE_CLUSTER_TYPE) == DORIS_CLUSTER_TYPE:
+                continue
             cluster_id = cluster.get("cluster_config").get("cluster_id")
             multi_execute_func.append(cluster_id, get_cluster_stats, cluster_id)
         result = multi_execute_func.run()
