@@ -106,7 +106,7 @@ export default defineComponent({
         ordering: [],
       };
       const res = await alarmService.getFilterTableList(params);
-      tempAlertId.value = res.data?.[0].id;
+      tempAlertId.value = res.data?.[0]?.id;
     };
     getTempAlertId();
 
