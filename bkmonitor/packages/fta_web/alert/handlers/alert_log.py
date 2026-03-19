@@ -36,7 +36,13 @@ class AlertLogHandler:
         AlertLog.OpType.ACTION: _lazy("处理动作"),
         AlertLog.OpType.ALERT_QOS: _lazy("告警流控"),
         AlertLog.OpType.EVENT_DROP: _lazy("事件忽略"),
+        AlertLog.OpType.USER_ACTION: _lazy("用户操作"),
     }
+
+    # 用户操作对应的实际操作类型
+    USER_ACTION_TYPES = [
+        AlertLog.OpType.ACK,  # 告警确认（用户手动确认）
+    ]
 
     def __init__(self, alert_id: str):
         self.alert = AlertDocument.get(alert_id)
@@ -53,7 +59,12 @@ class AlertLogHandler:
         )
 
         if operate_list:
-            search_object = search_object.filter("terms", op_type=operate_list)
+            # 将虚拟类型 USER_ACTION 展开为实际的用户操作类型，并去重
+            operate_set = set(operate_list)
+            if AlertLog.OpType.USER_ACTION in operate_set:
+                operate_set.discard(AlertLog.OpType.USER_ACTION)
+                operate_set.update(self.USER_ACTION_TYPES)
+            search_object = search_object.filter("terms", op_type=list(operate_set))
 
         if offset:
             search_object = search_object.filter("range", create_time={"lt": offset})
