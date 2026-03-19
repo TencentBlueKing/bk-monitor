@@ -56,6 +56,9 @@ class CustomEscalationViewStore extends VuexModule {
   /** 汇聚周期是否为「自动」模式，用于图表请求不传 down_sample_range */
   public isIntervalAuto = true;
 
+  /** 自动模式下计算出的汇聚周期（秒），用于替换 $interval 变量 */
+  public autoIntervalSec = 60;
+
   // 过滤条件(并集)：通过currentSelectedGroupNameList在metricGroupList中找到对应的common_dimensions
   get commonDimensionList() {
     const selectedGroupNames = new Set(this.currentSelectedMetricList.map(i => i.scope_name));
@@ -164,6 +167,11 @@ class CustomEscalationViewStore extends VuexModule {
   @Mutation
   public setIntervalAuto(payload: boolean) {
     this.isIntervalAuto = payload;
+  }
+
+  @Mutation
+  public setAutoIntervalSec(payload: number) {
+    this.autoIntervalSec = payload;
   }
 }
 

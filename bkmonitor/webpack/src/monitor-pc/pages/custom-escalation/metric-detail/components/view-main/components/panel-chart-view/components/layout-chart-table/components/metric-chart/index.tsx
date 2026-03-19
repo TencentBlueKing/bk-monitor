@@ -225,7 +225,7 @@ class NewMetricChart extends CommonSimpleChart {
       if (v) {
         this.observerChart();
       }
-    })
+    });
   }
 
   observerChart() {
@@ -441,7 +441,7 @@ class NewMetricChart extends CommonSimpleChart {
       if (info) {
         parts.push(`${info.alias || info.name}=${obj[key]}`);
         continue;
-      };
+      }
       parts.push(`${key}=${obj[key]}`);
     }
     const separator = '|';
@@ -533,6 +533,7 @@ class NewMetricChart extends CommonSimpleChart {
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...this.customScopedVars,
+        ...(customEscalationViewStore.isIntervalAuto ? { interval: customEscalationViewStore.autoIntervalSec } : {}),
       });
 
       const list = this.panel.targets.map(item => {
@@ -552,7 +553,6 @@ class NewMetricChart extends CommonSimpleChart {
         if (primaryKey) {
           paramsArr.push(primaryKey);
         }
-
         paramsArr.push({
           ...newParams,
           unify_query_param: {
