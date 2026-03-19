@@ -40,6 +40,7 @@ import FavoriteBox, {
   type IFavoriteGroup,
   EditFavorite,
 } from 'trace/pages/trace-explore/components/favorite-box';
+import VueJsonPretty from 'vue-json-pretty';
 import { useRoute, useRouter } from 'vue-router';
 
 import { EFieldType, EMode } from '../../components/retrieval-filter/typing';
@@ -781,7 +782,26 @@ export default defineComponent({
   render() {
     /** 表格固定配置项(表头吸顶、横向滚动条吸底)*/
     const tableAffixed = { container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}` };
-
+    const renderFavoriteQuery = (favoriteType: string) => {
+      return favoriteType === `alarm_${AlarmType.ISSUES}`
+        ? params => {
+            const queryParams = params?.config?.queryParams || {};
+            const filterMode = params?.config?.componentData?.filterMode || EMode.ui;
+            if (filterMode === EMode.queryString || queryParams?.query_string) {
+              return <span>{queryParams.query_string}</span>;
+            }
+            if (filterMode === EMode.ui || queryParams?.conditions?.length) {
+              return (
+                <VueJsonPretty
+                  data={queryParams}
+                  deep={5}
+                />
+              );
+            }
+            return '*';
+          }
+        : undefined;
+    };
     return (
       <div class='alarm-center-page'>
         <div
@@ -796,7 +816,11 @@ export default defineComponent({
             onChange={this.handleFavoriteChange}
             onClose={() => this.handleFavoriteShowChange(false)}
             onOpenBlank={this.handleFavoriteOpenBlank}
-          />
+          >
+            {{
+              renderFavoriteQuery: renderFavoriteQuery(this.favoriteType),
+            }}
+          </FavoriteBox>
         </div>
         <div class='alarm-center'>
           <AlarmCenterHeader
@@ -983,7 +1007,11 @@ export default defineComponent({
           isShow={this.editFavoriteShow}
           onClose={() => this.handleEditFavoriteShow(false)}
           onSuccess={() => this.handleEditFavoriteShow(false)}
-        />
+        >
+          {{
+            renderFavoriteQuery: renderFavoriteQuery(this.favoriteType),
+          }}
+        </EditFavorite>
       </div>
     );
   },

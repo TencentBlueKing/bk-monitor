@@ -34,16 +34,25 @@ import {
   watchEffect,
 } from 'vue';
 
+import { Message } from 'bkui-vue';
 import { commonPageSizeGet } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
+import { useI18n } from 'vue-i18n';
 
 import AlarmTable from '../../../../components/alarm-table/alarm-table';
 import AlertOperationDialogs from '../../../../components/alert-operation-dialogs/alert-operation-dialogs';
 import { useAlertDialogs } from '../../../../composables/use-alert-dialogs';
-import { type AlertTableItem, type CommonCondition, AlarmType } from '../../../../typings';
+import {
+  type AlertContentNameEditInfo,
+  type AlertTableItem,
+  type CommonCondition,
+  AlarmType,
+} from '../../../../typings';
 import { useAlarmTableColumns } from './use-table-columns';
+import { saveAlertContentName } from '@/pages/alarm-center/services/alert-services';
 import { AlarmServiceFactory } from '@/pages/alarm-center/services/factory';
 
+import type { AlertSavePromiseEvent } from '../../../../components/alarm-table/components/alert-content-detail/alert-content-detail';
 import type { BkUiSettings } from '@blueking/tdesign-ui';
 
 import './issues-detail-alarm-table.scss';
@@ -76,6 +85,7 @@ export default defineComponent({
     showActionDetail: (_id: string) => true,
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     // 分页参数
     const pageSize = shallowRef(commonPageSizeGet() ?? 50);
     // 当前页
@@ -207,6 +217,33 @@ export default defineComponent({
       emit('showActionDetail', id);
     };
 
+    // 保存告警内容名称
+    const handleSaveAlertContentName = (
+      saveInfo: AlertContentNameEditInfo,
+      savePromiseEvent: AlertSavePromiseEvent
+    ) => {
+      saveAlertContentName(saveInfo)
+        .then(() => {
+          savePromiseEvent?.successCallback?.();
+          const targetRow = data.value.find(item => item.id === saveInfo.alert_id) as AlertTableItem;
+          const alertContent = targetRow?.items?.[0];
+          if (alertContent) {
+            alertContent.name = saveInfo.data_meaning;
+          }
+          Message({
+            message: t('更新成功'),
+            theme: 'success',
+          });
+        })
+        .catch(() => {
+          savePromiseEvent?.errorCallback?.();
+          Message({
+            message: t('更新失败'),
+            theme: 'error',
+          });
+        });
+    };
+
     // 告警操作弹窗
     const {
       alertDialogShow,
@@ -257,6 +294,7 @@ export default defineComponent({
       handleSelectionChange,
       handleShowAlertDetail,
       handleShowActionDetail,
+      handleSaveAlertContentName,
       handleAlertDialogShow,
       handleAlertDialogHide,
       handleAlertDialogConfirm,
@@ -285,9 +323,7 @@ export default defineComponent({
           }}
           onOpenAlertDialog={this.handleAlertDialogShow}
           onPageSizeChange={this.handlePageSizeChange}
-          onSaveAlertContentName={() => {
-            // 暂不支持保存告警内容名称
-          }}
+          onSaveAlertContentName={this.handleSaveAlertContentName}
           onSelectionChange={this.handleSelectionChange}
           onShowAlertDetail={this.handleShowAlertDetail}
           onSortChange={this.handleSortChange}
