@@ -581,7 +581,10 @@ class APMServiceTarget(BaseTarget):
         return target_hosts
 
     def list_related_log_targets(self) -> list[dict[str, Any]]:
-        return self._list_related_apm_log_targets(self.list_related_apm_targets())
+        return sorted(
+            self._list_related_apm_log_targets(self.list_related_apm_targets()),
+            key=lambda t: not t.get("is_app_datasource", False),
+        )
 
 
 class HostTarget(DefaultTarget):
