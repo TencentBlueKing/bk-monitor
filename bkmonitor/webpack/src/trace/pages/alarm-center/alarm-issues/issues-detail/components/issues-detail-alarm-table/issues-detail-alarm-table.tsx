@@ -23,12 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, onScopeDispose, shallowRef, watchEffect } from 'vue';
+import {
+  type PropType,
+  type ShallowRef,
+  computed,
+  defineComponent,
+  onMounted,
+  onScopeDispose,
+  shallowRef,
+  watchEffect,
+} from 'vue';
 
 import { commonPageSizeGet } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 
 import AlarmTable from '../../../../components/alarm-table/alarm-table';
+import AlertOperationDialogs from '../../../../components/alert-operation-dialogs/alert-operation-dialogs';
+import { useAlertDialogs } from '../../../../composables/use-alert-dialogs';
 import { type AlertTableItem, type CommonCondition, AlarmType } from '../../../../typings';
 import { useAlarmTableColumns } from './use-table-columns';
 import { AlarmServiceFactory } from '@/pages/alarm-center/services/factory';
@@ -196,6 +207,18 @@ export default defineComponent({
       emit('showActionDetail', id);
     };
 
+    // 告警操作弹窗
+    const {
+      alertDialogShow,
+      alertDialogType,
+      alertDialogBizId,
+      alertDialogIds,
+      alertDialogParam,
+      handleAlertDialogShow,
+      handleAlertDialogHide,
+      handleAlertDialogConfirm,
+    } = useAlertDialogs(data as unknown as ShallowRef<AlertTableItem[]>);
+
     // 监听参数变化重新获取数据
     onMounted(() => {
       watchEffect(fetchData);
@@ -223,12 +246,20 @@ export default defineComponent({
       storageColumns,
       allTableFields,
       lockedTableFields,
+      alertDialogShow,
+      alertDialogType,
+      alertDialogBizId,
+      alertDialogIds,
+      alertDialogParam,
       handleCurrentPageChange,
       handlePageSizeChange,
       handleSortChange,
       handleSelectionChange,
       handleShowAlertDetail,
       handleShowActionDetail,
+      handleAlertDialogShow,
+      handleAlertDialogHide,
+      handleAlertDialogConfirm,
     };
   },
   render() {
@@ -252,17 +283,25 @@ export default defineComponent({
           onDisplayColFieldsChange={(displayColFields: string[]) => {
             this.storageColumns = displayColFields;
           }}
-          onOpenAlertDialog={() => {
-            // 暂不支持弹窗操作
-          }}
+          onOpenAlertDialog={this.handleAlertDialogShow}
           onPageSizeChange={this.handlePageSizeChange}
           onSaveAlertContentName={() => {
             // 暂不支持保存告警内容名称
           }}
           onSelectionChange={this.handleSelectionChange}
-          onShowActionDetail={this.handleShowActionDetail}
           onShowAlertDetail={this.handleShowAlertDetail}
           onSortChange={this.handleSortChange}
+        />
+        <AlertOperationDialogs
+          alarmBizId={this.alertDialogBizId}
+          alarmIds={this.alertDialogIds}
+          dialogParam={this.alertDialogParam}
+          dialogType={this.alertDialogType}
+          show={this.alertDialogShow}
+          onConfirm={this.handleAlertDialogConfirm}
+          onUpdate:show={() => {
+            this.handleAlertDialogHide();
+          }}
         />
       </div>
     );
