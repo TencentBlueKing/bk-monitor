@@ -83,7 +83,7 @@ class TGPATaskHandler:
         """
         request_params = {
             "cc_id": self.bk_biz_id,
-            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
             "task_id": inst_id,
         }
         return TGPATaskApi.query_single_user_log_task_v2(request_params)["results"][0]
@@ -128,12 +128,9 @@ class TGPATaskHandler:
         """
         获取任务总数
         """
-        task_types = ",".join(
-            [str(TGPATaskTypeEnum.BUSINESS_LOG_V1.value), str(TGPATaskTypeEnum.BUSINESS_LOG_V2.value)]
-        )
         params = {
             "cc_id": bk_biz_id,
-            "task_type": task_types,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
             "offset": 0,
             "limit": 1,
         }
@@ -228,7 +225,7 @@ class TGPATaskHandler:
         """
         request_params = {
             "cc_id": bk_biz_id,
-            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
             "limit": 1,
         }
         result = TGPATaskApi.query_single_user_log_task_v2(request_params)
