@@ -33,7 +33,7 @@ import DetailCommon from '../common-detail/common-detail';
 import { AlarmType } from '../typings';
 import ActionDetailHead from './components/action-detail-head';
 import ActionDetail from './components/action-detail/action-detail';
-// import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
+import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
 import EventDetailHead from './components/event-detail-head';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 import { getAuthorityMap, useAuthorityStore } from '@/store/modules/authority';
@@ -71,13 +71,15 @@ export default defineComponent({
   setup(props, { emit }) {
     const isFullscreen = shallowRef(false);
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmId, actionId, alarmType, defaultTab } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId, actionId, alarmType, defaultTab, alarmDetail, actionDetail } = storeToRefs(alarmCenterDetailStore);
     const authorityStore = useAuthorityStore();
     const authority = shallowReactive<IAuthority>({
       map: authMap,
       auth: {},
       showDetail: authorityStore.getAuthorityDetail,
     });
+
+    const showAiAnalysis = shallowRef(false);
 
     provide('authority', authority);
 
@@ -114,6 +116,18 @@ export default defineComponent({
       { immediate: true }
     );
 
+    watch(
+      () => props.show,
+      newVal => {
+        if (!newVal) {
+          alarmId.value = '';
+          actionId.value = '';
+          alarmDetail.value = null;
+          actionDetail.value = null;
+        }
+      }
+    );
+
     const init = async () => {
       authority.auth = await getAuthorityMap(authMap);
     };
@@ -145,6 +159,10 @@ export default defineComponent({
       isFullscreen.value = value;
     };
 
+    const handleAiAnalysisShowChange = (show: boolean) => {
+      showAiAnalysis.value = show;
+    };
+
     const renderHeader = () => {
       switch (alarmType.value) {
         case AlarmType.ALERT:
@@ -152,6 +170,7 @@ export default defineComponent({
             <EventDetailHead
               isFullscreen={isFullscreen.value}
               showStepBtn={props.showStepBtn}
+              onAiAnalysisShowChange={() => handleAiAnalysisShowChange(!showAiAnalysis.value)}
               onBlank={handleBlank}
               onNext={handleNextDetail}
               onPrevious={handlePreviousDetail}
@@ -174,7 +193,7 @@ export default defineComponent({
           return (
             <div class='alarm-center-detail-wrapper'>
               <DetailCommon />
-              {/* <DiagnosticAnalysis /> */}
+              {showAiAnalysis.value && <DiagnosticAnalysis onClose={() => handleAiAnalysisShowChange(false)} />}
             </div>
           );
         case AlarmType.ACTION:

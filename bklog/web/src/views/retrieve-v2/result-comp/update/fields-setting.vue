@@ -103,6 +103,7 @@
             />
           </div>
           <div
+            v-if="isTemplateConfig"
             style="padding-left: 12px"
             class="table-sort"
           >
@@ -169,8 +170,7 @@
   import fieldsSettingOperate from './fields-setting-operate';
   import tableSort from './table-sort';
   import { BK_LOG_STORAGE } from '@/store/store.type';
-  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
-import { isEqual } from 'lodash-es';
+
 
   /** 导出配置字段文件名前缀 */
   const FIELD_CONFIG_FILENAME_PREFIX = 'log-field-';
@@ -357,10 +357,7 @@ import { isEqual } from 'lodash-es';
      },
       /** 保存或应用 */
       async confirmModifyFields() {
-        const updateSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
         const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
-        const oldSortList = this.$store.state.indexFieldInfo.user_custom_config.sortList;
-        const isSortListChanged = updateSortList.length && !isEqual(oldSortList, updateSortList);
         if (currentVisibleList.length === 0) {
           this.messageWarn(this.$t('显示字段不能为空'));
           return;
@@ -368,9 +365,10 @@ import { isEqual } from 'lodash-es';
         try {
           // 字段模板保持配置逻辑，表格设置打开时不需要执行
           if (this.isTemplateConfig) {
+            const updateSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
             const confirmConfigData = {
               editStr: this.currentClickConfigData.name,
-              sort_list:updateSortList,
+              sort_list: updateSortList,
               display_fields: currentVisibleList,
               id: this.currentClickConfigData.id,
             };
@@ -387,26 +385,17 @@ import { isEqual } from 'lodash-es';
 
           // 个人配置模式下的保存逻辑
           this.cancelModifyFields();
-          this.$store.commit('updateState', { localSort: false });
           this.$store.commit('updateIsSetDefaultTableColumn', false);
 
           // 先等待用户配置保存完成
           await this.$store.dispatch('userFieldConfigChange', {
             displayFields: currentVisibleList,
-            sortList: updateSortList,
             fieldsWidth: {},
           });
 
           // 更新本地显示字段状态
           this.$store.commit('resetVisibleFields', currentVisibleList);
           this.$store.commit('updateIsSetDefaultTableColumn');
-
-          // 如果排序有变化，再请求字段信息和查询
-          if (isSortListChanged) {
-            await this.$store.dispatch('requestIndexSetFieldInfo');
-            await this.$store.dispatch('requestIndexSetQuery');
-            RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
-          }
 
         } catch (error) {
           console.warn(error);

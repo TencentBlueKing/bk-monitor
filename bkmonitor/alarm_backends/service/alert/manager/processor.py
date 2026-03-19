@@ -8,12 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 
 from alarm_backends.core.alert import Alert, Event
 from alarm_backends.core.alert.alert import AlertKey
 from alarm_backends.core.cache import clear_mem_cache
-from alarm_backends.core.cache.key import ALERT_UPDATE_LOCK
+from alarm_backends.core.cache.key import ALERT_DEDUPE_CONTENT_KEY, ALERT_UPDATE_LOCK
 from alarm_backends.core.lock.service_lock import multi_service_lock
 from alarm_backends.service.alert.manager.checker.ack import AckChecker
 from alarm_backends.service.alert.manager.checker.action import ActionHandleChecker
@@ -80,6 +81,53 @@ class AlertManager(BaseAlertProcessor):
                         alert.data[field] = getattr(alert_docs[alert.id], field, None)
         return alerts
 
+    def filter_alerts(self, alerts: list[Alert]) -> list[Alert]:
+        """
+        过滤不需要处理的告警
+        :param alerts:
+        :return:
+        """
+        # 1. 已关闭的告警 在ES拉取后到加锁处理前刚好被关闭了，此时拿到的这批alerts部分告警在redis已经是关闭状态了
+        alert_dedupe_keys = [
+            ALERT_DEDUPE_CONTENT_KEY.get_key(strategy_id=alert.strategy_id, dedupe_md5=alert.dedupe_md5)
+            for alert in alerts
+        ]
+        fetched_alert_ids = set([alert.id for alert in alerts])
+
+        alert_data = ALERT_DEDUPE_CONTENT_KEY.client.mget(alert_dedupe_keys)
+        current_alerts_mapping = {}
+        for current_alert_data in alert_data:
+            if not current_alert_data:
+                # 如果从缓存中获取不到告警，表示当前告警应该为最新的告警信息，跳过过滤
+                continue
+            try:
+                current_alert = json.loads(current_alert_data)
+                current_alert = Alert(current_alert)
+            except Exception:
+                # 如果从缓存中获取不到告警，表示当前告警应该为最新的告警信息，跳过过滤
+                self.logger.warning("Failed to parse alert from cache: %s", current_alert_data)
+                continue
+            # 构造mapping，方便后续过滤
+            current_alerts_mapping[current_alert.dedupe_md5] = current_alert
+        new_alerts = []
+        for alert in alerts:
+            if alert.dedupe_md5 in current_alerts_mapping:
+                # 如果缓存中存在当前告警，则使用缓存中的告警状态进行判断
+                cache_alert = current_alerts_mapping.get(alert.dedupe_md5)
+                if cache_alert and not cache_alert.is_abnormal():
+                    # 如果缓存二次确认状态不为异常则过滤掉，拉取的都是异常告警，若不一致说明此时告警可能已经被关闭或者恢复
+                    continue
+            # 其他情况正常进行处理
+            new_alerts.append(alert)
+        # 打印过滤日志(包含过滤的告警id)
+        filtered_alert_ids = set([alert.id for alert in alerts]) - set([alert.id for alert in new_alerts])
+        self.logger.info(
+            "[manager] Lock fetched alerts count: %s, Filtered alerts: %s",
+            len(fetched_alert_ids),
+            ",".join(str(alert_id) for alert_id in filtered_alert_ids),
+        )
+        return new_alerts
+
     def process(self):
         """
         处理入口
@@ -98,7 +146,8 @@ class AlertManager(BaseAlertProcessor):
                     locked_alerts.append(alert)
                 else:
                     fail_locked_alert_ids.append(alert.id)
-            # 加锁成功的告警，才会开始处理
+            # 加锁成功的告警，过滤掉不需要处理的告警，才会开始处理
+            locked_alerts = self.filter_alerts(locked_alerts)
             alerts_to_check = []
             alerts_to_update_directly = []
             for alert in locked_alerts:

@@ -231,6 +231,8 @@ class PatternHandler:
                     "strategy_enabled": strategy_enabled,
                 }
             )
+        if self._show_new_pattern:
+            result = map_if(result, if_func=lambda x: x["is_new_class"])
         result = self._get_remark_and_owner(result)
         return result
 
@@ -269,7 +271,7 @@ class PatternHandler:
         new_class_signature_query_condition = {
             "field": self.pattern_aggs_field,
             "operator": "is one of",
-            "value": new_class_signature_list,
+            "value": list(set(new_class_signature_list)),
             "condition": "and",
         }
 
@@ -434,7 +436,7 @@ class PatternHandler:
                 BkData(self._clustering_config.new_cls_pattern_rt)
                 .select(*select_fields)
                 .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.new_class_field)
-                .time_range(int(start_time.timestamp(), int(end_time.timestamp())))
+                .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
                 .query()
             )
         return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}

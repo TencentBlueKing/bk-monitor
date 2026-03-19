@@ -1,5 +1,6 @@
 .k8s-target-selector {
-  background: #f0f1f5;
+  background: #fff;
+  border: 1px solid #c4c6cc;
   border-radius: 2px;
 
   .bk-select {
@@ -25,11 +26,6 @@
         padding-left: 8px;
         line-height: 20px;
 
-        .trigger-prefix {
-          flex-shrink: 0;
-          color: #757880;
-        }
-
         .trigger-suffix {
           flex-shrink: 0;
           width: 20px;
@@ -37,17 +33,20 @@
           transition: 0.3s ease-in-out;
 
           .icon-monitor {
-            font-size: 20px;
-            color: #4d4f56;
+            font-size: 22px;
+            color: #979ba5;
           }
         }
 
         .trigger-main {
           flex: 1;
           min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
 
           .selected-text {
-            color: #313238;
+            color: #4d4f56;
           }
         }
       }

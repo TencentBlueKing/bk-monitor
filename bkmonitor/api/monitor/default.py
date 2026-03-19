@@ -141,6 +141,15 @@ class GetActionParamsBackendResource(MonitorAPIGWResource):
     method = "POST"
 
 
+class GetDemoActionContextBackendResource(MonitorAPIGWResource):
+    """
+    基于真实告警预览套餐变量渲染
+    """
+
+    action = "/app/action/get_demo_action_context/"
+    method = "POST"
+
+
 class GetExperienceResource(MonitorAPIGWResource):
     """
     获取告警处理经验

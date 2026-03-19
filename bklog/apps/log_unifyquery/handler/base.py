@@ -100,10 +100,10 @@ class UnifyQueryHandler:
         self.search_params: dict[str, Any] = params
 
         # 必需参数，索引集id列表
-        self.index_set_ids = self.search_params["index_set_ids"]
+        self.index_set_ids = list(set(self.search_params["index_set_ids"]))
 
         # 初始化索引信息（包括索引类型）
-        self.index_info_list = self._init_index_info_list(self.search_params.get("index_set_ids", []))
+        self.index_info_list = self._init_index_info_list(self.index_set_ids)
         self.search_params.update({"scenario_id": self.index_info_list[0]["scenario_id"]})
         # 单索引集属性
         self.index_set = self.index_info_list[0]
@@ -456,10 +456,14 @@ class UnifyQueryHandler:
     def _transform_additions(self, index_info):
         field_list = []
         condition_list = []
+        # query_string 的转换只需在首次调用时执行
+        query_string_transformed = getattr(self, "_query_string_transformed", False)
         new_addition = self._combine_addition_ip_chooser(index_info=index_info)
         for addition in new_addition:
             # 全文检索key & 存量query_string转换
             if addition["field"] in ["*", "__query_string__"]:
+                if query_string_transformed:
+                    continue
                 value_list = addition["value"] if isinstance(addition["value"], list) else addition["value"].split(",")
                 new_value_list = []
                 for value in value_list:
@@ -492,10 +496,12 @@ class UnifyQueryHandler:
                 condition_list.extend(new_condition_list)
         for field in field_list:
             field["value"] = [str(value) for value in field["value"]]
+
+        self._query_string_transformed = True
         return {"field_list": field_list, "condition_list": condition_list}
 
     def _init_sort(self) -> list:
-        index_set_id = self.search_params.get("index_set_ids", [])[0]
+        index_set_id = self.index_set_ids[0]
         # 获取用户对sort的排序需求
         sort_list: list = self.search_params.get("sort_list", [])
         is_union_search = self.search_params.get("is_union_search", False)
@@ -647,7 +653,7 @@ class UnifyQueryHandler:
             log = self._add_cmdb_fields(log)
             log = self._add_bcs_cluster_fields(log)
             # 联合索引 增加索引集id信息
-            log.update({"__index_set_id__": int(self.search_params["index_set_ids"][0])})
+            log.update({"__index_set_id__": int(self.index_set_ids[0])})
             if self.export_fields:
                 new_origin_log = {}
                 for _export_field in self.export_fields:

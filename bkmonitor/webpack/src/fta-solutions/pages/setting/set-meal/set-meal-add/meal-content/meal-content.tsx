@@ -304,7 +304,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
       const obj = {
         key: item.key,
         value: '',
-        lable: item.formItemProps.label,
+        label: item.formItemProps.label,
         placeholder: vPlaceholder || item?.formChildProps?.placeholder || '',
         subTitle: '',
         required: !!item?.formItemProps?.required,
@@ -418,7 +418,9 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
                     type={this.type}
                     onChange={data => this.handlePeripheralChange(data)}
                     onDebug={() => this.handleDebug('peripheral')}
-                    onInit={(v: boolean) => (this.isInit = v)}
+                    onInit={(v: boolean) => {
+                      this.isInit = v;
+                    }}
                   />
                 );
               }
@@ -431,10 +433,16 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
           mealName={this.name}
           pluginId={this.data.id}
           show={this.isShowDebug}
-          onDebugPeripheralDataChange={v => (this.debugPeripheralForm = v)}
-          onDebugPeripheralStop={() => (this.debugData.peripheral = deepClone(this.data.peripheral))}
+          onDebugPeripheralDataChange={v => {
+            this.debugPeripheralForm = v;
+          }}
+          onDebugPeripheralStop={() => {
+            this.debugData.peripheral = deepClone(this.data.peripheral);
+          }}
           onDebugWebhookDataChange={v => this.handleDebugWebhookDataChange(v)}
-          onShowChange={v => (this.isShowDebug = v)}
+          onShowChange={v => {
+            this.isShowDebug = v;
+          }}
         />
       </div>
     );

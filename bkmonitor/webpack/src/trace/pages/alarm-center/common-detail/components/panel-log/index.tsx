@@ -102,7 +102,7 @@ export default defineComponent({
       selectLoading.value = true;
       const data = await alertLogRelationList({
         alert_id: props.detail.id,
-      });
+      }).catch(() => []);
       indexSetList.value = data;
       handleChangeIndexSet(data?.[0]?.index_set_id || '');
       selectLoading.value = false;
@@ -126,30 +126,32 @@ export default defineComponent({
         sortList: [],
       }
     ) {
-      const data = await getLogIndexSetSearch(selectIndexSet.value, {
-        bk_biz_id: props.detail?.bk_biz_id || window.bk_biz_id,
-        size: params.size,
-        ...timeParams(),
-        addition:
-          filterMode.value === EMode.ui
-            ? where.value.map(item => ({
-                field: item.key,
-                operator: item.method,
-                value: item.value,
-              }))
-            : [],
-        begin: params.offset,
-        ip_chooser: {},
-        host_scopes: {},
-        interval: 'auto',
-        search_mode: filterMode.value === EMode.ui ? 'ui' : 'sql',
-        sort_list: [...(params?.sortList || []), ...defaultSortList.value],
-        keyword: filterMode.value !== EMode.ui ? keyword.value : '',
-      })
-        .then(res => {
-          return res;
-        })
-        .catch(() => null);
+      const data = selectIndexSet.value
+        ? await getLogIndexSetSearch(selectIndexSet.value, {
+            bk_biz_id: props.detail?.bk_biz_id || window.bk_biz_id,
+            size: params.size,
+            ...timeParams(),
+            addition:
+              filterMode.value === EMode.ui
+                ? where.value.map(item => ({
+                    field: item.key,
+                    operator: item.method,
+                    value: item.value,
+                  }))
+                : [],
+            begin: params.offset,
+            ip_chooser: {},
+            host_scopes: {},
+            interval: 'auto',
+            search_mode: filterMode.value === EMode.ui ? 'ui' : 'sql',
+            sort_list: [...(params?.sortList || []), ...defaultSortList.value],
+            keyword: filterMode.value !== EMode.ui ? keyword.value : '',
+          })
+            .then(res => {
+              return res;
+            })
+            .catch(() => null)
+        : null;
       return data;
     }
 
@@ -158,12 +160,14 @@ export default defineComponent({
       if (fieldsData.value) {
         return fieldsData.value;
       }
-      const data = await getLogFieldsData(selectIndexSet.value, {
-        is_realtime: 'True',
-        ...timeParams(),
-      })
-        .then(res => res)
-        .catch(() => null);
+      const data = selectIndexSet.value
+        ? await getLogFieldsData(selectIndexSet.value, {
+            is_realtime: 'True',
+            ...timeParams(),
+          })
+            .then(res => res)
+            .catch(() => null)
+        : null;
       setLogFilterParams({
         index_set_id: selectIndexSet.value,
         ...timeParams(),
@@ -242,22 +246,23 @@ export default defineComponent({
       ];
     });
 
-    const handleDisplayColumnFieldsChange = (val: string[]) => {
-      updateUserFiledTableConfig({
-        index_set_config: {
-          displayFields: val,
-          // fieldsWidth: {},
-          // filterAddition: [],
-          // filterSetting: [],
-          // fixedFilterAddition: false,
-          // sortList: [],
-        },
-        index_set_id: String(selectIndexSet.value),
-        index_set_type: 'single',
-      }).then(() => {
-        fieldsData.value = null;
-        tableRefreshKey.value = random(6);
-      });
+    const handleDisplayColumnFieldsChange = async (val: string[]) => {
+      if (selectIndexSet.value) {
+        await updateUserFiledTableConfig({
+          index_set_config: {
+            displayFields: val,
+            // fieldsWidth: {},
+            // filterAddition: [],
+            // filterSetting: [],
+            // fixedFilterAddition: false,
+            // sortList: [],
+          },
+          index_set_id: String(selectIndexSet.value),
+          index_set_type: 'single',
+        });
+      }
+      fieldsData.value = null;
+      tableRefreshKey.value = random(6);
     };
 
     /**
@@ -469,7 +474,7 @@ export default defineComponent({
             onClick={this.handleGoLog}
           >
             <span>{this.t('更多日志')}</span>
-            <span class='icon-monitor icon-fenxiang ml-5' />
+            <span class='icon-monitor icon-fenxiang ml-6' />
           </Button>
         </div>
         <div class='panel-log-filter'>

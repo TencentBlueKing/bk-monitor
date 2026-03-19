@@ -224,7 +224,8 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
             if n % 2 == 1:
                 return sorted_list[n // 2]
             else:
-                return sorted_list[n // 2 - 1]
+                # 数量为偶数时取中间两位的平均值
+                return (sorted_list[n // 2 - 1] + sorted_list[n // 2]) / 2
 
     @staticmethod
     def get_field_value_list(series: list):

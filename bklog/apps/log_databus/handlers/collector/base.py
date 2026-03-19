@@ -1560,7 +1560,7 @@ class CollectorHandler:
             return data_link_id
         # 业务可见的私有链路ID
         data_link_obj = (
-            DataLinkConfig.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=get_request_tenant_id())
+            DataLinkConfig.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=get_request_tenant_id(), is_active=True)
             .order_by("data_link_id")
             .first()
         )
@@ -1568,7 +1568,7 @@ class CollectorHandler:
             return data_link_obj.data_link_id
         # 公共链路ID
         data_link_obj = (
-            DataLinkConfig.objects.filter(bk_biz_id=0, bk_tenant_id=get_request_tenant_id())
+            DataLinkConfig.objects.filter(bk_biz_id=0, bk_tenant_id=get_request_tenant_id(), is_active=True)
             .order_by("data_link_id")
             .first()
         )
