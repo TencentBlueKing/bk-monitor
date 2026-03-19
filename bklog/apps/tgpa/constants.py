@@ -221,6 +221,57 @@ class TGPATaskFrequencyEnum(ChoicesEnum):
     )
 
 
+class TGPATaskStatusEnum(ChoicesEnum):
+    """任务状态"""
+
+    PENDING = -3
+    APPROVED = -2
+    DENIED = -1
+    CREATED = 0
+    RUNNING = 1
+    STOPPED = 2
+    FAILED = 3
+    SUCCESS = 4
+    CREATE_FAILED = 5
+    CLAIM_TIMEOUT = 6
+    EXECUTE_TIMEOUT = 7
+    CLAIMING = 8
+    DELETED = 9
+    CREATING = 10
+    STARTING = 11
+
+    _choices_labels = (
+        (PENDING, _("待审批")),
+        (APPROVED, _("审批通过")),
+        (DENIED, _("审批拒绝")),
+        (CREATED, _("已创建")),
+        (RUNNING, _("执行中")),
+        (STOPPED, _("停止")),
+        (FAILED, _("执行失败")),
+        (SUCCESS, _("执行完成")),
+        (CREATE_FAILED, _("创建失败")),
+        (CLAIM_TIMEOUT, _("认领超时")),
+        (EXECUTE_TIMEOUT, _("执行超时")),
+        (CLAIMING, _("认领中")),
+        (DELETED, _("已删除")),
+        (CREATING, _("创建中")),
+        (STARTING, _("启动中")),
+    )
+
+    @classmethod
+    def get_active_statuses(cls):
+        """获取进行中的任务状态（即任务还没结束）"""
+        return [
+            cls.PENDING.value,
+            cls.APPROVED.value,
+            cls.CREATED.value,
+            cls.RUNNING.value,
+            cls.CLAIMING.value,
+            cls.CREATING.value,
+            cls.STARTING.value,
+        ]
+
+
 class TGPATaskProcessStatusEnum(ChoicesEnum):
     """任务处理状态"""
 
