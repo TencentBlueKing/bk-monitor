@@ -33,6 +33,7 @@ import {
   // customTimeSeriesList, // 详情页
   getCustomTsDimensionValues, // 详情页
   getCustomTsGraphConfig, // 详情页
+  getCustomTsMetricAggInfo,
   getCustomTsMetricGroups, // 详情页
   getSceneView, // 详情页
   modifyCustomTsFields, // 详情页
@@ -80,6 +81,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
       getSceneView,
       getCustomTsDimensionValues,
       getCustomTsGraphConfig,
+      getCustomTsMetricAggInfo,
       getCustomTsMetricGroups,
       modifyCustomTsFields,
     }),
@@ -186,7 +188,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
       const result = await this.requestHandlerMap.getCustomTsMetricGroups(params);
       metricGroupsData = result.metric_groups;
       customEscalationViewStore.updateMetricGroupList(result.metric_groups);
-      if (!needParseUrl) {
+      if (!needParseUrl && this.isApmMode) {
         const metricGroup = result.metric_groups;
         const defaultSelectedData = {
           groupName: metricGroup[0]?.name || '',

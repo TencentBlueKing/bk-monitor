@@ -126,6 +126,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
         metricsCheckMap: Object.freeze(makeMap(group.metricsName)),
       };
     });
+    this.fetchAggInfo();
   }
 
   @Watch('metricGroupList', { immediate: true })
@@ -156,6 +157,45 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
       customEscalationViewStore.updateMetricGroupList(result.metric_groups);
     } finally {
       this.isLoading = false;
+    }
+  }
+
+  //  获取过滤条件下拉和维度下拉
+  async fetchAggInfo() {
+    const selectedMetricList = customEscalationViewStore.currentSelectedMetricList;
+    
+    if (selectedMetricList.length === 0) {
+      customEscalationViewStore.updateAggInfo({
+        all_dimensions: [],
+        common_dimensions: [],
+      });
+      return;
+    }
+
+    const metric_ids = selectedMetricList.map(metric => metric.field_id);
+    const aggInfoParams = {
+      metric_ids,
+    };
+
+    if (this.isApm && this.appName && this.serviceName) {
+      Object.assign(aggInfoParams, {
+        apm_app_name: this.appName,
+        apm_service_name: this.serviceName,
+      });
+    } else {
+      Object.assign(aggInfoParams, {
+        time_series_group_id: Number(this.timeSeriesGroupId),
+      });
+    }
+
+    try {
+      const aggInfoResult = await this.requestHandlerMap.getCustomTsMetricAggInfo(aggInfoParams);
+      customEscalationViewStore.updateAggInfo({
+        all_dimensions: aggInfoResult.all_dimensions,
+        common_dimensions: aggInfoResult.common_dimensions,
+      });
+    } catch (error) {
+      console.error(error);
     }
   }
 
@@ -317,6 +357,10 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
       }, []);
       this.renderMetricGroupList = Object.freeze(filterResult);
     }, 100);
+  }
+
+  beforeDestroy() {
+    customEscalationViewStore.updateMetricGroupList([]);
   }
 
   render() {

@@ -153,9 +153,9 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   get defaultPanelQuery() {
     return this.defaultPanelConfig?.query_configs[0] || {};
   }
-  /** 指标列表 */
-  get currentSelectedMetricList() {
-    return customEscalationViewStore.currentSelectedMetricList;
+
+  get aggInfoData() {
+    return customEscalationViewStore.aggInfoData;
   }
 
   mounted() {
@@ -240,8 +240,10 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         };
       });
     });
-    const list = this.currentSelectedMetricList.find(item => metrics.includes(item.metric_name)) || { dimensions: [] };
-    this.dimensionsList = list?.dimensions || [];
+    // const list = this.currentSelectedMetricList.find(item => metrics.includes(item.metric_name)) || { dimensions: [] };
+    // this.dimensionsList = list?.dimensions || [];
+    const list = this.aggInfoData.all_dimensions;
+    this.dimensionsList = list || [];
 
     const len = this.filterConfig.group_by.length;
     if (this.dimensionsList.length > 0) {
