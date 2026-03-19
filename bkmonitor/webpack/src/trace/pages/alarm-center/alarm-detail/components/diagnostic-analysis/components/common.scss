@@ -1,0 +1,85 @@
+/*
+ * 公共样式 - 诊断分析组件
+ */
+
+// Panel 通用样式
+%panel-container {
+  .tips {
+    margin-bottom: 12px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #313238;
+  }
+
+  .link-text {
+    color: #3a84ff;
+    cursor: pointer;
+
+    .icon-monitor {
+      margin-right: 4px;
+      font-size: 12px;
+    }
+
+    &:hover {
+      color: #699df4;
+    }
+  }
+}
+
+%group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+// Group 标题通用样式
+%group-title {
+  display: flex;
+  flex: 1;
+  justify-content: space-between;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 20px;
+  white-space: nowrap;
+
+  .group-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: #4e5e7a;
+
+    .icon-fenxiang {
+      margin-left: 6px;
+      font-size: 12px;
+    }
+  }
+}
+
+// Footer 通用样式
+%footer-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  .reason {
+    flex: 1;
+    font-size: 12px;
+    color: #c12626;
+  }
+
+  .link-text {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+
+    &:hover {
+      color: #699df4;
+    }
+
+    .icon-xiangqing1 {
+      font-size: 12px;
+    }
+  }
+}

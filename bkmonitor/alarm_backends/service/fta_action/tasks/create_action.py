@@ -821,7 +821,29 @@ class CreateActionProcessor:
             alert_logs.append(Alert.create_qos_log(qos_alerts, current_qos_count, len(qos_alerts)))
         if alert_logs:
             AlertLog.bulk_create(alert_logs)
+
+        self._process_issue_aggregation()
+
         return new_actions
+
+    def _process_issue_aggregation(self):
+        """Issue 聚合：为每个告警尝试关联或创建 Issue（与处理套餐并行，不互斥）"""
+        if not self.strategy_id or self.signal not in (ActionSignal.ABNORMAL, ActionSignal.NO_DATA):
+            return
+        try:
+            from alarm_backends.service.fta_action.issue_processor import IssueAggregationProcessor
+
+            for alert in self.alerts:
+                try:
+                    IssueAggregationProcessor(alert, self.strategy).process()
+                except Exception:
+                    logger.exception(
+                        "IssueAggregationProcessor failed: alert_id=%s, strategy_id=%s",
+                        alert.id,
+                        self.strategy_id,
+                    )
+        except Exception:
+            logger.exception("IssueAggregationProcessor import/init failed, strategy_id=%s", self.strategy_id)
 
     @staticmethod
     def get_alert_related_users(users: list, alert_users: list):

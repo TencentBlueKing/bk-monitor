@@ -32,6 +32,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import TemporaryShareNew from '../../../../components/temporary-share/temporary-share-new';
+// import AIFavicon from '../../../../static/img/failure/AI.png';
 import { useAlarmCenterDetailStore } from '../../../../store/modules/alarm-center-detail';
 import { fetchListAlertFeedback } from '../../services/alarm-detail';
 import Feedback from './feedback';
@@ -74,6 +75,7 @@ export default defineComponent({
     previous: () => true,
     next: () => true,
     blank: () => true,
+    aiAnalysisShowChange: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -245,6 +247,10 @@ export default defineComponent({
       isFeedback.value = true;
     };
 
+    const handleAiAnalysisShowChange = () => {
+      emit('aiAnalysisShowChange');
+    };
+
     return {
       t,
       chatGroupDialog,
@@ -259,6 +265,7 @@ export default defineComponent({
       handleFeedback,
       handleFeedBackConfirm,
       handleBtnClick,
+      handleAiAnalysisShowChange,
       formatShareTokenParams,
     };
   },
@@ -319,6 +326,18 @@ export default defineComponent({
                 <span class='btn-text'>{item.title}</span>
               </div>
             ))}
+          {/* <div
+            class='btn-group-item ai'
+            onClick={this.handleAiAnalysisShowChange}
+          >
+            <div class='ai-favicon'>
+              <img
+                alt='ai-favicon'
+                src={AIFavicon}
+              />
+            </div>
+            <span class='text'>{this.$t('故障诊断')}</span>
+          </div> */}
         </div>
         <ChatGroup
           alarmEventName={this.chatGroupDialog.alertName}

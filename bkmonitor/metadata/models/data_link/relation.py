@@ -24,15 +24,17 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections.abc import Sequence
+from typing import cast
 
 from django.db import transaction
-from django.db.models import Model
 
+from metadata.models import AccessVMRecord, DataSourceResultTable
 from metadata.models.data_link.constants import DataLinkKind
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.data_link_configs import (
     ConditionalSinkConfig,
     DataBusConfig,
+    DataIdConfig,
     DataLinkResourceConfigBase,
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
@@ -74,7 +76,7 @@ ETL_CONFIG_TO_STRATEGY = {
 }
 
 
-def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> DataLink | dict[str, object] | None:
+def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> DataLink | dict[str, object] | None:
     """以单个 DataBus 为单位重建组件关联关系。
 
     Args:
@@ -90,6 +92,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
         - 任意 sink 组件已有非空 data_link_name（冲突）
         - 存储绑定组件关联的 ResultTableConfig 不存在
         - 任意 ResultTableConfig 已有非空 data_link_name（冲突）
+        - DataIdConfig 不存在，或其 bk_data_id 为空/0
         - DataSource 不存在（bk_data_id 无对应记录）
         - etl_config 不在映射表中且不满足特殊规则
 
@@ -101,7 +104,70 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
 
     databus_name = databus.name
 
-    # Step 1: 解析 sink_names → {kind: [name, ...]}，格式为 "kind:name"
+    # Step 1: 根据 data_id_name 获取 DataIdConfig，并解析真实 bk_data_id
+    try:
+        data_id_config = DataIdConfig.objects.get(
+            bk_tenant_id=databus.bk_tenant_id,
+            namespace=databus.namespace,
+            name=databus.data_id_name,
+        )
+    except DataIdConfig.DoesNotExist:
+        logger.warning(
+            "rebuild_databus_relation: databus->[%s] DataIdConfig with data_id_name->[%s] not found, skip",
+            databus_name,
+            databus.data_id_name,
+        )
+        return None
+
+    resolved_bk_data_id = data_id_config.bk_data_id
+    if not resolved_bk_data_id:
+        logger.warning(
+            "rebuild_databus_relation: databus->[%s] DataIdConfig name->[%s] has empty bk_data_id->[%s], skip",
+            databus_name,
+            data_id_config.name,
+            resolved_bk_data_id,
+        )
+        return None
+
+    # 如果 databus.bk_data_id 不为 0 且不等于 resolved_bk_data_id，说明 databus 的 bk_data_id 已经存在，需要跳过
+    if databus.bk_data_id != 0 and databus.bk_data_id != resolved_bk_data_id:
+        logger.warning(
+            "rebuild_databus_relation: databus->[%s] bk_data_id->[%s] is not equal to DataIdConfig bk_data_id->[%s], skip",
+            databus_name,
+            databus.bk_data_id,
+            resolved_bk_data_id,
+        )
+        return None
+
+    # 如果这个dataid在datasource中不存在，可能是bkdata额外申请的dataid，需要通过AccessVMRecord的bk_base_data_id查找对应的result_table_id进而找到真正的dataid
+    data_source = DataSource.objects.filter(bk_data_id=resolved_bk_data_id).first()
+    if not data_source:
+        access_vm_record = AccessVMRecord.objects.filter(bk_base_data_id=resolved_bk_data_id).first()
+        if not access_vm_record:
+            logger.warning(
+                "rebuild_databus_relation: databus->[%s] AccessVMRecord with bk_base_data_id->[%s] not found, skip",
+                databus_name,
+                resolved_bk_data_id,
+            )
+            return None
+        dsrt = DataSourceResultTable.objects.filter(table_id=access_vm_record.result_table_id).first()
+        if not dsrt:
+            logger.warning(
+                "rebuild_databus_relation: databus->[%s] DataSourceResultTable with table_id->[%s] not found, skip",
+                databus_name,
+                access_vm_record.result_table_id,
+            )
+            return None
+        data_source = DataSource.objects.filter(bk_data_id=dsrt.bk_data_id).first()
+        if not data_source:
+            logger.warning(
+                "rebuild_databus_relation: databus->[%s] DataSource with bk_data_id->[%s] not found, skip",
+                databus_name,
+                dsrt.bk_data_id,
+            )
+            return None
+
+    # Step 2: 解析 sink_names → {kind: [name, ...]}，格式为 "kind:name"
     sink_map: dict[str, list[str]] = {}
     for entry in databus.sink_names:
         if ":" not in entry:
@@ -114,7 +180,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
         kind, name = entry.split(":", 1)
         sink_map.setdefault(kind, []).append(name)
 
-    # Step 2: 查询各 sink 组件实例（批量查询，避免 N+1）
+    # Step 3: 查询各 sink 组件实例（批量查询，避免 N+1）
     sink_instances: list[DataLinkResourceConfigBase] = []
     for kind, names in sink_map.items():
         model = SINK_KIND_TO_MODEL.get(kind)
@@ -142,7 +208,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
             return None
         sink_instances.extend(instances_by_name[name] for name in names)
 
-    # Step 3: 冲突检测 —— 若任意 sink 组件已有 data_link_name，说明已属于其他链路，跳过
+    # Step 4: 冲突检测 —— 若任意 sink 组件已有 data_link_name，说明已属于其他链路，跳过
     for instance in sink_instances:
         if instance.data_link_name:
             logger.error(
@@ -155,7 +221,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
             )
             return None
 
-    # Step 4: 对存储绑定类型，通过 bkbase_result_table_name 查找对应的 ResultTableConfig（批量查询，避免 N+1）
+    # Step 5: 对存储绑定类型，通过 bkbase_result_table_name 查找对应的 ResultTableConfig（批量查询，避免 N+1）
     rt_name_map: dict[str, DataLinkResourceConfigBase] = {}
     for instance in sink_instances:
         if not isinstance(instance, STORAGE_BINDING_MODELS):
@@ -189,8 +255,29 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
         )
         return None
     rt_instances: list[ResultTableConfig] = [rts_by_name[name] for name in rt_name_map]
+    vmrt_to_table_id = {
+        record.vm_result_table_id: record.result_table_id
+        for record in AccessVMRecord.objects.filter(vm_result_table_id__in=[rt.bkbase_table_id for rt in rt_instances])
+    }
+    result_table_name_to_table_id = {}
+    for rt_instance in rt_instances:
+        rt_instance.table_id = vmrt_to_table_id.get(rt_instance.bkbase_table_id, "")
+        if not rt_instance.table_id:
+            logger.warning(
+                "rebuild_databus_relation: databus->[%s] ResultTableConfig name->[%s] has empty table_id, skip",
+                databus_name,
+                rt_instance.name,
+            )
+            return None
+        result_table_name_to_table_id[rt_instance.name] = rt_instance.table_id
 
-    # Step 5: 冲突检测 —— 若任意 ResultTableConfig 已有 data_link_name，跳过
+    # 反补sink的table_id
+    for sink_instance in sink_instances:
+        if not isinstance(sink_instance, STORAGE_BINDING_MODELS):
+            continue
+        sink_instance.table_id = result_table_name_to_table_id[sink_instance.bkbase_result_table_name]
+
+    # Step 6: 冲突检测 —— 若任意 ResultTableConfig 已有 data_link_name，跳过
     for rt in rt_instances:
         if rt.data_link_name:
             logger.error(
@@ -202,24 +289,13 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
             )
             return None
 
-    # Step 6: 推断 data_link_strategy
+    # Step 7: 推断 data_link_strategy
     # 特殊规则：同时存在 ES 和 Doris 存储绑定 → BK_LOG（日志链路），优先于 etl_config 映射
     has_es = DataLinkKind.ESSTORAGEBINDING.value in sink_map
     has_doris = DataLinkKind.DORISBINDING.value in sink_map
     if has_es and has_doris:
         strategy = DataLink.BK_LOG
     else:
-        # 通过 bk_data_id 查找 DataSource，获取 etl_config 后映射到 strategy
-        try:
-            data_source = DataSource.objects.get(bk_data_id=databus.bk_data_id)
-        except DataSource.DoesNotExist:
-            logger.warning(
-                "rebuild_databus_relation: databus->[%s] DataSource with bk_data_id->[%s] not found, skip",
-                databus_name,
-                databus.bk_data_id,
-            )
-            return None
-
         strategy = ETL_CONFIG_TO_STRATEGY.get(data_source.etl_config)
         if strategy is None:
             logger.warning(
@@ -229,10 +305,10 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
             )
             return None
 
-    # Step 7: data_link_name 使用 "rebuilt__" 前缀 + 租户/命名空间/DataBus name，确保跨租户唯一
+    # Step 8: data_link_name 使用 "rebuilt__" 前缀 + 租户/命名空间/DataBus name，确保跨租户唯一
     data_link_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus.bk_tenant_id}__{databus.namespace}__{databus_name}"
 
-    # Step 8: 收集 table_ids（来自 ResultTableConfig.table_id，过滤空值）
+    # Step 9: 收集 table_ids（来自 ResultTableConfig.table_id，过滤空值）
     table_ids = [rt.table_id for rt in rt_instances if rt.table_id]
 
     # dry_run 模式：返回关联信息 dict，不写入数据库
@@ -240,13 +316,13 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
         return {
             "data_link_name": data_link_name,
             "strategy": strategy,
-            "bk_data_id": databus.bk_data_id,
+            "bk_data_id": data_source.bk_data_id,
             "table_ids": table_ids,
-            "sinks": [{"kind": i.kind, "name": i.name} for i in sink_instances],
+            "sinks": [{"kind": i.kind, "name": i.name, "table_id": getattr(i, "table_id", "")} for i in sink_instances],
             "result_tables": [{"name": rt.name, "table_id": rt.table_id} for rt in rt_instances],
         }
 
-    # Step 9-10: 在事务中批量更新组件 data_link_name 并创建/更新 DataLink 记录
+    # Step 10-11: 在事务中批量更新组件 data_link_name 并创建/更新 DataLink 记录
     with transaction.atomic():
         # 先创建/更新 DataLink 记录，确保主记录存在后再关联组件
         data_link, created = DataLink.objects.update_or_create(
@@ -254,15 +330,17 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
             namespace=databus.namespace,
             data_link_name=data_link_name,
             defaults={
-                "bk_data_id": databus.bk_data_id,
+                # 这里需要关联监控平台真正的dataid，而不是bkdata的dataid
+                "bk_data_id": data_source.bk_data_id,
                 "table_ids": table_ids,
                 "data_link_strategy": strategy,
             },
         )
 
-        # 批量更新 DataBus 自身
+        # 更新 DataBusConfig 自身
         databus.data_link_name = data_link_name
-        databus.save(update_fields=["data_link_name"])
+        databus.bk_data_id = resolved_bk_data_id
+        databus.save(update_fields=["data_link_name", "bk_data_id"])
 
         # 批量更新 sink 组件（按 model 类型分组，减少 DB 操作次数）
         for instance in sink_instances:
@@ -272,7 +350,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
         # 批量更新 ResultTableConfig
         for rt in rt_instances:
             rt.data_link_name = data_link_name
-        _bulk_update_data_link_name(rt_instances)
+        ResultTableConfig.objects.bulk_update(rt_instances, ["data_link_name", "table_id"])
 
     logger.info(
         "rebuild_databus_relation: databus->[%s] relation rebuilt successfully, "
@@ -286,18 +364,37 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = False) -> D
 
 
 def _bulk_update_data_link_name(instances: Sequence[DataLinkResourceConfigBase]) -> None:
-    """按 model 类型分组，批量更新 data_link_name 字段，减少 DB 操作次数。"""
+    """按 model 类型分组，批量更新 data_link_name 和 table_id 字段，减少 DB 操作次数。"""
     if not instances:
         return
-    model_groups: dict[type[Model], list[Model]] = {}
+    model_groups: dict[type[DataLinkResourceConfigBase], list[DataLinkResourceConfigBase]] = {}
     for instance in instances:
         model_cls = type(instance)
         model_groups.setdefault(model_cls, []).append(instance)
     for model_cls, group in model_groups.items():
-        model_cls.objects.bulk_update(group, ["data_link_name"])
+        if model_cls is VMStorageBindingConfig:
+            VMStorageBindingConfig.objects.bulk_update(
+                cast(list[VMStorageBindingConfig], group),
+                ["data_link_name", "table_id"],
+            )
+        elif model_cls is ESStorageBindingConfig:
+            ESStorageBindingConfig.objects.bulk_update(
+                cast(list[ESStorageBindingConfig], group),
+                ["data_link_name", "table_id"],
+            )
+        elif model_cls is DorisStorageBindingConfig:
+            DorisStorageBindingConfig.objects.bulk_update(
+                cast(list[DorisStorageBindingConfig], group),
+                ["data_link_name", "table_id"],
+            )
+        else:
+            ConditionalSinkConfig.objects.bulk_update(
+                cast(list[ConditionalSinkConfig], group),
+                ["data_link_name"],
+            )
 
 
-def rebuild_bkbase_v4_datalink_relation(bk_tenant_id: str, namespace: str, dry_run: bool = False) -> list[dict] | None:
+def rebuild_bkbase_v4_datalink_relation(bk_tenant_id: str, namespace: str, dry_run: bool = True) -> list[dict] | None:
     """批量重建指定租户和命名空间下所有 data_link_name 为空的 DataBus 的关联关系。
 
     以 DataBus 为原子单元，逐一调用 rebuild_databus_relation 进行重建。

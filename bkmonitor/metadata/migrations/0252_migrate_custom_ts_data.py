@@ -252,6 +252,7 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
     metrics_to_create = []
     metrics_to_update = []
 
+    already_created = set()
     for field in metric_fields:
         scope_name = get_scope_name(field, DEFAULT_DATA_SCOPE_NAME)
         tag_list = field.get("config", {}).get("dimensions", [])
@@ -264,7 +265,11 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
         field_config_data = field.get("config", {})
         for key in METRIC_CONFIG_FIELDS:
             if key in field_config_data:
-                field_config[key] = field_config_data[key]
+                if key == "function":
+                    # 兼容function为{}的场景，将其转换为列表[]
+                    field_config["function"] = field_config_data[key] or []
+                else:
+                    field_config[key] = field_config_data[key]
 
         scope_id = scope_name_to_id.get(scope_name)
         field_name = field.get("name")
@@ -277,6 +282,10 @@ def migrate_metric(apps, group_id, metric_fields, scope_name_to_id, table_id, st
             existing.create_time = field.get("create_time")
             metrics_to_update.append(existing)
         else:
+            if (group_id, DEFAULT_DATA_SCOPE_NAME, field_name) in already_created:
+                # 重复的指标记录，跳过
+                continue
+            already_created.add((group_id, DEFAULT_DATA_SCOPE_NAME, field_name))
             metrics_to_create.append(
                 TimeSeriesMetric(
                     group_id=group_id,
@@ -311,6 +320,46 @@ def get_scope_name(field, default_scope):
     return labels[0] if labels else default_scope
 
 
+def ensure_default_scopes(apps, schema_editor):
+    """为所有 TimeSeriesGroup 补充缺失的默认分组。
+
+    遍历所有 TimeSeriesGroup，检查其对应的 TimeSeriesScope 是否存在默认分组（scope_name="default"），
+    如果不存在则创建。
+    """
+    TimeSeriesGroup = apps.get_model("metadata", "TimeSeriesGroup")
+    TimeSeriesScope = apps.get_model("metadata", "TimeSeriesScope")
+
+    # 获取所有 group_id
+    all_group_ids = set(TimeSeriesGroup.objects.values_list("time_series_group_id", flat=True))
+
+    # 获取已有默认分组的 group_id
+    groups_with_default = set(
+        TimeSeriesScope.objects.filter(group_id__in=all_group_ids, scope_name=DEFAULT_DATA_SCOPE_NAME).values_list(
+            "group_id", flat=True
+        )
+    )
+
+    # 找出缺少默认分组的 group_id
+    missing_group_ids = all_group_ids - groups_with_default
+    if not missing_group_ids:
+        logger.info("[补充默认分组] 所有 TimeSeriesGroup 均已存在默认分组，无需处理")
+        return
+
+    scopes_to_create = [
+        TimeSeriesScope(
+            group_id=group_id,
+            scope_name=DEFAULT_DATA_SCOPE_NAME,
+            dimension_config={},
+            auto_rules=[],
+            create_from=CREATE_FROM_DEFAULT,
+        )
+        for group_id in missing_group_ids
+    ]
+
+    TimeSeriesScope.objects.bulk_create(scopes_to_create, batch_size=BULK_BATCH_SIZE, ignore_conflicts=True)
+    logger.info(f"[补充默认分组] 共为 {len(scopes_to_create)} 个 TimeSeriesGroup 创建了默认分组")
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("monitor_web", "0076_auto_20250408_1522"),
@@ -319,4 +368,5 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(migrate_custom_ts_field_to_time_series),
+        migrations.RunPython(ensure_default_scopes),
     ]

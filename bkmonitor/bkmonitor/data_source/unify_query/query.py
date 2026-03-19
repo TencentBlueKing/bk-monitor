@@ -432,7 +432,7 @@ class UnifyQuery:
         end_time: int,
         limit: int | None = None,
         offset: int | None = None,
-        order_by: str | None = None,
+        order_by: list[str] | None = None,
         time_alignment: bool = True,
     ) -> list[dict]:
         params: dict[str, Any] = self.get_unify_query_params(start_time, end_time, time_alignment, order_by)
@@ -631,7 +631,7 @@ class UnifyQuery:
         end_time: int = None,
         limit: int = None,
         offset: int = None,
-        order_by: str | None = None,
+        order_by: list[str] | None = None,
         *args,
         **kwargs,
     ) -> tuple[list[dict[str, Any]], int]:
