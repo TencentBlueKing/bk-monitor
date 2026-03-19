@@ -28,9 +28,9 @@ import { type Ref, onMounted, onScopeDispose, shallowRef, watchEffect } from 'vu
 
 import { commonPageSizeGet } from 'monitor-common/utils';
 
-import type { IssueItem } from '../alarm-issues/typing';
-import type { IssuesService } from '../services/issues-services';
-import type { CommonFilterParams } from '../typings';
+import type { IssuesService } from '../../services/issues-services';
+import type { CommonFilterParams } from '../../typings';
+import type { IssueItem } from '../typing';
 
 /** useIssuesTable 入参类型 */
 interface UseIssuesTableOptions {

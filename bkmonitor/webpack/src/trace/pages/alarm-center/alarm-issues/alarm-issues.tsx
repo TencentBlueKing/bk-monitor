@@ -28,13 +28,13 @@ import { computed, defineComponent, shallowRef } from 'vue';
 
 import { commonPageSizeSet } from 'monitor-common/utils';
 
-import { useIssuesTable } from '../composables/use-issues-table';
 import { useAlarmTableColumns } from '../composables/use-table-columns';
 import { IssuesService } from '../services/issues-services';
 import { AlarmType, CONTENT_SCROLL_ELEMENT_CLASS_NAME } from '../typings';
 import { useIssuesDialogs } from './components/issues-operation-dialogs/hooks/use-issues-dialogs';
 import IssuesOperationDialogs from './components/issues-operation-dialogs/issues-operation-dialogs';
 import { IssuesBatchActionEnum } from './constant';
+import { useIssuesTable } from './hooks/use-issues-table';
 import IssuesTable from './issues-table/issues-table';
 import IssuesToolbar from './issues-toolbar/issues-toolbar';
 
