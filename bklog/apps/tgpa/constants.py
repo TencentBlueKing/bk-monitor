@@ -176,6 +176,11 @@ class TGPATaskTypeEnum(ChoicesEnum):
         (BUSINESS_LOG_V2, _("业务日志捞取V2")),
     )
 
+    @classmethod
+    def get_business_log_task_types(cls):
+        """获取业务日志捞取任务类型（逗号分隔的字符串，支持v1和v2）"""
+        return ",".join([str(cls.BUSINESS_LOG_V1.value), str(cls.BUSINESS_LOG_V2.value)])
+
 
 class TGPATaskPlatformEnum(ChoicesEnum):
     """客户端类型"""

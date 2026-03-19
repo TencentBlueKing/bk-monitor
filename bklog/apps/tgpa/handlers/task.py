@@ -146,10 +146,7 @@ class TGPATaskHandler:
         获取任务列表
         """
         # 支持v1和v2业务日志捞取任务
-        task_types = ",".join(
-            [str(TGPATaskTypeEnum.BUSINESS_LOG_V1.value), str(TGPATaskTypeEnum.BUSINESS_LOG_V2.value)]
-        )
-        params["task_type"] = task_types
+        params["task_type"] = TGPATaskTypeEnum.get_business_log_task_types()
         # 第一次请求只获取1条数据，用于获取总数
         first_request_params = params.copy()
         first_request_params.update({"offset": 0, "limit": 1})
@@ -183,12 +180,9 @@ class TGPATaskHandler:
         分页获取任务列表，用于前端
         """
         # 支持v1和v2业务日志捞取任务
-        task_types = ",".join(
-            [str(TGPATaskTypeEnum.BUSINESS_LOG_V1.value), str(TGPATaskTypeEnum.BUSINESS_LOG_V2.value)]
-        )
         request_params = {
             "cc_id": params["bk_biz_id"],
-            "task_type": task_types,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
             "offset": (params["page"] - 1) * params["pagesize"],
             "limit": params["pagesize"],
         }
