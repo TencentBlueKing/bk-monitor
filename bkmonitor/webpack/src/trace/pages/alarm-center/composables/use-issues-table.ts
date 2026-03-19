@@ -24,120 +24,99 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, onScopeDispose, shallowRef } from 'vue';
+import { type Ref, onMounted, onScopeDispose, shallowRef, watchEffect } from 'vue';
 
-import { generateMockIssues } from '../alarm-issues/issues-table/mock-data';
+import { commonPageSizeGet } from 'monitor-common/utils';
 
 import type { IssueItem } from '../alarm-issues/typing';
-import type { TablePagination } from '../typings';
+import type { IssuesService } from '../services/issues-services';
+import type { CommonFilterParams } from '../typings';
 
-/** 默认分页配置 */
-const DEFAULT_PAGINATION: TablePagination = {
-  currentPage: 1,
-  pageSize: 10,
-  total: 0,
-};
+/** useIssuesTable 入参类型 */
+interface UseIssuesTableOptions {
+  /** 公共筛选参数（响应式） */
+  filterParams: Ref<Partial<CommonFilterParams>>;
+  /** IssuesService 实例 */
+  service: IssuesService;
+}
 
 /**
- * @description Issues 表格数据管理 hook（参考 useAlarmTable 设计模式）
- * @returns 表格状态（data/loading/pagination/sort/selectedRowKeys）及分页、排序、选中行的事件处理函数
+ * @description Issues 表格数据管理 hook（与 store 解耦，依赖由调用方注入）
+ * @param {UseIssuesTableOptions} options - service 实例与公共筛选参数
+ * @returns {{ pageSize, page, total, data, loading, ordering }} 表格状态
  */
-export function useIssuesTable() {
-  // ===================== 数据状态 =====================
-
-  /** 完整 mock 数据集（后续替换为 API 请求） */
-  const allData = shallowRef<IssueItem[]>(generateMockIssues(198));
-
-  /** 分页状态 */
-  const pagination = shallowRef<TablePagination>({
-    ...DEFAULT_PAGINATION,
-    total: 198,
-  });
-
-  /** 排序状态 */
-  const sort = shallowRef<string>('');
-
-  /** 选中行 keys */
-  const selectedRowKeys = shallowRef<string[]>([]);
-
-  /** 加载状态 */
+export function useIssuesTable(options: UseIssuesTableOptions) {
+  const { service, filterParams } = options;
+  /** 分页参数 */
+  const pageSize = shallowRef(commonPageSizeGet() ?? 50);
+  /** 当前页 */
+  const page = shallowRef(1);
+  /** 总条数 */
+  const total = shallowRef(0);
+  /** 数据 */
+  const data = shallowRef<IssueItem[]>([]);
+  /** 排序 */
+  const ordering = shallowRef('');
+  /** 是否加载中 */
   const loading = shallowRef(false);
+  /** 请求中止控制器 */
+  let abortController: AbortController | null = null;
 
-  // TODO: 接入真实 API 时，参考 useAlarmTable 添加 AbortController + watchEffect 模式
-  // let abortController: AbortController | null = null;
-  // onMounted(() => { watchEffect(effectFunc); });
+  /**
+   * @description 获取 Issues 表格数据的副作用函数
+   * @returns {void}
+   */
+  const effectFunc = async () => {
+    // 中止上一次未完成的请求
+    if (abortController) {
+      abortController.abort();
+    }
+    // 创建新的中止控制器
+    abortController = new AbortController();
+    const { signal } = abortController;
 
-  /** 当前页展示数据（模拟分页） */
-  const tableData = computed(() => {
-    const { currentPage, pageSize } = pagination.value;
-    const start = (currentPage - 1) * pageSize;
-    return allData.value.slice(start, start + pageSize);
+    loading.value = true;
+    data.value = [];
+    const res = await service.getFilterTableList<IssueItem>(
+      {
+        ...filterParams.value,
+        page_size: pageSize.value,
+        page: page.value,
+        ordering: ordering.value ? [ordering.value] : [],
+      },
+      { signal }
+    );
+    // 检查请求是否已被中止，确保不会更新过期数据
+    if (signal.aborted) return;
+    total.value = res.total;
+    data.value = res.data;
+    loading.value = false;
+  };
+
+  onMounted(() => {
+    watchEffect(effectFunc);
   });
-
-  // ===================== 事件处理 =====================
-
-  /**
-   * @description 页码变化回调
-   * @param page - 当前页码
-   */
-  const handleCurrentPageChange = (page: number) => {
-    pagination.value = { ...pagination.value, currentPage: page };
-  };
-
-  /**
-   * @description 每页条数变化回调
-   * @param pageSize - 每页条数
-   */
-  const handlePageSizeChange = (pageSize: number) => {
-    pagination.value = { ...pagination.value, pageSize, currentPage: 1 };
-  };
-
-  /**
-   * @description 排序变化回调
-   * @param sortVal - 排序值
-   */
-  const handleSortChange = (sortVal: string | string[]) => {
-    sort.value = Array.isArray(sortVal) ? sortVal[0] || '' : sortVal;
-  };
-
-  /**
-   * @description 选中行变化回调
-   * @param keys - 选中行 keys
-   */
-  const handleSelectionChange = (keys: string[]) => {
-    selectedRowKeys.value = keys;
-  };
-
-  // ===================== 生命周期 =====================
 
   onScopeDispose(() => {
-    pagination.value = { ...DEFAULT_PAGINATION };
-    sort.value = '';
-    selectedRowKeys.value = [];
+    // 中止未完成的请求
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
+    }
+    pageSize.value = commonPageSizeGet() ?? 50;
+    page.value = 1;
+    total.value = 0;
+    data.value = [];
     loading.value = false;
-    allData.value = [];
+    ordering.value = '';
   });
 
   return {
-    /** 完整数据集（供业务操作 hook 读写） */
-    allData,
-    /** 当前页展示数据 */
-    tableData,
-    /** 分页状态 */
-    pagination,
-    /** 排序状态 */
-    sort,
-    /** 选中行 keys */
-    selectedRowKeys,
-    /** 加载状态 */
+    pageSize,
+    page,
+    total,
+    data,
     loading,
-    /** 页码变化处理 */
-    handleCurrentPageChange,
-    /** 每页条数变化处理 */
-    handlePageSizeChange,
-    /** 排序变化处理 */
-    handleSortChange,
-    /** 选中行变化处理 */
-    handleSelectionChange,
+    ordering,
   };
 }

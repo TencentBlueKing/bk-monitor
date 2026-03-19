@@ -26,11 +26,14 @@
 
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
-import { Button, Dialog, Radio } from 'bkui-vue';
+import { Button, Dialog, Message, Radio } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import { IssuePriorityEnum, IssuesPriorityMap } from '../../constant';
+import { mockUpdatePriority } from '../../issues-table/mock-data';
 
-import type { IssuePriorityType, IssuesOperationDialogParams, IssuesPriorityDialogEvent } from '../../typing';
+import type { IssuesBatchActionEnum } from '../../constant';
+import type { IssuePriorityType, IssuesOperationDialogEvent, IssuesOperationDialogParams } from '../../typing';
 
 import './issues-priority-dialog.scss';
 
@@ -64,11 +67,12 @@ export default defineComponent({
     },
   },
   emits: {
-    success: (event: IssuesPriorityDialogEvent[]) => Array.isArray(event),
+    success: (event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.PRIORITY>) => event != null,
     cancel: () => true,
     'update:isShow': (val: boolean) => typeof val === 'boolean',
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     /** 当前选中的优先级 */
     const selectedPriority = shallowRef<'' | IssuePriorityType>('');
     /** 提交中 loading 状态 */
@@ -90,29 +94,34 @@ export default defineComponent({
     const handleConfirm = async () => {
       if (!selectedPriority.value) return;
       loading.value = true;
-      try {
-        // TODO: 接入后端 API — 调用修改优先级接口
-        // const res = await updateIssuesPriority({
-        //   bk_biz_id: props.issuesBizId,
-        //   issue_ids: props.issuesIds,
-        //   priority: selectedPriority.value,
-        // });
-        const now = Date.now() / 1000;
-        const succeeded: IssuesPriorityDialogEvent[] = props.issuesIds.map(id => ({
-          issue_id: id,
-          priority: selectedPriority.value as IssuePriorityType,
-          update_time: now,
-        }));
-        emit('success', succeeded);
-      } finally {
-        loading.value = false;
+
+      // TODO: 修改优先级请求接口及处理结果提示 待完善
+      const res = await mockUpdatePriority({
+        bk_biz_id: props.issuesBizId,
+        issue_ids: props.issuesIds,
+        priority: selectedPriority.value as IssuePriorityType,
+      });
+
+      let msg = {
+        theme: 'success',
+        message: t('修改成功'),
+      };
+      if (res.failed?.length) {
+        msg = {
+          theme: 'error',
+          message: res.failed?.[0]?.message,
+        };
       }
+
+      emit('success', res);
+      Message(msg);
     };
 
     /**
      * @description 取消修改优先级
      */
     const handleCancel = () => {
+      if (loading.value) return;
       emit('cancel');
     };
 
@@ -139,6 +148,7 @@ export default defineComponent({
     return (
       <Dialog
         width={480}
+        class='issues-priority-dialog'
         v-slots={{
           default: () => (
             <div class='issues-priority-dialog-content'>
@@ -180,7 +190,6 @@ export default defineComponent({
           footer: () => (
             <div class='issues-priority-dialog-footer'>
               <Button
-                style='margin-right: 8px'
                 disabled={!this.selectedPriority || this.loading}
                 loading={this.loading}
                 theme='primary'
@@ -201,6 +210,7 @@ export default defineComponent({
         isShow={this.isShow}
         title={this.getTitle()}
         onUpdate:isShow={(v: boolean) => {
+          if (this.loading) return;
           this.$emit('update:isShow', v);
         }}
       />

@@ -84,64 +84,57 @@ export const useIssuesDialogs = (
     return Array.from(set);
   };
 
-  // 更新指定 Issue 行的数据
-  const _updateIssueItem = (id: string, updates: Partial<IssueItem>) => {
-    const data = get(originalData);
-    const idx = data.findIndex(item => item.id === id);
-    if (idx === -1) return;
-    // originalData 为 ShallowRef，需要整体替换以触发响应式
-    const next = [...data];
-    next[idx] = { ...next[idx], ...updates };
-    // MaybeRef 可能是 Ref 或普通值，此处通过断言写入
-    (originalData as { value: IssueItem[] }).value = next;
+  /**
+   * @description 根据 dialog 操作成功事件，通过传入的操作数据对象原地更新对应 Issue 行
+   * @param {IssueItem[]} data - 当前操作的 Issue 数据对象数组
+   * @param {Array<T>} succeeded - dialog 操作成功回调中的 succeeded 数组，每项必须包含 issue_id
+   * @returns {void}
+   */
+  const updateIssueItems = <T extends { issue_id: IssueItem['id'] }>(data: IssueItem[], succeeded: T[]) => {
+    if (!succeeded?.length) return;
+    const updatesMap = new Map(succeeded.map(({ issue_id, ...rest }) => [issue_id, rest]));
+    for (const item of data) {
+      const updates = updatesMap.get(item.id);
+      if (updates) {
+        Object.assign(item, updates);
+      }
+    }
   };
 
   /**
    * @description 指派负责人
    * @param {IssueItem[]} data 操作数据对象数组
-   * @param event dialog回调事件对象
+   * @param {IssuesOperationDialogEvent} event dialog回调事件对象
    */
   const handleAssignDialogSuccessCallback = (
     data: IssueItem[],
     event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.ASSIGN>
   ) => {
-    // TODO: 指派负责人 逻辑待补充
-    console.log('handleAssignDialogSuccessCallback', data, event);
-
-    // updateIssueItem(id, {
-    //   assignee,
-    //   ...(assignee.length ? { status: IssueStatusEnum.UNRESOLVED } : {}),
-    // });
+    updateIssueItems(data, event.succeeded);
   };
 
   /**
    * @description 标记已解决
    * @param {IssueItem[]} data 操作数据对象数组
-   * @param event dialog回调事件对象
+   * @param {IssuesOperationDialogEvent} event dialog回调事件对象
    */
   const handleResolvedDialogSuccessCallback = (
     data: IssueItem[],
     event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.RESOLVE>
   ) => {
-    // TODO: 标记已解决 逻辑待补充
-    console.log('handleResolvedDialogSuccessCallback', data, event);
-
-    // updateIssueItem(id, { status: IssueStatusEnum.RESOLVED });
+    updateIssueItems(data, event.succeeded);
   };
 
   /**
    * @description 优先级变更
    * @param {IssueItem[]} data 操作数据对象数组
-   * @param event dialog回调事件对象
+   * @param {IssuesOperationDialogEvent} event dialog回调事件对象
    */
   const handlePriorityDialogSuccessCallback = (
     data: IssueItem[],
     event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.PRIORITY>
   ) => {
-    // TODO: 优先级变更 逻辑待补充
-    console.log('handlePriorityDialogSuccessCallback', data, event);
-
-    // updateIssueItem(id, { priority });
+    updateIssueItems(data, event.succeeded);
   };
 
   /**

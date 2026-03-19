@@ -24,17 +24,21 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { computed, defineComponent, shallowRef } from 'vue';
+
+import { commonPageSizeSet } from 'monitor-common/utils';
 
 import { useIssuesTable } from '../composables/use-issues-table';
 import { useAlarmTableColumns } from '../composables/use-table-columns';
-import { CONTENT_SCROLL_ELEMENT_CLASS_NAME } from '../typings';
+import { IssuesService } from '../services/issues-services';
+import { AlarmType, CONTENT_SCROLL_ELEMENT_CLASS_NAME } from '../typings';
 import { useIssuesDialogs } from './components/issues-operation-dialogs/hooks/use-issues-dialogs';
 import IssuesOperationDialogs from './components/issues-operation-dialogs/issues-operation-dialogs';
 import { IssuesBatchActionEnum } from './constant';
 import IssuesTable from './issues-table/issues-table';
 import IssuesToolbar from './issues-toolbar/issues-toolbar';
 
+import type { CommonFilterParams } from '../typings/services';
 import type { IssueItem } from './typing';
 
 import './alarm-issues.scss';
@@ -44,20 +48,19 @@ export default defineComponent({
   setup() {
     const { tableColumns } = useAlarmTableColumns();
 
-    // ===================== 表格数据管理 =====================
+    /** Issues 独立 service 实例 */
+    const issuesService = new IssuesService(AlarmType.ISSUES);
 
-    const {
-      allData,
-      tableData,
-      pagination,
-      sort,
-      selectedRowKeys,
-      loading,
-      handleCurrentPageChange,
-      handlePageSizeChange,
-      handleSortChange,
-      handleSelectionChange,
-    } = useIssuesTable();
+    /** 公共筛选参数占位（后续替换） */
+    const commonFilterParams = computed<Partial<CommonFilterParams>>(() => ({}));
+
+    const { data, loading, total, page, pageSize, ordering } = useIssuesTable({
+      service: issuesService,
+      filterParams: commonFilterParams,
+    });
+
+    /** table 选中的 rowKey 数组 */
+    const selectedRowKeys = shallowRef<string[]>([]);
 
     const {
       issuesDialogShow,
@@ -68,7 +71,7 @@ export default defineComponent({
       handleIssuesDialogShow,
       handleIssuesDialogHide,
       handleIssuesDialogSuccess,
-    } = useIssuesDialogs(allData);
+    } = useIssuesDialogs(data);
 
     /**
      * @description 展示 Issue 详情
@@ -87,6 +90,41 @@ export default defineComponent({
       handleIssuesDialogShow(IssuesBatchActionEnum.ASSIGN, id, data);
     };
 
+    /**
+     * @description 表格 -- 处理分页变化
+     * @param {number} currentPage 当前页码
+     */
+    const handleCurrentPageChange = (currentPage: number) => {
+      page.value = currentPage;
+    };
+
+    /**
+     * @description 表格 -- 处理分页大小变化
+     * @param {number} size 分页大小
+     */
+    const handlePageSizeChange = (size: number) => {
+      pageSize.value = size;
+      commonPageSizeSet(size);
+      handleCurrentPageChange(1);
+    };
+
+    /**
+     * @description 表格 -- 处理排序变化
+     * @param {string} sort 排序字段
+     */
+    const handleSortChange = (sort: string) => {
+      ordering.value = sort;
+      handleCurrentPageChange(1);
+    };
+
+    /**
+     * @description 表格 -- 处理选中行变化
+     * @param {string[]} keys 选中行 key 数组
+     */
+    const handleSelectionChange = (keys?: string[]) => {
+      selectedRowKeys.value = keys ?? [];
+    };
+
     // ===================== 渲染 =====================
 
     return () => (
@@ -96,13 +134,17 @@ export default defineComponent({
           issuesIds={selectedRowKeys.value}
         >
           <IssuesTable
+            pagination={{
+              currentPage: page.value,
+              pageSize: pageSize.value,
+              total: total.value,
+            }}
             columns={tableColumns.value}
-            data={tableData.value}
+            data={data.value}
             loading={loading.value}
-            pagination={pagination.value}
             scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
             selectedRowKeys={selectedRowKeys.value}
-            sort={sort.value}
+            sort={ordering.value}
             onAssignClick={handleAssignClick}
             onCurrentPageChange={handleCurrentPageChange}
             onMarkResolved={(id: string) => handleIssuesDialogShow(IssuesBatchActionEnum.RESOLVE, id)}
@@ -110,7 +152,7 @@ export default defineComponent({
             onPriorityChange={(id: string) => handleIssuesDialogShow(IssuesBatchActionEnum.PRIORITY, id)}
             onSelectionChange={handleSelectionChange}
             onShowDetail={handleShowDetail}
-            onSortChange={handleSortChange}
+            onSortChange={sort => handleSortChange(sort as string)}
           />
         </IssuesToolbar>
 

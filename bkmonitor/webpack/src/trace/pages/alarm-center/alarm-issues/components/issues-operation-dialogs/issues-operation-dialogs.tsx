@@ -32,15 +32,7 @@ import IssuesFollowUpDialog from '../issues-follow-up-dialog/issues-follow-up-di
 import IssuesPriorityDialog from '../issues-priority-dialog/issues-priority-dialog';
 import IssuesResolveDialog from '../issues-resolve-dialog/issues-resolve-dialog';
 
-import type {
-  IssuesAssigneeDialogEvent,
-  IssuesBatchActionType,
-  IssuesFollowUpDialogEvent,
-  IssuesOperationDialogEvent,
-  IssuesOperationDialogParams,
-  IssuesPriorityDialogEvent,
-  IssuesResolveDialogEvent,
-} from '../../typing';
+import type { IssuesBatchActionType, IssuesOperationDialogEvent, IssuesOperationDialogParams } from '../../typing';
 
 export default defineComponent({
   name: 'IssuesOperationDialogs',
@@ -107,8 +99,8 @@ export default defineComponent({
           issuesBizId={this.issuesBizId}
           issuesIds={this.issuesIds}
           onCancel={() => this.handleShowChange(false)}
-          onSuccess={(succeeded: IssuesAssigneeDialogEvent[]) =>
-            this.handleConfirmSuccess(IssuesBatchActionEnum.ASSIGN, { failed: [], succeeded })
+          onSuccess={(event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.ASSIGN>) =>
+            this.handleConfirmSuccess(IssuesBatchActionEnum.ASSIGN, event)
           }
           onUpdate:isShow={this.handleShowChange}
         />
@@ -117,8 +109,8 @@ export default defineComponent({
           issuesBizId={this.issuesBizId}
           issuesIds={this.issuesIds}
           onCancel={() => this.handleShowChange(false)}
-          onSuccess={(succeeded: IssuesResolveDialogEvent[]) =>
-            this.handleConfirmSuccess(IssuesBatchActionEnum.RESOLVE, { failed: [], succeeded })
+          onSuccess={(event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.RESOLVE>) =>
+            this.handleConfirmSuccess(IssuesBatchActionEnum.RESOLVE, event)
           }
           onUpdate:isShow={this.handleShowChange}
         />
@@ -128,8 +120,8 @@ export default defineComponent({
           issuesBizId={this.issuesBizId}
           issuesIds={this.issuesIds}
           onCancel={() => this.handleShowChange(false)}
-          onSuccess={(succeeded: IssuesPriorityDialogEvent[]) =>
-            this.handleConfirmSuccess(IssuesBatchActionEnum.PRIORITY, { failed: [], succeeded })
+          onSuccess={(event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.PRIORITY>) =>
+            this.handleConfirmSuccess(IssuesBatchActionEnum.PRIORITY, event)
           }
           onUpdate:isShow={this.handleShowChange}
         />
@@ -138,8 +130,8 @@ export default defineComponent({
           issuesBizId={this.issuesBizId}
           issuesIds={this.issuesIds}
           onCancel={() => this.handleShowChange(false)}
-          onSuccess={(succeeded: IssuesFollowUpDialogEvent[]) =>
-            this.handleConfirmSuccess(IssuesBatchActionEnum.FOLLOW_UP, { failed: [], succeeded })
+          onSuccess={(event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.FOLLOW_UP>) =>
+            this.handleConfirmSuccess(IssuesBatchActionEnum.FOLLOW_UP, event)
           }
           onUpdate:isShow={this.handleShowChange}
         />

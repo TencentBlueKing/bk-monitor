@@ -30,7 +30,8 @@ import { Button, Dialog } from 'bkui-vue';
 
 import MarkdownEditor from '../../../../../components/markdown-editor/editor';
 
-import type { IssuesFollowUpDialogEvent } from '../../typing';
+import type { IssuesBatchActionEnum } from '../../constant';
+import type { IssuesFollowUpDialogEvent, IssuesOperationDialogEvent } from '../../typing';
 
 import './issues-follow-up-dialog.scss';
 
@@ -57,7 +58,7 @@ export default defineComponent({
     },
   },
   emits: {
-    success: (event: IssuesFollowUpDialogEvent[]) => Array.isArray(event),
+    success: (event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.FOLLOW_UP>) => event != null,
     cancel: () => true,
     'update:isShow': (val: boolean) => typeof val === 'boolean',
   },
@@ -108,7 +109,7 @@ export default defineComponent({
           operator: '',
           time: Date.now() / 1000,
         }));
-        emit('success', succeeded);
+        emit('success', { succeeded, failed: [] });
       } finally {
         loading.value = false;
       }

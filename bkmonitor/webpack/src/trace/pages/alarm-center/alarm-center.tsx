@@ -88,10 +88,10 @@ import { IssuesBatchActionEnum } from './alarm-issues/constant';
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
 import IssuesTable from './alarm-issues/issues-table/issues-table';
 import IssuesToolbar from './alarm-issues/issues-toolbar/issues-toolbar';
-import { useIssuesTable } from './composables/use-issues-table';
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
+import type { IssueItem } from './alarm-issues/typing';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
 import './alarm-center.scss';
@@ -137,21 +137,6 @@ export default defineComponent({
       handleAlertDialogConfirm,
     } = useAlertDialogs(data as unknown as ShallowRef<AlertTableItem[]>);
 
-    // ===================== Issues 表格 =====================
-
-    const {
-      allData: issuesAllData,
-      tableData: issuesTableData,
-      pagination: issuesPagination,
-      sort: issuesSort,
-      selectedRowKeys: issuesSelectedRowKeys,
-      loading: issuesLoading,
-      handleCurrentPageChange: handleIssuesCurrentPageChange,
-      handlePageSizeChange: handleIssuesPageSizeChange,
-      handleSortChange: handleIssuesSortChange,
-      handleSelectionChange: handleIssuesSelectionChange,
-    } = useIssuesTable();
-
     const {
       issuesDialogShow,
       issuesDialogType,
@@ -161,7 +146,7 @@ export default defineComponent({
       handleIssuesDialogShow,
       handleIssuesDialogHide,
       handleIssuesDialogSuccess,
-    } = useIssuesDialogs(issuesAllData);
+    } = useIssuesDialogs(data as unknown as ShallowRef<IssueItem[]>);
 
     /**
      * @description 展示 Issue 详情
@@ -777,15 +762,6 @@ export default defineComponent({
       handleSaveAlertContentName,
       handleShowResidentBtnChange,
       handleQuickFilteringOperation,
-      issuesTableData,
-      issuesPagination,
-      issuesSort,
-      issuesSelectedRowKeys,
-      issuesLoading,
-      handleIssuesCurrentPageChange,
-      handleIssuesPageSizeChange,
-      handleIssuesSortChange,
-      handleIssuesSelectionChange,
       handleIssuesDialogShow,
       handleIssuesDialogHide,
       handleIssuesDialogSuccess,
@@ -894,33 +870,37 @@ export default defineComponent({
                       <div class='alarm-center-table'>
                         {this.alarmStore.alarmType === AlarmType.ISSUES ? (
                           <IssuesToolbar
-                            batchAction={action => this.handleIssuesDialogShow(action, this.issuesSelectedRowKeys)}
-                            issuesIds={this.issuesSelectedRowKeys}
+                            batchAction={action => this.handleIssuesDialogShow(action, this.selectedRowKeys)}
+                            issuesIds={this.selectedRowKeys}
                           >
                             <IssuesTable
+                              pagination={{
+                                currentPage: this.page,
+                                pageSize: this.pageSize,
+                                total: this.total,
+                              }}
                               columns={this.tableSourceColumns}
-                              data={this.issuesTableData}
+                              data={this.data as unknown as IssueItem[]}
                               headerAffixedTop={tableAffixed}
                               horizontalScrollAffixedBottom={tableAffixed}
-                              loading={this.issuesLoading}
-                              pagination={this.issuesPagination}
+                              loading={this.loading}
                               scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
-                              selectedRowKeys={this.issuesSelectedRowKeys}
-                              sort={this.issuesSort}
+                              selectedRowKeys={this.selectedRowKeys}
+                              sort={this.ordering}
                               onAssignClick={(id, data) =>
                                 this.handleIssuesDialogShow(IssuesBatchActionEnum.ASSIGN, id, data)
                               }
-                              onCurrentPageChange={this.handleIssuesCurrentPageChange}
+                              onCurrentPageChange={this.handleCurrentPageChange}
                               onMarkResolved={(id: string) =>
                                 this.handleIssuesDialogShow(IssuesBatchActionEnum.RESOLVE, id)
                               }
-                              onPageSizeChange={this.handleIssuesPageSizeChange}
+                              onPageSizeChange={this.handlePageSizeChange}
                               onPriorityChange={(id: string) =>
                                 this.handleIssuesDialogShow(IssuesBatchActionEnum.PRIORITY, id)
                               }
-                              onSelectionChange={this.handleIssuesSelectionChange}
+                              onSelectionChange={this.handleSelectedRowKeysChange}
                               onShowDetail={this.handleIssuesShowDetail}
-                              onSortChange={this.handleIssuesSortChange}
+                              onSortChange={sort => this.handleSortChange(sort as string)}
                             />
                           </IssuesToolbar>
                         ) : (

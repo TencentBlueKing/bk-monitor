@@ -457,4 +457,5 @@ export default {
   归档: 'Archived',
   '确认批量标记为"已解决"？': 'Confirm batch marking as "Resolved"?',
   '确认标记为"已解决"？': 'Confirm marking as "Resolved"?',
+  指派责任人成功: 'Assign responsible person successfully',
 };

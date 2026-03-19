@@ -1,23 +1,38 @@
-// ===================== 指派负责人弹窗样式 =====================
-.issues-assign-dialog-content {
-  .assign-field {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+.issues-assign-dialog {
+  .issues-assign-dialog-header {
+    line-height: 28px;
+  }
 
-    .assign-label {
-      font-size: 14px;
-      color: #313238;
+  .bk-dialog-content {
+    margin-top: 24px;
+    margin-bottom: 30px;
 
-      .required {
-        margin-left: 2px;
-        color: #ea3636;
+    .issues-assign-dialog-content {
+      .assign-field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+
+        .assign-label {
+          font-size: 14px;
+          color: #313238;
+
+          .required {
+            margin-left: 2px;
+            color: #ea3636;
+          }
+        }
       }
     }
   }
-}
 
-.issues-assign-dialog-footer {
-  display: flex;
-  justify-content: flex-end;
+  .issues-assign-dialog-footer {
+    display: flex;
+    column-gap: 8px;
+    justify-content: flex-end;
+
+    .bk-button {
+      width: 60px;
+    }
+  }
 }

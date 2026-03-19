@@ -26,11 +26,13 @@
 
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
-import { Button, Dialog } from 'bkui-vue';
+import { Button, Dialog, Message } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
-import { IssueStatusEnum } from '../../constant';
+import { mockResolveIssues } from '../../issues-table/mock-data';
 
-import type { IssuesResolveDialogEvent } from '../../typing';
+import type { IssuesBatchActionEnum } from '../../constant';
+import type { IssuesOperationDialogEvent } from '../../typing';
 
 import './issues-resolve-dialog.scss';
 
@@ -57,11 +59,12 @@ export default defineComponent({
     },
   },
   emits: {
-    success: (event: IssuesResolveDialogEvent[]) => Array.isArray(event),
+    success: (event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.RESOLVE>) => event != null,
     cancel: () => true,
     'update:isShow': (val: boolean) => typeof val === 'boolean',
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     /** 提交中 loading 状态 */
     const loading = shallowRef(false);
 
@@ -80,29 +83,33 @@ export default defineComponent({
      */
     const handleConfirm = async () => {
       loading.value = true;
-      try {
-        // TODO: 接入后端 API — 调用标记已解决接口
-        // const res = await resolveIssues({
-        //   bk_biz_id: props.issuesBizId,
-        //   issue_ids: props.issuesIds,
-        // });
-        const now = Date.now() / 1000;
-        const succeeded: IssuesResolveDialogEvent[] = props.issuesIds.map(id => ({
-          issue_id: id,
-          resolved_time: now,
-          status: IssueStatusEnum.RESOLVED,
-          update_time: now,
-        }));
-        emit('success', succeeded);
-      } finally {
-        loading.value = false;
+
+      // TODO: 标记已解决请求接口及处理结果提示 待完善
+      const res = await mockResolveIssues({
+        bk_biz_id: props.issuesBizId,
+        issue_ids: props.issuesIds,
+      });
+
+      let msg = {
+        theme: 'success',
+        message: t('标记成功'),
+      };
+      if (res.failed?.length) {
+        msg = {
+          theme: 'error',
+          message: res.failed?.[0]?.message,
+        };
       }
+
+      emit('success', res);
+      Message(msg);
     };
 
     /**
      * @description 取消操作
      */
     const handleCancel = () => {
+      if (loading.value) return;
       emit('cancel');
     };
 
@@ -127,36 +134,36 @@ export default defineComponent({
     return (
       <Dialog
         width={400}
+        class='issues-resolve-dialog'
         v-slots={{
           default: () => (
             <div class='issues-resolve-dialog-content'>
               <div class='resolve-icon-wrapper'>
-                <i class='icon-monitor icon-tishi resolve-warning-icon' />
+                <span class='resolve-icon'>!</span>
               </div>
               <div class='resolve-message'>{this.getTip()}</div>
-            </div>
-          ),
-          footer: () => (
-            <div class='issues-resolve-dialog-footer'>
-              <Button
-                style='margin-right: 8px'
-                loading={this.loading}
-                theme='primary'
-                onClick={this.handleConfirm}
-              >
-                {window.i18n.t('确定')}
-              </Button>
-              <Button
-                disabled={this.loading}
-                onClick={this.handleCancel}
-              >
-                {window.i18n.t('取消')}
-              </Button>
+              <div class='resolve-operations'>
+                <Button
+                  loading={this.loading}
+                  theme='primary'
+                  onClick={this.handleConfirm}
+                >
+                  {window.i18n.t('确定')}
+                </Button>
+                <Button
+                  disabled={this.loading}
+                  onClick={this.handleCancel}
+                >
+                  {window.i18n.t('取消')}
+                </Button>
+              </div>
             </div>
           ),
         }}
+        dialogType='show'
         isShow={this.isShow}
         onUpdate:isShow={(v: boolean) => {
+          if (this.loading) return;
           this.$emit('update:isShow', v);
         }}
       />

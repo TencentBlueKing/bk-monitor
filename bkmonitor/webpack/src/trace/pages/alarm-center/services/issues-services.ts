@@ -27,8 +27,10 @@ import { alertTopN } from 'monitor-api/modules/alert_v2';
 import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
 import { IssuesAssigneeMap, IssuesPriorityMap, IssuesRegressionMap, IssuesStatusMap } from '../alarm-issues/constant';
+import { fetchMockIssues } from '../alarm-issues/issues-table/mock-data';
 import { type RequestOptions, AlarmService } from './base';
 
+import type { IssueItem } from '../alarm-issues/typing';
 import type {
   AnalysisFieldAggItem,
   AnalysisTopNDataResponse,
@@ -515,11 +517,29 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
   ): Promise<AnalysisTopNDataResponse<AnalysisFieldAggItem>> {
     return { doc_count: 0, fields: [] };
   }
-  async getFilterTableList<T>(
-    _params: Partial<CommonFilterParams>,
-    _options?: RequestOptions
+  async getFilterTableList<T = IssueItem>(
+    params: Partial<CommonFilterParams>,
+    options?: RequestOptions
   ): Promise<FilterTableResponse<T>> {
-    return { total: 0, data: [] };
+    const data = await fetchMockIssues(
+      {
+        ...params,
+        show_aggs: false,
+        show_dsl: false,
+      },
+      options
+    )
+      .then(({ issues, total }) => {
+        return {
+          total,
+          data: issues || ([] as IssueItem[]),
+        };
+      })
+      .catch(() => ({
+        total: 0,
+        data: [] as IssueItem[],
+      }));
+    return data as FilterTableResponse<T>;
   }
   async getQuickFilterList(
     _params: Partial<CommonFilterParams>,
