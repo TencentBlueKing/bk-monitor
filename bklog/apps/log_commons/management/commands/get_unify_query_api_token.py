@@ -101,7 +101,6 @@ class Command(BaseCommand):
             space_uid=space_uid,
             params={"app_code": app_code},
             expire_time=expire_time,
-            created_by="admin",
         )
         self.stdout.write(self.style.SUCCESS("Successfully created new token:"))
         self._print_token_info(token_obj)
