@@ -118,13 +118,7 @@ export default defineComponent({
      */
     const renderCommentInput = () => {
       return renderActivityItem({
-        icon: (
-          <img
-            class='user-avatar'
-            alt=''
-            src=''
-          />
-        ),
+        icon: <i class='icon-monitor icon-a-useryonghu' />,
         title: (
           <div class='comment-input-wrapper'>
             {isCommentInputFocus.value ? (
@@ -341,13 +335,7 @@ export default defineComponent({
         行的话，就需要用...来省略，并且有一个阅读全文的弹窗哈来省略，并且有一个阅读全文的弹窗哈来省略，并且有一个阅读全文的弹窗哈`;
 
       return renderActivityItem({
-        icon: (
-          <img
-            class='user-avatar'
-            alt=''
-            src=''
-          />
-        ),
+        icon: <i class='icon-monitor icon-a-useryonghu' />,
         title: (
           <div class='title-row'>
             <span class='user'>lililiu(刘莉莉)</span>

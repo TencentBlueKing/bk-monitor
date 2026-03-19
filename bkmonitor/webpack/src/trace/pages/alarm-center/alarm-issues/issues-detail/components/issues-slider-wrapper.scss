@@ -29,6 +29,17 @@
       }
     }
 
+    .issues-chart-wrapper {
+      display: flex;
+      height: 256px;
+      margin: 16px 0 8px 0;
+      gap: 16px;
+
+      .issues-trend-chart {
+        flex-shrink: 0;
+      }
+    }
+
     .issues-alarm-tab {
       position: sticky;
       top: 49px;
