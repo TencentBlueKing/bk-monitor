@@ -27,13 +27,15 @@
 import { IssuePriorityEnum, IssuesPriorityMap } from '../../constant';
 
 import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
-import type { IssueItem, IssuePriorityType } from '../../typing';
+import type { ImpactScopeEvent, IssueItem, IssuePriorityType } from '../../typing';
 
 export interface UseIssuesHandlersOptions {
   /** click popover 工具（基础设施依赖） */
   clickPopoverTools: IUsePopoverTools;
   /** 点击指派按钮回调 */
   assignClickEmit: (id: IssueItem['id'], row: IssueItem) => void;
+  /** 影响范围资源类型点击回调 */
+  impactScopeClickEmit: (event: ImpactScopeEvent) => void;
   /** 标记已解决回调 */
   markResolvedEmit: (id: string) => void;
   /** 优先级变更回调 */
@@ -58,6 +60,7 @@ export const useIssuesHandlers = ({
   assignClickEmit,
   markResolvedEmit,
   priorityChangeEmit,
+  impactScopeClickEmit,
 }: UseIssuesHandlersOptions) => {
   /**
    * @description 点击 Issue 名称展示详情抽屉
@@ -83,6 +86,14 @@ export const useIssuesHandlers = ({
     // 如果 Issue 已解决，不触发
     if (row.is_resolved) return;
     markResolvedEmit(row.id);
+  };
+
+  /**
+   * @description 点击影响范围中某个资源类型的数量，触发侧滑展示该资源类型的实例列表
+   * @param {ImpactScopeEvent} event. - 影响范围点击事件对象
+   */
+  const handleImpactScopeClick = (event: ImpactScopeEvent) => {
+    impactScopeClickEmit(event);
   };
 
   /**
@@ -128,5 +139,6 @@ export const useIssuesHandlers = ({
     handleAssignClick,
     handleMarkResolved,
     handlePriorityClick,
+    handleImpactScopeClick,
   } as const;
 };

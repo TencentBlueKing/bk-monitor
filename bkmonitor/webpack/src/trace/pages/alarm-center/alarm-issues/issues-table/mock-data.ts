@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { IssuePriorityEnum, IssueStatusEnum } from '../constant';
+import { ImpactScopeResourceKeyEnum, IssuePriorityEnum, IssueStatusEnum } from '../constant';
 
 import type { RequestOptions } from '../../services/base';
 import type { CommonFilterParams } from '../../typings';
-import type { IssueItem, IssuePriorityType, IssueStatusType } from '../typing';
+import type { ImpactScope, IssueItem, IssuePriorityType, IssueStatusType } from '../typing';
 import type {
   IssuesAssigneeDialogEvent,
   IssuesOperationDialogEvent,
@@ -53,12 +53,12 @@ type MockFetchParams = CommonFilterParams & {
 };
 
 /** 模拟用户名列表 */
-const MOCK_USERS = ['carmelu', 'nekzhang', 'liuwei', 'zhangsan', 'wangwu'];
+const MOCK_USERS = ['zhangsan', 'lisi', 'wangwu', 'zhaoliu', 'sunqi'];
 
 /** 模拟异常信息列表 */
 const MOCK_ANOMALY_MESSAGES = [
-  '主机 10.0.0.1 CPU 使用率达到 95%，超过阈值 80%',
-  '服务 lobby 响应超时，P99 延迟 > 5000ms',
+  '主机 192.168.1.10 CPU 使用率达到 95%，超过阈值 80%',
+  '服务 demo-app 响应超时，P99 延迟 > 5000ms',
   '数据库连接池耗尽，最大连接数 200',
   'API 网关返回 502，上游服务不可达',
   'K8S Pod CrashLoopBackOff，重启次数 > 10',
@@ -67,7 +67,7 @@ const MOCK_ANOMALY_MESSAGES = [
 /** 模拟 Issue 名称列表 */
 const MOCK_ISSUE_NAMES = [
   '异常登录日志告警',
-  'sn.lobby服务故障引发集群lobby服务故障引发集群',
+  'demo-app服务故障引发集群级联异常',
   'API网关响应超时告警',
   '内存使用率超过阈值',
   '磁盘IO延迟过高告警',
@@ -116,6 +116,124 @@ const generateTrendData = (baseTime: number): [number, number][] => {
   ]) as [number, number][];
 };
 
+// 生成模拟影响范围数据（根据 index 模拟不同场景）
+const generateMockImpactScope = (index: number): ImpactScope => {
+  const scenario = index % 4;
+
+  // 场景 0：CMDB 主机场景（set + host + service_instances）
+  if (scenario === 0) {
+    return {
+      set: {
+        count: 3,
+        instance_list: [
+          { set_id: '7001001', display_name: 'mock-project/bcs-demo-BCS-K8S-70001' },
+          { set_id: '7001002', display_name: '示例平台/BCS-K8S-70002' },
+          { set_id: '7001003', display_name: '测试数据库环境/db.mock.es' },
+        ],
+        link_tpl: null,
+      },
+      host: {
+        count: 5,
+        instance_list: [
+          { bk_host_id: 1000001, display_name: '192.168.10.11' },
+          { bk_host_id: 1000002, display_name: '192.168.10.12' },
+          { bk_host_id: 1000003, display_name: '192.168.10.13' },
+        ],
+        link_tpl: '/performance/detail/{bk_host_id}',
+      },
+      service_instances: {
+        count: 2,
+        instance_list: [
+          { bk_service_instance_id: 2000001, display_name: '192.168.10.13_es-mock_datanode_9200' },
+          { bk_service_instance_id: 2000002, display_name: '192.168.10.11_nginx_80' },
+        ],
+        link_tpl: null,
+      },
+    };
+  }
+
+  // 场景 1：K8S 多集群场景（cluster）
+  if (scenario === 1) {
+    return {
+      cluster: {
+        count: 3,
+        instance_list: [
+          { bcs_cluster_id: 'BCS-K8S-80001', display_name: 'MOCK-SZ-TEST-80001-INNER(BCS-K8S-80001)' },
+          { bcs_cluster_id: 'BCS-K8S-80002', display_name: '模拟集群-业务测试-V1.26.1(BCS-K8S-80002)' },
+          { bcs_cluster_id: 'BCS-K8S-80003', display_name: 'demo-test-gz-0611(BCS-K8S-80003)' },
+        ],
+        link_tpl: '/k8s?filter-bcs_cluster_id={bcs_cluster_id}&sceneId=kubernetes&sceneType=overview',
+      },
+    };
+  }
+
+  // 场景 2：K8S 单集群场景（node + pod + service）
+  if (scenario === 2) {
+    return {
+      node: {
+        count: 2,
+        instance_list: [
+          { bcs_cluster_id: 'BCS-K8S-80001', node: '192.168.10.11', display_name: 'BCS-K8S-80001/192.168.10.11' },
+          { bcs_cluster_id: 'BCS-K8S-80001', node: '192.168.10.12', display_name: 'BCS-K8S-80001/192.168.10.12' },
+        ],
+        link_tpl:
+          '/k8s?filter-bcs_cluster_id={bcs_cluster_id}&filter-node_name={node}&dashboardId=node&sceneId=kubernetes&sceneType=detail',
+      },
+      pod: {
+        count: 3,
+        instance_list: [
+          {
+            bcs_cluster_id: 'BCS-K8S-80001',
+            pod: 'mock-prom-exporter-x7k9m',
+            display_name: 'BCS-K8S-80001/mock-prom-exporter-x7k9m',
+          },
+          {
+            bcs_cluster_id: 'BCS-K8S-80001',
+            pod: 'mock-state-metrics-d4f2n',
+            display_name: 'BCS-K8S-80001/mock-state-metrics-d4f2n',
+          },
+        ],
+        link_tpl:
+          '/k8s?filter-bcs_cluster_id={bcs_cluster_id}&filter-pod_name={pod}&dashboardId=pod&sceneId=kubernetes&sceneType=detail',
+      },
+      service: {
+        count: 1,
+        instance_list: [
+          {
+            bcs_cluster_id: 'BCS-K8S-80001',
+            service: 'mock-operator-stack-state-metrics',
+            display_name: 'BCS-K8S-80001/mock-operator-stack-state-metrics',
+          },
+        ],
+        link_tpl:
+          '/k8s?filter-bcs_cluster_id={bcs_cluster_id}&filter-service_name={service}&dashboardId=service&sceneId=kubernetes&sceneType=detail',
+      },
+    };
+  }
+
+  // 场景 3：APM 单应用场景（apm_service）
+  return {
+    [ImpactScopeResourceKeyEnum.APM_SERVICE]: {
+      count: 2,
+      instance_list: [
+        {
+          app_name: 'demo-app',
+          service_name: 'demo-app.pushsvr',
+          bk_biz_id: 9000001,
+          display_name: 'demo-app/demo-app.pushsvr',
+        },
+        {
+          app_name: 'demo-app',
+          service_name: 'demo-app.gateway',
+          bk_biz_id: 9000001,
+          display_name: 'demo-app/demo-app.gateway',
+        },
+      ],
+      link_tpl: '?bizId={bk_biz_id}#/apm/service?filter-app_name={app_name}&filter-service_name={service_name}',
+    },
+  };
+};
+
 /** mock 数据缓存，避免每次请求重新生成导致数据不稳定 */
 let mockDataCache: IssueItem[] | null = null;
 
@@ -139,8 +257,7 @@ export const generateMockIssues = (count = 20): IssueItem[] => {
     const updateTime = now - Math.floor(Math.random() * 3600);
     const resolvedTime = isResolved ? now - Math.floor(Math.random() * 86400 * 7) : null;
     const trend = generateTrendData(lastAlertTime);
-    const hostCount = Math.floor(Math.random() * 10) + 1;
-    const serviceCount = Math.floor(Math.random() * 5) + 1;
+    const impactScope = generateMockImpactScope(index);
 
     return {
       id: `issue-${String(index + 1).padStart(4, '0')}`,
@@ -155,8 +272,8 @@ export const generateMockIssues = (count = 20): IssueItem[] => {
       is_regression: isRegression,
       strategy_id: strategy.id,
       strategy_name: strategy.name,
-      bk_biz_id: 2,
-      bk_biz_name: '蓝鲸',
+      bk_biz_id: 100,
+      bk_biz_name: '示例业务',
       labels: MOCK_LABEL_GROUPS[index % MOCK_LABEL_GROUPS.length],
       alert_count: trend.reduce((sum, item) => sum + item[1], 0),
       anomaly_message: randomPick(MOCK_ANOMALY_MESSAGES),
@@ -170,18 +287,7 @@ export const generateMockIssues = (count = 20): IssueItem[] => {
       duration: isResolved
         ? '3d 2h'
         : `${Math.floor((now - createTime) / 86400)}d ${Math.floor(((now - createTime) % 86400) / 3600)}h`,
-      impact_scope: {
-        host_count: hostCount,
-        service_count: serviceCount,
-        hosts: {
-          label: '主机',
-          items: Array.from({ length: Math.min(hostCount, 3) }, (_, i) => `10.0.0.${i + 1}`),
-        },
-        services: {
-          label: '服务实例',
-          items: Array.from({ length: Math.min(serviceCount, 3) }, (_, i) => `service-instance-${i + 1}`),
-        },
-      },
+      impact_scope: impactScope,
       aggregate_config: {
         aggregate_dimensions: ['bk_target_ip'],
         conditions: [],

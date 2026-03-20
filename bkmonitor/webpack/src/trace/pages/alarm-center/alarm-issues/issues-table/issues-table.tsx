@@ -36,7 +36,7 @@ import { useIssuesColumnsRenderer } from './hooks/use-issues-columns-renderer';
 import { useIssuesHandlers } from './hooks/use-issues-handlers';
 
 import type { TableColumnItem, TablePagination } from '../../typings';
-import type { IssueItem, IssuePriorityType } from '../typing';
+import type { ImpactScopeEvent, IssueItem, IssuePriorityType } from '../typing';
 import type { SelectOptions } from 'tdesign-vue-next';
 
 import './issues-table.scss';
@@ -95,6 +95,7 @@ export default defineComponent({
     assignClick: (id: IssueItem['id'], data: IssueItem) => typeof id === 'string' && !!data,
     markResolved: (id: string) => typeof id === 'string',
     priorityChange: (id: string, priority: IssuePriorityType) => typeof id === 'string' && !!priority,
+    impactScopeClick: (event: ImpactScopeEvent) => event,
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
@@ -111,13 +112,15 @@ export default defineComponent({
       },
     });
 
-    const { handleShowDetail, handleAssignClick, handleMarkResolved, handlePriorityClick } = useIssuesHandlers({
-      clickPopoverTools,
-      showDetailEmit: id => emit('showDetail', id),
-      assignClickEmit: (id, data) => emit('assignClick', id, data),
-      markResolvedEmit: id => emit('markResolved', id),
-      priorityChangeEmit: (id, priority) => emit('priorityChange', id, priority),
-    });
+    const { handleShowDetail, handleAssignClick, handleMarkResolved, handlePriorityClick, handleImpactScopeClick } =
+      useIssuesHandlers({
+        clickPopoverTools,
+        showDetailEmit: id => emit('showDetail', id),
+        assignClickEmit: (id, data) => emit('assignClick', id, data),
+        markResolvedEmit: id => emit('markResolved', id),
+        priorityChangeEmit: (id, priority) => emit('priorityChange', id, priority),
+        impactScopeClickEmit: event => emit('impactScopeClick', event),
+      });
 
     /** Issues 列渲染器 */
     const { transformColumns } = useIssuesColumnsRenderer({
@@ -127,6 +130,7 @@ export default defineComponent({
       handleAssignClick,
       handleMarkResolved,
       handlePriorityClick,
+      handleImpactScopeClick,
     });
 
     /** 转换后的列配置 */

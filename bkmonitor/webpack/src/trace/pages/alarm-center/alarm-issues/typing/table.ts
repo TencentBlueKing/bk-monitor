@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { IssuePriorityType, IssueStatusType } from './constants';
+import type { ImpactScopeResourceKeyType, IssuePriorityType, IssueStatusType } from './constants';
 
 /** 聚合配置 */
 export interface AggregateConfig {
@@ -36,24 +36,33 @@ export interface AggregateConfig {
   conditions: unknown[];
 }
 
-/** 影响范围 */
-export interface ImpactScope {
-  /** 受影响主机总数 */
-  host_count: number;
-  /** 主机信息 */
-  hosts: ImpactScopeItem;
-  /** 受影响服务实例总数 */
-  service_count: number;
-  /** 服务实例信息 */
-  services: ImpactScopeItem;
+/** 影响范围（动态资源类型字典） */
+export type ImpactScope = Partial<Record<ImpactScopeResourceKeyType, ImpactScopeResource>>;
+
+/** 影响范围点击事件对象（用于打开 / 关闭侧滑面板） */
+export interface ImpactScopeEvent {
+  /** 资源类型完整数据，null 表示关闭 / 清空 */
+  resource: ImpactScopeResource | null;
+  /** 资源类型 key（如 host、cluster 等），空字符串表示关闭 / 清空 */
+  resourceKey: '' | ImpactScopeResourceKeyType;
 }
 
-/** 影响范围维度条目（如主机、服务实例） */
-export interface ImpactScopeItem {
-  /** 维度标识列表（最多 50 条） */
-  items: string[];
-  /** 维度标签（如 "主机"、"服务实例"） */
-  label: string;
+/** 影响范围资源实例（instance_list 中的单条记录） */
+export interface ImpactScopeInstance {
+  /** 其余字段为动态标识字段（如 bk_host_id、bcs_cluster_id 等），用于 link_tpl 模板渲染 */
+  [key: string]: number | string;
+  /** 展示名称 */
+  display_name: string;
+}
+
+/** 影响范围单一资源类型 */
+export interface ImpactScopeResource {
+  /** 该资源类型的总数量 */
+  count: number;
+  /** 实例列表，最多 50 条 */
+  instance_list: ImpactScopeInstance[];
+  /** 跳转链接模板，null 表示不可点击 */
+  link_tpl: null | string;
 }
 
 /** Issues 数据项 */

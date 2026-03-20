@@ -31,6 +31,8 @@ import { commonPageSizeSet } from 'monitor-common/utils';
 import { useAlarmTableColumns } from '../composables/use-table-columns';
 import { IssuesService } from '../services/issues-services';
 import { AlarmType, CONTENT_SCROLL_ELEMENT_CLASS_NAME } from '../typings';
+import { useIssuesImpactScopeDrawer } from './components/issues-impact-scope-drawer/hooks/use-issues-impact-scope-drawer';
+import IssuesImpactScopeDrawer from './components/issues-impact-scope-drawer/issues-impact-scope-drawer';
 import { useIssuesDialogs } from './components/issues-operation-dialogs/hooks/use-issues-dialogs';
 import IssuesOperationDialogs from './components/issues-operation-dialogs/issues-operation-dialogs';
 import { IssuesBatchActionEnum } from './constant';
@@ -72,6 +74,9 @@ export default defineComponent({
       handleIssuesDialogHide,
       handleIssuesDialogSuccess,
     } = useIssuesDialogs(data);
+
+    const { impactScopeDrawerShow, impactScopeResourceKey, impactScopeResource, handleImpactScopeClick } =
+      useIssuesImpactScopeDrawer();
 
     /**
      * @description 展示 Issue 详情
@@ -147,6 +152,7 @@ export default defineComponent({
             sort={ordering.value}
             onAssignClick={handleAssignClick}
             onCurrentPageChange={handleCurrentPageChange}
+            onImpactScopeClick={handleImpactScopeClick}
             onMarkResolved={(id: string) => handleIssuesDialogShow(IssuesBatchActionEnum.RESOLVE, id)}
             onPageSizeChange={handlePageSizeChange}
             onPriorityChange={(id: string) => handleIssuesDialogShow(IssuesBatchActionEnum.PRIORITY, id)}
@@ -167,6 +173,16 @@ export default defineComponent({
             if (!v) {
               handleIssuesDialogHide();
             }
+          }}
+        />
+
+        <IssuesImpactScopeDrawer
+          resource={impactScopeResource.value}
+          resourceKey={impactScopeResourceKey.value}
+          show={impactScopeDrawerShow.value}
+          onUpdate:show={(v: boolean) => {
+            if (v) return;
+            handleImpactScopeClick();
           }}
         />
       </div>

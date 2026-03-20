@@ -32,7 +32,7 @@ import dayjs from 'dayjs';
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import { ExploreTableColumnTypeEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
 import MiniBarChart from '../../components/mini-bar-chart/mini-bar-chart';
-import { IssuesPriorityMap, IssuesRegressionMap, IssuesStatusMap } from '../../constant';
+import { ImpactScopeResourceLabelMap, IssuesPriorityMap, IssuesRegressionMap, IssuesStatusMap } from '../../constant';
 
 import type {
   BaseTableColumn,
@@ -40,7 +40,7 @@ import type {
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
 import type { TableColumnItem } from '../../../typings';
-import type { IssueItem } from '../../typing';
+import type { ImpactScopeResource, ImpactScopeResourceKeyType, IssueItem } from '../../typing';
 import type { UseIssuesHandlersReturnType } from './use-issues-handlers';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
@@ -144,32 +144,33 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   };
 
   /**
-   * @description 影响范围列渲染（校验 impact_scope 有效性后，组合 hosts 和 services 维度展示标签+值列表）
+   * @description 影响范围列渲染
    * @param {IssueItem} row - 当前行 Issue 数据
-   * @param {BaseTableColumn} column - 列配置，用于省略号判断
-   * @param {TableCellRenderContext} renderCtx - 表格单元格渲染上下文，提供 isEnabledCellEllipsis 等工具方法
    * @returns {SlotReturnValue} 影响范围列 JSX
    */
-  const renderImpactCell = (
-    row: IssueItem,
-    column: BaseTableColumn,
-    renderCtx: TableCellRenderContext
-  ): SlotReturnValue => {
-    const scope = row.impact_scope;
-    if (!scope || !('hosts' in scope)) {
+  const renderImpactCell = (row: IssueItem): SlotReturnValue => {
+    const entries = Object.entries(row.impact_scope ?? {}) as Array<[ImpactScopeResourceKeyType, ImpactScopeResource]>;
+    if (!entries.length) {
       return (<span>--</span>) as unknown as SlotReturnValue;
     }
-    const dimensions = [scope.hosts, scope.services].filter(Boolean);
     return (
       <div class='issues-impact-col'>
-        {dimensions.map((dim, idx) => (
+        {entries.map(([resourceKey, resource]) => (
           <div
-            key={idx}
+            key={resourceKey}
             class='impact-row'
           >
-            <span class='impact-label'>{dim.label} ：</span>
-            <span class={`impact-value is-string ${renderCtx.isEnabledCellEllipsis(column)}`}>
-              {dim.items?.length ? dim.items.join(', ') : '--'}
+            <span class='impact-label'>{ImpactScopeResourceLabelMap[resourceKey] || resourceKey}：</span>
+            <span
+              class='impact-value is-number'
+              onClick={() =>
+                rendererCtx.handleImpactScopeClick({
+                  resourceKey,
+                  resource,
+                })
+              }
+            >
+              {resource!.count}
             </span>
           </div>
         ))}

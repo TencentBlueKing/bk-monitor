@@ -24,30 +24,35 @@
  * IN THE SOFTWARE.
  */
 
-import type {
-  ImpactScopeResourceKeyEnum,
-  IssueActiveNodeTypeEnum,
-  IssueDetailTabEnum,
-  IssuePriorityEnum,
-  IssuesBatchActionEnum,
-  IssueStatusEnum,
-} from '../constant';
-import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
+import { shallowRef } from 'vue';
 
-/** 影响范围资源类型 key */
-export type ImpactScopeResourceKeyType = GetEnumTypeTool<typeof ImpactScopeResourceKeyEnum>;
+import type { ImpactScopeEvent, ImpactScopeResource, ImpactScopeResourceKeyType } from '../../../typing';
 
-/** Issues 活跃节点类型 */
-export type IssueActiveNodeType = GetEnumTypeTool<typeof IssueActiveNodeTypeEnum>;
+/**
+ * @description 影响范围侧滑面板状态管理 Hook，封装 drawer 的显示/隐藏与资源数据绑定逻辑
+ */
+export const useIssuesImpactScopeDrawer = () => {
+  /** 影响范围侧滑面板是否显示 */
+  const impactScopeDrawerShow = shallowRef(false);
+  /** 当前展示的资源类型 key */
+  const impactScopeResourceKey = shallowRef<'' | ImpactScopeResourceKeyType>('');
+  /** 当前展示的资源类型数据 */
+  const impactScopeResource = shallowRef<ImpactScopeResource | null>(null);
 
-/** Issues 详情 Tab 类型 */
-export type IssueDetailTabType = GetEnumTypeTool<typeof IssueDetailTabEnum>;
+  /**
+   * @description 处理影响范围事件：打开侧滑展示实例列表 / 关闭侧滑清理状态（统一入口）
+   * @param {ImpactScopeEvent} event - 影响范围事件对象，不传则关闭侧滑并清理状态
+   */
+  const handleImpactScopeClick = (event?: ImpactScopeEvent) => {
+    impactScopeResourceKey.value = event?.resourceKey;
+    impactScopeResource.value = event?.resource;
+    impactScopeDrawerShow.value = !!event;
+  };
 
-/** Issues 优先级类型 */
-export type IssuePriorityType = GetEnumTypeTool<typeof IssuePriorityEnum>;
-
-/** Issues 批量操作类型 */
-export type IssuesBatchActionType = GetEnumTypeTool<typeof IssuesBatchActionEnum>;
-
-/** Issues 状态类型 */
-export type IssueStatusType = GetEnumTypeTool<typeof IssueStatusEnum>;
+  return {
+    impactScopeDrawerShow,
+    impactScopeResourceKey,
+    impactScopeResource,
+    handleImpactScopeClick,
+  };
+};

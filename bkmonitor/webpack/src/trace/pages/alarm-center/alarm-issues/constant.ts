@@ -110,6 +110,28 @@ export const IssueActiveNodeTypeEnum = {
   MERGE: 'merge',
 } as const;
 
+/** 影响范围资源类型枚举 */
+export const ImpactScopeResourceKeyEnum = {
+  /** 集群 */
+  SET: 'set',
+  /** 主机 */
+  HOST: 'host',
+  /** 服务实例 */
+  SERVICE_INSTANCES: 'service_instances',
+  /** K8S 集群 */
+  CLUSTER: 'cluster',
+  /** 节点 */
+  NODE: 'node',
+  /** Pod */
+  POD: 'pod',
+  /** Service */
+  SERVICE: 'service',
+  /** 应用 */
+  APP: 'app',
+  /** APM 服务 */
+  APM_SERVICE: 'apm_service',
+} as const;
+
 // ===================== 常量映射 =====================
 
 /** Issues 状态映射 */
@@ -187,6 +209,19 @@ export const IssuesRegressionMap: Record<string, MapEntry> = {
     color: '#F09305',
     icon: 'icon-monitor icon-lishi',
   },
+};
+
+/** 影响范围资源类型中文名映射 */
+export const ImpactScopeResourceLabelMap: Record<string, string> = {
+  [ImpactScopeResourceKeyEnum.SET]: 'set',
+  [ImpactScopeResourceKeyEnum.HOST]: window.i18n.t('主机'),
+  [ImpactScopeResourceKeyEnum.SERVICE_INSTANCES]: window.i18n.t('服务实例'),
+  [ImpactScopeResourceKeyEnum.CLUSTER]: window.i18n.t('集群'),
+  [ImpactScopeResourceKeyEnum.NODE]: 'node',
+  [ImpactScopeResourceKeyEnum.POD]: 'pod',
+  [ImpactScopeResourceKeyEnum.SERVICE]: 'service',
+  [ImpactScopeResourceKeyEnum.APP]: window.i18n.t('应用'),
+  [ImpactScopeResourceKeyEnum.APM_SERVICE]: window.i18n.t('APM服务'),
 };
 
 /** Issues 活跃节点类型icon映射 */
