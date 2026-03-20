@@ -24,6 +24,8 @@ from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
+from apps.log_clustering.constants import StorageTypeEnum
+
 
 @dataclass
 class ExportFlowCls:
@@ -375,6 +377,14 @@ class ElasticsearchCls:
 
 
 @dataclass
+class DorisCls:
+    expires_dup: str = ""
+    expires_uniq: str = "-1"
+    data_model: str = "duplicate"
+    fields: str = "[]"
+
+
+@dataclass
 class AfterTreatDataFlowCls:
     sample_set_stream_source: StreamSourceCls
     non_clustering_stream_source: StreamSourceCls
@@ -407,8 +417,11 @@ class PredictDataFlowCls:
     format_signature: RealTimeCls
     bk_biz_id: int
     is_flink_env: bool = False
+    storage_type: str = StorageTypeEnum.ELASTICSEARCH.value
     es: ElasticsearchCls = field(default_factory=ElasticsearchCls)
     es_cluster: str = ""
+    doris: DorisCls = field(default_factory=DorisCls)
+    doris_storage: str = ""
 
 
 @dataclass

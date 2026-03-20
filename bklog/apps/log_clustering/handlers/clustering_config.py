@@ -32,6 +32,7 @@ from apps.log_clustering.constants import (
     CLUSTERING_CONFIG_EXCLUDE,
     DEFAULT_CLUSTERING_FIELDS,
     RegexRuleTypeEnum,
+    StorageTypeEnum,
 )
 from apps.log_clustering.exceptions import (
     BkdataFieldsException,
@@ -129,6 +130,8 @@ class ClusteringConfigHandler:
         conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
         default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT)
         es_storage = ""
+        storage_type = conf.get("storage_type", StorageTypeEnum.ELASTICSEARCH.value)
+        doris_storage = ""
         collector_config_name_en = ""
 
         if collector_config_id:
@@ -168,6 +171,10 @@ class ClusteringConfigHandler:
                 collector_config_id=collector_config_id,
                 collector_config_name_en=collector_config_name_en,
                 es_storage=es_storage,
+                storage_type=storage_type,
+                doris_storage=(
+                    conf.get("doris_storage", "") if storage_type == StorageTypeEnum.DORIS.value else doris_storage
+                ),
                 min_members=params.get(
                     "min_members", default_conf.get("min_members", OnlineTaskTrainingArgs.MIN_MEMBERS)
                 ),

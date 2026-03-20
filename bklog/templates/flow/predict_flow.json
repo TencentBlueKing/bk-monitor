@@ -629,6 +629,40 @@
         "y": 12
       }
     },
+{% if predict.storage_type == "doris" %}
+    {
+      "result_table_id": "{{predict.format_signature.result_table_id}}",
+      "name": "{{predict.format_signature.result_table_id}}(doris)",
+      "physical_table_name": "",
+      "bk_biz_id": {{predict.bk_biz_id}},
+      "cluster": "{{predict.doris_storage}}",
+      "udc_name": "doris",
+      "version": "",
+      "is_debug": false,
+      "storage_field_config": {},
+      "custom_param_config": {
+        "data_model": "{{predict.doris.data_model}}",
+        "expires_dup": "{{predict.doris.expires_dup}}",
+        "expires_uniq": "{{predict.doris.expires_uniq}}",
+        "fields": {{predict.doris.fields}}
+      },
+      "start_task": false,
+      "id": 431249,
+      "from_nodes": [
+        {
+          "id": 431232,
+          "from_result_table_ids": [
+            "{{predict.format_signature.result_table_id}}"
+          ]
+        }
+      ],
+      "node_type": "doris",
+      "frontend_info": {
+        "x": 1085,
+        "y": 12
+      }
+    }
+{% else %}
     {
       "result_table_id": "{{predict.format_signature.result_table_id}}",
       "name": "{{predict.format_signature.result_table_id}}(elastic_storage)",
@@ -658,4 +692,5 @@
         "y": 12
       }
     }
+{% endif %}
 ]
