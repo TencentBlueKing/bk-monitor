@@ -433,14 +433,10 @@ class BaseK8STarget(BaseTarget):
         host_targets: list[dict[str, Any]] = self.list_related_host_targets()
         server_ip: str = host_targets[0]["bk_target_ip"] if host_targets else ""
 
-        # 使用 OR 组合容器条件和 serverIp 条件
+        # 组合容器条件和 serverIp 条件（OR 关系）
         container_clause: str = " AND ".join(k8s_query_strings)
         ip_clause: str = f'serverIp: "{server_ip}"' if server_ip else ""
-        clauses: list[str] = [c for c in (container_clause, ip_clause) if c]
-        if len(clauses) > 1:
-            keyword: str = " OR ".join(f"({c})" if " AND " in c else c for c in clauses)
-        else:
-            keyword: str = clauses[0] if clauses else ""
+        keyword: str = " OR ".join(f"({c})" if " AND " in c else c for c in (container_clause, ip_clause) if c)
 
         log_targets: list[dict[str, Any]] = self._list_related_log_targets(self._alert.event.bk_biz_id, qs)
         if keyword:
