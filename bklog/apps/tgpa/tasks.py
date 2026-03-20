@@ -194,7 +194,6 @@ def fetch_and_process_tgpa_reports(record_id: int, params: dict):
         multi_execute_func = MultiExecuteFunc()
         report_list = TGPAReportHandler.iter_report_list(
             bk_biz_id=params["bk_biz_id"],
-            openid_list=params.get("openid_list"),
             file_name_list=params.get("file_name_list"),
             start_time=params.get("start_time"),
             end_time=params.get("end_time"),

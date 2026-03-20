@@ -100,6 +100,7 @@ class GetCustomTsMetricGroups(Resource):
                 metrics.append(
                     {
                         "field_id": metric_data.get("field_id"),
+                        "field_scope": metric_data.get("field_scope"),
                         "metric_name": metric_name,
                         "alias": field_config.get("alias", ""),
                         "dimensions": dimensions,
@@ -143,19 +144,7 @@ class GetCustomTsDimensionValues(Resource):
         dimension = serializers.CharField(label=_("维度"))
         start_time = serializers.IntegerField(label=_("开始时间"))
         end_time = serializers.IntegerField(label=_("结束时间"))
-        metrics = serializers.ListField(label=_("指标"), child=serializers.JSONField())
-
-        def validate(self, attrs):
-            metrics_list = []
-            for _metrics in attrs.get("metrics", []):
-                if isinstance(_metrics, str):
-                    metrics_list.append(_metrics)
-                else:
-                    s = self.MetricSerializer(data=_metrics)
-                    s.is_valid(raise_exception=True)
-                    metrics_list.append(s.validated_data["name"])
-            attrs["metrics"] = metrics_list
-            return super().validate(attrs)
+        metrics = MetricSerializer(label=_("指标"), many=True, default=list)
 
     def perform_request(self, params: dict) -> list[dict]:
         # 如果指标为空，则返回空列表
@@ -175,11 +164,13 @@ class GetCustomTsDimensionValues(Resource):
             )
             data_label = table.data_label.split(",")[0]
 
+        metric_names = [metric["name"] for metric in params["metrics"]]
+
         # 构建指标名称匹配部分
-        if len(params["metrics"]) == 1:
-            metric_match = f'__name__="bkmonitor:{data_label}:{params["metrics"][0]}"'
+        if len(metric_names) == 1:
+            metric_match = f'__name__="bkmonitor:{data_label}:{metric_names[0]}"'
         else:
-            metric_match = f'__name__=~"bkmonitor:{data_label}:({"|".join(params["metrics"])})"'
+            metric_match = f'__name__=~"bkmonitor:{data_label}:({"|".join(metric_names)})"'
 
         # 如果是 APM 场景，添加额外的标签过滤
         label_filters = []
@@ -231,10 +222,10 @@ class GetCustomTsGraphConfig(Resource):
             condition = serializers.ChoiceField(choices=["and", "or"], label=_("条件"), default="and")
 
         class MetricSerializer(serializers.Serializer):
-            scope_name = serializers.CharField(label=_("分组名称"), allow_blank=True, default="")
+            field_scope = serializers.CharField(label=_("数据分组名称"), allow_blank=True, default="")
             name = serializers.CharField(label=_("指标名称"))
 
-        metrics = serializers.ListField(label=_("查询的指标"), default=[])
+        metrics = MetricSerializer(label=_("查询的指标"), many=True, default=list)
         where = ConditionSerializer(label=_("过滤条件"), many=True, allow_empty=True, default=list)
         group_by = GroupBySerializer(label=_("聚合维度"), many=True, allow_empty=True, default=list)
         common_conditions = serializers.ListField(label=_("常用维度过滤"), default=list)
@@ -242,18 +233,6 @@ class GetCustomTsGraphConfig(Resource):
         compare = CompareSerializer(label=_("对比配置"), default={})
         start_time = serializers.IntegerField(label=_("开始时间"))
         end_time = serializers.IntegerField(label=_("结束时间"))
-
-        def validate(self, attrs):
-            metrics_list = []
-            for _metrics in attrs.get("metrics", []):
-                if isinstance(_metrics, str):
-                    metrics_list.append(_metrics)
-                else:
-                    s = self.MetricSerializer(data=_metrics)
-                    s.is_valid(raise_exception=True)
-                    metrics_list.append(s.validated_data["name"])
-            attrs["metrics"] = metrics_list
-            return super().validate(attrs)
 
     class ResponseSerializer(serializers.Serializer):
         class GroupSerializer(serializers.Serializer):
@@ -285,6 +264,13 @@ class GetCustomTsGraphConfig(Resource):
         "eq": "contains",
         "neq": "ncontains",
     }
+
+    @staticmethod
+    def _build_requested_metric_scopes(metrics: list[dict]) -> dict[str, set[str]]:
+        requested_metric_scopes = defaultdict(set)
+        for metric in metrics:
+            requested_metric_scopes[metric["name"]].add(metric.get("field_scope", ""))
+        return requested_metric_scopes
 
     @classmethod
     def time_or_no_compare(
@@ -601,8 +587,7 @@ class GetCustomTsGraphConfig(Resource):
         metrics_list = []
         dimension_names: dict[str, str] = {}
 
-        # 构建请求的指标集合
-        requested_metrics = set(params["metrics"])
+        requested_metric_scopes = self._build_requested_metric_scopes(params["metrics"])
 
         for scope_data in metadata_result:
             metric_list = scope_data.get("metric_list", [])
@@ -619,10 +604,6 @@ class GetCustomTsGraphConfig(Resource):
                 field_config = metric_data.get("field_config", {})
                 scope_name = metric_data.get("field_scope", "")
 
-                # 只处理请求的指标
-                if metric_name not in requested_metrics:
-                    continue
-
                 # 如果指标隐藏或禁用，则跳过
                 if field_config.get("hidden", False) or field_config.get("disabled", False):
                     continue
@@ -633,6 +614,12 @@ class GetCustomTsGraphConfig(Resource):
                     for dimension_name in metric_data.get("tag_list", [])
                     if not dimension_config.get(dimension_name, {}).get("hidden", False)
                 ]
+
+                requested_scopes = requested_metric_scopes.get(metric_name)
+                if not requested_scopes:
+                    continue
+                if scope_name not in requested_scopes:
+                    continue
 
                 # 去除 scope_prefix 前缀
                 if params.get("scope_prefix") and scope_name.startswith(params["scope_prefix"]):
@@ -727,6 +714,28 @@ class GraphDrillDownResource(Resource):
                         attrs["interval"] = int(attrs["interval"]) * 60
                     except ValueError:
                         pass
+
+                # 过滤掉无效的 where 条件
+                validated_where = []
+                for condition in attrs.get("where", []):
+                    if not isinstance(condition, dict):
+                        continue
+                    value = condition.get("value")
+                    # 过滤掉 value 为 None、空列表或只包含 None 的列表
+                    if value is None:
+                        continue
+                    if isinstance(value, list):
+                        # 移除列表中的 None，如果移除后列表为空则跳过该条件
+                        filtered_value = [v for v in value if v is not None]
+                        if not filtered_value:
+                            continue
+                        # 创建新字典，避免修改原对象
+                        validated_condition = {**condition, "value": filtered_value}
+                        validated_where.append(validated_condition)
+                    else:
+                        validated_where.append(condition)
+
+                attrs["where"] = validated_where
                 return attrs
 
         bk_biz_id = serializers.IntegerField(label=_("业务 ID"))

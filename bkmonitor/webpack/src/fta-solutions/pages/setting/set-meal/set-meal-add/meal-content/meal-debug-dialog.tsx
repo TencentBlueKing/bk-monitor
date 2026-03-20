@@ -86,11 +86,14 @@ export default class MealDebugDialog extends tsc<IProps> {
 
   alertId = '';
   previewDemoActionLoading = false;
+  // 错误信息
+  errorMsg = '';
 
   @Watch('show')
   handleWatchShow(v: boolean) {
     if (v) {
       this.alertId = '';
+      this.errorMsg = '';
       if (this.debugData.type === 'peripheral') {
         this.peripheralVerify();
       } else {
@@ -345,10 +348,21 @@ export default class MealDebugDialog extends tsc<IProps> {
       const value = this.debugData?.peripheral?.data?.templateDetail?.[item.key];
       variables[item.label] = typeof value === 'undefined' ? item.value : value;
     }
-    const data = await previewDemoActionContext({
-      alert_id: this.alertId,
-      variables: variables,
-    }).catch(() => ({ variables: {} }));
+    const data = await previewDemoActionContext(
+      {
+        alert_id: this.alertId,
+        variables: variables,
+      },
+      { needMessage: false }
+    )
+      .then(res => {
+        this.errorMsg = '';
+        return res;
+      })
+      .catch(err => {
+        this.errorMsg = err?.error_details?.detail || '';
+        return { variables: {} };
+      });
     this.handleDebugPeripheralDataChange(
       this.debugPeripheralForm.map(item => ({
         ...item,
@@ -359,6 +373,10 @@ export default class MealDebugDialog extends tsc<IProps> {
       this.peripheralVerify();
     }, 50);
     this.previewDemoActionLoading = false;
+  }
+
+  handleClearErrorMsg() {
+    this.errorMsg = '';
   }
 
   render() {
@@ -385,14 +403,20 @@ export default class MealDebugDialog extends tsc<IProps> {
               type='warning'
               closable
             />,
-            <bk-input
+            <div
               key={'alert-id'}
-              class='mb-24'
-              v-model={this.alertId}
-              placeholder={this.$t('输入告警ID进行变量渲染')}
-              clearable
-              onEnter={() => this.handlePreviewDemoAction()}
-            />,
+              class={'alert-id-wrap'}
+            >
+              <bk-input
+                v-model={this.alertId}
+                placeholder={this.$t('输入告警ID进行变量渲染')}
+                clearable
+                onClear={() => this.handleClearErrorMsg()}
+                onEnter={() => this.handlePreviewDemoAction()}
+                onFocus={() => this.handleClearErrorMsg()}
+              />
+              {!!this.errorMsg && <div class='err-msg'>{this.errorMsg}</div>}
+            </div>,
           ]}
           <div>
             {this.debugData.type === 'webhook' && (

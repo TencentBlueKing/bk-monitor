@@ -20,6 +20,7 @@ from aidev_agent.services.pydantic_models import AgentOptions, IntentRecognition
 from bkoauth.django_conf import ENV_NAME
 from blueapps.utils.request_provider import get_local_request
 from bkoauth.utils import get_client_ip
+from django.core.cache import cache as django_cache
 
 logger = logging.getLogger("ai_whale")
 
@@ -31,13 +32,32 @@ ENV_MODE = os.environ.get("BKAPP_ENVIRONMENT_CODE", "open")  # 运行环境
 MCP_AUTHENTICATION_APP_CODE = os.environ.get("BK_MCP_AUTHENTICATION_APP_CODE", "")  # MCP认证 APP_CODE
 MCP_AUTHENTICATION_APP_SECRET = os.environ.get("BK_MCP_AUTHENTICATION_APP_SECRET", "")  # MCP认证 APP_SECRET
 
+MCP_TOKEN_CACHE_PREFIX = "mcp_access_token"
+MCP_TOKEN_DEFAULT_EXPIRES_IEOD = 15552000  # ieod: 180 天
+MCP_TOKEN_DEFAULT_EXPIRES_OPEN = 43200  # open/SSM: 12 小时
+MCP_TOKEN_REFRESH_BUFFER_IEOD = 86400  # ieod: 距过期不足 1 天时触发续期
+MCP_TOKEN_REFRESH_BUFFER_OPEN = 3600  # open: 距过期不足 1 小时时触发续期
 
-def _get_access_token_ieod(request, oauth_api_url=ACCESS_TOKEN_OAUTH_API_URL):
+
+def _get_username_from_request(request):
+    """从 request 中提取用户名，用于缓存 key"""
+    return (
+        getattr(getattr(request, "user", None), "username", None)
+        or request.COOKIES.get("bk_uid", "")
+        or request.session.get("bk_uid", "")
+        or "unknown"
+    )
+
+
+# -------------------- ieod（内部上云版）BKOAUTH -------------------- #
+
+
+def _create_access_token_ieod(request, oauth_api_url=ACCESS_TOKEN_OAUTH_API_URL):
     """
-    获取用户access_token凭证(内部版）
+    获取用户 access_token 凭证（内部版）
+    显式传 need_new_token=0：若当前 Token 有效且剩余 > 300s 则直接返回，不重新生成
     """
-    logger.info("_get_access_token_ieod: try to get access_token,using ieod env_mode")
-    # 构建认证参数
+    logger.info("_create_access_token_ieod: try to get access_token, using ieod env_mode")
     OAUTH_COOKIES_PARAMS = {"bk_ticket": "bk_ticket", "rtx": "bk_uid"}
     auth_params = dict()
     for k, v in OAUTH_COOKIES_PARAMS.items():
@@ -49,7 +69,7 @@ def _get_access_token_ieod(request, oauth_api_url=ACCESS_TOKEN_OAUTH_API_URL):
         "bk_client_ip": get_client_ip(request),
         "grant_type": "authorization_code",
         "env_name": ENV_NAME,
-        "need_new_token": True,
+        "need_new_token": 0,
         **auth_params,
     }
 
@@ -59,14 +79,40 @@ def _get_access_token_ieod(request, oauth_api_url=ACCESS_TOKEN_OAUTH_API_URL):
     if not result.get("result"):
         raise Exception(f"获取access_token失败: {result.get('message', '')}")
 
-    return result["data"]["access_token"]
+    return result["data"]
 
 
-def _get_access_token_open(request, oauth_api_url=ACCESS_TOKEN_OAUTH_API_URL):
+def _refresh_access_token_ieod(refresh_token, oauth_api_url=ACCESS_TOKEN_OAUTH_API_URL):
     """
-    获取用户access_token凭证(外部版）
+    使用 refresh_token 续期 access_token（内部版 BKOAUTH）
+    GET /auth_api/refresh_token/?app_code=...&refresh_token=...&env_name=...&grant_type=refresh_token&need_new_token=0
     """
-    logger.info("_get_access_token_open: try to get access_token,using open env_mode")
+    refresh_url = oauth_api_url.rstrip("/").rsplit("/token", 1)[0] + "/refresh_token/"
+
+    params = {
+        "app_code": MCP_AUTHENTICATION_APP_CODE,
+        "refresh_token": refresh_token,
+        "env_name": ENV_NAME,
+        "grant_type": "refresh_token",
+        "need_new_token": 0,
+    }
+
+    resp = requests.get(refresh_url, params=params, timeout=30, verify=False)
+    result = resp.json()
+    if not result.get("result"):
+        raise Exception(f"刷新access_token失败: {result.get('message', '')}")
+    return result["data"]
+
+
+# -------------------- open（外部版）SSM -------------------- #
+
+
+def _create_access_token_open(request, oauth_api_url=ACCESS_TOKEN_OAUTH_API_URL):
+    """
+    获取用户 access_token 凭证（外部版）
+    SSM 接口为 create-or-update 语义，未过期时返回已有 Token
+    """
+    logger.info("_create_access_token_open: try to get access_token, using open env_mode")
     OAUTH_COOKIES_PARAMS = {"bk_token": "bk_token"}
     auth_params = dict()
     for k, v in OAUTH_COOKIES_PARAMS.items():
@@ -78,37 +124,121 @@ def _get_access_token_open(request, oauth_api_url=ACCESS_TOKEN_OAUTH_API_URL):
         **auth_params,
     }
 
-    # 外部版使用SSM方式请求获取AccessToken
     headers = {
         "X-Bk-App-Code": MCP_AUTHENTICATION_APP_CODE,
         "X-Bk-App-Secret": MCP_AUTHENTICATION_APP_SECRET,
     }
     resp = requests.post(url=oauth_api_url, json=payload, headers=headers, timeout=30, verify=False)
     result = resp.json()
-    if not result.get("code") == 0:
+    if result.get("code") != 0:
         raise Exception(f"获取access_token失败: {result.get('message', '')}")
-    return result["data"]["access_token"]
+    return result["data"]
+
+
+def _refresh_access_token_open(refresh_token, oauth_api_url=ACCESS_TOKEN_OAUTH_API_URL):
+    """
+    使用 refresh_token 续期 access_token（外部版 SSM）
+    POST /api/v1/auth/access-tokens/refresh
+    """
+    refresh_url = oauth_api_url.rstrip("/") + "/refresh"
+
+    headers = {
+        "X-Bk-App-Code": MCP_AUTHENTICATION_APP_CODE,
+        "X-Bk-App-Secret": MCP_AUTHENTICATION_APP_SECRET,
+    }
+    payload = {"refresh_token": refresh_token}
+
+    resp = requests.post(url=refresh_url, json=payload, headers=headers, timeout=30, verify=False)
+    result = resp.json()
+    if result.get("code") != 0:
+        raise Exception(f"刷新access_token失败: {result.get('message', '')}")
+    return result["data"]
+
+
+# -------------------- 统一缓存 + 续期逻辑 -------------------- #
+
+
+def _get_or_refresh_mcp_token(request):
+    """
+    带缓存和续期的 MCP Token 获取核心逻辑：
+    1. 优先从缓存读取，未过期直接返回
+    2. 临近过期时尝试 refresh_token 续期（ieod / open 各自走对应的刷新接口）
+    3. 以上均不可用则重新生成（ieod 带 need_new_token=0，open 为 create-or-update 语义）
+    """
+    username = _get_username_from_request(request)
+    is_ieod = ENV_MODE == "ieod"
+    env = "ieod" if is_ieod else "open"
+    cache_key = f"{MCP_TOKEN_CACHE_PREFIX}:{env}:{username}"
+    default_expires = MCP_TOKEN_DEFAULT_EXPIRES_IEOD if is_ieod else MCP_TOKEN_DEFAULT_EXPIRES_OPEN
+    refresh_buffer = MCP_TOKEN_REFRESH_BUFFER_IEOD if is_ieod else MCP_TOKEN_REFRESH_BUFFER_OPEN
+
+    cached = django_cache.get(cache_key)
+    if cached:
+        remaining = cached.get("expires_at", 0) - time.time()
+        if remaining > refresh_buffer:
+            logger.info(
+                "_get_or_refresh_mcp_token: cache hit for user [%s], remaining [%d]s",
+                username,
+                int(remaining),
+            )
+            return cached
+
+        if cached.get("refresh_token"):
+            try:
+                logger.info("_get_or_refresh_mcp_token: refreshing token for user [%s] (env: %s)", username, env)
+                if is_ieod:
+                    data = _refresh_access_token_ieod(cached["refresh_token"])
+                else:
+                    data = _refresh_access_token_open(cached["refresh_token"])
+                token_info = {
+                    "access_token": data["access_token"],
+                    "refresh_token": data.get("refresh_token", cached.get("refresh_token")),
+                    "expires_at": time.time() + data.get("expires_in", default_expires),
+                }
+                cache_ttl = max(int(data.get("expires_in", default_expires)) - 60, 60)
+                django_cache.set(cache_key, token_info, cache_ttl)
+                return token_info
+            except Exception as e:
+                logger.warning(
+                    "_get_or_refresh_mcp_token: refresh failed for user [%s]: %s, will regenerate",
+                    username,
+                    e,
+                )
+
+    logger.info("_get_or_refresh_mcp_token: generating new token for user [%s] (env: %s)", username, env)
+    if is_ieod:
+        data = _create_access_token_ieod(request)
+    else:
+        data = _create_access_token_open(request)
+
+    expires_in = data.get("expires_in", default_expires)
+    token_info = {
+        "access_token": data["access_token"],
+        "refresh_token": data.get("refresh_token"),
+        "expires_at": time.time() + expires_in,
+    }
+    cache_ttl = max(int(expires_in) - 60, 60)
+    django_cache.set(cache_key, token_info, cache_ttl)
+    return token_info
 
 
 def _get_mcp_auth_info(request):
     """
-    获取MCP认证信息
+    获取MCP认证信息（使用缓存版本）
     """
-    is_ieod_mode = ENV_MODE == "ieod"
-    auth_info = {
+    return {
         "app_code": MCP_AUTHENTICATION_APP_CODE,
         "app_secret": MCP_AUTHENTICATION_APP_SECRET,
-        "access_token": _get_access_token_ieod(request) if is_ieod_mode else _get_access_token_open(request),
+        "access_token": get_mcp_access_token(request),
     }
-    return auth_info
 
 
 def get_mcp_access_token(request):
     """
-    获取用户access_token凭证
+    获取用户 access_token 凭证（带缓存和续期）
     """
-    is_ieod_mode = ENV_MODE == "ieod"
-    return _get_access_token_ieod(request) if is_ieod_mode else _get_access_token_open(request)
+    token_info = _get_or_refresh_mcp_token(request)
+    return token_info["access_token"]
 
 
 class CustomConfigManager(AgentConfigManager):

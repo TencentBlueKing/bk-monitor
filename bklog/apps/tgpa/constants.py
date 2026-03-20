@@ -255,25 +255,9 @@ class TGPAReportSyncStatusEnum(ChoicesEnum):
     )
 
 
-TGPA_REPORT_SELECT_FIELDS = [
-    "openid",
-    "file_name",
-    "real_name as file_path",
-    "file_size",
-    "md5",
-    "report_time",
-    "xid",
-    "extend_info",
-    "manufacturer",
-    "model",
-    "os_version",
-    "os_sdk",
-    "os_type",
-    "cc_id as bk_biz_id",
-]
 TGPA_REPORT_FILTER_FIELDS = ["openid", "file_name"]
 TGPA_REPORT_ORDER_FIELDS = ["file_size"]
-TGPA_REPORT_LIST_BATCH_SIZE = 500  # 客户端日志上报列表批量查询大小
+TGPA_REPORT_LIST_BATCH_SIZE = 2000  # 客户端日志上报列表批量查询大小
 TGPA_REPORT_SOURCE_FIELDS = [
     "openid",
     "file_name",

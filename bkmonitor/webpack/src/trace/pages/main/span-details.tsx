@@ -1108,9 +1108,9 @@ export default defineComponent({
           const { indexId, unionList, start_time, end_time, addition } = spanDetailQueryStore.queryData;
           let url = '';
           if (unionList) {
-            url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time ? dayjs(start_time).valueOf() : ''}&end_time=${end_time ? dayjs(end_time).valueOf() : ''}&addition=${addition || ''}&unionList=${unionList}`;
+            url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time || ''}&end_time=${end_time || ''}&addition=${addition || ''}&unionList=${unionList}`;
           } else {
-            url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time ? dayjs(start_time).valueOf() : ''}&end_time=${end_time ? dayjs(end_time).valueOf() : ''}&addition=${addition || ''}`;
+            url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time || ''}&end_time=${end_time || ''}&addition=${addition || ''}`;
           }
           window.open(url, '_blank');
           return;

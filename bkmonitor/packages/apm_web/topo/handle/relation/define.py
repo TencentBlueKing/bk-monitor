@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import hashlib
 from dataclasses import dataclass, field, fields
-from typing import List, Tuple
 
 from apm_web.topo.constants import SourceType
 from bkmonitor.utils.cache import CacheType, using_cache
@@ -68,7 +67,7 @@ class Source:
     @classmethod
     def calculate_id_from_dict(cls, info: dict):
         """从 dict 中计算资源实体的 Id"""
-        combined_string = '-'.join(f"{key}:{info[key]}" for key in sorted(info.keys()))
+        combined_string = "-".join(f"{key}:{info[key]}" for key in sorted(info.keys()))
         return hashlib.md5(combined_string.encode()).hexdigest()
 
     @property
@@ -169,6 +168,45 @@ class SourceK8sService(Source):
 
 @SourceProvider.registry_source
 @dataclass
+class SourceK8sDeployment(Source):
+    bcs_cluster_id: str
+    namespace: str
+    deployment: str
+    name: str = SourceType.DEPLOYMENT.value
+
+    @property
+    def display_name(self):
+        return self.deployment
+
+
+@SourceProvider.registry_source
+@dataclass
+class SourceK8sDaemonSet(Source):
+    bcs_cluster_id: str
+    namespace: str
+    daemonset: str
+    name: str = SourceType.DAEMON_SET.value
+
+    @property
+    def display_name(self):
+        return self.daemonset
+
+
+@SourceProvider.registry_source
+@dataclass
+class SourceK8sStatefulSet(Source):
+    bcs_cluster_id: str
+    namespace: str
+    statefulset: str
+    name: str = SourceType.STATEFUL_SET.value
+
+    @property
+    def display_name(self):
+        return self.statefulset
+
+
+@SourceProvider.registry_source
+@dataclass
 class SourceDatasource(Source):
     bk_data_id: str
     name: str = SourceType.DATA_SOURCE.value
@@ -182,7 +220,7 @@ class SourceDatasource(Source):
 class Node:
     source_type: str
     source_info: Source
-    children: List['Node'] = field(default_factory=list)
+    children: list["Node"] = field(default_factory=list)
     id: str = None
 
     def __post_init__(self):
@@ -227,7 +265,7 @@ class Node:
         }
 
     @classmethod
-    def get_all_edges(cls, node, parent_id=None) -> List[Tuple[str, str]]:
+    def get_all_edges(cls, node, parent_id=None) -> list[tuple[str, str]]:
         """返回以此 node 往下的所有边"""
         res = []
         if parent_id is not None:
@@ -244,11 +282,11 @@ class TreeInfo:
     # 根节点的 Id
     root_id: str
     # tree 的层级模板
-    paths: List[str]
+    paths: list[str]
     # 树的层级是否完整 (即根据 layers 判断是否每一层都有节点)
     is_complete: bool
     runtime: dict
-    layers_have_data: List[bool]
+    layers_have_data: list[bool]
 
 
 @dataclass
@@ -256,4 +294,4 @@ class Relation:
     parent_id: str
     # source_info: 接口返回的 source_info 非结构化
     source_info: dict
-    nodes: List[Node]
+    nodes: list[Node]
