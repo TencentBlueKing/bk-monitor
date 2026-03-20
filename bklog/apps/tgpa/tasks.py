@@ -134,7 +134,9 @@ def _check_unfinished_tasks(bk_biz_id: int):
     task_ids_str = ",".join([str(task_obj.id) for task_obj in unfinished_tasks])
     remote_task_map = {}
     for item in TGPATaskHandler.iter_task_list(bk_biz_id, task_id=task_ids_str):
-        remote_task_map[int(item["go_svr_task_id"])] = item
+        item["go_svr_task_id"] = int(item["go_svr_task_id"])
+        item["status"] = str(item["status"])
+        remote_task_map[item["go_svr_task_id"]] = item
 
     for task_obj in unfinished_tasks:
         remote_info = remote_task_map.get(task_obj.task_id)
