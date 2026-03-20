@@ -17,11 +17,13 @@
       background: #fff;
     }
 
-    .alarm-view-tab {
-      background: #fff;
-
-      & > .bk-tab {
+    .alarm-view {
+      .alarm-view-tab {
         background: #fff;
+
+        & > .bk-tab {
+          background: #fff;
+        }
       }
     }
   }

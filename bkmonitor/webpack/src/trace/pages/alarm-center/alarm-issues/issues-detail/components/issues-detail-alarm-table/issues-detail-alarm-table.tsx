@@ -79,6 +79,16 @@ export default defineComponent({
       type: Array as PropType<number[]>,
       default: () => [],
     },
+    /** 滚动容器的 CSS 选择器（用于滚动优化及表头/滚动条吸附） */
+    scrollContainerSelector: {
+      type: String,
+    },
+    headerAffixedTop: {
+      type: Object as PropType<{ [key: string]: number | string; container: string }>,
+    },
+    horizontalScrollAffixedBottom: {
+      type: Object as PropType<{ container: string }>,
+    },
   },
   emits: {
     showAlertDetail: (_id: string, _defaultTab?: string) => true,
@@ -307,12 +317,12 @@ export default defineComponent({
           columns={this.tableSourceColumns}
           data={this.data}
           defaultActiveRowKeys={[]}
-          headerAffixedTop={null}
-          horizontalScrollAffixedBottom={null}
+          headerAffixedTop={this.headerAffixedTop}
+          horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           isSelectedFollower={this.isSelectedFollower}
           loading={this.loading}
           pagination={this.pagination}
-          scrollContainerSelector={null}
+          scrollContainerSelector={this.scrollContainerSelector}
           selectedRowKeys={this.selectedRowKeys}
           sort={this.ordering}
           tableSettings={this.tableSettings}

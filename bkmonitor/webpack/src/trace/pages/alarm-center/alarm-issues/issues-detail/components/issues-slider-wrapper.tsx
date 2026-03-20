@@ -45,6 +45,8 @@ import type { IssueDetailTabType } from '../../typing/constants';
 
 import './issues-slider-wrapper.scss';
 
+const leftPanelClass = 'issues-slider-left-panel';
+
 // Tab 配置
 const TAB_LIST: { label: string; name: IssueDetailTabType }[] = [
   { label: window.i18n.t('最近的告警'), name: IssueDetailTabEnum.LATEST },
@@ -143,8 +145,16 @@ export default defineComponent({
         case IssueDetailTabEnum.LIST:
           return (
             <IssuesDetailAlarmTable
+              headerAffixedTop={{
+                container: `.${leftPanelClass}`,
+                offsetTop: 100,
+              }}
+              horizontalScrollAffixedBottom={{
+                container: `.${leftPanelClass}`,
+              }}
               conditions={props.conditions}
               queryString={props.queryString}
+              scrollContainerSelector={`.${leftPanelClass}`}
               timeRange={props.timeRange}
               onShowAlertDetail={handleShowAlertDetail}
             />
@@ -166,7 +176,7 @@ export default defineComponent({
   render() {
     return (
       <div class='issues-slider-wrapper'>
-        <div class='issues-slider-left-panel'>
+        <div class={leftPanelClass}>
           <IssuesRetrievalFilter
             conditions={this.conditions}
             filterMode={this.filterMode}
