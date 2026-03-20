@@ -46,6 +46,7 @@ from apps.log_databus.constants import (
     MetadataTypeEnum,
     PluginParamLogicOpEnum,
     PluginParamOpEnum,
+    STORAGE_CLUSTER_TYPE,
     SyslogFilterFieldEnum,
     SyslogProtocolEnum,
     TopoType,
@@ -1505,6 +1506,7 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
     etl_config = serializers.CharField(label=_("清洗类型"), required=False, default=EtlConfig.BK_LOG_TEXT)
     # 存储配置
     storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)
+    storage_cluster_type = serializers.CharField(label=_("存储集群类型"), required=False, default=STORAGE_CLUSTER_TYPE)
     retention = serializers.IntegerField(label=_("有效时间"), required=False)
     allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False)
     storage_replies = serializers.IntegerField(
@@ -1524,10 +1526,22 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
         # 在传入集群ID时校验其他参数
         keys = attrs.keys()
         if "storage_cluster_id" in keys:
-            if "retention" not in keys:
-                raise serializers.ValidationError(gettext("有效时间不能为空"))
-            if "allocation_min_days" not in keys:
-                raise serializers.ValidationError(gettext("冷热数据生效时间不能为空"))
+            result = TransferApi.get_cluster_info({"cluster_id": attrs["storage_cluster_id"]})
+            if not result:
+                raise serializers.ValidationError(
+                    gettext("该存储集群不存在: {storage_cluster_id}").format(
+                        storage_cluster_id=attrs["storage_cluster_id"]
+                    )
+                )
+            storage_cluster_info = result[0]
+            storage_cluster_type = storage_cluster_info.get("cluster_type", STORAGE_CLUSTER_TYPE)
+            # es 集群效验配置, doris 集群则跳过
+            if storage_cluster_type == STORAGE_CLUSTER_TYPE:
+                if "retention" not in keys:
+                    raise serializers.ValidationError(gettext("有效时间不能为空"))
+                if "allocation_min_days" not in keys:
+                    raise serializers.ValidationError(gettext("冷热数据生效时间不能为空"))
+            attrs["storage_cluster_type"] = storage_cluster_type
         return attrs
 
 

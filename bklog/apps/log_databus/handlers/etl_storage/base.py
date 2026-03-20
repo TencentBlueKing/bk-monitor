@@ -35,6 +35,7 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_databus.constants import (
     BKDATA_ES_TYPE_MAP,
     CACHE_KEY_CLUSTER_INFO,
+    DORIS_CLUSTER_TYPE,
     FIELD_TEMPLATE,
     PARSE_FAILURE_FIELD,
     V4_RESERVED_FIELD_NAMES,
@@ -42,6 +43,7 @@ from apps.log_databus.constants import (
     EtlConfig,
     MetadataTypeEnum,
     MIN_FLATTENED_SUPPORT_VERSION,
+    STORAGE_CLUSTER_TYPE,
 )
 from apps.log_databus.exceptions import (
     EtlParseTimeFieldException,
@@ -138,7 +140,10 @@ class EtlStorage:
         lower_name = field_name.lower()
         if lower_name in V4_RESERVED_FIELD_NAMES:
             return True
-        if lower_name.startswith(V4_RESERVED_MINUTE_PATTERN) and lower_name[len(V4_RESERVED_MINUTE_PATTERN):].isdigit():
+        if (
+            lower_name.startswith(V4_RESERVED_MINUTE_PATTERN)
+            and lower_name[len(V4_RESERVED_MINUTE_PATTERN) :].isdigit()
+        ):
             return True
         return False
 
@@ -149,9 +154,7 @@ class EtlStorage:
                 continue
             field_name = field.get("alias_name") or field["field_name"]
             if cls._is_v4_reserved_field(field_name):
-                raise ValidationError(
-                    _("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}"
-                )
+                raise ValidationError(_("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}")
 
     @staticmethod
     def _get_path_regexp(etl_params: dict, built_in_config: dict) -> str:
@@ -192,16 +195,18 @@ class EtlStorage:
 
         pattern = re.compile(path_regexp)
         for field_name in pattern.groupindex.keys():
-            rules.append({
-                "input_id": "bk_separator_object_path",
-                "output_id": field_name,
-                "operator": {
-                    "type": "assign",
-                    "key_index": field_name,
-                    "alias": field_name,
-                    "output_type": "string",
-                },
-            })
+            rules.append(
+                {
+                    "input_id": "bk_separator_object_path",
+                    "output_id": field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": field_name,
+                        "alias": field_name,
+                        "output_type": "string",
+                    },
+                }
+            )
         return rules
 
     @staticmethod
@@ -969,6 +974,7 @@ class EtlStorage:
         sort_fields: list = None,
         target_fields: list = None,
         total_shards_per_node: int = None,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
     ):
         """
         创建或更新结果表
@@ -987,6 +993,7 @@ class EtlStorage:
         :param sort_fields: 排序字段
         :param target_fields: 定位字段
         :param total_shards_per_node: 每个节点的分片总数
+        :param storage_cluster_type: 存储集群类型
         """
         from apps.log_databus.handlers.collector import CollectorHandler
 
@@ -1086,6 +1093,12 @@ class EtlStorage:
             target_fields=target_fields,
         )
         enable_v4 = getattr(instance, "enable_v4", False)
+
+        if not enable_v4:
+            # 如果将 doris 作为存储集群, 则强制开启 v4 清洗
+            if storage_cluster_type == DORIS_CLUSTER_TYPE:
+                enable_v4 = True
+
         result_table_config = self.get_result_table_config(
             fields, etl_params, built_in_config, es_version=es_version, enable_v4=enable_v4
         )
