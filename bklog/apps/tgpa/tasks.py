@@ -37,6 +37,7 @@ from apps.tgpa.constants import (
     TGPAReportSyncStatusEnum,
     TGPA_REPORT_OFFSET_MINUTES,
     TGPA_REPORT_MAX_TIME_RANGE_MINUTES,
+    TGPA_UNFINISHED_TASK_CHECK_DAYS,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler, TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
@@ -126,6 +127,7 @@ def _check_unfinished_tasks(bk_biz_id: int):
     unfinished_tasks = TGPATask.objects.filter(
         bk_biz_id=bk_biz_id,
         task_status__in=TGPATaskStatusEnum.get_active_statuses(),
+        created_at__gte=arrow.now().shift(days=-TGPA_UNFINISHED_TASK_CHECK_DAYS).datetime,
     )
     if not unfinished_tasks:
         return
