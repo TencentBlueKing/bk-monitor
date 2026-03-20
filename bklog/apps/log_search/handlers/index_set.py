@@ -1800,7 +1800,7 @@ class BaseIndexSetHandler:
                 )
             else:
                 # 获取按RT粒度的别名配置
-                rt_alias_mappings = {}
+                rt_alias_mappings = None
                 if index_set.query_alias_settings:
                     try:
                         rt_alias_mappings, _ = IndexSetHandler.get_rt_alias_settings(
@@ -1808,7 +1808,10 @@ class BaseIndexSetHandler:
                         )
                     except Exception as e:
                         logger.warning(
-                            "get rt alias settings for index set(%s) failed: %s, ", index_set.index_set_id, e
+                            "get rt alias settings for index set(%s) failed: %s, "
+                            "fallback to apply full alias settings to all result tables",
+                            index_set.index_set_id,
+                            e,
                         )
 
                 for obj in objs:
@@ -1849,7 +1852,10 @@ class BaseIndexSetHandler:
                         ],
                     }
 
-                    if rt_alias_list := rt_alias_mappings.get(obj.result_table_id, []):
+                    if rt_alias_mappings is None:
+                        if index_set.query_alias_settings:
+                            table_info["query_alias_settings"] = copy.deepcopy(index_set.query_alias_settings)
+                    elif rt_alias_list := rt_alias_mappings.get(obj.result_table_id, []):
                         table_info["query_alias_settings"] = copy.deepcopy(rt_alias_list)
 
                     if table_info["source_type"] == Scenario.LOG:
