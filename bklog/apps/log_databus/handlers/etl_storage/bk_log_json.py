@@ -48,39 +48,29 @@ class BkLogJsonEtlStorage(EtlStorage):
         # 组装API请求参数
         api_request = {
             "input": data,
-            "rules": [
-                {
-                    "input_id": "__raw_data",
-                    "output_id": "bk_separator_object",
-                    "operator": {
-                        "type": "json_de"
-                    }
-                }
-            ],
-            "filter_rules": []
+            "rules": [{"input_id": "__raw_data", "output_id": "bk_separator_object", "operator": {"type": "json_de"}}],
+            "filter_rules": [],
         }
-        
+
         # 调用BkDataDatabusApi.databus_clean_debug方法
         from apps.api import BkDataDatabusApi
+
         api_response = BkDataDatabusApi.databus_clean_debug(api_request)
-        
+
         # 解析API响应
         rules_output_list = api_response.get("rules_output", [])
         rules_output = rules_output_list[0] if rules_output_list else {}
         values = rules_output.get("value", {})
         key_index = rules_output.get("key_index", [])
-        
+
         # 构建返回结果
         result = []
         for key_info in key_index:
             if key_info.get("type") == "key":
                 field_name = key_info.get("value", "")
                 field_value = values.get(field_name, "")
-                result.append({
-                    "field_name": field_name,
-                    "value": field_value
-                })
-        
+                result.append({"field_name": field_name, "value": field_value})
+
         return result
 
     def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X", enable_v4=False):
@@ -118,12 +108,14 @@ class BkLogJsonEtlStorage(EtlStorage):
             "time_alias_name": result_table_fields["time_field"]["alias_name"],
             "time_option": result_table_fields["time_field"]["option"],
         }
-        
+
         # 检查是否启用V4数据链路
         if enable_v4:
             result_table_config["option"]["enable_log_v4_data_link"] = True
-            result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(fields, etl_params, built_in_config)
-        
+            result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(
+                fields, etl_params, built_in_config
+            )
+
         return result_table_config
 
     def build_log_v4_data_link(self, fields: list, etl_params: dict, built_in_config: dict) -> dict:
@@ -132,100 +124,94 @@ class BkLogJsonEtlStorage(EtlStorage):
         包含完整的数据流转规则：原始数据 -> JSON解析 -> 字段提取 -> JSON解析 -> 字段映射
         """
         rules = []
-        
+
         # 1. JSON解析阶段（原始数据 -> json_data）
-        rules.append({
-            "input_id": "__raw_data",
-            "output_id": "json_data",
-            "operator": {
-                "type": "json_de",
-                "error_strategy": "drop"
+        rules.append(
+            {
+                "input_id": "__raw_data",
+                "output_id": "json_data",
+                "operator": {"type": "json_de", "error_strategy": "drop"},
             }
-        })
-        
+        )
+
         # 2. 提取内置字段（从json_data提取内置字段）
         built_in_rules = self._build_built_in_fields_v4(built_in_config)
         rules.extend(built_in_rules)
-        
+
         # 3. 提取items数组并迭代
-        rules.extend([
-            {
-                "input_id": "json_data",
-                "output_id": "items",
-                "operator": {
-                    "type": "get",
-                    "key_index": [{"type": "key", "value": "items"}],
-                    "missing_strategy": None
-                }
-            },
-            {
-                "input_id": "items",
-                "output_id": "iter_item",
-                "operator": {"type": "iter"}
-            },
-            {
-                "input_id": "iter_item",
-                "output_id": "iter_string",
-                "operator": {
-                    "type": "get",
-                    "key_index": [{"type": "key", "value": "data"}],
-                    "missing_strategy": None
-                }
-            }
-        ])
-        
+        rules.extend(
+            [
+                {
+                    "input_id": "json_data",
+                    "output_id": "items",
+                    "operator": {
+                        "type": "get",
+                        "key_index": [{"type": "key", "value": "items"}],
+                        "missing_strategy": None,
+                    },
+                },
+                {"input_id": "items", "output_id": "iter_item", "operator": {"type": "iter"}},
+                {
+                    "input_id": "iter_item",
+                    "output_id": "iter_string",
+                    "operator": {
+                        "type": "get",
+                        "key_index": [{"type": "key", "value": "data"}],
+                        "missing_strategy": None,
+                    },
+                },
+            ]
+        )
+
         # 4. 从iter_string提取日志原文（保留原文 或 保留清洗失败时均需要）
         if etl_params.get("retain_original_text") or etl_params.get("record_parse_failure"):
-            rules.append({
-                "input_id": "iter_item",
-                "output_id": "log",
-                "operator": {
-                    "type": "assign",
-                    "key_index": "data",
-                    "alias": "log",
-                    "output_type": "string"
+            rules.append(
+                {
+                    "input_id": "iter_item",
+                    "output_id": "log",
+                    "operator": {"type": "assign", "key_index": "data", "alias": "log", "output_type": "string"},
                 }
-            })
-        
+            )
+
         # 4.1. 提取iterationIndex字段（从iter_item提取，参考v3的flat_field处理）
         iteration_index_rules = self._build_iteration_index_field_v4(built_in_config)
         rules.extend(iteration_index_rules)
-        
+
         # 5. JSON解析（解析iter_string中的JSON）
         json_de_error_strategy = "null" if etl_params.get("record_parse_failure") else "drop"
-        rules.append({
-            "input_id": "iter_string",
-            "output_id": "bk_separator_object",
-            "operator": {
-                "type": "json_de",
-                "error_strategy": json_de_error_strategy
+        rules.append(
+            {
+                "input_id": "iter_string",
+                "output_id": "bk_separator_object",
+                "operator": {"type": "json_de", "error_strategy": json_de_error_strategy},
             }
-        })
-        
+        )
+
         # 6. 字段映射（根据fields配置）
         for field in fields:
             if field.get("is_delete"):
                 continue
-                
+
             source_field = field.get("alias_name") or field["field_name"]
-            
-            rules.append({
-                "input_id": "bk_separator_object",
-                "output_id": field["field_name"],
-                "operator": {
-                    "type": "assign",
-                    "key_index": source_field,
-                    "alias": field["field_name"],
-                    "output_type": self._get_output_type(field["field_type"])
+
+            rules.append(
+                {
+                    "input_id": "bk_separator_object",
+                    "output_id": field["field_name"],
+                    "operator": {
+                        "type": "assign",
+                        "key_index": source_field,
+                        "alias": field["field_name"],
+                        "output_type": self._get_output_type(field["field_type"]),
+                    },
                 }
-            })
+            )
 
         # 6.1. 处理dtEventTimeStampNanos字段（从用户指定的时间字段提取）
         rules.extend(self._build_nanos_time_field_v4(built_in_config))
 
         # 6.2. 处理ext_json字段
         rules.extend(self._build_extra_json_field_v4(etl_params, fields))
-
 
         # 7. Path字段处理（根据separator_configs配置）
         separator_configs = built_in_config.get("option", {}).get("separator_configs", [])
@@ -234,54 +220,58 @@ class BkLogJsonEtlStorage(EtlStorage):
             path_regexp = separator_config.get("separator_regexp", "")
             if path_regexp:
                 # 从json_data提取path字段
-                rules.append({
-                    "input_id": "json_data",
-                    "output_id": "path",
-                    "operator": {
-                        "type": "get",
-                        "key_index": [
-                            {
-                                "type": "key",
-                                "value": "filename"
-                            }
-                        ],
-                        "missing_strategy": None
+                rules.append(
+                    {
+                        "input_id": "json_data",
+                        "output_id": "path",
+                        "operator": {
+                            "type": "get",
+                            "key_index": [{"type": "key", "value": "filename"}],
+                            "missing_strategy": None,
+                        },
                     }
-                })
-                
+                )
+
                 # 从path字段提取路径信息
-                rules.append({
-                    "input_id": "path",
-                    "output_id": "bk_separator_object_path",
-                    "operator": {
-                        "type": "regex",
-                        "regex": path_regexp
+                rules.append(
+                    {
+                        "input_id": "path",
+                        "output_id": "bk_separator_object_path",
+                        "operator": {"type": "regex", "regex": path_regexp},
                     }
-                })
-                
+                )
+
                 # 提取路径字段
                 import re
+
                 pattern = re.compile(path_regexp)
                 match_fields = list(pattern.groupindex.keys())
                 for field_name in match_fields:
-                    rules.append({
-                        "input_id": "bk_separator_object_path",
-                        "output_id": field_name,
-                        "operator": {
-                            "type": "assign",
-                            "key_index": field_name,
-                            "alias": field_name,
-                            "output_type": "string"
+                    rules.append(
+                        {
+                            "input_id": "bk_separator_object_path",
+                            "output_id": field_name,
+                            "operator": {
+                                "type": "assign",
+                                "key_index": field_name,
+                                "alias": field_name,
+                                "output_type": "string",
+                            },
                         }
-                    })
-        
+                    )
+
         return {
             "clean_rules": rules,
             "es_storage_config": {
                 "unique_field_list": built_in_config["option"]["es_unique_field_list"],
-                "timezone": 8
+                "timezone": 8,
             },
-            "doris_storage_config": None
+            "doris_storage_config": {
+                "storage_keys": built_in_config["option"]["es_unique_field_list"],
+                # "json_fields": [],
+                # "field_config_group": {},
+                # "flush_timeout": None
+            },
         }
 
     def _to_bkdata_assign_json(self, field):

@@ -35,11 +35,13 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_databus.constants import (
     BKDATA_ES_TYPE_MAP,
     CACHE_KEY_CLUSTER_INFO,
+    DORIS_CLUSTER_TYPE,
     FIELD_TEMPLATE,
     PARSE_FAILURE_FIELD,
     EtlConfig,
     MetadataTypeEnum,
     MIN_FLATTENED_SUPPORT_VERSION,
+    STORAGE_CLUSTER_TYPE,
 )
 from apps.log_databus.exceptions import (
     EtlParseTimeFieldException,
@@ -813,6 +815,7 @@ class EtlStorage:
         sort_fields: list = None,
         target_fields: list = None,
         total_shards_per_node: int = None,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
     ):
         """
         创建或更新结果表
@@ -831,6 +834,7 @@ class EtlStorage:
         :param sort_fields: 排序字段
         :param target_fields: 定位字段
         :param total_shards_per_node: 每个节点的分片总数
+        :param storage_cluster_type: 存储集群类型
         """
         from apps.log_databus.handlers.collector import CollectorHandler
 
@@ -930,6 +934,12 @@ class EtlStorage:
             target_fields=target_fields,
         )
         enable_v4 = getattr(instance, "enable_v4", False)
+
+        if not enable_v4:
+            # 如果将 doris 作为存储集群, 则强制开启 v4 清洗
+            if storage_cluster_type == DORIS_CLUSTER_TYPE:
+                enable_v4 = True
+
         result_table_config = self.get_result_table_config(
             fields, etl_params, built_in_config, es_version=es_version, enable_v4=enable_v4
         )
