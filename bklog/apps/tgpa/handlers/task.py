@@ -172,6 +172,37 @@ class TGPATaskHandler:
         return {"total": count, "list": data}
 
     @staticmethod
+    def iter_task_list(bk_biz_id, batch_size=TASK_LIST_BATCH_SIZE, **extra_params):
+        """
+        迭代获取任务列表，逐条返回任务数据
+        :param bk_biz_id: 业务ID
+        :param batch_size: 每批请求数据量，默认为TASK_LIST_BATCH_SIZE
+        :param extra_params: 额外的查询参数，如 task_id 等，会直接传递给 API
+        :return: 生成器，逐条yield任务数据
+        """
+        offset = 0
+        while True:
+            request_params = {
+                "cc_id": bk_biz_id,
+                "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
+                "offset": offset,
+                "limit": batch_size,
+                "ordering": "-id",
+                **extra_params,
+            }
+            result = TGPATaskApi.query_single_user_log_task_v2(request_params)
+            task_list = result.get("results", [])
+
+            if not task_list:
+                break
+            yield from task_list
+
+            if len(task_list) < batch_size:
+                break
+
+            offset += batch_size
+
+    @staticmethod
     def get_task_page(params):
         """
         分页获取任务列表，用于前端
