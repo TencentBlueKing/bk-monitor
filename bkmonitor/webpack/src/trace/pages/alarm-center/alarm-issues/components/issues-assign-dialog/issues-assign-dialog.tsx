@@ -24,9 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
-import { Button, Dialog, Input } from 'bkui-vue';
+import { Button, Dialog, Message } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
+
+import UserSelector from '../../../../../components/user-selector/user-selector';
+import { mockAssignIssues } from '../../issues-table/mock-data';
+
+import type { IssuesBatchActionEnum } from '../../constant';
+import type { IssuesOperationDialogEvent } from '../../typing';
 
 import './issues-assign-dialog.scss';
 
@@ -38,49 +45,95 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 空间业务id */
+    issuesBizId: {
+      type: Number,
+    },
+    /** 当前操作的 Issues ID 列表 */
+    issuesIds: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    /** 弹窗标题 */
+    title: {
+      type: String,
+    },
   },
   emits: {
-    confirm: (assignee: string[]) => Array.isArray(assignee),
+    success: (event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.ASSIGN>) => event != null,
     cancel: () => true,
     'update:isShow': (val: boolean) => typeof val === 'boolean',
   },
   setup(props, { emit }) {
-    /** 指派负责人输入值 */
-    const assignInputValue = shallowRef('');
+    const { t } = useI18n();
+    /** 指派负责人选中值 */
+    const assignInputValue = shallowRef<string[]>([]);
+    /** 提交中 loading 状态 */
+    const loading = shallowRef(false);
 
-    // 每次弹窗打开时清空输入值
-    watch(
-      () => props.isShow,
-      val => {
-        if (val) {
-          assignInputValue.value = '';
-        }
-      }
-    );
+    /**
+     * @description 获取弹窗标题
+     * @returns { string } 弹窗标题
+     */
+    const getTitle = () => {
+      if (props.title) return props.title;
+      if (props.issuesIds?.length > 1) return window.i18n.t('批量指派负责人');
+      return window.i18n.t('指派负责人');
+    };
 
     /**
      * @description 确认指派
      */
-    const handleConfirm = () => {
-      const value = assignInputValue.value?.trim();
-      if (!value) return;
-      const assignees = value
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean);
-      if (!assignees.length) return;
-      emit('confirm', assignees);
+    const handleConfirm = async () => {
+      const assignees = assignInputValue.value;
+      if (!assignees?.length) return;
+      loading.value = true;
+
+      // TODO: 指派责任人请求接口及处理结果提示 待完善
+      const res = await mockAssignIssues({
+        bk_biz_id: props.issuesBizId,
+        issue_ids: props.issuesIds,
+        assignee: assignees,
+      });
+
+      let msg = {
+        theme: 'success',
+        message: t('指派责任人成功'),
+      };
+      if (res.failed?.length) {
+        msg = {
+          theme: 'error',
+          message: res.failed?.[0]?.message,
+        };
+      }
+
+      emit('success', res);
+      Message(msg);
     };
 
     /**
      * @description 取消指派
      */
     const handleCancel = () => {
+      if (loading.value) return;
       emit('cancel');
     };
 
+    // 每次弹窗打开时清空输入值
+    watch(
+      () => props.isShow,
+      val => {
+        if (val) {
+          assignInputValue.value = [];
+          loading.value = false;
+        }
+      }
+    );
+
     return {
       assignInputValue,
+      loading,
+      getTitle,
       handleConfirm,
       handleCancel,
     };
@@ -88,8 +141,14 @@ export default defineComponent({
   render() {
     return (
       <Dialog
-        width={400}
+        width={480}
+        class='issues-assign-dialog'
         v-slots={{
+          header: () => (
+            <div class='issues-assign-dialog-header'>
+              <span class='issues-assign-dialog-title'>{this.getTitle()}</span>
+            </div>
+          ),
           default: () => (
             <div class='issues-assign-dialog-content'>
               <div class='assign-field'>
@@ -97,9 +156,13 @@ export default defineComponent({
                   {window.i18n.t('负责人')}
                   <span class='required'>*</span>
                 </span>
-                <Input
-                  v-model={this.assignInputValue}
+                <UserSelector
+                  disabled={this.loading}
+                  modelValue={this.assignInputValue}
                   placeholder={window.i18n.t('请输入')}
+                  onUpdate:modelValue={(val: string[]) => {
+                    this.assignInputValue = val;
+                  }}
                 />
               </div>
             </div>
@@ -107,21 +170,25 @@ export default defineComponent({
           footer: () => (
             <div class='issues-assign-dialog-footer'>
               <Button
-                style='margin-right: 8px'
-                disabled={!this.assignInputValue?.trim()}
+                disabled={!this.assignInputValue?.length || this.loading}
+                loading={this.loading}
                 theme='primary'
                 onClick={this.handleConfirm}
               >
                 {window.i18n.t('确定')}
               </Button>
-              <Button onClick={this.handleCancel}>{window.i18n.t('取消')}</Button>
+              <Button
+                disabled={this.loading}
+                onClick={this.handleCancel}
+              >
+                {window.i18n.t('取消')}
+              </Button>
             </div>
           ),
         }}
-        header-position='left'
         isShow={this.isShow}
-        title={window.i18n.t('指派负责人')}
         onUpdate:isShow={(v: boolean) => {
+          if (this.loading) return;
           this.$emit('update:isShow', v);
         }}
       />

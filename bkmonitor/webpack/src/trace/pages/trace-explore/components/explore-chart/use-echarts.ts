@@ -24,11 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, type Ref, inject, watch } from 'vue';
-import { shallowRef } from 'vue';
-import { computed } from 'vue';
+import { type MaybeRef, type Ref, computed, inject, shallowRef, toValue, watch } from 'vue';
 
-import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
 import { random } from 'monitor-common/utils';
@@ -58,6 +55,16 @@ export interface ChartInteractionState {
   /** 当前鼠标是否 hover 在图表区域 */
   isMouseOver: MaybeRef<boolean>;
 }
+export interface ChartOptions {
+  $api: Record<string, () => Promise<any>>;
+  chartRef: Ref<HTMLElement>;
+  customOptions: CustomOptions;
+  interactionState?: ChartInteractionState;
+  panel: MaybeRef<PanelModel>;
+  params: MaybeRef<Record<string, any>>;
+  downSampleRangeComputed?: (timeRange: number[]) => string | undefined;
+}
+
 export interface CustomOptions {
   formatterData?: (formatter: any, target: IDataQuery) => any;
   options?: (options: any) => any;
@@ -74,15 +81,15 @@ export interface CustomOptions {
  * @param customOptions - 数据格式化函数，用于需要自定义逻辑
  * @param interactionState - 图表交互状态配置，控制 tooltip 联动等行为
  */
-export const useEcharts = (
-  panel: MaybeRef<PanelModel>,
-  chartRef: Ref<HTMLElement>,
-  $api: Record<string, () => Promise<any>>,
-  params: MaybeRef<Record<string, any>>,
-  customOptions: CustomOptions,
-  interactionState?: ChartInteractionState,
-  downSampleRangeComputed?: (timeRange: number[]) => string | undefined
-) => {
+export const useEcharts = ({
+  panel,
+  chartRef,
+  $api,
+  params,
+  customOptions,
+  interactionState,
+  downSampleRangeComputed,
+}: ChartOptions) => {
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
   const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
@@ -114,13 +121,13 @@ export const useEcharts = (
     loading.value = true;
     metricList.value = [];
     targets.value = [];
-    const [startTime, endTime] = handleTransformToTimestamp(get(timeRange) || DEFAULT_TIME_RANGE);
-    const promiseList = get(panel)?.targets?.map?.(target => {
+    const [startTime, endTime] = handleTransformToTimestamp(toValue(timeRange) || DEFAULT_TIME_RANGE);
+    const promiseList = toValue(panel)?.targets?.map?.(target => {
       const resultParams = {
         start_time: startTime,
         end_time: endTime,
         ...target.data,
-        ...(get(params) ?? {}),
+        ...(toValue(params) ?? {}),
       };
 
       if (downSampleRangeComputed) {
@@ -128,10 +135,10 @@ export const useEcharts = (
       }
 
       return $api[target.apiModule]
-        [target.apiFunc](resultParams, {
-          cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
-          needMessage: false,
-        })
+      [target.apiFunc](resultParams, {
+        cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
+        needMessage: false,
+      })
         .then(res => {
           const { series, metrics, query_config } = customOptions.formatterData?.(res, target) ?? res;
           for (const metric of metrics) {
@@ -146,12 +153,12 @@ export const useEcharts = (
           targets.value.push(targetCopy);
           return series?.length
             ? series.map(item => ({
-                ...item,
-                alias: target.alias || item.alias,
-                type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
-                stack: target.data?.stack || item.stack,
-                unit: item.unit || (get(panel)?.options as { unit?: string })?.unit,
-              }))
+              ...item,
+              alias: target.alias || item.alias,
+              type: target.chart_type || toValue(panel).options?.time_series?.type || item.type || 'line',
+              stack: target.data?.stack || item.stack,
+              unit: item.unit || (toValue(panel)?.options as { unit?: string })?.unit,
+            }))
             : [];
         })
         .catch(() => []);
@@ -404,7 +411,7 @@ export const useEcharts = (
     const unitSet = Array.from(
       new Set<string>(
         yData.map(item => {
-          if ((!hasBarChart && item.type === 'bar') || get(panel).options?.time_series?.type === 'bar') {
+          if ((!hasBarChart && item.type === 'bar') || toValue(panel).options?.time_series?.type === 'bar') {
             hasBarChart = true;
           }
           return item.unit?.length ? item.unit : '';
@@ -537,7 +544,7 @@ export const useEcharts = (
     return customOptions.options?.(options) ?? options;
   };
   watch(
-    [timeRange, refreshImmediate, panel, params],
+    [timeRange, refreshImmediate, () => toValue(panel), () => toValue(params)],
     async () => {
       loading.value = true;
       options.value = await getEchartOptions();

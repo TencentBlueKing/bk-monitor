@@ -24,18 +24,21 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
-import { Button, Dialog, Radio } from 'bkui-vue';
+import { Button, Dialog, Message, Radio } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import { IssuePriorityEnum, IssuesPriorityMap } from '../../constant';
+import { mockUpdatePriority } from '../../issues-table/mock-data';
 
-import type { IssuePriorityType } from '../../typing';
+import type { IssuesBatchActionEnum } from '../../constant';
+import type { IssuePriorityType, IssuesOperationDialogEvent, IssuesOperationDialogParams } from '../../typing';
 
 import './issues-priority-dialog.scss';
 
 /** 优先级选项列表 */
-const PRIORITY_OPTIONS: IssuePriorityType[] = [IssuePriorityEnum.HIGH, IssuePriorityEnum.MEDIUM, IssuePriorityEnum.LOW];
+const PRIORITY_OPTIONS: IssuePriorityType[] = [IssuePriorityEnum.P0, IssuePriorityEnum.P1, IssuePriorityEnum.P2];
 
 export default defineComponent({
   name: 'IssuesPriorityDialog',
@@ -45,43 +48,98 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 空间业务id */
+    issuesBizId: {
+      type: Number,
+    },
+    /** 当前操作的 Issues ID 列表 */
+    issuesIds: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    /** dialog 私有参数（用于回填当前优先级） */
+    dialogParam: {
+      type: Object as PropType<IssuesOperationDialogParams>,
+    },
+    /** 弹窗标题 */
+    title: {
+      type: String,
+    },
   },
   emits: {
-    confirm: (priority: IssuePriorityType) => typeof priority === 'string',
+    success: (event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.PRIORITY>) => event != null,
     cancel: () => true,
     'update:isShow': (val: boolean) => typeof val === 'boolean',
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     /** 当前选中的优先级 */
     const selectedPriority = shallowRef<'' | IssuePriorityType>('');
+    /** 提交中 loading 状态 */
+    const loading = shallowRef(false);
 
-    // 每次弹窗打开时重置选中状态
-    watch(
-      () => props.isShow,
-      val => {
-        if (val) {
-          selectedPriority.value = '';
-        }
-      }
-    );
+    /**
+     * @description 获取弹窗标题
+     * @returns { string } 弹窗标题
+     */
+    const getTitle = () => {
+      if (props.title) return props.title;
+      if (props.issuesIds?.length > 1) return window.i18n.t('批量修改优先级');
+      return window.i18n.t('修改优先级');
+    };
 
     /**
      * @description 确认修改优先级
      */
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
       if (!selectedPriority.value) return;
-      emit('confirm', selectedPriority.value as IssuePriorityType);
+      loading.value = true;
+
+      // TODO: 修改优先级请求接口及处理结果提示 待完善
+      const res = await mockUpdatePriority({
+        bk_biz_id: props.issuesBizId,
+        issue_ids: props.issuesIds,
+        priority: selectedPriority.value as IssuePriorityType,
+      });
+
+      let msg = {
+        theme: 'success',
+        message: t('修改成功'),
+      };
+      if (res.failed?.length) {
+        msg = {
+          theme: 'error',
+          message: res.failed?.[0]?.message,
+        };
+      }
+
+      emit('success', res);
+      Message(msg);
     };
 
     /**
      * @description 取消修改优先级
      */
     const handleCancel = () => {
+      if (loading.value) return;
       emit('cancel');
     };
 
+    // 每次弹窗打开时，若 dialogParam 含 priority 则回填，否则重置
+    watch(
+      () => props.isShow,
+      val => {
+        if (val) {
+          selectedPriority.value = props.dialogParam?.priority || '';
+          loading.value = false;
+        }
+      }
+    );
+
     return {
       selectedPriority,
+      loading,
+      getTitle,
       handleConfirm,
       handleCancel,
     };
@@ -90,6 +148,7 @@ export default defineComponent({
     return (
       <Dialog
         width={480}
+        class='issues-priority-dialog'
         v-slots={{
           default: () => (
             <div class='issues-priority-dialog-content'>
@@ -131,21 +190,27 @@ export default defineComponent({
           footer: () => (
             <div class='issues-priority-dialog-footer'>
               <Button
-                style='margin-right: 8px'
-                disabled={!this.selectedPriority}
+                disabled={!this.selectedPriority || this.loading}
+                loading={this.loading}
                 theme='primary'
                 onClick={this.handleConfirm}
               >
                 {window.i18n.t('确定')}
               </Button>
-              <Button onClick={this.handleCancel}>{window.i18n.t('取消')}</Button>
+              <Button
+                disabled={this.loading}
+                onClick={this.handleCancel}
+              >
+                {window.i18n.t('取消')}
+              </Button>
             </div>
           ),
         }}
         header-position='left'
         isShow={this.isShow}
-        title={window.i18n.t('批量修改优先级')}
+        title={this.getTitle()}
         onUpdate:isShow={(v: boolean) => {
+          if (this.loading) return;
           this.$emit('update:isShow', v);
         }}
       />

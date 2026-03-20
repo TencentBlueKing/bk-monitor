@@ -26,7 +26,31 @@
 
 import { IssuePriorityEnum, IssueStatusEnum } from '../constant';
 
+import type { RequestOptions } from '../../services/base';
+import type { CommonFilterParams } from '../../typings';
 import type { IssueItem, IssuePriorityType, IssueStatusType } from '../typing';
+import type {
+  IssuesAssigneeDialogEvent,
+  IssuesOperationDialogEvent,
+  IssuesPriorityDialogEvent,
+  IssuesResolveDialogEvent,
+} from '../typing/dialog';
+
+/** 指派负责人请求参数 */
+interface AssignIssuesParams {
+  /** 负责人用户名列表 */
+  assignee: string[];
+  /** 空间业务 ID */
+  bk_biz_id: number;
+  /** 待指派的 Issue ID 列表 */
+  issue_ids: string[];
+}
+
+/** mock 请求参数类型 */
+type MockFetchParams = CommonFilterParams & {
+  show_aggs?: boolean;
+  show_dsl?: boolean;
+};
 
 /** 模拟用户名列表 */
 const MOCK_USERS = ['carmelu', 'nekzhang', 'liuwei', 'zhangsan', 'wangwu'];
@@ -92,10 +116,13 @@ const generateTrendData = (baseTime: number): [number, number][] => {
   ]) as [number, number][];
 };
 
+/** mock 数据缓存，避免每次请求重新生成导致数据不稳定 */
+let mockDataCache: IssueItem[] | null = null;
+
 /**
  * @description 生成模拟 Issues 数据
- * @param count - 生成数量
- * @returns IssueItem 数组
+ * @param {number} count - 生成数量
+ * @returns {IssueItem[]} IssueItem 数组
  */
 export const generateMockIssues = (count = 20): IssueItem[] => {
   const now = Math.floor(Date.now() / 1000);
@@ -128,7 +155,7 @@ export const generateMockIssues = (count = 20): IssueItem[] => {
       is_regression: isRegression,
       strategy_id: strategy.id,
       strategy_name: strategy.name,
-      bk_biz_id: '2',
+      bk_biz_id: 2,
       bk_biz_name: '蓝鲸',
       labels: MOCK_LABEL_GROUPS[index % MOCK_LABEL_GROUPS.length],
       alert_count: trend.reduce((sum, item) => sum + item[1], 0),
@@ -162,4 +189,234 @@ export const generateMockIssues = (count = 20): IssueItem[] => {
       },
     };
   });
+};
+
+/**
+ * @description 模拟请求 Issues 列表接口，支持分页与排序（含网络延迟模拟）
+ * @param {MockFetchParams} params - 请求参数（page / page_size / ordering）
+ * @returns {Promise<{ total: number; data: IssueItem[] }>} 分页后的响应结构
+ */
+export const fetchMockIssues = async (
+  params: Partial<MockFetchParams>,
+  config: RequestOptions
+): Promise<{ issues: IssueItem[]; total: number }> => {
+  config;
+  // 懒初始化 mock 数据缓存
+  if (!mockDataCache) {
+    mockDataCache = generateMockIssues(128);
+  }
+
+  const list = [...mockDataCache];
+
+  // 排序
+  const ordering = params.ordering?.[0];
+  if (ordering) {
+    const desc = ordering.startsWith('-');
+    const field = desc ? ordering.slice(1) : ordering;
+    list.sort((a, b) => {
+      const va = (a as Record<string, unknown>)[field];
+      const vb = (b as Record<string, unknown>)[field];
+      if (typeof va === 'number' && typeof vb === 'number') {
+        return desc ? vb - va : va - vb;
+      }
+      return desc ? String(vb).localeCompare(String(va)) : String(va).localeCompare(String(vb));
+    });
+  }
+
+  // 分页
+  const pageVal = params.page ?? 1;
+  const pageSizeVal = params.page_size ?? 50;
+  const start = (pageVal - 1) * pageSizeVal;
+  const paged = list.slice(start, start + pageSizeVal);
+
+  // 模拟网络延迟
+  await new Promise(resolve => setTimeout(resolve, 300));
+
+  return { total: list.length, issues: paged };
+};
+
+/** 状态流转映射：指派后待审核 → 未解决 */
+const STATUS_AFTER_ASSIGN: Partial<Record<IssueStatusType, { status: IssueStatusType; status_display: string }>> = {
+  [IssueStatusEnum.PENDING_REVIEW]: { status: IssueStatusEnum.UNRESOLVED, status_display: '未解决' },
+};
+
+/**
+ * @description 模拟指派负责人接口，更新 mock 数据缓存中的 Issue 数据并返回操作结果
+ * @param {AssignIssuesParams} params - 指派请求参数（bk_biz_id / issue_ids / assignee）
+ * @param {RequestOptions} config - 请求配置选项
+ * @returns {Promise<IssuesOperationDialogEvent<'assign'>>} 包含 succeeded 和 failed 的操作结果
+ */
+export const mockAssignIssues = async (
+  params: AssignIssuesParams,
+  config?: RequestOptions
+): Promise<IssuesOperationDialogEvent<'assign'>> => {
+  config;
+  // 确保 mock 数据缓存已初始化
+  if (!mockDataCache) {
+    mockDataCache = generateMockIssues(128);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const succeeded: IssuesAssigneeDialogEvent[] = [];
+  const failed: { issue_id: string; message: string }[] = [];
+
+  for (const issueId of params.issue_ids) {
+    // 模拟随机失败（约 5% 概率）
+    if (Math.random() < 0.05) {
+      failed.push({ issue_id: issueId, message: '服务端繁忙，请稍后重试' });
+      continue;
+    }
+
+    const issue = mockDataCache.find(item => item.id === issueId);
+    if (!issue) {
+      failed.push({ issue_id: issueId, message: `Issue ${issueId} 不存在` });
+      continue;
+    }
+
+    // 更新缓存中的 Issue 数据
+    issue.assignee = [...params.assignee];
+    issue.update_time = now;
+
+    // 状态流转：待审核状态指派后自动变为未解决
+    const transition = STATUS_AFTER_ASSIGN[issue.status];
+    if (transition) {
+      issue.status = transition.status;
+      issue.status_display = transition.status_display;
+    }
+
+    succeeded.push({
+      issue_id: issue.id,
+      assignee: issue.assignee,
+      status: issue.status,
+      update_time: issue.update_time,
+    });
+  }
+
+  // 模拟网络延迟
+  await new Promise(resolve => setTimeout(resolve, 400));
+
+  return { succeeded, failed };
+};
+
+/** 修改优先级请求参数 */
+interface UpdatePriorityParams {
+  /** 空间业务 ID */
+  bk_biz_id: number;
+  /** 待修改的 Issue ID 列表 */
+  issue_ids: string[];
+  /** 目标优先级 */
+  priority: IssuePriorityType;
+}
+
+/**
+ * @description 模拟修改优先级接口，更新 mock 数据缓存中的 Issue 优先级并返回操作结果
+ * @param {UpdatePriorityParams} params - 修改优先级请求参数（bk_biz_id / issue_ids / priority）
+ * @param {RequestOptions} config - 请求配置选项
+ * @returns {Promise<IssuesOperationDialogEvent<'priority'>>} 包含 succeeded 和 failed 的操作结果
+ */
+export const mockUpdatePriority = async (
+  params: UpdatePriorityParams,
+  config?: RequestOptions
+): Promise<IssuesOperationDialogEvent<'priority'>> => {
+  config;
+  // 确保 mock 数据缓存已初始化
+  if (!mockDataCache) {
+    mockDataCache = generateMockIssues(128);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const succeeded: IssuesPriorityDialogEvent[] = [];
+  const failed: { issue_id: string; message: string }[] = [];
+
+  for (const issueId of params.issue_ids) {
+    // 模拟随机失败（约 5% 概率）
+    if (Math.random() < 0.05) {
+      failed.push({ issue_id: issueId, message: '服务端繁忙，请稍后重试' });
+      continue;
+    }
+
+    const issue = mockDataCache.find(item => item.id === issueId);
+    if (!issue) {
+      failed.push({ issue_id: issueId, message: `Issue ${issueId} 不存在` });
+      continue;
+    }
+
+    // 更新缓存中的 Issue 优先级
+    issue.priority = params.priority;
+    issue.priority_display = { P0: '高', P1: '中', P2: '低' }[params.priority];
+    issue.update_time = now;
+
+    succeeded.push({
+      issue_id: issue.id,
+      priority: issue.priority,
+      update_time: issue.update_time,
+    });
+  }
+
+  // 模拟网络延迟
+  await new Promise(resolve => setTimeout(resolve, 400));
+
+  return { succeeded, failed };
+};
+
+/** 标记已解决请求参数 */
+interface ResolveIssuesParams {
+  /** 空间业务 ID */
+  bk_biz_id: number;
+  /** 待标记已解决的 Issue ID 列表 */
+  issue_ids: string[];
+}
+
+/**
+ * @description 模拟标记已解决接口，更新 mock 数据缓存中的 Issue 数据并返回操作结果
+ * @param {ResolveIssuesParams} params - 标记已解决请求参数（bk_biz_id / issue_ids）
+ * @param {RequestOptions} config - 请求配置选项
+ * @returns {Promise<IssuesOperationDialogEvent<'resolve'>>} 包含 succeeded 和 failed 的操作结果
+ */
+export const mockResolveIssues = async (
+  params: ResolveIssuesParams,
+  config?: RequestOptions
+): Promise<IssuesOperationDialogEvent<'resolve'>> => {
+  config;
+  // 确保 mock 数据缓存已初始化
+  if (!mockDataCache) {
+    mockDataCache = generateMockIssues(128);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const succeeded: IssuesResolveDialogEvent[] = [];
+  const failed: { issue_id: string; message: string }[] = [];
+
+  for (const issueId of params.issue_ids) {
+    // 模拟随机失败（约 5% 概率）
+    if (Math.random() < 0.05) {
+      failed.push({ issue_id: issueId, message: '服务端繁忙，请稍后重试' });
+      continue;
+    }
+
+    const issue = mockDataCache.find(item => item.id === issueId);
+    if (!issue) {
+      failed.push({ issue_id: issueId, message: `Issue ${issueId} 不存在` });
+      continue;
+    }
+
+    // 更新缓存中的 Issue 数据
+    issue.status = IssueStatusEnum.RESOLVED;
+    issue.status_display = '已解决';
+    issue.resolved_time = now;
+    issue.is_resolved = true;
+    issue.update_time = now;
+
+    succeeded.push({
+      issue_id: issue.id,
+      resolved_time: issue.resolved_time,
+      status: issue.status,
+      update_time: issue.update_time,
+    });
+  }
+
+  // 模拟网络延迟
+  await new Promise(resolve => setTimeout(resolve, 400));
+
+  return { succeeded, failed };
 };

@@ -31,12 +31,14 @@ import { AlarmServiceFactory } from 'trace/pages/alarm-center/services/factory';
 import { AlarmType } from 'trace/pages/alarm-center/typings';
 
 import { IssueDetailTabEnum } from '../../constant';
+import DimensionStats from './dimension-stats/dimension-stats';
 import IssuesActivity from './issues-activity/issues-activity';
 import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
 import IssuesDetailAlarmPanel from './issues-detail-alarm-panel/issues-detail-alarm-panel';
 import IssuesDetailAlarmTable from './issues-detail-alarm-table/issues-detail-alarm-table';
 import IssuesHistory from './issues-history/issues-history';
 import IssuesRetrievalFilter from './issues-retrieval-filter/issues-retrieval-filter';
+import IssuesTrendChart from './issues-trend-chart/issues-trend-chart';
 import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 
 import type { IssueDetailTabType } from '../../typing/constants';
@@ -174,6 +176,10 @@ export default defineComponent({
             onFilterModeChange={this.handleFilterModeChange}
             onQueryStringChange={this.handleQueryStringChange}
           />
+          <div class='issues-chart-wrapper'>
+            <IssuesTrendChart />
+            <DimensionStats />
+          </div>
           <Tab
             class='issues-alarm-tab'
             active={this.currentTab}

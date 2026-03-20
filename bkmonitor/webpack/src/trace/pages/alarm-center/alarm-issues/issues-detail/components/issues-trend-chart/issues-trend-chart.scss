@@ -1,0 +1,44 @@
+.issues-trend-chart.basic-card-wrapper {
+  height: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+  .chart-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+
+    .chart-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #000;
+    }
+
+    .chart-subtitle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: #8f9fbd;
+
+      .icon-monitor {
+        font-size: 14px;
+      }
+
+      .count {
+        font-weight: 600;
+      }
+    }
+  }
+
+  .basic-card-content {
+    height: calc(100% - 48px);
+  }
+
+  .chart-body {
+    height: 100%;
+  }
+}

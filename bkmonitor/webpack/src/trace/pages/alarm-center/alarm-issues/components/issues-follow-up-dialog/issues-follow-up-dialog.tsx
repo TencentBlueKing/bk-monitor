@@ -24,11 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import { Button, Dialog } from 'bkui-vue';
 
 import MarkdownEditor from '../../../../../components/markdown-editor/editor';
+
+import type { IssuesBatchActionEnum } from '../../constant';
+import type { IssuesFollowUpDialogEvent, IssuesOperationDialogEvent } from '../../typing';
 
 import './issues-follow-up-dialog.scss';
 
@@ -40,29 +43,44 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 空间业务id */
+    issuesBizId: {
+      type: Number,
+    },
+    /** 当前操作的 Issues ID 列表 */
+    issuesIds: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    /** 弹窗标题 */
+    title: {
+      type: String,
+    },
   },
   emits: {
-    confirm: (content: string) => typeof content === 'string',
+    success: (event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.FOLLOW_UP>) => event != null,
     cancel: () => true,
     'update:isShow': (val: boolean) => typeof val === 'boolean',
   },
   setup(props, { emit }) {
     /** 编辑器内容 */
     const editorValue = shallowRef('');
+    /** 提交中 loading 状态 */
+    const loading = shallowRef(false);
 
-    // 每次弹窗打开时清空编辑器内容
-    watch(
-      () => props.isShow,
-      val => {
-        if (val) {
-          editorValue.value = '';
-        }
-      }
-    );
+    /**
+     * @description 获取弹窗标题
+     * @returns { string } 弹窗标题
+     */
+    const getTitle = () => {
+      if (props.title) return props.title;
+      if (props.issuesIds?.length > 1) return window.i18n.t('批量添加跟进信息');
+      return window.i18n.t('添加跟进信息');
+    };
 
     /**
      * @description 编辑器内容变更
-     * @param value - 编辑器 markdown 内容
+     * @param {string} value - 编辑器 markdown 内容
      */
     const handleEditorInput = (value: string) => {
       editorValue.value = value;
@@ -71,10 +89,30 @@ export default defineComponent({
     /**
      * @description 确认提交跟进信息
      */
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
       const value = editorValue.value?.trim();
       if (!value) return;
-      emit('confirm', value);
+
+      loading.value = true;
+      try {
+        // TODO: 接入后端 API — 调用添加跟进信息接口
+        // const res = await addIssuesFollowUp({
+        //   bk_biz_id: props.issuesBizId,
+        //   issue_ids: props.issuesIds,
+        //   content: value,
+        // });
+        const succeeded: IssuesFollowUpDialogEvent[] = props.issuesIds.map(id => ({
+          activity_id: '',
+          activity_type: 'comment',
+          content: value,
+          issue_id: id,
+          operator: '',
+          time: Date.now() / 1000,
+        }));
+        emit('success', { succeeded, failed: [] });
+      } finally {
+        loading.value = false;
+      }
     };
 
     /**
@@ -84,8 +122,21 @@ export default defineComponent({
       emit('cancel');
     };
 
+    // 每次弹窗打开时清空编辑器内容
+    watch(
+      () => props.isShow,
+      val => {
+        if (val) {
+          editorValue.value = '';
+          loading.value = false;
+        }
+      }
+    );
+
     return {
       editorValue,
+      loading,
+      getTitle,
       handleEditorInput,
       handleConfirm,
       handleCancel,
@@ -111,19 +162,25 @@ export default defineComponent({
             <div class='issues-follow-up-dialog-footer'>
               <Button
                 style='margin-right: 8px'
-                disabled={!this.editorValue?.trim()}
+                disabled={!this.editorValue?.trim() || this.loading}
+                loading={this.loading}
                 theme='primary'
                 onClick={this.handleConfirm}
               >
                 {window.i18n.t('确定')}
               </Button>
-              <Button onClick={this.handleCancel}>{window.i18n.t('取消')}</Button>
+              <Button
+                disabled={this.loading}
+                onClick={this.handleCancel}
+              >
+                {window.i18n.t('取消')}
+              </Button>
             </div>
           ),
         }}
         header-position='left'
         isShow={this.isShow}
-        title={window.i18n.t('批量添加跟进信息')}
+        title={this.getTitle()}
         onUpdate:isShow={(v: boolean) => {
           this.$emit('update:isShow', v);
         }}

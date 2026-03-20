@@ -24,16 +24,21 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef } from 'vue';
+import { computed, defineComponent, shallowRef } from 'vue';
 
-import { useIssuesOperations } from '../composables/use-issues-operations';
-import { useIssuesTable } from '../composables/use-issues-table';
+import { commonPageSizeSet } from 'monitor-common/utils';
+
 import { useAlarmTableColumns } from '../composables/use-table-columns';
-import { CONTENT_SCROLL_ELEMENT_CLASS_NAME } from '../typings';
-import IssuesAssignDialog from './components/issues-assign-dialog/issues-assign-dialog';
+import { IssuesService } from '../services/issues-services';
+import { AlarmType, CONTENT_SCROLL_ELEMENT_CLASS_NAME } from '../typings';
+import { useIssuesDialogs } from './components/issues-operation-dialogs/hooks/use-issues-dialogs';
+import IssuesOperationDialogs from './components/issues-operation-dialogs/issues-operation-dialogs';
+import { IssuesBatchActionEnum } from './constant';
+import { useIssuesTable } from './hooks/use-issues-table';
 import IssuesTable from './issues-table/issues-table';
 import IssuesToolbar from './issues-toolbar/issues-toolbar';
 
+import type { CommonFilterParams } from '../typings/services';
 import type { IssueItem } from './typing';
 
 import './alarm-issues.scss';
@@ -43,93 +48,125 @@ export default defineComponent({
   setup() {
     const { tableColumns } = useAlarmTableColumns();
 
-    // ===================== 表格数据管理 =====================
+    /** Issues 独立 service 实例 */
+    const issuesService = new IssuesService(AlarmType.ISSUES);
 
-    const {
-      allData,
-      tableData,
-      pagination,
-      sort,
-      selectedRowKeys,
-      loading,
-      handleCurrentPageChange,
-      handlePageSizeChange,
-      handleSortChange,
-      handleSelectionChange,
-    } = useIssuesTable();
+    /** 公共筛选参数占位（后续替换） */
+    const commonFilterParams = computed<Partial<CommonFilterParams>>(() => ({}));
 
-    // ===================== 业务操作 =====================
-
-    const { handleAssign, handleMarkResolved, handlePriorityChange, handleShowDetail } = useIssuesOperations({
-      allData,
+    const { data, loading, total, page, pageSize, ordering } = useIssuesTable({
+      service: issuesService,
+      filterParams: commonFilterParams,
     });
 
-    // ===================== 指派弹窗状态 =====================
+    /** table 选中的 rowKey 数组 */
+    const selectedRowKeys = shallowRef<string[]>([]);
 
-    /** 指派弹窗是否可见 */
-    const assignDialogVisible = shallowRef(false);
-    /** 当前指派目标 Issue */
-    const assignTarget = shallowRef<IssueItem | null>(null);
+    const {
+      issuesDialogShow,
+      issuesDialogType,
+      issuesDialogIds,
+      issuesDialogBizId,
+      issuesDialogParam,
+      handleIssuesDialogShow,
+      handleIssuesDialogHide,
+      handleIssuesDialogSuccess,
+    } = useIssuesDialogs(data);
 
     /**
-     * @description 表格点击指派按钮，打开指派弹窗
-     * @param _id - Issue ID
-     * @param data - 当前 Issue 行数据
+     * @description 展示 Issue 详情
+     * @param {IssueItem['id']} _id - Issue ID
      */
-    const handleAssignClick = (_id: IssueItem['id'], data: IssueItem) => {
-      assignTarget.value = data;
-      assignDialogVisible.value = true;
+    const handleShowDetail = (_id: IssueItem['id']) => {
+      // TODO: 接入详情抽屉逻辑
     };
 
     /**
-     * @description 确认指派负责人
-     * @param assignee - 负责人列表
+     * @description 表格点击指派按钮，打开指派弹窗（单条操作）
+     * @param {IssueItem['id']} id - Issue ID
+     * @param {IssueItem} data - 当前 Issue 行数据
      */
-    const handleAssignConfirm = (assignee: string[]) => {
-      if (!assignTarget.value) return;
-      handleAssign(assignTarget.value.id, assignee);
-      assignDialogVisible.value = false;
-      assignTarget.value = null;
+    const handleAssignClick = (id: IssueItem['id'], data: IssueItem) => {
+      handleIssuesDialogShow(IssuesBatchActionEnum.ASSIGN, id, data);
     };
 
     /**
-     * @description 取消指派
+     * @description 表格 -- 处理分页变化
+     * @param {number} currentPage 当前页码
      */
-    const handleAssignCancel = () => {
-      assignDialogVisible.value = false;
-      assignTarget.value = null;
+    const handleCurrentPageChange = (currentPage: number) => {
+      page.value = currentPage;
+    };
+
+    /**
+     * @description 表格 -- 处理分页大小变化
+     * @param {number} size 分页大小
+     */
+    const handlePageSizeChange = (size: number) => {
+      pageSize.value = size;
+      commonPageSizeSet(size);
+      handleCurrentPageChange(1);
+    };
+
+    /**
+     * @description 表格 -- 处理排序变化
+     * @param {string} sort 排序字段
+     */
+    const handleSortChange = (sort: string) => {
+      ordering.value = sort;
+      handleCurrentPageChange(1);
+    };
+
+    /**
+     * @description 表格 -- 处理选中行变化
+     * @param {string[]} keys 选中行 key 数组
+     */
+    const handleSelectionChange = (keys?: string[]) => {
+      selectedRowKeys.value = keys ?? [];
     };
 
     // ===================== 渲染 =====================
 
     return () => (
       <div class='alarm-issues'>
-        <IssuesToolbar selectedRowKeys={selectedRowKeys.value}>
+        <IssuesToolbar
+          batchAction={action => handleIssuesDialogShow(action, selectedRowKeys.value)}
+          issuesIds={selectedRowKeys.value}
+        >
           <IssuesTable
+            pagination={{
+              currentPage: page.value,
+              pageSize: pageSize.value,
+              total: total.value,
+            }}
             columns={tableColumns.value}
-            data={tableData.value}
+            data={data.value}
             loading={loading.value}
-            pagination={pagination.value}
             scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
             selectedRowKeys={selectedRowKeys.value}
-            sort={sort.value}
+            sort={ordering.value}
             onAssignClick={handleAssignClick}
             onCurrentPageChange={handleCurrentPageChange}
-            onMarkResolved={handleMarkResolved}
+            onMarkResolved={(id: string) => handleIssuesDialogShow(IssuesBatchActionEnum.RESOLVE, id)}
             onPageSizeChange={handlePageSizeChange}
-            onPriorityChange={handlePriorityChange}
+            onPriorityChange={(id: string) => handleIssuesDialogShow(IssuesBatchActionEnum.PRIORITY, id)}
             onSelectionChange={handleSelectionChange}
             onShowDetail={handleShowDetail}
-            onSortChange={handleSortChange}
+            onSortChange={sort => handleSortChange(sort as string)}
           />
         </IssuesToolbar>
 
-        <IssuesAssignDialog
-          isShow={assignDialogVisible.value}
-          onCancel={handleAssignCancel}
-          onConfirm={handleAssignConfirm}
-          onUpdate:isShow={(v: boolean) => {
-            assignDialogVisible.value = v;
+        <IssuesOperationDialogs
+          dialogParam={issuesDialogParam.value}
+          dialogType={issuesDialogType.value}
+          issuesBizId={issuesDialogBizId.value}
+          issuesIds={issuesDialogIds.value}
+          show={issuesDialogShow.value}
+          onSuccess={handleIssuesDialogSuccess}
+          onUpdate:show={(v: boolean) => {
+            if (!v) {
+              handleIssuesDialogHide();
+            }
           }}
         />
       </div>

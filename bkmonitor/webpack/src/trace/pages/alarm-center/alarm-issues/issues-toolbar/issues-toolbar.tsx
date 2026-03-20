@@ -39,15 +39,17 @@ import './issues-toolbar.scss';
 export default defineComponent({
   name: 'IssuesToolbar',
   props: {
-    /** 表格选中行 */
-    selectedRowKeys: {
+    /** 选中行的 issues Id 数组*/
+    issuesIds: {
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    /** 批量操作回调，返回 false 表示操作失败被拦截（如校验失败），此时不关闭 dropdown */
+    batchAction: {
+      type: Function as PropType<(action: IssuesBatchActionType) => boolean | undefined>,
+    },
   },
   emits: {
-    /** 批量操作事件 */
-    batchAction: (action: IssuesBatchActionType) => typeof action === 'string',
     /** 导出事件 */
     export: () => true,
   },
@@ -58,7 +60,7 @@ export default defineComponent({
     const dropdownShow = shallowRef(false);
 
     /** 是否有选中行 */
-    const hasSelection = computed(() => props.selectedRowKeys.length > 0);
+    const hasSelection = computed(() => props.issuesIds.length > 0);
 
     /** 批量操作下拉菜单项 */
     const batchActions = computed(() => [
@@ -81,11 +83,14 @@ export default defineComponent({
     ]);
 
     /**
-     * @description 处理批量操作下拉选择
-     * @param action - 选中的批量操作类型
+     * @description 处理批量操作下拉选择，调用回调后根据返回值决定是否关闭 dropdown
+     * @param {IssuesBatchActionType} action - 选中的批量操作类型
      */
     const handleBatchAction = (action: IssuesBatchActionType) => {
-      emit('batchAction', action);
+      const execStatus = props.batchAction?.(action);
+      if (typeof execStatus === 'boolean' && execStatus !== false) {
+        dropdownShow.value = false;
+      }
     };
 
     /**
