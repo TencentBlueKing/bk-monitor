@@ -272,7 +272,12 @@ class BkLogRegexpEtlStorage(EtlStorage):
                 "unique_field_list": built_in_config["option"]["es_unique_field_list"],
                 "timezone": 8,
             },
-            "doris_storage_config": None,
+            "doris_storage_config": {
+                "storage_keys": built_in_config["option"]["es_unique_field_list"],
+                # "json_fields": [],
+                # "field_config_group": {},
+                # "flush_timeout": None
+            },
         }
 
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):

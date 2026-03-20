@@ -27,6 +27,7 @@ from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.flow import update_clustering_clean
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
@@ -56,6 +57,7 @@ class TransferEtlHandler(EtlHandler):
         target_fields=None,
         username="",
         total_shards_per_node=None,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
@@ -143,6 +145,7 @@ class TransferEtlHandler(EtlHandler):
             self.data,
             table_id=table_id,
             storage_cluster_id=storage_cluster_id,
+            storage_cluster_type=storage_cluster_type,
             retention=retention,
             allocation_min_days=allocation_min_days,
             storage_replies=storage_replies,

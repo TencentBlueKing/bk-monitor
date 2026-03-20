@@ -82,12 +82,14 @@ class BkLogTextEtlStorage(EtlStorage):
             "time_alias_name": built_in_config["time_field"]["alias_name"],
             "time_option": built_in_config["time_field"]["option"],
         }
-        
+
         # 检查是否启用V4数据链路
         if enable_v4:
             result_table_config["option"]["enable_log_v4_data_link"] = True
-            result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(fields, etl_params, built_in_config)
-        
+            result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(
+                fields, etl_params, built_in_config
+            )
+
         return result_table_config
 
     def build_log_v4_data_link(self, fields: list, etl_params: dict, built_in_config: dict) -> dict:
@@ -99,48 +101,42 @@ class BkLogTextEtlStorage(EtlStorage):
         rules = []
 
         # 1. JSON解析阶段（原始数据 -> json_data）
-        rules.append({
-            "input_id": "__raw_data",
-            "output_id": "json_data",
-            "operator": {
-                "type": "json_de",
-                "error_strategy": "drop"
+        rules.append(
+            {
+                "input_id": "__raw_data",
+                "output_id": "json_data",
+                "operator": {"type": "json_de", "error_strategy": "drop"},
             }
-        })
+        )
 
         # 2. 提取内置字段（从json_data提取内置字段）
         built_in_rules = self._build_built_in_fields_v4(built_in_config)
         rules.extend(built_in_rules)
 
         # 3. 提取items数组并迭代
-        rules.extend([
-            {
-                "input_id": "json_data",
-                "output_id": "items",
-                "operator": {
-                    "type": "get",
-                    "key_index": [{"type": "key", "value": "items"}],
-                    "missing_strategy": None
-                }
-            },
-            {
-                "input_id": "items",
-                "output_id": "iter_item",
-                "operator": {"type": "iter"}
-            }
-        ])
+        rules.extend(
+            [
+                {
+                    "input_id": "json_data",
+                    "output_id": "items",
+                    "operator": {
+                        "type": "get",
+                        "key_index": [{"type": "key", "value": "items"}],
+                        "missing_strategy": None,
+                    },
+                },
+                {"input_id": "items", "output_id": "iter_item", "operator": {"type": "iter"}},
+            ]
+        )
 
         # 4. 从iter_item提取data字段作为原文（直接入库，不需要额外处理）
-        rules.append({
-            "input_id": "iter_item",
-            "output_id": "log",
-            "operator": {
-                "type": "assign",
-                "key_index": "data",
-                "alias": "log",
-                "output_type": "string"
+        rules.append(
+            {
+                "input_id": "iter_item",
+                "output_id": "log",
+                "operator": {"type": "assign", "key_index": "data", "alias": "log", "output_type": "string"},
             }
-        })
+        )
 
         # 4.1. 提取 flat_field=True 的内置字段（从iter_item提取）
         rules.extend(self._build_flat_built_in_fields_v4(built_in_config))
@@ -152,9 +148,14 @@ class BkLogTextEtlStorage(EtlStorage):
             "clean_rules": rules,
             "es_storage_config": {
                 "unique_field_list": built_in_config["option"]["es_unique_field_list"],
-                "timezone": 8
+                "timezone": 8,
             },
-            "doris_storage_config": None
+            "doris_storage_config": {
+                "storage_keys": built_in_config["option"]["es_unique_field_list"],
+                # "json_fields": [],
+                # "field_config_group": {},
+                # "flush_timeout": None
+            },
         }
 
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):

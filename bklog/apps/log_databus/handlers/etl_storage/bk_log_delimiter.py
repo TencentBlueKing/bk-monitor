@@ -88,18 +88,15 @@ class BkLogDelimiterEtlStorage(EtlStorage):
                 {
                     "input_id": "__raw_data",
                     "output_id": "bk_separator_object",
-                    "operator": {
-                        "type": "split_str",
-                        "delimiter": etl_params["separator"],
-                        "max_parts": None
-                    }
+                    "operator": {"type": "split_str", "delimiter": etl_params["separator"], "max_parts": None},
                 }
             ],
-            "filter_rules": []
+            "filter_rules": [],
         }
 
         # 调用BkDataDatabusApi.databus_clean_debug方法
         from apps.api import BkDataDatabusApi
+
         api_response = BkDataDatabusApi.databus_clean_debug(api_request)
 
         # 解析API响应
@@ -109,11 +106,7 @@ class BkLogDelimiterEtlStorage(EtlStorage):
         # 构建返回结果
         result = []
         for i, value in enumerate(values):
-            result.append({
-                "field_index": i + 1,
-                "field_name": "",
-                "value": value
-            })
+            result.append({"field_index": i + 1, "field_name": "", "value": value})
 
         return result
 
@@ -172,8 +165,9 @@ class BkLogDelimiterEtlStorage(EtlStorage):
         # 检查是否启用V4数据链路
         if enable_v4:
             result_table_config["option"]["enable_log_v4_data_link"] = True
-            result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(fields, etl_params,
-                                                                                            built_in_config)
+            result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(
+                fields, etl_params, built_in_config
+            )
 
         return result_table_config
 
@@ -186,73 +180,65 @@ class BkLogDelimiterEtlStorage(EtlStorage):
         rules = []
 
         # 1. JSON解析阶段（原始数据 -> json_data）
-        rules.append({
-            "input_id": "__raw_data",
-            "output_id": "json_data",
-            "operator": {
-                "type": "json_de",
-                "error_strategy": "drop"
+        rules.append(
+            {
+                "input_id": "__raw_data",
+                "output_id": "json_data",
+                "operator": {"type": "json_de", "error_strategy": "drop"},
             }
-        })
+        )
 
         # 2. 提取内置字段（从json_data提取内置字段）
         built_in_rules = self._build_built_in_fields_v4(built_in_config)
         rules.extend(built_in_rules)
 
         # 3. 提取items数组并迭代
-        rules.extend([
-            {
-                "input_id": "json_data",
-                "output_id": "items",
-                "operator": {
-                    "type": "get",
-                    "key_index": [{"type": "key", "value": "items"}],
-                    "missing_strategy": None
-                }
-            },
-            {
-                "input_id": "items",
-                "output_id": "iter_item",
-                "operator": {"type": "iter"}
-            }
-        ])
+        rules.extend(
+            [
+                {
+                    "input_id": "json_data",
+                    "output_id": "items",
+                    "operator": {
+                        "type": "get",
+                        "key_index": [{"type": "key", "value": "items"}],
+                        "missing_strategy": None,
+                    },
+                },
+                {"input_id": "items", "output_id": "iter_item", "operator": {"type": "iter"}},
+            ]
+        )
 
         # 4. 从iter_item提取data字段作为原文
-        rules.extend([
-            {
-                "input_id": "iter_item",
-                "output_id": "log",
-                "operator": {
-                    "type": "assign",
-                    "key_index": "data",
-                    "alias": "log",
-                    "output_type": "string"
-                }
-            },
-            {
-                "input_id": "iter_item",
-                "output_id": "iter_string",
-                "operator": {
-                    "type": "get",
-                    "key_index": [{"type": "key", "value": "data"}],
-                    "missing_strategy": None
-                }
-            }
-        ])
+        rules.extend(
+            [
+                {
+                    "input_id": "iter_item",
+                    "output_id": "log",
+                    "operator": {"type": "assign", "key_index": "data", "alias": "log", "output_type": "string"},
+                },
+                {
+                    "input_id": "iter_item",
+                    "output_id": "iter_string",
+                    "operator": {
+                        "type": "get",
+                        "key_index": [{"type": "key", "value": "data"}],
+                        "missing_strategy": None,
+                    },
+                },
+            ]
+        )
 
         # 4.1. 提取 flat_field=True 的内置字段（从iter_item提取）
         rules.extend(self._build_flat_built_in_fields_v4(built_in_config))
 
         # 5. 分隔符切分
-        rules.append({
-            "input_id": "iter_string",
-            "output_id": "bk_separator_object",
-            "operator": {
-                "type": "split_str",
-                "delimiter": etl_params.get("separator", ""),
-                "max_parts": None
+        rules.append(
+            {
+                "input_id": "iter_string",
+                "output_id": "bk_separator_object",
+                "operator": {"type": "split_str", "delimiter": etl_params.get("separator", ""), "max_parts": None},
             }
-        })
+        )
 
         # 6. 字段映射（根据fields配置）
         for field in fields:
@@ -261,16 +247,18 @@ class BkLogDelimiterEtlStorage(EtlStorage):
             if not field.get("field_index"):
                 continue
 
-            rules.append({
-                "input_id": "bk_separator_object",
-                "output_id": field["field_name"],
-                "operator": {
-                    "type": "assign",
-                    "key_index": str(field["field_index"] - 1),
-                    "alias": field["field_name"],
-                    "output_type": self._get_output_type(field["field_type"])
+            rules.append(
+                {
+                    "input_id": "bk_separator_object",
+                    "output_id": field["field_name"],
+                    "operator": {
+                        "type": "assign",
+                        "key_index": str(field["field_index"] - 1),
+                        "alias": field["field_name"],
+                        "output_type": self._get_output_type(field["field_type"]),
+                    },
                 }
-            })
+            )
 
         # 6.1. 处理用户指定的时间字段作为dtEventTimeStamp（从bk_separator_object提取）
         rules.extend(self._build_user_dt_event_time_field_v4(built_in_config))
@@ -285,9 +273,14 @@ class BkLogDelimiterEtlStorage(EtlStorage):
             "clean_rules": rules,
             "es_storage_config": {
                 "unique_field_list": built_in_config["option"]["es_unique_field_list"],
-                "timezone": 8
+                "timezone": 8,
             },
-            "doris_storage_config": None
+            "doris_storage_config": {
+                "storage_keys": built_in_config["option"]["es_unique_field_list"],
+                # "json_fields": [],
+                # "field_config_group": {},
+                # "flush_timeout": None
+            },
         }
 
     @classmethod
@@ -361,95 +354,94 @@ class BkLogDelimiterEtlStorage(EtlStorage):
             "extract": {
                 "next": {
                     "next": [
-                                {
-                                    "next": {
-                                        "next": {
-                                            "next": [
-                                                {
-                                                    "next": {
-                                                        "next": [
-                                                            {
-                                                                "next": {
-                                                                    "next": None,
-                                                                    "subtype": "assign_pos",
-                                                                    "label": "labela2dfe3",
-                                                                    "assign": [
-                                                                        {
-                                                                            # 这里是为了对齐计算平台和监控field_index与index
-                                                                            "index": str(field["field_index"] - 1),
-                                                                            "assign_to": field["alias_name"]
-                                                                            if field["alias_name"]
-                                                                            else field["field_name"],
-                                                                            "type": self.get_es_field_type(field),
-                                                                        }
-                                                                        for field in bkdata_fields
-                                                                    ],
-                                                                    "type": "assign",
-                                                                },
-                                                                "label": "label5e3d6f",
-                                                                "type": "fun",
-                                                                "method": "split",
-                                                                "args": [etl_params["separator"]],
-                                                                "result": "split_log",
-                                                            }
-                                                        ],
-                                                        "name": "",
-                                                        "label": None,
-                                                        "type": "branch",
-                                                    },
-                                                    "result": "log_data",
-                                                    "type": "access",
-                                                    "default_value": "",
-                                                    "subtype": "access_obj",
-                                                    "label": "labelb140",
-                                                    "default_type": "null",
-                                                    "key": "data",
-                                                },
-                                                {
-                                                    "next": None,
-                                                    "subtype": "assign_obj",
-                                                    "label": "labelb140f1",
-                                                    "assign": (
-                                                                  [{"key": "data", "assign_to": "data", "type": "text"}]
-                                                                  if retain_original_text
-                                                                  else []
-                                                              )
-                                                              + [
-                                                                  self._to_bkdata_assign(built_in_field)
-                                                                  for built_in_field in built_in_fields_no_type_object
-                                                                  if built_in_field.get("flat_field", False)
-                                                              ],
-                                                    "type": "assign",
-                                                },
-                                            ],
-                                            "name": "",
-                                            "type": "branch",
-                                            "label": None,
+                        {
+                            "next": {
+                                "next": {
+                                    "next": [
+                                        {
+                                            "next": {
+                                                "next": [
+                                                    {
+                                                        "next": {
+                                                            "next": None,
+                                                            "subtype": "assign_pos",
+                                                            "label": "labela2dfe3",
+                                                            "assign": [
+                                                                {
+                                                                    # 这里是为了对齐计算平台和监控field_index与index
+                                                                    "index": str(field["field_index"] - 1),
+                                                                    "assign_to": field["alias_name"]
+                                                                    if field["alias_name"]
+                                                                    else field["field_name"],
+                                                                    "type": self.get_es_field_type(field),
+                                                                }
+                                                                for field in bkdata_fields
+                                                            ],
+                                                            "type": "assign",
+                                                        },
+                                                        "label": "label5e3d6f",
+                                                        "type": "fun",
+                                                        "method": "split",
+                                                        "args": [etl_params["separator"]],
+                                                        "result": "split_log",
+                                                    }
+                                                ],
+                                                "name": "",
+                                                "label": None,
+                                                "type": "branch",
+                                            },
+                                            "result": "log_data",
+                                            "type": "access",
+                                            "default_value": "",
+                                            "subtype": "access_obj",
+                                            "label": "labelb140",
+                                            "default_type": "null",
+                                            "key": "data",
                                         },
-                                        "label": "label21ca91",
-                                        "type": "fun",
-                                        "method": "iterate",
-                                        "args": [],
-                                        "result": "iter_item",
-                                    },
-                                    "result": "item_data",
-                                    "type": "access",
-                                    "default_value": "",
-                                    "subtype": "access_obj",
-                                    "label": "label36c8ad",
-                                    "default_type": "null",
-                                    "key": "items",
+                                        {
+                                            "next": None,
+                                            "subtype": "assign_obj",
+                                            "label": "labelb140f1",
+                                            "assign": (
+                                                [{"key": "data", "assign_to": "data", "type": "text"}]
+                                                if retain_original_text
+                                                else []
+                                            )
+                                            + [
+                                                self._to_bkdata_assign(built_in_field)
+                                                for built_in_field in built_in_fields_no_type_object
+                                                if built_in_field.get("flat_field", False)
+                                            ],
+                                            "type": "assign",
+                                        },
+                                    ],
+                                    "name": "",
+                                    "type": "branch",
+                                    "label": None,
                                 },
-                                {
-                                    "next": None,
-                                    "subtype": "assign_obj",
-                                    "label": "labelf676c9",
-                                    "assign": self._get_bkdata_default_fields(built_in_fields_no_type_object,
-                                                                              time_field),
-                                    "type": "assign",
-                                },
-                            ]
-                            + access_built_in_fields_type_object,
+                                "label": "label21ca91",
+                                "type": "fun",
+                                "method": "iterate",
+                                "args": [],
+                                "result": "iter_item",
+                            },
+                            "result": "item_data",
+                            "type": "access",
+                            "default_value": "",
+                            "subtype": "access_obj",
+                            "label": "label36c8ad",
+                            "default_type": "null",
+                            "key": "items",
+                        },
+                        {
+                            "next": None,
+                            "subtype": "assign_obj",
+                            "label": "labelf676c9",
+                            "assign": self._get_bkdata_default_fields(built_in_fields_no_type_object, time_field),
+                            "type": "assign",
+                        },
+                    ]
+                    + access_built_in_fields_type_object,
                     "name": "",
                     "label": None,
                     "type": "branch",
