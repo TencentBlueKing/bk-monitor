@@ -1,5 +1,16 @@
+import json
+from dataclasses import asdict
+
 from django.test import TestCase
 
+from apps.log_clustering.constants import StorageTypeEnum
+from apps.log_clustering.handlers.dataflow.constants import FlowMode
+from apps.log_clustering.handlers.dataflow.data_cls import (
+    DorisCls,
+    ModelClusterPredictNodeCls,
+    PredictDataFlowCls,
+    RealTimeCls,
+)
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.models import ClusteringConfig
 
@@ -130,3 +141,106 @@ class TestPatternSearch(TestCase):
                 clustering_config.filter_rules, ALL_FIELDS_DICT, clustering_config.clustering_fields
             )
             self.assertEqual(result, case["result"])
+
+    def test_build_doris_fields(self):
+        all_fields = [
+            {"field_name": "dtEventTimeStamp", "field_type": "timestamp"},
+            {"field_name": "message", "field_type": "string"},
+            {"field_name": "raw_message", "field_type": "string"},
+            {"field_name": "attributes", "field_type": "object"},
+            {"field_name": "serverIp", "field_type": "long"},
+        ]
+        is_dimension_fields_map = {
+            "dtEventTimeStamp": "dtEventTimeStamp",
+            "message": "log",
+            "raw_message": "log",
+            "attributes": "attributes",
+            "serverIp": "serverIp",
+        }
+
+        result = DataFlowHandler._build_doris_fields(
+            all_fields=all_fields,
+            is_dimension_fields_map=is_dimension_fields_map,
+            analyzed_fields=["message"],
+            json_fields=["attributes"],
+        )
+
+        self.assertEqual(
+            result[:2],
+            [
+                {"alias": "_startTime_", "field": "_startTime_", "type": "string", "config": ""},
+                {"alias": "_endTime_", "field": "_endTime_", "type": "string", "config": ""},
+            ],
+        )
+        self.assertEqual(len([field for field in result if field["field"] == "log"]), 1)
+        self.assertIn({"alias": "log", "field": "log", "type": "string", "config": "search_en"}, result)
+        self.assertIn({"alias": "attributes", "field": "attributes", "type": "string", "config": "json"}, result)
+        self.assertIn({"alias": "serverIp", "field": "serverIp", "type": "long", "config": ""}, result)
+        self.assertIn(
+            {"alias": "dtEventTimeStamp", "field": "dtEventTimeStamp", "type": "string", "config": ""},
+            result,
+        )
+        self.assertEqual(result[-1], {"alias": "__dist_05", "field": "__dist_05", "type": "string", "config": ""})
+
+    def test_render_predict_flow_with_doris_storage(self):
+        predict_flow = PredictDataFlowCls(
+            table_name_no_id="bklog_30_clustered",
+            result_table_id="2_bklog_30_clean",
+            clustering_stream_source=RealTimeCls(
+                fields="`log`, `dtEventTimeStamp`",
+                table_name="bklog_30_clustering",
+                result_table_id="2_bklog_30_clustering",
+                filter_rule="",
+            ),
+            clustering_predict=ModelClusterPredictNodeCls(
+                table_name="bklog_30_clustering_output",
+                result_table_id="2_bklog_30_clustering_output",
+                clustering_training_params={
+                    "min_members": 1,
+                    "st_list": "0.5",
+                    "predefined_variables": "",
+                    "delimeter": " ",
+                    "max_log_length": 1024,
+                    "is_case_sensitive": 0,
+                    "depth": 100,
+                    "max_child": 2,
+                    "use_offline_model": 0,
+                    "max_dist_list": "0.5",
+                },
+                model_release_id=1,
+                model_id="model_id",
+                input_fields="[]",
+                output_fields="[]",
+            ),
+            format_signature=RealTimeCls(
+                fields="`log`, `dtEventTimeStamp`",
+                table_name="bklog_30_clustered",
+                result_table_id="2_bklog_30_clustered",
+                filter_rule="",
+            ),
+            bk_biz_id=2,
+            storage_type=StorageTypeEnum.DORIS.value,
+            doris=DorisCls(
+                expires_dup="30d",
+                fields=json.dumps(
+                    [
+                        {"alias": "_startTime_", "field": "_startTime_", "type": "string", "config": ""},
+                        {"alias": "__dist_05", "field": "__dist_05", "type": "string", "config": ""},
+                    ]
+                ),
+            ),
+            doris_storage="test_doris_cluster",
+        )
+
+        rendered = DataFlowHandler._render_template(
+            flow_mode=FlowMode.PREDICT_FLOW.value,
+            render_obj={"predict": asdict(predict_flow)},
+        )
+        flow = json.loads(rendered)
+        node_types = [node["node_type"] for node in flow]
+        doris_node = next(node for node in flow if node["node_type"] == "doris")
+
+        self.assertIn("doris", node_types)
+        self.assertNotIn("elastic_storage", node_types)
+        self.assertEqual(doris_node["cluster"], "test_doris_cluster")
+        self.assertEqual(doris_node["custom_param_config"]["expires_dup"], "30d")
