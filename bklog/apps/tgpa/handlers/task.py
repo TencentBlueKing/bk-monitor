@@ -19,7 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import math
 import os
 import shutil
 import uuid
@@ -40,7 +39,6 @@ from apps.tgpa.constants import (
 from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.tgpa.handlers.decrypt import get_decrypt_handler
 from apps.tgpa.models import TGPATask
-from apps.utils.thread import MultiExecuteFunc
 
 
 class TGPATaskHandler:
@@ -136,40 +134,6 @@ class TGPATaskHandler:
         }
         result = TGPATaskApi.query_single_user_log_task_v2(params)
         return result["count"]
-
-    @staticmethod
-    def get_task_list(params, need_format=False):
-        """
-        获取任务列表
-        """
-        # 支持v1和v2业务日志捞取任务
-        params["task_type"] = TGPATaskTypeEnum.get_business_log_task_types()
-        # 第一次请求只获取1条数据，用于获取总数
-        first_request_params = params.copy()
-        first_request_params.update({"offset": 0, "limit": 1})
-        result = TGPATaskApi.query_single_user_log_task_v2(first_request_params)
-        count = result["count"]
-
-        data = []
-        if count > 0:
-            total_requests = math.ceil(count / TASK_LIST_BATCH_SIZE)
-            multi_execute_func = MultiExecuteFunc()
-
-            for i in range(total_requests):
-                request_params = params.copy()
-                request_params.update({"offset": i * TASK_LIST_BATCH_SIZE, "limit": TASK_LIST_BATCH_SIZE})
-                multi_execute_func.append(
-                    result_key=f"request_{i}", func=TGPATaskApi.query_single_user_log_task_v2, params=request_params
-                )
-
-            results = multi_execute_func.run()
-            for i in range(total_requests):
-                if need_format:
-                    data.extend(TGPATaskHandler.format_task_list(results[f"request_{i}"]["results"]))
-                else:
-                    data.extend(results[f"request_{i}"]["results"])
-
-        return {"total": count, "list": data}
 
     @staticmethod
     def iter_task_list(bk_biz_id, batch_size=TASK_LIST_BATCH_SIZE, **extra_params):
