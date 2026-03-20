@@ -47,88 +47,9 @@ from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 
 
-@periodic_task(run_every=crontab(minute="*/1"), queue="tgpa_task")
-@share_lock()
-def fetch_and_process_tgpa_tasks():
-    """
-    定时任务，拉取任务列表，处理任务
-    使用share_lock防止多个任务并行执行
-    """
-    feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
-    if not feature_toggle:
-        return
-    bk_biz_id_list = feature_toggle.biz_id_white_list or []
-
-    for bk_biz_id in bk_biz_id_list:
-        logger.info("Begin to sync client log tasks, business id: %s", bk_biz_id)
-        try:
-            # 确保已经创建采集配置
-            TGPACollectorConfigHandler.get_or_create_collector_config(bk_biz_id)
-            task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
-            # 确保与数据库字段类型一致
-            for task in task_list:
-                task["go_svr_task_id"] = int(task["go_svr_task_id"])
-                task["status"] = str(task["status"])
-            # 如果是第一次同步，只创建数据，不处理任务
-            if not TGPATask.objects.filter(bk_biz_id=bk_biz_id).exists():
-                TGPATask.objects.bulk_create(
-                    [
-                        TGPATask(
-                            id=task["id"],
-                            task_id=task["go_svr_task_id"],
-                            task_type=task["task_type"],
-                            bk_biz_id=bk_biz_id,
-                            log_path=task["log_path"],
-                            task_status=task["status"],
-                            file_status=task["exe_code"],
-                            process_status=TGPATaskProcessStatusEnum.INIT.value,
-                        )
-                        for task in task_list
-                    ]
-                )
-                continue
-        except Exception:
-            logger.exception("Failed to sync client log tasks, business id: %s", bk_biz_id)
-            continue
-
-        # 对比任务列表和数据库中的任务
-        existed_tasks = TGPATask.objects.filter(bk_biz_id=bk_biz_id)
-        task_map = {task.task_id: task for task in existed_tasks}
-        for task in task_list:
-            if task_obj := task_map.get(task["go_svr_task_id"]):
-                # 如果文件状态发生变化，并且文件状态为上传成功，处理任务
-                if task["exe_code"] != task_obj.file_status and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
-                    task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
-                    task_obj.save(update_fields=["process_status"])
-                    process_single_task.delay(task)
-                # 如果任务状态发生变化，更新任务状态
-                if task_obj.task_status != task["status"] or task_obj.file_status != task["exe_code"]:
-                    task_obj.task_status = task["status"]
-                    task_obj.file_status = task["exe_code"]
-                    task_obj.save(update_fields=["task_status", "file_status"])
-            else:
-                task_obj, created = TGPATask.objects.get_or_create(
-                    task_id=task["go_svr_task_id"],
-                    defaults={
-                        "id": task["id"],
-                        "task_type": task["task_type"],
-                        "bk_biz_id": task["cc_id"],
-                        "log_path": task["log_path"],
-                        "task_status": task["status"],
-                        "file_status": task["exe_code"],
-                        "process_status": TGPATaskProcessStatusEnum.INIT.value,
-                    },
-                )
-                if created and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
-                    task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
-                    task_obj.save(update_fields=["process_status"])
-                    process_single_task.delay(task)
-
-
 def _sync_new_tasks(bk_biz_id: int, latest_id: int, is_first_sync: bool):
     """
-    增量同步新任务：按 id 降序迭代拉取远程任务列表，遇到已同步的 id 即停止，
-    将新任务分批写入数据库。非首次同步时会触发异步处理。
+    增量同步新任务，将新任务分批写入数据库
     """
     batch = []
     synced_count = 0
@@ -209,41 +130,34 @@ def _check_unfinished_tasks(bk_biz_id: int):
     if not unfinished_tasks:
         return
 
-    # 将未完成任务的 task_id 拼接后传入远程接口，批量查询最新状态
-    task_ids_str = ",".join([str(task_obj.task_id) for task_obj in unfinished_tasks])
+    # 批量查询最新状态
+    task_ids_str = ",".join([str(task_obj.id) for task_obj in unfinished_tasks])
     remote_task_map = {}
     for item in TGPATaskHandler.iter_task_list(bk_biz_id, task_id=task_ids_str):
         remote_task_map[int(item["go_svr_task_id"])] = item
 
-    tasks_to_update = []
-    tasks_to_process = []
     for task_obj in unfinished_tasks:
         remote_info = remote_task_map.get(task_obj.task_id)
         if not remote_info:
             logger.warning("Remote task info not found for task_id: %s", task_obj.task_id)
             continue
 
-        # 如果文件状态变为上传成功，标记为待处理
+        # 如果文件状态变为上传成功，推送异步任务
         if remote_info["exe_code"] != task_obj.file_status and remote_info["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
             task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
-            tasks_to_process.append(remote_info)
+            task_obj.save(update_fields=["process_status"])
+            process_single_task.delay(remote_info)
 
-        # 如果任务状态或文件状态发生变化，加入待更新列表
+        # 如果任务状态或文件状态发生变化，更新信息
         if task_obj.task_status != remote_info["status"] or task_obj.file_status != remote_info["exe_code"]:
             task_obj.task_status = remote_info["status"]
             task_obj.file_status = remote_info["exe_code"]
-            tasks_to_update.append(task_obj)
-
-    # 先批量更新 DB 状态（含 process_status），再发送异步任务，避免竞态问题
-    if tasks_to_update:
-        TGPATask.objects.bulk_update(tasks_to_update, fields=["task_status", "file_status", "process_status"])
-    for remote_info in tasks_to_process:
-        process_single_task.delay(remote_info)
+            task_obj.save(update_fields=["task_status", "file_status"])
 
 
 @periodic_task(run_every=crontab(minute="*/1"), queue="tgpa_task")
 @share_lock()
-def fetch_and_process_tgpa_tasks_v2():
+def fetch_and_process_tgpa_tasks():
     """
     定时任务，拉取任务列表，处理任务
     使用share_lock防止多个任务并行执行
@@ -259,15 +173,12 @@ def fetch_and_process_tgpa_tasks_v2():
             # 确保已经创建采集配置
             TGPACollectorConfigHandler.get_or_create_collector_config(bk_biz_id)
 
-            # 获取本地已同步的最大 id，作为增量拉取的边界（id 对应 TGPA 远程接口的自增主键）
+            # 获取本地已同步的最大 id，作为增量拉取的边界（id 对应 TGPA 接口的自增主键）
             latest_task = TGPATask.objects.filter(bk_biz_id=bk_biz_id).order_by("-id").first()
             latest_id = latest_task.id if latest_task else 0
             is_first_sync = latest_id == 0
 
-            # 第一步：增量同步新任务
             _sync_new_tasks(bk_biz_id, latest_id, is_first_sync)
-
-            # 第二步：检查存量未完成任务的状态变化（首次同步跳过）
             if not is_first_sync:
                 _check_unfinished_tasks(bk_biz_id)
         except Exception:
