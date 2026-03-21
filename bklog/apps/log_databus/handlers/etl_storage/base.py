@@ -138,7 +138,10 @@ class EtlStorage:
         lower_name = field_name.lower()
         if lower_name in V4_RESERVED_FIELD_NAMES:
             return True
-        if lower_name.startswith(V4_RESERVED_MINUTE_PATTERN) and lower_name[len(V4_RESERVED_MINUTE_PATTERN):].isdigit():
+        if (
+            lower_name.startswith(V4_RESERVED_MINUTE_PATTERN)
+            and lower_name[len(V4_RESERVED_MINUTE_PATTERN) :].isdigit()
+        ):
             return True
         return False
 
@@ -149,9 +152,7 @@ class EtlStorage:
                 continue
             field_name = field.get("alias_name") or field["field_name"]
             if cls._is_v4_reserved_field(field_name):
-                raise ValidationError(
-                    _("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}"
-                )
+                raise ValidationError(_("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}")
 
     @staticmethod
     def _get_path_regexp(etl_params: dict, built_in_config: dict) -> str:
@@ -192,16 +193,18 @@ class EtlStorage:
 
         pattern = re.compile(path_regexp)
         for field_name in pattern.groupindex.keys():
-            rules.append({
-                "input_id": "bk_separator_object_path",
-                "output_id": field_name,
-                "operator": {
-                    "type": "assign",
-                    "key_index": field_name,
-                    "alias": field_name,
-                    "output_type": "string",
-                },
-            })
+            rules.append(
+                {
+                    "input_id": "bk_separator_object_path",
+                    "output_id": field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": field_name,
+                        "alias": field_name,
+                        "output_type": "string",
+                    },
+                }
+            )
         return rules
 
     @staticmethod
@@ -931,7 +934,6 @@ class EtlStorage:
 
                 nano_time_field = copy.deepcopy(time_field)
                 nano_time_field["field_name"] = "dtEventTimeStampNanos"
-                nano_time_field["field_type"] = "long" if field["option"]["time_format"] == "epoch_micros" else "string"
                 nano_time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
                 nano_time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
                 nano_time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
