@@ -1,0 +1,48 @@
+.issues-empty {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  padding: 0 8px 8px;
+
+  .bk-exception {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding-top: 130px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px 0 #0000001a;
+
+    .bk-exception-img {
+      height: 280px;
+    }
+
+    .bk-exception-footer {
+      margin-top: -34px;
+
+      .issues-empty-content {
+        .issues-empty-title {
+          font-size: 20px;
+          line-height: 28px;
+          color: #313238;
+        }
+
+        .issues-empty-desc {
+          margin-top: 16px;
+          font-size: 14px;
+          line-height: 22px;
+          color: #4d4f56;
+        }
+
+        .issues-empty-action {
+          margin-top: 16px;
+
+          .bk-button {
+            width: 95px;
+          }
+        }
+      }
+    }
+  }
+}
