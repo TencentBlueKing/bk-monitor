@@ -458,4 +458,5 @@ export default {
   '确认批量标记为"已解决"？': 'Confirm batch marking as "Resolved"?',
   '确认标记为"已解决"？': 'Confirm marking as "Resolved"?',
   指派责任人成功: 'Assign responsible person successfully',
+  添加跟进信息成功: 'Add follow-up information successfully',
 };

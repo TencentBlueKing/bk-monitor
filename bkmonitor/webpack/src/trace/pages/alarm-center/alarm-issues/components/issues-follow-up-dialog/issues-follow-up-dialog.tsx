@@ -27,11 +27,13 @@
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import { Button, Dialog } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import MarkdownEditor from '../../../../../components/markdown-editor/editor';
+import { followUpIssues, showOperationResult } from '../../services/issues-operations';
 
 import type { IssuesBatchActionEnum } from '../../constant';
-import type { IssueIdentifier, IssuesFollowUpDialogEvent, IssuesOperationDialogEvent } from '../../typing';
+import type { IssueIdentifier, IssuesOperationDialogEvent } from '../../typing';
 
 import './issues-follow-up-dialog.scss';
 
@@ -59,6 +61,7 @@ export default defineComponent({
     'update:isShow': (val: boolean) => typeof val === 'boolean',
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     /** 编辑器内容 */
     const editorValue = shallowRef('');
     /** 提交中 loading 状态 */
@@ -91,20 +94,13 @@ export default defineComponent({
 
       loading.value = true;
       try {
-        // TODO: 接入后端 API — 调用添加跟进信息接口
-        // const res = await addIssuesFollowUp({
-        //   issues: props.issuesData,
-        //   content: value,
-        // });
-        const succeeded: IssuesFollowUpDialogEvent[] = props.issuesData.map(item => ({
-          activity_id: '',
-          activity_type: 'comment',
+        const res = await followUpIssues({
+          issues: props.issuesData,
           content: value,
-          issue_id: item.issue_id,
-          operator: '',
-          time: Date.now() / 1000,
-        }));
-        emit('success', { succeeded, failed: [] });
+        });
+
+        showOperationResult(res, t('添加跟进信息成功'));
+        emit('success', res);
       } finally {
         loading.value = false;
       }
@@ -114,6 +110,7 @@ export default defineComponent({
      * @description 取消操作
      */
     const handleCancel = () => {
+      if (loading.value) return;
       emit('cancel');
     };
 
@@ -140,14 +137,14 @@ export default defineComponent({
   render() {
     return (
       <Dialog
-        width={720}
+        width={800}
         class='issues-follow-up-dialog'
         v-slots={{
           default: () => (
             <div class='issues-follow-up-dialog-content'>
               <MarkdownEditor
-                height={'300px'}
-                previewStyle='tab'
+                height='420px'
+                class='issues-follow-up-dialog-editor'
                 value={this.editorValue}
                 onInput={this.handleEditorInput}
               />
@@ -156,7 +153,6 @@ export default defineComponent({
           footer: () => (
             <div class='issues-follow-up-dialog-footer'>
               <Button
-                style='margin-right: 8px'
                 disabled={!this.editorValue?.trim() || this.loading}
                 loading={this.loading}
                 theme='primary'
@@ -177,6 +173,7 @@ export default defineComponent({
         isShow={this.isShow}
         title={this.getTitle()}
         onUpdate:isShow={(v: boolean) => {
+          if (this.loading) return;
           this.$emit('update:isShow', v);
         }}
       />
