@@ -1,5 +1,5 @@
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
 from monitor.models import UptimeCheckGroup, UptimeCheckNode, UptimeCheckTask, UptimeCheckTaskSubscription
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
 
 def get_uptimecheck_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:

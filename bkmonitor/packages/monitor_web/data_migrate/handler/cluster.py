@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from bkmonitor.data_migrate.handler.base import BaseDirectoryHandler
+from monitor_web.data_migrate.handler.base import BaseDirectoryHandler
 
 
 class SanitizeClusterInfoHandler(BaseDirectoryHandler):

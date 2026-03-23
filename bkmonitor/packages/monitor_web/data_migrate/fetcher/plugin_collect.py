@@ -1,6 +1,6 @@
 from django.db.models import QuerySet
 
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVersion
 from monitor_web.models.plugin import (
     CollectorPluginConfig,

@@ -1,6 +1,5 @@
 from collections.abc import Sequence
 
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
 from metadata.models import BkBaseResultTable, DataBusConfig, DataIdConfig, DataLink
 from metadata.models.data_link import (
     ConditionalSinkConfig,
@@ -9,6 +8,7 @@ from metadata.models.data_link import (
     ResultTableConfig,
     VMStorageBindingConfig,
 )
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
 
 def _normalize_table_ids(table_ids: Sequence[str] | None) -> list[str]:

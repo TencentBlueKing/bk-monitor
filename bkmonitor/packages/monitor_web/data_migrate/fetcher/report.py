@@ -1,7 +1,7 @@
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
 from bkmonitor.models.base import ReportContents, ReportItems
 from bkmonitor.models.report import Report, ReportChannel
 from constants.report import GRAPH_ID_REGEX
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
 
 def _parse_graph_biz_ids(graph: str) -> tuple[set[int], bool]:

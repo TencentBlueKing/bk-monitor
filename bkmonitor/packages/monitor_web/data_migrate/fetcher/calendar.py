@@ -1,6 +1,5 @@
 from calendars.models import CalendarItemModel, CalendarModel
-
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
 
 def get_calendar_fetcher() -> list[FetcherResultType]:

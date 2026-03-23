@@ -1,10 +1,10 @@
 from collections.abc import Sequence
 
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
 from metadata.models.custom_report import Event, EventGroup, LogGroup, TimeSeriesGroup, TimeSeriesMetric
 from metadata.models.data_source import DataSource, DataSourceOption, DataSourceResultTable
 from metadata.models.result_table import ResultTable, ResultTableField, ResultTableFieldOption, ResultTableOption
 from metadata.models.storage import KafkaTopicInfo
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
 
 def _normalize_data_ids(data_ids: Sequence[int] | None) -> list[int]:

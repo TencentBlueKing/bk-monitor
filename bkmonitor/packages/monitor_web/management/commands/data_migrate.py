@@ -17,7 +17,7 @@ from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
-from bkmonitor.data_migrate import (
+from monitor_web.data_migrate import (
     apply_auto_increment_from_directory,
     disable_models_in_directory,
     export_auto_increment_to_directory,

@@ -1,5 +1,5 @@
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
 from bkmonitor.models.query_template import QueryTemplate
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 from monitor_web.models.data_explorer import FavoriteGroup, QueryHistory
 from monitor_web.models.scene_view import SceneModel, SceneViewModel, SceneViewOrderModel
 

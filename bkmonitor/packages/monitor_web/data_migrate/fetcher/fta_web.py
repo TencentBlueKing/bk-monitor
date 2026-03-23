@@ -1,6 +1,5 @@
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
-
 from fta_web.models.alert import AlertExperience, AlertSuggestion, MetricRecommendationFeedback
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
 
 def get_fta_web_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:

@@ -1,5 +1,4 @@
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
-
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 from monitor_web.models.custom_report import (
     CustomEventGroup,
     CustomEventItem,

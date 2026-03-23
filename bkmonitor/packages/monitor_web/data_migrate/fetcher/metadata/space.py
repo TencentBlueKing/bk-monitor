@@ -1,5 +1,5 @@
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
 from metadata.models.space.space import Space, SpaceDataSource, SpaceResource
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
 
 def get_metadata_space_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:

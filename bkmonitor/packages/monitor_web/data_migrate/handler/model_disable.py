@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from copy import deepcopy
 from typing import Any
-from collections.abc import Callable
 
-from bkmonitor.data_migrate.handler.base import BaseDirectoryHandler
+from monitor_web.data_migrate.handler.base import BaseDirectoryHandler
 
 RecordHandler = Callable[[dict[str, Any]], dict[str, Any]]
 

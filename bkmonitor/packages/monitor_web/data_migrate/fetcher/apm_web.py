@@ -1,12 +1,10 @@
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
-
 from apm_web.models import (
     ApdexServiceRelation,
     ApmMetaConfig,
-    AppServiceRelation,
     Application,
     ApplicationCustomService,
     ApplicationRelationInfo,
+    AppServiceRelation,
     CMDBServiceRelation,
     CodeRedefinedConfigRelation,
     EventServiceRelation,
@@ -17,6 +15,7 @@ from apm_web.models import (
     TraceComparison,
     UriServiceRelation,
 )
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
 
 def get_apm_web_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:

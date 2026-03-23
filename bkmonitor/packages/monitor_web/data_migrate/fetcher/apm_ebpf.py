@@ -1,8 +1,7 @@
 from django.db.models import Q
 
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
-
 from apm_ebpf.models import ClusterRelation, DeepflowDashboardRecord, DeepflowWorkload
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
 
 def get_apm_ebpf_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:

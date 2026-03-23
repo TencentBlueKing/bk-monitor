@@ -7,8 +7,8 @@ from typing import Any
 from django.apps import apps
 from django.db.models import Model
 
-from bkmonitor.data_migrate.constants import DEFAULT_ENCODING, SEQUENCE_FILE_NAME, SEQUENCE_MODEL_SPECS
-from bkmonitor.data_migrate.utils import (
+from monitor_web.data_migrate.constants import DEFAULT_ENCODING, SEQUENCE_FILE_NAME, SEQUENCE_MODEL_SPECS
+from monitor_web.data_migrate.utils import (
     _get_next_pk_by_max,
     _get_reserved_auto_increment_start,
     get_auto_increment_start,

@@ -22,7 +22,7 @@ from apm.models import (
     SubscriptionConfig,
     TraceDataSource,
 )
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
 
 def get_apm_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:

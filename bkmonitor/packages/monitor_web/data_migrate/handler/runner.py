@@ -5,13 +5,13 @@ from typing import Any
 
 from django.utils import timezone
 
-from bkmonitor.data_migrate.constants import RECOVERY_RECORDS_DIRECTORY_NAME
-from bkmonitor.data_migrate.handler.base import BaseDirectoryHandler, HandlerExecutionError
-from bkmonitor.data_migrate.handler.cluster import SanitizeClusterInfoHandler
-from bkmonitor.data_migrate.handler.cluster_id import ReplaceClusterIdHandler
-from bkmonitor.data_migrate.handler.model_disable import DisableModelsHandler
-from bkmonitor.data_migrate.handler.tenant import ReplaceTenantIdHandler
-from bkmonitor.data_migrate.utils import read_json_file, write_json_file
+from monitor_web.data_migrate.constants import RECOVERY_RECORDS_DIRECTORY_NAME
+from monitor_web.data_migrate.handler.base import BaseDirectoryHandler, HandlerExecutionError
+from monitor_web.data_migrate.handler.cluster import SanitizeClusterInfoHandler
+from monitor_web.data_migrate.handler.cluster_id import ReplaceClusterIdHandler
+from monitor_web.data_migrate.handler.model_disable import DisableModelsHandler
+from monitor_web.data_migrate.handler.tenant import ReplaceTenantIdHandler
+from monitor_web.data_migrate.utils import read_json_file, write_json_file
 
 
 def _iter_manifest_files(manifest: dict[str, Any]) -> list[tuple[int, str]]:

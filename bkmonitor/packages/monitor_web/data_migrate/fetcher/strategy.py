@@ -1,7 +1,6 @@
 from django.db.models import Q
 from django.utils import timezone
 
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
 from bkmonitor.models import Shield
 from bkmonitor.models.fta.action import ActionConfig, StrategyActionConfigRelation
 from bkmonitor.models.fta.assign import AlertAssignGroup, AlertAssignRule
@@ -19,6 +18,7 @@ from bkmonitor.models.strategy import (
     StrategyModel,
     UserGroup,
 )
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
 
 def get_strategy_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:

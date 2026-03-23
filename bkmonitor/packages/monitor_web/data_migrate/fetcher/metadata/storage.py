@@ -1,9 +1,9 @@
 from collections.abc import Sequence
 
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
 from metadata.models.es_snapshot import EsSnapshot, EsSnapshotIndice
 from metadata.models.result_table import ESFieldQueryAliasOption
 from metadata.models.storage import DorisStorage, ESStorage, KafkaStorage, StorageClusterRecord
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
 
 def _normalize_table_ids(table_ids: Sequence[str] | None) -> list[str]:

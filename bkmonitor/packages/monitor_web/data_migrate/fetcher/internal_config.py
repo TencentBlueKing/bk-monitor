@@ -1,8 +1,8 @@
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
 from bkmonitor.models.aiops import AIFeatureSettings
 from bkmonitor.models.config import MonitorMigration
 from bkmonitor.models.strategy import DefaultStrategyBizAccessModel
 from monitor.models.models import ApplicationConfig
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 from monitor_web.models.file import UploadedFileInfo
 
 

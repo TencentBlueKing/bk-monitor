@@ -10,34 +10,34 @@ from django.core import serializers
 from django.db.models import Model, QuerySet
 from django.utils import timezone
 
-from bkmonitor.data_migrate.biz_matadata import find_biz_table_and_data_id
-from bkmonitor.data_migrate.constants import DEFAULT_ENCODING, EXPORT_QUERYSET_CHUNK_SIZE
-from bkmonitor.data_migrate.fetcher.apm import get_apm_fetcher
-from bkmonitor.data_migrate.fetcher.apm_ebpf import get_apm_ebpf_fetcher
-from bkmonitor.data_migrate.fetcher.apm_web import get_apm_web_fetcher
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
-from bkmonitor.data_migrate.fetcher.calendar import get_calendar_fetcher
-from bkmonitor.data_migrate.fetcher.custom_report import get_custom_report_fetcher
-from bkmonitor.data_migrate.fetcher.fta_web import get_fta_web_fetcher
-from bkmonitor.data_migrate.fetcher.internal_config import get_global_meta_fetcher, get_internal_config_fetcher
-from bkmonitor.data_migrate.fetcher.metadata.bcs import get_metadata_bcs_fetcher
-from bkmonitor.data_migrate.fetcher.metadata.data_source import (
+from metadata.models import DataSource, ResultTable
+from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, KafkaStorage
+from monitor_web.data_migrate.biz_matadata import find_biz_table_and_data_id
+from monitor_web.data_migrate.constants import DEFAULT_ENCODING, EXPORT_QUERYSET_CHUNK_SIZE
+from monitor_web.data_migrate.fetcher.apm import get_apm_fetcher
+from monitor_web.data_migrate.fetcher.apm_ebpf import get_apm_ebpf_fetcher
+from monitor_web.data_migrate.fetcher.apm_web import get_apm_web_fetcher
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
+from monitor_web.data_migrate.fetcher.calendar import get_calendar_fetcher
+from monitor_web.data_migrate.fetcher.custom_report import get_custom_report_fetcher
+from monitor_web.data_migrate.fetcher.fta_web import get_fta_web_fetcher
+from monitor_web.data_migrate.fetcher.internal_config import get_global_meta_fetcher, get_internal_config_fetcher
+from monitor_web.data_migrate.fetcher.metadata.bcs import get_metadata_bcs_fetcher
+from monitor_web.data_migrate.fetcher.metadata.data_source import (
     get_metadata_data_source_fetcher,
     get_metadata_result_table_fetcher,
 )
-from bkmonitor.data_migrate.fetcher.metadata.space import get_metadata_space_fetcher
-from bkmonitor.data_migrate.fetcher.metadata.storage import (
+from monitor_web.data_migrate.fetcher.metadata.space import get_metadata_space_fetcher
+from monitor_web.data_migrate.fetcher.metadata.storage import (
     get_metadata_cluster_info_fetcher,
     get_metadata_storage_by_table_ids_fetcher,
 )
-from bkmonitor.data_migrate.fetcher.plugin_collect import get_collect_config_fetcher, get_collector_plugin_fetcher
-from bkmonitor.data_migrate.fetcher.query import get_query_template_fetcher
-from bkmonitor.data_migrate.fetcher.report import get_report_fetcher
-from bkmonitor.data_migrate.fetcher.strategy import get_strategy_fetcher
-from bkmonitor.data_migrate.fetcher.uptimecheck import get_uptimecheck_fetcher
-from bkmonitor.data_migrate.utils import _resolve_using, write_json_file
-from metadata.models import DataSource, ResultTable
-from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, KafkaStorage
+from monitor_web.data_migrate.fetcher.plugin_collect import get_collect_config_fetcher, get_collector_plugin_fetcher
+from monitor_web.data_migrate.fetcher.query import get_query_template_fetcher
+from monitor_web.data_migrate.fetcher.report import get_report_fetcher
+from monitor_web.data_migrate.fetcher.strategy import get_strategy_fetcher
+from monitor_web.data_migrate.fetcher.uptimecheck import get_uptimecheck_fetcher
+from monitor_web.data_migrate.utils import _resolve_using, write_json_file
 
 
 def _normalize_bk_biz_ids(bk_biz_ids: Sequence[int] | None) -> list[int]:

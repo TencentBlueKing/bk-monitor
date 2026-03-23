@@ -1,8 +1,8 @@
 from django.db.models import Q
 
-from bkmonitor.data_migrate.fetcher.base import FetcherResultType
 from metadata.models.bcs.cluster import BCSClusterInfo, BcsFederalClusterInfo
 from metadata.models.bcs.resource import LogCollectorInfo, PodMonitorInfo, ServiceMonitorInfo
+from monitor_web.data_migrate.fetcher.base import FetcherResultType
 
 
 def get_metadata_bcs_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]:

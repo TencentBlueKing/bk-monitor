@@ -5,8 +5,8 @@ from pathlib import Path
 
 from django.db.models import Model
 
-from bkmonitor.data_migrate.constants import DEFAULT_ENCODING
-from bkmonitor.data_migrate.utils import import_model_from_file, read_json_file
+from monitor_web.data_migrate.constants import DEFAULT_ENCODING
+from monitor_web.data_migrate.utils import import_model_from_file, read_json_file
 
 
 def _normalize_bk_biz_ids(bk_biz_ids: Sequence[int] | None) -> list[int]:
