@@ -37,6 +37,8 @@ from apps.log_databus.constants import (
     CACHE_KEY_CLUSTER_INFO,
     FIELD_TEMPLATE,
     PARSE_FAILURE_FIELD,
+    V4_RESERVED_FIELD_NAMES,
+    V4_RESERVED_MINUTE_PATTERN,
     EtlConfig,
     MetadataTypeEnum,
     MIN_FLATTENED_SUPPORT_VERSION,
@@ -68,6 +70,7 @@ class EtlStorage:
     etl_config = None
     separator_node_name = "bk_separator_object"
     path_separator_node_name = "bk_separator_object_path"
+    separator_key_is_index = False
 
     @classmethod
     def get_instance(cls, etl_config=None):
@@ -131,6 +134,77 @@ class EtlStorage:
         raise NotImplementedError(_("V4版本clean_rules构建功能暂未实现"))
 
     @staticmethod
+    def _is_v4_reserved_field(field_name: str) -> bool:
+        lower_name = field_name.lower()
+        if lower_name in V4_RESERVED_FIELD_NAMES:
+            return True
+        if lower_name.startswith(V4_RESERVED_MINUTE_PATTERN) and lower_name[len(V4_RESERVED_MINUTE_PATTERN):].isdigit():
+            return True
+        return False
+
+    @classmethod
+    def _validate_v4_reserved_fields(cls, fields: list):
+        for field in fields:
+            if field.get("is_delete"):
+                continue
+            field_name = field.get("alias_name") or field["field_name"]
+            if cls._is_v4_reserved_field(field_name):
+                raise ValidationError(
+                    _("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}"
+                )
+
+    @staticmethod
+    def _get_path_regexp(etl_params: dict, built_in_config: dict) -> str:
+        """
+        获取路径正则：优先从 etl_params["path_regexp"] 取（真实调用链），
+        built_in_config["option"]["separator_configs"] 作为 fallback。
+        """
+        path_regexp = etl_params.get("path_regexp", "")
+        if path_regexp:
+            return path_regexp
+        separator_configs = built_in_config.get("option", {}).get("separator_configs", [])
+        if separator_configs:
+            return separator_configs[0].get("separator_regexp", "")
+        return ""
+
+    def _build_path_regex_rules_v4(self, etl_params: dict, built_in_config: dict) -> list:
+        """构建 path regex 提取规则"""
+        path_regexp = self._get_path_regexp(etl_params, built_in_config)
+        if not path_regexp:
+            return []
+
+        rules = [
+            {
+                "input_id": "json_data",
+                "output_id": "path",
+                "operator": {
+                    "type": "get",
+                    "key_index": [{"type": "key", "value": "filename"}],
+                    "missing_strategy": None,
+                },
+            },
+            {
+                "input_id": "path",
+                "output_id": "bk_separator_object_path",
+                "operator": {"type": "regex", "regex": path_regexp},
+            },
+        ]
+
+        pattern = re.compile(path_regexp)
+        for field_name in pattern.groupindex.keys():
+            rules.append({
+                "input_id": "bk_separator_object_path",
+                "output_id": field_name,
+                "operator": {
+                    "type": "assign",
+                    "key_index": field_name,
+                    "alias": field_name,
+                    "output_type": "string",
+                },
+            })
+        return rules
+
+    @staticmethod
     def get_es_field_type(field):
         es_type = field.get("option", {}).get("es_type")
         if not es_type:
@@ -156,10 +230,12 @@ class EtlStorage:
         return type_mapping.get(field_type, "string")
 
     @staticmethod
-    def _convert_v3_to_v4_time_format(v3_time_format: str) -> dict:
+    def _convert_v3_to_v4_time_format(v3_time_format: str, time_zone: int = None) -> dict:
         """
         将V3时间格式转换为V4 in_place_time_parsing配置
         :param v3_time_format: V3版本的时间格式字符串
+        :param time_zone: 用户配置的时区偏移（如8表示UTC+8），仅对不含内嵌时区的格式生效；
+                          None时保持mapping默认值（zone=0即UTC）
         :return: V4版本的in_place_time_parsing配置字典
         """
         # V3到V4时间格式映射表
@@ -190,6 +266,7 @@ class EtlStorage:
             "yyyyMMddTHHmmss.SSSSSSZ": {"format": "%Y%m%dT%H%M%S.%6f%:z", "zone": None},
             "yyyy-MM-ddTHH:mm:ss.SSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%3f%:z", "zone": None},
             "yyyy-MM-ddTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": None},
+            "YYYY-MM-DDTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": None},
             "ISO8601": {"format": "%+", "zone": None},
             "yyyy-MM-ddTHH:mm:ssZ": {"format": "%Y-%m-%dT%H:%M:%S%:z", "zone": None},
             "yyyy-MM-ddTHH:mm:ss.SSSSSSZZ": {"format": "%Y-%m-%dT%H:%M:%S.%6f%:z", "zone": None},
@@ -213,16 +290,22 @@ class EtlStorage:
         format_config = time_format_mapping.get(v3_time_format)
         if not format_config:
             # 如果找不到映射，使用默认配置
+            zone = time_zone if time_zone is not None else 0
             return {
-                "from": {"format": "%Y-%m-%d %H:%M:%S", "zone": 0},
+                "from": {"format": "%Y-%m-%d %H:%M:%S", "zone": zone},
                 "interval_format": None,
                 "to": "millis",
                 "now_if_parse_failed": True,
             }
 
-        # 构建V4 in_place_time_parsing配置
+        # zone=None表示格式本身内嵌了时区信息（如%z、%:z），此时忽略用户time_zone
+        # zone=0表示格式不含时区信息，可被用户time_zone覆盖
+        zone = format_config["zone"]
+        if zone is not None and time_zone is not None:
+            zone = time_zone
+
         return {
-            "from": {"format": format_config["format"], "zone": format_config["zone"]},
+            "from": {"format": format_config["format"], "zone": zone},
             "interval_format": None,
             "to": "millis",
             "now_if_parse_failed": True,
@@ -283,25 +366,47 @@ class EtlStorage:
             time_fmt = time_fmts.get(v3_time_format, {})
             is_nanos = time_fmt.get("es_format", "epoch_millis") == "strict_date_optional_time_nanos"
 
-            rules.append(
-                {
-                    "input_id": "json_data",
-                    "output_id": time_field_name,
-                    "operator": {
-                        "type": "assign",
-                        "key_index": time_alias_name,
-                        "alias": time_field_name,
-                        "desc": time_field.get("description"),
-                        "input_type": None,
-                        "output_type": self._get_output_type(time_field_type),
-                        "fixed_value": None,
-                        "is_time_field": None,
-                        "time_format": None,
-                        "in_place_time_parsing": v4_time_parsing,
-                        "default_value": None,
-                    },
+            # 判断是否为用户指定的时间字段：有real_path说明时间来源于bk_separator_object而非json_data
+            has_user_time_field = "real_path" in time_field.get("option", {})
+
+            # 读取用户配置的时区偏移
+            user_time_zone = time_field.get("option", {}).get("time_zone")
+            if user_time_zone is not None:
+                user_time_zone = int(user_time_zone)
+
+            if has_user_time_field:
+                # 用户指定了时间字段，dtEventTimeStamp需要从bk_separator_object提取
+                # 与dtEventTimeStampNanos同理，延迟到bk_separator_object之后生成
+                built_in_config["_user_time_field"] = {
+                    "time_field_name": time_field_name,
+                    "time_alias_name": time_alias_name,
+                    "time_field_type": time_field_type,
+                    "description": time_field.get("description"),
+                    "v3_time_format": v3_time_format,
+                    "time_zone": user_time_zone,
+                    "field_index": time_field.get("option", {}).get("field_index"),
                 }
-            )
+            else:
+                # 默认：从json_data.utctime提取（GSE上报的采集时间）
+                rules.append(
+                    {
+                        "input_id": "json_data",
+                        "output_id": time_field_name,
+                        "operator": {
+                            "type": "assign",
+                            "key_index": time_alias_name,
+                            "alias": time_field_name,
+                            "desc": time_field.get("description"),
+                            "input_type": None,
+                            "output_type": self._get_output_type(time_field_type),
+                            "fixed_value": None,
+                            "is_time_field": None,
+                            "time_format": None,
+                            "in_place_time_parsing": v4_time_parsing,
+                            "default_value": None,
+                        },
+                    }
+                )
 
             # 如果是纳秒级时间格式，记录需要生成dtEventTimeStampNanos字段
             # 注意：dtEventTimeStampNanos规则需要在bk_separator_object之后生成，因为用户指定的时间字段在bk_separator_object中
@@ -311,6 +416,8 @@ class EtlStorage:
                 built_in_config["_nanos_time_field"] = {
                     "time_alias_name": time_alias_name,
                     "v3_time_format": v3_time_format,
+                    "time_zone": user_time_zone,
+                    "field_index": time_field.get("option", {}).get("field_index"),
                 }
 
         return rules
@@ -357,6 +464,46 @@ class EtlStorage:
 
         return rules
 
+    def _build_user_dt_event_time_field_v4(self, built_in_config: dict) -> list:
+        """
+        构建V4版本的dtEventTimeStamp字段规则（当用户指定了时间字段时，从bk_separator_object提取）
+        :param built_in_config: 内置配置，包含_user_time_field信息
+        :return: dtEventTimeStamp字段规则列表；若无用户时间字段则返回空列表
+        """
+        rules = []
+        user_time_field = built_in_config.get("_user_time_field")
+        if user_time_field:
+            v4_time_parsing = self._convert_v3_to_v4_time_format(
+                user_time_field["v3_time_format"], time_zone=user_time_field.get("time_zone")
+            )
+
+            field_index = user_time_field.get("field_index")
+            if self.separator_key_is_index and field_index is not None:
+                key_index = str(field_index - 1)
+            else:
+                key_index = user_time_field["time_alias_name"]
+
+            rules.append(
+                {
+                    "input_id": self.separator_node_name,
+                    "output_id": user_time_field["time_field_name"],
+                    "operator": {
+                        "type": "assign",
+                        "key_index": key_index,
+                        "alias": user_time_field["time_field_name"],
+                        "desc": user_time_field.get("description"),
+                        "input_type": None,
+                        "output_type": self._get_output_type(user_time_field["time_field_type"]),
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": v4_time_parsing,
+                        "default_value": None,
+                    },
+                }
+            )
+        return rules
+
     def _build_nanos_time_field_v4(self, built_in_config: dict) -> list:
         """
         构建V4版本的dtEventTimeStampNanos字段规则（从bk_separator_object提取用户指定的时间字段）
@@ -370,9 +517,17 @@ class EtlStorage:
             v3_time_format = nanos_time_field["v3_time_format"]
 
             # 获取纳秒级时间格式的V4配置
-            nanos_v4_time_parsing = self._convert_v3_to_v4_time_format(v3_time_format)
+            nanos_v4_time_parsing = self._convert_v3_to_v4_time_format(
+                v3_time_format, time_zone=nanos_time_field.get("time_zone")
+            )
             # 纳秒级时间解析的输出应为strict_date_optional_time_nanos格式字符串，与ES mapping保持一致
             nanos_v4_time_parsing["to"] = "strict_date_optional_time_nanos"
+
+            field_index = nanos_time_field.get("field_index")
+            if self.separator_key_is_index and field_index is not None:
+                key_index = str(field_index - 1)
+            else:
+                key_index = time_alias_name
 
             rules.append(
                 {
@@ -380,7 +535,7 @@ class EtlStorage:
                     "output_id": "dtEventTimeStampNanos",
                     "operator": {
                         "type": "assign",
-                        "key_index": time_alias_name,
+                        "key_index": key_index,
                         "alias": "dtEventTimeStampNanos",
                         "desc": "纳秒级时间戳",
                         "input_type": None,
@@ -776,6 +931,7 @@ class EtlStorage:
 
                 nano_time_field = copy.deepcopy(time_field)
                 nano_time_field["field_name"] = "dtEventTimeStampNanos"
+                nano_time_field["field_type"] = "long" if field["option"]["time_format"] == "epoch_micros" else "string"
                 nano_time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
                 nano_time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
                 nano_time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
