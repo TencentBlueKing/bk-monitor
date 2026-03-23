@@ -139,7 +139,7 @@ DEFAULT_CRONTAB = [
     ("alarm_backends.core.cache.action_config.refresh_total", "*/60 * * * *", "global"),
     ("alarm_backends.core.cache.action_config.refresh_latest_5_minutes", "* * * * *", "global"),
     ("alarm_backends.core.cache.assign", "* * * * *", "global"),
-    ("alarm_backends.core.cache.issue", "*/5 * * * *", "global"),
+    # alarm_backends.core.cache.issue (StrategyIssueConfigCache) 已废弃，issue_config 合并进策略缓存
     ("alarm_backends.core.cache.calendar", "* * * * *", "global"),
     ("alarm_backends.core.cache.subscribe", "* * * * *", "global"),
     # api cache

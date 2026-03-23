@@ -25,6 +25,39 @@ Issues 模块后台数据流验证脚本
 """
 
 
+def _update_strategy_cache_issue_config(strategy_id: int) -> bool:
+    """将 MySQL 最新 issue_config 精准写回策略 Redis 缓存。
+
+    不调用全量 StrategyCacheManager.refresh()（该方法无参数，会触发全量刷新），
+    而是直接更新指定策略 key 中的 issue_config 字段。
+    Returns True 表示成功更新，False 表示缓存未命中（等待后台任务重建）。
+    """
+    import json
+
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+    from bkmonitor.models.issue import StrategyIssueConfig
+
+    cache_key = StrategyCacheManager.CACHE_KEY_TEMPLATE.format(strategy_id=strategy_id)
+    cached_str = StrategyCacheManager.cache.get(cache_key)
+    if not cached_str:
+        return False
+
+    strategy_dict = json.loads(cached_str)
+    cfg = StrategyIssueConfig.objects.filter(strategy_id=strategy_id).first()
+    strategy_dict["issue_config"] = (
+        {
+            "is_enabled": cfg.is_enabled,
+            "aggregate_dimensions": cfg.aggregate_dimensions,
+            "conditions": cfg.conditions,
+            "alert_levels": cfg.alert_levels,
+        }
+        if cfg
+        else None
+    )
+    StrategyCacheManager.cache.set(cache_key, json.dumps(strategy_dict), StrategyCacheManager.CACHE_TIMEOUT)
+    return True
+
+
 def _get_strategy(strategy_id: int) -> dict:
     """从 Redis 缓存读取策略快照，缓存未命中则 fallback 到 MySQL。"""
     from alarm_backends.core.cache.strategy import StrategyCacheManager
@@ -61,7 +94,6 @@ def main(
         is_enabled:           是否启用，默认 True
     """
     from bkmonitor.models.issue import StrategyIssueConfig
-    from alarm_backends.core.cache.issue import StrategyIssueConfigCache
 
     if aggregate_dimensions is None:
         aggregate_dimensions = []
@@ -96,37 +128,44 @@ def main(
     print(f"     conditions        = {config.conditions}")
     print(f"     alert_levels      = {config.alert_levels}")
 
-    # 显式刷新缓存（信号在 web 进程下会跳过）
+    # 精准更新策略缓存中的 issue_config 字段
     try:
-        StrategyIssueConfigCache.upsert(config)
-        print(f"[OK] Redis 缓存已刷新，strategy_id={strategy_id}")
+        updated = _update_strategy_cache_issue_config(strategy_id)
+        if updated:
+            print(f"[OK] 策略缓存已更新（含 issue_config），strategy_id={strategy_id}")
+        else:
+            print(f"[WARN] 策略缓存未命中，等待后台 smart_refresh 任务重建，strategy_id={strategy_id}")
     except Exception as e:
-        print(f"[WARN] 缓存刷新失败（processor 会降级读 MySQL）: {e}")
+        print(f"[WARN] 策略缓存更新失败: {e}")
 
 
 def cleanup(strategy_id: int) -> None:
     """
-    清理指定策略的 Issues 配置：软删除 MySQL 记录并清除 Redis 缓存。
+    清理指定策略的 Issues 配置：软删除 MySQL 记录并更新 Redis 缓存。
     清理后该策略不再触发 Issue 聚合，直到重新调用 main() 注入。
     """
     from bkmonitor.models.issue import StrategyIssueConfig
-    from alarm_backends.core.cache.issue import StrategyIssueConfigCache
 
     updated = StrategyIssueConfig.objects.filter(strategy_id=strategy_id).update(is_deleted=True, is_enabled=False)
     if updated:
         try:
-            StrategyIssueConfigCache.invalidate(strategy_id)
+            # .update() 不触发 Django 信号，需手动更新策略缓存中的 issue_config 字段
+            cache_updated = _update_strategy_cache_issue_config(strategy_id)
+            if cache_updated:
+                print(f"[OK] strategy_id={strategy_id} 的配置已清理（软删除 + 策略缓存已更新）")
+            else:
+                print(f"[OK] strategy_id={strategy_id} 的配置已清理（软删除；缓存未命中，等待后台重建）")
         except Exception as e:
-            print(f"[WARN] 缓存清除失败: {e}")
-        print(f"[OK] strategy_id={strategy_id} 的配置已清理（软删除 + 缓存失效）")
+            print(f"[WARN] 策略缓存更新失败: {e}")
+            print(f"[OK] strategy_id={strategy_id} 的 MySQL 配置已清理（软删除）")
     else:
         print(f"[WARN] 未找到 strategy_id={strategy_id} 的配置，无需清理")
 
 
 def verify_config(strategy_id: int) -> None:
-    """查看指定策略的 MySQL 配置及 Redis 缓存状态。"""
+    """查看指定策略的 MySQL 配置及策略缓存中的 issue_config 状态。"""
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
     from bkmonitor.models.issue import StrategyIssueConfig
-    from alarm_backends.core.cache.issue import StrategyIssueConfigCache
 
     print(f"\n===== StrategyIssueConfig 验证（strategy_id={strategy_id}）=====")
 
@@ -144,17 +183,21 @@ def verify_config(strategy_id: int) -> None:
         print(f"  alert_levels      = {config.alert_levels}")
 
     try:
-        cached = StrategyIssueConfigCache.get(strategy_id)
-        if cached:
-            print("\n[Redis 缓存] 命中")
-            print(f"  is_enabled        = {cached.get('is_enabled')}")
-            print(f"  aggregate_dims    = {cached.get('aggregate_dimensions')}")
-            print(f"  conditions        = {cached.get('conditions')}")
-            print(f"  alert_levels      = {cached.get('alert_levels')}")
+        strategy_snapshot = StrategyCacheManager.get_strategy_by_id(strategy_id)
+        if strategy_snapshot:
+            cached = strategy_snapshot.get("issue_config")
+            if cached:
+                print("\n[策略缓存 issue_config] 命中")
+                print(f"  is_enabled        = {cached.get('is_enabled')}")
+                print(f"  aggregate_dims    = {cached.get('aggregate_dimensions')}")
+                print(f"  conditions        = {cached.get('conditions')}")
+                print(f"  alert_levels      = {cached.get('alert_levels')}")
+            else:
+                print("\n[策略缓存 issue_config] 未配置（issue_config=null）")
         else:
-            print("\n[Redis 缓存] 未命中")
+            print("\n[策略缓存] 未命中（策略可能已失效或缓存未建）")
     except Exception as e:
-        print(f"\n[Redis 缓存] 读取失败: {e}")
+        print(f"\n[策略缓存] 读取失败: {e}")
 
     print("=" * 60)
 

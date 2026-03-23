@@ -19,7 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import math
 import os
 import shutil
 import uuid
@@ -40,7 +39,6 @@ from apps.tgpa.constants import (
 from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.tgpa.handlers.decrypt import get_decrypt_handler
 from apps.tgpa.models import TGPATask
-from apps.utils.thread import MultiExecuteFunc
 
 
 class TGPATaskHandler:
@@ -83,7 +81,7 @@ class TGPATaskHandler:
         """
         request_params = {
             "cc_id": self.bk_biz_id,
-            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
             "task_id": inst_id,
         }
         return TGPATaskApi.query_single_user_log_task_v2(request_params)["results"][0]
@@ -128,12 +126,9 @@ class TGPATaskHandler:
         """
         获取任务总数
         """
-        task_types = ",".join(
-            [str(TGPATaskTypeEnum.BUSINESS_LOG_V1.value), str(TGPATaskTypeEnum.BUSINESS_LOG_V2.value)]
-        )
         params = {
             "cc_id": bk_biz_id,
-            "task_type": task_types,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
             "offset": 0,
             "limit": 1,
         }
@@ -141,41 +136,35 @@ class TGPATaskHandler:
         return result["count"]
 
     @staticmethod
-    def get_task_list(params, need_format=False):
+    def iter_task_list(bk_biz_id, batch_size=TASK_LIST_BATCH_SIZE, **extra_params):
         """
-        获取任务列表
+        迭代获取任务列表，逐条返回任务数据
+        :param bk_biz_id: 业务ID
+        :param batch_size: 每批请求数据量，默认为TASK_LIST_BATCH_SIZE
+        :param extra_params: 额外的查询参数，如 task_id 等，会直接传递给 API
+        :return: 生成器，逐条yield任务数据
         """
-        # 支持v1和v2业务日志捞取任务
-        task_types = ",".join(
-            [str(TGPATaskTypeEnum.BUSINESS_LOG_V1.value), str(TGPATaskTypeEnum.BUSINESS_LOG_V2.value)]
-        )
-        params["task_type"] = task_types
-        # 第一次请求只获取1条数据，用于获取总数
-        first_request_params = params.copy()
-        first_request_params.update({"offset": 0, "limit": 1})
-        result = TGPATaskApi.query_single_user_log_task_v2(first_request_params)
-        count = result["count"]
+        offset = 0
+        while True:
+            request_params = {
+                "cc_id": bk_biz_id,
+                "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
+                "offset": offset,
+                "limit": batch_size,
+                "ordering": "-id",
+                **extra_params,
+            }
+            result = TGPATaskApi.query_single_user_log_task_v2(request_params)
+            task_list = result.get("results", [])
 
-        data = []
-        if count > 0:
-            total_requests = math.ceil(count / TASK_LIST_BATCH_SIZE)
-            multi_execute_func = MultiExecuteFunc()
+            if not task_list:
+                break
+            yield from task_list
 
-            for i in range(total_requests):
-                request_params = params.copy()
-                request_params.update({"offset": i * TASK_LIST_BATCH_SIZE, "limit": TASK_LIST_BATCH_SIZE})
-                multi_execute_func.append(
-                    result_key=f"request_{i}", func=TGPATaskApi.query_single_user_log_task_v2, params=request_params
-                )
+            if len(task_list) < batch_size:
+                break
 
-            results = multi_execute_func.run()
-            for i in range(total_requests):
-                if need_format:
-                    data.extend(TGPATaskHandler.format_task_list(results[f"request_{i}"]["results"]))
-                else:
-                    data.extend(results[f"request_{i}"]["results"])
-
-        return {"total": count, "list": data}
+            offset += batch_size
 
     @staticmethod
     def get_task_page(params):
@@ -183,12 +172,9 @@ class TGPATaskHandler:
         分页获取任务列表，用于前端
         """
         # 支持v1和v2业务日志捞取任务
-        task_types = ",".join(
-            [str(TGPATaskTypeEnum.BUSINESS_LOG_V1.value), str(TGPATaskTypeEnum.BUSINESS_LOG_V2.value)]
-        )
         request_params = {
             "cc_id": params["bk_biz_id"],
-            "task_type": task_types,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
             "offset": (params["page"] - 1) * params["pagesize"],
             "limit": params["pagesize"],
         }
@@ -234,7 +220,7 @@ class TGPATaskHandler:
         """
         request_params = {
             "cc_id": bk_biz_id,
-            "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
+            "task_type": TGPATaskTypeEnum.get_business_log_task_types(),
             "limit": 1,
         }
         result = TGPATaskApi.query_single_user_log_task_v2(request_params)

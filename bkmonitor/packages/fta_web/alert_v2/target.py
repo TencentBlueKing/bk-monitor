@@ -401,6 +401,10 @@ class BaseK8STarget(BaseTarget):
         return [target]
 
     def _k8s_related_log_targets(self) -> list[dict[str, Any]]:
+        """获取 K8S 路径关联的日志索引集列表。
+
+        通过关联关系查询日志索引集，并构建 Lucene keyword 语句（容器条件 OR serverIp）
+        """
         source_infos: list[dict[str, Any]] = self._build_k8s_source_infos()
         if not source_infos:
             return []
@@ -409,51 +413,37 @@ class BaseK8STarget(BaseTarget):
         if not qs:
             return []
 
+        # 构建容器信息相关查询条件
         source_info: dict[str, Any] = source_infos[0]
-        addition: list[dict[str, Any]] = []
+        k8s_query_strings: list[str] = []
+
         namespace: str | None = source_info.get("namespace")
         if namespace:
-            addition.append(
-                {
-                    "operator": "=",
-                    "field": "__ext.io_kubernetes_pod_namespace",
-                    "value": [namespace],
-                }
-            )
+            k8s_query_strings.append(f'__ext.io_kubernetes_pod_namespace: "{namespace}"')
 
-        # 使用 Pod 更精确地过滤日志
-        # Case1 - 从维度中获取 Pod 名称
-        # Case2 - 如果是 Workload 目标，则使用 contains 方式模糊匹配 Pod 名称
-        pod: str | None = source_info.get(K8S_RESOURCE_TYPE[K8STargetType.POD])
-        if not pod:
-            pod = self._get_dimension_value(["pod", "pod_name"])
-        is_workload: bool = self._get_k8s_resource_type() == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
+        pod: str | None = source_info.get(K8S_RESOURCE_TYPE[K8STargetType.POD]) or self._get_dimension_value(
+            ["pod", "pod_name"]
+        )
         if pod:
-            addition.append({"field": "__ext.io_kubernetes_pod", "operator": "=", "value": [pod]})
-        elif is_workload:
-            addition.append(
-                {
-                    "field": "__ext.io_kubernetes_pod",
-                    "operator": "contains",
-                    "value": [source_info[source_info["name"]]],
-                }
-            )
+            k8s_query_strings.append(f'__ext.io_kubernetes_pod: "{pod}"')
+        elif self._get_k8s_resource_type() == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]:
+            k8s_query_strings.append(f"__ext.io_kubernetes_pod: *{source_info[source_info['name']]}*")
 
-        # 使用主机 IP 进一步过滤日志
-        if not pod:
-            # 有 Pod 的情况下已经可以精确匹配了，无需增加主机过滤。
-            related_host_targets: list[dict[str, Any]] = self.list_related_host_targets()
-            if related_host_targets:
-                addition.append(
-                    {"field": "serverIp", "operator": "=", "value": [related_host_targets[0]["bk_target_ip"]]}
-                )
+        # 获取 serverIp
+        host_targets: list[dict[str, Any]] = self.list_related_host_targets()
+        server_ip: str = host_targets[0]["bk_target_ip"] if host_targets else ""
 
-        k8s_log_targets: list[dict[str, Any]] = []
-        for log_target in self._list_related_log_targets(self._alert.event.bk_biz_id, qs):
-            log_target.setdefault("addition", []).extend(addition)
-            k8s_log_targets.append(log_target)
+        # 组合容器条件和 serverIp 条件（OR 关系）
+        container_clause: str = " AND ".join(k8s_query_strings)
+        ip_clause: str = f'serverIp: "{server_ip}"' if server_ip else ""
+        keyword: str = " OR ".join(f"({c})" if " AND " in c else c for c in (container_clause, ip_clause) if c)
 
-        return k8s_log_targets
+        log_targets: list[dict[str, Any]] = self._list_related_log_targets(self._alert.event.bk_biz_id, qs)
+        if keyword:
+            for log_target in log_targets:
+                log_target["keyword"] = keyword
+
+        return log_targets
 
     def _apm_related_log_targets(self) -> list[dict[str, Any]]:
         return self._list_related_apm_log_targets(self.list_related_apm_targets())

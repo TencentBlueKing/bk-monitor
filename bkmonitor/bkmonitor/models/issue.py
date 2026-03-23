@@ -132,24 +132,45 @@ def _has_cache_role() -> bool:
 
 
 @receiver(post_save, sender=StrategyIssueConfig)
-def upsert_strategy_issue_config_cache(sender, instance, **kwargs):
-    if not _has_cache_role():
-        return
-    try:
-        from alarm_backends.core.cache.issue import StrategyIssueConfigCache
-
-        StrategyIssueConfigCache.upsert(instance)
-    except Exception:
-        pass
-
-
 @receiver(post_delete, sender=StrategyIssueConfig)
-def invalidate_strategy_issue_config_cache(sender, instance, **kwargs):
+def refresh_strategy_cache_on_issue_config_change(sender, instance, **kwargs):
+    """issue_config 变更时精准更新策略缓存中的 issue_config 字段。
+
+    不调用全量 StrategyCacheManager.refresh()，而是直接读取当前策略的 Redis 缓存 key，
+    更新其中的 issue_config 子字段后写回，避免全量刷新开销。
+    缓存未命中时静默跳过，等待后台 smart_refresh 任务重建。
+
+    此 handler 主要兜底"直接操作 StrategyIssueConfig"的场景（如紧急运维），
+    正常 SaveStrategyV2Resource 路径下 web 进程不具备缓存写入能力（_has_cache_role() = False），
+    handler 会提前返回，缓存由后台任务异步重建。
+    """
+    import json
+
     if not _has_cache_role():
         return
     try:
-        from alarm_backends.core.cache.issue import StrategyIssueConfigCache
+        from alarm_backends.core.cache.strategy import StrategyCacheManager
 
-        StrategyIssueConfigCache.invalidate(instance.strategy_id)
+        strategy_id = instance.strategy_id
+        cache_key = StrategyCacheManager.CACHE_KEY_TEMPLATE.format(strategy_id=strategy_id)
+        cached_str = StrategyCacheManager.cache.get(cache_key)
+        if not cached_str:
+            return
+
+        strategy_dict = json.loads(cached_str)
+        # 重新查 MySQL 获取最新 issue_config：
+        # - post_save 后返回当前有效记录；post_delete 后返回 None（对应关闭 Issues）
+        cfg = StrategyIssueConfig.objects.filter(strategy_id=strategy_id).first()
+        strategy_dict["issue_config"] = (
+            {
+                "is_enabled": cfg.is_enabled,
+                "aggregate_dimensions": cfg.aggregate_dimensions,
+                "conditions": cfg.conditions,
+                "alert_levels": cfg.alert_levels,
+            }
+            if cfg
+            else None
+        )
+        StrategyCacheManager.cache.set(cache_key, json.dumps(strategy_dict), StrategyCacheManager.CACHE_TIMEOUT)
     except Exception:
         pass
