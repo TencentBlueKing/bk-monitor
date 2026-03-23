@@ -30,10 +30,12 @@ import type { RequestOptions } from '../../services/base';
 import type { CommonFilterParams } from '../../typings';
 import type {
   AssignIssuesParams,
+  FollowUpIssuesParams,
   ImpactScope,
   IssueItem,
   IssuePriorityType,
   IssuesAssigneeDialogEvent,
+  IssuesFollowUpDialogEvent,
   IssuesOperationDialogEvent,
   IssuesPriorityDialogEvent,
   IssuesResolveDialogEvent,
@@ -496,6 +498,55 @@ export const mockResolveIssues = async (
       resolved_time: issue.resolved_time,
       status: issue.status,
       update_time: issue.update_time,
+    });
+  }
+
+  // 模拟网络延迟
+  await new Promise(resolve => setTimeout(resolve, 400));
+
+  return { succeeded, failed };
+};
+
+/**
+ * @description 模拟添加跟进信息接口，为指定 Issue 生成跟进记录并返回操作结果
+ * @param {FollowUpIssuesParams} params - 添加跟进信息请求参数（issues / content）
+ * @param {RequestOptions} config - 请求配置选项
+ * @returns {Promise<IssuesOperationDialogEvent<'follow_up'>>} 包含 succeeded 和 failed 的操作结果
+ */
+export const mockFollowUpIssues = async (
+  params: FollowUpIssuesParams,
+  config?: RequestOptions
+): Promise<IssuesOperationDialogEvent<'follow_up'>> => {
+  config;
+  // 确保 mock 数据缓存已初始化
+  if (!mockDataCache) {
+    mockDataCache = generateMockIssues(128);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const succeeded: IssuesFollowUpDialogEvent[] = [];
+  const failed: { issue_id: string; message: string }[] = [];
+
+  for (const { issue_id: issueId } of params.issues) {
+    // 模拟随机失败（约 5% 概率）
+    if (Math.random() < 0.05) {
+      failed.push({ issue_id: issueId, message: '服务端繁忙，请稍后重试' });
+      continue;
+    }
+
+    const issue = mockDataCache.find(item => item.id === issueId);
+    if (!issue) {
+      failed.push({ issue_id: issueId, message: `Issue ${issueId} 不存在` });
+      continue;
+    }
+
+    succeeded.push({
+      activity_id: `activity-${issueId}-${now}`,
+      activity_type: 'comment',
+      content: params.content,
+      issue_id: issue.id,
+      operator: MOCK_USERS[Math.floor(Math.random() * MOCK_USERS.length)],
+      time: now,
     });
   }
 
