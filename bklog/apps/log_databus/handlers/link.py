@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -36,7 +35,7 @@ from apps.log_databus.models import DataLinkConfig
 from apps.utils.local import get_request_tenant_id
 
 
-class DataLinkHandler(object):
+class DataLinkHandler:
     def __init__(self, data_link_id=None):
         self.data_link_id = data_link_id
         self.data = None
@@ -52,23 +51,33 @@ class DataLinkHandler(object):
         获取所有链路信息
         """
         bk_tenant_id = get_request_tenant_id()
-        link_objects = DataLinkConfig.objects.order_by("is_edge_transport", "-updated_at")\
-            .filter(bk_tenant_id=bk_tenant_id)
+        link_objects = DataLinkConfig.objects.order_by("is_edge_transport", "-updated_at").filter(
+            bk_tenant_id=bk_tenant_id
+        )
         if param.get("bk_biz_id"):
             link_objects = link_objects.filter(bk_biz_id__in=[0, param["bk_biz_id"]])
-        response = [
-            {
-                "data_link_id": link.data_link_id,
-                "link_group_name": link.link_group_name,
-                "bk_biz_id": link.bk_biz_id,
-                "kafka_cluster_id": link.kafka_cluster_id,
-                "transfer_cluster_id": link.transfer_cluster_id,
-                "es_cluster_ids": link.es_cluster_ids,
-                "is_active": link.is_active,
-                "description": link.description,
+
+        public_biz_data_link_info_list = []
+        independent_biz_data_link_info_list = []
+
+        for link_obj in link_objects:
+            link_dict = {
+                "data_link_id": link_obj.data_link_id,
+                "link_group_name": link_obj.link_group_name,
+                "bk_biz_id": link_obj.bk_biz_id,
+                "kafka_cluster_id": link_obj.kafka_cluster_id,
+                "transfer_cluster_id": link_obj.transfer_cluster_id,
+                "es_cluster_ids": link_obj.es_cluster_ids,
+                "is_active": link_obj.is_active,
+                "description": link_obj.description,
             }
-            for link in link_objects
-        ]
+            if link_obj.bk_biz_id == 0:
+                public_biz_data_link_info_list.append(link_dict)
+            else:
+                independent_biz_data_link_info_list.append(link_dict)
+
+        response = independent_biz_data_link_info_list + public_biz_data_link_info_list
+
         return response
 
     def retrieve(self):
