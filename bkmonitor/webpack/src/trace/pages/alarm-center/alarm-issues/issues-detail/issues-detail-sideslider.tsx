@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
+import { defineComponent, shallowReactive, shallowRef } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
@@ -35,6 +35,9 @@ import IssuesSliderWrapper from './components/issues-slider-wrapper';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
 import TimeRange from '@/components/time-range/time-range';
 import { type TimeRangeType, DEFAULT_TIME_RANGE } from '@/components/time-range/utils';
+
+import type { IssueDetail } from '../typing';
+import type { ImpactScopeResourceKeyType, IssuePriorityType } from '../typing/constants';
 
 import './issues-detail-sideslider.scss';
 
@@ -58,6 +61,44 @@ export default defineComponent({
   },
   emits: ['update:show'],
   setup(_, { emit }) {
+    const detail = shallowReactive<IssueDetail>({
+      id: 'issue-0006',
+      name: '[回归] 数据库连接池耗尽',
+      status: 'unresolved',
+      status_display: '未解决',
+      priority: 'P2',
+      priority_display: '低',
+      assignee: ['sunqi'],
+      is_regression: true,
+      strategy_id: '1001',
+      strategy_name: '主机 CPU 使用率过高',
+      bk_biz_id: 100,
+      bk_biz_name: '示例业务',
+      labels: ['集群告警', '测试环境', 'BCS'],
+      alert_count: 1129,
+      anomaly_message: 'K8S Pod CrashLoopBackOff，重启次数 > 10',
+      trend: [],
+      first_alert_time: 1763538688,
+      last_alert_time: 1774172004,
+      create_time: 1763537110,
+      update_time: 1774254865,
+      resolved_time: null,
+      is_resolved: false,
+      duration: '124d 1h',
+      impact_scope: {
+        cluster: {
+          count: 3,
+          instance_list: [
+            { bcs_cluster_id: 'BCS-K8S-80001', display_name: 'MOCK-SZ-TEST-80001-INNER(BCS-K8S-80001)' },
+            { bcs_cluster_id: 'BCS-K8S-80002', display_name: '模拟集群-业务测试-V1.26.1(BCS-K8S-80002)' },
+            { bcs_cluster_id: 'BCS-K8S-80003', display_name: 'demo-test-gz-0611(BCS-K8S-80003)' },
+          ],
+          link_tpl: '/k8s?filter-bcs_cluster_id={bcs_cluster_id}&sceneId=kubernetes&sceneType=overview',
+        },
+      },
+      aggregate_config: { aggregate_dimensions: ['bk_target_ip'], conditions: [], alert_levels: [1, 2] },
+    });
+
     const isFullscreen = shallowRef(false);
     const timeRange = shallowRef<TimeRangeType>(DEFAULT_TIME_RANGE);
     const timezone = shallowRef(getDefaultTimezone());
@@ -100,11 +141,34 @@ export default defineComponent({
       filterMode.value = val;
     };
 
+    /** 负责人变更 */
+    const handleAssigneeChange = (users: string[]) => {
+      detail.assignee = users;
+    };
+
+    /** 优先级变更 */
+    const handlePriorityChange = (priority: IssuePriorityType) => {
+      detail.priority = priority;
+    };
+
+    /** 标记已解决 */
+    const handleResolved = () => {
+      // 刷新数据
+      detail.is_resolved = true;
+    };
+
+    /** 影响范围点击 */
+    const handleImpactScopeClick = (resourceKey: ImpactScopeResourceKeyType, resource: any) => {
+      console.log('handleImpactScopeClick', resourceKey, resource);
+      // TODO: 展示影响范围侧栏
+    };
+
     return {
       isFullscreen,
       timeRange,
       timezone,
       refreshInterval,
+      detail,
       conditions,
       queryString,
       filterMode,
@@ -116,6 +180,10 @@ export default defineComponent({
       handleConditionChange,
       handleQueryStringChange,
       handleFilterModeChange,
+      handleAssigneeChange,
+      handlePriorityChange,
+      handleResolved,
+      handleImpactScopeClick,
     };
   },
   render() {
@@ -143,6 +211,7 @@ export default defineComponent({
                   />,
                 ],
               }}
+              detail={this.detail}
             />
           ),
           default: () => (
@@ -150,13 +219,18 @@ export default defineComponent({
               <IssuesSliderWrapper
                 alarmId={this.alarmId}
                 conditions={this.conditions}
+                detail={this.detail}
                 filterMode={this.filterMode}
                 issueId={this.issueId}
                 queryString={this.queryString}
                 timeRange={this.timeRange}
+                onAssigneeChange={this.handleAssigneeChange}
                 onConditionChange={this.handleConditionChange}
                 onFilterModeChange={this.handleFilterModeChange}
+                onImpactScopeClick={this.handleImpactScopeClick}
+                onPriorityChange={this.handlePriorityChange}
                 onQueryStringChange={this.handleQueryStringChange}
+                onResolved={this.handleResolved}
               />
             </div>
           ),

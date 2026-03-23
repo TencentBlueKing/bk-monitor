@@ -24,18 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
 import TemporaryShareNew from '../../../../../components/temporary-share/temporary-share-new';
 import { IssuesRegressionMap } from '../../constant';
 
+import type { IssueDetail } from '../../typing';
+
 import './issues-slider-header.scss';
 
 export default defineComponent({
   name: 'IssuesSliderHeader',
   props: {
+    detail: {
+      type: Object as PropType<IssueDetail>,
+      default: () => ({}),
+    },
     isFullscreen: {
       type: Boolean,
       default: false,
@@ -138,7 +144,7 @@ export default defineComponent({
         </div>
         <div class='issues-detail-head-content'>
           <div class='issues-id'>
-            NullpointerException
+            {this.detail.anomaly_message}
             <TemporaryShareNew type='issues' />
           </div>
           <div class='issues-detail-title'>
@@ -146,7 +152,7 @@ export default defineComponent({
               class='basic-title-name'
               v-overflow-tips
             >
-              异常登录日志告警
+              {this.detail.name}
             </span>
           </div>
         </div>

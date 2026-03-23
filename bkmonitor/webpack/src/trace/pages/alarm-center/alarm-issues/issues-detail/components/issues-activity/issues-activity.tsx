@@ -65,7 +65,7 @@ export default defineComponent({
     const handleCommentInputBlur = () => {
       // 延迟失焦，以便点击工具栏按钮
       setTimeout(() => {
-        if (!commentContent.value) {
+        if (!commentContent.value && !isMarkdownDialogShow.value) {
           isCommentInputFocus.value = false;
         }
       }, 200);
@@ -331,8 +331,13 @@ export default defineComponent({
     checkCommentOverflow();
 
     const renderCommentActivity = () => {
-      const commentText = `我是评论相关的信息嘻嘻，我是评论相关的信息嘻嘻，这里最多显示就是 3 行，超出 3
-        行的话，就需要用...来省略，并且有一个阅读全文的弹窗哈来省略，并且有一个阅读全文的弹窗哈来省略，并且有一个阅读全文的弹窗哈`;
+      const commentText = `### 阿帆辣椒水东方丽景
+
+带道具
+
+11123
+
+第四行`;
 
       return renderActivityItem({
         icon: <i class='icon-monitor icon-a-useryonghu' />,
