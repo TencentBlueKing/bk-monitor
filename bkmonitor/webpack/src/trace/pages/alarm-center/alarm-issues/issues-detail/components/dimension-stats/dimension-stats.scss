@@ -4,6 +4,8 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    max-height: 190px;
+    overflow: auto;
     margin-top: 12px;
 
     .stats-row {

@@ -41,7 +41,8 @@ import IssuesRetrievalFilter from './issues-retrieval-filter/issues-retrieval-fi
 import IssuesTrendChart from './issues-trend-chart/issues-trend-chart';
 import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 
-import type { IssueDetailTabType } from '../../typing/constants';
+import type { ImpactScopeResource, IssueDetail } from '../../typing';
+import type { ImpactScopeResourceKeyType, IssueDetailTabType, IssuePriorityType } from '../../typing/constants';
 
 import './issues-slider-wrapper.scss';
 
@@ -57,6 +58,10 @@ const TAB_LIST: { label: string; name: IssueDetailTabType }[] = [
 export default defineComponent({
   name: 'IssuesSliderWrapper',
   props: {
+    detail: {
+      type: Object as PropType<IssueDetail>,
+      default: () => ({}),
+    },
     /** Issue ID */
     issueId: {
       type: String,
@@ -89,8 +94,16 @@ export default defineComponent({
   },
   emits: {
     conditionChange: (_v: IWhereItem[]) => true,
-    queryStringChange: (_v: string) => true,
     filterModeChange: (_v: EMode) => true,
+    queryStringChange: (_v: string) => true,
+    /** 负责人变更 */
+    assigneeChange: (_v: string[]) => true,
+    /** 优先级变更 */
+    priorityChange: (_v: IssuePriorityType) => true,
+    /** 标记已解决 */
+    resolved: () => true,
+    /** 影响范围点击 */
+    impactScopeClick: (_resourceKey: ImpactScopeResourceKeyType, _resource: ImpactScopeResource) => true,
   },
   setup(props, { emit }) {
     const currentTab = shallowRef<IssueDetailTabType>(IssueDetailTabEnum.LATEST);
@@ -137,6 +150,30 @@ export default defineComponent({
       emit('filterModeChange', val);
     };
 
+    /** 负责人变更 */
+    const handleAssigneeChange = (users: string[]) => {
+      emit('assigneeChange', users);
+    };
+
+    /** 优先级变更 */
+    const handlePriorityChange = (priority: IssuePriorityType) => {
+      emit('priorityChange', priority);
+    };
+
+    /** 标记已解决 */
+    const handleResolved = () => {
+      emit('resolved');
+    };
+
+    /**
+     * 影响范围点击
+     * @param resourceKey 影响范围资源key
+     * @param resource 影响范围资源
+     */
+    const handleImpactScopeClick = (resourceKey: ImpactScopeResourceKeyType, resource: ImpactScopeResource) => {
+      emit('impactScopeClick', resourceKey, resource);
+    };
+
     const getPanelComponent = () => {
       switch (currentTab.value) {
         case IssueDetailTabEnum.LATEST:
@@ -171,6 +208,10 @@ export default defineComponent({
       handleConditionChange,
       handleQueryStringChange,
       handleFilterModeChange,
+      handleAssigneeChange,
+      handlePriorityChange,
+      handleResolved,
+      handleImpactScopeClick,
     };
   },
   render() {
@@ -207,7 +248,13 @@ export default defineComponent({
           <KeepAlive>{this.getPanelComponent()}</KeepAlive>
         </div>
         <div class='issues-slider-right-panel'>
-          <IssuesBasicInfo />
+          <IssuesBasicInfo
+            detail={this.detail}
+            onAssigneeChange={this.handleAssigneeChange}
+            onImpactScopeClick={this.handleImpactScopeClick}
+            onPriorityChange={this.handlePriorityChange}
+            onResolved={this.handleResolved}
+          />
           <IssuesActivity />
           <IssuesHistory />
         </div>
