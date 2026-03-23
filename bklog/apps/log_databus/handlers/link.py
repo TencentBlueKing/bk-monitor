@@ -57,26 +57,33 @@ class DataLinkHandler:
         if param.get("bk_biz_id"):
             link_objects = link_objects.filter(bk_biz_id__in=[0, param["bk_biz_id"]])
 
-        public_biz_data_link_info_list = []
-        independent_biz_data_link_info_list = []
-
-        for link_obj in link_objects:
-            link_dict = {
-                "data_link_id": link_obj.data_link_id,
-                "link_group_name": link_obj.link_group_name,
-                "bk_biz_id": link_obj.bk_biz_id,
-                "kafka_cluster_id": link_obj.kafka_cluster_id,
-                "transfer_cluster_id": link_obj.transfer_cluster_id,
-                "es_cluster_ids": link_obj.es_cluster_ids,
-                "is_active": link_obj.is_active,
-                "description": link_obj.description,
+        data_link_infos = [
+            {
+                "data_link_id": link.data_link_id,
+                "link_group_name": link.link_group_name,
+                "bk_biz_id": link.bk_biz_id,
+                "kafka_cluster_id": link.kafka_cluster_id,
+                "transfer_cluster_id": link.transfer_cluster_id,
+                "es_cluster_ids": link.es_cluster_ids,
+                "is_active": link.is_active,
+                "description": link.description,
             }
-            if link_obj.bk_biz_id == 0:
-                public_biz_data_link_info_list.append(link_dict)
-            else:
-                independent_biz_data_link_info_list.append(link_dict)
+            for link in link_objects
+        ]
 
-        response = independent_biz_data_link_info_list + public_biz_data_link_info_list
+        if param.get("bk_biz_id"):
+            public_data_link_infos = []
+            biz_independent_data_link_infos = []
+
+            for data_link_info in data_link_infos:
+                if data_link_info.get("bk_biz_id", 0) == 0:
+                    public_data_link_infos.append(data_link_info)
+                else:
+                    biz_independent_data_link_infos.append(data_link_info)
+
+            response = biz_independent_data_link_infos + public_data_link_infos
+        else:
+            response = data_link_infos
 
         return response
 
