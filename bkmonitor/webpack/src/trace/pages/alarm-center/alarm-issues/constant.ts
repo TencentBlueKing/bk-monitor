@@ -211,19 +211,6 @@ export const IssuesRegressionMap: Record<string, MapEntry> = {
   },
 };
 
-/** 影响范围资源类型中文名映射 */
-export const ImpactScopeResourceLabelMap: Record<string, string> = {
-  [ImpactScopeResourceKeyEnum.SET]: 'set',
-  [ImpactScopeResourceKeyEnum.HOST]: window.i18n.t('主机'),
-  [ImpactScopeResourceKeyEnum.SERVICE_INSTANCES]: window.i18n.t('服务实例'),
-  [ImpactScopeResourceKeyEnum.CLUSTER]: window.i18n.t('集群'),
-  [ImpactScopeResourceKeyEnum.NODE]: 'node',
-  [ImpactScopeResourceKeyEnum.POD]: 'pod',
-  [ImpactScopeResourceKeyEnum.SERVICE]: 'service',
-  [ImpactScopeResourceKeyEnum.APP]: window.i18n.t('应用'),
-  [ImpactScopeResourceKeyEnum.APM_SERVICE]: window.i18n.t('APM服务'),
-};
-
 /** Issues 活跃节点类型icon映射 */
 export const IssuesActiveNodeIconMap = {
   [IssueActiveNodeTypeEnum.FIRST]: {
