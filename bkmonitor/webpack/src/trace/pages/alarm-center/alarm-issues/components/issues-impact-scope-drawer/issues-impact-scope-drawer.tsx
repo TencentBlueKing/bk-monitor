@@ -24,11 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { Exception, Sideslider } from 'bkui-vue';
-
-import { ImpactScopeResourceLabelMap } from '../../constant';
 
 import type { ImpactScopeInstance, ImpactScopeResource, ImpactScopeResourceKeyType } from '../../typing';
 
@@ -89,7 +87,7 @@ export default defineComponent({
         v-slots={{
           header: () => (
             <div class='impact-scope-drawer-header'>
-              <span class='header-title'>{ImpactScopeResourceLabelMap[this.resourceKey] || this.resourceKey}</span>
+              <span class='header-title'>{this.resource?.display_name || this.resourceKey}</span>
             </div>
           ),
           default: () => (

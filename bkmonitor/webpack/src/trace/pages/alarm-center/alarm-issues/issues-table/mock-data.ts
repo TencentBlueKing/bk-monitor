@@ -123,6 +123,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
     return {
       set: {
         count: 3,
+        display_name: '集群',
         instance_list: [
           { set_id: '7001001', display_name: 'mock-project/bcs-demo-BCS-K8S-70001' },
           { set_id: '7001002', display_name: '示例平台/BCS-K8S-70002' },
@@ -132,6 +133,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
       },
       host: {
         count: 5,
+        display_name: '主机',
         instance_list: [
           { bk_host_id: 1000001, display_name: '192.168.10.11' },
           { bk_host_id: 1000002, display_name: '192.168.10.12' },
@@ -141,6 +143,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
       },
       service_instances: {
         count: 2,
+        display_name: '服务实例',
         instance_list: [
           { bk_service_instance_id: 2000001, display_name: '192.168.10.13_es-mock_datanode_9200' },
           { bk_service_instance_id: 2000002, display_name: '192.168.10.11_nginx_80' },
@@ -155,6 +158,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
     return {
       cluster: {
         count: 3,
+        display_name: 'bcs集群',
         instance_list: [
           { bcs_cluster_id: 'BCS-K8S-80001', display_name: 'MOCK-SZ-TEST-80001-INNER(BCS-K8S-80001)' },
           { bcs_cluster_id: 'BCS-K8S-80002', display_name: '模拟集群-业务测试-V1.26.1(BCS-K8S-80002)' },
@@ -170,6 +174,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
     return {
       node: {
         count: 2,
+        display_name: 'node',
         instance_list: [
           { bcs_cluster_id: 'BCS-K8S-80001', node: '192.168.10.11', display_name: 'BCS-K8S-80001/192.168.10.11' },
           { bcs_cluster_id: 'BCS-K8S-80001', node: '192.168.10.12', display_name: 'BCS-K8S-80001/192.168.10.12' },
@@ -179,6 +184,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
       },
       pod: {
         count: 3,
+        display_name: 'pod',
         instance_list: [
           {
             bcs_cluster_id: 'BCS-K8S-80001',
@@ -196,6 +202,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
       },
       service: {
         count: 1,
+        display_name: 'service',
         instance_list: [
           {
             bcs_cluster_id: 'BCS-K8S-80001',
@@ -213,6 +220,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
   return {
     [ImpactScopeResourceKeyEnum.APM_SERVICE]: {
       count: 2,
+      display_name: 'apm_service',
       instance_list: [
         {
           app_name: 'demo-app',
