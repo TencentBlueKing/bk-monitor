@@ -129,7 +129,7 @@ export default class Trace extends tsc<IProps, IEvent> {
   handleClusterListChange(list) {
     this.clusterOptions = list.map(item => ({
       id: item.storage_cluster_id,
-      name: item.storage_cluster_name,
+      name: item.storage_display_name || item.storage_cluster_name,
     }));
   }
 

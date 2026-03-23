@@ -39,6 +39,7 @@ class TGPATask(models.Model):
     process_status = models.CharField(_("处理状态"), max_length=64, default=TGPATaskProcessStatusEnum.INIT.value)
     processed_at = models.DateTimeField(_("处理时间"), null=True)
     error_message = models.TextField(_("错误信息"), null=True, blank=True)
+    created_at = models.DateTimeField(_("创建时间"), auto_now_add=True, db_index=True)
 
     class Meta:
         verbose_name = _("TGPA任务")

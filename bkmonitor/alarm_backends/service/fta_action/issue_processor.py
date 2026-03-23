@@ -12,7 +12,6 @@ import json
 import logging
 import time
 
-from alarm_backends.core.cache.issue import StrategyIssueConfigCache
 from alarm_backends.core.cache.key import ISSUE_ACTIVE_CONTENT_KEY, ISSUE_STRATEGY_LOCK
 from alarm_backends.core.control.item import gen_condition_matcher
 from bkmonitor.documents.alert import AlertDocument
@@ -77,7 +76,8 @@ class IssueAggregationProcessor:
         return True
 
     def _get_strategy_config(self) -> dict | None:
-        return StrategyIssueConfigCache.get(self.strategy_id)
+        """从策略缓存 JSON 直接读取 issue_config，无需额外 Redis 查询。"""
+        return self.strategy.get("issue_config")
 
     def _check_alert_level(self, config: dict) -> bool:
         alert_levels = config.get("alert_levels", [])
