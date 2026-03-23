@@ -26,13 +26,13 @@
 
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
-import { Button, Dialog, Message } from 'bkui-vue';
+import { Button, Dialog } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { mockResolveIssues } from '../../issues-table/mock-data';
+import { resolveIssues, showOperationResult } from '../../services/issues-operations';
 
 import type { IssuesBatchActionEnum } from '../../constant';
-import type { IssuesOperationDialogEvent } from '../../typing';
+import type { IssueIdentifier, IssuesOperationDialogEvent } from '../../typing';
 
 import './issues-resolve-dialog.scss';
 
@@ -44,13 +44,9 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    /** 空间业务id */
-    issuesBizId: {
-      type: Number,
-    },
-    /** 当前操作的 Issues ID 列表 */
-    issuesIds: {
-      type: Array as PropType<string[]>,
+    /** 跨业务批量操作 Issue 标识数据 */
+    issuesData: {
+      type: Array as PropType<IssueIdentifier[]>,
       default: () => [],
     },
     /** 提示内容 */
@@ -74,7 +70,7 @@ export default defineComponent({
      */
     const getTip = () => {
       if (props.tip) return props.tip;
-      if (props.issuesIds?.length > 1) return window.i18n.t('确认批量标记为"已解决"？');
+      if (props.issuesData?.length > 1) return window.i18n.t('确认批量标记为"已解决"？');
       return window.i18n.t('确认标记为"已解决"？');
     };
 
@@ -84,25 +80,16 @@ export default defineComponent({
     const handleConfirm = async () => {
       loading.value = true;
 
-      // TODO: 标记已解决请求接口及处理结果提示 待完善
-      const res = await mockResolveIssues({
-        bk_biz_id: props.issuesBizId,
-        issue_ids: props.issuesIds,
-      });
+      try {
+        const res = await resolveIssues({
+          issues: props.issuesData,
+        });
 
-      let msg = {
-        theme: 'success',
-        message: t('标记成功'),
-      };
-      if (res.failed?.length) {
-        msg = {
-          theme: 'error',
-          message: res.failed?.[0]?.message,
-        };
+        showOperationResult(res, t('标记成功'));
+        emit('success', res);
+      } finally {
+        loading.value = false;
       }
-
-      emit('success', res);
-      Message(msg);
     };
 
     /**

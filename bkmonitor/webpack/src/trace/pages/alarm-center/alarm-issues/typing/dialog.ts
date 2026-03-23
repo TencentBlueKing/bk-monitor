@@ -25,14 +25,31 @@
  */
 
 import type { IssuesBatchActionEnum } from '../constant';
+import type { IssuePriorityType } from './constants';
 import type { IssuesBatchActionType } from './constants';
 import type { IssueItem } from './table';
+
+/** 指派负责人请求参数 */
+export interface AssignIssuesParams {
+  /** 负责人用户名列表 */
+  assignee: string[];
+  /** 跨业务批量操作 Issue 标识列表 */
+  issues: IssueIdentifier[];
+}
 
 export interface DialogEventByActionMap {
   [IssuesBatchActionEnum.ASSIGN]: IssuesAssigneeDialogEvent;
   [IssuesBatchActionEnum.FOLLOW_UP]: IssuesFollowUpDialogEvent;
   [IssuesBatchActionEnum.PRIORITY]: IssuesPriorityDialogEvent;
   [IssuesBatchActionEnum.RESOLVE]: IssuesResolveDialogEvent;
+}
+
+/** Issue 标识符（跨业务批量操作请求中的单条 issue 结构） */
+export interface IssueIdentifier {
+  /** 空间业务 ID */
+  bk_biz_id: number;
+  /** Issue ID */
+  issue_id: string;
 }
 
 /** 指派责任人 dialog 组件 确认提交成功的回调事件对象 */
@@ -81,4 +98,18 @@ export interface IssuesResolveDialogEvent {
   resolved_time: IssueItem['resolved_time'];
   status: IssueItem['status'];
   update_time: IssueItem['update_time'];
+}
+
+/** 标记已解决请求参数 */
+export interface ResolveIssuesParams {
+  /** 跨业务批量操作 Issue 标识列表 */
+  issues: IssueIdentifier[];
+}
+
+/** 修改优先级请求参数 */
+export interface UpdatePriorityParams {
+  /** 跨业务批量操作 Issue 标识列表 */
+  issues: IssueIdentifier[];
+  /** 目标优先级 */
+  priority: IssuePriorityType;
 }

@@ -91,10 +91,11 @@ import { IssuesBatchActionEnum } from './alarm-issues/constant';
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
 import IssuesTable from './alarm-issues/issues-table/issues-table';
 import IssuesToolbar from './alarm-issues/issues-toolbar/issues-toolbar';
+import { showOperationResult, updateIssuesPriority } from './alarm-issues/services/issues-operations';
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
-import type { IssueItem } from './alarm-issues/typing';
+import type { IssueItem, IssuePriorityType } from './alarm-issues/typing';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
 import './alarm-center.scss';
@@ -143,8 +144,7 @@ export default defineComponent({
     const {
       issuesDialogShow,
       issuesDialogType,
-      issuesDialogIds,
-      issuesDialogBizId,
+      issuesDialogData,
       issuesDialogParam,
       handleIssuesDialogShow,
       handleIssuesDialogHide,
@@ -157,6 +157,32 @@ export default defineComponent({
      */
     const handleIssuesShowDetail = (_id: string) => {
       // TODO: 接入详情抽屉逻辑
+    };
+
+    /**
+     * @description 直接调用优先级变更接口，无需打开弹窗，成功后原地更新对应 Issue 行数据
+     * @param {string} id - Issue ID
+     * @param {IssuePriorityType} priority - 目标优先级（P0 / P1 / P2）
+     * @returns {void}
+     */
+    const handleIssuesPriorityChange = async (id: string, priority: IssuePriorityType) => {
+      const issuesData = data.value as unknown as IssueItem[];
+      const targetRow = issuesData.find(item => item.id === id);
+      if (!targetRow) return;
+
+      const res = await updateIssuesPriority({
+        issues: [{ bk_biz_id: targetRow.bk_biz_id, issue_id: id }],
+        priority,
+      });
+
+      showOperationResult(res, t('修改成功'));
+
+      // 接口成功，原地更新行数据
+      const item = res.succeeded?.[0];
+      if (item) {
+        targetRow.priority = item.priority;
+        targetRow.update_time = item.update_time;
+      }
     };
 
     const favoriteBox = useTemplateRef<ComponentPublicInstance<typeof FavoriteBox>>('favoriteBox');
@@ -778,10 +804,10 @@ export default defineComponent({
       handleIssuesDialogSuccess,
       issuesDialogShow,
       issuesDialogType,
-      issuesDialogIds,
-      issuesDialogBizId,
+      issuesDialogData,
       issuesDialogParam,
       handleIssuesShowDetail,
+      handleIssuesPriorityChange,
     };
   },
   render() {
@@ -930,8 +956,8 @@ export default defineComponent({
                                 this.handleIssuesDialogShow(IssuesBatchActionEnum.RESOLVE, id)
                               }
                               onPageSizeChange={this.handlePageSizeChange}
-                              onPriorityChange={(id: string) =>
-                                this.handleIssuesDialogShow(IssuesBatchActionEnum.PRIORITY, id)
+                              onPriorityChange={(id: string, priority: IssuePriorityType) =>
+                                this.handleIssuesPriorityChange(id, priority)
                               }
                               onSelectionChange={this.handleSelectedRowKeysChange}
                               onShowDetail={this.handleIssuesShowDetail}
@@ -1022,8 +1048,7 @@ export default defineComponent({
           <IssuesOperationDialogs
             dialogParam={this.issuesDialogParam}
             dialogType={this.issuesDialogType}
-            issuesBizId={this.issuesDialogBizId}
-            issuesIds={this.issuesDialogIds}
+            issuesData={this.issuesDialogData}
             show={this.issuesDialogShow}
             onSuccess={this.handleIssuesDialogSuccess}
             onUpdate:show={(v: boolean) => {

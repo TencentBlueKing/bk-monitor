@@ -32,18 +32,19 @@ import IssuesFollowUpDialog from '../issues-follow-up-dialog/issues-follow-up-di
 import IssuesPriorityDialog from '../issues-priority-dialog/issues-priority-dialog';
 import IssuesResolveDialog from '../issues-resolve-dialog/issues-resolve-dialog';
 
-import type { IssuesBatchActionType, IssuesOperationDialogEvent, IssuesOperationDialogParams } from '../../typing';
+import type {
+  IssueIdentifier,
+  IssuesBatchActionType,
+  IssuesOperationDialogEvent,
+  IssuesOperationDialogParams,
+} from '../../typing';
 
 export default defineComponent({
   name: 'IssuesOperationDialogs',
   props: {
-    /** 空间业务id */
-    issuesBizId: {
-      type: Number,
-    },
-    /** 当前操作的 Issues ID 列表 */
-    issuesIds: {
-      type: Array as PropType<string[]>,
+    /** 跨业务批量操作 Issue 标识数据 */
+    issuesData: {
+      type: Array as PropType<IssueIdentifier[]>,
       default: () => [],
     },
     /** 控制弹窗显隐 */
@@ -96,8 +97,7 @@ export default defineComponent({
       >
         <IssuesAssignDialog
           isShow={this.dialogType === IssuesBatchActionEnum.ASSIGN && this.show}
-          issuesBizId={this.issuesBizId}
-          issuesIds={this.issuesIds}
+          issuesData={this.issuesData}
           onCancel={() => this.handleShowChange(false)}
           onSuccess={(event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.ASSIGN>) =>
             this.handleConfirmSuccess(IssuesBatchActionEnum.ASSIGN, event)
@@ -106,8 +106,7 @@ export default defineComponent({
         />
         <IssuesResolveDialog
           isShow={this.dialogType === IssuesBatchActionEnum.RESOLVE && this.show}
-          issuesBizId={this.issuesBizId}
-          issuesIds={this.issuesIds}
+          issuesData={this.issuesData}
           onCancel={() => this.handleShowChange(false)}
           onSuccess={(event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.RESOLVE>) =>
             this.handleConfirmSuccess(IssuesBatchActionEnum.RESOLVE, event)
@@ -117,8 +116,7 @@ export default defineComponent({
         <IssuesPriorityDialog
           dialogParam={this.dialogParam}
           isShow={this.dialogType === IssuesBatchActionEnum.PRIORITY && this.show}
-          issuesBizId={this.issuesBizId}
-          issuesIds={this.issuesIds}
+          issuesData={this.issuesData}
           onCancel={() => this.handleShowChange(false)}
           onSuccess={(event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.PRIORITY>) =>
             this.handleConfirmSuccess(IssuesBatchActionEnum.PRIORITY, event)
@@ -127,8 +125,7 @@ export default defineComponent({
         />
         <IssuesFollowUpDialog
           isShow={this.dialogType === IssuesBatchActionEnum.FOLLOW_UP && this.show}
-          issuesBizId={this.issuesBizId}
-          issuesIds={this.issuesIds}
+          issuesData={this.issuesData}
           onCancel={() => this.handleShowChange(false)}
           onSuccess={(event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.FOLLOW_UP>) =>
             this.handleConfirmSuccess(IssuesBatchActionEnum.FOLLOW_UP, event)

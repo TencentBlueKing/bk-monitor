@@ -26,14 +26,14 @@
 
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
-import { Button, Dialog, Message } from 'bkui-vue';
+import { Button, Dialog } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import UserSelector from '../../../../../components/user-selector/user-selector';
-import { mockAssignIssues } from '../../issues-table/mock-data';
+import { assignIssues, showOperationResult } from '../../services/issues-operations';
 
 import type { IssuesBatchActionEnum } from '../../constant';
-import type { IssuesOperationDialogEvent } from '../../typing';
+import type { IssueIdentifier, IssuesOperationDialogEvent } from '../../typing';
 
 import './issues-assign-dialog.scss';
 
@@ -45,13 +45,9 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    /** 空间业务id */
-    issuesBizId: {
-      type: Number,
-    },
-    /** 当前操作的 Issues ID 列表 */
-    issuesIds: {
-      type: Array as PropType<string[]>,
+    /** 跨业务批量操作 Issue 标识数据 */
+    issuesData: {
+      type: Array as PropType<IssueIdentifier[]>,
       default: () => [],
     },
     /** 弹窗标题 */
@@ -77,7 +73,7 @@ export default defineComponent({
      */
     const getTitle = () => {
       if (props.title) return props.title;
-      if (props.issuesIds?.length > 1) return window.i18n.t('批量指派负责人');
+      if (props.issuesData?.length > 1) return window.i18n.t('批量指派负责人');
       return window.i18n.t('指派负责人');
     };
 
@@ -89,26 +85,17 @@ export default defineComponent({
       if (!assignees?.length) return;
       loading.value = true;
 
-      // TODO: 指派责任人请求接口及处理结果提示 待完善
-      const res = await mockAssignIssues({
-        bk_biz_id: props.issuesBizId,
-        issue_ids: props.issuesIds,
-        assignee: assignees,
-      });
+      try {
+        const res = await assignIssues({
+          issues: props.issuesData,
+          assignee: assignees,
+        });
 
-      let msg = {
-        theme: 'success',
-        message: t('指派责任人成功'),
-      };
-      if (res.failed?.length) {
-        msg = {
-          theme: 'error',
-          message: res.failed?.[0]?.message,
-        };
+        showOperationResult(res, t('指派责任人成功'));
+        emit('success', res);
+      } finally {
+        loading.value = false;
       }
-
-      emit('success', res);
-      Message(msg);
     };
 
     /**

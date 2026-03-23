@@ -27,11 +27,11 @@
 import { type MaybeRef, shallowRef } from 'vue';
 
 import { get } from '@vueuse/core';
-import { Message } from 'bkui-vue';
 
 import { IssuesBatchActionEnum } from '../../../constant';
 
 import type {
+  IssueIdentifier,
   IssueItem,
   IssuesBatchActionType,
   IssuesOperationDialogEvent,
@@ -56,10 +56,8 @@ export const useIssuesDialogs = (
   const issuesDialogIds = shallowRef<string[]>([]);
   /** 各操作类型 dialog 个性化(私有)属性 */
   const issuesDialogParam = shallowRef<IssuesOperationDialogParams>(null);
-  /** 空间业务id */
-  const issuesDialogBizId = shallowRef<number>(
-    (window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined
-  );
+  /** 跨业务批量操作 Issue 标识数据（{ bk_biz_id, issue_id }[]） */
+  const issuesDialogData = shallowRef<IssueIdentifier[]>([]);
 
   /**
    * @description 通过 Issue IDs 从原始数据中获取操作数据对象数组
@@ -72,16 +70,12 @@ export const useIssuesDialogs = (
   };
 
   /**
-   * @description 通过 操作数据对象数组 获取空间业务id数组
-   * @param {IssueItem[]} data 操作数据对象数组
-   * @returns {number[]} 空间业务id数组
+   * @description 通过操作数据对象数组构建 IssueIdentifier 数组
+   * @param {IssueItem[]} data - 操作数据对象数组
+   * @returns {IssueIdentifier[]} 跨业务批量操作 Issue 标识数组
    */
-  const getBizIdByOperationalData = (data: IssueItem[]) => {
-    if (!data?.length) {
-      return [];
-    }
-    const set = new Set(data.map(item => item.bk_biz_id));
-    return Array.from(set);
+  const buildIssueIdentifiers = (data: IssueItem[]): IssueIdentifier[] => {
+    return data.map(item => ({ bk_biz_id: item.bk_biz_id, issue_id: item.id }));
   };
 
   /**
@@ -156,7 +150,7 @@ export const useIssuesDialogs = (
    * @param {IssuesBatchActionType} type - dialog 类型
    * @param {string | string[]} idsOrId - Issue ID（单条时为 string）或 ID 数组（批量时为 string[]）
    * @param {IssueItem | IssueItem[]} data - 操作数据（可选，不传则从原始数据中查找）
-   * @returns {boolean} 是否成功打开 dialog（校验失败时返回 false）
+   * @returns {boolean} 是否成功打开 dialog
    */
   const handleIssuesDialogShow = <T extends string | string[]>(
     type: IssuesBatchActionType,
@@ -173,17 +167,10 @@ export const useIssuesDialogs = (
       operationalData = getOperationalDataByIds(ids);
     }
 
-    const bizIds = getBizIdByOperationalData(operationalData);
     const dialogParam = getDialogParamByDialogType(type, operationalData);
-    if (bizIds.length > 1) {
-      Message({
-        message: window.i18n.t('当前不能跨业务批量操作'),
-        theme: 'warning',
-      });
-      return false;
-    }
+    const issueIdentifiers = buildIssueIdentifiers(operationalData);
 
-    issuesDialogBizId.value = bizIds[0];
+    issuesDialogData.value = issueIdentifiers;
     issuesDialogIds.value = ids;
     issuesDialogParam.value = dialogParam;
     issuesDialogType.value = type;
@@ -199,7 +186,7 @@ export const useIssuesDialogs = (
     issuesDialogType.value = undefined;
     issuesDialogParam.value = null;
     issuesDialogIds.value = [];
-    issuesDialogBizId.value = (window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined;
+    issuesDialogData.value = [];
   };
 
   /**
@@ -243,8 +230,7 @@ export const useIssuesDialogs = (
   return {
     issuesDialogShow,
     issuesDialogType,
-    issuesDialogIds,
-    issuesDialogBizId,
+    issuesDialogData,
     issuesDialogParam,
     handleIssuesDialogShow,
     handleIssuesDialogHide,

@@ -31,7 +31,7 @@ import { Button, Dialog } from 'bkui-vue';
 import MarkdownEditor from '../../../../../components/markdown-editor/editor';
 
 import type { IssuesBatchActionEnum } from '../../constant';
-import type { IssuesFollowUpDialogEvent, IssuesOperationDialogEvent } from '../../typing';
+import type { IssueIdentifier, IssuesFollowUpDialogEvent, IssuesOperationDialogEvent } from '../../typing';
 
 import './issues-follow-up-dialog.scss';
 
@@ -43,13 +43,9 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    /** 空间业务id */
-    issuesBizId: {
-      type: Number,
-    },
-    /** 当前操作的 Issues ID 列表 */
-    issuesIds: {
-      type: Array as PropType<string[]>,
+    /** 跨业务批量操作 Issue 标识数据 */
+    issuesData: {
+      type: Array as PropType<IssueIdentifier[]>,
       default: () => [],
     },
     /** 弹窗标题 */
@@ -74,7 +70,7 @@ export default defineComponent({
      */
     const getTitle = () => {
       if (props.title) return props.title;
-      if (props.issuesIds?.length > 1) return window.i18n.t('批量添加跟进信息');
+      if (props.issuesData?.length > 1) return window.i18n.t('批量添加跟进信息');
       return window.i18n.t('添加跟进信息');
     };
 
@@ -97,15 +93,14 @@ export default defineComponent({
       try {
         // TODO: 接入后端 API — 调用添加跟进信息接口
         // const res = await addIssuesFollowUp({
-        //   bk_biz_id: props.issuesBizId,
-        //   issue_ids: props.issuesIds,
+        //   issues: props.issuesData,
         //   content: value,
         // });
-        const succeeded: IssuesFollowUpDialogEvent[] = props.issuesIds.map(id => ({
+        const succeeded: IssuesFollowUpDialogEvent[] = props.issuesData.map(item => ({
           activity_id: '',
           activity_type: 'comment',
           content: value,
-          issue_id: id,
+          issue_id: item.issue_id,
           operator: '',
           time: Date.now() / 1000,
         }));
