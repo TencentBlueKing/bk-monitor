@@ -64,27 +64,31 @@ export default class CycleInput extends tsc<IProps, IEvent> {
   @Prop({
     type: Array,
     default: () => [
-      { id: 's', name: i18n.t('秒'), children:
-        [
+      {
+        id: 's',
+        name: i18n.t('秒'),
+        children: [
           { id: 'auto', name: 'auto' },
           { id: 1, name: 1 },
           { id: 2, name: 2 },
           { id: 5, name: 5 },
           { id: 10, name: 10 },
           { id: 30, name: 30 },
-          { id: 60, name: 60 }
-        ]
+          { id: 60, name: 60 },
+        ],
       },
-      { id: 'm', name: i18n.t('分'), children:
-        [
+      {
+        id: 'm',
+        name: i18n.t('分'),
+        children: [
           { id: 'auto', name: 'auto' },
           { id: 1, name: 1 },
           { id: 2, name: 2 },
           { id: 5, name: 5 },
           { id: 10, name: 10 },
           { id: 30, name: 30 },
-          { id: 60, name: 60 }
-        ]
+          { id: 60, name: 60 },
+        ],
       },
     ],
   })
@@ -102,7 +106,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
   inputWidth = 100;
 
   /** 本地显示值 */
-  localValue: IntervalType = 0;
+  localValue: IntervalType = 'auto';
 
   /** 当前单位 */
   unit: unitType = 's';
@@ -115,6 +119,9 @@ export default class CycleInput extends tsc<IProps, IEvent> {
 
   /** 自动模式下的显示文本 */
   autoDisplayText = 'auto';
+
+  /** 标记 emit 正在进行，用于防止 v-model echo 触发 valueChange 重新处理 */
+  private isEmitting = false;
 
   /** 当前周期可选列表 */
   get curCycleList() {
@@ -137,16 +144,20 @@ export default class CycleInput extends tsc<IProps, IEvent> {
   }
 
   @Watch('value', { immediate: true })
-  valueChange(val: number) {
-    if (this.isAutoMode) {
+  valueChange(val: number | string) {
+    if (this.isEmitting) {
+      this.isEmitting = false;
+      return;
+    }
+    if (val === 'auto') {
+      this.localValue = 'auto';
       customEscalationViewStore.setIntervalAuto(true);
       return;
     }
     customEscalationViewStore.setIntervalAuto(false);
     const timeVal = /([0-9]+)([sm]?)/.exec(val.toString());
     if (!timeVal) return;
-    // 因为1m和60s相等， 需要进行特殊处理，否则会出现手动切换成1m时，会转化成60s
-    if (val === 60) {
+    if (+val === 60) {
       this.localValue = this.unit === 's' ? 60 : 1;
       return;
     }
@@ -154,7 +165,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
       this.unit = 'm';
       this.localValue = +timeVal[1] / 60;
     } else {
-      if (this.isNeedDefaultVal && val === 0) {
+      if (this.isNeedDefaultVal && +val === 0) {
         this.localValue = 0;
         this.unit = 's';
         return;
@@ -170,11 +181,16 @@ export default class CycleInput extends tsc<IProps, IEvent> {
     if (!this.isAutoMode) return;
     const sec = this.autoIntervalSec;
     this.autoDisplayText = this.formatIntervalDisplay(sec);
+    customEscalationViewStore.setAutoIntervalSec(sec);
     this.emitValue();
   }
 
   @Emit('change')
   emitValue() {
+    this.isEmitting = true;
+    this.$nextTick(() => {
+      this.isEmitting = false;
+    });
     if (this.isAutoMode) {
       return this.autoIntervalSec;
     }
@@ -194,7 +210,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
     const AUTO_FIXED_POINTS = 300;
     /** 数据源最小采样周期（秒），最终周期不会小于此值 */
     const MIN_INTERVAL_SEC = 60;
-    /** 
+    /**
      * 标准粒度：10s, 30s, 1m, 2m, 5m, 10m, 15m, 30m, 1h, 2h, 6h, 12h, 1d
      * 向上（Ceil）：数据点更少，性能更安全，不会超出目标点数（对表上面的粒度对齐）
      * 标准粒度（秒）：向上对齐时在此序列中取第一个 >= 计算值的粒度 */
@@ -233,14 +249,14 @@ export default class CycleInput extends tsc<IProps, IEvent> {
   /**
    * @description: 时间转秒
    */
-  timeToSec(timeVal: { unit: unitType; value: number; }) {
+  timeToSec(timeVal: { unit: unitType; value: number }) {
     const unitMap: { [key in unitType]: (val: number) => number } = {
       m: (val: number) => val * 60,
       s: (val: number) => val,
     };
     const sec = unitMap?.[timeVal.unit]?.(timeVal.value);
     return sec;
-  };
+  }
 
   /**
    * @description: 选择周期
@@ -284,6 +300,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
     const val = +v * (this.unit === 'm' ? 60 : 1);
     return val < this.minSec;
   }
+
   render() {
     return (
       <div class='cycle-input-wrap'>
