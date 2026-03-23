@@ -1,0 +1,16 @@
+.scene-filter-root {
+  display: flex;
+  flex-direction: column;
+  margin: 0 8px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 4px;
+
+  .v3-search-bar-root {
+    margin: 12px 0 0 0;
+  }
+
+  .fix-search-bar {
+    width: calc(100vw - var(--left-collection-width) - 44px);
+  }
+}

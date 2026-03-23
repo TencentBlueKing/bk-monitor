@@ -154,6 +154,8 @@ const btnIconName = computed(() => {
     : ' bklog-icon bklog-shoudongchaxun';
 });
 
+const isShowQueryText = computed(() => !isMonitorApm && !isMonitorTrace && btnIconName.value === ' bklog-icon bklog-shoudongchaxun');
+
 const isCopyBtnActive = computed(() => {
   if (activeIndex.value === 0) {
     return addition.value.length > 0;
@@ -907,8 +909,15 @@ defineExpose({
           />
           <slot name="search-tool" />
         </div>
-        <div class="search-tool search-btn" @click="handleBtnQueryClick">
-          <bk-button :icon="btnIconName" size="small" theme="primary" />
+        <div class="search-tool search-btn" :style="{ marginLeft: isShowQueryText ? '8px' : '' }" @click="handleBtnQueryClick">
+          <bk-button
+            :icon="btnIconName"
+            size="small"
+            theme="primary"
+            :ext-cls="isShowQueryText ? 'search-query-btn' : ''"
+          >
+            {{ isShowQueryText ? $t('查询') : '' }}
+          </bk-button>
         </div>
       </div>
       <div v-if="isAiLoading" class="ai-progress-bar"></div>

@@ -205,9 +205,9 @@
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 48px;
+          width: 72px;
           min-width: 48px;
-          max-width: 48px;
+          max-width: 72px;
           font-size: 14px;
           color: #ffffff;
           cursor: pointer;
@@ -220,7 +220,19 @@
             border-radius: 0 2px 2px 0;
 
             .bklog-icon {
-              font-size: 16px;
+              font-size: 14px;
+            }
+          }
+
+          :deep(.search-query-btn) {
+            div {
+              display: flex;
+              align-items: center;
+              gap: 4px;
+
+              span {
+                font-size: 14px;
+              }
             }
           }
         }

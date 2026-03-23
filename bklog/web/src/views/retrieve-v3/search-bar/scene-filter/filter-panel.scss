@@ -1,0 +1,323 @@
+.scene-filter-panel {
+  background: #fff;
+
+  .scene-filter-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .top-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+  }
+
+  .scene-tab-bar {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+
+    .scene-tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      width: 40px;
+      height: 40px;
+      font-size: 11px;
+      color: #63656e;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      background: #f0f4fa;
+      white-space: nowrap;
+
+      .tab-icon {
+        font-size: 16px;
+      }
+
+      .tab-label {
+        font-size: 12px;
+        line-height: 1;
+      }
+
+      &.is-active {
+        color: #fff;
+        background: #3a84ff;
+      }
+
+      &:hover:not(.is-active) {
+        background: #e4e9f2;
+      }
+    }
+  }
+
+  .filter-tip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #4E5E7A;
+    white-space: nowrap;
+
+    .tip-icon {
+      font-size: 14px;
+    }
+
+    .tip-underline {
+      text-decoration: underline;
+      text-decoration-color: #4e5e7a;
+      text-underline-offset: 4px;
+    }
+  }
+
+  .filter-clear-btn {
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+
+    &:hover {
+      color: #699df4;
+    }
+  }
+
+  .top-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .filter-setting-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+    color: #63656e;
+    cursor: pointer;
+    border-radius: 2px;
+
+    &:hover {
+      color: #3a84ff;
+      background: #e1ecff;
+    }
+  }
+
+  .scene-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px 12px;
+    margin-top: 8px;
+
+    .filter-field-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      min-width: 0;
+
+      .field-label {
+        flex-shrink: 0;
+        font-size: 12px;
+        color: #63656e;
+        line-height: 20px;
+        margin-bottom: 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+      }
+
+      .field-input {
+        width: 100%;
+        min-width: 0;
+      }
+    }
+  }
+}
+
+.scene-fields-setting-popover-content {
+  .scene-fields-setting {
+    width: 580px;
+
+    .setting-body {
+      display: flex;
+      gap: 0;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+      max-height: 360px;
+    }
+
+    .setting-column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+
+      .setting-column-title {
+        position: relative;
+        display: flex;
+        align-items: center;
+        height: 44px;
+        padding: 0 8px 0 16px;
+        font-weight: 700;
+        line-height: 40px;
+        color: #313238;
+        background: #fafbfd;
+        border-top: 1px solid #dcdee5;
+        border-bottom: 1px solid #dcdee5;
+        flex-shrink: 0;
+
+        .text-action {
+          position: absolute;
+          top: 0;
+          right: 16px;
+          font-size: 12px;
+          font-weight: normal;
+          color: #3a84ff;
+          cursor: pointer;
+
+          &:hover {
+            color: #699df4;
+          }
+        }
+      }
+    }
+
+    .setting-divider {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      width: 1px;
+      background-color: #dcdee5;
+
+      .bklog-double-arrow {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 33px;
+        height: 33px;
+        font-size: 12px;
+        color: #c4c6cc;
+        pointer-events: none;
+        background: #fafbfd;
+        border-radius: 50%;
+      }
+    }
+
+    .setting-field-list {
+      list-style: none;
+      margin: 0;
+      padding: 8px;
+      overflow-y: auto;
+      flex: 1;
+      height: 255px;
+
+      .bk-exception {
+        justify-content: center;
+        height: 100%;
+      }
+    }
+
+    .setting-field-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 8px;
+      height: 32px;
+      font-size: 12px;
+      color: #63656e;
+      cursor: pointer;
+      transition: background .15s;
+
+      &:hover {
+        background: #f1f4ff;
+      }
+
+      .field-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+        line-height: 20px;
+        color: #313238;
+      }
+
+      .add-icon {
+        font-size: 16px;
+        color: #3a84ff;
+        opacity: 0;
+        transition: opacity .15s;
+        transform: scale(0.5);
+        transform-origin: right center;
+      }
+
+      &:hover .add-icon {
+        opacity: 1;
+      }
+
+      .drag-handle {
+        width: 18px;
+        font-size: 18px;
+        color: #979ba5;
+        cursor: grab;
+        text-align: left;
+
+        &:active {
+          cursor: grabbing;
+        }
+      }
+
+      .remove-icon {
+        font-size: 16px;
+        color: #c4c6cc;
+        display: none;
+        text-align: right;
+        cursor: pointer;
+
+        &:hover {
+          color: #ea3636;
+        }
+      }
+
+      &:hover .remove-icon {
+        display: block;
+      }
+
+      &.is-selected {
+        cursor: default;
+
+        &:hover {
+          background: #f1f4ff;
+        }
+      }
+    }
+
+    .setting-field-empty {
+      padding: 16px 12px;
+      font-size: 12px;
+      color: #c4c6cc;
+      text-align: center;
+    }
+
+    .setting-ghost {
+      background: #eaf3ff;
+      transition: background 0.2s linear;
+    }
+
+    .setting-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 8px 0 0;
+    }
+  }
+}

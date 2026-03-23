@@ -1285,4 +1285,6 @@ export default {
   设置排序字段: 'Set sorting field',
   排序字段设置: 'Sort field settings',
   至少需要配置一个排序字段: 'At least one sorting field needs to be configured',
+  '请先按照 {0} 日志范围后，再进行日志检索！': 'Please narrow down the log range using {0} before performing a log search!',
+  场景过滤: 'Scene Filter',
 };

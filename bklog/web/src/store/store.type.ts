@@ -162,6 +162,9 @@ export type RouteParams = {
   ip_chooser: string[];
   search_mode: string;
   clusterParams: any;
+  retrieve_type?: string;
+  scene_active?: string;
+  scene_filter_values?: Record<string, any>;
   index_id?: string;
   bizId: string;
   spaceUid: string;
