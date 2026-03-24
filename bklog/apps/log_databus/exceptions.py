@@ -160,6 +160,11 @@ class CollectorPluginNotImplemented(BaseCollectorPluginException):
     MESSAGE = _("采集插件无采集项实例")
 
 
+class CollectorNotStoppedException(BaseCollectorConfigException):
+    ERROR_CODE = "121"
+    MESSAGE = _("采集项必须先停用才能删除")
+
+
 class StorageNotExistException(BaseCollectorConfigException):
     ERROR_CODE = "201"
     MESSAGE = _("集群不存在")
