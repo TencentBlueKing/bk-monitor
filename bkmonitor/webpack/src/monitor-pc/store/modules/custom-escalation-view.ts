@@ -64,7 +64,7 @@ class CustomEscalationViewStore extends VuexModule {
 
   public timeSeriesGroupId = -1;
 
-  // 过滤条件(并集)：通过currentSelectedGroupNameList在metricGroupList中找到对应的common_dimensions
+  // 常驻过滤条件(并集)：通过currentSelectedGroupNameList在metricGroupList中找到对应的common_dimensions
   get commonDimensionList() {
     const selectedGroupNames = new Set(this.currentSelectedMetricList.map(i => i.scope_name));
     const currentSelectedCommonDimensionList: TCustomTsMetricGroups['metric_groups'][number]['common_dimensions'] = [];
@@ -85,14 +85,23 @@ class CustomEscalationViewStore extends VuexModule {
   }
 
   get currentSelectedMetricList() {
+    // 防止数据量过大页面无响应，预处理 currentSelectedGroupAndMetricNameList，建立 metricName -> groupNames 映射
+    const metricGroupMap = this.currentSelectedGroupAndMetricNameList.reduce<Record<string, string[]>>((map, item) => {
+      item.metricsName.forEach(metricName => {
+        if (!map[metricName]) {
+          map[metricName] = [];
+        }
+        map[metricName].push(item.groupName);
+      });
+      return map;
+    }, {});
+
     const result: (TCustomTsMetricGroups['metric_groups'][number]['metrics'][0] & { scope_name: string })[] = [];
     for (const groupItem of this.metricGroupList) {
       for (const metricsItem of groupItem.metrics) {
         const metricName = metricsItem.metric_name;
-        // 检查该 metric_name 是否在当前分组的 metricKeyMap 中
-        const groupNames = this.currentSelectedGroupAndMetricNameList
-          .filter(item => item.metricsName.includes(metricName))
-          .map(item => item.groupName);
+        // 直接从映射中获取，O(1) 时间复杂度
+        const groupNames = metricGroupMap[metricName] || [];
         // 如果 metricName 对应的 groupName 存在，添加到结果中
         if (groupNames.includes(groupItem.name)) {
           result.push({

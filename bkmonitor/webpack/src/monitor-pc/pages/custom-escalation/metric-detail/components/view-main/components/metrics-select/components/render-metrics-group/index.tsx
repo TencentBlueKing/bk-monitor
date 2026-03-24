@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
@@ -82,6 +82,8 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   @InjectReactive('appName') readonly appName: string;
   @InjectReactive('serviceName') readonly serviceName: string;
 
+  @Ref('virtualScrollRef') readonly virtualScrollRef;
+
   isLoading = false;
   renderMetricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
   localCheckedMetricNameList: string[] = [];
@@ -108,6 +110,29 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
     return window.i18n.locale === 'zhCN' ? '默认分组' : 'Default';
   }
 
+  // 分组与指标平铺
+  get flattenGroupAndMetricData() {
+    const result = [];
+    this.renderMetricGroupList.forEach(group => {
+      // 1. 放入分组头
+      result.push({
+        scope_id: group.scope_id,
+        name: group.name,
+      });
+      // 2. 只有当该组处于展开状态时，才放入其下的指标
+      if (this.groupExpandMap[group.name]) {
+        group.metrics.forEach(metric => {
+          result.push({
+            ...metric,
+            scopeId: group.scope_id,
+            scopeName: group.name,
+          });
+        });
+      }
+    });
+    return result;
+  }
+
   @Watch('searchKey', { immediate: true })
   searchKeyChange() {
     this.handleSearch();
@@ -118,7 +143,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   //   this.groupCheeckMap = Object.freeze(makeMap(this.currentSelectedMetricNameList));
   // }
 
-  @Watch('currentSelectedGroupAndMetricNameList', { immediate: true })
+  @Watch('currentSelectedGroupAndMetricNameList')
   currentSelectedMetricListChange() {
     this.cheeckedMap = this.currentSelectedGroupAndMetricNameList.map(group => {
       return {
@@ -163,7 +188,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   //  获取过滤条件下拉和维度下拉
   async fetchAggInfo() {
     const selectedMetricList = customEscalationViewStore.currentSelectedMetricList;
-    
+
     if (selectedMetricList.length === 0) {
       customEscalationViewStore.updateAggInfo({
         all_dimensions: [],
@@ -171,7 +196,6 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
       });
       return;
     }
-
     const metric_ids = selectedMetricList.map(metric => metric.field_id);
     const aggInfoParams = {
       metric_ids,
@@ -251,20 +275,21 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   }
 
   // 全选
-  handleGroupChecked(checked: boolean, group: TCustomTsMetricGroups['metric_groups'][number]) {
+  handleGroupChecked(checked: boolean, groupName: string) {
     // 获取操作选中/取消的分组数据
-    let handleTargetData = this.cheeckedMap.find(item => item.groupName === group.name);
+    let handleTargetData = this.cheeckedMap.find(item => item.groupName === groupName);
     // 首次选中目标分组
     if (!handleTargetData) {
       this.cheeckedMap.push({
-        groupName: group.name,
+        groupName: groupName,
         metricsCheckMap: {},
       });
       handleTargetData = this.cheeckedMap[this.cheeckedMap.length - 1];
     }
     // 获取全选/反选分组数据下的选中映射数据
     const latestGroupCheeckMap = { ...handleTargetData.metricsCheckMap };
-    for (const metricItem of group.metrics) {
+    const groupItem = this.renderMetricGroupList.find(item => item.name === groupName);
+    for (const metricItem of groupItem.metrics) {
       if (checked) {
         latestGroupCheeckMap[metricItem.metric_name] = true;
       } else {
@@ -364,25 +389,22 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   }
 
   render() {
-    const renderGroup = (groupItem: TCustomTsMetricGroups['metric_groups'][number]) => {
-      // const isChecked = _.every(groupItem.metrics, item => this.groupCheeckMap[item.metric_name]);
-      // const isIndeterminateChecked = isChecked
-      //   ? false
-      //   : _.some(groupItem.metrics, item => this.groupCheeckMap[item.metric_name]);
-
+    const renderGroup = groupItem => {
       let isChecked = false; // 是否全选
       let isIndeterminateChecked = false; // 是否半选
       const targetData = this.cheeckedMap.find(item => item.groupName === groupItem.name);
       if (targetData) {
-        isChecked = _.every(groupItem.metrics, item => targetData.metricsCheckMap[item.metric_name]);
+        const currentGroupMetricList = this.metricGroupList.find(item => item.scope_id === groupItem.scope_id);
+        isChecked = _.every(currentGroupMetricList.metrics, item => targetData.metricsCheckMap[item.metric_name]);
         isIndeterminateChecked = isChecked
           ? false
-          : _.some(groupItem.metrics, item => targetData.metricsCheckMap[item.metric_name]);
+          : _.some(currentGroupMetricList.metrics, item => targetData.metricsCheckMap[item.metric_name]);
       }
 
       return (
         <div
           key={groupItem.name}
+          ref={`${groupItem.name}Ref`}
           class='metrics-select-box'
         >
           <div class='metrics-select-item-header'>
@@ -401,7 +423,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
             <bk-checkbox
               checked={isChecked}
               indeterminate={isIndeterminateChecked}
-              onChange={(value: boolean) => this.handleGroupChecked(value, groupItem)}
+              onChange={(value: boolean) => this.handleGroupChecked(value, groupItem.name)}
             />
             <div
               class='metric-group-name'
@@ -411,50 +433,71 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
               {groupItem.name === 'default' ? this.defaultGroupNameMap : groupItem.name}
             </div>
             <div class='metric-demension-count'>
-              <div>{groupItem.metrics.length}</div>
+              <div>
+                {this.renderMetricGroupList.find(item => item.scope_id === groupItem.scope_id)?.metrics.length || 0}
+              </div>
             </div>
           </div>
-          <div
-            style={{
-              display: this.groupExpandMap[groupItem.name] ? '' : 'none',
-            }}
-            class='metrics-select-item-content'
-          >
-            {groupItem.metrics.map(metricsItem => (
-              <RenderMetric
-                key={`${metricsItem.field_id}-${metricsItem.metric_name}`}
-                checked={targetData?.metricsCheckMap[metricsItem.metric_name] || false}
-                data={metricsItem}
-                scopeId={groupItem.scope_id}
-                scopeName={groupItem.name}
-                onCheckChange={(value: boolean) => this.handleMetricSelectChange(value, groupItem.name, metricsItem)}
-                onEditSuccess={this.fetchData}
-              />
-            ))}
-          </div>
+          {/* <div class='metrics-select-item-content'></div> */}
         </div>
       );
     };
 
-    return (
-      <div
-        class='new-metric-view-metrics-group'
-        v-bkloading={{ isLoading: this.isLoading }}
-      >
-        <div>{this.renderMetricGroupList.map(renderGroup)}</div>
-        {this.metricGroupList.length < 1 && (
+    const renderMetric = metricItem => {
+      const targetData = this.cheeckedMap.find(item => item.groupName === metricItem.scopeName);
+      return (
+        <RenderMetric
+          key={`${metricItem.field_id}-${metricItem.metric_name}`}
+          checked={targetData?.metricsCheckMap[metricItem.metric_name] || false}
+          data={metricItem}
+          scopeId={metricItem.scopeId}
+          scopeName={metricItem.scopeName}
+          onCheckChange={(value: boolean) => this.handleMetricSelectChange(value, metricItem.scopeName, metricItem)}
+          onEditSuccess={this.fetchData}
+        />
+      );
+    };
+
+    if (this.metricGroupList.length < 1) {
+      return (
+        <div class='new-metric-view-metrics-group'>
           <bk-exception
             scene='part'
             type='empty'
           />
-        )}
-        {this.searchKey && this.metricGroupList.length > 0 && this.renderMetricGroupList.length < 1 && (
+        </div>
+      );
+    }
+
+    if (this.searchKey && this.metricGroupList.length > 0 && this.renderMetricGroupList.length < 1) {
+      return (
+        <div class='new-metric-view-metrics-group'>
           <bk-exception
             scene='part'
             type='search-empty'
           />
-        )}
-      </div>
+        </div>
+      );
+    }
+
+    return (
+      <bk-virtual-scroll
+        ref='virtualScrollRef'
+        ext-cls='new-metric-view-metrics-group'
+        v-bkloading={{ isLoading: this.isLoading }}
+        scopedSlots={{
+          default: ({ data: dataItem }) => {
+            // 指标
+            if (dataItem.field_id) {
+              return renderMetric(dataItem);
+            }
+            // 分组
+            return renderGroup(dataItem);
+          },
+        }}
+        item-height={32}
+        list={this.flattenGroupAndMetricData}
+      />
     );
   }
 }

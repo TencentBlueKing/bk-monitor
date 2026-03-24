@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
@@ -90,6 +90,8 @@ export default class ViewContent extends tsc<IProps, IEmit> {
 
   @ProvideReactive('requestHandlerMap') requestHandlerMap: RequestHandlerMap;
 
+  @Ref('metricsSelectRef') readonly metricsSelectRef;
+
   @Emit('metricManage')
   handleMetricManage(tab: 'dimension' | 'metric') {
     return tab;
@@ -104,11 +106,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
   }
 
   @Emit('customTsMetricGroups')
-  handleCustomTsMetricGroups(
-    payload: ServiceReturnType<RequestHandlerMap['getCustomTsMetricGroups']>['metric_groups']
-  ) {
-    return payload;
-  }
+  handleCustomTsMetricGroups() {}
 
   // 展示统计值
   state = {
@@ -170,7 +168,6 @@ export default class ViewContent extends tsc<IProps, IEmit> {
 
   async getCustomTsMetricGroupsData() {
     const needParseUrl = Boolean(this.$route.query?.viewPayload);
-    let metricGroupsData: ServiceReturnType<RequestHandlerMap['getCustomTsMetricGroups']>['metric_groups'] = [];
     if (this.timeSeriesGroupId < 1 && !this.isApmMode) {
       return [];
     }
@@ -186,7 +183,6 @@ export default class ViewContent extends tsc<IProps, IEmit> {
         });
       }
       const result = await this.requestHandlerMap.getCustomTsMetricGroups(params);
-      metricGroupsData = result.metric_groups;
       customEscalationViewStore.updateMetricGroupList(result.metric_groups);
       if (!needParseUrl && this.isApmMode) {
         const metricGroup = result.metric_groups;
@@ -199,7 +195,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
         );
       }
     } finally {
-      this.handleCustomTsMetricGroups(metricGroupsData);
+      this.handleCustomTsMetricGroups();
     }
   }
 
@@ -209,6 +205,8 @@ export default class ViewContent extends tsc<IProps, IEmit> {
 
   handleResetAsideWidth(width: number) {
     localStorage.setItem(ASIDE_WIDTH_SETTING_KEY, String(width));
+    // 更新分组组件的虚拟滚动宽度
+    this.metricsSelectRef?.metricGroupRef?.virtualScrollRef?.resize();
   }
 
   created() {
@@ -239,6 +237,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
       >
         <template slot='aside'>
           <MetricsSelect
+            ref='metricsSelectRef'
             isApm={this.isApm}
             onMetricManage={this.handleMetricManage}
             onReset={this.handleMetricsSelectReset}
