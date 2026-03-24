@@ -609,7 +609,7 @@ class RetrySerializer(serializers.Serializer):
 class StorageListSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
     cluster_type = serializers.ChoiceField(
-        label=_("集群类型"), default=ClusterTypeEnum.ES, choices=ClusterTypeEnum.get_choices()
+        label=_("集群类型"), default=ClusterTypeEnum.ES.value, choices=ClusterTypeEnum.get_choices()
     )
     enable_archive = serializers.BooleanField(label=_("是否启用归档"), required=False)
 
