@@ -103,6 +103,7 @@ export default defineComponent({
     } = useUserConfig();
 
     const {
+      isFirstInit,
       quickFilterList,
       quickFilterLoading,
       quickFilterEmptyStatusType,
@@ -240,8 +241,11 @@ export default defineComponent({
       isCollapsed.value = v;
     };
     /** 快捷筛选 */
-    const handleFilterValueChange = (filterValue: CommonCondition[]) => {
+    const handleFilterValueChange = (filterValue: CommonCondition[], category: string) => {
       handleCurrentPageChange(1);
+      alarmStore.lastQuickFilterOperationCategory = category;
+      alarmStore.lastQuickFilterOperationCategoryData =
+        quickFilterList.value.find(item => item.id === category) || null;
       updateQuickFilterValue(filterValue);
     };
     /** 告警分析添加条件 */
@@ -310,6 +314,8 @@ export default defineComponent({
         conditions: JSON.stringify(alarmStore.conditions),
         residentCondition: JSON.stringify(alarmStore.residentCondition),
         quickFilterValue: JSON.stringify(alarmStore.quickFilterValue),
+        /** 最后一次操作的快速过滤条件分类数据 */
+        lastQuickFilterCategoryData: JSON.stringify(alarmStore.lastQuickFilterOperationCategoryData),
         filterMode: alarmStore.filterMode,
         alarmType: alarmStore.alarmType,
         alarmId: alarmId.value,
@@ -363,10 +369,12 @@ export default defineComponent({
         showDetail,
         alarmId: alarmIdParams,
         favorite_id: favoriteId,
+        showResidentBtn: queryShowResidentBtn,
+        /** 最后一次操作的快速过滤条件分类数据 */
+        lastQuickFilterCategoryData,
         /** 以下是兼容事件中心的URL参数 */
         searchType,
         condition,
-        showResidentBtn: queryShowResidentBtn,
       } = route.query;
 
       try {
@@ -388,13 +396,21 @@ export default defineComponent({
           }));
         } else {
           alarmStore.quickFilterValue = tryURLDecodeParse(quickFilterValue as string, []);
+          alarmStore.lastQuickFilterOperationCategoryData = tryURLDecodeParse(
+            lastQuickFilterCategoryData as string,
+            null
+          );
+          alarmStore.lastQuickFilterOperationCategory = alarmStore.lastQuickFilterOperationCategoryData?.id || '';
         }
         showResidentBtn.value = tryURLDecodeParse<boolean>(queryShowResidentBtn as string, false);
         alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
         if (bizIds) {
           /** 兼容事件中心的bizIds */
-          alarmStore.bizIds =
-            typeof bizIds === 'string' ? tryURLDecodeParse(bizIds, [-1]) : bizIds.map(item => Number(item));
+          if (typeof bizIds === 'string') {
+            alarmStore.bizIds = Number.isNaN(Number(bizIds)) ? tryURLDecodeParse(bizIds, [-1]) : [Number(bizIds)];
+          } else {
+            alarmStore.bizIds = bizIds.map(item => Number(item));
+          }
         }
         ordering.value = (sortOrder as string) || '';
         page.value = Number(currentPage || 1);
@@ -638,6 +654,7 @@ export default defineComponent({
     });
 
     return {
+      isFirstInit,
       quickFilterList,
       quickFilterLoading,
       quickFilterEmptyStatusType,
@@ -770,6 +787,7 @@ export default defineComponent({
                         filterList={this.quickFilterList}
                         filterValue={this.alarmStore.quickFilterValue}
                         isFilterEmptyItem={false}
+                        isFirstInit={this.isFirstInit}
                         loading={this.quickFilterLoading}
                         onClose={this.updateIsCollapsed}
                         onUpdate:filterValue={this.handleFilterValueChange}

@@ -29,15 +29,15 @@ logger = logging.getLogger("incident.operation")
 
 
 class IncidentOperationManager:
-    # 需要触发通知的操作类型
+    # 需要触发通知的操作类型（临时屏蔽除 生成/恢复/合并 外的通知，后续可直接放开）
     NOTICE_TRIGGER_OPERATIONS = [
         IncidentOperationType.CREATE,
-        IncidentOperationType.OBSERVE,
+        # IncidentOperationType.OBSERVE,
         IncidentOperationType.RECOVER,
-        IncidentOperationType.REOPEN,
-        IncidentOperationType.UPDATE,
+        # IncidentOperationType.REOPEN,
+        # IncidentOperationType.UPDATE,
         IncidentOperationType.MERGE,
-        IncidentOperationType.MERGE_TO,
+        # IncidentOperationType.MERGE_TO,
     ]
 
     @classmethod
@@ -415,11 +415,12 @@ class IncidentOperationManager:
         )
 
         # 给合并目标故障，记录 incident_merge 记录
+        # 仅真实故障合并发送通知；匿名故障/告警并入已有故障时不发送合并通知
         cls.record_operation(
             target_incident_id,
             IncidentOperationType.MERGE,
             operate_time,
-            send_notice=True,
+            send_notice=not is_anonymous,
             link_incident_name=origin_incident_name,
             link_incident_id=origin_incident_id,
             link_incident_doc_id=origin_incident_doc_id,

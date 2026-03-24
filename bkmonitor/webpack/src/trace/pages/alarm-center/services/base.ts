@@ -128,7 +128,8 @@ export abstract class AlarmService<S = AlarmType> {
    */
   abstract getAnalysisTopNData(
     params: Partial<CommonFilterParams> & { fields: string[] },
-    isAll?: boolean
+    isAll?: boolean,
+    options?: RequestOptions
   ): Promise<AnalysisTopNDataResponse<AnalysisFieldAggItem>>;
 
   /**
@@ -144,7 +145,10 @@ export abstract class AlarmService<S = AlarmType> {
    * @description: 获取快速筛选列表
    * @param {Partial<CommonFilterParams>} params
    */
-  abstract getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]>;
+  abstract getQuickFilterList(
+    params: Partial<CommonFilterParams>,
+    options?: RequestOptions
+  ): Promise<QuickFilterItem[]>;
   /**
    * @description 获取检索值数据
    * @param params

@@ -171,16 +171,15 @@ export default defineComponent({
   render() {
     return (
       <div class='alarm-center-detail-panel-convergent-alarm'>
-        <div class='search-input'>
-          <Input
-            v-model={this.queryString}
-            placeholder={this.$t('请输入关键字')}
-            type='search'
-            clearable
-            onBlur={this.handleQueryStringChange}
-            onClear={this.handleQueryStringChange}
-          />
-        </div>
+        <Input
+          class='search-input'
+          v-model={this.queryString}
+          placeholder={this.$t('搜索 告警关键词')}
+          type='search'
+          clearable
+          onBlur={this.handleQueryStringChange}
+          onClear={this.handleQueryStringChange}
+        />
 
         <PanelAlarmTable
           v-slots={{

@@ -47,7 +47,44 @@ class UnifyQueryPatternHandler(UnifyQueryHandler):
 
         query_condition.update({"order_by": ["-_value"]})
 
-        return self.query_ts_reference(query_condition)
+        result = self.query_ts_reference(query_condition)
+
+        return self.deal_with_result_clustering_dimensions_order(result, dimensions)
+
+    @staticmethod
+    def deal_with_result_clustering_dimensions_order(result: dict, dimensions: list) -> dict:
+        """
+        处理结果聚类维度顺序
+        """
+        if not result or not result.get("series") or not dimensions:
+            return result
+
+        for item in result["series"]:
+            group_keys = item.get("group_keys", [])
+            group_values = item.get("group_values", [])
+
+            if not group_keys or not group_values or len(group_keys) != len(group_values):
+                continue
+
+            # 如果 group_keys 顺序已经与 dimensions 一致, 则跳过
+            if group_keys == dimensions:
+                continue
+
+            # 构建 group_key -> group_value 的映射
+            key_value_map = dict(zip(group_keys, group_values))
+
+            # 按照期望的 dimensions 顺序重新排列
+            reordered_group_keys = []
+            reordered_group_values = []
+            for dimension in dimensions:
+                if dimension in key_value_map:
+                    reordered_group_keys.append(dimension)
+                    reordered_group_values.append(key_value_map[dimension])
+
+            item["group_keys"] = reordered_group_keys
+            item["group_values"] = reordered_group_values
+
+        return result
 
     @staticmethod
     def handle_result_formats(result: dict) -> list:

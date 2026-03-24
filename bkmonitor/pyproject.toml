@@ -134,7 +134,8 @@ test = [
 ]
 dev = [
     "pre-commit==4.1.0",
-    "ruff==0.11.6",
+    "ruff==0.15.5",
+    "basedpyright==1.38.2",
 ]
 stubs = [
     "celery-types>=0.23.0",
@@ -214,5 +215,6 @@ docstring-code-format = true
 [tool.pyright]
 exclude = ["tests"]
 extraPaths = ["packages"]
+stubPath = "typings"
 typeCheckingMode = "standard"
 reportIncompatibleVariableOverride = false

@@ -43,7 +43,7 @@
       display: flex;
       align-items: center;
       min-width: 0;
-      color: #000 !important;
+      color: #000;
       user-select: none;
     }
 
@@ -183,7 +183,7 @@
 
   .explore-table-skeleton {
     position: absolute;
-    top: 32px;
+    top: 38px;
     z-index: 9;
     visibility: hidden;
     padding: 10px 8px;

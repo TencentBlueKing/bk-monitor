@@ -1008,6 +1008,30 @@ class DataSource(models.Model):
         result = api.gse.add_route(**params)
         return result.get("channel_id", -1) == self.bk_data_id
 
+    def register_to_gse(self) -> bool:
+        """注册数据源到gse"""
+        logger.info(f"try to register data_id->[{self.bk_data_id}] to gse")
+
+        # 查询
+        try:
+            result = api.gse.query_route(
+                condition={"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": self.bk_data_id},
+                operation={"operator_name": settings.COMMON_USERNAME},
+            )
+            return True
+        except BKAPIError as e:
+            if "not found" not in str(e):
+                logger.error(f"query gse route failed, error:({e})")
+                raise
+
+        params = {
+            "metadata": {"channel_id": self.bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
+            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "route": [self.gse_route_config],
+        }
+        result = api.gse.add_route(**params)
+        return result.get("channel_id", -1) == self.bk_data_id
+
     def refresh_gse_config_to_gse(self):
         """同步路由配置到gse"""
         if self.mq_cluster.gse_stream_to_id == -1:

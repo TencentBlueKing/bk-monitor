@@ -682,12 +682,6 @@ MENUS = [
                         "icon": "document",
                     },
                     {
-                        "id": "tgpa_task",
-                        "name": _("客户端日志"),
-                        "feature": FEATURE_TOGGLE["tgpa_task"],
-                        "icon": "client-log",
-                    },
-                    {
                         "id": "bk_data_collection",
                         "name": _("计算平台"),
                         "feature": FEATURE_TOGGLE["scenario_bkdata"],
