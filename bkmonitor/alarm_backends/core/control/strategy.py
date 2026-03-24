@@ -148,6 +148,11 @@ class Strategy:
     def actions(self) -> list:
         return self.config.get("actions", [])
 
+    @cached_property
+    def issue_config(self) -> dict | None:
+        """从策略缓存 JSON 直接取，无需额外 Redis 查询。"""
+        return self.config.get("issue_config")
+
     def in_alarm_time(self, now_time=None) -> tuple[bool, str]:
         """
         是否在策略生效期间
