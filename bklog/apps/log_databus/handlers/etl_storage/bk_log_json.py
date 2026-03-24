@@ -140,45 +140,40 @@ class BkLogJsonEtlStorage(EtlStorage):
         rules.extend(built_in_rules)
 
         # 3. 提取items数组并迭代
-        rules.extend([
-            {
-                "input_id": "json_data",
-                "output_id": "items",
-                "operator": {
-                    "type": "get",
-                    "key_index": [{"type": "key", "value": "items"}],
-                    "missing_strategy": None
-                }
-            },
-            {
-                "input_id": "items",
-                "output_id": "iter_item",
-                "operator": {"type": "iter"}
-            },
-            {
-                "input_id": "iter_item",
-                "output_id": "iter_string",
-                "operator": {
-                    "type": "get",
-                    "key_index": [{"type": "key", "value": "data"}],
-                    "missing_strategy": None
-                }
-            }
-        ])
-        
+        rules.extend(
+            [
+                {
+                    "input_id": "json_data",
+                    "output_id": "items",
+                    "operator": {
+                        "type": "get",
+                        "key_index": [{"type": "key", "value": "items"}],
+                        "missing_strategy": None,
+                    },
+                },
+                {"input_id": "items", "output_id": "iter_item", "operator": {"type": "iter"}},
+                {
+                    "input_id": "iter_item",
+                    "output_id": "iter_string",
+                    "operator": {
+                        "type": "get",
+                        "key_index": [{"type": "key", "value": "data"}],
+                        "missing_strategy": None,
+                    },
+                },
+            ]
+        )
+
         # 4. 从iter_item提取日志原文（保留原文 或 保留清洗失败日志时均需要）
         # enable_retain_content: 当原始数据不符合JSON格式时，不丢弃数据，直接强制写入log字段
         if etl_params.get("retain_original_text") or etl_params.get("enable_retain_content"):
-            rules.append({
-                "input_id": "iter_item",
-                "output_id": "log",
-                "operator": {
-                    "type": "assign",
-                    "key_index": "data",
-                    "alias": "log",
-                    "output_type": "string"
+            rules.append(
+                {
+                    "input_id": "iter_item",
+                    "output_id": "log",
+                    "operator": {"type": "assign", "key_index": "data", "alias": "log", "output_type": "string"},
                 }
-            })
+            )
 
         # 4.1. 提取iterationIndex字段（从iter_item提取，参考v3的flat_field处理）
         iteration_index_rules = self._build_iteration_index_field_v4(built_in_config)
@@ -187,12 +182,11 @@ class BkLogJsonEtlStorage(EtlStorage):
         # 5. JSON解析（解析iter_string中的JSON）
         # enable_retain_content=True时使用"null"策略，解析失败不丢弃数据，将字段置空
         json_de_error_strategy = "null" if etl_params.get("enable_retain_content") else "drop"
-        rules.append({
-            "input_id": "iter_string",
-            "output_id": "bk_separator_object",
-            "operator": {
-                "type": "json_de",
-                "error_strategy": json_de_error_strategy
+        rules.append(
+            {
+                "input_id": "iter_string",
+                "output_id": "bk_separator_object",
+                "operator": {"type": "json_de", "error_strategy": json_de_error_strategy},
             }
         )
 
@@ -200,17 +194,19 @@ class BkLogJsonEtlStorage(EtlStorage):
         for field in fields:
             if field.get("is_delete"):
                 continue
-                
-            target_field  = field.get("alias_name") or field["field_name"]
 
-            rules.append({
-                "input_id": "bk_separator_object",
-                "output_id": target_field ,
-                "operator": {
-                    "type": "assign",
-                    "key_index":  field["field_name"],
-                    "alias": target_field,
-                    "output_type": self._get_output_type(field["field_type"])
+            target_field = field.get("alias_name") or field["field_name"]
+
+            rules.append(
+                {
+                    "input_id": "bk_separator_object",
+                    "output_id": target_field,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": field["field_name"],
+                        "alias": target_field,
+                        "output_type": self._get_output_type(field["field_type"]),
+                    },
                 }
             )
 
@@ -222,7 +218,6 @@ class BkLogJsonEtlStorage(EtlStorage):
 
         # 6.3. 处理ext_json字段
         rules.extend(self._build_extra_json_field_v4(etl_params, fields))
-
 
         # 7. Path字段处理
         rules.extend(self._build_path_regex_rules_v4(etl_params, built_in_config))
