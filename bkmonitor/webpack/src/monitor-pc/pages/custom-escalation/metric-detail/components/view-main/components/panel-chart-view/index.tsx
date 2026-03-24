@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { connect, disconnect } from 'echarts/core';
@@ -89,6 +89,8 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
   @InjectReactive('serviceName') readonly serviceName: string;
   @InjectReactive('requestHandlerMap') readonly requestHandlerMap!: RequestHandlerMap;
 
+  @Ref('panelChartViewRef') readonly panelChartViewRef;
+
   activeName = [];
   /** 分组数据 */
   groupList: IGroups[] = [];
@@ -104,6 +106,9 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
 
   loading = false;
   defaultGroupId = 'group-chart';
+  metricIdsBatch: (number | string)[][] = [];
+  currentBatchIndex = 0;
+  allGroupList: IGroups[] = [];
 
   /** 过滤条件发生改变的时候重新拉取数据 */
   @Watch('config', { deep: true })
@@ -113,6 +118,71 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
     this.filterOption = deepClone(val);
     // this.timeRange = [val.start_time, val.end_time];
     val && this.getGroupList();
+  }
+
+  /** 监听滚动事件 */
+  @Debounce(300)
+  handleScroll() {
+    const { scrollTop, scrollHeight, clientHeight } = this.panelChartViewRef;
+    if (scrollHeight - scrollTop - clientHeight < 10) {
+      this.handleLoadMore();
+    }
+  }
+
+  /** 加载更多数据 */
+  handleLoadMore() {
+    if (this.currentBatchIndex >= this.metricIdsBatch.length - 1) {
+      return;
+    }
+    this.currentBatchIndex++;
+    const currentBatch = this.metricIdsBatch[this.currentBatchIndex];
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const config = {
+      ...this.config,
+      metric_ids: currentBatch,
+    };
+    delete config.metrics;
+    const params = {
+      ...config,
+      time_series_group_id: Number(this.timeSeriesGroupId),
+      start_time: startTime,
+      end_time: endTime,
+    };
+    if (this.isApm) {
+      delete params.time_series_group_id;
+      Object.assign(params, {
+        apm_app_name: this.appName,
+        apm_service_name: this.serviceName,
+      });
+    }
+    delete params.bk_biz_id;
+    if (!params.compare?.type) {
+      delete params.compare;
+    }
+    this.requestHandlerMap
+      .getCustomTsGraphConfig(params)
+      .then(res => {
+        const newGroups = res.groups || [];
+        this.allGroupList = [...this.allGroupList, ...newGroups];
+        this.handleGroup(newGroups);
+        const len = this.allGroupList.length;
+        const max = Math.ceil(len / this.viewColumn);
+        this.groupList = this.allGroupList;
+        this.activeName = this.groupList.map(item => item.name).slice(0, max > 3 ? 1 : max);
+        this.handleCollapseChange();
+      })
+      .catch(() => {
+        // 错误处理
+      });
+  }
+
+  destroyed() {
+    for (const id of this.connectIdSet) {
+      disconnect(id as string);
+    }
+    if (this.panelChartViewRef) {
+      this.panelChartViewRef.removeEventListener('scroll', this.handleScroll);
+    }
   }
 
   /** 展示的个数发生变化时 */
@@ -125,6 +195,16 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
   handleShowStatisticalValueChange() {
     this.handleCollapseChange();
   }
+
+  @Watch('loading', { immediate: true })
+  loadingChange(n) {
+    if (!n && this.panelChartViewRef) {
+      console.log('加载成功');
+      this.panelChartViewRef.removeEventListener('scroll', this.handleScroll);
+      this.panelChartViewRef.addEventListener('scroll', this.handleScroll);
+    }
+  }
+
   /** 是否展示高亮峰谷值 */
   get isHighlightPeakValue() {
     return this.config?.highlight_peak_value || false;
@@ -160,6 +240,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
     groups.map(group => {
       const groupId = group.name || random(10);
       // 多图表链接
+      group.groupId = groupId;
       if (this.connectIdSet.has(groupId)) {
         disconnect(groupId);
       }
@@ -181,9 +262,6 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
   /** 获取图表配置 */
   @Debounce(300)
   getGroupList() {
-    // if (!this.$route.params.id) {
-    //   return;
-    // }
     if (!this.timeSeriesGroupId && !this.isApm) {
       return;
     }
@@ -195,10 +273,16 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
     }
     this.loading = true;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const metricIds = this.config.metrics.map(({ field_id }) => field_id);
+    this.metricIdsBatch = chunkArray(metricIds, 30);
+    this.currentBatchIndex = 0;
+    this.allGroupList = [];
+    const currentBatch = this.metricIdsBatch[0];
     const config = {
       ...this.config,
-      metrics: this.config.metrics.map(({ scope_name, ...item }) => item),
+      metric_ids: currentBatch,
     };
+    delete config.metrics;
     const params = {
       ...config,
       time_series_group_id: Number(this.timeSeriesGroupId), // apm不需要
@@ -217,21 +301,23 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
     if (!params.compare?.type) {
       delete params.compare;
     }
-    const len = params.metrics.length;
-    const max = Math.ceil(len / this.viewColumn);
     this.requestHandlerMap
       .getCustomTsGraphConfig(params)
       .then(res => {
+        this.allGroupList = res.groups || [];
+        this.handleGroup(this.allGroupList);
         this.loading = false;
-        this.groupList = res.groups || [];
-        this.handleGroup(this.groupList);
+        const len = this.allGroupList.length;
+        const max = Math.ceil(len / this.viewColumn);
+        this.groupList = this.allGroupList;
         this.activeName = this.groupList.map(item => item.name).slice(0, max > 3 ? 1 : max);
         this.handleCollapseChange();
       })
       .catch(() => {
         this.loading = false;
+        this.allGroupList = [];
         this.groupList = [];
-        this.activeName = this.groupList.map(item => item.name);
+        this.activeName = [];
       });
   }
   /** 渲染panel的内容 */
@@ -298,7 +384,10 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
       );
     }
     return (
-      <div class='panel-metric-chart-view'>
+      <div
+        ref='panelChartViewRef'
+        class='panel-metric-chart-view'
+      >
         {this.loading ? (
           this.renderSkeletonLoading()
         ) : this.groupList.length > 0 ? (
@@ -308,7 +397,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
           >
             {this.groupList.map((item, ind) => (
               <bk-collapse-item
-                key={item.name}
+                key={item.groupId || item.name || ind}
                 class={['chart-view-collapse-item', { 'is-hide-header': !item.name }]}
                 content-hidden-type='hidden'
                 hide-arrow={true}
@@ -350,11 +439,5 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
         )}
       </div>
     );
-  }
-
-  destroyed() {
-    for (const id of this.connectIdSet) {
-      disconnect(id as string);
-    }
   }
 }
