@@ -119,7 +119,15 @@ class EtlStorage:
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):
         raise NotImplementedError(_("功能暂未实现"))
 
-    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X", enable_v4=False):
+    def get_result_table_config(
+        self,
+        fields,
+        etl_params,
+        built_in_config,
+        es_version="5.X",
+        enable_v4=False,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
+    ):
         """
         配置清洗入库策略，需兼容新增、编辑
         """
@@ -140,7 +148,10 @@ class EtlStorage:
         lower_name = field_name.lower()
         if lower_name in V4_RESERVED_FIELD_NAMES:
             return True
-        if lower_name.startswith(V4_RESERVED_MINUTE_PATTERN) and lower_name[len(V4_RESERVED_MINUTE_PATTERN):].isdigit():
+        if (
+            lower_name.startswith(V4_RESERVED_MINUTE_PATTERN)
+            and lower_name[len(V4_RESERVED_MINUTE_PATTERN) :].isdigit()
+        ):
             return True
         return False
 
@@ -151,9 +162,7 @@ class EtlStorage:
                 continue
             field_name = field.get("alias_name") or field["field_name"]
             if cls._is_v4_reserved_field(field_name):
-                raise ValidationError(
-                    _("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}"
-                )
+                raise ValidationError(_("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}")
 
     @staticmethod
     def _get_path_regexp(etl_params: dict, built_in_config: dict) -> str:
@@ -194,16 +203,18 @@ class EtlStorage:
 
         pattern = re.compile(path_regexp)
         for field_name in pattern.groupindex.keys():
-            rules.append({
-                "input_id": "bk_separator_object_path",
-                "output_id": field_name,
-                "operator": {
-                    "type": "assign",
-                    "key_index": field_name,
-                    "alias": field_name,
-                    "output_type": "string",
-                },
-            })
+            rules.append(
+                {
+                    "input_id": "bk_separator_object_path",
+                    "output_id": field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": field_name,
+                        "alias": field_name,
+                        "output_type": "string",
+                    },
+                }
+            )
         return rules
 
     @staticmethod
@@ -1097,7 +1108,12 @@ class EtlStorage:
                 enable_v4 = True
 
         result_table_config = self.get_result_table_config(
-            fields, etl_params, built_in_config, es_version=es_version, enable_v4=enable_v4
+            fields,
+            etl_params,
+            built_in_config,
+            es_version=es_version,
+            enable_v4=enable_v4,
+            storage_cluster_type=storage_cluster_type,
         )
         is_nanos = False
         for rt_field in result_table_config["field_list"]:
