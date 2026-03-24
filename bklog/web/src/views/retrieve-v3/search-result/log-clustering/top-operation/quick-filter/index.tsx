@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, watch } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import DimensionSplit from './dimension-split';
 import TemporaryGroup from './temporary-group';
@@ -76,6 +76,14 @@ export default defineComponent({
     const temporaryGroupRef = ref(null);
     const timeCompareRef = ref(null);
     const isNear24 = ref(false);
+
+    watch(
+      () => props.requestData?.show_new_pattern,
+      (val) => {
+        isNear24.value = !!val;
+      },
+      { immediate: true },
+    );
 
     const handleFingerOperate = (operateType: string, val: any, isQuery: boolean) => {
       if (operateType === 'requestData') {
