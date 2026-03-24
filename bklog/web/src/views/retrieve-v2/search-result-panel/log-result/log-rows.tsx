@@ -1210,7 +1210,7 @@ export default defineComponent({
     watch(
       () => indexSetQueryResult.value.is_loading,
       (newVal, oldVal) => {
-        if (oldVal && !newVal) {
+        if (oldVal && !newVal && !isRequesting.value) {
           nextTick(() => {
             scrollXOffsetLeft = 0;
             refScrollXBar.value?.scrollLeft(0);
