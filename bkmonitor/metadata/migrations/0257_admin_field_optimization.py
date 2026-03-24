@@ -1,11 +1,11 @@
-# Generated manually for Admin field optimization
+# Generated manually for Admin field optimization (renumbered: avoid clash with 0253/0254 on this branch)
 
 from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("metadata", "0253_merge_0252_0249_resourcedefinition"),
+        ("metadata", "0256_bcsclusterinfo_add_operator_ns"),
     ]
 
     operations = [
