@@ -237,32 +237,6 @@ export const introduceTemplateData = {
       ],
     },
   },
-  // 自定义场景
-  'custom-scenes': {
-    is_no_data: true,
-    is_no_source: true,
-    data: {
-      title: '自定义场景',
-      subTitle:
-        '自定义场景是除了平台自带的场景之外可以根据监控需求来自定义监控场景，平台提供了快速定义场景的能力，从数据源接入到数据可视化、关联功能联动都可以很快速的完成。',
-      introduce: [
-        '基于数据源提供默认的数据可视化',
-        '支持快速进行数据查看和检验',
-        '支持指标分组和标签配置',
-        '支持变量过滤和数据分组',
-      ],
-      buttons: [
-        {
-          name: '开始自定义',
-          url: '#/collect-config',
-        },
-        {
-          name: 'DEMO',
-          url: '',
-        },
-      ],
-    },
-  },
   // 数据采集
   'collect-config': {
     is_no_data: true,

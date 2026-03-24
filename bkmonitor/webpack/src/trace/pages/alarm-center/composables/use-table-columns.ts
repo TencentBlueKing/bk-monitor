@@ -37,12 +37,13 @@ const BK_BIZ_NAME_FIELD = 'bk_biz_name';
 export function useAlarmTableColumns() {
   const alarmStore = useAlarmCenterStore();
   const defaultTableFields = shallowRef<string[]>([]);
+  const storageKey = shallowRef<string>('');
   watchEffect(() => {
+    storageKey.value = alarmStore.alarmService.storageKey;
     defaultTableFields.value = alarmStore.alarmService.allTableColumns
       .filter(item => item.is_default)
       .map(item => item.colKey);
   });
-  const storageKey = computed(() => alarmStore.alarmService.storageKey);
   const storageColumns = useStorage<string[]>(storageKey, defaultTableFields);
 
   /** 必须显示且不可编辑隐藏列 */

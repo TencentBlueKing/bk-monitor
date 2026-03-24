@@ -8,11 +8,16 @@
 |----|----|----|------|
 | id | int | 是  | 订阅ID |
 | bk_biz_id  | int   | 是  | 业务ID   |
+| sub_username  | string   | 否  | 用户名，用于额外的权限校验，默认值：空字符串   |
 
 ### 请求参数示例
 
 ```json
-{ "id": 1, "bk_biz_id":  2}
+{
+  "id": 1,
+  "bk_biz_id": 2,
+  "sub_username": "admin"
+}
 ```
 
 ### 响应参数

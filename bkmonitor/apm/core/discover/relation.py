@@ -9,18 +9,62 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections import defaultdict
-from datetime import datetime
+import logging
 
 from opentelemetry.semconv.trace import SpanAttributes
 
+from apm.constants import ApmCacheType
 from apm.core.discover.base import DiscoverBase, exists_field, get_topo_instance_key
+from apm.core.discover.cached_mixin import CachedDiscoverMixin
+from apm.core.discover.instance_data import RelationInstanceData
 from apm.models import ApmTopoDiscoverRule, TopoNode, TopoRelation, TraceDataSource
 from constants.apm import OtlpKey, SpanKind
 
+logger = logging.getLogger("apm")
 
-class RelationDiscover(DiscoverBase):
+
+class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
+    """
+    Relation 发现类
+    使用多继承: CachedDiscoverMixin 提供缓存功能, DiscoverBase 提供基础发现功能
+    """
+
     MAX_COUNT = 100000
     model = TopoRelation
+    RELATION_SPLIT = ":"
+
+    @classmethod
+    def _get_cache_type(cls) -> str:
+        """获取缓存类型"""
+        return ApmCacheType.RELATION
+
+    @classmethod
+    def to_cache_key(cls, instance: RelationInstanceData) -> str:
+        """从实例数据对象生成 relation 缓存 key"""
+        return cls.RELATION_SPLIT.join(map(str, cls._to_found_key(instance)))
+
+    @classmethod
+    def build_instance_data(cls, relation_obj) -> RelationInstanceData:
+        return RelationInstanceData(
+            id=DiscoverBase.get_attr_value(relation_obj, "id"),
+            from_topo_key=DiscoverBase.get_attr_value(relation_obj, "from_topo_key"),
+            to_topo_key=DiscoverBase.get_attr_value(relation_obj, "to_topo_key"),
+            kind=DiscoverBase.get_attr_value(relation_obj, "kind"),
+            to_topo_key_kind=DiscoverBase.get_attr_value(relation_obj, "to_topo_key_kind"),
+            to_topo_key_category=DiscoverBase.get_attr_value(relation_obj, "to_topo_key_category"),
+            updated_at=DiscoverBase.get_attr_value(relation_obj, "updated_at"),
+        )
+
+    @classmethod
+    def _to_found_key(cls, instance_data: RelationInstanceData) -> tuple:
+        """从实例数据对象生成业务唯一标识（不包含数据库ID）用于在 discover 过程中匹配已存在的实例"""
+        return (
+            instance_data.from_topo_key,
+            instance_data.to_topo_key,
+            instance_data.kind,
+            instance_data.to_topo_key_kind,
+            instance_data.to_topo_key_category,
+        )
 
     def get_relation_map(self, origin_data):
         relation_mapping = defaultdict(lambda: {"from": None, "to": [], "kind": ""})
@@ -46,23 +90,6 @@ class RelationDiscover(DiscoverBase):
                         relation_mapping[span[OtlpKey.PARENT_SPAN_ID]]["kind"] = TopoRelation.RELATION_KIND_ASYNC
 
         return {_: i for _, i in relation_mapping.items() if i["from"]}
-
-    def list_exists(self):
-        res = {}
-        relations = TopoRelation.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        for relation in relations:
-            res.setdefault(
-                (
-                    relation.from_topo_key,
-                    relation.to_topo_key,
-                    relation.kind,
-                    relation.to_topo_key_kind,
-                    relation.to_topo_key_category,
-                ),
-                set(),
-            ).add(relation.id)
-
-        return res
 
     def find_relation_by_single_span(self, component_rules, from_key, from_span, kind):
         relation_kind = TopoRelation.KIND_MAPPING[kind]
@@ -239,22 +266,25 @@ class RelationDiscover(DiscoverBase):
 
         return found_keys
 
-    def discover(self, origin_data, remain_data=None):
+    def get_remain_data(self):
+        instances = self.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        return self.process_duplicate_records(instances, True)
+
+    def discover(self, origin_data, remain_data: dict[tuple, RelationInstanceData]):
         rules, other_rule = self.get_rules()
         component_rules = [r for r in rules + [other_rule] if r.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT]
 
         relation_mapping = self.get_relation_map(origin_data)
-        exist_relations = self.list_exists()
 
-        need_update_relation_ids = set()
+        need_update_instances = list()
         need_create_relations = set()
 
         for span in origin_data:
             from_key = self.get_service_name(span)
             found_keys = self.find_relation_by_single_span(component_rules, from_key, span, span["kind"])
             for found_key in found_keys:
-                if found_key in exist_relations:
-                    need_update_relation_ids |= exist_relations[found_key]
+                if found_key in remain_data:
+                    need_update_instances.append(remain_data[found_key])
                 else:
                     need_create_relations.add(found_key)
 
@@ -274,29 +304,27 @@ class RelationDiscover(DiscoverBase):
                 found_keys |= self.find_normal_relation(rules, other_rule, from_key, relation["to"], kind)
 
             for found_key in found_keys:
-                if found_key in exist_relations:
-                    need_update_relation_ids |= exist_relations[found_key]
+                if found_key in remain_data:
+                    need_update_instances.append(remain_data[found_key])
                 else:
                     need_create_relations.add(found_key)
 
-        # only update update_time
-        TopoRelation.objects.filter(id__in=need_update_relation_ids).update(updated_at=datetime.now())
+        created_instances = [
+            TopoRelation(
+                bk_biz_id=self.bk_biz_id,
+                app_name=self.app_name,
+                from_topo_key=i[0],
+                to_topo_key=i[1],
+                kind=i[2],
+                to_topo_key_kind=i[3],
+                to_topo_key_category=i[4],
+            )
+            for i in need_create_relations
+        ]
+        TopoRelation.objects.bulk_create(created_instances)
 
-        # create
-        TopoRelation.objects.bulk_create(
-            [
-                TopoRelation(
-                    bk_biz_id=self.bk_biz_id,
-                    app_name=self.app_name,
-                    from_topo_key=i[0],
-                    to_topo_key=i[1],
-                    kind=i[2],
-                    to_topo_key_kind=i[3],
-                    to_topo_key_category=i[4],
-                )
-                for i in need_create_relations
-            ]
+        self.handle_cache_refresh_after_create(
+            existing_instances=list(remain_data.values()),
+            created_db_instances=created_instances,
+            updated_instances=need_update_instances,
         )
-
-        self.clear_if_overflow()
-        self.clear_expired()

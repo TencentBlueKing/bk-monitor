@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,12 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
-import pytest
 from django.utils.translation import gettext as _
-
-from core.drf_resource import resource
-from monitor_web.models.uptime_check import UptimeCheckNode
+from bk_monitor_base.uptime_check import UptimeCheckNode
 
 
 def get_data():
@@ -131,15 +126,27 @@ def mock_task_detail(mocker):
 
 
 def mock_get_uptimecheck_node(mocker):
-    node = UptimeCheckNode(name=_("10.0.1.10 | 0"), location={"city": _("广东"), "country": _("中国")})
-    get_func = mocker.patch("monitor_web.models.uptime_check.UptimeCheckNode.objects.get")
+    node = UptimeCheckNode(
+        bk_tenant_id="default",
+        bk_biz_id=2,
+        id=1,
+        name=_("10.0.1.10 | 0"),
+        location={"city": _("广东"), "country": _("中国")},
+        ip="10.0.1.10",
+        plat_id=0,
+        bk_host_id=1,
+        carrieroperator="",
+    )
+    get_func = mocker.patch("bk_monitor_base.uptime_check.UptimeCheckNodeModel.objects.get")
     get_func.return_value = node
     return get_func
 
 
 def mock_get_uptimecheck_task(mocker):
-    get_func = mocker.patch("monitor_web.models.uptime_check.UptimeCheckTask.objects.get")
-    get_func.return_value = []
+    from bk_monitor_base.uptime_check import UptimeCheckTaskModel
+
+    get_func = mocker.patch("bk_monitor_base.uptime_check.UptimeCheckTaskModel.objects.get")
+    get_func.return_value = UptimeCheckTaskModel()
     return get_func
 
 

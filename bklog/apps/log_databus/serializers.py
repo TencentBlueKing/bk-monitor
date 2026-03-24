@@ -1824,6 +1824,7 @@ class LogCollectorSerializer(serializers.Serializer):
     pagesize = serializers.IntegerField(label=_("分页大小"), min_value=1)
     conditions = ConditionSerializer(label=_("过滤规则"), many=True, required=False)
     keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_blank=True, allow_null=True)
+    exclude_not_completed = serializers.BooleanField(label=_("排除未完成的采集项"), default=False)
 
 
 class GetCollectorFieldEnumsSerializer(serializers.Serializer):

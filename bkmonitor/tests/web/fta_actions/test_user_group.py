@@ -815,8 +815,45 @@ class TestDutyRuleSlz(BaseTestCase):
 
         self.assertIsNotNone(data.get("duty_arranges"))
 
-        expected_hash = "252c671d9c9fa8c429c3922c3aba22a2"
+        # list_sort=False 保留 duty_users/users 顺序信息后，hash 值已更新
+        expected_hash = "9a12a42c18458404547dda81f04fc7af"
         self.assertEqual(data["duty_arranges"][0]["hash"], expected_hash)
+
+    def test_duty_arrange_hash_sensitive_to_user_order(self):
+        """
+        验证 duty_users 仅顺序调整（成员不变）时，hash 应发生变化，从而触发排班重建
+        fix: regular 模式下轮值顺序变更未触发排班重建
+        """
+        base_duty_time = [
+            {
+                "work_type": "daily",
+                "work_days": [],
+                "work_time": ["00:00--23:59"],
+            }
+        ]
+
+        # 顺序 A: userA -> userB
+        data_order_a = {
+            "duty_time": base_duty_time,
+            "duty_users": [[{"id": "userA", "type": "user"}, {"id": "userB", "type": "user"}]],
+            "backups": [],
+        }
+        # 顺序 B: userB -> userA（成员相同，仅顺序不同）
+        data_order_b = {
+            "duty_time": base_duty_time,
+            "duty_users": [[{"id": "userB", "type": "user"}, {"id": "userA", "type": "user"}]],
+            "backups": [],
+        }
+
+        slz_a = DutyArrangeSlz(data=data_order_a)
+        self.assertTrue(slz_a.is_valid(raise_exception=True))
+        hash_a = slz_a.validated_data["hash"]
+
+        slz_b = DutyArrangeSlz(data=data_order_b)
+        self.assertTrue(slz_b.is_valid(raise_exception=True))
+        hash_b = slz_b.validated_data["hash"]
+
+        self.assertNotEqual(hash_a, hash_b, "duty_users 顺序变更应导致 hash 不同，以触发排班重建")
 
 
 class TestDutyRuleResource(BaseTestCase):

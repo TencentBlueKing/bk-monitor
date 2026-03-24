@@ -128,6 +128,15 @@ class SyncReportSerializer(serializers.Serializer):
         return attrs
 
 
+class DownloadFileSerializer(serializers.Serializer):
+    """
+    下载客户端日志文件
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    file_name = serializers.CharField(label=_("文件名"))
+
+
 class GetFileStatusSerializer(serializers.Serializer):
     """
     获取文件状态

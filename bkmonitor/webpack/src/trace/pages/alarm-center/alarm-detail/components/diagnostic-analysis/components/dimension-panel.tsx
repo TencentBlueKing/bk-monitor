@@ -23,32 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 
-import { useI18n } from 'vue-i18n';
-
+import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
-
-import type { ISuspiciousGroup } from '../typing';
 
 import './dimension-panel.scss';
 
 export default defineComponent({
   name: 'DimensionPanel',
-  props: {
-    data: {
-      type: Array as PropType<ISuspiciousGroup[]>,
-      default: () => [],
-    },
-  },
-  setup() {
-    const { t } = useI18n();
-
-    return {
-      t,
-    };
-  },
-
   render() {
     return (
       <div class='suspicious-dimension-panel'>
@@ -57,15 +40,42 @@ export default defineComponent({
           keypath='经过 {0} 分析，发现以下可疑维度（组合）：'
           tag='div'
         >
-          <span class='link-text'>{this.t('维度下钻分析')}</span>
+          <span class='link-text'>{this.$t('维度下钻分析')}</span>
         </i18n-t>
         <div class='dimension-group-list'>
-          {this.data.map(item => (
-            <SuspiciousAnalysisGroup
-              key={item.id}
-              data={item}
-            />
-          ))}
+          <SuspiciousAnalysisGroup>
+            {{
+              title: () => (
+                <div class='group-title'>
+                  <span class='group-name'>异常维度（组合）1</span>
+                  <div class='abnormality-tag'>
+                    <span class='abnormality-label'>异常程度</span>
+                    <span class='abnormality-value'>90%</span>
+                  </div>
+                </div>
+              ),
+              default: () => (
+                <AnalysisDetailContent
+                  tableData={[
+                    { name: '主机名', value: 'VM-156-110-centos' },
+                    { name: '目标IP', value: '11.185.157.110' },
+                    { name: '管控区域', value: '0' },
+                    { name: 'Key占位', value: 'Value 占位' },
+                  ]}
+                  contentData={[]}
+                />
+              ),
+              footer: () => (
+                <div class='footer-content'>
+                  <span class='reason'>可疑原因：主调成功率 17%</span>
+                  <span class='link-text'>
+                    <i class='icon-monitor icon-xiangqing1' />
+                    {this.$t('分析详情')}
+                  </span>
+                </div>
+              ),
+            }}
+          </SuspiciousAnalysisGroup>
         </div>
       </div>
     );

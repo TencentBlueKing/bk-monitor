@@ -39,6 +39,7 @@ import {
 import { useDebounceFn } from '@vueuse/core';
 import { Button, Checkbox, Input } from 'bkui-vue';
 import { bizWithAlertStatistics } from 'monitor-api/modules/home';
+import EmptyStatus, { type EmptyStatusOperationType } from 'trace/components/empty-status/empty-status';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { useTippy } from 'vue-tippy';
@@ -104,6 +105,7 @@ export default defineComponent({
     const isOpen = shallowRef(false);
     /* 当前分页数据 */
     const pagination = shallowReactive<{
+      count: number;
       current: number;
       data: ILocalSpaceList[];
       limit: number;
@@ -111,6 +113,7 @@ export default defineComponent({
       current: 1,
       limit: 20,
       data: [],
+      count: 0,
     });
     /* type栏左右切换数据 */
     const typeWrapInfo = shallowReactive({
@@ -505,6 +508,7 @@ export default defineComponent({
           }
         }
       }
+
       showData.push(...prevArr, ...nextArr);
       pagination.count = showData.length;
       if (isInit) {
@@ -517,7 +521,7 @@ export default defineComponent({
             (pagination.current - 1) * pagination.limit,
             pagination.current * pagination.limit
           );
-          pagination.data.push(...temp);
+          pagination.data = [...pagination.data, ...temp];
         }
       }
     }
@@ -677,6 +681,13 @@ export default defineComponent({
       emit('changeChoiceType', val);
     }
 
+    function handleOperation(type: EmptyStatusOperationType) {
+      if (type === 'clear-filter') {
+        searchValue.value = '';
+        handleSearchChange(searchValue.value);
+      }
+    }
+
     return {
       isErr,
       isOpen,
@@ -701,6 +712,7 @@ export default defineComponent({
       handleApplyAuth,
       handleSetCurBiz,
       handleDebounceSearchChange,
+      handleOperation,
     };
   },
   render() {
@@ -823,47 +835,48 @@ export default defineComponent({
               class='space-list'
               onScroll={this.handleScroll}
             >
-              {this.pagination.data.map(item => (
-                <div
-                  key={item.id}
-                  class={[
-                    'space-list-item',
-                    { active: !this.multiple && item.isCheck },
-                    {
-                      'no-hover-btn':
-                        !this.needCurSpace ||
-                        +this.localCurrentSpace === +item.id ||
-                        specialIds.includes(item.id) ||
-                        (!!item.noAuth && !item.hasData),
-                    },
-                  ]}
-                  onClick={() => this.handleSelectOption(item)}
-                >
-                  {this.multiple && (
-                    <div onClick={(e: Event) => e.stopPropagation()}>
-                      <Checkbox
-                        disabled={!!item.noAuth && !item.hasData}
-                        modelValue={item.isCheck}
-                        onChange={v => this.handleCheckOption(v, item)}
-                      />
-                    </div>
-                  )}
-                  <span class='space-name'>
-                    <span
-                      class={['name', { disabled: !!item.noAuth && !item.hasData }]}
-                      v-overflow-tips
-                    >
-                      {item.name}
-                    </span>
-                    {!item?.isSpecial && (
+              {this.pagination.data.length ? (
+                this.pagination.data.map(item => (
+                  <div
+                    key={item.id}
+                    class={[
+                      'space-list-item',
+                      { active: !this.multiple && item.isCheck },
+                      {
+                        'no-hover-btn':
+                          !this.needCurSpace ||
+                          +this.localCurrentSpace === +item.id ||
+                          specialIds.includes(item.id) ||
+                          (!!item.noAuth && !item.hasData),
+                      },
+                    ]}
+                    onClick={() => this.handleSelectOption(item)}
+                  >
+                    {this.multiple && (
+                      <div onClick={(e: Event) => e.stopPropagation()}>
+                        <Checkbox
+                          disabled={!!item.noAuth && !item.hasData}
+                          modelValue={item.isCheck}
+                          onChange={v => this.handleCheckOption(v, item)}
+                        />
+                      </div>
+                    )}
+                    <span class='space-name'>
                       <span
-                        class='id'
+                        class={['name', { disabled: !!item.noAuth && !item.hasData }]}
                         v-overflow-tips
                       >
-                        ({item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code})
+                        {item.name}
                       </span>
-                    )}
-                    {/* {+this.localCurrentSpace === +item.id && (
+                      {!item?.isSpecial && (
+                        <span
+                          class='id'
+                          v-overflow-tips
+                        >
+                          ({item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code})
+                        </span>
+                      )}
+                      {/* {+this.localCurrentSpace === +item.id && (
                       <span
                         class='icon-monitor icon-dingwei1 cur-position'
                         v-bk-tooltips={{
@@ -872,48 +885,60 @@ export default defineComponent({
                         }}
                       />
                     )} */}
-                  </span>
-                  <span class='space-tags'>
-                    {!!item.noAuth && !item.hasData ? (
-                      <Button
-                        class='auth-button'
-                        size='small'
-                        theme='primary'
-                        text
-                        onClick={() => this.handleApplyAuth(item.id)}
-                      >
-                        {this.t('申请权限')}
-                      </Button>
-                    ) : (
-                      item.tags?.map?.(tag => (
-                        <span
-                          key={tag.id}
-                          style={{ ...(SPACE_TYPE_MAP[tag.id] || SPACE_TYPE_MAP.default) }}
-                          class='space-tags-item'
-                        >
-                          {SPACE_TYPE_MAP[tag.id]?.name || this.t('未知')}
-                        </span>
-                      ))
-                    )}
-                  </span>
-                  {this.needCurSpace && (
-                    <span class='space-hover-btn'>
-                      <Button
-                        class='auth-button'
-                        size='small'
-                        theme='primary'
-                        text
-                        onClick={e => {
-                          e.stopPropagation();
-                          this.handleSetCurBiz(item);
-                        }}
-                      >
-                        {this.t('设为当前空间')}
-                      </Button>
                     </span>
-                  )}
+                    <span class='space-tags'>
+                      {!!item.noAuth && !item.hasData ? (
+                        <Button
+                          class='auth-button'
+                          size='small'
+                          theme='primary'
+                          text
+                          onClick={() => this.handleApplyAuth(item.id)}
+                        >
+                          {this.t('申请权限')}
+                        </Button>
+                      ) : (
+                        item.tags?.map?.(tag => (
+                          <span
+                            key={tag.id}
+                            style={{ ...(SPACE_TYPE_MAP[tag.id] || SPACE_TYPE_MAP.default) }}
+                            class='space-tags-item'
+                          >
+                            {SPACE_TYPE_MAP[tag.id]?.name || this.t('未知')}
+                          </span>
+                        ))
+                      )}
+                    </span>
+                    {this.needCurSpace && (
+                      <span class='space-hover-btn'>
+                        <Button
+                          class='auth-button'
+                          size='small'
+                          theme='primary'
+                          text
+                          onClick={e => {
+                            e.stopPropagation();
+                            this.handleSetCurBiz(item);
+                          }}
+                        >
+                          {this.t('设为当前空间')}
+                        </Button>
+                      </span>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div
+                  onClick={e => {
+                    e.stopPropagation();
+                  }}
+                >
+                  <EmptyStatus
+                    type={this.searchValue ? 'search-empty' : 'empty'}
+                    onOperation={this.handleOperation}
+                  />
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>

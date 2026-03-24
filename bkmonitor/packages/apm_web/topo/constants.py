@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.enum import ChoicesEnum
@@ -137,6 +137,9 @@ class SourceType(ChoicesEnum):
     SERVICE = "service"
     SYSTEM = "system"
     DATA_SOURCE = "datasource"
+    DEPLOYMENT = "deployment"
+    DAEMON_SET = "daemonset"
+    STATEFUL_SET = "statefulset"
 
     _choices_labels = (
         (APM_SERVICE, _("APM 应用服务")),
@@ -146,6 +149,9 @@ class SourceType(ChoicesEnum):
         (SERVICE, _("[K8S] Service")),
         (SYSTEM, _("Host")),
         (DATA_SOURCE, _("datasource")),
+        (DEPLOYMENT, _("[K8S] Deployment")),
+        (DAEMON_SET, _("[K8S] DaemonSet")),
+        (STATEFUL_SET, _("[K8S] StatefulSet")),
     )
 
 

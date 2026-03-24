@@ -148,6 +148,11 @@ class Strategy:
     def actions(self) -> list:
         return self.config.get("actions", [])
 
+    @cached_property
+    def issue_config(self) -> dict | None:
+        """从策略缓存 JSON 直接取，无需额外 Redis 查询。"""
+        return self.config.get("issue_config")
+
     def in_alarm_time(self, now_time=None) -> tuple[bool, str]:
         """
         是否在策略生效期间
@@ -267,8 +272,6 @@ class Strategy:
 
     @classmethod
     def get_strategy_snapshot_by_key(cls, snapshot_key, strategy_id=None):
-        from bkmonitor.strategy.new_strategy import Strategy as StrategyClass
-
         client = key.STRATEGY_SNAPSHOT_KEY.client
         if strategy_id:
             snapshot_key = key.SimilarStr(snapshot_key)
@@ -278,7 +281,7 @@ class Strategy:
             return None
 
         snapshot_strategy = json.loads(snapshot)
-        return StrategyClass.convert_v1_to_v2(snapshot_strategy)
+        return snapshot_strategy
 
     @classmethod
     def get_item_in_strategy(cls, strategy, item_id):

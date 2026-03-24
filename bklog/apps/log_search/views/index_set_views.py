@@ -94,7 +94,7 @@ class IndexSetViewSet(ModelViewSet):
         return [ViewBusinessPermission()]
 
     def get_queryset(self):
-        qs = LogIndexSet.objects.filter(collector_config_id__isnull=True)
+        qs = LogIndexSet.objects.filter(collector_config_id__isnull=True, is_group=False)
         if self.request.query_params.get("index_set_id_list", None):
             index_set_id_list = self.request.query_params.get("index_set_id_list").split(",")
             return qs.filter(index_set_id__in=index_set_id_list)

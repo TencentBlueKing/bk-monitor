@@ -1,0 +1,33 @@
+@import './common';
+
+.suspicious-metric-panel {
+  @extend %panel-container;
+
+  .metric-group-list {
+    @extend %group-list;
+
+    .group-title {
+      @extend %group-title;
+
+      .group-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .detail-link {
+        flex-shrink: 0;
+      }
+    }
+
+    .footer-content {
+      line-height: 24px;
+
+      @extend %footer-content;
+
+      .link-text {
+        flex-shrink: 0;
+      }
+    }
+  }
+}

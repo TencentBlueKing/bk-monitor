@@ -258,14 +258,7 @@ class QueryConfigModel(Model):
         verbose_name = "查询配置表V2"
         verbose_name_plural = "查询配置表V2"
         db_table = "alarm_query_config_v2"
-        index_together = [
-            ("data_source_label", "data_type_label"),
-        ]
-
-    def to_obj(self):
-        from bkmonitor.strategy.new_strategy import QueryConfig
-
-        return QueryConfig.from_models([self])[0]
+        index_together = [("data_source_label", "data_type_label")]
 
     @classmethod
     def get_strategies_by_source_app(cls, source_app=None):

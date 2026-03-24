@@ -12,20 +12,19 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from bk_monitor_base.strategy import update_strategy_query_config
 from django.conf import settings
 
 from alarm_backends.core.cache import key
 from alarm_backends.core.control.item import Item
-from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.control.mixins.detect import EXTRA_CONFIG_KEYS
+from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.lock.service_lock import (
     check_lock_updated,
     refresh_service_lock,
 )
 from alarm_backends.service.preparation.base import BasePreparationProcess
 from bkmonitor.models import AlgorithmModel
-from bkmonitor.models.strategy import QueryConfigModel
-from bkmonitor.strategy.new_strategy import QueryConfig
 from bkmonitor.utils.time_tools import (
     parse_time_compare_abbreviation,
     timestamp2datetime,
@@ -65,9 +64,11 @@ class TsDependPreparationProcess(BasePreparationProcess):
                 # 历史依赖准备就绪才开始检测
                 if force or query_config["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
                     self.refresh_strategy_depend_data(strategy, processed_dimensions, update_time)
-                    query_config = QueryConfig.from_models(QueryConfigModel.objects.filter(id=query_config["id"]))[0]
-                    query_config.intelligent_detect["status"] = SDKDetectStatus.READY
-                    query_config.save()
+                    query_config["intelligent_detect"]["status"] = SDKDetectStatus.READY
+                    update_strategy_query_config(
+                        strategy_id=strategy_id,
+                        config={"intelligent_detect": query_config["intelligent_detect"]},
+                    )
                     logger.info(
                         f"Finish to refresh depend data for strategy({strategy_id}),"
                         f"total dimensions: {len(processed_dimensions)}"

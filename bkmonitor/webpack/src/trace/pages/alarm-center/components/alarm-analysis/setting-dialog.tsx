@@ -162,7 +162,6 @@ export default defineComponent({
      *
      */
     function handleDragend(e: DragEvent) {
-      console.log('dragend', targetField.value, draggingField.value);
       transformFieldItemPosition();
       const target = e.target as HTMLElement;
       const dragDom = target.closest('.target-item');

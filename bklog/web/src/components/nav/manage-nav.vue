@@ -42,8 +42,8 @@
       <span class="bk-icon bklog-icon bklog-position"></span>
       {{ getBaseName() }}
     </div>
-    <!-- <ul
-      v-if="activeManageNav.children && !$route.meta.needBack"
+    <ul
+      v-if="showSubNav &&activeManageNav.children && !$route.meta.needBack"
       class="sub-nav-list"
       data-test-id="logCollection_ul_logCollectionNavBox"
     >
@@ -57,7 +57,7 @@
           {{ navItem.name }}
         </li>
       </template>
-    </ul> -->
+    </ul>
   </div>
 </template>
 
@@ -72,6 +72,10 @@
       subNavList: {
         type: Array,
         default: null,
+      },
+      showSubNav: {
+        type: Boolean,
+        default: true,
       },
     },
     data() {

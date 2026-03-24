@@ -1,0 +1,84 @@
+.indicator-selector-main {
+  display: flex;
+  height: calc(100vh - 276px);
+  overflow: hidden;
+  font-family: MicrosoftYaHei;
+  border: 1px solid #dcdee5;
+  border-bottom: none;
+  border-radius: 2px;
+
+  .content-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+
+    .tab-main {
+      display: flex;
+      width: 100%;
+      height: 38px;
+      background-color: #fafbfd;
+
+      .tab-item {
+        display: flex;
+        flex-direction: column;
+        width: 96px;
+        cursor: pointer;
+        border-right: 1px solid #dcdee5;
+        border-bottom: 1px solid #dcdee5;
+
+        &.is-active {
+          background-color: #fff;
+          border-bottom-color: #fff;
+
+          .top-bar {
+            background: #3a84ff;
+          }
+
+          .tab-name {
+            color: #3a84ff;
+          }
+        }
+
+        .top-bar {
+          width: 100%;
+          height: 3px;
+          background: #fafbfd;
+        }
+
+        .tab-name {
+          display: flex;
+          flex: 1;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          font-weight: 700;
+          color: #313238;
+        }
+      }
+
+      .remain-block {
+        flex: 1;
+        height: 38px;
+        border-bottom: 1px solid #dcdee5;
+      }
+    }
+
+    .group-main {
+      flex: 1;
+      padding: 12px 16px 0;
+      overflow: hidden;
+    }
+  }
+
+  .preview-main {
+    min-width: 280px;
+    max-width: 280px;
+    height: 100%;
+    overflow: hidden;
+    background-color: #f5f7fa;
+
+    // border-right: 1px solid #dcdee5;
+    border-left: 1px solid #dcdee5;
+  }
+}

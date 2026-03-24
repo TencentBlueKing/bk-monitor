@@ -47,6 +47,7 @@ import PanelHost from './components/panel-host';
 import PanelK8s from './components/panel-k8s';
 import PanelLog from './components/panel-log';
 // import PanelMetric from './components/panel-metric';
+import PanelProcess from './components/panel-process';
 import PanelTrace from './components/panel-trace';
 
 import type { IAuthority } from '@/typings/authority';
@@ -206,6 +207,8 @@ export default defineComponent({
           return <PanelTrace alertId={alarmId.value} />;
         case ALARM_CENTER_PANEL_TAB_MAP.HOST:
           return <PanelHost alertId={alarmId.value} />;
+        case ALARM_CENTER_PANEL_TAB_MAP.PROCESS:
+          return <PanelProcess />;
         case ALARM_CENTER_PANEL_TAB_MAP.CONTAINER:
           return <PanelK8s alertId={alarmId.value} />;
         case ALARM_CENTER_PANEL_TAB_MAP.EVENT:

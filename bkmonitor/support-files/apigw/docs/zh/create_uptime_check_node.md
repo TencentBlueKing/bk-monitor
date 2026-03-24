@@ -36,9 +36,31 @@
 
 ### 响应参数
 
-| 字段         | 类型  | 描述 |
-|:-----------|-----|----|
-| id         | int   | 拨测节点ID |
+| 字段      | 类型   | 描述     |
+|---------|--------|--------|
+| result  | bool   | 请求是否成功 |
+| code    | int    | 返回的状态码 |
+| message | str    | 描述信息   |
+| data    | dict   | 创建的拨测节点信息 |
+
+#### data
+| 字段             | 类型   | 描述                |
+|:---------------|------|-------------------|
+| id             | int  | 拨测节点ID            |
+| bk_biz_id      | int  | 业务ID              |
+| name           | str  | 节点名称              |
+| ip             | str  | IP地址              |
+| bk_host_id     | int  | 主机ID              |
+| plat_id        | int  | 云区域ID             |
+| ip_type        | int  | IP类型              |
+| is_common      | bool | 是否为公共节点           |
+| location       | dict | 地理位置信息,包含country和city字段 |
+| carrieroperator| str  | 运营商               |
+| create_time    | str  | 创建时间              |
+| create_user    | str  | 创建人               |
+| update_time    | str  | 更新时间              |
+| update_user    | str  | 更新人               |
+| is_deleted     | bool | 是否已删除             |
 
 ### 响应参数示例
 ```json

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,22 +7,24 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import re
-from collections import defaultdict
-from typing import Dict, List, Tuple
+from typing import Any
 
 from django.db import models
 from django.utils.translation import gettext as _
 
+from core.drf_resource import api
+
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from monitor_web.models import CustomTSField, CustomTSGroupingRule, CustomTSTable
+from monitor_web.models import CustomTSTable
 from monitor_web.models.scene_view import SceneViewModel
 from monitor_web.scene_view.builtin.collect import CollectBuiltinProcessor
 from monitor_web.scene_view.builtin.utils import get_variable_filter_dict, sort_panels
 
 
-def get_order_config(view: SceneViewModel) -> List:
+def get_order_config(view: SceneViewModel) -> list:
     """
     获取排序配置
     """
@@ -36,56 +37,47 @@ def get_order_config(view: SceneViewModel) -> List:
         pk=custom_metric_id,
         bk_tenant_id=get_request_tenant_id(),
     )
-    fields = CustomTSField.objects.filter(
-        time_series_group_id=table.time_series_group_id, type=CustomTSField.MetricType.METRIC
+    scope_list = api.metadata.query_time_series_scope(
+        group_id=table.time_series_group_id,
+        include_metrics=True,
     )
-    groups = CustomTSGroupingRule.objects.filter(time_series_group_id=table.time_series_group_id)
-    group_map = {group.name: group for group in groups}
+    result: list[dict[str, Any]] = []
+    for scope_dict in scope_list:
+        scope_name: str = scope_dict["scope_name"]
+        auto_rules: list[str] = []
+        result_dict: dict[str, Any] = {
+            "id": scope_name,
+            "title": scope_name,
+            "manual_list": [],
+            "auto_rules": auto_rules,
+            "panels": [],
+        }
+        result.append(result_dict)
+        for metric_dict in scope_dict.get("metric_list", []):
+            metric_name: str = metric_dict["metric_name"]
+            metric_config: dict[str, Any] = metric_dict.get("field_config", {})
 
-    label_fields = defaultdict(list)
-    for field in fields:
-        for label in field.config.get("label", []):
-            match_type = set()
-            match_rules = []
-            if label not in group_map:
-                continue
-            group = group_map[label]
-            if field.name in group.manual_list:
-                match_type.add("manual")
-            for rule in group.auto_rules:
-                if re.search(rule, field.name):
+            result_dict["manual_list"].append(metric_name)
+
+            match_rules: list[str] = []
+            match_type: set[str] = {"manual"}
+            for rule in auto_rules:
+                if re.search(rule, metric_name):
                     match_type.add("auto")
                     match_rules.append(rule)
-            label_fields[label].append(
+            result_dict["panels"].append(
                 {
+                    "id": f"{table.data_label or table.table_id}.{metric_name}",
+                    "hidden": metric_config.get("disabled", False) or metric_config.get("hidden", False),
                     "match_type": list(match_type),
-                    "metric_name": field.name,
-                    "hidden": field.disabled or field.config.get("hidden", False),
                     "match_rules": match_rules,
                 }
             )
 
-    return [
-        {
-            "id": label,
-            "title": label,
-            "manual_list": group_map[label].manual_list,
-            "auto_rules": group_map[label].auto_rules,
-            "panels": [
-                {
-                    "id": f"{table.data_label or table.table_id}.{field['metric_name']}",
-                    "hidden": field["hidden"],
-                    "match_type": field["match_type"],
-                    "match_rules": field["match_rules"],
-                }
-                for field in fields
-            ],
-        }
-        for label, fields in label_fields.items()
-    ]
+    return result
 
 
-def get_panels(view: SceneViewModel) -> List[Dict]:
+def get_panels(view: SceneViewModel) -> list[dict]:
     """
     获取指标信息，包含指标信息及该指标需要使用的聚合方法、聚合维度、聚合周期等
     """
@@ -146,11 +138,13 @@ def get_panels(view: SceneViewModel) -> List[Dict]:
 
 class CustomMetricBuiltinProcessor(CollectBuiltinProcessor):
     @classmethod
-    def get_auto_view_panels(cls, view: SceneViewModel) -> Tuple[List[Dict], List[Dict]]:
+    def get_auto_view_panels(cls, view: SceneViewModel) -> tuple[list[dict], list[dict]]:
         """
         获取平铺视图配置
         """
         panels = get_panels(view)
+        print("view: ", view)
+        print("get_order_config(view): ", get_order_config(view))
         panels, order = sort_panels(panels, get_order_config(view), hide_metric=False)
         return panels, order
 

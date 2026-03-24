@@ -76,6 +76,7 @@ export default defineComponent({
     const isExpand = shallowRef<boolean>(false);
     const intersectionObserver = shallowRef<IntersectionObserver>(null);
     const resizeObserver = shallowRef<ResizeObserver>(null);
+    const pendingRaf = shallowRef<number>(null);
 
     const handleExpand = (e: MouseEvent) => {
       e.stopPropagation();
@@ -95,6 +96,9 @@ export default defineComponent({
     onMounted(() => {
       if (props.row && props.field) {
         let content = props.row[props.field.field_name] ?? parseTableRowData(props.row, props.field.field_name);
+        if (typeof props.row[props.field.field_name] === 'object') {
+          content = JSON.stringify(props.row[props.field.field_name]);
+        }
         if (props.field.field_type === 'date') {
           const markRegStr = '<mark>(.*?)</mark>';
           const isMark = new RegExp(markRegStr).test(content);
@@ -116,36 +120,81 @@ export default defineComponent({
             data: props.row || {},
           },
         });
+
         const fieldKeys = props.field.field_name.split('.');
         const isNestedValue = isNestedField(fieldKeys, props.row);
-        wordList.value = textSegmentation.getChildNodes(isNestedValue);
-        const checkHeight = () => {
-          const segmentContentEl = wrapRef.value?.querySelector('.segment-content');
-          hasMore.value = segmentContentEl.getBoundingClientRect().height > 60;
-        };
-        const debounceCheckHeight = debounce(checkHeight, 200);
-        nextTick(() => {
-          if (!intersectionObserver.value) {
-            intersectionObserver.value = new IntersectionObserver(entries => {
-              for (const entry of entries) {
-                if (entry.intersectionRatio > 0) {
-                  checkHeight();
-                  if (!resizeObserver.value) {
-                    resizeObserver.value = new ResizeObserver(() => {
-                      debounceCheckHeight();
+        const allWordList = textSegmentation.getChildNodes(isNestedValue);
+
+        // 使用 requestAnimationFrame 分批渲染，优化大量数据的卡顿问题
+        const BATCH_SIZE = 10; // 每批渲染的数量
+        let currentIndex = 0;
+
+        const checkHeightAfterRender = () => {
+          const checkHeight = () => {
+            const segmentContentEl = wrapRef.value?.querySelector('.segment-content');
+            hasMore.value = segmentContentEl?.getBoundingClientRect()?.height > 60;
+          };
+          const debounceCheckHeight = debounce(checkHeight, 200);
+
+          nextTick(() => {
+            if (!intersectionObserver.value) {
+              let hasInitialized = false;
+              intersectionObserver.value = new IntersectionObserver(entries => {
+                for (const entry of entries) {
+                  if (entry.intersectionRatio > 0 && !hasInitialized) {
+                    hasInitialized = true;
+                    // 使用防抖函数统一处理，避免与 ResizeObserver 重复触发
+                    debounceCheckHeight();
+                    requestAnimationFrame(() => {
+                      if (!resizeObserver.value) {
+                        // 延迟创建 ResizeObserver，避免在当前帧立即触发
+                        resizeObserver.value = new ResizeObserver(() => {
+                          debounceCheckHeight();
+                        });
+                        resizeObserver.value.observe(wrapRef.value);
+                      }
                     });
-                    resizeObserver.value.observe(wrapRef.value);
+
+                    // 执行一次后断开观察，不再需要
+                    intersectionObserver.value?.disconnect();
+                    break;
                   }
                 }
-              }
-            });
-            intersectionObserver.value.observe(wrapRef.value);
+              });
+              intersectionObserver.value.observe(wrapRef.value);
+            }
+          });
+        };
+        const renderBatch = () => {
+          const endIndex = Math.min(currentIndex + BATCH_SIZE, allWordList.length);
+          const batch = allWordList.slice(currentIndex, endIndex);
+
+          if (currentIndex === 0) {
+            wordList.value = batch;
+          } else {
+            wordList.value = [...wordList.value, ...batch];
           }
-        });
+
+          currentIndex = endIndex;
+
+          if (currentIndex < allWordList.length) {
+            pendingRaf.value = requestAnimationFrame(renderBatch);
+          } else {
+            // 所有数据渲染完成后检查高度
+            checkHeightAfterRender();
+          }
+        };
+
+        // 启动分批渲染
+        pendingRaf.value = requestAnimationFrame(renderBatch);
       }
     });
 
     onUnmounted(() => {
+      // 取消未完成的 requestAnimationFrame
+      if (pendingRaf.value) {
+        cancelAnimationFrame(pendingRaf.value);
+      }
       intersectionObserver.value?.disconnect();
       resizeObserver.value?.disconnect();
     });

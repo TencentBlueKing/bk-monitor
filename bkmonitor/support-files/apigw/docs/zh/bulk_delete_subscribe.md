@@ -8,13 +8,15 @@
 |---------|-----------|----|-----------------------|
 | ids     | list[int] | 是  | 要删除的订阅ID列表，不能为空      |
 | bk_biz_id | int     | 是  | 业务ID                 |
+| sub_username | string | 否  | 用户名，用于额外的权限校验，默认值：空字符串 |
 
 ### 请求参数示例
 
 ```json
 {
   "ids": [1, 2, 3, 4],
-  "bk_biz_id": 2
+  "bk_biz_id": 2,
+  "sub_username": "admin"
 }
 ```
 

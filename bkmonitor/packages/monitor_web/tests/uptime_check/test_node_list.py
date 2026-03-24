@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from monitor_web.models.uptime_check import UptimeCheckNode
+from bk_monitor_base.uptime_check import UptimeCheckNodeModel
 from monitor_web.uptime_check.resources import UptimeCheckBeatResource
 
 
@@ -183,8 +183,8 @@ def node_filter_side_effect(**kwargs):
 
 
 def mock_node_task_count():
-    UptimeCheckNode.objects.get = Mock()
-    UptimeCheckNode.objects.get.side_effect = mock_count_side_effect
+    UptimeCheckNodeModel.objects.get = Mock()
+    UptimeCheckNodeModel.objects.get.side_effect = mock_count_side_effect
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -243,7 +243,8 @@ class TestNodeList:
     def test_uptime_check_beat(self, mocker):
         params = {"bk_biz_id": 2}
         patcher = patch(
-            "monitor_web.models.uptime_check.UptimeCheckNode.objects.filter", side_effect=node_filter_side_effect
+            "bk_monitor_base.uptime_check.UptimeCheckNodeModel.objects.filter",
+            side_effect=node_filter_side_effect,
         )
         patcher.start()
         mocker.patch(
@@ -274,7 +275,8 @@ class TestNodeList:
     def test_uptime_check_beat_only_biz(self, mocker):
         params = {"bk_biz_id": 2}
         patcher = patch(
-            "monitor_web.models.uptime_check.UptimeCheckNode.objects.filter", side_effect=node_filter_side_effect
+            "bk_monitor_base.uptime_check.UptimeCheckNodeModel.objects.filter",
+            side_effect=node_filter_side_effect,
         )
         patcher.start()
         mocker.patch("monitor_web.uptime_check.resources.GetBeatDataResource.bulk_request", return_value=DATA_BIZ)
@@ -302,7 +304,8 @@ class TestNodeList:
     def test_uptime_check_beat_only_common(self, mocker):
         params = {"bk_biz_id": 2}
         patcher = patch(
-            "monitor_web.models.uptime_check.UptimeCheckNode.objects.filter", side_effect=node_filter_side_effect
+            "bk_monitor_base.uptime_check.UptimeCheckNodeModel.objects.filter",
+            side_effect=node_filter_side_effect,
         )
         patcher.start()
         mocker.patch("monitor_web.uptime_check.resources.GetBeatDataResource.bulk_request", return_value=DATA_COMMON)

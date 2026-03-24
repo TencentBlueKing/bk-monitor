@@ -874,9 +874,18 @@ const store = new Vuex.Store({
       
       // 性能优化：使用 Map 缓存字段查找，从 O(n*m) 降到 O(n+m)
       // 当字段数量很大（如1500个）时，能显著提升性能
+      // 注意：当存在别名冲突时（如 body 和 line 都有 field_alias='body'），
+      // updateIndexFieldInfo 会创建 is_virtual_alias_field=true 的虚拟别名字段并追加到末尾。
+      // 需要优先保留原始字段，避免虚拟别名字段覆盖原始字段。
+      // 因为 store.getters.visibleFields 会过滤掉 is_virtual_alias_field=true 的字段，
+      // 若虚拟字段进入 visibleFields，则对应字段将永远无法在界面中显示。
       const fieldsMap = new Map();
       state.indexFieldInfo.fields.forEach(field => {
-        fieldsMap.set(field.field_name, field);
+        const existing = fieldsMap.get(field.field_name);
+        // 非虚拟别名字段优先：不允许虚拟别名字段覆盖已存在的原始字段
+        if (!existing || !field.is_virtual_alias_field) {
+          fieldsMap.set(field.field_name, field);
+        }
       });
       
       const visibleFields = filterList

@@ -37,12 +37,12 @@ const LogDesensitizeView = { name: 'LogDesensitizeView', template: '<router-view
 // 管理模块各组件异步声明（用于路由懒加载）
 const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
 const CollectionItem = () => import(/* webpackChunkName: 'collection' */ '@/views/manage-v2/log-collection/index.tsx');
+const OldCollectionItem = () =>
+  import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
 const AccessSteps = () =>
   import(
     /* webpackChunkName: 'access-steps' */ '@/views/manage-v2/log-collection/components/create-operation/index.tsx'
   );
-// const CollectionItem = () =>
-//   import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
 const ManageCollection = () =>
   import(
     /* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection'
@@ -102,12 +102,67 @@ const v2CleanTempCreate = () =>
   import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/create-temp-clean');
 
 const v2CleanCreate = () => import(/* webpackChunkName: 'v2-sdk-track' */ '@/views/manage-v2/log-clean/create-clean');
+
+/**
+ * log_manage_v2 特性开关判定 mixin
+ * - 'on'    → 全量启用新版（isV2Enabled = true）
+ * - 'off'   → 全量使用旧版（isV2Enabled = false）
+ * - 'debug' → 白名单灰度，匹配 bkBizId 或 spaceUid 则启用新版
+ * - 其他/未配置 → 使用旧版（isV2Enabled = false）
+ * 使用 computed 保证 bkBizId / spaceUid 变化时自动响应
+ */
+const logManageV2Mixin = {
+  computed: {
+    isV2Enabled() {
+      const featureToggle = window.FEATURE_TOGGLE?.log_manage_v2;
+
+      if (featureToggle === 'on') return true;
+      if (featureToggle === 'off' || !featureToggle) return false;
+
+      if (featureToggle === 'debug') {
+        const whiteList = window.FEATURE_TOGGLE_WHITE_LIST?.log_manage_v2 ?? [];
+        const bizId = this.$store.state.bkBizId;
+        const spaceUid = this.$store.state.spaceUid;
+        // 用 String() 统一类型，兼容白名单为数字数组（后端 JSON）而 bizId/spaceUid 为字符串的情况
+        const normalizedWhiteList = whiteList.map(id => String(id));
+        return normalizedWhiteList.includes(String(bizId)) || normalizedWhiteList.includes(String(spaceUid));
+      }
+
+      return false;
+    },
+  },
+};
+
+/**
+ * 根据 log_manage_v2 特性开关动态选择渲染组件
+ * 使用 logManageV2Mixin 统一判定逻辑
+ */
+const createVersionedComponent = (newComponent, oldComponent) => ({
+  mixins: [logManageV2Mixin],
+  render(h) {
+    return h(this.isV2Enabled ? newComponent : oldComponent);
+  },
+});
+
+/**
+ * Manage 布局容器包装组件
+ * 根据 log_manage_v2 特性开关动态设置 showSubNav：
+ * - 旧版（isV2Enabled = false）→ showSubNav = true（显示二级导航）
+ * - 新版（isV2Enabled = true）→ showSubNav = false（隐藏二级导航）
+ */
+const ManageWrapper = {
+  mixins: [logManageV2Mixin],
+  render(h) {
+    return h(Manage, { props: { showSubNav: !this.isV2Enabled } });
+  },
+};
+
 // 管理模块路由配置生成函数
 const getManageRoutes = () => [
   {
     path: '/manage',
     name: 'manage',
-    component: Manage,
+    component: ManageWrapper,
     // 根据当前环境（外部版/内部版）自动重定向到管理页默认子页面
     redirect: to => {
       // 外部版:跳转到“日志提取任务”
@@ -144,7 +199,7 @@ const getManageRoutes = () => [
             component: CollectionItemView,
             redirect: '/manage/log-collection/collection-item/list',
             children: [
-              // 采集项列表
+              // 采集项列表（根据特性开关动态渲染新版/旧版组件）
               {
                 path: 'list',
                 name: 'collection-item-list',
@@ -152,7 +207,7 @@ const getManageRoutes = () => [
                   title: '日志采集',
                   navId: 'log-collection',
                 },
-                component: CollectionItem,
+                component: createVersionedComponent(CollectionItem, OldCollectionItem),
               },
               // 查看采集项
               {
@@ -166,7 +221,7 @@ const getManageRoutes = () => [
                 },
                 component: ManageCollection,
               },
-              // 新建采集项
+              // 新建采集项（根据特性开关动态渲染新版/旧版组件）
               {
                 path: 'add',
                 name: 'collectAdd',
@@ -176,20 +231,9 @@ const getManageRoutes = () => [
                   backName: 'collection-item',
                   navId: 'log-collection',
                 },
-                component: AccessSteps,
+                component: createVersionedComponent(AccessSteps, oldAccessSteps),
               },
-              {
-                path: 'oldAdd',
-                name: 'oldCollectAdd',
-                meta: {
-                  title: '日志采集',
-                  needBack: true,
-                  backName: 'collection-item',
-                  navId: 'log-collection',
-                },
-                component: oldAccessSteps,
-              },
-              // 编辑采集项
+              // 编辑采集项（根据特性开关动态渲染新版/旧版组件）
               {
                 path: 'edit/:collectorId',
                 name: 'collectEdit',
@@ -199,9 +243,9 @@ const getManageRoutes = () => [
                   backName: 'collection-item',
                   navId: 'log-collection',
                 },
-                component: AccessSteps,
+                component: createVersionedComponent(AccessSteps, oldAccessSteps),
               },
-              // 字段清洗
+              // 字段清洗（根据特性开关动态渲染新版/旧版组件）
               {
                 path: 'field/:collectorId',
                 name: 'collectField',
@@ -211,9 +255,9 @@ const getManageRoutes = () => [
                   backName: 'collection-item',
                   navId: 'log-collection',
                 },
-                component: AccessSteps,
+                component: createVersionedComponent(AccessSteps, oldAccessSteps),
               },
-              // 存储配置
+              // 存储配置（根据特性开关动态渲染新版/旧版组件）
               {
                 path: 'storage/:collectorId',
                 name: 'collectStorage',
@@ -223,9 +267,9 @@ const getManageRoutes = () => [
                   backName: 'collection-item',
                   navId: 'log-collection',
                 },
-                component: AccessSteps,
+                component: createVersionedComponent(AccessSteps, oldAccessSteps),
               },
-              // 脱敏配置
+              // 脱敏配置（根据特性开关动态渲染新版/旧版组件）
               {
                 path: 'masking/:collectorId',
                 name: 'collectMasking',
@@ -235,9 +279,9 @@ const getManageRoutes = () => [
                   backName: 'collection-item',
                   navId: 'log-collection',
                 },
-                component: AccessSteps,
+                component: createVersionedComponent(AccessSteps, oldAccessSteps),
               },
-              // 启用采集项
+              // 启用采集项（根据特性开关动态渲染新版/旧版组件）
               {
                 path: 'start/:collectorId',
                 name: 'collectStart',
@@ -247,9 +291,9 @@ const getManageRoutes = () => [
                   backName: 'collection-item',
                   navId: 'log-collection',
                 },
-                component: AccessSteps,
+                component: createVersionedComponent(AccessSteps, oldAccessSteps),
               },
-              // 停用采集项
+              // 停用采集项（根据特性开关动态渲染新版/旧版组件）
               {
                 path: 'stop/:collectorId',
                 name: 'collectStop',
@@ -259,7 +303,7 @@ const getManageRoutes = () => [
                   backName: 'collection-item',
                   navId: 'log-collection',
                 },
-                component: AccessSteps,
+                component: createVersionedComponent(AccessSteps, oldAccessSteps),
               },
             ],
           },
@@ -580,31 +624,7 @@ const getManageRoutes = () => [
             },
             component: cleanList,
           },
-          // 新增清洗
-          {
-            path: 'old-create',
-            name: 'old-clean-create',
-            meta: {
-              title: '日志清洗',
-              needBack: true,
-              backName: 'log-clean-list',
-              navId: 'clean-list',
-            },
-            component: cleanCreate,
-          },
-          // 编辑清洗
-          {
-            path: 'old-edit/:collectorId',
-            name: 'old-clean-edit',
-            meta: {
-              title: '日志清洗',
-              needBack: true,
-              backName: 'log-clean-list',
-              navId: 'clean-list',
-            },
-            component: cleanCreate,
-          },
-          // ------- 新版采集管理重构 - 新建清洗 --------
+          // 新增清洗（根据特性开关动态渲染新版/旧版组件）
           {
             path: 'create',
             name: 'clean-create',
@@ -614,9 +634,9 @@ const getManageRoutes = () => [
               backName: 'log-clean-list',
               navId: 'clean-list',
             },
-            component: v2CleanCreate,
+            component: createVersionedComponent(v2CleanCreate, cleanCreate),
           },
-          // 编辑清洗
+          // 编辑清洗（根据特性开关动态渲染新版/旧版组件）
           {
             path: 'edit/:collectorId',
             name: 'clean-edit',
@@ -626,7 +646,7 @@ const getManageRoutes = () => [
               backName: 'log-clean-list',
               navId: 'clean-list',
             },
-            component: v2CleanCreate,
+            component: createVersionedComponent(v2CleanCreate, cleanCreate),
           },
         ],
       },
@@ -647,32 +667,7 @@ const getManageRoutes = () => [
             },
             component: cleanTemplate,
           },
-          // 新建模板
-          {
-            path: 'old-create',
-            name: 'old-clean-template-create',
-            meta: {
-              title: '日志清洗',
-              needBack: true,
-              backName: 'log-clean-templates',
-              navId: 'clean-templates',
-            },
-            component: cleanTempCreate,
-          },
-          // 编辑模板
-          {
-            path: 'old-edit/:templateId',
-            name: 'old-clean-template-edit',
-            meta: {
-              title: '日志清洗',
-              needBack: true,
-              backName: 'log-clean-templates',
-              navId: 'clean-templates',
-            },
-            component: cleanTempCreate,
-          },
-
-          // ------- 新版采集管理重构 - 新建模板 --------
+          // 新建模板（根据特性开关动态渲染新版/旧版组件）
           {
             path: 'create',
             name: 'clean-template-create',
@@ -682,9 +677,9 @@ const getManageRoutes = () => [
               backName: 'log-clean-templates',
               navId: 'clean-templates',
             },
-            component: v2CleanTempCreate,
+            component: createVersionedComponent(v2CleanTempCreate, cleanTempCreate),
           },
-          // 编辑模板
+          // 编辑模板（根据特性开关动态渲染新版/旧版组件）
           {
             path: 'edit/:templateId',
             name: 'clean-template-edit',
@@ -694,7 +689,7 @@ const getManageRoutes = () => [
               backName: 'log-clean-templates',
               navId: 'clean-templates',
             },
-            component: v2CleanTempCreate,
+            component: createVersionedComponent(v2CleanTempCreate, cleanTempCreate),
           },
         ],
       },

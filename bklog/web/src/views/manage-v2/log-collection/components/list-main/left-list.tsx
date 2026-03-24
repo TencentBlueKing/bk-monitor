@@ -101,12 +101,25 @@ export default defineComponent({
         });
     };
 
+    const handleRenameItem = () => {
+      getIndexGroupList((data: { list: IListItemData[]; total: number }) => {
+        listData.value = data.list;
+        total.value = data.total;
+        initActionPop();
+        const updatedItem = data.list.find(item => item.index_set_id === activeKey.value);
+        if (updatedItem) {
+          emit('choose', updatedItem);
+        }
+      });
+    };
+
     const renderBaseItem = (item: IListItemData) => (
       <ListItem
         activeKey={activeKey.value}
         data={item}
         on-choose={handleItem}
         on-delete={handelDelItem}
+        on-rename={handleRenameItem}
       />
     );
     /**

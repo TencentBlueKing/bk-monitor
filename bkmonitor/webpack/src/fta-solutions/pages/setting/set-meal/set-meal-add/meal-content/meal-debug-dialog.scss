@@ -11,7 +11,7 @@
       justify-content: center;
       width: 48px;
       height: 48px;
-  
+
       @keyframes loading-ratate {
         0% {
           transform: rotate(0deg);
@@ -30,7 +30,7 @@
         g {
           @for $i from 1 through 8 {
             :nth-child(#{$i}) {
-              opacity: #{$i * .125};
+              opacity: #{$i * 0.125};
               fill: #3a84ff;
             }
           }
@@ -78,6 +78,7 @@
       font-size: 14px;
       line-height: 19px;
       color: #63656e;
+      // stylelint-disable-next-line declaration-property-value-keyword-no-deprecated
       word-break: break-word;
       white-space: break-spaces;
 
@@ -92,7 +93,7 @@
             margin-right: 6px;
             font-size: 12px;
           }
-        } 
+        }
       }
     }
 
@@ -110,5 +111,22 @@
   .bk-dialog-body {
     max-height: calc(80vh - 142px);
     overflow-y: auto;
+
+    .simple-form-loading {
+      width: 100%;
+      height: 48px;
+      margin-bottom: 20px;
+    }
+
+    .alert-id-wrap {
+      margin-bottom: 24px;
+
+      .err-msg {
+        margin-top: 4px;
+        font-size: 12px;
+        color: #ea3636;
+        overflow-wrap: break-word;
+      }
+    }
   }
 }

@@ -18,8 +18,32 @@
 | remote_collecting_host | Dict | 否    | 远程采集配置                      |
 | params                 | Dict | 是    | 采集配置参数                      |
 | label                  | str  | 是    | 二级标签                        |
-| operation              | str  | 是    | 操作类型, \["EDIT", "ADD_DEL"\] |
-| metric_relabel_configs | List | 否    | 指标重新配置标志                    |
+| operation              | str  | 否    | 操作类型 |
+| metric_relabel_configs | List | 否    | 指标重新标记配置列表                    |
+
+#### remote_collecting_host 字段说明
+
+远程采集配置对象包含以下字段：
+
+| 字段                 | 类型   | 是否必选 | 描述                          |
+| ------------------ | ---- | ---- | --------------------------- |
+| bk_host_id         | int  | 否    | 主机 ID，与 ip/bk_cloud_id 二选一 |
+| ip                 | str  | 否    | 主机 IP，需与 bk_cloud_id 同时提供 |
+| bk_cloud_id        | int  | 否    | 云区域 ID，需与 ip 同时提供 |
+| bk_supplier_id     | int  | 否    | 开发商 ID |
+| is_collecting_only | bool | 是    | 是否仅采集 |
+
+#### metric_relabel_configs 字段说明
+
+指标重新标记配置列表，每个配置对象包含以下字段：
+
+| 字段           | 类型        | 是否必选 | 描述                          |
+| ------------ |-----------| ---- | --------------------------- |
+| source_labels | List[str] | 是    | 源标签列表，字符串数组 |
+| regex        | str       | 是    | 正则表达式 |
+| action       | str       | 否    | 操作类型 |
+| target_label | str       | 否    | 目标标签 |
+| replacement  | str       | 否    | 替换内容 |
 
 ### 请求参数示例
 

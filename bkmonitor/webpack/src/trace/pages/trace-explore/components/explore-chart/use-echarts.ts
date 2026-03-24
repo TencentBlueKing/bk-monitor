@@ -44,6 +44,7 @@ import {
   handleSetMarkTimeRange,
   handleSetThresholdArea,
   handleSetThresholdLine,
+  mergeOverlappingArrays,
 } from './utils';
 
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
@@ -79,14 +80,15 @@ export const useEcharts = (
   $api: Record<string, () => Promise<any>>,
   params: MaybeRef<Record<string, any>>,
   customOptions: CustomOptions,
-  interactionState?: ChartInteractionState
+  interactionState?: ChartInteractionState,
+  downSampleRangeComputed?: (timeRange: number[]) => string | undefined
 ) => {
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
   const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
   const refreshImmediate = inject('refreshImmediate');
 
-  const cancelTokens = [];
+  let cancelTokens = [];
   const loading = shallowRef(false);
   /** 接口请求耗时 */
   const duration = shallowRef(0);
@@ -104,25 +106,32 @@ export const useEcharts = (
   const series = shallowRef([]);
 
   const getEchartOptions = async () => {
+    for (const cb of cancelTokens) {
+      cb?.();
+    }
+    cancelTokens = [];
     const startDate = Date.now();
     loading.value = true;
     metricList.value = [];
     targets.value = [];
     const [startTime, endTime] = handleTransformToTimestamp(get(timeRange) || DEFAULT_TIME_RANGE);
     const promiseList = get(panel)?.targets?.map?.(target => {
+      const resultParams = {
+        start_time: startTime,
+        end_time: endTime,
+        ...target.data,
+        ...(get(params) ?? {}),
+      };
+
+      if (downSampleRangeComputed) {
+        resultParams.down_sample_range = downSampleRangeComputed([resultParams.start_time, resultParams.end_time]);
+      }
+
       return $api[target.apiModule]
-        [target.apiFunc](
-          {
-            start_time: startTime,
-            end_time: endTime,
-            ...target.data,
-            ...(get(params) ?? {}),
-          },
-          {
-            cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
-            needMessage: false,
-          }
-        )
+        [target.apiFunc](resultParams, {
+          cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
+          needMessage: false,
+        })
         .then(res => {
           const { series, metrics, query_config } = customOptions.formatterData?.(res, target) ?? res;
           for (const metric of metrics) {
@@ -176,12 +185,15 @@ export const useEcharts = (
   const createSeries = (series: SeriesItem[]) => {
     const xAllData = new Set<number>();
     let xAxisIndex = -1;
-    const xAxis = [];
+    const xAxis: any[] = [];
     const seriesData: EchartSeriesItem[] = [];
-    let preXData = [];
+    /** 记录每个 xAxisIndex 对应的当前 xData 快照，用于后续系列的合并判断 */
+    const xAxisDataMap = new Map<number, number[]>();
     for (const data of series) {
-      const list = [];
-      const xData = [];
+      let list: { value: any }[] = [];
+      let xData: number[] = [];
+      /** 与 data（list）索引对齐的 datapoints 副本，头尾补 null 后仍能通过下标一一对应 */
+      let alignedDatapoints: [null | number, number][] = data.datapoints.map(p => [...p] as [null | number, number]);
       for (const point of data.datapoints) {
         xData.push(point[1]);
         xAllData.add(point[1]);
@@ -189,10 +201,59 @@ export const useEcharts = (
           value: point[0],
         });
       }
-      const isEqual = preXData.length && arraysEqual(preXData, xData);
+      let reuseAxisIndex = -1;
+      // 遍历所有已有的 xAxis，尝试找到一个可以复用的
+      for (const [axisIdx, axisData] of xAxisDataMap) {
+        if (arraysEqual(axisData, xData)) {
+          reuseAxisIndex = axisIdx;
+          break;
+        }
+        const mergeResult = mergeOverlappingArrays(axisData, xData);
+        if (mergeResult) {
+          reuseAxisIndex = axisIdx;
+          const { head1, head2, merged, tail1, tail2 } = mergeResult;
+          // 如果合并后比已有的 xAxis 更长，更新 xAxis 数据
+          if (head1 > 0 || tail1 > 0) {
+            xAxis[axisIdx].data = merged;
+            const headNulls = Array.from({ length: head1 }, () => ({ value: null }));
+            const tailNulls = Array.from({ length: tail1 }, () => ({ value: null }));
+            const headNullDps: [null, number][] = merged.slice(0, head1).map(ts => [null, ts]);
+            const tailNullDps: [null, number][] = merged.slice(merged.length - tail1).map(ts => [null, ts]);
+            // 为之前复用同一 xAxisIndex 的系列补点
+            for (const prevSeries of seriesData) {
+              if (prevSeries.xAxisIndex === axisIdx) {
+                prevSeries.data = [...headNulls, ...(prevSeries.data as { value: any }[]), ...tailNulls];
+                // 同步更新 alignedDatapoints 保持与 data 索引对齐
+                const prevAligned = prevSeries.alignedDatapoints as [null | number, number][];
+                if (prevAligned) {
+                  prevSeries.alignedDatapoints = [...headNullDps, ...prevAligned, ...tailNullDps];
+                }
+              }
+            }
+          }
+          // 为当前系列在首尾补 null 值
+          if (head2 > 0) {
+            const headDps: [null, number][] = merged.slice(0, head2).map(ts => [null, ts]);
+            xData = [...merged.slice(0, head2), ...xData];
+            list = [...Array.from({ length: head2 }, () => ({ value: null })), ...list];
+            alignedDatapoints = [...headDps, ...alignedDatapoints];
+          }
+          if (tail2 > 0) {
+            const tailDps: [null, number][] = merged.slice(merged.length - tail2).map(ts => [null, ts]);
+            xData = [...xData, ...merged.slice(merged.length - tail2)];
+            list = [...list, ...Array.from({ length: tail2 }, () => ({ value: null }))];
+            alignedDatapoints = [...alignedDatapoints, ...tailDps];
+          }
+          // 更新该 xAxisIndex 的 xData 快照为合并后的完整数据
+          xAxisDataMap.set(axisIdx, merged);
+          break;
+        }
+      }
 
-      if (!isEqual) {
+      const canReuse = reuseAxisIndex !== -1;
+      if (!canReuse) {
         xAxisIndex += 1;
+        reuseAxisIndex = xAxisIndex;
       }
       const unitFormatter = getValueFormat(data.unit);
       // 获取y轴上可设置的最小的精确度
@@ -213,7 +274,7 @@ export const useEcharts = (
       const seriesItem: EchartSeriesItem = {
         name: data.alias || data.target || '',
         data: list,
-        xAxisIndex: xAxisIndex,
+        xAxisIndex: reuseAxisIndex,
         type: data.type,
         stack: data.stack,
         unit: data.unit,
@@ -236,6 +297,7 @@ export const useEcharts = (
         },
         z: data.z || 3,
         ...data,
+        alignedDatapoints,
       };
 
       // 处理 markPoints（告警点）
@@ -261,10 +323,10 @@ export const useEcharts = (
 
       seriesData.push(seriesItem);
 
-      if (!isEqual) {
-        xAxis.push(...createXAxis(xData, { show: xAxisIndex === 0 }));
+      if (!canReuse) {
+        xAxis.push(...createXAxis(xData, { show: reuseAxisIndex === 0 }));
+        xAxisDataMap.set(reuseAxisIndex, [...xData]);
       }
-      preXData = [...xData];
     }
     return {
       xData: Array.from(xAllData).sort(),

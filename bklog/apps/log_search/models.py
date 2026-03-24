@@ -478,19 +478,6 @@ class LogIndexSet(SoftDeleteModel):
 
         return [int(child_id) for child_id in child_ids]
 
-    def get_doris_table_ids(self) -> list:
-        doris_table_ids = []
-        if self.is_group:
-            # 如果是索引组，获取所有子索引集的doris_table_id
-            child_index_set_ids = self.get_child_index_set_ids()
-            child_index_sets = LogIndexSet.objects.filter(index_set_id__in=child_index_set_ids)
-            for child_index_set in child_index_sets:
-                if child_index_set.doris_table_id:
-                    doris_table_ids.extend(child_index_set.doris_table_id.split(","))
-        elif self.doris_table_id:
-            doris_table_ids.extend(self.doris_table_id.split(","))
-        return doris_table_ids
-
     @staticmethod
     def no_data_check_time(index_set_id: str):
         result = cache.get(INDEX_SET_NO_DATA_CHECK_PREFIX + index_set_id)
@@ -499,12 +486,28 @@ class LogIndexSet(SoftDeleteModel):
             result = datetime_to_timestamp(temp)
         return timestamp_to_timeformat(result)
 
+    def get_log_index_set_data(self):
+        if self.is_group:
+            child_index_set_ids = self.get_child_index_set_ids()
+            index_set_data = LogIndexSetData.objects.filter(index_set_id__in=child_index_set_ids)
+        else:
+            index_set_data = LogIndexSetData.objects.filter(
+                index_set_id=self.index_set_id, type=IndexSetDataType.RESULT_TABLE.value
+            )
+        return index_set_data
+
     def get_indexes(self, has_applied=None):
         """
         返回当前索引集下的索引列表
         :return:
         """
-        index_set_data = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
+        if self.is_group:
+            child_index_set_ids = self.get_child_index_set_ids()
+            index_set_data = LogIndexSetData.objects.filter(index_set_id__in=child_index_set_ids)
+        else:
+            index_set_data = LogIndexSetData.objects.filter(
+                index_set_id=self.index_set_id, type=IndexSetDataType.RESULT_TABLE.value
+            )
         if has_applied:
             index_set_data = index_set_data.filter(apply_status=LogIndexSetData.Status.NORMAL)
         source_name = self.source_name
@@ -1420,6 +1423,25 @@ class SpaceApi(AbstractSpaceApi):
             )
         if id:
             return SpaceDefine.from_dict(TransferApi.get_space_detail({"id": id, "no_request": True}))
+
+    @classmethod
+    def batch_get_space_detail(cls, space_uids: set[str]) -> dict:
+        if not space_uids:
+            return {}
+
+        objs = Space.objects.filter(space_uid__in=space_uids)
+
+        space_detail_map = {obj.space_uid: cls._init_space(obj) for obj in objs}
+
+        need_http_space_uids = space_uids - set(space_detail_map.keys())
+
+        for space_uid in need_http_space_uids:
+            space_type, space_id = cls.parse_space_uid(space_uid)
+            space_detail_map[space_uid] = SpaceDefine.from_dict(
+                TransferApi.get_space_detail({"space_type_id": space_type, "space_id": space_id, "no_request": True})
+            )
+
+        return space_detail_map
 
     @classmethod
     def list_spaces(cls) -> list[SpaceDefine]:

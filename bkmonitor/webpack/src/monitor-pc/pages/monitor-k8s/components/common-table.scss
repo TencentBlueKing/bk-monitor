@@ -76,6 +76,42 @@
     }
   }
 
+  .suffix-icon-col {
+    display: flex;
+    align-items: center;
+    line-height: 20px;
+
+    .suffix-icon-img {
+      flex-shrink: 0;
+      height: 16px;
+      margin-right: 8px;
+    }
+
+    .suffix-icon-main {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #3a84ff;
+      white-space: nowrap;
+      cursor: pointer;
+
+      &:hover {
+        color: #699df4;
+      }
+    }
+
+    .suffix-icon-btn {
+      display: none;
+      flex-shrink: 0;
+      margin-left: 8px;
+      color: #3a84ff;
+      cursor: pointer;
+
+      &:hover {
+        color: #699df4;
+      }
+    }
+  }
+
   .tag-item {
     display: inline-flex;
     align-items: center;
