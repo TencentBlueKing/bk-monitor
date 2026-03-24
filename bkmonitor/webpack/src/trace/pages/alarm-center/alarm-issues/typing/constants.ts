@@ -31,6 +31,7 @@ import type {
   IssuePriorityEnum,
   IssuesBatchActionEnum,
   IssueStatusEnum,
+  TrendStatusEnum,
 } from '../constant';
 import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
 
@@ -51,3 +52,6 @@ export type IssuesBatchActionType = GetEnumTypeTool<typeof IssuesBatchActionEnum
 
 /** Issues 状态类型 */
 export type IssueStatusType = GetEnumTypeTool<typeof IssueStatusEnum>;
+
+/** Issues 趋势状态类型 */
+export type TrendStatusType = GetEnumTypeTool<typeof TrendStatusEnum>;

@@ -228,8 +228,11 @@ export default defineComponent({
             onQueryStringChange={this.handleQueryStringChange}
           />
           <div class='issues-chart-wrapper'>
-            <IssuesTrendChart />
-            <DimensionStats />
+            <IssuesTrendChart
+              alertCount={this.detail?.alert_count}
+              data={this.detail?.trend}
+            />
+            <DimensionStats data={this.detail?.dimension_summary} />
           </div>
           <Tab
             class='issues-alarm-tab'

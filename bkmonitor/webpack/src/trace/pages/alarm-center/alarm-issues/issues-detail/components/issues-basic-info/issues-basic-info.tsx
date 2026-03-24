@@ -75,7 +75,7 @@ export default defineComponent({
      */
     const getTimeDiff = (time: number) => {
       if (!time) return '';
-      return dayjs(time).fromNow();
+      return dayjs(time * 1000).fromNow();
     };
 
     /**

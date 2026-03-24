@@ -155,8 +155,10 @@ export default defineComponent({
      * @description 展示 Issue 详情
      * @param {string} _id - Issue ID
      */
-    const handleIssuesShowDetail = (_id: string) => {
+    const handleIssuesShowDetail = (item: IssueItem) => {
       // TODO: 接入详情抽屉逻辑
+      issuesDetailShow.value = true;
+      issueRowData.value = item;
     };
 
     /**
@@ -245,7 +247,9 @@ export default defineComponent({
     const editFavoriteData = shallowRef<IFavoriteGroup['favorites'][number]>(null);
     const editFavoriteShow = shallowRef(false);
 
-    const issuesDetailShow = shallowRef(true);
+    /** issues 详情侧栏 */
+    const issuesDetailShow = shallowRef(false);
+    const issueRowData = shallowRef<IssueItem>(null);
 
     const { impactScopeDrawerShow, impactScopeResourceKey, impactScopeResource, handleImpactScopeClick } =
       useIssuesImpactScopeDrawer();
@@ -761,6 +765,7 @@ export default defineComponent({
       alarmDetailDefaultTab,
       showResidentBtn,
       issuesDetailShow,
+      issueRowData,
       impactScopeDrawerShow,
       impactScopeResourceKey,
       impactScopeResource,
@@ -1014,7 +1019,10 @@ export default defineComponent({
           </div>
           {this.alarmStore.alarmType === AlarmType.ISSUES ? (
             <IssuesDetailSideSlider
+              bizId={this.issueRowData?.bk_biz_id}
+              issueId={this.issueRowData?.id}
               show={this.issuesDetailShow}
+              onImpactScopeClick={this.handleImpactScopeClick}
               onUpdate:show={show => {
                 this.issuesDetailShow = show;
               }}

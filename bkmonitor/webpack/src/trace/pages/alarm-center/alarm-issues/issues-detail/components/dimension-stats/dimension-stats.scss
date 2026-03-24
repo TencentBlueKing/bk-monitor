@@ -1,17 +1,18 @@
 .dimension-stats {
   position: relative;
+
   .stats-body {
     display: flex;
     flex-direction: column;
     gap: 16px;
     max-height: 190px;
-    overflow: auto;
     margin-top: 12px;
+    overflow: auto;
 
     .stats-row {
       display: flex;
-      align-items: center;
       gap: 12px;
+      align-items: center;
 
       .row-label {
         flex-shrink: 0;
@@ -27,18 +28,18 @@
 
         .row-bar {
           display: flex;
-          height: 24px;
           gap: 1px;
+          height: 24px;
           overflow: hidden;
-          border-radius: 4px;
           cursor: pointer;
+          border-radius: 4px;
 
           .bar-segment {
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 100%;
             min-width: 4px;
+            height: 100%;
             transition: opacity 0.2s ease;
 
             &:hover {
@@ -49,8 +50,8 @@
               font-size: 12px;
               font-weight: 500;
               color: #fff;
-              text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
               white-space: nowrap;
+              text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
             }
 
             // 第一段的左边圆角
@@ -72,13 +73,14 @@
 
   .dimension-tooltip {
     position: fixed;
+    z-index: 52;
     display: flex;
     flex-direction: column;
     gap: 6px;
     width: 180px;
     padding: 12px 16px;
-    border-radius: 8px;
     background: #313238e6;
+    border-radius: 8px;
 
     .tooltip-item {
       display: flex;
@@ -90,17 +92,17 @@
         flex-shrink: 0;
         width: 8px;
         height: 8px;
-        border-radius: 2px;
         margin-right: 4px;
+        border-radius: 2px;
       }
 
       .tooltip-name {
         flex: 1;
         min-width: 0;
         overflow: hidden;
+        text-overflow: ellipsis;
         font-size: 12px;
         color: #f2f6fc;
-        text-overflow: ellipsis;
         white-space: nowrap;
       }
 
