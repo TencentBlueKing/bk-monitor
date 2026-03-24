@@ -15,6 +15,7 @@ from django import forms
 from django.contrib import admin
 
 from metadata import models
+from metadata.models.entity_relation import NAMESPACE_ALL
 
 
 class YamlJsonField(forms.CharField):
@@ -333,6 +334,11 @@ class EntityDefinitionAdminMixin:
     - 保存后同步更新 Redis 缓存
     """
 
+    @admin.display(description="命名空间")
+    def namespace_display(self, obj):
+        """库中空字符串与业务上的全局命名空间 NAMESPACE_ALL 一致，列表中统一展示为 __all__。"""
+        return obj.namespace if obj.namespace else NAMESPACE_ALL
+
     def save_model(self, request, obj, form, change):
         if change:
             # 从数据库取当前值进行 spec 对比，有变化则递增 generation
@@ -355,7 +361,7 @@ class EntityDefinitionAdminMixin:
 
 class ResourceDefinitionAdmin(EntityDefinitionAdminMixin, admin.ModelAdmin):
     form = ResourceDefinitionForm
-    list_display = ("namespace", "name", "uid", "generation", "labels", "create_time", "update_time")
+    list_display = ("namespace_display", "name", "uid", "generation", "labels", "create_time", "update_time")
     search_fields = ("namespace", "name")
     list_filter = ("namespace",)
     exclude = ("fields",)  # 使用 fields_def 替代，避免字段名冲突
@@ -364,7 +370,7 @@ class ResourceDefinitionAdmin(EntityDefinitionAdminMixin, admin.ModelAdmin):
 class RelationDefinitionAdmin(EntityDefinitionAdminMixin, admin.ModelAdmin):
     form = RelationDefinitionForm
     list_display = (
-        "namespace",
+        "namespace_display",
         "name",
         "from_resource",
         "to_resource",
