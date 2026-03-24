@@ -156,6 +156,7 @@ class IncidentNoticeHelper:
                 IncidentOperationType.MERGE_TO: "故障被合并",
             }
             subtitle_map = {
+                IncidentOperationType.CREATE: f"【{incident.incident_name}】",
                 IncidentOperationType.OBSERVE: f"故障当前状态 观察中，已观察【{observe_duration_info['duration_msg']}】",
                 IncidentOperationType.RECOVER: f"【{incident.incident_name}】故障已恢复",
                 IncidentOperationType.REOPEN: "故障在观察期间重新打开",
