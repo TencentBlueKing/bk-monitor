@@ -71,12 +71,16 @@ class DataLinkHandler:
             for link in link_objects
         ]
 
+        # 优先级: 业务独立链路 > 公共链路
         if param.get("bk_biz_id"):
             public_data_link_infos = []
             biz_independent_data_link_infos = []
 
             for data_link_info in data_link_infos:
-                if data_link_info.get("bk_biz_id", 0) == 0:
+                if not data_link_info["is_active"]:
+                    continue
+
+                if data_link_info["bk_biz_id"] == 0:
                     public_data_link_infos.append(data_link_info)
                 else:
                     biz_independent_data_link_infos.append(data_link_info)
