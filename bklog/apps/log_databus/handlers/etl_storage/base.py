@@ -119,7 +119,15 @@ class EtlStorage:
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):
         raise NotImplementedError(_("功能暂未实现"))
 
-    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X", enable_v4=False):
+    def get_result_table_config(
+        self,
+        fields,
+        etl_params,
+        built_in_config,
+        es_version="5.X",
+        enable_v4=False,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
+    ):
         """
         配置清洗入库策略，需兼容新增、编辑
         """
@@ -1100,7 +1108,12 @@ class EtlStorage:
                 enable_v4 = True
 
         result_table_config = self.get_result_table_config(
-            fields, etl_params, built_in_config, es_version=es_version, enable_v4=enable_v4
+            fields,
+            etl_params,
+            built_in_config,
+            es_version=es_version,
+            enable_v4=enable_v4,
+            storage_cluster_type=storage_cluster_type,
         )
         is_nanos = False
         for rt_field in result_table_config["field_list"]:
