@@ -1,9 +1,36 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import RegexOperation from './components/regex-operation';
-import type { IListItem } from '../../components/result-preview';
 
 import { random } from 'monitor-common/utils/utils';
+
+import RegexOperation from './components/regex-operation';
+
+import type { IListItem } from '../../components/result-preview';
 
 import './index.scss';
 
@@ -69,9 +96,9 @@ export default class AutoGroup extends tsc<any> {
     return (
       <div class='auto-group-main'>
         <bk-alert
-          type='info'
           style='margin-bottom: 12px;'
           title={this.$t('根据规则自动发现未来新指标，存量指标不生效。')}
+          type='info'
         />
         <div class='regex-list-main'>
           {this.regexList.map(item => (
@@ -83,9 +110,9 @@ export default class AutoGroup extends tsc<any> {
             />
           ))}
           <bk-button
-            text
-            theme='primary'
             class='add-item-btn'
+            theme='primary'
+            text
             onClick={this.handleAddItem}
           >
             <i class='icon-monitor icon-mc-add add-icon' />
