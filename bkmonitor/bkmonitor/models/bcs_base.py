@@ -512,28 +512,111 @@ class BCSBase(models.Model):
 
     @staticmethod
     def build_link(bk_biz_id, text, dashboard, filter_query):
-        filter_query_items = []
+        """构建 K8S 资源详情链接（新版 k8s-new 页面格式）
+
+        旧版格式: ?bizId={id}#/k8s?filter-namespace=xxx&filter-pod_name=yyy&dashboardId=pod&sceneType=detail
+        新版格式: ?bizId={id}#/k8s-new?cluster=xxx&filterBy={"namespace":["xxx"],"pod":["yyy"]}&groupBy=["pod"]
+
+        参数映射:
+        - filter_query 中的 key (如 pod_name) 会映射为新版字段 (如 pod)
+        - bcs_cluster_id 从 filter_query 中提取，作为独立的 cluster 参数
+        - dashboard (如 node/pod/container/service) 映射为 groupBy 数组
+        """
+        filter_by = {}
+        bcs_cluster_id = ""
         for key, value in filter_query.items():
+            new_key = key
+            if key == "bcs_cluster_id":
+                # bcs_cluster_id 在新版中单独作为 cluster 参数
+                bcs_cluster_id = value if not isinstance(value, list) else value[0] if value else ""
+                continue
+            elif key == "pod_name":
+                new_key = "pod"
+            elif key == "node_name":
+                new_key = "node"
+            elif key == "service_name":
+                new_key = "service"
+            # 值统一转为数组格式
             if isinstance(value, list):
-                for value_item in value:
-                    filter_query_items.append(f"filter-{key}={value_item}")
+                filter_by[new_key] = value
             else:
-                filter_query_items.append(f"filter-{key}={value}")
-        filter_query_string = "&".join(filter_query_items)
+                filter_by[new_key] = [value]
+        filter_by_str = json.dumps(filter_by)
+        # groupBy: 将旧版 dashboardId 映射为分组维度数组
+        # 注意: performance/network 场景下 namespace 是常驻维度 (fixedGroupFilters)，
+        # URL 初始加载时 setGroupFilters 不会自动补上 fixed，所以后端需要显式带上
+        # performance=[namespace,workload,pod,container], network=[namespace,ingress,service,pod], capacity=[node]
+        valid_dashboards = ("node", "pod", "container", "service", "workload", "ingress")
+        if dashboard == "node":
+            group_by_str = json.dumps(["node"])
+        elif dashboard in valid_dashboards:
+            group_by_str = json.dumps(["namespace", dashboard])
+        else:
+            group_by_str = "[]"
+        # scene: 根据 dashboard 类型选择对应的场景
+        # 前端 sceneDimensionMap: performance=[namespace,workload,pod,container], network=[namespace,ingress,service,pod], capacity=[node]
+        scene = (
+            "capacity" if dashboard == "node" else "network" if dashboard in ("service", "ingress") else "performance"
+        )
+        url = (
+            f"?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
+            f"&filterBy={filter_by_str}&groupBy={group_by_str}"
+            f"&sceneId=kubernetes&scene={scene}&activeTab=list"
+        )
         return {
             "value": text,
             "target": "blank",
-            "url": f"?bizId={bk_biz_id}#/k8s?dashboardId={dashboard}&sceneType=detail&{filter_query_string}",
+            "url": url,
         }
 
     @staticmethod
     def build_search_link(
         bk_biz_id: int, dashboard_id: str, value: Any, search: list | None = None, scene_type="detail"
     ):
-        url = f"?bizId={bk_biz_id}#/k8s?sceneId=kubernetes&dashboardId={dashboard_id}&sceneType={scene_type}"
+        """构建 K8S 资源搜索链接（新版 k8s-new 页面格式）
+
+        旧版格式: ?bizId={id}#/k8s?sceneId=kubernetes&dashboardId=pod&sceneType=overview&queryData={"selectorSearch":[...]}
+        新版格式: ?bizId={id}#/k8s-new?cluster=xxx&filterBy={"roles":["xxx"]}&groupBy=["pod"]&sceneId=kubernetes
+
+        参数映射:
+        - search 列表 (旧版 selectorSearch) 转换为 filterBy JSON
+        - bcs_cluster_id 从 search 中提取作为 cluster 参数
+        - dashboard_id (如 node/pod/container) 映射为 groupBy 数组
+        """
+        bcs_cluster_id = ""
+        filter_by = {}
         if search:
-            query_data = json.dumps({"selectorSearch": search})
-            url = f"{url}&queryData={query_data}"
+            for item in search:
+                for key, val in item.items():
+                    if key == "bcs_cluster_id":
+                        bcs_cluster_id = val
+                    else:
+                        # 其他字段 (如 roles, workload_type, status 等) 放入 filterBy
+                        filter_by[key] = [val]
+        filter_by_str = json.dumps(filter_by)
+        # groupBy: 将旧版 dashboard_id 映射为分组维度数组
+        # 注意: performance/network 场景下 namespace 是常驻维度 (fixedGroupFilters)，
+        valid_dashboards = ("node", "pod", "container", "service", "workload", "ingress")
+        if dashboard_id == "node":
+            group_by_str = json.dumps(["node"])
+        elif dashboard_id in valid_dashboards:
+            group_by_str = json.dumps(["namespace", dashboard_id])
+        else:
+            group_by_str = "[]"
+        # scene: 根据 dashboard_id 类型选择对应的场景
+        # 前端 sceneDimensionMap: performance=[namespace,workload,pod,container], network=[namespace,ingress,service,pod], capacity=[node]
+        scene = (
+            "capacity"
+            if dashboard_id == "node"
+            else "network"
+            if dashboard_id in ("service", "ingress")
+            else "performance"
+        )
+        url = (
+            f"?bizId={bk_biz_id}#/k8s-new?cluster={bcs_cluster_id}"
+            f"&filterBy={filter_by_str}&groupBy={group_by_str}"
+            f"&sceneId=kubernetes&scene={scene}&activeTab=list"
+        )
         value = {
             "value": value,
             "target": "blank",

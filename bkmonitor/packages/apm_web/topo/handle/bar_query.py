@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import copy
 import itertools
 import json
-import urllib.parse
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -265,51 +264,59 @@ class LinkHelper:
 
     @classmethod
     def get_bcs_cluster_link(cls, bcs_cluster_id, start_time, end_time):
-        """获取某集群的 K8S 监控地址（集群总览）"""
+        """获取某集群的 K8S 监控地址（集群总览）
+
+        新版 k8s-new 页面参数说明:
+        - cluster: 集群ID (旧版为 filter-bcs_cluster_id)
+        - sceneId: 场景标识，固定为 kubernetes
+        - scene: 监控场景，performance=性能 (默认)
+        - activeTab: 默认展示 tab，list=对象列表
+        - from/to: 时间范围
+        """
         return (
-            f"/k8s?filter-bcs_cluster_id={bcs_cluster_id}&"
-            f"sceneId=kubernetes&sceneType=overview&"
+            f"/k8s-new?cluster={bcs_cluster_id}&"
+            f"sceneId=kubernetes&scene=performance&activeTab=list&"
             f"from={start_time * 1000}&to={end_time * 1000}"
         )
 
     @classmethod
     def get_pod_monitor_link(cls, bcs_cluster_id, namespace, pod, start_time, end_time):
-        """获取某 Pod 的 K8S 监控地址"""
-        query_data = {
-            "selectorSearch": [
-                {
-                    "keyword": pod,
-                }
-            ]
-        }
-        encode_query = urllib.parse.quote(json.dumps(query_data))
+        """获取某 Pod 的 K8S 监控地址
+
+        新版 k8s-new 页面参数说明:
+        - cluster: 集群ID
+        - filterBy: 过滤条件，JSON 格式，如 {"namespace":["default"],"pod":["my-pod"]}
+          旧版使用扁平参数 filter-namespace/ filter-pod_name/ + queryData(selectorSearch)
+        - groupBy: 分组维度，JSON 数组，如 ["pod"]
+          旧版使用 dashboardId=pod
+        - sceneId: 固定 kubernetes
+        - scene/activeTab/from/to: 同上
+        """
+        filter_by = json.dumps({"namespace": [namespace], "pod": [pod]})
+        group_by = json.dumps(["namespace", "pod"])
 
         return (
-            f"/k8s?filter-bcs_cluster_id={bcs_cluster_id}&"
-            f"filter-namespace={namespace}&"
-            f"filter-pod_name={pod}&dashboardId=pod&sceneId=kubernetes&sceneType=detail&"
-            f"from={start_time * 1000}&to={end_time * 1000}&"
-            f"queryData={encode_query}"
+            f"/k8s-new?cluster={bcs_cluster_id}&"
+            f"filterBy={filter_by}&groupBy={group_by}&"
+            f"sceneId=kubernetes&scene=performance&activeTab=list&"
+            f"from={start_time * 1000}&to={end_time * 1000}"
         )
 
     @classmethod
     def get_service_monitor_link(cls, bcs_cluster_id, namespace, service, start_time, end_time):
-        """获取某 Service 的 K8S 监控地址"""
-        query_data = {
-            "selectorSearch": [
-                {
-                    "keyword": service,
-                }
-            ]
-        }
-        encode_query = urllib.parse.quote(json.dumps(query_data))
+        """获取某 Service 的 K8S 监控地址
+
+        参数说明同 get_pod_monitor_link，groupBy 使用 ["service"]
+        注意: service 属于网络场景 (network)，不是性能场景 (performance)
+        """
+        filter_by = json.dumps({"namespace": [namespace], "service": [service]})
+        group_by = json.dumps(["namespace", "service"])
 
         return (
-            f"/k8s?filter-bcs_cluster_id={bcs_cluster_id}&"
-            f"filter-namespace={namespace}&"
-            f"filter-service_name={service}&"
-            f"from={start_time * 1000}&to={end_time * 1000}&"
-            f"dashboardId=service&sceneId=kubernetes&sceneType=detail&queryData={encode_query}"
+            f"/k8s-new?cluster={bcs_cluster_id}&"
+            f"filterBy={filter_by}&groupBy={group_by}&"
+            f"sceneId=kubernetes&scene=network&activeTab=list&"
+            f"from={start_time * 1000}&to={end_time * 1000}"
         )
 
     @classmethod
