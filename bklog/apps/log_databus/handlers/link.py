@@ -57,7 +57,7 @@ class DataLinkHandler:
         if param.get("bk_biz_id"):
             link_objects = link_objects.filter(bk_biz_id__in=[0, param["bk_biz_id"]])
 
-        data_link_infos = [
+        response = [
             {
                 "data_link_id": link.data_link_id,
                 "link_group_name": link.link_group_name,
@@ -76,7 +76,7 @@ class DataLinkHandler:
             public_data_link_infos = []
             biz_independent_data_link_infos = []
 
-            for data_link_info in data_link_infos:
+            for data_link_info in response:
                 if not data_link_info["is_active"]:
                     continue
 
@@ -86,8 +86,6 @@ class DataLinkHandler:
                     biz_independent_data_link_infos.append(data_link_info)
 
             response = biz_independent_data_link_infos + public_data_link_infos
-        else:
-            response = data_link_infos
 
         return response
 
