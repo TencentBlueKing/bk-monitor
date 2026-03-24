@@ -24,84 +24,25 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, reactive, shallowRef } from 'vue';
+import { type PropType, defineComponent, reactive, shallowRef } from 'vue';
 
 import BasicCard from '../basic-card/basic-card';
 
+import type { DimensionSummaryItem, DimensionSummaryValue } from '../../../typing';
+
 import './dimension-stats.scss';
-
-export interface DimensionData {
-  /** 维度项列表 */
-  items: DimensionItem[];
-  /** 维度名称 */
-  label: string;
-}
-
-export interface DimensionItem {
-  /** 名称 */
-  name: string;
-  /** 值 */
-  value: number;
-}
 
 const COLOR_LIST = ['#3370EB', '#56CCBC', '#FAC20A', '#FF7763', '#FB99ED', '#51CFFD'];
 export default defineComponent({
   name: 'DimensionStats',
+  props: {
+    data: {
+      type: Array as PropType<DimensionSummaryItem[]>,
+      default: () => [],
+    },
+  },
   setup() {
-    const data: DimensionData[] = [
-      {
-        label: '主机',
-        items: [
-          {
-            name: '主机1',
-            value: 43,
-          },
-          {
-            name: '主机2',
-            value: 23,
-          },
-          {
-            name: '主机3',
-            value: 14,
-          },
-          {
-            name: '主机4',
-            value: 12,
-          },
-          {
-            name: '主机5',
-            value: 8,
-          },
-        ],
-      },
-      {
-        label: '云区域ID',
-        items: [
-          {
-            name: '云区域ID1',
-            value: 33,
-          },
-          {
-            name: '云区域ID2',
-            value: 28,
-          },
-          {
-            name: '云区域ID3',
-            value: 19,
-          },
-          {
-            name: '云区域ID4',
-            value: 15,
-          },
-          {
-            name: '云区域ID5',
-            value: 5,
-          },
-        ],
-      },
-    ];
-
-    const popoverList = shallowRef<DimensionItem[]>([]);
+    const popoverList = shallowRef<DimensionSummaryValue[]>([]);
 
     const tooltipOptions = reactive({
       show: false,
@@ -109,7 +50,7 @@ export default defineComponent({
       y: 0,
     });
 
-    const handleMouseEnter = (e: MouseEvent, items: DimensionItem[]) => {
+    const handleMouseEnter = (e: MouseEvent, items: DimensionSummaryValue[]) => {
       popoverList.value = items;
       tooltipOptions.show = true;
       handleMouseMove(e);
@@ -125,7 +66,6 @@ export default defineComponent({
     };
 
     return {
-      data,
       popoverList,
       tooltipOptions,
       handleMouseEnter,
@@ -143,11 +83,11 @@ export default defineComponent({
         <div class='stats-body'>
           {this.data.map(row => (
             <div
-              key={row.label}
+              key={row.dimension_key}
               class='stats-row'
             >
               {/* 标签 */}
-              <div class='row-label'>{row.label}</div>
+              <div class='row-label'>{row.dimension_name}</div>
 
               {/* 进度条 */}
               <div
@@ -159,14 +99,14 @@ export default defineComponent({
                 <div class='row-bar'>
                   {row.items.map((item, index) => (
                     <div
-                      key={item.name}
+                      key={item.value}
                       style={{
-                        width: `${item.value}%`,
+                        width: `${item.percentage}%`,
                         backgroundColor: COLOR_LIST[index],
                       }}
                       class='bar-segment'
                     >
-                      <span class='segment-text'>{item.value}%</span>
+                      <span class='segment-text'>{item.percentage}%</span>
                     </div>
                   ))}
                 </div>
@@ -186,15 +126,15 @@ export default defineComponent({
         >
           {this.popoverList.map((item, index) => (
             <div
-              key={item.name}
+              key={item.value}
               class='tooltip-item'
             >
               <span
                 style={{ backgroundColor: COLOR_LIST[index] }}
                 class='tooltip-dot'
               />
-              <span class='tooltip-name'>{item.name}</span>
-              <span class='tooltip-percent'>{item.value}%</span>
+              <span class='tooltip-name'>{item.value}</span>
+              <span class='tooltip-percent'>{item.percentage}%</span>
             </div>
           ))}
         </div>

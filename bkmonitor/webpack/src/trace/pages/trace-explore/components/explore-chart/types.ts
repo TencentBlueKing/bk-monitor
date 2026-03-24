@@ -48,7 +48,7 @@ export type DecimalCount = null | number | undefined;
 export interface EchartSeriesItem {
   /** 与 data 索引对齐的 datapoints 副本，头尾因 xAxis 合并补了 [null, timestamp] 占位 */
   alignedDatapoints?: [null | number, number][];
-  data: number[] | { value: number | null }[];
+  data: number[] | { value: null | number }[];
   markArea?: IMarkAreaConfig;
   markLine?: IMarkLineConfig;
   markPoint?: IMarkPointConfig;
@@ -227,7 +227,7 @@ export interface SeriesItem extends MonitorEchartOptions {
   markPoints?: [number, number][]; // 告警点数据 [value, timestamp][]
   markTimeRange?: IMarkTimeRange[]; // 时间范围标记
   metric_field?: string;
-  stack?: string;
+  stack?: boolean | string;
   target?: string;
   thresholds?: IThreshold[]; // 阈值配置
   type?: string;

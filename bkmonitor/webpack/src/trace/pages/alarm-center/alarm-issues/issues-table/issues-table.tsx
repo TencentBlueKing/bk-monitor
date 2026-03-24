@@ -91,7 +91,7 @@ export default defineComponent({
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
     selectionChange: (selectedRowKeys: string[], options?: SelectOptions<any>) =>
       Array.isArray(selectedRowKeys) && options,
-    showDetail: (id: string) => typeof id === 'string',
+    showDetail: (item: IssueItem) => item,
     assignClick: (id: IssueItem['id'], data: IssueItem) => typeof id === 'string' && !!data,
     markResolved: (id: string) => typeof id === 'string',
     priorityChange: (id: string, priority: IssuePriorityType) => typeof id === 'string' && !!priority,
@@ -115,7 +115,7 @@ export default defineComponent({
     const { handleShowDetail, handleAssignClick, handleMarkResolved, handlePriorityClick, handleImpactScopeClick } =
       useIssuesHandlers({
         clickPopoverTools,
-        showDetailEmit: id => emit('showDetail', id),
+        showDetailEmit: item => emit('showDetail', item),
         assignClickEmit: (id, data) => emit('assignClick', id, data),
         markResolvedEmit: id => emit('markResolved', id),
         priorityChangeEmit: (id, priority) => emit('priorityChange', id, priority),

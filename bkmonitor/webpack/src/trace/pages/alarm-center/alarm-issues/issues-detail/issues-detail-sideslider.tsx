@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowReactive, shallowRef } from 'vue';
+import { defineComponent, shallowRef, watchEffect } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
@@ -32,12 +32,13 @@ import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing
 
 import IssuesSliderHeader from './components/issues-slider-header';
 import IssuesSliderWrapper from './components/issues-slider-wrapper';
+import { fetchIssueDetailMock } from './mock-data';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
 import TimeRange from '@/components/time-range/time-range';
-import { type TimeRangeType, DEFAULT_TIME_RANGE } from '@/components/time-range/utils';
 
-import type { IssueDetail } from '../typing';
+import type { ImpactScopeResource, IssueDetail } from '../typing';
 import type { ImpactScopeResourceKeyType, IssuePriorityType } from '../typing/constants';
+import type { TimeRangeType } from '@/components/time-range/utils';
 
 import './issues-detail-sideslider.scss';
 
@@ -58,49 +59,18 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    bizId: {
+      type: Number,
+      default: undefined,
+    },
   },
-  emits: ['update:show'],
-  setup(_, { emit }) {
-    const detail = shallowReactive<IssueDetail>({
-      id: 'issue-0006',
-      name: '[回归] 数据库连接池耗尽',
-      status: 'unresolved',
-      status_display: '未解决',
-      priority: 'P2',
-      priority_display: '低',
-      assignee: ['sunqi'],
-      is_regression: true,
-      strategy_id: '1001',
-      strategy_name: '主机 CPU 使用率过高',
-      bk_biz_id: 100,
-      bk_biz_name: '示例业务',
-      labels: ['集群告警', '测试环境', 'BCS'],
-      alert_count: 1129,
-      anomaly_message: 'K8S Pod CrashLoopBackOff，重启次数 > 10',
-      trend: [],
-      first_alert_time: 1763538688,
-      last_alert_time: 1774172004,
-      create_time: 1763537110,
-      update_time: 1774254865,
-      resolved_time: null,
-      is_resolved: false,
-      duration: '124d 1h',
-      impact_scope: {
-        cluster: {
-          count: 3,
-          instance_list: [
-            { bcs_cluster_id: 'BCS-K8S-80001', display_name: 'MOCK-SZ-TEST-80001-INNER(BCS-K8S-80001)' },
-            { bcs_cluster_id: 'BCS-K8S-80002', display_name: '模拟集群-业务测试-V1.26.1(BCS-K8S-80002)' },
-            { bcs_cluster_id: 'BCS-K8S-80003', display_name: 'demo-test-gz-0611(BCS-K8S-80003)' },
-          ],
-          link_tpl: '/k8s?filter-bcs_cluster_id={bcs_cluster_id}&sceneId=kubernetes&sceneType=overview',
-        },
-      },
-      aggregate_config: { aggregate_dimensions: ['bk_target_ip'], conditions: [], alert_levels: [1, 2] },
-    });
+  emits: ['update:show', 'impactScopeClick'],
+  setup(props, { emit }) {
+    const detail = shallowRef<IssueDetail>(undefined);
 
+    const loading = shallowRef(false);
     const isFullscreen = shallowRef(false);
-    const timeRange = shallowRef<TimeRangeType>(DEFAULT_TIME_RANGE);
+    const timeRange = shallowRef<TimeRangeType>(['now-1h', 'now']);
     const timezone = shallowRef(getDefaultTimezone());
     const refreshInterval = shallowRef(-1);
     const refreshImmediate = shallowRef(random(4));
@@ -108,6 +78,22 @@ export default defineComponent({
     const conditions = shallowRef<IWhereItem[]>([]);
     const queryString = shallowRef('');
     const filterMode = shallowRef<EMode>(EMode.ui);
+
+    watchEffect(() => {
+      if (props.show) {
+        loading.value = true;
+        fetchIssueDetailMock({
+          bk_biz_id: props.bizId,
+          id: props.issueId,
+        })
+          .then(res => {
+            detail.value = res;
+          })
+          .catch(() => {
+            loading.value = false;
+          });
+      }
+    });
 
     const handleShowChange = (isShow: boolean) => {
       emit('update:show', isShow);
@@ -143,24 +129,21 @@ export default defineComponent({
 
     /** 负责人变更 */
     const handleAssigneeChange = (users: string[]) => {
-      detail.assignee = users;
+      detail.value = { ...detail.value, assignee: users };
     };
 
     /** 优先级变更 */
     const handlePriorityChange = (priority: IssuePriorityType) => {
-      detail.priority = priority;
+      detail.value = { ...detail.value, priority };
     };
-
     /** 标记已解决 */
     const handleResolved = () => {
-      // 刷新数据
-      detail.is_resolved = true;
+      detail.value = { ...detail.value, is_resolved: true };
     };
 
     /** 影响范围点击 */
-    const handleImpactScopeClick = (resourceKey: ImpactScopeResourceKeyType, resource: any) => {
-      console.log('handleImpactScopeClick', resourceKey, resource);
-      // TODO: 展示影响范围侧栏
+    const handleImpactScopeClick = (resourceKey: ImpactScopeResourceKeyType, resource: ImpactScopeResource) => {
+      emit('impactScopeClick', { resourceKey, resource });
     };
 
     return {

@@ -66,6 +66,16 @@ export const IssueStatusEnum = {
   ARCHIVED: 'archived',
 } as const;
 
+/** Issues 趋势状态枚举 */
+export const TrendStatusEnum = {
+  /** 未恢复 */
+  ABNORMAL: 'ABNORMAL',
+  /** 已恢复 */
+  RECOVERED: 'RECOVERED',
+  /** 已失效 */
+  CLOSED: 'CLOSED',
+} as const;
+
 /** Issues 是否回归映射枚举（true=回归问题，false=新问题） */
 export const IssueRegressionEnum = {
   /** 回归问题 */

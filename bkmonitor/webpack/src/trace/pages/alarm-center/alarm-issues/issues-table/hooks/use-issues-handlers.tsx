@@ -41,7 +41,7 @@ export interface UseIssuesHandlersOptions {
   /** 优先级变更回调 */
   priorityChangeEmit: (id: string, priority: IssuePriorityType) => void;
   /** 显示 Issue 详情回调 */
-  showDetailEmit: (id: string) => void;
+  showDetailEmit: (id: IssueItem) => void;
 }
 
 export type UseIssuesHandlersReturnType = ReturnType<typeof useIssuesHandlers>;
@@ -67,7 +67,7 @@ export const useIssuesHandlers = ({
    * @param {IssueItem} row - 当前 Issue 行数据
    */
   const handleShowDetail = (row: IssueItem) => {
-    showDetailEmit(row.id);
+    showDetailEmit(row);
   };
 
   /**

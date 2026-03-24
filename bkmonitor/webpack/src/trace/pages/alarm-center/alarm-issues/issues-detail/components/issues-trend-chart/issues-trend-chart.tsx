@@ -24,74 +24,50 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent } from 'vue';
+import { type PropType, defineComponent } from 'vue';
+import { computed } from 'vue';
 
-import { PanelModel } from 'monitor-ui/chart-plugins/typings';
-import { useI18n } from 'vue-i18n';
-
+import { TrendStatusEnum } from '../../../constant';
 import BasicCard from '../basic-card/basic-card';
-import MonitorCharts from '@/pages/alarm-center/common-detail/components/alarm-view/echarts/monitor-charts';
-import { AlarmStatusEnum } from '@/pages/alarm-center/typings';
+import MonitorOptionsCharts from '@/plugins/components/monitor-options-charts';
+
+import type { IssueTrendItem } from '../../../typing';
+import type { SeriesItem } from '@/pages/trace-explore/components/explore-chart/types';
 
 import './issues-trend-chart.scss';
 
-export interface TrendChartData {
-  /** 日期 */
-  date: string;
-  /** 已失效数量 */
-  expired: number;
-  /** 已恢复数量 */
-  resolved: number;
-  /** 未恢复数量 */
-  unresolved: number;
-}
-
 export default defineComponent({
   name: 'IssuesTrendChart',
-  setup() {
-    const { t } = useI18n();
-    const totalCount = computed(() => {
-      return 68;
-    });
-
-    // 构造 PanelModel 对象
-    const panel = computed<PanelModel>(() => {
-      return new PanelModel({
-        title: t('趋势'),
-        gridPos: { x: 16, y: 16, w: 8, h: 4 },
-        id: 'alarm-trend-chart',
-        type: 'graph',
-        options: {},
-        targets: [
-          {
-            datasource: 'time_series',
-            dataType: 'time_series',
-            api: 'alert_v2.alertGraphQuery',
-            data: {
-              stack: true,
-            },
-          },
-        ],
+  props: {
+    alertCount: {
+      type: Number,
+      default: 0,
+    },
+    data: {
+      type: Array as PropType<IssueTrendItem[]>,
+      default: () => [],
+    },
+  },
+  setup(props) {
+    const colorMap = {
+      [TrendStatusEnum.ABNORMAL]: '#FF7763',
+      [TrendStatusEnum.RECOVERED]: '#56CCBC',
+      [TrendStatusEnum.CLOSED]: '#FAC20A',
+    };
+    const seriesList = computed<SeriesItem[]>(() => {
+      return props.data.map(series => {
+        return {
+          datapoints: series.data.map(([time, value]) => [value, time]),
+          name: series.display_name,
+          stack: true,
+          type: 'bar',
+          color: colorMap[series.name],
+        };
       });
     });
 
-    const customSeries = series => {
-      const colorMap = {
-        [AlarmStatusEnum.ABNORMAL]: '#FF7763',
-        [AlarmStatusEnum.RECOVERED]: '#56CCBC',
-        [AlarmStatusEnum.CLOSED]: '#FAC20A',
-      };
-
-      return series.map(item => ({
-        ...item,
-        color: colorMap[item.metric_field],
-      }));
-    };
-
     return {
-      panel,
-      customSeries,
-      totalCount,
+      seriesList,
     };
   },
   render() {
@@ -106,22 +82,14 @@ export default defineComponent({
               <span class='chart-subtitle'>
                 <i class='icon-monitor icon-gaojing1' />
                 <span>{this.$t('告警事件')}：</span>
-                <span class='count'>{this.totalCount}</span>
+                <span class='count'>{this.alertCount}</span>
               </span>
             </div>
           ),
         }}
       >
-        {/* MonitorCharts 组件 */}
         <div class='chart-body'>
-          <MonitorCharts
-            customOptions={{
-              series: this.customSeries,
-            }}
-            downSampleRange=''
-            panel={this.panel}
-            showTitle={false}
-          />
+          <MonitorOptionsCharts seriesList={this.seriesList} />
         </div>
       </BasicCard>
     );
