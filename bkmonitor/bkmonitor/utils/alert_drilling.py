@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 
 from bkmonitor.documents import AlertDocument
-from constants.data_source import DataTypeLabel
+from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
 MONITOR_TO_LOG_OPERATOR_MAP: dict[str, str] = {
@@ -186,15 +186,15 @@ def clean_where_conditions(where: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return cleaned
 
 
-def ensure_histogram_quantile_include_le_dimension(query_config: dict[str, Any]) -> None:
-    """确保 histogram_quantile 直方图统计函数的分位数计算包含 le 维度。
+def normalize_histogram_quantile_group_by(query_config: dict[str, Any]) -> None:
+    """规范 histogram_quantile 函数 group_by 条件。
 
-    histogram_quantile 需要 le（分桶上边界）维度进行分位数计算，但某些场景（如维度下钻、告警图表）可能会覆盖 group_by 导致 le 丢失，
-    此函数在查询前自动补全，避免底层校验报错。
+    注：histogram_quantile 统计函数依赖 le 维度进行分位数插值计算，但维度下钻、告警图表等场景会覆盖 group_by 导致 le 丢失
     """
-    if query_config["data_type_label"] != DataTypeLabel.TIME_SERIES:
+    data_source: tuple[str, str] = (query_config["data_source_label"], query_config["data_type_label"])
+    if data_source != (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES):
         return
-    if not any(f["id"] == "histogram_quantile" for f in query_config.get("functions", [])):
+    if not any(f.get("id") == "histogram_quantile" for f in query_config.get("functions", [])):
         return
     group_by: list[str] = query_config.get("group_by") or []
     if "le" not in group_by:
