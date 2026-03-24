@@ -5,12 +5,42 @@
   padding: 12px;
   background: #fff;
   border-radius: 4px;
+  position: sticky;
+  top: 52px;
+  z-index: 4;
+  transition: margin 0.2s ease, padding 0.2s ease, border-radius 0.2s ease;
+
+  .scene-filter-panel-wrapper {
+    max-height: 500px;
+    opacity: 1;
+    overflow: hidden;
+  }
 
   .v3-search-bar-root {
     margin: 12px 0 0 0;
+    transition: margin 0.2s ease;
   }
 
   .fix-search-bar {
     width: calc(100vw - var(--left-collection-width) - 44px);
+  }
+
+  &.is-sticky-top {
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+
+    .scene-filter-panel-wrapper {
+      max-height: 0;
+      opacity: 0;
+    }
+
+    .v3-search-bar-root {
+      margin: 0;
+    }
+
+    .fix-search-bar {
+      width: calc(100vw - var(--left-collection-width) - 20px);
+    }
   }
 }

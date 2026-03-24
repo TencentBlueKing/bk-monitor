@@ -122,6 +122,7 @@ export default defineComponent({
           'v3-bklog-root',
           { 'is-start-text-ellipsis': isStartTextEllipsis.value },
           { 'is-sticky-top': isSearchContextStickyTop.value, 'is-sticky-top-result': isSearchResultStickyTop.value },
+          { 'is-scene-mode': isSceneMode.value },
         ]}
         v-bkloading={{ isLoading: !isPreApiLoaded.value }}
       >

@@ -578,6 +578,10 @@ export default () => {
   // 滚动时，检索结果距离顶部高度
   const searchResultTop = ref(0);
 
+  // 场景模式下吸顶阈值为 8px（场景化检索面板与二级导航栏的距离）
+  const isSceneMode = computed(() => store.state.indexItem.retrieve_type === 'scene');
+  const sceneStickyThreshold = 8;
+
   addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
@@ -596,8 +600,12 @@ export default () => {
 
   /**
    * 计算检索内容的滚动位置，监听是否滚动到顶部
+   * 场景模式下阈值为 8px，常规模式下阈值为二级导航栏高度（64px）
    */
   const isSearchContextStickyTop = computed(() => {
+    if (isSceneMode.value) {
+      return paddingTop.value >= sceneStickyThreshold;
+    }
     return paddingTop.value === subBarHeight.value;
   });
 
