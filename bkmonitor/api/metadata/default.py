@@ -628,6 +628,11 @@ class QueryTimeSeriesMetricResource(MetaDataAPIGWResource):
                 default="fuzzy",
                 label="搜索类型：regex-正则表达式，fuzzy-模糊搜索，exact-精确匹配，case_sensitive-区分大小写精确匹配（仅对name字段有效，其他字段默认为exact）",
             )
+            negate = serializers.BooleanField(
+                required=False,
+                default=False,
+                label="是否取反：为 true 时对整个条件取反（NOT），默认为 false",
+            )
 
         bk_tenant_id = TenantIdField(label="租户ID")
         group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
@@ -658,6 +663,11 @@ class QueryTimeSeriesMetricResource(MetaDataAPIGWResource):
             required=False,
             default="-update_time",
             label="排序字段：name-按名称升序，update_time-按更新时间升序，-name-按名称降序，-update_time-按更新时间降序",
+        )
+        count_only = serializers.BooleanField(
+            required=False,
+            default=False,
+            label="仅返回数量：为 true 时只返回 total，不返回 metrics 列表",
         )
 
 

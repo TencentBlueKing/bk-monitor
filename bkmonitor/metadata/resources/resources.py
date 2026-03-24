@@ -1515,6 +1515,11 @@ class QueryTimeSeriesMetricResource(Resource):
                 default="fuzzy",
                 label="搜索类型：regex-正则表达式，fuzzy-模糊搜索，exact-精确匹配，case_sensitive-区分大小写精确匹配（仅对name字段有效，其他字段默认为exact）",
             )
+            negate = serializers.BooleanField(
+                required=False,
+                default=False,
+                label="是否取反：为 true 时对整个条件取反（NOT），默认为 false",
+            )
 
         bk_tenant_id = TenantIdField(label="租户ID")
         group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
@@ -1547,6 +1552,11 @@ class QueryTimeSeriesMetricResource(Resource):
             default="-update_time",
             label="排序字段：name-按名称升序，update_time-按更新时间升序，-name-按名称降序，-update_time-按更新时间降序",
         )
+        count_only = serializers.BooleanField(
+            required=False,
+            default=False,
+            label="仅返回数量：为 true 时只返回 total，不返回 metrics 列表",
+        )
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
@@ -1554,6 +1564,7 @@ class QueryTimeSeriesMetricResource(Resource):
         page = validated_request_data["page"]
         page_size = validated_request_data["page_size"]
         order_by = validated_request_data["order_by"]
+        count_only = validated_request_data.get("count_only", False)
 
         # 验证group_id是否存在
         if not models.TimeSeriesGroup.objects.filter(
@@ -1567,11 +1578,13 @@ class QueryTimeSeriesMetricResource(Resource):
         # 应用搜索条件
         query_set = self._apply_search_filters(query_set, validated_request_data)
 
+        # 仅返回数量
+        total = query_set.count()
+        if count_only:
+            return {"metrics": [], "total": total}
+
         # 应用排序
         query_set = query_set.order_by(self.ORDER_FIELD_MAPPING.get(order_by))
-
-        # 分页处理
-        total = query_set.count()
         if page_size != -1:
             offset = (page - 1) * page_size
             paginated_query_set = query_set[offset : offset + page_size]
@@ -1654,6 +1667,7 @@ class QueryTimeSeriesMetricResource(Resource):
         key = condition["key"]
         values = condition["values"]
         search_type = condition.get("search_type", "fuzzy" if key == "name" else "exact")
+        negate = condition.get("negate", False)
 
         if not values:
             return None
@@ -1700,6 +1714,10 @@ class QueryTimeSeriesMetricResource(Resource):
 
             if q_obj:
                 condition_query = q_obj if condition_query is None else condition_query | q_obj
+
+        # 支持取反
+        if condition_query and negate:
+            condition_query = ~condition_query
 
         return condition_query
 

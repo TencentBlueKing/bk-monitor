@@ -10,18 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
-
 from apm_web.custom_metric.serializers import BaseRequestSerializer
-from apm_web.custom_metric.utils import (
-    scope_prefix_handler,
-    ScopeQueryFilterMixin,
-    DefaultScopeNameMixin,
-    DefaultFieldScopeMixin,
-)
-from monitor_web.custom_report.constants import DEFAULT_FIELD_SCOPE
-from monitor_web.custom_report.handlers.metric.query import (
-    ScopeQueryConverter,
-)
 from monitor_web.custom_report.resources.metric import (
     GetCustomTsFields,
     ModifyCustomTsFields,
@@ -33,91 +22,50 @@ from monitor_web.custom_report.resources.metric import (
     ExportCustomTimeSeriesFields,
 )
 
+# 排除 APM 内置指标的条件：匹配以 apm_ 或 bk_apm_ 开头的指标名，然后取反
+APM_BUILTIN_METRIC_EXCLUDE_CONDITION = {
+    "key": "name",
+    "values": ["^apm_", "^bk_apm_"],
+    "search_type": "regex",
+    "negate": True,
+}
 
-class ApmGetCustomTsFields(ScopeQueryFilterMixin, GetCustomTsFields):
+
+class ApmGetCustomTsFields(GetCustomTsFields):
     class RequestSerializer(BaseRequestSerializer, GetCustomTsFields.RequestSerializer):
         pass
 
-    def get_movable(self, metric_obj, params: dict) -> bool:
-        return metric_obj.field_scope == params.get("scope_prefix", "") + DEFAULT_FIELD_SCOPE
-
     def get_extra_conditions(self, params: dict) -> list[dict]:
-        """APM 场景：通过 scope_prefix 查找对应的 scope_ids，注入到查询条件中"""
-        scope_prefix = params.get("scope_prefix", "")
-        if not scope_prefix:
-            return []
-
-        # 先查出带前缀的 scope，获取 scope_ids
-        converter = ScopeQueryConverter(params["time_series_group_id"])
-        scope_objs = converter.query_time_series_scope(scope_name=scope_prefix, include_metrics=False)
-        scope_ids = [str(obj.id) for obj in scope_objs]
-        if scope_ids:
-            return [{"key": "scope_id", "values": scope_ids, "search_type": "exact"}]
-        return []
-
-    @scope_prefix_handler(output_field="list.scope_name")
-    def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
-        result = super().perform_request(params)
-
-        # 过滤内置指标（以 apm_ 或 bk_apm_ 开头）
-        if not result.get("list"):
-            return result
-
-        filtered_metrics = []
-        for metric in result["list"]:
-            metric_name = str(metric["name"])
-            if not (metric_name.startswith("apm_") or metric_name.startswith("bk_apm_")):
-                filtered_metrics.append(metric)
-
-        result["list"] = filtered_metrics
-        result["total"] = len(filtered_metrics)
-
-        return result
+        """APM 场景：通过 mandatory_conditions 排除内置指标"""
+        return [APM_BUILTIN_METRIC_EXCLUDE_CONDITION]
 
 
-class ApmModifyCustomTsFields(DefaultScopeNameMixin, ModifyCustomTsFields):
+class ApmModifyCustomTsFields(ModifyCustomTsFields):
     class RequestSerializer(BaseRequestSerializer, ModifyCustomTsFields.RequestSerializer):
-        def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-            """验证 scope 权限"""
-            fields = attrs.get("delete_fields", []) + attrs.get("update_fields", [])
-            scope_ids = [field["scope"]["id"] for field in fields]
+        pass
 
-            if scope_ids:
-                converter = ScopeQueryConverter(attrs["time_series_group_id"])
-                scope_objs = converter.query_time_series_scope(scope_ids=scope_ids, include_metrics=False)
-
-                scope_prefix = attrs.get("scope_prefix", "")
-                invalid_scopes = [obj.name for obj in scope_objs if not obj.name.startswith(scope_prefix)]
-
-                if invalid_scopes:
-                    raise ValueError(f"不允许操作分组: {', '.join(invalid_scopes)}")
-
-            return attrs
-
-    @scope_prefix_handler(input_field=["update_fields.scope.name", "delete_fields.scope.name"])
     def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
         return super().perform_request(params)
 
 
-class ApmCustomTsGroupingRuleList(ScopeQueryFilterMixin, CustomTsGroupingRuleList):
+class ApmCustomTsGroupingRuleList(CustomTsGroupingRuleList):
     class RequestSerializer(BaseRequestSerializer, CustomTsGroupingRuleList.RequestSerializer):
         pass
 
-    @scope_prefix_handler(output_field="name")
-    def perform_request(self, params: dict[str, Any]) -> list[dict[str, Any]]:
-        return super().perform_request(params)
+    def get_metric_count_conditions(self, params: dict) -> list[dict]:
+        """APM 场景：排除内置指标后重新计算 metric_count"""
+        return [APM_BUILTIN_METRIC_EXCLUDE_CONDITION]
 
 
-class ApmCreateOrUpdateGroupingRule(ScopeQueryFilterMixin, DefaultScopeNameMixin, CreateOrUpdateGroupingRule):
+class ApmCreateOrUpdateGroupingRule(CreateOrUpdateGroupingRule):
     class RequestSerializer(BaseRequestSerializer, CreateOrUpdateGroupingRule.RequestSerializer):
         pass
 
-    @scope_prefix_handler(input_field="name")
     def perform_request(self, params: dict[str, Any]) -> None:
         return super().perform_request(params)
 
 
-class ApmPreviewGroupingRule(DefaultScopeNameMixin, PreviewGroupingRule):
+class ApmPreviewGroupingRule(PreviewGroupingRule):
     class RequestSerializer(BaseRequestSerializer, PreviewGroupingRule.RequestSerializer):
         pass
 
@@ -126,24 +74,21 @@ class ApmDeleteGroupingRule(DeleteGroupingRule):
     class RequestSerializer(BaseRequestSerializer, DeleteGroupingRule.RequestSerializer):
         pass
 
-    @scope_prefix_handler(input_field="name")
     def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
         return super().perform_request(params)
 
 
-class ApmImportCustomTimeSeriesFields(ScopeQueryFilterMixin, DefaultFieldScopeMixin, ImportCustomTimeSeriesFields):
+class ApmImportCustomTimeSeriesFields(ImportCustomTimeSeriesFields):
     class RequestSerializer(BaseRequestSerializer, ImportCustomTimeSeriesFields.RequestSerializer):
         pass
 
-    @scope_prefix_handler(input_field="scopes.name")
     def perform_request(self, params: dict[str, Any]) -> None:
         return super().perform_request(params)
 
 
-class ApmExportCustomTimeSeriesFields(ScopeQueryFilterMixin, ExportCustomTimeSeriesFields):
+class ApmExportCustomTimeSeriesFields(ExportCustomTimeSeriesFields):
     class RequestSerializer(BaseRequestSerializer, ExportCustomTimeSeriesFields.RequestSerializer):
         pass
 
-    @scope_prefix_handler(output_field="scopes.name")
     def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
         return super().perform_request(params)

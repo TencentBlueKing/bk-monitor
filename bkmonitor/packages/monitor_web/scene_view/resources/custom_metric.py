@@ -58,8 +58,6 @@ class GetCustomTsMetricGroups(Resource):
             "group_id": params["time_series_group_id"],
             "include_metrics": True,
         }
-        if params.get("scope_prefix"):
-            request_params["scope_name"] = params["scope_prefix"]
         metadata_result = api.metadata.query_time_series_scope(**request_params)
 
         # 转换数据结构
@@ -67,9 +65,6 @@ class GetCustomTsMetricGroups(Resource):
         for scope_data in metadata_result:
             scope_id = scope_data.get("scope_id")
             scope_name = scope_data.get("scope_name", "")
-            # 去除 scope_prefix 前缀
-            if params.get("scope_prefix") and scope_name.startswith(params["scope_prefix"]):
-                scope_name = scope_name[len(params["scope_prefix"]) :]
             metric_list = scope_data.get("metric_list", [])
             dimension_config = scope_data.get("dimension_config", {})
 
@@ -157,8 +152,6 @@ class GetCustomTsMetricAggInfo(Resource):
             "group_id": params["time_series_group_id"],
             "include_metrics": False,
         }
-        if params.get("scope_prefix"):
-            scope_request_params["scope_name"] = params["scope_prefix"]
         scope_result = api.metadata.query_time_series_scope(**scope_request_params)
 
         # 构建维度别名映射
@@ -611,8 +604,6 @@ class GetCustomTsGraphConfig(Resource):
             "group_id": params["time_series_group_id"],
             "include_metrics": False,
         }
-        if params.get("scope_prefix"):
-            scope_request_params["scope_name"] = params["scope_prefix"]
         metadata_result = api.metadata.query_time_series_scope(**scope_request_params)
 
         # 收集维度别名
@@ -652,10 +643,6 @@ class GetCustomTsGraphConfig(Resource):
 
             # 收集指标的维度（排除隐藏的维度）
             dimensions = [dim_name for dim_name in metric_data.get("tag_list", []) if dim_name not in dimension_hidden]
-
-            # 去除 scope_prefix 前缀
-            if params.get("scope_prefix") and scope_name.startswith(params["scope_prefix"]):
-                scope_name = scope_name[len(params["scope_prefix"]) :]
 
             metrics_list.append(
                 {

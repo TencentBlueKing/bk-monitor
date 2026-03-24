@@ -935,24 +935,47 @@ class CustomTsGroupingRuleList(CustomTSScopeMixin, Resource):
     class ResponseSerializer(CustomTSGroupingRuleResponseSerializer):
         pass
 
+    def get_metric_count_conditions(self, params: dict) -> list[dict]:
+        """子类可覆盖此方法注入额外的 metric_count 过滤条件"""
+        return []
+
     def perform_request(self, params: dict):
         converter = ScopeQueryConverter(params["time_series_group_id"])
         scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope(
             include_metrics=False, **self.get_query_scope_filters(params)
         )
         result: list[dict[str, Any]] = []
+
+        # 收集额外的 metric_count 过滤条件
+        extra_conditions = self.get_metric_count_conditions(params)
+
         for scope_obj in scope_objs:
             # 将 dimension_config 字典转为列表结构
             dimension_config_list = [
                 {"name": dim_name, "config": asdict(dim_config)}
                 for dim_name, dim_config in scope_obj.dimension_config.items()
             ]
+
+            metric_count = scope_obj.metric_count
+            # 如果有额外过滤条件，需要通过 API 重新计算 metric_count
+            if extra_conditions:
+                metric_result = api.metadata.query_time_series_metric(
+                    group_id=params["time_series_group_id"],
+                    count_only=True,
+                    conditions=[{"key": "scope_id", "values": [str(scope_obj.id)], "search_type": "exact"}],
+                    mandatory_conditions=[
+                        {"key": "field_config_disabled", "values": ["false"], "search_type": "exact"},
+                    ]
+                    + extra_conditions,
+                )
+                metric_count = metric_result.get("total", 0)
+
             result.append(
                 {
                     "id": scope_obj.id,
                     "name": scope_obj.name,
                     "dimension_config": dimension_config_list,
-                    "metric_count": scope_obj.metric_count,
+                    "metric_count": metric_count,
                     "auto_rules": scope_obj.auto_rules,
                     "create_from": scope_obj.create_from,
                 }

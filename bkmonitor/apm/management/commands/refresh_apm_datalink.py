@@ -17,7 +17,7 @@ from django.core.management import BaseCommand, CommandError
 from apm.models import ApmApplication, MetricDataSource
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from metadata.models import DataSource, Space
-from metadata.models.custom_report.time_series import TimeSeriesGroup
+from metadata.models.custom_report.time_series import TimeSeriesGroup, TimeSeriesMetric
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.utils import compose_bkdata_data_id_name
 from metadata.models.vm.utils import get_vm_cluster_id_name
@@ -26,7 +26,6 @@ logger = logging.getLogger("apm")
 
 # APM 场景下的 metric_group_dimensions 固定配置
 APM_METRIC_GROUP_DIMENSIONS = [
-    {"key": "service_name", "default_value": "unknown_service"},
     {"key": "scope_name", "default_value": "default"},
 ]
 
@@ -106,6 +105,19 @@ class Command(BaseCommand):
         ts_group.metric_group_dimensions = metric_group_dimensions
         ts_group.save(update_fields=["metric_group_dimensions"])
         self.stdout.write(f"已更新 metric_group_dimensions -> {metric_group_dimensions}")
+
+        # 5.1 软删除：将该应用下所有指标的 disabled 置为 true
+        metrics = list(TimeSeriesMetric.objects.filter(group_id=ts_group.time_series_group_id))
+        to_update = []
+        for metric in metrics:
+            field_config = metric.field_config or {}
+            if not field_config.get("disabled", False):
+                field_config["disabled"] = True
+                metric.field_config = field_config
+                to_update.append(metric)
+        if to_update:
+            TimeSeriesMetric.objects.bulk_update(to_update, fields=["field_config"], batch_size=500)
+        self.stdout.write(f"已软删除 {len(to_update)} 个指标（disabled=true），共 {len(metrics)} 个指标")
 
         # 6. 查找 DataLink 实例
         bkbase_data_name = compose_bkdata_data_id_name(data_source.data_name)
