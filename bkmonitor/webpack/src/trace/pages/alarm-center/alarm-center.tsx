@@ -786,6 +786,7 @@ export default defineComponent({
                       <QuickFiltering
                         filterList={this.quickFilterList}
                         filterValue={this.alarmStore.quickFilterValue}
+                        isFilterEmptyItem={false}
                         isFirstInit={this.isFirstInit}
                         loading={this.quickFilterLoading}
                         onClose={this.updateIsCollapsed}

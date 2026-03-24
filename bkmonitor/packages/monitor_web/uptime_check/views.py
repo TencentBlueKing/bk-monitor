@@ -367,6 +367,17 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
 
         # 将节点解析成cmdb主机，存放在以host_id 和 ip+cloud_id 为key 的 字典里
         node_to_host = resource.uptime_check.get_node_host_dict(bk_tenant_id=bk_tenant_id, nodes=nodes)
+        node_ids = [node.id for node in nodes]
+        node_task_count_mapping = {node_id: 0 for node_id in node_ids}
+        if node_ids:
+            # 批量查询节点关联任务，避免在节点循环中逐个调用 list_tasks 产生 N+1 查询
+            related_tasks = list_tasks(
+                bk_tenant_id=bk_tenant_id, query={"node_ids": node_ids}, fields=["id", "node_ids"]
+            )
+            for task in related_tasks:
+                for node_id in task.node_ids:
+                    if node_id in node_task_count_mapping:
+                        node_task_count_mapping[node_id] += 1
 
         result = []
         bk_host_ids = {host.bk_host_id for host in node_to_host.values()}
@@ -388,8 +399,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
             logger.exception(f"Failed to get uptime check node status: {e}")
 
         for node in nodes:
-            # 统计任务数（通过任务列表获取）
-            task_num = len(list_tasks(bk_tenant_id=bk_tenant_id, query={"node_ids": [node.id]}, fields=["id"]))
+            task_num = node_task_count_mapping.get(node.id, 0)
             host_instance = get_by_node(node.model_dump(), node_to_host)
             beat_version = ""
             if not host_instance:
@@ -638,7 +648,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         bk_biz_id = int(params["bk_biz_id"])
 
         # 查询任务
-        task_define = get_task(bk_tenant_id=bk_tenant_id, task_id=task_id)
+        task_define = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
         data: dict[str, Any] = task_define.model_dump(exclude={"bk_tenant_id"})
         data["status"] = task_define.status.value
 
@@ -810,16 +820,19 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
             raise DRFValidationError({"bk_biz_id": _("参数缺失")})
         bk_biz_id = int(cast(int | str, bk_biz_id_raw))
         operator: str = request.user.username
-
         task = get_task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id)
-        # 运行中/启动中/停止中/停止失败的任务，要求先执行停用，避免删除过程中配置状态不一致
-        if task.status in (
-            UptimeCheckTaskStatus.RUNNING,
-            UptimeCheckTaskStatus.STARTING,
-            UptimeCheckTaskStatus.STOPING,
-            UptimeCheckTaskStatus.STOP_FAILED,
-        ):
-            raise CustomException(_("任务正在运行，请先停止任务后再删除"))
+        # 运行中/启动中/停止失败的任务，要求先执行停用，避免删除过程中配置状态不一致
+        try:
+            if task.status in (
+                UptimeCheckTaskStatus.RUNNING,
+                UptimeCheckTaskStatus.STARTING,
+            ):
+                logger.info(f"拨测任务{task_id}正在运行，执行停止操作")
+                control_task(
+                    bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_id=task_id, action="stop", operator=operator
+                )
+        except Exception as e:
+            logger.error(f"拨测任务{task_id}停止失败: {e}")
 
         delete_task(
             bk_tenant_id=bk_tenant_id,
@@ -837,6 +850,8 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
 
         group_id = params.get("group_id")
         bk_biz_id = int(params["bk_biz_id"])
+        task_id = params.get("id")
+        name = params.get("name")
         bk_tenant_id = cast(str, get_request_tenant_id())
         # 获取分组
         get_groups = params.get("get_groups", False)
@@ -844,18 +859,21 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         get_available = params.get("get_available") == "true"
         get_task_duration = params.get("get_task_duration") == "true"
 
+        query: dict[str, Any] = {}
+        if group_id:
+            query["group_ids"] = [int(group_id)]
+        if task_id:
+            query["task_ids"] = [int(task_id)]
+        if name:
+            query["name"] = name
+
         # 如果传入plain参数，则返回简单数据
         if params.get("plain", False):
             task_id = params.get("id")
             tasks = list_tasks(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
-                query={
-                    "group_ids": [int(group_id)] if group_id else None,
-                    "task_ids": [int(task_id)] if task_id else None,
-                }
-                if group_id or task_id
-                else None,
+                query=query,
                 order_by=params.get("ordering"),
             )
             if task_id:
@@ -880,7 +898,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         tasks = list_tasks(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
-            query={"group_ids": [int(group_id)]} if group_id else None,
+            query=query,
             order_by=params.get("ordering"),
         )
 

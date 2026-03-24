@@ -23,33 +23,68 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 
+import AnalysisDetailContent from './analysis-detail-content';
 import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
-import type { ISuspiciousGroup } from '../typing';
+import './log-panel.scss';
 
 export default defineComponent({
   name: 'LogPanel',
-  props: {
-    data: {
-      type: Array as PropType<ISuspiciousGroup[]>,
-      default: () => [],
-    },
-  },
-  setup() {
-    return {};
-  },
   render() {
     return (
       <div class='suspicious-log-panel'>
         <div class='log-group-list'>
-          {this.data.map(item => (
-            <SuspiciousAnalysisGroup
-              key={item.id}
-              data={item}
-            />
-          ))}
+          <SuspiciousAnalysisGroup>
+            {{
+              title: () => (
+                <div class='group-title'>
+                  <span class='group-name'>日志内容摘要</span>
+                  <span
+                    class='link-text'
+                    onClick={e => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    <i class='icon-monitor icon-xiangqing1' />
+                    日志详情
+                  </span>
+                </div>
+              ),
+              default: () => (
+                <AnalysisDetailContent
+                  contentData={[
+                    {
+                      title: '运维视角分析',
+                      value: [
+                        '这条日志表明在指定时间，systemd 系统管理器启动了一个新的会话(session 723423)，并且这个会话是以 root 用户身份运行的。这是一个正常的系统操作日志，通常用于记录用户登录或系统服务的启动。',
+                      ],
+                    },
+                    {
+                      title: '研发视角分析',
+                      value: [
+                        '从研发的角度看，这条日志显示了一个新的会话被创建，可能是由于用户登录或者某个需要 root 权限的服务启用。这本身是一个正常的操作，不需要特别的关心。',
+                      ],
+                    },
+                    {
+                      title: '结论',
+                      value: [
+                        '这条日志记录的是一个正常的系统事件，即一个新的会话被创建并且是以 root 用户身份运行的。没有发现任何异常或错误信息。',
+                      ],
+                    },
+                  ]}
+                  tableData={[
+                    { name: '服务器IP', value: '10.0.34.2' },
+                    { name: '时间戳', value: '172234452（对应时间 2024年4月20日 19:22:02）' },
+                    { name: '主机ID', value: '603242' },
+                    { name: '日志路径', value: '/var/log/messages' },
+                    { name: '日志信息', value: 'systemd: Started Session 2334 of user root' },
+                  ]}
+                />
+              ),
+            }}
+          </SuspiciousAnalysisGroup>
         </div>
       </div>
     );

@@ -57,7 +57,6 @@ export type SpaceIntroduceKeys =
   | 'collect-config'
   | 'custom-event'
   | 'custom-metric'
-  | 'custom-scenes'
   | 'k8s'
   | 'performance'
   | 'uptime-check';

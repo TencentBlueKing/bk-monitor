@@ -1444,6 +1444,42 @@ class IndexSetHandler(APIModel):
             "collector_config_name": collector_config.collector_config_name,
         }
 
+    @staticmethod
+    def get_rt_alias_settings(index_set_id, alias_settings):
+        """
+        获取每个RT对应的别名配置列表
+        """
+        search_handler_esquery = SearchHandler(index_set_id, {})
+        multi_result = search_handler_esquery.get_all_fields_by_index_id(need_merge=False)
+        result_table_mappings = defaultdict(list)
+        field_name_mappings = {}
+        for result_table_id, (field_result, display_fields) in multi_result.items():
+            field_name_list = []
+            for i in field_result:
+                _filed_name = i["field_name"]
+                field_name_list.append(_filed_name)
+                result_table_mappings[_filed_name].append(result_table_id)
+            field_name_mappings[result_table_id] = field_name_list
+
+        # 存储别名对应的字段及其所属rt列表
+        alias_field_map = defaultdict(list)
+        query_alias_mappings = defaultdict(list)
+
+        for alias_setting in alias_settings:
+            field_name = alias_setting["field_name"]
+            query_alias = alias_setting["query_alias"]
+
+            # 存储别名对应的字段和rt列表
+            rt_list = result_table_mappings.get(field_name, [])
+            alias_field_map[query_alias].append({"field_name": field_name, "rt_list": rt_list})
+
+            # 为当前字段所属的所有rt添加别名配置
+            for _result_table_id, _field_name_list in field_name_mappings.items():
+                if field_name in _field_name_list:
+                    query_alias_mappings[_result_table_id].append(alias_setting)
+
+        return query_alias_mappings, alias_field_map
+
     @transaction.atomic()
     def update_alias_settings(self, alias_settings):
         # 纳秒字段别名不支持用户修改
@@ -1451,36 +1487,7 @@ class IndexSetHandler(APIModel):
         is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.data.tag_ids)
         multi_execute_func = MultiExecuteFunc()
         if not is_doris:
-            search_handler_esquery = SearchHandler(self.index_set_id, {})
-            multi_result = search_handler_esquery.get_all_fields_by_index_id(need_merge=False)
-            result_table_mappings = defaultdict(list)
-            field_name_mappings = {}
-            for result_table_id, (field_result, display_fields) in multi_result.items():
-                field_name_list = []
-                for i in field_result:
-                    _filed_name = i["field_name"]
-                    field_name_list.append(_filed_name)
-                    result_table_mappings[_filed_name].append(result_table_id)
-                field_name_mappings[result_table_id] = field_name_list
-
-            # 存储别名对应的字段及其所属rt列表
-            alias_field_map = defaultdict(list)
-            query_alias_mappings = defaultdict(list)
-            query_alias_to_rt_mappings = defaultdict(list)
-
-            for alias_setting in alias_settings:
-                field_name = alias_setting["field_name"]
-                query_alias = alias_setting["query_alias"]
-
-                # 存储别名对应的字段和rt列表
-                rt_list = result_table_mappings.get(field_name, [])
-                alias_field_map[query_alias].append({"field_name": field_name, "rt_list": rt_list})
-
-                # 为当前字段所属的所有rt添加别名配置
-                for _result_table_id, _field_name_list in field_name_mappings.items():
-                    if field_name in _field_name_list:
-                        query_alias_mappings[_result_table_id].append(alias_setting)
-                        query_alias_to_rt_mappings[query_alias].append(_result_table_id)
+            query_alias_mappings, alias_field_map = self.get_rt_alias_settings(self.index_set_id, alias_settings)
 
             # 检查同名别名的字段rt列表是否有交集
             for query_alias, fields in alias_field_map.items():
@@ -1851,10 +1858,20 @@ class BaseIndexSetHandler:
         return True
 
     @classmethod
-    def get_index_set_table_info_list(cls, index_set: LogIndexSet, is_analysis=False, parent_index_set_id=None):
+    def get_index_set_table_info_list(
+        cls,
+        index_set: LogIndexSet,
+        is_analysis=False,
+        parent_index_set: LogIndexSet = None,
+        rt_alias_mappings=None,
+    ):
         table_info_list = []
         # 索引组场景下使用索引组ID生成table_id，否则使用当前索引集ID
-        effective_index_set_id = parent_index_set_id or index_set.index_set_id
+        effective_index_set_id = parent_index_set.index_set_id if parent_index_set else index_set.index_set_id
+        # 索引组场景下使用索引组别名配置
+        effective_alias_settings = (
+            parent_index_set.query_alias_settings if parent_index_set else index_set.query_alias_settings
+        )
         # Doris路由或图表分析路由
         is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(index_set.tag_ids)
         doris_table_id = index_set.doris_table_id
@@ -1873,8 +1890,8 @@ class BaseIndexSetHandler:
                     doris_table_info["table_id"] = (
                         f"bklog_index_set_{effective_index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__analysis__"
                     )
-                if query_alias_settings := index_set.query_alias_settings:
-                    doris_table_info["query_alias_settings"] = copy.deepcopy(query_alias_settings)
+                if effective_alias_settings:
+                    doris_table_info["query_alias_settings"] = copy.deepcopy(effective_alias_settings)
                 table_info_list.append(doris_table_info)
             return table_info_list
         # ES路由
@@ -1908,6 +1925,13 @@ class BaseIndexSetHandler:
                     },
                 ],
             }
+
+            if rt_alias_mappings is None:
+                if effective_alias_settings:
+                    table_info["query_alias_settings"] = copy.deepcopy(effective_alias_settings)
+            elif rt_alias_list := rt_alias_mappings.get(obj.result_table_id, []):
+                table_info["query_alias_settings"] = copy.deepcopy(rt_alias_list)
+
             if table_info["source_type"] == Scenario.LOG:
                 table_info["origin_table_id"] = obj.result_table_id
                 collector_config = CollectorConfig.objects.filter(table_id=obj.result_table_id).first()
@@ -1916,8 +1940,6 @@ class BaseIndexSetHandler:
                     table_info.setdefault("query_alias_settings", []).append(
                         {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}
                     )
-            if query_alias_settings := index_set.query_alias_settings:
-                table_info["query_alias_settings"] = copy.deepcopy(query_alias_settings)
             table_info_list.append(table_info)
 
             # 纳秒采集新旧链路迁移路由补充
@@ -1954,6 +1976,21 @@ class BaseIndexSetHandler:
                     cls.get_data_label(index_set.index_set_id),
                     f"{cls.get_data_label(index_set.index_set_id)}_analysis",
                 ]
+                # 提前获取按RT粒度的别名配置（需要查询ES，避免在循环中重复调用）
+                rt_alias_mappings = None
+                if index_set.query_alias_settings:
+                    try:
+                        rt_alias_mappings, _ = IndexSetHandler.get_rt_alias_settings(
+                            index_set.index_set_id, index_set.query_alias_settings
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "get rt alias settings for index set(%s) failed: %s, "
+                            "fallback to apply full alias settings to all result tables",
+                            index_set.index_set_id,
+                            e,
+                        )
+
                 for data_label in data_label_list:
                     # 获取索引列表
                     if index_set.is_group:
@@ -1962,14 +1999,17 @@ class BaseIndexSetHandler:
                         child_index_sets = LogIndexSet.objects.filter(index_set_id__in=child_index_set_ids)
                         for child_index_set in child_index_sets:
                             table_infos = cls.get_index_set_table_info_list(
-                                child_index_set,
+                                index_set=child_index_set,
                                 is_analysis=data_label.endswith("_analysis"),
-                                parent_index_set_id=index_set.index_set_id,
+                                parent_index_set=index_set,
+                                rt_alias_mappings=rt_alias_mappings,
                             )
                             table_info_list.extend(table_infos)
                     else:
                         table_info_list = cls.get_index_set_table_info_list(
-                            index_set, is_analysis=data_label.endswith("_analysis")
+                            index_set=index_set,
+                            is_analysis=data_label.endswith("_analysis"),
+                            rt_alias_mappings=rt_alias_mappings,
                         )
                     # 如果有索引列表，则创建路由
                     if table_info_list:

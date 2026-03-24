@@ -50,7 +50,7 @@
       <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
       <div class="manage-container">
         <div class="manage-main">
-          <sub-nav :sub-nav-list="menuList"></sub-nav>
+          <sub-nav :sub-nav-list="menuList" :show-sub-nav="showSubNav"></sub-nav>
           <router-view class="manage-content" :key="refreshKey"></router-view>
         </div>
       </div>
@@ -65,6 +65,12 @@ import { mapGetters, mapState } from 'vuex';
 
   export default {
     name: 'ManageIndex',
+    props: {
+      showSubNav: {
+        type: Boolean,
+        default: true,
+      },
+    },
     components: {
       SubNav,
     },

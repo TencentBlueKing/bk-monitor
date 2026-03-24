@@ -237,11 +237,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   beforeRouteEnter(to, from, next) {
     next(vm => {
       vm.dataReset();
-      if (
-        !['custom-escalation-form', 'custom-detail-event', 'custom-detail-timeseries', 'custom-scenes-view'].includes(
-          from.name
-        )
-      ) {
+      if (!['custom-escalation-form', 'custom-detail-event', 'custom-detail-timeseries'].includes(from.name)) {
         vm.clearConditions();
       }
       !vm.loading && vm.init();

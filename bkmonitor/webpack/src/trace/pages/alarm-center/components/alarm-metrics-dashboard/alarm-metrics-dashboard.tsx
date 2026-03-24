@@ -127,8 +127,9 @@ export default defineComponent({
           let down_sample_range: string;
           let interval: number | string;
           if (rawInterval === 'auto') {
-            // interval=auto: interval 与 down_sample_range 都使用按宽度计算的值
-            interval = computedDownSampleRange;
+            // interval=auto: interval 向上取整到分钟粒度，down_sample_range 保持秒级精度
+            const computedSeconds = convertToSeconds(computedDownSampleRange);
+            interval = `${Math.max(Math.ceil(computedSeconds / 60), 1)}m`;
             down_sample_range = computedDownSampleRange;
           } else {
             const originInterval = +rawInterval || 60;

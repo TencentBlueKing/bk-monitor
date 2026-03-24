@@ -44,6 +44,7 @@ export default defineComponent({
 
     const fieldConfigRef = ref();
     const displayFieldNames = ref<string[]>([]); // 展示的字段名
+    let cachedDisplayFieldNames: string[] = []; // 缓存的字段名，用于取消时恢复
     const confirmLoading = ref(false);
 
     const totalFiels = computed(() => store.state.indexFieldInfo.fields);
@@ -61,13 +62,43 @@ export default defineComponent({
       'ghost-class': 'sortable-ghost-class',
     };
 
+    /**
+     * 获取默认展示字段
+     * 优先展示 contextDisplayFields，如果没有则展示 log 字段，如果没有则展示一个 text 类型字段，如果没有则展示页面可见字段
+     */
+    const getDefaultDisplayFields = (contextDisplayFields?: string[]): string[] => {
+      const fields = contextDisplayFields?.filter(f => totalFieldNames.value.includes(f));
+      if (fields?.length > 0) {
+        return fields;
+      }
+
+      const allFields = store.getters.filteredFieldList;
+      let textField = undefined;
+      let logField = undefined;
+      for (const field of allFields) {
+        if (field.field_name === 'log') {
+          logField = field.field_name;
+          break;
+        }
+        if (field.field_type === 'text' && textField === undefined) {
+          textField = field.field_name;
+        }
+      }
+
+      const showFieldName = logField ?? textField;
+      if (showFieldName) {
+        return [showFieldName];
+      }
+
+      const pageVisibleFields = store.getters.visibleFields.map(item => item.field_name);
+      return pageVisibleFields.length ? pageVisibleFields : ['log'];
+    };
+
     watch(
       () => store.state.retrieve.catchFieldCustomConfig,
       (config) => {
-        const fields = config.contextDisplayFields;
-        if (fields?.length > 0) {
-          displayFieldNames.value = fields.filter(f => totalFieldNames.value.includes(f));
-        }
+        displayFieldNames.value = getDefaultDisplayFields(config.contextDisplayFields);
+        cachedDisplayFieldNames = [...displayFieldNames.value];
 
         setTimeout(() => {
           emit('success', displayFieldNames.value);
@@ -100,6 +131,7 @@ export default defineComponent({
         })
         .then(() => {
           messageSuccess(t('设置成功'));
+          cachedDisplayFieldNames = [...displayFieldNames.value];
           emit('success', displayFieldNames.value);
         })
         .finally(() => {
@@ -108,6 +140,7 @@ export default defineComponent({
     };
 
     const handleCancel = () => {
+      displayFieldNames.value = [...cachedDisplayFieldNames];
       emit('cancel');
     };
 

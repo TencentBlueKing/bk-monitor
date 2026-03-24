@@ -685,6 +685,11 @@ STANDARD_CONFIGS = OrderedDict(
             "APM_METRIC_GROUP_DIMENSIONS_WHITELIST",
             slz.ListField(label=_("允许 APM 配置指标分组维度的应用白名单"), default=[]),
         ),
+        # APM 自定义指标 V2 开启的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+        (
+            "APM_CUSTOM_METRIC_V2_ENABLED_LIST",
+            slz.ListField(label=_("APM 自定义指标 V2 开启的应用白名单"), default=[]),
+        ),
     ]
 )
 

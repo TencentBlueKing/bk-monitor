@@ -24,14 +24,12 @@ import os
 import arrow
 from django.utils.functional import cached_property
 
-from apps.api import BkDataQueryApi
 from apps.log_esquery.esquery.builder.query_index_optimizer import QueryIndexOptimizer
 from apps.log_esquery.esquery.client.QueryClientBkData import QueryClientBkData
 from apps.log_search.models import Scenario
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.tgpa.constants import (
     TGPA_REPORT_FILTER_FIELDS,
-    TGPA_REPORT_SELECT_FIELDS,
     TGPA_REPORT_SOURCE_FIELDS,
     FEATURE_TOGGLE_TGPA_TASK,
     TGPA_BASE_DIR,
@@ -88,52 +86,25 @@ class TGPAReportHandler:
         return cls._get_feature_config().get("tgpa_report_result_table_id")
 
     @classmethod
-    def _build_where_clause(cls, bk_biz_id, keyword=None, keyword_fields=None, start_time=None, end_time=None):
-        """
-        构建SQL WHERE子句（基础条件）
-
-        :param bk_biz_id: 业务ID
-        :param keyword: 搜索关键词
-        :param keyword_fields: keyword需要搜索的字段列表，默认为TGPA_REPORT_FILTER_FIELDS中的所有字段
-        :param start_time: 开始时间，默认为七天前
-        :param end_time: 结束时间，默认为当前时间
-        """
-        where_conditions = [f"cc_id={bk_biz_id}"]
-
-        if keyword:
-            escaped_keyword = keyword.replace("\\", "\\\\").replace("'", "''").replace("%", "\\%").replace("_", "\\_")
-            fields = keyword_fields if keyword_fields else TGPA_REPORT_FILTER_FIELDS
-            keyword_conditions = [f"{field} LIKE '%{escaped_keyword}%' ESCAPE '\\'" for field in fields]
-            where_conditions.append(f"({' OR '.join(keyword_conditions)})")
-
-        # 默认时间范围：当前时间到七天前
-        if not start_time:
-            start_time = int(arrow.now().shift(days=-7).timestamp() * 1000)
-        if not end_time:
-            end_time = int(arrow.now().timestamp() * 1000)
-
-        where_conditions.append(f"dtEventTimeStamp >= {start_time}")
-        where_conditions.append(f"dtEventTimeStamp < {end_time}")
-
-        return " AND ".join(where_conditions)
-
-    @classmethod
-    def _build_es_query(cls, bk_biz_id, keyword=None, keyword_fields=None, start_time=None, end_time=None):
+    def _build_es_query(cls, bk_biz_id, keyword=None, file_name_list=None, start_time=None, end_time=None):
         """
         构建ES DSL查询条件
 
         :param bk_biz_id: 业务ID
         :param keyword: 搜索关键词
-        :param keyword_fields: keyword需要搜索的字段列表，默认为TGPA_REPORT_FILTER_FIELDS中的所有字段
+        :param file_name_list: 文件名列表，精确匹配
         :param start_time: 开始时间，默认为七天前
         :param end_time: 结束时间，默认为当前时间
         """
         must_conditions = [{"term": {"cc_id": bk_biz_id}}]
 
         if keyword:
-            fields = keyword_fields if keyword_fields else TGPA_REPORT_FILTER_FIELDS
-            should_conditions = [{"wildcard": {field: {"value": f"*{keyword}*"}}} for field in fields]
+            should_conditions = [
+                {"wildcard": {field: {"value": f"*{keyword}*"}}} for field in TGPA_REPORT_FILTER_FIELDS
+            ]
             must_conditions.append({"bool": {"should": should_conditions, "minimum_should_match": 1}})
+        if file_name_list:
+            must_conditions.append({"terms": {"file_name": file_name_list}})
 
         # 默认时间范围：当前时间到七天前
         if not start_time:
@@ -275,7 +246,7 @@ class TGPAReportHandler:
         return {"total": total, "list": items}
 
     @classmethod
-    def iter_report_list(cls, bk_biz_id, openid_list=None, file_name_list=None, start_time=None, end_time=None):
+    def iter_report_list(cls, bk_biz_id, file_name_list=None, start_time=None, end_time=None):
         """
         使用迭代器模式获取客户端日志上报文件列表
         """
@@ -283,43 +254,42 @@ class TGPAReportHandler:
         result_table_id = cls._get_result_table_id()
         batch_size = TGPA_REPORT_LIST_BATCH_SIZE
 
-        # 构建基础WHERE子句
-        where_conditions = [cls._build_where_clause(bk_biz_id=bk_biz_id, start_time=start_time, end_time=end_time)]
+        # 构建ES查询条件
+        es_query = cls._build_es_query(
+            bk_biz_id=bk_biz_id, file_name_list=file_name_list, start_time=start_time, end_time=end_time
+        )
 
-        # 添加特殊的OR条件（openid_list 和 file_name_list 之间使用 OR 关系）
-        or_conditions = []
-        if openid_list:
-            openid_conditions = [f"openid='{openid}'" for openid in openid_list]
-            or_conditions.append(f"({' OR '.join(openid_conditions)})")
-        if file_name_list:
-            file_name_conditions = [f"file_name='{file_name}'" for file_name in file_name_list]
-            or_conditions.append(f"({' OR '.join(file_name_conditions)})")
-
-        if or_conditions:
-            where_conditions.append(f"({' OR '.join(or_conditions)})")
-
-        where_clause = " AND ".join(where_conditions)
-
-        # 分批查询数据，这里排序和时间范围过滤统一使用dtEventTimeStamp（report_time并不是按照数据插入时间的顺序单调递增的）
-        offset = 0
+        # search_after 分批查询数据，排序加上_id，确保排序唯一性
+        index = cls._get_optimized_index(result_table_id, start_time=start_time, end_time=end_time)
+        client = QueryClientBkData()
+        search_after = None
         while True:
-            query_list_sql = (
-                f"SELECT {', '.join(TGPA_REPORT_SELECT_FIELDS)} "
-                f"FROM {result_table_id} "
-                f"WHERE {where_clause} "
-                f"ORDER BY dtEventTimeStamp DESC "
-                f"LIMIT {batch_size} OFFSET {offset}"
-            )
+            body = {
+                "query": es_query,
+                "sort": [{"dtEventTimeStamp": {"order": "desc"}}, {"_id": {"order": "desc"}}],
+                "size": batch_size,
+                "_source": TGPA_REPORT_SOURCE_FIELDS,
+            }
+            if search_after is not None:
+                body["search_after"] = search_after
 
-            list_result = BkDataQueryApi.query({"sql": query_list_sql})
-            batch_data = list_result.get("list", [])
-            if not batch_data:
-                break
-            yield from batch_data
-            if len(batch_data) < batch_size:
+            es_response = client.query(index=index, body=body)
+            raw_hits = es_response.get("hits", {}).get("hits", []) if es_response else []
+            if not raw_hits:
                 break
 
-            offset += batch_size
+            for hit in raw_hits:
+                item = hit.get("_source", {})
+                if "real_name" in item:
+                    item["file_path"] = item.pop("real_name")
+                if "cc_id" in item:
+                    item["bk_biz_id"] = item.pop("cc_id")
+                yield item
+            if len(raw_hits) < batch_size:
+                break
+
+            # 使用最后一条记录的sort值作为下一页的search_after
+            search_after = raw_hits[-1]["sort"]
 
     @classmethod
     def get_file_status_map(cls, file_name_list) -> dict:

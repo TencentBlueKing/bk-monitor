@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
 
 from apm_web.models.application import Application
 
@@ -56,8 +57,11 @@ class CustomMetricBaseRequestSerializer(serializers.Serializer):
         validated_data["result_table_id"] = result_table_id
 
         # 4. 如果提供了 apm_service_name，则补充 scope_prefix（用于后续过滤）
+        # 仅当应用在 APM_METRIC_GROUP_DIMENSIONS_WHITELIST 白名单中时才设置 scope_prefix
         if validated_data.get("apm_service_name"):
-            validated_data["scope_prefix"] = validated_data["apm_service_name"] + "||"
+            app_key = f"{validated_data['bk_biz_id']}-{apm_app_name}"
+            if app_key in settings.APM_METRIC_GROUP_DIMENSIONS_WHITELIST:
+                validated_data["scope_prefix"] = validated_data["apm_service_name"] + "||"
 
         # 5. 补充 is_apm_scenario
         validated_data["is_apm_scenario"] = apm_app_name and data.get("apm_service_name")

@@ -115,7 +115,7 @@ export default class Service extends tsc<object> {
     this.pageKey += 1;
   }
 
-  async beforeRouteEnter(to, from, next) {
+  async beforeRouteEnter(to, _from, next) {
     const { query } = to;
     const appName = query['filter-app_name'] as string;
     const serviceName = query['filter-service_name'] as string;
@@ -138,6 +138,7 @@ export default class Service extends tsc<object> {
           selectOption: {
             value: appName,
             selectList: [],
+            loading: false,
           },
         },
         {
@@ -164,7 +165,7 @@ export default class Service extends tsc<object> {
     };
     next(nextTo);
   }
-  beforeRouteLeave(to, from, next) {
+  beforeRouteLeave(_to, _from, next) {
     destroyTimezone();
     next();
   }

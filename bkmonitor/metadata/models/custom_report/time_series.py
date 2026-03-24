@@ -723,7 +723,6 @@ class TimeSeriesGroup(CustomGroupBase):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
-        metric_group_dimensions: list | None = None,
     ):
         """
         创建一个新的自定义分组记录
@@ -740,7 +739,6 @@ class TimeSeriesGroup(CustomGroupBase):
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
-        :param metric_group_dimensions: 分组维度信息
         :return: group object
         """
 
@@ -758,7 +756,6 @@ class TimeSeriesGroup(CustomGroupBase):
             additional_options=additional_options,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
-            metric_group_dimensions=metric_group_dimensions,
         )
 
         # 需要刷新一次外部依赖的consul，触发transfer更新
@@ -771,19 +768,14 @@ class TimeSeriesGroup(CustomGroupBase):
     @classmethod
     def _post_process_create(cls, custom_group, kwargs):
         """后处理创建"""
-        metric_group_dimensions = kwargs.get("metric_group_dimensions")
-        if metric_group_dimensions:
-            custom_group.metric_group_dimensions = metric_group_dimensions
-            custom_group.save()
-        else:
-            # 如果不存在 metric_group_dimensions，则创建默认的 scope 记录
-            TimeSeriesScope.objects.create(
-                group_id=custom_group.time_series_group_id,
-                scope_name=TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME,
-                dimension_config={},
-                auto_rules=[],
-                create_from=TimeSeriesScope.CREATE_FROM_DEFAULT,
-            )
+        # 创建默认的 scope 记录
+        TimeSeriesScope.objects.create(
+            group_id=custom_group.time_series_group_id,
+            scope_name=TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME,
+            dimension_config={},
+            auto_rules=[],
+            create_from=TimeSeriesScope.CREATE_FROM_DEFAULT,
+        )
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def modify_time_series_group(
@@ -1129,9 +1121,9 @@ class TimeSeriesScope(models.Model):
     scope_name = models.CharField(verbose_name="指标分组名", max_length=255, db_collation="utf8_bin")
 
     # 维度字段配置，可配置的选项，需要在 DimensionConfigFields 中定义
-    dimension_config = models.JSONField(verbose_name="分组下的维度配置", default={})
+    dimension_config = models.JSONField(verbose_name="分组下的维度配置", default=dict)
 
-    auto_rules = models.JSONField("自动分组的匹配规则列表", default=[])
+    auto_rules = models.JSONField("自动分组的匹配规则列表", default=list)
 
     # 创建来源：data-数据自动创建，user-用户手动创建
     create_from = models.CharField(

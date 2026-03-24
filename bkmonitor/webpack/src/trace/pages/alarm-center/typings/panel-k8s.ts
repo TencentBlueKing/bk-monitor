@@ -90,4 +90,21 @@ export interface EchartSeriesMarkPoint {
   }[];
 }
 
+export interface FetchWorkloadPodListParams {
+  /** 集群ID */
+  bcs_cluster_id: string;
+  /** 业务ID */
+  bk_biz_id: number;
+  /** 结束时间 */
+  end_time: number;
+  /** 过滤条件 */
+  filter_dict: Record<string, string[]>;
+  /** 每页数量 */
+  page_size?: number;
+  /** 场景 */
+  scenario: SceneEnum;
+  /** 开始时间 */
+  start_time: number;
+}
+
 export { K8SPerformanceMetricUnitMap, K8sTableColumnKeysEnum, SceneEnum };

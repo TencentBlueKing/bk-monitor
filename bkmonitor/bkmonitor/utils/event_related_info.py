@@ -114,7 +114,8 @@ def get_alert_info_for_log_clustering_count(alert: AlertDocument, index_set_id: 
     query_config = alert.strategy["items"][0]["query_configs"][0]
     interval = query_config.get("agg_interval", 60)
     start_time = alert.begin_time - 60 * 60
-    end_time = max(alert.begin_time + interval, alert.latest_time) + 60 * 60
+    # 不额外延伸 1 小时，避免日志示例时间远落后于告警时间；降序查询时可取到最近一次异常时刻的日志
+    end_time = max(alert.begin_time + interval, alert.latest_time)
     group_by = query_config.get("agg_dimension", [])
 
     try:
@@ -211,8 +212,10 @@ def get_clustering_log(
             },
             bk_biz_id=alert.event.bk_biz_id,
         )
+        # 显式指定降序，确保 limit=1 取到最接近告警时间的最新日志
+        log_data_source.order_by = [f"{log_data_source.time_field} desc"]
         uq: UnifyQuery = UnifyQuery(bk_biz_id=alert.event.bk_biz_id, data_sources=[log_data_source], expression="")
-        logs, __ = uq.query_log(start_time * 1000, end_time * 1000, limit=1)
+        logs, __ = uq.query_log(start_time * 1000, end_time * 1000, limit=1, order_by=["-time"])
         if logs:
             record = logs[0]
             for key in record.copy():

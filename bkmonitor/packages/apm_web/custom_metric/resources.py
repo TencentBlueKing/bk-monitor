@@ -40,7 +40,7 @@ class ApmGetCustomTsFields(ScopeQueryFilterMixin, GetCustomTsFields):
         pass
 
     def get_movable(self, metric_obj: ScopeQueryMetricResponseDTO, params: dict) -> bool:
-        return metric_obj.field_scope == params["scope_prefix"] + DEFAULT_FIELD_SCOPE
+        return metric_obj.field_scope == params.get("scope_prefix", "") + DEFAULT_FIELD_SCOPE
 
     @scope_prefix_handler(output_field=["dimensions.scope.name", "metrics.scope.name"])
     def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
@@ -82,7 +82,7 @@ class ApmModifyCustomTsFields(DefaultScopeNameMixin, ModifyCustomTsFields):
                 converter = ScopeQueryConverter(attrs["time_series_group_id"])
                 scope_objs = converter.query_time_series_scope(scope_ids=scope_ids, include_metrics=False)
 
-                scope_prefix = attrs["scope_prefix"]
+                scope_prefix = attrs.get("scope_prefix", "")
                 invalid_scopes = [obj.name for obj in scope_objs if not obj.name.startswith(scope_prefix)]
 
                 if invalid_scopes:
