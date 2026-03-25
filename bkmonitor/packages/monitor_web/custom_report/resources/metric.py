@@ -676,7 +676,7 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
         order_by = serializers.ChoiceField(
             label=_("排序字段"),
             choices=["name", "-name", "update_time", "-update_time"],
-            default="-update_time",
+            default="name",
             required=False,
         )
 
@@ -741,7 +741,7 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
             condition_connector=params.get("condition_connector", "and"),
             page=params.get("page", 1),
             page_size=params.get("page_size", 20),
-            order_by=params.get("order_by", "-update_time"),
+            order_by=params.get("order_by", "name"),
         )
 
         metrics_list = []
