@@ -176,6 +176,11 @@ class TGPATaskTypeEnum(ChoicesEnum):
         (BUSINESS_LOG_V2, _("业务日志捞取V2")),
     )
 
+    @classmethod
+    def get_business_log_task_types(cls):
+        """获取业务日志捞取任务类型（逗号分隔的字符串，支持v1和v2）"""
+        return ",".join([str(cls.BUSINESS_LOG_V1.value), str(cls.BUSINESS_LOG_V2.value)])
+
 
 class TGPATaskPlatformEnum(ChoicesEnum):
     """客户端类型"""
@@ -221,6 +226,57 @@ class TGPATaskFrequencyEnum(ChoicesEnum):
     )
 
 
+class TGPATaskStatusEnum(ChoicesEnum):
+    """任务状态"""
+
+    PENDING = -3
+    APPROVED = -2
+    DENIED = -1
+    CREATED = 0
+    RUNNING = 1
+    STOPPED = 2
+    FAILED = 3
+    SUCCESS = 4
+    CREATE_FAILED = 5
+    CLAIM_TIMEOUT = 6
+    EXECUTE_TIMEOUT = 7
+    CLAIMING = 8
+    DELETED = 9
+    CREATING = 10
+    STARTING = 11
+
+    _choices_labels = (
+        (PENDING, _("待审批")),
+        (APPROVED, _("审批通过")),
+        (DENIED, _("审批拒绝")),
+        (CREATED, _("已创建")),
+        (RUNNING, _("执行中")),
+        (STOPPED, _("停止")),
+        (FAILED, _("执行失败")),
+        (SUCCESS, _("执行完成")),
+        (CREATE_FAILED, _("创建失败")),
+        (CLAIM_TIMEOUT, _("认领超时")),
+        (EXECUTE_TIMEOUT, _("执行超时")),
+        (CLAIMING, _("认领中")),
+        (DELETED, _("已删除")),
+        (CREATING, _("创建中")),
+        (STARTING, _("启动中")),
+    )
+
+    @classmethod
+    def get_active_statuses(cls):
+        """获取进行中的任务状态（即任务还没结束）"""
+        return [
+            cls.PENDING.value,
+            cls.APPROVED.value,
+            cls.CREATED.value,
+            cls.RUNNING.value,
+            cls.CLAIMING.value,
+            cls.CREATING.value,
+            cls.STARTING.value,
+        ]
+
+
 class TGPATaskProcessStatusEnum(ChoicesEnum):
     """任务处理状态"""
 
@@ -255,25 +311,9 @@ class TGPAReportSyncStatusEnum(ChoicesEnum):
     )
 
 
-TGPA_REPORT_SELECT_FIELDS = [
-    "openid",
-    "file_name",
-    "real_name as file_path",
-    "file_size",
-    "md5",
-    "report_time",
-    "xid",
-    "extend_info",
-    "manufacturer",
-    "model",
-    "os_version",
-    "os_sdk",
-    "os_type",
-    "cc_id as bk_biz_id",
-]
 TGPA_REPORT_FILTER_FIELDS = ["openid", "file_name"]
 TGPA_REPORT_ORDER_FIELDS = ["file_size"]
-TGPA_REPORT_LIST_BATCH_SIZE = 500  # 客户端日志上报列表批量查询大小
+TGPA_REPORT_LIST_BATCH_SIZE = 2000  # 客户端日志上报列表批量查询大小
 TGPA_REPORT_SOURCE_FIELDS = [
     "openid",
     "file_name",
@@ -292,3 +332,4 @@ TGPA_REPORT_SOURCE_FIELDS = [
 ]
 TGPA_REPORT_OFFSET_MINUTES = -5  # 客户端日志上报同步偏移时间
 TGPA_REPORT_MAX_TIME_RANGE_MINUTES = 30  # 客户端日志上报同步最大时间跨度
+TGPA_UNFINISHED_TASK_CHECK_DAYS = 7  # 未完成任务的最大回溯天数

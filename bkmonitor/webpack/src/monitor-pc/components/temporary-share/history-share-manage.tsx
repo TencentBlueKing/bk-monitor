@@ -214,10 +214,6 @@ export default class HistoryShareManage extends tsc<IProps> {
       this.pathName = `${this.$t('Kubernetes')}${pathFn(this.positionText || '')}`;
     } else if (/^\/uptime-check\/group-detail\/.+$/.test(path) || /^\/uptime-check\/task-detail\/.+$/.test(path)) {
       this.pathName = `${this.$t('综合拨测')}${pathFn(this.$t('任务详情'))}${pathFn(this.navList?.[0]?.name || '')}`;
-    } else if (/^\/custom-scenes\/view\/.+$/.test(path)) {
-      this.pathName = `${this.$t('自定义场景')}${pathFn(this.navList?.[0]?.name || '')}${pathFn(
-        this.navList?.[0]?.subName || ''
-      )}`;
     } else if (/^\/collect-config\/view\/.+$/.test(path)) {
       this.pathName = `${this.$t('数据采集')}${pathFn(this.$t('可视化'))}${pathFn(
         this.navList?.[0]?.name || ''

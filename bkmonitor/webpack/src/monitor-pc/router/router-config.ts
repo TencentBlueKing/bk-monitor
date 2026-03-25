@@ -224,21 +224,21 @@ export const getRouteConfig = () => {
             },
           ],
         },
-        {
-          name: '其他',
-          shortName: '其他',
-          id: 'other',
-          children: [
-            {
-              name: '自定义场景',
-              icon: 'icon-monitor icon-zidingyichangjing menu-icon',
-              id: 'custom-scenes',
-              path: '/custom-scenes',
-              href: '#/custom-scenes',
-              canStore: true,
-            },
-          ],
-        },
+        // {
+        //   name: '其他',
+        //   shortName: '其他',
+        //   id: 'other',
+        //   children: [
+        //     {
+        //       name: '自定义场景',
+        //       icon: 'icon-monitor icon-zidingyichangjing menu-icon',
+        //       id: 'custom-scenes',
+        //       path: '/custom-scenes',
+        //       href: '#/custom-scenes',
+        //       canStore: true,
+        //     },
+        //   ],
+        // },
       ],
     },
     {
