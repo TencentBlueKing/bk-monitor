@@ -27,33 +27,69 @@
 export const SPACE_TYPE_MAP = {
   bkcc: {
     name: window.i18n.t('业务'),
-    color: '#3A84FF',
-    backgroundColor: '#EDF4FF',
+    dark: {
+      color: '#478EFC',
+      backgroundColor: '#2B354D',
+    },
+    light: {
+      color: '#3A84FF',
+      backgroundColor: '#EDF4FF',
+    },
   },
   default: {
     name: window.i18n.t('监控空间'),
-    color: '#63656E',
-    backgroundColor: '#F0F1F5',
+    dark: {
+      color: '#B3B3B3',
+      backgroundColor: '#333333',
+    },
+    light: {
+      color: '#63656E',
+      backgroundColor: '#F0F1F5',
+    },
   },
   bkci: {
     name: window.i18n.t('研发项目'),
-    color: '#EA3536',
-    backgroundColor: '#FEEBEA',
+    dark: {
+      color: '#F85959',
+      backgroundColor: '#4C3232',
+    },
+    light: {
+      color: '#E71818',
+      backgroundColor: '#FFEBEB',
+    },
   },
   bcs: {
     name: window.i18n.t('容器项目'),
-    color: '#FE9C00',
-    backgroundColor: '#FFF1DB',
+    dark: {
+      color: '#FC943B',
+      backgroundColor: '#453921',
+    },
+    light: {
+      color: '#E38B02',
+      backgroundColor: '#FDEED8',
+    },
   },
   paas: {
     name: window.i18n.t('蓝鲸应用'),
-    color: '#14A568',
-    backgroundColor: '#E4FAF0',
+    dark: {
+      color: '#2BB950',
+      backgroundColor: '#223B2B',
+    },
+    light: {
+      color: '#14A568',
+      backgroundColor: '#E4FAF0',
+    },
   },
   bksaas: {
     name: window.i18n.t('蓝鲸应用'),
-    color: '#14A568',
-    backgroundColor: '#E4FAF0',
+    dark: {
+      color: '#2BB950',
+      backgroundColor: '#223B2B',
+    },
+    light: {
+      color: '#14A568',
+      backgroundColor: '#E4FAF0',
+    },
   },
 };
 
