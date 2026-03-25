@@ -120,45 +120,32 @@ class GetCustomTsMetricAggInfo(Resource):
     获取指标聚合信息（维度交集和并集）
     """
 
-    METRIC_QUERY_BATCH_SIZE = 5000
-
     class RequestSerializer(CustomMetricBaseRequestSerializer):
         metric_ids = serializers.ListField(label=_("指标 ID 列表"), child=serializers.IntegerField(), allow_empty=False)
 
-    @classmethod
-    def _batched_metric_ids(cls, metric_ids: list[int]):
-        for index in range(0, len(metric_ids), cls.METRIC_QUERY_BATCH_SIZE):
-            yield metric_ids[index : index + cls.METRIC_QUERY_BATCH_SIZE]
-
     def perform_request(self, params: dict) -> dict:
-        metric_ids = list(dict.fromkeys(params["metric_ids"]))
+        # 调用 query_time_series_metric 获取指定指标详情
+        metric_ids = params["metric_ids"]
+        conditions = [
+            {"key": "field_id", "values": [str(mid) for mid in metric_ids], "search_type": "exact"},
+        ]
+        request_params = {
+            "group_id": params["time_series_group_id"],
+            "page": 1,
+            "page_size": -1,  # 获取所有数据
+            "conditions": conditions,
+        }
+        result = api.metadata.query_time_series_metric(**request_params)
+        metric_list = result.get("metrics", [])
 
-        common_dims = None
-        all_dims = set()
-        for metric_id_batch in self._batched_metric_ids(metric_ids):
-            conditions = [
-                {"key": "field_id", "values": [str(mid) for mid in metric_id_batch], "search_type": "exact"},
-            ]
-            request_params = {
-                "group_id": params["time_series_group_id"],
-                "page": 1,
-                "page_size": len(metric_id_batch),
-                "conditions": conditions,
-            }
-            result = api.metadata.query_time_series_metric(**request_params)
-
-            for metric in result.get("metrics", []):
-                tag_set = set(metric.get("tag_list", []))
-                all_dims.update(tag_set)
-                if common_dims is None:
-                    common_dims = tag_set
-                else:
-                    common_dims &= tag_set
-                if not common_dims and all_dims:
-                    common_dims = set()
-
-        if common_dims is None:
+        # 计算维度交集和并集
+        all_tag_sets = [set(m.get("tag_list", [])) for m in metric_list]
+        if all_tag_sets:
+            common_dims = set.intersection(*all_tag_sets)
+            all_dims = set.union(*all_tag_sets)
+        else:
             common_dims = set()
+            all_dims = set()
 
         # 获取 scope 维度配置（用于别名）
         scope_request_params = {
@@ -173,6 +160,7 @@ class GetCustomTsMetricAggInfo(Resource):
             for dim_name, dim_config in scope_data.get("dimension_config", {}).items():
                 if dim_name not in dim_alias_map:
                     dim_alias_map[dim_name] = dim_config.get("alias", dim_name)
+
         return {
             "common_dimensions": [{"name": d, "alias": dim_alias_map.get(d, d)} for d in sorted(common_dims)],
             "all_dimensions": [{"name": d, "alias": dim_alias_map.get(d, d)} for d in sorted(all_dims)],
