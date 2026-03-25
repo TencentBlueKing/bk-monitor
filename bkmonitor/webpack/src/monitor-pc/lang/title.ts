@@ -267,4 +267,5 @@ export default {
   优先级变更: 'Priority change',
   负责人变更: 'Owner change',
   维度统计: 'Dimension Statistics',
+  查看完整评论: 'View full comment',
 };

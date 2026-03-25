@@ -1020,9 +1020,9 @@ export default defineComponent({
           {this.alarmStore.alarmType === AlarmType.ISSUES ? (
             <IssuesDetailSideSlider
               bizId={this.issueRowData?.bk_biz_id}
+              firstAlarmTime={this.issueRowData?.first_alert_time}
               issueId={this.issueRowData?.id}
               show={this.issuesDetailShow}
-              onImpactScopeClick={this.handleImpactScopeClick}
               onUpdate:show={show => {
                 this.issuesDetailShow = show;
               }}

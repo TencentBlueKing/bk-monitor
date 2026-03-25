@@ -192,7 +192,7 @@ export default defineComponent({
           width={800}
           class='comment-markdown-dialog'
           v-model:isShow={isMarkdownDialogShow.value}
-          title={t('输入评论')}
+          title={t(isEditMarkdown.value ? '输入评论' : '查看完整评论')}
           onClosed={handleCloseMarkdownDialog}
         >
           {{

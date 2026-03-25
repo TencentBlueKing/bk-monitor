@@ -182,6 +182,7 @@ const generateImpactScope = (): IssueDetail['impact_scope'] => {
   const clusterCount = Math.floor(Math.random() * 5) + 1;
   return {
     cluster: {
+      display_name: '集群',
       count: clusterCount,
       instance_list: Array.from({ length: Math.min(clusterCount, 3) }, (_, i) => ({
         bcs_cluster_id: `BCS-K8S-${80001 + i}`,
@@ -190,6 +191,7 @@ const generateImpactScope = (): IssueDetail['impact_scope'] => {
       link_tpl: '/k8s?filter-bcs_cluster_id={bcs_cluster_id}&sceneId=kubernetes&sceneType=overview',
     },
     host: {
+      display_name: '主机',
       count: Math.floor(Math.random() * 20) + 5,
       instance_list: Array.from({ length: 3 }, (_, i) => ({
         bk_host_id: 1000 + i,
