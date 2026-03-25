@@ -156,7 +156,9 @@ def sync_es_metadata(bk_tenant_id: str, es_info: list[dict[str, Any]], table_id:
 
     # 先同步当前ES信息
     current_es_info = es_info_sorted[0]
-    es_clusters = models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, domain_name=current_es_info["host"])
+    es_clusters = list(
+        models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, domain_name=current_es_info["host"])
+    )
     for cluster in es_clusters:
         if cluster.cluster_id == es_storage.storage_cluster_id:
             es_cluster = cluster
@@ -174,7 +176,7 @@ def sync_es_metadata(bk_tenant_id: str, es_info: list[dict[str, Any]], table_id:
         )
         if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
             logger.info("sync_es_metadata: try to write to db,switch on,data->[%s],table_id->[%s]", es_info, table_id)
-            models.ClusterInfo.objects.create(
+            es_cluster = models.ClusterInfo.objects.create(
                 bk_tenant_id=bk_tenant_id,
                 domain_name=current_es_info["host"],
                 port=current_es_info["port"],
@@ -265,7 +267,7 @@ def sync_vm_metadata(bk_tenant_id: str, vm_info: dict[str, dict[str, Any]]):
                     vm_result_table_id,
                     detail,
                 )
-                return
+                continue
 
         if vm_cluster and access_vm_record.vm_cluster_id != vm_cluster.cluster_id:
             logger.info(
