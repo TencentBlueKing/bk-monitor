@@ -54,7 +54,11 @@
 </template>
 
 <script setup lang="ts">
-  import { reactive, ref } from 'vue';
+  import { computed, reactive, ref } from 'vue';
+
+  import useStore from '@/hooks/use-store';
+
+  const store = useStore();
 
   const props = defineProps<{
     confirmHandler: (
@@ -66,6 +70,10 @@
     displayFields: any[];
   }>();
 
+  const defaultSortFields = computed(() =>
+    (store.state.indexFieldInfo?.default_sort_list ?? []).map(([field, order]) => [field, order ?? 'desc']),
+  );
+
   const formRef = ref(null);
   const popoverRef = ref(null);
   const formModel = reactive({ editStr: '' });
@@ -76,8 +84,9 @@
   const handleConfirm = async () => {
     await formRef.value.validate();
 
+    const sortList = props.sortList?.length ? props.sortList : defaultSortFields.value;
     await props.confirmHandler(
-      { editStr: formModel.editStr, display_fields: props.displayFields, sort_list: props.sortList },
+      { editStr: formModel.editStr, display_fields: props.displayFields, sort_list: sortList },
       true,
       '模板保存成功，请在字段模板中查看。',
     );

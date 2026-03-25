@@ -1702,7 +1702,14 @@ APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 # 事件 UnifyQuery 查询业务黑名单
 EVENT_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
-# 日志 UnifyQuery 查询业务白名单
+# 日志 UnifyQuery 查询业务白名单（环境变量，逗号分隔业务 ID，优先级高于 DB 配置）
+_log_uq_white_biz_env = os.getenv("LOG_UNIFY_QUERY_WHITE_BIZ_LIST", "")
+LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV = (
+    [int(biz_id.strip()) for biz_id in _log_uq_white_biz_env.split(",") if biz_id.strip()]
+    if _log_uq_white_biz_env
+    else []
+)
+# 日志 UnifyQuery 查询业务白名单（DB 动态配置）
 LOG_UNIFY_QUERY_WHITE_BIZ_LIST = []
 
 # APM 调用分析启用全局指标的应用列表
@@ -1716,6 +1723,9 @@ WECOM_LAYOUTS_BIZ_LIST = []
 
 # 允许 APM 配置指标分组维度的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
 APM_METRIC_GROUP_DIMENSIONS_WHITELIST = []
+
+# APM 自定义指标 V2 开启的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+APM_CUSTOM_METRIC_V2_ENABLED_LIST = []
 
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"

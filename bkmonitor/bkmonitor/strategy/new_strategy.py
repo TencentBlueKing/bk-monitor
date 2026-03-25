@@ -1658,6 +1658,74 @@ class Item(AbstractConfig):
         return records
 
 
+class IssueConfig:
+    """Issues 聚合配置，挂在 Strategy 对象上，与 ActionRelation 并列。
+
+    生命周期完全由 Strategy.save() / Strategy.delete() 驱动，
+    不应通过 StrategyIssueConfigService.save() 对外操作。
+    """
+
+    class Serializer(serializers.Serializer):
+        is_enabled = serializers.BooleanField(default=True)
+        aggregate_dimensions = serializers.ListField(child=serializers.CharField(), default=list)
+        conditions = serializers.ListField(default=list)
+        alert_levels = serializers.ListField(child=serializers.IntegerField(), default=list)
+
+    def __init__(self, strategy_id: int = 0, bk_biz_id: int = 0, **kwargs):
+        self.strategy_id = strategy_id
+        self.bk_biz_id = bk_biz_id
+        self.is_enabled = kwargs.get("is_enabled", True)
+        self.aggregate_dimensions = kwargs.get("aggregate_dimensions", [])
+        self.conditions = kwargs.get("conditions", [])
+        self.alert_levels = kwargs.get("alert_levels", [])
+
+    @classmethod
+    def from_model(cls, config_model) -> "IssueConfig":
+        return cls(
+            strategy_id=config_model.strategy_id,
+            bk_biz_id=config_model.bk_biz_id,
+            is_enabled=config_model.is_enabled,
+            aggregate_dimensions=config_model.aggregate_dimensions,
+            conditions=config_model.conditions,
+            alert_levels=config_model.alert_levels,
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "is_enabled": self.is_enabled,
+            "aggregate_dimensions": self.aggregate_dimensions,
+            "conditions": self.conditions,
+            "alert_levels": self.alert_levels,
+        }
+
+    def save(self, strategy_id: int, bk_biz_id: int):
+        """创建或更新 StrategyIssueConfig，由 Strategy.save_issue_config() 调用。"""
+        from bkmonitor.models.issue import StrategyIssueConfig
+
+        defaults = {
+            "bk_biz_id": bk_biz_id,
+            "is_enabled": self.is_enabled,
+            "aggregate_dimensions": self.aggregate_dimensions,
+            "conditions": self.conditions,
+            "alert_levels": self.alert_levels,
+        }
+        # full_clean(validate_unique=False) 触发 StrategyIssueConfig.clean()，
+        # 兜底校验 alert_levels 等字段级约束，防 clean() 将来新增规则时再次漏掉。
+        temp = StrategyIssueConfig(strategy_id=strategy_id, **defaults)
+        temp.full_clean(validate_unique=False)
+
+        StrategyIssueConfig.objects.update_or_create(
+            strategy_id=strategy_id,
+            defaults=defaults,
+        )
+
+    @staticmethod
+    def delete(strategy_id: int):
+        from bkmonitor.models.issue import StrategyIssueConfig
+
+        StrategyIssueConfig.objects.filter(strategy_id=strategy_id).delete()
+
+
 class Strategy(AbstractConfig):
     """
     策略 数据结构
@@ -1695,6 +1763,8 @@ class Strategy(AbstractConfig):
         priority = serializers.IntegerField(min_value=0, required=False, default=None, max_value=10000, allow_null=True)
         priority_group_key = serializers.CharField(allow_blank=True, default="", max_length=60)
         metric_type = serializers.CharField(allow_blank=True, default="")
+        # required=False + 无 default：字段缺失时不写入 validated_data，与显式 null 天然区分
+        issue_config = IssueConfig.Serializer(required=False, allow_null=True)
 
         def validate_priority_group_key(self, value):
             if value.startswith(CUSTOM_PRIORITY_GROUP_PREFIX):
@@ -1734,6 +1804,7 @@ class Strategy(AbstractConfig):
         priority_group_key: str = None,
         metric_type: str = "",
         instance: StrategyModel = None,
+        issue_config: dict | None = None,
         **kwargs,
     ):
         """
@@ -1765,6 +1836,10 @@ class Strategy(AbstractConfig):
         self.priority = priority
         self.priority_group_key = priority_group_key or ""
         self.instance = instance
+        # issue_config 由 from_models() 或 perform_request() 通过 _issue_config_in_request 标志写入；
+        # __init__ 阶段仅做结构初始化，不触发 save。
+        self.issue_config: IssueConfig | None = IssueConfig(**issue_config) if issue_config else None
+        self._issue_config_in_request: bool = False
 
         if isinstance(self.update_time, int | str):
             self.update_time = arrow.get(update_time).datetime
@@ -1843,6 +1918,7 @@ class Strategy(AbstractConfig):
         }
 
         config["metric_type"] = config["items"][0]["metric_type"] if config["items"] else ""
+        config["issue_config"] = self.issue_config.to_dict() if self.issue_config else None
 
         for item in config["items"]:
             if item["expression"]:
@@ -2321,6 +2397,17 @@ class Strategy(AbstractConfig):
             StrategyLabel(label_name=label, strategy_id=self.id, bk_biz_id=self.bk_biz_id) for label in self.labels
         )
 
+    def save_issue_config(self):
+        """持久化 issue_config。仅当 _issue_config_in_request=True 时调用。
+
+        - issue_config 非 None：upsert StrategyIssueConfig
+        - issue_config 为 None（显式传 null）：删除已有 StrategyIssueConfig（关闭 Issues 功能）
+        """
+        if self.issue_config is not None:
+            self.issue_config.save(self.id, self.bk_biz_id)
+        else:
+            IssueConfig.delete(self.id)
+
     @transaction.atomic
     def save_actions(self):
         """保存actions配置."""
@@ -2441,6 +2528,10 @@ class Strategy(AbstractConfig):
 
             # 保存策略标签
             self.save_labels()
+
+            # 保存 issue_config（仅当请求体中携带该字段时执行）
+            if self._issue_config_in_request:
+                self.save_issue_config()
 
             if history and history.strategy_id == 0:
                 history.strategy_id = self.id
@@ -2738,6 +2829,7 @@ class Strategy(AbstractConfig):
         AlgorithmModel.objects.filter(strategy_id=self.id).delete()
         QueryConfigModel.objects.filter(strategy_id=self.id).delete()
         StrategyLabel.objects.filter(strategy_id=self.id).delete()
+        IssueConfig.delete(self.id)
 
     @classmethod
     def delete_by_strategy_ids(cls, strategy_ids: list[int]):
@@ -2870,6 +2962,17 @@ class Strategy(AbstractConfig):
                 record.notice = NoticeRelation(strategy_id=strategy.id)
 
             records.append(record)
+
+        # 批量加载 StrategyIssueConfig（避免 N+1）
+        from bkmonitor.models.issue import StrategyIssueConfig
+
+        if len(strategy_ids) > 500:
+            issue_config_query = StrategyIssueConfig.objects.all()
+        else:
+            issue_config_query = StrategyIssueConfig.objects.filter(strategy_id__in=strategy_ids)
+        issue_configs: dict[int, IssueConfig] = {c.strategy_id: IssueConfig.from_model(c) for c in issue_config_query}
+        for record in records:
+            record.issue_config = issue_configs.get(record.id)
 
         return records
 

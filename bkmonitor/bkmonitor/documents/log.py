@@ -58,6 +58,9 @@ class AlertLog(BaseDocument):
         # 告警QOS
         ALERT_QOS = "ALERT_QOS"
 
+        # 用户操作（虚拟类型，用于过滤，不实际存储）
+        USER_ACTION = "USER_ACTION"
+
     # 流水记录必须字段
     alert_id = field.Keyword()
     create_time = Date(format=BaseDocument.DATE_FORMAT)

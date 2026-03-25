@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import html
 import json
 import logging
 import re
@@ -1643,18 +1644,22 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
             return False
         return bk_biz_id not in black_list and str(bk_biz_id) not in black_list
 
+    def _get_unify_query_string(self) -> str:
+        return self.query_string or "*"
+
     def to_unify_query_config(self) -> list[dict]:
         group_by: list[str] = self._get_group_by()
         base_query: dict[str, Any] = {
             "driver": "influxdb",
-            # UnifyQuery 数据源字段，目前没有 custom 来表示自定义事件，故统一用 bkapm 代表监控侧的数据源（事件、Trace）。
-            "data_source": "bkapm",
+            # UnifyQuery 数据源字段，目前没有 custom 来表示自定义事件，故统一用：
+            # bkapm 代表监控侧的数据源（事件、Trace），bklog 代表日志数据源。
+            "data_source": self._get_datasource(),
             "table_id": self._get_unify_query_table(),
             "reference_name": "",
             "field_name": "",
             "time_field": self.time_field,
             "dimensions": group_by,
-            "query_string": self.query_string or "*",
+            "query_string": self._get_unify_query_string(),
             "conditions": self._get_conditions(),
             "function": [],
             "time_aggregation": {},
@@ -2065,6 +2070,12 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
     EXTRA_DISTINCT_FIELD = None
     EXTRA_AGG_DIMENSIONS = []
 
+    WILDCARD_PATTERN: str = "*"
+    QUERY_SPECIAL_REGEX = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT")
+
+    # 用于灰度对账的临时白名单列表（类成员变量），对账完成后会清空此列表以恢复正常逻辑。
+    LOG_UNIFY_QUERY_WHITE_BIZ_LIST: list[int] | None = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -2083,7 +2094,21 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
 
     @classmethod
     def _fetch_white_list(cls) -> list[str | int]:
-        return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
+        # 仅用于命令行对账，线上环境恒定为 None。
+        if cls.LOG_UNIFY_QUERY_WHITE_BIZ_LIST is not None:
+            return cls.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
+
+        return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV
+
+    def _get_unify_query_string(self) -> str:
+        # 背景：没有切换 UnifyQuery 的场景直调日志平台 API，此处对其日志平台对 query_string 的处理逻辑。
+        # Ref：https://github.com/TencentBlueKing/bk-monitor/blob/master/bklog/apps/log_esquery/esquery/builder/query_string_builder.py#L46
+        query_string: str = html.unescape(self.query_string) if self.query_string else ""
+        if query_string.strip() == "":
+            return self.WILDCARD_PATTERN
+        if self.QUERY_SPECIAL_REGEX.search(query_string):
+            return query_string
+        return f"{self.WILDCARD_PATTERN}{query_string}{self.WILDCARD_PATTERN}"
 
     def switch_unify_query(self, bk_biz_id: int):
         # 如果数据源在 UnifyQueryDataSources 列表中，则使用 unify-query 查询
@@ -2203,7 +2228,8 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
             kwargs.pop("limit")
 
         if isinstance(dimension_field, list):
-            assert len(dimension_field) > 0, _("维度查询参数，维度字段是必须的")
+            if not dimension_field:
+                raise ValueError(_("维度查询参数，维度字段是必须的"))
             dimension_field = dimension_field[0]
 
         return super().query_dimensions(dimension_field, start_time, end_time, *args, **kwargs)[:limit]

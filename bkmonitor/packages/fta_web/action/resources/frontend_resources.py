@@ -17,6 +17,7 @@ from django.conf import settings
 from django.template import TemplateDoesNotExist
 from django.utils import translation
 from django.utils.translation import gettext as _
+from rest_framework.exceptions import PermissionDenied
 
 from api.monitor.default import (
     BatchCreateActionBackendResource,
@@ -32,7 +33,7 @@ from bkmonitor.documents.action import ActionInstanceDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models import GlobalConfig
 from bkmonitor.models.fta import ActionConfig, ActionInstance, ActionPlugin
-from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.template import AlarmNoticeTemplate, NoticeRowRenderer
 from bkmonitor.utils.user import get_user_display_name
 from bkmonitor.views import serializers
@@ -46,7 +47,7 @@ from constants.action import (
     ChatMessageType,
     ConvergeFunction,
 )
-from core.drf_resource import Resource, api
+from core.drf_resource import Resource, api, resource
 from fta_web.action.tasks import notify_to_appointee, scheduled_register_bk_plugin
 from fta_web.action.utils import parse_bk_plugin_deployed_info
 
@@ -640,6 +641,7 @@ class AssignAlertResource(Resource):
                 time=current_time,
                 create_time=current_time,
                 event_id=current_time,
+                operator=operator,
             )
         )
         alerts = AlertDocument.mget(alert_ids)
@@ -750,16 +752,48 @@ class CreateDemoActionResource(Resource):
     def perform_request(self, validated_request_data):
         action_config = validated_request_data
         action_plugin = ActionPluginSlz(instance=ActionPlugin.objects.get(id=validated_request_data["plugin_id"])).data
+
+        # 支持传入 alert_id，关联真实告警
+        alert_id = validated_request_data.get("alert_id")
+        alerts = [alert_id] if alert_id else []
+
         demo_action = ActionInstance.objects.create(
             signal="demo",
             strategy_id=0,
             alert_level=1,
+            alerts=alerts,
             action_config=action_config,
             action_plugin=action_plugin,
             bk_biz_id=action_config["bk_biz_id"],
             assignee=[get_request_username()],
         )
         return {"action_id": demo_action.id}
+
+
+class PreviewDemoActionContextResource(Resource):
+    """
+    基于真实告警预览套餐变量渲染
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        alert_id = serializers.CharField(required=True, label="告警ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        variables = serializers.DictField(required=True, label="待渲染的变量字典")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+
+        # 业务权限认证，参考 BaseBizQueryHandler.parse_biz_item
+        req = get_request(peaceful=True)
+        if req is None:
+            raise PermissionDenied(_("获取用户信息失败，无法进行权限校验"))
+        authorized_bizs = resource.space.get_bk_biz_ids_by_user(req.user)
+        if bk_biz_id not in authorized_bizs:
+            raise PermissionDenied(_("当前用户无该业务({})的访问权限").format(bk_biz_id))
+
+        result = api.monitor.get_demo_action_context_backend(**validated_request_data)
+
+        return result
 
 
 class GetDemoActionDetailResource(Resource):

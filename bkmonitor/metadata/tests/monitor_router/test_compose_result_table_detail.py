@@ -26,6 +26,7 @@ def create_or_delete_records(mocker):
         table_id="1001_bklog.stdout",
         table_name_zh="stdout",
         data_label="bklog_index_set_1001",
+        labels={"scene": "log"},
         is_custom_table=False,
     )
 
@@ -38,6 +39,7 @@ def create_or_delete_records(mocker):
         table_id="1001_bklog.stdout_fake",
         table_name_zh="stdout",
         data_label="bklog_index_set_1001",
+        labels={"scene": "log-fake"},
         is_custom_table=False,
     )
 
@@ -134,6 +136,7 @@ def test_compose_es_table_detail(create_or_delete_records):
                 {"enable_time": 1575244800, "storage_id": 11},
             ],
             "data_label": "bklog_index_set_1001",
+            "labels": {"scene": "log"},
             "field_alias": {
                 "pod_name": "__ext.pod_name",
                 "pod_ip": "__ext.pod_ip",
@@ -167,6 +170,7 @@ def test_compose_es_table_detail_for_fake_rt(create_or_delete_records):
                 {"enable_time": 1575244800, "storage_id": 11},
             ],
             "data_label": "bklog_index_set_1001",
+            "labels": {"scene": "log-fake"},
             "field_alias": {
                 "pod_name": "__ext.pod_name",
                 "pod_ip": "__ext.pod_ip",

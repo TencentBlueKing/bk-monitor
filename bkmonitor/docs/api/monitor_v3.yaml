@@ -1562,12 +1562,34 @@
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
+  dest_path: /api/v3/meta/bulk_create_result_table_snapshot/
+  is_hidden: true
+  label: 批量创建结果表快照配置
+  label_en: bulk create result table snapshot
+  name: bulk_create_result_table_snapshot
+  path: /v2/monitor_v3/metadata_bulk_create_result_table_snapshot/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
   dest_path: /api/v3/meta/modify_result_table_snapshot/
   is_hidden: true
   label: 修改结果表快照配置
   label_en: modify result table snapshot
   name: modify_result_table_snapshot
   path: /v2/monitor_v3/metadata_modify_result_table_snapshot/
+  method: POST
+  
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/meta/bulk_modify_result_table_snapshot/
+  is_hidden: true
+  label: 批量修改结果表快照配置
+  label_en: bulk modify result table snapshot
+  name: bulk_modify_result_table_snapshot
+  path: /v2/monitor_v3/metadata_bulk_modify_result_table_snapshot/
   method: POST
 
 - api_type: operate
