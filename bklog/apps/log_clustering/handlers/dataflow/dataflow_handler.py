@@ -1062,38 +1062,6 @@ class DataFlowHandler(BaseAiopsHandler):
                 flow_id=node["flow_id"], node_id=node["node_id"], sql=target_node["sql"], bk_biz_id=bk_biz_id
             )
 
-        target_es_storage_node_dict, source_es_storage_node_dict = self.get_elasticsearch_storage_nodes(
-            flow=flow, nodes=nodes
-        )
-        for result_table_id, node in source_es_storage_node_dict.items():
-            target_node = target_es_storage_node_dict.get(result_table_id)
-            if not target_node:
-                logger.error("could not find target es storage node --> [result_table_id]: %s", result_table_id)
-                continue
-            self.deal_elastic_storage_node(
-                flow_id=node["flow_id"],
-                node_id=node["node_id"],
-                analyzed_fields=target_node["analyzed_fields"],
-                date_fields=target_node["date_fields"],
-                doc_values_fields=target_node["doc_values_fields"],
-                json_fields=target_node["json_fields"],
-                bk_biz_id=bk_biz_id,
-            )
-
-        target_doris_storage_node_dict, source_doris_storage_node_dict = self.get_doris_storage_nodes(
-            flow=flow, nodes=nodes
-        )
-        for result_table_id, node in source_doris_storage_node_dict.items():
-            target_node = target_doris_storage_node_dict.get(result_table_id)
-            if not target_node:
-                logger.error("could not find target doris storage node --> [result_table_id]: %s", result_table_id)
-                continue
-            self.deal_doris_storage_node(
-                flow_id=node["flow_id"],
-                node_id=node["node_id"],
-                custom_param_config=target_node["custom_param_config"],
-                bk_biz_id=bk_biz_id,
-            )
         return
 
     def deal_pre_treat_flow(self, nodes, flow, bk_biz_id):
@@ -1148,25 +1116,6 @@ class DataFlowHandler(BaseAiopsHandler):
         }
         return target_es_storage_node_dict, source_es_storage_node_dict
 
-    @classmethod
-    def get_doris_storage_nodes(cls, flow, nodes):
-        """
-        get_doris_storage_nodes
-        @param flow:
-        @param nodes:
-        @return:
-        """
-        target_doris_storage_node_dict = {
-            node["result_table_id"]: node for node in flow if node["node_type"] == NodeType.DORIS_STORAGE
-        }
-        source_doris_storage_node_dict = {
-            node["node_config"]["result_table_id"]: node
-            for node in nodes
-            if node["node_type"] == NodeType.DORIS_STORAGE
-        }
-        return target_doris_storage_node_dict, source_doris_storage_node_dict
-
-    @classmethod
     def get_model_node(cls, flow, nodes):
         """
         get_model_node
@@ -1309,14 +1258,6 @@ class DataFlowHandler(BaseAiopsHandler):
                 "doc_values_fields": doc_values_fields,
                 "json_fields": json_fields,
             },
-            flow_id=flow_id,
-            node_id=node_id,
-            bk_biz_id=bk_biz_id,
-        )
-
-    def deal_doris_storage_node(self, flow_id, node_id, custom_param_config, bk_biz_id):
-        return self.update_flow_nodes(
-            config={"custom_param_config": custom_param_config},
             flow_id=flow_id,
             node_id=node_id,
             bk_biz_id=bk_biz_id,
