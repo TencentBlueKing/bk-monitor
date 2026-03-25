@@ -49,6 +49,9 @@ def refresh_entity_definition_to_redis():
         channel = f"{redis_key}{ENTITY_REDIS_CHANNEL_SUFFIX}"
 
         try:
+            # 获取当前 Redis 中的所有 field（用于后续清理 stale data）
+            redis_fields = set(RedisTools.hkeys(redis_key) or [])
+
             # 按 namespace 分组，全量重建每个 namespace 的缓存
             namespace_entities: dict[str, dict] = {}
             for entity in model_class.objects.all():
@@ -56,6 +59,19 @@ def refresh_entity_definition_to_redis():
                 if ns not in namespace_entities:
                     namespace_entities[ns] = {}
                 namespace_entities[ns][entity.name] = entity.to_redis_json()
+
+            # 计算需要保留的 namespace 集合
+            db_namespaces = set(namespace_entities.keys())
+
+            # 清理 stale fields：Redis 中存在但 DB 中已不存在的 namespace
+            stale_fields = redis_fields - db_namespaces
+            if stale_fields:
+                RedisTools.hdel(redis_key, list(stale_fields))
+                logger.info(
+                    "refresh_entity_definition_to_redis: cleaned stale fields for kind=%s, stale_fields=%s",
+                    kind,
+                    stale_fields,
+                )
 
             if not namespace_entities:
                 logger.info("refresh_entity_definition_to_redis: no entities found for kind=%s, skip", kind)

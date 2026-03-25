@@ -52,6 +52,12 @@ class EntityMeta(BaseModel):
     def __str__(self):
         return f"{self.namespace}/{self.name}"
 
+    def save(self, *args, **kwargs):
+        # 统一空 namespace 为 NAMESPACE_ALL，确保 DB 真值唯一
+        if not self.namespace:
+            self.namespace = NAMESPACE_ALL
+        super().save(*args, **kwargs)
+
     @classmethod
     def get_kind(cls) -> str:
         """
