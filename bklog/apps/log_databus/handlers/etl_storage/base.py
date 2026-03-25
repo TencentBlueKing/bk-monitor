@@ -138,7 +138,7 @@ class EtlStorage:
         lower_name = field_name.lower()
         if lower_name in V4_RESERVED_FIELD_NAMES:
             return True
-        if lower_name.startswith(V4_RESERVED_MINUTE_PATTERN) and lower_name[len(V4_RESERVED_MINUTE_PATTERN) :].isdigit():
+        if lower_name.startswith(V4_RESERVED_MINUTE_PATTERN) and lower_name[len(V4_RESERVED_MINUTE_PATTERN):].isdigit():
             return True
         return False
 
