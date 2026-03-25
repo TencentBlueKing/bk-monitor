@@ -30,10 +30,12 @@ import type { RequestOptions } from '../../services/base';
 import type { CommonFilterParams } from '../../typings';
 import type {
   AssignIssuesParams,
+  FollowUpIssuesParams,
   ImpactScope,
   IssueItem,
   IssuePriorityType,
   IssuesAssigneeDialogEvent,
+  IssuesFollowUpDialogEvent,
   IssuesOperationDialogEvent,
   IssuesPriorityDialogEvent,
   IssuesResolveDialogEvent,
@@ -121,6 +123,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
     return {
       set: {
         count: 3,
+        display_name: '集群',
         instance_list: [
           { set_id: '7001001', display_name: 'mock-project/bcs-demo-BCS-K8S-70001' },
           { set_id: '7001002', display_name: '示例平台/BCS-K8S-70002' },
@@ -130,6 +133,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
       },
       host: {
         count: 5,
+        display_name: '主机',
         instance_list: [
           { bk_host_id: 1000001, display_name: '192.168.10.11' },
           { bk_host_id: 1000002, display_name: '192.168.10.12' },
@@ -139,6 +143,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
       },
       service_instances: {
         count: 2,
+        display_name: '服务实例',
         instance_list: [
           { bk_service_instance_id: 2000001, display_name: '192.168.10.13_es-mock_datanode_9200' },
           { bk_service_instance_id: 2000002, display_name: '192.168.10.11_nginx_80' },
@@ -153,6 +158,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
     return {
       cluster: {
         count: 3,
+        display_name: 'bcs集群',
         instance_list: [
           { bcs_cluster_id: 'BCS-K8S-80001', display_name: 'MOCK-SZ-TEST-80001-INNER(BCS-K8S-80001)' },
           { bcs_cluster_id: 'BCS-K8S-80002', display_name: '模拟集群-业务测试-V1.26.1(BCS-K8S-80002)' },
@@ -168,6 +174,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
     return {
       node: {
         count: 2,
+        display_name: 'node',
         instance_list: [
           { bcs_cluster_id: 'BCS-K8S-80001', node: '192.168.10.11', display_name: 'BCS-K8S-80001/192.168.10.11' },
           { bcs_cluster_id: 'BCS-K8S-80001', node: '192.168.10.12', display_name: 'BCS-K8S-80001/192.168.10.12' },
@@ -177,6 +184,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
       },
       pod: {
         count: 3,
+        display_name: 'pod',
         instance_list: [
           {
             bcs_cluster_id: 'BCS-K8S-80001',
@@ -194,6 +202,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
       },
       service: {
         count: 1,
+        display_name: 'service',
         instance_list: [
           {
             bcs_cluster_id: 'BCS-K8S-80001',
@@ -211,6 +220,7 @@ const generateMockImpactScope = (index: number): ImpactScope => {
   return {
     [ImpactScopeResourceKeyEnum.APM_SERVICE]: {
       count: 2,
+      display_name: 'apm_service',
       instance_list: [
         {
           app_name: 'demo-app',
@@ -496,6 +506,55 @@ export const mockResolveIssues = async (
       resolved_time: issue.resolved_time,
       status: issue.status,
       update_time: issue.update_time,
+    });
+  }
+
+  // 模拟网络延迟
+  await new Promise(resolve => setTimeout(resolve, 400));
+
+  return { succeeded, failed };
+};
+
+/**
+ * @description 模拟添加跟进信息接口，为指定 Issue 生成跟进记录并返回操作结果
+ * @param {FollowUpIssuesParams} params - 添加跟进信息请求参数（issues / content）
+ * @param {RequestOptions} config - 请求配置选项
+ * @returns {Promise<IssuesOperationDialogEvent<'follow_up'>>} 包含 succeeded 和 failed 的操作结果
+ */
+export const mockFollowUpIssues = async (
+  params: FollowUpIssuesParams,
+  config?: RequestOptions
+): Promise<IssuesOperationDialogEvent<'follow_up'>> => {
+  config;
+  // 确保 mock 数据缓存已初始化
+  if (!mockDataCache) {
+    mockDataCache = generateMockIssues(128);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const succeeded: IssuesFollowUpDialogEvent[] = [];
+  const failed: { issue_id: string; message: string }[] = [];
+
+  for (const { issue_id: issueId } of params.issues) {
+    // 模拟随机失败（约 5% 概率）
+    if (Math.random() < 0.05) {
+      failed.push({ issue_id: issueId, message: '服务端繁忙，请稍后重试' });
+      continue;
+    }
+
+    const issue = mockDataCache.find(item => item.id === issueId);
+    if (!issue) {
+      failed.push({ issue_id: issueId, message: `Issue ${issueId} 不存在` });
+      continue;
+    }
+
+    succeeded.push({
+      activity_id: `activity-${issueId}-${now}`,
+      activity_type: 'comment',
+      content: params.content,
+      issue_id: issue.id,
+      operator: MOCK_USERS[Math.floor(Math.random() * MOCK_USERS.length)],
+      time: now,
     });
   }
 
