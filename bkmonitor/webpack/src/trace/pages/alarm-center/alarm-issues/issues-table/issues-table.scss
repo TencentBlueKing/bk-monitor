@@ -20,6 +20,11 @@
   .issues-table-main {
     flex-grow: 1;
     flex-basis: auto;
+
+    .t-table__th-cell-inner {
+      font-weight: 500;
+      color: #111214;
+    }
   }
 
   // ===================== Issues 名称列 =====================
