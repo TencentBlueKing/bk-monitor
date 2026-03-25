@@ -112,8 +112,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
 
   // 分组与指标平铺
   get flattenGroupAndMetricData() {
-    const result = [];
-    this.renderMetricGroupList.forEach(group => {
+    return this.renderMetricGroupList.reduce((result, group) => {
       // 1. 放入分组头
       result.push({
         scope_id: group.scope_id,
@@ -121,16 +120,17 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
       });
       // 2. 只有当该组处于展开状态时，才放入其下的指标
       if (this.groupExpandMap[group.name]) {
-        group.metrics.forEach(metric => {
-          result.push({
+        group.metrics.reduce((acc, metric) => {
+          acc.push({
             ...metric,
             scopeId: group.scope_id,
             scopeName: group.name,
           });
-        });
+          return acc;
+        }, result);
       }
-    });
-    return result;
+      return result;
+    }, []);
   }
 
   @Watch('searchKey', { immediate: true })
@@ -196,9 +196,24 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
       });
       return;
     }
-    const metric_ids = selectedMetricList.map(metric => metric.field_id);
+
+    // 将相同 scope_id 的指标分组
+    const scopeMetricsMap = selectedMetricList.reduce((map, metric) => {
+      const scopeId = metric.scope_id;
+      if (!map.has(scopeId)) {
+        map.set(scopeId, []);
+      }
+      map.get(scopeId)?.push(metric.field_id);
+      return map;
+    }, new Map<number | string, number[]>());
+
+    const scope_metrics = Array.from(scopeMetricsMap.entries()).map(([scopeId, metricIds]) => ({
+      scope_id: scopeId,
+      metric_ids: metricIds,
+    }));
+
     const aggInfoParams = {
-      metric_ids,
+      scope_metrics,
     };
 
     if (this.isApm && this.appName && this.serviceName) {

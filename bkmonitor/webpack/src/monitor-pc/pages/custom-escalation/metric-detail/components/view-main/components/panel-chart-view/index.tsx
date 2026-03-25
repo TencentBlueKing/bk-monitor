@@ -197,10 +197,10 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
   }
 
   @Watch('loading')
-  loadingChange(n) {
-    if (!n && this.panelChartViewRef) {
-      this.panelChartViewRef.removeEventListener('scroll', this.handleScroll);
-      this.panelChartViewRef.addEventListener('scroll', this.handleScroll);
+  loadingChange(newVal) {
+    if (!newVal && this.panelChartViewRef) {
+      this.panelChartViewRef.removeEventListener('scroll', this.handleScroll, { passive: true });
+      this.panelChartViewRef.addEventListener('scroll', this.handleScroll, { passive: true });
     }
   }
 

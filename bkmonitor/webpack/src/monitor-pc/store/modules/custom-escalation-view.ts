@@ -96,7 +96,10 @@ class CustomEscalationViewStore extends VuexModule {
       return map;
     }, {});
 
-    const result: (TCustomTsMetricGroups['metric_groups'][number]['metrics'][0] & { scope_name: string })[] = [];
+    const result: (TCustomTsMetricGroups['metric_groups'][number]['metrics'][0] & {
+      scope_id: number;
+      scope_name: string;
+    })[] = [];
     for (const groupItem of this.metricGroupList) {
       for (const metricsItem of groupItem.metrics) {
         const metricName = metricsItem.metric_name;
@@ -107,6 +110,7 @@ class CustomEscalationViewStore extends VuexModule {
           result.push({
             ...metricsItem,
             scope_name: groupItem.name, // 每个 metric 都附带其分组名称
+            scope_id: groupItem.scope_id,
           });
         }
       }
