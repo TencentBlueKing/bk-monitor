@@ -181,14 +181,16 @@ class UptimeCheckTaskListResource(Resource):
     many_response_data = True
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务id")
+        bk_biz_id = serializers.IntegerField(default=0, allow_null=True, label="业务id")
         task_data = serializers.ListField(required=True, label="拨测任务数据")
         get_available = serializers.BooleanField(default=False, label="获取可用率")
         get_task_duration = serializers.BooleanField(default=False, label="获取响应时间")
 
     ResponseSerializer = UptimeCheckTaskSerializer
 
-    def _get_groups_mapping(self, bk_tenant_id: str, bk_biz_id: int, group_ids: list[int]) -> dict[int, dict[str, Any]]:
+    def _get_groups_mapping(
+        self, bk_tenant_id: str, bk_biz_id: int | None, group_ids: list[int]
+    ) -> dict[int, dict[str, Any]]:
         """批量获取任务分组映射"""
         if not group_ids:
             return {}
@@ -212,7 +214,7 @@ class UptimeCheckTaskListResource(Resource):
             node_mapping[cast(int, node.id)] = node_config
         return node_mapping
 
-    def query_available_or_duration(self, metric, bk_biz_id, data_label, where, period, end_time, ret=None):
+    def query_available_or_duration(self, metric, bk_biz_id: int | None, data_label, where, period, end_time, ret=None):
         ret = ret or {}
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
         data_source = data_source_class(
@@ -246,7 +248,7 @@ class UptimeCheckTaskListResource(Resource):
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
         task_data: list[dict[str, Any]] = validated_request_data["task_data"]
-        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        bk_biz_id: int | None = validated_request_data["bk_biz_id"] or None
         bk_tenant_id = cast(str, get_request_tenant_id())
         query_group = {}
         task_data_mapping = {}
@@ -2111,9 +2113,9 @@ class UptimeCheckCardResource(Resource):
         task_data = serializers.ListField(required=True, label="拨测任务数据")
 
     def perform_request(self, validated_request_data: dict[str, Any]):
-        bk_biz_id = validated_request_data.get("bk_biz_id")
+        bk_biz_id: int | None = validated_request_data.get("bk_biz_id") or None
         bk_tenant_id = cast(str, get_request_tenant_id())
-        bk_biz_ids = [bk_biz_id]
+        bk_biz_ids = [bk_biz_id if bk_biz_id else 0]
         all_tasks_data: list[dict[str, Any]] = validated_request_data["task_data"]
 
         search_object = (
