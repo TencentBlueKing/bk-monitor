@@ -101,6 +101,12 @@ class BCSClusterInfo(models.Model):
     SystemLogDataID = models.IntegerField("系统日志data_id", default=0)
     CustomLogDataID = models.IntegerField("应用或自定义日志data_id", default=0)
     bk_env = models.CharField("配置来源标签", max_length=32, default="", null=True, blank=True)
+    operator_ns = models.CharField(
+        "operator 安装 namespace",
+        max_length=128,
+        default="bkmonitor-operator",
+        help_text="bkmonitor-operator-stack Helm Chart 的安装 namespace，每个 namespace 对应一套独立部署",
+    )
 
     # 创建及变更信息
     creator = models.CharField("创建者", max_length=32)
@@ -358,6 +364,95 @@ class BCSClusterInfo(models.Model):
                 if not is_equal_config(dataid_config, resource_items[datasource_name_lower]):
                     ensure_data_id_resource(api_client, datasource_name_lower, dataid_config)
                     logger.info("cluster->[%s] update resource->[%s]", self.cluster_id, dataid_config)
+
+        self._ensure_relation_dataid_resource(resource_items)
+
+    def _ensure_relation_dataid_resource(self, resource_items: dict | None = None):
+        """下发 relation DataID CRD，使 K8s relation 指标复用 cmdb relation DataID 管道。
+
+        通过在 operator_ns 内按名称后缀 -operator-relation 动态发现 ServiceMonitor，
+        精准匹配 DataID CRD 的 monitorResource，实现 /relation/metrics 数据路由切换。
+        调用方静默处理：DataSource 未就绪或 SM 未找到时跳过，下一个 refresh 周期自动重试。
+
+        :param resource_items: refresh_common_resource 已拉取的 CRD 快照（name → resource），
+                               用于跳过配置未变更的幂等调用；为 None 时退化为无条件下发。
+        """
+        biz_id = self.bk_biz_id
+
+        # 1. 查询 cmdb relation DataSource（由 sync_relation_redis_data 创建）
+        # data_name 格式：{biz_id}_{space_type}_built_in_time_series
+        # BCS 集群始终绑定 bkcc 类型 Space（space_uid = f"bkcc__{bk_biz_id}"），因此 space_type 固定为 bkcc
+        try:
+            ds = DataSource.objects.get(data_name=f"{biz_id}_bkcc_built_in_time_series")
+        except DataSource.DoesNotExist:
+            logger.info("cluster->[%s] relation DataSource not ready for biz_id=[%s], skip", self.cluster_id, biz_id)
+            return
+
+        # 2. 在 operator_ns 内发现 relation ServiceMonitor（约定后缀 -operator-relation）
+        try:
+            custom_client = k8s_client.CustomObjectsApi(self.api_client)
+            sm_list = custom_client.list_namespaced_custom_object(
+                group="monitoring.coreos.com",
+                version="v1",
+                plural="servicemonitors",
+                namespace=self.operator_ns,
+            )
+        except Exception as e:
+            logger.warning(
+                "cluster->[%s] list ServiceMonitors in ns=[%s] failed: %s", self.cluster_id, self.operator_ns, e
+            )
+            return
+
+        relation_sms = [sm for sm in sm_list.get("items", []) if sm["metadata"]["name"].endswith("-operator-relation")]
+        if not relation_sms:
+            logger.info(
+                "cluster->[%s] relation SM not found in ns=[%s], skip (helm not deployed or enableRelationMonitor=false)",
+                self.cluster_id,
+                self.operator_ns,
+            )
+            return
+
+        sm_name = relation_sms[0]["metadata"]["name"]
+
+        # 3. 组装并下发 relation DataID CRD（幂等）
+        # CRD name：{bk_env_label}-relationdataid，命名规范与 k8smetricdataid/custommetricdataid 一致
+        crd_name = self.compose_dataid_resource_name("relationdataid")
+        # metadata.labels：usage=metric → operator updateMetricDataID → step 1 精准匹配 monitorResource
+        labels = self.compose_dataid_resource_label({"usage": "metric"})
+        dataid_config = {
+            "apiVersion": f"{config.BCS_RESOURCE_GROUP_NAME}/{config.BCS_RESOURCE_VERSION}",
+            "kind": config.BCS_RESOURCE_DATA_ID_RESOURCE_KIND,
+            "metadata": {
+                "name": crd_name,
+                "labels": labels,
+            },
+            "spec": {
+                "dataID": ds.bk_data_id,
+                "monitorResource": {
+                    "kind": "ServiceMonitor",
+                    "namespace": self.operator_ns,
+                    "name": sm_name,
+                },
+                "labels": {
+                    "bk_biz_id": str(biz_id),
+                    "bcs_cluster_id": self.cluster_id,
+                },
+            },
+        }
+        # 与 refresh_common_resource 普通路径保持一致：CRD 已存在且配置相同则跳过，避免无意义 replace
+        if resource_items is not None and crd_name in resource_items:
+            if is_equal_config(dataid_config, resource_items[crd_name]):
+                logger.debug("cluster->[%s] relation DataID CRD [%s] unchanged, skip update", self.cluster_id, crd_name)
+                return
+
+        ensure_data_id_resource(self.api_client, crd_name, dataid_config)
+        logger.info(
+            "cluster->[%s] ensure relation DataID CRD done, sm=[%s/%s] dataid=[%s]",
+            self.cluster_id,
+            self.operator_ns,
+            sm_name,
+            ds.bk_data_id,
+        )
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def refresh_cluster_bcs_info(

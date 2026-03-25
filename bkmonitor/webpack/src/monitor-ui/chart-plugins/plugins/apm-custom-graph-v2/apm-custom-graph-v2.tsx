@@ -83,6 +83,7 @@ export default class ApmViewContent extends tsc<any, any> {
       return {
         name: item.metric_name,
         scope_name: item.scope_name,
+        field_scope: item.field_scope,
       };
     });
   }

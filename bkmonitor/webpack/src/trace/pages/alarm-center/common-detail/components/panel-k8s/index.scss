@@ -88,9 +88,16 @@
 
     .ai-hight-card-wrap {
       margin-top: 12px;
+
+      .ai-content-wrap {
+        .title {
+          font-weight: 600;
+        }
+      }
     }
 
     .k8s-scene-selector-wrap {
+      min-height: 32px;
       margin-top: 12px;
     }
   }

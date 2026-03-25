@@ -21,6 +21,7 @@ from django.conf import settings
 from django.db import models
 from django.db import utils as django_db_utils
 from django.db.transaction import atomic
+from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.timezone import make_aware
 from django.utils.timezone import now as tz_now
@@ -723,7 +724,6 @@ class TimeSeriesGroup(CustomGroupBase):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
-        metric_group_dimensions: list | None = None,
     ):
         """
         创建一个新的自定义分组记录
@@ -740,7 +740,6 @@ class TimeSeriesGroup(CustomGroupBase):
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
-        :param metric_group_dimensions: 分组维度信息
         :return: group object
         """
 
@@ -758,7 +757,6 @@ class TimeSeriesGroup(CustomGroupBase):
             additional_options=additional_options,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
-            metric_group_dimensions=metric_group_dimensions,
         )
 
         # 需要刷新一次外部依赖的consul，触发transfer更新
@@ -771,19 +769,14 @@ class TimeSeriesGroup(CustomGroupBase):
     @classmethod
     def _post_process_create(cls, custom_group, kwargs):
         """后处理创建"""
-        metric_group_dimensions = kwargs.get("metric_group_dimensions")
-        if metric_group_dimensions:
-            custom_group.metric_group_dimensions = metric_group_dimensions
-            custom_group.save()
-        else:
-            # 如果不存在 metric_group_dimensions，则创建默认的 scope 记录
-            TimeSeriesScope.objects.create(
-                group_id=custom_group.time_series_group_id,
-                scope_name=TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME,
-                dimension_config={},
-                auto_rules=[],
-                create_from=TimeSeriesScope.CREATE_FROM_DEFAULT,
-            )
+        # 创建默认的 scope 记录
+        TimeSeriesScope.objects.create(
+            group_id=custom_group.time_series_group_id,
+            scope_name=TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME,
+            dimension_config={},
+            auto_rules=[],
+            create_from=TimeSeriesScope.CREATE_FROM_DEFAULT,
+        )
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def modify_time_series_group(
@@ -1132,9 +1125,9 @@ class TimeSeriesScope(models.Model):
     scope_name = models.CharField(verbose_name="指标分组名", max_length=255, db_collation="utf8_bin")
 
     # 维度字段配置，可配置的选项，需要在 DimensionConfigFields 中定义
-    dimension_config = models.JSONField(verbose_name="分组下的维度配置", default={})
+    dimension_config = models.JSONField(verbose_name="分组下的维度配置", default=dict)
 
-    auto_rules = models.JSONField("自动分组的匹配规则列表", default=[])
+    auto_rules = models.JSONField("自动分组的匹配规则列表", default=list)
 
     # 创建来源：data-数据自动创建，user-用户手动创建
     create_from = models.CharField(
@@ -2064,7 +2057,10 @@ class TimeSeriesMetric(models.Model):
         if inactive_metrics:
             # 批量更新不在返回列表中的指标为非活跃状态
             field_ids = [old_metric_to_ids.get(k) for k in inactive_metrics]
-            cls.objects.filter(group_id=group_id, field_id__in=field_ids, is_active=True).update(is_active=False)
+            cls.objects.filter(group_id=group_id, field_id__in=field_ids, is_active=True).update(
+                is_active=False,
+                last_modify_time=timezone.now(),  # 如果将指标置为不活跃，把最后修改时间置为当前时间。提供给刷新路由的逻辑做判断
+            )
             logger.info(
                 "bulk_refresh_ts_metrics: set inactive metrics for group_id->[%s], metrics->[%s]",
                 group_id,

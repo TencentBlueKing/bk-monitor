@@ -380,7 +380,7 @@ class GetUptimeCheckVarListResource(ApiAuthResource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.CharField(required=True, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         var_type = serializers.ChoiceField(choices=("location", "carrieroperator", "node", "ip_type"))
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> Any:

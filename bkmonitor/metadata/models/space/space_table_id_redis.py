@@ -19,7 +19,7 @@ from django.utils.timezone import now as tz_now
 
 from constants.common import DEFAULT_TENANT_ID
 from metadata import models
-from metadata.models.constants import DEFAULT_MEASUREMENT
+from metadata.models.constants import DEFAULT_MEASUREMENT, DataIdCreatedFromSystem
 from metadata.models.space import utils
 from metadata.models.space.constants import (
     ALL_SPACE_TYPE_TABLE_ID_LIST,
@@ -1500,7 +1500,77 @@ class SpaceTableIDRedis:
 
         return table_ids
 
-    def _filter_ts_info(self, table_ids: set) -> dict:
+    def _get_ts_metric_group_ids_by_datalink_version(
+        self, table_id_ts_group_id: dict[str, int], bk_tenant_id: str = DEFAULT_TENANT_ID
+    ) -> tuple[set[int], set[int]]:
+        """根据结果表所属数据链路版本拆分时序分组 ID"""
+        if not table_id_ts_group_id:
+            return set(), set()
+
+        table_id_data_id = {
+            data["table_id"]: data["bk_data_id"]
+            for data in filter_model_by_in_page(
+                model=models.DataSourceResultTable,
+                field_op="table_id__in",
+                filter_data=list(table_id_ts_group_id.keys()),
+                value_func="values",
+                value_field_list=["table_id", "bk_data_id"],
+                other_filter={"bk_tenant_id": bk_tenant_id},
+            )
+        }
+
+        if not table_id_data_id:
+            return set(table_id_ts_group_id.values()), set()
+
+        v4_data_ids = set(
+            filter_model_by_in_page(
+                model=models.DataSource,
+                field_op="bk_data_id__in",
+                filter_data=set(table_id_data_id.values()),
+                value_func="values_list",
+                value_field_list=["bk_data_id"],
+                other_filter={
+                    "bk_tenant_id": bk_tenant_id,
+                    "created_from": DataIdCreatedFromSystem.BKDATA.value,
+                },
+            )
+        )
+        v4_group_ids = {
+            group_id
+            for table_id, group_id in table_id_ts_group_id.items()
+            if table_id_data_id.get(table_id) in v4_data_ids
+        }
+        v3_group_ids = set(table_id_ts_group_id.values()) - v4_group_ids
+        return v3_group_ids, v4_group_ids
+
+    def _filter_v4_ts_metric_fields(self, group_ids: set[int], begin_time: datetime.datetime) -> list[dict]:
+        """V4 链路下，指标满足活跃或近期更新任一条件即可"""
+        if not group_ids:
+            return []
+
+        active_fields = filter_model_by_in_page(
+            model=models.TimeSeriesMetric,
+            field_op="group_id__in",
+            filter_data=group_ids,
+            value_func="values",
+            value_field_list=["field_name", "group_id"],
+            other_filter={"is_active": True},
+        )
+        recent_fields = filter_model_by_in_page(
+            model=models.TimeSeriesMetric,
+            field_op="group_id__in",
+            filter_data=group_ids,
+            value_func="values",
+            value_field_list=["field_name", "group_id"],
+            other_filter={"last_modify_time__gte": begin_time},
+        )
+        return list(
+            {
+                (data["group_id"], data["field_name"]): data for data in itertools.chain(active_fields, recent_fields)
+            }.values()
+        )
+
+    def _filter_ts_info(self, table_ids: set, bk_tenant_id: str = DEFAULT_TENANT_ID) -> dict:
         """根据结果表获取对应的时序数据"""
         if not table_ids:
             return {}
@@ -1520,23 +1590,38 @@ class SpaceTableIDRedis:
         # 否则使用过期时间过滤（时间在`TIME_SERIES_METRIC_EXPIRED_SECONDS`的为有效数据）
         _filter_group_id_list = list(table_id_ts_group_id.values())
 
-        # 根据特性开关决定使用哪种过滤方式
-        if settings.ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE:
-            # 使用 is_active 字段过滤，只获取活跃的指标
-            other_filter = {"is_active": True}
-        else:
-            # 使用过期时间过滤（原有逻辑）
-            begin_time = tz_now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
-            other_filter = {"last_modify_time__gte": begin_time}
+        begin_time = tz_now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
 
-        ts_group_fields = filter_model_by_in_page(
-            model=models.TimeSeriesMetric,
-            field_op="group_id__in",
-            filter_data=_filter_group_id_list,
-            value_func="values",
-            value_field_list=["field_name", "group_id"],
-            other_filter=other_filter,
-        )
+        if settings.ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE:
+            # V4 链路满足 is_active 或近期更新任一条件即可，V3/兜底场景仍只使用过期时间过滤
+            v3_group_ids, v4_group_ids = self._get_ts_metric_group_ids_by_datalink_version(
+                table_id_ts_group_id=table_id_ts_group_id,
+                bk_tenant_id=bk_tenant_id,
+            )
+            ts_group_fields = []
+            if v4_group_ids:
+                ts_group_fields.extend(self._filter_v4_ts_metric_fields(group_ids=v4_group_ids, begin_time=begin_time))
+            if v3_group_ids:
+                ts_group_fields.extend(
+                    filter_model_by_in_page(
+                        model=models.TimeSeriesMetric,
+                        field_op="group_id__in",
+                        filter_data=v3_group_ids,
+                        value_func="values",
+                        value_field_list=["field_name", "group_id"],
+                        other_filter={"last_modify_time__gte": begin_time},
+                    )
+                )
+        else:
+            # 关闭开关时保持原有逻辑，仅使用过期时间过滤
+            ts_group_fields = filter_model_by_in_page(
+                model=models.TimeSeriesMetric,
+                field_op="group_id__in",
+                filter_data=_filter_group_id_list,
+                value_func="values",
+                value_field_list=["field_name", "group_id"],
+                other_filter={"last_modify_time__gte": begin_time},
+            )
 
         group_id_field_map = {}
         for data in ts_group_fields:
@@ -1572,7 +1657,7 @@ class SpaceTableIDRedis:
 
         # 剩余的结果表，需要判断是否时序的，然后根据过期时间过滤数据
         table_id_set = table_ids - white_tables
-        ts_info = self._filter_ts_info(table_id_set)
+        ts_info = self._filter_ts_info(table_id_set, bk_tenant_id=bk_tenant_id)
         table_id_ts_group_id = ts_info.get("table_id_ts_group_id") or {}
         group_id_field_map = ts_info.get("group_id_field_map") or {}
         # 组装结果表对应的指标数据

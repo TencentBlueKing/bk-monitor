@@ -62,11 +62,11 @@ def register_alarm_cache_bmw_task():
         addrs = [f"{host}:{cmdb_redis_conf['port']}" for host in hosts]
         redis_options = {
             "addrs": addrs,
-            "db": cache_redis_conf["db"],
-            "master_name": cmdb_redis_conf["userid"],
+            "db": int(cmdb_redis_conf["virtual_host"]) if cmdb_redis_conf.get("virtual_host") else 0,
+            "master_name": cmdb_redis_conf.get("userid"),
             "mode": "standalone" if cmdb_redis_conf["transport"] == "redis" else "sentinel",
-            "password": cmdb_redis_conf["password"],
-            "sentinel_password": cmdb_redis_conf["virtual_host"],
+            "password": cmdb_redis_conf.get("password"),
+            "sentinel_password": None,
         }
     else:
         hosts = [host.strip() for host in cache_redis_conf["host"].split(";") if host.strip()]

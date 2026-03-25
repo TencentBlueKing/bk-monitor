@@ -8,9 +8,102 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
+
+import yaml
+from django import forms
 from django.contrib import admin
 
 from metadata import models
+from metadata.models.entity_relation import NAMESPACE_ALL
+
+
+class YamlJsonField(forms.CharField):
+    """
+    自定义表单字段：同时接受 YAML 和 JSON 输入，存储为 JSON。
+    展示时将 JSON 转为 YAML 格式，方便阅读和编辑。
+    """
+
+    widget = forms.Textarea(attrs={"rows": 10, "cols": 80, "style": "font-family: monospace;"})
+
+    def __init__(self, *args, **kwargs):
+        self.json_default = kwargs.pop("json_default", None)
+        super().__init__(*args, **kwargs)
+
+    def prepare_value(self, value):
+        """展示时将数据转为缩进 JSON 格式（避免 YAML 缩进在浏览器中被转为 &nbsp; 的问题）"""
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return value
+        try:
+            return json.dumps(value, ensure_ascii=False, indent=2)
+        except Exception:
+            return str(value)
+
+    def clean(self, value):
+        value = super().clean(value)
+        if not value or not value.strip():
+            if self.json_default is not None:
+                return self.json_default()
+            return value
+
+        # 浏览器提交时可能将空格转为 HTML 实体 &nbsp; 或 Unicode U+00A0
+        # 统一替换为普通空格后再解析
+        value = value.replace("&nbsp;", " ").replace("\u00a0", " ")
+
+        # 先尝试 YAML 解析（YAML 是 JSON 的超集，所以 JSON 也能被正确解析）
+        try:
+            parsed = yaml.safe_load(value)
+        except yaml.YAMLError:
+            pass
+        else:
+            if isinstance(parsed, (dict, list)):
+                return parsed
+            # 标量值（如纯字符串/数字），尝试 JSON 解析
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, (dict, list)):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        raise forms.ValidationError("输入格式无效，请使用 YAML 或 JSON 格式。")
+
+
+class ResourceDefinitionForm(forms.ModelForm):
+    labels = YamlJsonField(label="资源标签", required=False, json_default=dict)
+    fields_def = YamlJsonField(label="字段定义列表", required=False, json_default=list)
+
+    class Meta:
+        model = models.ResourceDefinition
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 将 model 的 fields 字段映射到 fields_def 表单字段（避免与 Meta.fields 冲突）
+        if self.instance and self.instance.pk:
+            self.initial["fields_def"] = self.instance.fields
+
+    def clean(self):
+        cleaned = super().clean()
+        cleaned["fields"] = cleaned.pop("fields_def", [])
+        return cleaned
+
+    def save(self, commit=True):
+        self.instance.fields = self.cleaned_data.get("fields", [])
+        return super().save(commit=commit)
+
+
+class RelationDefinitionForm(forms.ModelForm):
+    labels = YamlJsonField(label="资源标签", required=False, json_default=dict)
+
+    class Meta:
+        model = models.RelationDefinition
+        fields = "__all__"
 
 # Register your models here.
 
@@ -234,15 +327,50 @@ class BkAppSpaceRecordAdmin(admin.ModelAdmin):
     list_filter = ("bk_app_code", "space_uid")
 
 
-class ResourceDefinitionAdmin(admin.ModelAdmin):
-    list_display = ("namespace", "name", "uid", "generation", "labels", "create_time", "update_time")
+class EntityDefinitionAdminMixin:
+    """
+    Mixin for ResourceDefinition/RelationDefinition Admin：
+    - 保存时若 spec 或 labels 发生变化，自动递增 generation
+    - 保存后同步更新 Redis 缓存
+    """
+
+    @admin.display(description="命名空间")
+    def namespace_display(self, obj):
+        """库中空字符串与业务上的全局命名空间 NAMESPACE_ALL 一致，列表中统一展示为 __all__。"""
+        return obj.namespace if obj.namespace else NAMESPACE_ALL
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            # 从数据库取当前值进行 spec 对比，有变化则递增 generation
+            try:
+                old = obj.__class__.objects.get(pk=obj.pk)
+                if obj.get_spec() != old.get_spec() or obj.labels != old.labels:
+                    obj.generation += 1
+            except obj.__class__.DoesNotExist:
+                pass
+        super().save_model(request, obj, form, change)
+        # 保存后同步到 Redis（复用 EntityHandler._rebuild_redis_cache）
+        try:
+            from metadata.resources.entity_relation import EntityHandler
+
+            handler = EntityHandler(obj.__class__)
+            handler._rebuild_redis_cache(obj)
+        except Exception:
+            pass
+
+
+class ResourceDefinitionAdmin(EntityDefinitionAdminMixin, admin.ModelAdmin):
+    form = ResourceDefinitionForm
+    list_display = ("namespace_display", "name", "uid", "generation", "labels", "create_time", "update_time")
     search_fields = ("namespace", "name")
     list_filter = ("namespace",)
+    exclude = ("fields",)  # 使用 fields_def 替代，避免字段名冲突
 
 
-class RelationDefinitionAdmin(admin.ModelAdmin):
+class RelationDefinitionAdmin(EntityDefinitionAdminMixin, admin.ModelAdmin):
+    form = RelationDefinitionForm
     list_display = (
-        "namespace",
+        "namespace_display",
         "name",
         "from_resource",
         "to_resource",

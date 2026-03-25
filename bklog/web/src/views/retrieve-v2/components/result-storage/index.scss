@@ -23,8 +23,50 @@
   .log-sort{
     position: relative;
     display: flex;
-    margin: 1px 12px 0px 12px;
-    cursor: pointer;
+    align-items: center;
+    height: 32px;
+    margin: 0px 12px;
+    background-color: #F0F1F5;
+    border-radius: 4px;
+
+    .sort-time {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      padding: 0 8px;
+      cursor: pointer;
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+
+      &:hover {
+        background-color: #E2E6F0;
+      }
+    }
+
+    .sort-separator {
+      width: 1px;
+      height: 14px;
+      background-color: #DCDEE5;
+    }
+
+    .sort-setting {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+      padding: 0 8px;
+      cursor: pointer;
+      border-top-right-radius: 4px;
+      border-bottom-right-radius: 4px;
+
+      &:hover {
+        background-color: #E2E6F0;
+      }
+
+      .bklog-shezhi {
+        color: #979BA5;
+      }
+    }
 
     .bk-table-caret-wrapper {
       position: relative;
@@ -62,6 +104,39 @@
     }
   }
   
+}
+
+.bklog-sort-setting-popover-content {
+  .sort-setting-content {
+    padding: 7px 3px;
+    width: 326px;
+
+    .sort-setting-title {
+      font-size: 14px;
+      color: #313238;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    .sort-setting-list {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+    }
+
+    .sort-setting-actions {
+      display: flex;
+      margin-left: 20px;
+
+      .mr8 {
+        margin-right: 8px;
+      }
+    }
+  }
+
+  .sort-setting-icon {
+    font-size: 14px;
+  }
 }
 
 .storage-more-popover{

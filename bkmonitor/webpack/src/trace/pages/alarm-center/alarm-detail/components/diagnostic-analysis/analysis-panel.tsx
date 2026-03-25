@@ -26,50 +26,52 @@
 import { type PropType, defineComponent, shallowRef } from 'vue';
 
 import DimensionPanel from './components/dimension-panel';
+import EventPanel from './components/event-panel';
 import LinkPanel from './components/link-panel';
 import LogPanel from './components/log-panel';
+import MetricPanel from './components/metric-panel';
 import { DiagnosticTypeEnum, DiagnosticTypeIconMap, DiagnosticTypeMap } from './constant';
 
-import type { IDiagnosticAnalysisItem } from './typing';
+import type { DiagnosticTypeEnumType } from './typing';
 
 import './analysis-panel.scss';
+
+/** 分析面板渲染函数映射表 */
+const PANEL_RENDER_MAP: Record<DiagnosticTypeEnumType, () => any> = {
+  [DiagnosticTypeEnum.DIMENSION]: () => <DimensionPanel />,
+  [DiagnosticTypeEnum.LINK]: () => <LinkPanel />,
+  [DiagnosticTypeEnum.LOG]: () => <LogPanel />,
+  [DiagnosticTypeEnum.EVENT]: () => <EventPanel />,
+  [DiagnosticTypeEnum.METRIC]: () => <MetricPanel />,
+};
 
 /** 分析面板 */
 export default defineComponent({
   name: 'AnalysisPanel',
   props: {
-    data: {
-      type: Object as PropType<IDiagnosticAnalysisItem>,
-      default: () => ({}),
+    type: {
+      type: String as PropType<DiagnosticTypeEnumType>,
+      default: '',
     },
   },
-  setup(props) {
+  setup() {
     const isExpand = shallowRef(true);
 
     const toggleExpand = (expand: boolean) => {
       isExpand.value = expand;
     };
 
-    const renderAnalysisPanel = () => {
-      switch (props.data.type) {
-        case DiagnosticTypeEnum.DIMENSION:
-          return <DimensionPanel data={props.data.list} />;
-        case DiagnosticTypeEnum.LINK:
-          return <LinkPanel data={props.data.list} />;
-        case DiagnosticTypeEnum.LOG:
-          return <LogPanel data={props.data.list} />;
-        case DiagnosticTypeEnum.EVENT:
-          return <LogPanel data={props.data.list} />;
-      }
-    };
-
     return {
       isExpand,
       toggleExpand,
-      renderAnalysisPanel,
     };
   },
   render() {
+    const renderAnalysisPanel = () => {
+      const renderFn = PANEL_RENDER_MAP[this.type];
+      return renderFn ? renderFn() : null;
+    };
+
     return (
       <div class={['analysis-panel', { expand: this.isExpand }]}>
         <div class='analysis-panel-wrapper'>
@@ -77,11 +79,12 @@ export default defineComponent({
             class='analysis-panel-wrapper-header'
             onClick={() => this.toggleExpand(!this.isExpand)}
           >
-            <i class='icon-monitor icon-mc-arrow-right arrow-icon' />
-            <i class={['icon-monitor', 'analysis-type-icon', DiagnosticTypeIconMap[this.data.type]]} />
-            <span class='panel-title'>{DiagnosticTypeMap[this.data.type]}</span>
+            <i class={['icon-monitor', 'analysis-type-icon', DiagnosticTypeIconMap[this.type]]} />
+            <span class='panel-title'>{DiagnosticTypeMap[this.type]}</span>
+            <span class='count-tag'>2</span>
+            <i class='icon-monitor icon-arrow-right-copy arrow-icon' />
           </div>
-          <div class='analysis-panel-wrapper-content'>{this.renderAnalysisPanel()}</div>
+          <div class='analysis-panel-wrapper-content'>{renderAnalysisPanel()}</div>
         </div>
       </div>
     );
