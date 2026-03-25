@@ -26,7 +26,15 @@
 
 import { IssuePriorityEnum, IssueStatusEnum, TrendStatusEnum } from '../constant';
 
-import type { DimensionSummaryItem, IssueDetail, IssueDetailParams, IssueTrendItem } from '../typing';
+import type {
+  DimensionSummaryItem,
+  IssueActiveNodeType,
+  IssueActivityItem,
+  IssueActivityParams,
+  IssueDetail,
+  IssueDetailParams,
+  IssueTrendItem,
+} from '../typing';
 
 /* ============== 模拟数据常量 ============== */
 
@@ -280,4 +288,143 @@ export const fetchIssueDetailMock = async (params: IssueDetailParams, delayMs?: 
   const actualDelay = delayMs ?? getRandomDelay();
   await delay(actualDelay);
   return generateIssueDetailMock(params.id);
+};
+
+/* ============== Issue 活动记录 Mock 数据 ============== */
+
+/** 活动类型列表 */
+const ACTIVITY_TYPES: IssueActiveNodeType[] = [
+  'create',
+  'comment',
+  'status_change',
+  'assignee_change',
+  'priority_change',
+];
+
+/** 状态变更选项 */
+const STATUS_OPTIONS = ['unresolved', 'resolved', 'pending_review', 'archived'];
+
+/** 优先级变更选项 */
+const PRIORITY_OPTIONS = ['P0', 'P1', 'P2'];
+
+/** 评论内容模板 */
+const COMMENT_TEMPLATES = [
+  '已排查，是配置问题导致',
+  '需要进一步确认影响范围',
+  '已修复，等待验证,已修复，等待验证已修复，等待验证已修复，等待验证已修复，等待验证已修复，等待验证已修复，等待验证已修复，等待验证已修复，等待验证已修复，等待验证已修复，等待验证已修复，等待验证已修复，等待验证已修复，等待验证已修复，等待验证已修复，等待验证',
+  '问题已复现，正在处理',
+  '暂时无法复现，持续观察',
+  '关联到Issue-001，合并处理',
+];
+
+/**
+ * 生成单个活动记录
+ */
+const generateActivityItem = (type: IssueActiveNodeType, baseTime: number, index: number): IssueActivityItem => {
+  const activityId = `activity-${generateId()}-${index}`;
+  const time = baseTime + index * 3600; // 每条记录间隔 1 小时
+  const operator = Math.random() > 0.2 ? randomPick(MOCK_USERS) : 'system';
+
+  switch (type) {
+    case 'create':
+      return {
+        activity_id: activityId,
+        activity_type: 'create',
+        operator,
+        from_value: null,
+        to_value: null,
+        content: null,
+        time,
+      };
+    case 'comment':
+      return {
+        activity_id: activityId,
+        activity_type: 'comment',
+        operator,
+        from_value: null,
+        to_value: null,
+        content: randomPick(COMMENT_TEMPLATES),
+        time,
+      };
+    case 'status_change':
+      return {
+        activity_id: activityId,
+        activity_type: 'status_change',
+        operator,
+        from_value: randomPick(STATUS_OPTIONS),
+        to_value: randomPick(STATUS_OPTIONS),
+        content: null,
+        time,
+      };
+    case 'assignee_change':
+      return {
+        activity_id: activityId,
+        activity_type: 'assignee_change',
+        operator,
+        from_value: randomPick(MOCK_USERS),
+        to_value: randomPick(MOCK_USERS),
+        content: null,
+        time,
+      };
+    case 'priority_change':
+      return {
+        activity_id: activityId,
+        activity_type: 'priority_change',
+        operator,
+        from_value: randomPick(PRIORITY_OPTIONS),
+        to_value: randomPick(PRIORITY_OPTIONS),
+        content: null,
+        time,
+      };
+    default:
+      return {
+        activity_id: activityId,
+        activity_type: 'create',
+        operator,
+        from_value: null,
+        to_value: null,
+        content: null,
+        time,
+      };
+  }
+};
+
+/**
+ * 生成活动记录列表
+ * @param count 记录数量，默认 10 条
+ */
+export const generateActivityListMock = (count = 10): IssueActivityItem[] => {
+  const baseTime = Math.floor(Date.now() / 1000) - count * 3600;
+  const activities: IssueActivityItem[] = [];
+
+  // 第一条一定是创建记录
+  activities.push(generateActivityItem('create', baseTime, 0));
+
+  // 后续随机生成其他类型
+  for (let i = 1; i < count; i++) {
+    const type = randomPick(ACTIVITY_TYPES.slice(1));
+    activities.push(generateActivityItem(type, baseTime, i));
+  }
+
+  // 按时间倒序排列（最新的在前）
+  return activities.sort((a, b) => b.time - a.time);
+};
+
+/** 默认活动记录 Mock 数据 */
+export const DEFAULT_ACTIVITY_LIST_MOCK: IssueActivityItem[] = generateActivityListMock(10);
+
+/**
+ * 异步获取活动记录 Mock 数据
+ * @param params 请求参数
+ * @param delayMs 延迟时间（毫秒）
+ */
+export const fetchActivityListMock = async (
+  params: IssueActivityParams,
+  delayMs?: number
+): Promise<IssueActivityItem[]> => {
+  const actualDelay = delayMs ?? getRandomDelay();
+  await delay(actualDelay);
+  // 根据 params.id 返回不同的数据
+  console.log(`[Mock] fetchActivityList for issue: ${params.id}`);
+  return generateActivityListMock(Math.floor(Math.random() * 10) + 5);
 };

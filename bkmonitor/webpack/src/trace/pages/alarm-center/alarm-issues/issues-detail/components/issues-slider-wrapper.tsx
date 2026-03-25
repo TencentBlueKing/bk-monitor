@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, KeepAlive, shallowRef } from 'vue';
+import { type PropType, defineComponent, KeepAlive, shallowRef, watchEffect } from 'vue';
 
 import { Tab } from 'bkui-vue';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
@@ -31,6 +31,7 @@ import { AlarmServiceFactory } from 'trace/pages/alarm-center/services/factory';
 import { AlarmType } from 'trace/pages/alarm-center/typings';
 
 import { IssueDetailTabEnum } from '../../constant';
+import { fetchActivityListMock } from '../mock-data';
 import DimensionStats from './dimension-stats/dimension-stats';
 import IssuesActivity from './issues-activity/issues-activity';
 import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
@@ -41,7 +42,7 @@ import IssuesRetrievalFilter from './issues-retrieval-filter/issues-retrieval-fi
 import IssuesTrendChart from './issues-trend-chart/issues-trend-chart';
 import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 
-import type { ImpactScopeResource, IssueDetail } from '../../typing';
+import type { ImpactScopeResource, IssueActivityItem, IssueDetail } from '../../typing';
 import type { ImpactScopeResourceKeyType, IssueDetailTabType, IssuePriorityType } from '../../typing/constants';
 
 import './issues-slider-wrapper.scss';
@@ -127,6 +128,19 @@ export default defineComponent({
     };
     getTempAlertId();
 
+    const activeList = shallowRef<IssueActivityItem[]>([]);
+    const getActiveList = () => {
+      fetchActivityListMock({
+        bk_biz_id: props.detail?.bk_biz_id,
+        id: props.detail?.id,
+      }).then(data => {
+        activeList.value = data;
+      });
+    };
+    watchEffect(() => {
+      getActiveList();
+    });
+
     const handleTabChange = (tab: IssueDetailTabType) => {
       currentTab.value = tab;
     };
@@ -203,6 +217,7 @@ export default defineComponent({
 
     return {
       currentTab,
+      activeList,
       handleTabChange,
       getPanelComponent,
       handleConditionChange,
@@ -258,7 +273,7 @@ export default defineComponent({
             onPriorityChange={this.handlePriorityChange}
             onResolved={this.handleResolved}
           />
-          <IssuesActivity />
+          <IssuesActivity list={this.activeList} />
           <IssuesHistory />
         </div>
       </div>

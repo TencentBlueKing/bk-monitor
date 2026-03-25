@@ -231,41 +231,41 @@
     color: #63656e;
     word-break: break-all;
 
-    .comment-text {
-      display: inline;
+    // .comment-text {
+    //   display: inline;
 
-      // 超过三行时截断
-      &.is-clamped {
-        display: -webkit-box;
-        overflow: hidden;
-        padding-right: 18px; // 为 icon 预留空间
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        text-overflow: ellipsis;
-      }
-    }
+    //   // 超过三行时截断
+    //   &.is-clamped {
+    //     display: -webkit-box;
+    //     overflow: hidden;
+    //     padding-right: 18px; // 为 icon 预留空间
+    //     -webkit-line-clamp: 3;
+    //     -webkit-box-orient: vertical;
+    //     text-overflow: ellipsis;
+    //   }
+    // }
 
-    .comment-icon {
-      display: inline;
-      margin-left: 4px;
-      font-size: 12px;
-      color: #3a84ff;
-      cursor: pointer;
+    // .comment-icon {
+    //   display: inline;
+    //   margin-left: 4px;
+    //   font-size: 12px;
+    //   color: #3a84ff;
+    //   cursor: pointer;
 
-      &:hover {
-        color: #699df4;
-      }
-    }
+    //   &:hover {
+    //     color: #699df4;
+    //   }
+    // }
 
-    // 超过三行时，icon 使用绝对定位固定在右下角
-    .comment-text.is-clamped + .comment-icon {
-      position: absolute;
-      right: 0;
-      bottom: 0;
-      margin-left: 0;
-      padding-left: 8px;
-      background: linear-gradient(to right, transparent, #f5f7fa 8px);
-    }
+    // // 超过三行时，icon 使用绝对定位固定在右下角
+    // .comment-text.is-clamped + .comment-icon {
+    //   position: absolute;
+    //   right: 0;
+    //   bottom: 0;
+    //   margin-left: 0;
+    //   padding-left: 8px;
+    //   background: linear-gradient(to right, transparent, #f5f7fa 8px);
+    // }
   }
 }
 
