@@ -284,6 +284,9 @@ class GetCustomTsDimensionValues(Resource):
         end_time = serializers.IntegerField(label=_("结束时间"))
         metrics = MetricSerializer(label=_("指标"), many=True, default=list)
 
+    # 每批查询的最大指标数量，避免 GET 请求 URL 过长导致 431 错误
+    METRIC_BATCH_SIZE = 500
+
     def perform_request(self, params: dict) -> list[dict]:
         # 如果指标为空，则返回空列表
         if not params["metrics"]:
@@ -304,34 +307,41 @@ class GetCustomTsDimensionValues(Resource):
 
         metric_names = [metric["name"] for metric in params["metrics"]]
 
-        # 构建指标名称匹配部分
-        if len(metric_names) == 1:
-            metric_match = f'__name__="bkmonitor:{data_label}:{metric_names[0]}"'
-        else:
-            metric_match = f'__name__=~"bkmonitor:{data_label}:({"|".join(metric_names)})"'
-
         # 如果是 APM 场景，添加额外的标签过滤
         label_filters = []
         if is_apm_scenario:
             label_filters.append(f'app_name="{params["apm_app_name"]}"')
             label_filters.append(f'service_name="{params["apm_service_name"]}"')
 
-        # 组装完整的 PromQL 匹配表达式
-        if label_filters:
-            match = f"{{{metric_match}, {', '.join(label_filters)}}}"
-        else:
-            match = f"{{{metric_match}}}"
+        # 分批查询维度值，防止指标数量过大时 GET 请求 URL 超长导致 431 错误
+        all_values = set()
+        for i in range(0, len(metric_names), self.METRIC_BATCH_SIZE):
+            batch = metric_names[i : i + self.METRIC_BATCH_SIZE]
 
-        request_params = {
-            "match": [match],
-            "label": params["dimension"],
-            "bk_biz_ids": [params["bk_biz_id"]],
-            "start": params["start_time"],
-            "end": params["end_time"],
-        }
-        result = api.unify_query.get_promql_label_values(request_params)
-        values = result.get("values", {}).get(params["dimension"], [])
-        return [{"name": value, "alias": value} for value in values]
+            # 构建指标名称匹配部分
+            if len(batch) == 1:
+                metric_match = f'__name__="bkmonitor:{data_label}:{batch[0]}"'
+            else:
+                metric_match = f'__name__=~"bkmonitor:{data_label}:({"|".join(batch)})"'
+
+            # 组装完整的 PromQL 匹配表达式
+            if label_filters:
+                match = f"{{{metric_match}, {', '.join(label_filters)}}}"
+            else:
+                match = f"{{{metric_match}}}"
+
+            request_params = {
+                "match": [match],
+                "label": params["dimension"],
+                "bk_biz_ids": [params["bk_biz_id"]],
+                "start": params["start_time"],
+                "end": params["end_time"],
+            }
+            result = api.unify_query.get_promql_label_values(request_params)
+            values = result.get("values", {}).get(params["dimension"], [])
+            all_values.update(values)
+
+        return [{"name": value, "alias": value} for value in sorted(all_values)]
 
 
 class GetCustomTsGraphConfig(Resource):
