@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
@@ -151,7 +151,6 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
         metricsCheckMap: Object.freeze(makeMap(group.metricsName)),
       };
     });
-    this.fetchAggInfo();
   }
 
   @Watch('metricGroupList', { immediate: true })
@@ -185,58 +184,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
     }
   }
 
-  //  获取过滤条件下拉和维度下拉
-  async fetchAggInfo() {
-    const selectedMetricList = customEscalationViewStore.currentSelectedMetricList;
-
-    if (selectedMetricList.length === 0) {
-      customEscalationViewStore.updateAggInfo({
-        all_dimensions: [],
-        common_dimensions: [],
-      });
-      return;
-    }
-
-    // 将相同 scope_id 的指标分组
-    const scopeMetricsMap = selectedMetricList.reduce((map, metric) => {
-      const scopeId = metric.scope_id;
-      if (!map.has(scopeId)) {
-        map.set(scopeId, []);
-      }
-      map.get(scopeId)?.push(metric.field_id);
-      return map;
-    }, new Map<number | string, number[]>());
-
-    const scope_metrics = Array.from(scopeMetricsMap.entries()).map(([scopeId, metricIds]) => ({
-      scope_id: scopeId,
-      metric_ids: metricIds,
-    }));
-
-    const aggInfoParams = {
-      scope_metrics,
-    };
-
-    if (this.isApm && this.appName && this.serviceName) {
-      Object.assign(aggInfoParams, {
-        apm_app_name: this.appName,
-        apm_service_name: this.serviceName,
-      });
-    } else {
-      Object.assign(aggInfoParams, {
-        time_series_group_id: Number(this.timeSeriesGroupId),
-      });
-    }
-
-    try {
-      const aggInfoResult = await this.requestHandlerMap.getCustomTsMetricAggInfo(aggInfoParams);
-      customEscalationViewStore.updateAggInfo({
-        all_dimensions: aggInfoResult.all_dimensions,
-        common_dimensions: aggInfoResult.common_dimensions,
-      });
-    } catch (error) {
-      console.error(error);
-    }
-  }
+  
 
   // 实例方法
   resetMetricChecked() {

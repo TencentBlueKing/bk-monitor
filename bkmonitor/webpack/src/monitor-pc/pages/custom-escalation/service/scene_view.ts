@@ -164,13 +164,8 @@ export const getSceneView = SceneViewApi.getSceneView<{
 
 export const getCustomTsMetricAggInfo: (
   params:
-    | {
-        apm_app_name?: string;
-        apm_service_name?: string;
-        bk_biz_id?: number;
-        scope_metrics: { metric_ids: number[]; scope_id: number }[];
-      }
-    | { bk_biz_id?: number; scope_metrics: { metric_ids: number[]; scope_id: number }[]; time_series_group_id?: number }
+    | { apm_service_name?: string; bk_biz_id?: number; metric_ids: number[] }
+    | { bk_biz_id?: number; metric_ids: number[]; time_series_group_id?: number }
 ) => Promise<{
   all_dimensions: {
     alias: string;

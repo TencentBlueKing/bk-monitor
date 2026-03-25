@@ -50,6 +50,7 @@ interface IGroups {
   panels: IPanelModel[];
 }
 interface IPanelChartViewEvents {
+  onLoadGraphConfigMetricIds?: (payload: { init: boolean; metricIds: (number | string)[] }) => void;
   onMetricManage?: (tab: 'dimension' | 'metric') => 'dimension' | 'metric';
 }
 interface IPanelChartViewProps {
@@ -170,6 +171,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
         this.groupList = this.allGroupList;
         this.activeName = this.groupList.map(item => item.name).slice(0, max > 3 ? 1 : max);
         this.handleCollapseChange();
+        this.loadGraphConfigMetricIds(currentBatch);
       })
       .catch(() => {
         // 错误处理
@@ -198,8 +200,8 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
 
   @Watch('loading')
   loadingChange(newVal) {
+    this.panelChartViewRef?.removeEventListener('scroll', this.handleScroll, { passive: true });
     if (!newVal && this.panelChartViewRef) {
-      this.panelChartViewRef.removeEventListener('scroll', this.handleScroll, { passive: true });
       this.panelChartViewRef.addEventListener('scroll', this.handleScroll, { passive: true });
     }
   }
@@ -215,6 +217,11 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
   @Emit('metricManage')
   handleMetricManage(tab) {
     return tab;
+  }
+
+  @Emit('loadGraphConfigMetricIds')
+  loadGraphConfigMetricIds(metricIds: (number | string)[], init = false) {
+    return { init, metricIds };
   }
 
   /** 重新获取对应的高度 */
@@ -319,6 +326,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
         this.groupList = this.allGroupList;
         this.activeName = this.groupList.map(item => item.name).slice(0, max > 3 ? 1 : max);
         this.handleCollapseChange();
+        this.loadGraphConfigMetricIds(currentBatch, true);
       })
       .catch(() => {
         this.loading = false;

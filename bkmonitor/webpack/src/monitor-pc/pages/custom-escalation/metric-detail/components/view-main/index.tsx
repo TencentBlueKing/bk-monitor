@@ -118,6 +118,8 @@ export default class ViewContent extends tsc<IProps, IEmit> {
 
   asideWidth = 220; // 侧边栏初始化宽度
 
+  selectedMetricIds: (number | string)[] = [];
+
   get chartSettingParams() {
     return {
       autoYAxis: this.state.autoYAxis,
@@ -209,6 +211,53 @@ export default class ViewContent extends tsc<IProps, IEmit> {
     this.metricsSelectRef?.metricGroupRef?.virtualScrollRef?.resize();
   }
 
+  loadGraphConfigMetricIds({ init, metricIds }: { init: boolean; metricIds: (number | string)[] }) {
+    if (init) {
+      this.selectedMetricIds = metricIds;
+    } else {
+      this.selectedMetricIds.push(...metricIds);
+    }
+    this.fetchAggInfo();
+  }
+
+  //  获取过滤条件下拉和维度下拉
+  async fetchAggInfo() {
+    const selectedMetricList = customEscalationViewStore.currentSelectedMetricList;
+
+    if (selectedMetricList.length === 0) {
+      customEscalationViewStore.updateAggInfo({
+        all_dimensions: [],
+        common_dimensions: [],
+      });
+      return;
+    }
+
+    const aggInfoParams = {
+      metric_ids: this.selectedMetricIds,
+    };
+
+    if (this.isApm && this.appName && this.serviceName) {
+      Object.assign(aggInfoParams, {
+        apm_app_name: this.appName,
+        apm_service_name: this.serviceName,
+      });
+    } else {
+      Object.assign(aggInfoParams, {
+        time_series_group_id: Number(this.timeSeriesGroupId),
+      });
+    }
+
+    try {
+      const aggInfoResult = await this.requestHandlerMap.getCustomTsMetricAggInfo(aggInfoParams);
+      customEscalationViewStore.updateAggInfo({
+        all_dimensions: aggInfoResult.all_dimensions,
+        common_dimensions: aggInfoResult.common_dimensions,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   created() {
     const routerQuery = this.$route.query as Record<string, string>;
     if (routerQuery.viewColumn && routerQuery.showStatisticalValue) {
@@ -272,6 +321,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
               config={this.config}
               showStatisticalValue={this.state.showStatisticalValue}
               viewColumn={this.state.viewColumn}
+              onLoadGraphConfigMetricIds={this.loadGraphConfigMetricIds}
               onMetricManage={this.handleMetricManage}
             />
           </div>
