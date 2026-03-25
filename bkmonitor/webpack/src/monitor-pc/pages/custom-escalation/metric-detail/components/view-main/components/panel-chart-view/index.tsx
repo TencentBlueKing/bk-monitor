@@ -181,7 +181,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
       disconnect(id as string);
     }
     if (this.panelChartViewRef) {
-      this.panelChartViewRef.removeEventListener('scroll', this.handleScroll);
+      this.panelChartViewRef.removeEventListener('scroll', this.handleScroll, { passive: true });
     }
   }
 
@@ -196,10 +196,9 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
     this.handleCollapseChange();
   }
 
-  @Watch('loading', { immediate: true })
+  @Watch('loading')
   loadingChange(n) {
     if (!n && this.panelChartViewRef) {
-      console.log('加载成功');
       this.panelChartViewRef.removeEventListener('scroll', this.handleScroll);
       this.panelChartViewRef.addEventListener('scroll', this.handleScroll);
     }
@@ -221,14 +220,15 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
   /** 重新获取对应的高度 */
   handleCollapseChange() {
     if (this.groupList.length === 0) return;
-    this.collapseRefsHeight = [];
-    this.groupList.map((item, ind) => {
+    const newHeight: number[][] = [];
+    this.groupList.forEach((item, ind) => {
       const len = item.panels.length;
-      this.collapseRefsHeight[ind] = [];
-      Array(len)
-        .fill(0)
-        .map((_, index) => (this.collapseRefsHeight[ind][Math.floor(index / this.viewColumn)] = this.baseHeight));
+      newHeight[ind] = [];
+      for (let i = 0; i < len; i++) {
+        newHeight[ind][Math.floor(i / this.viewColumn)] = this.baseHeight;
+      }
     });
+    this.collapseRefsHeight = newHeight;
   }
 
   /**
@@ -237,23 +237,30 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
    * @returns 处理后的group数据
    */
   handleGroup(groups: IGroups[]) {
-    groups.map(group => {
+    const timeSeriesOptions = {
+      time_series: {
+        hoverAllTooltips: true,
+      },
+    };
+    groups.forEach(group => {
       const groupId = group.name || random(10);
-      // 多图表链接
       group.groupId = groupId;
-      if (this.connectIdSet.has(groupId)) {
+      // 多图表链接
+      if (!this.connectIdSet.has(groupId)) {
+        this.connectIdSet.add(groupId);
+        connect(groupId);
+      } else {
         disconnect(groupId);
+        connect(groupId);
       }
-      this.connectIdSet.add(groupId);
-      connect(groupId);
-      group.panels.map(chart => {
+      group.panels.forEach(chart => {
         chart.groupId = groupId;
-        chart.options = {
-          ...chart.options,
-          time_series: {
-            hoverAllTooltips: true,
-          },
-        };
+        if (!chart.options?.time_series) {
+          chart.options = {
+            ...chart.options,
+            ...timeSeriesOptions,
+          };
+        }
       });
     });
     return groups;
@@ -274,7 +281,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
     this.loading = true;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const metricIds = this.config.metrics.map(({ field_id }) => field_id);
-    this.metricIdsBatch = chunkArray(metricIds, 30);
+    this.metricIdsBatch = chunkArray(metricIds, 24);
     this.currentBatchIndex = 0;
     this.allGroupList = [];
     const currentBatch = this.metricIdsBatch[0];
