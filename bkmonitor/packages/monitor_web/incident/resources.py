@@ -46,11 +46,7 @@ from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.alert import AlertNotFoundError
 from fta_web.alert.handlers.base import BaseQueryHandler
-from fta_web.alert.handlers.incident import (
-    IncidentAlertQueryHandler,
-    IncidentQueryHandler,
-    incident_status_map
-)
+from fta_web.alert.handlers.incident import IncidentAlertQueryHandler, IncidentQueryHandler, incident_status_map
 from fta_web.alert.resources import BaseTopNResource
 from fta_web.alert.serializers import AlertSearchSerializer
 from fta_web.alert.utils import slice_time_interval
@@ -530,6 +526,7 @@ class IncidentTopologyResource(IncidentBaseResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         auto_aggregate = serializers.BooleanField(required=False, default=False, label="是否自动聚合")
         aggregate_config = serializers.JSONField(required=False, default=dict, label="聚合配置")
+        aggregate_version = serializers.BooleanField(required=False, default=False, label="是否按部署版本聚合")
         aggregate_cluster = serializers.BooleanField(required=False, default=False, label="是否根据边聚类聚合")
         limit = serializers.IntegerField(required=False, label="拓扑图数量", default=None)
         start_time = serializers.IntegerField(required=False, label="开始时间", default=None)
@@ -541,9 +538,11 @@ class IncidentTopologyResource(IncidentBaseResource):
         limit = validated_request_data.get("limit")
         start_time = validated_request_data.get("start_time")
         end_time = validated_request_data.get("end_time")
+        aggregate_version = validated_request_data.get("aggregate_version", False)
         aggregate_cluster = validated_request_data.get("aggregate_cluster", False)
         auto_aggregate = validated_request_data.get("auto_aggregate", False)
         aggregate_config = validated_request_data.get("aggregate_config", {})
+        aggregate_dependency = auto_aggregate or bool(aggregate_config)
 
         if not limit and not start_time:
             incident_snapshots = [incident.snapshot]
@@ -569,10 +568,12 @@ class IncidentTopologyResource(IncidentBaseResource):
         snapshots = {}
         for incident_snapshot in incident_snapshots:
             snapshot = IncidentSnapshot(incident_snapshot.content.to_dict())
-            if auto_aggregate or aggregate_config or aggregate_cluster:
+            if auto_aggregate or aggregate_config or aggregate_version or aggregate_cluster:
                 snapshot.aggregate_graph(
                     incident,
                     aggregate_config=None if auto_aggregate else aggregate_config,
+                    aggregate_dependency=aggregate_dependency,
+                    aggregate_version=aggregate_version,
                     aggregate_cluster=aggregate_cluster,
                     entities_orders=entities_orders,
                 )
@@ -770,6 +771,7 @@ class IncidentTopologyMenuResource(IncidentBaseResource):
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
 
         topology_menu = self.generate_topology_menu(snapshot)
+        aggregate_switches = self.generate_aggregate_switches(snapshot)
 
         default_aggregated_config = {}
         for menu in topology_menu:
@@ -780,6 +782,7 @@ class IncidentTopologyMenuResource(IncidentBaseResource):
         return {
             "menu": topology_menu,
             "default_aggregated_config": default_aggregated_config,
+            "aggregate_switches": aggregate_switches,
         }
 
     def generate_topology_menu(self, snapshot: IncidentSnapshot) -> dict:
@@ -844,6 +847,23 @@ class IncidentTopologyMenuResource(IncidentBaseResource):
                     "aggregate_bys": aggregate_keys,
                 }
         return list(menu_data.values())
+
+    @staticmethod
+    def generate_aggregate_switches(snapshot: IncidentSnapshot) -> list[dict]:
+        has_bcs_pod = any(entity.entity_type == "BcsPod" for entity in snapshot.incident_graph_entities.values())
+        if not has_bcs_pod:
+            return []
+
+        return [
+            {
+                "key": "aggregate_version",
+                "name": "按部署版本聚合",
+                "default": False,
+                "entity_type": "BcsPod",
+                "field": "entity.properties.resource_version",
+                "description": "仅对 BcsPod 生效；resource_version 缺失时补 None，不参与聚合",
+            }
+        ]
 
 
 class IncidentTopologyUpstreamResource(IncidentBaseResource):
@@ -1380,9 +1400,11 @@ class IncidentAlertViewResource(IncidentBaseResource):
         for alert in alerts:
             alert_entity = snapshot.alert_entity_mapping.get(alert["id"])
             # 尝试在dimension获取ip和云区域ip
-            alert_dimension_ip_dict = {item.get('key'): item.get('value','')
-                                       for item in alert.get('dimensions', [])
-                                       if isinstance(item, dict) and 'key' in item }
+            alert_dimension_ip_dict = {
+                item.get("key"): item.get("value", "")
+                for item in alert.get("dimensions", [])
+                if isinstance(item, dict) and "key" in item
+            }
             alert["entity"] = alert_entity.entity.to_src_dict() if alert_entity else None
             alert["is_feedback_root"] = (
                 (getattr(incident.feedback, "incident_root", None) == alert_entity.entity.entity_id)
@@ -1399,8 +1421,9 @@ class IncidentAlertViewResource(IncidentBaseResource):
             alert_doc.event.extra_info = alert_doc.extra_info
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
-                    alert["graph_panel"] = AIOPSManager.get_graph_panel(alert_doc, with_anomaly=False
-                                                                        ,alert_dimension_ip_dict=alert_dimension_ip_dict)
+                    alert["graph_panel"] = AIOPSManager.get_graph_panel(
+                        alert_doc, with_anomaly=False, alert_dimension_ip_dict=alert_dimension_ip_dict
+                    )
                     category["alerts"].append(alert)
 
         return incident_alerts
@@ -1618,9 +1641,6 @@ class IncidentDiagnosisResource(IncidentBaseResource):
         return diagnosis_result
 
 
-
-
-
 class IncidentDateHistogramResource(Resource):
     """
     查询故障分布直方图
@@ -1671,7 +1691,7 @@ class IncidentDateHistogramResource(Resource):
                 {"data": list(series.items()), "name": status, "display_name": incident_status_map[status]}
                 for status, series in data.items()
             ],
-            "unit": "" ,
+            "unit": "",
         }
 
 
