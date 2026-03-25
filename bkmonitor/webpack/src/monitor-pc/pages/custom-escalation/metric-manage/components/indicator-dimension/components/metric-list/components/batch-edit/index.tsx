@@ -1,3 +1,7 @@
+import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,18 +28,12 @@
  * IN THE SOFTWARE.
  */
 import _ from 'lodash';
-
-import { Component, Emit, Prop, Watch, InjectReactive } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone } from 'monitor-common/utils';
 import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
-import ColumnCheck from '../../../../../../../../performance/column-check/column-check.vue';
 
 import { METHOD_LIST } from '../../../../../../../../../constant/constant';
+import ColumnCheck from '../../../../../../../../performance/column-check/column-check.vue';
 import FunctionSelect from '../../../../../../../../strategy-config/strategy-config-set-new/monitor-data/function-select';
-import type { ICustomTsFields, IUnitItem } from '../../../../../../../service';
 import {
   type IColumnConfig,
   type PopoverChildRef,
@@ -47,32 +45,32 @@ import {
 } from '../../../../../../type';
 import { fuzzyMatch } from '../../../../../../utils';
 
+import type { ICustomTsFields, IUnitItem } from '../../../../../../../service';
+
 import './index.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
-/** 组件 Props 接口定义 */
-interface IProps {
-  /** 选中的分组信息 */
-  selectedGroupInfo: { id: number; name: string };
-  /** 指标表格数据 */
-  metricTable: IMetricItem[];
-  /** 单位列表 */
-  unitList: IUnitItem[];
-  /** 维度表格数据 */
-  dimensionTable: ICustomTsFields['dimensions'];
-  /** 是否显示弹窗 */
-  isShow: boolean;
-}
-
 /** 指标项类型定义 */
-type IMetricItem = Partial<ICustomTsFields['metrics'][number]> & {
-  /** 是否选中 */
-  selection: boolean;
-  /** 是否为新添加的行 */
-  isNew?: boolean;
+type IMetricItem = {
   /** 错误信息 */
   error?: string;
-};
+  /** 是否为新添加的行 */
+  isNew?: boolean;
+  /** 是否选中 */
+  selection: boolean;
+} & Partial<ICustomTsFields['list'][number]>;
+
+/** 组件 Props 接口定义 */
+interface IProps {
+  /** 维度表格数据 */
+  dimensionTable: ICustomTsFields['list'];
+  /** 是否显示弹窗 */
+  isShow: boolean;
+  /** 选中的分组信息 */
+  selectedGroupInfo: { id: number; name: string };
+  /** 单位列表 */
+  unitList: IUnitItem[];
+}
 
 /** 默认分页大小 */
 const DEFAULT_PAGE_SIZE = 20;
@@ -95,11 +93,15 @@ const initMap = {
   dimensions: [],
 };
 
+/**
+ * 指标批量编辑组件
+ * 以侧边栏形式展示所有指标的可编辑表格，支持批量修改单位、汇聚方法、函数、上报周期、关联维度等字段，
+ * 以及新增/删除指标行
+ */
 @Component
 export default class BatchEdit extends tsc<IProps> {
   @Prop({ default: () => {} }) selectedGroupInfo: IProps['selectedGroupInfo'];
   @Prop({ type: Boolean, default: false }) isShow: IProps['isShow'];
-  @Prop({ default: () => [] }) metricTable: IProps['metricTable'];
   @Prop({ default: () => [] }) unitList: IProps['unitList'];
   @Prop({ default: () => [] }) dimensionTable: IProps['dimensionTable'];
   /** 侧边栏宽度 */
@@ -111,18 +113,19 @@ export default class BatchEdit extends tsc<IProps> {
   @InjectReactive('appName') readonly appName: string;
   @InjectReactive('serviceName') readonly serviceName: string;
 
-  /** 本地表格数据（用于编辑） */
-  localTable: IMetricItem[] = [];
-  /** 当前页码 */
-  currentPage = 1;
-  /** 每页条数 */
-  pageSize = DEFAULT_PAGE_SIZE;
+  /** 分页信息 */
+  pagination = {
+    page: 1,
+    pageSize: DEFAULT_PAGE_SIZE,
+    total: 0,
+  };
+
   /** 单元格高度 */
   cellHeight = DEFAULT_CELL_HEIGHT;
-  /** 总页数 */
-  totalPages = 0;
+  /** 原始表格数据 */
+  originalTableData: ICustomTsFields['list'] = [];
   /** 当前显示的表格数据（分页后的数据） */
-  showTableData: IMetricItem[] = [];
+  showTableData: (IMetricItem & { scope?: { id: number; name: string } })[] = [];
   /** 批量编辑的临时数据对象 */
   batchEdit: any = {
     config: {
@@ -137,7 +140,7 @@ export default class BatchEdit extends tsc<IProps> {
     dimensions: [],
   };
   /** 编辑模式：全量编辑 | 仅编辑勾选项 */
-  editModo: typeof ALL_OPTION | typeof CHECKED_OPTION = ALL_OPTION;
+  editMode: typeof ALL_OPTION | typeof CHECKED_OPTION = ALL_OPTION;
   /** 表格搜索条件列表 */
   search = [];
   /** 底部加载状态配置 */
@@ -145,17 +148,31 @@ export default class BatchEdit extends tsc<IProps> {
     size: 'small',
     isLoading: false,
   };
-  /** 筛选条件对象（用于表格过滤） */
-  metricSearchObj = {
-    name: [],
-    alias: [],
-    unit: [],
-    func: [],
-    aggregate: [],
-    show: [],
+  /** 指标筛选条件对象 */
+  metricSearchObj: ServiceParameters<typeof this.requestHandlerMap.getCustomTsFields>['conditions'] = {
+    name: {
+      values: [],
+      search_type: 'fuzzy',
+    },
+    field_config_alias: {
+      values: [],
+      search_type: 'fuzzy',
+    },
+    field_config_unit: {
+      values: [],
+      search_type: 'exact',
+    },
+    field_config_aggregate_method: {
+      values: [],
+      search_type: 'exact',
+    },
+    field_config_hidden: {
+      values: [],
+      search_type: 'exact',
+    },
   };
   /** 待删除的行数据列表 */
-  delArray: Partial<ICustomTsFields['metrics'][number]>[] = [];
+  delArray: Partial<ICustomTsFields['list'][number] & { scope?: { id: number; name: string } }>[] = [];
   /** 表格列配置 */
   fieldsSettings: Record<string, IColumnConfig> = {
     name: {
@@ -250,6 +267,7 @@ export default class BatchEdit extends tsc<IProps> {
    * @returns {Array} 搜索字段配置列表
    */
   get metricSearchData() {
+    const unitList = this.unitList.flatMap(item => item.formats);
     return [
       {
         name: this.$t('名称'),
@@ -267,7 +285,7 @@ export default class BatchEdit extends tsc<IProps> {
         name: this.$t('单位'),
         id: 'unit',
         multiple: false,
-        children: this.unitList,
+        children: unitList,
       },
       {
         name: this.$t('汇聚方法'),
@@ -280,8 +298,8 @@ export default class BatchEdit extends tsc<IProps> {
         id: 'show',
         multiple: false,
         children: [
-          { id: 'true', name: this.$t('显示') },
-          { id: 'false', name: this.$t('隐藏') },
+          { id: 'false', name: this.$t('显示') },
+          { id: 'true', name: this.$t('隐藏') },
         ],
       },
     ];
@@ -314,54 +332,94 @@ export default class BatchEdit extends tsc<IProps> {
    */
   @Debounce(LOAD_DELAY)
   handleSearchChange(list = []) {
+    this.pagination.page = 1;
+    this.showTableData = [];
     this.search = list;
-    const search = {
-      name: [],
-      alias: [],
-      unit: [],
-      func: [],
-      aggregate: [],
-      show: [],
+    const searchKeyMap = {
+      name: 'name',
+      alias: 'field_config_alias',
+      unit: 'field_config_unit',
+      aggregate: 'field_config_aggregate_method',
+      show: 'field_config_hidden',
+    };
+    const searchParam: typeof this.metricSearchObj = {
+      name: {
+        values: [],
+        search_type: 'fuzzy',
+      },
+      field_config_alias: {
+        values: [],
+        search_type: 'fuzzy',
+      },
+      field_config_unit: {
+        values: [],
+        search_type: 'exact',
+      },
+      field_config_aggregate_method: {
+        values: [],
+        search_type: 'exact',
+      },
+      field_config_hidden: {
+        values: [],
+        search_type: 'exact',
+      },
     };
 
-    for (const item of this.search) {
-      if (item.type === 'text') {
-        item.id = 'name';
-        item.values = [{ id: item.name, name: item.name }];
-      }
-      if (item.id === 'unit') {
-        for (const v of item.values) {
-          v.id = v.name;
-        }
-      }
-      search[item.id] = [...new Set(search[item.id].concat(item.values.map(v => v.id)))];
+    for (const item of list) {
+      searchParam[searchKeyMap[item.id]].values.push(...item.values.map(v => v.id));
     }
 
-    this.metricSearchObj = search;
-    this.handleFilterTable();
+    this.metricSearchObj = searchParam;
+    this.handleGetCustomTsFields();
   }
 
   /**
-   * 根据搜索条件过滤表格数据
-   * 支持按名称、别名、单位、汇聚方法、显示状态进行过滤
+   * 获取指标表格数据
    */
-  handleFilterTable() {
-    const { name, alias, unit, aggregate, show } = this.metricSearchObj;
-    const nameLength = name.length;
-    const aliasLength = alias.length;
-    const unitLength = unit.length;
-    const aggregateLength = aggregate.length;
-    const isShowLength = show.length;
-
-    this.showTableData = this.localTable.filter(item => {
-      return (
-        (nameLength ? name.some(n => fuzzyMatch(item.name, n)) : true) &&
-        (aliasLength ? alias.some(n => fuzzyMatch(item.config.alias, n)) : true) &&
-        (unitLength ? unit.some(u => fuzzyMatch(item.config.unit || 'none', u)) : true) &&
-        (aggregateLength ? aggregate.some(a => fuzzyMatch(item.config.aggregate_method || 'none', a)) : true) &&
-        (isShowLength ? show.some(s => s === String(!item.config.hidden)) : true)
-      );
-    });
+  handleGetCustomTsFields() {
+    const params = {
+      time_series_group_id: this.timeSeriesGroupId,
+      page: this.pagination.page,
+      page_size: this.pagination.pageSize,
+      conditions: {
+        ...(this.selectedGroupInfo.id === -1 ? {} : { scope_id: {
+          values: [this.selectedGroupInfo.id],
+          search_type: 'exact' as const,
+        } }),
+        ...this.metricSearchObj,
+      },
+    };
+    if (this.isAPM) {
+      delete params.time_series_group_id;
+      Object.assign(params, {
+        app_name: this.appName,
+        service_name: this.serviceName,
+      });
+    }
+    this.requestHandlerMap
+      .getCustomTsFields(params)
+      .then(data => {
+        this.pagination.total = data.total;
+        const dataList = deepClone(data.list);
+        this.originalTableData = [...this.originalTableData, ...dataList];
+        this.showTableData = [
+          ...this.showTableData,
+          ...data.list.map(item => ({
+            ...item,
+            selection: false,
+            type: 'metric',
+            scope: {
+              id: item.scope_id,
+              name: item.scope_name,
+            },
+          })),
+        ];
+        this.pagination.page++;
+        this.bottomLoadingOptions.isLoading = false;
+      })
+      .finally(() => {
+        this.bottomLoadingOptions.isLoading = false;
+      });
   }
 
   /**
@@ -384,12 +442,12 @@ export default class BatchEdit extends tsc<IProps> {
         row.isNew = undefined;
         row.error = undefined;
       }
-      const metricTableMap = this.metricTable.reduce<Record<string, IMetricItem>>((acc, curr) => {
+      const metricTableMap = this.originalTableData.reduce<Record<string, ICustomTsFields['list'][number]>>((acc, curr) => {
         acc[curr.id] = curr;
         return acc;
       }, {});
       const updateFields = [];
-      for (const row of this.localTable) {
+      for (const row of this.showTableData) {
         if (!row.id) {
           updateFields.push(row);
           continue;
@@ -426,27 +484,13 @@ export default class BatchEdit extends tsc<IProps> {
   @Emit('close')
   handleCancel() {
     this.delArray = [];
-    this.localTable = deepClone(this.metricTable);
-    for (const row of this.localTable) {
-      row.selection = false;
-    }
-    this.initTableData();
     this.search = [];
     this.allCheckValue = CheckboxStatus.UNCHECKED;
-    return false;
-  }
-
-  /**
-   * 监听指标表格数据变化
-   * @param {IMetricItem[]} newVal - 新的指标表格数据
-   */
-  @Watch('metricTable', { deep: true, immediate: true })
-  handleMetricTableChange(newVal: IMetricItem[]) {
-    this.localTable = deepClone(newVal);
-    for (const row of this.localTable) {
+    for (const row of this.showTableData) {
       row.selection = false;
     }
     this.initTableData();
+    return false;
   }
 
   /**
@@ -458,7 +502,7 @@ export default class BatchEdit extends tsc<IProps> {
     if (val) {
       this.$nextTick(() => {
         const height = window.innerHeight - 160;
-        this.pageSize = Math.floor(height / this.cellHeight);
+        this.pagination.pageSize = Math.floor(height / this.cellHeight);
         this.initTableData();
       });
     }
@@ -469,10 +513,10 @@ export default class BatchEdit extends tsc<IProps> {
    * 重置分页状态并加载第一页数据
    */
   initTableData() {
+    this.originalTableData = [];
     this.showTableData = [];
-    this.currentPage = 1;
-    this.totalPages = Math.ceil(this.localTable.length / this.pageSize);
-    this.showTableData = this.localTable.slice(0, this.pageSize);
+    this.pagination.page = 1;
+    this.handleGetCustomTsFields();
   }
 
   /**
@@ -480,30 +524,27 @@ export default class BatchEdit extends tsc<IProps> {
    * 加载下一页数据（虚拟滚动）
    */
   handleScrollToBottom() {
-    if (this.currentPage < this.totalPages) {
+    if ((this.pagination.page - 1) * this.pagination.pageSize < this.pagination.total) {
       this.bottomLoadingOptions.isLoading = true;
       setTimeout(() => {
-        const startIndex = this.showTableData.length;
-        const endIndex = startIndex + this.pageSize;
-        const newData = this.localTable.slice(startIndex, endIndex);
-        this.showTableData = [...this.showTableData, ...newData];
-        this.currentPage++;
-        this.bottomLoadingOptions.isLoading = false;
+        this.handleGetCustomTsFields();
       }, LOAD_DELAY);
     }
   }
 
+  /** 处理全选/取消全选变化 */
   handleCheckAllChange({ value }) {
     const v = value === CheckboxStatus.ALL_CHECKED;
-    for (const item of this.localTable) {
+    for (const item of this.showTableData) {
       item.selection = v;
     }
     this.updateCheckValue();
   }
 
+  /** 根据当前选中行数更新全选状态 */
   updateCheckValue() {
-    const checkedLength = this.localTable.filter(item => item.selection).length;
-    const allLength = this.localTable.length;
+    const checkedLength = this.showTableData.filter(item => item.selection).length;
+    const allLength = this.showTableData.length;
 
     if (checkedLength > 0) {
       this.allCheckValue = checkedLength < allLength ? CheckboxStatus.INDETERMINATE : CheckboxStatus.ALL_CHECKED;
@@ -550,13 +591,14 @@ export default class BatchEdit extends tsc<IProps> {
     );
   }
 
+  /** 渲染名称列表头（包含全选复选框） */
   renderNameHeader() {
     return (
       <div class='name-header'>
         <ColumnCheck
           {...{
             props: {
-              list: this.localTable,
+              list: this.showTableData,
               value: this.allCheckValue,
               defaultType: 'current',
             },
@@ -632,8 +674,8 @@ export default class BatchEdit extends tsc<IProps> {
     return (
       <bk-input
         class='slider-input'
-        placeholder={this.$t('输入')}
         v-model={props.row.config.alias}
+        placeholder={this.$t('输入')}
       />
     );
   }
@@ -835,7 +877,7 @@ export default class BatchEdit extends tsc<IProps> {
           <div class='unit-range'>{this.$t('编辑范围')}</div>
           <bk-radio-group
             class='unit-radio'
-            v-model={this.editModo}
+            v-model={this.editMode}
           >
             {RADIO_OPTIONS.map(opt => (
               <bk-radio
@@ -875,7 +917,7 @@ export default class BatchEdit extends tsc<IProps> {
     const isConfigKey = ['alias', 'unit', 'aggregate_method', 'interval', 'function', 'disabled', 'hidden'].includes(
       this.currentPopoverKey
     );
-    if (this.editModo === ALL_OPTION) {
+    if (this.editMode === ALL_OPTION) {
       for (const row of this.showTableData) {
         if (isConfigKey) {
           row.config[this.currentPopoverKey] = this.batchEdit.config[this.currentPopoverKey];
@@ -911,7 +953,7 @@ export default class BatchEdit extends tsc<IProps> {
    */
   cancelBatchEdit() {
     this.hidePopover();
-    this.editModo = ALL_OPTION;
+    this.editMode = ALL_OPTION;
     this.batchEdit[this.currentPopoverKey] = initMap[this.currentPopoverKey];
     this.currentPopoverKey = null;
   }
@@ -932,10 +974,10 @@ export default class BatchEdit extends tsc<IProps> {
               }
             : ''
         }
-        placeholder={this.$t('选择')}
         class='slider-select'
         v-model={row.config.aggregate_method}
         clearable={false}
+        placeholder={this.$t('选择')}
       >
         {METHOD_LIST.map(m => (
           <bk-option
@@ -1036,8 +1078,8 @@ export default class BatchEdit extends tsc<IProps> {
           trigger='focus'
           allowCreate
           collapseTags
-          hasDeleteIcon
           fixHeight
+          hasDeleteIcon
           onBlur={() => {
             this.searchKey = '';
           }}
@@ -1115,13 +1157,6 @@ export default class BatchEdit extends tsc<IProps> {
       row.error = syncError;
       return false;
     }
-    // 异步验证
-    // const asyncError = await this.validateAsync(row);
-    // if (asyncError) {
-    //   row.error = asyncError;
-    //   return false;
-    // }
-
     row.error = '';
     return true;
   }
@@ -1136,7 +1171,7 @@ export default class BatchEdit extends tsc<IProps> {
     if (!row.name?.trim()) {
       return this.$t('名称不能为空') as string;
     }
-    if (this.localTable.some(item => item !== row && item.name === row.name)) {
+    if (this.showTableData.some(item => item !== row && item.name === row.name)) {
       return this.$t('名称已存在') as string;
     }
     if (/[\u4e00-\u9fa5]/.test(row.name.trim())) {
@@ -1144,21 +1179,6 @@ export default class BatchEdit extends tsc<IProps> {
     }
     return '';
   }
-
-  /**
-   * 异步验证逻辑
-   * 调用后端接口验证名称格式（字母、数字、下划线，且必须以字母开头）
-   * @param {IMetricItem} row - 行数据
-   * @returns {Promise<string>} 错误信息，空字符串表示验证通过
-   */
-  // async validateAsync(row: IMetricItem): Promise<string> {
-  //   try {
-  //     const isValid = await validateCustomTsGroupLabel({ data_label: row.name }, { needMessage: false });
-  //     return isValid ? '' : (this.$t('仅允许包含字母、数字、下划线，且必须以字母开头') as string);
-  //   } catch {
-  //     return this.$t('仅允许包含字母、数字、下划线，且必须以字母开头') as string;
-  //   }
-  // }
 
   /**
    * 清除行的错误信息
@@ -1195,13 +1215,12 @@ export default class BatchEdit extends tsc<IProps> {
         name: this.selectedGroupInfo.name,
       },
     };
-    this.showTableData.splice(index + 1, 0, newRow);
     if (index === -1) {
-      this.localTable.push(newRow);
+      this.showTableData.push(newRow);
     } else {
       const currentRow = this.showTableData[index];
-      const currentIndex = this.localTable.findIndex(item => item.id === currentRow.id);
-      this.localTable.splice(currentIndex + 1, 0, newRow);
+      const currentIndex = this.showTableData.findIndex(item => item.id === currentRow.id);
+      this.showTableData.splice(currentIndex + 1, 0, newRow);
     }
   }
 
@@ -1216,13 +1235,15 @@ export default class BatchEdit extends tsc<IProps> {
       this.delArray.push({
         type: 'metric',
         name: currentDelData.name,
-        scope: currentDelData.scope,
+        scope: {
+          id: currentDelData.scope_id,
+          name: currentDelData.scope_name,
+        },
         id: currentDelData.id,
       });
     }
-    this.showTableData.splice(index, 1);
-    const currentIndex = this.localTable.findIndex(item => item.id === currentDelData.id);
-    this.localTable.splice(currentIndex, 1);
+    const currentIndex = this.showTableData.findIndex(item => item.id === currentDelData.id);
+    this.showTableData.splice(currentIndex, 1);
   }
 
   /**
@@ -1302,7 +1323,6 @@ export default class BatchEdit extends tsc<IProps> {
                 return (
                   <bk-table-column
                     key={key}
-                    minWidth={config.minWidth}
                     // fixed={config.fixed}
                     scopedSlots={{
                       default: props => {
@@ -1313,6 +1333,7 @@ export default class BatchEdit extends tsc<IProps> {
                       },
                     }}
                     label={this.$t(config.label)}
+                    minWidth={config.minWidth}
                     prop={key}
                     renderHeader={hasRenderHeader ? () => config.renderHeaderFn({ ...config, key }) : undefined}
                     type={config.type || ''}
@@ -1324,8 +1345,8 @@ export default class BatchEdit extends tsc<IProps> {
 
           <div class='slider-footer'>
             <bk-button
-              theme='primary'
               loading={this.saveLoading}
+              theme='primary'
               onClick={this.handleSave}
             >
               {this.$t('保存')}

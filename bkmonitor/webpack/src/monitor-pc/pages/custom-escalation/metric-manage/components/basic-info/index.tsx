@@ -23,23 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import VerifyInput from '@/components/verify-input/verify-input.vue';
+
+import { type ICustomTimeSeriesDetail, validateCustomTsGroupLabel, validateCustomTsGroupName } from '../../../service';
 import { execCopy } from '../../utils';
-import { validateCustomTsGroupName, validateCustomTsGroupLabel, type ICustomTimeSeriesDetail } from '../../../service';
+import VerifyInput from '@/components/verify-input/verify-input.vue';
 
 import './index.scss';
-
-/**
- * 组件Props接口
- */
-interface IProps {
-  /** 详情数据 */
-  detailData: ICustomTimeSeriesDetail;
-  /** 是否为平台级别（用于判断作用范围） */
-  copyIsPlatform: boolean;
-}
 
 /**
  * 组件事件接口
@@ -50,6 +41,16 @@ interface IEmits {
    * @param showMsg 是否显示成功消息
    */
   onEditFiled: (props: Record<string, any>, showMsg: boolean) => void;
+}
+
+/**
+ * 组件Props接口
+ */
+interface IProps {
+  /** 是否为平台级别（用于判断作用范围） */
+  copyIsPlatform: boolean;
+  /** 详情数据 */
+  detailData: ICustomTimeSeriesDetail;
 }
 
 /**
