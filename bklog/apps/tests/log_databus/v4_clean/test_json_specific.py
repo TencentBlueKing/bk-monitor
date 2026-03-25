@@ -1,14 +1,16 @@
+# -*- coding: utf-8 -*-
 """
 JSON 特有分支全覆盖测试
 retain_original_text, enable_retain_content, retain_extra_json, alias, delete, object/bool 类型
 """
-
 from unittest import TestCase
 
 from apps.log_databus.handlers.etl_storage.bk_log_json import BkLogJsonEtlStorage
 from apps.tests.log_databus.v4_clean.helpers import (
     find_rules_by_output,
+    find_rules_by_input,
     find_rules_by_type,
+    get_output_ids,
     assert_rule_exists,
     assert_rule_absent,
 )
@@ -206,7 +208,6 @@ class TestJsonTimeField(TestCase):
     def test_nanos_built_in_time_generates_nanos_rule(self):
         """built_in_config 中 nanos 格式的时间字段应生成 dtEventTimeStampNanos 规则"""
         from apps.tests.log_databus.v4_clean.testdata.built_in_configs import make_nanos_config
-
         etl_params = {"retain_original_text": False}
         fields = [make_field("level")]
         config = make_nanos_config("yyyy-MM-dd HH:mm:ss.SSSSSS")
@@ -220,7 +221,8 @@ class TestJsonTimeField(TestCase):
         """用户 is_time 字段不在 build_log_v4_data_link 层触发 nanos（nanos 由 built_in_config 决定）"""
         etl_params = {"retain_original_text": False}
         fields = [
-            make_field("log_time", is_time=True, option={"time_zone": 8, "time_format": "yyyy-MM-dd HH:mm:ss.SSSSSS"}),
+            make_field("log_time", is_time=True,
+                       option={"time_zone": 8, "time_format": "yyyy-MM-dd HH:mm:ss.SSSSSS"}),
         ]
         config = get_fresh_config()  # 标准 built_in: yyyy-MM-dd HH:mm:ss (非 nanos)
         result = self.storage.build_log_v4_data_link(fields, etl_params, config)
@@ -278,4 +280,4 @@ class TestJsonStructure(TestCase):
         es_config = result["es_storage_config"]
         self.assertIn("unique_field_list", es_config)
         self.assertEqual(es_config["timezone"], 8)
-        self.assertIsNone(result.get("doris_storage_config"))
+        self.assertIsNone(result["doris_storage_config"])

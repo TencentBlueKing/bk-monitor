@@ -31,7 +31,7 @@ from apps.iam.handlers.drf import (
     ViewBusinessPermission,
     insert_permission_field,
 )
-from apps.log_databus.constants import ClusterTypeEnum, STORAGE_CLUSTER_TYPE
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.exceptions import StorageCreateException, StorageNotExistException
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.serializers import (
@@ -134,9 +134,7 @@ class StorageViewSet(APIViewSet):
         data = self.params_valid(StorageListSerializer)
         return Response(
             StorageHandler().get_cluster_groups_filter(
-                bk_biz_id=data["bk_biz_id"],
-                cluster_query_type=data.get("cluster_type", ClusterTypeEnum.ES.value),
-                enable_archive=data.get("enable_archive", False),
+                bk_biz_id=data["bk_biz_id"], enable_archive=data.get("enable_archive", False)
             )
         )
 
@@ -237,11 +235,7 @@ class StorageViewSet(APIViewSet):
         """
         data = self.params_valid(StorageListSerializer)
         return Response(
-            StorageHandler().list(
-                bk_biz_id=data["bk_biz_id"],
-                cluster_query_type=data.get("cluster_type", ClusterTypeEnum.ES.value),
-                enable_archive=data.get("enable_archive", False),
-            )
+            StorageHandler().list(bk_biz_id=data["bk_biz_id"], enable_archive=data.get("enable_archive", False))
         )
 
     def retrieve(self, request, *args, **kwargs):
