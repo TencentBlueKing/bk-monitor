@@ -4,20 +4,20 @@ from collections import defaultdict
 
 from django.db import migrations
 
-from metadata.models.space.constants import EtlConfigs
+PLUGIN_ETL_CONFIGS = ["bk_exporter", "bk_standard"]
+OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
+TYPE_BOOL = "bool"
 
 
 def migrate_plugin_result_table_option(apps, schema_editor):
     """
-    迁移插件结果表选项
+    迁移插件结果表选项：为存量插件结果表添加 enable_plugin_v4_data_link 选项
     """
     DataSource = apps.get_model("metadata", "DataSource")
     DataSourceResultTable = apps.get_model("metadata", "DataSourceResultTable")
     ResultTableOption = apps.get_model("metadata", "ResultTableOption")
     bk_data_ids = list(
-        DataSource.objects.filter(
-            etl_config__in=[EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value]
-        ).values_list("bk_data_id", flat=True)
+        DataSource.objects.filter(etl_config__in=PLUGIN_ETL_CONFIGS).values_list("bk_data_id", flat=True)
     )
 
     tenant_table_ids: dict[str, list[str]] = defaultdict(list)
@@ -26,15 +26,15 @@ def migrate_plugin_result_table_option(apps, schema_editor):
 
     for tenant_id, table_ids in tenant_table_ids.items():
         ResultTableOption.objects.filter(
-            bk_tenant_id=tenant_id, name=ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK, table_id__in=table_ids
+            bk_tenant_id=tenant_id, name=OPTION_ENABLE_PLUGIN_V4_DATA_LINK, table_id__in=table_ids
         ).delete()
         options = [
             ResultTableOption(
                 bk_tenant_id=tenant_id,
                 table_id=table_id,
-                name=ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK,
+                name=OPTION_ENABLE_PLUGIN_V4_DATA_LINK,
                 value="true",
-                value_type=ResultTableOption.TYPE_BOOL,
+                value_type=TYPE_BOOL,
                 creator="system",
             )
             for table_id in table_ids

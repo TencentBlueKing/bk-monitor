@@ -438,7 +438,7 @@ class CustomGroupBase(models.Model):
 
         # 这里之前在split的情况下是不做field_list的更新的 之前的背景是会动态更新指标 而不应该用户去设置指标
         # 但是如果用户需要修改元信息的时候 会出现该接口无法更新的情况 所以这里先去掉这个限制
-        if field_list is not None or data_label is not None or options is not None:
+        if field_list is not None or data_label is not None or rt_options is not None:
             try:
                 rt = ResultTable.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
             except ResultTable.DoesNotExist:
