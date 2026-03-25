@@ -49,11 +49,6 @@ from apm_web.models import (
 )
 from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.serializers import ApplicationListSerializer, ServiceApdexConfigSerializer
-from apm_web.service.mock_data import (
-    API_PIPELINE_OVERVIEW_RESPONSE,
-    API_LIST_PIPELINE_RESPONSE,
-    API_CODE_REDEFINED_RULE_LIST_RESPONSE,
-)
 from apm_web.service.serializers import (
     AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
@@ -707,8 +702,6 @@ class PipelineOverviewResource(Resource):
     RequestSerializer = PipelineOverviewRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
-        if validated_request_data["is_mock"]:
-            return API_PIPELINE_OVERVIEW_RESPONSE
 
         bk_biz_id = self._validate_bk_biz_id(validated_request_data["bk_biz_id"])
         business = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
@@ -783,8 +776,6 @@ class ListPipelineResource(Resource):
     RequestSerializer = ListPipelineRequestSerializer
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        if validated_request_data.get("is_mock", False):
-            return API_LIST_PIPELINE_RESPONSE
 
         params = {
             "project_id": validated_request_data["project_id"],
@@ -815,8 +806,6 @@ class ListCodeRedefinedRuleResource(Resource):
     RequestSerializer = ListCodeRedefinedRuleRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock", False):
-            return API_CODE_REDEFINED_RULE_LIST_RESPONSE
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         service_name: str = validated_request_data["service_name"]

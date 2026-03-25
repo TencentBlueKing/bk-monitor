@@ -181,36 +181,40 @@ class UptimeCheckTaskListResource(Resource):
     many_response_data = True
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务id")
+        bk_biz_id = serializers.IntegerField(default=0, allow_null=True, label="业务id")
         task_data = serializers.ListField(required=True, label="拨测任务数据")
         get_available = serializers.BooleanField(default=False, label="获取可用率")
         get_task_duration = serializers.BooleanField(default=False, label="获取响应时间")
 
     ResponseSerializer = UptimeCheckTaskSerializer
 
-    def get_groups(self, bk_tenant_id: str, bk_biz_id: int, group_ids: list[int]):
-        """获取任务分组信息"""
+    def _get_groups_mapping(
+        self, bk_tenant_id: str, bk_biz_id: int | None, group_ids: list[int]
+    ) -> dict[int, dict[str, Any]]:
+        """批量获取任务分组映射"""
         if not group_ids:
-            return []
+            return {}
         groups = list_groups(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
             query={"group_ids": group_ids},
         )
         # 从 Define 对象中提取 id 和 name 字段
-        return [{"id": group.id, "name": group.name} for group in groups]
+        return {cast(int, group.id): {"id": group.id, "name": group.name} for group in groups}
 
-    def get_nodes(self, bk_tenant_id: str, node_ids: list[int]):
-        """获取任务节点信息"""
+    def _get_nodes_mapping(self, bk_tenant_id: str, node_ids: list[int]) -> dict[int, dict[str, Any]]:
+        """批量获取任务节点映射"""
         if not node_ids:
-            return []
+            return {}
         nodes = list_nodes(bk_tenant_id=bk_tenant_id, query={"node_ids": node_ids})
-        node_configs = [node.model_dump(exclude={"update_time", "create_time"}) for node in nodes]
-        for node_config in node_configs:
+        node_mapping = {}
+        for node in nodes:
+            node_config = node.model_dump(exclude={"update_time", "create_time"})
             node_config["is_deleted"] = False
-        return node_configs
+            node_mapping[cast(int, node.id)] = node_config
+        return node_mapping
 
-    def query_available_or_duration(self, metric, bk_biz_id, data_label, where, period, end_time, ret=None):
+    def query_available_or_duration(self, metric, bk_biz_id: int | None, data_label, where, period, end_time, ret=None):
         ret = ret or {}
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
         data_source = data_source_class(
@@ -244,10 +248,14 @@ class UptimeCheckTaskListResource(Resource):
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
         task_data: list[dict[str, Any]] = validated_request_data["task_data"]
-        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        bk_biz_id: int | None = validated_request_data["bk_biz_id"] or None
         bk_tenant_id = cast(str, get_request_tenant_id())
         query_group = {}
         task_data_mapping = {}
+        node_ids = sorted({node_id for task in task_data for node_id in task.get("node_ids", [])})
+        group_ids = sorted({group_id for task in task_data for group_id in task.get("group_ids", [])})
+        node_mapping = self._get_nodes_mapping(bk_tenant_id, node_ids)
+        group_mapping = self._get_groups_mapping(bk_tenant_id, bk_biz_id, group_ids)
         for task in task_data:
             # 兼容旧字段名
             task["status"] = task["status"].value
@@ -256,10 +264,12 @@ class UptimeCheckTaskListResource(Resource):
             protocol_data.setdefault(task["config"].get("period", 60), []).append(str(task["id"]))
             task_data_mapping[task["id"]] = task
             url = get_uptime_check_task_url_list(task)
+            task_node_ids = task.pop("node_ids", [])
+            task_group_ids = task.pop("group_ids", [])
             task_data_mapping[task["id"]].update(
                 url=url,
-                nodes=self.get_nodes(bk_tenant_id, task.pop("node_ids", [])),
-                groups=self.get_groups(bk_tenant_id, bk_biz_id, task.pop("group_ids", [])),
+                nodes=[node_mapping[node_id] for node_id in task_node_ids if node_id in node_mapping],
+                groups=[group_mapping[group_id] for group_id in task_group_ids if group_id in group_mapping],
                 task_duration=0,
                 available=0,
             )
@@ -2103,9 +2113,9 @@ class UptimeCheckCardResource(Resource):
         task_data = serializers.ListField(required=True, label="拨测任务数据")
 
     def perform_request(self, validated_request_data: dict[str, Any]):
-        bk_biz_id = validated_request_data.get("bk_biz_id")
+        bk_biz_id: int | None = validated_request_data.get("bk_biz_id") or None
         bk_tenant_id = cast(str, get_request_tenant_id())
-        bk_biz_ids = [bk_biz_id]
+        bk_biz_ids = [bk_biz_id if bk_biz_id else 0]
         all_tasks_data: list[dict[str, Any]] = validated_request_data["task_data"]
 
         search_object = (
@@ -2565,7 +2575,7 @@ class SelectUptimeCheckNodeResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.CharField(required=True, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, validated_request_data: dict[str, Any]):
         bk_tenant_id = cast(str, get_request_tenant_id())

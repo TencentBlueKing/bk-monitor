@@ -291,7 +291,6 @@ export default defineComponent({
     return (
       <div class='temporary-share'>
         <span
-          style='font-size: 16px;'
           class={['icon-monitor', this.onlyCopy ? 'icon-mc-target-link' : 'temporary-share-icon', 'icon-mc-share']}
           v-bk-tooltips={tipsOpts}
           onClick={this.handleShowDialog}

@@ -60,7 +60,7 @@ from bkmonitor.models import (
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
-from bkmonitor.utils.alert_drilling import clean_where_conditions
+from bkmonitor.utils.alert_drilling import clean_where_conditions, normalize_histogram_quantile_group_by
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.range import load_agg_condition_instance
@@ -1326,6 +1326,7 @@ class AlertGraphQueryResource(ApiAuthResource):
                 if attrs["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH and not attrs.get("index_set_id"):
                     raise ValidationError("index_set_id can not be empty.")
 
+                normalize_histogram_quantile_group_by(attrs)
                 attrs["where"] = clean_where_conditions(attrs.get("where", []))
                 return attrs
 
@@ -1450,6 +1451,9 @@ class AlertGraphQueryResource(ApiAuthResource):
             # 离群检测算法不需要异常点
             mark_points = []
 
+        longest_series = {"datapoints": []}
+        current_series_list = []
+
         # 遍历所有 series，给 time_offset 为 current 的 series 添加标记
         for series in data:
             time_offset = series.get("time_offset", "current")
@@ -1469,6 +1473,25 @@ class AlertGraphQueryResource(ApiAuthResource):
             # 所有当前时间的 series 都添加异常点标记和阈值线
             series["markPoints"] = mark_points
             series["thresholds"] = threshold_line
+
+            if len(series["datapoints"]) > len(longest_series["datapoints"]):
+                longest_series = series
+
+            current_series_list.append(series)
+
+        # 以最长的 series 的时间戳为基准，对短的 series 尾部补齐 null 值
+        if current_series_list and longest_series["datapoints"]:
+            max_len = len(longest_series["datapoints"])
+            tail_timestamps = [point[1] for point in longest_series["datapoints"]]
+            for series in current_series_list:
+                # 从后往前找到最后一个有效数值的位置，作为有效长度
+                cur_len = len(series["datapoints"])
+                while cur_len > 0 and not isinstance(series["datapoints"][cur_len - 1][0], int | float):
+                    cur_len -= 1
+                if cur_len < max_len:
+                    # 截断尾部 None 点，再按基准时间戳补齐
+                    series["datapoints"] = series["datapoints"][:cur_len]
+                    series["datapoints"].extend([[None, ts] for ts in tail_timestamps[cur_len:]])
 
         return result
 

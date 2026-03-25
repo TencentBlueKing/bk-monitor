@@ -35,24 +35,21 @@ export interface SearchCondition {
   value: any;
 }
 
-interface UseSearchTaskOptions {
-  indexSetId: string;
-}
-
 /**
  * 检索任务 Hook
  * 用于统一处理表格中的检索跳转逻辑
  */
-export const useSearchTask = ({ indexSetId }: UseSearchTaskOptions) => {
+export const useSearchTask = () => {
   const store = useStore();
   const router = useRouter();
 
   /**
    * 执行检索任务
+   * @param indexSetId 索引集ID
    * @param conditions 查询条件数组
    * @param timeRange 时间范围 [开始时间, 结束时间]
    */
-  const searchTask = (conditions: SearchCondition[], timeRange?: [string, string]) => {
+  const searchTask = (indexSetId: string, conditions: SearchCondition[], timeRange?: [string, string]) => {
     // 更新最后选择的索引集ID
     updateLastSelectedIndexId(store.state.spaceUid, indexSetId);
 

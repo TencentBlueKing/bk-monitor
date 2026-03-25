@@ -72,8 +72,10 @@ export default defineComponent({
         title: t('平台事件ID'),
         width: 180,
         minWidth: 150,
+        className: 'event-id-col',
         cell: (_h, { row }) => (
           <div class='event-id'>
+            <div class={`event-status status-${row.severity}`} />
             <span
               class={[
                 'icon-monitor icon-mc-arrow-right table-expand-icon',
@@ -81,7 +83,7 @@ export default defineComponent({
               ]}
             />
             <span
-              class={`event-status status-${row.severity}`}
+              class='event-id-text'
               v-overflow-tips={{ content: row.id, placements: ['top'], allowHTML: false }}
             >
               {row.id}
