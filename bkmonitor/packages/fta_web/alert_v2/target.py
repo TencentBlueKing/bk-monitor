@@ -14,9 +14,9 @@ import time
 from functools import cached_property
 from typing import Any
 
+from apm_web.container.helpers import ContainerHelper
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.log_handler import ServiceLogHandler, get_biz_index_sets_with_cache
-from apm_web.strategy.dispatch import EntitySet
 from apm_web.log.resources import log_relation_list
 from apm_web.topo.handle.relation.define import (
     Relation,
@@ -503,32 +503,18 @@ class APMServiceTarget(BaseTarget):
         if not apm_target_list:
             return []
 
-        apm_target: dict[str, Any] = apm_target_list[0]
-        entity_set: EntitySet = EntitySet(
-            bk_biz_id=self._alert.event.bk_biz_id,
-            app_name=apm_target["app_name"],
-            service_names=[apm_target["service_name"]],
-        )
-
-        target_list: list[dict[str, Any]] = []
-        for workload in entity_set.get_workloads(apm_target["service_name"]):
-            bcs_cluster_id: str = workload.get("bcs_cluster_id", "")
-            namespace: str = workload.get("namespace", "")
-            workload_kind: str = workload.get("kind", "")
-            workload_name: str = workload.get("name", "")
-
-            if not all([bcs_cluster_id, namespace, workload_kind, workload_name]):
-                continue
-
-            target_list.append(
-                {
-                    "workload": f"{workload_kind}:{workload_name}",
-                    "bcs_cluster_id": bcs_cluster_id,
-                    "namespace": namespace,
-                }
+        return [
+            {
+                "workload": f"{workload['workload_kind']}:{workload['workload_name']}",
+                "bcs_cluster_id": workload["bcs_cluster_id"],
+                "namespace": workload["namespace"],
+            }
+            for workload in ContainerHelper.get_service_related_k8s_targets(
+                bk_biz_id=self._alert.event.bk_biz_id,
+                app_name=apm_target_list[0]["app_name"],
+                service_name=apm_target_list[0]["service_name"],
             )
-
-        return target_list
+        ]
 
     def list_related_apm_targets(self) -> list[dict[str, Any]]:
         app_name, service_name = APMTargetType.parse_target(self._alert.event.target)
