@@ -181,7 +181,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
             raise UptimeCheckProcessError()
 
     @staticmethod
-    def _get_filtered_nodes(bk_tenant_id: str, bk_biz_id: int):
+    def _get_filtered_nodes(bk_tenant_id: str, bk_biz_id: int | None = None):
         """
         获取过滤后的节点列表（公共节点 + 业务节点）
         """
@@ -198,7 +198,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
             if node.is_common:
                 if not node.biz_scope:
                     filtered_nodes.append(node)
-                elif bk_biz_id in node.biz_scope:
+                elif bk_biz_id in node.biz_scope or bk_biz_id is None:
                     filtered_nodes.append(node)
 
         return filtered_nodes
@@ -360,7 +360,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ViewSet):
             return data_map[key]
 
         bk_tenant_id = cast(str, get_request_tenant_id())
-        bk_biz_id = int(request.GET["bk_biz_id"])
+        bk_biz_id = int(request.GET["bk_biz_id"]) or None
 
         # 获取过滤后的节点列表（公共节点 + 业务节点）
         nodes = self._get_filtered_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
@@ -849,7 +849,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         params = request.query_params
 
         group_id = params.get("group_id")
-        bk_biz_id = int(params["bk_biz_id"])
+        bk_biz_id = int(params["bk_biz_id"]) or None
         task_id = params.get("id")
         name = params.get("name")
         bk_tenant_id = cast(str, get_request_tenant_id())
@@ -912,7 +912,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
         # 如果节点对应的业务id已经不存在了，则该任务状态强制显示为START_FAILED，用于给用户提示
         biz_id_list = get_business_id_list()
         for data in task_data:
-            for node in data["nodes"]:
+            for node in data.get("nodes", []):
                 if node["bk_biz_id"] not in biz_id_list:
                     data["status"] = UptimeCheckTaskStatus.START_FAILED.value
 
