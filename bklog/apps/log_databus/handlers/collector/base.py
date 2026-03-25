@@ -61,7 +61,6 @@ from apps.log_databus.constants import (
     RunStatus,
     RETRIEVE_CHAIN,
     Environment,
-    STORAGE_CLUSTER_TYPE,
 )
 from apps.log_databus.exceptions import (
     CollectNotSuccess,
@@ -511,7 +510,6 @@ class CollectorHandler:
         etl_params=None,
         fields=None,
         storage_cluster_id=None,
-        storage_cluster_type=STORAGE_CLUSTER_TYPE,
         retention=7,
         allocation_min_days=0,
         storage_replies=1,
@@ -590,7 +588,6 @@ class CollectorHandler:
             etl_params = {
                 "table_id": table_id_name,
                 "storage_cluster_id": storage_cluster_id,
-                "storage_cluster_type": storage_cluster_type,
                 "retention": retention,
                 "es_shards": es_shards,
                 "allocation_min_days": allocation_min_days,
@@ -1328,7 +1325,6 @@ class CollectorHandler:
         etl_params=None,
         fields=None,
         storage_cluster_id=None,
-        storage_cluster_type=STORAGE_CLUSTER_TYPE,
         retention=7,
         allocation_min_days=0,
         storage_replies=1,
@@ -1429,7 +1425,6 @@ class CollectorHandler:
             params = {
                 "table_id": collector_config_name_en,
                 "storage_cluster_id": storage_cluster_id,
-                "storage_cluster_type": storage_cluster_type,
                 "retention": retention,
                 "allocation_min_days": allocation_min_days,
                 "storage_replies": storage_replies,

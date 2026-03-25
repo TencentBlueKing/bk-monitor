@@ -1,14 +1,16 @@
+# -*- coding: utf-8 -*-
 """
 直接入库特有分支测试
 无字段映射、log 始终输出
 """
-
 from unittest import TestCase
 
 from apps.log_databus.handlers.etl_storage.bk_log_text import BkLogTextEtlStorage
 from apps.tests.log_databus.v4_clean.helpers import (
     find_rules_by_output,
     find_rules_by_input,
+    get_output_ids,
+    assert_rule_exists,
     assert_rule_absent,
 )
 from apps.tests.log_databus.v4_clean.testdata.built_in_configs import get_fresh_config
@@ -72,4 +74,4 @@ class TestTextStructure(TestCase):
         result = self.storage.build_log_v4_data_link([], {}, get_fresh_config())
         self.assertIn("unique_field_list", result["es_storage_config"])
         self.assertEqual(result["es_storage_config"]["timezone"], 8)
-        self.assertIsNone(result.get("doris_storage_config"))
+        self.assertIsNone(result["doris_storage_config"])
