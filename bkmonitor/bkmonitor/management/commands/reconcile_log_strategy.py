@@ -422,6 +422,7 @@ def run_reconciliation(
 
     stdout.write(f"找到 {len(strategy_models)} 个策略，开始对账...")
 
+    # 分批处理策略，避免一次性加载过多数据到内存。
     for chunk in [strategy_models[i : i + 100] for i in range(0, len(strategy_models), 100)]:
         for strategy in Strategy.from_models(chunk):
             bk_biz_id: int = strategy.bk_biz_id
