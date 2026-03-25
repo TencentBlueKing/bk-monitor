@@ -32,7 +32,7 @@ import { useI18n } from 'vue-i18n';
 
 import UserSelector from '../../../../../../components/user-selector/user-selector';
 import IssuesResolveDialog from '../../../components/issues-resolve-dialog/issues-resolve-dialog';
-import { ImpactScopeResourceLabelMap, IssuesPriorityMap } from '../../../constant';
+import { IssuesPriorityMap } from '../../../constant';
 import { assignIssues, updateIssuesPriority } from '../../../services/issues-operations';
 import BasicCard from '../basic-card/basic-card';
 
@@ -282,7 +282,7 @@ export default defineComponent({
                     )
                   }
                 >
-                  <div class='label'>{ImpactScopeResourceLabelMap[resourceKey]}：</div>
+                  <div class='label'>{resource.display_name}：</div>
                   <div class='value'>{resource.count}</div>
                 </div>
               ))}

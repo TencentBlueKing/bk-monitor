@@ -44,6 +44,14 @@ export interface DialogEventByActionMap {
   [IssuesBatchActionEnum.RESOLVE]: IssuesResolveDialogEvent;
 }
 
+/** 添加跟进信息请求参数 */
+export interface FollowUpIssuesParams {
+  /** 跟进内容（markdown 格式） */
+  content: string;
+  /** 跨业务批量操作 Issue 标识列表 */
+  issues: IssueIdentifier[];
+}
+
 /** Issue 标识符（跨业务批量操作请求中的单条 issue 结构） */
 export interface IssueIdentifier {
   /** 空间业务 ID */
