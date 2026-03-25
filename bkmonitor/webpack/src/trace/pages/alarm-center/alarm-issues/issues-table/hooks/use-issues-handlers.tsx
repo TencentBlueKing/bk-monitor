@@ -41,7 +41,7 @@ export interface UseIssuesHandlersOptions {
   /** 优先级变更回调 */
   priorityChangeEmit: (id: string, priority: IssuePriorityType) => void;
   /** 显示 Issue 详情回调 */
-  showDetailEmit: (id: IssueItem) => void;
+  showDetailEmit: (item: IssueItem) => void;
 }
 
 export type UseIssuesHandlersReturnType = ReturnType<typeof useIssuesHandlers>;
