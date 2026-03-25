@@ -77,6 +77,7 @@ from apps.log_databus.exceptions import (
     SubscriptionInfoNotFoundException,
     CollectorIdNotExistException,
     SubscriptionStatisticException,
+    CollectorNotStoppedException,
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
@@ -623,6 +624,10 @@ class CollectorHandler:
         删除采集配置
         :return: task_id
         """
+        # 采集项必须先停用才能删除
+        if self.data.is_active and not self.data.is_custom_scenario:
+            raise CollectorNotStoppedException()
+
         # 1. 重新命名采集项名称
         collector_config_name = (
             self.data.collector_config_name + "_delete_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
