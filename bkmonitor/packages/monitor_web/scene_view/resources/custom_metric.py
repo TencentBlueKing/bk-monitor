@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import time
 from collections import defaultdict
 
 from django.db import models
@@ -120,35 +121,110 @@ class GetCustomTsMetricAggInfo(Resource):
     获取指标聚合信息（维度交集和并集）
     """
 
-    METRIC_QUERY_BATCH_SIZE = 5000
+    SCOPE_QUERY_SWITCH_THRESHOLD = 100
 
     class RequestSerializer(CustomMetricBaseRequestSerializer):
-        metric_ids = serializers.ListField(label=_("指标 ID 列表"), child=serializers.IntegerField(), allow_empty=False)
+        class ScopeMetricSerializer(serializers.Serializer):
+            scope_id = serializers.IntegerField(label=_("分组 ID"))
+            metric_ids = serializers.ListField(
+                label=_("该分组下的指标 ID 列表"), child=serializers.IntegerField(), allow_empty=False
+            )
 
-    @classmethod
-    def _batched_metric_ids(cls, metric_ids: list[int]):
-        for index in range(0, len(metric_ids), cls.METRIC_QUERY_BATCH_SIZE):
-            yield metric_ids[index : index + cls.METRIC_QUERY_BATCH_SIZE]
+        scope_metrics = ScopeMetricSerializer(label=_("按分组组织的指标 ID 列表"), many=True, allow_empty=False)
+
+    @staticmethod
+    def _build_scope_metric_map(params: dict) -> dict[int, set[int]]:
+        scope_metric_map: dict[int, set[int]] = {}
+        for scope_metric in params["scope_metrics"]:
+            metric_id_set = set(scope_metric["metric_ids"])
+            if metric_id_set:
+                scope_metric_map[scope_metric["scope_id"]] = metric_id_set
+        return scope_metric_map
+
+    @staticmethod
+    def _extract_tag_sets(metrics: list[dict]) -> list[set[str]]:
+        return [set(metric.get("tag_list", [])) for metric in metrics]
+
+    def _query_metrics_by_field_ids(self, group_id: int, metric_id_batch: list[int]) -> list[dict]:
+        conditions = [
+            {"key": "field_id", "values": [str(mid) for mid in metric_id_batch], "search_type": "exact"},
+        ]
+        request_params = {
+            "group_id": group_id,
+            "page": 1,
+            "page_size": len(metric_id_batch),
+            "conditions": conditions,
+        }
+        result = api.metadata.query_time_series_metric(**request_params)
+        return result.get("metrics", [])
+
+    def _query_metrics_by_scope_id(self, group_id: int, scope_id: int, selected_metric_ids: set[int]) -> list[dict]:
+        conditions = [{"key": "scope_id", "values": [str(scope_id)], "search_type": "exact"}]
+        request_params = {
+            "group_id": group_id,
+            "page": 1,
+            "page_size": -1,
+            "conditions": conditions,
+        }
+        result = api.metadata.query_time_series_metric(**request_params)
+        selected_metric_id_strs = {str(metric_id) for metric_id in selected_metric_ids}
+        return [metric for metric in result.get("metrics", []) if str(metric.get("field_id")) in selected_metric_id_strs]
 
     def perform_request(self, params: dict) -> dict:
-        metric_ids = list(dict.fromkeys(params["metric_ids"]))
+        request_start = time.perf_counter()
+        scope_metric_map = self._build_scope_metric_map(params)
+        metric_ids = sorted({metric_id for metric_ids in scope_metric_map.values() for metric_id in metric_ids})
+        logger.info(
+            "GetCustomTsMetricAggInfo start: group_id=%s metric_count=%s scope_count=%s scope_threshold=%s",
+            params["time_series_group_id"],
+            len(metric_ids),
+            len(scope_metric_map),
+            self.SCOPE_QUERY_SWITCH_THRESHOLD,
+        )
 
         common_dims = None
         all_dims = set()
-        for metric_id_batch in self._batched_metric_ids(metric_ids):
-            conditions = [
-                {"key": "field_id", "values": [str(mid) for mid in metric_id_batch], "search_type": "exact"},
-            ]
-            request_params = {
-                "group_id": params["time_series_group_id"],
-                "page": 1,
-                "page_size": len(metric_id_batch),
-                "conditions": conditions,
-            }
-            result = api.metadata.query_time_series_metric(**request_params)
+        remaining_metric_ids = set(metric_ids)
 
-            for metric in result.get("metrics", []):
-                tag_set = set(metric.get("tag_list", []))
+        for scope_index, (scope_id, scope_metric_ids) in enumerate(sorted(scope_metric_map.items()), start=1):
+            if len(scope_metric_ids) < self.SCOPE_QUERY_SWITCH_THRESHOLD:
+                continue
+
+            batch_start = time.perf_counter()
+            metrics = self._query_metrics_by_scope_id(params["time_series_group_id"], scope_id, scope_metric_ids)
+            remaining_metric_ids.difference_update(scope_metric_ids)
+            logger.info(
+                "GetCustomTsMetricAggInfo scope batch done: group_id=%s scope_index=%s scope_id=%s selected_metric_ids=%s result_metrics=%s cost=%.3fs",
+                params["time_series_group_id"],
+                scope_index,
+                scope_id,
+                len(scope_metric_ids),
+                len(metrics),
+                time.perf_counter() - batch_start,
+            )
+
+            for tag_set in self._extract_tag_sets(metrics):
+                all_dims.update(tag_set)
+                if common_dims is None:
+                    common_dims = tag_set
+                else:
+                    common_dims &= tag_set
+                if not common_dims and all_dims:
+                    common_dims = set()
+
+        if remaining_metric_ids:
+            batch_start = time.perf_counter()
+            metric_id_list = sorted(remaining_metric_ids)
+            metrics = self._query_metrics_by_field_ids(params["time_series_group_id"], metric_id_list)
+            logger.info(
+                "GetCustomTsMetricAggInfo metric query done: group_id=%s metric_ids=%s result_metrics=%s cost=%.3fs",
+                params["time_series_group_id"],
+                len(metric_id_list),
+                len(metrics),
+                time.perf_counter() - batch_start,
+            )
+
+            for tag_set in self._extract_tag_sets(metrics):
                 all_dims.update(tag_set)
                 if common_dims is None:
                     common_dims = tag_set
@@ -165,7 +241,14 @@ class GetCustomTsMetricAggInfo(Resource):
             "group_id": params["time_series_group_id"],
             "include_metrics": False,
         }
+        scope_start = time.perf_counter()
         scope_result = api.metadata.query_time_series_scope(**scope_request_params)
+        logger.info(
+            "GetCustomTsMetricAggInfo scope query done: group_id=%s scope_count=%s cost=%.3fs",
+            params["time_series_group_id"],
+            len(scope_result),
+            time.perf_counter() - scope_start,
+        )
 
         # 构建维度别名映射
         dim_alias_map: dict[str, str] = {}
@@ -173,6 +256,13 @@ class GetCustomTsMetricAggInfo(Resource):
             for dim_name, dim_config in scope_data.get("dimension_config", {}).items():
                 if dim_name not in dim_alias_map:
                     dim_alias_map[dim_name] = dim_config.get("alias", dim_name)
+        logger.info(
+            "GetCustomTsMetricAggInfo finished: group_id=%s common_dims=%s all_dims=%s total_cost=%.3fs",
+            params["time_series_group_id"],
+            len(common_dims),
+            len(all_dims),
+            time.perf_counter() - request_start,
+        )
         return {
             "common_dimensions": [{"name": d, "alias": dim_alias_map.get(d, d)} for d in sorted(common_dims)],
             "all_dimensions": [{"name": d, "alias": dim_alias_map.get(d, d)} for d in sorted(all_dims)],
