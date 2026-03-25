@@ -474,7 +474,7 @@ def run_reconciliation(
                         "diff_reason": compare_result["diff_reason"],
                         "query_string": query_config_dict.get("query_string") or "",
                         "agg_dimension": json.dumps(query_config_dict.get("agg_dimension") or [], ensure_ascii=False),
-                        "query_config": "{}",
+                        "query_config": json.dumps(query_config_dict, ensure_ascii=False),
                     }
                 )
             except Exception as e:
