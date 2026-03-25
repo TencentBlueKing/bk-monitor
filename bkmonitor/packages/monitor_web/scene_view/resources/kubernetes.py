@@ -2097,18 +2097,12 @@ class GetKubernetesObjectCount(ApiAuthResource):
 
                 if dashboard_id:
                     search = None
-                    if dashboard_id == "node":
-                        if api.kubernetes.is_shared_cluster(bcs_cluster_id, bk_biz_id):
-                            # 共享集群不需要展示节点数量和链接
-                            continue
-                        if bcs_cluster_id:
-                            if resource_name == "master_node":
-                                search = [{"bcs_cluster_id": bcs_cluster_id}, {"roles": "control-plane"}]
-                            elif resource_name == "work_node":
-                                search = [{"bcs_cluster_id": bcs_cluster_id}, {"roles": ""}]
-                    else:
-                        if bcs_cluster_id:
-                            search = [{"bcs_cluster_id": bcs_cluster_id}]
+                    # 节点维度需要检查共享集群
+                    if dashboard_id == "node" and api.kubernetes.is_shared_cluster(bcs_cluster_id, bk_biz_id):
+                        # 共享集群不需要展示节点数量和链接
+                        continue
+                    if bcs_cluster_id:
+                        search = [{"bcs_cluster_id": bcs_cluster_id}]
 
                     # 添加链接 (新版 k8s-new 页面格式)
                     # 将旧版 selectorSearch 列表转换为 filterBy JSON，bcs_cluster_id 提取为 cluster 参数
@@ -2123,19 +2117,16 @@ class GetKubernetesObjectCount(ApiAuthResource):
                                     filter_by[key] = [val]
                     filter_by_str = json.dumps(filter_by)
                     # groupBy: 将旧版 dashboard_id 映射为分组维度数组，namespace 为常驻维度需显式带上
-                    # scene: 根据维度映射场景 (node→capacity, service/ingress→network, 其他→performance)
+                    # scene: node→capacity, service/ingress→network, 其他→performance
                     if dashboard_id == "node":
-                        group_by_str = json.dumps(["node"])
                         scene = "capacity"
+                        group_by_str = json.dumps(["node"])
                     elif dashboard_id in ("service", "ingress"):
-                        group_by_str = json.dumps(["namespace", dashboard_id])
                         scene = "network"
-                    elif dashboard_id:
                         group_by_str = json.dumps(["namespace", dashboard_id])
-                        scene = "performance"
                     else:
-                        group_by_str = "[]"
                         scene = "performance"
+                        group_by_str = json.dumps(["namespace", dashboard_id]) if dashboard_id else "[]"
                     url = (
                         f"?bizId={bk_biz_id}#/k8s-new?cluster={cluster_id}"
                         f"&filterBy={filter_by_str}&groupBy={group_by_str}"
@@ -2256,7 +2247,6 @@ class GetKubernetesWorkloadStatus(ApiAuthResource):
             selector_search = []
             if bcs_cluster_id:
                 selector_search.append({"bcs_cluster_id": bcs_cluster_id})
-            selector_search.extend([{"workload_type": name}, {"status": BCSWorkload.STATE_SUCCESS}])
             # 将旧版 selectorSearch 转换为新版 filterBy 格式
             filter_by, cluster_id = {}, bcs_cluster_id or ""
             for item in selector_search:
@@ -2289,7 +2279,6 @@ class GetKubernetesWorkloadStatus(ApiAuthResource):
             selector_search = []
             if bcs_cluster_id:
                 selector_search.append({"bcs_cluster_id": bcs_cluster_id})
-            selector_search.extend([{"workload_type": name}, {"status": BCSWorkload.STATE_FAILURE}])
             filter_by, cluster_id = {}, bcs_cluster_id or ""
             for item in selector_search:
                 for key, val in item.items():
