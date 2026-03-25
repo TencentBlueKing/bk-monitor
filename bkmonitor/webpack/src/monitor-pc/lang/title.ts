@@ -264,4 +264,8 @@ export default {
   问题活动: 'Issue Activity',
   输入评论: 'Input comment',
   '历史 Issue': 'History Issue',
+  优先级变更: 'Priority change',
+  负责人变更: 'Owner change',
+  维度统计: 'Dimension Statistics',
+  查看完整评论: 'View full comment',
 };

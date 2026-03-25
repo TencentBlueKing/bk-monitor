@@ -23,24 +23,42 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, shallowRef, useTemplateRef } from 'vue';
+import { type PropType, defineComponent, nextTick, shallowRef } from 'vue';
 
 import { Button, Dialog, Input } from 'bkui-vue';
+import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
 import MarkdownEditor from '../../../../../../components/markdown-editor/editor';
 import MarkdownViewer from '../../../../../../components/markdown-editor/viewer';
-import { IssueActiveNodeTypeEnum, IssuesActiveNodeIconMap } from '../../../constant';
+import {
+  IssueActiveNodeTypeEnum,
+  IssuesActiveNodeIconMap,
+  IssuesPriorityMap,
+  IssuesStatusMap,
+} from '../../../constant';
 import BasicCard from '../basic-card/basic-card';
+import ClampText from './clamp-text';
+
+import type { IssueActivityItem } from '../../../typing';
 
 import './issues-activity.scss';
 
+/** 评论内容最大显示行数 */
+const MAX_COMMENT_LINES = 3;
+
 export default defineComponent({
   name: 'IssuesActivity',
+  props: {
+    list: {
+      type: Array as PropType<IssueActivityItem[]>,
+      default: () => [],
+    },
+  },
   setup() {
     const { t } = useI18n();
 
-    const commonInput = useTemplateRef<InstanceType<typeof Input>>('commonInput');
+    const commonInput = shallowRef<InstanceType<typeof Input>>();
     const activeNodeMap = IssuesActiveNodeIconMap;
 
     /** 评论输入框是否聚焦 */
@@ -174,7 +192,7 @@ export default defineComponent({
           width={800}
           class='comment-markdown-dialog'
           v-model:isShow={isMarkdownDialogShow.value}
-          title={t('输入评论')}
+          title={t(isEditMarkdown.value ? '输入评论' : '查看完整评论')}
           onClosed={handleCloseMarkdownDialog}
         >
           {{
@@ -237,9 +255,9 @@ export default defineComponent({
     };
 
     /**
-     * 渲染 Issue 拆分
+     * 渲染 Issue 拆分（二期功能）
      */
-    const renderSplitActivity = () => {
+    const renderSplitActivity = (item: IssueActivityItem) => {
       const splitNode = activeNodeMap[IssueActiveNodeTypeEnum.SPLIT];
       return renderActivityItem({
         icon: (
@@ -254,9 +272,9 @@ export default defineComponent({
             <span class='action'>{splitNode.alias}</span>
             <span
               class='time'
-              v-bk-tooltips={{ content: '2025-08-01 00:00:00' }}
+              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
             >
-              8months ago
+              {dayjs(item.time).fromNow()}
             </span>
           </div>
         ),
@@ -277,9 +295,9 @@ export default defineComponent({
     };
 
     /**
-     * 渲染 Issue 合并
+     * 渲染 Issue 合并（二期功能）
      */
-    const renderMergeActivity = () => {
+    const renderMergeActivity = (item: IssueActivityItem) => {
       const mergeNode = activeNodeMap[IssueActiveNodeTypeEnum.MERGE];
       return renderActivityItem({
         icon: (
@@ -294,9 +312,9 @@ export default defineComponent({
             <span class='action'>{mergeNode.alias}</span>
             <span
               class='time'
-              v-bk-tooltips={{ content: '2025-08-01 00:00:00' }}
+              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
             >
-              8months ago
+              {dayjs(item.time).fromNow()}
             </span>
           </div>
         ),
@@ -312,57 +330,26 @@ export default defineComponent({
     /**
      * 渲染评论
      */
-    const commentTextRef = useTemplateRef<HTMLSpanElement | null>('commentTextRef');
-    const isCommentClamped = shallowRef(false);
-
-    // 检测评论是否超过 3 行
-    const checkCommentOverflow = () => {
-      nextTick(() => {
-        if (commentTextRef.value) {
-          const lineHeight = 20; // 行高
-          const maxLines = 3;
-          const maxHeight = lineHeight * maxLines;
-          isCommentClamped.value = commentTextRef.value.offsetHeight > maxHeight;
-        }
-      });
-    };
-
-    // 初始化检测
-    checkCommentOverflow();
-
-    const renderCommentActivity = () => {
-      const commentText = `### 阿帆辣椒水东方丽景
-
-带道具
-
-11123
-
-第四行`;
-
+    const renderCommentActivity = (item: IssueActivityItem) => {
       return renderActivityItem({
         icon: <i class='icon-monitor icon-a-useryonghu' />,
         title: (
           <div class='title-row'>
-            <span class='user'>lililiu(刘莉莉)</span>
+            <span class='user'>{item.operator}</span>
             <span
               class='time'
-              v-bk-tooltips={{ content: '2025-08-01 00:00:00' }}
+              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
             >
-              8months ago
+              {dayjs(item.time * 1000).fromNow()}
             </span>
           </div>
         ),
         content: (
           <div class='comment-content'>
-            <span
-              ref='commentTextRef'
-              class={{ 'comment-text': true, 'is-clamped': isCommentClamped.value }}
-            >
-              {commentText}
-            </span>
-            <i
-              class='icon-monitor icon-xiangqing1 comment-icon'
-              onClick={() => handleViewComment(commentText)}
+            <ClampText
+              content={item.content}
+              maxLines={MAX_COMMENT_LINES}
+              onExpand={handleViewComment}
             />
           </div>
         ),
@@ -372,8 +359,8 @@ export default defineComponent({
     /**
      * 渲染状态流转
      */
-    const renderStatusActivity = () => {
-      const statusNode = activeNodeMap[IssueActiveNodeTypeEnum.STATUS];
+    const renderStatusActivity = (item: IssueActivityItem) => {
+      const statusNode = activeNodeMap[IssueActiveNodeTypeEnum.STATUS_CHANGE];
       return renderActivityItem({
         icon: (
           <img
@@ -386,13 +373,13 @@ export default defineComponent({
           <div class='title-row'>
             <span class='action'>
               {statusNode.alias}
-              {t('未解决')}
+              {IssuesStatusMap[item.to_value]?.alias}
             </span>
             <span
               class='time'
-              v-bk-tooltips={{ content: '2025-08-01 00:00:00' }}
+              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
             >
-              8months ago
+              {dayjs(item.time * 1000).fromNow()}
             </span>
           </div>
         ),
@@ -402,8 +389,8 @@ export default defineComponent({
     /**
      * 渲染指派负责人
      */
-    const renderDispatchActivity = () => {
-      const dispatchNode = activeNodeMap[IssueActiveNodeTypeEnum.DISPATCH];
+    const renderDispatchActivity = (item: IssueActivityItem) => {
+      const dispatchNode = activeNodeMap[IssueActiveNodeTypeEnum.ASSIGNEE_CHANGE];
       return renderActivityItem({
         icon: (
           <img
@@ -414,12 +401,45 @@ export default defineComponent({
         ),
         title: (
           <div class='title-row'>
-            <span class='action'>{dispatchNode.alias}carrielu、edwinwu</span>
+            <span class='action'>
+              {dispatchNode.alias}
+              {item.to_value}
+            </span>
             <span
               class='time'
-              v-bk-tooltips={{ content: '2025-08-01 00:00:00' }}
+              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
             >
-              8months ago
+              {dayjs(item.time * 1000).fromNow()}
+            </span>
+          </div>
+        ),
+      });
+    };
+
+    /**
+     * 渲染优先级变更
+     */
+    const renderPriorityActivity = (item: IssueActivityItem) => {
+      const priorityNode = activeNodeMap[IssueActiveNodeTypeEnum.PRIORITY_CHANGE];
+      return renderActivityItem({
+        icon: (
+          <img
+            class='activity-icon'
+            alt=''
+            src={priorityNode.icon}
+          />
+        ),
+        title: (
+          <div class='title-row'>
+            <span class='action'>
+              {priorityNode.alias}
+              {IssuesPriorityMap[item.to_value]?.alias}
+            </span>
+            <span
+              class='time'
+              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
+            >
+              {dayjs(item.time * 1000).fromNow()}
             </span>
           </div>
         ),
@@ -429,8 +449,8 @@ export default defineComponent({
     /**
      * 渲染首次出现
      */
-    const renderFirstActivity = () => {
-      const firstNode = activeNodeMap[IssueActiveNodeTypeEnum.FIRST];
+    const renderFirstActivity = (item: IssueActivityItem) => {
+      const firstNode = activeNodeMap[IssueActiveNodeTypeEnum.CREATE];
       return renderActivityItem({
         icon: (
           <img
@@ -444,9 +464,9 @@ export default defineComponent({
             <span class='action'>{firstNode.alias}</span>
             <span
               class='time'
-              v-bk-tooltips={{ content: '2025-08-01 00:00:00' }}
+              v-bk-tooltips={{ content: dayjs(item.time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
             >
-              8months ago
+              {dayjs(item.time * 1000).fromNow()}
             </span>
           </div>
         ),
@@ -454,15 +474,35 @@ export default defineComponent({
       });
     };
 
+    /**
+     * 根据不同的活动类型渲染不同的内容
+     */
+    const renderActivityContent = (item: IssueActivityItem) => {
+      switch (item.activity_type) {
+        case IssueActiveNodeTypeEnum.COMMENT:
+          return renderCommentActivity(item);
+        case IssueActiveNodeTypeEnum.STATUS_CHANGE:
+          return renderStatusActivity(item);
+        case IssueActiveNodeTypeEnum.ASSIGNEE_CHANGE:
+          return renderDispatchActivity(item);
+        case IssueActiveNodeTypeEnum.PRIORITY_CHANGE:
+          return renderPriorityActivity(item);
+        case IssueActiveNodeTypeEnum.CREATE:
+          return renderFirstActivity(item);
+        // TODO: 合并和拆分是二期功能
+        case IssueActiveNodeTypeEnum.SPLIT:
+          return renderSplitActivity(item);
+        case IssueActiveNodeTypeEnum.MERGE:
+          return renderMergeActivity(item);
+        default:
+          return null;
+      }
+    };
+
     return {
       renderCommentInput,
       renderMarkdownDialog,
-      renderSplitActivity,
-      renderMergeActivity,
-      renderCommentActivity,
-      renderStatusActivity,
-      renderDispatchActivity,
-      renderFirstActivity,
+      renderActivityContent,
     };
   },
   render() {
@@ -472,14 +512,7 @@ export default defineComponent({
         title={this.$t('问题活动')}
       >
         {this.renderCommentInput()}
-        <div class='activity-list'>
-          {this.renderSplitActivity()}
-          {this.renderMergeActivity()}
-          {this.renderCommentActivity()}
-          {this.renderStatusActivity()}
-          {this.renderDispatchActivity()}
-          {this.renderFirstActivity()}
-        </div>
+        <div class='activity-list'>{this.list.map(item => this.renderActivityContent(item))}</div>
         {this.renderMarkdownDialog()}
       </BasicCard>
     );
