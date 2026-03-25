@@ -378,6 +378,8 @@ class ElasticsearchCls:
 
 @dataclass
 class DorisCls:
+    """Doris 存储配置，使用 duplicate 模型，唯一键表默认不过期。"""
+
     expires_dup: str = ""
     expires_uniq: str = "-1"
     data_model: str = "duplicate"

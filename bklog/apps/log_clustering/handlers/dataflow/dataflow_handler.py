@@ -51,6 +51,7 @@ from apps.log_clustering.exceptions import (
     BkdataFlowException,
     BkdataStorageNotExistException,
     CollectorStorageNotExistException,
+    DorisStorageNotExistException,
     QueryFieldsException,
 )
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
@@ -1116,6 +1117,7 @@ class DataFlowHandler(BaseAiopsHandler):
         }
         return target_es_storage_node_dict, source_es_storage_node_dict
 
+    @classmethod
     def get_model_node(cls, flow, nodes):
         """
         get_model_node
@@ -1387,7 +1389,11 @@ class DataFlowHandler(BaseAiopsHandler):
             )
             handled_fields.add(dst_field)
 
-        doris_fields.append({"alias": "__dist_05", "field": "__dist_05", "type": "string", "config": ""})
+        for pattern_level in PatternEnum.get_dict_choices().keys():
+            dist_field = f"{AGGS_FIELD_PREFIX}_{pattern_level}"
+            if dist_field in handled_fields:
+                continue
+            doris_fields.append({"alias": dist_field, "field": dist_field, "type": "string", "config": ""})
         return doris_fields
 
     def _init_predict_flow(
@@ -1535,7 +1541,11 @@ class DataFlowHandler(BaseAiopsHandler):
                 )
         predict_flow.storage_type = clustering_config.storage_type or StorageTypeEnum.ELASTICSEARCH.value
         if predict_flow.storage_type == StorageTypeEnum.DORIS.value:
-            predict_flow.doris_storage = clustering_config.doris_storage or ""
+            if not clustering_config.doris_storage:
+                raise DorisStorageNotExistException(
+                    DorisStorageNotExistException.MESSAGE.format(index_set_id=clustering_config.index_set_id)
+                )
+            predict_flow.doris_storage = clustering_config.doris_storage
             predict_flow.doris.expires_dup = f"{es_storage['expires']}d"
             predict_flow.doris.fields = json.dumps(
                 self._build_doris_fields(

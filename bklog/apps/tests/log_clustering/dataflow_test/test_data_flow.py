@@ -3,7 +3,7 @@ from dataclasses import asdict
 
 from django.test import TestCase
 
-from apps.log_clustering.constants import StorageTypeEnum
+from apps.log_clustering.constants import AGGS_FIELD_PREFIX, PatternEnum, StorageTypeEnum
 from apps.log_clustering.handlers.dataflow.constants import FlowMode
 from apps.log_clustering.handlers.dataflow.data_cls import (
     DorisCls,
@@ -85,41 +85,41 @@ TEST_CASES = [
     {
         "filters": [
             {"op": "LIKE", "value": "%ERROR%", "fields_name": "log", "logic_operator": None},
-            {"op": "=", "value": "1.1.1.1", "fields_name": "serverIp", "logic_operator": "and"},
+            {"op": "=", "value": "server_ip_a", "fields_name": "serverIp", "logic_operator": "and"},
         ],
         "result": (
-            "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( `log` LIKE '%ERROR%' and `serverIp` = '1.1.1.1' )",
-            "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( `log` LIKE '%ERROR%' and `serverIp` = '1.1.1.1' ) )",
+            "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( `log` LIKE '%ERROR%' and `serverIp` = 'server_ip_a' )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( `log` LIKE '%ERROR%' and `serverIp` = 'server_ip_a' ) )",
         ),
     },
     {
         "filters": [
             {"op": "LIKE", "value": ["%ERROR%", "INFO"], "fields_name": "log", "logic_operator": None},
-            {"op": "=", "value": ["1.1.1.1"], "fields_name": "serverIp", "logic_operator": "and"},
+            {"op": "=", "value": ["server_ip_a"], "fields_name": "serverIp", "logic_operator": "and"},
         ],
         "result": (
-            "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and `serverIp` = '1.1.1.1' )",
-            "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and `serverIp` = '1.1.1.1' ) )",
+            "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and `serverIp` = 'server_ip_a' )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and `serverIp` = 'server_ip_a' ) )",
         ),
     },
     {
         "filters": [
             {"op": "LIKE", "value": ["%ERROR%", "INFO"], "fields_name": "log", "logic_operator": None},
-            {"op": "=", "value": ["1.1.1.1", "0.0.0.0"], "fields_name": "serverIp", "logic_operator": "and"},
+            {"op": "=", "value": ["server_ip_a", "server_ip_b"], "fields_name": "serverIp", "logic_operator": "and"},
         ],
         "result": (
-            "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and ( `serverIp` = '1.1.1.1' or `serverIp` = '0.0.0.0' ) )",
-            "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and ( `serverIp` = '1.1.1.1' or `serverIp` = '0.0.0.0' ) ) )",
+            "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and ( `serverIp` = 'server_ip_a' or `serverIp` = 'server_ip_b' ) )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` LIKE '%ERROR%' or `log` LIKE 'INFO' ) and ( `serverIp` = 'server_ip_a' or `serverIp` = 'server_ip_b' ) ) )",
         ),
     },
     {
         "filters": [
             {"op": "not contains", "value": ["ERROR", "INFO"], "fields_name": "log", "logic_operator": None},
-            {"op": "!=", "value": ["1.1.1.1", "0.0.0.0"], "fields_name": "serverIp", "logic_operator": "and"},
+            {"op": "!=", "value": ["server_ip_a", "server_ip_b"], "fields_name": "serverIp", "logic_operator": "and"},
         ],
         "result": (
-            "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` NOT LIKE '%ERROR%' and `log` NOT LIKE '%INFO%' ) and ( `serverIp` <> '1.1.1.1' and `serverIp` <> '0.0.0.0' ) )",
-            "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` NOT LIKE '%ERROR%' and `log` NOT LIKE '%INFO%' ) and ( `serverIp` <> '1.1.1.1' and `serverIp` <> '0.0.0.0' ) ) )",
+            "where `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` NOT LIKE '%ERROR%' and `log` NOT LIKE '%INFO%' ) and ( `serverIp` <> 'server_ip_a' and `serverIp` <> 'server_ip_b' ) )",
+            "where NOT ( `log` is not null and length(`log`) > 1 and (  `serverIp` is not null  ) and ( ( `log` NOT LIKE '%ERROR%' and `log` NOT LIKE '%INFO%' ) and ( `serverIp` <> 'server_ip_a' and `serverIp` <> 'server_ip_b' ) ) )",
         ),
     },
 ]
@@ -180,7 +180,11 @@ class TestPatternSearch(TestCase):
             {"alias": "dtEventTimeStamp", "field": "dtEventTimeStamp", "type": "string", "config": ""},
             result,
         )
-        self.assertEqual(result[-1], {"alias": "__dist_05", "field": "__dist_05", "type": "string", "config": ""})
+        expected_dist_fields = {
+            f"{AGGS_FIELD_PREFIX}_{pattern_level}" for pattern_level in PatternEnum.get_dict_choices().keys()
+        }
+        actual_dist_fields = {field["field"] for field in result if field["field"].startswith(f"{AGGS_FIELD_PREFIX}_")}
+        self.assertSetEqual(actual_dist_fields, expected_dist_fields)
 
     def test_render_predict_flow_with_doris_storage(self):
         predict_flow = PredictDataFlowCls(
