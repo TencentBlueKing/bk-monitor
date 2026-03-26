@@ -246,7 +246,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     if (!row.assignee?.length) {
       return (
         <div
-          class='issues-assignee-unassigned-col '
+          class='issues-assignee-unassigned-col'
           onClick={() => rendererCtx.handleAssignClick(row)}
         >
           <div class='assignee-tag-wrapper'>
