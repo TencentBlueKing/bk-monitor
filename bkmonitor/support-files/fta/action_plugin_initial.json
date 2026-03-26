@@ -684,7 +684,7 @@
   },
   {
     "id": 7,
-    "description": "流程服务可自定义设计的流程模块，可以通过工单流程来满足协作的需求。<a href=\\\"{plugin_url}\\\" target=\\\"_blank\\\">前往流程服务</a>\\n\\n* 新建服务 &gt; 关联已有流程/创建新流程 &gt; 完成\\n\\n* 提单信息可通过处理套餐进行上下文传参",
+    "description": "流程服务可自定义设计的流程模块，可以通过工单流程来满足协作的需求。<a href=\\\"{plugin_url}\\\" target=\\\"_blank\\\">前往IT服务管理中心</a>\\n\\n* 新建服务 &gt; 关联已有流程/创建新流程 &gt; 完成\\n\\n* 提单信息可通过处理套餐进行上下文传参",
     "has_child": true,
     "is_builtin": true,
     "is_deleted": false,
@@ -717,7 +717,7 @@
     },
     "plugin_url": {
       "mapping": {
-        "tips": "前往流程服务",
+        "tips": "前往IT服务管理中心",
         "url": "{{itsm_v4_site_url}}/#/system/processList"
       }
     },

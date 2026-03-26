@@ -45,11 +45,13 @@ from apps.log_clustering.constants import (
     MAX_FAILED_REQUEST_RETRY,
     NOT_NEED_EDIT_NODES,
     PatternEnum,
+    StorageTypeEnum,
 )
 from apps.log_clustering.exceptions import (
     BkdataFlowException,
     BkdataStorageNotExistException,
     CollectorStorageNotExistException,
+    DorisStorageNotExistException,
     QueryFieldsException,
 )
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
@@ -1060,6 +1062,7 @@ class DataFlowHandler(BaseAiopsHandler):
             self.deal_real_time_node(
                 flow_id=node["flow_id"], node_id=node["node_id"], sql=target_node["sql"], bk_biz_id=bk_biz_id
             )
+
         return
 
     def deal_pre_treat_flow(self, nodes, flow, bk_biz_id):
@@ -1353,6 +1356,46 @@ class DataFlowHandler(BaseAiopsHandler):
         request_dict = self.get_online_task_request(index_set_id, OperatorOnlineTaskEnum.CREATE)
         return BkDataAIOPSApi.create_online_task(request_dict)
 
+    @staticmethod
+    def _build_doris_fields(all_fields, is_dimension_fields_map, analyzed_fields, json_fields):
+        field_type_map = {field["field_name"]: field["field_type"] for field in all_fields}
+        doris_fields = [
+            {"alias": "_startTime_", "field": "_startTime_", "type": "string", "config": ""},
+            {"alias": "_endTime_", "field": "_endTime_", "type": "string", "config": ""},
+        ]
+        handled_fields = {"_startTime_", "_endTime_"}
+        supported_types = {"string", "int", "long", "float", "double"}
+
+        for src_field, dst_field in is_dimension_fields_map.items():
+            if dst_field in handled_fields:
+                continue
+
+            bkdata_type = field_type_map.get(src_field, "string")
+            doris_type = bkdata_type if bkdata_type in supported_types else "string"
+            if src_field in analyzed_fields or dst_field in analyzed_fields:
+                config = "search_en"
+            elif bkdata_type == "object" or src_field in json_fields or dst_field in json_fields:
+                config = "json"
+            else:
+                config = ""
+
+            doris_fields.append(
+                {
+                    "alias": dst_field,
+                    "field": dst_field,
+                    "type": doris_type,
+                    "config": config,
+                }
+            )
+            handled_fields.add(dst_field)
+
+        for pattern_level in PatternEnum.get_dict_choices().keys():
+            dist_field = f"{AGGS_FIELD_PREFIX}_{pattern_level}"
+            if dist_field in handled_fields:
+                continue
+            doris_fields.append({"alias": dist_field, "field": dist_field, "type": "string", "config": ""})
+        return doris_fields
+
     def _init_predict_flow(
         self,
         result_table_id: str,
@@ -1483,7 +1526,10 @@ class DataFlowHandler(BaseAiopsHandler):
                 collector_config_id=clustering_config.collector_config_id
             ).first()
             storage = TransferApi.get_result_table_storage(
-                params={"result_table_list": collector_config.table_id, "storage_type": "elasticsearch"}
+                params={
+                    "result_table_list": collector_config.table_id,
+                    "storage_type": StorageTypeEnum.ELASTICSEARCH.value,
+                }
             )[collector_config.table_id]
             es_storage["expires"] = str(storage["storage_config"].get("retention"))
         else:
@@ -1493,16 +1539,33 @@ class DataFlowHandler(BaseAiopsHandler):
                 raise BkdataStorageNotExistException(
                     BkdataStorageNotExistException.MESSAGE.format(index_set_id=clustering_config.index_set_id)
                 )
-        predict_flow.es_cluster = clustering_config.es_storage
-        predict_flow.es.expires = es_storage["expires"]
-        predict_flow.es.has_replica = json.dumps(es_storage.get("has_replica", False))
-        predict_flow.es.json_fields = json.dumps(es_storage.get("json_fields", []))
-        predict_flow.es.analyzed_fields = json.dumps(es_storage.get("analyzed_fields", []))
-        doc_values_fields = es_storage.get("doc_values_fields", [])
-        doc_values_fields.extend(
-            [f"{AGGS_FIELD_PREFIX}_{pattern_level}" for pattern_level in PatternEnum.get_dict_choices().keys()]
-        )
-        predict_flow.es.doc_values_fields = json.dumps(doc_values_fields)
+        predict_flow.storage_type = clustering_config.storage_type or StorageTypeEnum.ELASTICSEARCH.value
+        if predict_flow.storage_type == StorageTypeEnum.DORIS.value:
+            if not clustering_config.doris_storage:
+                raise DorisStorageNotExistException(
+                    DorisStorageNotExistException.MESSAGE.format(index_set_id=clustering_config.index_set_id)
+                )
+            predict_flow.doris_storage = clustering_config.doris_storage
+            predict_flow.doris.expires_dup = f"{es_storage['expires']}d"
+            predict_flow.doris.fields = json.dumps(
+                self._build_doris_fields(
+                    all_fields=all_fields,
+                    is_dimension_fields_map=is_dimension_fields_map,
+                    analyzed_fields=es_storage.get("analyzed_fields", []),
+                    json_fields=es_storage.get("json_fields", []),
+                )
+            )
+        else:
+            predict_flow.es_cluster = clustering_config.es_storage
+            predict_flow.es.expires = es_storage["expires"]
+            predict_flow.es.has_replica = json.dumps(es_storage.get("has_replica", False))
+            predict_flow.es.json_fields = json.dumps(es_storage.get("json_fields", []))
+            predict_flow.es.analyzed_fields = json.dumps(es_storage.get("analyzed_fields", []))
+            doc_values_fields = es_storage.get("doc_values_fields", [])
+            doc_values_fields.extend(
+                [f"{AGGS_FIELD_PREFIX}_{pattern_level}" for pattern_level in PatternEnum.get_dict_choices().keys()]
+            )
+            predict_flow.es.doc_values_fields = json.dumps(doc_values_fields)
 
         return predict_flow
 
@@ -1547,45 +1610,60 @@ class DataFlowHandler(BaseAiopsHandler):
         index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if index_set:
             try:
-                TransferApi.create_or_update_log_router(
-                    {
-                        "cluster_id": index_set.storage_cluster_id,
-                        "index_set": clustering_config.clustered_rt,
-                        "source_type": Scenario.BKDATA,
-                        "data_label": BaseIndexSetHandler.get_data_label(
-                            index_set.index_set_id, clustered_rt=clustering_config.clustered_rt
-                        ),
-                        "table_id": BaseIndexSetHandler.get_rt_id(
-                            index_set.index_set_id,
-                            clustering_config.clustered_rt,
-                        ),
-                        "space_id": index_set.space_uid.split("__")[-1],
-                        "space_type": index_set.space_uid.split("__")[0],
-                        "need_create_index": False,
-                        "options": [
-                            {
-                                "name": "time_field",
-                                "value_type": "dict",
-                                "value": json.dumps(
-                                    {
-                                        "name": index_set.time_field,
-                                        "type": index_set.time_field_type,
-                                        "unit": index_set.time_field_unit
-                                        if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
-                                        else TimeFieldUnitEnum.MILLISECOND.value,
-                                    }
-                                ),
-                            },
-                            {
-                                "name": "need_add_time",
-                                "value_type": "bool",
-                                "value": "true",
-                            },
-                        ],
-                    }
-                )
+                route_params = {
+                    "source_type": Scenario.BKDATA,
+                    "data_label": BaseIndexSetHandler.get_data_label(
+                        index_set.index_set_id, clustered_rt=clustering_config.clustered_rt
+                    ),
+                    "space_id": index_set.space_uid.split("__")[-1],
+                    "space_type": index_set.space_uid.split("__")[0],
+                    "need_create_index": False,
+                    "options": [
+                        {
+                            "name": "time_field",
+                            "value_type": "dict",
+                            "value": json.dumps(
+                                {
+                                    "name": index_set.time_field,
+                                    "type": index_set.time_field_type,
+                                    "unit": index_set.time_field_unit
+                                    if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
+                                    else TimeFieldUnitEnum.MILLISECOND.value,
+                                }
+                            ),
+                        },
+                        {
+                            "name": "need_add_time",
+                            "value_type": "bool",
+                            "value": "true",
+                        },
+                    ],
+                }
+                if clustering_config.storage_type == StorageTypeEnum.DORIS.value:
+                    route_params.update(
+                        {
+                            "storage_type": StorageTypeEnum.DORIS.value,
+                            "bkbase_table_id": clustering_config.clustered_rt,
+                            "table_id": (
+                                f"bklog_index_set_{index_set.index_set_id}_"
+                                f"{clustering_config.clustered_rt.replace('.', '_')}.__doris__"
+                            ),
+                        }
+                    )
+                else:
+                    route_params.update(
+                        {
+                            "cluster_id": index_set.storage_cluster_id,
+                            "index_set": clustering_config.clustered_rt,
+                            "table_id": BaseIndexSetHandler.get_rt_id(
+                                index_set.index_set_id,
+                                clustering_config.clustered_rt,
+                            ),
+                        }
+                    )
+                TransferApi.create_or_update_log_router(route_params)
             except Exception as e:
-                logger.exception("create index set(%s) es clustered router failed：%s", index_set.index_set_id, e)
+                logger.exception("create index set(%s) clustered router failed：%s", index_set.index_set_id, e)
 
         # 添加一步更新 update_model_instance
         data_processing_id_config = self.get_serving_data_processing_id_config(
