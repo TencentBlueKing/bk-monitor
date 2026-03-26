@@ -378,8 +378,8 @@ export default defineComponent({
     /** URL参数 */
     const urlParams = computed<AlarmUrlParams>(() => {
       return {
-        from: alarmStore.timeRange[0],
-        to: alarmStore.timeRange[1],
+        from: String(alarmStore.timeRange[0]),
+        to: String(alarmStore.timeRange[1]),
         timezone: alarmStore.timezone,
         refreshInterval: String(alarmStore.refreshInterval),
         queryString: alarmStore.queryString,

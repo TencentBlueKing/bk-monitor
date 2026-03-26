@@ -535,4 +535,5 @@ export default {
   'button-高': 'High',
   'button-中': 'Medium',
   'button-低': 'Low',
+  'button-富文本编辑': 'Rich Text Editor',
 };
