@@ -1076,6 +1076,9 @@ export default defineComponent({
      * @param row - 表格行数据
      */
     const handleMenuClick = (key: string, row: ITableRowData) => {
+      // 前置校验：视觉禁用的菜单项，点击也不应执行
+      if (!getOperatorCanClick(row, key)) return;
+
       currentRow.value = row;
       // 关闭所有 tippy 实例
       for (const instance of tippyInstances) {
