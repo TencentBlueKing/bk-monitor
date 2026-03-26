@@ -218,8 +218,9 @@ export default defineComponent({
      */
     const isUpdate = computed(
       () =>
-        (route.name === 'collectEdit' && props.isEdit) ||
-        (route.name === 'collectAdd' && !!formData.value?.collector_config_id),
+        !isClone.value &&
+        ((route.name === 'collectEdit' && props.isEdit) ||
+          (route.name === 'collectAdd' && !!formData.value?.collector_config_id)),
     );
     /**
      * 是否为采集主机日志
