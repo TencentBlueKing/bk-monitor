@@ -2553,7 +2553,7 @@ class TimeSeriesMetric(models.Model):
             if existing_conflicts:
                 conflicting_names = list(existing_conflicts)
                 raise ValueError(
-                    f"目标分组中已存在同名指标[{', '.join(conflicting_names)}]，请修改指标名称后重试"
+                    f"目标分组中已存在同名指标[{', '.join(conflicting_names)}]"
                 )
 
     @classmethod
