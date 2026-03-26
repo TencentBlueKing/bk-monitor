@@ -2595,12 +2595,12 @@ class TimeSeriesMetric(models.Model):
                 scope_name = scope_id_to_name.get(scope_id, str(scope_id))
                 conflicts_by_scope[scope_name].append(field_name)
 
-            # 构建错误信息：A分组已存在同名指标[x, y]，不可重复创建
+            # 构建错误信息：xxx分组存在同名指标冲突: yyy
             conflict_details = "；".join(
-                f"{scope_name}分组已存在同名指标[{', '.join(names)}]，不可重复创建"
+                f"{scope_name}分组存在同名指标冲突: {', '.join(names)}"
                 for scope_name, names in conflicts_by_scope.items()
             )
-            raise ValueError(f"不允许新建同名指标：{conflict_details}")
+            raise ValueError(conflict_details)
 
 
 class TimeSeriesTagManager(models.Manager):
