@@ -9,7 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam.drf import IAMPermission
+from bkmonitor.iam.resource import ResourceEnum
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
@@ -20,12 +21,43 @@ class IssueViewSet(ResourceViewSet):
     # 只读接口使用 VIEW_EVENT 权限，写操作使用 MANAGE_EVENT 权限
     READ_ONLY_ENDPOINTS = ["issue/search", "issue/activities", "issue/history"]
 
+    class IssueBusinessActionPermission(IAMPermission):
+        """
+        Issue 功能专用业务权限校验。
+
+        Issue 有些接口的 bk_biz_id 嵌套在请求体的 issues[*].bk_biz_id 中，
+        框架默认的 BusinessActionPermission 只提取顶层 bk_biz_id，
+        导致 request.biz_id 为空时直接放行，跳过 IAM 校验。
+
+        本类从 issues 数组中提取所有唯一 bk_biz_id，
+        对每个业务 ID 分别做 IAM 校验，全部通过才放行。
+        若请求体中没有 issues 字段（如 GET 接口），则回退到标准逻辑。
+        """
+
+        def has_permission(self, request, view):
+            body = request.data or {}
+            issues = body.get("issues") if isinstance(body, dict) else None
+
+            if issues:
+                biz_ids = {item["bk_biz_id"] for item in issues if isinstance(item, dict) and item.get("bk_biz_id")}
+            else:
+                biz_id = getattr(request, "biz_id", None) or (body.get("bk_biz_id") if isinstance(body, dict) else None)
+                biz_ids = {biz_id} if biz_id else set()
+
+            if not biz_ids:
+                return False
+
+            for biz_id in biz_ids:
+                self.resources = [ResourceEnum.BUSINESS.create_instance(str(biz_id))]
+                super().has_permission(request, view)  # 无权限时 raise PermissionDeniedError
+            return True
+
     def get_permissions(self):
         # 查询变更记录为只读操作，使用 VIEW_EVENT 权限
         # 其余写操作（指派、解决、改优先级、添加跟进）使用 MANAGE_EVENT 权限
         if self.action in self.READ_ONLY_ENDPOINTS:
-            return [BusinessActionPermission([ActionEnum.VIEW_EVENT])]
-        return [BusinessActionPermission([ActionEnum.MANAGE_EVENT])]
+            return [self.IssueBusinessActionPermission([ActionEnum.VIEW_EVENT])]
+        return [self.IssueBusinessActionPermission([ActionEnum.MANAGE_EVENT])]
 
     resource_routes = [
         # Issue 列表查询

@@ -72,7 +72,7 @@ def _get_issue_or_raise(issue_id: str, bk_biz_id: int | None = None) -> IssueDoc
     # 若不传 meta.id，__init__ 会自动生成新 ID，导致 UPSERT 退化为 INSERT。
     source.pop("id", None)
     issue = IssueDocument(id=hits[0].meta.id, **source)
-    if bk_biz_id is not None and issue.bk_biz_id != bk_biz_id:
+    if bk_biz_id is not None and int(issue.bk_biz_id) != int(bk_biz_id):
         raise IssueNotFoundError(f"Issue not found, issue_id={issue_id}")
     return issue
 
@@ -439,16 +439,7 @@ class AddIssueFollowUpResource(Resource):
             Returns:
                 dict，包含 activity_id、issue_id、activity_type、content、operator、time 字段。
             """
-            activity = IssueActivityDocument(
-                issue_id=issue.id,
-                bk_biz_id=issue.bk_biz_id,
-                activity_type=IssueActivityType.COMMENT,
-                content=content,
-                operator=operator,
-                time=now,
-                create_time=now,
-            )
-            IssueActivityDocument.bulk_create([activity])
+            activity = issue.add_comment(content=content, operator=operator, now=now)
             return {
                 "bk_biz_id": issue.bk_biz_id,
                 "activity_id": activity.id,
