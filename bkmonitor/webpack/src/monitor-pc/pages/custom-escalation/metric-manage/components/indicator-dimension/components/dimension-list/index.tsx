@@ -40,7 +40,7 @@ import './index.scss';
  * 维度详情类型定义
  * 从 ICustomTsFields 的 dimensions 数组中提取单个维度项的类型
  */
-type DimensionDetail = IGroupingRule['dimension_config'][number];
+type DimensionDetail = IGroupingRule['dimension_config'][number] & { scope: { id: number; name: string } };
 
 /**
  * 组件事件接口定义
@@ -262,7 +262,7 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
               class='name'
               v-bk-overflow-tips
             >
-              {props.row.name && props.row.name === NULL_LABEL ? this.$t('默认分组') : props.row.name || '--'}
+              {props.row.scope.name === NULL_LABEL ? this.$t('默认分组') : props.row.scope.name || '--'}
             </div>
           ),
         },
