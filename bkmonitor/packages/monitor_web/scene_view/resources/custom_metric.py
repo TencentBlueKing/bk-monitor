@@ -137,6 +137,9 @@ class GetCustomTsMetricAggInfo(Resource):
         }
         result = api.metadata.query_time_series_metric(**request_params)
         metric_list = result.get("metrics", [])
+        scope_ids = list(
+            dict.fromkeys(metric_data.get("scope", {}).get("id") for metric_data in metric_list if metric_data.get("scope", {}).get("id"))
+        )
 
         # 计算维度交集和并集
         all_tag_sets = [set(m.get("tag_list", [])) for m in metric_list]
@@ -150,6 +153,7 @@ class GetCustomTsMetricAggInfo(Resource):
         # 获取 scope 维度配置（用于别名）
         scope_request_params = {
             "group_id": params["time_series_group_id"],
+            "scope_ids": scope_ids,
             "include_metrics": False,
         }
         scope_result = api.metadata.query_time_series_scope(**scope_request_params)
@@ -158,12 +162,15 @@ class GetCustomTsMetricAggInfo(Resource):
         dim_alias_map: dict[str, str] = {}
         for scope_data in scope_result:
             for dim_name, dim_config in scope_data.get("dimension_config", {}).items():
-                if dim_name not in dim_alias_map:
-                    dim_alias_map[dim_name] = dim_config.get("alias", dim_name)
+                alias = dim_config.get("alias") or ""
+                if dim_name not in dim_alias_map or (not dim_alias_map[dim_name] and alias):
+                    dim_alias_map[dim_name] = alias
 
         return {
-            "common_dimensions": [{"name": d, "alias": dim_alias_map.get(d, d)} for d in sorted(common_dims)],
-            "all_dimensions": [{"name": d, "alias": dim_alias_map.get(d, d)} for d in sorted(all_dims)],
+            "common_dimensions": [
+                {"name": d, "alias": dim_alias_map[d] if d in dim_alias_map else d} for d in sorted(common_dims)
+            ],
+            "all_dimensions": [{"name": d, "alias": dim_alias_map[d] if d in dim_alias_map else d} for d in sorted(all_dims)],
         }
 
 
