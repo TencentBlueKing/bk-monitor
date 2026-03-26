@@ -24,13 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onBeforeUnmount, shallowRef, useTemplateRef, watch } from 'vue';
-
-import { random } from 'monitor-common/utils';
-import { echartsConnect, echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
+import { type PropType, computed, defineComponent, useTemplateRef } from 'vue';
 
 import CommonTable from '../../components/alarm-table/components/common-table/common-table';
 import { usePopover } from '../../components/alarm-table/hooks/use-popover';
+import { useEchartsGroupConnect } from '../../composables/use-echarts-group';
 import { useTableScrollOptimize } from '../../composables/use-table-scroll-optimize';
 import { useIssuesColumnsRenderer } from './hooks/use-issues-columns-renderer';
 import { useIssuesHandlers } from './hooks/use-issues-handlers';
@@ -99,8 +97,9 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
-    /** 图表联动组 ID */
-    const chartGroupId = shallowRef(random(8));
+
+    /** 图表联动组管理 */
+    const { chartGroupId } = useEchartsGroupConnect(() => props.data);
 
     /** click 场景使用的 popover 工具 */
     const clickPopoverTools = usePopover({
@@ -145,21 +144,6 @@ export default defineComponent({
       },
     });
 
-    watch(
-      () => props.data,
-      () => {
-        echartsDisconnect(chartGroupId.value);
-        if (!props.data?.length) return;
-        const newId = random(8);
-        echartsConnect(newId);
-        chartGroupId.value = newId;
-      },
-      { immediate: true }
-    );
-
-    onBeforeUnmount(() => {
-      echartsDisconnect(chartGroupId.value);
-    });
     return {
       transformedColumns,
     };
