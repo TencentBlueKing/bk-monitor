@@ -152,7 +152,7 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
       <div class='issue-agg-container'>
         <CommonItem
           title={this.$t('聚合维度')}
-          required
+          isRequired
         >
           <bk-select
             class='dimension-select'
@@ -160,6 +160,7 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
             behavior='simplicity'
             disabled={this.readonly}
             placeholder={this.$t('请选择聚合维度')}
+            size='small'
             display-tag
             multiple
             searchable
@@ -192,13 +193,19 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
             addBtnAlign={'right'}
             fields={this.filterFields}
             getValueFn={this.getValueFn}
+            hasConditionChange={true}
             hasInput={false}
+            kvTagHasHideBtn={false}
             value={this.localValue.conditions}
             onChange={this.handleConditionsChange}
           />
         </CommonItem>
-        <CommonItem title={this.$t('生效告警级别')}>
+        <CommonItem
+          title={this.$t('生效告警级别')}
+          isRequired
+        >
           <bk-checkbox-group
+            class='levels-checkbox'
             v-model={this.localValue.levels}
             onChange={this.handleLevelsChange}
           >

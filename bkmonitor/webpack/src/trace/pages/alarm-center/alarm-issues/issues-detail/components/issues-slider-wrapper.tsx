@@ -67,11 +67,6 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** 告警ID */
-    alarmId: {
-      type: String,
-      default: '',
-    },
     timeRange: {
       type: Array as PropType<TimeRangeType>,
       default: () => DEFAULT_TIME_RANGE,
@@ -177,8 +172,19 @@ export default defineComponent({
     const getPanelComponent = () => {
       switch (currentTab.value) {
         case IssueDetailTabEnum.LATEST:
+          return (
+            <IssuesDetailAlarmPanel
+              key={props.detail?.latest_alert_id}
+              alarmId={tempAlertId.value || ''}
+            />
+          );
         case IssueDetailTabEnum.EARLIEST:
-          return <IssuesDetailAlarmPanel alarmId={props.alarmId || tempAlertId.value} />;
+          return (
+            <IssuesDetailAlarmPanel
+              key={props.detail?.earliest_alert_id}
+              alarmId={tempAlertId.value || ''}
+            />
+          );
         case IssueDetailTabEnum.LIST:
           return (
             <IssuesDetailAlarmTable

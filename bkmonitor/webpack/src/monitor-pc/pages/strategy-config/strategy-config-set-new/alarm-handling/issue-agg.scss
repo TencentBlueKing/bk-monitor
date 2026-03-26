@@ -1,6 +1,4 @@
 .issue-agg-container {
-  padding-top: 12px;
-
   .dimension-select {
     flex: 1;
     max-width: 480px;
@@ -18,7 +16,6 @@
       justify-content: center;
       width: 22px;
       height: 22px;
-      margin-left: 6px;
       cursor: pointer;
       background: #e1ecff;
       border-radius: 2px;
@@ -34,17 +31,30 @@
     }
   }
 
-  .bk-checkbox-group {
+  .levels-checkbox {
     display: flex;
     gap: 24px;
+    margin-left: 10px;
 
-    .bk-checkbox {
-      display: flex;
+    .bk-checkbox-text {
+      display: inline-flex;
       align-items: center;
+    }
 
-      .icon-monitor {
-        margin-right: 4px;
-      }
+    .icon-monitor {
+      margin-right: 4px;
+    }
+
+    .icon-danger {
+      color: #e71818;
+    }
+
+    .icon-mind-fill {
+      color: #f59500;
+    }
+
+    .icon-tips {
+      color: #3a84ff;
     }
   }
 }
