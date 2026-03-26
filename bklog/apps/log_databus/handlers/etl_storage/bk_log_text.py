@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,9 +18,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 
-from apps.log_databus.constants import EtlConfig
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EtlConfig, STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.etl_storage import EtlStorage
 
 
@@ -50,7 +50,15 @@ class BkLogTextEtlStorage(EtlStorage):
         """
         return data
 
-    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X", enable_v4=False):
+    def get_result_table_config(
+        self,
+        fields,
+        etl_params,
+        built_in_config,
+        es_version="5.X",
+        enable_v4=False,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
+    ):
         """
         配置清洗入库策略，需兼容新增、编辑
         """
@@ -82,15 +90,19 @@ class BkLogTextEtlStorage(EtlStorage):
             "time_alias_name": built_in_config["time_field"]["alias_name"],
             "time_option": built_in_config["time_field"]["option"],
         }
-        
+
         # 检查是否启用V4数据链路
         if enable_v4:
             result_table_config["option"]["enable_log_v4_data_link"] = True
-            result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(fields, etl_params, built_in_config)
-        
+            result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(
+                fields, etl_params, built_in_config, storage_cluster_type=storage_cluster_type
+            )
+
         return result_table_config
 
-    def build_log_v4_data_link(self, fields: list, etl_params: dict, built_in_config: dict) -> dict:
+    def build_log_v4_data_link(
+        self, fields: list, etl_params: dict, built_in_config: dict, storage_cluster_type=STORAGE_CLUSTER_TYPE
+    ) -> dict:
         """
         构建直接入库类型的V4 clean_rules配置
         包含完整的数据流转规则：原始数据 -> JSON解析 -> 内置字段提取 -> 原文提取
@@ -99,48 +111,42 @@ class BkLogTextEtlStorage(EtlStorage):
         rules = []
 
         # 1. JSON解析阶段（原始数据 -> json_data）
-        rules.append({
-            "input_id": "__raw_data",
-            "output_id": "json_data",
-            "operator": {
-                "type": "json_de",
-                "error_strategy": "drop"
+        rules.append(
+            {
+                "input_id": "__raw_data",
+                "output_id": "json_data",
+                "operator": {"type": "json_de", "error_strategy": "drop"},
             }
-        })
+        )
 
         # 2. 提取内置字段（从json_data提取内置字段）
         built_in_rules = self._build_built_in_fields_v4(built_in_config)
         rules.extend(built_in_rules)
 
         # 3. 提取items数组并迭代
-        rules.extend([
-            {
-                "input_id": "json_data",
-                "output_id": "items",
-                "operator": {
-                    "type": "get",
-                    "key_index": [{"type": "key", "value": "items"}],
-                    "missing_strategy": None
-                }
-            },
-            {
-                "input_id": "items",
-                "output_id": "iter_item",
-                "operator": {"type": "iter"}
-            }
-        ])
+        rules.extend(
+            [
+                {
+                    "input_id": "json_data",
+                    "output_id": "items",
+                    "operator": {
+                        "type": "get",
+                        "key_index": [{"type": "key", "value": "items"}],
+                        "missing_strategy": None,
+                    },
+                },
+                {"input_id": "items", "output_id": "iter_item", "operator": {"type": "iter"}},
+            ]
+        )
 
         # 4. 从iter_item提取data字段作为原文（直接入库，不需要额外处理）
-        rules.append({
-            "input_id": "iter_item",
-            "output_id": "log",
-            "operator": {
-                "type": "assign",
-                "key_index": "data",
-                "alias": "log",
-                "output_type": "string"
+        rules.append(
+            {
+                "input_id": "iter_item",
+                "output_id": "log",
+                "operator": {"type": "assign", "key_index": "data", "alias": "log", "output_type": "string"},
             }
-        })
+        )
 
         # 4.1. 提取iterationIndex字段（从iter_item提取，参考v3的flat_field处理）
         iteration_index_rules = self._build_iteration_index_field_v4(built_in_config)
@@ -149,14 +155,22 @@ class BkLogTextEtlStorage(EtlStorage):
         # 5. Path字段处理
         rules.extend(self._build_path_regex_rules_v4(etl_params, built_in_config))
 
-        return {
-            "clean_rules": rules,
-            "es_storage_config": {
+        data_link_config = {"clean_rules": rules}
+
+        if storage_cluster_type == STORAGE_CLUSTER_TYPE:
+            data_link_config["es_storage_config"] = {
                 "unique_field_list": built_in_config["option"]["es_unique_field_list"],
-                "timezone": 8
-            },
-            "doris_storage_config": None
-        }
+                "timezone": 8,
+            }
+        elif storage_cluster_type == DORIS_CLUSTER_TYPE:
+            data_link_config["doris_storage_config"] = {
+                "storage_keys": built_in_config["option"]["es_unique_field_list"],
+                # "json_fields": [],
+                # "field_config_group": {},
+                # "flush_timeout": None
+            }
+
+        return data_link_config
 
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):
         built_in_fields = built_in_config.get("fields", [])
