@@ -193,6 +193,11 @@ export const useCollectList = () => {
       masking: 'collectMasking',
     };
 
+    // 自定义上报的清洗：与旧版一致，跳转到清洗列表的编辑清洗页面
+    if (operateType === 'clean' && typeKey === 'custom_report') {
+      routeMap.clean = 'clean-edit';
+    }
+
     const targetRoute = routeMap[operateType] ?? (operateType as RouteName);
 
     // 路由参数/查询参数统一在这里构建，最后一次性 push，方便维护
@@ -216,7 +221,7 @@ export const useCollectList = () => {
      * - 这些页面都依赖 collectorId 获取/回显配置
      */
     if (
-      ['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking'].includes(targetRoute)
+      ['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking', 'clean-edit'].includes(targetRoute)
     ) {
       params.collectorId = String(row.collector_config_id ?? '');
     }
@@ -234,13 +239,17 @@ export const useCollectList = () => {
     }
 
     if (operateType === 'clean') {
-      // 清洗：复用编辑页，通过 step=2 定位到清洗配置步骤
-      query.step = String(2);
       params.collectorId = String(row.collector_config_id ?? '');
-      // ITSM 申请中：跳转字段配置（field）继续推进流程
-      if (row.itsm_ticket_status === 'applying') return operateHandler(row, 'field', typeKey);
-      // 回退路径：用于编辑页返回列表
-      backRoute = route.name;
+      if (typeKey === 'custom_report') {
+        // 自定义上报清洗：跳转到清洗列表的编辑清洗页面，与旧版一致
+        backRoute = route.name;
+      } else {
+        // 非自定义上报：复用编辑页，通过 step=2 定位到清洗配置步骤
+        query.step = String(2);
+        // ITSM 申请中：跳转字段配置（field）继续推进流程
+        if (row.itsm_ticket_status === 'applying') return operateHandler(row, 'field', typeKey);
+        backRoute = route.name;
+      }
     }
 
     if (operateType === 'storage') {

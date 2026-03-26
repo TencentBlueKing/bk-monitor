@@ -420,8 +420,8 @@ export const getOperatorCanClick = (row: ICollectListRowData, operateType: Colle
       // 编辑 - 采集状态不为"停用"
       return !isTerminated;
     case 'clean':
-      // 清洗 - 采集状态不为"停用"
-      return !isTerminated;
+      // 清洗 - 采集项已完成且采集状态不为"停用"
+      return isCompleted && !isTerminated;
     case 'storage':
       // 存储设置 - 采集项已完成且采集状态不为"停用"
       return isCompleted && !isTerminated;

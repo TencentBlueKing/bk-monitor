@@ -373,7 +373,10 @@ export default defineComponent({
       }
 
       if (type === 'custom_report') {
-        return MENU_LIST.filter(item => ['desensitization', 'disable', 'delete'].includes(item.key));
+        const excludeKey = status !== 'terminated' ? 'start' : 'stop';
+        return MENU_LIST.filter(
+          item => ['clean', 'desensitization', 'stop', 'start', 'delete'].includes(item.key) && item.key !== excludeKey,
+        );
       }
 
       if (['bkdata', 'es'].includes(type)) {
