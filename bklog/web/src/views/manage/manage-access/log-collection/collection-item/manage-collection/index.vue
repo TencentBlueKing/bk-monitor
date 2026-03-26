@@ -108,17 +108,40 @@
         editAuth: false,
         /** 编辑无权限时的弹窗数据 */
         editAuthData: null,
-        panels: [
+
+      };
+    },
+    computed: {
+      panels() {
+        const type = this.$route.query.typeKey
+        // 第三方ES / 计算平台：仅3个 tab（与旧版 index-set/manage 对齐）
+        if (['bkdata', 'es'].includes(type)) {
+          return [
+            { name: 'basicInfo', label: this.$t('配置信息') },
+            { name: 'usageDetails', label: this.$t('使用详情') },
+            { name: 'fieldInfo', label: this.$t('字段信息') },
+          ];
+        }
+        // 自定义上报：5个 tab，无采集状态（与旧版 custom-report/detail.vue 对齐）
+        if (type === 'custom_report') {
+          return [
+            { name: 'basicInfo', label: this.$t('配置信息') },
+            { name: 'dataStorage', label: this.$t('数据存储') },
+            { name: 'fieldInfo', label: this.$t('字段信息') },
+            { name: 'dataStatus', label: this.$t('数据状态') },
+            { name: 'usageDetails', label: this.$t('使用详情') },
+          ];
+        }
+        // 标准日志采集：完整6个 tab
+        return [
           { name: 'basicInfo', label: this.$t('配置信息') },
           { name: 'collectionStatus', label: this.$t('采集状态') },
           { name: 'fieldInfo', label: this.$t('字段信息') },
           { name: 'dataStorage', label: this.$t('数据存储') },
           { name: 'dataStatus', label: this.$t('数据状态') },
           { name: 'usageDetails', label: this.$t('使用详情') },
-        ],
-      };
-    },
-    computed: {
+        ];
+      },
       dynamicComponent() {
         const componentMaP = {
           basicInfo: 'BasicInfo',
