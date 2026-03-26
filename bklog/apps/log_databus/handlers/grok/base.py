@@ -8,24 +8,8 @@ from typing import Any
 
 from apps.log_databus.handlers.grok.patterns import ALL_PATTERNS
 
-
-def _load_builtin_patterns() -> dict[str, str]:
-    """
-    从 patterns 加载所有内置模式，返回 {name: pattern} 字典。
-    """
-    return {p["name"]: p["pattern"] for p in ALL_PATTERNS}
-
-
-# 全局缓存内置模式，避免重复加载
-_BUILTIN_PATTERNS: dict[str, str] | None = None
-
-
-def get_builtin_patterns() -> dict[str, str]:
-    """获取内置模式（带缓存）"""
-    global _BUILTIN_PATTERNS
-    if _BUILTIN_PATTERNS is None:
-        _BUILTIN_PATTERNS = _load_builtin_patterns()
-    return _BUILTIN_PATTERNS
+# 内置模式字典，模块加载时一次性构建
+BUILTIN_PATTERNS: dict[str, str] = {p["name"]: p["pattern"] for p in ALL_PATTERNS}
 
 
 class Grok:
@@ -40,7 +24,7 @@ class Grok:
         self._type_mapper: dict[str, str] = {}
 
         # 合并内置模式和自定义模式（自定义优先）
-        self._available_patterns: dict[str, str] = dict(get_builtin_patterns())
+        self._available_patterns: dict[str, str] = dict(BUILTIN_PATTERNS)
         if custom_patterns:
             self._available_patterns.update(custom_patterns)
 
@@ -63,14 +47,14 @@ class Grok:
             # 替换 %{PATTERN:field} 或 %{PATTERN:field:type} 为命名捕获组
             expanded = re.sub(
                 r"%{(\w+):(\w+)(?::\w+)?}",
-                lambda m: f"(?P<{m.group(2)}>{self._resolve_pattern(m.group(1))})",
+                lambda m: f"(?P<{m.group(2)}>{self._available_patterns[m.group(1)]})",
                 expanded,
             )
 
             # 替换 %{PATTERN} 为非捕获组
             expanded = re.sub(
                 r"%{(\w+)}",
-                lambda m: f"({self._resolve_pattern(m.group(1))})",
+                lambda m: f"({self._available_patterns[m.group(1)]})",
                 expanded,
             )
 
@@ -79,12 +63,6 @@ class Grok:
                 break
 
         return re.compile(expanded)
-
-    def _resolve_pattern(self, name: str) -> str:
-        """
-        根据名称查找模式。找不到时抛出 KeyError。
-        """
-        return self._available_patterns[name]
 
     def match(self, text: str) -> dict[str, Any] | None:
         """
