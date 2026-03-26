@@ -194,7 +194,6 @@ export default class MetricList extends tsc<IProps, IEmits> {
   tableBoxHeight = window.innerHeight;
   /** 当前选中的指标列表映射(含跨页)，使用普通对象以兼容 Vue 2 响应式 */
   selectedMetricMap: Record<number, IMetricItem> = {};
-
   /** 计算详情侧边栏宽度，根据屏幕宽度自适应 */
   get computedWidth() {
     return window.innerWidth < 1920 ? 388 : 456;
@@ -208,6 +207,10 @@ export default class MetricList extends tsc<IProps, IEmits> {
   /** 获取当前选中项的数量 */
   get selectionLength() {
     return Object.keys(this.selectedMetricMap).length;
+  }
+
+  get tableHeight() {
+    return this.isAPM ? window.innerHeight - 220 : window.innerHeight - 610
   }
 
   /** 获取当前激活的指标详情数据 */
@@ -604,7 +607,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
         <bk-table
           v-bkloading={{ isLoading: this.loading }}
           empty-text={this.$t('无数据')}
-          max-height={this.isAPM ? window.innerHeight - 220 : window.innerHeight - 610}
+          height={this.tableHeight}
           on-header-dragend={(newWidth, _, col) => {
             if (col.property === 'group') {
               this.groupWidth = newWidth;
@@ -837,9 +840,12 @@ export default class MetricList extends tsc<IProps, IEmits> {
         search_type: 'exact',
       },
     };
-
-    for (const item of list) {
-      searchParam[searchKeyMap[item.id]].values.push(...item.values.map(v => v.id));
+    if (list.length === 1 && list[0].type === 'text') {
+      searchParam.name.values.push(list[0].id);
+    } else {
+      for (const item of list) {
+        searchParam[searchKeyMap[item.id]].values.push(...item.values.map(v => v.id));
+      }
     }
     this.metricSearchObj = searchParam;
     this.handleGetCustomTsFields();
@@ -1128,35 +1134,28 @@ export default class MetricList extends tsc<IProps, IEmits> {
           />
         </div>
         <div class='strategy-config-wrap'>
-          {this.loading ? (
-            <TableSkeleton type={2} />
-          ) : (
-            <div
-              class='table-box'
-              v-bkloading={{ isLoading: this.loading }}
-            >
-              {[
-                this.getTableComponent(),
-                this.metricTable.length ? (
-                  <bk-pagination
-                    key='table-pagination'
-                    class='list-pagination'
-                    v-show={this.metricTable.length}
-                    align='right'
-                    count={this.tableInstance.total}
-                    current={this.tableInstance.page}
-                    limit={this.tableInstance.pageSize}
-                    limit-list={this.tableInstance.pageList}
-                    size='small'
-                    pagination-able
-                    show-total-count
-                    on-change={this.handlePageChange}
-                    on-limit-change={this.handleLimitChange}
-                  />
-                ) : undefined,
-              ]}
-            </div>
-          )}
+          <div class='table-box'>
+            {[
+              this.getTableComponent(),
+              this.metricTable.length ? (
+                <bk-pagination
+                  key='table-pagination'
+                  class='list-pagination'
+                  v-show={this.metricTable.length}
+                  align='right'
+                  count={this.tableInstance.total}
+                  current={this.tableInstance.page}
+                  limit={this.tableInstance.pageSize}
+                  limit-list={this.tableInstance.pageList}
+                  size='small'
+                  pagination-able
+                  show-total-count
+                  on-change={this.handlePageChange}
+                  on-limit-change={this.handleLimitChange}
+                />
+              ) : undefined,
+            ]}
+          </div>
           <div
             ref='metricDetailRef'
             style={{ width: `${this.computedWidth}px`, height: `${this.tableBoxHeight}px` }}
