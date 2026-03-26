@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from bkmonitor.iam import ActionEnum
+from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
@@ -15,9 +17,31 @@ from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 class IssueViewSet(ResourceViewSet):
     """Issues 功能接口 ViewSet"""
 
-    # todo 增加权限检查
+    # 只读接口使用 VIEW_EVENT 权限，写操作使用 MANAGE_EVENT 权限
+    READ_ONLY_ENDPOINTS = ["issue/search", "issue/activities", "issue/history"]
+
+    def get_permissions(self):
+        # 查询变更记录为只读操作，使用 VIEW_EVENT 权限
+        # 其余写操作（指派、解决、改优先级、添加跟进）使用 MANAGE_EVENT 权限
+        if self.action in self.READ_ONLY_ENDPOINTS:
+            return [BusinessActionPermission([ActionEnum.VIEW_EVENT])]
+        return [BusinessActionPermission([ActionEnum.MANAGE_EVENT])]
 
     resource_routes = [
         # Issue 列表查询
         ResourceRoute("POST", resource.issue.search_issue, endpoint="issue/search"),
+        # 指派负责人（含改派，支持批量）
+        ResourceRoute("POST", resource.issue.assign_issue, endpoint="issue/assign"),
+        # 标记为已解决（支持批量）
+        ResourceRoute("POST", resource.issue.resolve_issue, endpoint="issue/resolve"),
+        # 归档 Issue（实例级，支持批量）
+        ResourceRoute("POST", resource.issue.archive_issue, endpoint="issue/archive"),
+        # 修改优先级（支持批量）
+        ResourceRoute("POST", resource.issue.update_issue_priority, endpoint="issue/update_priority"),
+        # 添加跟进信息（支持批量）
+        ResourceRoute("POST", resource.issue.add_issue_follow_up, endpoint="issue/add_follow_up"),
+        # 查询变更记录(活动日志)
+        ResourceRoute("GET", resource.issue.list_issue_activities, endpoint="issue/activities"),
+        # 查询历史 Issue（同策略下已解决的历史 Issue 列表）
+        ResourceRoute("GET", resource.issue.list_issue_history, endpoint="issue/history"),
     ]
