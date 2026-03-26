@@ -135,6 +135,11 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
     }, []);
   }
 
+  get urlMetrics() {
+    const viewPayload = this.$route?.query.viewPayload;
+    return viewPayload ? JSON.parse(viewPayload as string).metrics : { metrics: [] };
+  }
+
   @Watch('searchKey', { immediate: true })
   searchKeyChange() {
     this.handleSearch();
@@ -159,32 +164,39 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   metricGroupListChange(newV) {
     this.renderMetricGroupList = Object.freeze(newV);
     // 初始化时 分组如果有选中的指标，就展开。如果所有分组都没有选中的指标，则展开第一个分组
-    if (newV.length > 0 && (this.$route?.query.viewTab === 'default' || !this.$route?.query.viewTab)) {
-      this.groupExpandMap = Object.freeze({
-        [this.metricGroupList[0].name]: true,
-      });
-      return;
+    if (newV.length > 0) {
+      if (this.urlMetrics.length > 0) {
+        this.defaultExpandGropus();
+        return;
+      }
+      if (this.$route?.query.viewTab === 'default' || !this.urlMetrics.length) {
+        this.groupExpandMap = Object.freeze({
+          [this.metricGroupList[0].name]: true,
+        });
+        return;
+      }
     }
-    newV.length > 0 && this.viewTabChange(this.viewTab);
   }
 
   @Watch('viewTab')
-  async viewTabChange(newViewTab) {
+  viewTabChange(newViewTab) {
     if (newViewTab === 'default') {
       this.groupExpandMap = Object.freeze({
         [this.metricGroupList[0].name]: true,
       });
       return;
     }
+    this.defaultExpandGropus();
+  }
+
+  async defaultExpandGropus() {
     await this.$nextTick();
-    const viewPayload = this.$route?.query.viewPayload;
-    const { metrics } = viewPayload ? JSON.parse(viewPayload as string) : { metrics: [] };
-    const checkedGroupNames = [...new Set(metrics.map(item => item.scope_name))];
+    const checkedGroupNames = [...new Set(this.urlMetrics.map(item => item.scope_name))];
     const expandMap = checkedGroupNames.reduce((acc, groupName: string) => {
       acc[groupName] = true;
       return acc;
-    }, {});
-    this.groupExpandMap = Object.freeze(expandMap);
+    }, {}) as Record<string, boolean>;
+    this.groupExpandMap = Object.keys(expandMap).length ? expandMap : { [this.metricGroupList[0].name]: true };
   }
 
   async fetchData() {

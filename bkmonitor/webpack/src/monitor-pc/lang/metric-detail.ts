@@ -50,6 +50,8 @@ export default {
   编辑指标别名: 'Edit Metric Alias',
   '指标名：': 'Metric Name:',
   '指标别名：': 'Metric Alias:',
+  '维度名：': 'Dimension Name:',
+  '维度别名：': 'Dimension Alias:',
   最大值: 'MAX',
   最小值: 'MIN',
   平均值: 'AVG',
