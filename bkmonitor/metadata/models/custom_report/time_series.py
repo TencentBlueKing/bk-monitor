@@ -1798,6 +1798,11 @@ class TimeSeriesMetric(models.Model):
         unique_together = ("group_id", "field_scope", "field_name")
         verbose_name = "自定义时序描述记录"
         verbose_name_plural = "自定义时序描述记录表"
+        indexes = [
+            models.Index(fields=["group_id", "field_name"], name="idx_tsmetric_gid_fname"),
+            models.Index(fields=["group_id", "scope_id", "field_name"], name="idx_tsmetric_gid_sid_fname"),
+            models.Index(fields=["group_id", "-last_modify_time"], name="idx_tsmetric_gid_mtime"),
+        ]
 
     def make_table_id(self, bk_biz_id, bk_data_id, table_name=None):
         if str(bk_biz_id) != "0":
