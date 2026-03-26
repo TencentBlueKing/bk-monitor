@@ -334,7 +334,10 @@ class MetricQueryConverter(BaseQueryConverter):
         if not metrics:
             return
         metric_list = [metric_obj.to_request_dict() for metric_obj in metrics]
-        api.metadata.create_or_update_time_series_metric(group_id=self.time_series_group_id, metrics=metric_list)
+        try:
+            api.metadata.create_or_update_time_series_metric(group_id=self.time_series_group_id, metrics=metric_list)
+        except Exception as e:
+            raise ValueError(e.data.get('message', '指标创建更新失败'))
 
     def query_time_series_metric(
         self,

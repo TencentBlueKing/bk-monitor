@@ -2415,7 +2415,7 @@ class TimeSeriesMetric(models.Model):
     @classmethod
     def _batch_create_metrics(cls, metrics_to_create, group_id, table_id, scopes_dict):
         # 检查字段名称冲突
-        cls._validate_field_name_conflicts(metrics_to_create)
+        cls._validate_field_name_conflicts(metrics_to_create, group_id, scopes_dict)
 
         # 准备批量创建的数据
         records_to_create = []
@@ -2552,7 +2552,7 @@ class TimeSeriesMetric(models.Model):
                 )
 
     @classmethod
-    def _validate_field_name_conflicts(cls, metrics_to_create):
+    def _validate_field_name_conflicts(cls, metrics_to_create, group_id, scopes_dict):
         """检查字段名称冲突"""
         # 收集所有字段名
         field_names = []
@@ -2574,7 +2574,28 @@ class TimeSeriesMetric(models.Model):
                 seen.add(name)
             raise ValueError(f"同一批次内指标字段名称[{', '.join(batch_conflicting_names)}]重复，请使用其他名称")
 
-        # todo 检查跨批次的字段名冲突, 现在直接依赖数据库的唯一索引来保证
+        # 检查跨批次的字段名冲突：数据库中是否已存在同名指标
+        existing_metrics = cls.objects.filter(
+            group_id=group_id,
+            field_name__in=field_names,
+        ).values_list("field_name", "scope_id")
+
+        if existing_metrics:
+            # 构建 scope_id -> scope_name 的映射
+            scope_id_to_name = {sid: scope.scope_name for sid, scope in scopes_dict.items()}
+
+            # 按分组聚合冲突的指标名
+            conflicts_by_scope = defaultdict(list)
+            for field_name, scope_id in existing_metrics:
+                scope_name = scope_id_to_name.get(scope_id, str(scope_id))
+                conflicts_by_scope[scope_name].append(field_name)
+
+            # 构建错误信息：A分组已存在同名指标[x, y]，不可重复创建
+            conflict_details = "；".join(
+                f"{scope_name}分组已存在同名指标[{', '.join(names)}]，不可重复创建"
+                for scope_name, names in conflicts_by_scope.items()
+            )
+            raise ValueError(f"不允许新建同名指标：{conflict_details}")
 
 
 class TimeSeriesTagManager(models.Manager):
