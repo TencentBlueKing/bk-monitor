@@ -1559,12 +1559,15 @@ class QueryTimeSeriesMetricResource(Resource):
         )
 
     def perform_request(self, validated_request_data):
+        import timeit
+
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         group_id = validated_request_data["group_id"]
         page = validated_request_data["page"]
         page_size = validated_request_data["page_size"]
         order_by = validated_request_data["order_by"]
         count_only = validated_request_data.get("count_only", False)
+        time1 = timeit.default_timer()
 
         # 验证group_id是否存在
         if not models.TimeSeriesGroup.objects.filter(
@@ -1583,8 +1586,11 @@ class QueryTimeSeriesMetricResource(Resource):
         if count_only:
             return {"metrics": [], "total": total}
 
-        # 应用排序
-        query_set = query_set.order_by(self.ORDER_FIELD_MAPPING.get(order_by))
+        # 应用排序，仅返回必要字段
+        query_set = query_set.order_by(self.ORDER_FIELD_MAPPING.get(order_by)).only(
+            "field_id", "scope_id", "field_name", "tag_list",
+            "field_config", "field_scope", "create_time", "last_modify_time",
+        )
         if page_size != -1:
             offset = (page - 1) * page_size
             paginated_query_set = query_set[offset : offset + page_size]
@@ -1593,8 +1599,12 @@ class QueryTimeSeriesMetricResource(Resource):
 
         # 批量获取scope信息
         scope_ids = paginated_query_set.values_list("scope_id", flat=True)
+        time2 = timeit.default_timer()
+        logger.info("[QueryTimeSeriesMetric] filter+paginate cost: %.4fs, group_id=%s", time2 - time1, group_id)
         scopes = models.TimeSeriesScope.objects.filter(id__in=scope_ids, group_id=group_id).values("id", "scope_name")
         scope_map = {scope["id"]: {"id": scope["id"], "name": scope["scope_name"]} for scope in scopes}
+        time3 = timeit.default_timer()
+        logger.info("[QueryTimeSeriesMetric] query scopes cost: %.4fs, group_id=%s", time3 - time2, group_id)
 
         # 构建响应数据
         results = []
@@ -1615,7 +1625,9 @@ class QueryTimeSeriesMetricResource(Resource):
                     "update_time": metric.last_modify_time.timestamp() if metric.last_modify_time else None,
                 }
             )
-
+        time4 = timeit.default_timer()
+        logger.info("[QueryTimeSeriesMetric] build results cost: %.4fs, group_id=%s", time4 - time3, group_id)
+        logger.info("[QueryTimeSeriesMetric] total cost: %.4fs, group_id=%s", time4 - time1, group_id)
         return {"metrics": results, "total": total}
 
     def _apply_search_filters(self, query_set, validated_request_data):

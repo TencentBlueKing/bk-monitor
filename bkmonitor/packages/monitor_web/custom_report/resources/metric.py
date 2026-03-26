@@ -710,8 +710,11 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
 
     def perform_request(self, params: dict):
         from dataclasses import asdict
+        import timeit
 
         from monitor_web.custom_report.handlers.metric.query import MetricQueryConverter
+
+        time1 = timeit.default_timer()
 
         time_series_group_id: int = params["time_series_group_id"]
         converter = MetricQueryConverter(time_series_group_id)
@@ -734,7 +737,8 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
                     "search_type": "exact",
                 }
             )
-
+        time2 = timeit.default_timer()
+        logger.info("[GetCustomTsFields] build conditions cost: %.4fs, group_id=%s", time2 - time1, time_series_group_id)
         paginated_result = converter.query_time_series_metric(
             conditions=conditions if conditions else None,
             mandatory_conditions=mandatory_conditions if mandatory_conditions else None,
@@ -743,12 +747,17 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
             page_size=params.get("page_size", 20),
             order_by=params.get("order_by", "name"),
         )
+        time3 = timeit.default_timer()
+        logger.info("[GetCustomTsFields] query_time_series_metric cost: %.4fs, group_id=%s", time3 - time2, time_series_group_id)
 
         metrics_list = []
         for m in paginated_result.metrics:
             metric_dict = asdict(m)
             metric_dict["movable"] = self.get_movable(m, params)
             metrics_list.append(metric_dict)
+        time4 = timeit.default_timer()
+        logger.info("[GetCustomTsFields] build metrics_list cost: %.4fs, group_id=%s", time4 - time3, time_series_group_id)
+        logger.info("[GetCustomTsFields] total cost: %.4fs, group_id=%s", time4 - time1, time_series_group_id)
         return {"total": paginated_result.total, "list": metrics_list}
 
 
