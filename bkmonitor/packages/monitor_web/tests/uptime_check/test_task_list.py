@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 
 import pytest
+from bk_monitor_base.uptime_check import UptimeCheckTaskStatus
 from django.db.models import QuerySet
 
 from monitor_web.tests.utils import equal_value
@@ -20,37 +21,27 @@ from monitor_web.uptime_check.resources import (
 )
 
 
-class MockUptimeCheckTask:
-    def __init__(self, **kwargs):
-        self.__dict__.update(**kwargs)
-
-    def get_period(self):
-        """
-        获取采集周期
-        """
-        return 1
-
-
 class MockUptimeCheckGroup:
     def __init__(self, **kwargs):
         self.__dict__.update(**kwargs)
 
 
 TASK_DATA = [
-    MockUptimeCheckTask(
-        id=10001,
-        bk_biz_id=2,
-        name="test1",
-        protocol="HTTP",
-        check_interval=1,
-        nodes=[10001],
-        status="running",
-        create_time="2020-03-16 23:52:06+0800",
-        update_time="2020-03-18 14:58:22+0800",
-        create_user="admin",
-        update_user="admin",
-        is_deleted=False,
-        config={
+    {
+        "id": 10001,
+        "bk_biz_id": 2,
+        "name": "test1",
+        "protocol": "HTTP",
+        "check_interval": 1,
+        "node_ids": [10001],
+        "group_ids": [1],
+        "status": UptimeCheckTaskStatus.RUNNING,
+        "create_time": "2020-03-16 23:52:06+0800",
+        "update_time": "2020-03-18 14:58:22+0800",
+        "create_user": "admin",
+        "update_user": "admin",
+        "is_deleted": False,
+        "config": {
             "timeout": 5005,
             "response_code": "200",
             "period": 60,
@@ -63,23 +54,23 @@ TASK_DATA = [
             "urls": "http://www.baiidu.com",
             "method": "GET",
         },
-        location={"bk_state_name": "", "bk_province_name": ""},
-        subscription_id=1325,
-    ),
-    MockUptimeCheckTask(
-        id=10002,
-        bk_biz_id=2,
-        name="test2",
-        protocol="HTTP",
-        check_interval=1,
-        nodes=[10001, 10002],
-        status="running",
-        create_time="2020-03-19 22:35:40+0800",
-        update_time="2020-03-19 22:35:43+0800",
-        create_user="admin",
-        update_user="admin",
-        is_deleted=False,
-        config={
+        "location": {"bk_state_name": "", "bk_province_name": ""},
+    },
+    {
+        "id": 10002,
+        "bk_biz_id": 2,
+        "name": "test2",
+        "protocol": "HTTP",
+        "check_interval": 1,
+        "node_ids": [10001, 10002],
+        "group_ids": [1, 2],
+        "status": UptimeCheckTaskStatus.RUNNING,
+        "create_time": "2020-03-19 22:35:40+0800",
+        "update_time": "2020-03-19 22:35:43+0800",
+        "create_user": "admin",
+        "update_user": "admin",
+        "is_deleted": False,
+        "config": {
             "timeout": 3000,
             "response_code": "",
             "period": 60,
@@ -92,9 +83,8 @@ TASK_DATA = [
             "urls": "http://www.qq.com",
             "method": "GET",
         },
-        location={"bk_state_name": "", "bk_province_name": ""},
-        subscription_id=1354,
-    ),
+        "location": {"bk_state_name": "", "bk_province_name": ""},
+    },
 ]
 
 NODE_MAP = {
@@ -124,6 +114,11 @@ NODE_MAP = {
         "id": 10002,
         "name": "\\u4e2d\\u56fd\\u5e7f\\u4e1c\\u7535\\u4fe1",
     },
+}
+
+GROUP_MAP = {
+    1: {"id": 1, "name": "group1"},
+    2: {"id": 2, "name": "group2"},
 }
 
 TASK_LIST_RESULT_DATA = [
@@ -158,10 +153,10 @@ TASK_LIST_RESULT_DATA = [
                 "name": "\\u4e2d\\u56fd\\u5e7f\\u4e1c\\u8054\\u901a",
             }
         ],
-        "groups": [],
+        "groups": [{"id": 1, "name": "group1"}],
         "available": 0.0,
         "task_duration": 0.0,
-        "url": "http://www.baiidu.com",
+        "url": ["http://www.baiidu.com"],
         "create_time": "2020-03-16 23:52:06+0800",
         "update_time": "2020-03-18 14:58:22+0800",
         "create_user": "admin",
@@ -172,10 +167,6 @@ TASK_LIST_RESULT_DATA = [
         "protocol": "HTTP",
         "check_interval": 1,
         "status": "running",
-        "subscription_id": 1325,
-        "alarm_num": 10,
-        "available_alarm": False,
-        "task_duration_alarm": False,
     },
     {
         "id": 10002,
@@ -221,10 +212,10 @@ TASK_LIST_RESULT_DATA = [
                 "name": "\\u4e2d\\u56fd\\u5e7f\\u4e1c\\u7535\\u4fe1",
             },
         ],
-        "groups": [],
+        "groups": [{"id": 1, "name": "group1"}, {"id": 2, "name": "group2"}],
         "available": 0.0,
         "task_duration": 0.0,
-        "url": "http://www.qq.com",
+        "url": ["http://www.qq.com"],
         "create_time": "2020-03-19 22:35:40+0800",
         "update_time": "2020-03-19 22:35:43+0800",
         "create_user": "admin",
@@ -235,10 +226,6 @@ TASK_LIST_RESULT_DATA = [
         "protocol": "HTTP",
         "check_interval": 1,
         "status": "running",
-        "subscription_id": 1354,
-        "alarm_num": 0,
-        "available_alarm": False,
-        "task_duration_alarm": False,
     },
 ]
 
@@ -281,18 +268,26 @@ class TestTaskList:
     #     uptime_check_task_list_mock.assert_called_once()
 
     def test_uptime_check_task_list(self, mocker):
-        params = {"bk_biz_id": 2, "task_data": TASK_DATA, "get_available": False, "get_task_duration": False}
+        params = {
+            "bk_biz_id": 2,
+            "task_data": copy.deepcopy(TASK_DATA),
+            "get_available": False,
+            "get_task_duration": False,
+        }
 
-        def get_nodes_side_effect(task):
-            return [NODE_MAP.get(node_id) for node_id in task.nodes]
-
-        mocker.patch("monitor_web.uptime_check.resources.UptimeCheckTaskListResource.get_groups", return_value=[])
-        mocker.patch(
-            "monitor_web.uptime_check.resources.UptimeCheckTaskListResource.get_nodes",
-            side_effect=get_nodes_side_effect,
+        mocker.patch("monitor_web.uptime_check.resources.get_request_tenant_id", return_value="tenant")
+        get_nodes_mapping = mocker.patch(
+            "monitor_web.uptime_check.resources.UptimeCheckTaskListResource._get_nodes_mapping",
+            return_value=NODE_MAP,
+        )
+        get_groups_mapping = mocker.patch(
+            "monitor_web.uptime_check.resources.UptimeCheckTaskListResource._get_groups_mapping",
+            return_value=GROUP_MAP,
         )
 
         result_data = UptimeCheckTaskListResource().request(params)
+        get_nodes_mapping.assert_called_once_with("tenant", [10001, 10002])
+        get_groups_mapping.assert_called_once_with("tenant", 2, [1, 2])
         equal_value(result_data, TASK_LIST_RESULT_DATA, ignore=["create_time", "update_time"])
 
     def test_uptime_check_card(self, mocker):

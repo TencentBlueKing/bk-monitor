@@ -1121,9 +1121,9 @@ class TimeSeriesScope(models.Model):
     scope_name = models.CharField(verbose_name="指标分组名", max_length=255, db_collation="utf8_bin")
 
     # 维度字段配置，可配置的选项，需要在 DimensionConfigFields 中定义
-    dimension_config = models.JSONField(verbose_name="分组下的维度配置", default={})
+    dimension_config = models.JSONField(verbose_name="分组下的维度配置", default=dict)
 
-    auto_rules = models.JSONField("自动分组的匹配规则列表", default=[])
+    auto_rules = models.JSONField("自动分组的匹配规则列表", default=list)
 
     # 创建来源：data-数据自动创建，user-用户手动创建
     create_from = models.CharField(

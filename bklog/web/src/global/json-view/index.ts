@@ -162,12 +162,15 @@ export default class JsonView {
       node.append(...this.createObjectNode(formatTarget, depth));
     } else {
       node.classList.add('bklog-json-field-value');
-      if (nodeType === 'string' && typeof this.options.segmentRender === 'function') {
+      if (nodeType === 'string' && typeof this.options.segmentRender === 'function' && formatTarget !== '') {
         setTimeout(() => {
           this.options.segmentRender(formatTarget, node);
         });
       } else {
-        node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${xssFilter(formatTarget)}</span></span>`;
+        const displayValue = formatTarget !== null && formatTarget !== undefined && formatTarget !== ''
+          ? String(formatTarget)
+          : '--';
+        node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${xssFilter(displayValue)}</span></span>`;
       }
     }
 

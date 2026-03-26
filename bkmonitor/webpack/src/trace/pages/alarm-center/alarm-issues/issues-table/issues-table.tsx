@@ -24,13 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onBeforeMount, shallowRef, useTemplateRef, watch } from 'vue';
-
-import { random } from 'monitor-common/utils';
-import { echartsConnect, echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
+import { type PropType, computed, defineComponent, useTemplateRef } from 'vue';
 
 import CommonTable from '../../components/alarm-table/components/common-table/common-table';
 import { usePopover } from '../../components/alarm-table/hooks/use-popover';
+import { useEchartsGroupConnect } from '../../composables/use-echarts-group';
 import { useTableScrollOptimize } from '../../composables/use-table-scroll-optimize';
 import { useIssuesColumnsRenderer } from './hooks/use-issues-columns-renderer';
 import { useIssuesHandlers } from './hooks/use-issues-handlers';
@@ -99,8 +97,9 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
-    /** 图表联动组 ID */
-    const chartGroupId = shallowRef(random(8));
+
+    /** 图表联动组管理 */
+    const { chartGroupId } = useEchartsGroupConnect(() => props.data);
 
     /** click 场景使用的 popover 工具 */
     const clickPopoverTools = usePopover({
@@ -145,33 +144,8 @@ export default defineComponent({
       },
     });
 
-    /**
-     * @description 处理行选择变化
-     * @param keys - 选中行 keys
-     * @param options - 选择选项
-     */
-    const handleSelectionChange = (keys?: (number | string)[], options?: SelectOptions<unknown>) => {
-      emit('selectionChange', (keys ?? []) as string[], options);
-    };
-
-    watch(
-      () => props.data,
-      () => {
-        echartsDisconnect(chartGroupId.value);
-        if (!props.data?.length) return;
-        const newId = random(8);
-        echartsConnect(newId);
-        chartGroupId.value = newId;
-      },
-      { immediate: true }
-    );
-
-    onBeforeMount(() => {
-      echartsDisconnect(chartGroupId.value);
-    });
     return {
       transformedColumns,
-      handleSelectionChange,
     };
   },
   render() {
@@ -191,7 +165,7 @@ export default defineComponent({
           sort={this.sort}
           onCurrentPageChange={page => this.$emit('currentPageChange', page)}
           onPageSizeChange={pageSize => this.$emit('pageSizeChange', pageSize)}
-          onSelectChange={this.handleSelectionChange}
+          onSelectChange={(keys, options) => this.$emit('selectionChange', (keys ?? []) as string[], options)}
           onSortChange={sort => this.$emit('sortChange', sort)}
         />
       </div>

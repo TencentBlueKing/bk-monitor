@@ -32,7 +32,7 @@ import dayjs from 'dayjs';
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import { ExploreTableColumnTypeEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
 import MiniBarChart from '../../components/mini-bar-chart/mini-bar-chart';
-import { ImpactScopeResourceLabelMap, IssuesPriorityMap, IssuesRegressionMap, IssuesStatusMap } from '../../constant';
+import { IssuesPriorityMap, IssuesRegressionMap, IssuesStatusMap } from '../../constant';
 
 import type {
   BaseTableColumn,
@@ -160,7 +160,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
             key={resourceKey}
             class='impact-row'
           >
-            <span class='impact-label'>{ImpactScopeResourceLabelMap[resourceKey] || resourceKey}：</span>
+            <span class='impact-label'>{resource.display_name}：</span>
             <span
               class='impact-value is-number'
               onClick={() =>
@@ -246,7 +246,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     if (!row.assignee?.length) {
       return (
         <div
-          class='issues-assignee-unassigned-col '
+          class='issues-assignee-unassigned-col'
           onClick={() => rendererCtx.handleAssignClick(row)}
         >
           <div class='assignee-tag-wrapper'>

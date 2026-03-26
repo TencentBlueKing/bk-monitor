@@ -26,11 +26,12 @@
 
 import { Message } from 'bkui-vue';
 
-import { mockAssignIssues, mockResolveIssues, mockUpdatePriority } from '../issues-table/mock-data';
+import { mockAssignIssues, mockFollowUpIssues, mockResolveIssues, mockUpdatePriority } from '../issues-table/mock-data';
 
 import type { RequestOptions } from '../../services/base';
 import type {
   AssignIssuesParams,
+  FollowUpIssuesParams,
   IssuesOperationDialogEvent,
   ResolveIssuesParams,
   UpdatePriorityParams,
@@ -75,6 +76,20 @@ export const resolveIssues = async (
   options?: RequestOptions
 ): Promise<IssuesOperationDialogEvent<'resolve'>> => {
   const data = await mockResolveIssues(params, options).catch(() => ({ succeeded: [], failed: [] }));
+  return data;
+};
+
+/**
+ * @description 添加 Issues 跟进信息，封装底层 API 调用、错误兜底与数据预处理
+ * @param {FollowUpIssuesParams} params - 添加跟进信息请求参数（issues / content）
+ * @param {RequestOptions} options - 请求配置选项
+ * @returns {Promise<IssuesOperationDialogEvent<'follow_up'>>} 包含 succeeded 和 failed 的操作结果；异常时返回空兜底结构
+ */
+export const followUpIssues = async (
+  params: FollowUpIssuesParams,
+  options?: RequestOptions
+): Promise<IssuesOperationDialogEvent<'follow_up'>> => {
+  const data = await mockFollowUpIssues(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
 };
 

@@ -22,6 +22,7 @@ class ServiceBase(models.Model):
     bk_biz_id = models.BigIntegerField("业务ID")
     app_name = models.CharField("应用名称", max_length=50)
     service_name = models.CharField("服务名称", max_length=512)
+    is_global = models.BooleanField("是否为全局配置", default=False)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
     created_by = models.CharField("创建人", max_length=128, null=True)

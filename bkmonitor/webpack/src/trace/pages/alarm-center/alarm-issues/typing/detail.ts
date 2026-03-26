@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { IssuePriorityType, IssueStatusType, TrendStatusType } from './constants';
+import type { IssueActiveNodeType, IssuePriorityType, IssueStatusType, TrendStatusType } from './constants';
 import type { AggregateConfig, ImpactScope } from './table';
 
 /* ============== Issue 详情接口 - 返回数据 ============== */
@@ -49,6 +49,32 @@ export interface DimensionSummaryValue {
   percentage: number;
   /** 维度值，聚合剩余项时值为翻译后的 "其他" */
   value: string;
+}
+
+/** 活动记录项 */
+export interface IssueActivityItem {
+  /** 活动记录 ID */
+  activity_id: string;
+  /** 活动类型：create, comment, status_change, assignee_change, priority_change */
+  activity_type: IssueActiveNodeType;
+  /** 评论内容，仅 comment 类型有值 */
+  content: null | string;
+  /** 变更前的值，仅 *_change 类型有值 */
+  from_value: null | string;
+  /** 操作人（系统操作为 system） */
+  operator: string;
+  /** 活动时间（Unix 秒级时间戳） */
+  time: number;
+  /** 变更后的值，仅 *_change 类型有值 */
+  to_value: null | string;
+}
+
+/** 活动记录查询请求参数 */
+export interface IssueActivityParams {
+  /** 业务 ID */
+  bk_biz_id: number;
+  /** Issue ID */
+  id: string;
 }
 
 /** Issue 详情数据 */
@@ -125,7 +151,51 @@ export interface IssueDetailParams {
   start_time?: number;
 }
 
-/* ============== Issue 详情接口 - 请求参数 ============== */
+/** 活动记录评论失败项 */
+export interface IssuesActivityCommentFailedItem {
+  /** 业务 ID */
+  bk_biz_id: number;
+  /** Issue ID */
+  issue_id: string;
+  /** 错误信息 */
+  message: string;
+}
+
+/** 活动记录评论参数 */
+export interface IssuesActivityCommentParams {
+  /** 评论内容 */
+  content: string;
+  issues: {
+    bk_biz_id: number;
+    issue_id: string;
+  }[];
+}
+
+/** 活动记录评论返回数据 */
+export interface IssuesActivityCommentResponse {
+  /** 失败列表 */
+  failed: IssuesActivityCommentFailedItem[];
+  /** 成功列表 */
+  succeeded: IssuesActivityCommentSucceededItem[];
+}
+
+/** 活动记录评论成功项 */
+export interface IssuesActivityCommentSucceededItem {
+  /** 活动记录 ID */
+  activity_id: string;
+  /** 活动类型 */
+  activity_type: IssueActiveNodeType;
+  /** 业务 ID */
+  bk_biz_id: number;
+  /** 评论内容 */
+  content: string;
+  /** Issue ID */
+  issue_id: string;
+  /** 操作人 */
+  operator: string;
+  /** 活动时间（Unix 秒级时间戳） */
+  time: number;
+}
 
 /** 趋势统计项 */
 export interface IssueTrendItem {

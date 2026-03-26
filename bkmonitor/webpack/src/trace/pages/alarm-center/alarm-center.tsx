@@ -378,8 +378,8 @@ export default defineComponent({
     /** URL参数 */
     const urlParams = computed<AlarmUrlParams>(() => {
       return {
-        from: alarmStore.timeRange[0],
-        to: alarmStore.timeRange[1],
+        from: String(alarmStore.timeRange[0]),
+        to: String(alarmStore.timeRange[1]),
         timezone: alarmStore.timezone,
         refreshInterval: String(alarmStore.refreshInterval),
         queryString: alarmStore.queryString,
@@ -1020,9 +1020,9 @@ export default defineComponent({
           {this.alarmStore.alarmType === AlarmType.ISSUES ? (
             <IssuesDetailSideSlider
               bizId={this.issueRowData?.bk_biz_id}
+              firstAlarmTime={this.issueRowData?.first_alert_time}
               issueId={this.issueRowData?.id}
               show={this.issuesDetailShow}
-              onImpactScopeClick={this.handleImpactScopeClick}
               onUpdate:show={show => {
                 this.issuesDetailShow = show;
               }}

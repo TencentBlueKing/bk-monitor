@@ -53,6 +53,7 @@ BkDataAuthApi = SimpleLazyObject(lambda: new_api_module("bkdata_auth", "_BkDataA
 BkDataResourceCenterApi = SimpleLazyObject(lambda: new_api_module("bkdata_resource_center", "_BkDataResourceCenterApi"))
 BkDataStorekitApi = SimpleLazyObject(lambda: new_api_module("bkdata_storekit", "_BkDataStorekitApi"))
 TransferApi = SimpleLazyObject(lambda: new_api_module("transfer", "_TransferApi"))
+OverseasMigrateApi = SimpleLazyObject(lambda: new_api_module("overseas_migrate", "_OverseasMigrateApi"))
 
 OldMonitorApi = SimpleLazyObject(lambda: new_api_module("old_monitor", "_OldMonitorApi"))
 MonitorApi = SimpleLazyObject(lambda: new_api_module("monitor", "_MonitorApi"))
@@ -124,6 +125,7 @@ __all__ = [
     "WeWorkApi",
     "UnifyQueryApi",
     "TGPATaskApi",
+    "OverseasMigrateApi",
 ]
 
 

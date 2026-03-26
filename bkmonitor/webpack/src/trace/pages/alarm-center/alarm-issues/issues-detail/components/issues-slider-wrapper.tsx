@@ -41,7 +41,7 @@ import IssuesRetrievalFilter from './issues-retrieval-filter/issues-retrieval-fi
 import IssuesTrendChart from './issues-trend-chart/issues-trend-chart';
 import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 
-import type { ImpactScopeResource, IssueDetail } from '../../typing';
+import type { ImpactScopeEvent, ImpactScopeResource, IssueDetail } from '../../typing';
 import type { ImpactScopeResourceKeyType, IssueDetailTabType, IssuePriorityType } from '../../typing/constants';
 
 import './issues-slider-wrapper.scss';
@@ -98,7 +98,7 @@ export default defineComponent({
     /** 标记已解决 */
     resolved: () => true,
     /** 影响范围点击 */
-    impactScopeClick: (_resourceKey: ImpactScopeResourceKeyType, _resource: ImpactScopeResource) => true,
+    impactScopeClick: (impactScope: ImpactScopeEvent) => impactScope,
   },
   setup(props, { emit }) {
     const currentTab = shallowRef<IssueDetailTabType>(IssueDetailTabEnum.LATEST);
@@ -166,7 +166,10 @@ export default defineComponent({
      * @param resource 影响范围资源
      */
     const handleImpactScopeClick = (resourceKey: ImpactScopeResourceKeyType, resource: ImpactScopeResource) => {
-      emit('impactScopeClick', resourceKey, resource);
+      emit('impactScopeClick', {
+        resourceKey,
+        resource,
+      });
     };
 
     const getPanelComponent = () => {
@@ -264,7 +267,7 @@ export default defineComponent({
             onPriorityChange={this.handlePriorityChange}
             onResolved={this.handleResolved}
           />
-          <IssuesActivity />
+          <IssuesActivity detail={this.detail} />
           <IssuesHistory />
         </div>
       </div>

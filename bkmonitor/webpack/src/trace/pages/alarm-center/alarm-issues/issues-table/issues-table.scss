@@ -20,6 +20,11 @@
   .issues-table-main {
     flex-grow: 1;
     flex-basis: auto;
+
+    .t-table__th-cell-inner {
+      font-weight: 500;
+      color: #111214;
+    }
   }
 
   // ===================== Issues 名称列 =====================
@@ -236,38 +241,3 @@
   }
 }
 
-// ===================== 优先级下拉菜单（popover 内容，全局作用域） =====================
-.issues-priority-menu {
-  width: 68px;
-  padding: 4px 0;
-
-  .priority-menu-item {
-    display: flex;
-    align-items: center;
-    padding: 6px 12px;
-    cursor: pointer;
-    transition: background-color 0.15s;
-
-    &:hover {
-      background-color: #f5f7fa;
-    }
-
-    &.is-active {
-      background-color: #e1ecff;
-    }
-
-    /* stylelint-disable-next-line no-descending-specificity */
-    .priority-tag {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 32px;
-      height: 24px;
-      padding: 0 6px;
-      font-size: 12px;
-      font-weight: 500;
-      line-height: 24px;
-      border-radius: 4px;
-    }
-  }
-}

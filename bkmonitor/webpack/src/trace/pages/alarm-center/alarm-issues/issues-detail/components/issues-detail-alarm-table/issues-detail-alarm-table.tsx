@@ -61,7 +61,7 @@ export default defineComponent({
   name: 'IssuesDetailAlarmTable',
   props: {
     timeRange: {
-      type: Array as PropType<string[]>,
+      type: Array as PropType<(number | string)[]>,
       default: () => [],
     },
     /** 筛选条件 */

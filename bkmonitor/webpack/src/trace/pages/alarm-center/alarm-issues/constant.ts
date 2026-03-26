@@ -26,8 +26,6 @@
 
 import dispatchIcon from '../../../static/img/issues/dispatch.png';
 import firstIcon from '../../../static/img/issues/first.png';
-import mergeIcon from '../../../static/img/issues/merge.png';
-import splitIcon from '../../../static/img/issues/split.png';
 import statusIcon from '../../../static/img/issues/status.png';
 
 import type { IssuePriorityType, IssueStatusType, MapEntry } from './typing';
@@ -104,16 +102,18 @@ export const IssueAssigneeEnum = {
   UNASSIGNED: 'no_assignee',
 } as const;
 
-/** Issues 活跃节点类型枚举 */
+/** Issues 活动节点类型枚举 */
 export const IssueActiveNodeTypeEnum = {
-  /** 首次出现 */
-  FIRST: 'first',
-  /** 状态变更 */
-  STATUS: 'status',
+  /** 负责人变更 */
+  ASSIGNEE_CHANGE: 'assignee_change',
   /** 用户评论 */
   COMMENT: 'comment',
-  /** 指派 */
-  DISPATCH: 'dispatch',
+  /** 创建 */
+  CREATE: 'create',
+  /** 优先级变更 */
+  PRIORITY_CHANGE: 'priority_change',
+  /** 状态变更 */
+  STATUS_CHANGE: 'status_change',
   /** 拆分 */
   SPLIT: 'split',
   /** 合并 */
@@ -221,43 +221,26 @@ export const IssuesRegressionMap: Record<string, MapEntry> = {
   },
 };
 
-/** 影响范围资源类型中文名映射 */
-export const ImpactScopeResourceLabelMap: Record<string, string> = {
-  [ImpactScopeResourceKeyEnum.SET]: 'set',
-  [ImpactScopeResourceKeyEnum.HOST]: window.i18n.t('主机'),
-  [ImpactScopeResourceKeyEnum.SERVICE_INSTANCES]: window.i18n.t('服务实例'),
-  [ImpactScopeResourceKeyEnum.CLUSTER]: window.i18n.t('集群'),
-  [ImpactScopeResourceKeyEnum.NODE]: 'node',
-  [ImpactScopeResourceKeyEnum.POD]: 'pod',
-  [ImpactScopeResourceKeyEnum.SERVICE]: 'service',
-  [ImpactScopeResourceKeyEnum.APP]: window.i18n.t('应用'),
-  [ImpactScopeResourceKeyEnum.APM_SERVICE]: window.i18n.t('APM服务'),
-};
-
 /** Issues 活跃节点类型icon映射 */
 export const IssuesActiveNodeIconMap = {
-  [IssueActiveNodeTypeEnum.FIRST]: {
-    icon: firstIcon,
-    alias: window.i18n.t('首次出现'),
-  },
-  [IssueActiveNodeTypeEnum.STATUS]: {
-    icon: statusIcon,
-    alias: window.i18n.t('状态流转：'),
+  [IssueActiveNodeTypeEnum.ASSIGNEE_CHANGE]: {
+    icon: dispatchIcon,
+    alias: window.i18n.t('指派负责人：'),
   },
   [IssueActiveNodeTypeEnum.COMMENT]: {
     icon: '',
     alias: window.i18n.t('用户评论'),
   },
-  [IssueActiveNodeTypeEnum.DISPATCH]: {
-    icon: dispatchIcon,
-    alias: window.i18n.t('指派负责人：'),
+  [IssueActiveNodeTypeEnum.CREATE]: {
+    icon: firstIcon,
+    alias: window.i18n.t('首次出现'),
   },
-  [IssueActiveNodeTypeEnum.SPLIT]: {
-    icon: splitIcon,
-    alias: window.i18n.t('Issue 拆分'),
+  [IssueActiveNodeTypeEnum.PRIORITY_CHANGE]: {
+    icon: statusIcon,
+    alias: window.i18n.t('优先级变更：'),
   },
-  [IssueActiveNodeTypeEnum.MERGE]: {
-    icon: mergeIcon,
-    alias: window.i18n.t('Issue 合并'),
+  [IssueActiveNodeTypeEnum.STATUS_CHANGE]: {
+    icon: statusIcon,
+    alias: window.i18n.t('状态流转：'),
   },
 };

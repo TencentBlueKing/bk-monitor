@@ -12,6 +12,7 @@ import json
 
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
+from elasticsearch_dsl import Q
 
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.models import NO_DATA_TAG_DIMENSION
@@ -36,7 +37,16 @@ class AlertLogHandler:
         AlertLog.OpType.ACTION: _lazy("处理动作"),
         AlertLog.OpType.ALERT_QOS: _lazy("告警流控"),
         AlertLog.OpType.EVENT_DROP: _lazy("事件忽略"),
+        AlertLog.OpType.USER_ACTION: _lazy("用户操作"),
     }
+
+    # 系统用户名列表，这些 operator 不算用户操作
+    # USER_ACTION 查询时排除这些系统用户
+    SYSTEM_OPERATORS = ["system", "fta-system"]
+
+    # USER_ACTION 中需要去重的类型（已完全包含在 user_action_query 中）
+    # 注意：只去重 ACK，保留 ACTION（因为单独的 action 语义是"所有 ACTION"）
+    USER_ACTION_DUPLICATE_TYPES = {AlertLog.OpType.ACK}
 
     def __init__(self, alert_id: str):
         self.alert = AlertDocument.get(alert_id)
@@ -53,7 +63,50 @@ class AlertLogHandler:
         )
 
         if operate_list:
-            search_object = search_object.filter("terms", op_type=operate_list)
+            operate_set = set(operate_list)
+
+            # 处理虚拟类型 USER_ACTION：需要额外判断 operator 字段
+            if AlertLog.OpType.USER_ACTION in operate_set:
+                operate_set.discard(AlertLog.OpType.USER_ACTION)
+
+                # 构建用户操作的查询条件
+                # - ACK: 所有 ACK 都是用户操作
+                # - ACTION: 有 operator 字段且不为系统用户名（用户手动触发）
+                user_action_query = Q(
+                    "bool",
+                    should=[
+                        Q("term", op_type=AlertLog.OpType.ACK),
+                        Q(
+                            "bool",
+                            must=[
+                                Q("term", op_type=AlertLog.OpType.ACTION),
+                                Q("exists", field="operator"),
+                            ],
+                            must_not=[
+                                Q("terms", operator=self.SYSTEM_OPERATORS),
+                            ],
+                        ),
+                    ],
+                    minimum_should_match=1,
+                )
+
+                # 去重：移除已被 USER_ACTION 完全覆盖的类型（只去重 ACK，保留 ACTION）
+                # 因为单独的 action 语义是"所有 ACTION"，会自动合并用户+系统的 ACTION
+                operate_set -= self.USER_ACTION_DUPLICATE_TYPES
+
+                # 如果还有其他操作类型，组合查询
+                if operate_set:
+                    other_query = Q("terms", op_type=list(operate_set))
+                    combined_query = Q(
+                        "bool",
+                        should=[other_query, user_action_query],
+                        minimum_should_match=1,
+                    )
+                    search_object = search_object.filter(combined_query)
+                else:
+                    search_object = search_object.filter(user_action_query)
+            else:
+                search_object = search_object.filter("terms", op_type=list(operate_set))
 
         if offset:
             search_object = search_object.filter("range", create_time={"lt": offset})

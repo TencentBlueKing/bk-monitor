@@ -23,22 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, watchEffect } from 'vue';
+import { defineComponent, shallowRef, watch, watchEffect } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 
+import IssuesImpactScopeDrawer from '../components/issues-impact-scope-drawer/issues-impact-scope-drawer';
 import IssuesSliderHeader from './components/issues-slider-header';
 import IssuesSliderWrapper from './components/issues-slider-wrapper';
 import { fetchIssueDetailMock } from './mock-data';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
 import TimeRange from '@/components/time-range/time-range';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
-import type { ImpactScopeResource, IssueDetail } from '../typing';
+import type { ImpactScopeEvent, ImpactScopeResource, IssueDetail } from '../typing';
 import type { ImpactScopeResourceKeyType, IssuePriorityType } from '../typing/constants';
-import type { TimeRangeType } from '@/components/time-range/utils';
 
 import './issues-detail-sideslider.scss';
 
@@ -54,52 +55,83 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** 第一个告警产生时间 (秒级时间戳) */
+    firstAlarmTime: {
+      type: [Number, String],
+      default: 'now-1h',
+    },
     /** 告警ID */
     alarmId: {
       type: String,
       default: '',
     },
+    /** issuesBizId */
     bizId: {
       type: Number,
       default: undefined,
     },
   },
-  emits: ['update:show', 'impactScopeClick'],
+  emits: ['update:show'],
   setup(props, { emit }) {
     const detail = shallowRef<IssueDetail>(undefined);
-
     const loading = shallowRef(false);
     const isFullscreen = shallowRef(false);
-    const timeRange = shallowRef<TimeRangeType>(['now-1h', 'now']);
+    const timeRange = shallowRef<(number | string)[]>(['now-1h', 'now']);
     const timezone = shallowRef(getDefaultTimezone());
     const refreshInterval = shallowRef(-1);
     const refreshImmediate = shallowRef(random(4));
+    let timer = null;
     // 筛选条件状态
     const conditions = shallowRef<IWhereItem[]>([]);
     const queryString = shallowRef('');
     const filterMode = shallowRef<EMode>(EMode.ui);
 
+    const impactScopeResource = shallowRef<ImpactScopeResource>(null);
+    const impactScopeResourceKey = shallowRef<'' | ImpactScopeResourceKeyType>('');
+    const impactScopeDrawerShow = shallowRef(false);
+
+    watch(
+      () => props.show,
+      show => {
+        if (show) {
+          /** 初始化默认查询时间范围 */
+          timeRange.value = [
+            typeof props.firstAlarmTime === 'number' ? props.firstAlarmTime * 1000 : props.firstAlarmTime,
+            'now',
+          ];
+        }
+      }
+    );
+
     watchEffect(() => {
       if (props.show) {
-        loading.value = true;
-        fetchIssueDetailMock({
-          bk_biz_id: props.bizId,
-          id: props.issueId,
-        })
-          .then(res => {
-            detail.value = res;
-          })
-          .catch(() => {
-            loading.value = false;
-          });
+        getIssueDetailData();
       }
     });
+
+    /** 获取Issue详情数据 */
+    const getIssueDetailData = () => {
+      loading.value = true;
+      const [start, end] = handleTransformToTimestamp(timeRange.value);
+      fetchIssueDetailMock({
+        bk_biz_id: props.bizId,
+        id: props.issueId,
+        start_time: start,
+        end_time: end,
+      })
+        .then(res => {
+          detail.value = res;
+        })
+        .catch(() => {
+          loading.value = false;
+        });
+    };
 
     const handleShowChange = (isShow: boolean) => {
       emit('update:show', isShow);
     };
 
-    const handleTimeRangeChange = (value: TimeRangeType) => {
+    const handleTimeRangeChange = value => {
       timeRange.value = value;
     };
 
@@ -109,10 +141,22 @@ export default defineComponent({
 
     const handleImmediateRefresh = () => {
       refreshImmediate.value = random(5);
+      getIssueDetailData();
     };
 
     const handleRefreshChange = (value: number) => {
       refreshInterval.value = value;
+      if (timer) {
+        clearInterval(timer);
+      }
+      if (value > 0) {
+        timer = setInterval(
+          () => {
+            handleImmediateRefresh();
+          },
+          Math.max(value, 1000 * 60)
+        );
+      }
     };
 
     const handleConditionChange = (val: IWhereItem[]) => {
@@ -142,8 +186,10 @@ export default defineComponent({
     };
 
     /** 影响范围点击 */
-    const handleImpactScopeClick = (resourceKey: ImpactScopeResourceKeyType, resource: ImpactScopeResource) => {
-      emit('impactScopeClick', { resourceKey, resource });
+    const handleImpactScopeClick = (event?: ImpactScopeEvent) => {
+      impactScopeResourceKey.value = event?.resourceKey;
+      impactScopeResource.value = event?.resource;
+      impactScopeDrawerShow.value = !!event;
     };
 
     return {
@@ -155,6 +201,9 @@ export default defineComponent({
       conditions,
       queryString,
       filterMode,
+      impactScopeResource,
+      impactScopeResourceKey,
+      impactScopeDrawerShow,
       handleShowChange,
       handleTimeRangeChange,
       handleTimezoneChange,
@@ -204,7 +253,6 @@ export default defineComponent({
                 conditions={this.conditions}
                 detail={this.detail}
                 filterMode={this.filterMode}
-                issueId={this.issueId}
                 queryString={this.queryString}
                 timeRange={this.timeRange}
                 onAssigneeChange={this.handleAssigneeChange}
@@ -214,6 +262,15 @@ export default defineComponent({
                 onPriorityChange={this.handlePriorityChange}
                 onQueryStringChange={this.handleQueryStringChange}
                 onResolved={this.handleResolved}
+              />
+              <IssuesImpactScopeDrawer
+                resource={this.impactScopeResource}
+                resourceKey={this.impactScopeResourceKey}
+                show={this.impactScopeDrawerShow}
+                onUpdate:show={(v: boolean) => {
+                  if (v) return;
+                  this.handleImpactScopeClick();
+                }}
               />
             </div>
           ),

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { IssuePriorityEnum, IssuesPriorityMap } from '../../constant';
+import PriorityMenu from '../components/priority-menu/priority-menu';
 
 import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
 import type { ImpactScopeEvent, IssueItem, IssuePriorityType } from '../../typing';
@@ -41,13 +41,10 @@ export interface UseIssuesHandlersOptions {
   /** 优先级变更回调 */
   priorityChangeEmit: (id: string, priority: IssuePriorityType) => void;
   /** 显示 Issue 详情回调 */
-  showDetailEmit: (id: IssueItem) => void;
+  showDetailEmit: (item: IssueItem) => void;
 }
 
 export type UseIssuesHandlersReturnType = ReturnType<typeof useIssuesHandlers>;
-
-/** 优先级选项列表 */
-const PRIORITY_OPTIONS: IssuePriorityType[] = [IssuePriorityEnum.P0, IssuePriorityEnum.P1, IssuePriorityEnum.P2];
 
 /**
  * @description Issues 场景私有交互逻辑 hook
@@ -103,32 +100,13 @@ export const useIssuesHandlers = ({
    */
   const handlePriorityClick = (e: MouseEvent, row: IssueItem) => {
     const menuDom = (
-      <div class='issues-priority-menu'>
-        {PRIORITY_OPTIONS.map(priority => {
-          const config = IssuesPriorityMap[priority];
-          const isActive = row.priority === priority;
-          return (
-            <div
-              key={priority}
-              class={['priority-menu-item', { 'is-active': isActive }]}
-              onClick={() => {
-                priorityChangeEmit(row.id, priority);
-                clickPopoverTools.hidePopover();
-              }}
-            >
-              <span
-                style={{
-                  backgroundColor: config.bgColor,
-                  color: config.color,
-                }}
-                class='priority-tag'
-              >
-                {config.alias}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      <PriorityMenu
+        currentPriority={row.priority}
+        onSelect={priority => {
+          priorityChangeEmit(row.id, priority);
+          clickPopoverTools.hidePopover();
+        }}
+      />
     ) as unknown as Element;
 
     clickPopoverTools.showPopover(e, menuDom, `${row.id}-priority`, { arrow: false, offset: [0, 4] });

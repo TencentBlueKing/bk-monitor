@@ -59,6 +59,8 @@ export interface ImpactScopeInstance {
 export interface ImpactScopeResource {
   /** 该资源类型的总数量 */
   count: number;
+  /** 资源类型展示名称（如"集群"、"主机"、"bcs集群"等） */
+  display_name: string;
   /** 实例列表，最多 50 条 */
   instance_list: ImpactScopeInstance[];
   /** 跳转链接模板，null 表示不可点击 */
