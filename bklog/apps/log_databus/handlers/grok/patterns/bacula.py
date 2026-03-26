@@ -246,13 +246,13 @@ PATTERNS = [
     },
     {
         "name": "BACULA_LOG_FATAL_CONN",
-        "pattern": r"Fatal error: bsock.c:133 Unable to connect to (Client: %{BACULA_HOST:client}|Storage daemon) on %{HOSTNAME}:%{POSINT}. ERR=(?<berror>%{GREEDYDATA})",
+        "pattern": r"Fatal error: bsock.c:133 Unable to connect to (Client: %{BACULA_HOST:client}|Storage daemon) on %{HOSTNAME}:%{POSINT}. ERR=(?P<berror>%{GREEDYDATA})",
         "sample": "Fatal error: bsock.c:133 Unable to connect to Client: backup-client-01 on backup-client-01.example.com:9102. ERR=Connection refused",
         "description": "匹配 Bacula 无法连接客户端或存储守护进程的致命错误",
     },
     {
         "name": "BACULA_LOG_NO_CONNECT",
-        "pattern": r"Warning: bsock.c:127 Could not connect to (Client: %{BACULA_HOST:client}|Storage daemon) on %{HOSTNAME}:%{POSINT}. ERR=(?<berror>%{GREEDYDATA})",
+        "pattern": r"Warning: bsock.c:127 Could not connect to (Client: %{BACULA_HOST:client}|Storage daemon) on %{HOSTNAME}:%{POSINT}. ERR=(?P<berror>%{GREEDYDATA})",
         "sample": "Warning: bsock.c:127 Could not connect to Client: backup-client-01 on backup-client-01.example.com:9102. ERR=Connection timed out",
         "description": "匹配 Bacula 无法连接客户端或存储守护进程的警告",
     },
@@ -279,11 +279,5 @@ PATTERNS = [
         "pattern": r"(Error: )?Bacula %{BACULA_HOST} %{BACULA_VERSION} \(%{BACULA_VERSION}\):",
         "sample": "Bacula backup-server-01 9.6.7 (09Mar24):",
         "description": "匹配 Bacula 作业日志头部，包含主机名和版本信息",
-    },
-    {
-        "name": "BACULA_LOGLINE",
-        "pattern": r"%{BACULA_TIMESTAMP:bts} %{BACULA_HOST:hostname} JobId %{INT:jobid}: (%{BACULA_LOG_MAX_CAPACITY}|%{BACULA_LOG_END_VOLUME}|%{BACULA_LOG_NEW_VOLUME}|%{BACULA_LOG_NEW_LABEL}|%{BACULA_LOG_WROTE_LABEL}|%{BACULA_LOG_NEW_MOUNT}|%{BACULA_LOG_NOOPEN}|%{BACULA_LOG_NOOPENDIR}|%{BACULA_LOG_NOSTAT}|%{BACULA_LOG_NOJOBS}|%{BACULA_LOG_ALL_RECORDS_PRUNED}|%{BACULA_LOG_BEGIN_PRUNE_JOBS}|%{BACULA_LOG_BEGIN_PRUNE_FILES}|%{BACULA_LOG_PRUNED_JOBS}|%{BACULA_LOG_PRUNED_FILES}|%{BACULA_LOG_ENDPRUNE}|%{BACULA_LOG_STARTJOB}|%{BACULA_LOG_STARTRESTORE}|%{BACULA_LOG_USEDEVICE}|%{BACULA_LOG_DIFF_FS}|%{BACULA_LOG_JOBEND}|%{BACULA_LOG_NOPRUNE_JOBS}|%{BACULA_LOG_NOPRUNE_FILES}|%{BACULA_LOG_VOLUME_PREVWRITTEN}|%{BACULA_LOG_READYAPPEND}|%{BACULA_LOG_CANCELLING}|%{BACULA_LOG_MARKCANCEL}|%{BACULA_LOG_CLIENT_RBJ}|%{BACULA_LOG_VSS}|%{BACULA_LOG_MAXSTART}|%{BACULA_LOG_DUPLICATE}|%{BACULA_LOG_NOJOBSTAT}|%{BACULA_LOG_FATAL_CONN}|%{BACULA_LOG_NO_CONNECT}|%{BACULA_LOG_NO_AUTH}|%{BACULA_LOG_NOSUIT}|%{BACULA_LOG_JOB}|%{BACULA_LOG_NOPRIOR})",
-        "sample": '15-Mar 14:30 backup-server-01 JobId 123: Created new Volume "Vol-0002" in catalog.',
-        "description": "匹配 Bacula 完整日志行，包含时间戳、主机名、作业ID和各类日志消息",
     },
 ]

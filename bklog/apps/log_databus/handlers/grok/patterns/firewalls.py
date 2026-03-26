@@ -160,7 +160,7 @@ PATTERNS = [
     },
     {
         "name": "CISCOFW106100",
-        "pattern": r"access-list %{NOTSPACE:policy_id} %{CISCO_ACTION:action} %{WORD:protocol} %{DATA:src_interface}/%{IP:src_ip}\(%{INT:src_port}\)(\(%{DATA:src_fwuser}\))? -> %{DATA:dst_interface}/%{IP:dst_ip}\(%{INT:dst_port}\)(\(%{DATA:src_fwuser}\))? hit-cnt %{INT:hit_count} %{CISCO_INTERVAL:interval} \[%{DATA:hashcode1}, %{DATA:hashcode2}\]",
+        "pattern": r"access-list %{NOTSPACE:policy_id} %{CISCO_ACTION:action} %{WORD:protocol} %{DATA:src_interface}/%{IP:src_ip}\(%{INT:src_port}\)(\(%{DATA:src_fwuser}\))? -> %{DATA:dst_interface}/%{IP:dst_ip}\(%{INT:dst_port}\)(\(%{DATA:dst_fwuser}\))? hit-cnt %{INT:hit_count} %{CISCO_INTERVAL:interval} \[%{DATA:hashcode1}, %{DATA:hashcode2}\]",
         "sample": "access-list acl-outside permitted tcp outside/192.168.1.1(54321) -> inside/10.0.0.1(80) hit-cnt 5 300-second interval [0x12345678, 0x87654321]",
         "description": "匹配 Cisco ASA-5-106100：ACL 匹配统计",
     },
@@ -202,7 +202,7 @@ PATTERNS = [
     },
     {
         "name": "CISCOFW313005",
-        "pattern": r"%{CISCO_REASON:reason} for %{WORD:protocol} error message: %{WORD:err_protocol} src %{DATA:err_src_interface}:%{IP:err_src_ip}(\(%{DATA:err_src_fwuser}\))? dst %{DATA:err_dst_interface}:%{IP:err_dst_ip}(\(%{DATA:err_dst_fwuser}\))? \(type %{INT:err_icmp_type}, code %{INT:err_icmp_code}\) on %{DATA:interface} interface\.  Original IP payload: %{WORD:protocol} src %{IP:orig_src_ip}/%{INT:orig_src_port}(\(%{DATA:orig_src_fwuser}\))? dst %{IP:orig_dst_ip}/%{INT:orig_dst_port}(\(%{DATA:orig_dst_fwuser}\))?",
+        "pattern": r"%{CISCO_REASON:reason} for %{WORD:protocol} error message: %{WORD:err_protocol} src %{DATA:err_src_interface}:%{IP:err_src_ip}(\(%{DATA:err_src_fwuser}\))? dst %{DATA:err_dst_interface}:%{IP:err_dst_ip}(\(%{DATA:err_dst_fwuser}\))? \(type %{INT:err_icmp_type}, code %{INT:err_icmp_code}\) on %{DATA:interface} interface\.  Original IP payload: %{WORD:orig_protocol} src %{IP:orig_src_ip}/%{INT:orig_src_port}(\(%{DATA:orig_src_fwuser}\))? dst %{IP:orig_dst_ip}/%{INT:orig_dst_port}(\(%{DATA:orig_dst_fwuser}\))?",
         "sample": "No matching connection for ICMP error message: icmp src outside:192.168.1.1 dst inside:10.0.0.1 (type 3, code 3) on outside interface.  Original IP payload: udp src 10.0.0.1/53 dst 192.168.1.1/12345",
         "description": "匹配 Cisco ASA-4-313005：ICMP 错误消息无匹配连接",
     },
@@ -269,7 +269,7 @@ PATTERNS = [
     # Shorewall 防火墙
     {
         "name": "SHOREWALL",
-        "pattern": r"(%{SYSLOGTIMESTAMP:timestamp}) (%{WORD:nf_host}) kernel:.*Shorewall:(%{WORD:nf_action1})?:(%{WORD:nf_action2})?.*IN=(%{USERNAME:nf_in_interface})?.*(OUT= *MAC=(%{COMMONMAC:nf_dst_mac}):(%{COMMONMAC:nf_src_mac})?|OUT=%{USERNAME:nf_out_interface}).*SRC=(%{IPV4:nf_src_ip}).*DST=(%{IPV4:nf_dst_ip}).*LEN=(%{WORD:nf_len}).?*TOS=(%{WORD:nf_tos}).?*PREC=(%{WORD:nf_prec}).?*TTL=(%{INT:nf_ttl}).?*ID=(%{INT:nf_id}).?*PROTO=(%{WORD:nf_protocol}).?*SPT=(%{INT:nf_src_port}?.*DPT=%{INT:nf_dst_port}?.*)",
+        "pattern": r"(%{SYSLOGTIMESTAMP:timestamp}) (%{WORD:nf_host}) kernel:.*Shorewall:(%{WORD:nf_action1})?:(%{WORD:nf_action2})?.*IN=(%{USERNAME:nf_in_interface})?.*(OUT= *MAC=(%{COMMONMAC:nf_dst_mac}):(%{COMMONMAC:nf_src_mac})?|OUT=%{USERNAME:nf_out_interface}).*SRC=(%{IPV4:nf_src_ip}).*DST=(%{IPV4:nf_dst_ip}).*LEN=(%{WORD:nf_len}).*TOS=(%{WORD:nf_tos}).*PREC=(%{WORD:nf_prec}).*TTL=(%{INT:nf_ttl}).*ID=(%{INT:nf_id}).*PROTO=(%{WORD:nf_protocol}).*SPT=(%{INT:nf_src_port}).*DPT=(%{INT:nf_dst_port}).*",
         "sample": "Mar 15 14:30:59 fw01 kernel: Shorewall:REJECT:REJECT:IN=eth0 OUT= MAC=0a:1b:2c:3d:4e:5f:6a:7b:8c:9d:0e:1f SRC=192.168.1.1 DST=10.0.0.1 LEN=60 TOS=0x00 PREC=0x00 TTL=64 ID=12345 PROTO=TCP SPT=54321 DPT=80",
         "description": "匹配 Shorewall 防火墙日志，包含源/目的 IP、MAC、协议和端口信息",
     },

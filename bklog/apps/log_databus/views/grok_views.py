@@ -23,7 +23,7 @@ from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
-from apps.log_databus.handlers.grok import GrokHandler
+from apps.log_databus.handlers.grok.handler import GrokHandler
 from apps.log_databus.serializers import (
     GrokCreateSerializer,
     GrokDebugSerializer,

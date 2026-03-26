@@ -18,7 +18,7 @@ PATTERNS = [
     },
     {
         "name": "SYSLOGPAMSESSION",
-        "pattern": r"%{SYSLOGBASE} (?=%{GREEDYDATA:message})%{WORD:pam_module}\(%{DATA:pam_caller}\): session %{WORD:pam_session_state} for user %{USERNAME:username}(?: by %{GREEDYDATA:pam_by})?",
+        "pattern": r"%{SYSLOGBASE} %{WORD:pam_module}\(%{DATA:pam_caller}\): session %{WORD:pam_session_state} for user %{USERNAME:username}(?: by %{GREEDYDATA:pam_by})?",
         "sample": "Mar 15 14:30:59 myhost.example.com sshd[12345]: pam_unix(sshd:session): session opened for user admin by (uid=0)",
         "description": "匹配 PAM 会话相关的 Syslog 日志（登录/注销事件）",
     },

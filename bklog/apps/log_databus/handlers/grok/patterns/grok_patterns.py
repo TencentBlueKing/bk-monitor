@@ -42,7 +42,7 @@ PATTERNS = [
     },
     {
         "name": "BASE10NUM",
-        "pattern": r"(?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\.[0-9]+)?)|(?:\.[0-9]+)))",
+        "pattern": r"[+-]?(?:(?:[0-9]+(?:\.[0-9]+)?)|(?:\.[0-9]+))",
         "sample": "3.14",
         "description": "匹配十进制数字，包括整数和浮点数",
     },
@@ -54,13 +54,13 @@ PATTERNS = [
     },
     {
         "name": "BASE16NUM",
-        "pattern": r"(?<![0-9A-Fa-f])(?:[+-]?(?:0x)?(?:[0-9A-Fa-f]+))",
+        "pattern": r"(?:[+-]?(?:0x)?(?:[0-9A-Fa-f]+))",
         "sample": "0x1A3F",
         "description": "匹配十六进制数字，支持可选的 0x 前缀",
     },
     {
         "name": "BASE16FLOAT",
-        "pattern": r"\b(?<![0-9A-Fa-f.])(?:[+-]?(?:0x)?(?:(?:[0-9A-Fa-f]+(?:\.[0-9A-Fa-f]*)?)|(?:\.[0-9A-Fa-f]+)))\b",
+        "pattern": r"\b(?:[+-]?(?:0x)?(?:(?:[0-9A-Fa-f]+(?:\.[0-9A-Fa-f]*)?)|(?:\.[0-9A-Fa-f]+)))\b",
         "sample": "0x1A.3F",
         "description": "匹配十六进制浮点数",
     },
@@ -108,7 +108,7 @@ PATTERNS = [
     },
     {
         "name": "QUOTEDSTRING",
-        "pattern": r"""(?>(?<!\\)(?>"(?>\\.|[^\\"]+)+"|""|(?>'(?>\\.|[^\\']+)+')|''|(?>`(?>\\.|[^\\`]+)+`)|``))""",
+        "pattern": r"""(?:"(?:[^\\"]*(?:\\.[^\\"]*)*)"|'(?:[^\\']*(?:\\.[^\\']*)*)'|`(?:[^\\`]*(?:\\.[^\\`]*)*)`)""",
         "sample": '"hello world"',
         "description": "匹配带引号的字符串，支持双引号、单引号和反引号",
     },
@@ -151,7 +151,7 @@ PATTERNS = [
     },
     {
         "name": "IPV4",
-        "pattern": r"(?<![0-9])(?:(?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])[.](?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])[.](?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])[.](?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5]))(?![0-9])",
+        "pattern": r"(?:(?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])[.](?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])[.](?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5])[.](?:[0-1]?[0-9]{1,2}|2[0-4][0-9]|25[0-5]))",
         "sample": "192.168.1.1",
         "description": "匹配 IPv4 地址",
     },
@@ -194,7 +194,7 @@ PATTERNS = [
     },
     {
         "name": "WINPATH",
-        "pattern": r"(?>[A-Za-z]+:|\\)(?:\\[^\\?*]*)+",
+        "pattern": r"(?:[A-Za-z]+:|\\)(?:\\[^\\?*]*)+",
         "sample": r"C:\Windows\System32\config",
         "description": "匹配 Windows 文件路径",
     },
@@ -274,7 +274,7 @@ PATTERNS = [
     },
     {
         "name": "YEAR",
-        "pattern": r"(?>\d\d){1,2}",
+        "pattern": r"(?:\d\d){1,2}",
         "sample": "2024",
         "description": "匹配年份，支持两位或四位数字",
     },
@@ -298,7 +298,7 @@ PATTERNS = [
     },
     {
         "name": "TIME",
-        "pattern": r"(?!<[0-9])%{HOUR}:%{MINUTE}(?::%{SECOND})(?![0-9])",
+        "pattern": r"%{HOUR}:%{MINUTE}(?::%{SECOND})",
         "sample": "14:30:59",
         "description": "匹配时间（时:分:秒）",
     },
@@ -454,12 +454,6 @@ PATTERNS = [
         "pattern": r"\[%{HTTPDERROR_DATE:timestamp}\] \[%{WORD:module}:%{LOGLEVEL:loglevel}\] \[pid %{POSINT:pid}:tid %{NUMBER:tid}\]( \(%{POSINT:proxy_errorcode}\)%{DATA:proxy_errormessage}:)?( \[client %{IPORHOST:client}:%{POSINT:clientport}\])? %{DATA:errorcode}: %{GREEDYDATA:message}",
         "sample": "[Fri Mar 15 14:30:59 2024] [core:error] [pid 12345:tid 139876543210] [client 192.168.1.1:54321] AH00124: Request exceeded the limit",
         "description": "匹配 Apache HTTPD 2.4 错误日志格式",
-    },
-    {
-        "name": "HTTPD_ERRORLOG",
-        "pattern": r"%{HTTPD20_ERRORLOG}|%{HTTPD24_ERRORLOG}",
-        "sample": "[Fri Mar 15 14:30:59 2024] [error] [client 192.168.1.1] File not found: /var/www/html/favicon.ico",
-        "description": "匹配 Apache HTTPD 错误日志格式，兼容 2.0 和 2.4 版本",
     },
     # 日志级别
     {

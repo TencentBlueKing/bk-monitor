@@ -6,7 +6,7 @@ HAProxy 负载均衡器相关 Grok 模式数据
 PATTERNS = [
     {
         "name": "HAPROXYTIME",
-        "pattern": r"(?!<[0-9])%{HOUR:haproxy_hour}:%{MINUTE:haproxy_minute}(?::%{SECOND:haproxy_second})(?![0-9])",
+        "pattern": r"%{HOUR:haproxy_hour}:%{MINUTE:haproxy_minute}(?::%{SECOND:haproxy_second})",
         "sample": "14:30:59",
         "description": "匹配 HAProxy 日志时间格式（时:分:秒）",
     },

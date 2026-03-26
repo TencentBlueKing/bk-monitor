@@ -7,7 +7,7 @@ def init_builtin_grok_patterns(apps, schema_editor):
     """
     初始化内置 Grok 规则
     """
-    from apps.log_databus.grok_patterns_data import ALL_PATTERNS
+    from apps.log_databus.handlers.grok.patterns import ALL_PATTERNS
 
     GrokInfo = apps.get_model("log_databus", "GrokInfo")
 

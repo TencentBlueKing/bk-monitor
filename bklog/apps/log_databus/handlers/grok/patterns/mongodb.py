@@ -12,13 +12,13 @@ PATTERNS = [
     },
     {
         "name": "MONGO_QUERY",
-        "pattern": r"\{ (?<={ ).*(?= } ntoreturn:) \}",
+        "pattern": r"\{ .*? \}",
         "sample": '{ find: "users", filter: { name: "admin" } }',
         "description": "匹配 MongoDB 查询语句",
     },
     {
         "name": "MONGO_SLOWQUERY",
-        "pattern": r"%{WORD} %{MONGO_WORDDASH:database}\.%{MONGO_WORDDASH:collection} %{WORD}: %{MONGO_QUERY:query} %{WORD}:%{NONNEGINT:ntoreturn} %{WORD}:%{NONNEGINT:ntoskip} %{WORD}:%{NONNEGINT:nscanned}.*nreturned:%{NONNEGINT:nreturned}..+ (?<duration>[0-9]+)ms",
+        "pattern": r"%{WORD} %{MONGO_WORDDASH:database}\.%{MONGO_WORDDASH:collection} %{WORD}: %{MONGO_QUERY:query} %{WORD}:%{NONNEGINT:ntoreturn} %{WORD}:%{NONNEGINT:ntoskip} %{WORD}:%{NONNEGINT:nscanned}.*nreturned:%{NONNEGINT:nreturned}..+ (?P<duration>[0-9]+)ms",
         "sample": 'query mydb.users query: { find: "users", filter: { name: "admin" } } ntoreturn:0 ntoskip:0 nscanned:1000 nreturned:1 reslen:200 500ms',
         "description": "匹配 MongoDB 慢查询日志，包含数据库、集合、查询内容和耗时",
     },

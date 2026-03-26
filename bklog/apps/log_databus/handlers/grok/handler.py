@@ -24,7 +24,7 @@ import re
 from django.core.paginator import Paginator
 from django.db import IntegrityError
 from django.db.models import Q
-from pygrok import Grok
+from apps.log_databus.handlers.grok.base import Grok
 
 from apps.log_databus.exceptions import (
     GrokCircularReferenceException,
@@ -38,13 +38,6 @@ from apps.log_databus.models import GrokInfo
 class GrokHandler:
     def __init__(self, bk_biz_id: int):
         self.bk_biz_id = bk_biz_id
-
-    @staticmethod
-    def is_grok_pattern(pattern: str) -> bool:
-        """
-        判断是否为 Grok 模式
-        """
-        return True if re.search("%{\w+(:\w+)?}", pattern) else False
 
     def get_custom_patterns_map(self) -> dict:
         """
@@ -247,7 +240,7 @@ class GrokHandler:
     def grok_to_regex(self, pattern: str) -> str:
         """
         将 Grok 表达式转换为正则表达式
-        利用 pygrok 库的 Grok 类，在初始化时自动将 grok 模式展开为正则表达式
+        利用 Grok 类在初始化时自动将 grok 模式展开为正则表达式
         """
         self.validate_references_exist(pattern)
         custom_patterns_map = self.get_custom_patterns_map()
