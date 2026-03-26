@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 import logging
+import re
 import tempfile
 import time
 import uuid
@@ -1510,10 +1511,17 @@ class QueryTimeSeriesMetricResource(Resource):
                 min_length=0,
             )
             search_type = serializers.ChoiceField(
-                choices=["regex", "fuzzy", "exact", "case_sensitive"],
+                choices=[
+                    "regex",
+                    "regex_case_sensitive",
+                    "fuzzy",
+                    "fuzzy_case_sensitive",
+                    "exact",
+                    "exact_case_sensitive",
+                ],
                 required=False,
                 default="fuzzy",
-                label="搜索类型：regex-正则表达式，fuzzy-模糊搜索，exact-精确匹配，case_sensitive-区分大小写精确匹配（仅对name字段有效，其他字段默认为exact）",
+                label="搜索类型：regex-正则表达式，regex_case_sensitive-区分大小写正则，fuzzy-模糊搜索，fuzzy_case_sensitive-区分大小写模糊搜索，exact-精确匹配，exact_case_sensitive-区分大小写精确匹配（仅对 name 和 field_config_alias 生效）",
             )
             negate = serializers.BooleanField(
                 required=False,
@@ -1674,11 +1682,45 @@ class QueryTimeSeriesMetricResource(Resource):
         return query_set.filter(final_query) if final_query else query_set
 
     @staticmethod
+    def _normalize_search_type(key: str, search_type: str | None) -> str:
+        if key not in {"name", "field_config_alias"}:
+            return "exact"
+        return search_type or "fuzzy"
+
+    @staticmethod
+    def _build_name_query(value: str, search_type: str) -> Q:
+        if search_type == "regex_case_sensitive":
+            return Q(field_name__regex=value)
+        if search_type == "regex":
+            return Q(field_name__iregex=value)
+        if search_type == "fuzzy_case_sensitive":
+            return Q(field_name__contains=value)
+        if search_type == "fuzzy":
+            return Q(field_name__iregex=re.escape(value))
+        if search_type == "exact_case_sensitive":
+            return Q(field_name=value)
+        return Q(field_name__iregex=rf"^{re.escape(value)}$")
+
+    @staticmethod
+    def _build_alias_query(value: str, search_type: str) -> Q:
+        if search_type == "regex_case_sensitive":
+            return Q(field_config__alias__regex=value)
+        if search_type == "regex":
+            return Q(field_config__alias__iregex=value)
+        if search_type == "fuzzy_case_sensitive":
+            return Q(field_config__alias__regex=re.escape(value))
+        if search_type == "fuzzy":
+            return Q(field_config__alias__icontains=value)
+        if search_type == "exact_case_sensitive":
+            return Q(field_config__alias=value)
+        return Q(field_config__alias__iexact=value)
+
+    @staticmethod
     def _build_condition_query(condition):
         """构建单个字段的查询条件（多个值用OR连接）"""
         key = condition["key"]
         values = condition["values"]
-        search_type = condition.get("search_type", "fuzzy" if key == "name" else "exact")
+        search_type = QueryTimeSeriesMetricResource._normalize_search_type(key, condition.get("search_type"))
         negate = condition.get("negate", False)
 
         if not values:
@@ -1691,18 +1733,11 @@ class QueryTimeSeriesMetricResource(Resource):
 
             # name字段特殊处理（支持多种搜索类型）
             if key == "name":
-                if search_type == "regex":
-                    q_obj = Q(field_name__regex=value)
-                elif search_type == "fuzzy":
-                    q_obj = Q(field_name__icontains=value)
-                elif search_type == "case_sensitive":
-                    q_obj = Q(field_name__contains=value)
-                else:  # exact
-                    q_obj = Q(field_name=value)
+                q_obj = QueryTimeSeriesMetricResource._build_name_query(value, search_type)
 
             # field_config相关字段
             elif key == "field_config_alias":
-                q_obj = Q(field_config__alias__icontains=value)
+                q_obj = QueryTimeSeriesMetricResource._build_alias_query(value, search_type)
             elif key == "field_config_unit":
                 q_obj = Q(field_config__unit__iexact=value)
             elif key == "field_config_aggregate_method":

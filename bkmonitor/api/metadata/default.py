@@ -623,10 +623,17 @@ class QueryTimeSeriesMetricResource(MetaDataAPIGWResource):
                 min_length=0,
             )
             search_type = serializers.ChoiceField(
-                choices=["regex", "fuzzy", "exact", "case_sensitive"],
+                choices=[
+                    "regex",
+                    "regex_case_sensitive",
+                    "fuzzy",
+                    "fuzzy_case_sensitive",
+                    "exact",
+                    "exact_case_sensitive",
+                ],
                 required=False,
                 default="fuzzy",
-                label="搜索类型：regex-正则表达式，fuzzy-模糊搜索，exact-精确匹配，case_sensitive-区分大小写精确匹配（仅对name字段有效，其他字段默认为exact）",
+                label="搜索类型：regex-正则表达式，regex_case_sensitive-区分大小写正则，fuzzy-模糊搜索，fuzzy_case_sensitive-区分大小写模糊搜索，exact-精确匹配，exact_case_sensitive-区分大小写精确匹配（仅对 name 和 field_config_alias 生效）",
             )
             negate = serializers.BooleanField(
                 required=False,
