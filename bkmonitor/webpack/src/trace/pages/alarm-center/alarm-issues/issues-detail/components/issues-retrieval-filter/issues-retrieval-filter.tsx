@@ -40,7 +40,7 @@ export default defineComponent({
   props: {
     /* 时间范围 */
     timeRange: {
-      type: Array as PropType<string[]>,
+      type: Array as PropType<(number | string)[]>,
       default: () => [],
     },
     /* ui模式条件值 */

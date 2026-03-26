@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, KeepAlive, shallowRef, watchEffect } from 'vue';
+import { type PropType, defineComponent, KeepAlive, shallowRef } from 'vue';
 
 import { Tab } from 'bkui-vue';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
@@ -31,7 +31,6 @@ import { AlarmServiceFactory } from 'trace/pages/alarm-center/services/factory';
 import { AlarmType } from 'trace/pages/alarm-center/typings';
 
 import { IssueDetailTabEnum } from '../../constant';
-import { fetchActivityListMock } from '../mock-data';
 import DimensionStats from './dimension-stats/dimension-stats';
 import IssuesActivity from './issues-activity/issues-activity';
 import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
@@ -42,7 +41,7 @@ import IssuesRetrievalFilter from './issues-retrieval-filter/issues-retrieval-fi
 import IssuesTrendChart from './issues-trend-chart/issues-trend-chart';
 import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 
-import type { ImpactScopeResource, IssueActivityItem, IssueDetail } from '../../typing';
+import type { ImpactScopeEvent, ImpactScopeResource, IssueDetail } from '../../typing';
 import type { ImpactScopeResourceKeyType, IssueDetailTabType, IssuePriorityType } from '../../typing/constants';
 
 import './issues-slider-wrapper.scss';
@@ -62,11 +61,6 @@ export default defineComponent({
     detail: {
       type: Object as PropType<IssueDetail>,
       default: () => ({}),
-    },
-    /** Issue ID */
-    issueId: {
-      type: String,
-      default: '',
     },
     /** 告警ID */
     alarmId: {
@@ -104,7 +98,7 @@ export default defineComponent({
     /** 标记已解决 */
     resolved: () => true,
     /** 影响范围点击 */
-    impactScopeClick: (_resourceKey: ImpactScopeResourceKeyType, _resource: ImpactScopeResource) => true,
+    impactScopeClick: (impactScope: ImpactScopeEvent) => impactScope,
   },
   setup(props, { emit }) {
     const currentTab = shallowRef<IssueDetailTabType>(IssueDetailTabEnum.LATEST);
@@ -127,19 +121,6 @@ export default defineComponent({
       tempAlertId.value = res.data?.[0]?.id;
     };
     getTempAlertId();
-
-    const activeList = shallowRef<IssueActivityItem[]>([]);
-    const getActiveList = () => {
-      fetchActivityListMock({
-        bk_biz_id: props.detail?.bk_biz_id,
-        id: props.detail?.id,
-      }).then(data => {
-        activeList.value = data;
-      });
-    };
-    watchEffect(() => {
-      getActiveList();
-    });
 
     const handleTabChange = (tab: IssueDetailTabType) => {
       currentTab.value = tab;
@@ -185,7 +166,10 @@ export default defineComponent({
      * @param resource 影响范围资源
      */
     const handleImpactScopeClick = (resourceKey: ImpactScopeResourceKeyType, resource: ImpactScopeResource) => {
-      emit('impactScopeClick', resourceKey, resource);
+      emit('impactScopeClick', {
+        resourceKey,
+        resource,
+      });
     };
 
     const getPanelComponent = () => {
@@ -217,7 +201,6 @@ export default defineComponent({
 
     return {
       currentTab,
-      activeList,
       handleTabChange,
       getPanelComponent,
       handleConditionChange,
@@ -273,7 +256,7 @@ export default defineComponent({
             onPriorityChange={this.handlePriorityChange}
             onResolved={this.handleResolved}
           />
-          <IssuesActivity list={this.activeList} />
+          <IssuesActivity detail={this.detail} />
           <IssuesHistory />
         </div>
       </div>

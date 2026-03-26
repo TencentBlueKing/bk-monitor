@@ -99,7 +99,7 @@ export default defineComponent({
     },
     /** 时间范围 [from, to] */
     timeRange: {
-      type: Array as PropType<string[]>,
+      type: Array as PropType<(number | string)[]>,
       default: () => [],
     },
     /** 滚动容器的 CSS 选择器（用于滚动优化及表头/滚动条吸附） */

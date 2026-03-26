@@ -30,6 +30,7 @@ import { random } from 'monitor-common/utils';
 import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 
+import IssuesImpactScopeDrawer from '../components/issues-impact-scope-drawer/issues-impact-scope-drawer';
 import IssuesSliderHeader from './components/issues-slider-header';
 import IssuesSliderWrapper from './components/issues-slider-wrapper';
 import { fetchIssueDetailMock } from './mock-data';
@@ -37,7 +38,7 @@ import RefreshRate from '@/components/refresh-rate/refresh-rate';
 import TimeRange from '@/components/time-range/time-range';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
-import type { ImpactScopeResource, IssueDetail } from '../typing';
+import type { ImpactScopeEvent, ImpactScopeResource, IssueDetail } from '../typing';
 import type { ImpactScopeResourceKeyType, IssuePriorityType } from '../typing/constants';
 
 import './issues-detail-sideslider.scss';
@@ -64,6 +65,7 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** issuesBizId */
     bizId: {
       type: Number,
       default: undefined,
@@ -83,6 +85,10 @@ export default defineComponent({
     const conditions = shallowRef<IWhereItem[]>([]);
     const queryString = shallowRef('');
     const filterMode = shallowRef<EMode>(EMode.ui);
+
+    const impactScopeResource = shallowRef<ImpactScopeResource>(null);
+    const impactScopeResourceKey = shallowRef<'' | ImpactScopeResourceKeyType>('');
+    const impactScopeDrawerShow = shallowRef(false);
 
     watch(
       () => props.show,
@@ -180,9 +186,10 @@ export default defineComponent({
     };
 
     /** 影响范围点击 */
-    const handleImpactScopeClick = (resourceKey: ImpactScopeResourceKeyType, resource: ImpactScopeResource) => {
-      // TODO: 展示影响范围侧栏
-      console.log(resourceKey, resource);
+    const handleImpactScopeClick = (event?: ImpactScopeEvent) => {
+      impactScopeResourceKey.value = event?.resourceKey;
+      impactScopeResource.value = event?.resource;
+      impactScopeDrawerShow.value = !!event;
     };
 
     return {
@@ -194,6 +201,9 @@ export default defineComponent({
       conditions,
       queryString,
       filterMode,
+      impactScopeResource,
+      impactScopeResourceKey,
+      impactScopeDrawerShow,
       handleShowChange,
       handleTimeRangeChange,
       handleTimezoneChange,
@@ -243,7 +253,6 @@ export default defineComponent({
                 conditions={this.conditions}
                 detail={this.detail}
                 filterMode={this.filterMode}
-                issueId={this.issueId}
                 queryString={this.queryString}
                 timeRange={this.timeRange}
                 onAssigneeChange={this.handleAssigneeChange}
@@ -253,6 +262,15 @@ export default defineComponent({
                 onPriorityChange={this.handlePriorityChange}
                 onQueryStringChange={this.handleQueryStringChange}
                 onResolved={this.handleResolved}
+              />
+              <IssuesImpactScopeDrawer
+                resource={this.impactScopeResource}
+                resourceKey={this.impactScopeResourceKey}
+                show={this.impactScopeDrawerShow}
+                onUpdate:show={(v: boolean) => {
+                  if (v) return;
+                  this.handleImpactScopeClick();
+                }}
               />
             </div>
           ),

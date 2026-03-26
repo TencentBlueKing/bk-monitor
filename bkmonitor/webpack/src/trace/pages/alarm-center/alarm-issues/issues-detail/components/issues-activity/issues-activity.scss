@@ -5,9 +5,9 @@
       align-items: center;
       height: 32px;
       padding: 0 8px;
-      border-radius: 6px;
-      background-color: #f0f4fa;
       cursor: pointer;
+      background-color: #f0f4fa;
+      border-radius: 6px;
 
       .placeholder {
         font-size: 12px;
@@ -20,13 +20,14 @@
     }
 
     .comment-input-expanded {
+      overflow: hidden;
+      background-color: #fff;
       border: 1px solid #3974ff;
       border-radius: 6px;
-      background-color: #fff;
-      overflow: hidden;
 
       .comment-textarea {
-        width: 100%;
+        width: calc(100% - 2px);
+        margin: 1px;
         border: none;
         box-shadow: none;
 
@@ -41,21 +42,21 @@
 
       .comment-input-toolbar {
         display: flex;
+        gap: 6px;
         align-items: center;
         justify-content: end;
-        gap: 6px;
         padding: 6px;
 
         .rich-text-btn {
           display: flex;
-          align-items: center;
           gap: 4px;
+          align-items: center;
           font-size: 12px;
           line-height: 20px;
           color: #3974ff;
           cursor: pointer;
 
-          .icon-monitor {
+          .switch-icon {
             font-size: 14px;
           }
 
@@ -67,16 +68,26 @@
         .send-btn {
           height: 24px;
           padding: 4px;
-          border: none;
-          border-radius: 4px;
           font-size: 16px;
           color: #fff;
+          border: none;
+          border-radius: 4px;
 
-          .icon-monitor {
+          .send-icon {
             font-size: 16px;
           }
         }
       }
+    }
+  }
+
+  .skeleton-wrapper {
+    .icon-skeleton {
+      height: 100%;
+    }
+
+    .title-skeleton {
+      height: 32px;
     }
   }
 
@@ -85,26 +96,35 @@
     gap: 12px;
     margin-bottom: 8px;
 
+    .link {
+      color: #3a84ff;
+      cursor: pointer;
+
+      &:hover {
+        color: #699df4;
+      }
+    }
+
     &-line {
       display: flex;
+      flex-shrink: 0;
       flex-direction: column;
       align-items: center;
-      flex-shrink: 0;
       width: 32px;
       padding-top: 8px;
 
       .line-icon {
         display: flex;
+        flex-shrink: 0;
         align-items: center;
         justify-content: center;
-        flex-shrink: 0;
         width: 32px;
         height: 32px;
         overflow: hidden;
-        border-radius: 50%;
-        background-color: #e9edf5;
         font-size: 16px;
         color: #63656e;
+        background-color: #e9edf5;
+        border-radius: 50%;
 
         .icon-monitor {
           font-size: 16px;
@@ -115,8 +135,8 @@
         flex: 1;
         width: 2px;
         min-height: 16px;
-        border-radius: 2px;
         background-color: #c1cde6;
+        border-radius: 2px;
         transform: translateY(8px);
       }
     }
@@ -131,8 +151,8 @@
 
         .title-row {
           display: flex;
-          align-items: center;
           gap: 8px;
+          align-items: center;
           font-size: 12px;
 
           .action,
@@ -151,10 +171,10 @@
 
       .content-body {
         padding: 12px;
-        border-radius: 4px;
-        background-color: #f5f7fa;
         font-size: 12px;
         line-height: 20px;
+        background-color: #f5f7fa;
+        border-radius: 4px;
       }
     }
   }
@@ -167,33 +187,24 @@
     }
 
     .issue-list {
-      margin: 0;
       padding: 0;
+      margin: 0;
       list-style: none;
 
       .issue-item {
         position: relative;
-        margin-bottom: 4px;
         padding-left: 12px;
+        margin-bottom: 4px;
 
         &::before {
-          content: '';
           position: absolute;
           top: 8px;
           left: 0;
           width: 4px;
           height: 4px;
-          border-radius: 50%;
+          content: '';
           background-color: #3a84ff;
-        }
-
-        .link {
-          color: #3a84ff;
-          cursor: pointer;
-
-          &:hover {
-            color: #699df4;
-          }
+          border-radius: 50%;
         }
       }
     }
@@ -203,15 +214,6 @@
   .merge-content {
     .desc {
       color: #63656e;
-    }
-
-    .link {
-      color: #3a84ff;
-      cursor: pointer;
-
-      &:hover {
-        color: #699df4;
-      }
     }
   }
 
@@ -277,14 +279,14 @@
 
   .dialog-footer {
     display: flex;
-    justify-content: flex-end;
     gap: 8px;
+    justify-content: flex-end;
   }
 
   .view-markdown-wrapper {
     height: 420px;
     padding: 12px 16px;
-    border-radius: 8px;
     background-color: #f7f9fc;
+    border-radius: 8px;
   }
 }

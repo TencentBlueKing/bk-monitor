@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, nextTick, shallowRef } from 'vue';
+import { type PropType, defineComponent, nextTick, shallowRef, useTemplateRef, watchEffect } from 'vue';
 
-import { Button, Dialog, Input } from 'bkui-vue';
+import { Button, Dialog, Input, Message } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
@@ -37,10 +37,11 @@ import {
   IssuesPriorityMap,
   IssuesStatusMap,
 } from '../../../constant';
+import { fetchActivityListMock, fetchCommentMock } from '../../mock-data';
 import BasicCard from '../basic-card/basic-card';
 import ClampText from './clamp-text';
 
-import type { IssueActivityItem } from '../../../typing';
+import type { IssueActivityItem, IssueDetail } from '../../../typing';
 
 import './issues-activity.scss';
 
@@ -50,15 +51,15 @@ const MAX_COMMENT_LINES = 3;
 export default defineComponent({
   name: 'IssuesActivity',
   props: {
-    list: {
-      type: Array as PropType<IssueActivityItem[]>,
-      default: () => [],
+    detail: {
+      type: Object as PropType<IssueDetail>,
+      default: () => ({}),
     },
   },
-  setup() {
+  setup(props) {
     const { t } = useI18n();
 
-    const commonInput = shallowRef<InstanceType<typeof Input>>();
+    const commonInput = useTemplateRef<InstanceType<typeof Input>>('commonInput');
     const activeNodeMap = IssuesActiveNodeIconMap;
 
     /** 评论输入框是否聚焦 */
@@ -70,12 +71,31 @@ export default defineComponent({
     const isEditMarkdown = shallowRef(false);
     /** 富文本内容 */
     const markdownContent = shallowRef('');
+    /** 评论loading */
+    const commentLoading = shallowRef(false);
+
+    const loading = shallowRef(false);
+    const activeList = shallowRef<IssueActivityItem[]>([]);
+    const getActiveList = () => {
+      loading.value = true;
+      fetchActivityListMock({
+        bk_biz_id: props.detail?.bk_biz_id,
+        id: props.detail?.id,
+      }).then(data => {
+        activeList.value = data;
+      });
+      loading.value = false;
+    };
+    watchEffect(() => {
+      getActiveList();
+    });
 
     /** 处理评论输入框聚焦 */
     const handleCommentInputFocus = () => {
       isCommentInputFocus.value = true;
       nextTick(() => {
-        commonInput.value?.focus();
+        console.log('commonInput', commonInput.value);
+        commonInput.value?.focus?.();
       });
     };
 
@@ -126,9 +146,39 @@ export default defineComponent({
 
     /** 发送评论 */
     const handleSendComment = () => {
-      console.log('发送评论:', commentContent.value);
-      commentContent.value = '';
-      isCommentInputFocus.value = false;
+      commentLoading.value = true;
+      fetchCommentMock({
+        issues: [
+          {
+            issue_id: props.detail?.id,
+            bk_biz_id: props.detail?.bk_biz_id,
+          },
+        ],
+        content: commentContent.value,
+      })
+        .then(({ succeeded }) => {
+          const activeItem = succeeded.find(item => item.issue_id === props.detail?.id);
+          if (activeItem) {
+            commentContent.value = '';
+            isCommentInputFocus.value = false;
+            activeList.value = [
+              {
+                ...activeItem,
+                from_value: null,
+                to_value: null,
+              },
+              ...activeList.value,
+            ];
+          } else {
+            Message({
+              message: t('评论发送失败'),
+              theme: 'error',
+            });
+          }
+        })
+        .finally(() => {
+          commentLoading.value = false;
+        });
     };
 
     /**
@@ -157,16 +207,17 @@ export default defineComponent({
                     class='rich-text-btn'
                     onClick={handleCreateComment}
                   >
-                    <i class='icon-monitor icon-switch1' />
-                    <span>{t('富文本编辑')}</span>
+                    <i class='icon-monitor icon-switch1 switch-icon' />
+                    <span>{t('button-富文本编辑')}</span>
                   </div>
                   <Button
                     class='send-btn'
                     disabled={!commentContent.value}
+                    loading={commentLoading.value}
                     theme='primary'
                     onClick={handleSendComment}
                   >
-                    <i class='icon-monitor icon-published' />
+                    <i class='icon-monitor icon-published send-icon' />
                   </Button>
                 </div>
               </div>
@@ -499,10 +550,26 @@ export default defineComponent({
       }
     };
 
+    const renderSkeleton = () => {
+      return (
+        <div class='skeleton-wrapper'>
+          {new Array(5).fill(0).map(() =>
+            renderActivityItem({
+              title: <div class='skeleton-element title-skeleton' />,
+              icon: <div class='skeleton-element icon-skeleton' />,
+            })
+          )}
+        </div>
+      );
+    };
+
     return {
+      loading,
+      activeList,
       renderCommentInput,
       renderMarkdownDialog,
       renderActivityContent,
+      renderSkeleton,
     };
   },
   render() {
@@ -512,7 +579,9 @@ export default defineComponent({
         title={this.$t('问题活动')}
       >
         {this.renderCommentInput()}
-        <div class='activity-list'>{this.list.map(item => this.renderActivityContent(item))}</div>
+        <div class='activity-list'>
+          {this.loading ? this.renderSkeleton() : this.activeList.map(item => this.renderActivityContent(item))}
+        </div>
         {this.renderMarkdownDialog()}
       </BasicCard>
     );
