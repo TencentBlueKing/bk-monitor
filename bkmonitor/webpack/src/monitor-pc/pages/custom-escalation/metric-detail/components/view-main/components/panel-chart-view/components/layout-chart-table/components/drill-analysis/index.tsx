@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { graphDrillDown } from 'monitor-api/modules/scene_view';
@@ -128,6 +128,8 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   cacheTimeRange = [];
   interval: number | string = 'auto';
 
+  initData = false; // 是否已经初始化数据过; 图表直接打开维度下钻和查看大图右键打开维度下钻区分
+
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('showRestore') showRestore = false;
@@ -145,6 +147,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
     this.showRestore = false;
   }
+
   /** 默认的图表配置 */
   get defaultPanelConfig() {
     return this.panelData?.targets[0] || {};
@@ -158,7 +161,22 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     return customEscalationViewStore.aggInfoData;
   }
 
+  // 查看大图的图表右键打开维度下钻时，aggInfoData数据暂未获取
+  @Watch('aggInfoData')
+  aggInfoDataChange(newV) {
+    if (newV.all_dimensions?.length > 0 && !this.initData) {
+      this.init();
+    }
+  }
+
   mounted() {
+    if (this.aggInfoData?.all_dimensions?.length > 0) {
+      this.initData = true;
+      this.init();
+    }
+  }
+
+  init() {
     this.interval = this.viewOptions?.interval || 'auto';
     this.timeRange = this.timeRangeData;
     window.addEventListener('keydown', this.handleKeydown);

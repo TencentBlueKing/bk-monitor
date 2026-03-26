@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
@@ -56,6 +56,7 @@ interface IEmit {
 
 interface IProps {
   searchKey?: string;
+  viewTab: string;
 }
 type TCustomTsMetricGroups = ServiceReturnType<RequestHandlerMap['getCustomTsMetricGroups']>;
 
@@ -75,6 +76,7 @@ export const encodeRegexp = (paramStr: string) => {
 
 @Component
 export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
+  @Prop({ type: String, default: 'default' }) readonly viewTab: IProps['viewTab'];
   @Prop({ type: String, default: '' }) readonly searchKey: IProps['searchKey'];
   @InjectReactive('requestHandlerMap') readonly requestHandlerMap!: RequestHandlerMap;
   @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
@@ -153,15 +155,36 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
     });
   }
 
-  @Watch('metricGroupList', { immediate: true })
-  metricGroupListChange(newV, oldV) {
+  @Watch('metricGroupList')
+  metricGroupListChange(newV) {
     this.renderMetricGroupList = Object.freeze(newV);
-    // 初始化时默认选中第一个分组的第一个指标
-    if (!oldV?.length && newV.length > 0) {
+    // 初始化时 分组如果有选中的指标，就展开。如果所有分组都没有选中的指标，则展开第一个分组
+    if (newV.length > 0 && (this.$route?.query.viewTab === 'default' || !this.$route?.query.viewTab)) {
       this.groupExpandMap = Object.freeze({
         [this.metricGroupList[0].name]: true,
       });
+      return;
     }
+    newV.length > 0 && this.viewTabChange(this.viewTab);
+  }
+
+  @Watch('viewTab')
+  async viewTabChange(newViewTab) {
+    if (newViewTab === 'default') {
+      this.groupExpandMap = Object.freeze({
+        [this.metricGroupList[0].name]: true,
+      });
+      return;
+    }
+    await this.$nextTick();
+    const viewPayload = this.$route?.query.viewPayload;
+    const { metrics } = viewPayload ? JSON.parse(viewPayload as string) : { metrics: [] };
+    const checkedGroupNames = [...new Set(metrics.map(item => item.scope_name))];
+    const expandMap = checkedGroupNames.reduce((acc, groupName: string) => {
+      acc[groupName] = true;
+      return acc;
+    }, {});
+    this.groupExpandMap = Object.freeze(expandMap);
   }
 
   async fetchData() {
@@ -183,8 +206,6 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
       this.isLoading = false;
     }
   }
-
-  
 
   // 实例方法
   resetMetricChecked() {

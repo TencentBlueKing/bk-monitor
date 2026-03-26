@@ -39,10 +39,12 @@ interface IEmit {
 
 interface IProps {
   isApm?: boolean;
+  viewTab: string;
 }
 @Component
 export default class MetricsSelect extends tsc<IProps, IEmit> {
   @Prop({ type: Boolean, default: false }) readonly isApm: IProps['isApm'];
+  @Prop({ type: String, default: 'default' }) readonly viewTab: IProps['viewTab'];
   @Ref('metricGroupRef') metricGroupRef: RenderMetricsGroup;
 
   @Emit('metricManage')
@@ -168,6 +170,7 @@ export default class MetricsSelect extends tsc<IProps, IEmit> {
         <RenderMetricsGroup
           ref='metricGroupRef'
           searchKey={this.searchKey}
+          viewTab={this.viewTab}
         />
       </div>
     );

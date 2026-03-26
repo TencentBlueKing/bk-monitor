@@ -288,6 +288,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
           <MetricsSelect
             ref='metricsSelectRef'
             isApm={this.isApm}
+            viewTab={this.currentView}
             onMetricManage={this.handleMetricManage}
             onReset={this.handleMetricsSelectReset}
           />
