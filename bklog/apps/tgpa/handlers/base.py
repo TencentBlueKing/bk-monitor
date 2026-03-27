@@ -110,8 +110,14 @@ class TGPAFileHandler:
         client = TGPAFileHandler._get_cos_client()
         response = client.get_object(Bucket=settings.TGPA_TASK_QCLOUD_COS_BUCKET, Key=file_name)
 
-        save_path = os.path.join(self.temp_dir, file_name)
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        # 提取纯文件名，防止路径穿越攻击
+        safe_name = os.path.basename(file_name)
+        if safe_name != file_name:
+            logger.warning(
+                "download_file: file_name contains path components, original=%s, sanitized=%s", file_name, safe_name
+            )
+        save_path = os.path.join(self.temp_dir, safe_name)
+        os.makedirs(self.temp_dir, exist_ok=True)
 
         # 允许2倍容差，防止传输编码等差异
         content_length = int(response.get("Content-Length", COS_DOWNLOAD_MAX_SIZE))
