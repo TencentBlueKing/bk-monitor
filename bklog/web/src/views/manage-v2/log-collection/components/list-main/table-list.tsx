@@ -1110,17 +1110,15 @@ export default defineComponent({
         return;
       }
 
-      // 删除操作
+      // 删除操作（getOperatorCanClick 已做前置校验，这里直接弹确认框）
       if (key === 'delete') {
-        if (row.status !== 'running') {
-          window.mainComponent?.$bkInfo({
-            type: 'warning',
-            subTitle: t('当前采集项名称为{n}，确认要删除？', { n: row.collector_config_name || row.name }),
-            confirmFn: () => {
-              requestDeleteCollect(row);
-            },
-          });
-        }
+        window.mainComponent?.$bkInfo({
+          type: 'warning',
+          subTitle: t('当前采集项名称为{n}，确认要删除？', { n: row.collector_config_name || row.name }),
+          confirmFn: () => {
+            requestDeleteCollect(row);
+          },
+        });
         return;
       }
 

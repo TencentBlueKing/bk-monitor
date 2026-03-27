@@ -435,7 +435,10 @@ export const getOperatorCanClick = (row: ICollectListRowData, operateType: Colle
       // 启用 - 采集状态为"停用"
       return isTerminated;
     case 'delete':
-      // 删除 - 采集状态为"停用"
+      // 只有采集项需要已停用才能删除，计算平台、第三方ES、自定义上报不需要限制
+      if (['bkdata', 'es', 'custom_report'].includes(row.log_access_type)) {
+        return true;
+      }
       return isTerminated;
     default:
       return true;
