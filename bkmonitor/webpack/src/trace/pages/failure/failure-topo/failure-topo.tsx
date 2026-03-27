@@ -175,7 +175,10 @@ export default defineComponent({
     const resourceGraphRef = ref<InstanceType<typeof ResourceGraph>>();
     let topoRawData: ITopoData = null;
     const autoAggregate = ref<boolean>(true);
-    const aggregateCluster = ref(true);
+    // 部署版本聚合
+    const aggregateVersion = ref(false);
+    // 调用关系聚合
+    const aggregateCall = ref(true);
     const aggregateConfig = ref({});
     // const shouldUpdateNode = ref(null);
     const showLegend = ref<boolean>(localStorage.getItem('showLegend') === 'true');
@@ -1229,19 +1232,22 @@ export default defineComponent({
       loading.value = !isAutoRefresh;
       if (!wrapRef.value) return;
       clearTimeout(refreshTimeout);
-      const renderData = await incidentTopology(
-        {
-          id: incidentId.value,
-          auto_aggregate: autoAggregate.value,
-          aggregate_cluster: aggregateCluster.value ?? false,
-          aggregate_config: aggregateConfig.value,
-          only_diff: true,
-          start_time: isAutoRefresh
-            ? topoRawDataCache.value.diff[topoRawDataCache.value.diff.length - 1].create_time + 1
-            : incidentId.value.substr(0, 10),
-        },
-        { needMessage: false }
-      )
+      const params: Record<string, any> = {
+        id: incidentId.value,
+        auto_aggregate: autoAggregate.value,
+        aggregate_cluster: aggregateCall.value,
+        aggregate_version: aggregateVersion.value,
+        only_diff: true,
+        start_time: isAutoRefresh
+          ? topoRawDataCache.value.diff[topoRawDataCache.value.diff.length - 1].create_time + 1
+          : incidentId.value.substr(0, 10),
+      };
+      /** 手动聚合时，才传 aggregate_config */
+      if (!autoAggregate.value) {
+        params.aggregate_config = aggregateConfig.value;
+      }
+      let isCancelled = false;
+      const renderData = await incidentTopology(params, { needMessage: false, needCancel: true })
         .then(res => {
           const { latest, diff, complete } = res;
           complete.combos = latest.combos;
@@ -1289,11 +1295,18 @@ export default defineComponent({
           return ElkjsUtils.getTopoRawData(resolvedCombos, edges, nodes);
         })
         .catch(err => {
+          // 被 needCancel 取消的请求，标记后跳过，保持 loading 状态等待后续请求完成
+          if (!err) {
+            isCancelled = true;
+            return;
+          }
           errorData.value.isError = true;
           errorData.value.msg = err.data?.error_details ? err.data.error_details.overview : err.message;
           errorData.value.isNoData = false;
         })
         .finally(() => {
+          // 被取消的请求不执行 finally 逻辑，保持 loading 不变
+          if (isCancelled) return;
           if (!graph) {
             initGraph();
           }
@@ -2164,9 +2177,10 @@ export default defineComponent({
     };
     /** 聚合规则变化 */
     const handleUpdateAggregateConfig = async config => {
-      aggregateConfig.value = config.aggregate_config;
+      aggregateConfig.value = config.aggregate_config ?? {};
       autoAggregate.value = config.auto_aggregate;
-      aggregateCluster.value = config.aggregate_cluster;
+      aggregateCall.value = config.aggregate_call ?? true;
+      aggregateVersion.value = config.aggregate_version ?? false;
       await getGraphData();
       renderGraph();
     };
