@@ -634,6 +634,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 "page_size": self.page_size,
             }
         )
+        # 通知方式查询结果缓存，避免同一请求内重复查询 ES
+        self._alert_notice_ways_cache: dict[str, set] | None = None
 
     def get_search_object(
         self,
@@ -930,7 +932,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     conditions.append(Q("term", is_blocked=True))
             # 对 key 为 stage 进行特殊处理
             return reduce(operator.or_, conditions)
-        elif condition["key"] == "notice_way":
+        elif condition["origin_key"] == "notice_way":
             # 通知类型过滤：查询 ActionInstanceDocument 获取匹配的 alert_id
             alert_ids = self._get_alert_ids_by_notice_way(condition["value"])
             if not alert_ids:
@@ -1253,6 +1255,12 @@ class AlertQueryHandler(BaseBizQueryHandler):
         返回:
             {alert_id: {notice_way1, notice_way2, ...}, ...}
         """
+        # 命中缓存时直接返回，避免重复 ES 请求
+        if self._alert_notice_ways_cache is not None:
+            if alert_ids is None:
+                return self._alert_notice_ways_cache
+            return {aid: ways for aid, ways in self._alert_notice_ways_cache.items() if aid in alert_ids}
+
         result = {}
 
         action_search = ActionInstanceDocument.search(start_time=self.start_time, end_time=self.end_time)
@@ -1294,6 +1302,10 @@ class AlertQueryHandler(BaseBizQueryHandler):
             notice_ways = self._parse_notice_ways_from_inputs(inputs)
             if notice_ways:
                 result[bucket.key] = notice_ways
+
+        # 全量查询时缓存结果，供后续调用复用
+        if alert_ids is None:
+            self._alert_notice_ways_cache = result
 
         return result
 
