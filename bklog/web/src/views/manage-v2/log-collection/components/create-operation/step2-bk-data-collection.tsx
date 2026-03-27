@@ -322,6 +322,9 @@ export default defineComponent({
               sortable={false}
               value={configData.value.indexes}
               on-custom-add={handleAddDataSource}
+              on-change={(val: IIndexItem[]) => {
+                configData.value.indexes = val;
+              }}
             />
             <div class='data-source-table'>
               {/* 计算平台场景：显示字段列表 */}
