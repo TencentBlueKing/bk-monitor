@@ -251,7 +251,6 @@ export default defineComponent({
         target_object_type: 'HOST',
         data_encoding: 'UTF-8',
         parent_index_set_ids: [],
-        tail_files: true,
         params: {
           conditions: {
             type: 'none',
@@ -1012,10 +1011,10 @@ export default defineComponent({
               <span class='label-title'>{t('采集范围')}</span>
               <bk-radio-group
                 class='form-box'
-                value={formData.value.tail_files}
+                value={formData.value.params.tail_files}
                 on-change={val => {
                   isConfigChange.value = true;
-                  formData.value.tail_files = val;
+                  formData.value.params.tail_files = val;
                 }}
               >
                 <bk-radio
