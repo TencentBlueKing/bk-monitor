@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, shallowRef, watchEffect } from 'vue';
+import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import dayjs from 'dayjs';
 
@@ -75,9 +75,14 @@ export default defineComponent({
       ));
     };
 
-    watchEffect(() => {
-      getIssuesHistoryList();
-    });
+    watch(
+      () => props.detail,
+      detail => {
+        if (detail) {
+          getIssuesHistoryList();
+        }
+      }
+    );
 
     return {
       historyList,

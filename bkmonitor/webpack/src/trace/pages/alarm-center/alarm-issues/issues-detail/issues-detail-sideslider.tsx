@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, watch, watchEffect } from 'vue';
+import { defineComponent, shallowRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
@@ -66,7 +66,7 @@ export default defineComponent({
       default: '',
     },
     /** issues BizId */
-    bizId: {
+    issueBizId: {
       type: Number,
       default: undefined,
     } /** 是否展示上一步和下一步按钮 */,
@@ -101,24 +101,13 @@ export default defineComponent({
       timeRange.value = [Number.isNaN(time) ? firstAlarmTime : time * 1000, 'now'];
     };
 
-    watch(
-      () => props.show,
-      show => {
-        if (show) {
-          initTimeRange();
-        }
-      },
-      {
-        immediate: true,
-      }
-    );
-
     /** 获取Issue详情数据 */
     const getIssueDetailData = () => {
+      if (!props.show) return;
       loading.value = true;
       const [start, end] = handleTransformToTimestamp(timeRange.value);
       fetchIssueDetailMock({
-        bk_biz_id: props.bizId,
+        bk_biz_id: props.issueBizId,
         id: props.issueId,
         start_time: start,
         end_time: end,
@@ -131,11 +120,16 @@ export default defineComponent({
         });
     };
 
-    watchEffect(() => {
-      if (props.show) {
-        getIssueDetailData();
-      }
-    });
+    watch(
+      () => [props.issueBizId, props.issueId, props.firstAlarmTime],
+      () => {
+        if (props.show) {
+          initTimeRange();
+          getIssueDetailData();
+        }
+      },
+      { immediate: true }
+    );
 
     const handleShowChange = (isShow: boolean) => {
       emit('update:show', isShow);
@@ -154,6 +148,7 @@ export default defineComponent({
     /** 时间范围变更 */
     const handleTimeRangeChange = value => {
       timeRange.value = value;
+      getIssueDetailData();
     };
 
     /** 时区变更 */

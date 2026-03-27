@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { type AlarmType } from './constants';
-import { type EMode } from '@/components/retrieval-filter/typing';
+import type { AlarmType } from './constants';
+import type { EMode } from '@/components/retrieval-filter/typing';
 
 export * from './alarm-chart';
 export * from './alarm-info';
@@ -43,8 +43,6 @@ export * from './table';
  * @description: 告警中心URL参数
  */
 export interface AlarmUrlParams {
-  /** 告警ID */
-  alarmId: string;
   /** 告警类型 */
   alarmType: AlarmType;
   /** 业务ID列表 */
@@ -53,10 +51,16 @@ export interface AlarmUrlParams {
   conditions: string;
   /** 当前页码 */
   currentPage: number;
+  /** 详情ID */
+  detail?: string;
   /** 筛选模式 */
   filterMode: EMode;
   /** 开始时间 */
   from: string;
+  /** issue bizId (用于issues详情)*/
+  issueBizId?: number;
+  /** issue 首次告警时间 (用于issues详情) */
+  issueFirstAlarmTime?: string;
   /** 查询字符串 */
   queryString: string;
   /** 快速筛选值 */
@@ -66,7 +70,7 @@ export interface AlarmUrlParams {
   /** 常驻条件 */
   residentCondition: string;
   /** 是否显示详情 */
-  showDetail: string;
+  showDetail?: string;
   /** 表格排序顺序 */
   sortOrder: string;
   /** 时区 */
