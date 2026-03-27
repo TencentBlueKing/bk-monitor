@@ -667,34 +667,45 @@ class ServiceHandler:
         return res
 
     @classmethod
-    def get_rpc_service_config_or_none(cls, node: dict[str, Any]) -> dict[str, Any] | None:
+    def get_system(cls, node: dict[str, Any]) -> dict[str, Any]:
         """
-        通过节点信息获取 RPC 服务的指标配置
+        从节点提取系统信息
         :param node: 节点信息
-        :return:
-        - None: 非 RPC 服务
-        - 指标配置信息: RPC 服务的指标配置
+        :return: 无 system 返回 {}，否则 {name, sdk, temporality}
         """
-        is_trpc: bool = False
-        rpc_system: str = metric_group.GroupEnum.TRPC
-        for meta in node.get("system") or []:
-            if meta.get("name") == metric_group.GroupEnum.TRPC:
-                is_trpc = True
+        systems: list[dict[str, Any]] = node.get("system") or []
+        if not systems:
+            return {}
+
+        # 获取框架信息，当存在多个时，优先获取 RPC 框架（如 tars、trpc 等）。
+        # 此处暂不考虑一个服务多个框架的场景，目前没有
+        system_name: str | None = None
+        fallback_name: str | None = None
+
+        for meta in systems:
+            name: str | None = meta.get("name")
             extra_data: dict[str, Any] = meta.get("extra_data") or {}
-            if extra_data.get("rpc_system"):
-                rpc_system = extra_data["rpc_system"]
+            rpc_system: str | None = extra_data.get("rpc_system")
+
+            if name == metric_group.GroupEnum.TRPC or rpc_system:
+                system_name = rpc_system or name
                 break
 
-        if not is_trpc:
-            logger.info("[apm][get_rpc_service_config_or_none] system not found: service_name -> %s", node["topo_key"])
-            return None
+            if fallback_name is None and name:
+                fallback_name = name
 
-        # G 和 Tars 框架的指标类型为 Gauge。
+        system_name = system_name or fallback_name
+        if not system_name:
+            return {}
+
+        sdk_name: str | None = None
+        for item in node.get("sdk") or []:
+            if isinstance(item, dict) and item.get("name"):
+                sdk_name = item["name"]
+                break
+
         temporality: str = (MetricTemporality.CUMULATIVE, MetricTemporality.DELTA)[
-            Vendor.has_sdk(node.get("sdk"), Vendor.G) or rpc_system == "tars"
+            Vendor.has_sdk(node.get("sdk"), Vendor.G) or system_name == "tars"
         ]
 
-        logger.info(
-            "[apm][get_rpc_service_config_or_none] service_name -> %s, temporality -> %s", node["topo_key"], temporality
-        )
-        return MetricTemporality.get_metric_config(temporality)
+        return {"name": system_name, "sdk": sdk_name or "", "temporality": temporality}

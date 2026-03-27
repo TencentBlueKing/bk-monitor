@@ -32,7 +32,7 @@ from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from constants.apm import MetricTemporality, TelemetryDataType, CommonMetricTag, DEFAULT_DATA_LABEL
+from constants.apm import MetricTemporality, TelemetryDataType, CommonMetricTag, DEFAULT_DATA_LABEL, Vendor
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
@@ -115,9 +115,11 @@ def discover_caller_callee(
         logger.info("[apm][discover_caller_callee] node not found: %s / %s / %s", bk_biz_id, app_name, service_name)
         return discover_result
 
-    server_config: dict[str, Any] | None = ServiceHandler.get_rpc_service_config_or_none(
-        node
-    ) or get_rpc_service_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
+    system: dict[str, Any] = ServiceHandler.get_system(node)
+    if Vendor.is_support_call_analysis(system.get("name")):
+        server_config: dict[str, Any] | None = MetricTemporality.get_metric_config(system["temporality"])
+    else:
+        server_config = get_rpc_service_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
     if not server_config:
         return discover_result
 
