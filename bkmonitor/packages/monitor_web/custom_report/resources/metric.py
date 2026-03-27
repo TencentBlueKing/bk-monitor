@@ -662,11 +662,40 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
     """
 
     class RequestSerializer(BaseCustomTSSerializer):
+        class ConditionSerializer(serializers.Serializer):
+            key = serializers.ChoiceField(
+                choices=[
+                    "name",
+                    "field_config_alias",
+                    "field_config_unit",
+                    "field_config_aggregate_method",
+                    "field_config_hidden",
+                    "field_config_disabled",
+                    "scope_id",
+                    "field_id",
+                ],
+                required=True,
+            )
+            values = serializers.ListField(child=serializers.CharField(), required=False, default=list)
+            search_type = serializers.ChoiceField(
+                choices=[
+                    "regex",
+                    "regex_case_sensitive",
+                    "fuzzy",
+                    "fuzzy_case_sensitive",
+                    "exact",
+                    "exact_case_sensitive",
+                ],
+                required=False,
+                default="fuzzy",
+            )
+            negate = serializers.BooleanField(required=False, default=False)
+
         page = serializers.IntegerField(label=_("页码"), default=1, min_value=1, required=False)
         page_size = serializers.IntegerField(
             label=_("每页数量，-1 表示不分页"), default=20, min_value=-1, max_value=100000, required=False
         )
-        conditions = serializers.DictField(label=_("搜索条件"), required=False, default=dict)
+        conditions = ConditionSerializer(label=_("搜索条件"), many=True, required=False, default=list)
         condition_connector = serializers.ChoiceField(
             label=_("不同字段之间的连接方式"),
             choices=["and", "or"],
@@ -683,22 +712,6 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
     class ResponseSerializer(serializers.Serializer):
         total = serializers.IntegerField(label=_("总数"))
         list = serializers.ListField(label=_("指标列表"))
-
-    def _convert_conditions_dict_to_list(self, conditions_dict: dict) -> list[dict]:
-        """将字典格式的 conditions 转换为 API 要求的列表格式
-        注意：metadata API 的 values 要求为字符串列表，此处统一转换
-        """
-        conditions_list = []
-        for key, condition in conditions_dict.items():
-            raw_values = condition.get("values", [])
-            conditions_list.append(
-                {
-                    "key": key,
-                    "values": [str(v) for v in raw_values],
-                    "search_type": condition.get("search_type", "fuzzy"),
-                }
-            )
-        return conditions_list
 
     def get_extra_conditions(self, params: dict) -> list[dict]:
         """子类可覆盖此方法注入额外的查询条件"""
@@ -719,9 +732,7 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
         time_series_group_id: int = params["time_series_group_id"]
         converter = MetricQueryConverter(time_series_group_id)
 
-        # 转换 conditions 字典为列表格式（用户条件，受 condition_connector 控制）
-        conditions_dict = params.get("conditions", {})
-        conditions = self._convert_conditions_dict_to_list(conditions_dict)
+        conditions = params.get("conditions", [])
 
         # 强制条件（不受 condition_connector 影响，始终以 AND 方式生效）
         mandatory_conditions = []
