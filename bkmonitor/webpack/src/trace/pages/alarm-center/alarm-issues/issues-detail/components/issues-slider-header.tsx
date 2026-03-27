@@ -68,8 +68,7 @@ export default defineComponent({
     const { t } = useI18n();
 
     const iconMap = computed(() => {
-      // TODO: 后续从 props 接收 is_regression 字段动态决定
-      const isRegression = false;
+      const isRegression = props.detail?.is_regression;
       const config = IssuesRegressionMap[String(isRegression)];
       return {
         ...config,

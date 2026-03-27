@@ -33,6 +33,7 @@ import type {
   IssueActivityParams,
   IssueDetail,
   IssueDetailParams,
+  IssueHistoryItem,
   IssuesActivityCommentFailedItem,
   IssuesActivityCommentParams,
   IssuesActivityCommentResponse,
@@ -293,6 +294,7 @@ const getRandomDelay = () =>
 export const fetchIssueDetailMock = async (params: IssueDetailParams, delayMs?: number): Promise<IssueDetail> => {
   const actualDelay = delayMs ?? getRandomDelay();
   await delay(actualDelay);
+  console.log('[Mock] fetchIssueDetailMock for issue: ', params);
   return generateIssueDetailMock(params.id);
 };
 
@@ -416,9 +418,6 @@ export const generateActivityListMock = (count = 10): IssueActivityItem[] => {
   return activities.sort((a, b) => b.time - a.time);
 };
 
-/** 默认活动记录 Mock 数据 */
-export const DEFAULT_ACTIVITY_LIST_MOCK: IssueActivityItem[] = generateActivityListMock(10);
-
 /**
  * 异步获取活动记录 Mock 数据
  * @param params 请求参数
@@ -477,4 +476,58 @@ export const fetchCommentMock = async (
   const actualDelay = delayMs ?? getRandomDelay();
   await delay(actualDelay);
   return generateActivityCommentMock(params);
+};
+
+/* ============== Issue 历史记录 Mock 数据 ============== */
+
+/**
+ * 生成单个历史记录
+ */
+const generateHistoryItem = (): IssueHistoryItem => {
+  const strategy = randomPick(MOCK_STRATEGIES);
+  const status = randomPick([IssueStatusEnum.UNRESOLVED, IssueStatusEnum.RESOLVED, IssueStatusEnum.PENDING_REVIEW]);
+  const priority = randomPick([IssuePriorityEnum.P0, IssuePriorityEnum.P1, IssuePriorityEnum.P2]);
+  const createTime = randomTimestamp(30);
+  const firstAlertTime = createTime + Math.floor(Math.random() * 3600);
+  const lastAlertTime = firstAlertTime + Math.floor(Math.random() * 7 * 86400);
+
+  return {
+    id: generateId(),
+    name: strategy.name,
+    status,
+    status_display:
+      status === IssueStatusEnum.UNRESOLVED
+        ? '未解决'
+        : status === IssueStatusEnum.RESOLVED
+          ? '已解决'
+          : status === IssueStatusEnum.PENDING_REVIEW
+            ? '待审核'
+            : '归档',
+    priority,
+    priority_display: priority === IssuePriorityEnum.P0 ? '高' : priority === IssuePriorityEnum.P1 ? '中' : '低',
+    create_time: createTime,
+    first_alert_time: firstAlertTime,
+    last_alert_time: lastAlertTime,
+    assignee: Math.random() > 0.2 ? [randomPick(MOCK_USERS)] : [],
+    alert_count: Math.floor(Math.random() * 200) + 10,
+  };
+};
+
+/**
+ * 生成历史记录列表
+ * @param count 记录数量，默认 10 条
+ */
+export const generateHistoryListMock = (count = 10): IssueHistoryItem[] => {
+  return Array.from({ length: count }, () => generateHistoryItem());
+};
+
+/**
+ * 异步获取历史记录 Mock 数据
+ * @param delayMs 延迟时间（毫秒）
+ */
+export const fetchHistoryListMock = async (params, delayMs?: number): Promise<IssueHistoryItem[]> => {
+  const actualDelay = delayMs ?? getRandomDelay();
+  await delay(actualDelay);
+  console.log('[Mock] fetchHistoryListMock for issue:', params);
+  return generateHistoryListMock(Math.floor(Math.random() * 10) + 5);
 };

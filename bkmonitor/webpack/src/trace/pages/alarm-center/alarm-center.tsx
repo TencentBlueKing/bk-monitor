@@ -152,16 +152,6 @@ export default defineComponent({
     } = useIssuesDialogs(data as unknown as ShallowRef<IssueItem[]>);
 
     /**
-     * @description 展示 Issue 详情
-     * @param {string} _id - Issue ID
-     */
-    const handleIssuesShowDetail = (item: IssueItem) => {
-      // TODO: 接入详情抽屉逻辑
-      issuesDetailShow.value = true;
-      issueRowData.value = item;
-    };
-
-    /**
      * @description 直接调用优先级变更接口，无需打开弹窗，成功后原地更新对应 Issue 行数据
      * @param {string} id - Issue ID
      * @param {IssuePriorityType} priority - 目标优先级（P0 / P1 / P2）
@@ -232,12 +222,12 @@ export default defineComponent({
     const showResidentBtn = shallowRef(false);
 
     const isCollapsed = shallowRef(false);
-    const alarmId = shallowRef<string>('');
+    const detailId = shallowRef<string>('');
     const alarmDetailShow = shallowRef(false);
     /** table 选中的 rowKey 数组 */
     const selectedRowKeys = shallowRef<string[]>([]);
     const defaultActiveRowKeys = computed(() => {
-      return alarmId.value ? [alarmId.value] : [];
+      return detailId.value ? [detailId.value] : [];
     });
     /* 是否是所选中告警记录行的关注人 */
     const isSelectedFollower = shallowRef(false);
@@ -247,9 +237,10 @@ export default defineComponent({
     const editFavoriteData = shallowRef<IFavoriteGroup['favorites'][number]>(null);
     const editFavoriteShow = shallowRef(false);
 
-    /** issues 详情侧栏 */
-    const issuesDetailShow = shallowRef(false);
+    /** issues详情对应的表格数据  */
     const issueRowData = shallowRef<IssueItem>(null);
+    /** issue 第一个告警时间（用于确认告警详情默认时间范围） */
+    const issueFirstAlarmTime = shallowRef<number | string>('');
 
     const { impactScopeDrawerShow, impactScopeResourceKey, impactScopeResource, handleImpactScopeClick } =
       useIssuesImpactScopeDrawer();
@@ -390,12 +381,14 @@ export default defineComponent({
         lastQuickFilterCategoryData: JSON.stringify(alarmStore.lastQuickFilterOperationCategoryData),
         filterMode: alarmStore.filterMode,
         alarmType: alarmStore.alarmType,
-        alarmId: alarmId.value,
+        alarmId: detailId.value,
         bizIds: JSON.stringify(alarmStore.bizIds),
         currentPage: page.value,
         sortOrder: ordering.value,
         showDetail: JSON.stringify(alarmDetailShow.value),
         showResidentBtn: String(showResidentBtn.value),
+        /** issue 首次告警时间 */
+        issueFirstAlarmTime: String(issueFirstAlarmTime.value),
       };
     });
 
@@ -444,6 +437,7 @@ export default defineComponent({
         showResidentBtn: queryShowResidentBtn,
         /** 最后一次操作的快速过滤条件分类数据 */
         lastQuickFilterCategoryData,
+        issueFirstAlarmTime: queryIssueFirstAlarmTime,
         /** 以下是兼容事件中心的URL参数 */
         searchType,
         condition,
@@ -491,7 +485,8 @@ export default defineComponent({
         }
         isShowFavorite.value = JSON.parse(localStorage.getItem(ALARM_CENTER_SHOW_FAVORITE) || 'false');
         alarmDetailShow.value = JSON.parse((showDetail as string) || 'false');
-        alarmId.value = (alarmIdParams as string) || '';
+        detailId.value = (alarmIdParams as string) || '';
+        issueFirstAlarmTime.value = queryIssueFirstAlarmTime as string;
         alarmStore.initAlarmService();
       } catch (error) {
         console.log('route query:', error);
@@ -503,20 +498,31 @@ export default defineComponent({
      */
     function handleShowAlertDetail(id: string, defaultTab?: string) {
       alarmDetailDefaultTab.value = defaultTab || '';
-      alarmId.value = id;
+      detailId.value = id;
       handleDetailShowChange(true);
     }
 
     /**  展示处理记录详情  */
     function handleShowActionDetail(id: string) {
-      alarmId.value = id;
+      detailId.value = id;
       handleDetailShowChange(true);
     }
+
+    /**
+     * @description 展示 Issue 详情
+     * @param {string} _id - Issue ID
+     */
+    const handleIssuesShowDetail = (item: IssueItem) => {
+      issueRowData.value = item;
+      detailId.value = item.id;
+      issueFirstAlarmTime.value = item.first_alert_time;
+      handleDetailShowChange(true);
+    };
 
     function handleDetailShowChange(show: boolean) {
       alarmDetailShow.value = show;
       if (!show) {
-        alarmId.value = '';
+        detailId.value = '';
         alarmDetailDefaultTab.value = '';
       }
     }
@@ -557,16 +563,16 @@ export default defineComponent({
 
     /** 上一个详情 */
     const handlePreviousDetail = () => {
-      let index = data.value.findIndex(item => item.id === alarmId.value);
+      let index = data.value.findIndex(item => item.id === detailId.value);
       index = index === -1 ? 0 : index;
-      alarmId.value = (data.value as AlertTableItem[])[index === 0 ? data.value.length - 1 : index - 1].id;
+      detailId.value = (data.value as AlertTableItem[])[index === 0 ? data.value.length - 1 : index - 1].id;
     };
 
     /** 下一个详情 */
     const handleNextDetail = () => {
-      let index = data.value.findIndex(item => item.id === alarmId.value);
+      let index = data.value.findIndex(item => item.id === detailId.value);
       index = index === -1 ? 0 : index;
-      alarmId.value = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 0 : index + 1].id;
+      detailId.value = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 0 : index + 1].id;
     };
 
     /**
@@ -748,7 +754,7 @@ export default defineComponent({
       appStore,
       retrievalFilterFields,
       residentSettingOnlyId,
-      alarmId,
+      detailId,
       alarmDetailShow,
       alertDialogShow,
       alertDialogType,
@@ -764,8 +770,8 @@ export default defineComponent({
       defaultFavoriteId,
       alarmDetailDefaultTab,
       showResidentBtn,
-      issuesDetailShow,
       issueRowData,
+      issueFirstAlarmTime,
       impactScopeDrawerShow,
       impactScopeResourceKey,
       impactScopeResource,
@@ -1020,16 +1026,17 @@ export default defineComponent({
           {this.alarmStore.alarmType === AlarmType.ISSUES ? (
             <IssuesDetailSideSlider
               bizId={this.issueRowData?.bk_biz_id}
-              firstAlarmTime={this.issueRowData?.first_alert_time}
-              issueId={this.issueRowData?.id}
-              show={this.issuesDetailShow}
-              onUpdate:show={show => {
-                this.issuesDetailShow = show;
-              }}
+              firstAlarmTime={this.issueFirstAlarmTime}
+              issueId={this.detailId}
+              show={this.alarmDetailShow}
+              showStepBtn={this.data.length > 1}
+              onNext={this.handleNextDetail}
+              onPrevious={this.handlePreviousDetail}
+              onUpdate:show={this.handleDetailShowChange}
             />
           ) : (
             <AlarmCenterDetail
-              alarmId={this.alarmId}
+              alarmId={this.detailId}
               alarmType={this.alarmStore.alarmType}
               defaultTab={this.alarmDetailDefaultTab}
               show={this.alarmDetailShow}

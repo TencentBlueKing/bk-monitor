@@ -23,17 +23,70 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { type PropType, defineComponent, shallowRef, watchEffect } from 'vue';
 
+import dayjs from 'dayjs';
+
+import { fetchHistoryListMock } from '../../mock-data';
 import BasicCard from '../basic-card/basic-card';
+
+import type { IssueDetail, IssueHistoryItem } from '../../../typing';
 
 import './issues-history.scss';
 
 export default defineComponent({
-  name: 'IssuesBasicInfo',
-  setup() {
-    return {};
+  name: 'IssuesHistory',
+  props: {
+    detail: {
+      type: Object as PropType<IssueDetail>,
+      default: () => ({}),
+    },
   },
+
+  setup(props) {
+    const historyList = shallowRef<IssueHistoryItem[]>([]);
+    const loading = shallowRef(false);
+
+    /** 获取 Issue 历史列表*/
+    const getIssuesHistoryList = async () => {
+      loading.value = true;
+      historyList.value = await fetchHistoryListMock({
+        bk_biz_id: props.detail.bk_biz_id,
+        issue_id: props.detail.id,
+      }).finally(() => {
+        loading.value = false;
+      });
+    };
+
+    /** 新开页展示issues详情 */
+    const handleClick = (item: IssueHistoryItem) => {
+      console.log('handleClick', item);
+      const hash = `#/alarm-center/?alarmType=issues&alarmId=${item.id}&showDetail=true&issueFirstAlarmTime=${item.first_alert_time}`;
+      const url = location.href.replace(location.hash, hash);
+      window.open(url, '_blank');
+    };
+
+    const renderSkeleton = () => {
+      return new Array(5).fill(0).map((_, index) => (
+        <div
+          key={index}
+          class='issues-history-item skeleton-element'
+        />
+      ));
+    };
+
+    watchEffect(() => {
+      getIssuesHistoryList();
+    });
+
+    return {
+      historyList,
+      loading,
+      handleClick,
+      renderSkeleton,
+    };
+  },
+
   render() {
     return (
       <BasicCard
@@ -41,14 +94,29 @@ export default defineComponent({
         title={this.$t('历史 Issue')}
       >
         <div class='issues-history-list'>
-          <div class='issues-history-item'>
-            <div class='item-title'>异常登录日志告警</div>
-            <div class='item-time'>15s ago</div>
-          </div>
-          <div class='issues-history-item'>
-            <div class='item-title'>异常登录日志告警2</div>
-            <div class='item-time'>18s ago</div>
-          </div>
+          {this.loading
+            ? this.renderSkeleton()
+            : this.historyList.map(item => (
+                <div
+                  key={item.id}
+                  class='issues-history-item'
+                >
+                  <div
+                    class='item-title'
+                    onClick={() => {
+                      this.handleClick(item);
+                    }}
+                  >
+                    {item.name}
+                  </div>
+                  <div
+                    class='item-time'
+                    v-bk-tooltips={{ content: dayjs(item.create_time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
+                  >
+                    {dayjs(item.create_time * 1000).fromNow()}
+                  </div>
+                </div>
+              ))}
         </div>
       </BasicCard>
     );
