@@ -1264,14 +1264,18 @@ class AlertQueryHandler(BaseBizQueryHandler):
         result = {}
 
         action_search = ActionInstanceDocument.search(start_time=self.start_time, end_time=self.end_time)
-        action_search = action_search.filter(
-            Q("range", end_time={"gte": self.start_time}) & Q("range", create_time={"lte": self.end_time})
-        )
         action_search = action_search.filter("term", action_plugin_type=ActionPluginType.NOTICE)
         action_search = action_search.filter("term", is_parent_action=True)
 
         if alert_ids is not None:
+            # 有明确告警ID时不限定时间范围，避免遗漏告警结束后生成的通知记录
             action_search = action_search.filter("terms", alert_id=list(alert_ids))
+        else:
+            # 全量查询时需要限定时间范围
+            action_search = action_search.filter(
+                (Q("range", end_time={"gte": self.start_time}) | ~Q("exists", field="end_time"))
+                & Q("range", create_time={"lte": self.end_time})
+            )
 
         if self.bk_biz_ids:
             action_search = action_search.filter("terms", bk_biz_id=self.bk_biz_ids)
@@ -1343,7 +1347,14 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     "id": "notice_way",
                     "name": _("通知类型"),
                     "count": 0,
-                    "children": [],
+                    "children": [
+                        {
+                            "id": way_key,
+                            "name": str(NoticeWay.NOTICE_WAY_MAPPING.get(way_key, way_key)),
+                            "count": 0,
+                        }
+                        for way_key in notice_way_mapping
+                    ],
                 }
 
             # 调用公共方法获取每个告警的通知方式
