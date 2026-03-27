@@ -30,6 +30,7 @@ import { commonPageSizeGet } from 'monitor-common/utils';
 import { getOperatorDisabled } from '../utils';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
+import type { IssueItem } from '../alarm-issues/typing';
 import type { ActionTableItem, AlertTableItem, IncidentTableItem } from '../typings';
 
 export function useAlarmTable() {
@@ -41,7 +42,7 @@ export function useAlarmTable() {
   // 总条数
   const total = shallowRef(0);
   // 数据
-  const data = shallowRef<(ActionTableItem | AlertTableItem | IncidentTableItem)[]>([]);
+  const data = shallowRef<(ActionTableItem | AlertTableItem | IncidentTableItem | IssueItem)[]>([]);
   // 排序
   const ordering = shallowRef('');
   // 是否加载中
@@ -70,16 +71,18 @@ export function useAlarmTable() {
       { signal }
     );
     // 获取告警关联事件数 和 关联告警信息
-    await alarmStore.alarmService.getAlterRelevance(res.data, { signal }).then(result => {
-      if (!result) return;
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const { event_count, extend_info } = result;
-      for (const item of res.data as AlertTableItem[]) {
-        item.event_count = event_count?.[item.id];
-        item.extend_info = extend_info?.[item.id];
-        item.followerDisabled = getOperatorDisabled(item.follower, item.assignee);
-      }
-    });
+    await alarmStore.alarmService
+      .getAlterRelevance(res.data as (ActionTableItem | AlertTableItem | IncidentTableItem)[], { signal })
+      .then(result => {
+        if (!result) return;
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        const { event_count, extend_info } = result;
+        for (const item of res.data as AlertTableItem[]) {
+          item.event_count = event_count?.[item.id];
+          item.extend_info = extend_info?.[item.id];
+          item.followerDisabled = getOperatorDisabled(item.follower, item.assignee);
+        }
+      });
     // 检查请求是否已被中止，确保不会更新过期数据
     if (signal.aborted) return;
     total.value = res.total;

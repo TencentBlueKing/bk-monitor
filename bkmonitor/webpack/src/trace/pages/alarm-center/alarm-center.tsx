@@ -139,7 +139,7 @@ export default defineComponent({
       handleAlertDialogShow,
       handleAlertDialogHide,
       handleAlertDialogConfirm,
-    } = useAlertDialogs(data as unknown as ShallowRef<AlertTableItem[]>);
+    } = useAlertDialogs(data as ShallowRef<AlertTableItem[]>);
 
     const {
       issuesDialogShow,
@@ -149,7 +149,7 @@ export default defineComponent({
       handleIssuesDialogShow,
       handleIssuesDialogHide,
       handleIssuesDialogSuccess,
-    } = useIssuesDialogs(data as unknown as ShallowRef<IssueItem[]>);
+    } = useIssuesDialogs(data as ShallowRef<IssueItem[]>);
 
     /**
      * @description 展示 Issue 详情
@@ -168,7 +168,7 @@ export default defineComponent({
      * @returns {void}
      */
     const handleIssuesPriorityChange = async (id: string, priority: IssuePriorityType) => {
-      const issuesData = data.value as unknown as IssueItem[];
+      const issuesData = data.value as IssueItem[];
       const targetRow = issuesData.find(item => item.id === id);
       if (!targetRow) return;
 
@@ -945,7 +945,7 @@ export default defineComponent({
                                 total: this.total,
                               }}
                               columns={this.tableSourceColumns}
-                              data={this.data as unknown as IssueItem[]}
+                              data={this.data as IssueItem[]}
                               headerAffixedTop={tableAffixed}
                               horizontalScrollAffixedBottom={tableAffixed}
                               loading={this.loading}
