@@ -780,7 +780,7 @@ class PluginManager(BasePluginManager):
         self._parse_plugin_version_str()
 
     def _get_meta_info(self, plugin_params: dict[str, bytes]):
-        meta_dict = yaml.load(plugin_params["meta.yaml"], Loader=yaml.FullLoader)
+        meta_dict = yaml.safe_load(plugin_params["meta.yaml"])
         self.plugin.tag = meta_dict.get("tag") if meta_dict.get("tag") else ""
         self.plugin.label = meta_dict.get("label", "other_rt")
         self.version.config.is_support_remote = self._get_remote_stage(meta_dict)

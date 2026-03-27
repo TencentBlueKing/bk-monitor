@@ -31,6 +31,7 @@ from apps.log_clustering.constants import (
     LogColShowTypeEnum,
     PatternEnum,
     RegexRuleTypeEnum,
+    StorageTypeEnum,
     StrategiesType,
     SubscriptionTypeEnum,
     YearOnYearChangeEnum,
@@ -181,6 +182,12 @@ class ClusteringConfig(SoftDeleteModel):
     # 小型化链路
     use_mini_link = models.BooleanField(_("是否启用小型化链路"), default=False)
     predict_cluster = models.CharField(_("预测集群名称"), max_length=64, default="", null=True, blank=True)
+    storage_type = models.CharField(
+        _("聚类结果存储类型"),
+        max_length=32,
+        default=StorageTypeEnum.ELASTICSEARCH.value,
+    )
+    doris_storage = models.CharField(_("doris 存储集群"), max_length=64, null=True, blank=True, default=None)
 
     @classmethod
     def get_by_index_set_id(cls, index_set_id: int, raise_exception: bool = True) -> "ClusteringConfig":

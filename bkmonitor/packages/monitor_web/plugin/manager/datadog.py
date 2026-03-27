@@ -92,7 +92,7 @@ class DataDogPluginManager(PluginManager):
         return deploy_steps
 
     def _get_collector_json(self, plugin_params: dict[str, bytes]):
-        meta_dict = yaml.load(self._decode_file(plugin_params["meta.yaml"]), Loader=yaml.FullLoader)
+        meta_dict = yaml.safe_load(self._decode_file(plugin_params["meta.yaml"]))
 
         if not meta_dict.get("datadog_check_name"):
             raise PluginParseError({"msg": _("meta.yaml 缺少 datadog_check_name")})

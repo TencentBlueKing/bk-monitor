@@ -32,6 +32,7 @@ from apps.log_clustering.constants import (
     CLUSTERING_CONFIG_EXCLUDE,
     DEFAULT_CLUSTERING_FIELDS,
     RegexRuleTypeEnum,
+    StorageTypeEnum,
 )
 from apps.log_clustering.exceptions import (
     BkdataFieldsException,
@@ -41,6 +42,7 @@ from apps.log_clustering.exceptions import (
     ClusteringDebugException,
     CollectorEsStorageNotExistException,
     CollectorStorageNotExistException,
+    DorisStorageNotExistException,
     RegexTemplateNotExistException,
 )
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
@@ -129,6 +131,8 @@ class ClusteringConfigHandler:
         conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
         default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT)
         es_storage = ""
+        storage_type = conf.get("storage_type", StorageTypeEnum.ELASTICSEARCH.value)
+        doris_storage = conf.get("doris_storage", "") if storage_type == StorageTypeEnum.DORIS.value else ""
         collector_config_name_en = ""
 
         if collector_config_id:
@@ -159,6 +163,9 @@ class ClusteringConfigHandler:
         related_space_pre_bk_biz_id = space_uid_to_bk_biz_id(log_index_set.space_uid)
         bk_biz_id = self.validate_bk_biz_id(related_space_pre_bk_biz_id)
 
+        if storage_type == StorageTypeEnum.DORIS.value and not doris_storage:
+            raise DorisStorageNotExistException(DorisStorageNotExistException.MESSAGE.format(index_set_id=index_set_id))
+
         # 创建流程
         # 聚类配置优先级：参数传入 -> 数据库默认配置 -> 代码默认配置
         clustering_config, created = ClusteringConfig.objects.update_or_create(
@@ -168,6 +175,8 @@ class ClusteringConfigHandler:
                 collector_config_id=collector_config_id,
                 collector_config_name_en=collector_config_name_en,
                 es_storage=es_storage,
+                storage_type=storage_type,
+                doris_storage=doris_storage,
                 min_members=params.get(
                     "min_members", default_conf.get("min_members", OnlineTaskTrainingArgs.MIN_MEMBERS)
                 ),

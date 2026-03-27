@@ -182,6 +182,8 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.bmw_task_cron", "*/15 * * * *", "global"),
     # metadata 更新 bkcc 空间名称任务，因为不要求实时性，每6分钟执行一次
     ("metadata.task.sync_space.refresh_bkcc_space_name", "*/6 * * * *", "global"),
+    # metadata 全量刷新 ResourceDefinition/RelationDefinition 到 Redis 兜底任务，每10分钟一次
+    ("metadata.task.entity_relation.refresh_entity_definition_to_redis", "*/10 * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:  # noqa: F821

@@ -249,6 +249,16 @@ class ActionEnum(ChoicesEnum):
         )
 
 
+class StorageTypeEnum(ChoicesEnum):
+    ELASTICSEARCH = "elasticsearch"
+    DORIS = "doris"
+
+    _choices_labels = (
+        (ELASTICSEARCH, _("Elasticsearch")),
+        (DORIS, _("Doris")),
+    )
+
+
 # 日志聚类失败重试次数
 MAX_FAILED_REQUEST_RETRY = 3
 

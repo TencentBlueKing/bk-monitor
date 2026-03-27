@@ -149,9 +149,7 @@ class EtlStorage:
                 continue
             field_name = field.get("alias_name") or field["field_name"]
             if cls._is_v4_reserved_field(field_name):
-                raise ValidationError(
-                    _("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}"
-                )
+                raise ValidationError(_("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}")
 
     @staticmethod
     def _get_path_regexp(etl_params: dict, built_in_config: dict) -> str:
@@ -1231,7 +1229,9 @@ class EtlStorage:
         if result_table_storage:
             collector_config["storage_cluster_id"] = result_table_storage["cluster_config"]["cluster_id"]
             collector_config["storage_cluster_name"] = result_table_storage["cluster_config"].get("cluster_name", "")
-            collector_config["storage_display_name"] = result_table_storage["cluster_config"].get("display_name", "")
+            collector_config["storage_display_name"] = (
+                result_table_storage["cluster_config"].get("display_name") or collector_config["storage_cluster_name"]
+            )
             collector_config["retention"] = result_table_storage["storage_config"].get("retention")
             collector_config["allocation_min_days"] = result_table_storage["storage_config"].get("warm_phase_days")
 

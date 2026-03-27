@@ -245,7 +245,7 @@ class IssueActivityDocument(BaseDocument):
     create_time = Date(format=BaseDocument.DATE_FORMAT)
 
     class Index:
-        name = "bkfta_issue_activity"
+        name = "bkfta_fta_issue_act"
         settings = ES_INDEX_SETTINGS.copy()
 
     class Meta:

@@ -96,6 +96,9 @@ export default defineComponent({
     onMounted(() => {
       if (props.row && props.field) {
         let content = props.row[props.field.field_name] ?? parseTableRowData(props.row, props.field.field_name);
+        if (typeof props.row[props.field.field_name] === 'object') {
+          content = JSON.stringify(props.row[props.field.field_name]);
+        }
         if (props.field.field_type === 'date') {
           const markRegStr = '<mark>(.*?)</mark>';
           const isMark = new RegExp(markRegStr).test(content);
@@ -117,6 +120,7 @@ export default defineComponent({
             data: props.row || {},
           },
         });
+
         const fieldKeys = props.field.field_name.split('.');
         const isNestedValue = isNestedField(fieldKeys, props.row);
         const allWordList = textSegmentation.getChildNodes(isNestedValue);

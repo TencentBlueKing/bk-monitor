@@ -1207,6 +1207,19 @@ export default defineComponent({
       },
     );
 
+    watch(
+      () => indexSetQueryResult.value.is_loading,
+      (newVal, oldVal) => {
+        if (oldVal && !newVal && !isRequesting.value) {
+          nextTick(() => {
+            scrollXOffsetLeft = 0;
+            refScrollXBar.value?.scrollLeft(0);
+            computeRect(refResultRowBox.value);
+          });
+        }
+      }
+    );
+
     const renderLoader = () => {
       return (
         <div

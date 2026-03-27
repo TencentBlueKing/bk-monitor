@@ -55,7 +55,7 @@ class IssueAggregationProcessor:
             lock = self._acquire_lock()
             if not lock:
                 logger.warning(
-                    "IssueAggregationProcessor: acquire lock failed, skip, strategy_id=%s, alert_id=%s",
+                    "[issue] acquire lock failed, skip, strategy(%s) alert(%s)",
                     self.strategy_id,
                     self.alert.id,
                 )
@@ -97,7 +97,7 @@ class IssueAggregationProcessor:
         for cond in conditions:
             if not isinstance(cond, dict):
                 logger.warning(
-                    "IssueAggregationProcessor: invalid condition type, strategy_id=%s, alert_id=%s, condition=%s",
+                    "[issue] invalid condition type, strategy(%s) alert(%s) condition=%s",
                     self.strategy_id,
                     self.alert.id,
                     cond,
@@ -106,7 +106,7 @@ class IssueAggregationProcessor:
 
             if any(k not in cond for k in ("key", "method", "value")):
                 logger.warning(
-                    "IssueAggregationProcessor: invalid condition format, strategy_id=%s, alert_id=%s, condition=%s",
+                    "[issue] invalid condition format, strategy(%s) alert(%s) condition=%s",
                     self.strategy_id,
                     self.alert.id,
                     cond,
@@ -115,7 +115,7 @@ class IssueAggregationProcessor:
 
             if not cond.get("key") or cond.get("value") is None:
                 logger.warning(
-                    "IssueAggregationProcessor: invalid condition value, strategy_id=%s, alert_id=%s, condition=%s",
+                    "[issue] invalid condition value, strategy(%s) alert(%s) condition=%s",
                     self.strategy_id,
                     self.alert.id,
                     cond,
@@ -126,7 +126,7 @@ class IssueAggregationProcessor:
 
         if not agg_condition:
             logger.warning(
-                "IssueAggregationProcessor: conditions present but empty after parse, strategy_id=%s, alert_id=%s",
+                "[issue] conditions present but empty after parse, strategy(%s) alert(%s)",
                 self.strategy_id,
                 self.alert.id,
             )
@@ -137,7 +137,7 @@ class IssueAggregationProcessor:
             return matcher.is_match(alert_dimensions)
         except Exception:
             logger.warning(
-                "IssueAggregationProcessor: condition match failed, strategy_id=%s, alert_id=%s",
+                "[issue] condition match failed, strategy(%s) alert(%s)",
                 self.strategy_id,
                 self.alert.id,
                 exc_info=True,
@@ -251,7 +251,12 @@ class IssueAggregationProcessor:
                 action=BulkActionType.UPSERT,
             )
         except Exception as e:
-            logger.warning("IssueAggregationProcessor: alert issue_id write failed (retry), error=%s", e)
+            logger.warning(
+                "[issue] alert issue_id write failed (retry), strategy(%s) alert(%s) error=%s",
+                self.strategy_id,
+                self.alert.id,
+                e,
+            )
             try:
                 AlertDocument.bulk_create(
                     [AlertDocument(id=self.alert.id, issue_id=issue.id)],
@@ -259,8 +264,8 @@ class IssueAggregationProcessor:
                 )
             except Exception as e2:
                 logger.error(
-                    "IssueAggregationProcessor: alert issue_id write failed permanently, "
-                    "issue_id=%s, alert_id=%s, error=%s",
+                    "[issue] alert issue_id write failed permanently, strategy(%s) issue(%s) alert(%s) error=%s",
+                    self.strategy_id,
                     issue.id,
                     self.alert.id,
                     e2,

@@ -308,7 +308,11 @@ def get_data_source_log(
     data_source_key: tuple[str, str] = (query_config["data_source_label"], query_config["data_type_label"])
     data_source: DataSource = load_data_source(*data_source_key).init_by_query_config(query_config, bk_biz_id=bk_biz_id)
     data_source.filter_dict.update(
-        {key: value for key, value in dimensions.items() if key in query_config.get("agg_dimension", [])}
+        {
+            key: value
+            for key, value in dimensions.items()
+            if key in query_config.get("agg_dimension", []) and value != ""
+        }
     )
 
     # 查询时间为事件开始到5个周期后
@@ -333,7 +337,7 @@ def get_data_source_log(
         addition = [
             {"field": dimension_field, "operator": "=", "value": dimension_value}
             for dimension_field, dimension_value in dimensions.items()
-            if dimension_field in query_config.get("agg_dimension", [])
+            if dimension_field in query_config.get("agg_dimension", []) and dimension_value != ""
         ]
         params = {
             "bizId": bk_biz_id,

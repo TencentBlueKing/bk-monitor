@@ -23,69 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { defineComponent } from 'vue';
 
-import { type PropType, defineComponent } from 'vue';
+import EmptyStatus from '@/components/empty-status/empty-status';
 
-import './selector-trigger.scss';
+import './panel-empty.scss';
 
 export default defineComponent({
-  name: 'SelectorTrigger',
-  props: {
-    active: {
-      type: Boolean,
-      default: false,
-    },
-    hasRightSplit: {
-      type: Boolean,
-      default: true,
-    },
-    mouseDown: {
-      type: Function as PropType<(payload: MouseEvent) => void>,
-      default: () => {},
-    },
-    click: {
-      type: Function as PropType<(payload: MouseEvent) => void>,
-      default: () => {},
-    },
-    defaultWidth: {
-      type: Number,
-      default: 210,
-    },
-    tips: {
-      type: [String, Object],
-      default: '',
-    },
-    isError: {
-      type: Boolean,
-      default: false,
-    },
+  name: 'PanelEmpty',
+  setup() {
+    return {};
   },
   render() {
     return (
-      <div
-        style={{
-          width: `${this.defaultWidth}px`,
-        }}
-        class={[
-          'alarm-retrieval-filter-component__selector-trigger',
-          { 'right-split': this.hasRightSplit },
-          { 'is-error': this.isError },
-        ]}
-        v-bk-tooltips={{
-          content: this.tips,
-          disabled: !this.tips,
-          delay: 500,
-        }}
-        onClick={this.click}
-        onMousedown={this.mouseDown}
-      >
-        <div class='trigger-top-wrap'>{this.$slots?.top?.()}</div>
-        <div class='trigger-bottom-wrap'>
-          <span class='bottom-text'>{this.$slots?.bottom?.()}</span>
-          <div class={['down-btn', { active: this.active }]}>
-            <span class='icon-monitor icon-mc-triangle-down' />
-          </div>
-        </div>
+      <div class='alarm-detail-panel-empty'>
+        <EmptyStatus type='empty' />
       </div>
     );
   },
