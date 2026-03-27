@@ -1054,11 +1054,14 @@ export default defineComponent({
      * @param row - 表格行数据
      */
     const requestDeleteCollect = (row: ITableRowData) => {
+      const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
+      const requestConfig = isBkDataOrEs
+        ? { api: 'indexSet/remove', params: { index_set_id: row.index_set_id } }
+        : { api: 'collect/deleteCollect', params: { collector_config_id: row.collector_config_id } };
+
       $http
-        .request('collect/deleteCollect', {
-          params: {
-            collector_config_id: row.collector_config_id,
-          },
+        .request(requestConfig.api, {
+          params: requestConfig.params,
         })
         .then(res => {
           if (res.result) {
