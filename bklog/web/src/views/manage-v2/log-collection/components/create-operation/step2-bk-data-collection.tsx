@@ -157,6 +157,12 @@ interface IIndexSetData {
   target_fields?: string[];
   /** 所属索引集列表 */
   parent_index_set_ids?: number[];
+  /** 时间字段 */
+  time_field?: string;
+  /** 时间字段类型 */
+  time_field_type?: string;
+  /** 时间字段精度单位 */
+  time_field_unit?: string;
   [key: string]: unknown;
 }
 
@@ -490,6 +496,9 @@ export default defineComponent({
           storage_cluster_id,
           sort_fields, target_fields,
           parent_index_set_ids,
+          time_field,
+          time_field_type,
+          time_field_unit,
         } = indexSetData;
         configData.value = {
           ...configData.value,
@@ -501,6 +510,15 @@ export default defineComponent({
           target_fields: target_fields || [],
           parent_index_set_ids: parent_index_set_ids || [],
         };
+
+        // 编辑模式回填时间索引配置（ES场景必需）
+        if (time_field) {
+          timeIndex.value = {
+            time_field,
+            time_field_type,
+            time_field_unit,
+          };
+        }
 
         /**
          * 如果有索引，初始化显示列表和字段选择列表
