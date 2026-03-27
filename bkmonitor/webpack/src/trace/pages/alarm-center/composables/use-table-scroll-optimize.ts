@@ -34,12 +34,14 @@ const POINTER_EVENTS_RESTORE_DELAY = 600;
 type TargetElementType = HTMLElement | ShallowRef<null | { $el: HTMLElement }> | string;
 
 interface UseTableScrollOptimizeOptions {
+  /** addEventListener 的配置项（如 { passive: true }），默认 { passive: true } */
+  listenerOptions?: AddEventListenerOptions;
   /** 滚动容器的 CSS 选择器 */
   scrollContainerSelector: string;
   /** 需要优化 pointerEvents 的目标元素（组件 ref / CSS 选择器 / DOM 元素） */
   targetElement: TargetElementType;
-  /** 滚动时的额外回调（如隐藏 popover） */
-  onScroll?: () => void;
+  /** 滚动时的额外回调（如隐藏 popover），接收原始 scroll Event */
+  onScroll?: (event: Event) => void;
 }
 
 /**
@@ -59,12 +61,13 @@ const resolveElement = (target: TargetElementType): HTMLElement | null => {
  * @description 表格滚动优化 Composable，在外层容器滚动时禁用目标元素 pointerEvents 以提升滚动性能，
  *              并在滚动结束后恢复。同时支持滚动时触发额外回调（如隐藏 popover）。
  * @param {UseTableScrollOptimizeOptions} options - 配置项
- * @param options.targetElement - 需要优化 pointerEvents 的目标元素
- * @param options.scrollContainerSelector - 滚动容器的 CSS 选择器
- * @param options.onScroll - 滚动时的额外回调
+ * @param {TargetElementType} options.targetElement - 需要优化 pointerEvents 的目标元素
+ * @param {string} options.scrollContainerSelector - 滚动容器的 CSS 选择器
+ * @param {(event: Event) => void} options.onScroll - 滚动时的额外回调，接收原始 scroll Event
+ * @param {AddEventListenerOptions} options.listenerOptions - addEventListener 的配置项，默认 { passive: true }
  */
 export const useTableScrollOptimize = (options: UseTableScrollOptimizeOptions) => {
-  const { targetElement, onScroll, scrollContainerSelector } = options;
+  const { targetElement, onScroll, scrollContainerSelector, listenerOptions = { passive: true } } = options;
 
   /** 滚动容器元素 */
   let scrollContainer: HTMLElement = null;
@@ -83,10 +86,11 @@ export const useTableScrollOptimize = (options: UseTableScrollOptimizeOptions) =
 
   /**
    * @description 滚动触发事件
+   * @param {Event} event - 原始 scroll 事件对象
    */
-  const handleScroll = () => {
+  const handleScroll = (event: Event) => {
     updatePointerEvents('none');
-    onScroll?.();
+    onScroll?.(event);
     scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
     scrollPointerEventsTimer = setTimeout(() => {
       updatePointerEvents('auto');
@@ -100,7 +104,7 @@ export const useTableScrollOptimize = (options: UseTableScrollOptimizeOptions) =
     removeScrollListener();
     scrollContainer = document.querySelector(scrollContainerSelector);
     if (!scrollContainer) return;
-    scrollContainer.addEventListener('scroll', handleScroll);
+    scrollContainer.addEventListener('scroll', handleScroll, listenerOptions);
   };
 
   /**
@@ -108,7 +112,7 @@ export const useTableScrollOptimize = (options: UseTableScrollOptimizeOptions) =
    */
   const removeScrollListener = () => {
     if (!scrollContainer) return;
-    scrollContainer.removeEventListener('scroll', handleScroll);
+    scrollContainer.removeEventListener('scroll', handleScroll, listenerOptions);
     scrollContainer = null;
   };
 
