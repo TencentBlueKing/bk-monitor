@@ -106,7 +106,7 @@ class ServiceListResource(Resource):
         node: dict[str, Any] = entity_set.get_node_or_none(service_name)
         service_info: dict[str, Any] = {
             "service_name": service_name,
-            "service_language": (node.get("extra_data") or {}).get("language", ""),
+            "service_language": (node.get("extra_data") or {}).get("service_language", ""),
             "system": entity_set.get_system(service_name),
             "log_relations": entity_set.get_log_relations(service_name),
         }
