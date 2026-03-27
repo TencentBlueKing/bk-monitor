@@ -14,8 +14,8 @@ import time
 from functools import cached_property
 from typing import Any
 
-from apm_web.container.helpers import ContainerHelper
 from apm_web.handlers.host_handler import HostHandler
+from apm_web.strategy.dispatch.entity import EntitySet
 from apm_web.handlers.log_handler import ServiceLogHandler, get_biz_index_sets_with_cache
 from apm_web.log.resources import log_relation_list
 from apm_web.topo.handle.relation.define import (
@@ -503,17 +503,18 @@ class APMServiceTarget(BaseTarget):
         if not apm_target_list:
             return []
 
+        workloads: list[dict[str, Any]] = EntitySet.get_service_workloads(
+            bk_biz_id=self._alert.event.bk_biz_id,
+            app_name=apm_target_list[0]["app_name"],
+            service_name=apm_target_list[0]["service_name"],
+        )
         return [
             {
-                "workload": f"{workload['workload_kind']}:{workload['workload_name']}",
-                "bcs_cluster_id": workload["bcs_cluster_id"],
-                "namespace": workload["namespace"],
+                "workload": f"{w['kind']}:{w['name']}",
+                "bcs_cluster_id": w["bcs_cluster_id"],
+                "namespace": w["namespace"],
             }
-            for workload in ContainerHelper.get_service_related_k8s_targets(
-                bk_biz_id=self._alert.event.bk_biz_id,
-                app_name=apm_target_list[0]["app_name"],
-                service_name=apm_target_list[0]["service_name"],
-            )
+            for w in workloads
         ]
 
     def list_related_apm_targets(self) -> list[dict[str, Any]]:

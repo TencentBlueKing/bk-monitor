@@ -19,8 +19,8 @@ from constants.alert import APMTargetType, EventTargetType, K8STargetType
 from constants.apm import ApmAlertHelper
 from core.drf_resource import Resource
 
-from apm_web.container.helpers import ContainerHelper
 from apm_web.handlers.host_handler import HostHandler
+from apm_web.strategy.dispatch.entity import EntitySet
 
 
 class AlertBuiltinFilterResource(Resource):
@@ -41,6 +41,8 @@ class AlertBuiltinFilterResource(Resource):
         bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
         app_name = serializers.CharField(label=_("应用名称"))
         service_name = serializers.CharField(label=_("服务名称"), required=False, default="", allow_blank=True)
+        start_time = serializers.IntegerField(label=_("开始时间"), required=False, default=0)
+        end_time = serializers.IntegerField(label=_("结束时间"), required=False, default=0)
         target_types = serializers.ListField(
             label=_("目标类型列表"),
             child=serializers.ChoiceField(choices=TARGET_TYPES),
@@ -61,17 +63,113 @@ class AlertBuiltinFilterResource(Resource):
 
         # 应用视角
         if not service_name:
-            query_string: str = f'target: "{app_name}:*" OR labels: "{ApmAlertHelper.format_app_label(app_name)}"'
+            query_string: str = f'target: {app_name}\\:* OR labels: "{ApmAlertHelper.format_app_label(app_name)}"'
         # 服务视角
         else:
             query_string = self._generate_service_perspective(
                 bk_biz_id=validated_request_data["bk_biz_id"],
                 app_name=app_name,
                 service_name=service_name,
+                start_time=validated_request_data["start_time"],
+                end_time=validated_request_data["end_time"],
                 target_types=validated_request_data["target_types"],
             )
 
         return {"query_string": query_string}
+
+    @classmethod
+    def _build_apm_service_query_string(
+        cls,
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str,
+        start_time: int,
+        end_time: int,
+    ) -> str:
+        """构建 APM 服务目标类型的 query_string 片段。
+
+        :param bk_biz_id: 业务 ID
+        :param app_name: 应用名称
+        :param service_name: 服务名称
+        :param start_time: 开始时间
+        :param end_time: 结束时间
+        :return: Lucene query_string 片段
+        """
+        return (
+            f'target: "{app_name}:{service_name}" '
+            f'OR labels: ("{ApmAlertHelper.format_app_label(app_name)}"'
+            f' AND "{ApmAlertHelper.format_service_label(service_name)}")'
+        )
+
+    @classmethod
+    def _build_host_query_string(
+        cls,
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str,
+        start_time: int,
+        end_time: int,
+    ) -> str:
+        """构建主机目标类型的 query_string 片段。
+
+        :param bk_biz_id: 业务 ID
+        :param app_name: 应用名称
+        :param service_name: 服务名称
+        :param start_time: 开始时间
+        :param end_time: 结束时间
+        :return: Lucene query_string 片段，无关联主机时返回空字符串
+        """
+        host_list: list[dict[str, Any]] = (
+            HostHandler.list_application_hosts(
+                bk_biz_id,
+                app_name,
+                service_name,
+                start_time,
+                end_time,
+            )
+            or []
+        )
+
+        host_parts: list[str] = [
+            f'"{host["bk_host_innerip"]}|{host["bk_cloud_id"]}"' for host in host_list if host.get("bk_host_innerip")
+        ]
+        if not host_parts:
+            return ""
+
+        return f"target: ({' OR '.join(host_parts)})"
+
+    @classmethod
+    def _build_workload_query_string(
+        cls,
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str,
+        start_time: int,
+        end_time: int,
+    ) -> str:
+        """构建 K8S 工作负载目标类型的 query_string 片段。
+
+        :param bk_biz_id: 业务 ID
+        :param app_name: 应用名称
+        :param service_name: 服务名称
+        :param start_time: 开始时间
+        :param end_time: 结束时间
+        :return: Lucene query_string 片段，无关联负载时返回空字符串
+        """
+        workload_list: list[dict[str, Any]] = EntitySet.get_service_workloads(
+            bk_biz_id,
+            app_name,
+            service_name,
+        )
+        if not workload_list:
+            return ""
+
+        return " OR ".join(
+            f'(tags.bcs_cluster_id: "{w["bcs_cluster_id"]}"'
+            f' AND tags.workload_kind: "{w["kind"]}"'
+            f' AND tags.workload_name: "{w["name"]}")'
+            for w in workload_list
+        )
 
     @classmethod
     def _generate_service_perspective(
@@ -79,76 +177,46 @@ class AlertBuiltinFilterResource(Resource):
         bk_biz_id: int,
         app_name: str,
         service_name: str,
+        start_time: int,
+        end_time: int,
         target_types: list[str],
     ) -> str:
         """生成服务视角的 query_string。
 
-        按 target_types 路由，HOST / K8S-WORKLOAD 数据并发获取，按不同目标类型构建查询条件并以 OR 拼接。
+        按 target_types 路由，通过 builder 注册表并发获取各目标类型的 query_string 片段，以 OR 拼接。
 
         :param bk_biz_id: 业务 ID
         :param app_name: 应用名称
         :param service_name: 服务名称
+        :param start_time: 开始时间
+        :param end_time: 结束时间
         :param target_types: 目标类型列表
         :return: Lucene query_string
         """
-        need_host: bool = EventTargetType.HOST in target_types
-        need_k8s: bool = K8STargetType.WORKLOAD in target_types
+        # 时间范围处理：未传入时使用默认值
+        now: int = int(time.time())
+        if not end_time:
+            end_time = now
+        if not start_time:
+            start_time = end_time - 2 * 3600
 
-        # 并发获取服务关联的 HOST / K8S-WORKLOAD 目标列表
-        host_list: list[dict[str, Any]] = []
-        workload_list: list[dict[str, Any]] = []
-        if need_host or need_k8s:
-            now: int = int(time.time())
-            with ThreadPool() as pool:
-                host_future = (
-                    pool.apply_async(
-                        HostHandler.list_application_hosts,
-                        args=(bk_biz_id, app_name, service_name, now - 2 * 3600, now),
-                    )
-                    if need_host
-                    else None
-                )
-                k8s_future = (
-                    pool.apply_async(
-                        ContainerHelper.get_service_related_k8s_targets,
-                        args=(bk_biz_id, app_name, service_name),
-                    )
-                    if need_k8s
-                    else None
-                )
-                if host_future:
-                    host_list = host_future.get() or []
-                if k8s_future:
-                    workload_list = k8s_future.get() or []
+        builder_register: dict[str, Any] = {
+            APMTargetType.SERVICE: cls._build_apm_service_query_string,
+            EventTargetType.HOST: cls._build_host_query_string,
+            K8STargetType.WORKLOAD: cls._build_workload_query_string,
+        }
 
-        # 按目标类型构建查询条件
-        conditions: list[str] = []
-        for target_type in target_types:
-            if target_type == APMTargetType.SERVICE:
-                conditions.append(
-                    f'target: "{app_name}:{service_name}" '
-                    f'OR labels: ("{ApmAlertHelper.format_app_label(app_name)}"'
-                    f' OR "{ApmAlertHelper.format_service_label(service_name)}")'
-                )
+        to_be_executed_builders = [builder_register[t] for t in target_types if t in builder_register]
+        if not to_be_executed_builders:
+            return ""
 
-            elif target_type == EventTargetType.HOST:
-                host_parts: list[str] = [
-                    f'"{host["bk_host_innerip"]}|{host["bk_cloud_id"]}"'
-                    for host in host_list
-                    if host.get("bk_host_innerip")
-                ]
-                if host_parts:
-                    conditions.append(f"target: ({' OR '.join(host_parts)})")
+        pool = ThreadPool(len(to_be_executed_builders))
+        results: list[str] = pool.map(
+            lambda fn: fn(bk_biz_id, app_name, service_name, start_time, end_time),
+            to_be_executed_builders,
+        )
+        pool.close()
+        pool.join()
 
-            elif target_type == K8STargetType.WORKLOAD and workload_list:
-                conditions.append(
-                    " OR ".join(
-                        f'(tags.bcs_cluster_id: "{w["bcs_cluster_id"]}"'
-                        f' AND tags.namespace: "{w["namespace"]}"'
-                        f' AND tags.workload_kind: "{w["workload_kind"]}"'
-                        f' AND tags.workload_name: "{w["workload_name"]}")'
-                        for w in workload_list
-                    )
-                )
-
+        conditions: list[str] = [f"({r})" for r in results if r]
         return " OR ".join(conditions)

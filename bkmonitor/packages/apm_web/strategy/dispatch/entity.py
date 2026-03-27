@@ -159,3 +159,41 @@ class EntitySet:
         :return: RPC 配置或 None
         """
         return ServiceHandler.get_rpc_service_config_or_none(self._service_node_map[service_name])
+
+    @staticmethod
+    def get_service_workloads(
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str,
+    ) -> list[dict[str, Any]]:
+        """获取服务关联的标准化 K8S 容器负载列表。
+
+        基于 EntitySet 获取原始负载数据，过滤不完整记录
+
+        :param bk_biz_id: 业务 ID
+        :param app_name: 应用名称
+        :param service_name: 服务名称
+        :return: 容器负载列表，每个元素包含 bcs_cluster_id、namespace、kind、name 字段
+        """
+        entity_set: EntitySet = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name, service_names=[service_name])
+
+        processed_workloads: list[dict[str, Any]] = []
+        for workload in entity_set.get_workloads(service_name):
+            bcs_cluster_id: str = workload.get("bcs_cluster_id", "")
+            namespace: str = workload.get("namespace", "")
+            kind: str = workload.get("kind", "")
+            name: str = workload.get("name", "")
+
+            if not all([bcs_cluster_id, namespace, kind, name]):
+                continue
+
+            processed_workloads.append(
+                {
+                    "bcs_cluster_id": bcs_cluster_id,
+                    "namespace": namespace,
+                    "kind": kind,
+                    "name": name,
+                }
+            )
+
+        return processed_workloads
