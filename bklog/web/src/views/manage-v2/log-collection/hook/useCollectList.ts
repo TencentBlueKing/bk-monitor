@@ -213,7 +213,10 @@ export const useCollectList = () => {
      * - 未完成（table_id 为空）时，详情页不可用，应回到编辑补齐
      */
     if (targetRoute === 'manage-collection' && !row.table_id) {
-      return operateHandler(row, 'edit', typeKey);
+      const isBkDataOrEs = ['bkdata', 'es'].includes(typeKey);
+      if (!isBkDataOrEs) {
+        return operateHandler(row, 'edit', typeKey);
+      }
     }
 
     /**
@@ -223,7 +226,11 @@ export const useCollectList = () => {
     if (
       ['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking', 'clean-edit'].includes(targetRoute)
     ) {
-      params.collectorId = String(row.collector_config_id ?? '');
+      // bkdata/es 类型没有 collector_config_id，使用 index_set_id
+      const isBkDataOrEs = ['bkdata', 'es'].includes(typeKey);
+      params.collectorId = String(
+        isBkDataOrEs ? (row.index_set_id ?? '') : (row.collector_config_id ?? '')
+      );
     }
 
     /**
@@ -342,8 +349,16 @@ export const useCollectList = () => {
         },
         {
           match: _t => _t === 'view',
-          isAllowed: () => Boolean(row.permission?.[authorityMap.VIEW_COLLECTION_AUTH]),
-          buildApplyData: () => buildCollectionApplyData(authorityMap.VIEW_COLLECTION_AUTH, row.collector_config_id),
+          isAllowed: () => {
+            const viewKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.VIEW_COLLECTION_AUTH;
+            return Boolean(row.permission?.[viewKey]);
+          },
+          buildApplyData: () => {
+            if (isBkDataOrEs) {
+              return buildIndicesApplyData(authorityMap.MANAGE_INDICES_AUTH, row.index_set_id);
+            }
+            return buildCollectionApplyData(authorityMap.VIEW_COLLECTION_AUTH, row.collector_config_id);
+          },
         },
         {
           match: _t => _t === 'search',

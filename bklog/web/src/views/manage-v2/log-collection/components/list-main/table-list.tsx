@@ -430,7 +430,8 @@ export default defineComponent({
           <span
             class='link'
             on-click={() => {
-              const type = row.storage_cluster_id !== -1 ? 'view' : 'edit';
+              const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
+              const type = isBkDataOrEs || row.storage_cluster_id !== -1 ? 'view' : 'edit';
               handleEditOperation(row, type);
             }}
           >
