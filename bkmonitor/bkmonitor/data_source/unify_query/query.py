@@ -714,7 +714,7 @@ class UnifyQuery:
             try:
                 labels["api"] = "query_api"
                 with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
-                    data = self._query_data_using_datasource(
+                    data, _ = self._query_data_using_datasource(
                         start_time=start_time, end_time=end_time, limit=limit, offset=offset, **kwargs
                     )
             except Exception as e:
