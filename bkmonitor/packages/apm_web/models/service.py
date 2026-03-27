@@ -166,21 +166,25 @@ class ServiceBase(models.Model):
         for record in records:
             record.setdefault("bk_biz_id", bk_biz_id)
             record.setdefault("app_name", app_name)
-            record.setdefault("service_name", service_name)
             if scope == SyncScope.GLOBAL:
                 record.setdefault("is_global", True)
+            if scope != SyncScope.ALL:
+                record.setdefault("service_name", service_name)
+
             sync_key: tuple[Any] = cls._make_sync_key(record)
             incoming_keys.add(sync_key)
             if sync_key in existing_map:
                 if cls._diff_and_apply(existing_map[sync_key], record):
                     to_update.append(existing_map[sync_key])
             else:
-                to_create.append(cls(**record))
+                to_create.append(
+                    cls(**{k: v for k, v in record.items() if k in (cls.SCOPE_KEYS + cls.DIFF_KEYS + cls.DEFAULT_KEYS)})
+                )
 
         to_delete_ids: list[int] = [obj.pk for key, obj in existing_map.items() if key not in incoming_keys]
 
         # 3. 仅在有实际写操作时才获取 username
-        if to_create or to_update or to_delete_ids:
+        if to_create or to_update:
             username: str = get_request_username()
             for obj in to_create:
                 obj.created_by = obj.updated_by = username

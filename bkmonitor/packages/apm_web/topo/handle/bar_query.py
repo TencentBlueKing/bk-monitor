@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,11 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import itertools
 import json
 import urllib.parse
-from typing import Dict
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -49,7 +48,7 @@ class BarQuery(BaseQuery):
 
             raise ValueError(f"[柱状图] 不支持查询接口: {self.params['endpoint_name']} 的 {self.data_type} 数据")
 
-    def get_alert_series(self) -> Dict:
+    def get_alert_series(self) -> dict:
         ts_mapping = {AlertLevel.INFO: {}, AlertLevel.WARN: {}, AlertLevel.ERROR: {}}
         all_ts = []
         query_string = CompatibleQuery.get_alert_query_string(
@@ -122,7 +121,7 @@ class BarQuery(BaseQuery):
 
         return {"metrics": [], "series": [{"datapoints": res}]}
 
-    def get_apdex_series(self) -> Dict:
+    def get_apdex_series(self) -> dict:
         return self.get_metric(
             ApdexRange,
             interval=get_bar_interval_number(self.start_time, self.end_time),
@@ -134,21 +133,21 @@ class BarQuery(BaseQuery):
             ),
         ).query_range()
 
-    def get_error_rate_series(self) -> Dict:
+    def get_error_rate_series(self) -> dict:
         return self.get_metric(
             ServiceFlowErrorRate,
             interval=get_bar_interval_number(self.start_time, self.end_time),
             where=CompatibleQuery.list_flow_metric_wheres(mode="full", service_name=self.service_name),
         ).query_range()
 
-    def get_error_rate_caller_series(self) -> Dict:
+    def get_error_rate_caller_series(self) -> dict:
         return self.get_metric(
             ServiceFlowErrorRateCaller,
             interval=get_bar_interval_number(self.start_time, self.end_time),
             where=CompatibleQuery.list_flow_metric_wheres(mode="caller", service_name=self.service_name),
         ).query_range()
 
-    def get_error_rate_callee_series(self) -> Dict:
+    def get_error_rate_callee_series(self) -> dict:
         return self.get_metric(
             ServiceFlowErrorRateCallee,
             interval=get_bar_interval_number(self.start_time, self.end_time),
@@ -314,11 +313,7 @@ class LinkHelper:
         """获取应用的关联应用概览页跳转链接"""
 
         # 获取应用关联
-        relation = AppServiceRelation.objects.filter(
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            service_name=service_name,
-        ).first()
+        relation = AppServiceRelation.get_relations(bk_biz_id, app_name, [service_name]).first()
         if not relation:
             return None
 
