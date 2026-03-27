@@ -203,7 +203,7 @@ msgstr "Pull index mapping"
 
 #: apps/api/modules/bk_log.py:66
 msgid "查询数据DSL模式"
-msgstr "Example Query the data DSL mode"
+msgstr "Query data DSL mode"
 
 #: apps/api/modules/bk_log.py:74
 msgid "scroll滚动查询"
@@ -287,7 +287,7 @@ msgstr "GSE control platform"
 
 #: apps/api/modules/gse.py:59
 msgid "查询数据路由配置信息"
-msgstr "Example Query data route configuration information"
+msgstr "Query data route configuration information"
 
 #: apps/api/modules/gse.py:67
 msgid "查询数据入库消息队列或第三方平台的配置"
@@ -373,15 +373,15 @@ msgstr "Query the ID of a data source"
 
 #: apps/api/modules/transfer.py:201
 msgid "查询一个结果表的信息"
-msgstr "Example Query the information about a result table"
+msgstr "Query the information about a result table"
 
 #: apps/api/modules/transfer.py:209
 msgid "查询一个结果表的存储信息"
-msgstr "Example Query the storage information of a result table"
+msgstr "Query the storage information of a result table"
 
 #: apps/api/modules/transfer.py:217
 msgid "查询存储集群列表"
-msgstr "Example Query the storage cluster list"
+msgstr "Query the storage cluster list"
 
 #: apps/api/modules/transfer.py:225
 msgid "创建存储集群"
@@ -1256,7 +1256,7 @@ msgstr "Collection view"
 
 #: apps/iam/handlers/actions.py:109
 msgid "采集新建"
-msgstr "Collection new"
+msgstr "Collection create"
 
 #: apps/iam/handlers/actions.py:119
 msgid "采集管理"
@@ -2737,7 +2737,7 @@ msgstr "Modify storage configuration"
 
 #: apps/log_databus/exceptions.py:33
 msgid "采集配置模块异常"
-msgstr "The acquisition configuration module is abnormal"
+msgstr "Collection configuration module exception"
 
 #: apps/log_databus/exceptions.py:38
 msgid "采集插件模块异常"
@@ -2762,7 +2762,7 @@ msgstr "Link configuration does not exist"
 
 #: apps/log_databus/exceptions.py:60
 msgid "采集插件不存在"
-msgstr "The capture plugin does not exist"
+msgstr "Collection plugin does not exist"
 
 #: apps/log_databus/exceptions.py:65
 msgid "参数校验异常：采集项ID不存在"
@@ -3908,11 +3908,11 @@ msgstr "Data attribution service ID"
 
 #: apps/log_databus/models.py:121 apps/log_databus/models.py:610
 msgid "采集配置ID"
-msgstr "Collection ID"
+msgstr "Collection Configuration ID"
 
 #: apps/log_databus/models.py:122 apps/log_databus/models.py:420
 msgid "采集配置名称"
-msgstr "Collection Name"
+msgstr "Collection Configuration Name"
 
 #: apps/log_databus/models.py:123 apps/log_databus/models.py:668
 #: apps/log_databus/serializers.py:443 apps/log_databus/serializers.py:1559
@@ -3925,7 +3925,7 @@ msgstr "Access source APP"
 
 #: apps/log_databus/models.py:125 apps/log_search/constants.py:380
 msgid "采集场景"
-msgstr "Capture scene"
+msgstr "Collection scenario"
 
 #: apps/log_databus/models.py:127
 msgid "自定义类型"
@@ -6282,11 +6282,11 @@ msgstr "Initialize task scheduling"
 
 #: apps/log_extract/constants.py:48
 msgid "文件打包中"
-msgstr "file packaging"
+msgstr "file packaging in progress"
 
 #: apps/log_extract/constants.py:49
 msgid "文件分发中"
-msgstr "file distribution"
+msgstr "file distributing"
 
 #: apps/log_extract/constants.py:50
 msgid "分发文件打包中"
@@ -7248,7 +7248,7 @@ msgstr "business host"
 #: apps/log_measure/handlers/metric_collectors/log_databus.py:431
 #: apps/log_measure/handlers/metrics.py:261
 msgid "采集主机"
-msgstr "Acquisition host"
+msgstr "Collection host"
 
 #: apps/log_measure/handlers/metric_collectors/log_search.py:121
 #: apps/log_search/models.py:855
@@ -7876,7 +7876,7 @@ msgstr "publicly visible"
 
 #: apps/log_search/constants.py:1543
 msgid "个人收藏"
-msgstr "Personal"
+msgstr "Personal Collection"
 
 #: apps/log_search/constants.py:1544
 msgid "公共组"
@@ -10357,7 +10357,7 @@ msgstr "Time series data"
 
 #: bk_monitor/models.py:15
 msgid "监控数据源id"
-msgstr "Data ID"
+msgstr "Monitor Data Source ID"
 
 #: bk_monitor/models.py:17
 msgid "指定业务id"
@@ -10373,7 +10373,7 @@ msgstr "Data source switch"
 
 #: bk_monitor/models.py:24 bk_monitor/models.py:25
 msgid "运营数据上报配置"
-msgstr "Operator"
+msgstr "Operation Data Report Configuration"
 
 #: bk_monitor/test/bk_monitor.py:94 bk_monitor/test/bk_monitor.py:187
 msgid "数据上报时间"
@@ -10768,7 +10768,7 @@ msgstr "Log Export Configuration"
 
 #: config/default.py:767
 msgid "提取链路管理"
-msgstr "Log Export Configuration"
+msgstr "Export Link Management"
 
 #: config/default.py:782
 msgid "全链路追踪"
@@ -10800,7 +10800,7 @@ msgstr "Settings"
 
 #: config/default.py:836
 msgid "采集链路管理"
-msgstr "Log Ingestion Configuration"
+msgstr "Collection Link Management"
 
 #: config/dev.py:87 config/prod.py:86 config/stag.py:90
 msgid "日志平台"
