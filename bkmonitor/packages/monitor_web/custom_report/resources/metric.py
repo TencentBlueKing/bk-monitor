@@ -696,6 +696,7 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
             label=_("每页数量，-1 表示不分页"), default=20, min_value=-1, max_value=100000, required=False
         )
         conditions = ConditionSerializer(label=_("搜索条件"), many=True, required=False, default=list)
+        mandatory_conditions = ConditionSerializer(label=_("强制搜索条件"), many=True, required=False, default=list)
         condition_connector = serializers.ChoiceField(
             label=_("不同字段之间的连接方式"),
             choices=["and", "or"],
@@ -733,13 +734,12 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
         converter = MetricQueryConverter(time_series_group_id)
 
         conditions = params.get("conditions", [])
+        mandatory_conditions = list(params.get("mandatory_conditions") or [])
 
-        # 强制条件（不受 condition_connector 影响，始终以 AND 方式生效）
-        mandatory_conditions = []
         mandatory_conditions.extend(self.get_extra_conditions(params))
 
         # 默认排除 disabled 指标（放入强制条件）
-        has_disabled_condition = any(c["key"] == "field_config_disabled" for c in conditions)
+        has_disabled_condition = any(c["key"] == "field_config_disabled" for c in [*conditions, *mandatory_conditions])
         if not has_disabled_condition:
             mandatory_conditions.append(
                 {
