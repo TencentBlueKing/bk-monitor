@@ -142,6 +142,16 @@ class ServiceBase(models.Model):
     ) -> dict[str, Any]:
         """统一更新入口，按 DIFF_KEYS 比对存量，执行增/改/删。
 
+        records 字典结构（各子类按自身字段组合）：
+          公共字段（SCOPE_KEYS，可省略，省略时自动填充）：
+            - bk_biz_id (int): 业务 ID
+            - app_name (str): 应用名称
+            - service_name (str): 服务名称
+            - is_global (bool): 是否为全局配置
+          业务字段（DIFF_KEYS + DEFAULT_KEYS，因子类而异）
+          注：DIFF_KEYS 与 SCOPE_KEYS 共同构成唯一键用于比对；
+          其余业务字段属于 DEFAULT_KEYS，在记录已存在时按值差异进行更新。
+
         scope（SyncScope 枚举值）:
           - SyncScope.SERVICE：Q(is_global=False)，仅操作服务级记录。
           - SyncScope.GLOBAL：Q(is_global=True)，仅操作全局记录。
@@ -163,23 +173,24 @@ class ServiceBase(models.Model):
         to_create: list[ServiceBase] = []
         to_update: list[ServiceBase] = []
         incoming_keys: set[tuple[Any]] = set()
+        writable_fields: set[str] = {f.name for f in cls._meta.get_field} - {
+            "id",
+            "created_at",
+            "created_by",
+            "updated_at",
+            "updated_by",
+        }
         for record in records:
             record.setdefault("bk_biz_id", bk_biz_id)
             record.setdefault("app_name", app_name)
-            if scope == SyncScope.GLOBAL:
-                record.setdefault("is_global", True)
-            if scope != SyncScope.ALL:
-                record.setdefault("service_name", service_name)
-
             sync_key: tuple[Any] = cls._make_sync_key(record)
             incoming_keys.add(sync_key)
             if sync_key in existing_map:
-                if cls._diff_and_apply(existing_map[sync_key], record):
-                    to_update.append(existing_map[sync_key])
+                exist_obj: ServiceBase = existing_map[sync_key]
+                if cls._diff_and_apply(exist_obj, record):
+                    to_update.append(exist_obj)
             else:
-                to_create.append(
-                    cls(**{k: v for k, v in record.items() if k in (cls.SCOPE_KEYS + cls.DIFF_KEYS + cls.DEFAULT_KEYS)})
-                )
+                to_create.append(cls(**{k: v for k, v in record.items() if k in writable_fields}))
 
         to_delete_ids: list[int] = [obj.pk for key, obj in existing_map.items() if key not in incoming_keys]
 
