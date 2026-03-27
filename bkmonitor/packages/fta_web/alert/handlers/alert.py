@@ -1340,6 +1340,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             NoticeWay.WX_BOT: _lazy("企业微信机器人"),
         }
         notice_way_count = defaultdict(int)
+        alert_notice_ways = {}
 
         try:
             if not alert_ids:
@@ -1371,7 +1372,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         return {
             "id": "notice_way",
             "name": _("通知类型"),
-            "count": sum(notice_way_count.values()),
+            "count": len(alert_notice_ways),
             "children": [
                 {
                     "id": way_key,
