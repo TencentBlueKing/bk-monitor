@@ -181,6 +181,21 @@ class TGPAFileHandler:
                 log_entry.update(self.meta_fields)
                 output_file.write(f"{ujson.dumps(log_entry, ensure_ascii=False)}\n")
 
+    @staticmethod
+    def _safe_extractall(zip_ref: zipfile.ZipFile, extract_dir):
+        """
+        解压文件，如果存在恶意路径则跳过该文件并记录警告。
+        :param zip_ref: 已打开的 ZipFile 对象
+        :param extract_dir: 解压目标目录
+        """
+        extract_dir = os.path.realpath(str(extract_dir))
+        for member in zip_ref.namelist():
+            member_path = os.path.realpath(os.path.join(extract_dir, member))
+            if not member_path.startswith(extract_dir + os.sep) and member_path != extract_dir:
+                logger.warning("Skipping suspicious zip member (path traversal risk): %s", member)
+                continue
+            zip_ref.extract(member, extract_dir)
+
     @classmethod
     def extract_nested_zip(cls, extract_dir):
         """
@@ -200,8 +215,7 @@ class TGPAFileHandler:
                         # 第一层压缩包直接解压到所在目录（第一层只有一个压缩包，即下载下来的压缩包）
                         extract_target = zip_file.parent
                     else:
-                        # 嵌套的子压缩包解压到以zip文件名命名的子目录，避免同名文件覆盖
-                        # 如果同名路径已存在，循环添加递增后缀避免冲突
+                        # 避免同名文件覆盖
                         extract_target = zip_file.parent / zip_file.stem
                         suffix_count = 1
                         while extract_target.exists():
@@ -209,7 +223,7 @@ class TGPAFileHandler:
                             suffix_count += 1
                         extract_target.mkdir(exist_ok=True)
                     with zipfile.ZipFile(zip_file, "r") as zip_ref:
-                        zip_ref.extractall(extract_target)
+                        cls._safe_extractall(zip_ref, extract_target)
                     os.remove(zip_file)
                 except Exception as e:
                     logger.exception("Failed to extract zip file %s: %s", zip_file, e)
