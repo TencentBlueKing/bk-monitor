@@ -87,13 +87,13 @@ export default defineComponent({
     currentPageChange: (currentPage: number) => typeof currentPage === 'number',
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
-    selectionChange: (selectedRowKeys: string[], options?: SelectOptions<any>) =>
-      Array.isArray(selectedRowKeys) && options,
-    showDetail: (item: IssueItem) => item,
+    selectionChange: (selectedRowKeys: string[], options: SelectOptions<any>) =>
+      Array.isArray(selectedRowKeys) && !!options,
+    showDetail: (item: IssueItem) => !!item,
     assignClick: (id: IssueItem['id'], data: IssueItem) => typeof id === 'string' && !!data,
     markResolved: (id: string) => typeof id === 'string',
     priorityChange: (id: string, priority: IssuePriorityType) => typeof id === 'string' && !!priority,
-    impactScopeClick: (event: ImpactScopeEvent) => event,
+    impactScopeClick: (event: ImpactScopeEvent) => !!event,
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
