@@ -67,7 +67,7 @@
           :index-set-data="collectorData"
           :index-set-id="collectorData.index_set_id"
           :is="dynamicComponent"
-          :is-show-edit-btn="!['bkdata', 'es'].includes($route.query.typeKey)"
+          :is-show-edit-btn="!['bkdata', 'es', 'custom_report'].includes($route.query.typeKey)"
           @update-active-panel="activePanel = $event"
         ></component>
       </keep-alive>
