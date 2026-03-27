@@ -525,7 +525,7 @@ msgstr "UNIFYQUERY module"
 
 #: apps/api/modules/wework.py:29
 msgid "Wework企业微信"
-msgstr "WeworkEnterprise微信"
+msgstr "Wework Enterprise WeCom"
 
 #: apps/bk_log_admin/constants.py:41
 msgid "大于30 s"
@@ -817,7 +817,7 @@ msgstr "group name"
 
 #: apps/esb/views.py:65
 msgid "日志平台咨询群已创建，请@群里咨询"
-msgstr "The log platform consulting group has been created, please @集里咨询"
+msgstr "The log platform consulting group has been created, please @ the group for consultation"
 
 #: apps/exceptions.py:55
 msgid "系统异常"
