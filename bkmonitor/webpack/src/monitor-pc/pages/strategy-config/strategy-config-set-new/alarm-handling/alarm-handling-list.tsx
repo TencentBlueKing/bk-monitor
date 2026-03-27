@@ -32,7 +32,7 @@ import IssueAgg from './issue-agg';
 import SimpleSelect from './simple-select';
 
 import type { IGroupItem } from '../components/group-select';
-import type { ICommonItem } from '../typings/index';
+import type { MetricDetail } from '../typings/index';
 
 import './alarm-handling-list.scss';
 
@@ -62,9 +62,8 @@ interface IEvents {
 interface IProps {
   allAction?: IGroupItem[]; // 套餐列表
   allDefense?: IAllDefense[]; // 防御动作列表
-  /** 可用维度列表 */
-  dimensions?: ICommonItem[];
   isSimple?: boolean; // 简易模式（无预览, 无回填）
+  metricData?: MetricDetail[];
   readonly?: boolean;
   strategyId?: number | string;
   value?: IAlarmItem[];
@@ -94,7 +93,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   @Prop({ default: '', type: [Number, String] }) strategyId: number;
   @Prop({ default: false, type: Boolean }) isSimple: boolean;
-  @Prop({ type: Array, default: () => [] }) dimensions: ICommonItem[];
+  @Prop({ type: Array, default: () => [] }) metricData: MetricDetail[];
 
   data: IAlarmItem[] = [];
   addValue = [];
@@ -280,7 +279,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
               ) : (
                 <IssueAgg
                   class='alarm-handling-item'
-                  dimensions={this.dimensions}
+                  metricData={this.metricData}
                   readonly={this.readonly}
                 />
               )}
