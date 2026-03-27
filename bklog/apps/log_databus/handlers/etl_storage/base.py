@@ -1049,7 +1049,7 @@ class EtlStorage:
             "table_name_zh": instance.get_name(),
             "is_custom_table": True,
             "schema_type": "free",
-            "default_storage": "elasticsearch",
+            "default_storage": storage_cluster_type,
             "default_storage_config": {
                 "cluster_id": storage_cluster_id,
                 "storage_cluster_id": storage_cluster_id,
@@ -1087,7 +1087,10 @@ class EtlStorage:
         except ApiResultError:
             pass
 
-        if not table_id and FeatureToggleObject.switch("log_v4_data_link", instance.get_bk_biz_id()):
+        if not table_id and (
+            storage_cluster_type == DORIS_CLUSTER_TYPE
+            or FeatureToggleObject.switch("log_v4_data_link", instance.get_bk_biz_id())
+        ):
             if hasattr(instance, "enable_v4"):
                 instance.enable_v4 = True
                 instance.save()
@@ -1543,6 +1546,7 @@ class EtlStorage:
         index_settings: dict = None,
         total_shards_per_node: int = None,
         retention: int = 180,
+        storage_cluster_type=STORAGE_CLUSTER_TYPE,
     ):
         """
         创建或更新 Pattern 结果表
@@ -1557,6 +1561,7 @@ class EtlStorage:
         :param es_shards: es分片数
         :param index_settings: 索引配置
         :param total_shards_per_node: 每个节点的分片总数
+        :param storage_cluster_type 存储集群类型
         """
 
         # ES 配置
@@ -1594,7 +1599,7 @@ class EtlStorage:
             "table_name_zh": f"{instance.get_name()}_Pattern",
             "is_custom_table": True,
             "schema_type": "free",
-            "default_storage": "elasticsearch",
+            "default_storage": storage_cluster_type,
             "default_storage_config": {
                 "cluster_id": storage_cluster_id,
                 "storage_cluster_id": storage_cluster_id,
