@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import logging
 import os
 import shutil
 import uuid
@@ -27,6 +28,9 @@ from monitor_web.plugin.manager.base import PluginManager
 from monitor_web.plugin.serializers import DataDogSerializer
 
 
+logger = logging.getLogger(__name__)
+
+
 class DataDogPluginManager(PluginManager):
     """
     Datadog 插件
@@ -35,13 +39,32 @@ class DataDogPluginManager(PluginManager):
     serializer_class = DataDogSerializer
     templates_dirname = "datadog_templates"
 
+    @staticmethod
+    def _safe_extractall(zip_ref: zipfile.ZipFile, extract_dir: str) -> None:
+        """
+        安全解压 zip 文件，逐一校验成员路径，跳过含路径穿越风险（如 ../）的条目。
+
+        Args:
+            zip_ref: 已打开的 ZipFile 对象
+            extract_dir: 解压目标目录（绝对路径）
+        """
+        # 转化为真实绝对路径
+        extract_dir = os.path.realpath(extract_dir)
+        for member in zip_ref.namelist():
+            member_path = os.path.realpath(os.path.join(extract_dir, member))
+            # 判断解压真实路径是否在 extract_dir 内
+            if not member_path.startswith(extract_dir + os.sep) and member_path != extract_dir:
+                logger.warning("Skipping zip member with path traversal risk: %s", member)
+                continue
+            zip_ref.extract(member, extract_dir)
+
     def fetch_lib_dirs(self):
         file_dict = {}
         for os_type, exporter_info in list(self.version.config.file_config.items()):
             file_instance = PluginFileManager(exporter_info["file_id"])
             extract_dir = os.path.join(self.tmp_path, os_type, "lib")
             with zipfile.ZipFile(file_instance.file_obj.file_data.file, "r") as zip_ref:
-                zip_ref.extractall(extract_dir)
+                self._safe_extractall(zip_ref, extract_dir)
             file_dict[os_type] = [{"dir_name": "lib", "dir_path": extract_dir}]
         return file_dict
 
