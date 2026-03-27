@@ -45,7 +45,7 @@ class RPCSystemDiscoverer(BaseSystemDiscoverer):
 
     def _get_related_data(self, service_name: str) -> Any:
         system: dict[str, Any] = self._entity_set.get_system(service_name)
-        if not apm_constants.Vendor.is_support_call_analysis(system.get("name")):
+        if not system.get("is_support_call_analysis"):
             return None
         return system
 

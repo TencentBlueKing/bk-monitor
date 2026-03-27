@@ -677,26 +677,14 @@ class ServiceHandler:
         if not systems:
             return {}
 
-        # 获取框架信息，当存在多个时，优先获取 RPC 框架（如 tars、trpc 等）。
-        # 此处暂不考虑一个服务多个框架的场景，目前没有
-        system_name: str | None = None
-        fallback_name: str | None = None
-
+        name: str = ""
+        rpc_system: str = ""
         for meta in systems:
-            name: str | None = meta.get("name")
-            extra_data: dict[str, Any] = meta.get("extra_data") or {}
-            rpc_system: str | None = extra_data.get("rpc_system")
-
-            if name == metric_group.GroupEnum.TRPC or rpc_system:
-                system_name = rpc_system or name
+            name = meta.get("name") or ""
+            rpc_system = (meta.get("extra_data") or {}).get("rpc_system", "")
+            if rpc_system and name == metric_group.GroupEnum.TRPC:
+                name = metric_group.GroupEnum.TRPC
                 break
-
-            if fallback_name is None and name:
-                fallback_name = name
-
-        system_name = system_name or fallback_name
-        if not system_name:
-            return {}
 
         sdk_name: str | None = None
         for item in node.get("sdk") or []:
@@ -705,7 +693,14 @@ class ServiceHandler:
                 break
 
         temporality: str = (MetricTemporality.CUMULATIVE, MetricTemporality.DELTA)[
-            Vendor.has_sdk(node.get("sdk"), Vendor.G) or system_name == "tars"
+            Vendor.has_sdk(node.get("sdk"), Vendor.G) or rpc_system == "tars"
         ]
 
-        return {"name": system_name, "sdk": sdk_name or "", "temporality": temporality}
+        return {
+            # 目前仅考虑单服务框架的情况，如果后续有多服务框架的需求再调整数据结构。
+            "name": name,
+            "rpc_system": rpc_system,
+            "is_support_call_analysis": name == metric_group.GroupEnum.TRPC,
+            "sdk": sdk_name or "",
+            "temporality": temporality,
+        }

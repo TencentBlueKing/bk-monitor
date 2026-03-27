@@ -1959,11 +1959,6 @@ class MetricTemporality:
 
 class Vendor:
     G = "Z2FsaWxlbw=="
-    CALL_ANALYSIS_SYSTEMS: set[str] = {"trpc", "tars"}
-
-    @classmethod
-    def is_support_call_analysis(cls, system_name: str | None) -> bool:
-        return system_name in cls.CALL_ANALYSIS_SYSTEMS
 
     @classmethod
     def equal(cls, e, v):
