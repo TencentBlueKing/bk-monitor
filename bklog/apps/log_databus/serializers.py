@@ -1583,7 +1583,7 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
                     )
                 )
             storage_cluster_info = result[0]
-            storage_cluster_type = storage_cluster_info.get("cluster_type", STORAGE_CLUSTER_TYPE)
+            storage_cluster_type = storage_cluster_info.get("cluster_type") or STORAGE_CLUSTER_TYPE
             # es 集群效验配置, doris 集群则跳过
             if storage_cluster_type == STORAGE_CLUSTER_TYPE:
                 if "retention" not in keys:
