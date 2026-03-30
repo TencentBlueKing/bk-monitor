@@ -494,6 +494,7 @@ export default class CustomGroupingList extends tsc<IProps, IEmits> {
         <EditGroupDialog
           ref='editGroupDialogRef'
           groupInfo={this.currentGroupInfo}
+          defaultGroupInfo={this.defaultGroupInfo}
           isEdit={this.isEdit}
           isShow={this.showAddGroupDialog}
           nameList={this.groupNameList}

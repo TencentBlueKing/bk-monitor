@@ -50,6 +50,8 @@ interface IProps {
   isShow: boolean;
   /** 分组名称列表，用于校验重名 */
   nameList: string[];
+  /** 默认分组信息 */
+  defaultGroupInfo: { id: number; name: string };
 }
 
 /**
@@ -66,6 +68,8 @@ export default class AddGroupDialog extends tsc<IProps, IEmits> {
   @Prop({ default: () => ({}) }) groupInfo: IProps['groupInfo'];
   /** 分组名称列表，用于校验重名 */
   @Prop({ default: () => [] }) nameList: IProps['nameList'];
+  /** 默认分组信息 */
+  @Prop({ default: () => {} }) defaultGroupInfo: IProps['defaultGroupInfo'];
 
   /** 表单组件引用 */
   @Ref('groupRef') readonly groupRef!: HTMLFormElement;
@@ -270,6 +274,7 @@ export default class AddGroupDialog extends tsc<IProps, IEmits> {
             <bk-form-item label={this.$t('选择指标')}>
               <IndicatorSelector
                 ref='indicatorSelectorRef'
+                defaultGroupInfo={this.defaultGroupInfo}
                 groupInfo={this.localGroupInfo}
                 isEdit={this.isEdit}
               />

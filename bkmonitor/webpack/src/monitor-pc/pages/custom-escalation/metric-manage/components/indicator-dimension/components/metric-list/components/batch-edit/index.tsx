@@ -149,28 +149,33 @@ export default class BatchEdit extends tsc<IProps> {
     isLoading: false,
   };
   /** 指标筛选条件对象 */
-  metricSearchObj: ServiceParameters<typeof this.requestHandlerMap.getCustomTsFields>['conditions'] = {
-    name: {
+  metricSearchObj: ServiceParameters<typeof this.requestHandlerMap.getCustomTsFields>['conditions'] = [
+    {
+      key: 'name',
       values: [],
       search_type: 'fuzzy',
     },
-    field_config_alias: {
+    {
+      key: 'field_config_alias',
       values: [],
       search_type: 'fuzzy',
     },
-    field_config_unit: {
+    {
+      key: 'field_config_unit',
       values: [],
       search_type: 'exact',
     },
-    field_config_aggregate_method: {
+    {
+      key: 'field_config_aggregate_method',
       values: [],
       search_type: 'exact',
     },
-    field_config_hidden: {
+    {
+      key: 'field_config_hidden',
       values: [],
       search_type: 'exact',
     },
-  };
+  ];
   /** 待删除的行数据列表 */
   delArray: Partial<ICustomTsFields['list'][number] & { scope?: { id: number; name: string } }>[] = [];
   /** 表格列配置 */
@@ -336,39 +341,57 @@ export default class BatchEdit extends tsc<IProps> {
     this.showTableData = [];
     this.search = list;
     const searchKeyMap = {
-      name: 'name',
-      alias: 'field_config_alias',
-      unit: 'field_config_unit',
-      aggregate: 'field_config_aggregate_method',
-      show: 'field_config_hidden',
-    };
-    const searchParam: typeof this.metricSearchObj = {
       name: {
-        values: [],
-        search_type: 'fuzzy',
+        key: 'name',
+        index: 0,
       },
-      field_config_alias: {
-        values: [],
-        search_type: 'fuzzy',
+      alias: {
+        key: 'field_config_alias',
+        index: 1,
       },
-      field_config_unit: {
-        values: [],
-        search_type: 'exact',
+      unit: {
+        key: 'field_config_unit',
+        index: 2,
       },
-      field_config_aggregate_method: {
-        values: [],
-        search_type: 'exact',
+      aggregate: {
+        key: 'field_config_aggregate_method',
+        index: 3,
       },
-      field_config_hidden: {
-        values: [],
-        search_type: 'exact',
+      show: {
+        key: 'field_config_hidden',
+        index: 4,
       },
     };
-
+    const searchParam: typeof this.metricSearchObj = [
+      {
+        key: 'name',
+        values: [],
+        search_type: 'fuzzy',
+      },
+      {
+        key: 'field_config_alias',
+        values: [],
+        search_type: 'fuzzy',
+      },
+      {
+        key: 'field_config_unit',
+        values: [],
+        search_type: 'exact',
+      },
+      {
+        key: 'field_config_aggregate_method',
+        values: [],
+        search_type: 'exact',
+      },
+      {
+        key: 'field_config_hidden',
+        values: [],
+        search_type: 'exact',
+      },
+    ];
     for (const item of list) {
-      searchParam[searchKeyMap[item.id]].values.push(...item.values.map(v => v.id));
+      searchParam[searchKeyMap[item.id].index].values.push(...item.values.map(v => v.id));
     }
-
     this.metricSearchObj = searchParam;
     this.handleGetCustomTsFields();
   }
@@ -381,13 +404,14 @@ export default class BatchEdit extends tsc<IProps> {
       time_series_group_id: this.timeSeriesGroupId,
       page: this.pagination.page,
       page_size: this.pagination.pageSize,
-      conditions: {
-        ...(this.selectedGroupInfo.id === -1 ? {} : { scope_id: {
+      conditions: [
+        ...(this.selectedGroupInfo.id === -1 ? [] : [{
+          key: 'scope_id',
           values: [this.selectedGroupInfo.id],
           search_type: 'exact' as const,
-        } }),
+        }]),
         ...this.metricSearchObj,
-      },
+      ],
     };
     if (this.isAPM) {
       delete params.time_series_group_id;
