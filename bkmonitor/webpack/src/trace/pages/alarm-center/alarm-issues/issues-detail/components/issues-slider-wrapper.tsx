@@ -62,8 +62,8 @@ export default defineComponent({
       type: Object as PropType<IssueDetail>,
       default: () => ({}),
     },
-    /** 告警ID */
-    alarmId: {
+    /** Issue ID */
+    issueId: {
       type: String,
       default: '',
     },
@@ -175,8 +175,19 @@ export default defineComponent({
     const getPanelComponent = () => {
       switch (currentTab.value) {
         case IssueDetailTabEnum.LATEST:
+          return (
+            <IssuesDetailAlarmPanel
+              key={props.detail?.latest_alert_id}
+              alarmId={tempAlertId.value || ''}
+            />
+          );
         case IssueDetailTabEnum.EARLIEST:
-          return <IssuesDetailAlarmPanel alarmId={props.alarmId || tempAlertId.value} />;
+          return (
+            <IssuesDetailAlarmPanel
+              key={props.detail?.earliest_alert_id}
+              alarmId={tempAlertId.value || ''}
+            />
+          );
         case IssueDetailTabEnum.LIST:
           return (
             <IssuesDetailAlarmTable

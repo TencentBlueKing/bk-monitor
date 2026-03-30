@@ -26,10 +26,12 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getVariableValue } from 'monitor-api/modules/grafana';
 import { NEW_NUMBER_CONDITION_METHOD_LIST, NEW_STRING_CONDITION_METHOD_LIST } from 'monitor-pc/constant/constant';
 
 import UiSelector from '../../../../components/retrieval-filter/ui-selector';
 import {
+  type EMethod,
   type IFilterField,
   type IFilterItem,
   type IGetValueFnParams,
@@ -38,7 +40,7 @@ import {
 } from '../../../../components/retrieval-filter/utils';
 import CommonItem from '../components/common-form-item';
 
-import type { ICommonItem } from '../typings/index';
+import type { ICommonItem, MetricDetail } from '../typings/index';
 
 import './issue-agg.scss';
 
@@ -63,7 +65,7 @@ interface IEvents {
 }
 
 interface IProps {
-  dimensions?: ICommonItem[];
+  metricData?: MetricDetail[];
   readonly?: boolean;
   value?: IIssueAggValue;
 }
@@ -72,8 +74,8 @@ interface IProps {
   name: 'IssueAgg',
 })
 export default class IssueAgg extends tsc<IProps, IEvents> {
-  @Prop({ type: Array, default: () => [] }) dimensions: ICommonItem[];
   @Prop({ type: Boolean, default: false }) readonly: boolean;
+  @Prop({ type: Array, default: () => [] }) metricData: MetricDetail[];
   @Prop({
     type: Object,
     default: () => ({
@@ -89,6 +91,38 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
     conditions: [],
     levels: [1, 2, 3],
   };
+
+  /** 维度值缓存 */
+  dimensionValueCache: Record<string, { id: string; name: string }[]> = {};
+
+  get dimensions(): ICommonItem[] {
+    // 过滤出有聚合维度的指标
+    const metricsWithAggDim = this.metricData.filter(m => m.agg_dimension?.length > 0);
+
+    // 如果没有指标有维度，返回空数组
+    if (metricsWithAggDim.length === 0) return [];
+
+    // 如果只有一个指标有维度，返回那个指标的已选维度列表
+    if (metricsWithAggDim.length === 1) {
+      const metric = metricsWithAggDim[0];
+      return metric.dimensions?.filter(d => metric.agg_dimension.includes(d.id as string)) || [];
+    }
+
+    // 多指标情况，取交集
+    // 获取所有指标的 agg_dimension 的交集
+    const firstAggDim = metricsWithAggDim[0].agg_dimension;
+    const intersectionIds = metricsWithAggDim.reduce(
+      (acc, metric) => {
+        const ids = new Set(metric.agg_dimension);
+        return acc.filter(id => ids.has(id));
+      },
+      [...firstAggDim]
+    );
+
+    // 根据交集 ID 返回对应的维度信息（使用第一个指标的 dimensions 获取维度详情）
+    const firstMetric = metricsWithAggDim[0];
+    return firstMetric.dimensions?.filter(d => intersectionIds.includes(d.id as string)) || [];
+  }
 
   @Watch('value', { immediate: true, deep: true })
   handleValueChange(val: IIssueAggValue) {
@@ -122,29 +156,80 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
   /** 获取维度字段列表（用于条件选择器） */
   get filterFields(): IFilterField[] {
     return this.dimensions.map(item => ({
-      alias: item.name,
+      alias: String(item.name),
       is_option_enabled: true,
-      name: item.id,
+      name: String(item.id),
       type: EFieldType.keyword,
       supported_operations: (item?.type === 'number'
         ? NEW_NUMBER_CONDITION_METHOD_LIST
         : NEW_STRING_CONDITION_METHOD_LIST
-      ).map(m => {
-        return {
-          alias: m.name,
-          value: m.id,
-        };
-      }),
+      ).map(m => ({
+        alias: m.name,
+        value: m.id as EMethod,
+      })),
     }));
   }
 
-  /** 获取维度值的方法（需要根据实际情况实现） */
-  getValueFn(_params: IGetValueFnParams): Promise<IWhereValueOptionsItem> {
-    // TODO: 实现获取维度值的逻辑
-    return Promise.resolve({
-      count: 0,
-      list: [],
-    });
+  /** 获取维度值的方法 */
+  async getValueFn(params: IGetValueFnParams): Promise<IWhereValueOptionsItem> {
+    const field = params.fields?.[0];
+    if (!field) {
+      return { count: 0, list: [] };
+    }
+
+    // 检查缓存是否存在
+    if (this.dimensionValueCache[field]) {
+      // 使用前端搜索过滤
+      const searchValue = params.where?.[0]?.value?.[0] as string;
+      const cachedList = this.dimensionValueCache[field];
+      if (searchValue) {
+        const filteredList = cachedList.filter(
+          item =>
+            item.name?.toLowerCase().includes(searchValue.toLowerCase()) ||
+            item.id?.toLowerCase().includes(searchValue.toLowerCase())
+        );
+        return { count: filteredList.length, list: filteredList };
+      }
+      return { count: cachedList.length, list: cachedList };
+    }
+
+    // 获取第一个有维度的指标的元数据
+    const metricWithAggDim = this.metricData.find(m => m.agg_dimension?.length > 0);
+    if (!metricWithAggDim) {
+      return { count: 0, list: [] };
+    }
+
+    const { data_source_label, metric_field, data_type_label, result_table_id, index_set_id } = metricWithAggDim;
+    if (!data_source_label || !metric_field || !data_type_label) {
+      return { count: 0, list: [] };
+    }
+
+    const requestParams = {
+      bk_biz_id: this.$store.getters.bizId,
+      type: 'dimension',
+      params: {
+        data_source_label,
+        data_type_label,
+        field,
+        metric_field,
+        result_table_id: result_table_id || '',
+        where: [],
+        ...(data_source_label === 'bk_log_search' ? { index_set_id } : {}),
+      },
+    };
+
+    try {
+      const { data } = await getVariableValue(requestParams, { needRes: true });
+      const result = Array.isArray(data) ? data.map(item => ({ id: item.value, name: item.label })) : [];
+      // 缓存结果
+      this.dimensionValueCache[field] = result;
+      return {
+        count: result.length,
+        list: result,
+      };
+    } catch {
+      return { count: 0, list: [] };
+    }
   }
 
   render() {
@@ -152,7 +237,7 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
       <div class='issue-agg-container'>
         <CommonItem
           title={this.$t('聚合维度')}
-          required
+          isRequired
         >
           <bk-select
             class='dimension-select'
@@ -160,6 +245,7 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
             behavior='simplicity'
             disabled={this.readonly}
             placeholder={this.$t('请选择聚合维度')}
+            size='small'
             display-tag
             multiple
             searchable
@@ -192,13 +278,19 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
             addBtnAlign={'right'}
             fields={this.filterFields}
             getValueFn={this.getValueFn}
+            hasConditionChange={true}
             hasInput={false}
+            kvTagHasHideBtn={false}
             value={this.localValue.conditions}
             onChange={this.handleConditionsChange}
           />
         </CommonItem>
-        <CommonItem title={this.$t('生效告警级别')}>
+        <CommonItem
+          title={this.$t('生效告警级别')}
+          isRequired
+        >
           <bk-checkbox-group
+            class='levels-checkbox'
             v-model={this.localValue.levels}
             onChange={this.handleLevelsChange}
           >
