@@ -140,6 +140,7 @@ module.exports = async (baseConfig, { production, app }) => {
         '@api': path.resolve('./src/monitor-api/'),
         '@static': path.resolve('./src/monitor-static/'),
         '@common': path.resolve('./src/monitor-common/'),
+        'monitor-alarm-center': path.resolve(__dirname, './monitor-alarm-center/index.js'),
         ...vueAlias,
       },
     },
