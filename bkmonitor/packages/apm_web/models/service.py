@@ -150,7 +150,7 @@ class ServiceBase(models.Model):
         to_create: list[ServiceBase] = []
         to_update: list[ServiceBase] = []
         incoming_keys: set[tuple[Any]] = set()
-        writable_fields: set[str] = {f.name for f in cls._meta.get_field} - {
+        writable_fields: set[str] = {f.name for f in cls._meta.get_fields()} - {
             "id",
             "created_at",
             "created_by",
