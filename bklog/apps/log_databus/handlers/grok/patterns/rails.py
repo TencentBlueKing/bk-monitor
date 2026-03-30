@@ -24,7 +24,7 @@ PATTERNS = [
     },
     {
         "name": "RPROCESSING",
-        "pattern": r"\W*Processing by %{RCONTROLLER} as (?P<format>\S+)(?:\W*Parameters: {%{DATA:params}}\W*)?",
+        "pattern": r"\W*Processing by %{RCONTROLLER} as (?P<format>\S+)(?:\W*Parameters: \{%{DATA:params}\}\W*)?",
         "sample": "  Processing by UsersController#show as JSON",
         "description": "匹配 Rails 请求处理日志，包含控制器、动作和格式信息",
     },
