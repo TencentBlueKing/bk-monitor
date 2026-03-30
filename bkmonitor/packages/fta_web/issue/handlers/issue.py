@@ -9,8 +9,10 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import operator
 import time
 
+from functools import reduce
 from typing import Any
 
 from elasticsearch_dsl import Q, Search
@@ -120,9 +122,8 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 Q("range", resolved_time={"gte": start_time}) | ~Q("exists", field="resolved_time")
             )
 
-        # 业务过滤
-        if self.authorized_bizs:
-            search_object = search_object.filter("terms", bk_biz_id=[str(b) for b in self.authorized_bizs])
+        # 业务权限过滤
+        search_object = self.add_biz_condition(search_object)
 
         # 状态过滤（含虚拟状态）
         if self.status:
@@ -139,6 +140,27 @@ class IssueQueryHandler(BaseBizQueryHandler):
                     combined = combined | q
                 search_object = search_object.filter(combined)
 
+        return search_object
+
+    def add_biz_condition(self, search_object):
+        """业务权限过滤"""
+        queries = []
+        if self.authorized_bizs is not None and self.bk_biz_ids:
+            # 有权限的业务直接过滤
+            queries.append(Q("terms", bk_biz_id=[str(b) for b in self.authorized_bizs]))
+
+        user_condition = Q("term", assignee=self.request_username)
+
+        if not self.bk_biz_ids:
+            # 不带业务信息时，只查与当前用户相关的 Issue
+            queries.append(user_condition)
+
+        if self.unauthorized_bizs and self.request_username:
+            # 无权限的业务，需要同时是负责人才能看到
+            queries.append(Q("terms", bk_biz_id=[str(b) for b in self.unauthorized_bizs]) & user_condition)
+
+        if queries:
+            return search_object.filter(reduce(operator.or_, queries))
         return search_object
 
     def search_raw(self, show_aggs: bool = False, show_dsl: bool = False) -> tuple[Response, dict | None]:
