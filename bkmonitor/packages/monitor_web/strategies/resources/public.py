@@ -349,7 +349,7 @@ class FetchItemStatus(Resource):
 
     @staticmethod
     def _filter_strategy_ids_by_labels(
-        bk_biz_id: int, labels: list[str], candidate_ids: set[int] | None = None
+        bk_biz_id: int, labels: list[str], strategy_ids: set[int] | None = None
     ) -> set[int]:
         """按标签过滤策略 ID（AND 语义）。
 
@@ -357,32 +357,33 @@ class FetchItemStatus(Resource):
 
         :param bk_biz_id: 业务 ID
         :param labels: 原始标签列表
-        :param candidate_ids: 候选策略 ID 集合，为 None 时不限制范围
+        :param strategy_ids: 策略 ID 集合，为 None 时不限制范围
         """
         if not labels:
             return set()
 
         formatted_labels: list[str] = [StrategyLabelResource.gen_label_name(label) for label in labels]
         queryset = StrategyLabel.objects.filter(bk_biz_id=bk_biz_id, label_name__in=formatted_labels)
-        if candidate_ids is not None:
-            queryset = queryset.filter(strategy_id__in=candidate_ids)
+        if strategy_ids is not None:
+            queryset = queryset.filter(strategy_id__in=strategy_ids)
 
-        # 按标签分组策略 ID，再取交集确保策略同时关联所有标签
+        # 必须给定初始值（包含所有 label），避免仅存在部分的场景误判为存在全部标签的策略。
         strategy_ids_by_label: dict[str, set[int]] = {label: set() for label in formatted_labels}
         for strategy_id, label_name in queryset.values_list("strategy_id", "label_name"):
             strategy_ids_by_label[label_name].add(strategy_id)
 
+        # 取交集，确保策略同时关联所有标签
         return set.intersection(*strategy_ids_by_label.values())
 
     @classmethod
     def get_strategy_numbers(cls, bk_biz_id: int, metric_ids: list[str], labels: list[str]) -> dict[str, list[int]]:
         """获取关联的告警策略"""
         if not metric_ids:
-            return cls._get_strategy_ids_by_labels(bk_biz_id, labels)
+            return cls._get_strategy_numbers_by_labels(bk_biz_id, labels)
         return cls._get_strategy_numbers_by_metric_ids(bk_biz_id, metric_ids, labels)
 
     @classmethod
-    def _get_strategy_ids_by_labels(cls, bk_biz_id: int, labels: list[str]) -> dict[str, list[int]]:
+    def _get_strategy_numbers_by_labels(cls, bk_biz_id: int, labels: list[str]) -> dict[str, list[int]]:
         """基于标签获取关联策略 ID。
 
         直接通过 bk_biz_id 和 label_name 查询 StrategyLabel
@@ -420,7 +421,7 @@ class FetchItemStatus(Resource):
             return strategy_numbers
 
         # 找到配置所有 labels 的策略 ID
-        strategy_ids = cls._filter_strategy_ids_by_labels(bk_biz_id, labels, candidate_ids=strategy_ids)
+        strategy_ids = cls._filter_strategy_ids_by_labels(bk_biz_id, labels, strategy_ids=strategy_ids)
         if not strategy_ids:
             # 没有任何策略包含这些标签，直接返回空结果。
             return {}
@@ -461,8 +462,11 @@ class FetchItemStatus(Resource):
         for metric_id, strategy_id_list in strategy_numbers.items():
             alert_number: int = sum(strategy_alert_num.get(sid, 0) for sid in strategy_id_list)
             alert_status[metric_id] = {
+                # status: 1（配置了策略）；2（告警中）
                 "status": 2 if alert_number > 0 else 1,
+                # 告警数
                 "alert_number": alert_number,
+                # 已设置的告警数
                 "strategy_number": len(strategy_id_list),
             }
 
