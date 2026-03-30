@@ -352,16 +352,22 @@ class IssueQueryHandler(BaseBizQueryHandler):
         # 从本页 Issue 中提取告警时间边界
         first_alert_times = [issue["first_alert_time"] for issue in issues if issue.get("first_alert_time")]
         last_alert_times = [issue["last_alert_time"] for issue in issues if issue.get("last_alert_time")]
-        if not first_alert_times or not last_alert_times:
-            for issue in issues:
-                issue["trend"] = []
-                issue["alert_count"] = 0
-                issue["anomaly_message"] = "--"
-            return
 
         start_time = int(min(first_alert_times))
         end_time = int(max(last_alert_times))
         interval = self.calculate_agg_interval(start_time, end_time)
+
+        # 用请求参数一次性生成默认零值时间序列，无需在每个分片中重复计算
+        aligned_start = start_time // interval * interval
+        aligned_end = end_time // interval * interval + interval
+        default_time_series = [[ts * 1000, 0] for ts in range(aligned_start, aligned_end, interval)]
+
+        if not first_alert_times or not last_alert_times:
+            for issue in issues:
+                issue["trend"] = list(default_time_series)
+                issue["alert_count"] = 0
+                issue["anomaly_message"] = "--"
+            return
 
         # 复用 AlertDateHistogramResultResource + 时间分片并行查询
         try:
@@ -387,8 +393,12 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
         # 合并各时间分片的结果
         merged = {}
+
         for result in results:
             for dimension_tuple, status_series in result.items():
+                if dimension_tuple == "default_time_series":
+                    continue
+
                 issue_id = None
                 for key, value in dimension_tuple:
                     if key == "issue_id":
@@ -408,17 +418,17 @@ class IssueQueryHandler(BaseBizQueryHandler):
             issue_id = issue["id"]
             if issue_id in merged:
                 series = merged[issue_id]
-                all_timestamps = sorted(series.keys())
                 trend_data = []
                 total_count = 0
-                for ts in all_timestamps:
-                    count = series[ts]
-                    trend_data.append([ts, count])
-                    total_count += count
+
+                for ts, value in series.items():
+                    trend_data.append([ts, value])
+                    total_count += value
+
                 issue["trend"] = trend_data
                 issue["alert_count"] = total_count
             else:
-                issue["trend"] = []
+                issue["trend"] = list(default_time_series)
                 issue["alert_count"] = 0
 
         # 单独获取 anomaly_message
