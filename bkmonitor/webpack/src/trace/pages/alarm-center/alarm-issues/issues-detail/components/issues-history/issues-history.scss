@@ -9,7 +9,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 6px 12px;
+      height: 32px;
+      padding: 0 12px;
       line-height: 20px;
       background-color: #f2f6fc;
       border-radius: 6px;
@@ -22,6 +23,7 @@
       .item-time {
         color: #8f9fbd;
         text-decoration: underline dotted;
+        cursor: pointer;
       }
     }
   }

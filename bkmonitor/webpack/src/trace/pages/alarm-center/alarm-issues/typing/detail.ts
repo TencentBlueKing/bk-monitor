@@ -151,6 +151,32 @@ export interface IssueDetailParams {
   start_time?: number;
 }
 
+/** Issue 历史记录项 */
+export interface IssueHistoryItem {
+  /** 告警数量 */
+  alert_count: number;
+  /** 负责人用户名列表 */
+  assignee: string[];
+  /** 创建时间（秒级时间戳） */
+  create_time: number;
+  /** 首条关联告警时间（秒级时间戳） */
+  first_alert_time: number;
+  /** Issue 唯一标识 */
+  id: string;
+  /** 最近关联告警时间（秒级时间戳） */
+  last_alert_time: number;
+  /** Issue 名称（策略名称） */
+  name: string;
+  /** 优先级 */
+  priority: IssuePriorityType;
+  /** 优先级中文名 */
+  priority_display: string;
+  /** 状态 */
+  status: IssueStatusType;
+  /** 状态中文名 */
+  status_display: string;
+}
+
 /** 活动记录评论失败项 */
 export interface IssuesActivityCommentFailedItem {
   /** 业务 ID */

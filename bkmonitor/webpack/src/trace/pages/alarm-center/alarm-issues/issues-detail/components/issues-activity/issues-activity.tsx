@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, nextTick, shallowRef, useTemplateRef, watchEffect } from 'vue';
+import { type PropType, defineComponent, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { Button, Dialog, Input, Message } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -86,9 +86,14 @@ export default defineComponent({
       });
       loading.value = false;
     };
-    watchEffect(() => {
-      getActiveList();
-    });
+    watch(
+      () => props.detail,
+      detail => {
+        if (detail) {
+          getActiveList();
+        }
+      }
+    );
 
     /** 处理评论输入框聚焦 */
     const handleCommentInputFocus = () => {

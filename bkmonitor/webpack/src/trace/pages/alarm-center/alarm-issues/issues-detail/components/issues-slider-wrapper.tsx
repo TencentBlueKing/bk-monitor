@@ -257,7 +257,7 @@ export default defineComponent({
             onResolved={this.handleResolved}
           />
           <IssuesActivity detail={this.detail} />
-          <IssuesHistory />
+          <IssuesHistory detail={this.detail} />
         </div>
       </div>
     );

@@ -545,7 +545,7 @@ export const useEcharts = ({
     };
   };
   watch(
-    [timeRange, refreshImmediate, () => toValue(panel), () => toValue(params)],
+    [() => toValue(timeRange), () => toValue(refreshImmediate), () => toValue(panel), () => toValue(params)],
     async () => {
       loading.value = true;
       options.value = await getEchartOptions();
@@ -587,8 +587,6 @@ export interface EchartOptionsV2 {
 export const useEchartsOptions = ({ chartRef, seriesList, customOptions, interactionState }: EchartOptionsV2) => {
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
-  const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
-  const refreshImmediate = inject('refreshImmediate');
 
   const options = shallowRef();
   const series = shallowRef([]);
@@ -612,7 +610,7 @@ export const useEchartsOptions = ({ chartRef, seriesList, customOptions, interac
   };
 
   watch(
-    [timeRange, refreshImmediate, () => toValue(seriesList)],
+    [() => toValue(seriesList)],
     async () => {
       options.value = await getEchartOptions();
       chartId.value = random(8);

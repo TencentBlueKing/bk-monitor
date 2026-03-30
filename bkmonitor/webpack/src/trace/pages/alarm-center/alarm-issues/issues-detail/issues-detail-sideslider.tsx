@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, watch, watchEffect } from 'vue';
+import { defineComponent, shallowRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
-import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
+import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 
 import IssuesImpactScopeDrawer from '../components/issues-impact-scope-drawer/issues-impact-scope-drawer';
@@ -55,7 +55,7 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** 第一个告警产生时间 (秒级时间戳) */
+    /** issues 第一个告警产生时间 (秒级时间戳) */
     firstAlarmTime: {
       type: [Number, String],
       default: 'now-1h',
@@ -65,13 +65,17 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** issuesBizId */
-    bizId: {
+    /** issues BizId */
+    issueBizId: {
       type: Number,
       default: undefined,
+    } /** 是否展示上一步和下一步按钮 */,
+    showStepBtn: {
+      type: Boolean,
+      default: true,
     },
   },
-  emits: ['update:show'],
+  emits: ['update:show', 'next', 'previous'],
   setup(props, { emit }) {
     const detail = shallowRef<IssueDetail>(undefined);
     const loading = shallowRef(false);
@@ -90,31 +94,20 @@ export default defineComponent({
     const impactScopeResourceKey = shallowRef<'' | ImpactScopeResourceKeyType>('');
     const impactScopeDrawerShow = shallowRef(false);
 
-    watch(
-      () => props.show,
-      show => {
-        if (show) {
-          /** 初始化默认查询时间范围 */
-          timeRange.value = [
-            typeof props.firstAlarmTime === 'number' ? props.firstAlarmTime * 1000 : props.firstAlarmTime,
-            'now',
-          ];
-        }
-      }
-    );
-
-    watchEffect(() => {
-      if (props.show) {
-        getIssueDetailData();
-      }
-    });
+    /** 初始化默认查询时间范围 */
+    const initTimeRange = () => {
+      const firstAlarmTime = props.firstAlarmTime || 'now-1h';
+      const time = Number(firstAlarmTime);
+      timeRange.value = [Number.isNaN(time) ? firstAlarmTime : time * 1000, 'now'];
+    };
 
     /** 获取Issue详情数据 */
     const getIssueDetailData = () => {
+      if (!props.show) return;
       loading.value = true;
       const [start, end] = handleTransformToTimestamp(timeRange.value);
       fetchIssueDetailMock({
-        bk_biz_id: props.bizId,
+        bk_biz_id: props.issueBizId,
         id: props.issueId,
         start_time: start,
         end_time: end,
@@ -127,23 +120,51 @@ export default defineComponent({
         });
     };
 
+    watch(
+      () => [props.issueBizId, props.issueId, props.firstAlarmTime],
+      () => {
+        if (props.show) {
+          initTimeRange();
+          getIssueDetailData();
+        }
+      },
+      { immediate: true }
+    );
+
     const handleShowChange = (isShow: boolean) => {
       emit('update:show', isShow);
     };
 
+    /** 下一个 */
+    const handleNext = () => {
+      emit('next');
+    };
+
+    /** 上一个 */
+    const handlePrevious = () => {
+      emit('previous');
+    };
+
+    /** 时间范围变更 */
     const handleTimeRangeChange = value => {
       timeRange.value = value;
+      getIssueDetailData();
     };
 
+    /** 时区变更 */
     const handleTimezoneChange = (value: string) => {
       timezone.value = value;
+      window.timezone = value;
+      updateTimezone(value);
     };
 
+    /** 强制刷新 */
     const handleImmediateRefresh = () => {
       refreshImmediate.value = random(5);
       getIssueDetailData();
     };
 
+    /** 自动刷新调整 */
     const handleRefreshChange = (value: number) => {
       refreshInterval.value = value;
       if (timer) {
@@ -157,6 +178,11 @@ export default defineComponent({
           Math.max(value, 1000 * 60)
         );
       }
+    };
+
+    /** 全屏切换 */
+    const handleToggleFullscreen = (value: boolean) => {
+      isFullscreen.value = value;
     };
 
     const handleConditionChange = (val: IWhereItem[]) => {
@@ -205,10 +231,13 @@ export default defineComponent({
       impactScopeResourceKey,
       impactScopeDrawerShow,
       handleShowChange,
+      handleNext,
+      handlePrevious,
       handleTimeRangeChange,
       handleTimezoneChange,
       handleImmediateRefresh,
       handleRefreshChange,
+      handleToggleFullscreen,
       handleConditionChange,
       handleQueryStringChange,
       handleFilterModeChange,
@@ -244,6 +273,11 @@ export default defineComponent({
                 ],
               }}
               detail={this.detail}
+              isFullscreen={this.isFullscreen}
+              showStepBtn={this.showStepBtn}
+              onNext={this.handleNext}
+              onPrevious={this.handlePrevious}
+              onToggleFullscreen={this.handleToggleFullscreen}
             />
           ),
           default: () => (
