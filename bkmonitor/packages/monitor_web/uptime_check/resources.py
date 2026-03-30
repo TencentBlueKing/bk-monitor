@@ -43,7 +43,6 @@ from bk_monitor_base.uptime_check import (
     generate_task_sub_config,
     get_node,
     get_task,
-    # 操作函数
     list_groups,
     list_nodes,
     list_tasks,
@@ -221,9 +220,11 @@ class UptimeCheckTaskListResource(Resource):
             data_label=data_label,
             table="",
             metrics=[
-                {"field": "available", "method": "AVG", "alias": "a"}
-                if metric == "available"
-                else {"field": "task_duration", "method": "AVG", "alias": "a"}
+                (
+                    {"field": "available", "method": "AVG", "alias": "a"}
+                    if metric == "available"
+                    else {"field": "task_duration", "method": "AVG", "alias": "a"}
+                )
             ],
             group_by=["task_id"],
             where=where,
@@ -2501,7 +2502,7 @@ class ImportUptimeCheckTaskResource(Resource):
             labels=task_create_data.get("labels"),
             location=task_create_data.get("location"),
             check_interval=task_create_data.get("check_interval", 5),
-            independent_dataid=settings.ENABLE_MULTI_TENANT_MODE if settings.ENABLE_MULTI_TENANT_MODE else False,
+            independent_dataid=(settings.ENABLE_MULTI_TENANT_MODE or settings.ENABLE_UPTIMECHECK_BKDATA),
             node_ids=[cast(int, n.id) for n in nodes],
             group_ids=[cast(int, g.id) for g in groups],
         )
