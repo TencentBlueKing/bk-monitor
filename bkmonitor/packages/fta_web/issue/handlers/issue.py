@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 import operator
+import threading
 import time
 
 from functools import reduce
@@ -391,6 +392,14 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 issue["anomaly_message"] = "--"
             return
 
+        # 启动后台线程查询 anomaly_message 和 alert_count
+        fill_result = {"alert_count_map": {}, "anomaly_message_map": {}}
+        fill_thread = threading.Thread(
+            target=self._fill_anomaly_message,
+            args=(issue_ids, start_time, end_time, fill_result),
+        )
+        fill_thread.start()
+
         # 复用 AlertDateHistogramResultResource + 时间分片并行查询
         try:
             results = resource.alert.alert_date_histogram_result.bulk_request(
@@ -405,10 +414,10 @@ class IssueQueryHandler(BaseBizQueryHandler):
                     for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
                 ]
             )
-        except Exception:
-            logger.exception("add_alert_trend: bulk_request failed")
+        except Exception as e:
+            logger.exception(f"add_alert_trend: bulk_request failed, error:{e}")
             for issue in issues:
-                issue["trend"] = []
+                issue["trend"] = list(default_time_series)
                 issue["alert_count"] = 0
                 issue["anomaly_message"] = "--"
             return
@@ -435,29 +444,25 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 abnormal_series = status_series.get("ABNORMAL", {})
                 merged[issue_id].update(abnormal_series)
 
+        # 等待后台线程完成，回填 anomaly_message 和 alert_count
+        fill_thread.join()
+
         # 解析结果，回填到 Issue 列表
         for issue in issues:
             issue_id = issue["id"]
             if issue_id in merged:
-                series = merged[issue_id]
-                trend_data = []
-                total_count = 0
-
-                for ts, value in series.items():
-                    trend_data.append([ts, value])
-                    total_count += value
-
-                issue["trend"] = trend_data
-                issue["alert_count"] = total_count
+                issue["trend"] = [[ts, value] for ts, value in merged[issue_id].items()]
             else:
                 issue["trend"] = list(default_time_series)
+
+            issue["anomaly_message"] = fill_result["anomaly_message_map"].get(issue_id, "--")
+            if issue_id in fill_result["alert_count_map"]:
+                issue["alert_count"] = fill_result["alert_count_map"][issue_id]
+            else:
                 issue["alert_count"] = 0
 
-        # 单独获取 anomaly_message
-        self._fill_anomaly_message(issues, issue_ids, start_time, end_time)
-
-    def _fill_anomaly_message(self, issues: list[dict], issue_ids: list[str], start_time: int, end_time: int) -> None:
-        """单独查询每个 Issue 最新告警的 description 作为 anomaly_message"""
+    def _fill_anomaly_message(self, issue_ids: list[str], start_time: int, end_time: int, fill_result: dict) -> None:
+        """后台线程：查询每个 Issue 最新告警的 description 作为 anomaly_message，同时统计 alert_count"""
         try:
             search_object = AlertDocument.search(start_time=start_time, end_time=end_time)
             search_object = search_object.filter("terms", issue_id=issue_ids)
@@ -470,12 +475,17 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 sort=[{"begin_time": {"order": "desc"}}],
                 _source=["description"],
             )
+            # 统计每个 Issue 的告警数量
+            issue_agg.metric("alert_count", "value_count", field="id")
 
             result = search_object[:0].execute()
 
             msg_map = {}
+            count_map = {}
             for issue_bucket in result.aggs.issues.buckets:
                 issue_id = issue_bucket.key
+
+                # 解析 anomaly_message
                 anomaly_message = "--"
                 if hasattr(issue_bucket, "latest_alert") and issue_bucket.latest_alert:
                     hits = issue_bucket.latest_alert.hits
@@ -486,9 +496,11 @@ class IssueQueryHandler(BaseBizQueryHandler):
                             anomaly_message = description
                 msg_map[issue_id] = anomaly_message
 
-            for issue in issues:
-                issue["anomaly_message"] = msg_map.get(issue["id"], "--")
+                # 解析 alert_count
+                if hasattr(issue_bucket, "alert_count"):
+                    count_map[issue_id] = int(issue_bucket.alert_count.value or 0)
+
+            fill_result["anomaly_message_map"] = msg_map
+            fill_result["alert_count_map"] = count_map
         except Exception:
             logger.exception("_fill_anomaly_message failed")
-            for issue in issues:
-                issue.setdefault("anomaly_message", "--")
