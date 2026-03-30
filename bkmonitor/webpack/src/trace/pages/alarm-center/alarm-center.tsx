@@ -28,11 +28,18 @@ import {
   type ShallowRef,
   computed,
   defineComponent,
+  // #if IS_APM_MONITOR
+  inject,
+  // #endif
   onBeforeMount,
   shallowRef,
   useTemplateRef,
   watch,
 } from 'vue';
+
+// #if IS_APM_MONITOR
+import { BRIDGE_EMIT_KEY, BRIDGE_PROPS_KEY } from './alarm-center-apm-entry';
+// #endif
 
 import { commonPageSizeSet, convertDurationArray, tryURLDecodeParse } from 'monitor-common/utils';
 import FavoriteBox, {
@@ -97,6 +104,12 @@ export default defineComponent({
     const route = useRoute();
     const alarmStore = useAlarmCenterStore();
     const appStore = useAppStore();
+
+    // #if IS_APM_MONITOR
+    const bridgeProps = inject(BRIDGE_PROPS_KEY, {} as Record<string, unknown>);
+    const bridgeEmit = inject(BRIDGE_EMIT_KEY, (() => {}) as (event: string, ...args: unknown[]) => void);
+    // #endif
+
     const {
       handleGetUserConfig: handleGetResidentSettingUserConfig,
       handleSetUserConfig: handleSetResidentSettingUserConfig,
@@ -236,6 +249,20 @@ export default defineComponent({
         currentFavorite.value = null;
       }
     );
+
+    // #if IS_APM_MONITOR
+    // 监听 vue2 宿主传入的 bridgeProps 变化，并调用 bridgeEmit 抛出事件
+    watch(
+      () => bridgeProps,
+      () => {
+        console.log('bridgeProps = ', bridgeProps);
+        bridgeEmit('update', bridgeProps);
+      },
+      {
+        immediate: true,
+      }
+    );
+    // #endif
 
     const updateIsCollapsed = (v: boolean) => {
       isCollapsed.value = v;
@@ -745,11 +772,13 @@ export default defineComponent({
           />
         </div>
         <div class='alarm-center'>
+          {/* // #if !IS_APM_MONITOR */}
           <AlarmCenterHeader
             class='alarm-center-header'
             isShowFavorite={this.isShowFavorite}
             onFavoriteShowChange={this.handleFavoriteShowChange}
           />
+          {/* // #endif */}
           <AlarmRetrievalFilter
             class='alarm-center-filters'
             bizIds={this.alarmStore.bizIds}
