@@ -360,7 +360,7 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
                 group.save()
 
             # 多租户模式下，独立数据源模式
-            if settings.ENABLE_MULTI_TENANT_MODE:
+            if settings.ENABLE_MULTI_TENANT_MODE or settings.ENABLE_UPTIMECHECK_BKDATA:
                 task.indepentent_dataid = True
             task.save()
 

@@ -2792,7 +2792,7 @@ class ImportUptimeCheckTaskResource(Resource):
             tasks.update(**task_create_data)
             task_obj = tasks[0]
         else:
-            if settings.ENABLE_MULTI_TENANT_MODE:
+            if settings.ENABLE_MULTI_TENANT_MODE or settings.ENABLE_UPTIMECHECK_BKDATA:
                 task_create_data["indepentent_dataid"] = True
             task_obj = UptimeCheckTask.objects.create(**task_create_data)
         task_obj.nodes.set(nodes)
