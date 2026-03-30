@@ -45,7 +45,13 @@ from apps.log_esquery.serializers import (
     EsQueryMappingAttrSerializer,
     EsQueryScrollAttrSerializer,
     EsQuerySearchAttrSerializer,
+    SceneAggFieldSerializer,
+    SceneDateHistogramSerializer,
+    SceneFieldsSerializer,
+    SceneSearchSerializer,
+    SceneTotalSerializer,
 )
+from apps.log_search.handlers.scene_search import AllConditionsBuilder
 from apps.log_search.models import Scenario
 from apps.utils.drf import list_route
 
@@ -914,3 +920,140 @@ class EsQueryViewSet(APIViewSet):
         """
         data = self.params_valid(EsQueryEsRouteSerializer)
         return Response(EsQuery(data).es_route())
+
+    # ---- 场景化检索接口组 ----
+
+    @list_route(methods=["GET"], url_path="scene_search/scenes")
+    def scene_search_scenes(self, request):
+        """
+        @api {get} /esquery/scene_search/scenes/ 场景化检索-场景列表
+        @apiName scene_search_scenes
+        @apiGroup 13_Esquery
+        @apiDescription 返回所有可用场景及其维度定义，前端据此渲染场景选择器和维度筛选器，
+            并拼装 table_id_conditions。
+        """
+        from apps.log_databus.constants import SCENE_SEARCH_DIMENSIONS
+        from apps.log_search.constants import SceneLabelEnum
+
+        scenes = []
+        for value, label in SceneLabelEnum._choices_labels:
+            scenes.append({
+                "id": value,
+                "name": str(label),
+                "dimensions": SCENE_SEARCH_DIMENSIONS.get(value, []),
+            })
+        return Response(scenes)
+
+    @list_route(methods=["POST"], url_path="scene_search/search")
+    def scene_search(self, request):
+        """
+        @api {post} /esquery/scene_search/search/ 场景化检索-日志内容
+        @apiName scene_search
+        @apiGroup 13_Esquery
+        @apiDescription 通过 table_id_conditions 路由选表，完整支持现有 search 接口的所有查询参数。
+        """
+        data = self.params_valid(SceneSearchSerializer)
+        conditions = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        result = EsQuery.scene_search(
+            space_uid=data["space_uid"],
+            table_id_conditions=conditions,
+            query_string=data.get("keyword", "*"),
+            start_time=data["start_time"],
+            end_time=data["end_time"],
+            limit=data.get("size", 50),
+            offset=data.get("begin", 0),
+            sort_list=data.get("sort_list", []),
+            addition=data.get("addition", []),
+            ip_chooser=data.get("ip_chooser", {}),
+            filter_list=data.get("filter", []),
+            aggs=data.get("aggs", {}),
+            highlight=data.get("highlight", {}),
+        )
+        return Response(result)
+
+    @list_route(methods=["POST"], url_path="scene_search/fields")
+    def scene_search_fields(self, request):
+        """
+        @api {post} /esquery/scene_search/fields/ 场景化检索-字段列表
+        @apiName scene_search_fields
+        @apiGroup 13_Esquery
+        @apiDescription 获取场景下匹配结果表的聚合字段列表。
+        """
+        data = self.params_valid(SceneFieldsSerializer)
+        conditions = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        result = EsQuery.scene_fields(
+            space_uid=data["space_uid"],
+            table_id_conditions=conditions,
+            start_time=data.get("start_time", ""),
+            end_time=data.get("end_time", ""),
+            scope=data.get("scope", "default"),
+        )
+        return Response(result)
+
+    @list_route(methods=["POST"], url_path="scene_search/date_histogram")
+    def scene_search_date_histogram(self, request):
+        """
+        @api {post} /esquery/scene_search/date_histogram/ 场景化检索-趋势图
+        @apiName scene_search_date_histogram
+        @apiGroup 13_Esquery
+        @apiDescription 获取场景下日志时间分布趋势图数据。
+        """
+        data = self.params_valid(SceneDateHistogramSerializer)
+        conditions = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        result = EsQuery.scene_date_histogram(
+            space_uid=data["space_uid"],
+            table_id_conditions=conditions,
+            query_string=data.get("keyword", "*"),
+            start_time=data["start_time"],
+            end_time=data["end_time"],
+            interval=data.get("interval", "auto"),
+            addition=data.get("addition", []),
+            ip_chooser=data.get("ip_chooser", {}),
+            filter_list=data.get("filter", []),
+        )
+        return Response(result)
+
+    @list_route(methods=["POST"], url_path="scene_search/agg_field")
+    def scene_search_agg_field(self, request):
+        """
+        @api {post} /esquery/scene_search/agg_field/ 场景化检索-字段聚合统计
+        @apiName scene_search_agg_field
+        @apiGroup 13_Esquery
+        @apiDescription 获取场景下指定字段的 Top N 聚合统计。
+        """
+        data = self.params_valid(SceneAggFieldSerializer)
+        conditions = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        result = EsQuery.scene_agg_field(
+            space_uid=data["space_uid"],
+            table_id_conditions=conditions,
+            query_string=data.get("keyword", "*"),
+            start_time=data["start_time"],
+            end_time=data["end_time"],
+            agg_field=data["agg_field"],
+            addition=data.get("addition", []),
+            ip_chooser=data.get("ip_chooser", {}),
+            filter_list=data.get("filter", []),
+        )
+        return Response(result)
+
+    @list_route(methods=["POST"], url_path="scene_search/total")
+    def scene_search_total(self, request):
+        """
+        @api {post} /esquery/scene_search/total/ 场景化检索-总数统计
+        @apiName scene_search_total
+        @apiGroup 13_Esquery
+        @apiDescription 获取场景下匹配日志的总条数。
+        """
+        data = self.params_valid(SceneTotalSerializer)
+        conditions = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        result = EsQuery.scene_total(
+            space_uid=data["space_uid"],
+            table_id_conditions=conditions,
+            query_string=data.get("keyword", "*"),
+            start_time=data["start_time"],
+            end_time=data["end_time"],
+            addition=data.get("addition", []),
+            ip_chooser=data.get("ip_chooser", {}),
+            filter_list=data.get("filter", []),
+        )
+        return Response(result)

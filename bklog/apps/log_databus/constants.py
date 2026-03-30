@@ -765,3 +765,61 @@ RETRIEVE_CHAIN = [
 BATCH_SYNC_CLUSTER_COUNT = 500
 
 MIN_FLATTENED_SUPPORT_VERSION = "7.3"
+
+# ---- 场景化检索 labels 常量 ----
+
+COLLECTOR_SCENARIO_TO_SCENE = {
+    "row": "host",
+    "section": "host",
+    "wineventlog": "host",
+    "custom": "host",
+    "redis_slowlog": "host",
+    "syslog": "host",
+    "kafka": "host",
+    "client": "client",
+}
+
+SCENE_SEARCH_DIMENSIONS = {
+    "k8s": [
+        {
+            "key": "cluster_id",
+            "name": _("BCS 集群"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne", "req", "nreq"],
+        },
+    ],
+    "host": [],
+    "bk_paas": [
+        {
+            "key": "app_code",
+            "name": _("应用 Code"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+        },
+    ],
+    "apm": [
+        {
+            "key": "app_name",
+            "name": _("APM 应用"),
+            "required": False,
+            "type": "string",
+            "ops": ["eq", "ne"],
+        },
+    ],
+    "client": [],
+    "trpc": [],
+}
+
+
+def build_scene_labels(scene: str, **dynamic_tags) -> dict:
+    """
+    Build ResultTable.labels for scene-based search routing.
+    Returns a flat dict, e.g. {"scene": "k8s", "cluster_id": "BCS-K8S-00001"}
+    """
+    labels = {"scene": scene}
+    for key, value in dynamic_tags.items():
+        if value:
+            labels[key] = str(value)
+    return labels
