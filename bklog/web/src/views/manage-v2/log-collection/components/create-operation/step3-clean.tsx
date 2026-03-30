@@ -1360,6 +1360,16 @@ export default defineComponent({
     const handleSubmit = async () => {
       handleSubmitValidate(() => {
         const { etl_params, etl_fields } = formData.value;
+        // 为 metadata_fields 每项补充 metadata_type（对齐旧版）
+        etl_params.metadata_fields =
+          etl_params?.metadata_fields?.map(item => {
+            item.metadata_type = 'path';
+            return item;
+          }) ?? [];
+        // 关闭路径元数据开关时，path_regexp 传 null
+        if (!enableMetaData.value) {
+          etl_params.path_regexp = null;
+        }
         const { storage_cluster_id, allocation_min_days, storage_replies, es_shards, table_id, retention } =
           curCollect.value;
         /**
