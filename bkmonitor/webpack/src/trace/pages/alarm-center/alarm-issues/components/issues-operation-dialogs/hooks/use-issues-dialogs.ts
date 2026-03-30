@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, shallowRef } from 'vue';
+import { type MaybeRef, isRef, shallowRef } from 'vue';
 
 import { get } from '@vueuse/core';
 
-import { IssuesBatchActionEnum } from '../../../constant';
+import { IssuesBatchActionEnum, IssueStatusEnum } from '../../../constant';
 
 import type {
   IssueIdentifier,
@@ -93,6 +93,10 @@ export const useIssuesDialogs = (
         Object.assign(item, updates);
       }
     }
+    // originalData 为 shallowRef，原地修改元素属性不会自动触发响应式更新
+    if (isRef(originalData)) {
+      originalData.value = [...get(originalData)];
+    }
   };
 
   /**
@@ -116,7 +120,8 @@ export const useIssuesDialogs = (
     data: IssueItem[],
     event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.RESOLVE>
   ) => {
-    updateIssueItems(data, event.succeeded);
+    const list = event.succeeded.map(item => ({ ...item, is_resolved: item.status === IssueStatusEnum.RESOLVED }));
+    updateIssueItems(data, list);
   };
 
   /**

@@ -100,6 +100,8 @@ import type { AlertSavePromiseEvent } from './components/alarm-table/components/
 
 import './alarm-center.scss';
 
+/** 表格固定配置项(表头吸顶、横向滚动条吸底) */
+const tableAffixed = { container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}` };
 export default defineComponent({
   name: 'AlarmCenter',
   setup() {
@@ -123,6 +125,13 @@ export default defineComponent({
     } = useQuickFilter();
 
     const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
+
+    /** 表格分页配置 */
+    const pagination = computed(() => ({
+      currentPage: page.value,
+      pageSize: pageSize.value,
+      total: total.value,
+    }));
     const {
       tableColumns: tableSourceColumns,
       storageColumns,
@@ -139,7 +148,7 @@ export default defineComponent({
       handleAlertDialogShow,
       handleAlertDialogHide,
       handleAlertDialogConfirm,
-    } = useAlertDialogs(data as unknown as ShallowRef<AlertTableItem[]>);
+    } = useAlertDialogs(data as ShallowRef<AlertTableItem[]>);
 
     const {
       issuesDialogShow,
@@ -149,7 +158,7 @@ export default defineComponent({
       handleIssuesDialogShow,
       handleIssuesDialogHide,
       handleIssuesDialogSuccess,
-    } = useIssuesDialogs(data as unknown as ShallowRef<IssueItem[]>);
+    } = useIssuesDialogs(data as ShallowRef<IssueItem[]>);
 
     /**
      * @description 展示 Issue 详情
@@ -168,7 +177,7 @@ export default defineComponent({
      * @returns {void}
      */
     const handleIssuesPriorityChange = async (id: string, priority: IssuePriorityType) => {
-      const issuesData = data.value as unknown as IssueItem[];
+      const issuesData = data.value as IssueItem[];
       const targetRow = issuesData.find(item => item.id === id);
       if (!targetRow) return;
 
@@ -720,6 +729,7 @@ export default defineComponent({
         handleSelectedRowKeysChange();
       }
     );
+
     onBeforeMount(() => {
       getUrlParams();
       setUrlParams();
@@ -731,6 +741,7 @@ export default defineComponent({
       quickFilterLoading,
       quickFilterEmptyStatusType,
       isCollapsed,
+      pagination,
       data,
       loading,
       total,
@@ -816,8 +827,6 @@ export default defineComponent({
     };
   },
   render() {
-    /** 表格固定配置项(表头吸顶、横向滚动条吸底)*/
-    const tableAffixed = { container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}` };
     const renderFavoriteQuery = (favoriteType: string) => {
       return favoriteType === `alarm_${AlarmType.ISSUES}`
         ? params => {
@@ -939,16 +948,12 @@ export default defineComponent({
                             issuesIds={this.selectedRowKeys}
                           >
                             <IssuesTable
-                              pagination={{
-                                currentPage: this.page,
-                                pageSize: this.pageSize,
-                                total: this.total,
-                              }}
                               columns={this.tableSourceColumns}
-                              data={this.data as unknown as IssueItem[]}
+                              data={this.data as IssueItem[]}
                               headerAffixedTop={tableAffixed}
                               horizontalScrollAffixedBottom={tableAffixed}
                               loading={this.loading}
+                              pagination={this.pagination}
                               scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
                               selectedRowKeys={this.selectedRowKeys}
                               sort={this.ordering}
@@ -971,11 +976,6 @@ export default defineComponent({
                           </IssuesToolbar>
                         ) : (
                           <AlarmTable
-                            pagination={{
-                              currentPage: this.page,
-                              pageSize: this.pageSize,
-                              total: this.total,
-                            }}
                             tableSettings={{
                               checked: this.storageColumns,
                               fields: this.allTableFields,
@@ -988,6 +988,7 @@ export default defineComponent({
                             horizontalScrollAffixedBottom={tableAffixed}
                             isSelectedFollower={this.isSelectedFollower}
                             loading={this.loading}
+                            pagination={this.pagination}
                             scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
                             selectedRowKeys={this.selectedRowKeys}
                             sort={this.ordering}
