@@ -356,14 +356,18 @@ export default defineComponent({
           const timeField = etl_fields?.find(item => item.is_time);
           const logReportingTime = !timeField; // 如果存在is_time为true的字段，则log_reporting_time为false
           const fieldName = timeField?.field_name || '';
+          const timeFormat = timeField?.option?.time_format || '';
+          const timeZoneVal = timeField?.option?.time_zone || '';
           cleaningMode.value = clean_type;
-          enableMetaData.value = etl_params.path_regexp;
+          enableMetaData.value = !!etl_params.path_regexp;
           visibleBkBiz.value = visible_bk_biz_id;
           formData.value = {
             ...formData.value,
             ...res.data,
             log_reporting_time: logReportingTime,
             field_name: fieldName,
+            time_format: timeFormat,
+            time_zone: timeZoneVal,
           };
           if (cleaningMode.value === 'bk_log_delimiter') {
             delimiter.value = etl_params.separator;
@@ -1339,11 +1343,28 @@ export default defineComponent({
           loading.value = false;
           return;
         }
-        const list = formData.value.etl_fields.map(item => ({
-          ...item,
-          is_time: item.field_name === formData.value.field_name,
-        }));
+        const list = formData.value.etl_fields.map(item => {
+          const isTime = item.field_name === formData.value.field_name;
+          return {
+            ...item,
+            is_time: isTime,
+            option: {
+              time_zone: isTime ? formData.value.time_zone : '',
+              time_format: isTime ? formData.value.time_format : '',
+            },
+          };
+        });
         formData.value.etl_fields = list;
+      } else {
+        // 日志上报时间：清除所有字段的 is_time 和 option 中的时间信息
+        formData.value.etl_fields = formData.value.etl_fields.map(item => ({
+          ...item,
+          is_time: false,
+          option: {
+            time_zone: '',
+            time_format: '',
+          },
+        }));
       }
       const { etl_fields } = formData.value;
 
@@ -1475,7 +1496,7 @@ export default defineComponent({
                 formData.value = deepClone(cacheTemplateData.value);
                 cleaningMode.value = cacheTemplateData.value.etl_config;
                 visibleBkBiz.value = cacheTemplateData.value.visible_bk_biz_id;
-                enableMetaData.value = cacheTemplateData.value.etl_params.path_regexp;
+                enableMetaData.value = !!cacheTemplateData.value.etl_params.path_regexp;
               }}
             >
               {t('重置')}
