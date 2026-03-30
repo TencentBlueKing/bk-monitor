@@ -1984,7 +1984,11 @@ class BaseIndexSetHandler:
             update_params = {}
             if _scenario_id := index.get("scenario_id"):
                 update_params.update({"scenario_id": _scenario_id})
-            if _storage_cluster_id := index.get("storage_cluster_id"):
+            # 索引级别的 storage_cluster_id 优先，若无则在集群变更时使用索引集级别的 storage_cluster_id
+            _storage_cluster_id = index.get("storage_cluster_id") or (
+                self.storage_cluster_id if old_storage_cluster_id else None
+            )
+            if _storage_cluster_id:
                 update_params.update({"storage_cluster_id": _storage_cluster_id})
             if _time_field_type := index.get("time_field_type"):
                 update_params.update({"time_field_type": _time_field_type})
