@@ -373,7 +373,10 @@ export default defineComponent({
       }
 
       if (type === 'custom_report') {
-        return MENU_LIST.filter(item => ['desensitization', 'disable', 'delete'].includes(item.key));
+        const excludeKey = status !== 'terminated' ? 'start' : 'stop';
+        return MENU_LIST.filter(
+          item => ['clean', 'desensitization', 'stop', 'start', 'delete'].includes(item.key) && item.key !== excludeKey,
+        );
       }
 
       if (['bkdata', 'es'].includes(type)) {
@@ -427,7 +430,8 @@ export default defineComponent({
           <span
             class='link'
             on-click={() => {
-              const type = row.storage_cluster_id !== -1 ? 'view' : 'edit';
+              const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
+              const type = isBkDataOrEs || row.storage_cluster_id !== -1 ? 'view' : 'edit';
               handleEditOperation(row, type);
             }}
           >
@@ -1050,11 +1054,14 @@ export default defineComponent({
      * @param row - 表格行数据
      */
     const requestDeleteCollect = (row: ITableRowData) => {
+      const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
+      const requestConfig = isBkDataOrEs
+        ? { api: 'indexSet/remove', params: { index_set_id: row.index_set_id } }
+        : { api: 'collect/deleteCollect', params: { collector_config_id: row.collector_config_id } };
+
       $http
-        .request('collect/deleteCollect', {
-          params: {
-            collector_config_id: row.collector_config_id,
-          },
+        .request(requestConfig.api, {
+          params: requestConfig.params,
         })
         .then(res => {
           if (res.result) {
@@ -1073,6 +1080,9 @@ export default defineComponent({
      * @param row - 表格行数据
      */
     const handleMenuClick = (key: string, row: ITableRowData) => {
+      // 前置校验：视觉禁用的菜单项，点击也不应执行
+      if (!getOperatorCanClick(row, key)) return;
+
       currentRow.value = row;
       // 关闭所有 tippy 实例
       for (const instance of tippyInstances) {
@@ -1104,17 +1114,15 @@ export default defineComponent({
         return;
       }
 
-      // 删除操作
+      // 删除操作（getOperatorCanClick 已做前置校验，这里直接弹确认框）
       if (key === 'delete') {
-        if (row.status !== 'running') {
-          window.mainComponent?.$bkInfo({
-            type: 'warning',
-            subTitle: t('当前采集项名称为{n}，确认要删除？', { n: row.collector_config_name || row.name }),
-            confirmFn: () => {
-              requestDeleteCollect(row);
-            },
-          });
-        }
+        window.mainComponent?.$bkInfo({
+          type: 'warning',
+          subTitle: t('当前采集项名称为{n}，确认要删除？', { n: row.collector_config_name || row.name }),
+          confirmFn: () => {
+            requestDeleteCollect(row);
+          },
+        });
         return;
       }
 

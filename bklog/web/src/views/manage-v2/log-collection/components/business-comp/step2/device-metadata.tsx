@@ -303,8 +303,8 @@ export default defineComponent({
       (newVal, oldVal) => {
         // 深度比较，避免相同引用时重复初始化
         if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
-          // 更新开关状态
-          switcherValue.value = newVal && newVal.length > 0;
+          // 更新开关状态（只有存在有效 key 的项才认为开启）
+          switcherValue.value = !!(newVal && newVal.filter(item => item.key).length > 0);
           // 只在第一次进入页面且 groupList 已加载时回填
           // 后续编辑时不再回填，避免覆盖用户的操作
           if (!hasInitialized.value && groupList.value.length > 0 && newVal && newVal.length > 0) {

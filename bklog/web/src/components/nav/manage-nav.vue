@@ -214,7 +214,9 @@
           'extract-link-edit': routerEditName,
           'clean-edit': routerEditName,
           'clean-template-edit': routerEditName,
-          'manage-collection': collectionName,
+          'manage-collection': ['bkdata', 'es'].includes(this.$route.query.typeKey)
+            ? storeIndexSetName
+            : collectionName,
           'custom-report-detail': collectionName,
           'custom-report-masking': routerEditName,
           collectEdit: collectionName,
