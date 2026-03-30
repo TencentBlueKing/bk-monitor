@@ -23,44 +23,46 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import DimensionBatchEdit from './components/batch-edit';
+
 import infoSrc from '../../../../../../../static/images/png/dimension-guide.png';
-import { fuzzyMatch } from '../../../../utils';
 import { NULL_LABEL } from '../../../../type';
-import type { ICustomTsFields } from '../../../../../service';
+import { fuzzyMatch } from '../../../../utils';
+import DimensionBatchEdit from './components/batch-edit';
+
+import type { IGroupingRule } from '../../../../../service';
 import type { RequestHandlerMap } from '../../../../type';
 
 import './index.scss';
 
 /**
- * 组件 Props 接口定义
+ * 维度详情类型定义
+ * 从 ICustomTsFields 的 dimensions 数组中提取单个维度项的类型
  */
-interface IProps {
-  /** 选中的分组信息，包含分组ID和名称 */
-  selectedGroupInfo: { id: number; name: string };
-  /** 表格加载状态 */
-  loading: boolean;
-  /** 维度表格数据列表 */
-  dimensionTable: DimensionDetail[];
-}
+type DimensionDetail = IGroupingRule['dimension_config'][number] & { scope: { id: number; name: string } };
 
 /**
  * 组件事件接口定义
  */
 interface IEmits {
-  /** 刷新事件，当数据更新后触发 */
-  onRefresh: () => void;
   /** 别名变化事件 */
   onAliasChange: () => void;
+  /** 刷新事件，当数据更新后触发 */
+  onRefresh: () => void;
 }
 
 /**
- * 维度详情类型定义
- * 从 ICustomTsFields 的 dimensions 数组中提取单个维度项的类型
+ * 组件 Props 接口定义
  */
-type DimensionDetail = ICustomTsFields['dimensions'][number];
+interface IProps {
+  /** 维度表格数据列表 */
+  dimensionTable: DimensionDetail[];
+  /** 表格加载状态 */
+  loading: boolean;
+  /** 选中的分组信息，包含分组ID和名称 */
+  selectedGroupInfo: { id: number; name: string };
+}
 
 /**
  * 维度列表组件
@@ -100,6 +102,7 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
     });
   }
 
+  /** 监听选中分组变化，重置搜索关键词 */
   @Watch('selectedGroupInfo', { immediate: true })
   handleSelectedGroupInfoChange() {
     this.search = '';
@@ -164,7 +167,10 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
     const updateField = {
       type: 'dimension',
       name: dimensionInfo.name,
-      scope: dimensionInfo.scope,
+      scope: {
+        id: this.selectedGroupInfo.id,
+        name: this.selectedGroupInfo.name,
+      },
       config: {},
     };
     if (['alias', 'hidden', 'common'].includes(k)) {
@@ -235,11 +241,11 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
                   this.editingIndex = -1;
                   this.handleEditDescription(props.row);
                 }}
-                onEnter={() => {
-                  this.handleEditDescription(props.row);
-                }}
                 onChange={v => {
                   this.copyAlias = v;
+                }}
+                onEnter={() => {
+                  this.handleEditDescription(props.row);
                 }}
               />
             </div>
@@ -256,9 +262,7 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
               class='name'
               v-bk-overflow-tips
             >
-              {props.row.scope.name && props.row.scope.name === NULL_LABEL
-                ? this.$t('默认分组')
-                : props.row.scope.name || '--'}
+              {props.row.scope.name === NULL_LABEL ? this.$t('默认分组') : props.row.scope.name || '--'}
             </div>
           ),
         },
@@ -371,6 +375,7 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
             v-model={this.search}
             placeholder={this.$t('搜索 名称、别名')}
             right-icon='icon-monitor icon-mc-search'
+            clearable
           />
         </div>
         <div
@@ -386,20 +391,20 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
             {this.columnConfigs.map(config => (
               <bk-table-column
                 key={config.id}
-                prop={config.id}
                 width={config.width}
-                minWidth={config.minWidth}
-                renderHeader={config?.renderHeaderFn ? () => config.renderHeaderFn(config) : undefined}
                 label={config.label}
+                minWidth={config.minWidth}
+                prop={config.id}
+                renderHeader={config?.renderHeaderFn ? () => config.renderHeaderFn(config) : undefined}
                 scopedSlots={config.scopedSlots}
               />
             ))}
           </bk-table>
         </div>
         <DimensionBatchEdit
-          selectedGroupInfo={this.selectedGroupInfo}
           dimensionTable={this.dimensionTable}
           isShow={this.isShowDimensionSlider}
+          selectedGroupInfo={this.selectedGroupInfo}
           onHidden={v => {
             this.isShowDimensionSlider = v;
           }}

@@ -25,12 +25,15 @@
  */
 
 import type * as apiMap from '../service';
+import type { IGroupingRule } from '../service';
 
-type RequestHandlerKey = keyof typeof apiMap;
-
+/** API 请求方法映射类型，将 service 模块中的所有 API 方法汇集为统一的映射类型 */
 export type RequestHandlerMap = {
   [K in RequestHandlerKey]: (typeof apiMap)[K];
 };
+
+/** service 模块中所有可用的 API 方法名称 */
+type RequestHandlerKey = keyof typeof apiMap;
 
 /** 全量 */
 export const ALL_OPTION = 'allOption';
@@ -57,28 +60,27 @@ export const DEFAULT_HEIGHT_OFFSET = 8;
 
 /** 表格列配置 */
 export interface IColumnConfig {
+  fixed?: 'left' | 'right';
   label: string;
+  minWidth?: number;
   type?: string;
   width?: number;
-  minWidth?: number;
-  fixed?: 'left' | 'right';
   renderFn: (props: any, key?: any) => any;
   renderHeaderFn?: (config: any) => any;
 }
 
 /** 分组列表 */
 export interface IGroupListItem {
-  scopeId: number;
-  metricList: {
-    field_id: number;
-    metric_name: string;
-  }[];
+  createFrom: 'data' | 'user';
+  dimensionConfig: IGroupingRule['dimension_config'];
   matchRules: string[]; // 匹配规则
   matchRulesOfMetrics?: string[]; // 匹配规则匹配的指标列表
+  metricCount: number;
   name: string; // 分组名称
-  createFrom: 'data' | 'user';
+  scopeId: number;
 }
 
+/** Popover 子组件引用类型，用于获取弹窗内部的下拉组件实例 */
 export type PopoverChildRef = Vue & {
   $refs: {
     refDropdownContent?: PopoverInstance;
@@ -86,6 +88,7 @@ export type PopoverChildRef = Vue & {
   };
 };
 
+/** Popover 弹窗实例接口，提供隐藏弹窗的方法 */
 export interface PopoverInstance extends Vue {
   $el: HTMLDivElement;
   hideHandler: () => void;
