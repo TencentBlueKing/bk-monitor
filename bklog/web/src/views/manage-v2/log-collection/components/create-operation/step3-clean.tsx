@@ -114,6 +114,7 @@ export default defineComponent({
      */
     const pathExample = ref();
     const isDebugLoading = ref(false);
+    const isPathDebugLoading = ref(false);
     /**
      * 日志样例
      */
@@ -424,7 +425,7 @@ export default defineComponent({
         data: pathExample.value,
       };
       const urlParams = {};
-      isDebugLoading.value = true;
+      isPathDebugLoading.value = true;
       urlParams.collector_config_id = curCollect.value.collector_config_id;
       const updateData = { params: urlParams, data };
       // 先置空防止接口失败显示旧数据
@@ -439,7 +440,7 @@ export default defineComponent({
           console.log(err);
         })
         .finally(() => {
-          isDebugLoading.value = false;
+          isPathDebugLoading.value = false;
         });
     };
 
@@ -478,8 +479,6 @@ export default defineComponent({
       if (!isRefresh) {
         formData.value.etl_fields = [];
       }
-      // 先置空防止接口失败显示旧数据
-      formData.value.etl_params.metadata_fields = [];
       if (props.isTempField) {
         requestUrl = 'clean/getEtlPreview';
       } else {
@@ -1207,7 +1206,7 @@ export default defineComponent({
                 />
                 <bk-button
                   class='debug-btn'
-                  disabled={!showDebugPathRegexBtn.value || isDebugLoading.value}
+                  disabled={!showDebugPathRegexBtn.value || isPathDebugLoading.value}
                   on-click={debuggerPathRegex}
                 >
                   {t('调试')}
