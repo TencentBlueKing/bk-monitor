@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 
 from bkmonitor.documents import AlertDocument
+from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
 MONITOR_TO_LOG_OPERATOR_MAP: dict[str, str] = {
@@ -183,3 +184,19 @@ def clean_where_conditions(where: list[dict[str, Any]]) -> list[dict[str, Any]]:
             condition["value"] = filtered_value
         cleaned.append(condition)
     return cleaned
+
+
+def normalize_histogram_quantile_group_by(query_config: dict[str, Any]) -> None:
+    """规范 histogram_quantile 函数 group_by 条件。
+
+    注：histogram_quantile 统计函数依赖 le 维度进行分位数插值计算，但维度下钻、告警图表等场景会覆盖 group_by 导致 le 丢失
+    """
+    data_source: tuple[str, str] = (query_config["data_source_label"], query_config["data_type_label"])
+    if data_source != (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES):
+        return
+    if not any(f.get("id") == "histogram_quantile" for f in query_config.get("functions", [])):
+        return
+    group_by: list[str] = query_config.get("group_by") or []
+    if "le" not in group_by:
+        group_by.append("le")
+        query_config["group_by"] = group_by

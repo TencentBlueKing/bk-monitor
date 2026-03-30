@@ -308,14 +308,19 @@ class DataLink(models.Model):
                 unique_field_list=unique_field_list,
                 json_field_list=["event", "dimension"],
             )
+
+            sinks = [
+                {
+                    "kind": DataLinkKind.ESSTORAGEBINDING.value,
+                    "name": es_storage_ins.name,
+                    "namespace": self.namespace,
+                }
+            ]
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                sinks[0]["tenant"] = self.bk_tenant_id
+
             databus_config = databus_ins.compose_log_config(
-                sinks=[
-                    {
-                        "kind": DataLinkKind.ESSTORAGEBINDING.value,
-                        "name": es_storage_ins.name,
-                        "namespace": self.namespace,
-                    }
-                ],
+                sinks=sinks,
                 rules=CUSTOM_EVENT_CLEAN_RULES,
             )
 
@@ -449,6 +454,11 @@ class DataLink(models.Model):
                         "namespace": self.namespace,
                     }
                 )
+
+            # 补充租户ID
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                for sink in databus_sinks:
+                    sink["tenant"] = self.bk_tenant_id
 
             # 如果没有任何存储绑定配置，则抛出异常
             if not bingding_configs:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -36,7 +35,7 @@ from apps.log_databus.models import DataLinkConfig
 from apps.utils.local import get_request_tenant_id
 
 
-class DataLinkHandler(object):
+class DataLinkHandler:
     def __init__(self, data_link_id=None):
         self.data_link_id = data_link_id
         self.data = None
@@ -52,10 +51,12 @@ class DataLinkHandler(object):
         获取所有链路信息
         """
         bk_tenant_id = get_request_tenant_id()
-        link_objects = DataLinkConfig.objects.order_by("is_edge_transport", "-updated_at")\
-            .filter(bk_tenant_id=bk_tenant_id)
+        link_objects = DataLinkConfig.objects.order_by("is_edge_transport", "-updated_at").filter(
+            bk_tenant_id=bk_tenant_id
+        )
         if param.get("bk_biz_id"):
             link_objects = link_objects.filter(bk_biz_id__in=[0, param["bk_biz_id"]])
+
         response = [
             {
                 "data_link_id": link.data_link_id,
@@ -69,6 +70,23 @@ class DataLinkHandler(object):
             }
             for link in link_objects
         ]
+
+        # 优先级: 业务独立链路 > 公共链路
+        if param.get("bk_biz_id"):
+            public_data_link_infos = []
+            biz_independent_data_link_infos = []
+
+            for data_link_info in response:
+                if not data_link_info["is_active"]:
+                    continue
+
+                if data_link_info["bk_biz_id"] == 0:
+                    public_data_link_infos.append(data_link_info)
+                else:
+                    biz_independent_data_link_infos.append(data_link_info)
+
+            response = biz_independent_data_link_infos + public_data_link_infos
+
         return response
 
     def retrieve(self):

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import os
 import tarfile
@@ -39,7 +39,7 @@ class PackageHandler:
         try:
             with default_storage.open(os.path.join(self.get_media_root(), self.package_dir, filename)) as fd:
                 file_content = fd.read()
-        except IOError:
+        except OSError:
             if ignore_error:
                 return None
             else:
@@ -72,7 +72,7 @@ class PackageHandler:
     def _parse_yaml_file(self, filename, ignore_error=False):
         content = self.read_file(filename, ignore_error)
         try:
-            return yaml.load(content, Loader=yaml.FullLoader)
+            return yaml.safe_load(content)
         except Exception as e:
             if ignore_error:
                 return None

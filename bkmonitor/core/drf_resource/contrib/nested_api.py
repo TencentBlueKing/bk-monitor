@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import os
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 from django import urls
@@ -38,7 +38,7 @@ __doc__ = """
 """
 
 IS_API_MODE = settings.ROLE == "api"
-API_DEFINE: Dict[str, Dict[str, str]] = {}
+API_DEFINE: dict[str, dict[str, str]] = {}
 GET_DATA_RESOURCES = {}
 
 if settings.ROLE != "web":
@@ -73,14 +73,14 @@ class KernelAPIResource(APIResource):
             # 后台时序数据拉取直联influxdb-proxy获取数据，避免经过esb序列化
             if action in GET_DATA_RESOURCES:
                 return GET_DATA_RESOURCES[action]()(validated_request_data)
-        return super(KernelAPIResource, self).perform_request(validated_request_data)
+        return super().perform_request(validated_request_data)
 
     def direct_request(self, validated_request_data):
         # 重要： 当前不支持action带模板变量的方式（当前kernel_api未使用）
         api_url = self.get_request_url(validated_request_data)
         api_name, api_item = self.get_api_from_url(api_url)
         if api_item is None:
-            raise HTTP404Error(message="api [{}] not define in monitor_v3.yaml".format(api_name))
+            raise HTTP404Error(message=f"api [{api_name}] not define in monitor_v3.yaml")
 
         dest_path = api_item["dest_path"]
         http_method = api_item["dest_http_method"]
@@ -125,18 +125,18 @@ def load_api_yaml():
     # 读取esb的api定义
     yaml_file_path = os.path.join(settings.BASE_DIR, "docs", "api", "monitor_v3.yaml")
     if not os.path.exists(yaml_file_path):
-        logger.error("api configfile not found. [{}]".format(yaml_file_path))
+        logger.error(f"api configfile not found. [{yaml_file_path}]")
         return
     with open(yaml_file_path, encoding="utf8") as yaml_fd:
         try:
-            for api_item in yaml.load(yaml_fd, Loader=yaml.FullLoader):
+            for api_item in yaml.safe_load(yaml_fd):
                 name = api_item["name"]
                 API_DEFINE[name] = {
                     "dest_path": api_item["dest_path"],
                     "dest_http_method": api_item["dest_http_method"],
                 }
         except ParserError:
-            logger.error("api configfile is invalid. [{}]".format(yaml_file_path))
+            logger.error(f"api configfile is invalid. [{yaml_file_path}]")
 
     # 读取apigw的api定义
     yaml_file_path = os.path.join(settings.BASE_DIR, "support-files", "apigw", "resources")
@@ -152,7 +152,7 @@ def load_api_yaml():
                 continue
             file_path = os.path.join(path, file_name)
             with open(file_path, encoding="utf8") as yaml_fd:
-                api_config: Dict[str, Any] = yaml.load(yaml_fd, Loader=yaml.FullLoader)
+                api_config: dict[str, Any] = yaml.safe_load(yaml_fd)
                 for api_path, api_item in api_config["paths"].items():
                     if "post" in api_item:
                         dest_http_method = "POST"
