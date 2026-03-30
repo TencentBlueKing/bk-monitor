@@ -502,8 +502,13 @@ export default defineComponent({
             item.verdict = judgeNumber(item);
           }
           const fields = formData.value.etl_fields;
-          const list = dataFields.reduce((arr, item) => {
-            const field = { ...structuredClone(rowTemplate.value), ...item };
+          const list = dataFields.reduce((arr, item, index) => {
+            const field = { 
+              ...structuredClone(rowTemplate.value),
+              ...item,
+              // 如果接口未返回 field_index，则使用数组索引作为唯一标识
+              field_index: item.field_index ?? index + 1,
+            };
             arr.push(field);
             return arr;
           }, []);
