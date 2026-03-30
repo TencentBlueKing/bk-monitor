@@ -55,6 +55,8 @@ export default class ManualGroup extends tsc<any> {
   @Prop() groupInfo: IGroupingRule;
   /** 已手动选择的指标列表 */
   @Prop({ default: () => [] }) manualList: IListItem[];
+  /** 默认分组信息 */
+  @Prop({ default: () => {} }) defaultGroupInfo: { id: number; name: string };
 
   @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
   @InjectReactive('isAPM') readonly isAPM: boolean;
@@ -66,16 +68,18 @@ export default class ManualGroup extends tsc<any> {
   @Ref('tableRef') readonly tableRef!: InstanceType<typeof CommonTable>;
 
   /** 指标筛选条件对象 */
-  metricSearchObj: ServiceParameters<typeof this.requestHandlerMap.getCustomTsFields>['conditions'] = {
-    name: {
+  metricSearchObj: ServiceParameters<typeof this.requestHandlerMap.getCustomTsFields>['conditions'] = [
+    {
+      key: 'name',
       values: [],
       search_type: 'fuzzy',
     },
-    field_config_alias: {
+    {
+      key: 'field_config_alias',
       values: [],
       search_type: 'fuzzy',
     },
-  };
+  ];
 
   /** 空状态类型 */
   emptyType: EmptyStatusType = 'empty';
@@ -155,6 +159,40 @@ export default class ManualGroup extends tsc<any> {
     }
   }
 
+  @Watch('isCaseSensitiveSearch')
+  @Watch('isExactSearch')
+  @Watch('isRegexSearch')
+  handleSearchTypeChange() {
+    this.$nextTick(() => {
+      if (this.isCaseSensitiveSearch && !this.isExactSearch && !this.isRegexSearch) {
+        for (const item of this.metricSearchObj) {
+          item.search_type = 'fuzzy_case_sensitive';
+        }
+      } else if (this.isExactSearch && !this.isCaseSensitiveSearch && !this.isRegexSearch) {
+        for (const item of this.metricSearchObj) {
+          item.search_type = 'exact';
+        }
+      } else if (this.isRegexSearch && !this.isCaseSensitiveSearch && !this.isExactSearch) {
+        for (const item of this.metricSearchObj) {
+          item.search_type = 'regex';
+        }
+      } else if (this.isCaseSensitiveSearch && this.isExactSearch && !this.isRegexSearch) {
+        for (const item of this.metricSearchObj) {
+          item.search_type = 'exact_case_sensitive';
+        }
+      } else if (this.isCaseSensitiveSearch && this.isRegexSearch && !this.isExactSearch) {
+        for (const item of this.metricSearchObj) {
+          item.search_type = 'regex_case_sensitive';
+        }
+      } else {
+        for (const item of this.metricSearchObj) {
+          item.search_type = 'fuzzy';
+        }
+      }
+    });
+  }
+
+
   /**
    * @description: 处理分页变化
    * @param {number} page - 当前页码
@@ -188,10 +226,21 @@ export default class ManualGroup extends tsc<any> {
    */
   fetchTableData() {
     this.tableData.loading = true;
+    const scopeIds = [this.defaultGroupInfo.id];
+    if (this.groupInfo.id) {
+      scopeIds.push(this.groupInfo.id);
+    }
     const params = {
       time_series_group_id: this.timeSeriesGroupId,
       page: this.tableData.pagination.current,
       page_size: this.tableData.pagination.limit,
+      mandatory_conditions: [
+        {
+          key: 'scope_id',
+          values: scopeIds,
+          search_type: 'exact' as const,
+        },
+      ],
       conditions: this.metricSearchObj,
       condition_connector: 'or' as const,
     };
@@ -227,8 +276,9 @@ export default class ManualGroup extends tsc<any> {
   @Debounce(500)
   handleSearchInput() {
     this.isSearchChange = true;
-    this.metricSearchObj.field_config_alias.values = this.searchValue ? [this.searchValue] : [];
-    this.metricSearchObj.name.values = this.searchValue ? [this.searchValue] : [];
+    for (const item of this.metricSearchObj) {
+      item.values = this.searchValue ? [this.searchValue] : [];
+    }
     this.tableData.pagination.current = 1;
     this.fetchTableData();
   }

@@ -31,7 +31,6 @@ import dayjs from 'dayjs';
 import { Debounce } from 'monitor-common/utils';
 
 import EmptyStatus from '../../../../../../../components/empty-status/empty-status';
-import TableSkeleton from '../../../../../../../components/skeleton/table-skeleton';
 import { METHOD_LIST } from '../../../../../../../constant/constant';
 import ColumnCheck from '../../../../../../performance/column-check/column-check.vue';
 import { type IGroupListItem, type RequestHandlerMap, DEFAULT_HEIGHT_OFFSET, NULL_LABEL } from '../../../../type';
@@ -120,28 +119,33 @@ export default class MetricList extends tsc<IProps, IEmits> {
   loading = false;
 
   /** 指标筛选条件对象 */
-  metricSearchObj: ServiceParameters<typeof this.requestHandlerMap.getCustomTsFields>['conditions'] = {
-    name: {
+  metricSearchObj: ServiceParameters<typeof this.requestHandlerMap.getCustomTsFields>['conditions'] = [
+    {
+      key: 'name',
       values: [],
       search_type: 'fuzzy',
     },
-    field_config_alias: {
+    {
+      key: 'field_config_alias',
       values: [],
       search_type: 'fuzzy',
     },
-    field_config_unit: {
+    {
+      key: 'field_config_unit',
       values: [],
       search_type: 'exact',
     },
-    field_config_aggregate_method: {
+    {
+      key: 'field_config_aggregate_method',
       values: [],
       search_type: 'exact',
     },
-    field_config_hidden: {
+    {
+      key: 'field_config_hidden',
       values: [],
       search_type: 'exact',
     },
-  };
+  ];
 
   /** 全选状态值：0-取消全选，1-半选，2-全选 */
   allCheckValue: 0 | 1 | 2 = 0;
@@ -372,13 +376,14 @@ export default class MetricList extends tsc<IProps, IEmits> {
       time_series_group_id: this.timeSeriesGroupId,
       page: this.tableInstance.page,
       page_size: this.tableInstance.pageSize,
-      conditions: {
-        scope_id: {
+      conditions: [
+        {
+          key: 'scope_id',
           values: this.selectedGroupInfo.id === -1 ? [] : [this.selectedGroupInfo.id],
           search_type: 'exact' as const,
         },
         ...this.metricSearchObj,
-      },
+      ],
     };
     if (this.isAPM) {
       delete params.time_series_group_id;
@@ -812,39 +817,59 @@ export default class MetricList extends tsc<IProps, IEmits> {
   handleSearchChange(list = []) {
     this.search = list;
     const searchKeyMap = {
-      name: 'name',
-      alias: 'field_config_alias',
-      unit: 'field_config_unit',
-      aggregate: 'field_config_aggregate_method',
-      show: 'field_config_hidden',
-    };
-    const searchParam: typeof this.metricSearchObj = {
       name: {
-        values: [],
-        search_type: 'fuzzy',
+        key: 'name',
+        index: 0,
       },
-      field_config_alias: {
-        values: [],
-        search_type: 'fuzzy',
+      alias: {
+        key: 'field_config_alias',
+        index: 1,
       },
-      field_config_unit: {
-        values: [],
-        search_type: 'exact',
+      unit: {
+        key: 'field_config_unit',
+        index: 2,
       },
-      field_config_aggregate_method: {
-        values: [],
-        search_type: 'exact',
+      aggregate: {
+        key: 'field_config_aggregate_method',
+        index: 3,
       },
-      field_config_hidden: {
-        values: [],
-        search_type: 'exact',
+      show: {
+        key: 'field_config_hidden',
+        index: 4,
       },
     };
+    const searchParam: typeof this.metricSearchObj = [
+      {
+        key: 'name',
+        values: [],
+        search_type: 'fuzzy',
+      },
+      {
+        key: 'field_config_alias',
+        values: [],
+        search_type: 'fuzzy',
+      },
+      {
+        key: 'field_config_unit',
+        values: [],
+        search_type: 'exact',
+      },
+      {
+        key: 'field_config_aggregate_method',
+        values: [],
+        search_type: 'exact',
+      },
+      {
+        key: 'field_config_hidden',
+        values: [],
+        search_type: 'exact',
+      },
+    ];
     if (list.length === 1 && list[0].type === 'text') {
-      searchParam.name.values.push(list[0].id);
+      searchParam[0].values.push(list[0].id);
     } else {
       for (const item of list) {
-        searchParam[searchKeyMap[item.id]].values.push(...item.values.map(v => v.id));
+        searchParam[searchKeyMap[item.id].index].values.push(...item.values.map(v => v.id));
       }
     }
     this.metricSearchObj = searchParam;

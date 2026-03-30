@@ -50,6 +50,8 @@ export default class IndicatorSelector extends tsc<any> {
   @Prop({ default: false, type: Boolean }) isEdit: boolean;
   /** 分组规则信息 */
   @Prop() groupInfo: IGroupingRule;
+  /** 默认分组信息 */
+  @Prop({ default: () => {} }) defaultGroupInfo: { id: number; name: string };
 
   @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
   @InjectReactive('isAPM') readonly isAPM: boolean;
@@ -121,12 +123,13 @@ export default class IndicatorSelector extends tsc<any> {
       time_series_group_id: this.timeSeriesGroupId,
       page: 1,
       page_size: -1,
-      conditions: {
-        scope_id: {
+      conditions: [
+        {
+          key: 'scope_id',
           values: [this.groupInfo.id],
           search_type: 'exact' as const,
         },
-      },
+      ],
     };
     if (this.isAPM) {
       delete params.time_series_group_id;
@@ -272,6 +275,7 @@ export default class IndicatorSelector extends tsc<any> {
               ref='manualGroupMainRef'
               v-show={this.activeTab === 'manual'}
               groupInfo={this.groupInfo}
+              defaultGroupInfo={this.defaultGroupInfo}
               isEdit={this.isEdit}
               manualList={this.manualList}
               onMetricListChange={this.handleMetricListChange}

@@ -163,10 +163,16 @@ export const getCustomTsFields = CustomReportApi.getCustomTsFields<
     page: number;
     page_size: number;
     condition_connector?: 'and' | 'or';
-    conditions?: Record<string, {
+    mandatory_conditions?: {
+      key: string;
       values: (string | number)[];
-      search_type: 'exact' | 'fuzzy' | 'regex' | 'case_sensitive';
-    }>;
+      search_type: 'exact' | 'fuzzy' | 'regex' | 'case_sensitive' | 'fuzzy_case_sensitive' | 'exact_case_sensitive' | 'regex_case_sensitive';
+    }[];
+    conditions?: {
+      key: string;
+      values: (string | number)[];
+      search_type: 'exact' | 'fuzzy' | 'regex' | 'case_sensitive' | 'fuzzy_case_sensitive' | 'exact_case_sensitive' | 'regex_case_sensitive';
+    }[];
     order_by?: string; // '-update_time' | 'name'
   },
   ICustomTsFields
