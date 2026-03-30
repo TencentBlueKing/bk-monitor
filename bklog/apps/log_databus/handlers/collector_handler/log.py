@@ -12,7 +12,9 @@ from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType, L
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, AccessSourceConfig, Scenario
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
+from apps.utils.local import get_local_param
 from apps.utils.thread import MultiExecuteFunc
+from apps.utils.time_handler import format_user_time_zone
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -376,6 +378,7 @@ class LogCollectorHandler:
         for item in access_source_config:
             access_source_config_mappings[item["source_id"]] = item["source_name"]
 
+        time_zone = get_local_param("time_zone")
         result_list = []
         for obj in log_index_sets:
             _index_set_id = obj.index_set_id
@@ -410,8 +413,10 @@ class LogCollectorHandler:
                     "index_set_name": obj.index_set_name,
                     "indexes": indexes,
                     "bk_data_name": ",".join(bk_data_name_list),
-                    "updated_at": obj.updated_at,
+                    "updated_at": format_user_time_zone(obj.updated_at, time_zone),
                     "updated_by": obj.updated_by,
+                    "created_at": format_user_time_zone(obj.created_at, time_zone),
+                    "created_by": obj.created_by,
                     "tag_ids": obj.tag_ids,
                     "category_id": obj.category_id,
                     "scenario_id": obj.scenario_id,
@@ -500,6 +505,7 @@ class LogCollectorHandler:
         combined_data = collector_configs + log_index_sets
         self.fill_parent_index_sets_info(combined_data)
         combined_data = self.fetch_log_collector_data(combined_data)
+        combined_data.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
         # 分页
         paginator = Paginator(combined_data, data["pagesize"])
         page_obj = paginator.get_page(data["page"])
