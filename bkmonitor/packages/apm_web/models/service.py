@@ -88,7 +88,7 @@ class ServiceBase(models.Model):
         return list(cls.get_relation_qs(bk_biz_id, app_name, service_names, include_global, **extra_filters).values())
 
     @classmethod
-    def _make_sync_key(cls, obj_or_dict: dict | Self) -> tuple:
+    def _make_sync_key(cls, obj_or_dict: "dict[str, Any] | ServiceBase") -> tuple:
         """从 dict 或 model 实例中提取 SCOPE_KEYS + DIFF_KEYS 组成的唯一键元组。"""
         all_keys = cls.SCOPE_KEYS + cls.DIFF_KEYS
         if isinstance(obj_or_dict, dict):
@@ -96,7 +96,7 @@ class ServiceBase(models.Model):
         return tuple(getattr(obj_or_dict, k, None) for k in all_keys)
 
     @classmethod
-    def _diff_and_apply(cls, obj, record: dict) -> bool:
+    def _diff_and_apply(cls, obj: "ServiceBase", record: dict[str, Any]) -> bool:
         """将 record 中变化的 DEFAULT_KEYS 字段写入 obj，返回是否有变更。"""
         changed = False
         for field in cls.DEFAULT_KEYS:
@@ -246,9 +246,7 @@ class EventServiceRelation(ServiceBase):
         service_table_relations_map: dict[tuple[str, str], list[dict[str, Any]]] = {
             (service_name, EventCategory.SYSTEM_EVENT.value): [] for service_name in service_names
         }
-        for relation in cls.get_relations(bk_biz_id, app_name, service_names).values(
-            "service_name", "table", "relations", "options"
-        ):
+        for relation in cls.get_relations(bk_biz_id, app_name, service_names):
             key: tuple[str, str] = (relation["service_name"], relation["table"])
             service_table_options_map[key] = relation["options"]
             service_table_relations_map.setdefault(key, []).extend(relation["relations"])

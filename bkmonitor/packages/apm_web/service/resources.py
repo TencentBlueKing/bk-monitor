@@ -131,9 +131,9 @@ class ServiceInfoResource(Resource):
 
         # 如果没有，则设置默认值
         service_info.setdefault("created_at", None)
-        service_info.setdefault("created_by", default_username)
+        service_info["created_by"] = service_info.get("created_by") or default_username
         service_info.setdefault("updated_at", None)
-        service_info.setdefault("updated_by", default_username)
+        service_info["updated_by"] = service_info.get("updated_by") or default_username
 
     @classmethod
     def get_cmdb_relation_info(cls, bk_biz_id: int, app_name: str, service_name: str) -> dict[str, Any]:
@@ -179,9 +179,7 @@ class ServiceInfoResource(Resource):
     @classmethod
     def get_uri_relation_infos(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[dict[str, Any]]:
         return list(
-            UriServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name], False)
-            .order_by("rank")
-            .values("id", "uri", "rank", "updated_at", "updated_by")
+            UriServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name], False).order_by("rank").values()
         )
 
     @classmethod
@@ -494,12 +492,7 @@ class ServiceConfigResource(Resource):
             for data in prepare_datas
         ]
         # 执行同步
-        model_cls.sync_relations(
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            service_name=service_name,
-            records=records,
-        )
+        model_cls.sync_relations(bk_biz_id, app_name, service_name, records)
 
     @classmethod
     def update_labels(cls, bk_biz_id: int, app_name: str, service_name: str, labels: list[str] | None) -> None:
