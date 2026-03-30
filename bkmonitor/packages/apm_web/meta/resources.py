@@ -1225,7 +1225,7 @@ class ServiceDetailResource(Resource):
     def add_service_relation(self, bk_biz_id, app_name, service):
         service_name: str = service["topo_key"]
         # -- 添加cmdb关联信息
-        cmdb_obj: CMDBServiceRelation = CMDBServiceRelation.get_relations(bk_biz_id, app_name, [service_name]).first()
+        cmdb_obj: CMDBServiceRelation = CMDBServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
         if cmdb_obj:
             template_id = cmdb_obj.template_id
             template = {t["id"]: t for t in CMDBServiceTemplateResource.get_templates(bk_biz_id)}.get(template_id, {})
@@ -1238,7 +1238,7 @@ class ServiceDetailResource(Resource):
             )
 
         # -- 添加日志关联
-        log_obj: LogServiceRelation = LogServiceRelation.get_relations(bk_biz_id, app_name, [service_name]).first()
+        log_obj: LogServiceRelation = LogServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
         if log_obj:
             log_data: dict[str, Any] = LogServiceRelationOutputSerializer(instance=log_obj).data
             if log_data["log_type"] == ServiceRelationLogTypeChoices.BK_LOG:
@@ -1253,7 +1253,7 @@ class ServiceDetailResource(Resource):
                 service.update({"log_type": log_data["log_type_alias"], "log_value": log_data["value"]})
 
         # -- 添加app关联
-        app_obj: AppServiceRelation = AppServiceRelation.get_relations(bk_biz_id, app_name, [service_name]).first()
+        app_obj: AppServiceRelation = AppServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
         if app_obj:
             res: dict[str, Any] = AppServiceRelationSerializer(instance=app_obj).data
             relate_bk_biz_id = app_obj.relate_bk_biz_id
@@ -2476,7 +2476,7 @@ class QueryEndpointStatisticsResource(PageListResource):
         filter_params = self.build_filter_params(validated_data["filter_params"])
         service_name = get_service_from_params(filter_params)
         is_component = False
-        uri_queryset = UriServiceRelation.get_relations(bk_biz_id, app_name)
+        uri_queryset = UriServiceRelation.get_relation_qs(bk_biz_id, app_name)
 
         if service_name:
             node = ServiceHandler.get_node(

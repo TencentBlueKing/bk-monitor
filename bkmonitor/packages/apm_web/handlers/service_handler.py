@@ -243,7 +243,7 @@ class ServiceHandler:
         if not nodes:
             nodes = cls.list_nodes(bk_biz_id, app_name)
 
-        instance = ApdexServiceRelation.get_relations(bk_biz_id, app_name, [service_name]).first()
+        instance = ApdexServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
 
         if not instance:
             # 填充默认值 判断服务类型得出Apdex类型

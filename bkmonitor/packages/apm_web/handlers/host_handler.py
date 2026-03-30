@@ -85,7 +85,7 @@ class HostHandler:
     @classmethod
     def get_hosts_from_service_relation(cls, bk_biz_id, app_name, service_name):
         """获取从 用户配置的服务关联 CMDB 服务模板"""
-        relation_obj = CMDBServiceRelation.get_relations(bk_biz_id, app_name, [service_name]).first()
+        relation_obj = CMDBServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
         cmdb_host_instances = []
         if relation_obj:
             response = batch_request(
@@ -170,7 +170,7 @@ class HostHandler:
         if hosts_in_cmdb:
             return True
 
-        if CMDBServiceRelation.get_relations(bk_biz_id, app_name, [service_name]).exists():
+        if CMDBServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).exists():
             return True
 
         if not start_time or not end_time:

@@ -58,7 +58,7 @@ class ServiceLogHandler:
 
         # Step1: 找到此应用所有服务关联的日志
         service_mapping = defaultdict(dict)
-        relations = LogServiceRelation.get_relations(bk_biz_id, app_name)
+        relations = LogServiceRelation.get_relation_qs(bk_biz_id, app_name)
         for i in relations:
             if i.log_type == ServiceRelationLogTypeChoices.BK_LOG:
                 service_mapping[i.service_name][i.related_bk_biz_id] = {
@@ -196,8 +196,8 @@ class ServiceLogHandler:
     def get_log_relations(cls, bk_biz_id: int, app_name: str, service_names: list[str]) -> list[LogServiceRelation]:
         """获取服务关联的日志"""
         return list(
-            LogServiceRelation.get_relations(
-                bk_biz_id, app_name, service_names=service_names, log_type=ServiceRelationLogTypeChoices.BK_LOG
+            LogServiceRelation.get_relation_qs(
+                bk_biz_id, app_name, service_names, log_type=ServiceRelationLogTypeChoices.BK_LOG
             )
         )
 

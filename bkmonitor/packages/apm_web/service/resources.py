@@ -137,12 +137,7 @@ class ServiceInfoResource(Resource):
 
     @classmethod
     def get_cmdb_relation_info(cls, bk_biz_id: int, app_name: str, service_name: str) -> dict[str, Any]:
-        relation_obj = CMDBServiceRelation.get_relations(
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            service_names=[service_name],
-            include_global=False,
-        ).first()
+        relation_obj = CMDBServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name], False).first()
         if not relation_obj:
             return {}
 
@@ -161,22 +156,14 @@ class ServiceInfoResource(Resource):
     @classmethod
     def get_log_relation_infos(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[dict[str, Any]]:
         return LogServiceRelationOutputSerializer(
-            instance=LogServiceRelation.get_relations(
-                bk_biz_id=bk_biz_id,
-                app_name=app_name,
-                service_names=[service_name],
-                include_global=False,
-            ),
+            instance=LogServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name], False),
             many=True,
         ).data
 
     @classmethod
     def get_app_relation_info(cls, bk_biz_id: int, app_name: str, service_name: str) -> dict[str, Any]:
-        relation_obj: AppServiceRelation = AppServiceRelation.get_relations(
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            service_names=[service_name],
-            include_global=False,
+        relation_obj: AppServiceRelation = AppServiceRelation.get_relation_qs(
+            bk_biz_id, app_name, [service_name], False
         ).first()
         if not relation_obj:
             return {}
@@ -192,25 +179,9 @@ class ServiceInfoResource(Resource):
     @classmethod
     def get_uri_relation_infos(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[dict[str, Any]]:
         return list(
-            UriServiceRelation.get_relations(
-                bk_biz_id=bk_biz_id,
-                app_name=app_name,
-                service_names=[service_name],
-                include_global=False,
-            )
+            UriServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name], False)
             .order_by("rank")
             .values("id", "uri", "rank", "updated_at", "updated_by")
-        )
-
-    @classmethod
-    def get_event_relation_infos(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[dict[str, Any]]:
-        return list(
-            EventServiceRelation.get_relations(
-                bk_biz_id=bk_biz_id,
-                app_name=app_name,
-                service_names=[service_name],
-                include_global=False,
-            ).values("id", "table", "relations", "options", "updated_at", "updated_by")
         )
 
     @classmethod
@@ -272,7 +243,7 @@ class ServiceInfoResource(Resource):
         app_res = pool.apply_async(self.get_app_relation_info, kwds=base_query_param)
         log_res = pool.apply_async(self.get_log_relation_infos, kwds=base_query_param)
         cmdb_res = pool.apply_async(self.get_cmdb_relation_info, kwds=base_query_param)
-        event_res = pool.apply_async(self.get_event_relation_infos, kwds=base_query_param)
+        event_res = pool.apply_async(EventServiceRelation.get_relations, kwds=base_query_param)
         uri_res = pool.apply_async(self.get_uri_relation_infos, kwds=base_query_param)
         label_res = pool.apply_async(self.get_labels, kwds=base_query_param)
         profiling_res = pool.apply_async(

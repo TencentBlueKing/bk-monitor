@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any, Self
 
 from django.db import models, transaction
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from apm_web.constants import ServiceRelationLogTypeChoices, SyncScope
@@ -43,15 +43,15 @@ class ServiceBase(models.Model):
         index_together = [["bk_biz_id", "app_name", "service_name"]]
 
     @classmethod
-    def get_relation_q(
+    def get_relation_qs(
         cls,
         bk_biz_id: int,
         app_name: str,
         service_names: list[str] | None = None,
         include_global: bool = False,
         **extra_filters,
-    ) -> Q:
-        """构建查询 Q 对象。
+    ) -> QuerySet[Self]:
+        """统一查询入口，按场景构建查询条件并返回 QuerySet。
 
         场景说明：
         - 场景 1: service_names=["svc-a", ...] + include_global=True  → 指定服务级 + 全局规则
@@ -65,25 +65,15 @@ class ServiceBase(models.Model):
         """
         base_q = Q(bk_biz_id=bk_biz_id, app_name=app_name, **extra_filters)
 
-        # 场景 1/2：指定了具体服务名
-        if service_names:
+        if service_names is None:
+            scope_q = Q(is_global=False)
+        else:
             scope_q = Q(service_name__in=service_names, is_global=False)
-            if include_global:
-                scope_q |= Q(is_global=True)
-            return base_q & scope_q
 
-        # 场景 3/3b：传了空列表（显式表示"不选任何服务"）
-        if service_names is not None:
-            if not include_global:
-                return base_q & Q(pk__in=[])  # 无服务可查且不含全局 → 空结果
-            return base_q & Q(is_global=True)
-
-        # 场景 4：service_names=None + include_global=True → 应用下全量（服务级 + 全局）
         if include_global:
-            return base_q
+            scope_q |= Q(is_global=True)
 
-        # 场景 5：service_names=None + include_global=False → 排除全局
-        return base_q & Q(is_global=False)
+        return cls.objects.filter(base_q & scope_q)
 
     @classmethod
     def get_relations(
@@ -93,22 +83,9 @@ class ServiceBase(models.Model):
         service_names: list[str] | None = None,
         include_global: bool = False,
         **extra_filters,
-    ):
-        """统一查询入口，基于 get_relation_q 构建查询条件。
-
-        场景说明（与 get_relation_q 一致）：
-        - 场景 1: service_names=["svc-a", ...] + include_global=True  → 指定服务级 + 全局规则
-        - 场景 2: service_names=["svc-a", ...] + include_global=False → 仅指定服务级规则
-        - 场景 3: service_names=[]             + include_global=True  → 仅全局规则
-        - 场景 3b: service_names=[]            + include_global=False → 空结果（无服务可查且不含全局）
-        - 场景 4: service_names=None(不传)      + include_global=True  → 应用下所有规则（全量）
-        - 场景 5: service_names=None(不传)      + include_global=False → 应用下所有服务的规则（排除全局）
-
-        向后兼容：include_global 默认 False，旧调用方不传参数时仅返回服务级记录，行为不变。
-        """
-        return cls.objects.filter(
-            cls.get_relation_q(bk_biz_id, app_name, service_names, include_global, **extra_filters)
-        )
+    ) -> list[dict[str, Any]]:
+        """get_relation_qs 的便捷封装，直接返回 list[dict] 而非 QuerySet。参数语义同 get_relation_qs。"""
+        return list(cls.get_relation_qs(bk_biz_id, app_name, service_names, include_global, **extra_filters).values())
 
     @classmethod
     def _make_sync_key(cls, obj_or_dict: dict | Self) -> tuple:
