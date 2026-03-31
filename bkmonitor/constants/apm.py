@@ -107,6 +107,22 @@ class TraceDataSourceConfig:
 
     TRACE_FIELD_LIST = [
         {
+            "field_name": "bk_biz_id",
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "Bk Biz Id",
+        },
+        {
+            "field_name": "app_name",
+            "field_type": ResultTableField.FIELD_TYPE_STRING,
+            "tag": ResultTableField.FIELD_TAG_DIMENSION,
+            "option": {"es_type": "keyword"},
+            "is_config_by_user": True,
+            "description": "App Name",
+        },
+        {
             "field_name": "attributes",
             "field_type": ResultTableField.FIELD_TYPE_OBJECT,
             "tag": ResultTableField.FIELD_TAG_DIMENSION,
