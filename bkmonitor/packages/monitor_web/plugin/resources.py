@@ -37,6 +37,8 @@ from rest_framework import serializers
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.serializers import MetricJsonBaseSerializer
+from bkmonitor.utils.tenant import set_local_tenant_id
+from bkmonitor.utils.user import get_admin_username, set_local_username
 from constants.result_table import (
     RT_RESERVED_WORD_EXACT,
     RT_RESERVED_WORD_FUZZY,
@@ -458,6 +460,7 @@ class PluginImportResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
         file_data = serializers.FileField(required=True)
+        bk_tenant_id = serializers.CharField(required=False)
 
     def un_tar_gz_file(self, tar_obj):
         # 免解压读取文件内容到内存
@@ -871,6 +874,20 @@ class PluginImportWithoutFrontendResource(PluginImportResource):
         metric_json = serializers.JSONField(required=False, default={})
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = validated_request_data.get("bk_tenant_id") or get_request_tenant_id()
+        request = get_request(peaceful=True)
+
+        if bk_tenant_id:
+            tenant_admin = get_admin_username(bk_tenant_id=bk_tenant_id)
+
+            if request and getattr(request, "user", None):
+                request.user.username = tenant_admin
+                request.user.tenant_id = bk_tenant_id
+
+            set_local_username(tenant_admin)
+            set_local_tenant_id(bk_tenant_id)
+
+            validated_request_data["operator"] = tenant_admin
         operator = validated_request_data.pop("operator")
         self.create_params = super().perform_request(validated_request_data)
         self.create_params["bk_biz_id"] = validated_request_data["bk_biz_id"]
