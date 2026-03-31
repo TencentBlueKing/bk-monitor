@@ -309,7 +309,7 @@ export default defineComponent({
               height={670}
               mode='dialog'
               original-value={ipSelectorOriginalValue.value}
-              panel-list={['staticTopo']}
+              panel-list={['staticTopo', 'dynamicTopo']}
               show-dialog={showSelectDialog.value}
               show-view-diff={isClone.value}
               value={selectorNodes.value}
