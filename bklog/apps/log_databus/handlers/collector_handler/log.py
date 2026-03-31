@@ -1,6 +1,7 @@
 from collections import defaultdict
 from itertools import chain
 
+import arrow
 from django.core.paginator import Paginator
 from django.db.models import Q
 
@@ -254,6 +255,12 @@ class LogCollectorHandler:
             qs = qs.filter(query)
 
         collector_configs = qs.values()
+        # Todo 时区处理逻辑太混乱，add_cluster_info 里面已经有时间处理逻辑，先在这里去掉时区
+        timezone = get_local_param("time_zone")
+        for item in collector_configs:
+            item["created_at"] = arrow.get(item["created_at"]).to(timezone).format("YYYY-MM-DD HH:mm:ss")
+            item["updated_at"] = arrow.get(item["updated_at"]).to(timezone).format("YYYY-MM-DD HH:mm:ss")
+
         collector_configs = CollectorHandler.add_cluster_info(collector_configs)
         self.fill_container_fields(collector_configs)
 
@@ -429,7 +436,9 @@ class LogCollectorHandler:
             )
         result_list = IndexSetHandler.post_list(result_list)
         if storage_display_name_list:
-            result_list = list(filter(lambda x: x["storage_display_name"] in storage_display_name_list, result_list))
+            result_list = list(
+                filter(lambda x: x.get("storage_display_name") in storage_display_name_list, result_list)
+            )
         return result_list
 
     def get_log_collectors(self, data):
