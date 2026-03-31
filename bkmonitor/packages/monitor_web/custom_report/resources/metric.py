@@ -287,7 +287,11 @@ class ValidateCustomTsMetricFieldName(Resource):
                 {
                     "key": "field_scope",
                     "values": [DEFAULT_FIELD_SCOPE],
-                }
+                },
+                {
+                    "key": "field_config_disabled",
+                    "values": ["false"],
+                },
             ],
         )
         duplicated_field_names = sorted({metric.name for metric in metric_data.metrics})
