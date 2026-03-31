@@ -90,7 +90,7 @@ export interface IssueItem extends Record<string, unknown> {
   /** Issue 唯一标识 */
   id: string;
   /** 影响范围 */
-  impact_scope: ImpactScope | Record<string, never>;
+  impact_scope: ImpactScope;
   /** 是否为回归 Issue */
   is_regression: boolean;
   /** 是否已解决 */

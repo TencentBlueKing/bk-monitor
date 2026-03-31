@@ -142,6 +142,19 @@ export const ImpactScopeResourceKeyEnum = {
   APM_SERVICE: 'apm_service',
 } as const;
 
+/** 影响范围资源类型展示排序权重（值越小越靠前）：set > host > service_instances > cluster > node > service > pod > app > apm_service */
+export const ImpactScopeSortOrderMap: Record<string, number> = {
+  [ImpactScopeResourceKeyEnum.SET]: 0,
+  [ImpactScopeResourceKeyEnum.HOST]: 1,
+  [ImpactScopeResourceKeyEnum.SERVICE_INSTANCES]: 2,
+  [ImpactScopeResourceKeyEnum.CLUSTER]: 3,
+  [ImpactScopeResourceKeyEnum.NODE]: 4,
+  [ImpactScopeResourceKeyEnum.SERVICE]: 5,
+  [ImpactScopeResourceKeyEnum.POD]: 6,
+  [ImpactScopeResourceKeyEnum.APP]: 7,
+  [ImpactScopeResourceKeyEnum.APM_SERVICE]: 8,
+};
+
 // ===================== 常量映射 =====================
 
 /** Issues 状态映射 */
