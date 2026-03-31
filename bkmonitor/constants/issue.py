@@ -55,3 +55,34 @@ class IssueActivityType:
         (ASSIGNEE_CHANGE, _("负责人变更")),
         (PRIORITY_CHANGE, _("优先级变更")),
     )
+
+
+class ImpactScopeDimension:
+    """影响范围维度枚举"""
+
+    SET = "set"
+    HOST = "host"
+    SERVICE_INSTANCES = "service_instances"
+    CLUSTER = "cluster"
+    NODE = "node"
+    SERVICE = "service"
+    POD = "pod"
+    APM_APP = "apm_app"
+    APM_SERVICE = "apm_service"
+
+    CHOICES = (
+        (SET, _("集群")),
+        (HOST, _("主机")),
+        (SERVICE_INSTANCES, _("服务实例")),
+        (CLUSTER, _("bcs集群")),
+        (NODE, "node"),
+        (SERVICE, "service"),
+        (POD, "pod"),
+        (APM_APP, "apm_app"),
+        (APM_SERVICE, "apm_service"),
+    )
+
+    @classmethod
+    def get_display_name(cls, dimension: str) -> str:
+        """获取维度的展示名称，未匹配时返回原维度值"""
+        return dict(cls.CHOICES).get(dimension, dimension)
