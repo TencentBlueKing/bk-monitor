@@ -37,6 +37,7 @@ from core.errors.custom_report import (
     CustomValidationLabelError,
     CustomValidationNameError,
 )
+from monitor_web.custom_report.handlers.metric.query import MetricQueryConverter
 from monitor_web.constants import ETL_CONFIG
 from monitor_web.custom_report.constants import UNGROUP_SCOPE_NAME, CustomTSMetricType, DEFAULT_FIELD_SCOPE
 from monitor_web.custom_report.serializers.metric import (
@@ -252,6 +253,35 @@ class ValidateCustomTsGroupLabel(Resource):
                     msg=_("自定义指标英文名仅允许包含字母、数字、下划线、点号，且必须以字母开头")
                 )
         params["data_label"] = ",".join(data_labels)
+        return True
+
+
+class ValidateCustomTsMetricFieldName(Resource):
+    """
+    校验 default field_scope 下是否存在同名指标
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True)
+        time_series_group_id = serializers.IntegerField(required=True)
+        field_name = serializers.CharField(required=True, max_length=255)
+
+    def perform_request(self, params: dict):
+        converter = MetricQueryConverter(params["time_series_group_id"])
+        metric_data = converter.query_time_series_metric(
+            page=1,
+            page_size=-1,
+            order_by="name",
+            conditions=[
+                {
+                    "key": "name",
+                    "values": [params["field_name"]],
+                    "search_type": "exact_case_sensitive",
+                }
+            ],
+        )
+        if any(metric.field_scope == DEFAULT_FIELD_SCOPE for metric in metric_data.metrics):
+            raise ValueError(_("指标字段名({field_name})已存在于 default 分组中").format(**params))
         return True
 
 
@@ -743,9 +773,6 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
     def perform_request(self, params: dict):
         from dataclasses import asdict
         import timeit
-
-        from monitor_web.custom_report.handlers.metric.query import MetricQueryConverter
-
         time1 = timeit.default_timer()
 
         time_series_group_id: int = params["time_series_group_id"]
@@ -1068,8 +1095,6 @@ class PreviewGroupingRule(CustomTSScopeMixin, Resource):
         auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), child=serializers.CharField(), default=[])
 
     def perform_request(self, params: dict):
-        from monitor_web.custom_report.handlers.metric.query import MetricQueryConverter
-
         auto_rules = params["auto_rules"]
         if not auto_rules:
             return {"auto_metrics": []}

@@ -20,6 +20,7 @@ from monitor_web.custom_report.resources.metric import (
     DeleteGroupingRule,
     ImportCustomTimeSeriesFields,
     ExportCustomTimeSeriesFields,
+    ValidateCustomTsMetricFieldName,
 )
 
 # 排除 APM 内置指标的条件：匹配以 apm_ 或 bk_apm_ 开头的指标名，然后取反
@@ -92,3 +93,8 @@ class ApmExportCustomTimeSeriesFields(ExportCustomTimeSeriesFields):
 
     def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
         return super().perform_request(params)
+
+
+class ApmValidateCustomTsMetricFieldName(ValidateCustomTsMetricFieldName):
+    class RequestSerializer(BaseRequestSerializer, ValidateCustomTsMetricFieldName.RequestSerializer):
+        pass

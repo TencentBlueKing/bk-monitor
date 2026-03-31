@@ -17,6 +17,7 @@ from apm_web.custom_metric.resources import (
     ApmImportCustomTimeSeriesFields,
     ApmModifyCustomTsFields,
     ApmPreviewGroupingRule,
+    ApmValidateCustomTsMetricFieldName,
 )
 from apm_web.decorators import user_visit_record
 from apm_web.models import Application
@@ -51,6 +52,12 @@ class CustomMetricViewSet(ResourceViewSet):
             "POST",
             ApmModifyCustomTsFields,
             endpoint="modify_custom_ts_fields",
+            decorators=[user_visit_record],
+        ),
+        ResourceRoute(
+            "GET",
+            ApmValidateCustomTsMetricFieldName,
+            endpoint="validate_custom_ts_metric_field_name",
             decorators=[user_visit_record],
         ),
         ResourceRoute(
