@@ -56,16 +56,16 @@ export default class ValueTag extends tsc<IProps, IEmit> {
     return customEscalationViewStore.currentSelectedMetricList;
   }
 
-  get currentSelectedGroupAndMetricNameList() {
-    return customEscalationViewStore.currentSelectedGroupAndMetricNameList;
-  }
-
   get dimensionAliasNameMap() {
     return customEscalationViewStore.dimensionAliasNameMap;
   }
 
+  get aggInfoData() {
+    return customEscalationViewStore.aggInfoData;
+  }
+
   get isAddBtnDisabled() {
-    return _.every(this.latestMetricsList, metricItem => metricItem.dimensions.length < 1);
+    return !this.currentSelectedMetricList.length;
   }
 
   @Watch('currentSelectedMetricList', { immediate: true })
@@ -80,42 +80,28 @@ export default class ValueTag extends tsc<IProps, IEmit> {
   }
 
   calcLatestMetricsList() {
-    const dimensionCountMap: Record<string, number> = {};
-
-    for (const metricItem of this.currentSelectedMetricList) {
-      for (const dimensionItem of metricItem.dimensions) {
-        dimensionCountMap[dimensionItem.name] = (dimensionCountMap[dimensionItem.name] || 0) + 1;
-      }
-    }
-
-    let commonDimensionList: IMetrics['dimensions'] = [];
+    const commonDimensionList: IMetrics['dimensions'] = [];
     const otherDimensionList: IMetrics['dimensions'] = [];
-    for (const metricsItem of this.currentSelectedMetricList) {
-      for (const dimensionItem of metricsItem.dimensions) {
-        if (dimensionCountMap[dimensionItem.name] > 1) {
-          commonDimensionList.push(dimensionItem);
-          continue;
-        }
-        otherDimensionList.push(dimensionItem);
+
+    const commonDimensionsSet = new Set((this.aggInfoData.common_dimensions || []).map(item => item.name));
+
+    for (const dimensionItem of this.aggInfoData.all_dimensions || []) {
+      if (commonDimensionsSet.has(dimensionItem.name)) {
+        commonDimensionList.push({
+          alias: dimensionItem.alias,
+          name: dimensionItem.name,
+        });
+      } else {
+        otherDimensionList.push({
+          alias: dimensionItem.alias,
+          name: dimensionItem.name,
+        });
       }
     }
-
-    /**
-     * name同名，优先使用alias不为空的
-     * alias都不为空或者部分为空，保留最后一个
-     */
-    // 根据 name 分组
-    const groupedUsers = _.groupBy(commonDimensionList, 'name');
-    commonDimensionList = Object.values(groupedUsers).map((group: { alias: string; name: string }[]) => {
-      // 获取所有 alias 不为空的对象
-      const nonEmptyAliasUsers = group.filter(user => user.alias !== '');
-      return nonEmptyAliasUsers.length > 0 ? nonEmptyAliasUsers[nonEmptyAliasUsers.length - 1] : group[0];
-    });
 
     const nextMetricsList: IMetrics[] = [];
 
-    // 选择指标数至少有 2 个时一定会显示共有维度分组
-    if (this.currentSelectedMetricList.length >= 2) {
+    if (commonDimensionList.length > 0) {
       nextMetricsList.push({
         alias: this.$t('共用维度') as string,
         metric_name: this.$t('共用维度') as string,
