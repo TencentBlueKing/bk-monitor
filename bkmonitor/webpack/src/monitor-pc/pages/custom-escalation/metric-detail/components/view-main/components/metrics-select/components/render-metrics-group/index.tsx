@@ -161,10 +161,10 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   }
 
   @Watch('metricGroupList')
-  metricGroupListChange(newV) {
-    this.renderMetricGroupList = Object.freeze(newV);
+  metricGroupListChange(newMetricGroupList) {
+    this.renderMetricGroupList = Object.freeze(newMetricGroupList);
     // 初始化时 分组如果有选中的指标，就展开。如果所有分组都没有选中的指标，则展开第一个分组
-    if (newV.length > 0) {
+    if (newMetricGroupList.length > 0) {
       if (this.urlMetrics.length > 0) {
         this.defaultExpandGropus();
         return;
@@ -189,14 +189,15 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
     this.defaultExpandGropus();
   }
 
-  async defaultExpandGropus() {
-    await this.$nextTick();
-    const checkedGroupNames = [...new Set(this.urlMetrics.map(item => item.scope_name))];
-    const expandMap = checkedGroupNames.reduce((acc, groupName: string) => {
-      acc[groupName] = true;
-      return acc;
-    }, {}) as Record<string, boolean>;
-    this.groupExpandMap = Object.keys(expandMap).length ? expandMap : { [this.metricGroupList[0].name]: true };
+  defaultExpandGropus() {
+    this.$nextTick(() => {
+      const checkedGroupNames = [...new Set(this.urlMetrics.map(item => item.scope_name))];
+      const expandMap = checkedGroupNames.reduce((acc, groupName: string) => {
+        acc[groupName] = true;
+        return acc;
+      }, {}) as Record<string, boolean>;
+      this.groupExpandMap = Object.keys(expandMap).length ? expandMap : { [this.metricGroupList[0].name]: true };
+    });
   }
 
   async fetchData() {
@@ -454,7 +455,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
       );
     };
 
-    if (this.metricGroupList.length < 1) {
+    if (!this.metricGroupList.length) {
       return (
         <div class='new-metric-view-metrics-group'>
           <bk-exception

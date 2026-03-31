@@ -173,8 +173,8 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
         this.handleCollapseChange();
         this.loadGraphConfigMetricIds(currentBatch);
       })
-      .catch(() => {
-        // 错误处理
+      .catch(error => {
+        console.log(error.message || error.msg);
       });
   }
 
@@ -199,9 +199,9 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
   }
 
   @Watch('loading')
-  loadingChange(newVal) {
+  loadingChange(newLoadingState) {
     this.panelChartViewRef?.removeEventListener('scroll', this.handleScroll, { passive: true });
-    if (!newVal && this.panelChartViewRef) {
+    if (!newLoadingState && this.panelChartViewRef) {
       this.panelChartViewRef.addEventListener('scroll', this.handleScroll, { passive: true });
     }
   }

@@ -163,8 +163,8 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
 
   // 查看大图的图表右键打开维度下钻时，aggInfoData数据暂未获取
   @Watch('aggInfoData')
-  aggInfoDataChange(newV) {
-    if (newV.all_dimensions?.length > 0 && !this.initData) {
+  aggInfoDataChange(newAggInfoData) {
+    if (newAggInfoData.all_dimensions?.length > 0 && !this.initData) {
       this.init();
     }
   }
