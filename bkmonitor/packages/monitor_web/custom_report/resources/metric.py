@@ -124,6 +124,24 @@ def count_rt_bound_strategies(table_ids, data_source_label, data_type_label, bk_
 
 
 class CustomTSScopeMixin:
+    def build_mandatory_conditions(
+        self, mandatory_conditions: list[dict], conditions: list[dict] | None = None
+    ) -> list[dict]:
+        """
+        构建统一的强制过滤条件，优先级遵循外部传入条件；当外部未指定禁用过滤时默认排除 disabled 指标。
+        """
+        conditions = conditions or []
+        if any(c.get("key") == "field_config_disabled" for c in [*conditions, *mandatory_conditions]):
+            return mandatory_conditions
+
+        return mandatory_conditions + [
+            {
+                "key": "field_config_disabled",
+                "values": ["false"],
+                "search_type": "exact",
+            }
+        ]
+
     def get_query_scope_filters(self, params: dict) -> dict:
         """
         :param params: 请求参数
@@ -714,7 +732,7 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
         total = serializers.IntegerField(label=_("总数"))
         list = serializers.ListField(label=_("指标列表"))
 
-    def get_extra_conditions(self, params: dict) -> list[dict]:
+    def get_extra_mandatory_conditions(self, params: dict) -> list[dict]:
         """子类可覆盖此方法注入额外的查询条件"""
         return []
 
@@ -736,18 +754,11 @@ class GetCustomTsFields(CustomTSScopeMixin, Resource):
         conditions = params.get("conditions", [])
         mandatory_conditions = list(params.get("mandatory_conditions") or [])
 
-        mandatory_conditions.extend(self.get_extra_conditions(params))
-
-        # 默认排除 disabled 指标（放入强制条件）
-        has_disabled_condition = any(c["key"] == "field_config_disabled" for c in [*conditions, *mandatory_conditions])
-        if not has_disabled_condition:
-            mandatory_conditions.append(
-                {
-                    "key": "field_config_disabled",
-                    "values": ["false"],
-                    "search_type": "exact",
-                }
-            )
+        mandatory_conditions.extend(self.get_extra_mandatory_conditions(params))
+        mandatory_conditions = self.build_mandatory_conditions(
+            mandatory_conditions=mandatory_conditions,
+            conditions=conditions,
+        )
         time2 = timeit.default_timer()
         logger.info("[GetCustomTsFields] build conditions cost: %.4fs, group_id=%s", time2 - time1, time_series_group_id)
         paginated_result = converter.query_time_series_metric(
@@ -955,7 +966,7 @@ class CustomTsGroupingRuleList(CustomTSScopeMixin, Resource):
     class ResponseSerializer(CustomTSGroupingRuleResponseSerializer):
         pass
 
-    def get_metric_count_conditions(self, params: dict) -> list[dict]:
+    def get_extra_mandatory_conditions(self, params: dict) -> list[dict]:
         """子类可覆盖此方法注入额外的 metric_count 过滤条件"""
         return []
 
@@ -967,7 +978,7 @@ class CustomTsGroupingRuleList(CustomTSScopeMixin, Resource):
         result: list[dict[str, Any]] = []
 
         # 收集额外的 metric_count 过滤条件
-        extra_conditions = self.get_metric_count_conditions(params)
+        extra_mandatory_conditions = self.get_extra_mandatory_conditions(params)
 
         for scope_obj in scope_objs:
             # 将 dimension_config 字典转为列表结构
@@ -976,19 +987,19 @@ class CustomTsGroupingRuleList(CustomTSScopeMixin, Resource):
                 for dim_name, dim_config in scope_obj.dimension_config.items()
             ]
 
-            metric_count = scope_obj.metric_count
-            # 如果有额外过滤条件，需要通过 API 重新计算 metric_count
-            if extra_conditions:
-                metric_result = api.metadata.query_time_series_metric(
-                    group_id=params["time_series_group_id"],
-                    count_only=True,
-                    conditions=[{"key": "scope_id", "values": [str(scope_obj.id)], "search_type": "exact"}],
-                    mandatory_conditions=[
-                        {"key": "field_config_disabled", "values": ["false"], "search_type": "exact"},
-                    ]
-                    + extra_conditions,
-                )
-                metric_count = metric_result.get("total", 0)
+            scope_condition = [{"key": "scope_id", "values": [str(scope_obj.id)], "search_type": "exact"}]
+            mandatory_conditions = self.build_mandatory_conditions(
+                mandatory_conditions=extra_mandatory_conditions,
+                conditions=scope_condition,
+            )
+            # 与 GetCustomTsFields 使用同一套强制过滤规则，保证 metric_count 口径一致
+            metric_result = api.metadata.query_time_series_metric(
+                group_id=params["time_series_group_id"],
+                count_only=True,
+                conditions=scope_condition if scope_condition else None,
+                mandatory_conditions=mandatory_conditions if mandatory_conditions else None,
+            )
+            metric_count = metric_result.get("total", 0)
 
             result.append(
                 {

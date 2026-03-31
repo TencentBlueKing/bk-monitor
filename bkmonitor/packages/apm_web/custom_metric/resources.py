@@ -35,7 +35,7 @@ class ApmGetCustomTsFields(GetCustomTsFields):
     class RequestSerializer(BaseRequestSerializer, GetCustomTsFields.RequestSerializer):
         pass
 
-    def get_extra_conditions(self, params: dict) -> list[dict]:
+    def get_extra_mandatory_conditions(self, params: dict) -> list[dict]:
         """APM 场景：通过 mandatory_conditions 排除内置指标"""
         return [APM_BUILTIN_METRIC_EXCLUDE_CONDITION]
 
@@ -52,7 +52,7 @@ class ApmCustomTsGroupingRuleList(CustomTsGroupingRuleList):
     class RequestSerializer(BaseRequestSerializer, CustomTsGroupingRuleList.RequestSerializer):
         pass
 
-    def get_metric_count_conditions(self, params: dict) -> list[dict]:
+    def get_extra_mandatory_conditions(self, params: dict) -> list[dict]:
         """APM 场景：排除内置指标后重新计算 metric_count"""
         return [APM_BUILTIN_METRIC_EXCLUDE_CONDITION]
 
