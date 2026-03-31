@@ -28,6 +28,9 @@ import { type PropType, defineComponent } from 'vue';
 
 import { Exception, Sideslider } from 'bkui-vue';
 
+import { IMPACT_SCOPE_ID_FIELD_MAP } from '../../constant';
+
+import type { CommonCondition } from '../../../typings/services';
 import type { ImpactScopeInstance, ImpactScopeResource, ImpactScopeResourceKeyType } from '../../typing';
 
 import './issues-impact-scope-drawer.scss';
@@ -51,7 +54,7 @@ export default defineComponent({
       default: null,
     },
   },
-  emits: ['update:show'],
+  emits: ['update:show', 'filterByInstance'],
   setup(props, { emit }) {
     /**
      * @description 处理侧滑面板显示/隐藏切换
@@ -62,18 +65,72 @@ export default defineComponent({
     };
 
     /**
-     * @description 处理实例名称点击跳转
+     * @description 处理实例名称点击跳转，将 link_tpl 模板占位符替换为实例实际值后在新标签页打开
      * @param {ImpactScopeInstance} instance - 实例数据
      */
     const handleInstanceClick = (instance: ImpactScopeInstance) => {
       if (!props.resource?.link_tpl) return;
-      // TODO: 跳转逻辑待补全
-      console.log('issueImpactScopeDrawer handleInstanceClick 跳转逻辑待补全');
+      const url = props.resource.link_tpl.replace(/\{(\w+)\}/g, (_, key: string) => String(instance[key] ?? ''));
+      if (url) {
+        window.open(url, '_blank');
+      }
+    };
+
+    /**
+     * @description 处理实例级检索过滤（正排/反排），构建 CommonCondition 后 emit 给宿主页面
+     * @param {ImpactScopeInstance} instance - 实例数据
+     * @param {'eq' | 'neq'} method - 过滤方式：eq=正排精确匹配，neq=反排排除
+     */
+    const handleFilterByInstance = (instance: ImpactScopeInstance, method: 'eq' | 'neq') => {
+      const idField = IMPACT_SCOPE_ID_FIELD_MAP[props.resourceKey];
+      if (!idField) return;
+      const idValue = instance[idField];
+      if (idValue === undefined) return;
+      const condition: CommonCondition = {
+        key: `impact_scope.${props.resourceKey}.${idField}`,
+        method,
+        value: [String(idValue)],
+      };
+      emit('filterByInstance', condition);
+    };
+
+    /**
+     * @description 渲染实例行的正排/反排操作图标，tooltip 展示实际的过滤条件表达式
+     * @param {ImpactScopeInstance} instance - 实例数据
+     * @returns {JSX.Element} 操作图标 JSX
+     */
+    const renderOperationIcons = (instance: ImpactScopeInstance) => {
+      const idField = IMPACT_SCOPE_ID_FIELD_MAP[props.resourceKey];
+      const conditionKey = idField ? `impact_scope.${props.resourceKey}.${idField}` : '';
+      const idValue = instance?.[idField] ?? '""';
+
+      return (
+        <div class='instance-item-operation'>
+          <i
+            class='icon-monitor icon-a-sousuo'
+            v-bk-tooltips={{
+              content: `${conditionKey} = ${idValue}`,
+              placement: 'top',
+            }}
+            onClick={() => handleFilterByInstance(instance, 'eq')}
+          />
+          <i
+            class='icon-monitor icon-sousuo-'
+            v-bk-tooltips={{
+              content: `${conditionKey} != ${idValue}`,
+              placement: 'top',
+            }}
+            onClick={() => handleFilterByInstance(instance, 'neq')}
+          />
+        </div>
+      );
     };
 
     return {
       handleShowChange,
       handleInstanceClick,
+      handleFilterByInstance,
+      renderOperationIcons,
     };
   },
   render() {
@@ -113,10 +170,7 @@ export default defineComponent({
                           {instance.display_name}
                         </span>
                       </div>
-                      <div class='instance-item-operation'>
-                        <i class='icon-monitor icon-a-sousuo' />
-                        <i class='icon-monitor icon-sousuo-' />
-                      </div>
+                      {this.renderOperationIcons(instance)}
                     </li>
                   ))}
                 </ul>

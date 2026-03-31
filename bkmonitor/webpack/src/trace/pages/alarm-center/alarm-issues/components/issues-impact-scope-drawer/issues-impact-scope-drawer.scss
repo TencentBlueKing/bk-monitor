@@ -67,6 +67,10 @@
             font-size: 18px;
             color: #8f9fbd;
             cursor: pointer;
+
+            &:hover {
+              color: #3a84ff;
+            }
           }
         }
       }

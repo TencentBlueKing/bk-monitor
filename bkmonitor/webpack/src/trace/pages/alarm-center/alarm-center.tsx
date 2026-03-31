@@ -322,6 +322,7 @@ export default defineComponent({
     };
     /** 告警分析添加条件 */
     const handleAddCondition = (condition: CommonCondition) => {
+      handleCurrentPageChange(1);
       if (alarmStore.filterMode === EMode.ui) {
         let conditionResult: CommonCondition[] = [condition];
         // 持续时间需要特殊处理
@@ -1113,6 +1114,7 @@ export default defineComponent({
             resource={this.impactScopeResource}
             resourceKey={this.impactScopeResourceKey}
             show={this.impactScopeDrawerShow}
+            onFilterByInstance={this.handleAddCondition}
             onUpdate:show={(v: boolean) => {
               if (v) return;
               this.handleImpactScopeClick();
