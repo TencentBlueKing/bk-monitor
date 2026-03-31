@@ -24,7 +24,6 @@ import datetime
 import re
 from collections import defaultdict
 
-import arrow
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils.translation import gettext as _
@@ -876,18 +875,8 @@ class CollectorHandler:
             _data["custom_name"] = CustomTypeEnum.get_choice_label(_data["custom_type"])
 
             # 时间处理
-            _data["created_at"] = (
-                arrow.get(_data["created_at"])
-                .replace(tzinfo=settings.TIME_ZONE)
-                .to(time_zone)
-                .strftime(settings.BKDATA_DATETIME_FORMAT)
-            )
-            _data["updated_at"] = (
-                arrow.get(_data["updated_at"])
-                .replace(tzinfo=settings.TIME_ZONE)
-                .to(time_zone)
-                .strftime(settings.BKDATA_DATETIME_FORMAT)
-            )
+            _data["created_at"] = format_user_time_zone(_data["created_at"], time_zone)
+            _data["updated_at"] = format_user_time_zone(_data["updated_at"], time_zone)
 
             # 是否可以检索
             if _data.get("index_set_id"):
