@@ -429,7 +429,9 @@ class LogCollectorHandler:
             )
         result_list = IndexSetHandler.post_list(result_list)
         if storage_display_name_list:
-            result_list = list(filter(lambda x: x["storage_display_name"] in storage_display_name_list, result_list))
+            result_list = list(
+                filter(lambda x: x.get("storage_display_name") in storage_display_name_list, result_list)
+            )
         return result_list
 
     def get_log_collectors(self, data):
