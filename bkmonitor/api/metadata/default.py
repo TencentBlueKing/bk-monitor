@@ -633,6 +633,7 @@ class QueryTimeSeriesMetricResource(MetaDataAPIGWResource):
             key = serializers.ChoiceField(
                 choices=[
                     "name",
+                    "field_scope",
                     "field_config_alias",
                     "field_config_unit",
                     "field_config_aggregate_method",

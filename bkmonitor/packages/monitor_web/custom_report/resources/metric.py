@@ -264,7 +264,11 @@ class ValidateCustomTsMetricFieldName(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
         time_series_group_id = serializers.IntegerField(required=True)
-        field_name = serializers.CharField(required=True, max_length=255)
+        field_names = serializers.ListField(
+            required=True,
+            allow_empty=False,
+            child=serializers.CharField(max_length=255),
+        )
 
     def perform_request(self, params: dict):
         converter = MetricQueryConverter(params["time_series_group_id"])
@@ -275,13 +279,24 @@ class ValidateCustomTsMetricFieldName(Resource):
             conditions=[
                 {
                     "key": "name",
-                    "values": [params["field_name"]],
+                    "values": params["field_names"],
                     "search_type": "exact_case_sensitive",
                 }
             ],
+            mandatory_conditions=[
+                {
+                    "key": "field_scope",
+                    "values": [DEFAULT_FIELD_SCOPE],
+                }
+            ],
         )
-        if any(metric.field_scope == DEFAULT_FIELD_SCOPE for metric in metric_data.metrics):
-            raise ValueError(_("指标字段名({field_name})已存在于 default 分组中").format(**params))
+        duplicated_field_names = sorted({metric.name for metric in metric_data.metrics})
+        if duplicated_field_names:
+            raise ValueError(
+                _("指标字段名({field_names})已存在于 default 分组中").format(
+                    field_names=", ".join(duplicated_field_names)
+                )
+            )
         return True
 
 

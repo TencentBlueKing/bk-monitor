@@ -69,7 +69,7 @@ class CustomMetricReportViewSet(ResourceViewSet):
         ),
         # 校验自定义指标字段名是否合法
         ResourceRoute(
-            "GET",
+            "POST",
             resource.custom_report.validate_custom_ts_metric_field_name,
             endpoint="validate_custom_ts_metric_field_name",
         ),

@@ -55,7 +55,7 @@ class CustomMetricViewSet(ResourceViewSet):
             decorators=[user_visit_record],
         ),
         ResourceRoute(
-            "GET",
+            "POST",
             ApmValidateCustomTsMetricFieldName,
             endpoint="validate_custom_ts_metric_field_name",
             decorators=[user_visit_record],

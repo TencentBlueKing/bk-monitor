@@ -1567,6 +1567,8 @@ class TimeSeriesMetricConditionQueryMixin:
                 q_obj = TimeSeriesMetricConditionQueryMixin._build_name_query(value, search_type)
             elif key == "field_config_alias":
                 q_obj = TimeSeriesMetricConditionQueryMixin._build_alias_query(value, search_type)
+            elif key == "field_scope":
+                q_obj = Q(field_scope=value)
             elif key == "field_config_unit":
                 q_obj = Q(field_config__unit__iexact=value)
             elif key == "field_config_aggregate_method":
@@ -1615,6 +1617,7 @@ class QueryTimeSeriesMetricResource(TimeSeriesMetricConditionQueryMixin, Resourc
             key = serializers.ChoiceField(
                 choices=[
                     "name",
+                    "field_scope",
                     "field_config_alias",
                     "field_config_unit",
                     "field_config_aggregate_method",
