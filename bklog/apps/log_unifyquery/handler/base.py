@@ -1207,13 +1207,17 @@ class UnifyQueryHandler:
         """
         轮询滚动查询接口导出数据
         """
+        index_set = self.index_info_list[0]["index_set_obj"]
         search_params = copy.deepcopy(self.base_dict)
-        search_params["limit"] = MAX_RESULT_WINDOW
+        # 单次导出条数：优先使用索引集配置的 result_window，兜底使用全局默认值
+        search_params["limit"] = index_set.result_window or MAX_RESULT_WINDOW
         search_params["scroll"] = ASYNC_EXPORT_SCROLL
         # 全文下载不分片
         search_params["slice_max"] = MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT if is_quick_export else 0
 
-        max_result_count = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        # 最大导出条数：优先使用索引集配置的 max_async_count，兜底使用全局默认值
+        default_max_count = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        max_result_count = max(index_set.max_async_count, default_max_count)
         total_count = 0
         while total_count < max_result_count:
             # 首次请求清空缓存

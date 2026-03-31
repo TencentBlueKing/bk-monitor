@@ -23,7 +23,7 @@ from apm_web.strategy.constants import (
 )
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
-from constants.apm import DEFAULT_DATA_LABEL, CommonMetricTag
+from constants.apm import DEFAULT_DATA_LABEL, ApmAlertHelper, CommonMetricTag
 
 from monitor_web.strategies.default_settings.common import (
     DEFAULT_NOTICE,
@@ -168,8 +168,8 @@ class StrategyBuilder:
             "service_name": self.service_name,
             "name": f"[{system_enum.label}] {self.strategy_template.name} [{app_name}/{self.service_name}]",
             "labels": [
-                f"APM-APP({app_name})",
-                f"APM-SERVICE({self.service_name})",
+                ApmAlertHelper.format_app_label(app_name),
+                ApmAlertHelper.format_service_label(self.service_name),
                 f"APM-SYSTEM({self.strategy_template.system})",
                 f"APM-CATEGORY({self.strategy_template.category})",
                 f"APM-TEMPLATE({self.strategy_template.id})",

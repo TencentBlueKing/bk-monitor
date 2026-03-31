@@ -35,6 +35,7 @@ from apm_web.constants import (
 )
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
+from apm_web.strategy.dispatch.entity import EntitySet
 from apm_web.icon import get_icon
 from apm_web.models import (
     ApdexServiceRelation,
@@ -81,6 +82,39 @@ class ApplicationListResource(Resource):
         apps = Application.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"])
         serializer = ApplicationListSerializer(apps, many=True)
         return serializer.data
+
+
+class ServiceListResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+        service_names = serializers.ListField(
+            label="服务名列表", child=serializers.CharField(), required=False, default=[]
+        )
+
+    def perform_request(self, validated_request_data):
+        entity_set = EntitySet(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            app_name=validated_request_data["app_name"],
+            service_names=validated_request_data["service_names"] or None,
+        )
+        return [self._build_service_info(entity_set, name) for name in entity_set.service_names]
+
+    @staticmethod
+    def _build_service_info(entity_set: EntitySet, service_name: str) -> dict[str, Any]:
+        # 已按 `entity_set.service_names` 取值，不会出现 node 为 None 的情况。
+        node: dict[str, Any] = entity_set.get_node_or_none(service_name)
+        service_info: dict[str, Any] = {
+            "service_name": service_name,
+            "service_language": (node.get("extra_data") or {}).get("service_language", ""),
+            "system": entity_set.get_system(service_name),
+            "log_relations": entity_set.get_log_relations(service_name),
+        }
+
+        k8s_workloads: list[dict[str, Any]] = entity_set.get_workloads(service_name)
+        if k8s_workloads:
+            service_info["platform"] = {"name": "k8s", "relations": k8s_workloads}
+        return service_info
 
 
 class ServiceInfoResource(Resource):

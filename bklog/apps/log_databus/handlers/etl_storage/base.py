@@ -929,7 +929,6 @@ class EtlStorage:
 
                 nano_time_field = copy.deepcopy(time_field)
                 nano_time_field["field_name"] = "dtEventTimeStampNanos"
-                nano_time_field["field_type"] = "long" if field["option"]["time_format"] == "epoch_micros" else "string"
                 nano_time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
                 nano_time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
                 nano_time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")

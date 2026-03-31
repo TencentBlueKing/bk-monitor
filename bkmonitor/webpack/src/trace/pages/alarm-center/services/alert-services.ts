@@ -40,6 +40,7 @@ import {
   type QuickFilterItem,
   type TableColumnItem,
   AlarmLevelIconMap,
+  AlarmNoticeWayIconMap,
   AlarmStatusIconMap,
 } from '../typings';
 import { type RequestOptions, AlarmService } from './base';
@@ -929,6 +930,15 @@ export class AlertService extends AlarmService {
                 children: item.children.map(child => ({
                   ...child,
                   ...AlarmLevelIconMap[child.id],
+                })),
+              };
+            }
+            if (item.id === 'notice_way') {
+              return {
+                ...item,
+                children: item.children.map(child => ({
+                  ...child,
+                  ...AlarmNoticeWayIconMap[child.id],
                 })),
               };
             }

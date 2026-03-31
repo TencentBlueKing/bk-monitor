@@ -1,3 +1,11 @@
+import logging
+
+from django.db import IntegrityError
+
+from bk_dataview.api import DashboardPermissionActions, get_or_create_user, sync_user_role
+from bk_dataview.models import BuiltinRole, Dashboard, Org, Permission, Role
+from bk_dataview.permissions import GrafanaPermission
+from bk_dataview.utils import generate_uid
 from core.drf_resource import resource
 from metadata.models import (
     DataSource,
@@ -15,6 +23,8 @@ from monitor_web.models.collecting import CollectConfigMeta
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.models.uptime_check import UptimeCheckTask
 from monitor_web.plugin.manager.process import ProcessPluginManager
+
+logger = logging.getLogger(__name__)
 
 
 def rebuild_system_data(bk_tenant_id: str, bk_biz_id: int):
@@ -82,9 +92,7 @@ def rebuild_collect_plugins(bk_tenant_id: str, bk_biz_id: int, collect_config_id
 
     # 启用采集配置
     for collect_config in collect_configs:
-        resource.collecting.toggle_collect_config_status(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, id=collect_config.pk, action="enable"
-        )
+        resource.collecting.toggle_collect_config_status(bk_biz_id=bk_biz_id, id=collect_config.pk, action="enable")
 
 
 def rebuild_uptime_check(bk_tenant_id: str, bk_biz_id: int, task_ids: list[int] | None = None):
@@ -200,3 +208,99 @@ def rebuild_bklog_data_source_route(bk_tenant_id: str, bk_biz_id: int):
 
     for data_source in data_sources:
         data_source.register_to_gse()
+
+
+def _ensure_builtin_role(org_id: int, role_name: str, managed_role_name: str) -> Role:
+    """确保 org 下存在指定的内置角色，不存在则创建。
+
+    Args:
+        org_id: Grafana 组织 ID
+        role_name: BuiltinRole 的角色名（如 "Editor"、"Viewer"）
+        managed_role_name: Role 的 managed 名称（如 "managed:builtins:editor:permissions"）
+
+    Returns:
+        对应的 Role 实例
+    """
+    builtin_role = BuiltinRole.objects.filter(org_id=org_id, role=role_name).first()
+    if builtin_role:
+        return Role.objects.get(id=builtin_role.role_id)
+
+    try:
+        role = Role.objects.create(
+            org_id=org_id,
+            name=managed_role_name,
+            uid=generate_uid(exclude_model=Role),
+        )
+        BuiltinRole.objects.create(org_id=org_id, role=role_name, role_id=role.id)
+    except IntegrityError:
+        role = Role.objects.get(org_id=org_id, name=managed_role_name)
+    return role
+
+
+def rebuild_dashboard(bk_biz_id: int):
+    """重建仪表盘权限配置。
+
+    将 admin 用户加入业务对应的 Grafana Org 并赋予 Admin 角色，
+    然后为 Org 下所有仪表盘重建基于内置角色的权限：
+    - Admin 角色：拥有全部管理权限（通过 OrgUser.role=Admin 隐式生效）
+    - Editor 角色：可读、可写、可删除
+    - Viewer 角色：只读
+
+    Args:
+        bk_biz_id: 业务 ID（对应 Grafana Org.name）
+    """
+    org = Org.objects.filter(name=str(bk_biz_id)).first()
+    if not org:
+        logger.warning("rebuild_dashboard: bk_biz_id=%s 对应的 Grafana Org 不存在，跳过", bk_biz_id)
+        return
+
+    org_id = org.id
+
+    # 确保 admin 用户存在并赋予 Admin 角色
+    admin_user = get_or_create_user("admin")
+    sync_user_role(org_id, admin_user["id"], "Admin")
+
+    # 确保 Editor / Viewer 内置角色存在
+    editor_role = _ensure_builtin_role(org_id, "Editor", "managed:builtins:editor:permissions")
+    viewer_role = _ensure_builtin_role(org_id, "Viewer", "managed:builtins:viewer:permissions")
+
+    # 获取 Org 下所有仪表盘 UID（排除 folder）
+    dashboard_uids = list(Dashboard.objects.filter(org_id=org_id, is_folder=0).values_list("uid", flat=True))
+    if not dashboard_uids:
+        logger.info("rebuild_dashboard: bk_biz_id=%s org_id=%s 下无仪表盘，跳过权限重建", bk_biz_id, org_id)
+        return
+
+    # 构建每个角色对应的权限 scope 集合
+    role_permission_map: dict[int, list[str]] = {
+        editor_role.id: DashboardPermissionActions[GrafanaPermission.Edit],
+        viewer_role.id: DashboardPermissionActions[GrafanaPermission.View],
+    }
+
+    # 清理 editor/viewer 角色的旧仪表盘权限
+    role_ids = [editor_role.id, viewer_role.id]
+    Permission.objects.filter(
+        role_id__in=role_ids,
+        scope__startswith="dashboards:uid:",
+    ).delete()
+
+    # 批量创建新权限
+    permission_objs: list[Permission] = []
+    for role_id, actions in role_permission_map.items():
+        for uid in dashboard_uids:
+            for action in actions:
+                permission_objs.append(
+                    Permission(
+                        role_id=role_id,
+                        action=action,
+                        scope=f"dashboards:uid:{uid}",
+                    )
+                )
+
+    if permission_objs:
+        Permission.objects.bulk_create(permission_objs, batch_size=500, ignore_conflicts=True)
+        logger.info(
+            "rebuild_dashboard: bk_biz_id=%s org_id=%s 重建权限完成，共 %d 条 Permission",
+            bk_biz_id,
+            org_id,
+            len(permission_objs),
+        )
