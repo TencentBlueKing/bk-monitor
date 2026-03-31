@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
@@ -33,6 +33,7 @@ import {
   // customTimeSeriesList, // 详情页
   getCustomTsDimensionValues, // 详情页
   getCustomTsGraphConfig, // 详情页
+  getCustomTsMetricAggInfo,
   getCustomTsMetricGroups, // 详情页
   getSceneView, // 详情页
   modifyCustomTsFields, // 详情页
@@ -80,6 +81,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
       getSceneView,
       getCustomTsDimensionValues,
       getCustomTsGraphConfig,
+      getCustomTsMetricAggInfo,
       getCustomTsMetricGroups,
       modifyCustomTsFields,
     }),
@@ -87,6 +89,8 @@ export default class ViewContent extends tsc<IProps, IEmit> {
   requestMap: RequestHandlerMap;
 
   @ProvideReactive('requestHandlerMap') requestHandlerMap: RequestHandlerMap;
+
+  @Ref('metricsSelectRef') readonly metricsSelectRef;
 
   @Emit('metricManage')
   handleMetricManage(tab: 'dimension' | 'metric') {
@@ -102,11 +106,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
   }
 
   @Emit('customTsMetricGroups')
-  handleCustomTsMetricGroups(
-    payload: ServiceReturnType<RequestHandlerMap['getCustomTsMetricGroups']>['metric_groups']
-  ) {
-    return payload;
-  }
+  handleCustomTsMetricGroups() {}
 
   // 展示统计值
   state = {
@@ -117,6 +117,8 @@ export default class ViewContent extends tsc<IProps, IEmit> {
   };
 
   asideWidth = 220; // 侧边栏初始化宽度
+
+  selectedMetricIds: (number | string)[] = [];
 
   get chartSettingParams() {
     return {
@@ -168,7 +170,6 @@ export default class ViewContent extends tsc<IProps, IEmit> {
 
   async getCustomTsMetricGroupsData() {
     const needParseUrl = Boolean(this.$route.query?.viewPayload);
-    let metricGroupsData: ServiceReturnType<RequestHandlerMap['getCustomTsMetricGroups']>['metric_groups'] = [];
     if (this.timeSeriesGroupId < 1 && !this.isApmMode) {
       return [];
     }
@@ -184,9 +185,8 @@ export default class ViewContent extends tsc<IProps, IEmit> {
         });
       }
       const result = await this.requestHandlerMap.getCustomTsMetricGroups(params);
-      metricGroupsData = result.metric_groups;
       customEscalationViewStore.updateMetricGroupList(result.metric_groups);
-      if (!needParseUrl) {
+      if (!needParseUrl && this.isApmMode) {
         const metricGroup = result.metric_groups;
         const defaultSelectedData = {
           groupName: metricGroup[0]?.name || '',
@@ -197,7 +197,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
         );
       }
     } finally {
-      this.handleCustomTsMetricGroups(metricGroupsData);
+      this.handleCustomTsMetricGroups();
     }
   }
 
@@ -207,6 +207,55 @@ export default class ViewContent extends tsc<IProps, IEmit> {
 
   handleResetAsideWidth(width: number) {
     localStorage.setItem(ASIDE_WIDTH_SETTING_KEY, String(width));
+    // 更新分组组件的虚拟滚动宽度
+    this.metricsSelectRef?.metricGroupRef?.virtualScrollRef?.resize();
+  }
+
+  loadGraphConfigMetricIds({ init, metricIds }: { init: boolean; metricIds: (number | string)[] }) {
+    if (init) {
+      this.selectedMetricIds = metricIds;
+    } else {
+      this.selectedMetricIds.push(...metricIds);
+    }
+    this.fetchAggInfo();
+  }
+
+  //  获取过滤条件下拉和维度下拉
+  async fetchAggInfo() {
+    const selectedMetricList = customEscalationViewStore.currentSelectedMetricList;
+
+    if (selectedMetricList.length === 0) {
+      customEscalationViewStore.updateAggInfo({
+        all_dimensions: [],
+        common_dimensions: [],
+      });
+      return;
+    }
+
+    const aggInfoParams = {
+      metric_ids: this.selectedMetricIds,
+    };
+
+    if (this.isApm && this.appName && this.serviceName) {
+      Object.assign(aggInfoParams, {
+        apm_app_name: this.appName,
+        apm_service_name: this.serviceName,
+      });
+    } else {
+      Object.assign(aggInfoParams, {
+        time_series_group_id: Number(this.timeSeriesGroupId),
+      });
+    }
+
+    try {
+      const aggInfoResult = await this.requestHandlerMap.getCustomTsMetricAggInfo(aggInfoParams);
+      customEscalationViewStore.updateAggInfo({
+        all_dimensions: aggInfoResult.all_dimensions,
+        common_dimensions: aggInfoResult.common_dimensions,
+      });
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   created() {
@@ -237,7 +286,9 @@ export default class ViewContent extends tsc<IProps, IEmit> {
       >
         <template slot='aside'>
           <MetricsSelect
+            ref='metricsSelectRef'
             isApm={this.isApm}
+            viewTab={this.currentView}
             onMetricManage={this.handleMetricManage}
             onReset={this.handleMetricsSelectReset}
           />
@@ -271,6 +322,7 @@ export default class ViewContent extends tsc<IProps, IEmit> {
               config={this.config}
               showStatisticalValue={this.state.showStatisticalValue}
               viewColumn={this.state.viewColumn}
+              onLoadGraphConfigMetricIds={this.loadGraphConfigMetricIds}
               onMetricManage={this.handleMetricManage}
             />
           </div>
