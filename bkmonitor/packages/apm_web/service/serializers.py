@@ -79,12 +79,12 @@ class ServiceConfigSerializer(serializers.Serializer):
     app_name = serializers.CharField(label=_("应用名"))
     service_name = serializers.CharField(label=_("服务名"))
 
-    app_relation = AppServiceRelationSerializer(required=False, allow_null=True)
-    cmdb_relation = CMDBServiceRelationSerializer(required=False, allow_null=True)
-    log_relation_list = serializers.ListSerializer(required=False, child=LogServiceRelationSerializer())
-    apdex_relation = ServiceApdexConfigSerializer(required=False, allow_null=True)
-    uri_relation = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
-    event_relation = serializers.ListSerializer(required=False, child=EventServiceRelationSerializer())
+    app_relation = AppServiceRelationSerializer(allow_null=True, default=None)
+    cmdb_relation = CMDBServiceRelationSerializer(allow_null=True, default=None)
+    log_relation_list = serializers.ListSerializer(default=[], child=LogServiceRelationSerializer())
+    apdex_relation = ServiceApdexConfigSerializer(allow_null=True, default=None)
+    uri_relation = serializers.ListSerializer(default=[], child=serializers.CharField())
+    event_relation = serializers.ListSerializer(default=[], child=EventServiceRelationSerializer())
     labels = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
@@ -92,7 +92,7 @@ class ServiceConfigSerializer(serializers.Serializer):
         if len(set(uri_relations)) != len(uri_relations):
             raise serializers.ValidationError(_("uri 含有重复配置项"))
 
-        if "apdex_relation" in attrs:
+        if attrs.get("apdex_relation"):
             attrs["apdex_relation"]["apdex_key"] = ServiceHandler.get_service_apdex_key(
                 attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
             )

@@ -450,11 +450,12 @@ class ServiceConfigResource(Resource):
         "log_relation_list": LogServiceRelation,
         "apdex_relation": ApdexServiceRelation,
         "uri_relation": UriServiceRelation,
-        "event_relation": EventServiceRelation,
     }
 
     @classmethod
-    def _prepare_default(cls, data: dict[str, Any] | list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _prepare_default(cls, data: dict[str, Any] | list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        if data is None:
+            return []
         return [data] if isinstance(data, dict) else data
 
     @classmethod
@@ -504,19 +505,64 @@ class ServiceConfigResource(Resource):
             json.dumps(labels),
         )
 
+    @classmethod
+    def update_event_relations(
+        cls, bk_biz_id: int, app_name: str, service_name: str, event_relations: list[dict[str, Any]]
+    ):
+        if not event_relations:
+            return
+
+        table_relation_map: dict[str, dict[str, Any]] = {
+            relation["table"]: relation
+            for relation in EventServiceRelation.get_relations(bk_biz_id, app_name, [service_name])
+        }
+
+        username: str = get_request_username()
+        to_be_created_relations: list[EventServiceRelation] = []
+        to_be_updated_relations: list[EventServiceRelation] = []
+        for relation in event_relations:
+            exists_relation: dict[str, Any] | None = table_relation_map.get(relation["table"])
+            if exists_relation:
+                to_be_updated_relations.append(
+                    EventServiceRelation(
+                        id=exists_relation["id"], updated_by=username, updated_at=arrow.now().datetime, **relation
+                    )
+                )
+            else:
+                to_be_created_relations.append(
+                    EventServiceRelation(
+                        bk_biz_id=bk_biz_id,
+                        app_name=app_name,
+                        service_name=service_name,
+                        updated_by=username,
+                        created_by=username,
+                        **relation,
+                    )
+                )
+
+        if to_be_created_relations:
+            EventServiceRelation.objects.bulk_create(to_be_created_relations, batch_size=100)
+        if to_be_updated_relations:
+            EventServiceRelation.objects.bulk_update(
+                to_be_updated_relations, batch_size=100, fields=["updated_at", "updated_by", "relations", "options"]
+            )
+
     def perform_request(self, validated_request_data: dict[str, Any]) -> None:
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         service_name: str = validated_request_data["service_name"]
 
-        update_relation = functools.partial(self.update_relation, bk_biz_id, app_name, service_name)
+        # 对 event_relation / labels 单独作处理
+        self.update_event_relations(bk_biz_id, app_name, service_name, validated_request_data.get("event_relation"))
+        if "labels" in validated_request_data:
+            self.update_labels(bk_biz_id, app_name, service_name, validated_request_data["labels"])
 
+        update_relation: Callable[[str, Any], None] = functools.partial(
+            self.update_relation, bk_biz_id, app_name, service_name
+        )
         for relation_type, relation_data in validated_request_data.items():
             if relation_type in self.RELATION_MODEL_MAP:
                 update_relation(relation_type, relation_data)
-
-        if "labels" in validated_request_data:
-            self.update_labels(bk_biz_id, app_name, service_name, validated_request_data["labels"])
 
         # 下发修改后的配置
         application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get()
