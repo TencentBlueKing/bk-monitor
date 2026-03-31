@@ -743,7 +743,7 @@ export default defineComponent({
                 renderHeader={renderHeader}
               />
             )}
-            {checkcFields('enable_hot_warm') && (
+            {activeTab.value !== CLUSTER_TYPES.DORIS && checkcFields('enable_hot_warm') && (
               <bk-table-column
                 key='hot_warm'
                 label={t('冷热数据')}
