@@ -9,12 +9,13 @@ specific language governing permissions and limitations under the License.
 """
 
 import functools
+import json
 import logging
 import random
 import time
 
+from bk_monitor_base.infras.third_party_api.user.api import get_tenant_admin_username
 import jwt
-import json
 from blueapps.account.models import User
 from django.conf import settings
 from django.contrib import auth
@@ -161,7 +162,7 @@ class AppWhiteListModelBackend(ModelBackend):
             # 如果确认用户属于当前租户下的虚拟管理用户或从当前租户下查询到了用户，则更新用户租户id为当前租户id
             if settings.ENABLE_MULTI_TENANT_MODE and user.tenant_id != bk_tenant_id:
                 if user.username == get_admin_username(bk_tenant_id) or api.bk_login.batch_query_user_display_info(
-                    bk_tenant_id=bk_tenant_id, bk_usernames=[user.username]
+                    bk_usernames=[user.username], bk_tenant_id=bk_tenant_id
                 ):
                     user.tenant_id = bk_tenant_id
                     user.save()
@@ -288,8 +289,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
         MCP请求已经通过API网关认证，这里只需要额外的MCP权限校验
         """
         # 导入放在这里避免循环依赖
-        from bkmonitor.iam.drf import MCPPermission
         from bkmonitor.iam.action import get_action_by_id
+        from bkmonitor.iam.drf import MCPPermission
         from constants.mcp import MCP_SERVER_NAME_TO_PERMISSION_ACTION
 
         logger.info("MCPAuthentication: Handling MCP authentication")
@@ -562,6 +563,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         # 校验app_code权限范围
         if not app_code or is_match_api_token(request, bk_tenant_id, app_code):
+            if not username:
+                username = get_tenant_admin_username(bk_tenant_id)
             request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
             if settings.ENABLE_MULTI_TENANT_MODE and request.user and request.user.tenant_id != bk_tenant_id:
                 return HttpResponseForbidden(f"user tenant_id is {request.user.tenant_id} not match {bk_tenant_id}")
