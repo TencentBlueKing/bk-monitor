@@ -145,7 +145,7 @@ class CollectConfigParse(BaseParse):
             }
         try:
             meta_content = self.plugin_configs[meta_path]
-            meta_dict = yaml.load(meta_content, Loader=yaml.FullLoader)
+            meta_dict = yaml.safe_load(meta_content)
             plugin_type_display = meta_dict.get("plugin_type")
             for name, display_name in CollectorPluginMeta.PLUGIN_TYPE_CHOICES:
                 if display_name == plugin_type_display:

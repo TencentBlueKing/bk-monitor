@@ -103,7 +103,7 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
    */
   formatFileSize = (size: number | string): string => {
     const value = Number(size);
-    if (size && !isNaN(value)) {
+    if (size && !Number.isNaN(value)) {
       const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'BB'];
       let index = 0;
       let k = value;
@@ -127,7 +127,9 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
       <div class='cluster-container'>
         <div
           class='cluster-title'
-          onClick={() => (this.isShowTable = !this.isShowTable)}
+          onClick={() => {
+            this.isShowTable = !this.isShowTable;
+          }}
         >
           <div class={['cluster-title-container', this.isShowTable ? '' : 'is-hidden']}>
             <span class='bk-icon icon-angle-up-fill' />
@@ -146,7 +148,7 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
                 scopedSlots={{
                   default: ({ row }) => (
                     <bk-radio checked={this.value === row.storage_cluster_id}>
-                      <span>{row.storage_cluster_name}</span>
+                      <span>{row.storage_display_name || row.storage_cluster_name}</span>
                     </bk-radio>
                   ),
                 }}
@@ -194,7 +196,7 @@ export default class ClusterTable extends tsc<IProps, IEvent> {
                 <p class='illustrate-title'>{this.$t('集群说明')}</p>
                 <div class='illustrate-container'>
                   {Object.keys(this.labelNameList).map(item => (
-                    <div>
+                    <div key={item}>
                       <span class='illustrate-label'>{this.labelNameList[item]}:&nbsp;&nbsp;</span>
                       <span class='illustrate-value'>{this.illustrateLabelData[item]}</span>
                     </div>

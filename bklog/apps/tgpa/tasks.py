@@ -32,19 +32,131 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.tgpa.constants import (
     TGPA_TASK_EXE_CODE_SUCCESS,
     TGPATaskProcessStatusEnum,
+    TGPATaskStatusEnum,
     FEATURE_TOGGLE_TGPA_TASK,
     TGPAReportSyncStatusEnum,
     TGPA_REPORT_OFFSET_MINUTES,
     TGPA_REPORT_MAX_TIME_RANGE_MINUTES,
-    TGPATaskTypeEnum,
+    TGPA_UNFINISHED_TASK_CHECK_DAYS,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler, TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
-from apps.tgpa.handlers.task import TGPATaskHandler
+from apps.tgpa.handlers.task import TASK_LIST_BATCH_SIZE, TGPATaskHandler
 from apps.tgpa.models import TGPATask, TGPAReport, TGPAReportSyncRecord
 from apps.utils.lock import share_lock, RedisLock
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
+
+
+def _sync_new_tasks(bk_biz_id: int, latest_id: int, is_first_sync: bool):
+    """
+    增量同步新任务，将新任务分批写入数据库
+    """
+    batch = []
+    synced_count = 0
+    for task in TGPATaskHandler.iter_task_list(bk_biz_id):
+        task["go_svr_task_id"] = int(task["go_svr_task_id"])
+        task["status"] = str(task["status"])
+        # 遇到已同步过的任务，停止拉取
+        if task["id"] <= latest_id:
+            break
+        batch.append(task)
+        if len(batch) >= TASK_LIST_BATCH_SIZE:
+            _flush_new_tasks_batch(batch, is_first_sync)
+            synced_count += len(batch)
+            batch = []
+
+    # 处理最后不足一批的剩余数据
+    if batch:
+        _flush_new_tasks_batch(batch, is_first_sync)
+        synced_count += len(batch)
+
+    if synced_count:
+        logger.info("Synced %s new tasks for business: %s", synced_count, bk_biz_id)
+
+
+def _flush_new_tasks_batch(batch: list, is_first_sync: bool):
+    """
+    将一批新任务写入数据库。
+    - 首次同步：批量创建，不触发处理，避免历史数据涌入
+    - 非首次同步：逐条 get_or_create，仅对新创建且文件上传成功的任务触发异步处理
+    """
+    if is_first_sync:
+        # 首次同步：批量创建，不触发处理，避免历史数据涌入
+        task_objects = [
+            TGPATask(
+                id=task["id"],
+                task_id=task["go_svr_task_id"],
+                task_type=task["task_type"],
+                bk_biz_id=task["cc_id"],
+                log_path=task["log_path"],
+                task_status=task["status"],
+                file_status=task["exe_code"],
+                process_status=TGPATaskProcessStatusEnum.INIT.value,
+            )
+            for task in batch
+        ]
+        TGPATask.objects.bulk_create(task_objects, ignore_conflicts=True)
+        return
+
+    # 非首次同步：逐条 get_or_create，仅对新创建且文件上传成功的任务触发处理
+    for task in batch:
+        task_obj, created = TGPATask.objects.get_or_create(
+            task_id=task["go_svr_task_id"],
+            defaults={
+                "id": task["id"],
+                "task_type": task["task_type"],
+                "bk_biz_id": task["cc_id"],
+                "log_path": task["log_path"],
+                "task_status": task["status"],
+                "file_status": task["exe_code"],
+                "process_status": TGPATaskProcessStatusEnum.INIT.value,
+            },
+        )
+        if created and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
+            task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
+            task_obj.save(update_fields=["process_status"])
+            process_single_task.delay(task)
+
+
+def _check_unfinished_tasks(bk_biz_id: int):
+    """
+    检查存量未完成任务的状态变化：
+    批量查询处于活跃状态的任务，若远程文件状态变为上传成功则触发处理，同时更新本地状态
+    """
+    unfinished_tasks = TGPATask.objects.filter(
+        bk_biz_id=bk_biz_id,
+        task_status__in=TGPATaskStatusEnum.get_active_statuses(),
+        created_at__gte=arrow.now().shift(days=-TGPA_UNFINISHED_TASK_CHECK_DAYS).datetime,
+    )
+    if not unfinished_tasks:
+        return
+
+    # 批量查询最新状态
+    task_ids_str = ",".join([str(task_obj.id) for task_obj in unfinished_tasks])
+    remote_task_map = {}
+    for item in TGPATaskHandler.iter_task_list(bk_biz_id, task_id=task_ids_str):
+        item["go_svr_task_id"] = int(item["go_svr_task_id"])
+        item["status"] = str(item["status"])
+        remote_task_map[item["go_svr_task_id"]] = item
+
+    for task_obj in unfinished_tasks:
+        remote_info = remote_task_map.get(task_obj.task_id)
+        if not remote_info:
+            logger.warning("Remote task info not found for task_id: %s", task_obj.task_id)
+            continue
+
+        # 如果文件状态变为上传成功，推送异步任务
+        if remote_info["exe_code"] != task_obj.file_status and remote_info["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
+            task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
+            task_obj.save(update_fields=["process_status"])
+            process_single_task.delay(remote_info)
+
+        # 如果任务状态或文件状态发生变化，更新信息
+        if task_obj.task_status != remote_info["status"] or task_obj.file_status != remote_info["exe_code"]:
+            task_obj.task_status = remote_info["status"]
+            task_obj.file_status = remote_info["exe_code"]
+            task_obj.save(update_fields=["task_status", "file_status"])
 
 
 @periodic_task(run_every=crontab(minute="*/1"), queue="tgpa_task")
@@ -64,86 +176,18 @@ def fetch_and_process_tgpa_tasks():
         try:
             # 确保已经创建采集配置
             TGPACollectorConfigHandler.get_or_create_collector_config(bk_biz_id)
-            task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
-            # 确保与数据库字段类型一致
-            for task in task_list:
-                task["go_svr_task_id"] = int(task["go_svr_task_id"])
-                task["status"] = str(task["status"])
-            # 如果是第一次同步，只创建数据，不处理任务
-            if not TGPATask.objects.filter(bk_biz_id=bk_biz_id).exists():
-                TGPATask.objects.bulk_create(
-                    [
-                        TGPATask(
-                            id=task["id"],
-                            task_id=task["go_svr_task_id"],
-                            task_type=task["task_type"],
-                            bk_biz_id=bk_biz_id,
-                            log_path=task["log_path"],
-                            task_status=task["status"],
-                            file_status=task["exe_code"],
-                            process_status=TGPATaskProcessStatusEnum.INIT.value,
-                        )
-                        for task in task_list
-                    ]
-                )
-                continue
-            # 首次同步V1任务，只创建数据，不处理任务（针对当前已经灰度的业务，下次发版可以去掉这段逻辑）
-            have_v1_task = TGPATask.objects.filter(
-                bk_biz_id=bk_biz_id, task_type=TGPATaskTypeEnum.BUSINESS_LOG_V1.value
-            ).exists()
-            if not have_v1_task:
-                TGPATask.objects.bulk_create(
-                    [
-                        TGPATask(
-                            id=task["id"],
-                            task_id=task["go_svr_task_id"],
-                            task_type=task["task_type"],
-                            bk_biz_id=bk_biz_id,
-                            log_path=task["log_path"],
-                            task_status=task["status"],
-                            file_status=task["exe_code"],
-                            process_status=TGPATaskProcessStatusEnum.INIT.value,
-                        )
-                        for task in task_list
-                        if task["task_type"] == TGPATaskTypeEnum.BUSINESS_LOG_V1.value
-                    ]
-                )
+
+            # 获取本地已同步的最大 id，作为增量拉取的边界（id 对应 TGPA 接口的自增主键）
+            latest_task = TGPATask.objects.filter(bk_biz_id=bk_biz_id).order_by("-id").first()
+            latest_id = latest_task.id if latest_task else 0
+            is_first_sync = latest_id == 0
+
+            _sync_new_tasks(bk_biz_id, latest_id, is_first_sync)
+            if not is_first_sync:
+                _check_unfinished_tasks(bk_biz_id)
         except Exception:
             logger.exception("Failed to sync client log tasks, business id: %s", bk_biz_id)
             continue
-
-        # 对比任务列表和数据库中的任务
-        existed_tasks = TGPATask.objects.filter(bk_biz_id=bk_biz_id)
-        task_map = {task.task_id: task for task in existed_tasks}
-        for task in task_list:
-            if task_obj := task_map.get(task["go_svr_task_id"]):
-                # 如果文件状态发生变化，并且文件状态为上传成功，处理任务
-                if task["exe_code"] != task_obj.file_status and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
-                    task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
-                    task_obj.save(update_fields=["process_status"])
-                    process_single_task.delay(task)
-                # 如果任务状态发生变化，更新任务状态
-                if task_obj.task_status != task["status"] or task_obj.file_status != task["exe_code"]:
-                    task_obj.task_status = task["status"]
-                    task_obj.file_status = task["exe_code"]
-                    task_obj.save(update_fields=["task_status", "file_status"])
-            else:
-                task_obj, created = TGPATask.objects.get_or_create(
-                    task_id=task["go_svr_task_id"],
-                    defaults={
-                        "id": task["id"],
-                        "task_type": task["task_type"],
-                        "bk_biz_id": task["cc_id"],
-                        "log_path": task["log_path"],
-                        "task_status": task["status"],
-                        "file_status": task["exe_code"],
-                        "process_status": TGPATaskProcessStatusEnum.INIT.value,
-                    },
-                )
-                if created and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
-                    task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
-                    task_obj.save(update_fields=["process_status"])
-                    process_single_task.delay(task)
 
 
 @app.task(ignore_result=True, queue="tgpa_task")
@@ -194,7 +238,6 @@ def fetch_and_process_tgpa_reports(record_id: int, params: dict):
         multi_execute_func = MultiExecuteFunc()
         report_list = TGPAReportHandler.iter_report_list(
             bk_biz_id=params["bk_biz_id"],
-            openid_list=params.get("openid_list"),
             file_name_list=params.get("file_name_list"),
             start_time=params.get("start_time"),
             end_time=params.get("end_time"),

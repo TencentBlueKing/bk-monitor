@@ -150,6 +150,25 @@ export default defineComponent({
       emit('update:filterValue', list, lastOperationCategory.value);
     }, 300);
 
+    const renderIcon = (data: QuickFilterItem) => {
+      if (!data.icon) return undefined;
+
+      if (data.icon === 'rect') {
+        return (
+          <div
+            style={{ backgroundColor: data.iconColor || '#8E9BB3' }}
+            class='item-rect'
+          />
+        );
+      }
+      return (
+        <i
+          style={{ color: data.iconColor || '#8E9BB3' }}
+          class={['icon-monitor', 'item-icon', data.icon]}
+        />
+      );
+    };
+
     const renderFilterTree = (filterGroup: QuickFilterItem) => {
       return (
         <Tree
@@ -169,19 +188,8 @@ export default defineComponent({
               return node.isLeaf() ? undefined : <i class='icon-monitor icon-mc-arrow-right' />;
             },
             label: ({ node }) => (
-              <div class='condition-tree-item'>
-                {node.data.icon && (
-                  <i
-                    style={{ color: node.data.iconColor || '#8E9BB3' }}
-                    class={['icon-monitor', 'item-icon', node.data.icon]}
-                  />
-                )}
-                {node.data.icon === 'rect' && (
-                  <div
-                    style={{ backgroundColor: node.data.iconColor || '#8E9BB3' }}
-                    class='item-rect'
-                  />
-                )}
+              <div class={['condition-tree-item', node.data?.extCls]}>
+                <div class='item-icon-wrapper'>{renderIcon(node.data)}</div>
                 <span
                   style={{
                     color: node.data.textColor || '#313238',

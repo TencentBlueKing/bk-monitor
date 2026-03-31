@@ -60,7 +60,7 @@ from bkmonitor.models import (
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
-from bkmonitor.utils.alert_drilling import clean_where_conditions
+from bkmonitor.utils.alert_drilling import clean_where_conditions, normalize_histogram_quantile_group_by
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.range import load_agg_condition_instance
@@ -1326,6 +1326,7 @@ class AlertGraphQueryResource(ApiAuthResource):
                 if attrs["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH and not attrs.get("index_set_id"):
                     raise ValidationError("index_set_id can not be empty.")
 
+                normalize_histogram_quantile_group_by(attrs)
                 attrs["where"] = clean_where_conditions(attrs.get("where", []))
                 return attrs
 

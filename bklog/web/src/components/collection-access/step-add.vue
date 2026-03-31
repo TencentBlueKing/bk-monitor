@@ -940,7 +940,7 @@
           if (!this.isClone) {
             // 克隆时不缓存初始数据
             // 编辑采集项时缓存初始数据 用于对比提交时是否发生变化 未修改则不重新提交 update 接口
-            this.localParams = this.handleParams();
+            this.localParams = this.handleParams(true);
             const { description, collector_config_name, ...otherVal } = this.localParams;
             this.editComparedData = otherVal;
           }
@@ -1113,10 +1113,8 @@
           callback?.(false);
           return;
         }
-        const params = this.handleParams();
-        // console.log(params);
-        // return
-        if (deepEqual(this.localParams, params)) {
+        const compareParams = this.handleParams(true);
+        if (deepEqual(this.localParams, compareParams)) {
           this.isHandle = false;
           if (this.isFinishCreateStep) {
             // 保存的情况下, 没有任何改变, 回退到列表
@@ -1133,6 +1131,7 @@
         }
         this.$refs.validateForm.validate().then(
           () => {
+            const params = this.handleParams();
             this.isCloseDataLink && delete params.data_link_id;
             this.isPhysicsEnvironment
               ? this.setCollection(params, callback)
@@ -1296,9 +1295,10 @@
       },
       /**
        * @desc: 获取提交参数
+       * @param { Boolean } forCompare 是否用于编辑态比较
        * @returns {Object} 返回提交参数数据
        */
-      handleParams() {
+      handleParams(forCompare = false) {
         const formData = structuredClone(this.formData);
         const {
           collector_config_name,
@@ -1347,7 +1347,8 @@
             const containerKey =
               item.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
             const namespacesKey = item.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
-            JSON.stringify(item.namespaces) === '["*"]' && (item.namespaces = []);
+            const isAllNamespaces = JSON.stringify(item.namespaces) === '["*"]';
+            if (isAllNamespaces && !forCompare) item.namespaces = [];
             const { namespace, load, containerName } = this.getScopeSelectShow(index);
             item.collector_type = this.currentEnvironment;
             if (namespace || this.isNode) item.namespaces = [];
@@ -1735,13 +1736,13 @@
       },
       /** 判断除基本信息外是否有更改过值 */
       isUpdateIssuedShowValue() {
-        const params = this.handleParams();
+        const params = this.handleParams(true);
         const { description, collector_config_name, ...otherVal } = params;
         return !deepEqual(this.editComparedData, otherVal);
       },
       /** 判断是否有改值 */
       getIsUpdateSubmitValue() {
-        const params = this.handleParams();
+        const params = this.handleParams(true);
         return !deepEqual(this.localParams, params);
       },
       /**

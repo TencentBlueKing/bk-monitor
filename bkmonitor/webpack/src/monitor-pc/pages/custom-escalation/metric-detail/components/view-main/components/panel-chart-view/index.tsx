@@ -237,7 +237,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps, IPanelChar
   /** 渲染panel的内容 */
   renderPanelMain(chart: IPanelModel, ind: number, chartInd: number, name: string) {
     return (
-      <div class={`chart-view-item column-${this.viewColumn}`}>
+      <div class={['chart-view-item', `column-${this.viewColumn}`, { 'is-statistical': this.showStatisticalValue }]}>
         <LayoutChartTable
           height={this.collapseRefsHeight[ind][Math.floor(chartInd / this.viewColumn)]}
           config={this.config}
