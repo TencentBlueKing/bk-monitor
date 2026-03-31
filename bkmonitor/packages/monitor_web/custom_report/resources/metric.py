@@ -258,7 +258,7 @@ class ValidateCustomTsGroupLabel(Resource):
 
 class ValidateCustomTsMetricFieldName(Resource):
     """
-    校验 default field_scope 下是否存在同名指标
+    校验 default field_scope 下是否存在同名指标，返回重复字段名列表
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -291,13 +291,7 @@ class ValidateCustomTsMetricFieldName(Resource):
             ],
         )
         duplicated_field_names = sorted({metric.name for metric in metric_data.metrics})
-        if duplicated_field_names:
-            raise ValueError(
-                _("指标字段名({field_names})已存在于 default 分组中").format(
-                    field_names=", ".join(duplicated_field_names)
-                )
-            )
-        return True
+        return duplicated_field_names
 
 
 class CreateCustomTimeSeries(Resource):
