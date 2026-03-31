@@ -26,6 +26,7 @@
 
 import type {
   ImpactScopeResourceKeyEnum,
+  IssueActionEnum,
   IssueActiveNodeTypeEnum,
   IssueDetailTabEnum,
   IssuePriorityEnum,
@@ -37,6 +38,8 @@ import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/co
 
 /** 影响范围资源类型 key */
 export type ImpactScopeResourceKeyType = GetEnumTypeTool<typeof ImpactScopeResourceKeyEnum>;
+
+export type IssueActionType = GetEnumTypeTool<typeof IssueActionEnum>;
 
 /** Issues 活跃节点类型 */
 export type IssueActiveNodeType = GetEnumTypeTool<typeof IssueActiveNodeTypeEnum>;

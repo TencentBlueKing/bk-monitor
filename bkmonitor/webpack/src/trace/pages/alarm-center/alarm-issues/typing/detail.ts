@@ -197,32 +197,6 @@ export interface IssuesActivityCommentParams {
   }[];
 }
 
-/** 活动记录评论返回数据 */
-export interface IssuesActivityCommentResponse {
-  /** 失败列表 */
-  failed: IssuesActivityCommentFailedItem[];
-  /** 成功列表 */
-  succeeded: IssuesActivityCommentSucceededItem[];
-}
-
-/** 活动记录评论成功项 */
-export interface IssuesActivityCommentSucceededItem {
-  /** 活动记录 ID */
-  activity_id: string;
-  /** 活动类型 */
-  activity_type: IssueActiveNodeType;
-  /** 业务 ID */
-  bk_biz_id: number;
-  /** 评论内容 */
-  content: string;
-  /** Issue ID */
-  issue_id: string;
-  /** 操作人 */
-  operator: string;
-  /** 活动时间（Unix 秒级时间戳） */
-  time: number;
-}
-
 /** 趋势统计项 */
 export interface IssueTrendItem {
   /** 时间序列数据，格式为 [[毫秒时间戳, 数量], ...] */

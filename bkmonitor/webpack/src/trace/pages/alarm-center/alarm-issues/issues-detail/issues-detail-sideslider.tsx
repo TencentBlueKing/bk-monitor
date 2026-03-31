@@ -60,11 +60,6 @@ export default defineComponent({
       type: [Number, String],
       default: 'now-1h',
     },
-    /** 告警ID */
-    alarmId: {
-      type: String,
-      default: '',
-    },
     /** issues BizId */
     issueBizId: {
       type: Number,
@@ -102,9 +97,11 @@ export default defineComponent({
     };
 
     /** 获取Issue详情数据 */
-    const getIssueDetailData = () => {
+    const getIssueDetailData = (hasLoading = true) => {
       if (!props.show) return;
-      loading.value = true;
+      if (hasLoading) {
+        loading.value = true;
+      }
       const [start, end] = handleTransformToTimestamp(timeRange.value);
       fetchIssueDetailMock({
         bk_biz_id: props.issueBizId,
@@ -207,8 +204,8 @@ export default defineComponent({
       detail.value = { ...detail.value, priority };
     };
     /** 标记已解决 */
-    const handleResolved = () => {
-      detail.value = { ...detail.value, is_resolved: true };
+    const handleStatusAction = () => {
+      getIssueDetailData(false);
     };
 
     /** 影响范围点击 */
@@ -243,7 +240,7 @@ export default defineComponent({
       handleFilterModeChange,
       handleAssigneeChange,
       handlePriorityChange,
-      handleResolved,
+      handleStatusAction,
       handleImpactScopeClick,
     };
   },
@@ -283,7 +280,6 @@ export default defineComponent({
           default: () => (
             <div class='issues-detail-side-slider-content'>
               <IssuesSliderWrapper
-                alarmId={this.alarmId}
                 conditions={this.conditions}
                 detail={this.detail}
                 filterMode={this.filterMode}
@@ -295,7 +291,7 @@ export default defineComponent({
                 onImpactScopeClick={this.handleImpactScopeClick}
                 onPriorityChange={this.handlePriorityChange}
                 onQueryStringChange={this.handleQueryStringChange}
-                onResolved={this.handleResolved}
+                onStatusAction={this.handleStatusAction}
               />
               <IssuesImpactScopeDrawer
                 resource={this.impactScopeResource}

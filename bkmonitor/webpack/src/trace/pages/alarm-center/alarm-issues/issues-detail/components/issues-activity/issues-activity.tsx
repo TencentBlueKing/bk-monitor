@@ -37,7 +37,8 @@ import {
   IssuesPriorityMap,
   IssuesStatusMap,
 } from '../../../constant';
-import { fetchActivityListMock, fetchCommentMock } from '../../mock-data';
+import { followUpIssues } from '../../../services/issues-operations';
+import { fetchActivityListMock } from '../../mock-data';
 import BasicCard from '../basic-card/basic-card';
 import ClampText from './clamp-text';
 
@@ -152,7 +153,7 @@ export default defineComponent({
     /** 发送评论 */
     const handleSendComment = () => {
       commentLoading.value = true;
-      fetchCommentMock({
+      followUpIssues({
         issues: [
           {
             issue_id: props.detail?.id,
@@ -174,12 +175,12 @@ export default defineComponent({
               },
               ...activeList.value,
             ];
-          } else {
-            Message({
-              message: t('评论发送失败'),
-              theme: 'error',
-            });
           }
+
+          Message({
+            message: t(activeItem ? '评论发送成功' : '评论发送失败'),
+            theme: activeItem ? 'success' : 'error',
+          });
         })
         .finally(() => {
           commentLoading.value = false;
@@ -428,8 +429,7 @@ export default defineComponent({
         title: (
           <div class='title-row'>
             <span class='action'>
-              {statusNode.alias}
-              {IssuesStatusMap[item.to_value]?.alias}
+              {statusNode.alias}：{IssuesStatusMap[item.to_value]?.alias}
             </span>
             <span
               class='time'
@@ -458,8 +458,7 @@ export default defineComponent({
         title: (
           <div class='title-row'>
             <span class='action'>
-              {dispatchNode.alias}
-              {item.to_value}
+              {dispatchNode.alias}：{item.to_value}
             </span>
             <span
               class='time'
@@ -488,8 +487,7 @@ export default defineComponent({
         title: (
           <div class='title-row'>
             <span class='action'>
-              {priorityNode.alias}
-              {IssuesPriorityMap[item.to_value]?.alias}
+              {priorityNode.alias}：{IssuesPriorityMap[item.to_value]?.alias}
             </span>
             <span
               class='time'

@@ -254,9 +254,8 @@ export default {
 
   // Issues 活动节点
   首次出现: 'First occurrence',
-  '状态流转：': 'Status transition:',
+  状态流转: 'Status transition',
   用户评论: 'User comment',
-  '指派负责人：': 'Assign owner:',
   'Issue 拆分': 'Issue split',
   'Issue 合并': 'Issue merge',
 

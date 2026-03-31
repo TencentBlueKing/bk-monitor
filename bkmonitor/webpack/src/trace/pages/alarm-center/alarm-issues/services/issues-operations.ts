@@ -80,6 +80,48 @@ export const resolveIssues = async (
 };
 
 /**
+ * @description 标记 Issues 为未解决，封装底层 API 调用、错误兜底与数据预处理
+ * @param {ResolveIssuesParams} params - 标记已解决请求参数（issues）
+ * @param {RequestOptions} options - 请求配置选项
+ * @returns {Promise<IssuesOperationDialogEvent<'resolve'>>} 包含 succeeded 和 failed 的操作结果；异常时返回空兜底结构
+ */
+export const unResolveIssues = async (
+  params: ResolveIssuesParams,
+  options?: RequestOptions
+): Promise<IssuesOperationDialogEvent<'resolve'>> => {
+  const data = await mockResolveIssues(params, options).catch(() => ({ succeeded: [], failed: [] }));
+  return data;
+};
+
+/**
+ * @description 归档Issues，封装底层 API 调用、错误兜底与数据预处理
+ * @param {ResolveIssuesParams} params - 标记已解决请求参数（issues）
+ * @param {RequestOptions} options - 请求配置选项
+ * @returns {Promise<IssuesOperationDialogEvent<'resolve'>>} 包含 succeeded 和 failed 的操作结果；异常时返回空兜底结构
+ */
+export const archiveIssues = async (
+  params: ResolveIssuesParams,
+  options?: RequestOptions
+): Promise<IssuesOperationDialogEvent<'resolve'>> => {
+  const data = await mockResolveIssues(params, options).catch(() => ({ succeeded: [], failed: [] }));
+  return data;
+};
+
+/**
+ * @description 恢复归档 Issues，封装底层 API 调用、错误兜底与数据预处理
+ * @param {ResolveIssuesParams} params - 标记已解决请求参数（issues）
+ * @param {RequestOptions} options - 请求配置选项
+ * @returns {Promise<IssuesOperationDialogEvent<'resolve'>>} 包含 succeeded 和 failed 的操作结果；异常时返回空兜底结构
+ */
+export const unArchiveIssues = async (
+  params: ResolveIssuesParams,
+  options?: RequestOptions
+): Promise<IssuesOperationDialogEvent<'resolve'>> => {
+  const data = await mockResolveIssues(params, options).catch(() => ({ succeeded: [], failed: [] }));
+  return data;
+};
+
+/**
  * @description 添加 Issues 跟进信息，封装底层 API 调用、错误兜底与数据预处理
  * @param {FollowUpIssuesParams} params - 添加跟进信息请求参数（issues / content）
  * @param {RequestOptions} options - 请求配置选项
