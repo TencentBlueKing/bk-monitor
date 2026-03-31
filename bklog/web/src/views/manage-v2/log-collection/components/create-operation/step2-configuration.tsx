@@ -547,6 +547,7 @@ export default defineComponent({
       return {
         ...configItem,
         noQuestParams,
+        containerNameList,
         label_selector: {
           match_labels,
           match_expressions,
@@ -1261,18 +1262,31 @@ export default defineComponent({
       const { params, ...rect } = requestData;
       // const { data_encoding, params, target_object_type, target_node_type, target_nodes, ...rect } = requestData;
       const newConfig = (configs || []).map(item => {
-        const { data_encoding, container, params, collector_type, namespaces, label_selector, annotation_selector } =
-          item;
+        const { data_encoding, container, params, collector_type, namespaces, label_selector, annotation_selector,
+          noQuestParams, containerNameList } = item;
+
+        // 根据排除操作符决定使用 container_name 还是 container_name_exclude
+        const containerKey = noQuestParams?.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
+        const containerNameValue = (containerNameList || []).join(',');
+
+        // 根据排除操作符决定使用 namespaces 还是 namespaces_exclude
+        const namespacesKey = noQuestParams?.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
+        const namespacesValue = JSON.stringify(namespaces) === '["*"]' ? [] : (namespaces || []);
+
         return {
           data_encoding,
-          container,
+          container: {
+            workload_type: container?.workload_type || '',
+            workload_name: container?.workload_name || '',
+            [containerKey]: containerNameValue,
+          },
           params: {
             ...params,
             exclude_files: formatExcludeFiles(params.exclude_files),
             paths: extractPaths(params),
           },
           collector_type,
-          namespaces,
+          [namespacesKey]: namespacesValue,
           label_selector,
           annotation_selector,
         };

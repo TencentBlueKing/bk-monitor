@@ -356,14 +356,18 @@ export default defineComponent({
           const timeField = etl_fields?.find(item => item.is_time);
           const logReportingTime = !timeField; // 如果存在is_time为true的字段，则log_reporting_time为false
           const fieldName = timeField?.field_name || '';
+          const timeFormat = timeField?.option?.time_format || '';
+          const timeZoneVal = timeField?.option?.time_zone || '';
           cleaningMode.value = clean_type;
-          enableMetaData.value = etl_params.path_regexp;
+          enableMetaData.value = !!etl_params.path_regexp;
           visibleBkBiz.value = visible_bk_biz_id;
           formData.value = {
             ...formData.value,
             ...res.data,
             log_reporting_time: logReportingTime,
             field_name: fieldName,
+            time_format: timeFormat,
+            time_zone: timeZoneVal,
           };
           if (cleaningMode.value === 'bk_log_delimiter') {
             delimiter.value = etl_params.separator;
@@ -401,8 +405,12 @@ export default defineComponent({
         })
         .then(async res => {
           if (res.data) {
-            store.commit('collect/setCurCollect', res.data);
-            builtInFieldsList.value = curCollect.value.fields.filter(item => item.is_built_in);
+            // 克隆时不覆盖curCollect，避免把第一步创建的新采集项ID覆盖为旧ID
+            if (!props.isClone) {
+              store.commit('collect/setCurCollect', res.data);
+            }
+            const fieldsSource = props.isClone ? res.data.fields : curCollect.value.fields;
+            builtInFieldsList.value = (fieldsSource || []).filter(item => item.is_built_in);
             if (props.isEdit || props.isClone || props.isCleanField) {
               getDataLog('init');
               await getCleanStash(id);
@@ -498,8 +506,13 @@ export default defineComponent({
             item.verdict = judgeNumber(item);
           }
           const fields = formData.value.etl_fields;
-          const list = dataFields.reduce((arr, item) => {
-            const field = { ...structuredClone(rowTemplate.value), ...item };
+          const list = dataFields.reduce((arr, item, index) => {
+            const field = { 
+              ...structuredClone(rowTemplate.value),
+              ...item,
+              // 如果接口未返回 field_index，则使用数组索引作为唯一标识
+              field_index: item.field_index ?? index + 1,
+            };
             arr.push(field);
             return arr;
           }, []);
@@ -1339,11 +1352,28 @@ export default defineComponent({
           loading.value = false;
           return;
         }
-        const list = formData.value.etl_fields.map(item => ({
-          ...item,
-          is_time: item.field_name === formData.value.field_name,
-        }));
+        const list = formData.value.etl_fields.map(item => {
+          const isTime = item.field_name === formData.value.field_name;
+          return {
+            ...item,
+            is_time: isTime,
+            option: {
+              time_zone: isTime ? formData.value.time_zone : '',
+              time_format: isTime ? formData.value.time_format : '',
+            },
+          };
+        });
         formData.value.etl_fields = list;
+      } else {
+        // 日志上报时间：清除所有字段的 is_time 和 option 中的时间信息
+        formData.value.etl_fields = formData.value.etl_fields.map(item => ({
+          ...item,
+          is_time: false,
+          option: {
+            time_zone: '',
+            time_format: '',
+          },
+        }));
       }
       const { etl_fields } = formData.value;
 
@@ -1475,7 +1505,7 @@ export default defineComponent({
                 formData.value = deepClone(cacheTemplateData.value);
                 cleaningMode.value = cacheTemplateData.value.etl_config;
                 visibleBkBiz.value = cacheTemplateData.value.visible_bk_biz_id;
-                enableMetaData.value = cacheTemplateData.value.etl_params.path_regexp;
+                enableMetaData.value = !!cacheTemplateData.value.etl_params.path_regexp;
               }}
             >
               {t('重置')}
