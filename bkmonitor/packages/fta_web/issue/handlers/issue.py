@@ -23,10 +23,8 @@ from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.issue import IssueDocument
 from bkmonitor.utils.time_tools import hms_string
 from constants.issue import ImpactScopeDimension, IssuePriority, IssueStatus
-from core.drf_resource import resource
 from fta_web.alert.handlers.base import BaseBizQueryHandler, BaseQueryTransformer, QueryField
 from fta_web.alert.handlers.translator import BizTranslator, StrategyTranslator
-from fta_web.alert.utils import slice_time_interval
 
 logger = logging.getLogger("fta_action.issue")
 
@@ -372,25 +370,25 @@ class IssueQueryHandler(BaseBizQueryHandler):
         if not issue_ids:
             return
 
-        # 从本页 Issue 中提取告警时间边界
+        # 从本页 Issue 中提取告警时间边界（空值检查必须在 min/max 之前）
         first_alert_times = [issue["first_alert_time"] for issue in issues if issue.get("first_alert_time")]
         last_alert_times = [issue["last_alert_time"] for issue in issues if issue.get("last_alert_time")]
+
+        if not first_alert_times or not last_alert_times:
+            for issue in issues:
+                issue["trend"] = []
+                issue["alert_count"] = 0
+                issue["anomaly_message"] = "--"
+            return
 
         start_time = int(min(first_alert_times))
         end_time = int(max(last_alert_times))
         interval = self.calculate_agg_interval(start_time, end_time)
 
-        # 用请求参数一次性生成默认零值时间序列，无需在每个分片中重复计算
+        # 生成默认零值时间序列
         aligned_start = start_time // interval * interval
         aligned_end = end_time // interval * interval + interval
         default_time_series = [[ts * 1000, 0] for ts in range(aligned_start, aligned_end, interval)]
-
-        if not first_alert_times or not last_alert_times:
-            for issue in issues:
-                issue["trend"] = list(default_time_series)
-                issue["alert_count"] = 0
-                issue["anomaly_message"] = "--"
-            return
 
         # 启动后台线程查询 anomaly_message 和 alert_count
         fill_result = {"alert_count_map": {}, "anomaly_message_map": {}}
@@ -400,66 +398,71 @@ class IssueQueryHandler(BaseBizQueryHandler):
         )
         fill_thread.start()
 
-        # 复用 AlertDateHistogramResultResource + 时间分片并行查询
+        # 查询告警趋势：≤7天直接单次请求，>7天走时间分片并行查询
+        SLICED_THRESHOLD = 7 * 24 * 60 * 60  # 7天
         try:
-            results = resource.alert.alert_date_histogram_result.bulk_request(
-                [
-                    {
-                        "start_time": sliced_start_time,
-                        "end_time": sliced_end_time,
-                        "interval": interval,
+            from fta_web.issue.resources import IssueAlertDateHistogramResultResource
+
+            if (end_time - start_time) <= SLICED_THRESHOLD:
+                result = IssueAlertDateHistogramResultResource().request(
+                    start_time=start_time,
+                    end_time=end_time,
+                    interval=interval,
+                    conditions=[{"key": "issue_id", "value": issue_ids, "method": "eq"}],
+                    group_by=["issue_id"],
+                )
+            else:
+                result = IssueAlertDateHistogramResultResource.sliced_date_histogram(
+                    start_time=start_time,
+                    end_time=end_time,
+                    interval=interval,
+                    handler_kwargs={
                         "conditions": [{"key": "issue_id", "value": issue_ids, "method": "eq"}],
-                        "group_by": ["issue_id"],
-                    }
-                    for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
-                ]
-            )
+                    },
+                    group_by=["issue_id"],
+                )
         except Exception as e:
-            logger.exception(f"add_alert_trend: bulk_request failed, error:{e}")
+            logger.exception(f"add_alert_trend: date_histogram failed, exception:{e}")
+            fill_thread.join()
             for issue in issues:
                 issue["trend"] = list(default_time_series)
                 issue["alert_count"] = 0
                 issue["anomaly_message"] = "--"
             return
 
-        # 合并各时间分片的结果
-        merged = {}
+        # 从合并结果中提取每个 issue 的时间序列
+        merged = {}  # {issue_id: {ts_ms: count}}
+        for dimension_tuple, status_series in result.items():
+            # 跳过空结果标记（perform_request 在无数据时返回 default_time_series）
+            if dimension_tuple == "default_time_series":
+                continue
+            issue_id = None
+            for key, value in dimension_tuple:
+                if key == "issue_id":
+                    issue_id = value
+                    break
+            if issue_id is None:
+                continue
 
-        for result in results:
-            for dimension_tuple, status_series in result.items():
-                if dimension_tuple == "default_time_series":
-                    continue
+            if issue_id not in merged:
+                merged[issue_id] = {}
+            # group_by=["issue_id"] 不含 status，只返回 ABNORMAL 序列
+            abnormal_series = status_series.get("ABNORMAL", {})
+            merged[issue_id].update(abnormal_series)
 
-                issue_id = None
-                for key, value in dimension_tuple:
-                    if key == "issue_id":
-                        issue_id = value
-                        break
-                if issue_id is None:
-                    continue
-
-                if issue_id not in merged:
-                    merged[issue_id] = {}
-                # status_group=False 时只返回 ABNORMAL 序列
-                abnormal_series = status_series.get("ABNORMAL", {})
-                merged[issue_id].update(abnormal_series)
-
-        # 等待后台线程完成，回填 anomaly_message 和 alert_count
+        # 等待后台线程完成
         fill_thread.join()
 
-        # 解析结果，回填到 Issue 列表
+        # 回填到 Issue 列表
         for issue in issues:
             issue_id = issue["id"]
             if issue_id in merged:
-                issue["trend"] = [[ts, value] for ts, value in merged[issue_id].items()]
+                issue["trend"] = sorted([[ts, value] for ts, value in merged[issue_id].items()])
             else:
                 issue["trend"] = list(default_time_series)
 
             issue["anomaly_message"] = fill_result["anomaly_message_map"].get(issue_id, "--")
-            if issue_id in fill_result["alert_count_map"]:
-                issue["alert_count"] = fill_result["alert_count_map"][issue_id]
-            else:
-                issue["alert_count"] = 0
+            issue["alert_count"] = fill_result["alert_count_map"].get(issue_id, 0)
 
     def _fill_anomaly_message(self, issue_ids: list[str], start_time: int, end_time: int, fill_result: dict) -> None:
         """后台线程：查询每个 Issue 最新告警的 description 作为 anomaly_message，同时统计 alert_count"""
@@ -473,7 +476,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 "top_hits",
                 size=1,
                 sort=[{"begin_time": {"order": "desc"}}],
-                _source=["description"],
+                _source=["event.description"],
             )
             # 统计每个 Issue 的告警数量
             issue_agg.metric("alert_count", "value_count", field="id")
@@ -490,8 +493,11 @@ class IssueQueryHandler(BaseBizQueryHandler):
                 if hasattr(issue_bucket, "latest_alert") and issue_bucket.latest_alert:
                     hits = issue_bucket.latest_alert.hits
                     if hits and hits.hits and len(hits.hits) > 0:
-                        source = hits.hits[0].to_dict().get("_source", {})
-                        description = source.get("description", "")
+                        hit = hits.hits[0]
+                        # top_hits 返回的 hit 是 AttrDict，_source 在 hit["_source"] 中
+                        source = hit.to_dict().get("_source", {})
+                        event_data = source.get("event", {})
+                        description = event_data.get("description", "") if isinstance(event_data, dict) else ""
                         if description:
                             anomaly_message = description
                 msg_map[issue_id] = anomaly_message
@@ -502,5 +508,5 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
             fill_result["anomaly_message_map"] = msg_map
             fill_result["alert_count_map"] = count_map
-        except Exception:
-            logger.exception("_fill_anomaly_message failed")
+        except Exception as e:
+            logger.exception(f"_fill_anomaly_message failed, exception:{e}")
