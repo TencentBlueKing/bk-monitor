@@ -405,8 +405,12 @@ export default defineComponent({
         })
         .then(async res => {
           if (res.data) {
-            store.commit('collect/setCurCollect', res.data);
-            builtInFieldsList.value = curCollect.value.fields.filter(item => item.is_built_in);
+            // 克隆时不覆盖curCollect，避免把第一步创建的新采集项ID覆盖为旧ID
+            if (!props.isClone) {
+              store.commit('collect/setCurCollect', res.data);
+            }
+            const fieldsSource = props.isClone ? res.data.fields : curCollect.value.fields;
+            builtInFieldsList.value = (fieldsSource || []).filter(item => item.is_built_in);
             if (props.isEdit || props.isClone || props.isCleanField) {
               getDataLog('init');
               await getCleanStash(id);
