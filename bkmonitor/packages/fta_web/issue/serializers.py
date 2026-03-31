@@ -17,7 +17,7 @@ class IssueSearchSerializer(BaseSearchSerializer):
     """Issue 搜索基础序列化器"""
 
     status = serializers.ListField(
-        label="状态",
+        label="筛选项",
         required=False,
         child=serializers.CharField(),
         help_text="MY_ISSUE(我负责的) / NO_ASSIGNEE(未分派)",
