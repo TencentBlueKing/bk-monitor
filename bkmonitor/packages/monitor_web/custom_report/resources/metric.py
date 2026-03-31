@@ -971,14 +971,17 @@ class CustomTsGroupingRuleList(CustomTSScopeMixin, Resource):
         return []
 
     def perform_request(self, params: dict):
-        converter = ScopeQueryConverter(params["time_series_group_id"])
-        scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope(
-            include_metrics=False, **self.get_query_scope_filters(params)
-        )
-        result: list[dict[str, Any]] = []
-
         # 收集额外的 metric_count 过滤条件
         extra_mandatory_conditions = self.get_extra_mandatory_conditions(params)
+        converter = ScopeQueryConverter(params["time_series_group_id"])
+        scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope(
+            include_metrics=False,
+            mandatory_conditions=self.build_mandatory_conditions(
+                mandatory_conditions=extra_mandatory_conditions,
+            ),
+            **self.get_query_scope_filters(params)
+        )
+        result: list[dict[str, Any]] = []
 
         for scope_obj in scope_objs:
             # 将 dimension_config 字典转为列表结构
@@ -987,26 +990,12 @@ class CustomTsGroupingRuleList(CustomTSScopeMixin, Resource):
                 for dim_name, dim_config in scope_obj.dimension_config.items()
             ]
 
-            scope_condition = [{"key": "scope_id", "values": [str(scope_obj.id)], "search_type": "exact"}]
-            mandatory_conditions = self.build_mandatory_conditions(
-                mandatory_conditions=extra_mandatory_conditions,
-                conditions=scope_condition,
-            )
-            # 与 GetCustomTsFields 使用同一套强制过滤规则，保证 metric_count 口径一致
-            metric_result = api.metadata.query_time_series_metric(
-                group_id=params["time_series_group_id"],
-                count_only=True,
-                conditions=scope_condition if scope_condition else None,
-                mandatory_conditions=mandatory_conditions if mandatory_conditions else None,
-            )
-            metric_count = metric_result.get("total", 0)
-
             result.append(
                 {
                     "id": scope_obj.id,
                     "name": scope_obj.name,
                     "dimension_config": dimension_config_list,
-                    "metric_count": metric_count,
+                    "metric_count": scope_obj.metric_count,
                     "auto_rules": scope_obj.auto_rules,
                     "create_from": scope_obj.create_from,
                 }

@@ -25,7 +25,7 @@ from confluent_kafka import KafkaError, KafkaException
 from confluent_kafka import TopicPartition as ConfluentTopicPartition
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.db.models.query import QuerySet
 from django.utils.translation import gettext as _
 from kafka import KafkaConsumer, TopicPartition
@@ -1471,7 +1471,129 @@ class CreateOrUpdateTimeSeriesMetricResource(Resource):
         models.TimeSeriesMetric.batch_create_or_update(metrics, bk_tenant_id, group_id)
 
 
-class QueryTimeSeriesMetricResource(Resource):
+class TimeSeriesMetricConditionQueryMixin:
+    def _apply_search_filters(self, query_set, validated_request_data):
+        """应用搜索过滤条件"""
+        conditions = validated_request_data.get("conditions", [])
+        mandatory_conditions = validated_request_data.get("mandatory_conditions", [])
+        connector = validated_request_data.get("condition_connector", "and")
+
+        user_query = None
+        for condition in conditions:
+            condition_query = self._build_condition_query(condition)
+            if condition_query:
+                if user_query is None:
+                    user_query = condition_query
+                elif connector == "or":
+                    user_query = user_query | condition_query
+                else:
+                    user_query = user_query & condition_query
+
+        mandatory_query = None
+        for condition in mandatory_conditions:
+            condition_query = self._build_condition_query(condition)
+            if condition_query:
+                if mandatory_query is None:
+                    mandatory_query = condition_query
+                else:
+                    mandatory_query = mandatory_query & condition_query
+
+        final_query = None
+        if mandatory_query and user_query:
+            final_query = mandatory_query & user_query
+        elif mandatory_query:
+            final_query = mandatory_query
+        elif user_query:
+            final_query = user_query
+
+        return query_set.filter(final_query) if final_query else query_set
+
+    def _apply_mandatory_filters(self, query_set, mandatory_conditions):
+        for condition in mandatory_conditions:
+            condition_query = self._build_condition_query(condition)
+            if condition_query:
+                query_set = query_set.filter(condition_query)
+        return query_set
+
+    @staticmethod
+    def _normalize_search_type(key: str, search_type: str | None) -> str:
+        if key not in {"name", "field_config_alias"}:
+            return "exact"
+        return search_type or "fuzzy"
+
+    @staticmethod
+    def _build_name_query(value: str, search_type: str) -> Q:
+        if search_type == "regex_case_sensitive":
+            return Q(field_name__regex=value)
+        if search_type == "regex":
+            return Q(field_name__iregex=value)
+        if search_type == "fuzzy_case_sensitive":
+            return Q(field_name__contains=value)
+        if search_type == "fuzzy":
+            return Q(field_name__iregex=re.escape(value))
+        if search_type == "exact_case_sensitive":
+            return Q(field_name=value)
+        return Q(field_name__iregex=rf"^{re.escape(value)}$")
+
+    @staticmethod
+    def _build_alias_query(value: str, search_type: str) -> Q:
+        if search_type == "regex_case_sensitive":
+            return Q(field_config__alias__regex=value)
+        if search_type == "regex":
+            return Q(field_config__alias__iregex=value)
+        if search_type == "fuzzy_case_sensitive":
+            return Q(field_config__alias__regex=re.escape(value))
+        if search_type == "fuzzy":
+            return Q(field_config__alias__icontains=value)
+        if search_type == "exact_case_sensitive":
+            return Q(field_config__alias=value)
+        return Q(field_config__alias__iexact=value)
+
+    @staticmethod
+    def _build_condition_query(condition):
+        key = condition["key"]
+        values = condition["values"]
+        search_type = TimeSeriesMetricConditionQueryMixin._normalize_search_type(key, condition.get("search_type"))
+        negate = condition.get("negate", False)
+
+        if not values:
+            return None
+
+        condition_query = None
+        for value in values:
+            q_obj = None
+
+            if key == "name":
+                q_obj = TimeSeriesMetricConditionQueryMixin._build_name_query(value, search_type)
+            elif key == "field_config_alias":
+                q_obj = TimeSeriesMetricConditionQueryMixin._build_alias_query(value, search_type)
+            elif key == "field_config_unit":
+                q_obj = Q(field_config__unit__iexact=value)
+            elif key == "field_config_aggregate_method":
+                q_obj = Q(field_config__aggregate_method__iexact=value)
+            elif key in ("field_config_hidden", "field_config_disabled"):
+                field_key = key.replace("field_config_", "")
+                if value.lower() in ("true", "1"):
+                    q_obj = Q(**{f"field_config__{field_key}": True})
+                else:
+                    q_obj = Q(**{f"field_config__{field_key}__isnull": True}) | Q(
+                        **{f"field_config__{field_key}": False}
+                    )
+            elif key == "scope_id":
+                q_obj = Q(scope_id=int(value))
+            elif key == "field_id":
+                q_obj = Q(field_id=int(value))
+
+            if q_obj:
+                condition_query = q_obj if condition_query is None else condition_query | q_obj
+
+        if condition_query and negate:
+            condition_query = ~condition_query
+
+        return condition_query
+
+
+class QueryTimeSeriesMetricResource(TimeSeriesMetricConditionQueryMixin, Resource):
     """
     查询自定义时序指标列表
 
@@ -1638,137 +1760,6 @@ class QueryTimeSeriesMetricResource(Resource):
         logger.info("[QueryTimeSeriesMetric] total cost: %.4fs, group_id=%s", time4 - time1, group_id)
         return {"metrics": results, "total": total}
 
-    def _apply_search_filters(self, query_set, validated_request_data):
-        """应用搜索过滤条件
-        mandatory_conditions 始终以 AND 方式与其他条件组合，不受 condition_connector 影响。
-        conditions 中同一字段的多个值用OR，不同字段之间的连接方式由condition_connector决定（默认AND）。
-        最终查询逻辑：mandatory_conditions AND (user_conditions)
-        """
-        conditions = validated_request_data.get("conditions", [])
-        mandatory_conditions = validated_request_data.get("mandatory_conditions", [])
-        connector = validated_request_data.get("condition_connector", "and")
-
-        # 1. 构建用户条件查询（受 condition_connector 控制）
-        user_query = None
-        for condition in conditions:
-            condition_query = self._build_condition_query(condition)
-            if condition_query:
-                if user_query is None:
-                    user_query = condition_query
-                elif connector == "or":
-                    user_query = user_query | condition_query
-                else:
-                    user_query = user_query & condition_query
-
-        # 2. 构建强制条件查询（始终 AND）
-        mandatory_query = None
-        for condition in mandatory_conditions:
-            condition_query = self._build_condition_query(condition)
-            if condition_query:
-                if mandatory_query is None:
-                    mandatory_query = condition_query
-                else:
-                    mandatory_query = mandatory_query & condition_query
-
-        # 3. 组合：mandatory AND user_conditions
-        final_query = None
-        if mandatory_query and user_query:
-            final_query = mandatory_query & user_query
-        elif mandatory_query:
-            final_query = mandatory_query
-        elif user_query:
-            final_query = user_query
-
-        return query_set.filter(final_query) if final_query else query_set
-
-    @staticmethod
-    def _normalize_search_type(key: str, search_type: str | None) -> str:
-        if key not in {"name", "field_config_alias"}:
-            return "exact"
-        return search_type or "fuzzy"
-
-    @staticmethod
-    def _build_name_query(value: str, search_type: str) -> Q:
-        if search_type == "regex_case_sensitive":
-            return Q(field_name__regex=value)
-        if search_type == "regex":
-            return Q(field_name__iregex=value)
-        if search_type == "fuzzy_case_sensitive":
-            return Q(field_name__contains=value)
-        if search_type == "fuzzy":
-            return Q(field_name__iregex=re.escape(value))
-        if search_type == "exact_case_sensitive":
-            return Q(field_name=value)
-        return Q(field_name__iregex=rf"^{re.escape(value)}$")
-
-    @staticmethod
-    def _build_alias_query(value: str, search_type: str) -> Q:
-        if search_type == "regex_case_sensitive":
-            return Q(field_config__alias__regex=value)
-        if search_type == "regex":
-            return Q(field_config__alias__iregex=value)
-        if search_type == "fuzzy_case_sensitive":
-            return Q(field_config__alias__regex=re.escape(value))
-        if search_type == "fuzzy":
-            return Q(field_config__alias__icontains=value)
-        if search_type == "exact_case_sensitive":
-            return Q(field_config__alias=value)
-        return Q(field_config__alias__iexact=value)
-
-    @staticmethod
-    def _build_condition_query(condition):
-        """构建单个字段的查询条件（多个值用OR连接）"""
-        key = condition["key"]
-        values = condition["values"]
-        search_type = QueryTimeSeriesMetricResource._normalize_search_type(key, condition.get("search_type"))
-        negate = condition.get("negate", False)
-
-        if not values:
-            return None
-
-        # 为每个值构建Q对象，然后用OR连接
-        condition_query = None
-        for value in values:
-            q_obj = None
-
-            # name字段特殊处理（支持多种搜索类型）
-            if key == "name":
-                q_obj = QueryTimeSeriesMetricResource._build_name_query(value, search_type)
-
-            # field_config相关字段
-            elif key == "field_config_alias":
-                q_obj = QueryTimeSeriesMetricResource._build_alias_query(value, search_type)
-            elif key == "field_config_unit":
-                q_obj = Q(field_config__unit__iexact=value)
-            elif key == "field_config_aggregate_method":
-                q_obj = Q(field_config__aggregate_method__iexact=value)
-            elif key in ("field_config_hidden", "field_config_disabled"):
-                # 查询 True 时只匹配明确为 True 的记录，查询 False 时匹配所有不为 True 的记录（包括空值、不存在或为 False）
-                field_key = key.replace("field_config_", "")
-                if value.lower() in ("true", "1"):
-                    q_obj = Q(**{f"field_config__{field_key}": True})
-                else:
-                    # 匹配 field_config 为空字典、键不存在、或值不为 True 的情况
-                    q_obj = Q(**{f"field_config__{field_key}__isnull": True}) | Q(
-                        **{f"field_config__{field_key}": False}
-                    )
-
-            # 整数字段
-            elif key == "scope_id":
-                q_obj = Q(scope_id=int(value))
-            elif key == "field_id":
-                q_obj = Q(field_id=int(value))
-
-            if q_obj:
-                condition_query = q_obj if condition_query is None else condition_query | q_obj
-
-        # 支持取反
-        if condition_query and negate:
-            condition_query = ~condition_query
-
-        return condition_query
-
-
 class CreateOrUpdateTimeSeriesScopeResource(Resource):
     """
     批量创建或更新自定义时序指标分组
@@ -1830,7 +1821,7 @@ class DeleteTimeSeriesScopeResource(Resource):
         )
 
 
-class QueryTimeSeriesScopeResource(Resource):
+class QueryTimeSeriesScopeResource(TimeSeriesMetricConditionQueryMixin, Resource):
     """
     查询自定义时序指标分组列表
 
@@ -1838,6 +1829,26 @@ class QueryTimeSeriesScopeResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        class QueryTimeSeriesScopeConditionSerializer(serializers.Serializer):
+            key = serializers.ChoiceField(
+                choices=["name", "field_config_disabled"],
+                required=True,
+                label="搜索字段",
+            )
+            values = serializers.ListField(
+                child=serializers.CharField(),
+                required=True,
+                label="搜索值列表",
+                min_length=0,
+            )
+            search_type = serializers.ChoiceField(
+                choices=["regex", "regex_case_sensitive", "fuzzy", "fuzzy_case_sensitive", "exact", "exact_case_sensitive"],
+                required=False,
+                default="fuzzy",
+                label="搜索类型",
+            )
+            negate = serializers.BooleanField(required=False, default=False, label="是否取反")
+
         bk_tenant_id = TenantIdField(label="租户ID")
         group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
         scope_ids = serializers.ListField(
@@ -1845,6 +1856,12 @@ class QueryTimeSeriesScopeResource(Resource):
         )
         scope_name = serializers.CharField(required=False, label="指标分组名称")
         include_metrics = serializers.BooleanField(required=False, default=False, label="是否返回指标数据")
+        mandatory_conditions = serializers.ListField(
+            child=QueryTimeSeriesScopeConditionSerializer(),
+            required=False,
+            label="强制过滤条件列表",
+            allow_empty=True,
+        )
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
@@ -1865,41 +1882,44 @@ class QueryTimeSeriesScopeResource(Resource):
             query_set = query_set.filter(id__in=scope_ids)
         if scope_name:
             query_set = query_set.filter(scope_name__icontains=scope_name)
-        results = self._build_grouped_results(query_set, group_id, include_metrics)
+        results = self._build_grouped_results(
+            query_set,
+            group_id,
+            include_metrics,
+            validated_request_data.get("mandatory_conditions", []),
+        )
 
         return results
 
-    @staticmethod
-    def _build_grouped_results(query_set, group_id, include_metrics):
+    def _build_grouped_results(self, query_set, group_id, include_metrics, mandatory_conditions):
         # 使用 values() 直接获取字典数据，避免 ORM 对象创建开销
         scopes = list(query_set.values("id", "group_id", "scope_name", "dimension_config", "auto_rules", "create_from"))
         if not scopes:
             return []
 
         scope_ids = [scope["id"] for scope in scopes]
+        metrics_query_set = models.TimeSeriesMetric.objects.filter(group_id=group_id, scope_id__in=scope_ids)
+        metrics_query_set = self._apply_mandatory_filters(metrics_query_set, mandatory_conditions)
 
         metrics_by_scope = defaultdict(list)
+        metric_count_map = defaultdict(int)
 
         if include_metrics:
-            # 使用 values() 批量查询 metrics，避免 ORM 对象转换
-            all_metrics = (
-                models.TimeSeriesMetric.objects.filter(group_id=group_id, scope_id__in=scope_ids)
-                .values(
-                    "field_name",
-                    "field_id",
-                    "field_scope",
-                    "tag_list",
-                    "field_config",
-                    "create_time",
-                    "last_modify_time",
-                    "group_id",
-                    "scope_id",
-                )
-                .iterator(chunk_size=500)
+            all_metrics = metrics_query_set.values(
+                "field_name",
+                "field_id",
+                "field_scope",
+                "tag_list",
+                "field_config",
+                "create_time",
+                "last_modify_time",
+                "group_id",
+                "scope_id",
             )
 
-            for metric in all_metrics:
+            for metric in all_metrics.iterator(chunk_size=500):
                 key = (metric["group_id"], metric["scope_id"])
+                metric_count_map[metric["scope_id"]] += 1
                 metrics_by_scope[key].append(
                     {
                         "metric_name": metric["field_name"],
@@ -1913,6 +1933,13 @@ class QueryTimeSeriesScopeResource(Resource):
                         else None,
                     }
                 )
+        else:
+            metric_count_map.update(
+                {
+                    item["scope_id"]: item["metric_count"]
+                    for item in metrics_query_set.values("scope_id").annotate(metric_count=Count("field_id"))
+                }
+            )
 
         return [
             {
@@ -1923,12 +1950,11 @@ class QueryTimeSeriesScopeResource(Resource):
                 "auto_rules": scope["auto_rules"],
                 "metric_list": metrics_by_scope.get((scope["group_id"], scope["id"]), []),
                 "create_from": scope["create_from"],
-                "metric_count": models.TimeSeriesMetric.objects.filter(
-                    group_id=scope["group_id"], scope_id=scope["id"]
-                ).count(),
+                "metric_count": metric_count_map.get(scope["id"], 0),
             }
             for scope in scopes
         ]
+
 
 
 class QueryBCSMetricsResource(Resource):

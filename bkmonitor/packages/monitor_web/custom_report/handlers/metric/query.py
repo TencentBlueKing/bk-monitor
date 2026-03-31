@@ -251,7 +251,11 @@ class ScopeQueryConverter(BaseQueryConverter):
         return scope_objs
 
     def query_time_series_scope(
-        self, scope_ids: list[int] | None = None, scope_name: str | None = None, include_metrics: bool = True
+        self,
+        scope_ids: list[int] | None = None,
+        scope_name: str | None = None,
+        include_metrics: bool = True,
+        mandatory_conditions: list[dict[str, Any]] | None = None,
     ) -> list[ScopeQueryResponseDTO]:
         request_param: dict[str, Any] = {
             "group_id": self.time_series_group_id,
@@ -261,6 +265,8 @@ class ScopeQueryConverter(BaseQueryConverter):
             request_param["scope_ids"] = scope_ids
         if scope_name:
             request_param["scope_name"] = scope_name
+        if mandatory_conditions:
+            request_param["mandatory_conditions"] = mandatory_conditions
         scope_list = api.metadata.query_time_series_scope(**request_param)
         return [ScopeQueryResponseDTO.from_response_dict(scope_dict) for scope_dict in scope_list]
 

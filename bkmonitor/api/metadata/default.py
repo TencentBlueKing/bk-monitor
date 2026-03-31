@@ -581,12 +581,40 @@ class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
     backend_cache_type = CacheType.METADATA
 
     class RequestSerializer(serializers.Serializer):
+        class QueryTimeSeriesScopeConditionSerializer(serializers.Serializer):
+            key = serializers.ChoiceField(
+                choices=["name", "field_config_disabled"],
+                required=True,
+                label="搜索字段",
+            )
+            values = serializers.ListField(child=serializers.CharField(), required=True, label="搜索值列表", min_length=0)
+            search_type = serializers.ChoiceField(
+                choices=[
+                    "regex",
+                    "regex_case_sensitive",
+                    "fuzzy",
+                    "fuzzy_case_sensitive",
+                    "exact",
+                    "exact_case_sensitive",
+                ],
+                required=False,
+                default="fuzzy",
+                label="搜索类型",
+            )
+            negate = serializers.BooleanField(required=False, default=False, label="是否取反")
+
         group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
         scope_ids = serializers.ListField(
             child=serializers.IntegerField(), required=False, label="指标分组ID列表", allow_empty=True
         )
         scope_name = serializers.CharField(required=False, label="指标分组名称")
         include_metrics = serializers.BooleanField(required=False, default=False, label="是否返回指标数据")
+        mandatory_conditions = serializers.ListField(
+            child=QueryTimeSeriesScopeConditionSerializer(),
+            required=False,
+            allow_empty=True,
+            label="强制过滤条件列表",
+        )
 
 
 class QueryTimeSeriesMetricResource(MetaDataAPIGWResource):
