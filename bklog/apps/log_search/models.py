@@ -649,10 +649,7 @@ class LogIndexSet(SoftDeleteModel):
             self.fields_snapshot = self.fields_snapshot or fields
             raise e
         finally:
-            # 定时任务会高频同步字段快照，不能走 save()，否则 auto_now 会持续刷新 updated_at
-            self.__class__.origin_objects.filter(index_set_id=self.index_set_id).update(
-                fields_snapshot=self.fields_snapshot
-            )
+            self.save(update_fields=["fields_snapshot"])
         return fields
 
     @classmethod
@@ -664,8 +661,7 @@ class LogIndexSet(SoftDeleteModel):
         for add_tag_id in add_tag_ids:
             tag_ids.add(add_tag_id)
         index_set.tag_ids = list(tag_ids)
-        # no_data_check 定时任务会调用该方法，使用 update() 避免无业务变更时刷新 updated_at
-        cls.origin_objects.filter(index_set_id=index_set_id).update(tag_ids=index_set.tag_ids)
+        index_set.save(update_fields=["tag_ids"])
 
     @classmethod
     def delete_tag_by_name(cls, index_set_id, tag_name):
@@ -680,8 +676,7 @@ class LogIndexSet(SoftDeleteModel):
         delete_tag_ids = {str(tag_id) for tag_id in tag_ids}
         remain_tag_ids = original_tag_ids - delete_tag_ids
         index_set.tag_ids = list(remain_tag_ids)
-        # no_data_check 定时任务会调用该方法，使用 update() 避免无业务变更时刷新 updated_at
-        cls.origin_objects.filter(index_set_id=index_set_id).update(tag_ids=index_set.tag_ids)
+        index_set.save(update_fields=["tag_ids"])
 
     def mark_favorite(self, username: str):
         IndexSetUserFavorite.mark(username, self.index_set_id)

@@ -61,9 +61,8 @@ def sync_mapping_snapshot_subtask(index_set_id=None):
     except ApiResultError as e:
         # 当数据平台返回为无法获取元数据报错情况
         if e.code in [BkDataErrorCode.STORAGE_TYPE_ERROR, BkDataErrorCode.COULD_NOT_GET_METADATA_ERROR]:
-            # 定时任务异常分支只需要禁用索引集，使用 update() 避免触发 auto_now 刷新 updated_at
-            LogIndexSet.origin_objects.filter(index_set_id=index_set_obj.index_set_id).update(is_active=False)
             index_set_obj.is_active = False
+            index_set_obj.save(update_fields=["is_active"])
         logger.exception(
             f"[sync_single_index_set_mapping_snapshot] index_set({index_set_obj.index_set_id} call mapping error: {e})"
         )
