@@ -154,6 +154,7 @@ export default defineComponent({
         sortList = localSortFields.value.map(item => [item[0], sortStatus.value]);
       }
       displaySortFields.value = sortList;
+      store.commit('updateState', { dateTimeSort: ['asc', 'desc'].includes(sortStatus.value), dateTimeSortList: sortList });
       await store.dispatch('requestIndexSetFieldInfo');
       await store.dispatch('requestIndexSetQuery', { defaultSortList: sortList });
       RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED, sortList);

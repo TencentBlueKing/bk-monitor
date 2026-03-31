@@ -190,6 +190,8 @@ const stateTpl = {
     isAiAssistantActive: false,
   },
   localSort: false,
+  dateTimeSort: false,
+  dateTimeSortList: [],
   spaceUidMap: new Map(),
   bizIdMap: new Map(),
   aiMode: {
@@ -322,6 +324,16 @@ const store = new Vuex.Store({
         searchParams.keyword = '*';
       }
 
+      let local_sort_list = [];
+
+      if (state.dateTimeSort) {
+        local_sort_list = state.dateTimeSortList;
+      } else if (state.localSort) {
+        local_sort_list = sort_list;
+      } else {
+        local_sort_list = getters.custom_sort_list;
+      }
+
       return {
         start_time,
         end_time,
@@ -333,7 +345,7 @@ const store = new Vuex.Store({
         host_scopes,
         interval,
         search_mode: searchMode,
-        sort_list,
+        sort_list: local_sort_list,
         bk_biz_id: state.bkBizId,
         time_zone: timezone,
         ...searchParams,
@@ -1253,7 +1265,7 @@ const store = new Vuex.Store({
         return; // Promise.reject({ message: `index_set_id is undefined` });
       }
       let begin = state.indexItem.begin;
-      const { size, format, ...otherPrams } = getters.retrieveParams;
+      const { size, format, ...otherParams } = getters.retrieveParams;
       const requestAddition = getters.requestAddition;
 
       // 如果是第一次请求
@@ -1299,11 +1311,11 @@ const store = new Vuex.Store({
       const baseData = {
         bk_biz_id: state.bkBizId,
         size,
-        ...otherPrams,
+        ...otherParams,
         start_time,
         end_time,
         addition: formatAdditionalFields(state, [...requestAddition, ...getCommonFilterAdditionWithValues(state)]),
-        sort_list: dateFieldSortList ?? (state.localSort ? otherPrams.sort_list : getters.custom_sort_list),
+        // sort_list: dateFieldSortList ?? otherParams.local_sort_list,
       };
 
       // 更新联合查询的begin
