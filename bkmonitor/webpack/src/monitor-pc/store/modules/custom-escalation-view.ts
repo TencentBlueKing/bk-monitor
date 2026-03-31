@@ -63,6 +63,9 @@ class CustomEscalationViewStore extends VuexModule {
   public startTime = DEFAULT_TIME_RANGE[0];
 
   public timeSeriesGroupId = -1;
+  
+  /** 自动模式下计算出的汇聚周期（秒），用于替换 $interval 变量 */
+  public autoIntervalSec = 60;
 
   // 常驻过滤条件(并集)：通过currentSelectedGroupNameList在metricGroupList中找到对应的common_dimensions
   get commonDimensionList() {
@@ -186,6 +189,16 @@ class CustomEscalationViewStore extends VuexModule {
   @Mutation
   public updateTimeSeriesGroupId(payload: number) {
     this.timeSeriesGroupId = payload;
+  }
+
+  @Mutation
+  public setIntervalAuto(payload: boolean) {
+    this.isIntervalAuto = payload;
+  }
+
+  @Mutation
+  public setAutoIntervalSec(payload: number) {
+    this.autoIntervalSec = payload;
   }
 }
 

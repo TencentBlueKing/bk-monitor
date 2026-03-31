@@ -841,7 +841,7 @@ class CollectorHandler:
             )
             _data["storage_cluster_id"] = cluster_info["cluster_config"]["cluster_id"]
             _data["storage_cluster_name"] = cluster_info["cluster_config"].get("cluster_name", "")
-            _data["storage_display_name"] = cluster_info["cluster_config"].get("display_name", "")
+            _data["storage_display_name"] = cluster_info["cluster_config"].get("display_name") or _data["storage_cluster_name"]
             _data["retention"] = cluster_info["storage_config"]["retention"]
             # table_id
             if _data.get("table_id"):
@@ -1560,7 +1560,7 @@ class CollectorHandler:
             return data_link_id
         # 业务可见的私有链路ID
         data_link_obj = (
-            DataLinkConfig.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=get_request_tenant_id())
+            DataLinkConfig.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=get_request_tenant_id(), is_active=True)
             .order_by("data_link_id")
             .first()
         )
@@ -1568,7 +1568,7 @@ class CollectorHandler:
             return data_link_obj.data_link_id
         # 公共链路ID
         data_link_obj = (
-            DataLinkConfig.objects.filter(bk_biz_id=0, bk_tenant_id=get_request_tenant_id())
+            DataLinkConfig.objects.filter(bk_biz_id=0, bk_tenant_id=get_request_tenant_id(), is_active=True)
             .order_by("data_link_id")
             .first()
         )

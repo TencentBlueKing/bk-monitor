@@ -51,9 +51,7 @@ def process_service_relation(bk_biz_id, app_name, service_name, indexes_mapping,
             indexes_mapping[relation.related_bk_biz_id] = relation_full_indexes
             matched = [i for i in relation_full_indexes if str(i["index_set_id"]) in relation_index_ids]
         else:
-            matched = [
-                i for i in indexes_mapping.get(bk_biz_id, []) if str(i["index_set_id"]) in relation_index_ids
-            ]
+            matched = [i for i in indexes_mapping.get(bk_biz_id, []) if str(i["index_set_id"]) in relation_index_ids]
         for index_info in matched:
             index_info = {**index_info}
             if overwrite_method:
@@ -99,6 +97,8 @@ def process_datasource(bk_biz_id, app_name, service_name, indexes_mapping, overw
             None,
         )
         if index_info:
+            index_info["is_app_datasource"] = True
+
             # 默认查询: 服务名称 / 根据不同 SDK 进行调整
             node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
             if node and Vendor.has_sdk(node.get("sdk"), Vendor.G):
@@ -266,4 +266,4 @@ class ServiceRelationListResource(Resource, HostIndexQueryMixin):
         end_time = serializers.IntegerField(label="结束时间", required=False)
 
     def perform_request(self, data):
-        return list(log_relation_list(**data))
+        return sorted(log_relation_list(**data), key=lambda t: not t.get("is_app_datasource", False))

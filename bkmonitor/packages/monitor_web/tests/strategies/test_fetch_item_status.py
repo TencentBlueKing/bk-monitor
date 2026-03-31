@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections import defaultdict
+from unittest.mock import MagicMock, patch
 
 from elasticsearch_dsl import Search
 
@@ -83,7 +84,7 @@ class TestFetchItemStatus:
         assert actual == expect
 
     def test_perform_request(self, monkeypatch):
-        def mock_return(_, validated_request_data):
+        def mock_return(cls, validated_request_data):
             if not validated_request_data.get("target"):
                 return {40449: 22, 40454: 3, 40552: 2, 55686: 1, 55691: 1, 56469: 1}
             else:
@@ -98,7 +99,7 @@ class TestFetchItemStatus:
         monkeypatch.setattr(
             FetchItemStatus,
             "get_strategy_numbers",
-            lambda _, bk_biz_id, metric_ids: defaultdict(
+            lambda cls, bk_biz_id, metric_ids, labels: defaultdict(
                 list, {"bk_monitor..container_cpu_usage_seconds_total": [55686, 55691]}
             ),
         )
@@ -153,3 +154,75 @@ class TestFetchItemStatus:
         actual = result.to_dict()
         expect = {"query": {"bool": {"filter": [{"terms": {"labels": labels}}]}}}
         assert actual == expect
+
+    def test_filter_strategy_ids_by_labels(self):
+        """测试按标签过滤策略 ID 的 AND 语义"""
+
+        # 空标签直接返回空集合
+        assert FetchItemStatus._filter_strategy_ids_by_labels(bk_biz_id=2, labels=[]) == set()
+
+        # 多标签 AND 语义：策略 100 同时关联两个标签，策略 200 只关联第一个
+        mock_qs = MagicMock()
+        mock_qs.filter.return_value = mock_qs
+        mock_qs.values_list.return_value = [
+            (100, "/APM-APP(demo)/"),
+            (200, "/APM-APP(demo)/"),
+            (100, "/APM-SERVICE(svc)/"),
+        ]
+
+        with patch("monitor_web.strategies.resources.public.StrategyLabel.objects") as mock_objects:
+            mock_objects.filter.return_value = mock_qs
+            result = FetchItemStatus._filter_strategy_ids_by_labels(
+                bk_biz_id=2, labels=["APM-APP(demo)", "APM-SERVICE(svc)"]
+            )
+
+        assert result == {100}
+
+    def test_get_strategy_numbers_routing(self):
+        """测试 get_strategy_numbers 的路由分发逻辑"""
+
+        # metric_ids 为空时走标签路径
+        with patch.object(FetchItemStatus, "_filter_strategy_ids_by_labels", return_value={100}):
+            result = FetchItemStatus.get_strategy_numbers(bk_biz_id=2, metric_ids=[], labels=["APM-APP(demo)"])
+        assert result == {FetchItemStatus.LABEL_ASSOCIATE_KEY: [100]}
+
+        # metric_ids 和 labels 都为空时返回空字典
+        result = FetchItemStatus.get_strategy_numbers(bk_biz_id=2, metric_ids=[], labels=[])
+        assert result == {}
+
+    def test_build_labels_response(self):
+        """测试按标签关联的汇总响应构建"""
+
+        strategy_numbers = {FetchItemStatus.LABEL_ASSOCIATE_KEY: [100, 200, 300]}
+        strategy_alert_num = {100: 5, 200: 0, 300: 3}
+        result = FetchItemStatus._build_labels_response(strategy_numbers, strategy_alert_num)
+        assert result == {"strategy_count": 3, "alert_count": 8}
+
+        # 空策略映射
+        assert FetchItemStatus._build_labels_response({}, {}) == {"strategy_count": 0, "alert_count": 0}
+
+    def test_build_metrics_response(self):
+        """测试按指标关联的响应构建"""
+
+        strategy_numbers = {"metric_a": [100, 200]}
+        strategy_alert_num = {100: 3, 200: 0}
+
+        result = FetchItemStatus._build_metrics_response(strategy_numbers, strategy_alert_num, ["metric_a", "metric_b"])
+        # 有告警 -> status=2
+        assert result["metric_a"] == {"status": 2, "alert_number": 3, "strategy_number": 2}
+        # 未配置策略 -> status=0
+        assert result["metric_b"] == {"status": 0, "alert_number": 0, "strategy_number": 0}
+
+    def test_perform_request_with_labels(self, monkeypatch):
+        """测试 metric_ids 为空、labels 非空时的汇总响应路径"""
+
+        monkeypatch.setattr(FetchItemStatus, "get_alarm_event_num", lambda cls, data: {100: 5, 200: 0, 300: 3})
+        monkeypatch.setattr(
+            FetchItemStatus,
+            "get_strategy_numbers",
+            lambda cls, bk_biz_id, metric_ids, labels: {FetchItemStatus.LABEL_ASSOCIATE_KEY: [100, 200, 300]},
+        )
+
+        params = {"bk_biz_id": 2, "metric_ids": [], "labels": ["APM-APP(demo)", "APM-SERVICE(svc)"]}
+        actual = resource.strategies.fetch_item_status(params)
+        assert actual == {"strategy_count": 3, "alert_count": 8}

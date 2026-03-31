@@ -30,12 +30,13 @@ from bkmonitor.utils.user import get_global_user
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.query_template.constants import VariableType
 from core.drf_resource import resource
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from constants.alert import EventStatus
 from utils import count_md5
 
 from apm_web.models import StrategyTemplate, StrategyInstance, Application
 from apm_web.decorators import user_visit_record
-from . import serializers, handler, dispatch, helper, query_template, constants
+from . import serializers, handler, dispatch, helper, query_template, constants, resources
 
 
 class StrategyTemplateViewSet(GenericViewSet):
@@ -590,3 +591,21 @@ class StrategyTemplateViewSet(GenericViewSet):
             )
 
         return Response(option_values)
+
+
+class AlertViewSet(ResourceViewSet):
+    """APM 告警相关接口视图集。"""
+
+    def get_permissions(self) -> list[InstanceActionForDataPermission]:
+        return [
+            InstanceActionForDataPermission(
+                "app_name",
+                [ActionEnum.VIEW_APM_APPLICATION],
+                ResourceEnum.APM_APPLICATION,
+                get_instance_id=Application.get_application_id_by_app_name,
+            )
+        ]
+
+    resource_routes = [
+        ResourceRoute("POST", resources.AlertBuiltinFilterResource, endpoint="builtin_filter"),
+    ]

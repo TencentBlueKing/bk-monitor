@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,12 +18,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import glob
 import json
 import logging
 import os.path
 from dataclasses import dataclass
-from typing import Dict, List, Union
 
 import yaml
 
@@ -46,13 +45,13 @@ class Datasource:
     access: str = "direct"
     isDefault: bool = False
     withCredentials: bool = True
-    database: Union[None, str] = None
-    jsonData: Union[None, Dict] = None
+    database: None | str = None
+    jsonData: None | dict = None
     id: int = -1
     version: int = 0
     orgId: int = -1
     is_delete: bool = False
-    secureJsonData: Union[None, Dict] = None
+    secureJsonData: None | dict = None
 
 
 @dataclass
@@ -60,14 +59,14 @@ class Dashboard:
     """面板标准格式"""
 
     title: str
-    dashboard: Dict
+    dashboard: dict
     folder: str = ""
     folderUid: str = ""
     overwrite: bool = True
 
 
 class BaseProvisioning:
-    def datasources(self, request, org_name: str, org_id: int) -> List[Datasource]:
+    def datasources(self, request, org_name: str, org_id: int) -> list[Datasource]:
         raise NotImplementedError(".datasources() must be overridden.")
 
     def datasource_callback(
@@ -75,7 +74,7 @@ class BaseProvisioning:
     ):
         pass
 
-    def dashboards(self, request, org_name: str, org_id: int) -> List[Dashboard]:
+    def dashboards(self, request, org_name: str, org_id: int) -> list[Dashboard]:
         raise NotImplementedError(".dashboards() must be overridden.")
 
     def dashboard_callback(self, request, org_name: str, org_id: int, dashboard: Dashboard, status: bool, content: str):
@@ -96,10 +95,10 @@ class SimpleProvisioning(BaseProvisioning):
             with open(path, "rb") as fh:
                 conf = fh.read()
                 expand_conf = os.path.expandvars(conf)
-                ds = yaml.load(expand_conf)
+                ds = yaml.safe_load(expand_conf)
                 yield ds
 
-    def datasources(self, request, org_name: str, org_id: int) -> List[Datasource]:
+    def datasources(self, request, org_name: str, org_id: int) -> list[Datasource]:
         """不注入数据源"""
         with os_env(ORG_NAME=org_name, ORG_ID=org_id):
             for suffix in self.file_suffix:
@@ -107,7 +106,7 @@ class SimpleProvisioning(BaseProvisioning):
                     for ds in conf["datasources"]:
                         yield Datasource(**ds)
 
-    def dashboards(self, request, org_name: str, org_id: int) -> List[Dashboard]:
+    def dashboards(self, request, org_name: str, org_id: int) -> list[Dashboard]:
         """固定目录下的json文件, 自动注入"""
         with os_env(ORG_NAME=org_name, ORG_ID=org_id):
             for suffix in self.file_suffix:

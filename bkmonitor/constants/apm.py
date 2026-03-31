@@ -1517,6 +1517,9 @@ class ApmAlertHelper:
     _STRATEGY_APP_LABEL_REGEX = re.compile(r"APM-APP\((.*?)\)")
     _STRATEGY_SERVICE_LABEL_REGEX = re.compile(r"APM-SERVICE\((.*?)\)")
 
+    APM_APP_LABEL_FORMAT = "APM-APP({app_name})"
+    APM_SERVICE_LABEL_FORMAT = "APM-SERVICE({service_name})"
+
     _RPC_METRIC_REGEX = re.compile(r"^rpc_(client|server)_handled_(?:total|seconds_(?:sum|min|max|count|bucket))$")
 
     _TABLE_APP_NAME_REGEX = re.compile(r"^(?:space_)?\d+_bkapm_(?:metric|trace)_([a-zA-Z0-9_-]+)\.__default__$")
@@ -1526,6 +1529,24 @@ class ApmAlertHelper:
         RPCMetricTag,
         RPCLogTag,
     ]
+
+    @classmethod
+    def format_app_label(cls, app_name: str) -> str:
+        """格式化 APM 应用标签字符串。
+
+        :param app_name: 应用名
+        :return: 格式化后的标签字符串，如 "APM-APP(app_demo)"
+        """
+        return cls.APM_APP_LABEL_FORMAT.format(app_name=app_name)
+
+    @classmethod
+    def format_service_label(cls, service_name: str) -> str:
+        """格式化 APM 服务标签字符串。
+
+        :param service_name: 服务名
+        :return: 格式化后的标签字符串，如 "APM-SERVICE(service_demo)"
+        """
+        return cls.APM_SERVICE_LABEL_FORMAT.format(service_name=service_name)
 
     @classmethod
     def _reg_extract(cls, regex: re.Pattern, string: str) -> str | None:

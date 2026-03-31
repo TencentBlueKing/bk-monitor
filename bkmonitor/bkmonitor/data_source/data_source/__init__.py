@@ -841,13 +841,11 @@ class PrometheusTimeSeriesDataSource(DataSource):
             match = f"{{{','.join(match_items)}}}"
         return match
 
-    def query_data(self, start_time: int, end_time: int, *args, **kwargs) -> list:
-        from bkmonitor.data_source.unify_query.query import UnifyQuery
-
+    def _execute_promql(self, start_time: int, end_time: int) -> tuple[dict, int]:
+        """执行 PromQL 查询，返回 (原始响应, 对齐后的结束时间毫秒)。"""
         start_time = time_interval_align(start_time // 1000, self.interval)
         end_time = time_interval_align(end_time // 1000, self.interval)
 
-        # 增加额外的过滤条件
         match = self.filter_dict_to_promql_match(self.filter_dict)
         params = dict(
             bk_biz_ids=[self.bk_biz_id],
@@ -860,7 +858,22 @@ class PrometheusTimeSeriesDataSource(DataSource):
         )
 
         data = api.unify_query.query_data_by_promql(**params)
-        return UnifyQuery.process_unify_query_data({}, data, end_time=end_time * 1000)
+        return data, end_time * 1000
+
+    def query_data(self, start_time: int, end_time: int, *args, **kwargs) -> list:
+        from bkmonitor.data_source.unify_query.query import UnifyQuery
+
+        data, end_time_ms = self._execute_promql(start_time, end_time)
+        return UnifyQuery.process_unify_query_data({}, data, end_time=end_time_ms)
+
+    def query_data_with_stat(self, start_time: int, end_time: int, *args, **kwargs) -> tuple[list, dict]:
+        from bkmonitor.data_source.unify_query.query import UnifyQuery
+
+        data, end_time_ms = self._execute_promql(start_time, end_time)
+        # 先提取 stat 再处理 data，因为 process_unify_query_data 会消费 series 内容
+        series_stat = UnifyQuery.process_unify_query_series_stat({}, data)
+        records = UnifyQuery.process_unify_query_data({}, data, end_time=end_time_ms)
+        return records, series_stat
 
 
 class TimeSeriesDataSource(DataSource):

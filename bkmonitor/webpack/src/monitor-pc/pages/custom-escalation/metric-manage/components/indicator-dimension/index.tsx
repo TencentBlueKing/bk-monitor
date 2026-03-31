@@ -32,6 +32,7 @@ import { getFunctions } from 'monitor-api/modules/grafana';
 import MonitorImport from '../../../../../components/monitor-import/monitor-import.vue';
 import { downCsvFile } from '../../../../view-detail/utils';
 import {
+  validateCustomTsMetricFieldName,
   createOrUpdateGroupingRule,
   customTsGroupingRuleList,
   deleteGroupingRule,
@@ -97,6 +98,7 @@ export default class IndicatorDimension extends tsc<IProps, any> {
   @Prop({ default: 'metric' }) tab: IProps['tab'];
   @Prop({
     default: () => ({
+      validateCustomTsMetricFieldName,
       createOrUpdateGroupingRule,
       exportCustomTimeSeriesFields,
       previewGroupingRule,
@@ -638,7 +640,6 @@ export default class IndicatorDimension extends tsc<IProps, any> {
           ) : (
             <DimensionList
               dimensionTable={this.dimensionTable}
-              loading={this.groupListloading}
               selectedGroupInfo={this.selectedGroupInfo}
               onAliasChange={this.handleAliasChange}
               onRefresh={this.updateInfoSuccess}

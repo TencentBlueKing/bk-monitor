@@ -72,13 +72,6 @@ interface IProps {
   unitList: IUnitItem[];
 }
 
-/** 默认分页大小 */
-const DEFAULT_PAGE_SIZE = 20;
-/** 默认单元格高度 */
-const DEFAULT_CELL_HEIGHT = 40;
-/** 加载延迟时间(ms) */
-const LOAD_DELAY = 300;
-
 /** 批量编辑初始值映射 */
 const initMap = {
   config: {
@@ -104,8 +97,8 @@ export default class BatchEdit extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) isShow: IProps['isShow'];
   @Prop({ default: () => [] }) unitList: IProps['unitList'];
   @Prop({ default: () => [] }) dimensionTable: IProps['dimensionTable'];
-  /** 侧边栏宽度 */
-  sliderWidth = window.innerWidth * 0.9 > 1280 ? window.innerWidth * 0.9 : 1280;
+  /** 侧边栏宽度：最小 1000，若视口宽度的 80% 更大则取 80% */
+  sliderWidth = Math.max(1000, window.innerWidth * 0.8);
 
   @InjectReactive('timeSeriesGroupId') readonly timeSeriesGroupId: number;
   @InjectReactive('requestHandlerMap') readonly requestHandlerMap: RequestHandlerMap;
@@ -116,12 +109,12 @@ export default class BatchEdit extends tsc<IProps> {
   /** 分页信息 */
   pagination = {
     page: 1,
-    pageSize: DEFAULT_PAGE_SIZE,
+    pageSize: 20,
     total: 0,
   };
 
   /** 单元格高度 */
-  cellHeight = DEFAULT_CELL_HEIGHT;
+  cellHeight = 40;
   /** 原始表格数据 */
   originalTableData: ICustomTsFields['list'] = [];
   /** 当前显示的表格数据（分页后的数据） */
@@ -256,6 +249,8 @@ export default class BatchEdit extends tsc<IProps> {
   searchKey = '';
   /** 保存按钮 loading 状态 */
   saveLoading = false;
+  /** 异步校验后已存在的同名指标名称列表 */
+  existingFieldNames: Set<string> = new Set();
 
   /**
    * 获取维度数据列表
@@ -335,7 +330,7 @@ export default class BatchEdit extends tsc<IProps> {
    * 处理搜索条件变化
    * @param {Array} list - 搜索条件列表
    */
-  @Debounce(LOAD_DELAY)
+  @Debounce(300)
   handleSearchChange(list = []) {
     this.pagination.page = 1;
     this.showTableData = [];
@@ -405,11 +400,15 @@ export default class BatchEdit extends tsc<IProps> {
       page: this.pagination.page,
       page_size: this.pagination.pageSize,
       conditions: [
-        ...(this.selectedGroupInfo.id === -1 ? [] : [{
-          key: 'scope_id',
-          values: [this.selectedGroupInfo.id],
-          search_type: 'exact' as const,
-        }]),
+        ...(this.selectedGroupInfo.id === -1
+          ? []
+          : [
+              {
+                key: 'scope_id',
+                values: [this.selectedGroupInfo.id],
+                search_type: 'exact' as const,
+              },
+            ]),
         ...this.metricSearchObj,
       ],
     };
@@ -452,8 +451,28 @@ export default class BatchEdit extends tsc<IProps> {
    */
   async handleSave() {
     try {
+      this.existingFieldNames.clear();
       this.saveLoading = true;
       const newRows = this.showTableData.filter(row => row.isNew);
+      const newFieldNames = newRows.map(row => row.name);
+      const validParams = {
+        time_series_group_id: this.timeSeriesGroupId,
+        field_names: newFieldNames,
+      }
+      if (this.isAPM) {
+        delete validParams.time_series_group_id;
+        Object.assign(validParams, {
+          app_name: this.appName,
+          service_name: this.serviceName,
+        });
+      }
+      // 异步校验新增行的名称是否已存在
+      const newFieldNamesValidationResults = await this.requestHandlerMap.validateCustomTsMetricFieldName(validParams);
+      if (newFieldNamesValidationResults.length) {
+        for (const fieldName of newFieldNamesValidationResults) {
+          this.existingFieldNames.add(fieldName);
+        }
+      }
       // 并行执行所有验证
       const validationResults = newRows.map(row => {
         return this.validateName(row);
@@ -466,10 +485,13 @@ export default class BatchEdit extends tsc<IProps> {
         row.isNew = undefined;
         row.error = undefined;
       }
-      const metricTableMap = this.originalTableData.reduce<Record<string, ICustomTsFields['list'][number]>>((acc, curr) => {
-        acc[curr.id] = curr;
-        return acc;
-      }, {});
+      const metricTableMap = this.originalTableData.reduce<Record<string, ICustomTsFields['list'][number]>>(
+        (acc, curr) => {
+          acc[curr.id] = curr;
+          return acc;
+        },
+        {}
+      );
       const updateFields = [];
       for (const row of this.showTableData) {
         if (!row.id) {
@@ -552,7 +574,7 @@ export default class BatchEdit extends tsc<IProps> {
       this.bottomLoadingOptions.isLoading = true;
       setTimeout(() => {
         this.handleGetCustomTsFields();
-      }, LOAD_DELAY);
+      }, 300);
     }
   }
 
@@ -705,12 +727,22 @@ export default class BatchEdit extends tsc<IProps> {
   }
   /** 组件挂载时添加全局点击事件监听 */
   mounted() {
+    window.addEventListener('resize', this.handleWindowResize);
     document.addEventListener('click', this.handleGlobalClick);
   }
 
   /** 组件销毁前移除全局点击事件监听 */
   beforeDestroy() {
+    window.removeEventListener('resize', this.handleWindowResize);
     document.removeEventListener('click', this.handleGlobalClick);
+  }
+
+  /**
+   * 视口变化时同步侧边栏宽度（最小 1000，否则取视口宽度的 80%）
+   */
+  @Debounce(100)
+  handleWindowResize() {
+    this.sliderWidth = Math.max(1000, window.innerWidth * 0.8);
   }
 
   /**
@@ -1195,7 +1227,7 @@ export default class BatchEdit extends tsc<IProps> {
     if (!row.name?.trim()) {
       return this.$t('名称不能为空') as string;
     }
-    if (this.showTableData.some(item => item !== row && item.name === row.name)) {
+    if (this.existingFieldNames.has(row.name)) {
       return this.$t('名称已存在') as string;
     }
     if (/[\u4e00-\u9fa5]/.test(row.name.trim())) {

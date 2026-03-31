@@ -202,9 +202,9 @@ class CollectorPluginHandler:
             ):
                 # 绑定采集链路
                 if not data_link_id:
-                    data_links = DataLinkConfig.objects.filter(bk_biz_id__in=[0, bk_biz_id],
-                                                               bk_tenant_id=get_request_tenant_id())\
-                        .order_by("data_link_id")
+                    data_links = DataLinkConfig.objects.filter(
+                        bk_biz_id__in=[0, bk_biz_id], bk_tenant_id=get_request_tenant_id(), is_active=True
+                    ).order_by("data_link_id")
                     if data_links.exists():
                         self.collector_plugin.data_link_id = data_links.first().data_link_id
                 # 创建 DATA ID

@@ -3200,19 +3200,3 @@ class SimpleServiceList(Resource):
         ]
 
 
-class ServiceConfigResource(Resource):
-    bk_biz_id = serializers.IntegerField(label="业务id")
-    app_name = serializers.CharField(label="应用名称")
-    service_name = serializers.CharField(label="应用名称")
-    start_time = serializers.IntegerField(label="开始时间", required=False)
-    end_time = serializers.IntegerField(label="结束时间", required=False)
-
-    def perform_request(self, validate_data):
-        group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
-            metric_group.GroupEnum.TRPC, validate_data["bk_biz_id"], validate_data["app_name"]
-        )
-        return group.get_server_config(
-            server=validate_data["service_name"],
-            start_time=validate_data.get("start_time"),
-            end_time=validate_data.get("end_time"),
-        )

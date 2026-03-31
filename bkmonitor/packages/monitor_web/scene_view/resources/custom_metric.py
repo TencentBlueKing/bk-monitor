@@ -16,6 +16,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.utils.alert_drilling import normalize_histogram_quantile_group_by
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
@@ -805,7 +806,10 @@ class GraphDrillDownResource(Resource):
 
     def perform_request(self, params: dict) -> list:
         for item in params["query_configs"]:
-            item["group_by"] = params["group_by"]
+            # 浅拷贝 group_by，避免发生共享引用被污染的问题
+            item["group_by"] = list(params["group_by"])
+            normalize_histogram_quantile_group_by(item)
+
         result = resource.grafana.graph_unify_query(params)
 
         dimensions_values: dict[tuple[tuple[str, str]], dict] = defaultdict(

@@ -1392,9 +1392,6 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
       } else if (routerName === 'collect-config-view') {
         /** 采集视图 */
         this.$router.push({ name: 'collect-config' });
-      } else if (routerName === 'custom-scenes-view') {
-        /* 自定义场景 */
-        this.$router.push({ name: 'custom-scenes' });
       } else {
         /** 其他视图切换列表 */
         if (this.dashboardId === 'cluster') {
@@ -1418,7 +1415,6 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   /* 是否显示完整列表按钮 */
   isShowCompleteList() {
     const routeNames = [
-      'custom-scenes-view', // 自定义场景
       'uptime-check-task-detail', // 拨测视图
       'collect-config-view', // 采集视图
       'custom-escalation-view', // 自定义指标视图

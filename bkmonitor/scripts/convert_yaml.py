@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 __doc__ = """
 python convert_yaml.py -s ../docs/api/monitor_v3.yaml -t ./ -f json
@@ -52,16 +50,14 @@ if __name__ == "__main__":
     name = name or "apigw_default"
 
     print(
-        """
+        f"""
         ===========================
-        source:         {},
-        target:         {},
-        format:         {},
-        name:         {},
+        source:         {source},
+        target:         {target},
+        format:         {format},
+        name:         {name},
         ===========================
-    """.format(
-            source, target, format, name
-        )
+    """
     )
 
     if format == "swagger":
@@ -101,10 +97,10 @@ paths:"""
           userVerifiedRequired: false
         disabledStages: []"""
 
-        output = open(os.path.join(target, "{}.{}".format(name, format)), "w")
+        output = open(os.path.join(target, f"{name}.{format}"), "w")
         output.write(template_header)
         with open(source, "rb") as f:
-            apis = yaml.load(f, Loader=yaml.FullLoader)
+            apis = yaml.safe_load(f)
             for api in apis:
                 resource = each_resource_template.format(
                     resource_name=api["name"],
@@ -121,7 +117,7 @@ paths:"""
         exit(0)
 
     with open(source, "rb") as f:
-        apis = yaml.load(f, Loader=yaml.FullLoader)
+        apis = yaml.safe_load(f)
         data = [
             {
                 "resource_classification": parse_fenlei(api["dest_path"]),
@@ -137,7 +133,7 @@ paths:"""
             for api in apis
         ]
 
-        output = open(os.path.join(target, "{}.{}".format(name, format)), "w")
+        output = open(os.path.join(target, f"{name}.{format}"), "w")
         if format == "json":
             json.dump(data, output, indent=2)
         else:

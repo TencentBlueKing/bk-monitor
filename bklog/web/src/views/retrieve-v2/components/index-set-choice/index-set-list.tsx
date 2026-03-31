@@ -325,11 +325,23 @@ export default defineComponent({
 
     const handleDeleteCheckedItem = (e: MouseEvent, item) => {
       e.stopPropagation();
-      handleIndexSetItemCheck(item, false);
+
+      // 如果删除的是父节点，需要将子节点从 disableList 中移除，并作为 storeList 传入以保留子节点选中
+      const childIds: string[] = [];
+      for (const child of item.children ?? []) {
+        const index = disableList.value.indexOf(child.unique_id);
+        if (index >= 0) {
+          disableList.value.splice(index, 1);
+          childIds.push(child.unique_id);
+        }
+      }
+
+      handleIndexSetItemCheck(item, false, childIds);
     };
 
     const handleClearValues = (e: MouseEvent) => {
       e.stopPropagation();
+      disableList.value = [];
       clearAllValue();
     };
 
