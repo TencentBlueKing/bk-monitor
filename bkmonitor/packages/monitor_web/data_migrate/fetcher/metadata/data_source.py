@@ -1,6 +1,7 @@
 import re
 from collections.abc import Sequence
 
+from metadata.models import TimeSeriesScope
 from metadata.models.custom_report import Event, EventGroup, LogGroup, TimeSeriesGroup, TimeSeriesMetric
 from metadata.models.data_source import DataSource, DataSourceOption, DataSourceResultTable
 from metadata.models.result_table import ResultTable, ResultTableField, ResultTableFieldOption, ResultTableOption
@@ -76,6 +77,7 @@ def get_metadata_result_table_fetcher(table_ids: Sequence[str] | None) -> list[F
         (ResultTableField, {"table_id__in": normalized_table_ids}, None),
         (ResultTableFieldOption, {"table_id__in": normalized_table_ids}, None),
         (TimeSeriesGroup, {"table_id__in": normalized_table_ids}, None),
+        (TimeSeriesScope, {"group_id__in": time_series_group_ids}, None),
         (TimeSeriesMetric, {"group_id__in": time_series_group_ids}, None),
         (EventGroup, {"table_id__in": normalized_table_ids}, None),
         (Event, {"event_group_id__in": event_group_ids}, None),
