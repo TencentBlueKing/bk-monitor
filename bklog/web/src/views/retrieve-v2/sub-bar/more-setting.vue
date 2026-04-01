@@ -3,6 +3,7 @@
   import useStore from '@/hooks/use-store';
   import useRouter from '@/hooks/use-router';
   import useLocale from '@/hooks/use-locale';
+  import { isFeatureToggleOn } from '@/store/helper';
 
   const emit = defineEmits(['update:is-show-cluster-setting']);
 
@@ -56,13 +57,28 @@
     bkdata: 'bkdata-index-set-masking',
     setIndex: 'log-index-set-masking',
   });
+  const isV2Enabled = computed(() => {
+    return isFeatureToggleOn('log_manage_v2', [String(bkBizId.value), String(spaceUid.value)]);
+  });
+
   /** 路由跳转name */
-  const routeNameList = ref({
-    log: 'manage-collection',
-    custom: 'custom-report-detail',
-    bkdata: 'bkdata-index-set-manage',
-    es: 'es-index-set-manage',
-    indexManage: 'log-index-set-manage',
+  const routeNameList = computed(() => {
+    if (isV2Enabled.value) {
+      return {
+        log: 'manage-collection',
+        custom: 'manage-collection',
+        bkdata: 'manage-collection',
+        es: 'manage-collection',
+        indexManage: 'log-index-set-manage',
+      };
+    }
+    return {
+      log: 'manage-collection',
+      custom: 'custom-report-detail',
+      bkdata: 'bkdata-index-set-manage',
+      es: 'es-index-set-manage',
+      indexManage: 'log-index-set-manage',
+    };
   });
 
   const accessList = ref([
@@ -126,24 +142,37 @@
       emit('update:is-show-cluster-setting', true);
       return;
     }
-    const params = {
-      indexSetId: indexSetItem.value?.index_set_id,
-      collectorId: indexSetItem.value?.collector_config_id,
-    };
-    // 判断当前是否是脱敏配置 分别跳不同的路由
+
+    const currentKey = detailJumpRouteKey.value;
+    const isBkDataOrEs = ['bkdata', 'es'].includes(currentKey);
+    const isCustom = currentKey === 'custom';
+
     const routeName =
       val === 'logMasking'
         ? maskingConfigRoute.value[maskingRouteKey.value]
-        : routeNameList.value[detailJumpRouteKey.value];
-    // 不同的路由跳转 传参不同
-    const { href } = router.resolve({
-      name: routeName,
-      params,
-      query: {
-        spaceUid: spaceUid.value,
-        type: val === 'logMasking' ? 'masking' : undefined,
-      },
-    });
+        : routeNameList.value[currentKey];
+
+    const params = {};
+    const query = {
+      spaceUid: spaceUid.value,
+      bizId: bkBizId.value,
+    };
+
+    if (isV2Enabled.value && (isBkDataOrEs || isCustom)) {
+      params.collectorId = isBkDataOrEs
+        ? indexSetItem.value?.index_set_id
+        : indexSetItem.value?.collector_config_id;
+      query.typeKey = isCustom ? 'custom_report' : currentKey;
+    } else {
+      params.indexSetId = indexSetItem.value?.index_set_id;
+      params.collectorId = indexSetItem.value?.collector_config_id;
+    }
+
+    if (val === 'logMasking') {
+      query.type = 'masking';
+    }
+
+    const { href } = router.resolve({ name: routeName, params, query });
     refTrigger.value?.click?.();
     window.open(href, '_blank');
   };
