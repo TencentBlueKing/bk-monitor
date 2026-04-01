@@ -2580,9 +2580,11 @@ class TimeSeriesMetric(models.Model):
             raise ValueError(f"同一批次内指标字段名称[{', '.join(batch_conflicting_names)}]重复，请使用其他名称")
 
         # 检查跨批次的字段名冲突：数据库中是否已存在同名指标
+        scope_ids = [m.get("scope_id") for m in metrics_to_create if m.get("scope_id") is not None]
         existing_metrics = cls.objects.filter(
             group_id=group_id,
             field_name__in=field_names,
+            scope_id__in=scope_ids,
         ).values_list("field_name", "scope_id")
 
         if existing_metrics:
