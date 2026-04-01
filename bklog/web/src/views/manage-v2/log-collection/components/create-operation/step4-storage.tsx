@@ -84,6 +84,10 @@ export default defineComponent({
       },
       ...props.configData,
     });
+    console.log('props.configData',props.configData);
+    const {storage_replies, retention, storage_shards_nums,} = props.configData;
+    console.log('props.configData',storage_replies, retention, storage_shards_nums);
+    console.log('formData', formData.value.storage_replies, formData.value.retention, formData.value.es_shards, formData.value.storage_shards_nums)
     const cleanStash = ref({});
 
     const bkBizId = computed(() => store.state.bkBizId);
@@ -164,22 +168,38 @@ export default defineComponent({
       }
     };
     /**
+     * 选择集群时重置为默认值（切换集群场景）
+     */
+    const handleSelectStorageCluster = row => {
+      const { setup_config: setupConfig } = row;
+      formData.value = {
+        ...formData.value,
+        storage_cluster_id: row.storage_cluster_id,
+        retention: setupConfig?.retention_days_default || '7',
+        storage_replies: setupConfig?.number_of_replicas_default || 0,
+        es_shards: setupConfig?.es_shards_default || 0,
+        allocation_min_days: 0,
+      };
+    };
+    /**
      * 选择集群
      * @param row
      */
     const handleChooseCluster = row => {
       if (row.storage_cluster_id !== clusterSelect.value) {
-        const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = row.setup_config;
-        formData.value = {
-          ...formData.value,
-          storage_cluster_id: row.storage_cluster_id,
-          storage_replies: replicasMax,
-          retention: daysMax,
-          allocation_min_days: row.enable_hot_warm ? daysMax : 0,
-        };
+        // 编辑场景首次进入且已有集群时，不覆盖已有值，仅更新max限制
+        if (!clusterSelect.value && props.isEdit) {
+          // 首次进入（clusterSelect为空），仅设置max限制，不重置表单值
+        } else {
+          handleSelectStorageCluster(row);
+        }
       }
       clusterSelect.value = row.storage_cluster_id;
       clusterData.value = row;
+      // 如果开启了冷热集群，天数不能为0
+      if (row.enable_hot_warm && Number(formData.value.allocation_min_days) === 0) {
+        formData.value.allocation_min_days = row.setup_config?.retention_days_default || '7';
+      }
     };
     /**
      * 获取采集项清洗缓存
@@ -215,10 +235,11 @@ export default defineComponent({
           })
           .then(res => {
             if (res?.data) {
-              const { storage_cluster_id } = res.data;
+              const { storage_cluster_id, storage_shards_nums } = res.data;
               formData.value = {
                 ...formData.value,
                 ...res.data,
+                es_shards: storage_shards_nums ?? formData.value.es_shards,
               };
               clusterSelect.value = storage_cluster_id;
             }
@@ -337,6 +358,11 @@ export default defineComponent({
             on-input={val => {
               formData.value.storage_replies = val;
             }}
+            on-blur={val => {
+              if (val === '') {
+                formData.value.storage_replies = clusterData.value?.setup_config?.number_of_replicas_default || 0;
+              }
+            }}
           />
         </div>
         <div class='link-config label-form-box'>
@@ -345,10 +371,15 @@ export default defineComponent({
             class='min-width'
             type='number'
             max={esShardsMax.value}
-            min={0}
+            min={1}
             value={formData.value.es_shards}
             on-input={val => {
               formData.value.es_shards = val;
+            }}
+            on-blur={val => {
+              if (val === '') {
+                formData.value.es_shards = clusterData.value?.setup_config?.es_shards_default || 0;
+              }
             }}
           />
         </div>
@@ -396,12 +427,12 @@ export default defineComponent({
             bk_data_id,
             custom_type,
             storage_cluster_id,
-            retention,
-            allocation_min_days,
-            storage_replies,
+            retention: Number(retention),
+            allocation_min_days: Number(allocation_min_days),
+            storage_replies: Number(storage_replies),
             category_id,
             description,
-            es_shards,
+            es_shards: Number(es_shards),
             parent_index_set_ids,
             collector_config_name_en,
             collector_config_name: collector_config_name || index_set_name,
@@ -429,11 +460,11 @@ export default defineComponent({
         : (formData.value.table_id || curCollect.value.collector_config_name_en);
       const data = {
         collector_config_id: collectorConfigId,
-        retention,
-        allocation_min_days,
-        storage_replies,
+        retention: Number(retention),
+        allocation_min_days: Number(allocation_min_days),
+        storage_replies: Number(storage_replies),
         etl_params,
-        es_shards,
+        es_shards: Number(es_shards),
         fields: etl_fields,
         etl_config: clean_type,
         table_id: tableId,
