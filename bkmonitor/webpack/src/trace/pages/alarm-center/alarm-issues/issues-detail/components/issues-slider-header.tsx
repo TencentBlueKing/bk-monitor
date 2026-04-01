@@ -29,7 +29,7 @@ import { type PropType, computed, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import TemporaryShareNew from '../../../../../components/temporary-share/temporary-share-new';
-import { IssuesRegressionMap } from '../../constant';
+import { ISSUES_REGRESSION_MAP } from '../../constant';
 
 import type { IssueDetail } from '../../typing';
 
@@ -69,7 +69,7 @@ export default defineComponent({
 
     const iconMap = computed(() => {
       const isRegression = props.detail?.is_regression;
-      const config = IssuesRegressionMap[String(isRegression)];
+      const config = ISSUES_REGRESSION_MAP[String(isRegression)];
       return {
         ...config,
         alias: isRegression ? t('回归') : t('新'),

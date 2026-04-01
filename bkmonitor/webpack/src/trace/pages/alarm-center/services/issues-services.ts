@@ -26,7 +26,12 @@ import { alertTopN } from 'monitor-api/modules/alert_v2';
  */
 import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
-import { IssuesAssigneeMap, IssuesPriorityMap, IssuesRegressionMap, IssuesStatusMap } from '../alarm-issues/constant';
+import {
+  ISSUES_ASSIGNEE_MAP,
+  ISSUES_PRIORITY_MAP,
+  ISSUES_REGRESSION_MAP,
+  ISSUES_STATUS_MAP,
+} from '../alarm-issues/constant';
 import { fetchMockIssues } from '../alarm-issues/issues-table/mock-data';
 import { type RequestOptions, AlarmService } from './base';
 
@@ -556,7 +561,7 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
             return {
               ...agg,
               children: agg.children.map(child => {
-                const priority = IssuesPriorityMap[child.id];
+                const priority = ISSUES_PRIORITY_MAP[child.id];
                 return {
                   ...child,
                   name: priority.alias || child.name,
@@ -570,7 +575,7 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
             return {
               ...agg,
               children: agg.children.map(child => {
-                const status = IssuesStatusMap[child.id];
+                const status = ISSUES_STATUS_MAP[child.id];
                 return {
                   ...child,
                   name: status.alias || child.name,
@@ -585,7 +590,7 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
             return {
               ...agg,
               children: agg.children.map(child => {
-                const assignee = IssuesAssigneeMap[child.id];
+                const assignee = ISSUES_ASSIGNEE_MAP[child.id];
                 return {
                   ...child,
                   name: assignee.alias || child.name,
@@ -599,7 +604,7 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
             return {
               ...agg,
               children: agg.children.map(child => {
-                const regression = IssuesRegressionMap[child.id];
+                const regression = ISSUES_REGRESSION_MAP[child.id];
                 return {
                   ...child,
                   name: regression.alias || child.name,

@@ -168,7 +168,7 @@ export const IMPACT_SCOPE_ID_FIELD_MAP: Record<string, string> = {
 };
 
 /** 影响范围资源类型展示排序权重（值越小越靠前）：set > host > service_instances > cluster > node > service > pod > app > apm_service */
-export const ImpactScopeSortOrderMap: Record<string, number> = {
+export const IMPACT_SCOPE_SORT_ORDER_MAP: Record<string, number> = {
   [ImpactScopeResourceKeyEnum.SET]: 0,
   [ImpactScopeResourceKeyEnum.HOST]: 1,
   [ImpactScopeResourceKeyEnum.SERVICE_INSTANCES]: 2,
@@ -183,7 +183,7 @@ export const ImpactScopeSortOrderMap: Record<string, number> = {
 // ===================== 常量映射 =====================
 
 /** Issues 状态映射 */
-export const IssuesStatusMap: Record<IssueStatusType, MapEntry> = {
+export const ISSUES_STATUS_MAP: Record<IssueStatusType, MapEntry> = {
   [IssueStatusEnum.PENDING_REVIEW]: {
     alias: window.i18n.t('待审核'),
     icon: 'icon-monitor icon-Waiting',
@@ -211,7 +211,7 @@ export const IssuesStatusMap: Record<IssueStatusType, MapEntry> = {
 };
 
 /** Issues 优先级映射 */
-export const IssuesPriorityMap: Record<IssuePriorityType, MapEntry> = {
+export const ISSUES_PRIORITY_MAP: Record<IssuePriorityType, MapEntry> = {
   [IssuePriorityEnum.P0]: {
     alias: window.i18n.t('button-高'),
     bgColor: '#E54040',
@@ -230,7 +230,7 @@ export const IssuesPriorityMap: Record<IssuePriorityType, MapEntry> = {
 };
 
 /** Issues 负责人映射 */
-export const IssuesAssigneeMap = {
+export const ISSUES_ASSIGNEE_MAP = {
   [IssueAssigneeEnum.ASSIGNED_TO_ME]: {
     alias: window.i18n.t('分派给我'),
     icon: 'icon-monitor icon-gaojingfenpai',
@@ -244,7 +244,7 @@ export const IssuesAssigneeMap = {
 };
 
 /** Issues 回归类型映射（key 为 is_regression 布尔值的字符串形式） */
-export const IssuesRegressionMap: Record<string, MapEntry> = {
+export const ISSUES_REGRESSION_MAP: Record<string, MapEntry> = {
   false: {
     alias: window.i18n.t('新问题'),
     bgColor: '#E1F5F0',
@@ -260,7 +260,7 @@ export const IssuesRegressionMap: Record<string, MapEntry> = {
 };
 
 /** Issues 活跃节点类型icon映射 */
-export const IssuesActiveNodeIconMap = {
+export const ISSUES_ACTIVE_NODE_ICON_MAP = {
   [IssueActiveNodeTypeEnum.ASSIGNEE_CHANGE]: {
     icon: dispatchIcon,
     alias: window.i18n.t('指派负责人'),

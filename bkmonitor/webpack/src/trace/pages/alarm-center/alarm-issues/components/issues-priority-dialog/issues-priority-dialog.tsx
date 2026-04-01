@@ -29,7 +29,7 @@ import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 import { Button, Dialog, Radio } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { IssuePriorityEnum, IssuesPriorityMap } from '../../constant';
+import { IssuePriorityEnum, ISSUES_PRIORITY_MAP } from '../../constant';
 import { showOperationResult, updateIssuesPriority } from '../../services/issues-operations';
 
 import type { IssuesBatchActionEnum } from '../../constant';
@@ -157,7 +157,7 @@ export default defineComponent({
                   }}
                 >
                   {PRIORITY_OPTIONS.map(priority => {
-                    const config = IssuesPriorityMap[priority];
+                    const config = ISSUES_PRIORITY_MAP[priority];
                     return (
                       <Radio
                         key={priority}
