@@ -20,6 +20,10 @@
   const indexSetItem = computed(() =>
     store.state.retrieve.flatIndexSetList.find(item => item.index_set_id === `${indexSetId.value}`),
   );
+  /** 判断当前索引集是否是索引组（有子节点） */
+  const isIndexGroup = computed(() => {
+    return (indexSetItem.value?.children?.length ?? 0) > 0;
+  });
   const isPopoverShow = ref(false);
 
   const isUnionSearch = computed(() => store.isUnionSearch);
@@ -70,6 +74,7 @@
         bkdata: 'manage-collection',
         es: 'manage-collection',
         indexManage: 'log-index-set-manage',
+        indexGroup: 'collection-item-list', // 索引组跳转到新版采集列表页
       };
     }
     return {
@@ -98,13 +103,15 @@
    */
   const initJumpRouteList = detailStr => {
     if (!detailStr) return;
-    if (!['log', 'es', 'bkdata', 'custom', 'setIndex'].includes(detailStr)) {
+    if (!['log', 'es', 'bkdata', 'custom', 'setIndex', 'indexGroup'].includes(detailStr)) {
       showSettingMenuList.value = isAiopsToggle.value ? settingMenuList.value : [];
       return;
     }
     // 赋值详情路由的key
     if (detailStr === 'setIndex') {
       detailJumpRouteKey.value = 'indexManage';
+    } else if (detailStr === 'indexGroup') {
+      detailJumpRouteKey.value = 'indexGroup';
     } else {
       detailJumpRouteKey.value = detailStr;
     }
@@ -124,6 +131,11 @@
     if (setItem?.scenario_id === 'log') {
       // 索引集类型为采集项或自定义上报
       if (setItem.collector_scenario_id === null) {
+        // 新版采集页面启用时，判断是否是索引组（有子节点）
+        if (isV2Enabled.value && isIndexGroup.value) {
+          initJumpRouteList('indexGroup');
+          return;
+        }
         // 若无日志类型 则类型为索引集
         initJumpRouteList('setIndex');
         return;
@@ -146,6 +158,7 @@
     const currentKey = detailJumpRouteKey.value;
     const isBkDataOrEs = ['bkdata', 'es'].includes(currentKey);
     const isCustom = currentKey === 'custom';
+    const isIndexGroupType = currentKey === 'indexGroup';
 
     const routeName =
       val === 'logMasking'
@@ -158,7 +171,10 @@
       bizId: bkBizId.value,
     };
 
-    if (isV2Enabled.value && (isBkDataOrEs || isCustom)) {
+    // 索引组跳转时传递 indexSetId 参数
+    if (isIndexGroupType) {
+      query.indexSetId = indexSetItem.value?.index_set_id;
+    } else if (isV2Enabled.value && (isBkDataOrEs || isCustom)) {
       params.collectorId = isBkDataOrEs
         ? indexSetItem.value?.index_set_id
         : indexSetItem.value?.collector_config_id;

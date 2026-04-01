@@ -25,6 +25,7 @@
  */
 
 import { computed, defineComponent, ref, onMounted, onBeforeUnmount } from 'vue';
+import { useRoute, useRouter } from 'vue-router/composables';
 
 import useLocale from '@/hooks/use-locale';
 import ItemSkeleton from '@/skeleton/item-skeleton';
@@ -47,6 +48,8 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
+    const route = useRoute();
+    const router = useRouter();
     const { indexGroupLoading, getIndexGroupList } = useOperation();
     const activeKey = ref<number | string>('all');
     const addPanelRef = ref();
@@ -80,6 +83,20 @@ export default defineComponent({
     const handleItem = (item: IListItemData) => {
       activeKey.value = item.index_set_id ?? '';
       emit('choose', item);
+
+      // 更新路由参数
+      const newIndexSetId = item.index_set_id === 'all' ? undefined : String(item.index_set_id);
+      const currentIndexSetId = route.query.indexSetId;
+
+      if (newIndexSetId !== currentIndexSetId) {
+        const query = { ...route.query };
+        if (newIndexSetId) {
+          query.indexSetId = newIndexSetId;
+        } else {
+          delete query.indexSetId;
+        }
+        router.replace({ query });
+      }
     };
 
     const handelDelItem = (item: IListItemData) => {
@@ -124,12 +141,16 @@ export default defineComponent({
     );
     /**
      * 获取列表数据
+     * @returns Promise，数据加载完成后 resolve
      */
-    const getListData = () => {
-      getIndexGroupList((data: { list: IListItemData[]; total: number }) => {
-        listData.value = data.list;
-        total.value = data.total;
-        initActionPop();
+    const getListData = (): Promise<{ list: IListItemData[]; total: number }> => {
+      return new Promise((resolve) => {
+        getIndexGroupList((data: { list: IListItemData[]; total: number }) => {
+          listData.value = data.list;
+          total.value = data.total;
+          initActionPop();
+          resolve(data);
+        });
       });
     };
 
@@ -162,10 +183,22 @@ export default defineComponent({
     };
 
     onMounted(async () => {
-      await getListData();
-      setTimeout(() => {
-        handleItem(baseItem.value[0]);
-      }, 1500);
+      const data = await getListData();
+
+      // 优先从路由参数获取 indexSetId
+      const routeIndexSetId = route.query.indexSetId;
+
+      if (routeIndexSetId) {
+        // 查找匹配的索引集
+        const targetItem = data.list.find(item => String(item.index_set_id) === String(routeIndexSetId));
+        if (targetItem) {
+          activeKey.value = targetItem.index_set_id ?? '';
+          emit('choose', targetItem);
+          return;
+        }
+      }
+      // 默认选中"全部采集项"
+      handleItem(baseItem.value[0]);
     });
 
     onBeforeUnmount(() => {
