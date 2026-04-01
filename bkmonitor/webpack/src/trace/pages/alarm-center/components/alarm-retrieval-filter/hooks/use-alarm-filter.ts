@@ -165,6 +165,48 @@ const commonIncidentFieldMap = {
   ],
 };
 
+const commonIssuesFieldMap = {
+  status: [
+    {
+      zhId: '待审核',
+      id: 'pending_review',
+      name: window.i18n.t('待审核'),
+    },
+    {
+      zhId: '未解决',
+      id: 'unresolved',
+      name: window.i18n.t('未解决'),
+    },
+    {
+      zhId: '已解决',
+      id: 'resolved',
+      name: window.i18n.t('已解决'),
+    },
+    {
+      zhId: '已归档',
+      id: 'archived',
+      name: window.i18n.t('已归档'),
+    },
+  ],
+  priority: [
+    {
+      zhId: '高',
+      id: 'P0',
+      name: window.i18n.t('高'),
+    },
+    {
+      zhId: '中',
+      id: 'P1',
+      name: window.i18n.t('中'),
+    },
+    {
+      zhId: '低',
+      id: 'P2',
+      name: window.i18n.t('低'),
+    },
+  ],
+};
+
 export function useAlarmFilter(
   options: () => { alarmType: AlarmType; commonFilterParams: Record<string, any>; filterMode: EMode }
 ) {
@@ -213,20 +255,28 @@ export function useAlarmFilter(
           name: item.name,
         }));
       };
-      if (options().alarmType === AlarmType.ALERT && ['status', 'severity', 'stage'].includes(paramsField)) {
+      if (options().alarmType === AlarmType.ALERT && Object.keys(commonAlertFieldMap).includes(paramsField)) {
         resolve({
           list: listTranslate(commonAlertFieldMap[paramsField]),
           count: commonAlertFieldMap[paramsField].length,
         });
-      } else if (options().alarmType === AlarmType.ACTION && ['status'].includes(paramsField)) {
+      } else if (options().alarmType === AlarmType.ACTION && Object.keys(commonActionFieldMap).includes(paramsField)) {
         resolve({
           list: listTranslate(commonActionFieldMap[paramsField]),
           count: commonActionFieldMap[paramsField].length,
         });
-      } else if (options().alarmType === AlarmType.INCIDENT && ['status', 'level'].includes(paramsField)) {
+      } else if (
+        options().alarmType === AlarmType.INCIDENT &&
+        Object.keys(commonIncidentFieldMap).includes(paramsField)
+      ) {
         resolve({
           list: listTranslate(commonIncidentFieldMap[paramsField]),
           count: commonIncidentFieldMap[paramsField].length,
+        });
+      } else if (options().alarmType === AlarmType.ISSUES && Object.keys(commonIssuesFieldMap).includes(paramsField)) {
+        resolve({
+          list: listTranslate(commonIssuesFieldMap[paramsField]),
+          count: commonIssuesFieldMap[paramsField].length,
         });
       } else if (candidateItem?.isEnd && !params?.queryString) {
         if (searchValue) {
