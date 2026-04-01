@@ -566,8 +566,11 @@ class AuthenticationMiddleware(MiddlewareMixin):
             if not username:
                 username = get_tenant_admin_username(bk_tenant_id)
             request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
-            if settings.ENABLE_MULTI_TENANT_MODE and request.user and request.user.tenant_id != bk_tenant_id:
-                return HttpResponseForbidden(f"user tenant_id is {request.user.tenant_id} not match {bk_tenant_id}")
+            user = request.user
+            if settings.ENABLE_MULTI_TENANT_MODE and user and user.tenant_id != bk_tenant_id:
+                return HttpResponseForbidden(
+                    f"user({user.username}) tenant_id is {user.tenant_id} not match {bk_tenant_id}"
+                )
             return
 
         return HttpResponseForbidden()
