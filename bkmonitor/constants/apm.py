@@ -112,6 +112,9 @@ class TraceDataSourceConfig:
             "tag": ResultTableField.FIELD_TAG_DIMENSION,
             "option": {"es_type": "keyword"},
             "is_config_by_user": True,
+            # metadata 创建结果表会进行保留字段检查，用于防止用户创建字段与内置字段冲突。
+            # APM 是内置场景，无需进行保留字段检查，直接放行，此处添加该豁免很重要，是否会导致创建应用流程报错。
+            "is_reserved_check": False,
             "description": "Bk Biz Id",
         },
         {

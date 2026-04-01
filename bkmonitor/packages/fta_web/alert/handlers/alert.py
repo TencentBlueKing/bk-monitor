@@ -1137,10 +1137,10 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         agg_result = [
             self.handle_aggs_severity(search_result),
+            self.handle_aggs_notice_way(alert_ids),
             self.handle_aggs_stage(search_result),
             self.handle_aggs_data_type(search_result),
             self.handle_aggs_category(search_result),
-            self.handle_aggs_notice_way(alert_ids),
         ]
 
         return agg_result
@@ -1302,7 +1302,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
             if not hits:
                 continue
 
-            inputs = hits[0]["_source"].get("inputs", {})
+            source = hits[0].to_dict().get("_source", {})
+            inputs = source.get("inputs", {})
             notice_ways = self._parse_notice_ways_from_inputs(inputs)
             if notice_ways:
                 result[bucket.key] = notice_ways
@@ -1380,7 +1381,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
                     "count": notice_way_count.get(way_key, 0),
                 }
                 for way_key in notice_way_mapping
-                if notice_way_count.get(way_key, 0)
             ],
         }
 
