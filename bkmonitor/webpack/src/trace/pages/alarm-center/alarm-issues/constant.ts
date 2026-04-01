@@ -154,6 +154,32 @@ export const ImpactScopeResourceKeyEnum = {
   APM_SERVICE: 'apm_service',
 } as const;
 
+/** 影响范围维度 key → 实例 ID 字段名 静态映射表 */
+export const IMPACT_SCOPE_ID_FIELD_MAP: Record<string, string> = {
+  [ImpactScopeResourceKeyEnum.SET]: 'set_id',
+  [ImpactScopeResourceKeyEnum.HOST]: 'bk_host_id',
+  [ImpactScopeResourceKeyEnum.SERVICE_INSTANCES]: 'bk_service_instance_id',
+  [ImpactScopeResourceKeyEnum.CLUSTER]: 'bcs_cluster_id',
+  [ImpactScopeResourceKeyEnum.NODE]: 'node',
+  [ImpactScopeResourceKeyEnum.SERVICE]: 'service',
+  [ImpactScopeResourceKeyEnum.POD]: 'pod',
+  [ImpactScopeResourceKeyEnum.APP]: 'app_name',
+  [ImpactScopeResourceKeyEnum.APM_SERVICE]: 'app_name',
+};
+
+/** 影响范围资源类型展示排序权重（值越小越靠前）：set > host > service_instances > cluster > node > service > pod > app > apm_service */
+export const ImpactScopeSortOrderMap: Record<string, number> = {
+  [ImpactScopeResourceKeyEnum.SET]: 0,
+  [ImpactScopeResourceKeyEnum.HOST]: 1,
+  [ImpactScopeResourceKeyEnum.SERVICE_INSTANCES]: 2,
+  [ImpactScopeResourceKeyEnum.CLUSTER]: 3,
+  [ImpactScopeResourceKeyEnum.NODE]: 4,
+  [ImpactScopeResourceKeyEnum.SERVICE]: 5,
+  [ImpactScopeResourceKeyEnum.POD]: 6,
+  [ImpactScopeResourceKeyEnum.APP]: 7,
+  [ImpactScopeResourceKeyEnum.APM_SERVICE]: 8,
+};
+
 // ===================== 常量映射 =====================
 
 /** Issues 状态映射 */

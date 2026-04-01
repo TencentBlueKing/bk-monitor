@@ -32,7 +32,7 @@ import dayjs from 'dayjs';
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import { ExploreTableColumnTypeEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
 import MiniBarChart from '../../components/mini-bar-chart/mini-bar-chart';
-import { IssuesPriorityMap, IssuesRegressionMap, IssuesStatusMap } from '../../constant';
+import { ImpactScopeSortOrderMap, IssuesPriorityMap, IssuesRegressionMap, IssuesStatusMap } from '../../constant';
 
 import type {
   BaseTableColumn,
@@ -149,7 +149,9 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
    * @returns {SlotReturnValue} 影响范围列 JSX
    */
   const renderImpactCell = (row: IssueItem): SlotReturnValue => {
-    const entries = Object.entries(row.impact_scope ?? {}) as Array<[ImpactScopeResourceKeyType, ImpactScopeResource]>;
+    const entries = (
+      Object.entries(row.impact_scope ?? {}) as Array<[ImpactScopeResourceKeyType, ImpactScopeResource]>
+    ).sort((a, b) => ImpactScopeSortOrderMap[a[0]] - ImpactScopeSortOrderMap[b[0]]);
     if (!entries.length) {
       return (<span>--</span>) as unknown as SlotReturnValue;
     }
@@ -170,7 +172,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
                 })
               }
             >
-              {resource!.count}
+              {resource?.count}
             </span>
           </div>
         ))}
