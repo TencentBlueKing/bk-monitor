@@ -148,6 +148,34 @@ class IssueDocument(BaseDocument):
             ]
         )
 
+    def add_comment(self, content: str, operator: str, now: int | None = None) -> "IssueActivityDocument":
+        """
+        添加跟进评论
+
+        Args:
+            content: 评论内容。
+            operator: 操作人。
+            now: 操作时间戳（秒），默认取当前时间。
+
+        Returns:
+            写入成功的 IssueActivityDocument 实例。
+        """
+        if now is None:
+            now = int(time.time())
+        self.update_time = now
+        self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
+        activity = IssueActivityDocument(
+            issue_id=self.id,
+            bk_biz_id=self.bk_biz_id,
+            activity_type=IssueActivityType.COMMENT,
+            content=content,
+            operator=operator,
+            time=now,
+            create_time=now,
+        )
+        IssueActivityDocument.bulk_create([activity])
+        return activity
+
     def update_priority(self, priority: str, operator: str) -> None:
         """修改优先级（任意活跃状态均可）"""
         if self.status not in IssueStatus.ACTIVE_STATUSES:
