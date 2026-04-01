@@ -319,7 +319,7 @@ export default defineComponent({
     expose({
       extraLabelsValidate,
     });
-    const renderInputItem = (item: IExtraLabel, index) => (
+    const renderInputItem = (item: IExtraLabel, index: number) => (
       <div class='device-metadata-input-item'>
         <div class='item-left'>
           <bk-input
@@ -352,8 +352,8 @@ export default defineComponent({
           on-Click={handleAddExtraLabel}
         />
         <span
-          class={{ 'bk-icon icon-minus-circle-shape icons': true, disabled: extraLabelList.value.length === 1 }}
-          on-Click={handleDeleteExtraLabel}
+          class={{ 'bk-icon icon-minus-circle-shape icons': true }}
+          on-Click={() => handleDeleteExtraLabel(index)}
         />
       </div>
     );
