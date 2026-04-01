@@ -422,10 +422,13 @@ export default defineComponent({
     const handleNormalSubmit = () => {
       submitLoading.value = true;
       const { etl_params, etl_fields, clean_type } = cleanStash.value;
-      const { collector_config_id, retention, allocation_min_days, storage_replies, es_shards, table_id } =
-        formData.value;
+      const { retention, allocation_min_days, storage_replies, es_shards } = formData.value;
+      const collectorConfigId = curCollect.value.collector_config_id;
+      const tableId = props.isClone
+        ? curCollect.value.collector_config_name_en
+        : (formData.value.table_id || curCollect.value.collector_config_name_en);
       const data = {
-        collector_config_id,
+        collector_config_id: collectorConfigId,
         retention,
         allocation_min_days,
         storage_replies,
@@ -433,7 +436,7 @@ export default defineComponent({
         es_shards,
         fields: etl_fields,
         etl_config: clean_type,
-        table_id: table_id || curCollect.value.collector_config_name_en,
+        table_id: tableId,
         storage_cluster_id: clusterSelect.value,
       };
       $http
