@@ -1756,6 +1756,15 @@ class BaseIndexSetHandler:
         self.sync_router(index_set)
         return True
 
+    @staticmethod
+    def _set_table_info_is_enabled(router_params: dict):
+        """bulk_create_or_update_log_router 要求每个 table_info 项显式声明 is_enable。"""
+        if not router_params:
+            return
+        for item in router_params.get("table_info") or []:
+            if isinstance(item, dict):
+                item["is_enable"] = True
+
     @classmethod
     def sync_router(cls, index_set: LogIndexSet):
         # 创建结果表路由信息
@@ -1792,6 +1801,7 @@ class BaseIndexSetHandler:
                 if query_alias_settings := index_set.query_alias_settings:
                     for table_info_item in doris_params["table_info"]:
                         table_info_item["query_alias_settings"] = query_alias_settings
+                cls._set_table_info_is_enabled(doris_params)
                 # Doris接入
                 multi_execute_func.append(
                     result_key=index_set.index_set_id,
@@ -1882,6 +1892,7 @@ class BaseIndexSetHandler:
                         request_params["table_info"].append(old_nano_table_info)
 
                     request_params["table_info"].append(table_info)
+                cls._set_table_info_is_enabled(request_params)
                 multi_execute_func.append(
                     result_key=index_set.index_set_id,
                     func=TransferApi.bulk_create_or_update_log_router,
@@ -1907,6 +1918,7 @@ class BaseIndexSetHandler:
                 if query_alias_settings := index_set.query_alias_settings:
                     for table_info in doris_params["table_info"]:
                         table_info["query_alias_settings"] = query_alias_settings
+                cls._set_table_info_is_enabled(doris_params)
                 # 图表分析接入
                 multi_execute_func.append(
                     result_key=index_set.index_set_id,
