@@ -1689,7 +1689,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                     onEditGroup={this.handleEditAlarmGroup}
                     onShowChange={val => {
                       if (!val) {
-                        this.alarmGroupDetail.show = false;
+                        this.alarmGroupDetail.id = 0;
                       }
                     }}
                   />
