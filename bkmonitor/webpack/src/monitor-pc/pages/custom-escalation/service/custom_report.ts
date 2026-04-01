@@ -369,6 +369,14 @@ export const proxyHostInfo = CustomReportApi.proxyHostInfo<
   }[]
 >;
 
+/** 指标字段名校验 rest/v2/custom_metric_report/validate_custom_ts_metric_field_name/ */
+export const validateCustomTsMetricFieldName = CustomReportApi.validateCustomTsMetricFieldName<
+  {
+    time_series_group_id?: number;
+    field_names: string[];
+  },
+  string[]
+>;
 export default {
   customTimeSeriesList,
   customTimeSeriesDetail,

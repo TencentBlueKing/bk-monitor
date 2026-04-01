@@ -33,13 +33,15 @@ import ApmCustomGraphV2 from 'monitor-pc/pages/custom-escalation/metric-detail/c
 import {
   getCustomTsDimensionValues,
   getCustomTsGraphConfig,
+  getCustomTsMetricAggInfo,
   getCustomTsMetricGroups,
   getSceneView,
 } from 'monitor-pc/pages/custom-escalation/service';
 import customEscalationViewStore from 'monitor-pc/store/modules/custom-escalation-view';
 
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import MetricManage from './components/metric-manage';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './apm-custom-graph-v2.scss';
 
@@ -64,7 +66,7 @@ export default class ApmViewContent extends tsc<any, any> {
   dimenstionParams: GetSceneViewParams | null = null;
   loading = true;
   isShowMetricManage = false;
-  metricManageTab: 'metric' | 'dimension' = 'metric';
+  metricManageTab: 'dimension' | 'metric' = 'metric';
 
   get metricGroupList() {
     return customEscalationViewStore.metricGroupList;
@@ -83,7 +85,7 @@ export default class ApmViewContent extends tsc<any, any> {
       return {
         name: item.metric_name,
         scope_name: item.scope_name,
-        field_scope: item.field_scope,
+        field_id: item.field_id,
       };
     });
   }
@@ -223,6 +225,7 @@ export default class ApmViewContent extends tsc<any, any> {
             getCustomTsMetricGroups,
             getCustomTsDimensionValues,
             getCustomTsGraphConfig,
+            getCustomTsMetricAggInfo,
             getSceneView,
           }}
           config={this.graphConfigParams}

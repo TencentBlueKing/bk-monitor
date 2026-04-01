@@ -271,7 +271,6 @@ export default class MetricList extends tsc<IProps, IEmits> {
   /** 监听选中分组变化，重置分页和搜索条件并刷新数据 */
   @Watch('selectedGroupInfo', { immediate: true })
   handleSelectedGroupInfoChange() {
-    console.log('this.selectedGroupInfo = ', this.selectedGroupInfo);
     this.tableInstance.page = 1;
     this.search = [];
     this.selectedMetricMap = {};
@@ -371,6 +370,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
     if (!this.isAPM && !this.timeSeriesGroupId) {
       return;
     }
+    this.metricTable = [];
     this.loading = true;
     const params = {
       time_series_group_id: this.timeSeriesGroupId,
@@ -815,6 +815,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
    */
   @Debounce(300)
   handleSearchChange(list = []) {
+    this.tableInstance.page = 1;
     this.search = list;
     const searchKeyMap = {
       name: {
@@ -1215,6 +1216,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
         <BatchEdit
           dimensionTable={this.dimensionTable}
           isShow={this.isShowMetricSlider}
+          defaultGroupInfo={this.defaultGroupInfo}
           selectedGroupInfo={this.selectedGroupInfo}
           unitList={this.unitList}
           onClose={() => {
