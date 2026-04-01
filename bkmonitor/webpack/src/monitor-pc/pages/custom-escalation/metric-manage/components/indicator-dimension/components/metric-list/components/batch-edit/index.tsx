@@ -62,6 +62,8 @@ type IMetricItem = {
 
 /** 组件 Props 接口定义 */
 interface IProps {
+  /** 默认分组信息 */
+  defaultGroupInfo: { id: number; name: string };
   /** 维度表格数据 */
   dimensionTable: ICustomTsFields['list'];
   /** 是否显示弹窗 */
@@ -93,6 +95,7 @@ const initMap = {
  */
 @Component
 export default class BatchEdit extends tsc<IProps> {
+  @Prop({ default: () => {} }) defaultGroupInfo: IProps['defaultGroupInfo'];
   @Prop({ default: () => {} }) selectedGroupInfo: IProps['selectedGroupInfo'];
   @Prop({ type: Boolean, default: false }) isShow: IProps['isShow'];
   @Prop({ default: () => [] }) unitList: IProps['unitList'];
@@ -454,37 +457,41 @@ export default class BatchEdit extends tsc<IProps> {
       this.existingFieldNames.clear();
       this.saveLoading = true;
       const newRows = this.showTableData.filter(row => row.isNew);
-      const newFieldNames = newRows.map(row => row.name);
-      const validParams = {
-        time_series_group_id: this.timeSeriesGroupId,
-        field_names: newFieldNames,
-      }
-      if (this.isAPM) {
-        delete validParams.time_series_group_id;
-        Object.assign(validParams, {
-          app_name: this.appName,
-          service_name: this.serviceName,
+      if (newRows.length) {
+        const newFieldNames = newRows.map(row => row.name);
+        const validParams = {
+          time_series_group_id: this.timeSeriesGroupId,
+          field_names: newFieldNames,
+        };
+        if (this.isAPM) {
+          delete validParams.time_series_group_id;
+          Object.assign(validParams, {
+            app_name: this.appName,
+            service_name: this.serviceName,
+          });
+        }
+        // 异步校验新增行的名称是否已存在
+        const newFieldNamesValidationResults =
+          await this.requestHandlerMap.validateCustomTsMetricFieldName(validParams);
+        if (newFieldNamesValidationResults.length) {
+          for (const fieldName of newFieldNamesValidationResults) {
+            this.existingFieldNames.add(fieldName);
+          }
+        }
+        // 并行执行所有验证
+        const validationResults = newRows.map(row => {
+          return this.validateName(row);
         });
-      }
-      // 异步校验新增行的名称是否已存在
-      const newFieldNamesValidationResults = await this.requestHandlerMap.validateCustomTsMetricFieldName(validParams);
-      if (newFieldNamesValidationResults.length) {
-        for (const fieldName of newFieldNamesValidationResults) {
-          this.existingFieldNames.add(fieldName);
+        // 检查全局有效性
+        const allValid = validationResults.every(valid => valid);
+        if (!allValid) return;
+        // 清除临时状态
+        for (const row of newRows) {
+          row.isNew = undefined;
+          row.error = undefined;
         }
       }
-      // 并行执行所有验证
-      const validationResults = newRows.map(row => {
-        return this.validateName(row);
-      });
-      // 检查全局有效性
-      const allValid = validationResults.every(valid => valid);
-      if (!allValid) return;
-      // 清除临时状态
-      for (const row of newRows) {
-        row.isNew = undefined;
-        row.error = undefined;
-      }
+
       const metricTableMap = this.originalTableData.reduce<Record<string, ICustomTsFields['list'][number]>>(
         (acc, curr) => {
           acc[curr.id] = curr;
@@ -1267,8 +1274,8 @@ export default class BatchEdit extends tsc<IProps> {
       },
       id: null,
       scope: {
-        id: this.selectedGroupInfo.id,
-        name: this.selectedGroupInfo.name,
+        id: this.selectedGroupInfo.id === -1 ? this.defaultGroupInfo.id : this.selectedGroupInfo.id,
+        name: this.selectedGroupInfo.id === -1 ? this.defaultGroupInfo.name : this.selectedGroupInfo.name,
       },
     };
     if (index === -1) {

@@ -1216,6 +1216,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
         <BatchEdit
           dimensionTable={this.dimensionTable}
           isShow={this.isShowMetricSlider}
+          defaultGroupInfo={this.defaultGroupInfo}
           selectedGroupInfo={this.selectedGroupInfo}
           unitList={this.unitList}
           onClose={() => {
