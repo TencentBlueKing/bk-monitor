@@ -95,8 +95,8 @@ export default defineComponent({
     assigneeChange: (_v: string[]) => true,
     /** 优先级变更 */
     priorityChange: (_v: IssuePriorityType) => true,
-    /** 标记已解决 */
-    resolved: () => true,
+    /** 状态变更 */
+    statusAction: () => true,
     /** 影响范围点击 */
     impactScopeClick: (impactScope: ImpactScopeEvent) => impactScope,
   },
@@ -155,9 +155,9 @@ export default defineComponent({
       emit('priorityChange', priority);
     };
 
-    /** 标记已解决 */
+    /** 状态变更 */
     const handleResolved = () => {
-      emit('resolved');
+      emit('statusAction');
     };
 
     /**
@@ -263,9 +263,9 @@ export default defineComponent({
           <IssuesBasicInfo
             detail={this.detail}
             onAssigneeChange={this.handleAssigneeChange}
+            onConfirm={this.handleResolved}
             onImpactScopeClick={this.handleImpactScopeClick}
             onPriorityChange={this.handlePriorityChange}
-            onResolved={this.handleResolved}
           />
           <IssuesActivity detail={this.detail} />
           <IssuesHistory detail={this.detail} />

@@ -64,6 +64,18 @@ export const IssueStatusEnum = {
   ARCHIVED: 'archived',
 } as const;
 
+/** Issues 详情操作功能枚举 */
+export const IssueActionEnum = {
+  /** 标记已解决 */
+  RESOLVED: IssueStatusEnum.RESOLVED,
+  /** 重新打开（未解决） */
+  UNRESOLVED: IssueStatusEnum.UNRESOLVED,
+  /** 归档 */
+  ARCHIVED: IssueStatusEnum.ARCHIVED,
+  /** 恢复（取消归档） */
+  UN_ARCHIVED: 'un_archived',
+} as const;
+
 /** Issues 趋势状态枚举 */
 export const TrendStatusEnum = {
   /** 未恢复 */
@@ -225,7 +237,7 @@ export const IssuesRegressionMap: Record<string, MapEntry> = {
 export const IssuesActiveNodeIconMap = {
   [IssueActiveNodeTypeEnum.ASSIGNEE_CHANGE]: {
     icon: dispatchIcon,
-    alias: window.i18n.t('指派负责人：'),
+    alias: window.i18n.t('指派负责人'),
   },
   [IssueActiveNodeTypeEnum.COMMENT]: {
     icon: '',
@@ -237,10 +249,10 @@ export const IssuesActiveNodeIconMap = {
   },
   [IssueActiveNodeTypeEnum.PRIORITY_CHANGE]: {
     icon: statusIcon,
-    alias: window.i18n.t('优先级变更：'),
+    alias: window.i18n.t('优先级变更'),
   },
   [IssueActiveNodeTypeEnum.STATUS_CHANGE]: {
     icon: statusIcon,
-    alias: window.i18n.t('状态流转：'),
+    alias: window.i18n.t('状态流转'),
   },
 };

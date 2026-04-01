@@ -43,9 +43,9 @@
 
       &.user {
         .tags-container-collapsed {
-          border: none;
           padding-left: 8px;
           cursor: pointer;
+          border: none;
 
           .bk-tag {
             color: #4e5e7a;
@@ -106,10 +106,16 @@
       }
     }
 
-    .confirm-btn {
-      width: 100%;
+    .confirm-btns {
+      display: flex;
+      gap: 12px;
+      align-items: center;
       margin-top: 16px;
-      border-radius: 4px;
+
+      .confirm-btn {
+        flex: 1;
+        border-radius: 4px;
+      }
     }
   }
 }

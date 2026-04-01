@@ -34,10 +34,6 @@ import type {
   IssueDetail,
   IssueDetailParams,
   IssueHistoryItem,
-  IssuesActivityCommentFailedItem,
-  IssuesActivityCommentParams,
-  IssuesActivityCommentResponse,
-  IssuesActivityCommentSucceededItem,
   IssueTrendItem,
 } from '../typing';
 
@@ -432,50 +428,6 @@ export const fetchActivityListMock = async (
   // 根据 params.id 返回不同的数据
   console.log(`[Mock] fetchActivityList for issue: ${params.id}`);
   return generateActivityListMock(Math.floor(Math.random() * 10) + 5);
-};
-
-export const generateActivityCommentMock = (params: IssuesActivityCommentParams): IssuesActivityCommentResponse => {
-  const succeeded: IssuesActivityCommentSucceededItem[] = [];
-  const failed: IssuesActivityCommentFailedItem[] = [];
-
-  const currentTime = Math.floor(Date.now() / 1000);
-
-  for (const issue of params.issues) {
-    // 模拟 90% 成功率
-    if (Math.random() > 0.1) {
-      succeeded.push({
-        activity_id: `activity-${generateId()}`,
-        activity_type: 'comment',
-        bk_biz_id: issue.bk_biz_id,
-        content: params.content,
-        issue_id: issue.issue_id,
-        operator: randomPick(MOCK_USERS),
-        time: currentTime,
-      });
-    } else {
-      failed.push({
-        bk_biz_id: issue.bk_biz_id,
-        issue_id: issue.issue_id,
-        message: '评论添加失败，请稍后重试',
-      });
-    }
-  }
-
-  return { succeeded, failed };
-};
-
-/**
- * 异步 添加评论
- * @param params 请求参数
- * @param delayMs 延迟时间（毫秒）
- */
-export const fetchCommentMock = async (
-  params: IssuesActivityCommentParams,
-  delayMs?: number
-): Promise<IssuesActivityCommentResponse> => {
-  const actualDelay = delayMs ?? getRandomDelay();
-  await delay(actualDelay);
-  return generateActivityCommentMock(params);
 };
 
 /* ============== Issue 历史记录 Mock 数据 ============== */

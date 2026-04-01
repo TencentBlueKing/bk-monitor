@@ -24,19 +24,32 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, reactive, shallowRef, useTemplateRef } from 'vue';
+import { type PropType, computed, defineComponent, reactive, shallowRef, useTemplateRef } from 'vue';
 
 import { Button, Loading, Message, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
 import UserSelector from '../../../../../../components/user-selector/user-selector';
-import IssuesResolveDialog from '../../../components/issues-resolve-dialog/issues-resolve-dialog';
-import { IssuesPriorityMap } from '../../../constant';
-import { assignIssues, updateIssuesPriority } from '../../../services/issues-operations';
+import { IssueActionEnum, IssuesPriorityMap, IssueStatusEnum } from '../../../constant';
+import {
+  archiveIssues,
+  assignIssues,
+  resolveIssues,
+  unArchiveIssues,
+  unResolveIssues,
+  updateIssuesPriority,
+} from '../../../services/issues-operations';
 import BasicCard from '../basic-card/basic-card';
+import DoubleConfirmDialog from '@/components/double-confirm-dialog/double-confirm-dialog';
 
-import type { ImpactScopeResource, ImpactScopeResourceKeyType, IssueDetail, IssuePriorityType } from '../../../typing';
+import type {
+  ImpactScopeResource,
+  ImpactScopeResourceKeyType,
+  IssueActionType,
+  IssueDetail,
+  IssuePriorityType,
+} from '../../../typing';
 
 import './issues-basic-info.scss';
 
@@ -51,16 +64,46 @@ export default defineComponent({
   emits: {
     assigneeChange: (_users: string[]) => true,
     priorityChange: (_priority: IssuePriorityType) => true,
-    resolved: () => true,
+    confirm: (_type: IssueActionType) => true,
     impactScopeClick: (_resourceKey: ImpactScopeResourceKeyType, _resource: ImpactScopeResource) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    /** 优先级 弹窗显示状态 */
     const priorityPopoverShow = shallowRef(false);
+    /** 优先级 弹窗实例*/
     const priorityPopover = useTemplateRef<InstanceType<typeof Popover>>('priorityPopover');
-
+    /** 弹窗展示 */
     const showDialog = shallowRef(false);
+    /** 弹窗加载状态 */
+    const dialogLoading = shallowRef(false);
+    /** 操作类型 */
+    const actionType = shallowRef<IssueActionType>(IssueActionEnum.RESOLVED);
+    /** 弹窗确认提示 */
+    const dialogConfirmTip = computed(() => {
+      if (actionType.value === IssueActionEnum.RESOLVED) {
+        return t('确认标记为“已解决”？');
+      }
+      if (actionType.value === IssueActionEnum.UNRESOLVED) {
+        return t('确认重新打开？');
+      }
+      if (actionType.value === IssueActionEnum.ARCHIVED) {
+        return t('确认归档？');
+      }
+      if (actionType.value === IssueActionEnum.UN_ARCHIVED) {
+        return t('确认恢复？');
+      }
+      return '';
+    });
 
+    const actionApi = {
+      [IssueActionEnum.RESOLVED]: resolveIssues,
+      [IssueActionEnum.UNRESOLVED]: unResolveIssues,
+      [IssueActionEnum.ARCHIVED]: archiveIssues,
+      [IssueActionEnum.UN_ARCHIVED]: unArchiveIssues,
+    };
+
+    /** 负责人列表 */
     const userList = shallowRef<string[]>([]);
 
     const loadings = reactive({
@@ -164,15 +207,37 @@ export default defineComponent({
      * 标记已解决
      */
     const handleConfirm = () => {
-      handleDialogChange(false);
-      emit('resolved');
+      dialogLoading.value = true;
+      actionApi[actionType.value]({
+        issues: [
+          {
+            issue_id: props.detail.id,
+            bk_biz_id: props.detail.bk_biz_id,
+          },
+        ],
+      })
+        .then(({ succeeded }) => {
+          const activeItem = succeeded.find(item => item.issue_id === props.detail?.id);
+          if (activeItem) {
+            Message({
+              theme: 'success',
+              message: t('操作成功'),
+            });
+            handleDialogChange(false);
+            emit('confirm', actionType.value);
+          }
+        })
+        .finally(() => {
+          dialogLoading.value = false;
+        });
     };
 
     /**
      * 弹窗展示
      */
-    const handleDialogChange = (show: boolean) => {
+    const handleDialogChange = (show: boolean, type: IssueActionType = IssueActionEnum.RESOLVED) => {
       showDialog.value = show;
+      actionType.value = type;
     };
 
     return {
@@ -181,6 +246,8 @@ export default defineComponent({
       issuesPriorityList,
       priorityPopoverShow,
       showDialog,
+      dialogLoading,
+      dialogConfirmTip,
       handlePopoverChange,
       handlePriorityClick,
       handleResponsiblePersonChange,
@@ -192,6 +259,9 @@ export default defineComponent({
     };
   },
   render() {
+    const isResolved = this.detail.status === IssueStatusEnum.RESOLVED;
+    const isArchived = this.detail.status === IssueStatusEnum.ARCHIVED;
+
     return (
       <BasicCard
         class='issues-basic-info'
@@ -302,31 +372,39 @@ export default defineComponent({
             </div>
             <div class='basic-info-value'>{this.getTimeDiff(this.detail.first_alert_time)}</div>
           </div>
+          <div class='confirm-btns'>
+            {this.detail.status !== IssueStatusEnum.ARCHIVED && (
+              <Button
+                class='confirm-btn'
+                theme={isResolved ? 'default' : 'primary'}
+                onClick={() => {
+                  this.handleDialogChange(true, isResolved ? IssueActionEnum.UNRESOLVED : IssueActionEnum.RESOLVED);
+                }}
+              >
+                {this.$t(isResolved ? '重新打开' : '标记为已解决')}
+              </Button>
+            )}
 
-          {!this.detail.is_resolved && (
-            <Button
-              class='confirm-btn'
-              theme='primary'
-              onClick={() => {
-                this.handleDialogChange(true);
-              }}
-            >
-              {this.$t('标记为已解决')}
-            </Button>
-          )}
+            {this.detail.status !== IssueStatusEnum.RESOLVED && (
+              <Button
+                class='confirm-btn'
+                onClick={() => {
+                  this.handleDialogChange(true, isArchived ? IssueActionEnum.UN_ARCHIVED : IssueActionEnum.ARCHIVED);
+                }}
+              >
+                {this.$t(isArchived ? '恢复' : '归档')}
+              </Button>
+            )}
+          </div>
 
-          <IssuesResolveDialog
-            issuesData={[
-              {
-                bk_biz_id: this.detail.bk_biz_id,
-                issue_id: this.detail.id,
-              },
-            ]}
+          <DoubleConfirmDialog
             isShow={this.showDialog}
+            loading={this.dialogLoading}
+            tip={this.dialogConfirmTip}
             onCancel={() => {
               this.handleDialogChange(false);
             }}
-            onSuccess={this.handleConfirm}
+            onConfirm={this.handleConfirm}
             onUpdate:isShow={this.handleDialogChange}
           />
         </div>

@@ -70,12 +70,20 @@ export interface IssuesAssigneeDialogEvent {
 
 /** 添加跟进信息 dialog 组件 确认提交成功的回调事件对象 */
 export interface IssuesFollowUpDialogEvent {
+  /** 活动记录 ID */
   activity_id: string;
-  activity_type: 'comment' | string;
+  /** 活动类型 */
+  activity_type: 'comment';
+  /** 业务 ID */
+  bk_biz_id: number;
+  /** 评论内容 */
   content: string;
-  issue_id: IssueItem['id'];
+  /** Issue ID */
+  issue_id: string;
+  /** 操作人 */
   operator: string;
-  time: null | number;
+  /** 活动时间（Unix 秒级时间戳） */
+  time: number;
 }
 
 /** ISSUES 各操作 dialog 组件 回调事件对象 */
