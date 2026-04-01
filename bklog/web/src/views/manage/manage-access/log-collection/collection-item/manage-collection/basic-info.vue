@@ -483,9 +483,13 @@
         }
         const params = {};
         params.collectorId = this.$route.params.collectorId;
-        const routeName = this.isCustomReport ? 'custom-report-edit' : 'collectEdit';
+        // 从旧版自定义上报详情页进来的，继续走旧版编辑路由
+        // 从新版详情页（manage-collection + typeKey=custom_report）进来的，走新版 collectEdit
+        const isOldCustomRoute = this.$route.name === 'custom-report-detail';
+        const useOldCustomEdit = this.isCustomReport && isOldCustomRoute;
+        const routeName = useOldCustomEdit ? 'custom-report-edit' : 'collectEdit';
         // 根据当前路由动态设置backRoute
-        const backRoute = this.isCustomReport ? this.$route.name : 'manage-collection';
+        const backRoute = useOldCustomEdit ? this.$route.name : 'manage-collection';
         this.$router.push({
           name: routeName,
           params,
