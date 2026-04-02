@@ -72,7 +72,8 @@ export default defineComponent({
   },
   emits: {
     'update:show': (value: boolean) => typeof value === 'boolean',
-    success: (dialogType: IssuesBatchActionType, event: IssuesOperationDialogEvent) => dialogType && event != null,
+    success: (dialogType: IssuesBatchActionType, event: IssuesOperationDialogEvent) =>
+      dialogType != null && event != null,
   },
   setup(props, { emit }) {
     /**
@@ -94,81 +95,66 @@ export default defineComponent({
     };
 
     /**
-     * @description 标记已解决 dialog 的 confirm 回调——接管 useAsyncDialog 的 { resolve, reject } 协议，
-     *   调用 service 层发起请求，成功后 resolve 关闭弹窗，失败则 reject 保留弹窗让用户可重试。
-     * @param {AsyncDialogConfirmEvent} event - useAsyncDialog 创建的确认事件对象
-     * @returns {void}
+     * @description 创建 dialog confirm 处理函数的工厂方法，统一封装 service 调用 → 结果提示 → resolve/reject 协议 → 成功回调
+     * @param {object} config - 配置项
+     * @param {Function} config.service - service 层异步函数
+     * @param {Function} config.buildParams - 从 event.payload 构建请求参数的函数
+     * @param {string} config.successMessage - 操作成功提示文案
+     * @param {IssuesBatchActionType} config.dialogType - 对应的批量操作枚举值
+     * @returns {Function} 可直接绑定到子 dialog onConfirm 的异步处理函数
      */
-    const handleResolveConfirm = async (event: AsyncDialogConfirmEvent) => {
-      try {
-        const res = await resolveIssues({ issues: props.issuesData });
-        showOperationResult(res, window.i18n.t('标记为已解决成功'));
-        event.resolve();
-        handleConfirmSuccess(IssuesBatchActionEnum.RESOLVE, res);
-      } catch {
-        event.reject();
-      }
+    const createConfirmHandler = <T extends Record<string, unknown> = Record<string, unknown>>(config: {
+      buildParams: (payload: T) => Record<string, unknown>;
+      dialogType: IssuesBatchActionType;
+      service: (params: any) => Promise<IssuesOperationDialogEvent>;
+      successMessage: string;
+    }) => {
+      return async (event: AsyncDialogConfirmEvent<T>) => {
+        const res = await config.service({
+          issues: props.issuesData,
+          ...config.buildParams(event.payload),
+        });
+        const success = showOperationResult(res, config.successMessage);
+        if (success) {
+          event.resolve();
+          handleConfirmSuccess(config.dialogType, res);
+        } else {
+          event.reject();
+        }
+      };
     };
 
-    /**
-     * @description 指派负责人 dialog 的 confirm 回调——接管 useAsyncDialog 的 { resolve, reject } 协议，
-     *   调用 service 层发起请求，成功后 resolve 关闭弹窗，失败则 reject 保留弹窗让用户可重试。
-     * @param {AsyncDialogConfirmEvent<{ assignee: string[] }>} event - useAsyncDialog 创建的确认事件对象
-     * @returns {void}
-     */
-    const handleAssignConfirm = async (event: AsyncDialogConfirmEvent<{ assignee: string[] }>) => {
-      try {
-        const res = await assignIssues({
-          issues: props.issuesData,
-          assignee: event.payload.assignee,
-        });
-        showOperationResult(res, window.i18n.t('指派责任人成功'));
-        event.resolve();
-        handleConfirmSuccess(IssuesBatchActionEnum.ASSIGN, res);
-      } catch {
-        event.reject();
-      }
-    };
+    /** 标记已解决 dialog 的 confirm 回调 */
+    const handleResolveConfirm = createConfirmHandler({
+      service: resolveIssues,
+      buildParams: () => ({}),
+      successMessage: window.i18n.t('标记为已解决成功'),
+      dialogType: IssuesBatchActionEnum.RESOLVE,
+    });
 
-    /**
-     * @description 修改优先级 dialog 的 confirm 回调——接管 useAsyncDialog 的 { resolve, reject } 协议，
-     *   调用 service 层发起请求，成功后 resolve 关闭弹窗，失败则 reject 保留弹窗让用户可重试。
-     * @param {AsyncDialogConfirmEvent<{ priority: IssuePriorityType }>} event - useAsyncDialog 创建的确认事件对象
-     * @returns {void}
-     */
-    const handlePriorityConfirm = async (event: AsyncDialogConfirmEvent<{ priority: IssuePriorityType }>) => {
-      try {
-        const res = await updateIssuesPriority({
-          issues: props.issuesData,
-          priority: event.payload.priority,
-        });
-        showOperationResult(res, window.i18n.t('修改成功'));
-        event.resolve();
-        handleConfirmSuccess(IssuesBatchActionEnum.PRIORITY, res);
-      } catch {
-        event.reject();
-      }
-    };
+    /** 指派负责人 dialog 的 confirm 回调 */
+    const handleAssignConfirm = createConfirmHandler<{ assignee: string[] }>({
+      service: assignIssues,
+      buildParams: payload => ({ assignee: payload.assignee }),
+      successMessage: window.i18n.t('指派责任人成功'),
+      dialogType: IssuesBatchActionEnum.ASSIGN,
+    });
 
-    /**
-     * @description 添加跟进信息 dialog 的 confirm 回调——接管 useAsyncDialog 的 { resolve, reject } 协议，
-     *   调用 service 层发起请求，成功后 resolve 关闭弹窗，失败则 reject 保留弹窗让用户可重试。
-     * @param {AsyncDialogConfirmEvent<{ content: string }>} event - useAsyncDialog 创建的确认事件对象
-     * @returns {void}
-     */
-    const handleFollowUpConfirm = async (event: AsyncDialogConfirmEvent<{ content: string }>) => {
-      try {
-        const res = await followUpIssues({
-          issues: props.issuesData,
-          content: event.payload.content,
-        });
-        showOperationResult(res, window.i18n.t('添加跟进信息成功'));
-        event.resolve();
-        handleConfirmSuccess(IssuesBatchActionEnum.FOLLOW_UP, res);
-      } catch {
-        event.reject();
-      }
-    };
+    /** 修改优先级 dialog 的 confirm 回调 */
+    const handlePriorityConfirm = createConfirmHandler<{ priority: IssuePriorityType }>({
+      service: updateIssuesPriority,
+      buildParams: payload => ({ priority: payload.priority }),
+      successMessage: window.i18n.t('修改成功'),
+      dialogType: IssuesBatchActionEnum.PRIORITY,
+    });
+
+    /** 添加跟进信息 dialog 的 confirm 回调 */
+    const handleFollowUpConfirm = createConfirmHandler<{ content: string }>({
+      service: followUpIssues,
+      buildParams: payload => ({ content: payload.content }),
+      successMessage: window.i18n.t('添加跟进信息成功'),
+      dialogType: IssuesBatchActionEnum.FOLLOW_UP,
+    });
 
     return {
       handleConfirmSuccess,
