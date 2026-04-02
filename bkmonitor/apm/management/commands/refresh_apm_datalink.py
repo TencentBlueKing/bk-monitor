@@ -106,19 +106,6 @@ class Command(BaseCommand):
         ts_group.save(update_fields=["metric_group_dimensions"])
         self.stdout.write(f"已更新 metric_group_dimensions -> {metric_group_dimensions}")
 
-        # 5.1 软删除：将该应用下所有指标的 disabled 置为 true
-        metrics = list(TimeSeriesMetric.objects.filter(group_id=ts_group.time_series_group_id))
-        to_update = []
-        for metric in metrics:
-            field_config = metric.field_config or {}
-            if not field_config.get("disabled", False):
-                field_config["disabled"] = True
-                metric.field_config = field_config
-                to_update.append(metric)
-        if to_update:
-            TimeSeriesMetric.objects.bulk_update(to_update, fields=["field_config"], batch_size=500)
-        self.stdout.write(f"已软删除 {len(to_update)} 个指标（disabled=true），共 {len(metrics)} 个指标")
-
         # 6. 查找 DataLink 实例
         bkbase_data_name = compose_bkdata_data_id_name(data_source.data_name)
         data_link = DataLink.objects.filter(data_link_name=bkbase_data_name).first()

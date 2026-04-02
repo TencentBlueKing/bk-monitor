@@ -2035,6 +2035,31 @@ class TimeSeriesMetric(models.Model):
         need_create_metrics = new_records - old_records
         need_update_metrics = new_records & old_records
 
+        # 针对已有 default 分组的指标，如果此次上报不再属于 default 分组，则 disable 该记录
+        new_field_names = {field_name for field_name, _ in new_records}
+        new_default_field_names = {field_name for field_name, scope in new_records if scope == cls.DEFAULT_DATA_SCOPE_NAME}
+        # 找出此次上报中有数据但不再属于 default 分组的 field_name
+        non_default_field_names = new_field_names - new_default_field_names
+        if non_default_field_names:
+            # 找出旧记录中属于 default 分组且未被禁用的指标
+            old_default_to_disable = {
+                (fn, scope) for fn, scope in old_records
+                if fn in non_default_field_names and scope == cls.DEFAULT_DATA_SCOPE_NAME
+            }
+            if old_default_to_disable:
+                disable_field_ids = [old_metric_to_ids[k] for k in old_default_to_disable if k in old_metric_to_ids]
+                if disable_field_ids:
+                    cls.objects.filter(
+                        group_id=group_id,
+                        field_id__in=disable_field_ids,
+                        scope_id__gt=cls.DISABLE_SCOPE_ID,  # 仅处理未禁用的
+                    ).update(scope_id=cls.DISABLE_SCOPE_ID)
+                    logger.info(
+                        "bulk_refresh_ts_metrics: disable default scope metrics for group_id->[%s], metrics->[%s]",
+                        group_id,
+                        old_default_to_disable,
+                    )
+
         # NOTE: 针对创建或者时间变动时，推送路由数据
         need_push_router = False
         # 如果存在，则批量创建
