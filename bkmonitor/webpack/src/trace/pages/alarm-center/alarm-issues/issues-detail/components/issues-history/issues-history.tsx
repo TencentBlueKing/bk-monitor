@@ -26,8 +26,8 @@
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import dayjs from 'dayjs';
+import { listIssueHistory } from 'monitor-api/modules/issue';
 
-import { fetchHistoryListMock } from '../../mock-data';
 import BasicCard from '../basic-card/basic-card';
 
 import type { IssueDetail, IssueHistoryItem } from '../../../typing';
@@ -50,7 +50,7 @@ export default defineComponent({
     /** 获取 Issue 历史列表*/
     const getIssuesHistoryList = async () => {
       loading.value = true;
-      historyList.value = await fetchHistoryListMock({
+      historyList.value = await listIssueHistory({
         bk_biz_id: props.detail.bk_biz_id,
         issue_id: props.detail.id,
       }).finally(() => {

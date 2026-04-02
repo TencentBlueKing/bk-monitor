@@ -26,7 +26,15 @@
 
 import { Message } from 'bkui-vue';
 
-import { mockAssignIssues, mockFollowUpIssues, mockResolveIssues, mockUpdatePriority } from '../issues-table/mock-data';
+import {
+  mockArchiveIssues,
+  mockAssignIssues,
+  mockFollowUpIssues,
+  mockReopenIssues,
+  mockResolveIssues,
+  mockRestoreIssues,
+  mockUpdatePriority,
+} from '../issues-table/mock-data';
 
 import type { RequestOptions } from '../../services/base';
 import type {
@@ -80,7 +88,7 @@ export const resolveIssues = async (
 };
 
 /**
- * @description 标记 Issues 为未解决，封装底层 API 调用、错误兜底与数据预处理
+ * @description 重新打开 Issues ，封装底层 API 调用、错误兜底与数据预处理
  * @param {ResolveIssuesParams} params - 标记已解决请求参数（issues）
  * @param {RequestOptions} options - 请求配置选项
  * @returns {Promise<IssuesOperationDialogEvent<'resolve'>>} 包含 succeeded 和 failed 的操作结果；异常时返回空兜底结构
@@ -89,7 +97,7 @@ export const unResolveIssues = async (
   params: ResolveIssuesParams,
   options?: RequestOptions
 ): Promise<IssuesOperationDialogEvent<'resolve'>> => {
-  const data = await mockResolveIssues(params, options).catch(() => ({ succeeded: [], failed: [] }));
+  const data = await mockReopenIssues(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
 };
 
@@ -103,7 +111,7 @@ export const archiveIssues = async (
   params: ResolveIssuesParams,
   options?: RequestOptions
 ): Promise<IssuesOperationDialogEvent<'resolve'>> => {
-  const data = await mockResolveIssues(params, options).catch(() => ({ succeeded: [], failed: [] }));
+  const data = await mockArchiveIssues(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
 };
 
@@ -117,7 +125,7 @@ export const unArchiveIssues = async (
   params: ResolveIssuesParams,
   options?: RequestOptions
 ): Promise<IssuesOperationDialogEvent<'resolve'>> => {
-  const data = await mockResolveIssues(params, options).catch(() => ({ succeeded: [], failed: [] }));
+  const data = await mockRestoreIssues(params, options).catch(() => ({ succeeded: [], failed: [] }));
   return data;
 };
 
