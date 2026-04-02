@@ -1380,6 +1380,7 @@ export default defineComponent({
             status={currentRow.value.status}
             config={currentRow.value}
             isStopCollection={true}
+            isContainer={currentRow.value.environment === 'container'}
             on-change={(value: boolean) => {
               showCollectIssuedSlider.value = value;
             }}
