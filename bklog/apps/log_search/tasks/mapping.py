@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from datetime import datetime, timedelta
 
 from blueapps.contrib.celery_tools.periodic import periodic_task
@@ -62,10 +62,11 @@ def sync_mapping_snapshot_subtask(index_set_id=None):
         # 当数据平台返回为无法获取元数据报错情况
         if e.code in [BkDataErrorCode.STORAGE_TYPE_ERROR, BkDataErrorCode.COULD_NOT_GET_METADATA_ERROR]:
             index_set_obj.is_active = False
-            index_set_obj.save()
+            index_set_obj.save(update_fields=["is_active"])
         logger.exception(
             f"[sync_single_index_set_mapping_snapshot] index_set({index_set_obj.index_set_id} call mapping error: {e})"
         )
+
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(
             f"[sync_single_index_set_mapping_snapshot] index_set({index_set_obj.index_set_id}) sync failed: {e}"
