@@ -1400,8 +1400,15 @@ export default defineComponent({
         if (!enableMetaData.value) {
           etl_params.path_regexp = null;
         }
-        const { storage_cluster_id, allocation_min_days, storage_replies, es_shards, table_id, retention } =
-          curCollect.value;
+        const {
+          storage_cluster_id,
+          allocation_min_days,
+          storage_replies,
+          es_shards,
+          table_id,
+          retention,
+          storage_shards_nums,
+        } = curCollect.value;
         /**
          * 编辑/创建清洗
          * 未完成的情况下，调用创建清洗配置接口 （storage_cluster_id = -1 或者为空，都代表未完成）
@@ -1420,7 +1427,7 @@ export default defineComponent({
             storage_cluster_id,
             allocation_min_days,
             storage_replies,
-            es_shards,
+            es_shards: es_shards ?? storage_shards_nums,
             table_id,
             retention,
             etl_config: cleaningMode.value,
