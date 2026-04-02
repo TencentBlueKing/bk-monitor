@@ -406,9 +406,7 @@ class EtlStorage:
                     }
                 )
 
-                # 从同源生成time字段（epoch_second），Legacy路径下Transfer自动生成，V4需显式声明
-                time_parsing_to_epoch_second = dict(v4_time_parsing)
-                time_parsing_to_epoch_second["to"] = "epoch_second"
+                # 从同源生成time字段，Legacy路径下Transfer自动生成，V4需显式声明
                 rules.append(
                     {
                         "input_id": "json_data",
@@ -423,7 +421,7 @@ class EtlStorage:
                             "fixed_value": None,
                             "is_time_field": None,
                             "time_format": None,
-                            "in_place_time_parsing": time_parsing_to_epoch_second,
+                            "in_place_time_parsing": v4_time_parsing,
                             "default_value": None,
                         },
                     }
@@ -524,9 +522,7 @@ class EtlStorage:
                 }
             )
 
-            # 从同源生成time字段（epoch_second），Legacy路径下Transfer自动生成，V4需显式声明
-            time_parsing_to_epoch_second = dict(v4_time_parsing)
-            time_parsing_to_epoch_second["to"] = "epoch_second"
+            # 从同源生成time字段，Legacy路径下Transfer自动生成，V4需显式声明
             rules.append(
                 {
                     "input_id": self.separator_node_name,
@@ -541,7 +537,7 @@ class EtlStorage:
                         "fixed_value": None,
                         "is_time_field": None,
                         "time_format": None,
-                        "in_place_time_parsing": time_parsing_to_epoch_second,
+                        "in_place_time_parsing": v4_time_parsing,
                         "default_value": None,
                     },
                 }
