@@ -83,6 +83,7 @@ export default defineComponent({
         allocation_min_days: 0,
       },
       ...props.configData,
+      es_shards: props.configData.storage_shards_nums || props.configData.es_shards || 3,
     });
     const cleanStash = ref({});
 
@@ -107,20 +108,29 @@ export default defineComponent({
     const isCustomReport = computed(() => props.scenarioId === 'custom_report');
     /**
      * 最大存储天数
+     * 新增场景：使用默认值
+     * 编辑场景：集群数据未就绪时不限制最大值，避免输入框截断已有值
      */
     const daysMax = computed(() => {
+      if (props.isEdit && !clusterData.value?.storage_cluster_id) return undefined;
       return clusterData.value?.setup_config?.retention_days_max || 7;
     });
     /**
      * 最大副本数
+     * 新增场景：使用默认值
+     * 编辑场景：集群数据未就绪时不限制最大值，避免输入框截断已有值
      */
     const numberOfReplicasMax = computed(() => {
+      if (props.isEdit && !clusterData.value?.storage_cluster_id) return undefined;
       return clusterData.value?.setup_config?.number_of_replicas_max || 1;
     });
     /**
      * 最大分片数
+     * 新增场景：使用默认值
+     * 编辑场景：集群数据未就绪时不限制最大值，避免输入框截断已有值
      */
     const esShardsMax = computed(() => {
+      if (props.isEdit && !clusterData.value?.storage_cluster_id) return undefined;
       return clusterData.value?.setup_config?.es_shards_max || 1;
     });
 
@@ -223,7 +233,7 @@ export default defineComponent({
     onMounted(async () => {
       initData(true);
       loading.value = true;
-      const isStorageEdit = route.name === 'collectEdit' && route.query.step;
+      const isStorageEdit = ['collectEdit', 'collectStorage'].includes(String(route.name ?? '')) && route.query.step;
       if (isStorageEdit) {
         await $http
           .request('collect/details', {
@@ -374,7 +384,7 @@ export default defineComponent({
             }}
             on-blur={val => {
               if (val === '') {
-                formData.value.es_shards = clusterData.value?.setup_config?.es_shards_default || 0;
+                formData.value.es_shards = clusterData.value?.setup_config?.es_shards_default || 1;
               }
             }}
           />
