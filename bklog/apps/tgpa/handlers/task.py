@@ -35,6 +35,7 @@ from apps.tgpa.constants import (
     FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE,
     FEATURE_TOGGLE_TGPA_TASK,
     TGPA_FILE_DOWNLOAD_CHUNK_SIZE,
+    TGPA_REPORT_FILE_NAME_PREFIX,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.tgpa.handlers.decrypt import get_decrypt_handler
@@ -252,7 +253,9 @@ class TGPATaskHandler:
         max_size = feature_config.get("tgpa_file_download_max_size", FEATURE_TGPA_FILE_DOWNLOAD_MAX_SIZE)
         file_info = TGPAFileHandler.get_cos_file_info(file_name, bk_biz_id=bk_biz_id)
         decrypt_handler = get_decrypt_handler(bk_biz_id)
-        if file_info["content_length"] > max_size or not decrypt_handler:
+        # 用户上报文件不需要解密，直接流式转发（先直接在这个接口兼容，后续有其他需求再拆分模块）
+        is_user_report_file = os.path.basename(file_name).startswith(TGPA_REPORT_FILE_NAME_PREFIX)
+        if file_info["content_length"] > max_size or not decrypt_handler or is_user_report_file:
             # 文件大小超限或无需解密：直接从COS流式转发，不落盘，节省服务器磁盘和内存资源
             return (
                 TGPAFileHandler.stream_from_cos(file_name, bk_biz_id=bk_biz_id),
