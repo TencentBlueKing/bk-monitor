@@ -43,7 +43,15 @@ import type {
   BaseTableColumn,
   TableCellRenderer,
 } from '../../../../../trace-explore/components/trace-explore-table/typing';
-import type { CheckboxGroupValue, SelectOptions, SizeEnum, SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
+import type {
+  CheckboxGroupValue,
+  FilterValue,
+  SelectOptions,
+  SizeEnum,
+  SlotReturnValue,
+  TableFilterChangeContext,
+  TdAffixProps,
+} from 'tdesign-vue-next';
 
 import './common-table.scss';
 
@@ -125,6 +133,15 @@ export default defineComponent({
       type: Array as PropType<(number | string)[]>,
       default: () => [],
     },
+    /** 是否显示斑马纹行 */
+    stripe: {
+      type: Boolean,
+      default: false,
+    },
+    /** 列筛选受控值（表头筛选） */
+    filterValue: {
+      type: Object as PropType<FilterValue>,
+    },
   },
   emits: {
     currentPageChange: (currentPage: number) => typeof currentPage === 'number',
@@ -133,6 +150,8 @@ export default defineComponent({
     displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
     selectChange: (selectedRowKeys: (number | string)[], options: SelectOptions<unknown>) =>
       Array.isArray(selectedRowKeys) && options,
+    filterChange: (filterValue: FilterValue, context: TableFilterChangeContext<unknown>) =>
+      filterValue != null && context != null,
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
@@ -260,6 +279,10 @@ export default defineComponent({
       emit('displayColFieldsChange', displayColFields as string[]);
     };
 
+    const handleFilterChange = (filterValue: FilterValue, context: TableFilterChangeContext<unknown>) => {
+      emit('filterChange', filterValue, context);
+    };
+
     /**
      * @description 表格最后一行渲染方法(默认填充一个 div 占位)
      * @returns {SlotReturnValue} 表格最后一行dom内容
@@ -314,6 +337,7 @@ export default defineComponent({
       handleSelectChange,
       handlePageSizeChange,
       handleDisplayColFieldsChange,
+      handleFilterChange,
       tableLastFullRowRender,
       tableEmptyRender,
     };
@@ -333,6 +357,7 @@ export default defineComponent({
           columns={this.tableColumns}
           data={this.data}
           disableDataPage={true}
+          filterValue={this.filterValue}
           firstFullRow={this.firstFullRow}
           headerAffixedTop={this.headerAffixedTop}
           horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
@@ -346,8 +371,10 @@ export default defineComponent({
           showSortColumnBgColor={true}
           size={this.tableSize}
           sort={this.tableSort}
+          stripe={this.stripe}
           tableLayout='fixed'
           onDisplayColumnsChange={this.handleDisplayColFieldsChange}
+          onFilterChange={this.handleFilterChange}
           onSelectChange={this.handleSelectChange}
           onSortChange={this.handleSortChange}
         />

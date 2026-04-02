@@ -1712,6 +1712,8 @@ export default {
   // '采集配置名称/ID': 'Collection configuration name/ID',
   '搜素 ID、名称': 'Search ID, Name',
   '主机&云平台': 'Host & Cloud Platform',
+  '前端监控 - RUM': 'Frontend Monitoring - RUM',
+  RUM: 'RUM',
   指标选择器: 'Metric Selector',
 
   // 日历

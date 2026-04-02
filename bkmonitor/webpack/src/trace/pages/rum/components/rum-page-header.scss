@@ -1,0 +1,17 @@
+.rum-page-header-comp {
+  width: 100%;
+
+  .rum-page-header-left {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding-left: 8px;
+
+    .rum-page-title {
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 24px;
+      color: #313238;
+    }
+  }
+}

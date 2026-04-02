@@ -23,58 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface IRouteConfig {
-  children?: any[];
-  id: string;
-  name: string;
-  route: string;
-}
-export const allRouteConfig: IRouteConfig[] = [
-  {
-    id: 'home',
-    name: 'route-首页',
-    route: 'home',
-  },
-  {
-    id: 'trace-old',
-    name: 'Trace 检索',
-    route: 'trace-old',
-  },
-  {
-    id: 'rotation',
-    name: '轮值',
-    route: 'rotation',
-  },
-  {
-    id: 'alarm-shield',
-    name: 'route-屏蔽',
-    route: 'alarm-shield',
-  },
-  {
-    id: 'incident-detail',
-    name: 'route-故障',
-    route: 'incident-detail',
-  },
-  {
-    id: 'profiling',
-    name: 'Profiling',
-    route: 'profiling',
-  },
-  {
-    id: 'rum',
-    name: 'RUM',
-    route: 'rum',
-  },
-  {
-    id: 'report',
-    name: 'route-订阅配置',
-    route: 'report',
-  },
-  {
-    id: 'alarm-center',
-    name: 'route-告警中心',
-    route: 'alarm-center',
-  },
-];
+import type { RouteRecordRaw } from 'vue-router';
 
-export const createRouteConfig = () => allRouteConfig;
+export default [
+  {
+    path: '/rum',
+    name: 'rum',
+    component: () => import(/* webpackChunkName: "rum" */ '../../pages/rum/rum'),
+  },
+  {
+    path: '/rum/app/:appId/config',
+    name: 'rumAppConfig',
+    component: () => import(/* webpackChunkName: "rum-app-config" */ '../../pages/rum/rum-app-config'),
+  },
+] as RouteRecordRaw[];

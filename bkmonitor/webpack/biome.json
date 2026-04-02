@@ -70,7 +70,10 @@
       },
       "correctness": {
         "useJsxKeyInIterable": "error",
-        "noUnusedVariables": "error",
+        "noUnusedVariables": {
+          "fix": "none",
+          "level": "error"
+        },
         "noUnusedImports": "error",
         "noUnusedFunctionParameters": {
           "fix": "none",

@@ -194,6 +194,23 @@ export const getRouteConfig = () => {
           ],
         },
         {
+          name: '前端监控',
+          shortName: 'RUM',
+          id: 'monitor-frontend-rum',
+          children: [
+            {
+              name: 'RUM',
+              icon: 'icon-monitor icon-APM menu-icon',
+              navName: 'RUM',
+              id: 'rum',
+              path: '/trace/rum',
+              href: '#/trace/rum',
+              usePath: true,
+              canStore: true,
+            },
+          ],
+        },
+        {
           name: '主机&云平台',
           shortName: '主机',
           id: 'monitor-serivice',

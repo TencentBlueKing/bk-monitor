@@ -23,58 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface IRouteConfig {
-  children?: any[];
-  id: string;
-  name: string;
-  route: string;
-}
-export const allRouteConfig: IRouteConfig[] = [
-  {
-    id: 'home',
-    name: 'route-首页',
-    route: 'home',
-  },
-  {
-    id: 'trace-old',
-    name: 'Trace 检索',
-    route: 'trace-old',
-  },
-  {
-    id: 'rotation',
-    name: '轮值',
-    route: 'rotation',
-  },
-  {
-    id: 'alarm-shield',
-    name: 'route-屏蔽',
-    route: 'alarm-shield',
-  },
-  {
-    id: 'incident-detail',
-    name: 'route-故障',
-    route: 'incident-detail',
-  },
-  {
-    id: 'profiling',
-    name: 'Profiling',
-    route: 'profiling',
-  },
-  {
-    id: 'rum',
-    name: 'RUM',
-    route: 'rum',
-  },
-  {
-    id: 'report',
-    name: 'route-订阅配置',
-    route: 'report',
-  },
-  {
-    id: 'alarm-center',
-    name: 'route-告警中心',
-    route: 'alarm-center',
-  },
-];
+import { defineComponent } from 'vue';
 
-export const createRouteConfig = () => allRouteConfig;
+import { Button } from 'bkui-vue';
+import { useRoute, useRouter } from 'vue-router';
+
+import './rum-app-config.scss';
+
+export default defineComponent({
+  name: 'RumAppConfigPage',
+  setup() {
+    const route = useRoute();
+    const router = useRouter();
+    return () => (
+      <div class='rum-app-config-page'>
+        <div class='rum-app-config-page__bar'>
+          <Button
+            theme='primary'
+            text
+            onClick={() => router.push({ name: 'rum' })}
+          >
+            返回应用列表
+          </Button>
+        </div>
+        <div class='rum-app-config-page__body'>应用配置（占位） · appId = {String(route.params.appId)}</div>
+      </div>
+    );
+  },
+});
