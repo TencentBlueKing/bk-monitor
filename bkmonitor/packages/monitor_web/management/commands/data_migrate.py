@@ -27,7 +27,9 @@ from monitor_web.data_migrate import (
     replace_tenant_id_in_directory,
     restore_disabled_models_in_directory,
     sanitize_cluster_info_in_directory,
+    upload_export_directory_to_storage,
 )
+from monitor_web.data_migrate.handler.model_disable import MODEL_DISABLE_HANDLERS
 
 
 class Command(BaseCommand):
@@ -37,8 +39,11 @@ class Command(BaseCommand):
         parser.formatter_class = argparse.RawTextHelpFormatter
         parser.epilog = (
             "调用示例:\n"
-            "  导出业务和全局数据:\n"
+            "  导出业务和全局数据（同时上传到制品库）:\n"
             "    python manage.py data_migrate export --directory /tmp/output --bk-biz-ids 2 3 0\n"
+            "\n"
+            "  导出但不上传到制品库:\n"
+            "    python manage.py data_migrate export --directory /tmp/output --bk-biz-ids 2 3 0 --no-upload\n"
             "\n"
             "  导入已解压的导出目录:\n"
             "    python manage.py data_migrate import --directory /tmp/bkmonitor-data-migrate-20260307120000\n"
@@ -104,6 +109,11 @@ class Command(BaseCommand):
             help='集群 ID 替换映射 JSON，形如 \'{"3":10003,"10":10010}\'；仅 replace-cluster-id 动作需要',
         )
         parser.add_argument(
+            "--no-upload",
+            action="store_true",
+            help="导出时跳过上传到制品库；仅 export 动作需要",
+        )
+        parser.add_argument(
             "--models",
             nargs="+",
             help="需要关闭的模型列表，形如 monitor_web.CollectConfigMeta；仅 disable-models 动作需要",
@@ -131,6 +141,7 @@ class Command(BaseCommand):
         output_directory = Path(options["directory"])
         output_directory.mkdir(parents=True, exist_ok=True)
         archive_name = f"bkmonitor-data-migrate-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+        skip_upload = options.get("no_upload", False)
 
         with tempfile.TemporaryDirectory(prefix="bkmonitor-data-migrate-") as temp_directory:
             export_directory = Path(temp_directory) / archive_name
@@ -141,6 +152,11 @@ class Command(BaseCommand):
                 indent=options["indent"],
             )
             export_auto_increment_to_directory(export_directory)
+
+            if not skip_upload:
+                download_url = upload_export_directory_to_storage(export_directory)
+                self.stdout.write(self.style.SUCCESS(f"upload completed, download_url: {download_url}"))
+
             archive_path = shutil.make_archive(
                 base_name=str(Path(temp_directory) / archive_name),
                 format="zip",
@@ -200,7 +216,7 @@ class Command(BaseCommand):
 
     def _handle_disable_models(self, options):
         directory = options["directory"]
-        model_labels = options.get("models") or []
+        model_labels = options.get("models") or list(MODEL_DISABLE_HANDLERS.keys())
         if not model_labels:
             raise CommandError("disable-models 动作必须提供 --models")
         try:
