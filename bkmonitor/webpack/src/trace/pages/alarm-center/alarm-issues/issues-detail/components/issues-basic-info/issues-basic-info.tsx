@@ -164,7 +164,6 @@ export default defineComponent({
      * @param users 负责人列表
      */
     const handleResponsiblePersonChange = (users: string[]) => {
-      console.log('handleResponsiblePersonChange', users);
       userList.value = users;
       if (users.length === 0) {
         Message({

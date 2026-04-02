@@ -27,6 +27,7 @@ import { type PropType, defineComponent, nextTick, shallowRef, useTemplateRef, w
 
 import { Button, Dialog, Input, Message } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { listIssueActivities } from 'monitor-api/modules/issue';
 import { useI18n } from 'vue-i18n';
 
 import MarkdownEditor from '../../../../../../components/markdown-editor/editor';
@@ -38,7 +39,6 @@ import {
   IssuesStatusMap,
 } from '../../../constant';
 import { followUpIssues } from '../../../services/issues-operations';
-import { fetchActivityListMock } from '../../mock-data';
 import BasicCard from '../basic-card/basic-card';
 import ClampText from './clamp-text';
 
@@ -79,7 +79,7 @@ export default defineComponent({
     const activeList = shallowRef<IssueActivityItem[]>([]);
     const getActiveList = () => {
       loading.value = true;
-      fetchActivityListMock({
+      listIssueActivities({
         bk_biz_id: props.detail?.bk_biz_id,
         id: props.detail?.id,
       }).then(data => {
