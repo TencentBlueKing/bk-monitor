@@ -60,6 +60,51 @@ from metadata.utils.redis_tools import RedisTools
 logger = logging.getLogger("metadata")
 
 
+def _disable_related_bkci_spaces(bkcc_space_ids: list[str]):
+    """禁用关联的 BKCI 空间有效性"""
+    if not bkcc_space_ids:
+        return
+    space_resources = SpaceResource.objects.filter(resource_type=SpaceTypes.BKCC.value, resource_id__in=bkcc_space_ids)
+    Space.objects.filter(
+        space_type_id=SpaceTypes.BKCI.value, space_id__in=[i.space_id for i in space_resources]
+    ).update(is_bcs_valid=False)
+
+
+def _rename_and_disable_bkcc_spaces(spaces: list[Space], reason: str):
+    """重命名并软禁用 BKCC 空间，释放名称占位"""
+    if not spaces:
+        return
+    disabled_space_ids = []
+    date_suffix = datetime.now().strftime("%Y%m%d")
+    for space in spaces:
+        disabled_space_ids.append(space.space_id)
+        space.space_name = f"{space.space_name}(已删除_{space.space_id}_{date_suffix})"
+        space.status = SpaceStatus.DISABLED.value
+    Space.objects.bulk_update(spaces, ["space_name", "status"], batch_size=BULK_UPDATE_BATCH_SIZE)
+    _disable_related_bkci_spaces(disabled_space_ids)
+    logger.warning("soft disable bkcc spaces, reason: %s, space_id: [%s]", reason, ",".join(disabled_space_ids))
+
+
+def _soft_disable_conflict_bkcc_spaces(diff_biz_list: list[dict], cmdb_biz_ids: set[str]):
+    """在创建前释放被孤儿 BKCC 空间占用的名称"""
+    if not diff_biz_list:
+        return
+    need_disable_spaces = []
+    seen_space_ids = set()
+    for biz in diff_biz_list:
+        conflict_spaces = Space.objects.filter(
+            space_type_id=SpaceTypes.BKCC.value,
+            bk_tenant_id=biz["bk_tenant_id"],
+            space_name=biz["bk_biz_name"],
+        ).exclude(space_id__in=cmdb_biz_ids)
+        for space in conflict_spaces:
+            if space.space_id in seen_space_ids:
+                continue
+            seen_space_ids.add(space.space_id)
+            need_disable_spaces.append(space)
+    _rename_and_disable_bkcc_spaces(need_disable_spaces, reason="conflict_with_new_cmdb_biz")
+
+
 @share_lock(identify="metadata__sync_bkcc_space")
 def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create_builtin_data_link_delay=True):
     """同步 bkcc 的业务，自动创建对应的空间
@@ -103,20 +148,23 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
 
     # 针对删除的业务
     # 当业务在 cmdb 删除业务，并且允许删除为 True 时，才进行删除；避免因为接口返回不正确，误删除的场景
-    if diff_delete and allow_deleted:
-        # 删除和数据源的关联
-        SpaceDataSource.objects.filter(space_type_id=bkcc_type_id, space_id__in=diff_delete).delete()
-        # NOTE 标识关联空间不可用，这里主要是针对 bcs 资源
-        space_resources = SpaceResource.objects.filter(resource_type=bkcc_type_id, resource_id__in=diff_delete)
-        # 对应的 BKCI(BCS) 空间，也标识为不可用
-        Space.objects.filter(
-            space_type_id=SpaceTypes.BKCI.value, space_id__in=[i.space_id for i in space_resources]
-        ).update(is_bcs_valid=False)
-        # 删除关联资源
-        space_resources.delete()
-        # 删除对应的 BKCC 空间
-        Space.objects.filter(space_type_id=bkcc_type_id, space_id__in=diff_delete).delete()
-        logger.info("delete space_type_id: [%s], space_id: [%s]", bkcc_type_id, ",".join(diff_delete))
+    if diff_delete:
+        if allow_deleted:
+            # 删除和数据源的关联
+            SpaceDataSource.objects.filter(space_type_id=bkcc_type_id, space_id__in=diff_delete).delete()
+            # NOTE 标识关联空间不可用，这里主要是针对 bcs 资源
+            _disable_related_bkci_spaces(list(diff_delete))
+            # 删除关联资源
+            SpaceResource.objects.filter(resource_type=bkcc_type_id, resource_id__in=diff_delete).delete()
+            # 删除对应的 BKCC 空间
+            Space.objects.filter(space_type_id=bkcc_type_id, space_id__in=diff_delete).delete()
+            logger.info("delete space_type_id: [%s], space_id: [%s]", bkcc_type_id, ",".join(diff_delete))
+        else:
+            logger.warning(
+                "skip deleting spaces missing from cmdb when allow_deleted is false, space_type_id: [%s], space_id: [%s]",
+                bkcc_type_id,
+                ",".join(diff_delete),
+            )
 
     if diff:
         # 针对添加的业务
@@ -129,6 +177,8 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
             }
             for biz_id in diff
         ]
+
+        _soft_disable_conflict_bkcc_spaces(diff_biz_list, set(biz_id_name_dict.keys()))
 
         # 创建空间
         try:
@@ -187,12 +237,7 @@ def sync_archived_bkcc_space(bk_tenant_id: str | None = None):
         obj.space_name = f"{obj.space_name}{name_suffix}"
         obj.status = SpaceStatus.DISABLED.value
     Space.objects.bulk_update(need_archive_space, ["space_name", "status"], batch_size=BULK_UPDATE_BATCH_SIZE)
-    # NOTE 标识关联空间不可用，这里主要是针对 bcs 资源
-    space_resources = SpaceResource.objects.filter(resource_type=bkcc_type_id, resource_id__in=need_archive_biz_id_list)
-    # 对应的 BKCI(BCS) 空间，也标识为不可用
-    Space.objects.filter(
-        space_type_id=SpaceTypes.BKCI.value, space_id__in=[i.space_id for i in space_resources]
-    ).update(is_bcs_valid=False)
+    _disable_related_bkci_spaces(need_archive_biz_id_list)
 
     logger.info("update archived space_type_id: [%s], space_id: [%s]", bkcc_type_id, ",".join(need_archive_biz_id_list))
 

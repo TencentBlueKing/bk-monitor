@@ -249,6 +249,7 @@ class BCSCluster(BCSBase):
             space_uid = project_id_to_space_uid.get(project_id, "")
 
             bcs_cluster = BCSCluster()
+            bcs_cluster.bk_tenant_id = bk_tenant_id
             bcs_cluster.space_uid = space_uid
             bcs_cluster.bk_biz_id = int(c["bk_biz_id"])
             bcs_cluster.name = c["name"]

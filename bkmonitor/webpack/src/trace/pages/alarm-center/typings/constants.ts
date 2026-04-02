@@ -59,7 +59,6 @@ export enum AlertLevelEnum {
   /** 预警 */
   WARNING = 2,
 }
-
 /** 告警详情-容器tab图表特殊辅助线series颜色映射 */
 export const SpecialSeriesColorMap = {
   request: {
@@ -203,6 +202,46 @@ export const AlarmLevelIconMap = {
     iconColor: '#3A84FF',
     text: window.i18n.t('提醒'),
     textColor: '#3A84FF',
+  },
+};
+export const NoticeWayEnum = {
+  SMS: 'sms',
+  MAIL: 'mail',
+  WEIXIN: 'weixin',
+  QYWEIXIN: 'qy_weixin',
+  WXWORKBOT: 'wxwork-bot',
+} as const;
+
+export const AlarmNoticeWayIconMap = {
+  [NoticeWayEnum.SMS]: {
+    icon: 'icon-mc-duanxin',
+    iconColor: '#8E9BB3',
+    text: window.i18n.t('短信'),
+    textColor: '#313238',
+  },
+  [NoticeWayEnum.WEIXIN]: {
+    icon: 'icon-mc-weixin',
+    iconColor: '#8E9BB3',
+    text: window.i18n.t('微信'),
+    textColor: '#313238',
+  },
+  [NoticeWayEnum.QYWEIXIN]: {
+    icon: 'icon-mc-enterprise-wechat',
+    iconColor: '#8E9BB3',
+    text: window.i18n.t('企业微信'),
+    textColor: '#313238',
+  },
+  [NoticeWayEnum.WXWORKBOT]: {
+    icon: 'icon-mc-robot',
+    iconColor: '#8E9BB3',
+    text: window.i18n.t('群机器人'),
+    textColor: '#313238',
+  },
+  [NoticeWayEnum.MAIL]: {
+    icon: 'icon-mc-email',
+    iconColor: '#8E9BB3',
+    text: window.i18n.t('邮件'),
+    textColor: '#313238',
   },
 };
 

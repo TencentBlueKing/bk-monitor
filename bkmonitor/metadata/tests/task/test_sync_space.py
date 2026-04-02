@@ -9,6 +9,7 @@ from metadata.models.space import Space, SpaceDataSource, SpaceResource
 from metadata.models.space.constants import (
     SPACE_DETAIL_REDIS_KEY_PREFIX,
     SYSTEM_USERNAME,
+    SpaceStatus,
     SpaceTypes,
 )
 from metadata.task.sync_space import (
@@ -21,6 +22,24 @@ from metadata.task.sync_space import (
 from metadata.tests.common_utils import MockCache
 
 pytestmark = pytest.mark.django_db(databases="__all__")
+
+
+class LockCacheMock:
+    def __init__(self):
+        self.data = {}
+
+    def set(self, key, value, ex=None, nx=False):
+        if nx and key in self.data:
+            return False
+        self.data[key] = value
+        return True
+
+    def get(self, key):
+        return self.data.get(key)
+
+    def delete(self, key):
+        self.data.pop(key, None)
+        return True
 
 
 def test_sync_bkcc_space(create_and_delete_record, table_id, mocker):
@@ -49,6 +68,79 @@ def test_sync_bkcc_space(create_and_delete_record, table_id, mocker):
         val_dict = json.loads(val.decode("utf-8"))
         for k in ["type", "field", "measurement_type", "bk_data_id", "filters", "segmented_enable", "data_label"]:
             assert k in val_dict
+
+
+def test_sync_bkcc_space_skip_disable_when_cmdb_missing(create_and_delete_record, mocker):
+    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
+    Space.objects.create(
+        creator=SYSTEM_USERNAME,
+        updater=SYSTEM_USERNAME,
+        space_type_id=SpaceTypes.BKCC.value,
+        space_id="1",
+        space_name="test",
+        bk_tenant_id="system",
+    )
+    mocker.patch(
+        "core.drf_resource.api.cmdb.get_business",
+        return_value=[Business(bk_biz_id=2, bk_biz_name="other", time_zone="Asia/Shanghai")],
+    )
+
+    sync_bkcc_space(allow_deleted=False)
+
+    space = Space.objects.get(space_type_id=SpaceTypes.BKCC.value, space_id="1")
+    assert space.space_name == "test"
+    assert space.status == SpaceStatus.NORMAL.value
+
+
+def test_sync_bkcc_space_soft_disable_conflict_orphan(create_and_delete_record, mocker):
+    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
+    Space.objects.create(
+        creator=SYSTEM_USERNAME,
+        updater=SYSTEM_USERNAME,
+        space_type_id=SpaceTypes.BKCC.value,
+        space_id="1",
+        space_name="test",
+        bk_tenant_id="system",
+        status=SpaceStatus.DISABLED.value,
+    )
+    bkci_space = Space.objects.create(
+        creator=SYSTEM_USERNAME,
+        updater=SYSTEM_USERNAME,
+        space_type_id=SpaceTypes.BKCI.value,
+        space_id="project_code",
+        space_name="project_name",
+        bk_tenant_id="system",
+        is_bcs_valid=True,
+    )
+    SpaceResource.objects.create(
+        creator=SYSTEM_USERNAME,
+        updater=SYSTEM_USERNAME,
+        space_type_id=SpaceTypes.BKCI.value,
+        space_id=bkci_space.space_id,
+        resource_type=SpaceTypes.BKCC.value,
+        resource_id="1",
+    )
+    mocker.patch(
+        "core.drf_resource.api.cmdb.get_business",
+        return_value=[Business(bk_biz_id=2, bk_biz_name="test", time_zone="Asia/Shanghai")],
+    )
+    mocker.patch("redis.Redis", side_effect=mock_redis_client)
+    mocker.patch("metadata.utils.redis_tools.RedisTools.push_space_to_redis", return_value=True)
+    mocker.patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis", return_value=True)
+    mocker.patch("metadata.utils.redis_tools.RedisTools.sadd", return_value=True)
+    mocker.patch("metadata.utils.redis_tools.RedisTools.publish", return_value=True)
+
+    sync_bkcc_space()
+
+    orphan_space = Space.objects.get(space_type_id=SpaceTypes.BKCC.value, space_id="1")
+    new_space = Space.objects.get(space_type_id=SpaceTypes.BKCC.value, space_id="2")
+    bkci_space.refresh_from_db()
+
+    assert orphan_space.status == SpaceStatus.DISABLED.value
+    assert orphan_space.space_name.startswith("test(已删除_1_")
+    assert new_space.space_name == "test"
+    assert new_space.status == SpaceStatus.NORMAL.value
+    assert bkci_space.is_bcs_valid is False
 
 
 def test_sync_bcs_space(create_and_delete_record, table_id, mocker):
@@ -175,6 +267,45 @@ def test_sync_bkcc_space_data_source(create_and_delete_record, table_id, mocker)
     sync_bkcc_space_data_source()
 
     assert SpaceDataSource.objects.filter(space_type_id="bkcc", space_id="1", bk_data_id=test_create_data_id).exists()
+
+
+def test_sync_bkcc_space_delete_marks_related_bkci_invalid(create_and_delete_record, mocker):
+    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
+    Space.objects.create(
+        creator=SYSTEM_USERNAME,
+        updater=SYSTEM_USERNAME,
+        space_type_id=SpaceTypes.BKCC.value,
+        space_id="1",
+        space_name="test",
+        bk_tenant_id="system",
+    )
+    bkci_space = Space.objects.create(
+        creator=SYSTEM_USERNAME,
+        updater=SYSTEM_USERNAME,
+        space_type_id=SpaceTypes.BKCI.value,
+        space_id="project_code",
+        space_name="project_name",
+        bk_tenant_id="system",
+        is_bcs_valid=True,
+    )
+    SpaceResource.objects.create(
+        creator=SYSTEM_USERNAME,
+        updater=SYSTEM_USERNAME,
+        space_type_id=SpaceTypes.BKCI.value,
+        space_id=bkci_space.space_id,
+        resource_type=SpaceTypes.BKCC.value,
+        resource_id="1",
+    )
+    mocker.patch(
+        "core.drf_resource.api.cmdb.get_business",
+        return_value=[Business(bk_biz_id=2, bk_biz_name="other", time_zone="Asia/Shanghai")],
+    )
+
+    sync_bkcc_space(allow_deleted=True)
+
+    bkci_space.refresh_from_db()
+    assert not Space.objects.filter(space_type_id=SpaceTypes.BKCC.value, space_id="1").exists()
+    assert bkci_space.is_bcs_valid is False
 
 
 def test_refresh_cluster_resource(create_and_delete_record, create_and_delete_space, mocker):

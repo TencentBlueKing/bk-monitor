@@ -2575,7 +2575,7 @@ class SelectUptimeCheckNodeResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.CharField(required=True, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     def perform_request(self, validated_request_data: dict[str, Any]):
         bk_tenant_id = cast(str, get_request_tenant_id())
