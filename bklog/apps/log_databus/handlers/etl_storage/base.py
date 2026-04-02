@@ -406,6 +406,29 @@ class EtlStorage:
                     }
                 )
 
+                # 从同源生成time字段（epoch_second），Legacy路径下Transfer自动生成，V4需显式声明
+                time_parsing_to_epoch_second = dict(v4_time_parsing)
+                time_parsing_to_epoch_second["to"] = "epoch_second"
+                rules.append(
+                    {
+                        "input_id": "json_data",
+                        "output_id": "time",
+                        "operator": {
+                            "type": "assign",
+                            "key_index": time_alias_name,
+                            "alias": "time",
+                            "desc": "data timestamp in epoch second",
+                            "input_type": None,
+                            "output_type": "long",
+                            "fixed_value": None,
+                            "is_time_field": None,
+                            "time_format": None,
+                            "in_place_time_parsing": time_parsing_to_epoch_second,
+                            "default_value": None,
+                        },
+                    }
+                )
+
             # 如果是纳秒级时间格式，记录需要生成dtEventTimeStampNanos字段
             # 注意：dtEventTimeStampNanos规则需要在bk_separator_object之后生成，因为用户指定的时间字段在bk_separator_object中
             # 这里只记录is_nanos状态，实际的规则生成在_build_nanos_time_field_v4方法中
@@ -496,6 +519,29 @@ class EtlStorage:
                         "is_time_field": None,
                         "time_format": None,
                         "in_place_time_parsing": v4_time_parsing,
+                        "default_value": None,
+                    },
+                }
+            )
+
+            # 从同源生成time字段（epoch_second），Legacy路径下Transfer自动生成，V4需显式声明
+            time_parsing_to_epoch_second = dict(v4_time_parsing)
+            time_parsing_to_epoch_second["to"] = "epoch_second"
+            rules.append(
+                {
+                    "input_id": self.separator_node_name,
+                    "output_id": "time",
+                    "operator": {
+                        "type": "assign",
+                        "key_index": key_index,
+                        "alias": "time",
+                        "desc": "data timestamp in epoch second",
+                        "input_type": None,
+                        "output_type": "long",
+                        "fixed_value": None,
+                        "is_time_field": None,
+                        "time_format": None,
+                        "in_place_time_parsing": time_parsing_to_epoch_second,
                         "default_value": None,
                     },
                 }
