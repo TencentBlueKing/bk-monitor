@@ -31,7 +31,7 @@ import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
 import UserSelector from '../../../../../../components/user-selector/user-selector';
-import { IssueActionEnum, IssuesPriorityMap, IssueStatusEnum } from '../../../constant';
+import { IssueActionEnum, ISSUES_PRIORITY_MAP, IssueStatusEnum } from '../../../constant';
 import {
   archiveIssues,
   assignIssues,
@@ -124,7 +124,7 @@ export default defineComponent({
     /**
      * issues 优先级列表
      */
-    const issuesPriorityList = Object.entries(IssuesPriorityMap).map(([key, value]) => ({
+    const issuesPriorityList = Object.entries(ISSUES_PRIORITY_MAP).map(([key, value]) => ({
       ...value,
       id: key as IssuePriorityType,
     }));
@@ -310,12 +310,12 @@ export default defineComponent({
               <div class={['basic-info-value', { 'is-active': this.priorityPopoverShow }]}>
                 <div
                   style={{
-                    color: IssuesPriorityMap[this.detail.priority]?.color,
-                    backgroundColor: IssuesPriorityMap[this.detail.priority]?.bgColor,
+                    color: ISSUES_PRIORITY_MAP[this.detail.priority]?.color,
+                    backgroundColor: ISSUES_PRIORITY_MAP[this.detail.priority]?.bgColor,
                   }}
                   class='priority-tag'
                 >
-                  {IssuesPriorityMap[this.detail.priority]?.alias}
+                  {ISSUES_PRIORITY_MAP[this.detail.priority]?.alias}
                 </div>
               </div>
             </Popover>

@@ -34,9 +34,9 @@ import MarkdownEditor from '../../../../../../components/markdown-editor/editor'
 import MarkdownViewer from '../../../../../../components/markdown-editor/viewer';
 import {
   IssueActiveNodeTypeEnum,
-  IssuesActiveNodeIconMap,
-  IssuesPriorityMap,
-  IssuesStatusMap,
+  ISSUES_ACTIVE_NODE_ICON_MAP,
+  ISSUES_PRIORITY_MAP,
+  ISSUES_STATUS_MAP,
 } from '../../../constant';
 import { followUpIssues } from '../../../services/issues-operations';
 import BasicCard from '../basic-card/basic-card';
@@ -61,7 +61,7 @@ export default defineComponent({
     const { t } = useI18n();
 
     const commonInput = useTemplateRef<InstanceType<typeof Input>>('commonInput');
-    const activeNodeMap = IssuesActiveNodeIconMap;
+    const activeNodeMap = ISSUES_ACTIVE_NODE_ICON_MAP;
 
     /** 评论输入框是否聚焦 */
     const isCommentInputFocus = shallowRef(false);
@@ -429,7 +429,7 @@ export default defineComponent({
         title: (
           <div class='title-row'>
             <span class='action'>
-              {statusNode.alias}：{IssuesStatusMap[item.to_value]?.alias}
+              {statusNode.alias}：{ISSUES_STATUS_MAP[item.to_value]?.alias}
             </span>
             <span
               class='time'
@@ -487,7 +487,7 @@ export default defineComponent({
         title: (
           <div class='title-row'>
             <span class='action'>
-              {priorityNode.alias}：{IssuesPriorityMap[item.to_value]?.alias}
+              {priorityNode.alias}：{ISSUES_PRIORITY_MAP[item.to_value]?.alias}
             </span>
             <span
               class='time'

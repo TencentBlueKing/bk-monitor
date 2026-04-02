@@ -24,21 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, defineComponent, shallowRef, toRef, watch } from 'vue';
 
 import { Button, Dialog, Radio } from 'bkui-vue';
-import { useI18n } from 'vue-i18n';
 
-import { IssuePriorityEnum, IssuesPriorityMap } from '../../constant';
-import { showOperationResult, updateIssuesPriority } from '../../services/issues-operations';
+import { IssuePriorityEnum, ISSUES_PRIORITY_MAP } from '../../constant';
+import { useAsyncDialog } from '../../hooks/use-async-dialog';
 
-import type { IssuesBatchActionEnum } from '../../constant';
-import type {
-  IssueIdentifier,
-  IssuePriorityType,
-  IssuesOperationDialogEvent,
-  IssuesOperationDialogParams,
-} from '../../typing';
+import type { AsyncDialogConfirmEvent } from '../../hooks/use-async-dialog';
+import type { IssueIdentifier, IssuePriorityType, IssuesOperationDialogParams } from '../../typing';
 
 import './issues-priority-dialog.scss';
 
@@ -68,20 +62,26 @@ export default defineComponent({
     },
   },
   emits: {
-    success: (event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.PRIORITY>) => event != null,
+    confirm: (_event: AsyncDialogConfirmEvent<{ priority: IssuePriorityType }>) => _event != null,
     cancel: () => true,
-    'update:isShow': (val: boolean) => typeof val === 'boolean',
+    'update:isShow': (_val: boolean) => typeof _val === 'boolean',
   },
   setup(props, { emit }) {
-    const { t } = useI18n();
     /** 当前选中的优先级 */
     const selectedPriority = shallowRef<'' | IssuePriorityType>('');
-    /** 提交中 loading 状态 */
-    const loading = shallowRef(false);
+
+    const {
+      loading,
+      handleConfirm: createConfirmEvent,
+      handleCancel: internalCancel,
+    } = useAsyncDialog({
+      isShow: toRef(() => props.isShow),
+      onShowChange: (val: boolean) => emit('update:isShow', val),
+    });
 
     /**
      * @description 获取弹窗标题
-     * @returns { string } 弹窗标题
+     * @returns {string} 弹窗标题
      */
     const getTitle = () => {
       if (props.title) return props.title;
@@ -90,30 +90,21 @@ export default defineComponent({
     };
 
     /**
-     * @description 确认修改优先级
+     * @description 确认修改优先级——通过 useAsyncDialog 创建 { resolve, reject } 事件对象并 emit 给调用方
+     * @returns {void}
      */
-    const handleConfirm = async () => {
+    const handleConfirm = () => {
       if (!selectedPriority.value) return;
-      loading.value = true;
-
-      try {
-        const res = await updateIssuesPriority({
-          issues: props.issuesData,
-          priority: selectedPriority.value as IssuePriorityType,
-        });
-
-        showOperationResult(res, t('修改成功'));
-        emit('success', res);
-      } finally {
-        loading.value = false;
-      }
+      const event = createConfirmEvent({ priority: selectedPriority.value as IssuePriorityType });
+      emit('confirm', event);
     };
 
     /**
      * @description 取消修改优先级
+     * @returns {void}
      */
     const handleCancel = () => {
-      if (loading.value) return;
+      if (!internalCancel()) return;
       emit('cancel');
     };
 
@@ -123,7 +114,6 @@ export default defineComponent({
       val => {
         if (val) {
           selectedPriority.value = props.dialogParam?.priority || '';
-          loading.value = false;
         }
       }
     );
@@ -157,7 +147,7 @@ export default defineComponent({
                   }}
                 >
                   {PRIORITY_OPTIONS.map(priority => {
-                    const config = IssuesPriorityMap[priority];
+                    const config = ISSUES_PRIORITY_MAP[priority];
                     return (
                       <Radio
                         key={priority}

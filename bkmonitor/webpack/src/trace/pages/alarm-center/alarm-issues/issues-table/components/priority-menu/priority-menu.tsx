@@ -26,7 +26,7 @@
 
 import { type PropType, defineComponent } from 'vue';
 
-import { IssuePriorityEnum, IssuesPriorityMap } from '../../../constant';
+import { IssuePriorityEnum, ISSUES_PRIORITY_MAP } from '../../../constant';
 
 import type { IssuePriorityType } from '../../../typing';
 
@@ -66,7 +66,7 @@ export default defineComponent({
     return (
       <div class='issues-priority-menu'>
         {PRIORITY_OPTIONS.map(priority => {
-          const config = IssuesPriorityMap[priority];
+          const config = ISSUES_PRIORITY_MAP[priority];
           const isActive = this.currentPriority === priority;
           return (
             <div
