@@ -30,29 +30,12 @@ import CommonItem from '../components/common-form-item';
 import AlarmHandling, { type IValue as IAlarmItem, type IAllDefense } from './alarm-handling';
 import IssueAgg from './issue-agg';
 import SimpleSelect from './simple-select';
+import { type ActionTypeEnum, ACTION_TYPE_OPTIONS, actionType } from './typing';
 
 import type { IGroupItem } from '../components/group-select';
 import type { MetricDetail } from '../typings/index';
 
 import './alarm-handling-list.scss';
-
-const actionType = {
-  action: 'action',
-  issueAgg: 'issue-agg',
-} as const;
-
-type ActionTypeEnum = (typeof actionType)[keyof typeof actionType];
-const actionTypeList = [
-  {
-    id: actionType.action,
-    name: window.i18n.tc('处理套餐'),
-  },
-
-  {
-    id: actionType.issueAgg,
-    name: window.i18n.tc('Issue聚合'),
-  },
-];
 
 interface IEvents {
   onAddMeal?: number;
@@ -98,18 +81,21 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
   data: IAlarmItem[] = [];
   addValue = [];
   /** 当前选中的tab: action(处理套餐) | issueAgg(Issue聚合) */
-  activeTab: ActionTypeEnum = actionType.action;
+  activeTab: ActionTypeEnum[] = [];
 
   errMsg = '';
 
   /** 切换tab */
-  handleTabChange(tab: ActionTypeEnum) {
-    this.activeTab = tab;
+  handleTabChange(index, tab: ActionTypeEnum) {
+    this.activeTab.splice(index, 1, tab);
   }
 
   @Watch('value', { immediate: true, deep: true })
   handleValue(v) {
     this.data = v;
+    if (!this.activeTab.length) {
+      this.activeTab = this.data.map(_ => actionType.action);
+    }
   }
 
   @Emit('change')
@@ -139,6 +125,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
           skip_delay: 0,
         },
       });
+      this.activeTab.push(actionType.action);
       this.addValue = [];
     }
   }
@@ -169,6 +156,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
    */
   handleDelete(index: number) {
     this.data.splice(index, 1);
+    this.activeTab.splice(index, 1);
     this.handleChange();
   }
 
@@ -251,19 +239,19 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
                 title={this.$t('动作')}
               >
                 <div class='bk-button-group'>
-                  {actionTypeList.map(action => (
+                  {ACTION_TYPE_OPTIONS.map(action => (
                     <bk-button
                       key={action.id}
-                      class={this.activeTab === action.id ? 'is-selected' : ''}
+                      class={this.activeTab[index] === action.id ? 'is-selected' : ''}
                       size='small'
-                      onClick={() => this.handleTabChange(action.id)}
+                      onClick={() => this.handleTabChange(index, action.id)}
                     >
                       {action.name}
                     </bk-button>
                   ))}
                 </div>
               </CommonItem>
-              {this.activeTab === actionType.action ? (
+              {this.activeTab[index] === actionType.action ? (
                 <AlarmHandling
                   extCls={'alarm-handling-item'}
                   allAction={this.allAction}

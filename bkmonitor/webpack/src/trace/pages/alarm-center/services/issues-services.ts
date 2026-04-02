@@ -256,7 +256,7 @@ export const ISSUES_FILTER_FIELDS: IFilterField[] = [
   },
   {
     name: 'bk_biz_id',
-    alias: window.i18n.t('业务 ID'),
+    alias: window.i18n.t('业务ID'),
     type: EFieldType.keyword,
     isEnableOptions: true,
     methods: [
