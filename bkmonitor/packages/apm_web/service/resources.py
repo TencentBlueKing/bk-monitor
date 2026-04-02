@@ -101,7 +101,7 @@ class ServiceInfoResource(Resource):
                 bk_biz_id=attrs["bk_biz_id"], app_name=attrs["app_name"]
             ).first()
             if not app:
-                raise serializers.ValidationError(_(f"应用 {attrs['app_name']} 不存在"))
+                raise serializers.ValidationError(_("应用 %(app_name)s 不存在") % {"app_name": attrs["app_name"]})
 
             if "start_time" not in attrs and "end_time" not in attrs:
                 start_time, end_time = get_datetime_range(
@@ -137,7 +137,7 @@ class ServiceInfoResource(Resource):
 
     @classmethod
     def get_cmdb_relation_info(cls, bk_biz_id: int, app_name: str, service_name: str) -> dict[str, Any]:
-        relation_obj = CMDBServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name], False).first()
+        relation_obj = CMDBServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
         if not relation_obj:
             return {}
 
@@ -156,14 +156,14 @@ class ServiceInfoResource(Resource):
     @classmethod
     def get_log_relation_infos(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[dict[str, Any]]:
         return LogServiceRelationOutputSerializer(
-            instance=LogServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name], False),
+            instance=LogServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]),
             many=True,
         ).data
 
     @classmethod
     def get_app_relation_info(cls, bk_biz_id: int, app_name: str, service_name: str) -> dict[str, Any]:
         relation_obj: AppServiceRelation = AppServiceRelation.get_relation_qs(
-            bk_biz_id, app_name, [service_name], False
+            bk_biz_id, app_name, [service_name]
         ).first()
         if not relation_obj:
             return {}
@@ -178,9 +178,7 @@ class ServiceInfoResource(Resource):
 
     @classmethod
     def get_uri_relation_infos(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[dict[str, Any]]:
-        return list(
-            UriServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name], False).order_by("rank").values()
-        )
+        return list(UriServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).order_by("rank").values())
 
     @classmethod
     def get_apdex_relation_info(
@@ -450,6 +448,7 @@ class ServiceConfigResource(Resource):
         "log_relation_list": LogServiceRelation,
         "apdex_relation": ApdexServiceRelation,
         "uri_relation": UriServiceRelation,
+        "event_relation": EventServiceRelation,
     }
 
     @classmethod
@@ -473,7 +472,10 @@ class ServiceConfigResource(Resource):
                 new_value_list: list[int] = relation_dict.get("value_list", [])
                 unique_relations[related_bk_biz_id]["value_list"] = existing_value_list + new_value_list
             else:
+                if not relation_dict.get("value_list"):
+                    continue
                 unique_relations[related_bk_biz_id] = relation_dict
+
         return list(unique_relations.values())
 
     @classmethod
@@ -493,7 +495,10 @@ class ServiceConfigResource(Resource):
             for data in prepare_datas
         ]
         # 执行同步
-        model_cls.sync_relations(bk_biz_id, app_name, service_name, records)
+        if relation_type == "event_relation":
+            model_cls.sync_relations(bk_biz_id, app_name, service_name, records, is_delete=False)
+        else:
+            model_cls.sync_relations(bk_biz_id, app_name, service_name, records)
 
     @classmethod
     def update_labels(cls, bk_biz_id: int, app_name: str, service_name: str, labels: list[str] | None) -> None:
@@ -505,55 +510,12 @@ class ServiceConfigResource(Resource):
             json.dumps(labels),
         )
 
-    @classmethod
-    def update_event_relations(
-        cls, bk_biz_id: int, app_name: str, service_name: str, event_relations: list[dict[str, Any]]
-    ):
-        if not event_relations:
-            return
-
-        table_relation_map: dict[str, dict[str, Any]] = {
-            relation["table"]: relation
-            for relation in EventServiceRelation.get_relations(bk_biz_id, app_name, [service_name])
-        }
-
-        username: str = get_request_username()
-        to_be_created_relations: list[EventServiceRelation] = []
-        to_be_updated_relations: list[EventServiceRelation] = []
-        for relation in event_relations:
-            exists_relation: dict[str, Any] | None = table_relation_map.get(relation["table"])
-            if exists_relation:
-                to_be_updated_relations.append(
-                    EventServiceRelation(
-                        id=exists_relation["id"], updated_by=username, updated_at=arrow.now().datetime, **relation
-                    )
-                )
-            else:
-                to_be_created_relations.append(
-                    EventServiceRelation(
-                        bk_biz_id=bk_biz_id,
-                        app_name=app_name,
-                        service_name=service_name,
-                        updated_by=username,
-                        created_by=username,
-                        **relation,
-                    )
-                )
-
-        if to_be_created_relations:
-            EventServiceRelation.objects.bulk_create(to_be_created_relations, batch_size=100)
-        if to_be_updated_relations:
-            EventServiceRelation.objects.bulk_update(
-                to_be_updated_relations, batch_size=100, fields=["updated_at", "updated_by", "relations", "options"]
-            )
-
     def perform_request(self, validated_request_data: dict[str, Any]) -> None:
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         service_name: str = validated_request_data["service_name"]
 
-        # 对 event_relation / labels 单独作处理
-        self.update_event_relations(bk_biz_id, app_name, service_name, validated_request_data.get("event_relation"))
+        # 对 labels 单独作处理
         if "labels" in validated_request_data:
             self.update_labels(bk_biz_id, app_name, service_name, validated_request_data["labels"])
 

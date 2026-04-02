@@ -116,6 +116,7 @@ class ServiceBase(models.Model):
         service_name: str = "",
         records: list[dict[str, Any]] | None = None,
         scope: SyncScope = SyncScope.SERVICE,
+        is_delete: bool = True,
     ) -> dict[str, Any]:
         """统一更新入口，按 DIFF_KEYS 比对存量，执行增/改/删。
 
@@ -133,6 +134,10 @@ class ServiceBase(models.Model):
           - SyncScope.SERVICE：Q(is_global=False)，仅操作服务级记录。
           - SyncScope.GLOBAL：Q(is_global=True)，仅操作全局记录。
           - SyncScope.ALL：不区分，操作该应用下所有记录。
+
+        is_delete (bool): 是否删除存量中多余的记录，默认为 True。
+          为 True 时，不在 records 中的存量记录会被删除（完整同步语义）；
+          为 False 时，仅执行新增和更新，不删除任何已有记录（增量同步语义）。
         """
 
         records: list[dict[str, Any]] = records or []
@@ -186,8 +191,10 @@ class ServiceBase(models.Model):
             cls.objects.bulk_create(to_create, batch_size=100)
         if to_update:
             cls.objects.bulk_update(to_update, fields=cls.DEFAULT_KEYS + ["updated_by", "updated_at"], batch_size=100)
-        if to_delete_ids:
+        if to_delete_ids and is_delete:
             cls.objects.filter(id__in=to_delete_ids).delete()
+        else:
+            to_delete_ids.clear()
 
         return {"created": len(to_create), "updated": len(to_update), "deleted": len(to_delete_ids)}
 

@@ -58,6 +58,7 @@ class ServiceLogHandler:
 
         # Step1: 找到此应用所有服务关联的日志
         service_mapping = defaultdict(dict)
+        # TODO: PR-3 引入全局日志关系后，此处会过滤掉全局配置
         relations = LogServiceRelation.get_relation_qs(bk_biz_id, app_name)
         for i in relations:
             if i.log_type == ServiceRelationLogTypeChoices.BK_LOG:

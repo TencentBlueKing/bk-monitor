@@ -88,7 +88,7 @@ class ServiceConfigSerializer(serializers.Serializer):
     labels = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        uri_relations: list[dict[str, Any]] = attrs.get("uri_relation") or []
+        uri_relations: list[str] = attrs["uri_relation"]
         if len(set(uri_relations)) != len(uri_relations):
             raise serializers.ValidationError(_("uri 含有重复配置项"))
 
