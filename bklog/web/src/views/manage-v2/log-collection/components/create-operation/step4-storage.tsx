@@ -84,10 +84,6 @@ export default defineComponent({
       },
       ...props.configData,
     });
-    console.log('props.configData',props.configData);
-    const {storage_replies, retention, storage_shards_nums,} = props.configData;
-    console.log('props.configData',storage_replies, retention, storage_shards_nums);
-    console.log('formData', formData.value.storage_replies, formData.value.retention, formData.value.es_shards, formData.value.storage_shards_nums)
     const cleanStash = ref({});
 
     const bkBizId = computed(() => store.state.bkBizId);
