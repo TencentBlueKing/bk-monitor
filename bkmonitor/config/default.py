@@ -836,7 +836,7 @@ DATABASES = {
             "MAX_OVERFLOW": -1,
             "RECYCLE": 600,
         },
-        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300, "connect_timeout": 10},
     },
     "monitor_api": {
         "ENGINE": "django.db.backends.mysql",
@@ -845,7 +845,7 @@ DATABASES = {
         "PASSWORD": BACKEND_MYSQL_PASSWORD,
         "HOST": BACKEND_MYSQL_HOST,
         "PORT": BACKEND_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300, "connect_timeout": 10},
     },
     "bk_dataview": {
         "ENGINE": "django.db.backends.mysql",
@@ -854,7 +854,7 @@ DATABASES = {
         "PASSWORD": GRAFANA_MYSQL_PASSWORD or BACKEND_MYSQL_PASSWORD,
         "HOST": GRAFANA_MYSQL_HOST or BACKEND_MYSQL_HOST,
         "PORT": GRAFANA_MYSQL_PORT or BACKEND_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300, "connect_timeout": 10},
     },
 }
 
@@ -869,7 +869,7 @@ else:
         "PASSWORD": BACKEND_ALERT_MYSQL_PASSWORD,
         "HOST": BACKEND_ALERT_MYSQL_HOST,
         "PORT": BACKEND_ALERT_MYSQL_PORT,
-        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300},
+        "OPTIONS": {"charset": "utf8mb4", "read_timeout": 300, "connect_timeout": 10},
     }
 
 # ES7 config

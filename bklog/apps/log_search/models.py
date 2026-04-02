@@ -390,7 +390,7 @@ class LogIndexSet(SoftDeleteModel):
 
     # doris
     support_doris = models.BooleanField(_("是否支持doris存储类型"), default=False)
-    doris_table_id = models.CharField(_("doris表名"), max_length=128, null=True, default=None)
+    doris_table_id = models.TextField(_("doris表名"), null=True, default=None)
 
     query_alias_settings = models.JSONField(_("查询别名配置"), null=True, blank=True)
 
@@ -661,7 +661,7 @@ class LogIndexSet(SoftDeleteModel):
         for add_tag_id in add_tag_ids:
             tag_ids.add(add_tag_id)
         index_set.tag_ids = list(tag_ids)
-        index_set.save()
+        index_set.save(update_fields=["tag_ids"])
 
     @classmethod
     def delete_tag_by_name(cls, index_set_id, tag_name):
@@ -676,7 +676,7 @@ class LogIndexSet(SoftDeleteModel):
         delete_tag_ids = {str(tag_id) for tag_id in tag_ids}
         remain_tag_ids = original_tag_ids - delete_tag_ids
         index_set.tag_ids = list(remain_tag_ids)
-        index_set.save()
+        index_set.save(update_fields=["tag_ids"])
 
     def mark_favorite(self, username: str):
         IndexSetUserFavorite.mark(username, self.index_set_id)
