@@ -187,6 +187,7 @@ export default {
     },
     getDisabledTipsMessage(row, operateType) {
       if (operateType === 'delete') return this.disabledTips.delete;
+      if (operateType === 'clean' && !row.table_id) return this.$t('请先完成采集接入');
       if (!this.disabledTips[row.status]) return '--';
       if (this.disabledTips[row.status].operateType?.includes(operateType)) {
         return this.disabledTips[row.status].tips;
@@ -197,7 +198,10 @@ export default {
       if (operateType === 'search') {
         return !(!row.is_active || (!row.index_set_id && !row.bkdata_index_set_ids.length));
       }
-      if (['clean', 'storage', 'clone'].includes(operateType)) {
+      if (operateType === 'clean') {
+        return !!row.table_id;
+      }
+      if (['storage', 'clone'].includes(operateType)) {
         return !row.status || row.table_id;
       }
       if (['stop', 'start'].includes(operateType)) {
