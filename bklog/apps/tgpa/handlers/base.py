@@ -29,6 +29,7 @@ import magic
 import ujson
 from django.conf import settings
 from qcloud_cos import CosConfig, CosS3Client
+from qcloud_cos.cos_exception import CosServiceError
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_databus.constants import ContainerCollectorType, EtlConfig
@@ -69,9 +70,23 @@ class TGPAFileHandler:
         self.bk_biz_id = bk_biz_id
 
     @classmethod
-    def _get_cos_config(cls, bk_biz_id=None):
+    def _get_default_cos_config(cls):
         """
-        获取 COS 配置，优先从 FeatureToggle 中按业务获取，环境变量作为兜底。
+        获取默认 COS 配置（从环境变量中读取）
+        :return: dict，包含 secret_id, secret_key, region, bucket, domain
+        """
+        return {
+            "secret_id": settings.TGPA_TASK_QCLOUD_SECRET_ID,
+            "secret_key": settings.TGPA_TASK_QCLOUD_SECRET_KEY,
+            "region": settings.TGPA_TASK_QCLOUD_COS_REGION,
+            "bucket": settings.TGPA_TASK_QCLOUD_COS_BUCKET,
+            "domain": settings.TGPA_TASK_QCLOUD_COS_DOMAIN,
+        }
+
+    @classmethod
+    def _get_biz_cos_config(cls, bk_biz_id):
+        """
+        获取业务自定义 COS 配置。
         FeatureToggle 中的 cos_config 配置格式示例：
         {
             "cos_config": {
@@ -84,35 +99,28 @@ class TGPAFileHandler:
                 }
             }
         }
-        :param bk_biz_id: 业务ID，如果传入则尝试获取该业务的COS配置
-        :return: dict，包含 secret_id, secret_key, region, bucket, domain
+        :param bk_biz_id: 业务ID
+        :return: dict 或 None，如果业务有自定义配置则返回配置字典，否则返回 None
         """
-        if bk_biz_id:
-            feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
-            if feature_toggle and feature_toggle.feature_config:
-                cos_config = feature_toggle.feature_config.get("cos_config", {})
-                biz_cos_config = cos_config.get(str(bk_biz_id))
-                if biz_cos_config:
-                    logger.info("Using per-business COS config for bk_biz_id: %s", bk_biz_id)
-                    return {
-                        "secret_id": biz_cos_config["secret_id"],
-                        "secret_key": biz_cos_config["secret_key"],
-                        "region": biz_cos_config["region"],
-                        "bucket": biz_cos_config["bucket"],
-                        "domain": biz_cos_config.get("domain", ""),
-                    }
-        return {
-            "secret_id": settings.TGPA_TASK_QCLOUD_SECRET_ID,
-            "secret_key": settings.TGPA_TASK_QCLOUD_SECRET_KEY,
-            "region": settings.TGPA_TASK_QCLOUD_COS_REGION,
-            "bucket": settings.TGPA_TASK_QCLOUD_COS_BUCKET,
-            "domain": settings.TGPA_TASK_QCLOUD_COS_DOMAIN,
-        }
+        if not bk_biz_id:
+            return None
+        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+        if feature_toggle and feature_toggle.feature_config:
+            cos_config = feature_toggle.feature_config.get("cos_config", {})
+            biz_cos_config = cos_config.get(str(bk_biz_id))
+            if biz_cos_config:
+                return {
+                    "secret_id": biz_cos_config["secret_id"],
+                    "secret_key": biz_cos_config["secret_key"],
+                    "region": biz_cos_config["region"],
+                    "bucket": biz_cos_config["bucket"],
+                    "domain": biz_cos_config.get("domain", ""),
+                }
+        return None
 
     @classmethod
-    def _get_cos_client(cls, bk_biz_id=None):
-        """获取COS客户端实例，优先使用按业务的COS配置，环境变量作为兜底"""
-        cos_config = cls._get_cos_config(bk_biz_id)
+    def _get_cos_client_by_config(cls, cos_config):
+        """根据指定的 COS 配置创建客户端实例"""
         config = CosConfig(
             SecretId=cos_config["secret_id"],
             SecretKey=cos_config["secret_key"],
@@ -122,15 +130,44 @@ class TGPAFileHandler:
         return CosS3Client(config)
 
     @classmethod
+    def _resolve_cos_client_and_config(cls, file_name, bk_biz_id=None):
+        """
+        通过 head_object 探测文件所在的 COS，返回能访问到该文件的 (client, config)。
+        优先尝试业务自定义 COS 配置，如果文件不存在（404）则回退到默认配置（兼容存量文件）。
+        :param file_name: COS 上的文件名
+        :param bk_biz_id: 业务ID
+        :return: tuple (CosS3Client, dict)
+        """
+        biz_config = cls._get_biz_cos_config(bk_biz_id)
+        if biz_config:
+            client = cls._get_cos_client_by_config(biz_config)
+            try:
+                client.head_object(Bucket=biz_config["bucket"], Key=file_name)
+                logger.info("File found in biz COS (bk_biz_id=%s): %s", bk_biz_id, file_name)
+                return client, biz_config
+            except CosServiceError as e:
+                if e.get_status_code() == 404:
+                    logger.info(
+                        "File not found in biz COS (bk_biz_id=%s), falling back to default COS: %s",
+                        bk_biz_id,
+                        file_name,
+                    )
+                else:
+                    raise
+
+        # 没有业务自定义配置，或业务 COS 中文件不存在（存量文件），使用默认配置
+        default_config = cls._get_default_cos_config()
+        return cls._get_cos_client_by_config(default_config), default_config
+
+    @classmethod
     def get_cos_file_info(cls, file_name, bk_biz_id=None):
         """
-        通过COS head_object获取文件信息
+        通过 COS head_object获取文件信息
         :param file_name: COS上的文件名
         :param bk_biz_id: 业务ID，用于获取按业务的COS配置
         :return: dict，包含文件大小等信息，例如 {"content_length": 1024, ...}
         """
-        cos_config = cls._get_cos_config(bk_biz_id)
-        client = cls._get_cos_client(bk_biz_id)
+        client, cos_config = cls._resolve_cos_client_and_config(file_name, bk_biz_id)
         head_response = client.head_object(Bucket=cos_config["bucket"], Key=file_name)
         return {
             "content_length": int(head_response.get("Content-Length", 0)),
@@ -142,8 +179,7 @@ class TGPAFileHandler:
         """
         从COS流式读取文件
         """
-        cos_config = cls._get_cos_config(bk_biz_id)
-        client = cls._get_cos_client(bk_biz_id)
+        client, cos_config = cls._resolve_cos_client_and_config(file_name, bk_biz_id)
         response = client.get_object(Bucket=cos_config["bucket"], Key=file_name)
         while True:
             chunk = response["Body"].read(chunk_size)
@@ -155,8 +191,7 @@ class TGPAFileHandler:
         """
         从腾讯云COS下载文件
         """
-        cos_config = self._get_cos_config(self.bk_biz_id)
-        client = self._get_cos_client(self.bk_biz_id)
+        client, cos_config = self._resolve_cos_client_and_config(file_name, self.bk_biz_id)
         response = client.get_object(Bucket=cos_config["bucket"], Key=file_name)
 
         # 提取纯文件名，防止路径穿越攻击
