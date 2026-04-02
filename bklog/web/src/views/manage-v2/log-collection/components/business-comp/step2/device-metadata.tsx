@@ -233,6 +233,15 @@ export default defineComponent({
         extraLabelList.value[index].duplicateKey = isDuplicate;
       }
 
+      // 当用户修改后，检查是否可以清除全局错误状态
+      // 如果当前所有项都满足条件（key和value非空且不重复），则清除 isExtraError
+      const hasError = extraLabelList.value.some(
+        item => item.key === '' || item.value === '' || item.duplicateKey
+      );
+      if (!hasError) {
+        isExtraError.value = false;
+      }
+
       // 延迟提交变化，避免频繁触发
       nextTick(() => {
         handleExtraLabelsChange();
@@ -319,16 +328,12 @@ export default defineComponent({
     expose({
       extraLabelsValidate,
     });
-    const renderInputItem = (item: IExtraLabel, index) => (
+    const renderInputItem = (item: IExtraLabel, index: number) => (
       <div class='device-metadata-input-item'>
         <div class='item-left'>
           <bk-input
             class={{ 'extra-error': item.key === '' && isExtraError.value }}
             value={item.key}
-            on-Blur={() => {
-              isExtraError.value = false;
-              item.duplicateKey = false;
-            }}
             on-Input={(val: string) => handleExtraLabelChange(index, 'key', val)}
           />
           {item.duplicateKey && (
@@ -342,9 +347,6 @@ export default defineComponent({
         <bk-input
           class={{ 'extra-error': item.value === '' && isExtraError.value }}
           value={item.value}
-          on-Blur={() => {
-            isExtraError.value = false;
-          }}
           on-Input={(val: string) => handleExtraLabelChange(index, 'value', val)}
         />
         <span
@@ -352,8 +354,8 @@ export default defineComponent({
           on-Click={handleAddExtraLabel}
         />
         <span
-          class={{ 'bk-icon icon-minus-circle-shape icons': true, disabled: extraLabelList.value.length === 1 }}
-          on-Click={handleDeleteExtraLabel}
+          class={{ 'bk-icon icon-minus-circle-shape icons': true }}
+          on-Click={() => handleDeleteExtraLabel(index)}
         />
       </div>
     );

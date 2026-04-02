@@ -186,6 +186,7 @@ export default defineComponent({
     const pathRef = ref(); // 日志路径ref
     const excludeFilesRef = ref(); // 黑名单路径ref
     const logFilterRef = ref(); // 日志过滤器ref
+    const deviceMetadataRef = ref(); // 设备元数据ref
     /**
      * 集群列表
      */
@@ -795,6 +796,7 @@ export default defineComponent({
      */
     const renderDeviceMetadata = () => (
       <DeviceMetadata
+        ref={deviceMetadataRef}
         metadata={formData.value.extra_labels}
         // metadata={formData.value.params.extra_labels}
         on-extra-labels-change={handleMetadataList}
@@ -1432,6 +1434,13 @@ export default defineComponent({
         isConfigError = configurationItemListRef.value.validate();
       }
       /**
+       * 设备元数据校验
+       */
+      let isMetadataValid = true;
+      if (deviceMetadataRef.value) {
+        isMetadataValid = deviceMetadataRef.value.extraLabelsValidate();
+      }
+      /**
        * 是否为容器采集并且配置项校验通过
        */
       // console.log('formData.value', formData.value);
@@ -1449,7 +1458,7 @@ export default defineComponent({
             setCollection();
             return;
           }
-          if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && !isSegmentError.value && isConfigError) {
+          if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && !isSegmentError.value && isConfigError && isMetadataValid) {
             setCollection();
           }
         })
