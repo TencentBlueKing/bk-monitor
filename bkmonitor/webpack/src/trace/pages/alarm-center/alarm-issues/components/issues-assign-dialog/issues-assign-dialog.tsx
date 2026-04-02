@@ -24,16 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, defineComponent, shallowRef, toRef, watch } from 'vue';
 
 import { Button, Dialog } from 'bkui-vue';
-import { useI18n } from 'vue-i18n';
 
 import UserSelector from '../../../../../components/user-selector/user-selector';
-import { assignIssues, showOperationResult } from '../../services/issues-operations';
+import { useAsyncDialog } from '../../hooks/use-async-dialog';
 
-import type { IssuesBatchActionEnum } from '../../constant';
-import type { IssueIdentifier, IssuesOperationDialogEvent } from '../../typing';
+import type { AsyncDialogConfirmEvent } from '../../hooks/use-async-dialog';
+import type { IssueIdentifier } from '../../typing';
 
 import './issues-assign-dialog.scss';
 
@@ -56,20 +55,26 @@ export default defineComponent({
     },
   },
   emits: {
-    success: (event: IssuesOperationDialogEvent<typeof IssuesBatchActionEnum.ASSIGN>) => event != null,
+    confirm: (_event: AsyncDialogConfirmEvent<{ assignee: string[] }>) => _event != null,
     cancel: () => true,
-    'update:isShow': (val: boolean) => typeof val === 'boolean',
+    'update:isShow': (_val: boolean) => typeof _val === 'boolean',
   },
   setup(props, { emit }) {
-    const { t } = useI18n();
     /** 指派负责人选中值 */
     const assignInputValue = shallowRef<string[]>([]);
-    /** 提交中 loading 状态 */
-    const loading = shallowRef(false);
+
+    const {
+      loading,
+      handleConfirm: createConfirmEvent,
+      handleCancel: internalCancel,
+    } = useAsyncDialog({
+      isShow: toRef(() => props.isShow),
+      onShowChange: (val: boolean) => emit('update:isShow', val),
+    });
 
     /**
      * @description 获取弹窗标题
-     * @returns { string } 弹窗标题
+     * @returns {string} 弹窗标题
      */
     const getTitle = () => {
       if (props.title) return props.title;
@@ -78,31 +83,22 @@ export default defineComponent({
     };
 
     /**
-     * @description 确认指派
+     * @description 确认指派——通过 useAsyncDialog 创建 { resolve, reject } 事件对象并 emit 给调用方
+     * @returns {void}
      */
-    const handleConfirm = async () => {
+    const handleConfirm = () => {
       const assignees = assignInputValue.value;
       if (!assignees?.length) return;
-      loading.value = true;
-
-      try {
-        const res = await assignIssues({
-          issues: props.issuesData,
-          assignee: assignees,
-        });
-
-        showOperationResult(res, t('指派责任人成功'));
-        emit('success', res);
-      } finally {
-        loading.value = false;
-      }
+      const event = createConfirmEvent({ assignee: assignees });
+      emit('confirm', event);
     };
 
     /**
      * @description 取消指派
+     * @returns {void}
      */
     const handleCancel = () => {
-      if (loading.value) return;
+      if (!internalCancel()) return;
       emit('cancel');
     };
 
@@ -112,7 +108,6 @@ export default defineComponent({
       val => {
         if (val) {
           assignInputValue.value = [];
-          loading.value = false;
         }
       }
     );
