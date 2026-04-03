@@ -75,15 +75,11 @@ export default defineComponent({
     const loading = ref(false);
     const submitLoading = ref(false);
     const formData = ref({
-      ...{
-        storage_replies: 1,
-        retention: 7,
-        es_shards: 3,
-        need_assessment: false,
-        allocation_min_days: 0,
-      },
-      ...props.configData,
-      es_shards: props.configData.storage_shards_nums || props.configData.es_shards || 3,
+      storage_replies: 1,
+      retention: 7,
+      es_shards: 3,
+      need_assessment: false,
+      allocation_min_days: 0,
     });
     const cleanStash = ref({});
 
@@ -234,7 +230,7 @@ export default defineComponent({
       }
     };
     onMounted(async () => {
-      initData(true);
+      initData();
       loading.value = true;
       const isStorageEdit = ['collectEdit', 'collectStorage'].includes(String(route.name ?? '')) && route.query.step;
       if (isStorageEdit) {
@@ -524,7 +520,14 @@ export default defineComponent({
      * @param val
      */
     const initData = () => {
-      formData.value = { ...formData.value, ...props.configData };
+      formData.value = {
+        ...formData.value,
+        ...props.configData,
+        retention: props.configData.retention ?? formData.value.retention,
+        allocation_min_days: props.configData.allocation_min_days ?? formData.value.allocation_min_days,
+        storage_replies: props.configData.storage_replies ?? formData.value.storage_replies,
+        es_shards: props.configData.storage_shards_nums || props.configData.es_shards || formData.value.es_shards,
+      };
       clusterSelect.value = props.configData.storage_cluster_id;
     };
     // watch(
