@@ -62,6 +62,7 @@
 <script>
   import SubNav from '@/components/nav/manage-nav';
 import { mapGetters, mapState } from 'vuex';
+import { isFeatureToggleOn } from '@/store/helper';
 
   export default {
     name: 'ManageIndex',
@@ -118,6 +119,13 @@ import { mapGetters, mapState } from 'vuex';
               this.redirectToFirstMenuItem();
               return;
             }
+          }
+
+          // 检查当前是否在 log_manage_v2 需要隐藏的路由
+          const isV2HiddenRoute = this.checkIfV2HiddenRoute();
+          if (isV2HiddenRoute && this.checkLogManageV2()) {
+            this.redirectToFirstMenuItem();
+            return;
           }
 
           // 获取最外层路径
@@ -186,6 +194,12 @@ import { mapGetters, mapState } from 'vuex';
           return this.checkTgpaTaskFeatureToggle();
         }
 
+        // 如果是新版采集(log_manage_v2)启用，则隐藏计算平台、第三方ES、自定义上报
+        const v2HiddenMenus = ['bk-data-collection', 'es-collection', 'custom-report'];
+        if (v2HiddenMenus.includes(menuId)) {
+          return !this.checkLogManageV2();
+        }
+
         // 其他菜单项默认显示
         return true;
       },
@@ -221,6 +235,15 @@ import { mapGetters, mapState } from 'vuex';
       // 检查当前路由是否为 tgpa-task 相关路由
       checkIfTgpaTaskRoute() {
         return this.$route.meta?.navId === 'tgpa-task';
+      },
+      // 检查当前路由是否为 log_manage_v2 启用后需要隐藏的路由
+      checkIfV2HiddenRoute() {
+        const hiddenNavIds = ['bk-data-collection', 'es-collection', 'custom-report'];
+        return hiddenNavIds.includes(this.$route.meta?.navId);
+      },
+      // 检查 log_manage_v2 功能开关（是否启用新版采集）
+      checkLogManageV2() {
+        return isFeatureToggleOn('log_manage_v2', [String(this.bkBizId), String(this.spaceUid)]);
       },
       // 跳转到manage首页
       redirectToFirstMenuItem() {
