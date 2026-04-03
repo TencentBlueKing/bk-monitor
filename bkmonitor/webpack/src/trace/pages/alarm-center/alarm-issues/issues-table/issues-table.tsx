@@ -100,7 +100,8 @@ export default defineComponent({
 
     /** 图表联动组管理 */
     const { chartGroupId } = useEchartsGroupConnect(() => props.data);
-
+    /** hover 场景使用的popover工具函数 */
+    const hoverPopoverTools = usePopover();
     /** click 场景使用的 popover 工具 */
     const clickPopoverTools = usePopover({
       showDelay: 100,
@@ -125,6 +126,7 @@ export default defineComponent({
     const { transformColumns } = useIssuesColumnsRenderer({
       chartGroupId,
       clickPopoverTools,
+      hoverPopoverTools,
       handleShowDetail,
       handleAssignClick,
       handleMarkResolved,
