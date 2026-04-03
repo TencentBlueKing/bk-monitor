@@ -147,7 +147,6 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 24px;
       height: 22px;
       padding: 0 6px;
       font-size: 12px;
@@ -168,11 +167,13 @@
     display: flex;
     column-gap: 2px;
     align-items: center;
+    width: 100%;
 
     .status-tag {
       display: inline-flex;
       gap: 2px;
       align-items: center;
+      min-width: 0;
       height: 24px;
       padding: 0 8px;
       font-size: 12px;
@@ -180,6 +181,7 @@
       border-radius: 12px;
 
       .status-icon {
+        flex-shrink: 0;
         width: 14px;
         height: 14px;
         font-size: 14px;

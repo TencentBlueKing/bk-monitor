@@ -27,6 +27,7 @@
 import { type PropType, defineComponent, toRef } from 'vue';
 
 import { Button, Dialog } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import { useAsyncDialog } from '../../hooks/use-async-dialog';
 
@@ -59,6 +60,7 @@ export default defineComponent({
     'update:isShow': (_val: boolean) => typeof _val === 'boolean',
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     const {
       loading,
       handleConfirm: createConfirmEvent,
@@ -74,8 +76,8 @@ export default defineComponent({
      */
     const getTip = () => {
       if (props.tip) return props.tip;
-      if (props.issuesData?.length > 1) return window.i18n.t('确认批量标记为"已解决"？');
-      return window.i18n.t('确认标记为"已解决"？');
+      if (props.issuesData?.length > 1) return t('确认批量标记为"已解决"？');
+      return t('确认标记为“已解决”？');
     };
 
     /**
@@ -97,6 +99,7 @@ export default defineComponent({
     };
 
     return {
+      t,
       loading,
       getTip,
       handleConfirm,
@@ -121,13 +124,13 @@ export default defineComponent({
                   theme='primary'
                   onClick={this.handleConfirm}
                 >
-                  {window.i18n.t('确定')}
+                  {this.t('确定')}
                 </Button>
                 <Button
                   disabled={this.loading}
                   onClick={this.handleCancel}
                 >
-                  {window.i18n.t('取消')}
+                  {this.t('取消')}
                 </Button>
               </div>
             </div>

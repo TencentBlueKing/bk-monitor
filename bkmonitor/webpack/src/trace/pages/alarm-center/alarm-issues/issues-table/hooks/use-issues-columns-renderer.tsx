@@ -250,7 +250,11 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
    * @param {IssueItem} row - 当前行 Issue 数据
    * @returns {SlotReturnValue} 状态列 JSX
    */
-  const renderStatusCell = (row: IssueItem): SlotReturnValue => {
+  const renderStatusCell = (
+    row: IssueItem,
+    column: BaseTableColumn,
+    renderCtx: TableCellRenderContext
+  ): SlotReturnValue => {
     const config = ISSUES_STATUS_MAP[row.status];
     return (
       <div class='issues-status-col'>
@@ -262,7 +266,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
           class='status-tag'
         >
           <i class={`status-icon ${config?.icon}`} />
-          <span class='status-text'>{config?.alias || row.status}</span>
+          <span class={['status-text', renderCtx.isEnabledCellEllipsis(column)]}>{config?.alias || row.status}</span>
         </span>
       </div>
     ) as unknown as SlotReturnValue;
