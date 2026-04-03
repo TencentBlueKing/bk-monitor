@@ -80,9 +80,9 @@ class TGPAFileHandler:
         return f"{base_url}?ccid={bk_biz_id}&filename={file_name}"
 
     @classmethod
-    def get_file_info(cls, file_name, bk_biz_id=None):
+    def get_file_info(cls, file_name, bk_biz_id):
         """
-        通过 HTTP HEAD 请求获取文件信息
+        获取文件信息
         :param file_name: 文件名
         :param bk_biz_id: 业务ID
         :return: dict，包含文件大小等信息，例如 {"content_length": 1024, ...}
@@ -101,7 +101,7 @@ class TGPAFileHandler:
     @classmethod
     def get_file_stream(cls, file_name, bk_biz_id):
         """
-        从 TransceiverTool 流式读取文件
+        流式读取文件
         :param file_name: 文件名
         :param bk_biz_id: 业务ID
         """
@@ -115,7 +115,7 @@ class TGPAFileHandler:
 
     def download_file(self, file_name):
         """
-        从 TransceiverTool 下载文件到本地
+        下载文件到本地
         """
         url = self._build_download_url(file_name, self.bk_biz_id)
         response = requests.get(url, stream=True, timeout=300)
@@ -280,7 +280,7 @@ class TGPAFileHandler:
         """
         下载文件、解压、解密，然后重新打包为zip文件。
         如果没有配置解密处理器，则直接返回原始下载文件路径，无需额外处理。
-        :param file_name: 远程文件名
+        :param file_name: 文件名
         :return: 文件路径
         """
         saved_path = self.download_file(file_name)
