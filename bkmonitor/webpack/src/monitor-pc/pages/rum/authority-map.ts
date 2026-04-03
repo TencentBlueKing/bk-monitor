@@ -23,12 +23,4 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import ApmRoutes from './apm';
-import k8sRoutes from './k8s';
-import performanceRoutes from './performance';
-import RumRoutes from './rum';
-import uptimeCheckRoutes from './uptime-check';
-
-import type { RouteConfig } from 'vue-router';
-
-export default [...ApmRoutes, ...RumRoutes, ...performanceRoutes, ...uptimeCheckRoutes, ...k8sRoutes] as RouteConfig[];
+export const VIEW_AUTH = 'view_business_v2'; // k8s查看

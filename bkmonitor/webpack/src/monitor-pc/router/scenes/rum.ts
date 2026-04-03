@@ -23,12 +23,32 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import ApmRoutes from './apm';
-import k8sRoutes from './k8s';
-import performanceRoutes from './performance';
-import RumRoutes from './rum';
-import uptimeCheckRoutes from './uptime-check';
+import * as rumAuth from '../../pages/rum/authority-map';
 
 import type { RouteConfig } from 'vue-router';
 
-export default [...ApmRoutes, ...RumRoutes, ...performanceRoutes, ...uptimeCheckRoutes, ...k8sRoutes] as RouteConfig[];
+const Rum = () => import(/* webpackChunkName: 'Rum' */ '../../pages/rum/rum');
+export default [
+  {
+    path: '/trace/rum',
+    name: 'rum',
+    components: {
+      noCache: Rum,
+    },
+    meta: {
+      title: 'RUM',
+      navId: 'rum',
+      navClass: 'rum-nav',
+      noChangeLoading: true,
+      noNavBar: true,
+      needClearQuery: true,
+      route: {
+        parent: 'scenes',
+      },
+      authority: {
+        map: rumAuth,
+        page: rumAuth.VIEW_AUTH,
+      },
+    },
+  },
+] as RouteConfig[];

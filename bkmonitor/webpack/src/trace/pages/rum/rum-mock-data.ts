@@ -26,19 +26,15 @@
 
 /** 列表行（对接接口后由服务端类型替换） */
 export interface RumAppRow {
-  accessStatus: string;
   alias: string;
   apiFailRate: null | number;
-  appStatus: string;
   createdAt: number;
-  creator: string;
   dataStatus: 'abnormal' | 'healthy';
   domain: string;
   id: string;
   jsErrorRate: null | number;
   lcpP75Sec: null | number;
   updatedAt: number;
-  updater: string;
 }
 
 /** 设计稿示例数据，用于 UI 联调；接入 API 后删除 */
@@ -51,10 +47,6 @@ export const RUM_APP_LIST_MOCK: RumAppRow[] = [
     jsErrorRate: 0.3,
     apiFailRate: 1.5,
     dataStatus: 'healthy',
-    accessStatus: '已接入',
-    appStatus: '启用',
-    creator: 'zhangsan',
-    updater: 'lisi',
     createdAt: Date.now() - 86400000 * 30,
     updatedAt: Date.now() - 3600000,
   },
@@ -66,10 +58,6 @@ export const RUM_APP_LIST_MOCK: RumAppRow[] = [
     jsErrorRate: 0.2,
     apiFailRate: 0.8,
     dataStatus: 'healthy',
-    accessStatus: '已接入',
-    appStatus: '启用',
-    creator: 'wangwu',
-    updater: 'wangwu',
     createdAt: Date.now() - 86400000 * 20,
     updatedAt: Date.now() - 7200000,
   },
@@ -81,10 +69,6 @@ export const RUM_APP_LIST_MOCK: RumAppRow[] = [
     jsErrorRate: 0.1,
     apiFailRate: 2.2,
     dataStatus: 'abnormal',
-    accessStatus: '已接入',
-    appStatus: '启用',
-    creator: 'system',
-    updater: 'ops',
     createdAt: Date.now() - 86400000 * 90,
     updatedAt: Date.now() - 86400000,
   },
@@ -96,10 +80,6 @@ export const RUM_APP_LIST_MOCK: RumAppRow[] = [
     jsErrorRate: 1.2,
     apiFailRate: 4.5,
     dataStatus: 'healthy',
-    accessStatus: '接入中',
-    appStatus: '启用',
-    creator: 'dev',
-    updater: 'dev',
     createdAt: Date.now() - 86400000 * 10,
     updatedAt: Date.now() - 600000,
   },
@@ -111,10 +91,6 @@ export const RUM_APP_LIST_MOCK: RumAppRow[] = [
     jsErrorRate: 2.0,
     apiFailRate: 6.0,
     dataStatus: 'abnormal',
-    accessStatus: '已接入',
-    appStatus: '停用',
-    creator: 'admin',
-    updater: 'admin',
     createdAt: Date.now() - 86400000 * 200,
     updatedAt: Date.now() - 86400000 * 2,
   },
@@ -126,10 +102,6 @@ export const RUM_APP_LIST_MOCK: RumAppRow[] = [
     jsErrorRate: 0.05,
     apiFailRate: 0.4,
     dataStatus: 'healthy',
-    accessStatus: '已接入',
-    appStatus: '启用',
-    creator: 'cmdb',
-    updater: 'cmdb',
     createdAt: Date.now() - 86400000 * 400,
     updatedAt: Date.now() - 1800000,
   },
@@ -141,10 +113,6 @@ export const RUM_APP_LIST_MOCK: RumAppRow[] = [
     jsErrorRate: 0.4,
     apiFailRate: 1.1,
     dataStatus: 'healthy',
-    accessStatus: '已接入',
-    appStatus: '启用',
-    creator: 'monitor',
-    updater: 'monitor',
     createdAt: Date.now() - 86400000 * 500,
     updatedAt: Date.now() - 900000,
   },
