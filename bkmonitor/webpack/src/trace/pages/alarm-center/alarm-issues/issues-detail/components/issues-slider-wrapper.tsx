@@ -123,7 +123,7 @@ export default defineComponent({
       return {
         bk_biz_ids: [props.detail.bk_biz_id],
         query_string: props.filterMode === EMode.ui ? '' : props.queryString,
-        conditions: props.filterMode === EMode.ui ? [...props.conditions, issueIdCondition] : [issueIdCondition],
+        conditions: [issueIdCondition, ...(props.filterMode === EMode.ui ? props.conditions : [])],
       };
     });
     /** 维度统计数据 */
