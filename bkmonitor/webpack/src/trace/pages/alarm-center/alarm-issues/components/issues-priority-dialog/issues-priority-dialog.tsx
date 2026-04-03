@@ -27,6 +27,7 @@
 import { type PropType, defineComponent, shallowRef, toRef, watch } from 'vue';
 
 import { Button, Dialog, Radio } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import { IssuePriorityEnum, ISSUES_PRIORITY_MAP } from '../../constant';
 import { useAsyncDialog } from '../../hooks/use-async-dialog';
@@ -67,6 +68,7 @@ export default defineComponent({
     'update:isShow': (_val: boolean) => typeof _val === 'boolean',
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     /** 当前选中的优先级 */
     const selectedPriority = shallowRef<'' | IssuePriorityType>('');
 
@@ -85,8 +87,8 @@ export default defineComponent({
      */
     const getTitle = () => {
       if (props.title) return props.title;
-      if (props.issuesData?.length > 1) return window.i18n.t('批量修改优先级');
-      return window.i18n.t('修改优先级');
+      if (props.issuesData?.length > 1) return t('批量修改优先级');
+      return t('修改优先级');
     };
 
     /**
@@ -119,6 +121,7 @@ export default defineComponent({
     );
 
     return {
+      t,
       selectedPriority,
       loading,
       getTitle,
@@ -136,7 +139,7 @@ export default defineComponent({
             <div class='issues-priority-dialog-content'>
               <div class='priority-field'>
                 <span class='priority-label'>
-                  {window.i18n.t('优先级')}
+                  {this.t('优先级')}
                   <span class='required'>*</span>
                 </span>
                 <Radio.Group
@@ -177,13 +180,13 @@ export default defineComponent({
                 theme='primary'
                 onClick={this.handleConfirm}
               >
-                {window.i18n.t('确定')}
+                {this.t('确定')}
               </Button>
               <Button
                 disabled={this.loading}
                 onClick={this.handleCancel}
               >
-                {window.i18n.t('取消')}
+                {this.t('取消')}
               </Button>
             </div>
           ),
