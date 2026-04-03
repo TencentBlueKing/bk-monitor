@@ -26,7 +26,7 @@
 import { defineComponent, shallowRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
-import { random } from 'monitor-common/utils';
+import { convertDurationArray, random } from 'monitor-common/utils';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 
@@ -35,9 +35,10 @@ import IssuesSliderHeader from './components/issues-slider-header';
 import IssuesSliderWrapper from './components/issues-slider-wrapper';
 import { fetchIssueDetailMock } from './mock-data';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
+import { mergeWhereList } from '@/components/retrieval-filter/utils';
 import TimeRange from '@/components/time-range/time-range';
-import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
+import type { CommonCondition } from '../../typings';
 import type { ImpactScopeEvent, ImpactScopeResource, IssueDetail } from '../typing';
 import type { ImpactScopeResourceKeyType, IssuePriorityType } from '../typing/constants';
 
@@ -102,12 +103,9 @@ export default defineComponent({
       if (hasLoading) {
         loading.value = true;
       }
-      const [start, end] = handleTransformToTimestamp(timeRange.value);
       fetchIssueDetailMock({
         bk_biz_id: props.issueBizId,
         id: props.issueId,
-        start_time: start,
-        end_time: end,
       })
         .then(res => {
           detail.value = res;
@@ -145,7 +143,6 @@ export default defineComponent({
     /** 时间范围变更 */
     const handleTimeRangeChange = value => {
       timeRange.value = value;
-      getIssueDetailData();
     };
 
     /** 时区变更 */
@@ -215,6 +212,34 @@ export default defineComponent({
       impactScopeDrawerShow.value = !!event;
     };
 
+    /** 告警分析添加条件 */
+    const handleAddCondition = (condition: CommonCondition) => {
+      if (filterMode.value === EMode.ui) {
+        let conditionResult: CommonCondition[] = [condition];
+        // 持续时间需要特殊处理
+        if (condition.key === 'duration') {
+          conditionResult = convertDurationArray(condition.value as string[]);
+        }
+        conditions.value = mergeWhereList(
+          conditions.value,
+          conditionResult.map(condition => ({
+            key: condition.key,
+            method: condition.method,
+            value: condition.value.map(item => {
+              if (item.startsWith('"') && item.endsWith('"')) {
+                return item.slice(1, -1);
+              }
+              return item;
+            }),
+            ...(conditions.value.length > 1 ? { condition: 'and' } : {}),
+          }))
+        );
+      } else {
+        const value = `${queryString.value ? ' AND ' : ''}${condition.method === 'neq' ? '-' : ''}${condition.key}: ${condition.value[0]}`;
+        queryString.value = value;
+      }
+    };
+
     return {
       isFullscreen,
       timeRange,
@@ -242,6 +267,7 @@ export default defineComponent({
       handlePriorityChange,
       handleStatusAction,
       handleImpactScopeClick,
+      handleAddCondition,
     };
   },
   render() {
@@ -279,24 +305,28 @@ export default defineComponent({
           ),
           default: () => (
             <div class='issues-detail-side-slider-content'>
-              <IssuesSliderWrapper
-                conditions={this.conditions}
-                detail={this.detail}
-                filterMode={this.filterMode}
-                queryString={this.queryString}
-                timeRange={this.timeRange}
-                onAssigneeChange={this.handleAssigneeChange}
-                onConditionChange={this.handleConditionChange}
-                onFilterModeChange={this.handleFilterModeChange}
-                onImpactScopeClick={this.handleImpactScopeClick}
-                onPriorityChange={this.handlePriorityChange}
-                onQueryStringChange={this.handleQueryStringChange}
-                onStatusAction={this.handleStatusAction}
-              />
+              {this.detail && (
+                <IssuesSliderWrapper
+                  conditions={this.conditions}
+                  detail={this.detail}
+                  filterMode={this.filterMode}
+                  queryString={this.queryString}
+                  timeRange={this.timeRange}
+                  onAssigneeChange={this.handleAssigneeChange}
+                  onConditionChange={this.handleConditionChange}
+                  onFilterModeChange={this.handleFilterModeChange}
+                  onImpactScopeClick={this.handleImpactScopeClick}
+                  onPriorityChange={this.handlePriorityChange}
+                  onQueryStringChange={this.handleQueryStringChange}
+                  onStatusAction={this.handleStatusAction}
+                />
+              )}
+
               <IssuesImpactScopeDrawer
                 resource={this.impactScopeResource}
                 resourceKey={this.impactScopeResourceKey}
                 show={this.impactScopeDrawerShow}
+                onFilterByInstance={this.handleAddCondition}
                 onUpdate:show={(v: boolean) => {
                   if (v) return;
                   this.handleImpactScopeClick();

@@ -340,6 +340,7 @@ export default defineComponent({
               <span class='title'>{this.$t('影响范围')}</span>
             </div>
             <div class='basic-info-value'>
+              {Object.entries(this.detail.impact_scope ?? {}).length === 0 && this.$t('无')}
               {Object.entries(this.detail.impact_scope ?? {}).map(([resourceKey, resource]) => (
                 <div
                   key={resourceKey}
@@ -375,7 +376,9 @@ export default defineComponent({
             {this.detail.status !== IssueStatusEnum.ARCHIVED && (
               <Button
                 class='confirm-btn'
-                theme={isResolved ? 'default' : 'primary'}
+                {...(!isResolved && {
+                  theme: 'primary',
+                })}
                 onClick={() => {
                   this.handleDialogChange(true, isResolved ? IssueActionEnum.UNRESOLVED : IssueActionEnum.RESOLVED);
                 }}

@@ -29,6 +29,7 @@ import dayjs from 'dayjs';
 import { listIssueHistory } from 'monitor-api/modules/issue';
 
 import BasicCard from '../basic-card/basic-card';
+import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { IssueDetail, IssueHistoryItem } from '../../../typing';
 
@@ -99,29 +100,33 @@ export default defineComponent({
         title={this.$t('历史 Issue')}
       >
         <div class='issues-history-list'>
-          {this.loading
-            ? this.renderSkeleton()
-            : this.historyList.map(item => (
+          {this.loading ? (
+            this.renderSkeleton()
+          ) : this.historyList.length ? (
+            this.historyList.map(item => (
+              <div
+                key={item.id}
+                class='issues-history-item'
+              >
                 <div
-                  key={item.id}
-                  class='issues-history-item'
+                  class='item-title'
+                  onClick={() => {
+                    this.handleClick(item);
+                  }}
                 >
-                  <div
-                    class='item-title'
-                    onClick={() => {
-                      this.handleClick(item);
-                    }}
-                  >
-                    {item.name}
-                  </div>
-                  <div
-                    class='item-time'
-                    v-bk-tooltips={{ content: dayjs(item.create_time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
-                  >
-                    {dayjs(item.create_time * 1000).fromNow()}
-                  </div>
+                  {item.name}
                 </div>
-              ))}
+                <div
+                  class='item-time'
+                  v-bk-tooltips={{ content: dayjs(item.create_time * 1000).format('YYYY-MM-DD HH:mm:ss') }}
+                >
+                  {dayjs(item.create_time * 1000).fromNow()}
+                </div>
+              </div>
+            ))
+          ) : (
+            <EmptyStatus type='empty' />
+          )}
         </div>
       </BasicCard>
     );
