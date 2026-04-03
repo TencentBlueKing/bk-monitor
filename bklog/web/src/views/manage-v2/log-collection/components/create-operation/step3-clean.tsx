@@ -622,8 +622,11 @@ export default defineComponent({
               placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
               type='textarea'
               value={formData.value.etl_params.separator_regexp}
-              on-change={(val: string) => {
-                formData.value.etl_params.separator_regexp = val;
+              on-input={(val: string) => {
+                formData.value.etl_params = {
+                  ...formData.value.etl_params,
+                  separator_regexp: val,
+                };
               }}
             />
             <bk-button
@@ -1214,7 +1217,10 @@ export default defineComponent({
                   placeholder={defaultRegex}
                   value={formData.value.etl_params.path_regexp}
                   on-input={val => {
-                    formData.value.etl_params.path_regexp = val;
+                    formData.value.etl_params = {
+                      ...formData.value.etl_params,
+                      path_regexp: val,
+                    };
                   }}
                 />
                 <bk-button
