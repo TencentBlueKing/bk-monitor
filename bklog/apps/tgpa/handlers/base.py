@@ -110,25 +110,30 @@ class TGPAFileHandler:
             cos_config = feature_toggle.feature_config.get("cos_config", {})
             biz_cos_config = cos_config.get(str(bk_biz_id))
             if biz_cos_config:
-                return {
-                    "secret_id": biz_cos_config["secret_id"],
-                    "secret_key": biz_cos_config["secret_key"],
-                    "region": biz_cos_config["region"],
-                    "bucket": biz_cos_config["bucket"],
-                    "domain": biz_cos_config.get("domain", ""),
-                }
+                try:
+                    return {
+                        "secret_id": biz_cos_config["secret_id"],
+                        "secret_key": biz_cos_config["secret_key"],
+                        "region": biz_cos_config["region"],
+                        "bucket": biz_cos_config["bucket"],
+                        "domain": biz_cos_config.get("domain", ""),
+                    }
+                except KeyError as e:
+                    logger.warning("Incomplete biz COS config for bk_biz_id=%s, missing key: %s", bk_biz_id, e)
+                    return None
         return None
 
     @classmethod
     def _get_cos_client_by_config(cls, cos_config):
         """根据指定的 COS 配置创建客户端实例"""
-        config = CosConfig(
-            SecretId=cos_config["secret_id"],
-            SecretKey=cos_config["secret_key"],
-            Region=cos_config["region"],
-            Domain=cos_config["domain"],
-        )
-        return CosS3Client(config)
+        config_kwargs = {
+            "SecretId": cos_config["secret_id"],
+            "SecretKey": cos_config["secret_key"],
+            "Region": cos_config["region"],
+        }
+        if cos_config.get("domain"):
+            config_kwargs["Domain"] = cos_config["domain"]
+        return CosS3Client(CosConfig(**config_kwargs))
 
     @classmethod
     def _resolve_cos_client_and_config(cls, file_name, bk_biz_id=None):
