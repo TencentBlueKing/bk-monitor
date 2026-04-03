@@ -245,7 +245,7 @@ class TGPATaskHandler:
         """
         下载、解密、重新打包文件，并返回流式迭代器和文件信息
         :param bk_biz_id: 业务ID
-        :param file_name: TransceiverTool 上的文件名
+        :param file_name: 文件名
         :return: (file_iterator, file_name, file_size)
         """
         feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
