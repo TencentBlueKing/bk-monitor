@@ -156,11 +156,22 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
    * @returns {SlotReturnValue} 趋势列 JSX
    */
   const renderTrendCell = (row: IssueItem): SlotReturnValue => {
+    const trend = row.trend || [];
+    const seriesList = trend.length
+      ? [
+          {
+            datapoints: trend.map(([ts, count]) => [count, ts] as [number, number]),
+            name: t('告警事件数'),
+            type: 'bar',
+            unit: 'none',
+          },
+        ]
+      : [];
     return (
       <div class='issues-trend-col'>
         <MiniBarChart
-          data={row.trend || []}
           group={get(rendererCtx.chartGroupId)}
+          seriesList={seriesList}
           total={row.alert_count}
         />
       </div>
