@@ -80,7 +80,7 @@ const ISSUES_TABLE_COLUMNS: TableColumnItem[] = [
   {
     colKey: 'trend',
     title: window.i18n.t('趋势'),
-    width: 160,
+    width: 200,
     is_default: true,
   },
   {
