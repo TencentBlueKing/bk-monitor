@@ -24,15 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, provide, toRef } from 'vue';
 import { computed } from 'vue';
+
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { TrendStatusEnum } from '../../../constant';
 import BasicCard from '../basic-card/basic-card';
-import MonitorOptionsCharts from '@/plugins/components/monitor-options-charts';
-
-import type { IssueTrendItem } from '../../../typing';
-import type { SeriesItem } from '@/pages/trace-explore/components/explore-chart/types';
+import { type TimeRangeType, DEFAULT_TIME_RANGE } from '@/components/time-range/utils';
+import ExploreChart from '@/pages/trace-explore/components/explore-chart/explore-chart';
 
 import './issues-trend-chart.scss';
 
@@ -43,31 +43,94 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
-    data: {
-      type: Array as PropType<IssueTrendItem[]>,
-      default: () => [],
+    timeRange: {
+      type: Array as PropType<TimeRangeType>,
+      default: () => DEFAULT_TIME_RANGE,
+    },
+    commonParams: {
+      type: Object,
+      default: () => ({}),
     },
   },
   setup(props) {
+    provide('timeRange', toRef(props, 'timeRange'));
+
     const colorMap = {
       [TrendStatusEnum.ABNORMAL]: '#FF7763',
       [TrendStatusEnum.RECOVERED]: '#56CCBC',
       [TrendStatusEnum.CLOSED]: '#FAC20A',
     };
-    const seriesList = computed<SeriesItem[]>(() => {
-      return props.data.map(series => {
-        return {
-          datapoints: series.data.map(([time, value]) => [value, time]),
-          name: series.display_name,
-          stack: true,
-          type: 'bar',
-          color: colorMap[series.name],
-        };
-      });
+
+    const params = computed(() => {
+      return {
+        ...props.commonParams,
+        interval: 'auto',
+      };
     });
 
+    const panel = new PanelModel({
+      title: '',
+      gridPos: {
+        x: 16,
+        y: 16,
+        w: 8,
+        h: 4,
+      },
+      id: 'issues-trend-chart',
+      type: 'graph',
+      options: {
+        time_series: {
+          type: 'bar',
+          echart_option: {
+            grid: {
+              bottom: 6,
+            },
+            yAxis: {
+              splitLine: {
+                lineStyle: {
+                  type: 'solid',
+                },
+              },
+            },
+          },
+        },
+      },
+      targets: [
+        {
+          datasource: 'time_series',
+          dataType: 'time_series',
+          api: 'alert_v2.alertDateHistogram',
+          data: {
+            stack: true,
+          },
+        },
+      ],
+    });
+
+    /** 格式化图表数据 */
+    const formatterData = (data: any) => {
+      return {
+        series: data.series.map(item => {
+          return {
+            datapoints: item.data.map(([timestamp, value]) => [value, timestamp]),
+            alias: item.display_name,
+            type: 'bar',
+            itemStyle: {
+              color: colorMap[item.name],
+            },
+            color: colorMap[item.name],
+            unit: data.unit,
+          };
+        }),
+        query_config: {},
+        metrics: [],
+      };
+    };
+
     return {
-      seriesList,
+      panel,
+      params,
+      formatterData,
     };
   },
   render() {
@@ -89,7 +152,12 @@ export default defineComponent({
         }}
       >
         <div class='chart-body'>
-          <MonitorOptionsCharts seriesList={this.seriesList} />
+          <ExploreChart
+            customOptions={{ formatterData: this.formatterData }}
+            panel={this.panel}
+            params={this.params}
+            showTitle={false}
+          />
         </div>
       </BasicCard>
     );

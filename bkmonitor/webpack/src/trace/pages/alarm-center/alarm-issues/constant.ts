@@ -180,6 +180,38 @@ export const IMPACT_SCOPE_SORT_ORDER_MAP: Record<string, number> = {
   [ImpactScopeResourceKeyEnum.APM_SERVICE]: 8,
 };
 
+/** 维度名称映射表 */
+export const DIMENSION_NAME_MAP = {
+  alert_name: window.i18n.t('告警名称'),
+  metric: window.i18n.t('指标ID'),
+  duration: window.i18n.t('持续时间'),
+  ip: window.i18n.t('目标IP'),
+  bk_cloud_id: window.i18n.t('管控区域ID'),
+  strategy_id: window.i18n.t('策略ID'),
+  strategy_name: window.i18n.t('策略名称'),
+  assignee: window.i18n.t('通知人'),
+  bk_service_instance_id: window.i18n.t('服务实例ID'),
+  appointee: window.i18n.t('负责人'),
+  labels: window.i18n.t('策略标签'),
+  plugin_id: window.i18n.t('告警来源'),
+  ipv6: window.i18n.t('目标IPv6'),
+};
+
+/** 告警维度内置白名单字段 */
+export const DIMENSION_WHITE_LIST_FIELD = [
+  'bk_biz_id',
+  'ip',
+  'ipv6',
+  'bk_host_id',
+  'bk_cloud_id',
+  'bk_service_instance_id',
+  'bk_topo_node',
+  'target_type',
+  'target',
+  'category',
+  'data_type',
+];
+
 // ===================== 常量映射 =====================
 
 /** Issues 状态映射 */

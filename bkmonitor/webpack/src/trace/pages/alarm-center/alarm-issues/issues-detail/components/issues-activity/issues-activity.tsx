@@ -81,7 +81,7 @@ export default defineComponent({
       loading.value = true;
       listIssueActivities({
         bk_biz_id: props.detail?.bk_biz_id,
-        id: props.detail?.id,
+        issue_id: props.detail?.id,
       }).then(data => {
         activeList.value = data;
       });
@@ -100,7 +100,6 @@ export default defineComponent({
     const handleCommentInputFocus = () => {
       isCommentInputFocus.value = true;
       nextTick(() => {
-        console.log('commonInput', commonInput.value);
         commonInput.value?.focus?.();
       });
     };
@@ -220,6 +219,8 @@ export default defineComponent({
                     class='send-btn'
                     disabled={!commentContent.value}
                     loading={commentLoading.value}
+                    loading-mode='spin'
+                    size='small'
                     theme='primary'
                     onClick={handleSendComment}
                   >

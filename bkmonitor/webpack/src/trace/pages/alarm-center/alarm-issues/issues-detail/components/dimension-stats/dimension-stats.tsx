@@ -27,8 +27,9 @@
 import { type PropType, defineComponent, reactive, shallowRef } from 'vue';
 
 import BasicCard from '../basic-card/basic-card';
+import EmptyStatus from '@/components/empty-status/empty-status';
 
-import type { DimensionSummaryItem, DimensionSummaryValue } from '../../../typing';
+import type { AnalysisListItem, AnalysisListItemBucket } from '@/pages/alarm-center/typings';
 
 import './dimension-stats.scss';
 
@@ -37,12 +38,12 @@ export default defineComponent({
   name: 'DimensionStats',
   props: {
     data: {
-      type: Array as PropType<DimensionSummaryItem[]>,
+      type: Array as PropType<AnalysisListItem[]>,
       default: () => [],
     },
   },
   setup() {
-    const popoverList = shallowRef<DimensionSummaryValue[]>([]);
+    const popoverList = shallowRef<AnalysisListItemBucket[]>([]);
 
     const tooltipOptions = reactive({
       show: false,
@@ -50,7 +51,7 @@ export default defineComponent({
       y: 0,
     });
 
-    const handleMouseEnter = (e: MouseEvent, items: DimensionSummaryValue[]) => {
+    const handleMouseEnter = (e: MouseEvent, items: AnalysisListItemBucket[]) => {
       popoverList.value = items;
       tooltipOptions.show = true;
       handleMouseMove(e);
@@ -83,36 +84,37 @@ export default defineComponent({
         <div class='stats-body'>
           {this.data.map(row => (
             <div
-              key={row.dimension_key}
+              key={row.field}
               class='stats-row'
             >
               {/* 标签 */}
-              <div class='row-label'>{row.dimension_name}</div>
+              <div class='row-label'>{row.name}</div>
 
               {/* 进度条 */}
               <div
                 class='row-bar-wrapper'
-                onMouseenter={(e: MouseEvent) => this.handleMouseEnter(e, row.items)}
+                onMouseenter={(e: MouseEvent) => this.handleMouseEnter(e, row.buckets)}
                 onMouseleave={this.handlePopoverHide}
                 onMousemove={this.handleMouseMove}
               >
                 <div class='row-bar'>
-                  {row.items.map((item, index) => (
+                  {row.buckets.map((item, index) => (
                     <div
-                      key={item.value}
+                      key={item.id}
                       style={{
-                        width: `${item.percentage}%`,
+                        width: `${item.percent}%`,
                         backgroundColor: COLOR_LIST[index],
                       }}
                       class='bar-segment'
                     >
-                      <span class='segment-text'>{item.percentage}%</span>
+                      <span class='segment-text'>{item.percent}%</span>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
           ))}
+          {!this.data.length && <EmptyStatus type='empty' />}
         </div>
 
         {/* Tooltip */}
@@ -126,15 +128,15 @@ export default defineComponent({
         >
           {this.popoverList.map((item, index) => (
             <div
-              key={item.value}
+              key={item.id}
               class='tooltip-item'
             >
               <span
                 style={{ backgroundColor: COLOR_LIST[index] }}
                 class='tooltip-dot'
               />
-              <span class='tooltip-name'>{item.value}</span>
-              <span class='tooltip-percent'>{item.percentage}%</span>
+              <span class='tooltip-name'>{item.name}</span>
+              <span class='tooltip-percent'>{item.percent}%</span>
             </div>
           ))}
         </div>

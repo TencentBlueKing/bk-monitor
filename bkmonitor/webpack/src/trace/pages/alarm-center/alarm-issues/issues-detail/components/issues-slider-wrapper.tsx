@@ -23,14 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, KeepAlive, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, KeepAlive, shallowRef, watchEffect } from 'vue';
 
 import { Tab } from 'bkui-vue';
+import { alertTopN } from 'monitor-api/modules/alert_v2';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 import { AlarmServiceFactory } from 'trace/pages/alarm-center/services/factory';
-import { AlarmType } from 'trace/pages/alarm-center/typings';
+import {
+  type AnalysisFieldAggItem,
+  type AnalysisListItem,
+  type AnalysisTopNDataResponse,
+  AlarmType,
+} from 'trace/pages/alarm-center/typings';
+import { useI18n } from 'vue-i18n';
 
-import { IssueDetailTabEnum } from '../../constant';
+import { DIMENSION_NAME_MAP, DIMENSION_WHITE_LIST_FIELD, IssueDetailTabEnum } from '../../constant';
 import DimensionStats from './dimension-stats/dimension-stats';
 import IssuesActivity from './issues-activity/issues-activity';
 import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
@@ -101,9 +108,27 @@ export default defineComponent({
     impactScopeClick: (impactScope: ImpactScopeEvent) => impactScope,
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     const currentTab = shallowRef<IssueDetailTabType>(IssueDetailTabEnum.LATEST);
     // test
     const tempAlertId = shallowRef('');
+    /** 告警事件数量 */
+    const alertCount = shallowRef(0);
+    /** 公共参数 */
+    const commonParams = computed(() => {
+      const issueIdCondition = { key: 'issue_id', value: [props.detail.id], method: 'eq' };
+      return {
+        bk_biz_ids: [props.detail.bk_biz_id],
+        query_string: props.filterMode === EMode.ui ? '' : props.queryString,
+        conditions: props.filterMode === EMode.ui ? [...props.conditions, issueIdCondition] : [issueIdCondition],
+      };
+    });
+    /** 维度统计数据 */
+    const dimensionStatsData = shallowRef<AnalysisTopNDataResponse<AnalysisListItem>>({
+      doc_count: 0,
+      fields: [],
+    });
+
     const getTempAlertId = async () => {
       const alarmService = AlarmServiceFactory(AlarmType.ALERT);
       const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
@@ -121,6 +146,59 @@ export default defineComponent({
       tempAlertId.value = res.data?.[0]?.id;
     };
     getTempAlertId();
+
+    /** 获取维度统计数据 */
+    const getDimensionStatsData = async () => {
+      const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
+      dimensionStatsData.value = await alertTopN({
+        ...commonParams,
+        start_time: startTime,
+        end_time: endTime,
+        fields: props.detail?.aggregate_config?.aggregate_dimensions?.map(item =>
+          DIMENSION_WHITE_LIST_FIELD.includes(item) ? item : `tags.${item}`
+        ),
+        size: 5,
+      })
+        .then((data: AnalysisTopNDataResponse<AnalysisFieldAggItem>) => {
+          return {
+            doc_count: data.doc_count,
+            fields: data.fields.map(item => {
+              /** 如果item的buckets所有的count总和小于doc_count则额外展示其他 */
+              let otherCount = data.doc_count;
+              const buckets = item.buckets.map(bucket => {
+                otherCount -= bucket.count;
+                return {
+                  ...bucket,
+                  percent: data.doc_count ? Number(((bucket.count / data.doc_count) * 100).toFixed(2)) : 0,
+                };
+              });
+
+              if (otherCount > 0) {
+                buckets.push({
+                  count: otherCount,
+                  percent: Number(((otherCount / data.doc_count) * 100).toFixed(2)),
+                  id: 'other',
+                  name: t('其他'),
+                });
+              }
+
+              return {
+                ...item,
+                name: DIMENSION_NAME_MAP[item.field] || item.field,
+                buckets,
+              };
+            }),
+          };
+        })
+        .catch(() => ({
+          doc_count: 0,
+          fields: [],
+        }));
+    };
+
+    watchEffect(() => {
+      getDimensionStatsData();
+    });
 
     const handleTabChange = (tab: IssueDetailTabType) => {
       currentTab.value = tab;
@@ -212,6 +290,9 @@ export default defineComponent({
 
     return {
       currentTab,
+      alertCount,
+      commonParams,
+      dimensionStatsData,
       handleTabChange,
       getPanelComponent,
       handleConditionChange,
@@ -238,10 +319,11 @@ export default defineComponent({
           />
           <div class='issues-chart-wrapper'>
             <IssuesTrendChart
-              alertCount={this.detail?.alert_count}
-              data={this.detail?.trend}
+              alertCount={this.alertCount}
+              commonParams={this.commonParams}
+              timeRange={this.timeRange}
             />
-            <DimensionStats data={this.detail?.dimension_summary} />
+            <DimensionStats data={this.dimensionStatsData.fields} />
           </div>
           <Tab
             class='issues-alarm-tab'

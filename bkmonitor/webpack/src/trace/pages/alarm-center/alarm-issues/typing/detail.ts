@@ -24,33 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import type { IssueActiveNodeType, IssuePriorityType, IssueStatusType, TrendStatusType } from './constants';
+import type { IssueActiveNodeType, IssuePriorityType, IssueStatusType } from './constants';
 import type { AggregateConfig, ImpactScope } from './table';
 
 /* ============== Issue 详情接口 - 返回数据 ============== */
-
-/** 维度统计项 */
-export interface DimensionSummaryItem {
-  /** 维度字段名，对应 alert.dimensions 中的 key */
-  dimension_key: string;
-  /** 维度显示名称（中文），来源于告警 dimensions 的 display_key */
-  dimension_name: string;
-  /** 维度值分布列表（Top5 + 其他） */
-  items: DimensionSummaryValue[];
-  /** 该维度在所有告警中出现的总次数 */
-  total_count: number;
-}
-
-/** 维度统计值项 */
-export interface DimensionSummaryValue {
-  /** 该值出现次数 */
-  count: number;
-  /** 占比百分比（保留2位小数） */
-  percentage: number;
-  /** 维度值，聚合剩余项时值为翻译后的 "其他" */
-  value: string;
-}
-
 /** 活动记录项 */
 export interface IssueActivityItem {
   /** 活动记录 ID */
@@ -81,8 +58,6 @@ export interface IssueActivityParams {
 export interface IssueDetail extends Record<string, unknown> {
   /** 聚合配置 */
   aggregate_config: AggregateConfig;
-  /** 关联告警总数 */
-  alert_count: number;
   /** 全部关联告警的 ID 列表 */
   alert_ids: string[];
   /** 异常信息描述 */
@@ -95,8 +70,6 @@ export interface IssueDetail extends Record<string, unknown> {
   bk_biz_name: string;
   /** 创建时间（秒级时间戳） */
   create_time: number;
-  /** 维度统计 */
-  dimension_summary: DimensionSummaryItem[];
   /** 存活时长（人类可读格式，如 "1d 1h"） */
   duration: string;
   /** 最早告警 ID，用于点击跳转到最早告警详情 */
@@ -133,8 +106,6 @@ export interface IssueDetail extends Record<string, unknown> {
   strategy_id: string;
   /** 策略名称 */
   strategy_name: string;
-  /** 趋势统计（按状态分组） */
-  trend: IssueTrendItem[];
   /** 最近更新时间（秒级时间戳） */
   update_time: number;
 }
@@ -195,14 +166,4 @@ export interface IssuesActivityCommentParams {
     bk_biz_id: number;
     issue_id: string;
   }[];
-}
-
-/** 趋势统计项 */
-export interface IssueTrendItem {
-  /** 时间序列数据，格式为 [[毫秒时间戳, 数量], ...] */
-  data: [number, number][];
-  /** 状态中文名：未恢复 / 已恢复 / 已失效 */
-  display_name: string;
-  /** 状态枚举值：ABNORMAL / RECOVERED / CLOSED */
-  name: TrendStatusType;
 }

@@ -1,14 +1,14 @@
 .issues-trend-chart.basic-card-wrapper {
   height: 100%;
   padding: 12px 16px;
-  border-radius: 8px;
   background-color: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 5%);
 
   .chart-header {
     display: flex;
-    align-items: center;
     gap: 12px;
+    align-items: center;
     margin-bottom: 16px;
 
     .chart-title {
@@ -19,8 +19,8 @@
 
     .chart-subtitle {
       display: flex;
-      align-items: center;
       gap: 4px;
+      align-items: center;
       font-size: 12px;
       color: #8f9fbd;
 
@@ -39,6 +39,7 @@
   }
 
   .chart-body {
+    display: flex;
     height: 100%;
   }
 }
