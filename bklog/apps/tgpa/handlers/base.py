@@ -50,6 +50,7 @@ from apps.tgpa.constants import (
     FILE_DOWNLOAD_MAX_SIZE,
     FILE_DOWNLOAD_CHUNK_SIZE,
 )
+from apps.tgpa.exceptions import TGPAFileResponseError
 from apps.tgpa.handlers.decrypt import BaseDecryptHandler
 from apps.utils.bcs import Bcs
 from apps.utils.log import logger
@@ -81,6 +82,25 @@ class TGPAFileHandler:
         params = urlencode({"ccid": bk_biz_id, "filename": file_name})
         return f"{base_url}?{params}"
 
+    @staticmethod
+    def _check_response_is_file(response, file_name):
+        """
+        检查响应是否为文件内容。
+        """
+        content_type = response.headers.get("Content-Type", "")
+        if "application/json" in content_type:
+            try:
+                error_body = response.json()
+            except Exception:
+                error_body = response.text[:1024]
+            logger.error(
+                "TransceiverTool returned non-file response, file_name=%s, content_type=%s, body=%s",
+                file_name,
+                content_type,
+                error_body,
+            )
+            raise TGPAFileResponseError()
+
     @classmethod
     def get_file_info(cls, file_name, bk_biz_id):
         """
@@ -93,6 +113,7 @@ class TGPAFileHandler:
         # 使用 GET + stream 代替 HEAD，因为 TGPA 文件下载接口不支持 HEAD 方法
         with requests.get(url, stream=True, timeout=30) as response:
             response.raise_for_status()
+            cls._check_response_is_file(response, file_name)
             return {
                 "content_length": int(response.headers.get("Content-Length", 0)),
                 "content_type": response.headers.get("Content-Type", ""),
@@ -110,6 +131,7 @@ class TGPAFileHandler:
         response = requests.get(url, stream=True, timeout=300)
         try:
             response.raise_for_status()
+            cls._check_response_is_file(response, file_name)
             yield from response.iter_content(chunk_size=chunk_size)
         finally:
             response.close()
@@ -121,6 +143,7 @@ class TGPAFileHandler:
         url = self._build_download_url(file_name, self.bk_biz_id)
         with requests.get(url, stream=True, timeout=300) as response:
             response.raise_for_status()
+            self._check_response_is_file(response, file_name)
 
             # 提取纯文件名，防止路径穿越攻击
             safe_name = os.path.basename(file_name)
