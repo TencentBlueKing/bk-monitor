@@ -139,7 +139,7 @@ class TGPAFileHandler:
     def _resolve_cos_client_and_config(cls, file_name, bk_biz_id=None):
         """
         通过 head_object 探测文件所在的 COS，返回能访问到该文件的 (client, config)。
-        优先尝试业务自定义 COS 配置，如果文件不存在（404）则回退到默认配置（兼容存量文件）。
+        优先尝试业务自定义 COS 配置，如果文件不存在则回退到默认配置（兼容存量文件）。
         :param file_name: COS 上的文件名
         :param bk_biz_id: 业务ID
         :return: tuple (CosS3Client, dict)
