@@ -120,9 +120,11 @@ class IssueDocument(BaseDocument):
         )
 
     def resolve(self, operator: str) -> None:
-        """人工标记已解决：UNRESOLVED → RESOLVED"""
-        if self.status != IssueStatus.UNRESOLVED:
-            raise ValueError(f"Cannot resolve: current status={self.status}, expected={IssueStatus.UNRESOLVED}")
+        """人工标记已解决：UNRESOLVED → RESOLVED or PENDING_REVIEW → RESOLVED"""
+        if self.status not in IssueStatus.ACTIVE_STATUSES:
+            raise ValueError(
+                f"Cannot resolve: current status={self.status}, expected one of {IssueStatus.ACTIVE_STATUSES}"
+            )
         old_status = self.status
         self.status = IssueStatus.RESOLVED
         self.resolved_time = int(time.time())
@@ -135,9 +137,11 @@ class IssueDocument(BaseDocument):
         )
 
     def archive(self, operator: str) -> None:
-        """归档（实例级）：PENDING_REVIEW → ARCHIVED"""
-        if self.status != IssueStatus.PENDING_REVIEW:
-            raise ValueError(f"Cannot archive: current status={self.status}, expected={IssueStatus.PENDING_REVIEW}")
+        """归档（实例级）：PENDING_REVIEW → ARCHIVED or UNRESOLVED → ARCHIVED"""
+        if self.status not in IssueStatus.ACTIVE_STATUSES:
+            raise ValueError(
+                f"Cannot archive: current status={self.status}, expected one of {IssueStatus.ACTIVE_STATUSES}"
+            )
         old_status = self.status
         self.status = IssueStatus.ARCHIVED
         self.update_time = int(time.time())
@@ -162,6 +166,22 @@ class IssueDocument(BaseDocument):
         """
         if now is None:
             now = int(time.time())
+        extra_activities = []
+        if self.status == IssueStatus.PENDING_REVIEW:
+            old_status = self.status
+            self.status = IssueStatus.UNRESOLVED
+            extra_activities.append(
+                IssueActivityDocument(
+                    issue_id=self.id,
+                    bk_biz_id=self.bk_biz_id,
+                    activity_type=IssueActivityType.STATUS_CHANGE,
+                    from_value=old_status,
+                    to_value=IssueStatus.UNRESOLVED,
+                    operator=operator,
+                    time=now,
+                    create_time=now,
+                )
+            )
         self.update_time = now
         self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
         activity = IssueActivityDocument(
@@ -173,7 +193,7 @@ class IssueDocument(BaseDocument):
             time=now,
             create_time=now,
         )
-        IssueActivityDocument.bulk_create([activity])
+        IssueActivityDocument.bulk_create([activity, *extra_activities])
         return activity
 
     def update_priority(self, priority: str, operator: str) -> None:
@@ -182,18 +202,21 @@ class IssueDocument(BaseDocument):
             raise ValueError(f"Cannot update priority: current status={self.status} is not active")
         old_priority = self.priority
         self.priority = priority
+        activits = [
+            (
+                IssueActivityType.PRIORITY_CHANGE,
+                str(old_priority) if old_priority else None,
+                str(priority),
+                operator,
+            ),
+        ]
+        if self.status == IssueStatus.PENDING_REVIEW:
+            old_status = self.status
+            self.status = IssueStatus.UNRESOLVED
+            activits.append((IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator))
         self.update_time = int(time.time())
         self._persist_and_cache(active=True)
-        self._write_activities(
-            [
-                (
-                    IssueActivityType.PRIORITY_CHANGE,
-                    str(old_priority) if old_priority else None,
-                    str(priority),
-                    operator,
-                ),
-            ]
-        )
+        self._write_activities(activits)
 
     def _persist_and_cache(self, active: bool) -> None:
         """
