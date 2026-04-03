@@ -66,8 +66,12 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.issue.assign_issue, endpoint="issue/assign"),
         # 标记为已解决（支持批量）
         ResourceRoute("POST", resource.issue.resolve_issue, endpoint="issue/resolve"),
+        # 重新打开已解决 Issue（支持批量）
+        ResourceRoute("POST", resource.issue.reopen_issue, endpoint="issue/reopen"),
         # 归档 Issue（实例级，支持批量）
         ResourceRoute("POST", resource.issue.archive_issue, endpoint="issue/archive"),
+        # 恢复归档 Issue（实例级，支持批量）
+        ResourceRoute("POST", resource.issue.restore_issue, endpoint="issue/restore"),
         # 修改优先级（支持批量）
         ResourceRoute("POST", resource.issue.update_issue_priority, endpoint="issue/update_priority"),
         # 添加跟进信息（支持批量）
