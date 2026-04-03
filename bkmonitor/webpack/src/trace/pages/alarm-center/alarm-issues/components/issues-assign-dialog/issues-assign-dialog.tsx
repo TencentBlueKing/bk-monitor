@@ -27,6 +27,7 @@
 import { type PropType, defineComponent, shallowRef, toRef, watch } from 'vue';
 
 import { Button, Dialog } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import UserSelector from '../../../../../components/user-selector/user-selector';
 import { useAsyncDialog } from '../../hooks/use-async-dialog';
@@ -60,6 +61,8 @@ export default defineComponent({
     'update:isShow': (_val: boolean) => typeof _val === 'boolean',
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
+
     /** 指派负责人选中值 */
     const assignInputValue = shallowRef<string[]>([]);
 
@@ -78,8 +81,8 @@ export default defineComponent({
      */
     const getTitle = () => {
       if (props.title) return props.title;
-      if (props.issuesData?.length > 1) return window.i18n.t('批量指派负责人');
-      return window.i18n.t('指派负责人');
+      if (props.issuesData?.length > 1) return t('批量指派负责人');
+      return t('指派负责人');
     };
 
     /**
@@ -113,6 +116,7 @@ export default defineComponent({
     );
 
     return {
+      t,
       assignInputValue,
       loading,
       getTitle,
@@ -135,13 +139,13 @@ export default defineComponent({
             <div class='issues-assign-dialog-content'>
               <div class='assign-field'>
                 <span class='assign-label'>
-                  {window.i18n.t('负责人')}
+                  {this.t('负责人')}
                   <span class='required'>*</span>
                 </span>
                 <UserSelector
                   disabled={this.loading}
                   modelValue={this.assignInputValue}
-                  placeholder={window.i18n.t('请输入')}
+                  placeholder={this.t('请输入')}
                   onUpdate:modelValue={(val: string[]) => {
                     this.assignInputValue = val;
                   }}
@@ -157,13 +161,13 @@ export default defineComponent({
                 theme='primary'
                 onClick={this.handleConfirm}
               >
-                {window.i18n.t('确定')}
+                {this.t('确定')}
               </Button>
               <Button
                 disabled={this.loading}
                 onClick={this.handleCancel}
               >
-                {window.i18n.t('取消')}
+                {this.t('取消')}
               </Button>
             </div>
           ),

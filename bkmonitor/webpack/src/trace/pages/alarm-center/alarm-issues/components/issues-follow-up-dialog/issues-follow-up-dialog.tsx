@@ -27,6 +27,7 @@
 import { type PropType, defineComponent, shallowRef, toRef, watch } from 'vue';
 
 import { Button, Dialog } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import MarkdownEditor from '../../../../../components/markdown-editor/editor';
 import { useAsyncDialog } from '../../hooks/use-async-dialog';
@@ -60,6 +61,8 @@ export default defineComponent({
     'update:isShow': (_val: boolean) => typeof _val === 'boolean',
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
+
     /** 编辑器内容 */
     const editorValue = shallowRef('');
 
@@ -78,8 +81,8 @@ export default defineComponent({
      */
     const getTitle = () => {
       if (props.title) return props.title;
-      if (props.issuesData?.length > 1) return window.i18n.t('批量添加跟进信息');
-      return window.i18n.t('添加跟进信息');
+      if (props.issuesData?.length > 1) return t('批量添加跟进信息');
+      return t('添加跟进信息');
     };
 
     /**
@@ -121,6 +124,7 @@ export default defineComponent({
     );
 
     return {
+      t,
       editorValue,
       loading,
       getTitle,
@@ -153,13 +157,13 @@ export default defineComponent({
                 theme='primary'
                 onClick={this.handleConfirm}
               >
-                {window.i18n.t('确定')}
+                {this.t('确定')}
               </Button>
               <Button
                 disabled={this.loading}
                 onClick={this.handleCancel}
               >
-                {window.i18n.t('取消')}
+                {this.t('取消')}
               </Button>
             </div>
           ),

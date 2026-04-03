@@ -32,10 +32,11 @@ import { useEchartsGroupConnect } from '../../composables/use-echarts-group';
 import { useTableScrollOptimize } from '../../composables/use-table-scroll-optimize';
 import { useIssuesColumnsRenderer } from './hooks/use-issues-columns-renderer';
 import { useIssuesHandlers } from './hooks/use-issues-handlers';
+import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
 
 import type { TableColumnItem, TablePagination } from '../../typings';
 import type { ImpactScopeEvent, IssueItem, IssuePriorityType } from '../typing';
-import type { SelectOptions } from 'tdesign-vue-next';
+import type { SelectOptions, SlotReturnValue } from 'tdesign-vue-next';
 
 import './issues-table.scss';
 
@@ -75,32 +76,45 @@ export default defineComponent({
       type: String,
       required: true,
     },
-
+    /** 表头吸顶 */
     headerAffixedTop: {
       type: Object as PropType<{ container: string }>,
     },
+    /** 滚动条吸底 */
     horizontalScrollAffixedBottom: {
       type: Object as PropType<{ container: string }>,
     },
   },
   emits: {
+    /** 页码变化 */
     currentPageChange: (currentPage: number) => typeof currentPage === 'number',
+    /** 页大小变化 */
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
+    /** 排序变化 */
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
+    /** 选择变化 */
     selectionChange: (selectedRowKeys: string[], options: SelectOptions<any>) =>
       Array.isArray(selectedRowKeys) && !!options,
+    /** 显示详情 */
     showDetail: (item: IssueItem) => !!item,
+    /** 分配负责人点击 */
     assignClick: (id: IssueItem['id'], data: IssueItem) => typeof id === 'string' && !!data,
+    /** 标记已解决点击 */
     markResolved: (id: string) => typeof id === 'string',
+    /** 优先级变化 */
     priorityChange: (id: string, priority: IssuePriorityType) => typeof id === 'string' && !!priority,
+    /** 影响范围点击 */
     impactScopeClick: (event: ImpactScopeEvent) => !!event,
+    /** 清除检索过滤 */
+    clearFilter: () => true,
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
 
     /** 图表联动组管理 */
     const { chartGroupId } = useEchartsGroupConnect(() => props.data);
-
+    /** hover 场景使用的popover工具函数 */
+    const hoverPopoverTools = usePopover();
     /** click 场景使用的 popover 工具 */
     const clickPopoverTools = usePopover({
       showDelay: 100,
@@ -125,6 +139,7 @@ export default defineComponent({
     const { transformColumns } = useIssuesColumnsRenderer({
       chartGroupId,
       clickPopoverTools,
+      hoverPopoverTools,
       handleShowDetail,
       handleAssignClick,
       handleMarkResolved,
@@ -154,6 +169,14 @@ export default defineComponent({
         <CommonTable
           ref='tableRef'
           class='issues-table-main'
+          empty={() =>
+            (
+              <ExploreTableEmpty
+                showOperation={true}
+                onClearFilter={() => this.$emit('clearFilter')}
+              />
+            ) as unknown as SlotReturnValue
+          }
           autoFillSpace={!this.data?.length}
           columns={this.transformedColumns}
           data={this.data}

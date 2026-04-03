@@ -28,6 +28,7 @@ import type { MaybeRef } from 'vue';
 
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
+import { useI18n } from 'vue-i18n';
 
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import { ExploreTableColumnTypeEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
@@ -53,7 +54,10 @@ import type { SlotReturnValue } from 'tdesign-vue-next';
 export type IssuesColumnsRendererCtx = {
   /** 图表联动 ID（相同 group 的 MiniBarChart 实例会联动 tooltip / 高亮） */
   chartGroupId?: MaybeRef<string>;
+  /** click popover 工具（基础设施依赖） */
   clickPopoverTools: IUsePopoverTools;
+  /** hover popover 工具（基础设施依赖） */
+  hoverPopoverTools: IUsePopoverTools;
 } & UseIssuesHandlersReturnType;
 
 /**
@@ -62,6 +66,8 @@ export type IssuesColumnsRendererCtx = {
  * @returns {{ transformColumns: (columns: TableColumnItem[]) => BaseTableColumn[] }} 列转换函数
  */
 export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) => {
+  const { t } = useI18n();
+
   /**
    * @description Issues 名称列渲染（三行结构：标题 + 异常消息 + 元信息行（回归类型图标 + 告警数量））
    * @param {IssueItem} row - 当前行 Issue 数据
@@ -95,11 +101,24 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
               '--issues-type-color': regressionConfig?.color || '#21A380',
             }}
             class='issues-type-tag'
-            title={regressionConfig?.alias ?? '--'}
+            onMouseenter={e =>
+              rendererCtx.hoverPopoverTools.showPopover(e, regressionConfig?.alias ?? '--', {
+                theme: 'alarm-center-popover max-width-50vw text-wrap',
+              })
+            }
+            onMouseleave={() => rendererCtx.hoverPopoverTools.clearPopoverTimer()}
           >
             <i class={regressionConfig?.icon} />
           </span>
-          <span class='issues-alert-count'>
+          <span
+            class='issues-alert-count'
+            onMouseenter={e =>
+              rendererCtx.hoverPopoverTools.showPopover(e, `${t('告警事件数')}: ${row.alert_count ?? '--'}`, {
+                theme: 'alarm-center-popover max-width-50vw text-wrap',
+              })
+            }
+            onMouseleave={() => rendererCtx.hoverPopoverTools.clearPopoverTimer()}
+          >
             <i class='icon-monitor icon-shijianjiansuo' />
             {row.alert_count}
           </span>
@@ -137,11 +156,22 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
    * @returns {SlotReturnValue} 趋势列 JSX
    */
   const renderTrendCell = (row: IssueItem): SlotReturnValue => {
+    const trend = row.trend || [];
+    const seriesList = trend.length
+      ? [
+          {
+            datapoints: trend.map(([ts, count]) => [count, ts] as [number, number]),
+            name: t('告警事件数'),
+            type: 'bar',
+            unit: 'none',
+          },
+        ]
+      : [];
     return (
       <div class='issues-trend-col'>
         <MiniBarChart
-          data={row.trend || []}
           group={get(rendererCtx.chartGroupId)}
+          seriesList={seriesList}
           total={row.alert_count}
         />
       </div>
@@ -220,7 +250,11 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
    * @param {IssueItem} row - 当前行 Issue 数据
    * @returns {SlotReturnValue} 状态列 JSX
    */
-  const renderStatusCell = (row: IssueItem): SlotReturnValue => {
+  const renderStatusCell = (
+    row: IssueItem,
+    column: BaseTableColumn,
+    renderCtx: TableCellRenderContext
+  ): SlotReturnValue => {
     const config = ISSUES_STATUS_MAP[row.status];
     return (
       <div class='issues-status-col'>
@@ -232,7 +266,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
           class='status-tag'
         >
           <i class={`status-icon ${config?.icon}`} />
-          <span class='status-text'>{config?.alias || row.status}</span>
+          <span class={['status-text', renderCtx.isEnabledCellEllipsis(column)]}>{config?.alias || row.status}</span>
         </span>
       </div>
     ) as unknown as SlotReturnValue;
@@ -257,7 +291,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
           onClick={() => rendererCtx.handleAssignClick(row)}
         >
           <div class='assignee-tag-wrapper'>
-            <span class='assignee-unassigned'>{window.i18n.t('未指派')}</span>
+            <span class='assignee-unassigned'>{t('未指派')}</span>
             <i class='icon-monitor icon-mc-arrow-down' />
           </div>
         </div>
@@ -282,7 +316,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
           class={['operation-btn', { 'is-disabled': row.is_resolved }]}
           onClick={() => rendererCtx.handleMarkResolved(row)}
         >
-          {window.i18n.t('标为已解决')}
+          {t('标为已解决')}
         </span>
       </div>
     ) as unknown as SlotReturnValue;
@@ -290,7 +324,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
 
   /** 列渲染配置映射表：按 colKey 定义各列的 cellRenderer / renderType / 布局等配置 */
   const columnsRendererMap: Record<string, Partial<BaseTableColumn>> = {
-    'row-select': { type: 'multiple', width: 30, minWidth: 30, fixed: 'left' },
+    'row-select': { type: 'multiple', fixed: 'left' },
     name: { cellRenderer: renderIssueName },
     labels: { renderType: ExploreTableColumnTypeEnum.TAGS },
     last_alert_time: { cellRenderer: renderTimeCell },

@@ -355,6 +355,7 @@ export default defineComponent({
     };
     /** 查询语句变化 */
     const handleQueryStringChange = (queryString: string) => {
+      handleCurrentPageChange(1);
       alarmStore.queryString = queryString;
     };
     /** 查询模式变化 */
@@ -1002,6 +1003,13 @@ export default defineComponent({
                               onAssignClick={(id, data) =>
                                 this.handleIssuesDialogShow(IssuesBatchActionEnum.ASSIGN, id, data)
                               }
+                              onClearFilter={() => {
+                                if (this.alarmStore.filterMode === EMode.ui) {
+                                  this.handleConditionChange([]);
+                                  return;
+                                }
+                                this.handleQueryStringChange('');
+                              }}
                               onCurrentPageChange={this.handleCurrentPageChange}
                               onImpactScopeClick={this.handleImpactScopeClick}
                               onMarkResolved={(id: string) =>
