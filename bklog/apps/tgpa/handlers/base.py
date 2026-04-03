@@ -23,6 +23,7 @@ import os
 import shutil
 import zipfile
 from pathlib import Path
+from urllib.parse import urlencode
 
 import arrow
 import magic
@@ -77,7 +78,8 @@ class TGPAFileHandler:
         :return: 完整的下载 URL
         """
         base_url = settings.TGPA_TRANSCEIVER_TOOL_URL
-        return f"{base_url}?ccid={bk_biz_id}&filename={file_name}"
+        params = urlencode({"ccid": bk_biz_id, "filename": file_name})
+        return f"{base_url}?{params}"
 
     @classmethod
     def get_file_info(cls, file_name, bk_biz_id):
@@ -89,14 +91,12 @@ class TGPAFileHandler:
         """
         url = cls._build_download_url(file_name, bk_biz_id)
         # 使用 GET + stream 代替 HEAD，因为 TGPA 文件下载接口不支持 HEAD 方法
-        response = requests.get(url, stream=True, timeout=30)
-        response.raise_for_status()
-        file_info = {
-            "content_length": int(response.headers.get("Content-Length", 0)),
-            "content_type": response.headers.get("Content-Type", ""),
-        }
-        response.close()
-        return file_info
+        with requests.get(url, stream=True, timeout=30) as response:
+            response.raise_for_status()
+            return {
+                "content_length": int(response.headers.get("Content-Length", 0)),
+                "content_type": response.headers.get("Content-Type", ""),
+            }
 
     @classmethod
     def get_file_stream(cls, file_name, bk_biz_id):
@@ -108,49 +108,57 @@ class TGPAFileHandler:
         chunk_size = FILE_DOWNLOAD_CHUNK_SIZE
         url = cls._build_download_url(file_name, bk_biz_id)
         response = requests.get(url, stream=True, timeout=300)
-        response.raise_for_status()
-        for chunk in response.iter_content(chunk_size=chunk_size):
-            if chunk:
-                yield chunk
+        try:
+            response.raise_for_status()
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                if chunk:
+                    yield chunk
+        finally:
+            response.close()
 
     def download_file(self, file_name):
         """
         下载文件到本地
         """
         url = self._build_download_url(file_name, self.bk_biz_id)
-        response = requests.get(url, stream=True, timeout=300)
-        response.raise_for_status()
+        with requests.get(url, stream=True, timeout=300) as response:
+            response.raise_for_status()
 
-        # 提取纯文件名，防止路径穿越攻击
-        safe_name = os.path.basename(file_name)
-        if safe_name != file_name:
-            logger.warning(
-                "download_file: file_name contains path components, original=%s, sanitized=%s", file_name, safe_name
-            )
-        save_path = os.path.join(self.temp_dir, safe_name)
-        os.makedirs(self.temp_dir, exist_ok=True)
+            # 提取纯文件名，防止路径穿越攻击
+            safe_name = os.path.basename(file_name)
+            if safe_name != file_name:
+                logger.warning(
+                    "download_file: file_name contains path components, original=%s, sanitized=%s",
+                    file_name,
+                    safe_name,
+                )
+            save_path = os.path.join(self.temp_dir, safe_name)
+            os.makedirs(self.temp_dir, exist_ok=True)
 
-        # 允许2倍容差，防止传输编码等差异
-        content_length = int(response.headers.get("Content-Length", FILE_DOWNLOAD_MAX_SIZE))
-        max_size = min(content_length * 2, FILE_DOWNLOAD_MAX_SIZE)
+            # 允许2倍容差，防止传输编码等差异；Content-Length 缺失时回退到 FILE_DOWNLOAD_MAX_SIZE
+            content_length = int(response.headers.get("Content-Length", 0))
+            if content_length > 0:
+                max_size = min(content_length * 2, FILE_DOWNLOAD_MAX_SIZE)
+            else:
+                max_size = FILE_DOWNLOAD_MAX_SIZE
 
-        # 分块读取文件，防止内存占用过大
-        read_len = 0
-        try:
-            with open(save_path, "wb") as fp:
-                for chunk in response.iter_content(chunk_size=FILE_DOWNLOAD_CHUNK_SIZE):
-                    if not chunk:
-                        continue
-                    read_len += len(chunk)
+            # 分块读取文件，防止内存占用过大
+            read_len = 0
+            try:
+                with open(save_path, "wb") as fp:
+                    for chunk in response.iter_content(chunk_size=FILE_DOWNLOAD_CHUNK_SIZE):
+                        if not chunk:
+                            continue
+                        read_len += len(chunk)
 
-                    if read_len > max_size:
-                        raise Exception(f"文件 {file_name} 大小超过最大限制 {max_size} 字节")
-                    fp.write(chunk)
-        except Exception:
-            # 异常时清理已下载的临时文件
-            if os.path.exists(save_path):
-                os.remove(save_path)
-            raise
+                        if read_len > max_size:
+                            raise Exception(f"文件 {file_name} 大小超过最大限制 {max_size} 字节")
+                        fp.write(chunk)
+            except Exception:
+                # 异常时清理已下载的临时文件
+                if os.path.exists(save_path):
+                    os.remove(save_path)
+                raise
 
         return save_path
 
