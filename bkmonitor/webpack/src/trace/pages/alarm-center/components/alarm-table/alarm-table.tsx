@@ -112,6 +112,11 @@ export default defineComponent({
     horizontalScrollAffixedBottom: {
       type: Object as PropType<{ container: string }>,
     },
+    /** 是否展示分页 */
+    showPage: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: {
     currentPageChange: (currentPage: number) => typeof currentPage === 'number',
@@ -249,6 +254,7 @@ export default defineComponent({
           loading={this.loading}
           pagination={this.pagination}
           selectedRowKeys={this.selectedRowKeys}
+          showPage={this.showPage}
           sort={this.sort}
           tableSettings={this.settings}
           onCurrentPageChange={page => this.$emit('currentPageChange', page)}

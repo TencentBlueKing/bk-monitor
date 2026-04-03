@@ -2842,6 +2842,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 ref='alarmHandlingList'
                 allAction={actionConfigGroupList(this.actionConfigList)}
                 allDefense={this.defenseList}
+                detectionConfig={this.detectionConfig}
                 metricData={this.metricData}
                 readonly={this.isDetailMode}
                 strategyId={this.id ? +this.id : ''}

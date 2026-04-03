@@ -35,7 +35,7 @@ import {
 } from 'vue';
 
 import { Message } from 'bkui-vue';
-import { commonPageSizeGet } from 'monitor-common/utils';
+import { EMode } from 'trace/components/retrieval-filter/typing';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
@@ -53,6 +53,7 @@ import { saveAlertContentName } from '@/pages/alarm-center/services/alert-servic
 import { AlarmServiceFactory } from '@/pages/alarm-center/services/factory';
 
 import type { AlertSavePromiseEvent } from '../../../../components/alarm-table/components/alert-content-detail/alert-content-detail';
+import type { IssueDetail } from '../../../typing';
 import type { BkUiSettings } from '@blueking/tdesign-ui';
 
 import './issues-detail-alarm-table.scss';
@@ -74,10 +75,14 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** 业务ID列表 */
-    bizIds: {
-      type: Array as PropType<number[]>,
-      default: () => [],
+    detail: {
+      type: Object as PropType<IssueDetail>,
+      default: () => ({}),
+    },
+    /** 查询模式 */
+    filterMode: {
+      type: String as PropType<EMode>,
+      default: EMode.ui,
     },
     /** 滚动容器的 CSS 选择器（用于滚动优化及表头/滚动条吸附） */
     scrollContainerSelector: {
@@ -97,7 +102,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     // 分页参数
-    const pageSize = shallowRef(commonPageSizeGet() ?? 50);
+    const pageSize = shallowRef(100);
     // 当前页
     const page = shallowRef(1);
     // 总条数
@@ -142,6 +147,9 @@ export default defineComponent({
 
     // 获取数据
     const fetchData = async () => {
+      if (!props.detail?.id) {
+        return;
+      }
       // 中止上一次未完成的请求
       if (abortController) {
         abortController.abort();
@@ -156,9 +164,13 @@ export default defineComponent({
       const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
 
       const params = {
-        bk_biz_ids: props.bizIds,
-        conditions: props.conditions,
-        query_string: props.queryString,
+        bk_biz_id: props.detail.bk_biz_id,
+        bk_biz_ids: [props.detail.bk_biz_id],
+        conditions: [
+          { key: 'issue_id', value: [props.detail.id], method: 'eq' },
+          ...(props.filterMode === EMode.ui ? props.conditions : []),
+        ],
+        query_string: props.filterMode === EMode.queryString ? props.queryString : '',
         start_time: startTime,
         end_time: endTime,
         page_size: pageSize.value,
@@ -324,6 +336,7 @@ export default defineComponent({
           pagination={this.pagination}
           scrollContainerSelector={this.scrollContainerSelector}
           selectedRowKeys={this.selectedRowKeys}
+          showPage={false}
           sort={this.ordering}
           tableSettings={this.tableSettings}
           timeRange={this.timeRange}

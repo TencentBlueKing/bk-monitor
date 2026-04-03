@@ -40,7 +40,7 @@ import {
 } from '../../../../components/retrieval-filter/utils';
 import CommonItem from '../components/common-form-item';
 
-import type { ICommonItem, MetricDetail } from '../typings/index';
+import type { ICommonItem, IDetectionConfig, MetricDetail } from '../typings/index';
 
 import './issue-agg.scss';
 
@@ -65,6 +65,7 @@ interface IEvents {
 }
 
 interface IProps {
+  detectionConfig?: IDetectionConfig;
   metricData?: MetricDetail[];
   readonly?: boolean;
   value?: IIssueAggValue;
@@ -74,6 +75,7 @@ interface IProps {
   name: 'IssueAgg',
 })
 export default class IssueAgg extends tsc<IProps, IEvents> {
+  @Prop({ type: Object, default: () => ({}) }) detectionConfig: IDetectionConfig;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   @Prop({ type: Array, default: () => [] }) metricData: MetricDetail[];
   @Prop({
@@ -86,10 +88,17 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
   })
   value: IIssueAggValue;
 
+  /** 根据 detectionConfig.data 中的 level 计算默认告警级别 */
+  get defaultLevels(): number[] {
+    const levels = this.detectionConfig?.data?.map(item => item.level).filter(Boolean);
+    // 去重并排序
+    return [...new Set(levels)].sort((a, b) => a - b);
+  }
+
   localValue: IIssueAggValue = {
     agg_dimensions: [],
     conditions: [],
-    levels: [1, 2, 3],
+    levels: [],
   };
 
   /** 维度值缓存 */
@@ -126,7 +135,17 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
 
   @Watch('value', { immediate: true, deep: true })
   handleValueChange(val: IIssueAggValue) {
-    this.localValue = { ...val };
+    if (val && Object.keys(val).length > 0) {
+      this.localValue = { ...val };
+    }
+  }
+
+  @Watch('defaultLevels', { immediate: true })
+  handleDefaultLevelsChange(levels: number[]) {
+    // 如果 localValue.levels 为空，使用 defaultLevels 作为默认值
+    if (levels.length > 0 && this.localValue.levels.length === 0) {
+      this.localValue.levels = levels;
+    }
   }
 
   @Emit('change')
