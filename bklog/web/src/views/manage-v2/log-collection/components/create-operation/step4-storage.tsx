@@ -74,6 +74,7 @@ export default defineComponent({
     const clusterData = ref({});
     const loading = ref(false);
     const submitLoading = ref(false);
+    const storageFormRef = ref(null);
     const formData = ref({
       storage_replies: 1,
       retention: 7,
@@ -104,31 +105,81 @@ export default defineComponent({
     const isCustomReport = computed(() => props.scenarioId === 'custom_report');
     /**
      * 最大存储天数
-     * 新增场景：使用默认值
-     * 编辑场景：集群数据未就绪时不限制最大值，避免输入框截断已有值
      */
     const daysMax = computed(() => {
-      if (props.isEdit && !clusterData.value?.storage_cluster_id) return undefined;
       return clusterData.value?.setup_config?.retention_days_max || 7;
     });
     /**
      * 最大副本数
-     * 新增场景：使用默认值
-     * 编辑场景：集群数据未就绪时不限制最大值，避免输入框截断已有值
      */
     const numberOfReplicasMax = computed(() => {
-      if (props.isEdit && !clusterData.value?.storage_cluster_id) return undefined;
       return clusterData.value?.setup_config?.number_of_replicas_max || 1;
     });
     /**
      * 最大分片数
-     * 新增场景：使用默认值
-     * 编辑场景：集群数据未就绪时不限制最大值，避免输入框截断已有值
      */
     const esShardsMax = computed(() => {
-      if (props.isEdit && !clusterData.value?.storage_cluster_id) return undefined;
       return clusterData.value?.setup_config?.es_shards_max || 1;
     });
+
+    /**
+     * 表单校验规则
+     */
+    const formRules = computed(() => ({
+      retention: [
+        {
+          validator: val => Number(val) <= daysMax.value,
+          message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
+          trigger: 'blur',
+        },
+        {
+          validator: val => Number(val) <= daysMax.value,
+          message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
+          trigger: 'change',
+        },
+      ],
+      allocation_min_days: [
+        {
+          validator: val => Number(val) <= daysMax.value,
+          message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
+          trigger: 'blur',
+        },
+        {
+          validator: val => Number(val) <= daysMax.value,
+          message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
+          trigger: 'change',
+        },
+        {
+          validator: val => Number(val) <= Number(formData.value.retention),
+          message: t('热数据天数不能大于过期时间'),
+          trigger: 'blur',
+        },
+      ],
+      storage_replies: [
+        {
+          validator: val => Number(val) <= numberOfReplicasMax.value,
+          message: () => t('最大自定义副本数为: {n}', { n: numberOfReplicasMax.value }),
+          trigger: 'blur',
+        },
+        {
+          validator: val => Number(val) <= numberOfReplicasMax.value,
+          message: () => t('最大自定义副本数为: {n}', { n: numberOfReplicasMax.value }),
+          trigger: 'change',
+        },
+      ],
+      es_shards: [
+        {
+          validator: val => Number(val) <= esShardsMax.value,
+          message: () => t('最大自定义分片数为: {n}', { n: esShardsMax.value }),
+          trigger: 'blur',
+        },
+        {
+          validator: val => Number(val) <= esShardsMax.value,
+          message: () => t('最大自定义分片数为: {n}', { n: esShardsMax.value }),
+          trigger: 'change',
+        },
+      ],
+    }));
 
     const showGroupText = computed(() => {
       const custom =
@@ -180,9 +231,9 @@ export default defineComponent({
       formData.value = {
         ...formData.value,
         storage_cluster_id: row.storage_cluster_id,
-        retention: setupConfig?.retention_days_default || '7',
-        storage_replies: setupConfig?.number_of_replicas_default || 0,
-        es_shards: setupConfig?.es_shards_default || 0,
+        retention: setupConfig?.retention_days_default || 7,
+        storage_replies: setupConfig?.number_of_replicas_default || 1,
+        es_shards: setupConfig?.es_shards_default || 3,
         allocation_min_days: 0,
       };
     };
@@ -192,10 +243,10 @@ export default defineComponent({
      */
     const handleChooseCluster = row => {
       if (row.storage_cluster_id !== clusterSelect.value) {
-        // 编辑场景首次进入且已有集群时，不覆盖已有值，仅更新max限制
-        if (!clusterSelect.value && props.isEdit) {
-          // 首次进入（clusterSelect为空），仅设置max限制，不重置表单值
-        } else {
+        // 编辑场景首次进入且已有集群配置时，不覆盖已有值，仅更新max限制
+        // 未完成的采集项没有 storage_cluster_id，首次选择集群时应使用集群默认值
+        const isEditWithExistingCluster = !clusterSelect.value && props.isEdit && props.configData.storage_cluster_id;
+        if (!isEditWithExistingCluster) {
           handleSelectStorageCluster(row);
         }
       }
@@ -315,79 +366,98 @@ export default defineComponent({
             </template>
           </bk-input>
         </div>
-        <div class='link-config label-form-box'>
-          <span class='label-title'>{t('过期时间')}</span>
-          <bk-input
-            class='min-width'
-            type='number'
-            value={formData.value.retention}
-            max={daysMax.value}
-            min={1}
-            on-input={val => {
-              formData.value.retention = val;
-            }}
+        <bk-form
+          ref={storageFormRef}
+          label-width={100}
+          {...{ props: { model: formData.value, rules: formRules.value } }}
+        >
+          <bk-form-item
+            label={t('过期时间')}
+            property='retention'
           >
-            <template slot='append'>
-              <div class='group-text'>{t('天')}</div>
-            </template>
-          </bk-input>
-        </div>
-        {clusterData.value.enable_hot_warm && (
-          <div class='link-config label-form-box'>
-            <span class='label-title'>{t('热数据天数')}</span>
             <bk-input
-              class='min-width'
+              class='number-input'
               type='number'
-              max={daysMax.value}
-              min={0}
-              value={formData.value.allocation_min_days}
+              value={formData.value.retention}
+              min={1}
               on-input={val => {
-                formData.value.allocation_min_days = val;
+                formData.value.retention = val;
+              }}
+              on-blur={val => {
+                if (val === '') {
+                  formData.value.retention = clusterData.value?.setup_config?.retention_days_default || 7;
+                }
               }}
             >
               <template slot='append'>
                 <div class='group-text'>{t('天')}</div>
               </template>
             </bk-input>
-          </div>
-        )}
-
-        <div class='link-config label-form-box'>
-          <span class='label-title'>{t('副本数')}</span>
-          <bk-input
-            class='min-width'
-            type='number'
-            max={numberOfReplicasMax.value}
-            min={0}
-            value={formData.value.storage_replies}
-            on-input={val => {
-              formData.value.storage_replies = val;
-            }}
-            on-blur={val => {
-              if (val === '') {
-                formData.value.storage_replies = clusterData.value?.setup_config?.number_of_replicas_default || 0;
-              }
-            }}
-          />
-        </div>
-        <div class='link-config label-form-box'>
-          <span class='label-title'>{t('分片数')}</span>
-          <bk-input
-            class='min-width'
-            type='number'
-            max={esShardsMax.value}
-            min={1}
-            value={formData.value.es_shards}
-            on-input={val => {
-              formData.value.es_shards = val;
-            }}
-            on-blur={val => {
-              if (val === '') {
-                formData.value.es_shards = clusterData.value?.setup_config?.es_shards_default || 1;
-              }
-            }}
-          />
-        </div>
+          </bk-form-item>
+          {clusterData.value.enable_hot_warm && (
+            <bk-form-item
+              label={t('热数据天数')}
+              property='allocation_min_days'
+            >
+              <bk-input
+                class='number-input'
+                type='number'
+                min={0}
+                value={formData.value.allocation_min_days}
+                on-input={val => {
+                  formData.value.allocation_min_days = val;
+                }}
+                on-blur={val => {
+                  if (val === '') {
+                    formData.value.allocation_min_days = clusterData.value?.setup_config?.retention_days_default || 7;
+                  }
+                }}
+              >
+                <template slot='append'>
+                  <div class='group-text'>{t('天')}</div>
+                </template>
+              </bk-input>
+            </bk-form-item>
+          )}
+          <bk-form-item
+            label={t('副本数')}
+            property='storage_replies'
+          >
+            <bk-input
+              class='number-input'
+              type='number'
+              min={0}
+              value={formData.value.storage_replies}
+              on-input={val => {
+                formData.value.storage_replies = val;
+              }}
+              on-blur={val => {
+                if (val === '') {
+                  formData.value.storage_replies = clusterData.value?.setup_config?.number_of_replicas_default || 1;
+                }
+              }}
+            />
+          </bk-form-item>
+          <bk-form-item
+            label={t('分片数')}
+            property='es_shards'
+          >
+            <bk-input
+              class='number-input'
+              type='number'
+              min={1}
+              value={formData.value.es_shards}
+              on-input={val => {
+                formData.value.es_shards = val;
+              }}
+              on-blur={val => {
+                if (val === '') {
+                  formData.value.es_shards = clusterData.value?.setup_config?.es_shards_default || 3;
+                }
+              }}
+            />
+          </bk-form-item>
+        </bk-form>
       </div>
     );
     const cardConfig = [
@@ -498,9 +568,15 @@ export default defineComponent({
     /**
      * 保存配置
      */
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
       if (!clusterSelect.value) {
         showMessage(t('请选择集群'), 'error');
+        return;
+      }
+      // 表单校验
+      try {
+        await storageFormRef.value?.validate();
+      } catch {
         return;
       }
       if (isCustomReport.value) {
