@@ -1,0 +1,21 @@
+.apm-alarm-center-page {
+    height: calc(100% + 24px);
+    margin: -8px -16px -16px;
+}
+
+.apm-bk-sideslider, .apm-alarm-center-page {
+    .ml-16 {
+        margin-left: 16px;
+    }
+    
+    .ml-6 {
+        margin-left: 6px;
+    }
+}
+
+// 处理apm下padding被污染问题
+#apm .tippy-box[data-theme~='apm-tippy-padding0'] {
+    .tippy-content {
+        padding: 0;
+    }
+}
