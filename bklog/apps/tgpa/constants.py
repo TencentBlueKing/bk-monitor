@@ -160,8 +160,8 @@ TGPA_TASK_TARGET_FIELDS = ["cos_file_name", "file"]
 CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "file", "lineno", "cos_file_name"]
 LOG_FILE_EXPIRE_DAYS = 3
 EXTRACT_FILE_MAX_ITERATIONS = 10  # 解压文件最大迭代次数
-COS_DOWNLOAD_MAX_SIZE = 1024 * 1024 * 1024  # COS文件下载最大大小限制: 1GB
-COS_DOWNLOAD_CHUNK_SIZE = 1024 * 1024  # COS文件下载分块大小: 1MB
+FILE_DOWNLOAD_MAX_SIZE = 1024 * 1024 * 1024  # 文件下载最大大小限制: 1GB
+FILE_DOWNLOAD_CHUNK_SIZE = 1024 * 1024  # 文件下载分块大小: 1MB
 
 
 class TGPATaskTypeEnum(ChoicesEnum):
@@ -334,15 +334,3 @@ TGPA_REPORT_SOURCE_FIELDS = [
 TGPA_REPORT_OFFSET_MINUTES = -5  # 客户端日志上报同步偏移时间
 TGPA_REPORT_MAX_TIME_RANGE_MINUTES = 30  # 客户端日志上报同步最大时间跨度
 TGPA_UNFINISHED_TASK_CHECK_DAYS = 7  # 未完成任务的最大回溯天数
-
-
-class CosErrorCodeEnum(ChoicesEnum):
-    """腾讯云COS错误码"""
-
-    NO_SUCH_KEY = "NoSuchKey"
-    NO_SUCH_RESOURCE = "NoSuchResource"
-
-    _choices_labels = (
-        (NO_SUCH_KEY, _("指定的Key不存在")),
-        (NO_SUCH_RESOURCE, _("指定的资源不存在")),
-    )
