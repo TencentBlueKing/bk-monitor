@@ -49,6 +49,7 @@ from apps.tgpa.constants import (
     EXTRACT_FILE_MAX_ITERATIONS,
     COS_DOWNLOAD_MAX_SIZE,
     COS_DOWNLOAD_CHUNK_SIZE,
+    CosErrorCodeEnum,
 )
 from apps.tgpa.handlers.decrypt import BaseDecryptHandler
 from apps.utils.bcs import Bcs
@@ -146,7 +147,7 @@ class TGPAFileHandler:
                 logger.info("File found in biz COS (bk_biz_id=%s): %s", bk_biz_id, file_name)
                 return client, biz_config
             except CosServiceError as e:
-                if e.get_status_code() == 404:
+                if e.get_error_code() in [CosErrorCodeEnum.NO_SUCH_KEY.value, CosErrorCodeEnum.NO_SUCH_RESOURCE.value]:
                     logger.info(
                         "File not found in biz COS (bk_biz_id=%s), falling back to default COS: %s",
                         bk_biz_id,

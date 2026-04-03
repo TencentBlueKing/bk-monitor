@@ -334,3 +334,15 @@ TGPA_REPORT_SOURCE_FIELDS = [
 TGPA_REPORT_OFFSET_MINUTES = -5  # 客户端日志上报同步偏移时间
 TGPA_REPORT_MAX_TIME_RANGE_MINUTES = 30  # 客户端日志上报同步最大时间跨度
 TGPA_UNFINISHED_TASK_CHECK_DAYS = 7  # 未完成任务的最大回溯天数
+
+
+class CosErrorCodeEnum(ChoicesEnum):
+    """腾讯云COS错误码"""
+
+    NO_SUCH_KEY = "NoSuchKey"
+    NO_SUCH_RESOURCE = "NoSuchResource"
+
+    _choices_labels = (
+        (NO_SUCH_KEY, _("指定的Key不存在")),
+        (NO_SUCH_RESOURCE, _("指定的资源不存在")),
+    )
