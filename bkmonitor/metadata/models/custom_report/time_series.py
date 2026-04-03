@@ -440,10 +440,11 @@ class TimeSeriesGroup(CustomGroupBase):
             aggregated_metrics[field_name].setdefault("field_name", field_name)
 
             # 合并 tag_value_list
-            tag_value_list = item.get("tag_value_list", {})
+            tag_value_list = item.get("tag_value_list") or {}
             for tag_name, tag_info in tag_value_list.items():
                 existing_tag = aggregated_metrics[field_name]["tag_value_list"].get(tag_name)
-                new_values = set(tag_info.get("values", []))
+                tag_info = tag_info or {}
+                new_values = set(tag_info.get("values") or [])
                 new_update_time = tag_info.get("last_update_time", 0)
 
                 if existing_tag:
