@@ -142,6 +142,9 @@ export default defineComponent({
 
     const prependText = computed(() => {
       const { table_id, collector_config_name_en } = curCollect.value;
+      if (props.isClone) {
+        return collector_config_name_en || props.configData.collector_config_name_en;
+      }
       return (
         formData.value.table_id || table_id || collector_config_name_en || props.configData.collector_config_name_en
       );
