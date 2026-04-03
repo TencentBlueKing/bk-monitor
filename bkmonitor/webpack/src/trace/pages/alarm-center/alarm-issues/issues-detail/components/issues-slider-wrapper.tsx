@@ -149,9 +149,10 @@ export default defineComponent({
 
     /** 获取维度统计数据 */
     const getDimensionStatsData = async () => {
+      if (!props.detail) return;
       const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
       dimensionStatsData.value = await alertTopN({
-        ...commonParams,
+        ...commonParams.value,
         start_time: startTime,
         end_time: endTime,
         fields: props.detail?.aggregate_config?.aggregate_dimensions?.map(item =>

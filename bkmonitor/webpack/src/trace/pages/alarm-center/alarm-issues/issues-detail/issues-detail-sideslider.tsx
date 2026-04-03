@@ -305,20 +305,23 @@ export default defineComponent({
           ),
           default: () => (
             <div class='issues-detail-side-slider-content'>
-              <IssuesSliderWrapper
-                conditions={this.conditions}
-                detail={this.detail}
-                filterMode={this.filterMode}
-                queryString={this.queryString}
-                timeRange={this.timeRange}
-                onAssigneeChange={this.handleAssigneeChange}
-                onConditionChange={this.handleConditionChange}
-                onFilterModeChange={this.handleFilterModeChange}
-                onImpactScopeClick={this.handleImpactScopeClick}
-                onPriorityChange={this.handlePriorityChange}
-                onQueryStringChange={this.handleQueryStringChange}
-                onStatusAction={this.handleStatusAction}
-              />
+              {this.detail && (
+                <IssuesSliderWrapper
+                  conditions={this.conditions}
+                  detail={this.detail}
+                  filterMode={this.filterMode}
+                  queryString={this.queryString}
+                  timeRange={this.timeRange}
+                  onAssigneeChange={this.handleAssigneeChange}
+                  onConditionChange={this.handleConditionChange}
+                  onFilterModeChange={this.handleFilterModeChange}
+                  onImpactScopeClick={this.handleImpactScopeClick}
+                  onPriorityChange={this.handlePriorityChange}
+                  onQueryStringChange={this.handleQueryStringChange}
+                  onStatusAction={this.handleStatusAction}
+                />
+              )}
+
               <IssuesImpactScopeDrawer
                 resource={this.impactScopeResource}
                 resourceKey={this.impactScopeResourceKey}

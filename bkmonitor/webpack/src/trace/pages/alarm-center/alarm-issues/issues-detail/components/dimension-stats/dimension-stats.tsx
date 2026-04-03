@@ -88,7 +88,12 @@ export default defineComponent({
               class='stats-row'
             >
               {/* 标签 */}
-              <div class='row-label'>{row.name}</div>
+              <div
+                class='row-label'
+                v-overflow-tips
+              >
+                {row.name}
+              </div>
 
               {/* 进度条 */}
               <div
