@@ -33,7 +33,7 @@ import SimpleSelect from './simple-select';
 import { type ActionTypeEnum, ACTION_TYPE_OPTIONS, actionType } from './typing';
 
 import type { IGroupItem } from '../components/group-select';
-import type { MetricDetail } from '../typings/index';
+import type { IDetectionConfig, MetricDetail } from '../typings/index';
 
 import './alarm-handling-list.scss';
 
@@ -45,6 +45,7 @@ interface IEvents {
 interface IProps {
   allAction?: IGroupItem[]; // 套餐列表
   allDefense?: IAllDefense[]; // 防御动作列表
+  detectionConfig?: IDetectionConfig;
   isSimple?: boolean; // 简易模式（无预览, 无回填）
   metricData?: MetricDetail[];
   readonly?: boolean;
@@ -73,6 +74,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
   @Prop({ default: () => [], type: Array }) value: IAlarmItem[];
   @Prop({ type: Array, default: () => [] }) allAction: IGroupItem[];
   @Prop({ type: Array, default: () => [] }) allDefense: IAllDefense[];
+  @Prop({ type: Object, default: () => ({}) }) detectionConfig: IDetectionConfig;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   @Prop({ default: '', type: [Number, String] }) strategyId: number;
   @Prop({ default: false, type: Boolean }) isSimple: boolean;
@@ -267,6 +269,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
               ) : (
                 <IssueAgg
                   class='alarm-handling-item'
+                  detectionConfig={this.detectionConfig}
                   metricData={this.metricData}
                   readonly={this.readonly}
                 />

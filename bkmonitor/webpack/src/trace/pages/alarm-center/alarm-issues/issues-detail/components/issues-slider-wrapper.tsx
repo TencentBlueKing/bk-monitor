@@ -25,8 +25,9 @@
  */
 import { type PropType, computed, defineComponent, KeepAlive, shallowRef, watchEffect } from 'vue';
 
-import { Tab } from 'bkui-vue';
+import { Loading, Tab } from 'bkui-vue';
 import { alertTopN } from 'monitor-api/modules/alert_v2';
+import EmptyStatus from 'trace/components/empty-status/empty-status';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 import { AlarmServiceFactory } from 'trace/pages/alarm-center/services/factory';
 import {
@@ -110,8 +111,10 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const currentTab = shallowRef<IssueDetailTabType>(IssueDetailTabEnum.LATEST);
-    // test
-    const tempAlertId = shallowRef('');
+    const latestAlertId = shallowRef('');
+    const earliestAlertId = shallowRef('');
+    const latestAlertIdLoading = shallowRef(false);
+    const earliestAlertIdLoading = shallowRef(false);
     /** 告警事件数量 */
     const alertCount = shallowRef(0);
     /** 公共参数 */
@@ -129,23 +132,53 @@ export default defineComponent({
       fields: [],
     });
 
-    const getTempAlertId = async () => {
-      const alarmService = AlarmServiceFactory(AlarmType.ALERT);
+    const getAllAlertId = async () => {
+      if (!props.detail?.id) {
+        return;
+      }
+      latestAlertIdLoading.value = true;
+      earliestAlertIdLoading.value = true;
       const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
+      const alarmService = AlarmServiceFactory(AlarmType.ALERT);
       const params = {
-        bk_biz_ids: [],
-        conditions: props.conditions,
-        query_string: props.queryString,
+        bk_biz_id: props.detail.bk_biz_id,
+        ...commonParams.value,
         start_time: startTime,
         end_time: endTime,
-        page_size: 1,
         page: 1,
-        ordering: [],
+        page_size: 1,
+        show_overview: false,
+        show_aggs: false,
       };
-      const res = await alarmService.getFilterTableList(params);
-      tempAlertId.value = res.data?.[0]?.id;
+      const latestResFn = async () => {
+        return await alarmService.getFilterTableList({
+          ...params,
+          ordering: ['-create_time'],
+        });
+      };
+      const earliestResFn = async () => {
+        return await alarmService.getFilterTableList({
+          ...params,
+          ordering: ['create_time'],
+        });
+      };
+      latestResFn()
+        .then(res => {
+          latestAlertId.value = res?.data?.[0]?.id || '';
+          console.log(latestAlertId.value);
+          alertCount.value = res?.total || 0;
+        })
+        .finally(() => {
+          latestAlertIdLoading.value = false;
+        });
+      earliestResFn()
+        .then(res => {
+          earliestAlertId.value = res?.data?.[0]?.id || '';
+        })
+        .finally(() => {
+          earliestAlertIdLoading.value = false;
+        });
     };
-    getTempAlertId();
 
     /** 获取维度统计数据 */
     const getDimensionStatsData = async () => {
@@ -199,6 +232,7 @@ export default defineComponent({
 
     watchEffect(() => {
       getDimensionStatsData();
+      getAllAlertId();
     });
 
     const handleTabChange = (tab: IssueDetailTabType) => {
@@ -251,21 +285,54 @@ export default defineComponent({
       });
     };
 
+    const loadingRender = () => {
+      return (
+        <div class='panel-loading'>
+          <Loading loading />
+        </div>
+      );
+    };
+
+    const emptyRender = () => {
+      return (
+        <EmptyStatus
+          type={
+            (props.filterMode === EMode.ui ? !!props.conditions.length : !!props.queryString) ? 'search-empty' : 'empty'
+          }
+          onOperation={() => {
+            if (props.filterMode === EMode.ui) {
+              handleConditionChange([]);
+            } else {
+              handleQueryStringChange('');
+            }
+          }}
+        />
+      );
+    };
+
     const getPanelComponent = () => {
       switch (currentTab.value) {
         case IssueDetailTabEnum.LATEST:
-          return (
+          return latestAlertIdLoading.value ? (
+            loadingRender()
+          ) : latestAlertId.value ? (
             <IssuesDetailAlarmPanel
-              key={props.detail?.latest_alert_id}
-              alarmId={tempAlertId.value || ''}
+              key={latestAlertId.value}
+              alarmId={latestAlertId.value || ''}
             />
+          ) : (
+            emptyRender()
           );
         case IssueDetailTabEnum.EARLIEST:
-          return (
+          return earliestAlertIdLoading.value ? (
+            loadingRender()
+          ) : earliestAlertId.value ? (
             <IssuesDetailAlarmPanel
-              key={props.detail?.earliest_alert_id}
-              alarmId={tempAlertId.value || ''}
+              key={earliestAlertId.value}
+              alarmId={earliestAlertId.value}
             />
+          ) : (
+            emptyRender()
           );
         case IssueDetailTabEnum.LIST:
           return (
@@ -278,6 +345,8 @@ export default defineComponent({
                 container: `.${leftPanelClass}`,
               }}
               conditions={props.conditions}
+              detail={props.detail}
+              filterMode={props.filterMode}
               queryString={props.queryString}
               scrollContainerSelector={`.${leftPanelClass}`}
               timeRange={props.timeRange}
@@ -294,6 +363,8 @@ export default defineComponent({
       alertCount,
       commonParams,
       dimensionStatsData,
+      earliestAlertId,
+      latestAlertId,
       handleTabChange,
       getPanelComponent,
       handleConditionChange,
@@ -335,7 +406,7 @@ export default defineComponent({
             {TAB_LIST.map(item => (
               <Tab.TabPanel
                 key={item.name}
-                label={item.label}
+                label={item.name === IssueDetailTabEnum.LIST ? `${item.label} (${this.alertCount})` : item.label}
                 name={item.name}
               />
             ))}

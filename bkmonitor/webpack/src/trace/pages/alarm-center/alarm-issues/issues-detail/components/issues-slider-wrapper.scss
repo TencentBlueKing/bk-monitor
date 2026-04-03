@@ -58,6 +58,13 @@
       }
     }
 
+    & > .panel-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 36px;
+    }
+
     .issues-detail-alarm-panel .alarm-center-detail-box .panel-tab {
       top: 100px;
     }

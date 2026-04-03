@@ -27,6 +27,7 @@ import { defineComponent, onMounted, provide, shallowReactive, watch } from 'vue
 
 import * as authMap from 'monitor-pc/pages/event-center/authority-map';
 import { storeToRefs } from 'pinia';
+import EmptyStatus from 'trace/components/empty-status/empty-status';
 import EventDetailHead from 'trace/pages/alarm-center/alarm-detail/components/event-detail-head';
 
 import { useAlarmCenterDetailStore } from '../../../../../../store/modules/alarm-center-detail';
@@ -81,7 +82,7 @@ export default defineComponent({
     };
   },
   render() {
-    if (!this.alarmDetail) return null;
+    if (!this.alarmDetail) return <EmptyStatus type={'empty'} />;
     return (
       <div class='issues-detail-alarm-panel'>
         <EventDetailHead
