@@ -110,9 +110,7 @@ class TGPAFileHandler:
         response = requests.get(url, stream=True, timeout=300)
         try:
             response.raise_for_status()
-            for chunk in response.iter_content(chunk_size=chunk_size):
-                if chunk:
-                    yield chunk
+            yield from response.iter_content(chunk_size=chunk_size)
         finally:
             response.close()
 
@@ -147,10 +145,7 @@ class TGPAFileHandler:
             try:
                 with open(save_path, "wb") as fp:
                     for chunk in response.iter_content(chunk_size=FILE_DOWNLOAD_CHUNK_SIZE):
-                        if not chunk:
-                            continue
                         read_len += len(chunk)
-
                         if read_len > max_size:
                             raise Exception(f"文件 {file_name} 大小超过最大限制 {max_size} 字节")
                         fp.write(chunk)
