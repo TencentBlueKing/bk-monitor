@@ -1296,4 +1296,5 @@ export default {
   设置排序字段: 'Set sorting field',
   排序字段设置: 'Sort field settings',
   至少需要配置一个排序字段: 'At least one sorting field needs to be configured',
+  热数据天数不能大于过期时间: 'The number of days for hot data cannot exceed the expiration time',
 };
