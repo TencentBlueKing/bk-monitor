@@ -25,6 +25,7 @@ interface AlarmCenterContainerEvents {
   onV3Event?: (event: string, ...args: unknown[]) => void;
 }
 
+import './index.scss';
 @Component
 export default class AlarmCenterContainer extends tsc<AlarmCenterContainerProps, AlarmCenterContainerEvents> {
   /** 透传给 monitor-alarm-center 的 props，变更时会触发子应用 update */
@@ -99,6 +100,11 @@ export default class AlarmCenterContainer extends tsc<AlarmCenterContainerProps,
 
   /** 仅提供挂载根节点；实际内容由 Vue 3 子应用渲染到该节点内 */
   render() {
-    return <div ref='root' />;
+    return (
+      <div
+        ref='root'
+        class='apm-alarm-center-page'
+      />
+    );
   }
 }
