@@ -216,7 +216,10 @@ class LogCollectorHandler:
         if exclude_not_completed:
             qs = qs.filter(table_id__isnull=False)
         if keyword:
-            qs = qs.filter(Q(collector_config_name__icontains=keyword) | Q(table_id__icontains=keyword))
+            keyword_filter = Q(collector_config_name__icontains=keyword) | Q(table_id__icontains=keyword)
+            if keyword.isdigit():
+                keyword_filter |= Q(bk_data_id=int(keyword))
+            qs = qs.filter(keyword_filter)
 
         # 先查询索引组下的索引集，再查询索引集对应的采集项
         if parent_index_set_id:
