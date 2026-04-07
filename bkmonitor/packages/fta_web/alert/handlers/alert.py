@@ -1277,8 +1277,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 & Q("range", create_time={"lte": self.end_time})
             )
 
-        if self.bk_biz_ids:
-            action_search = action_search.filter("terms", bk_biz_id=self.bk_biz_ids)
+        if self.authorized_bizs is not None and self.bk_biz_ids:
+            action_search = action_search.filter("terms", bk_biz_id=self.authorized_bizs)
 
         action_search = action_search.extra(size=0)
 
