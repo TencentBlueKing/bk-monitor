@@ -128,7 +128,8 @@ class BkLogRegexpEtlStorage(EtlStorage):
         配置清洗入库策略，需兼容新增、编辑
         """
         # 兼容grok表达式
-        bk_biz_id = etl_params.pop("bk_biz_id", None)
+        etl_params = copy.deepcopy(etl_params)
+        bk_biz_id = etl_params.get("bk_biz_id")
         if etl_params.get("is_grok") and bk_biz_id:
             etl_params["separator_regexp"] = GrokHandler(bk_biz_id).grok_to_regex(etl_params["separator_regexp"])
 
