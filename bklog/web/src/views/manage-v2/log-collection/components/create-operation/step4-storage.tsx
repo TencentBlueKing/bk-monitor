@@ -119,7 +119,7 @@ export default defineComponent({
      * 最大分片数
      */
     const esShardsMax = computed(() => {
-      return clusterData.value?.setup_config?.es_shards_max || 1;
+      return clusterData.value?.setup_config?.es_shards_max || 3;
     });
 
     /**
@@ -256,6 +256,8 @@ export default defineComponent({
       if (row.enable_hot_warm && Number(formData.value.allocation_min_days) === 0) {
         formData.value.allocation_min_days = row.setup_config?.retention_days_default || '7';
       }
+      // 切换集群后清除表单校验错误提示
+      storageFormRef.value?.clearError();
     };
     /**
      * 获取采集项清洗缓存
