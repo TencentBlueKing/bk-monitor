@@ -63,7 +63,7 @@ class IssueViewSet(ResourceViewSet):
         # Issue 列表查询
         ResourceRoute("POST", resource.issue.search_issue, endpoint="issue/search"),
         # Issue 详情（元数据）
-        ResourceRoute("POST", resource.issue.issue_detail, endpoint="issue/detail"),
+        ResourceRoute("GET", resource.issue.issue_detail, endpoint="issue/detail"),
         # 指派负责人（含改派，支持批量）
         ResourceRoute("POST", resource.issue.assign_issue, endpoint="issue/assign"),
         # 标记为已解决（支持批量）
