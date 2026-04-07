@@ -70,6 +70,7 @@ interface ITableRowData {
   daily_usage?: number;
   total_usage?: number;
   bk_data_name?: string;
+  bk_data_id?: number | string;
   parent_index_sets?: Array<{ index_set_name: string;[key: string]: unknown }>;
   scenario_id?: string;
   scenario_name?: string;
@@ -160,6 +161,7 @@ const DELAY_CONSTANTS = {
  * 字段ID到列键的映射
  */
 const FIELD_ID_TO_COL_KEY_MAP: Record<string, string> = {
+  bk_data_id: 'bk_data_id',
   collector_config_name: 'name',
   storage_usage: 'daily_usage',
   total_usage: 'total_usage',
@@ -423,6 +425,13 @@ export default defineComponent({
 
     // 所有列定义
     const allColumns = computed(() => [
+      {
+        title: t('数据ID'),
+        colKey: 'bk_data_id',
+        width: 100,
+        ellipsis: true,
+        fixed: 'left',
+      },
       {
         title: t('采集名'),
         colKey: 'name',
@@ -1343,7 +1352,7 @@ export default defineComponent({
           <bk-input
             class='tool-search-select'
             value={searchKey.value}
-            placeholder={t('搜索 采集名、存储名')}
+            placeholder={t('搜索 数据ID、采集名、存储名')}
             clearable
             right-icon={'bk-icon icon-search'}
             on-input={(val: string) => {

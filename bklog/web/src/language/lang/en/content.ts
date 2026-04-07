@@ -1180,7 +1180,7 @@ export default {
   全部采集项: 'All collection items',
   创建索引集可合并多采集项一同使用: 'Create index set to merge multiple collection items for use together',
   '搜索 索引集名称': 'Search index set name',
-  '搜索 采集名、存储名': 'Search collection name, storage name',
+  '搜索 数据ID、采集名、存储名': 'Search by data ID, collection name, and storage name.',
   暂无索引集: 'No index set yet',
   '第三方ES 日志接入': 'Third-party ES log access',
   文件采集: 'File collection',

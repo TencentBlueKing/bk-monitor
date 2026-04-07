@@ -97,6 +97,11 @@ export const COLLECTOR_SCENARIO_ENUM = [
 
 /** 表格需要展示的字段 */
 export const SETTING_FIELDS = [
+  // 数据ID
+  {
+    id: 'bk_data_id',
+    label: window.$t('数据ID'),
+  },
   // 采集配置名称
   {
     id: 'collector_config_name',
