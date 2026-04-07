@@ -57,11 +57,12 @@ export default defineComponent({
 
     return () => (
       <div class='v2-log-collection-main'>
-        {isShowLeft.value && (
-          <div class='v2-log-collection-left'>
-            <LeftList on-choose={handleChoose} />
-          </div>
-        )}
+        <div
+          class='v2-log-collection-left'
+          v-show={isShowLeft.value}
+        >
+          <LeftList on-choose={handleChoose} />
+        </div>
         <div class='v2-log-collection-right'>
           <button
             class='right-btn-box'

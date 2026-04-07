@@ -754,7 +754,6 @@ export default defineComponent({
         if (!authGlobalInfo.value) {
           checkCreateAuth();
         }
-        listLoading.value = true;
         // 初始化时计算表格最大高度
         calculateMaxTableHeight();
         // 监听窗口大小变化
