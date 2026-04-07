@@ -214,7 +214,7 @@ export default defineComponent({
             headerCustom: () => (
               <div class='header-custom'>
                 <i18n-t
-                  class='title-desc'
+                  class='title-description'
                   keypath='（找到 {0} 条结果，用时 {1} 毫秒）'
                   tag='div'
                 >
