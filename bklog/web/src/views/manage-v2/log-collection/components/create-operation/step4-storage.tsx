@@ -264,10 +264,10 @@ export default defineComponent({
      */
 
     const getCleanStash = async () => {
-      const isStorageEdit = ['collectEdit', 'collectField'].includes(String(route.name ?? '')) && route.query.step;
+      const isStorageEdit = ['collectEdit', 'collectStorage', 'collectField'].includes(String(route.name ?? '')) && route.query.step;
       let id = curCollect.value.collector_config_id;
       if (isStorageEdit) {
-        id = route.params.collectorId;
+        id = Number(route.params.collectorId);
       }
       try {
         const res = await $http.request('clean/getCleanStash', {
