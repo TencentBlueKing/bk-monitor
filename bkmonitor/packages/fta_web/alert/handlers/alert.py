@@ -1226,9 +1226,28 @@ class AlertQueryHandler(BaseBizQueryHandler):
             ],
         }
 
+    @staticmethod
+    def _parse_notice_ways_from_inputs(inputs: dict) -> set:
+        """从父任务的 inputs 中解析出有效的通知方式集合"""
+        notify_info = {
+            **inputs.get("notify_info", {}),
+            **inputs.get("follow_notify_info", {}),
+        }
+        exclude_notice_ways = set(inputs.get("exclude_notice_ways") or [])
+
+        notice_ways = set()
+        for way in notify_info:
+            if way == "wxbot_mention_users":
+                if NoticeWay.WX_BOT not in exclude_notice_ways:
+                    notice_ways.add(NoticeWay.WX_BOT)
+                continue
+            if way not in exclude_notice_ways:
+                notice_ways.add(way)
+        return notice_ways
+
     def _query_alert_notice_ways(self, alert_ids: set | None = None) -> dict[str, set]:
         """
-        查询通知子任务，返回每个 alert_id 对应的有效通知方式集合
+        查询通知父任务，返回每个 alert_id 对应的有效通知方式集合
 
         参数:
             alert_ids: 限定查询范围的告警 ID 集合，为 None 时不限定
@@ -1246,7 +1265,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         action_search = ActionInstanceDocument.search(start_time=self.start_time, end_time=self.end_time)
         action_search = action_search.filter("term", action_plugin_type=ActionPluginType.NOTICE)
-        action_search = action_search.filter("term", is_parent_action=False)
+        action_search = action_search.filter("term", is_parent_action=True)
 
         if alert_ids is not None:
             # 有明确告警ID时不限定时间范围，避免遗漏告警结束后生成的通知记录
@@ -1263,12 +1282,13 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         action_search = action_search.extra(size=0)
 
-        # 按 alert_id 分桶，每桶取所有子任务的 inputs（用于提取 notice_way）
+        # 按 alert_id 分桶，每桶取 update_time 最新的父任务
         agg_size = len(alert_ids) if alert_ids else 10000
         action_search.aggs.bucket("per_alert", "terms", field="alert_id", size=agg_size).metric(
-            "sub_actions",
+            "latest_action",
             "top_hits",
-            size=100,
+            size=1,
+            sort=[{"update_time": {"order": "desc"}}],
             _source=["inputs"],
         )
 
@@ -1278,18 +1298,13 @@ class AlertQueryHandler(BaseBizQueryHandler):
             if alert_ids is not None and bucket.key not in alert_ids:
                 continue
 
-            hits = bucket.sub_actions.hits.hits
+            hits = bucket.latest_action.hits.hits
             if not hits:
                 continue
 
-            notice_ways = set()
-            for hit in hits:
-                source = hit.to_dict().get("_source", {})
-                inputs = source.get("inputs", {})
-                notice_way = inputs.get("notice_way")
-                if notice_way:
-                    notice_ways.add(notice_way)
-
+            source = hits[0].to_dict().get("_source", {})
+            inputs = source.get("inputs", {})
+            notice_ways = self._parse_notice_ways_from_inputs(inputs)
             if notice_ways:
                 result[bucket.key] = notice_ways
 
