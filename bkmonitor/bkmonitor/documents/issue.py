@@ -148,6 +148,36 @@ class IssueDocument(BaseDocument):
             ]
         )
 
+    def reopen(self, operator: str) -> None:
+        """重新打开：RESOLVED → UNRESOLVED"""
+        if self.status != IssueStatus.RESOLVED:
+            raise ValueError(f"Cannot reopen: current status={self.status}, expected={IssueStatus.RESOLVED}")
+        old_status = self.status
+        self.status = IssueStatus.UNRESOLVED
+        self.update_time = int(time.time())
+        self._persist_and_cache(active=True)
+        self._write_activities(
+            [
+                (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator),
+            ]
+        )
+
+    def restore(self, operator: str) -> None:
+        """恢复归档：ARCHIVED → 归档前状态（从活动日志推断），无记录时回退到 PENDING_REVIEW"""
+        if self.status != IssueStatus.ARCHIVED:
+            raise ValueError(f"Cannot restore: current status={self.status}, expected={IssueStatus.ARCHIVED}")
+        target_status = self._get_pre_archive_status()
+        old_status = self.status
+        self.status = target_status
+        self.update_time = int(time.time())
+        # 恢复后若目标状态为活跃状态则写回缓存
+        self._persist_and_cache(active=target_status in IssueStatus.ACTIVE_STATUSES)
+        self._write_activities(
+            [
+                (IssueActivityType.STATUS_CHANGE, old_status, target_status, operator),
+            ]
+        )
+
     def add_comment(self, content: str, operator: str, now: int | None = None) -> "IssueActivityDocument":
         """
         添加跟进评论
@@ -194,6 +224,27 @@ class IssueDocument(BaseDocument):
                 ),
             ]
         )
+
+    def _get_pre_archive_status(self) -> str:
+        """
+        从活动日志中找到最近一次归档操作（STATUS_CHANGE to_value=ARCHIVED）之前的状态。
+        无法确定时兜底返回 PENDING_REVIEW。
+        """
+        try:
+            search = (
+                IssueActivityDocument.search(all_indices=True)
+                .filter("term", issue_id=self.id)
+                .filter("term", activity_type=IssueActivityType.STATUS_CHANGE)
+                .filter("term", to_value=IssueStatus.ARCHIVED)
+                .sort("-time")
+                .extra(size=1)
+            )
+            results = list(search.execute())
+            if results:
+                return results[0].from_value or IssueStatus.PENDING_REVIEW
+        except Exception:
+            logger.exception("Failed to get pre_archive_status from activity log, issue_id=%s", self.id)
+        return IssueStatus.PENDING_REVIEW
 
     def _persist_and_cache(self, active: bool) -> None:
         """
