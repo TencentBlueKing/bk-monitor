@@ -251,6 +251,8 @@ export default defineComponent({
 
     const sortConfig = ref<ISortConfig>({});
     const stopTypeKey = ref(true);
+    /** 当前操作行是否为自定义上报类型 */
+    const isCustomReport = computed(() => currentRow.value?.log_access_type === 'custom_report');
     /**
      * 获取空状态类型
      * @returns 空状态类型
@@ -1151,6 +1153,30 @@ export default defineComponent({
     };
 
     /**
+     * 自定义上报类型直接调用停用接口
+     * @param isStopIndexSet - 是否停用索引集
+     */
+    const handleDirectStop = (isStopIndexSet: boolean) => {
+      $http
+        .request('collect/stopCollect', {
+          params: {
+            collector_config_id: currentRow.value.collector_config_id,
+          },
+          data: {
+            is_stop_index_set: isStopIndexSet,
+          },
+        })
+        .then((res) => {
+          if (res.result) {
+            reloadList();
+          }
+        })
+        .catch(() => {
+          showMessage(t('停用失败'), 'error');
+        });
+    };
+
+    /**
      * 处理表格分页变化
      * @param pageInfo - 分页信息
      */
@@ -1391,9 +1417,13 @@ export default defineComponent({
           />
           <StopTypeDialog
             showDialog={showStopTypeDialog.value}
+            isCustomReport={isCustomReport.value}
             on-update={(val: boolean) => {
               showCollectIssuedSlider.value = true;
               stopTypeKey.value = val;
+            }}
+            on-confirm={(val: boolean) => {
+              handleDirectStop(val);
             }}
             on-cancel={() => {
               showStopTypeDialog.value = false;
