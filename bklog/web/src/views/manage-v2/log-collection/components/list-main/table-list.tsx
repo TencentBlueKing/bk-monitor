@@ -70,6 +70,7 @@ interface ITableRowData {
   daily_usage?: number;
   total_usage?: number;
   bk_data_name?: string;
+  bk_data_id?: number | string;
   parent_index_sets?: Array<{ index_set_name: string;[key: string]: unknown }>;
   scenario_id?: string;
   scenario_name?: string;
@@ -160,6 +161,7 @@ const DELAY_CONSTANTS = {
  * 字段ID到列键的映射
  */
 const FIELD_ID_TO_COL_KEY_MAP: Record<string, string> = {
+  bk_data_id: 'bk_data_id',
   collector_config_name: 'name',
   storage_usage: 'daily_usage',
   total_usage: 'total_usage',
@@ -181,6 +183,10 @@ export default defineComponent({
     indexSet: {
       type: Object as PropType<IListItemData>,
       default: () => ({}),
+    },
+    leftLoading: {
+      type: Boolean,
+      default: false,
     },
   },
 
@@ -210,6 +216,7 @@ export default defineComponent({
     const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId, isAllowedCreate } = useCollectList();
     const tableList = ref<ITableRowData[]>([]);
     const listLoading = ref(false);
+    const isLoading = computed(() => listLoading.value || props.leftLoading);
     // 保存原始数据顺序的索引映射（用于恢复排序）
     const originalOrderMap = ref<Map<number | string, number>>(new Map());
     // 用户信息映射（username -> display_name）
@@ -423,6 +430,13 @@ export default defineComponent({
 
     // 所有列定义
     const allColumns = computed(() => [
+      {
+        title: t('数据ID'),
+        colKey: 'bk_data_id',
+        width: 100,
+        ellipsis: true,
+        fixed: 'left',
+      },
       {
         title: t('采集名'),
         colKey: 'name',
@@ -1335,7 +1349,7 @@ export default defineComponent({
               theme='primary'
               on-Click={handleCreateOperation}
               v-cursor={{ active: isAllowedCreate }}
-              disabled={!collectProject.value || listLoading.value || isAllowedCreate === null}
+              disabled={!collectProject.value || isLoading.value || isAllowedCreate === null}
             >
               {t('采集项')}
             </bk-button>
@@ -1343,7 +1357,7 @@ export default defineComponent({
           <bk-input
             class='tool-search-select'
             value={searchKey.value}
-            placeholder={t('搜索 采集名、存储名')}
+            placeholder={t('搜索 数据ID、采集名、存储名')}
             clearable
             right-icon={'bk-icon icon-search'}
             on-input={(val: string) => {
@@ -1356,6 +1370,7 @@ export default defineComponent({
             on-enter={() => {
               reloadList();
             }}
+            on-right-icon-click={reloadList}
           />
         </div>
         <div
@@ -1367,7 +1382,7 @@ export default defineComponent({
             columns={allColumns.value}
             data={tableList.value}
             sortConfig={sortConfig.value}
-            loading={listLoading.value}
+            loading={isLoading.value}
             on-page-change={handlePageChange}
             pagination={pagination.value}
             height={maxTableHeight.value}

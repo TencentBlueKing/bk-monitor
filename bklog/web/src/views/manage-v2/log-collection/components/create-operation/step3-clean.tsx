@@ -195,7 +195,7 @@ export default defineComponent({
     /**
      * 是否为编辑
      */
-    const isUpdate = computed(() => route.name === 'collectEdit' && props.isEdit);
+    const isUpdate = computed(() => ['collectEdit', 'collectField'].includes(String(route.name ?? '')) && props.isEdit);
     const isEditTemp = computed(() => route.name === 'clean-template-edit');
 
     const formData = ref({
