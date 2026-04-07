@@ -184,6 +184,10 @@ export default defineComponent({
       type: Object as PropType<IListItemData>,
       default: () => ({}),
     },
+    leftLoading: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   emits: [],
@@ -212,6 +216,7 @@ export default defineComponent({
     const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId, isAllowedCreate } = useCollectList();
     const tableList = ref<ITableRowData[]>([]);
     const listLoading = ref(false);
+    const isLoading = computed(() => listLoading.value || props.leftLoading);
     // 保存原始数据顺序的索引映射（用于恢复排序）
     const originalOrderMap = ref<Map<number | string, number>>(new Map());
     // 用户信息映射（username -> display_name）
@@ -1344,7 +1349,7 @@ export default defineComponent({
               theme='primary'
               on-Click={handleCreateOperation}
               v-cursor={{ active: isAllowedCreate }}
-              disabled={!collectProject.value || listLoading.value || isAllowedCreate === null}
+              disabled={!collectProject.value || isLoading.value || isAllowedCreate === null}
             >
               {t('采集项')}
             </bk-button>
@@ -1365,6 +1370,7 @@ export default defineComponent({
             on-enter={() => {
               reloadList();
             }}
+            on-right-icon-click={reloadList}
           />
         </div>
         <div
@@ -1376,7 +1382,7 @@ export default defineComponent({
             columns={allColumns.value}
             data={tableList.value}
             sortConfig={sortConfig.value}
-            loading={listLoading.value}
+            loading={isLoading.value}
             on-page-change={handlePageChange}
             pagination={pagination.value}
             height={maxTableHeight.value}

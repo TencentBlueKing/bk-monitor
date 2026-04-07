@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, onMounted, onBeforeUnmount } from 'vue';
+import { computed, defineComponent, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import useLocale from '@/hooks/use-locale';
@@ -44,7 +44,7 @@ import 'tippy.js/themes/light.css';
 
 export default defineComponent({
   name: 'LeftList',
-  emits: ['choose'],
+  emits: ['choose', 'loading'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
@@ -52,6 +52,15 @@ export default defineComponent({
     const router = useRouter();
     const { indexGroupLoading, getIndexGroupList } = useOperation();
     const activeKey = ref<number | string>('all');
+
+    // 监听左侧列表加载状态变化，通知父组件
+    watch(
+      () => indexGroupLoading.value,
+      (val) => {
+        emit('loading', val);
+      },
+      { immediate: true },
+    );
     const addPanelRef = ref();
     const addIndexSetRef = ref();
     const rootRef = ref();
