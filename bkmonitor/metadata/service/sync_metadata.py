@@ -89,7 +89,9 @@ def sync_kafka_metadata(bk_tenant_id: str, kafka_info: dict[str, Any], ds: model
     # 更新 KafkaTopicInfo 信息，按需更新
     try:
         kafka_topic_ins = models.KafkaTopicInfo.objects.get(bk_data_id=bk_data_id)
-        if kafka_topic_ins.topic != kafka_info["topic"] or kafka_topic_ins.partition != kafka_info["partitions"]:
+        if kafka_topic_ins.topic != kafka_info["topic"] or (
+            kafka_topic_ins.partition != kafka_info["partitions"] and kafka_info["partitions"]
+        ):
             logger.info(
                 "sync_kafka_metadata: data different,kafka_topic_info is different from old,try to update,"
                 "bk_data_id->[%s],"
@@ -107,7 +109,9 @@ def sync_kafka_metadata(bk_tenant_id: str, kafka_info: dict[str, Any], ds: model
                     bk_data_id,
                 )
                 kafka_topic_ins.topic = kafka_info["topic"]
-                kafka_topic_ins.partition = kafka_info["partitions"]
+                # 如果partitions不为0或None，则更新partition
+                if kafka_info["partitions"]:
+                    kafka_topic_ins.partition = kafka_info["partitions"]
                 kafka_topic_ins.save()
     except models.KafkaTopicInfo.DoesNotExist:
         # 如果 KafkaTopicInfo 不存在，创建新 KafkaTopicInfo
@@ -205,7 +209,10 @@ def sync_es_metadata(bk_tenant_id: str, es_info: list[dict[str, Any]], table_id:
     logger.info("sync_es_metadata: sync es metadata successfully, table_id->[%s]", table_id)
 
 
-def sync_vm_metadata(bk_tenant_id: str, vm_info: dict[str, dict[str, Any]]):
+def sync_vm_metadata(
+    bk_tenant_id: str,
+    vm_info: dict[str, dict[str, Any]],
+):
     """
     同步 VM 元数据信息
     vm: {rt1:{},rt2:{},rt3:{}}
@@ -219,70 +226,72 @@ def sync_vm_metadata(bk_tenant_id: str, vm_info: dict[str, dict[str, Any]]):
             vm_result_table_id,
             detail,
         )
-        access_vm_record: models.AccessVMRecord | None = models.AccessVMRecord.objects.filter(
-            bk_tenant_id=bk_tenant_id, vm_result_table_id=vm_result_table_id
-        ).first()
-        if not access_vm_record:  # 若不存在对应的VMRT接入记录,记录日志并跳过
+        access_vm_records: list[models.AccessVMRecord] = list(
+            models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, vm_result_table_id=vm_result_table_id)
+        )
+        # 如果access_vm_records为空，则记录日志并跳过
+        if not access_vm_records:
             logger.warning(
                 "sync_vm_metadata: access_vm_record does not exist,vm_result_table_id->[%s]", vm_result_table_id
             )
             continue
 
-        vm_cluster: models.ClusterInfo | None = None
-        vm_clusters: list[models.ClusterInfo] = list(
-            models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, domain_name=detail["insert_host"])
-        )
-
-        for cluster in vm_clusters:
-            if cluster.cluster_id == access_vm_record.vm_cluster_id:
-                vm_cluster = cluster
-                break
-        else:
-            if len(vm_clusters) > 0:
-                vm_cluster = vm_clusters[0]
-
-        if not vm_cluster:
-            # 如果 VM 集群信息不存在，创建新集群
-            logger.info(
-                "sync_vm_metadata: data different,vm cluster does not exist,try to create it,detail->[%s]", detail
+        for access_vm_record in access_vm_records:
+            vm_cluster: models.ClusterInfo | None = None
+            vm_clusters: list[models.ClusterInfo] = list(
+                models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, domain_name=detail["insert_host"])
             )
-            # 激活元数据一致性写入模式的情况下才进行写入
-            if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
-                logger.info(
-                    "sync_vm_metadata: try to write to db,switch on,detail->[%s],vm_result_table_id->[%s]",
-                    detail,
-                    vm_result_table_id,
-                )
-                vm_cluster = models.ClusterInfo.objects.create(
-                    bk_tenant_id=bk_tenant_id,
-                    cluster_name=detail["name"],
-                    domain_name=detail["insert_host"],
-                    port=detail["insert_port"],
-                    cluster_type=models.ClusterInfo.TYPE_VM,
-                    is_default_cluster=False,
-                )
+
+            for cluster in vm_clusters:
+                if cluster.cluster_id == access_vm_record.vm_cluster_id:
+                    vm_cluster = cluster
+                    break
             else:
-                logger.error(
-                    "sync_vm_metadata: vm_cluster does not exist,vm_result_table_id->[%s],detail->[%s]",
-                    vm_result_table_id,
-                    detail,
-                )
-                continue
+                if len(vm_clusters) > 0:
+                    vm_cluster = vm_clusters[0]
 
-        if vm_cluster and access_vm_record.vm_cluster_id != vm_cluster.cluster_id:
-            logger.info(
-                "sync_vm_metadata: data different,vm storage info is different from old,try to update,"
-                "access_vm_record->[%s],old_vm_cluster_id->[%s],new_vm_cluster_id->[%s]",
-                access_vm_record,
-                access_vm_record.vm_cluster_id,
-                vm_cluster.cluster_id,
-            )
-            # 激活元数据一致性写入模式的情况下才进行写入
-            if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
+            if not vm_cluster:
+                # 如果 VM 集群信息不存在，创建新集群
                 logger.info(
-                    "sync_vm_metadata: try to write to db,switch on,detail->[%s],vm_result_table_id->[%s]",
-                    detail,
-                    vm_result_table_id,
+                    "sync_vm_metadata: data different,vm cluster does not exist,try to create it,detail->[%s]", detail
                 )
-                access_vm_record.vm_cluster_id = vm_cluster.cluster_id
-                access_vm_record.save()
+                # 激活元数据一致性写入模式的情况下才进行写入
+                if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
+                    logger.info(
+                        "sync_vm_metadata: try to write to db,switch on,detail->[%s],vm_result_table_id->[%s]",
+                        detail,
+                        vm_result_table_id,
+                    )
+                    vm_cluster = models.ClusterInfo.objects.create(
+                        bk_tenant_id=bk_tenant_id,
+                        cluster_name=detail["name"],
+                        domain_name=detail["insert_host"],
+                        port=detail["insert_port"],
+                        cluster_type=models.ClusterInfo.TYPE_VM,
+                        is_default_cluster=False,
+                    )
+                else:
+                    logger.error(
+                        "sync_vm_metadata: vm_cluster does not exist,vm_result_table_id->[%s],detail->[%s]",
+                        vm_result_table_id,
+                        detail,
+                    )
+                    continue
+
+            if vm_cluster and access_vm_record.vm_cluster_id != vm_cluster.cluster_id:
+                logger.info(
+                    "sync_vm_metadata: data different,vm storage info is different from old,try to update,"
+                    "access_vm_record->[%s],old_vm_cluster_id->[%s],new_vm_cluster_id->[%s]",
+                    access_vm_record,
+                    access_vm_record.vm_cluster_id,
+                    vm_cluster.cluster_id,
+                )
+                # 激活元数据一致性写入模式的情况下才进行写入
+                if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
+                    logger.info(
+                        "sync_vm_metadata: try to write to db,switch on,detail->[%s],vm_result_table_id->[%s]",
+                        detail,
+                        vm_result_table_id,
+                    )
+                    access_vm_record.vm_cluster_id = vm_cluster.cluster_id
+                    access_vm_record.save()
