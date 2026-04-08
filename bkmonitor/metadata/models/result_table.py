@@ -30,6 +30,7 @@ from core.drf_resource import api
 from metadata import config
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, DataIdCreatedFromSystem
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_MONITOR
 from metadata.utils.basic import getitems
 
 from .common import BaseModel, Label, OptionBase
@@ -608,11 +609,17 @@ class ResultTable(models.Model):
                 and datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
             )
             if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
-                # 插件开启V4链路需要配置option
-                if datasource.etl_config in [EtlConfigs.BK_EXPORTER, EtlConfigs.BK_STANDARD] and (
-                    not options or not options.get(ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK, False)
+                # 插件类型额外判定，如果ENABLE_PLUGIN_ACCESS_V4_DATA_LINK没开启，还需要看option中是否开启插件V4链路
+                if (
+                    datasource.etl_config in [EtlConfigs.BK_EXPORTER, EtlConfigs.BK_STANDARD]
+                    and not is_v4_datalink_etl_config
+                    and options.get(ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK, False)
                 ):
-                    return
+                    # 如果数据源是GSE创建的，则需要注册到BKBASE
+                    if datasource.created_from == DataIdCreatedFromSystem.BKGSE.value:
+                        datasource.register_to_bkbase(bk_biz_id=target_bk_biz_id, namespace=BKBASE_NAMESPACE_BK_MONITOR)
+                    # 设置为V4链路
+                    is_v4_datalink_etl_config = True
 
                 # NOTE: 使用 on_commit 确保事务提交后再执行异步任务，避免事务未提交但异步任务先执行的情况
                 # 提取变量值到局部变量，确保闭包捕获的是值而不是引用
