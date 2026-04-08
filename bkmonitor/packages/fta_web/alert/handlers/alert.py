@@ -1318,8 +1318,17 @@ class AlertQueryHandler(BaseBizQueryHandler):
         return matched_alert_ids
 
     def _collect_current_alert_ids(self) -> set:
-        """通过当前查询条件（不含 notice_way）获取匹配的 alert_id 集合"""
+        """通过当前查询条件（排除 notice_way）获取匹配的 alert_id 集合"""
         search_object = self.get_search_object()
+
+        # 过滤掉 notice_way 条件，避免循环依赖
+        filtered_conditions = [c for c in (self.conditions or []) if c.get("origin_key") != "notice_way"]
+        original_conditions = self.conditions
+        self.conditions = filtered_conditions
+        try:
+            search_object = self.add_conditions(search_object)
+        finally:
+            self.conditions = original_conditions
         search_object = self.add_query_string(search_object)
         search_object = search_object[:0]
         search_object.aggs.bucket("alert_ids", "terms", field="id", size=10000)
