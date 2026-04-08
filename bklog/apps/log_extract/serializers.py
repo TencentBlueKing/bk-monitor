@@ -206,10 +206,10 @@ class CreateTaskSerializer(serializers.Serializer):
         ip_list = attrs.get("ip_list")
         target_nodes = attrs.get("target_nodes")
 
-        if target_node_type == TargetNodeTypeEnum.INSTANCE.value:
-            if not ip_list:
-                raise serializers.ValidationError(_("静态拓补 ip_list 参数不能为空"))
-        elif target_node_type in {TargetNodeTypeEnum.TOPO.value, TargetNodeTypeEnum.SERVICE_TEMPLATE.value}:
+        if not ip_list:
+            raise serializers.ValidationError(_("ip_list 参数不能为空"))
+
+        if target_node_type in {TargetNodeTypeEnum.TOPO.value, TargetNodeTypeEnum.SERVICE_TEMPLATE.value}:
             if not target_nodes:
                 raise serializers.ValidationError(_("动态拓补或服务模板 target_nodes 参数不能为空"))
 
