@@ -120,7 +120,7 @@ def sync_kafka_metadata(bk_tenant_id: str, kafka_info: dict[str, Any], ds: model
         )
 
     # 更新 DataSource 信息，按需更新
-    if kafka_cluster and (ds.mq_cluster_id != kafka_cluster.cluster_id or ds.mq_config_id != kafka_topic_ins.pk):
+    if ds.mq_cluster_id != kafka_cluster.cluster_id or ds.mq_config_id != kafka_topic_ins.pk:
         logger.info(
             "sync_kafka_metadata: data different,mq_cluster_info is different from old,try to update,bk_data_id->["
             "%s],old_mq_cluster_id->[%s],new_mq_cluster_id->[%s],old_mq_config_id->[%s],new_mq_config_id->[%s]",
@@ -193,7 +193,7 @@ def sync_es_metadata(bk_tenant_id: str, es_info: list[dict[str, Any]], table_id:
             return
 
     # 更新 ESStorage 信息，按需更新
-    if es_cluster and es_storage.storage_cluster_id != es_cluster.cluster_id:
+    if es_storage.storage_cluster_id != es_cluster.cluster_id:
         logger.info(
             "sync_es_metadata: data different,es_storage info is different from old ,try to update,"
             "table_id->[%s],old_es_cluster_id->[%s],new_es_cluster_id->[%s]",
@@ -278,7 +278,7 @@ def sync_vm_metadata(
                     )
                     continue
 
-            if vm_cluster and access_vm_record.vm_cluster_id != vm_cluster.cluster_id:
+            if access_vm_record.vm_cluster_id != vm_cluster.cluster_id:
                 logger.info(
                     "sync_vm_metadata: data different,vm storage info is different from old,try to update,"
                     "access_vm_record->[%s],old_vm_cluster_id->[%s],new_vm_cluster_id->[%s]",
