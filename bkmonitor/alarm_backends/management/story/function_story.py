@@ -98,7 +98,7 @@ class RealTimeTopicStatus(CheckStep):
             for topic in topics:
                 partitions = c.partitions_for_topic(topic) or {0}
                 topic_partitions.extend([TopicPartition(topic=topic, partition=partition) for partition in partitions])
-            end_offsets = c.end_offsets(topic_partitions)
+            end_offsets = c.end_offsets(topic_partitions, timeout_ms=3000)
             committed_offsets = {}
             for topic_partition in topic_partitions:
                 committed_offsets[topic_partition] = c.committed(topic_partition) or 0

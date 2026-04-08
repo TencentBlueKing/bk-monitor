@@ -243,9 +243,7 @@ class ServiceHandler:
         if not nodes:
             nodes = cls.list_nodes(bk_biz_id, app_name)
 
-        instance = ApdexServiceRelation.objects.filter(
-            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-        ).first()
+        instance = ApdexServiceRelation.get_relation_qs(bk_biz_id, app_name, [service_name]).first()
 
         if not instance:
             # 填充默认值 判断服务类型得出Apdex类型
@@ -667,34 +665,40 @@ class ServiceHandler:
         return res
 
     @classmethod
-    def get_rpc_service_config_or_none(cls, node: dict[str, Any]) -> dict[str, Any] | None:
+    def get_system(cls, node: dict[str, Any]) -> dict[str, Any]:
         """
-        通过节点信息获取 RPC 服务的指标配置
+        从节点提取系统信息
         :param node: 节点信息
-        :return:
-        - None: 非 RPC 服务
-        - 指标配置信息: RPC 服务的指标配置
+        :return: 无 system 返回 {}，否则 {name, sdk, temporality}
         """
-        is_trpc: bool = False
-        rpc_system: str = metric_group.GroupEnum.TRPC
-        for meta in node.get("system") or []:
-            if meta.get("name") == metric_group.GroupEnum.TRPC:
-                is_trpc = True
-            extra_data: dict[str, Any] = meta.get("extra_data") or {}
-            if extra_data.get("rpc_system"):
-                rpc_system = extra_data["rpc_system"]
+        systems: list[dict[str, Any]] = node.get("system") or []
+        if not systems:
+            return {}
+
+        name: str = ""
+        rpc_system: str = ""
+        for meta in systems:
+            name = meta.get("name") or ""
+            rpc_system = (meta.get("extra_data") or {}).get("rpc_system", "")
+            if rpc_system and name == metric_group.GroupEnum.TRPC:
+                name = metric_group.GroupEnum.TRPC
                 break
 
-        if not is_trpc:
-            logger.info("[apm][get_rpc_service_config_or_none] system not found: service_name -> %s", node["topo_key"])
-            return None
+        sdk_name: str | None = None
+        for item in node.get("sdk") or []:
+            if isinstance(item, dict) and item.get("name"):
+                sdk_name = item["name"]
+                break
 
-        # G 和 Tars 框架的指标类型为 Gauge。
         temporality: str = (MetricTemporality.CUMULATIVE, MetricTemporality.DELTA)[
             Vendor.has_sdk(node.get("sdk"), Vendor.G) or rpc_system == "tars"
         ]
 
-        logger.info(
-            "[apm][get_rpc_service_config_or_none] service_name -> %s, temporality -> %s", node["topo_key"], temporality
-        )
-        return MetricTemporality.get_metric_config(temporality)
+        return {
+            # 目前仅考虑单服务框架的情况，如果后续有多服务框架的需求再调整数据结构。
+            "name": name,
+            "rpc_system": rpc_system,
+            "is_support_call_analysis": name == metric_group.GroupEnum.TRPC,
+            "sdk": sdk_name or "",
+            "temporality": temporality,
+        }

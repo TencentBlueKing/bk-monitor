@@ -294,7 +294,11 @@ def create_application_async(application_id, storage_config, options, cur_retry_
     try:
         application = ApmApplication.objects.get(id=application_id)
         application.apply_datasource(storage_config, storage_config, options)
-        EventReportHelper.report(f"[异步创建任务] 业务：{application.bk_biz_id}，应用{application.app_name}，创建成功")
+        EventReportHelper.report(
+            f"[异步创建任务] 业务：{application.bk_biz_id}，"
+            f"应用：{application.app_name}，"
+            f"创建人：{application.create_user}，创建成功"
+        )
     except Exception as e:  # pylint: disable=broad-except
         logger.error(f"[create_application_async] occur exception of app_id:{application_id} error: {e}")
         EventReportHelper.report(

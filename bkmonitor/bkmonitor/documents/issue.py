@@ -15,7 +15,7 @@ import uuid
 from django_elasticsearch_dsl.registries import registry
 from elasticsearch_dsl import MetaField, field
 
-from bkmonitor.documents.base import BaseDocument, BulkActionType, Date
+from bkmonitor.documents.base import BaseDocument, BulkActionType, Date, Flattened
 from bkmonitor.documents.constants import ES_INDEX_SETTINGS
 from constants.issue import IssueActivityType, IssueStatus
 
@@ -47,7 +47,7 @@ class IssueDocument(BaseDocument):
     first_alert_time = Date(format=BaseDocument.DATE_FORMAT)
     last_alert_time = Date(format=BaseDocument.DATE_FORMAT)
 
-    impact_scope = field.Object(enabled=False)
+    impact_scope = Flattened()
 
     strategy_name = field.Text(fields={"raw": field.Keyword()})
     labels = field.Keyword(multi=True)

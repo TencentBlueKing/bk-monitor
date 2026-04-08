@@ -28,6 +28,13 @@ class SearchSerializer(serializers.Serializer):
     """
 
     query = serializers.CharField(label="搜索关键字")
+    page_size = serializers.IntegerField(
+        label="每类结果数量",
+        default=20,
+        min_value=1,
+        max_value=100,
+        required=False,
+    )
 
 
 class SearchViewSet(viewsets.GenericViewSet):
@@ -52,13 +59,14 @@ class SearchViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
 
         query: str = serializer.validated_data["query"]
+        page_size: int = serializer.validated_data["page_size"]
 
         # 反转义
         query = self.unescape(query).strip()
 
         # 搜索
         searcher: Searcher = Searcher(bk_tenant_id=get_request_tenant_id(), username=request.user.username)
-        result: Iterator[dict] = searcher.search(query)
+        result: Iterator[dict] = searcher.search(query, limit=page_size)
 
         # 使用 event-stream 返回搜索结果
         def event_stream() -> Generator[str, None, None]:

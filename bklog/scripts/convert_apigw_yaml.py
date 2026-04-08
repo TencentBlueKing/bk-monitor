@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,7 +18,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 
 __doc__ = """
 python convert_apigw_yaml.py -s ../docs/apidocs/bk_log.yaml -t ./ -f swagger
@@ -63,16 +61,14 @@ if __name__ == "__main__":
     name = name or "apigw_default"
 
     print(
-        """
+        f"""
         ===========================
-        source:         {},
-        target:         {},
-        format:         {},
-        name:         {},
+        source:         {source},
+        target:         {target},
+        format:         {format},
+        name:         {name},
         ===========================
-    """.format(
-            source, target, format, name
-        )
+    """
     )
 
     if format == "swagger":
@@ -112,10 +108,10 @@ paths:"""
           userVerifiedRequired: false
         disabledStages: []"""
 
-        output = open(os.path.join(target, "{}.{}".format(name, format)), "w")
+        output = open(os.path.join(target, f"{name}.{format}"), "w")
         output.write(template_header)
         with open(source, "rb") as f:
-            apis = yaml.load(f)
+            apis = yaml.safe_load(f)
             for api in apis:
                 resource = each_resource_template.format(
                     resource_name=api["name"],
@@ -132,7 +128,7 @@ paths:"""
         exit(0)
 
     with open(source, "rb") as f:
-        apis = yaml.load(f)
+        apis = yaml.safe_load(f)
         data = [
             {
                 "resource_classification": parse_fenlei(api["dest_path"]),
@@ -148,7 +144,7 @@ paths:"""
             for api in apis
         ]
 
-        output = open(os.path.join(target, "{}.{}".format(name, format)), "w")
+        output = open(os.path.join(target, f"{name}.{format}"), "w")
         if format == "json":
             json.dump(data, output, indent=2)
         else:

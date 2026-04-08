@@ -45,6 +45,8 @@ class IncidentNoticeHelper:
         :return: 通知上下文字典
         """
 
+        from bkmonitor.aiops.incident.operation import IncidentOperationManager
+
         # 获取业务名称
         try:
             space = SpaceApi.get_space_detail(bk_biz_id=int(incident.bk_biz_id))
@@ -113,6 +115,14 @@ class IncidentNoticeHelper:
         link_incident_doc_id = kwargs.get("link_incident_doc_id")
         is_anonymous_source = kwargs.get("is_anonymous_source", False)  # 源故障是否为匿名故障
         merge_alert_count = kwargs.get("alert_count")  # 合并的告警数量
+        incident_display_name = IncidentOperationManager.get_display_incident_name(
+            incident.incident_name, incident.status
+        )
+        link_incident_display_name = (
+            IncidentOperationManager.get_display_incident_name(link_incident_name, IncidentStatus.MERGED.value)
+            if is_anonymous_source
+            else link_incident_name
+        )
 
         # 构建故障详情URL
         url = cls._get_incident_url(incident)
@@ -124,7 +134,9 @@ class IncidentNoticeHelper:
         def _get_merge_subtitle(incident_name: str) -> str:
             incident_display = f"[{incident_name}]({url})" if incident_name else "当前故障"
             link_incident_display = (
-                f"[{link_incident_name}]({link_incident_url})" if link_incident_name and link_incident_url else None
+                f"[{link_incident_display_name}]({link_incident_url})"
+                if link_incident_display_name and link_incident_url
+                else None
             )
             if is_anonymous_source:
                 # 匿名故障：使用告警数量或简化描述
@@ -137,7 +149,7 @@ class IncidentNoticeHelper:
                 return (
                     f"原故障{link_incident_display}并入故障{incident_display}"
                     if link_incident_display
-                    else f"原故障{link_incident_name}并入故障{incident_display}"
+                    else f"原故障{link_incident_display_name}并入故障{incident_display}"
                 )
             else:
                 return ""
@@ -156,14 +168,14 @@ class IncidentNoticeHelper:
                 IncidentOperationType.MERGE_TO: "故障被合并",
             }
             subtitle_map = {
-                IncidentOperationType.CREATE: f"【{incident.incident_name}】",
+                IncidentOperationType.CREATE: f"【{incident_display_name}】",
                 IncidentOperationType.OBSERVE: f"故障当前状态 观察中，已观察【{observe_duration_info['duration_msg']}】",
-                IncidentOperationType.RECOVER: f"【{incident.incident_name}】故障已恢复",
+                IncidentOperationType.RECOVER: f"【{incident_display_name}】故障已恢复",
                 IncidentOperationType.REOPEN: "故障在观察期间重新打开",
                 IncidentOperationType.UPDATE: f"【{incident_key_alias}】原始值：{from_value} → 最新值：{to_value}"
                 if incident_key
                 else "故障状态更新",
-                IncidentOperationType.MERGE: _get_merge_subtitle(incident.incident_name),
+                IncidentOperationType.MERGE: _get_merge_subtitle(incident_display_name),
             }
             title = title_map.get(operation_type, "故障通知")
             subtitle = subtitle_map.get(operation_type, "")
@@ -171,7 +183,7 @@ class IncidentNoticeHelper:
         context = {
             "title": title,
             "subtitle": subtitle,
-            "incident_name": incident.incident_name or _("未命名故障"),
+            "incident_name": incident_display_name or _("未命名故障"),
             "level": level,
             "begin_time": duration_info["duration_range"][0],
             "notify_time": notify_time,

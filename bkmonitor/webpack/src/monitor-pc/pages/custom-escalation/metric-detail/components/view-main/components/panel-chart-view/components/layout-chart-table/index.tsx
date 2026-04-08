@@ -112,6 +112,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   @Watch('isShowStatisticalValue')
   handleIsShowStatisticalValueChange() {
     this.selectLegendInd = -1;
+    this.drag.height = 300;
   }
 
   @Emit('metricManage')
@@ -182,21 +183,30 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     }
     this.isDragging = false;
   }
-  /** 拉伸结束计算图表最大可拉伸高度 */
+  /** 拉伸结束计算图表最大可拉伸高度(展示统计值时) */
   setDragMaxHeight() {
-    const rowHeight = 105; // 统计值表格表头高度+一行数据的高度+间隙高度
     const layoutMainHeight = this.layoutMainRef.getBoundingClientRect().height; // 画布整体高度(图表+统计值表格)
     if (typeof layoutMainHeight !== 'number') return;
-    // 图表可拖拽的最大高度
-    const dragMaxHeight = layoutMainHeight - rowHeight;
-    this.dragMaxHeight = dragMaxHeight > this.drag.height ? dragMaxHeight : this.drag.height;
+    // 非展示统计值时
+    if (!this.isShowStatisticalValue) {
+      if (layoutMainHeight < this.drag.height + 15) {
+        Array.from(this.layoutMainRef.parentElement.parentElement.children).forEach((itemEl: HTMLElement) => {
+          itemEl.style.height = `${this.drag.height + 15}px`;
+        });
+      }
+      return;
+    }
+    const rowHeight = 64; // 统计值表格表头高度+一行数据的高度+间隙高度
+    const dragMaxHeight = layoutMainHeight - rowHeight; // 图表可拖拽的最大高度
+    this.dragMaxHeight = dragMaxHeight > this.drag.height ? dragMaxHeight : this.drag.height - 3; // -3：border
     // 画布拉伸高度不能小于图表 + 统计值表格一行数据的高度
     if (layoutMainHeight < this.drag.height + rowHeight) {
       Array.from(this.layoutMainRef.parentElement.parentElement.children).forEach((itemEl: HTMLElement) => {
-        itemEl.style.height = `${this.drag.height + 105}px`;
+        itemEl.style.height = `${this.drag.height + rowHeight + 15}px`;
       });
     }
   }
+
   /** 处理相关过滤条件的格式 */
   handleFilterData(filter) {
     const concatFilter = {};
@@ -452,7 +462,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       <NewMetricChart
         key={this.chartKey}
         ref='metricChart'
-        style={{ height: `${this.drag.height}px` }}
+        style={{ height: this.isShowStatisticalValue ? `${this.drag.height}px` : undefined }}
         chartHeight={this.drag.height}
         currentMethod={this.currentMethod}
         // isShowLegend={true}
@@ -479,7 +489,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
             extCls='layout-chart-table-main'
             slot='aside'
             border={false}
-            initial-divide={'50%'}
+            initial-divide={'300px'}
             // max={this.drag.maxHeight}
             max={this.dragMaxHeight || this.drag.maxHeight}
             min={this.drag.minHeight}
