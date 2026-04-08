@@ -1268,14 +1268,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         action_search = action_search.filter("term", is_parent_action=True)
 
         if alert_ids is not None:
-            # 有明确告警ID时不限定时间范围，避免遗漏告警结束后生成的通知记录
             action_search = action_search.filter("terms", alert_id=list(alert_ids))
-        else:
-            # 全量查询时需要限定时间范围
-            action_search = action_search.filter(
-                (Q("range", end_time={"gte": self.start_time}) | ~Q("exists", field="end_time"))
-                & Q("range", create_time={"lte": self.end_time})
-            )
 
         if self.authorized_bizs is not None and self.bk_biz_ids:
             action_search = action_search.filter("terms", bk_biz_id=self.authorized_bizs)
