@@ -92,13 +92,17 @@ export const getAlertEventTagDetails = async (params: AlertEventTagDetailParams)
 // ==============================start 详情-主机-相关接口 start==============================
 /**
  * @description host 场景目标列表
- * @param {string} alertId 告警ID
+ * @param {object} params 请求参数
+ * @param {string} params.alertId 告警ID
+ * @param {number} params.bizId 业务ID
  * @returns {Promise<AlertHostTargetItem[]>} 告警 id 获取关联主机对象列表
  */
-export const getHostTargetList = async (alertId: string) => {
-  const data = await alertHostTarget<{ alert_id: string }, AlertHostTargetItem[]>({ alert_id: alertId }).catch(
-    () => [] as AlertHostTargetItem[]
-  );
+export const getHostTargetList = async (params: { alertId: string; bizId: number }) => {
+  const { alertId, bizId } = params;
+  const data = await alertHostTarget<{ alert_id: string; bk_biz_id: number }, AlertHostTargetItem[]>({
+    alert_id: alertId,
+    bk_biz_id: bizId,
+  }).catch(() => [] as AlertHostTargetItem[]);
   return data;
 };
 
