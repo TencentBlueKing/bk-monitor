@@ -65,6 +65,21 @@ class TestPatternUtils(SimpleTestCase):
         self.assertIn(r"(\d+)", result)
         self.assertFalse(result.endswith("$"))
 
+    def test_build_doris_regexp_normalizes_inner_capturing_groups(self):
+        predefined_variables = encode_predefined_variables(
+            [
+                r"PATH:([a-z]+)/(\d+)",
+            ]
+        )
+
+        result = build_doris_regexp(
+            "prefix #PATH# suffix",
+            placeholder_index=0,
+            predefined_varibles=predefined_variables,
+        )
+
+        self.assertEqual(result, r"prefix[\s\S]*?((?:[a-z]+)/(?:\d+))[\s\S]*?suffix")
+
     def test_escape_sql_literal_handles_backslash_and_quote(self):
         result = escape_sql_literal(r"foo\bar'baz")
 

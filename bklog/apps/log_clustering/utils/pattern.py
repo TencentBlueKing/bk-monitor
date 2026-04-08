@@ -229,6 +229,40 @@ def _build_placeholder_regex_mapping(predefined_varibles=None) -> dict[str, str]
     return regex_mapping
 
 
+def _normalize_capturing_groups(regex: str) -> str:
+    """把普通捕获组转成非捕获组，避免占用 regexp_extract 的 group index。"""
+
+    result = []
+    cursor = 0
+    escaped = False
+
+    while cursor < len(regex):
+        char = regex[cursor]
+
+        if escaped:
+            result.append(char)
+            escaped = False
+            cursor += 1
+            continue
+
+        if char == "\\":
+            result.append(char)
+            escaped = True
+            cursor += 1
+            continue
+
+        if char == "(" and cursor + 1 < len(regex):
+            if regex[cursor + 1] != "?":
+                result.append("(?:")
+                cursor += 1
+                continue
+
+        result.append(char)
+        cursor += 1
+
+    return "".join(result)
+
+
 def parse_pattern_placeholders(pattern: str) -> list[dict]:
     """按出现顺序解析 pattern 中的占位符，不按名称去重。"""
 
@@ -352,6 +386,7 @@ def build_doris_regexp(pattern: str, placeholder_index: int, predefined_varibles
             placeholder_regex = regex_mapping.get(token["value"])
             if not placeholder_regex:
                 raise ValueError(f"placeholder regex not found: {token['value']}")
+            placeholder_regex = _normalize_capturing_groups(placeholder_regex)
             # 只捕获当前点击的那个占位符，其余占位符仅参与定位。
             if token["index"] == placeholder_index:
                 part = f"({placeholder_regex})"
