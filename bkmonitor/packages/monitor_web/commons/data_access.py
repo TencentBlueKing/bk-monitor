@@ -396,10 +396,8 @@ class PluginDataAccessor:
                     }
                 )
                 if operation == "create":
-                    options: dict[str, Any] = {"enable_plugin_v4_data_link": True}
                     if self.etl_config == "bk_exporter":
-                        options["enable_default_value"] = False
-                    param["option"] = options
+                        param.update({"option": {"enable_default_value": False}})
                     func_list.append(api.metadata.create_result_table)
                 else:
                     func_list.append(api.metadata.modify_result_table)
