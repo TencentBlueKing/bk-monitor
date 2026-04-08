@@ -61,6 +61,7 @@ import { useAlertDialogs } from './composables/use-alert-dialogs';
 import { useQuickFilter } from './composables/use-quick-filter';
 import { useAlarmTableColumns } from './composables/use-table-columns';
 import {
+  type ActionTableItem,
   type AlarmUrlParams,
   type AlertAllActionEnum,
   type AlertContentNameEditInfo,
@@ -427,17 +428,22 @@ export default defineComponent({
     }
 
     /**
-     * 展示告警详情
+     * @description 展示告警详情
+     * @param {AlertTableItem} row - 告警记录行数据
+     * @param {string} defaultTab - 默认选中的 Tab 页签名
      */
-    function handleShowAlertDetail(id: string, defaultTab?: string) {
+    function handleShowAlertDetail(row: AlertTableItem, defaultTab?: string) {
       alarmDetailDefaultTab.value = defaultTab || '';
-      alarmId.value = id;
+      alarmId.value = row.id;
       handleDetailShowChange(true);
     }
 
-    /**  展示处理记录详情  */
-    function handleShowActionDetail(id: string) {
-      alarmId.value = id;
+    /**
+     * @description 展示处理记录详情
+     * @param {ActionTableItem} row - 处理记录行数据
+     */
+    function handleShowActionDetail(row: ActionTableItem) {
+      alarmId.value = row.id;
       handleDetailShowChange(true);
     }
 
