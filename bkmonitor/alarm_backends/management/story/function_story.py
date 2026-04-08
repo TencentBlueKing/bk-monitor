@@ -12,13 +12,14 @@ import json
 from collections import defaultdict
 
 from django.conf import settings
-from kafka import KafkaConsumer, TopicPartition
+from kafka import TopicPartition
 
 from alarm_backends.core.cache.key import REAL_TIME_HOST_TOPIC_KEY
 from alarm_backends.management.story.base import (
     BaseStory,
     CheckStep,
     Problem,
+    create_healthz_kafka_consumer,
     register_step,
     register_story,
 )
@@ -90,7 +91,7 @@ class RealTimeTopicStatus(CheckStep):
 
         group_id = f"{settings.APP_CODE}.real_time_access"
         for bootstrap_servers, topics in bootstrap_servers_topics.items():
-            c = KafkaConsumer(bootstrap_servers=bootstrap_servers, group_id=group_id)
+            c = create_healthz_kafka_consumer(bootstrap_servers=bootstrap_servers, group_id=group_id)
             c.topics()
 
             congestion_topics = []
@@ -98,7 +99,7 @@ class RealTimeTopicStatus(CheckStep):
             for topic in topics:
                 partitions = c.partitions_for_topic(topic) or {0}
                 topic_partitions.extend([TopicPartition(topic=topic, partition=partition) for partition in partitions])
-            end_offsets = c.end_offsets(topic_partitions, timeout_ms=3000)
+            end_offsets = c.end_offsets(topic_partitions)
             committed_offsets = {}
             for topic_partition in topic_partitions:
                 committed_offsets[topic_partition] = c.committed(topic_partition) or 0

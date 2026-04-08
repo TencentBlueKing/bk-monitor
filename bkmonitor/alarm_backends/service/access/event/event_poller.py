@@ -61,7 +61,7 @@ class EventPoller:
             self.consumer = self.create_consumer()
         return self.consumer
 
-    def create_consumer(self):
+    def create_consumer(self, **consumer_kwargs):
         group_name = f"{settings.APP_CODE}.access.event"
         consumer = kafka.KafkaConsumer(
             bootstrap_servers=[f"{host}:{settings.KAFKA_PORT}" for host in settings.KAFKA_HOST],
@@ -72,6 +72,7 @@ class EventPoller:
             max_partition_fetch_bytes=1024 * 1024 * 5,  # 增大分区拉取量
             partition_assignment_strategy=[kafka.coordinator.assignors.roundrobin.RoundRobinPartitionAssignor],
             auto_offset_reset="latest",
+            **consumer_kwargs,
         )
         consumer.subscribe(list(self.topics_map.keys()))
         return consumer

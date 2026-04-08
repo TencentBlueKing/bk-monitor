@@ -16,7 +16,7 @@ from typing import cast
 
 import arrow
 from django.conf import settings
-from kafka import KafkaConsumer, TopicPartition
+from kafka import TopicPartition
 
 from alarm_backends.core.cache import key as cache_key
 from alarm_backends.core.cache.cmdb import (
@@ -38,7 +38,9 @@ from alarm_backends.core.storage.redis import Cache
 from alarm_backends.management.story.base import (
     BaseStory,
     CheckStep,
+    HEALTHZ_KAFKA_TIMEOUT_MS,
     ResolvedProblem,
+    create_healthz_kafka_consumer,
     register_step,
     register_story,
 )
@@ -92,11 +94,14 @@ class PollEventDelayCheck(CheckStep):
         from alarm_backends.service.access.event.event_poller import EventPoller
 
         ep = EventPoller()
-        consumer = ep.get_consumer()
+        consumer = ep.create_consumer(
+            request_timeout_ms=HEALTHZ_KAFKA_TIMEOUT_MS,
+            api_version_auto_timeout_ms=HEALTHZ_KAFKA_TIMEOUT_MS,
+        )
         for topic, data_id in ep.topics_map.items():
             partitions = consumer.partitions_for_topic(topic) or {0}
             topic_partitions = [TopicPartition(topic=topic, partition=partition) for partition in partitions]
-            end_offsets = consumer.end_offsets(topic_partitions, timeout_ms=3000)
+            end_offsets = consumer.end_offsets(topic_partitions)
             committed_offsets = {}
             for tp in topic_partitions:
                 committed_offsets[tp] = consumer.committed(tp)
@@ -104,6 +109,7 @@ class PollEventDelayCheck(CheckStep):
                     self.story.warning(
                         f"{consumer.config['bootstrap_servers']} {topic} congestion occurs, {end_offsets[tp] - committed_offsets[tp]}"
                     )
+        consumer.close()
 
 
 @register_step(KernelStory)
@@ -129,7 +135,7 @@ class MonitorEventDelayCheck(CheckStep):
 
         group_id = f"{settings.APP_CODE}.alert.builder"
         for bootstrap_servers, topics in bootstrap_servers_topics.items():
-            c = KafkaConsumer(bootstrap_servers=bootstrap_servers, group_id=group_id)
+            c = create_healthz_kafka_consumer(bootstrap_servers=bootstrap_servers, group_id=group_id)
             c.topics()
 
             congestion_topics = []
@@ -137,7 +143,7 @@ class MonitorEventDelayCheck(CheckStep):
             for topic in topics:
                 partitions = c.partitions_for_topic(topic) or {0}
                 topic_partitions.extend([TopicPartition(topic=topic, partition=partition) for partition in partitions])
-            end_offsets = c.end_offsets(topic_partitions, timeout_ms=3000)
+            end_offsets = c.end_offsets(topic_partitions)
             committed_offsets = {}
             for topic_partition in topic_partitions:
                 committed_offsets[topic_partition] = c.committed(topic_partition) or 0

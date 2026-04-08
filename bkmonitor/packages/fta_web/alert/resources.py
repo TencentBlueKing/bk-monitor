@@ -633,6 +633,7 @@ class AlertDetailResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         id = AlertIDField(required=True, label="告警ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     @classmethod
     def get_relation_info(cls, alert: AlertDocument, length_limit=True):
@@ -645,6 +646,11 @@ class AlertDetailResource(Resource):
         alert_id = validated_request_data["id"]
 
         alert = AlertDocument.get(alert_id)
+
+        # 业务ID归属校验
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        if bk_biz_id and int(alert.event.bk_biz_id) != bk_biz_id:
+            raise AlertNotFoundError({"alert_id": alert_id})
 
         graph_panel = AIOPSManager.get_graph_panel(alert)
         relation_info = self.get_relation_info(alert, False)
