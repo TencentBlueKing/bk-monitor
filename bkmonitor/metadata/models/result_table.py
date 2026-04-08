@@ -608,18 +608,18 @@ class ResultTable(models.Model):
                 datasource.created_from == DataIdCreatedFromSystem.BKDATA.value
                 and datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
             )
+
+            # 如果是插件清洗类型，并且单独开启插件V4链路，则使用V4链路
+            is_plugin_v4_datalink = options.get(
+                ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK, False
+            ) and datasource.etl_config in [EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value]
+            if is_plugin_v4_datalink and not is_v4_datalink_etl_config:
+                is_v4_datalink_etl_config = True
+
             if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
-                # 插件类型额外判定，如果ENABLE_PLUGIN_ACCESS_V4_DATA_LINK没开启，还需要看option中是否开启插件V4链路
-                if (
-                    datasource.etl_config in [EtlConfigs.BK_EXPORTER, EtlConfigs.BK_STANDARD]
-                    and not is_v4_datalink_etl_config
-                    and options.get(ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK, False)
-                ):
-                    # 如果数据源是GSE创建的，则需要注册到BKBASE
-                    if datasource.created_from == DataIdCreatedFromSystem.BKGSE.value:
-                        datasource.register_to_bkbase(bk_biz_id=target_bk_biz_id, namespace=BKBASE_NAMESPACE_BK_MONITOR)
-                    # 设置为V4链路
-                    is_v4_datalink_etl_config = True
+                # 插件类型额外判定,如果数据源是GSE创建的，则需要注册到BKBASE
+                if is_plugin_v4_datalink and datasource.created_from == DataIdCreatedFromSystem.BKGSE.value:
+                    datasource.register_to_bkbase(bk_biz_id=target_bk_biz_id, namespace=BKBASE_NAMESPACE_BK_MONITOR)
 
                 # NOTE: 使用 on_commit 确保事务提交后再执行异步任务，避免事务未提交但异步任务先执行的情况
                 # 提取变量值到局部变量，确保闭包捕获的是值而不是引用

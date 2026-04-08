@@ -576,7 +576,7 @@ class PluginDataAccessor:
                     {
                         "time_series_group_id": group_list[0]["time_series_group_id"],
                         "enable_field_black_list": self.enable_field_blacklist,
-                        "option": {"enable_plugin_v4_data_link": True},
+                        "options": {"enable_plugin_v4_data_link": True},
                     }
                 )
 

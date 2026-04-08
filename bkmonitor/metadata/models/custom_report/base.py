@@ -349,7 +349,7 @@ class CustomGroupBase(models.Model):
         :param enable_field_black_list: 是否开启黑名单
         :param data_label: 数据标签
         :param options: 结果表选项内容，会与 enable_field_black_list 产生的选项合并，
-            若存在同名键则 options 的值优先
+            若存在同名键则 enable_field_black_list 的值优先
         :return: True or raise
         """
         # 不可修改已删除的事件组
