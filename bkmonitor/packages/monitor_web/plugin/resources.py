@@ -492,7 +492,7 @@ class PluginImportResource(Resource):
         except OSError:
             raise PluginParseError({"msg": _("meta.yaml不存在，无法解析")})
 
-        meta_dict = yaml.load(meta_content, Loader=yaml.FullLoader)
+        meta_dict = yaml.safe_load(meta_content)
         # 检验plugin_type
         plugin_type_display = meta_dict.get("plugin_type")
         for name, display_name in CollectorPluginMeta.PLUGIN_TYPE_CHOICES:

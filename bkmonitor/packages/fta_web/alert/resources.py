@@ -2099,9 +2099,22 @@ class AlertTopNResultResource(BaseTopNResource):
 
 class AlertTopNResource(Resource):
     handler_cls = AlertQueryHandler
+    # 需与前端 use-analysis.ts 中的 TAG_FIELD_BATCH_SIZE 保持同步
+    MAX_NESTED_TOP_N_FIELDS = 20
 
     class RequestSerializer(AlertSearchSerializer, BaseTopNResource.RequestSerializer):
         need_time_partition = serializers.BooleanField(required=False, default=True, label="是否需要按时间分片")
+
+        def validate(self, attrs):
+            attrs = super().validate(attrs)
+            nested_fields = [field for field in attrs.get("fields", []) if field.lstrip("-+").startswith("tags.")]
+            if len(nested_fields) > AlertTopNResource.MAX_NESTED_TOP_N_FIELDS:
+                raise ValidationError(
+                    _("标签类 TopN 字段一次最多支持 {} 个，请分批查询").format(
+                        AlertTopNResource.MAX_NESTED_TOP_N_FIELDS
+                    )
+                )
+            return attrs
 
     def perform_request(self, validated_request_data):
         if validated_request_data["bk_biz_ids"] is not None:

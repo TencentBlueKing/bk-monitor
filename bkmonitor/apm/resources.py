@@ -736,7 +736,9 @@ class QueryTopoNodeResource(Resource):
             return data
 
     def perform_request(self, data):
-        filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
+        filter_params = DiscoverHandler.get_retention_filter_params(
+            data["bk_biz_id"], data["app_name"], TopoNode.EXPIRED_DAYS
+        )
 
         if data.get("topo_key"):
             filter_params["topo_key"] = data["topo_key"]

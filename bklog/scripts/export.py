@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 from collections import defaultdict
-from typing import Any, Dict, List, Union
+from typing import Any
 
 import pymysql
 import yaml
@@ -23,7 +23,7 @@ LOG_SEARCH_INDEX_SET_TABLE = "log_search_logindexset"
 LOG_SEARCH_INDEX_SET_DATA_TABLE = "log_search_logindexsetdata"
 
 
-class Scenario(object):
+class Scenario:
     """
     接入场景
     """
@@ -41,14 +41,14 @@ class Config:
 
     @staticmethod
     def _load_config(config_path: str):
-        with open(config_path, "r") as f:
-            return yaml.load(f, Loader=yaml.FullLoader)
+        with open(config_path) as f:
+            return yaml.safe_load(f)
 
     def __getitem__(self, item):
         return self.config[item]
 
 
-def export(data: Union[List[Any], Dict[str, Any]] = None, filepath: str = None):
+def export(data: list[Any] | dict[str, Any] = None, filepath: str = None):
     """导出数据"""
     filepath = os.path.join(BASE_DIR, filepath)
     with open(filepath, "w") as _f:
@@ -81,19 +81,19 @@ class Database:
             cursorclass=SSDictCursor,
         )
 
-    def execute_sql(self, sql: str) -> List[Dict[str, Any]]:
+    def execute_sql(self, sql: str) -> list[dict[str, Any]]:
         """执行SQL"""
         with self.conn.cursor() as cursor:
             cursor.execute(sql)
             result = cursor.fetchall()
             return result
 
-    def get_tables(self) -> List[str]:
+    def get_tables(self) -> list[str]:
         """获取所有表名"""
         sql = "SHOW TABLES"
         return [i[f"Tables_in_{self.db}"] for i in self.execute_sql(sql)]
 
-    def query_table(self, table_name: str, fields: List[str] = None) -> List[Dict[str, Any]]:
+    def query_table(self, table_name: str, fields: list[str] = None) -> list[dict[str, Any]]:
         """查询表数据"""
         if fields:
             fields = ",".join(fields)
@@ -102,7 +102,7 @@ class Database:
         sql = f"SELECT {fields} FROM {table_name}"
         return [i for i in self.execute_sql(sql)]
 
-    def desc_table(self, table_name: str) -> List[Dict[str, Any]]:
+    def desc_table(self, table_name: str) -> list[dict[str, Any]]:
         """查询表结构"""
         sql = f"DESC {table_name}"
         return [i for i in self.execute_sql(sql)]
@@ -116,19 +116,19 @@ class Table:
 
     FIELDS = []
 
-    def __init__(self, table_name: str = "", mysql_config: Dict[str, Any] = None) -> None:
+    def __init__(self, table_name: str = "", mysql_config: dict[str, Any] = None) -> None:
         self.table_name = table_name
         self.db = self.init_database(mysql_config=mysql_config)
-        self._datas: List[Dict[str, Any]] = []
+        self._datas: list[dict[str, Any]] = []
 
     @staticmethod
-    def init_database(mysql_config: Dict[str, Any]) -> Database:
+    def init_database(mysql_config: dict[str, Any]) -> Database:
         """初始化日志数据库连接"""
         db = Database(**mysql_config)
         db.connect()
         return db
 
-    def transform_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """转换数据"""
         raise NotImplementedError
 
@@ -136,13 +136,13 @@ class Table:
         """查询数据"""
         raise NotImplementedError
 
-    def append_data(self, data: Dict[str, Any] = None):
+    def append_data(self, data: dict[str, Any] = None):
         """添加数据"""
         if not data:
             return
         self._datas.append(data)
 
-    def extend_datas(self, datas: List[Dict[str, Any]] = None):
+    def extend_datas(self, datas: list[dict[str, Any]] = None):
         """添加多行数据"""
         self._datas.extend(datas)
 
@@ -160,7 +160,7 @@ class NodemanSubscriptionInfo(Table):
 
     FIELDS = ["subscription_id", "step_id", "params"]
 
-    def __init__(self, mysql_config: Dict[str, Any] = None) -> None:
+    def __init__(self, mysql_config: dict[str, Any] = None) -> None:
         super().__init__(table_name=NODEMAN_SUBSCRIPTION_STEP_TABLE, mysql_config=mysql_config)
 
     def query_data(self) -> None:
@@ -197,7 +197,7 @@ class LogDatabusCollectorConfig(Table):
         "table_id",
     ]
 
-    def __init__(self, subscription_info: Dict[str, Any] = None, mysql_config: Dict[str, Any] = None) -> None:
+    def __init__(self, subscription_info: dict[str, Any] = None, mysql_config: dict[str, Any] = None) -> None:
         super().__init__(table_name=LOG_DATABUS_COLLECTOR_CONFIG_TABLE, mysql_config=mysql_config)
         self.subscription_info = subscription_info if subscription_info else {}
 
@@ -210,14 +210,13 @@ class LogDatabusCollectorConfig(Table):
 
 
 class LogSearchLogIndexSetData(Table):
-
     FIELDS = [
         "bk_biz_id",
         "index_set_id",
         "result_table_id",
     ]
 
-    def __init__(self, mysql_config: Dict[str, Any] = None) -> None:
+    def __init__(self, mysql_config: dict[str, Any] = None) -> None:
         super().__init__(table_name=LOG_SEARCH_INDEX_SET_DATA_TABLE, mysql_config=mysql_config)
 
     def query_data(self) -> None:
@@ -260,18 +259,18 @@ class LogSearchLogIndexSet(Table):
         "view_roles",
     ]
 
-    def __init__(self, index_set_data: Dict[str, Any] = None, mysql_config: Dict[str, Any] = None) -> None:
+    def __init__(self, index_set_data: dict[str, Any] = None, mysql_config: dict[str, Any] = None) -> None:
         super().__init__(table_name=LOG_SEARCH_INDEX_SET_TABLE, mysql_config=mysql_config)
         self.index_set_data = index_set_data if index_set_data else {}
-        self.project_map: Dict[str, Any] = self.init_project_map()
+        self.project_map: dict[str, Any] = self.init_project_map()
 
-    def init_project_map(self) -> Dict[str, Any]:
+    def init_project_map(self) -> dict[str, Any]:
         """老数据索引用project_id, 新数据索引用bk_biz_id, 需要做映射"""
         sql = f"SELECT * FROM {LOG_SEARCH_PROJECT_TABLE}"
         result = self.db.execute_sql(sql)
         return {item["project_id"]: item for item in result}
 
-    def transform_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def transform_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """转换数据"""
         data["bk_biz_id"] = self.project_map[data["project_id"]]["bk_biz_id"]
         data["indexes"] = self.index_set_data.get(data["index_set_id"], [])

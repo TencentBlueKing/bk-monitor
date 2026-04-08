@@ -347,7 +347,7 @@ class ActionQueryHandler(BaseBizQueryHandler):
         result = {
             "id": "action",
             "name": _("处理记录"),
-            "count": search_result.hits.total.value,
+            "count": 0,
             "children": [],
         }
 
@@ -366,6 +366,8 @@ class ActionQueryHandler(BaseBizQueryHandler):
                     "count": bucket_dict.get(status, 0),
                 }
             )
+
+            result["count"] += bucket_dict.get(status, 0)
 
         return result
 

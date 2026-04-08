@@ -38,6 +38,7 @@ import { useRouter } from 'vue-router';
 
 import { ALERT_STORAGE_KEY } from '../../services/alert-services';
 import {
+  type ActionTableItem,
   type AlertAllActionEnum,
   type AlertContentNameEditInfo,
   type AlertTableItem,
@@ -117,8 +118,8 @@ export default defineComponent({
     displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
-    showAlertDetail: (item: string, _defaultTab?: string) => typeof item === 'string',
-    showActionDetail: (item: string) => typeof item === 'string',
+    showAlertDetail: (row: AlertTableItem, _defaultTab?: string) => row,
+    showActionDetail: (row: ActionTableItem) => row,
     selectionChange: (selectedRowKeys: string[], options?: SelectOptions<any>) =>
       Array.isArray(selectedRowKeys) && options,
     openAlertDialog: (
@@ -162,7 +163,7 @@ export default defineComponent({
       clickPopoverTools,
       selectedRowKeys: toRef(props, 'selectedRowKeys'),
       clearSelected: () => handleSelectionChange(),
-      showDetailEmit: (id, defaultTab) => emit('showAlertDetail', id, defaultTab),
+      showDetailEmit: (row, defaultTab) => emit('showAlertDetail', row, defaultTab),
       openDialogEmit: (...args) => emit('openAlertDialog', ...args),
       saveContentNameEmit: (saveInfo, savePromiseEvent) => emit('saveAlertContentName', saveInfo, savePromiseEvent),
     });

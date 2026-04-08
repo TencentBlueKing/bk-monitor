@@ -26,12 +26,14 @@
 
 import { computed, defineComponent, ref, watch } from 'vue';
 
-import { downFile, formatFileSize } from '@/common/util';
+import { blobDownload, formatFileSize } from '@/common/util';
+import { axiosInstance } from '@/api';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
 import * as authorityMap from '../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import { useTableSetting } from '../hooks/use-table-setting';
 import { useSearchTask } from '../hooks/use-search-task';
 import { FileUploadStatus, UserReportItem } from './types';
@@ -325,12 +327,22 @@ export default defineComponent({
     };
 
     // 下载文件
-    const downloadFile = async (downloadUrl: string) => {
+    const downloadFile = async (fileName: string) => {
       if (props.isAllowedDownload) {
-        if (downloadUrl) {
-          const url = `${location.protocol}//${downloadUrl}`;
-          downFile(url);
-        }
+        axiosInstance
+          .get('/tgpa/task/download_file/', {
+            params: {
+              bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+              file_name: fileName,
+            },
+            responseType: 'blob',
+          })
+          .then((res) => {
+            blobDownload(res.data, fileName);
+          })
+          .catch((error) => {
+            console.error('下载失败:', error);
+          });
       } else {
         const paramData = {
           action_ids: [authorityMap.DOWNLOAD_FILE_AUTH],
@@ -440,7 +452,7 @@ export default defineComponent({
               v-cursor={{
                 active: !props.isAllowedDownload,
               }}
-              on-click={() => downloadFile(row.download_url)}
+              on-click={() => downloadFile(row.file_name)}
             >
               {t('下载文件')}
             </bk-button>

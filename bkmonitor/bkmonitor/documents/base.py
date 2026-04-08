@@ -14,6 +14,7 @@ from django.db import models
 from django_elasticsearch_dsl import Document
 from elasticsearch_dsl import Date as BaseDate
 from elasticsearch_dsl import MetaField
+from elasticsearch_dsl import field as dsl_field
 
 from bkmonitor.utils.elasticsearch.ilm import ILM
 
@@ -248,3 +249,17 @@ class Date(BaseDate):
         # 注意：这里默认不进行校验，因为 elasticsearch-py 这个库对秒级 timestamp 的清洗有问题
         # 会无脑对 timestamp 除以 1000，所以跳过校验
         return data
+
+
+class Flattened(dsl_field.Field):
+    """ES 7.3+ flattened 类型，elasticsearch-dsl 7.x 未内置。
+
+    将整个对象的所有叶子节点值扁平化为 keyword 统一索引，
+    适用于动态 key 的对象（如 impact_scope）。
+
+    部署说明：IssueDocument.REINDEX_ENABLED=False，rollover_indices 定时任务
+    （每 24 分钟）检测到 mapping 变更后自动切新索引，历史数据保留在旧索引中，
+    不参与 impact_scope 过滤。
+    """
+
+    name = "flattened"

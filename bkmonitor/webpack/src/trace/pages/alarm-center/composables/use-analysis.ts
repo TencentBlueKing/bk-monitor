@@ -33,6 +33,20 @@ import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import type { AnalysisListItem, AnalysisTopNDataResponse } from '../typings';
 
+// 需与后端 AlertTopNResource.MAX_NESTED_TOP_N_FIELDS 保持同步
+const TAG_FIELD_BATCH_SIZE = 20;
+
+const chunkFields = <T>(fields: T[], size: number): T[][] => {
+  if (fields.length === 0) {
+    return [];
+  }
+  const chunks: T[][] = [];
+  for (let index = 0; index < fields.length; index += size) {
+    chunks.push(fields.slice(index, index + size));
+  }
+  return chunks;
+};
+
 export function useAlarmAnalysis() {
   const alarmStore = useAlarmCenterStore();
   // 告警、故障、处理记录 分析Field TopN列表
@@ -126,14 +140,41 @@ export function useAlarmAnalysis() {
     isAll = false,
     options?: RequestOptions
   ): Promise<AnalysisTopNDataResponse<Omit<AnalysisListItem, 'name'>>> => {
-    const data = await alarmStore.alarmService.getAnalysisTopNData(
-      {
-        ...alarmStore.commonFilterParams,
-        fields: fields,
-      },
-      isAll,
-      options
+    const normalFields = fields.filter(field => !field.startsWith('tags.'));
+    const tagFieldChunks = chunkFields(
+      fields.filter(field => field.startsWith('tags.')),
+      TAG_FIELD_BATCH_SIZE
     );
+    const requestFieldGroups = [
+      ...(normalFields.length ? [normalFields] : []),
+      ...tagFieldChunks,
+    ];
+
+    if (!requestFieldGroups.length) {
+      return {
+        doc_count: 0,
+        fields: [],
+      };
+    }
+
+    const responses = await Promise.all(
+      requestFieldGroups.map(requestFields =>
+        alarmStore.alarmService.getAnalysisTopNData(
+          {
+            ...alarmStore.commonFilterParams,
+            fields: requestFields,
+          },
+          isAll,
+          options
+        )
+      )
+    );
+
+    const data = {
+      // doc_count 只受查询条件影响，拆分聚合字段不会改变总文档数，取首个响应即可。
+      doc_count: responses[0]?.doc_count ?? 0,
+      fields: responses.flatMap(item => item.fields),
+    };
 
     return {
       doc_count: data.doc_count,

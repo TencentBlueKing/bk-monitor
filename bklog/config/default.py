@@ -682,6 +682,12 @@ MENUS = [
                         "icon": "document",
                     },
                     {
+                        "id": "tgpa_task",
+                        "name": _("客户端日志"),
+                        "feature": FEATURE_TOGGLE["tgpa_task"],
+                        "icon": "client-log",
+                    },
+                    {
                         "id": "bk_data_collection",
                         "name": _("计算平台"),
                         "feature": FEATURE_TOGGLE["scenario_bkdata"],
@@ -1303,11 +1309,7 @@ except ValueError:
 
 # TGPA
 TGPA_TASK_APIGW_ROOT = os.getenv("BKAPP_TGPA_TASK_APIGATEWAY_ROOT", "")
-TGPA_TASK_QCLOUD_SECRET_ID = os.getenv("BKAPP_TGPA_TASK_QCLOUD_SECRET_ID", "")
-TGPA_TASK_QCLOUD_SECRET_KEY = os.getenv("BKAPP_TGPA_TASK_QCLOUD_SECRET_KEY", "")
-TGPA_TASK_QCLOUD_COS_REGION = os.getenv("BKAPP_TGPA_TASK_QCLOUD_COS_REGION", "")
-TGPA_TASK_QCLOUD_COS_BUCKET = os.getenv("BKAPP_TGPA_TASK_QCLOUD_COS_BUCKET", "")
-TGPA_TASK_QCLOUD_COS_DOMAIN = os.getenv("BKAPP_TGPA_TASK_QCLOUD_DOMAIN", "")
+TGPA_TRANSCEIVER_TOOL_URL = os.getenv("BKAPP_TGPA_TRANSCEIVER_TOOL_URL", "")
 
 """
 以下为框架代码 请勿修改

@@ -41,6 +41,7 @@ from .storage import (
     ArgusStorage,
     BkDataStorage,
     ClusterInfo,
+    DorisStorage,
     ESStorage,
     InfluxDBStorage,
     KafkaStorage,
@@ -68,6 +69,7 @@ class ResultTable(models.Model):
     # TODO: 多租户 下面所有的存储实体表都需要添加 bk_tenant_id
     REAL_STORAGE_DICT = {
         ClusterInfo.TYPE_ES: ESStorage,
+        ClusterInfo.TYPE_DORIS: DorisStorage,
         ClusterInfo.TYPE_INFLUXDB: InfluxDBStorage,
         ClusterInfo.TYPE_REDIS: RedisStorage,
         ClusterInfo.TYPE_KAFKA: KafkaStorage,
@@ -911,7 +913,6 @@ class ResultTable(models.Model):
             for ex_storage_type, ex_storage_config in list(external_storage.items()):
                 try:
                     ex_storage = self.REAL_STORAGE_DICT[ex_storage_type]
-
                 except KeyError:
                     logger.error(
                         f"try to set storage->[{ex_storage_type}] for table->[{self.table_id}] of bk_tenant_id->[{bk_tenant_id}] "
@@ -2308,7 +2309,7 @@ class ResultTableField(models.Model):
         fields, field_names, option_data = cls()._compose_data(table_id, field_data, bk_tenant_id=bk_tenant_id)
 
         # 校验字段是否已经创建
-        cls()._check_existed_fields(table_id, field_names)
+        cls()._check_existed_fields(table_id, field_names, bk_tenant_id=bk_tenant_id)
 
         # 写入数据
         cls.objects.bulk_create([cls(**field) for field in fields])

@@ -196,7 +196,7 @@ class ScriptPluginManager(PluginManager):
         return deploy_steps
 
     def _get_collector_json(self, plugin_params: dict[str, bytes]):
-        meta_dict = yaml.load(plugin_params["meta.yaml"], Loader=yaml.FullLoader)
+        meta_dict = yaml.safe_load(plugin_params["meta.yaml"])
 
         if "scripts" not in meta_dict:
             raise PluginParseError({"msg": _("无法解析脚本内容")})

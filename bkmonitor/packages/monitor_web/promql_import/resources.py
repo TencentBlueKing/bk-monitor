@@ -474,7 +474,7 @@ class CreateMappingConfig(Resource):
             else:
                 raise ValidationError(_("创建映射规则需指定映射范围"))
         if validated_request_data.get("file_data"):
-            configs = yaml.load(validated_request_data["file_data"], Loader=yaml.FullLoader)
+            configs = yaml.safe_load(validated_request_data["file_data"])
         mapping_config = MetricMappingConfigModel.objects.create(
             bk_biz_id=validated_request_data["bk_biz_id"],
             config_field=config_field,
