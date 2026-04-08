@@ -26,16 +26,14 @@
 
 import { computed, defineComponent, ref, watch } from 'vue';
 
-import { blobDownload, formatFileSize } from '@/common/util';
-import { axiosInstance } from '@/api';
+import { formatFileSize } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
-import * as authorityMap from '../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
-import { BK_LOG_STORAGE } from '@/store/store.type';
 import { useTableSetting } from '../hooks/use-table-setting';
 import { useSearchTask } from '../hooks/use-search-task';
+import { useDownloadFile } from '../hooks/use-download-file';
 import { FileUploadStatus, UserReportItem } from './types';
 
 import './report-table.scss';
@@ -122,6 +120,9 @@ export default defineComponent({
 
     // 使用检索任务 Hook
     const { searchTask } = useSearchTask();
+
+    // 使用文件下载 Hook
+    const { downloadFile: download } = useDownloadFile();
 
     // 分页变化事件处理函数
     const handlePageChange = (current: number) => {
@@ -328,34 +329,7 @@ export default defineComponent({
 
     // 下载文件
     const downloadFile = async (fileName: string) => {
-      if (props.isAllowedDownload) {
-        axiosInstance
-          .get('/tgpa/task/download_file/', {
-            params: {
-              bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-              file_name: fileName,
-            },
-            responseType: 'blob',
-          })
-          .then((res) => {
-            blobDownload(res.data, fileName);
-          })
-          .catch((error) => {
-            console.error('下载失败:', error);
-          });
-      } else {
-        const paramData = {
-          action_ids: [authorityMap.DOWNLOAD_FILE_AUTH],
-          resources: [
-            {
-              type: 'space',
-              id: store.state.spaceUid,
-            },
-          ],
-        };
-        const res = await store.dispatch('getApplyData', paramData);
-        store.commit('updateState', { authDialogData: res.data });
-      }
+      download(fileName, props.isAllowedDownload);
     };
 
     // 排序变化事件处理函数
