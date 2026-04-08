@@ -157,6 +157,8 @@ export function useAlarmAnalysis() {
       };
     }
 
+    // 批次请求不传 signal：避免 watchEffect 二次触发时 abort() 在 HTTP 连接建立前
+    // 就取消后续批次，导致只有第一批数据返回。结果是否使用由调用方的 signal.aborted 决定。
     const responses = await Promise.all(
       requestFieldGroups.map(requestFields =>
         alarmStore.alarmService.getAnalysisTopNData(
@@ -164,11 +166,14 @@ export function useAlarmAnalysis() {
             ...alarmStore.commonFilterParams,
             fields: requestFields,
           },
-          isAll,
-          options
+          isAll
         )
       )
     );
+
+    if (options?.signal?.aborted) {
+      return { doc_count: 0, fields: [] };
+    }
 
     const data = {
       // doc_count 只受查询条件影响，拆分聚合字段不会改变总文档数，取首个响应即可。
