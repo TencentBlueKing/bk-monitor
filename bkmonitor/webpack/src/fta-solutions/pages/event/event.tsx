@@ -502,6 +502,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     fieldList: [],
     count: 0,
   };
+  analyzeTopNRequestSeq = 0;
+  detailTopNRequestSeq = 0;
   listOpenId = '';
 
   get panelList(): IPanelItem[] {
@@ -1140,9 +1142,15 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @return {*}
    */
   async handleGetSearchTopNList(isDetail = false, isInit = true) {
+    const requestSeq = isDetail ? ++this.detailTopNRequestSeq : ++this.analyzeTopNRequestSeq;
+    const isLatestRequest = () =>
+      isDetail ? requestSeq === this.detailTopNRequestSeq : requestSeq === this.analyzeTopNRequestSeq;
     // 告警分析才需要tags topn
     if (this.searchType === 'alert' && isInit && !isDetail) {
       await this.handleGetAlertTagList();
+      if (!isLatestRequest()) {
+        return;
+      }
     }
     let allFieldList = [];
     // 告警分析
@@ -1175,6 +1183,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     //   size: isDetail ? 100 : 10
     // }, { needCancel: true }).catch(() => ({ doc_count: 0, fields: [] }));
     const setTopnDataFn = (fieldList, count) => {
+      if (!isLatestRequest()) {
+        return;
+      }
       if (!isDetail) {
         this.topNOverviewData.fieldList = fieldList;
         this.topNOverviewData.count = count;
@@ -1249,6 +1260,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       ).catch(() => ({ doc_count: 0, fields: [] }));
       fieldList = fields;
       count = doc_count;
+      if (!isLatestRequest()) {
+        return;
+      }
       if (!isDetail) {
         const allTagIds = (tagList || []).map(item => item.id);
         const tagBatches: string[][] = [];
@@ -1256,20 +1270,25 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           tagBatches.push(allTagIds.slice(i, i + TAG_FIELD_BATCH_SIZE));
         }
         if (tagBatches.length) {
-          Promise.all(
+          const results = await Promise.all(
             tagBatches.map(batchFields =>
-              alertTopN({ ...topNParams, fields: batchFields }, { needCancel: true }).catch(() => ({
+              // 同一路径的并发批次不能启用 needCancel，否则会按 method + url 互相取消。
+              alertTopN({ ...topNParams, fields: batchFields }).catch(() => ({
                 doc_count: 0,
                 fields: [],
               }))
             )
-          ).then(results => {
-            for (const { fields: batchFields, doc_count: batchCount } of results) {
-              fieldList = [...fieldList, ...batchFields];
-              if (batchCount) count = batchCount;
-            }
-            setTopnDataFn(fieldList, count);
-          });
+          );
+          if (!isLatestRequest()) {
+            return;
+          }
+          for (const { fields: batchFields, doc_count: batchCount } of results) {
+            fieldList = [...fieldList, ...batchFields];
+            if (batchCount) count = batchCount;
+          }
+        } else {
+          setTopnDataFn(fieldList, count);
+          return;
         }
       }
     } else if (this.searchType === 'incident') {
