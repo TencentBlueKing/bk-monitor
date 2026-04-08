@@ -62,6 +62,7 @@ from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
 from bkmonitor.utils.alert_drilling import clean_where_conditions, normalize_histogram_quantile_group_by
 from bkmonitor.utils.common_utils import count_md5
+from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.range import load_agg_condition_instance
 from bkmonitor.utils.request import get_request, get_request_tenant_id
@@ -86,6 +87,7 @@ from constants.alert import (
     EventTargetType,
 )
 from constants.data_source import DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
+from constants.elasticsearch import QueryStringLogicOperators, QueryStringOperators
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.alert import AIOpsMultiAnomlayDetectError, AlertNotFoundError
@@ -105,6 +107,7 @@ from fta_web.alert.serializers import (
     AlertSearchSerializer,
     AlertSuggestionSerializer,
     EventSearchSerializer,
+    SearchConditionSerializer,
 )
 from fta_web.alert.utils import (
     generate_date_ranges,
@@ -3303,3 +3306,53 @@ class EditDataMeaningResource(Resource):
             "alert_id": alert_id,
             "data_meaning": data_meaning,
         }
+
+
+class GenerateQueryStringResource(Resource):
+    """conditions 转 query_string。
+
+    将告警列表 UI 模式的 conditions 转换为 Lucene query_string，
+    用于 APM 嵌入页内置条件与用户条件合并，以及前端从 UI 模式切到语句模式时的条件回填。
+    """
+
+    # conditions.method 到 QueryStringOperators 的映射
+    METHOD_OPERATOR_MAPPING: dict[str, str] = {
+        "eq": QueryStringOperators.EQUAL,
+        "neq": QueryStringOperators.NOT_EQUAL,
+        "include": QueryStringOperators.INCLUDE,
+        "exclude": QueryStringOperators.NOT_INCLUDE,
+        "gt": QueryStringOperators.GT,
+        "gte": QueryStringOperators.GTE,
+        "lt": QueryStringOperators.LT,
+        "lte": QueryStringOperators.LTE,
+    }
+
+    class RequestSerializer(serializers.Serializer):
+        conditions = SearchConditionSerializer(label="搜索条件", many=True, default=[])
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> str:
+        conditions: list[dict[str, Any]] = validated_request_data["conditions"]
+        if not conditions:
+            return ""
+
+        parts: list[tuple[str, str]] = []
+        for cond in conditions:
+            generator = QueryStringGenerator(self.METHOD_OPERATOR_MAPPING)
+            generator.add_filter(cond["key"], cond["method"], cond["value"])
+            fragment: str = generator.to_query_string()
+            if not fragment:
+                continue
+
+            raw_connector: str = cond.get("condition") or ""
+            connector: str = QueryStringLogicOperators.OR if raw_connector == "or" else QueryStringLogicOperators.AND
+            parts.append((connector, fragment))
+
+        if not parts:
+            return ""
+
+        # 组装规则：按 condition 参数从左到右折叠，首个条件的 connector 忽略，后续按 connector 拼接并加括号避免优先级歧义
+        result: str = parts[0][1]
+        for connector, fragment in parts[1:]:
+            result = f"({result}) {connector} ({fragment})"
+
+        return result
