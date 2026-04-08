@@ -633,6 +633,7 @@ class AlertDetailResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         id = AlertIDField(required=True, label="告警ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     @classmethod
     def get_relation_info(cls, alert: AlertDocument, length_limit=True):
@@ -645,6 +646,11 @@ class AlertDetailResource(Resource):
         alert_id = validated_request_data["id"]
 
         alert = AlertDocument.get(alert_id)
+
+        # 业务ID归属校验
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        if bk_biz_id and int(alert.event.bk_biz_id) != bk_biz_id:
+            raise AlertNotFoundError({"alert_id": alert_id})
 
         graph_panel = AIOPSManager.get_graph_panel(alert)
         relation_info = self.get_relation_info(alert, False)
@@ -2099,9 +2105,22 @@ class AlertTopNResultResource(BaseTopNResource):
 
 class AlertTopNResource(Resource):
     handler_cls = AlertQueryHandler
+    # 需与前端 use-analysis.ts 中的 TAG_FIELD_BATCH_SIZE 保持同步
+    MAX_NESTED_TOP_N_FIELDS = 20
 
     class RequestSerializer(AlertSearchSerializer, BaseTopNResource.RequestSerializer):
         need_time_partition = serializers.BooleanField(required=False, default=True, label="是否需要按时间分片")
+
+        def validate(self, attrs):
+            attrs = super().validate(attrs)
+            nested_fields = [field for field in attrs.get("fields", []) if field.lstrip("-+").startswith("tags.")]
+            if len(nested_fields) > AlertTopNResource.MAX_NESTED_TOP_N_FIELDS:
+                raise ValidationError(
+                    _("标签类 TopN 字段一次最多支持 {} 个，请分批查询").format(
+                        AlertTopNResource.MAX_NESTED_TOP_N_FIELDS
+                    )
+                )
+            return attrs
 
     def perform_request(self, validated_request_data):
         if validated_request_data["bk_biz_ids"] is not None:

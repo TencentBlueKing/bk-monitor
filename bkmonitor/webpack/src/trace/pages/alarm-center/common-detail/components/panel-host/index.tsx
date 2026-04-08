@@ -49,7 +49,7 @@ export default defineComponent({
   },
   setup(props) {
     const { bizId, interval, timeRange } = storeToRefs(useAlarmCenterDetailStore());
-    const { currentTarget, targetList, loading } = useAlertHost(toRef(props, 'alertId'));
+    const { currentTarget, targetList, loading } = useAlertHost({ alertId: toRef(props, 'alertId'), bizId });
     const { dashboards: hostDashboards, loading: sceneViewLoading } = useSceneView(bizId, 'host');
     /** 图表执行 dataZoom 框线缩放后的时间范围 */
     const dataZoomTimeRange = shallowRef<DateValue>(null);

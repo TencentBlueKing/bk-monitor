@@ -62,7 +62,6 @@ const INCIDENT_TABLE_COLUMNS = [
     title: window.i18n.t('空间名'),
     is_default: true,
     is_locked: true,
-    minWidth: 100,
     width: 100,
     sorter: false,
     fixed: 'left',
