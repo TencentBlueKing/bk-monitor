@@ -34,7 +34,7 @@ import {
   watch,
 } from 'vue';
 
-import { commonPageSizeSet, convertDurationArray, tryURLDecodeParse } from 'monitor-common/utils';
+import { commonPageSizeSet, convertDurationArray, copyText, tryURLDecodeParse } from 'monitor-common/utils';
 import FavoriteBox, {
   type IFavorite,
   type IFavoriteGroup,
@@ -79,6 +79,7 @@ const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
 import { Message } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { traceGenerateQueryString } from 'monitor-api/modules/apm_trace';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
@@ -640,6 +641,49 @@ export default defineComponent({
       showResidentBtn.value = val;
     };
 
+    const handleCopyWhereQueryString = async (whereParams: CommonCondition[]) => {
+      const filters = whereParams.map(item => {
+        if (item.key === '*') {
+          return {
+            ...item,
+            operator: 'equal',
+            options: {},
+          };
+        }
+        const type = retrievalFilterFields.value.find(v => v.name === item.key)?.type || 'keyword';
+        return {
+          ...item,
+          value: [EFieldType.integer, EFieldType.long].includes(type as EFieldType)
+            ? item.value.map(v => {
+                const numberV = Number(v);
+                return numberV === 0 ? 0 : numberV || v;
+              })
+            : item.value,
+          operator: item.method,
+        };
+      });
+      if (filters.length) {
+        const copyStr = await traceGenerateQueryString({
+          filters,
+        }).catch(() => {
+          return '';
+        });
+        if (copyStr) {
+          copyText(copyStr, msg => {
+            Message({
+              message: msg,
+              theme: 'error',
+            });
+            return;
+          });
+          Message({
+            message: t('复制成功'),
+            theme: 'success',
+          });
+        }
+      }
+    };
+
     watch(
       () => data.value,
       () => {
@@ -725,6 +769,7 @@ export default defineComponent({
       handleSaveAlertContentName,
       handleShowResidentBtnChange,
       handleQuickFilteringOperation,
+      handleCopyWhereQueryString,
     };
   },
   render() {
@@ -769,6 +814,7 @@ export default defineComponent({
             selectFavorite={this.retrievalSelectFavorite}
             onBizIdsChange={this.handleBizIdsChange}
             onConditionChange={this.handleConditionChange}
+            onCopyWhere={this.handleCopyWhereQueryString}
             onFavoriteSave={this.handleFavoriteSave}
             onFilterModeChange={this.handleFilterModeChange}
             onQuery={this.handleQuery}
