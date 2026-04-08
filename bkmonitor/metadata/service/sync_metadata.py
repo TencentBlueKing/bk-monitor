@@ -139,7 +139,7 @@ def sync_kafka_metadata(bk_tenant_id: str, kafka_info: dict[str, Any], ds: model
 
 def sync_es_metadata(bk_tenant_id: str, es_info: list[dict[str, Any]], table_id: str):
     """
-    同步 ES 元数据信息
+    同步 ES 元数据信息（目前不再使用，保留逻辑）
     ES信息为一个列表,包含所有历史ES集群信息记录，会按照时间进行倒排序
     @param bk_tenant_id: 租户ID
     @param es_info: ES 元数据信息
