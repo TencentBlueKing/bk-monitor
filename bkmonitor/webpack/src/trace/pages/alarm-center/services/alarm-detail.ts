@@ -148,13 +148,17 @@ export const getDetailSceneView = async (bizId: number, id: string) => {
 /**
  * @method getAlertK8sScenarioList 获取可选场景列表
  * @description 告警详情-容器-可选场景列表
- * @param {string} alertId 告警ID
+ * @param {object} params 请求参数
+ * @param {string} params.alertId 告警ID
+ * @param {number} params.bizId 业务ID
  * @returns {Promise<SceneEnum[]>} 可选场景列表
  */
-export const getAlertK8sScenarioList = async (alertId: string) => {
-  const data = await alertK8sScenarioList<{ alert_id: string }, SceneEnum[]>({ alert_id: alertId }).catch(
-    () => [] as SceneEnum[]
-  );
+export const getAlertK8sScenarioList = async (params: { alertId: string; bizId: number }) => {
+  const { alertId, bizId } = params;
+  const data = await alertK8sScenarioList<{ alert_id: string; bk_biz_id: number }, SceneEnum[]>({
+    alert_id: alertId,
+    bk_biz_id: bizId,
+  }).catch(() => [] as SceneEnum[]);
   return data;
 };
 
@@ -171,8 +175,9 @@ export const getAlertK8sScenarioMetricList = async (
   params: { bizId: number; scenario: SceneEnum },
   options?: RequestOptions
 ) => {
-  const data = await alertK8sMetricList<{ bizId: number; scenario: SceneEnum }, AlertK8SMetricItem[]>(
-    params,
+  const { bizId, scenario } = params;
+  const data = await alertK8sMetricList<{ bk_biz_id: number; scenario: SceneEnum }, AlertK8SMetricItem[]>(
+    { bk_biz_id: bizId, scenario },
     options
   ).catch(() => [] as AlertK8SMetricItem[]);
   return data.reduce((prev, curr) => {
@@ -187,11 +192,17 @@ export const getAlertK8sScenarioMetricList = async (
 /**
  * @method getAlertK8sTarget 获取关联容器对象列表
  * @description 告警详情-容器-根据告警 id 获取关联容器对象列表
- * @param {string} alertId 告警ID
+ * @param {object} params 请求参数
+ * @param {string} params.alertId 告警ID
+ * @param {number} params.bizId 业务ID
  * @returns {Promise<AlertK8sTargetResult>} 关联容器对象列表
  */
-export const getAlertK8sTarget = async (alertId: string) => {
-  const data = await alertK8sTarget<{ alert_id: string }, AlertK8sTargetResult>({ alert_id: alertId }).catch(
+export const getAlertK8sTarget = async (params: { alertId: string; bizId: number }) => {
+  const { alertId, bizId } = params;
+  const data = await alertK8sTarget<{ alert_id: string; bk_biz_id: number }, AlertK8sTargetResult>({
+    alert_id: alertId,
+    bk_biz_id: bizId,
+  }).catch(
     () =>
       ({
         resource_type: '',
