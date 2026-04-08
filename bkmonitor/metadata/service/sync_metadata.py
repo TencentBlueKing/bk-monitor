@@ -89,7 +89,7 @@ def sync_kafka_metadata(bk_tenant_id: str, kafka_info: dict[str, Any], ds: model
     # 更新 KafkaTopicInfo 信息，按需更新
     try:
         kafka_topic_ins = models.KafkaTopicInfo.objects.get(bk_data_id=bk_data_id)
-        if kafka_topic_ins.topic != kafka_info["topic"] or (
+        if (kafka_topic_ins.topic != kafka_info["topic"] and kafka_info["topic"]) or (
             kafka_topic_ins.partition != kafka_info["partitions"] and kafka_info["partitions"]
         ):
             logger.info(
@@ -108,11 +108,12 @@ def sync_kafka_metadata(bk_tenant_id: str, kafka_info: dict[str, Any], ds: model
                     kafka_info,
                     bk_data_id,
                 )
-                kafka_topic_ins.topic = kafka_info["topic"]
+                if kafka_info["topic"]:
+                    kafka_topic_ins.topic = kafka_info["topic"]
                 # 如果partitions不为0或None，则更新partition
                 if kafka_info["partitions"]:
                     kafka_topic_ins.partition = kafka_info["partitions"]
-                kafka_topic_ins.save()
+                kafka_topic_ins.save(update_fields=["topic", "partition"])
     except models.KafkaTopicInfo.DoesNotExist:
         # 如果 KafkaTopicInfo 不存在，创建新 KafkaTopicInfo
         kafka_topic_ins = models.KafkaTopicInfo.objects.create(
