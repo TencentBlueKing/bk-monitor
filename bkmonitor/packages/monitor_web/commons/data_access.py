@@ -565,7 +565,6 @@ class PluginDataAccessor:
                 "is_split_measurement": is_split_measurement,
                 "metric_info_list": metric_info_list,
                 "data_label": self.data_label,
-                "options": {"enable_plugin_v4_data_link": True},
             }
             # 插件数据在这里需要去掉业务id
             # 单指标单表，不需要补齐schema: "enable_default_value": False,
@@ -577,6 +576,7 @@ class PluginDataAccessor:
                     {
                         "time_series_group_id": group_list[0]["time_series_group_id"],
                         "enable_field_black_list": self.enable_field_blacklist,
+                        "option": {"enable_plugin_v4_data_link": True},
                     }
                 )
 
@@ -587,6 +587,7 @@ class PluginDataAccessor:
                         "additional_options": {
                             "enable_field_black_list": self.enable_field_blacklist,
                             "enable_default_value": False,
+                            "enable_plugin_v4_data_link": True,
                         }
                     }
                 )
