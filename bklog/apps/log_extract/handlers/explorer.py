@@ -32,6 +32,7 @@ from apps.constants import ExternalPermissionActionEnum
 from apps.exceptions import ApiResultError
 from apps.iam import ActionEnum, Permission
 from apps.log_commons.models import ExternalPermission
+from apps.log_databus.constants import TargetNodeTypeEnum
 from apps.log_extract import constants, exceptions
 from apps.log_extract.constants import (
     BATCH_GET_JOB_INSTANCE_IP_LOG_IP_LIST_SIZE,
@@ -40,11 +41,13 @@ from apps.log_extract.constants import (
 from apps.log_extract.fileserver import FileServer
 from apps.log_extract.handlers.thread import ThreadPool
 from apps.log_extract.models import Strategies
+from apps.log_search.constants import CCInstanceType
 from apps.log_search.handlers.biz import BizHandler
 from apps.utils.db import array_chunk
 from apps.utils.local import get_request_external_username, get_request_username
 from apps.utils.log import logger
-from bkm_ipchooser.constants import CommonEnum
+from apps.utils.thread import MultiExecuteFunc
+from bkm_ipchooser.constants import CommonEnum, TemplateType
 from bkm_ipchooser.handlers import topo_handler
 from bkm_ipchooser.query import resource
 from bkm_ipchooser.tools import topo_tool
@@ -203,14 +206,30 @@ class ExplorerHandler:
             return f"{file_mtime[-1]} {file_meta_data[-1]}"
         return "-"
 
-    def get_strategies(self, bk_biz_id, ip_list):
+    def get_strategies(self, bk_biz_id, ip_list, target_node_type=TargetNodeTypeEnum.INSTANCE.value, target_nodes=[]):
         """
         :param bk_biz_id: 业务ID
         :param ip_list: 业务机器IP列表
+        :param target_node_type: 目标节点类型
+        :param target_nodes: 节点列表
         :return: 返回用户在对应业务下所选择的多个服务器中可访问目录及目录下文件类型的交集
         """
-        # step 1: 获取ip所属模块列表
-        request_topo_list = self.get_module_by_ip(bk_biz_id, ip_list)
+        if target_node_type == TargetNodeTypeEnum.INSTANCE.value:
+            # step 1: 获取ip所属模块列表
+            request_topo_list = self.get_module_by_ip(bk_biz_id, ip_list)
+        elif target_node_type == TargetNodeTypeEnum.TOPO.value:
+            request_topo_list = self.get_topo_list_by_nodes(bk_biz_id, target_nodes)
+            ip_list = []
+            for topo in request_topo_list:
+                ip_info = {
+                    "ip": topo["host"]["bk_host_innerip"],
+                    "bk_cloud_id": topo["host"]["bk_cloud_id"],
+                    "bk_host_id": topo["host"]["bk_host_id"],
+                }
+                ip_list.append(ip_info)
+        elif target_node_type == TargetNodeTypeEnum.SERVICE_TEMPLATE.value:
+            ip_list = self.get_ip_list_by_service_template(bk_biz_id, target_nodes)
+            request_topo_list = self.get_module_by_ip(bk_biz_id, ip_list)
 
         # 用户选择的业务机器数量需要和返回的topo列表数量一致，这代表用户选择的每个服务器都由对应的TOPO
         request_topo_list_len = len(request_topo_list)
@@ -242,7 +261,17 @@ class ExplorerHandler:
         for ip_allowed_strategies in allowed_strategies:
             result = self.get_intersection_strategies(result, ip_allowed_strategies)
 
-        return {"allowed_dir_file_list": result, "bk_os_type": host_os_type, "operator": result[0]["operator"]}
+        ip_list_and_allowed_dir_file_list = {
+            "ip_list": ip_list,
+            "strategies": result,
+        }
+
+        return {
+            "allowed_dir_file_list": result,
+            "bk_os_type": host_os_type,
+            "operator": result[0]["operator"],
+            "ip_list_and_allowed_dir_file_list": ip_list_and_allowed_dir_file_list,
+        }
 
     def list_accessible_topo(self, bk_biz_id):
         """
@@ -632,6 +661,25 @@ class ExplorerHandler:
 
         return condition
 
+    @staticmethod
+    def _get_topo_filter_rule_by_target_nodes(target_nodes):
+        field_map = {
+            CCInstanceType.BUSINESS.value: "bk_biz_id",
+            CCInstanceType.SET.value: "bk_set_id",
+            CCInstanceType.MODULE.value: "bk_module_id",
+        }
+
+        filter_rule = {
+            "condition": "OR",
+            "rules": [],
+        }
+
+        for target_node in target_nodes:
+            field = field_map.get(target_node["bk_obj_id"])
+            filter_rule["rules"].append({"field": field, "operator": "equal", "value": target_node["bk_inst_id"]})
+
+        return filter_rule
+
     @classmethod
     def get_module_by_ip(cls, bk_biz_id, ip_list):
         search_topo_of_host = {
@@ -644,6 +692,79 @@ class ExplorerHandler:
         if not host_info:
             raise exceptions.ExplorerStrategiesFailed
         return host_info
+
+    @classmethod
+    def get_topo_list_by_nodes(cls, bk_biz_id, target_nodes):
+        params = {
+            "bk_biz_id": bk_biz_id,
+            "fields": ["bk_host_id", "bk_os_type", "bk_os_name", "bk_cloud_id", "bk_host_innerip"],
+        }
+
+        topo_list = []
+        bk_obj_ids = {target_node["bk_obj_id"] for target_node in target_nodes}
+
+        if CCInstanceType.BUSINESS.value in bk_obj_ids:
+            if reslt := batch_request(func=CCApi.list_biz_hosts_topo, params=params):
+                topo_list.extend(reslt)
+        else:
+            multi_execute_func = MultiExecuteFunc()
+            result_keys = []
+
+            if (obj_id := CCInstanceType.SET.value) in bk_obj_ids:
+                filter_set_params = copy.deepcopy(params)
+                filter_set_params["set_property_filter"] = cls._get_topo_filter_rule_by_target_nodes(
+                    [target_node for target_node in target_nodes if target_node["bk_obj_id"] == obj_id]
+                )
+                result_key = f"{obj_id}_property_filter_topo_list"
+                multi_execute_func.append(
+                    result_key=result_key,
+                    func=batch_request,
+                    params={"func": CCApi.list_biz_hosts_topo, "params": filter_set_params},
+                    multi_func_params=True,
+                )
+                result_keys.append(result_key)
+
+            if (obj_id := CCInstanceType.MODULE.value) in bk_obj_ids:
+                filter_module_params = copy.deepcopy(params)
+                filter_module_params["module_property_filter"] = cls._get_topo_filter_rule_by_target_nodes(
+                    [target_node for target_node in target_nodes if target_node["bk_obj_id"] == obj_id]
+                )
+                result_key = f"{obj_id}_property_filter_topo_list"
+                multi_execute_func.append(
+                    result_key=result_key,
+                    func=batch_request,
+                    params={"func": CCApi.list_biz_hosts_topo, "params": filter_module_params},
+                    multi_func_params=True,
+                )
+                result_keys.append(result_key)
+
+            multi_result = multi_execute_func.run()
+
+            for result_key in result_keys:
+                result = multi_result.get(result_key)
+                if result:
+                    topo_list.extend(result)
+
+        if not topo_list:
+            raise exceptions.ExplorerStrategiesFailed
+
+        return topo_list
+
+    @classmethod
+    def get_ip_list_by_service_template(cls, bk_biz_id, target_nodes):
+        params = {"bk_biz_id": bk_biz_id, "fields": ["bk_host_id", "bk_host_innerip", "bk_cloud_id"]}
+        service_template_ids = [
+            target_node["bk_inst_id"]
+            for target_node in target_nodes
+            if target_node["bk_obj_id"] == TemplateType.SERVICE_TEMPLATE.value
+        ]
+        params["bk_service_template_ids"] = service_template_ids
+        ip_list = batch_request(func=CCApi.find_host_by_service_template, params=params)
+        if not ip_list:
+            raise exceptions.ObjsNotHaveHost
+        for ip_info in ip_list:
+            ip_info["ip"] = ip_info.pop("bk_host_innerip")
+        return ip_list
 
     @classmethod
     def get_allowed_dir_file_list(cls, strategies, request_topo_list) -> list:
@@ -750,9 +871,9 @@ class ExplorerHandler:
                 if strategy["file_path"] == strategy_target["file_path"]:
                     visible_dir = strategy["file_path"]
                 elif strategy["file_path"].startswith(strategy_target["file_path"]):
-                    visible_dir = strategy_target["file_path"]
-                elif strategy_target["file_path"].startswith(strategy["file_path"]):
                     visible_dir = strategy["file_path"]
+                elif strategy_target["file_path"].startswith(strategy["file_path"]):
+                    visible_dir = strategy_target["file_path"]
                 if visible_dir:
                     file_type = strategy["file_type"].intersection(strategy_target["file_type"])
                     if not file_type:

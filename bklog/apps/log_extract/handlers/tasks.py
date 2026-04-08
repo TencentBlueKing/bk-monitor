@@ -22,7 +22,6 @@ the project delivered to anyone in the future.
 import ast
 import ipaddress
 from datetime import timedelta
-from typing import List
 
 from django.conf import settings
 from django.utils import timezone
@@ -34,6 +33,7 @@ from rest_framework.response import Response
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.iam import ActionEnum, Permission
+from apps.log_databus.constants import TargetNodeTypeEnum
 from apps.log_extract import constants, exceptions
 from apps.log_extract.constants import (
     TASK_BK_CLOUD_ID_INDEX,
@@ -54,9 +54,10 @@ from apps.utils.local import (
 )
 from apps.utils.log import logger
 from apps.utils.time_handler import format_user_time_zone
+import builtins
 
 
-class TasksHandler(object):
+class TasksHandler:
     def __init__(self):
         self.is_external = bool(get_request_external_username())
         self.request_user = get_request_external_username() or get_request_username()
@@ -86,6 +87,7 @@ class TasksHandler(object):
             response = tasks_views.get_paginated_response(serializer.data)
             response.data["list"] = cls.post_list(response.data["list"])
             response.data["list"] = cls.get_ip_and_bk_cloud_id(response.data["list"])
+            response.data["list"] = cls.get_target_node(response.data["list"])
             response.data["timeout"] = constants.POLLING_TIMEOUT
             return response
 
@@ -100,12 +102,32 @@ class TasksHandler(object):
         if task.created_by != self.request_user:
             raise exceptions.TasksRecreateFailed
 
+        task_data = {
+            "target_node_type": task.target_node_type,
+            "ip_list": task.ip_list,
+            "target_nodes": task.target_nodes,
+            "preview_ip": None,
+            "preview_ip_list": "{}",
+        }
+        task_data["ip_list"] = self.format_task_ip_details(task_data)["ip_list"]
+        task_data["target_nodes"] = self.format_task_target_node_details(task_data)["target_nodes"]
+
         return self.create(
             bk_biz_id=task.bk_biz_id,
-            ip_list=task.ip_list,
+            ip_list=task_data.get("ip_list"),
             request_file_list=task.file_path,
             filter_type=task.filter_type,
+            remark=task.remark,
             filter_content=task.filter_content,
+            preview_directory=task.preview_directory,
+            preview_ip_list=task.preview_ip_list or [],
+            preview_time_range=task.preview_time_range,
+            preview_is_search_child=task.preview_is_search_child,
+            preview_start_time=task.preview_start_time,
+            preview_end_time=task.preview_end_time,
+            link_id=task.link_id,
+            target_node_type=task.target_node_type,
+            target_nodes=task_data.get("target_nodes"),
         )
 
     def create(
@@ -123,6 +145,8 @@ class TasksHandler(object):
         preview_start_time,
         preview_end_time,
         link_id,
+        target_node_type=TargetNodeTypeEnum.INSTANCE.value,
+        target_nodes=[],
     ):
         request_user = get_request_external_username() or get_request_username()
         # K8S部署情况下禁止使用内网链路, 所以已有的内网链路不能创建任务
@@ -160,9 +184,16 @@ class TasksHandler(object):
                 ip_key = f"{ip_key}:{ip['bk_host_id']}"
             formatted_preview_ip_list.append(ip_key)
 
+        formatted_target_nodes = []
+        for target_node in target_nodes or []:
+            target_node_key = f"{target_node['bk_obj_id']}:{target_node['bk_inst_id']}"
+            formatted_target_nodes.append(target_node_key)
+
         params = {
             "bk_biz_id": bk_biz_id,
+            "target_node_type": target_node_type,
             "ip_list": formatted_ip_list,
+            "target_nodes": formatted_target_nodes,
             "file_path": request_file_list,
             "filter_type": filter_type,
             "filter_content": {} if not filter_type else filter_content,
@@ -194,6 +225,8 @@ class TasksHandler(object):
             "preview_end_time",
             "link_id",
             "created_by",
+            "target_node_type",
+            "target_nodes",
         ]:
             params.pop(pop_field)
 
@@ -239,6 +272,7 @@ class TasksHandler(object):
             raise exceptions.TasksRetrieveFailed
         # 主机显示优化
         task["ip_list"] = self.format_task_ip_details(task)["ip_list"]
+        task["target_nodes"] = self.format_task_target_node_details(task)["target_nodes"]
         pipeline_id = instance.pipeline_id
         pipeline_components_id = instance.pipeline_components_id
         task["download_status_display"] = constants.DownloadStatus.get_dict_choices().get(task["download_status"])
@@ -249,7 +283,7 @@ class TasksHandler(object):
             task_status = task_service.get_state(pipeline_id)
         except Exception:  # pylint: disable=broad-except
             # 存在多主机，单主机日志下载的情况，因此有可能有些pipeline节点未执行
-            logger.info("pipeline任务不存在，pipeline_id=>[{}]".format(pipeline_id))
+            logger.info(f"pipeline任务不存在，pipeline_id=>[{pipeline_id}]")
             task["task_step_status"] = []
             return Response(task)
 
@@ -318,7 +352,7 @@ class TasksHandler(object):
         return res
 
     @staticmethod
-    def pipeline_failure_to_task_status(task_list: List[Tasks]):
+    def pipeline_failure_to_task_status(task_list: builtins.list[Tasks]):
         task_have_failed_component = []
         skip_status = [
             constants.DownloadStatus.FAILED,
@@ -357,6 +391,13 @@ class TasksHandler(object):
         return new_task_list
 
     @staticmethod
+    def get_target_node(task_list):
+        new_task_list = []
+        for task in task_list:
+            new_task_list.append(TasksHandler.format_task_target_node_details(task))
+        return new_task_list
+
+    @staticmethod
     def format_ip(ip):
         if ":" not in ip:
             try:
@@ -379,6 +420,14 @@ class TasksHandler(object):
                     "bk_cloud_id": int(items[TASK_BK_CLOUD_ID_INDEX]),
                     "bk_host_id": int(items[TASK_HOST_ID_INDEX]),
                 }
+
+    @staticmethod
+    def format_target_node(target_node):
+        if ":" not in target_node:
+            return None
+        else:
+            items = target_node.split(":")
+            return {"bk_obj_id": items[0], "bk_inst_id": int(items[1])}
 
     @staticmethod
     def format_task_ip_details(task):
@@ -408,6 +457,29 @@ class TasksHandler(object):
             task["preview_ip_list"] = preview_ip_list
         else:
             task["preview_ip_list"] = ast.literal_eval(task["preview_ip_list"])
+        return task
+
+    @staticmethod
+    def format_task_target_node_details(task):
+        """
+        格式化任务里的 target_nodes
+        """
+        is_topo_or_service_template_type = task["target_node_type"] in {
+            TargetNodeTypeEnum.TOPO.value,
+            TargetNodeTypeEnum.SERVICE_TEMPLATE.value,
+        }
+        if is_topo_or_service_template_type:
+            task["enable_clone"] = True
+        target_nodes = []
+        for target_node in task["target_nodes"]:
+            new_target_node = TasksHandler.format_target_node(target_node)
+            if is_topo_or_service_template_type and not new_target_node:
+                task["enable_clone"] = False
+                task["message"] = _("缺少 bk_obj_id 或 bk_inst_id")
+                break
+            if new_target_node:
+                target_nodes.append(new_target_node)
+        task["target_nodes"] = target_nodes
         return task
 
     @classmethod
