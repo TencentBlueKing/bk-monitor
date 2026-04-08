@@ -80,9 +80,7 @@ class ResultTable(models.Model):
     # TABLE_NAME是具体指标集合，例如cpu, mem等
     id = models.BigAutoField(primary_key=True)
     table_id = models.CharField("结果表名", db_index=True, max_length=128)
-    bk_tenant_id: str = models.CharField(
-        "租户ID", max_length=256, null=True, default="system"
-    )  # pyright: ignore [reportAssignmentType]
+    bk_tenant_id: str = models.CharField("租户ID", max_length=256, null=True, default="system")  # pyright: ignore [reportAssignmentType]
     table_name_zh = models.CharField("结果表中文名", max_length=128)
     is_custom_table = models.BooleanField("是否自定义结果表")
     schema_type = models.CharField("schema配置方案", max_length=64, choices=SCHEMA_TYPE_CHOICES)
@@ -100,9 +98,7 @@ class ResultTable(models.Model):
     # 数据表标签，默认是其他类型
     label = models.CharField(verbose_name="结果表标签", max_length=128, default=Label.RESULT_TABLE_LABEL_OTHER)
     # 数据标签
-    data_label: str = models.CharField(
-        "数据标签", max_length=128, default="", null=True, blank=True
-    )  # pyright: ignore [reportAssignmentType]
+    data_label: str = models.CharField("数据标签", max_length=128, default="", null=True, blank=True)  # pyright: ignore [reportAssignmentType]
     is_builtin = models.BooleanField("是否内置", default=False)
     bk_biz_id_alias = models.CharField("业务ID别名", max_length=128, default="", null=True, blank=True)
 
@@ -2307,7 +2303,7 @@ class ResultTableField(models.Model):
         fields, field_names, option_data = cls()._compose_data(table_id, field_data, bk_tenant_id=bk_tenant_id)
 
         # 校验字段是否已经创建
-        cls()._check_existed_fields(table_id, field_names)
+        cls()._check_existed_fields(table_id, field_names, bk_tenant_id)
 
         # 写入数据
         cls.objects.bulk_create([cls(**field) for field in fields])
