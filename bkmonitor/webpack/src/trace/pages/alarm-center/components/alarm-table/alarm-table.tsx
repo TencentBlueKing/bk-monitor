@@ -193,6 +193,7 @@ export default defineComponent({
     const settings = computed(() => ({
       ...props.tableSettings,
       hasCheckAll: true,
+      showRowSize: false,
     }));
 
     /**

@@ -52,9 +52,13 @@ export function useAlarmTableColumns() {
   const storageColumns = useStorage<string[]>(storageKey, defaultTableFields);
 
   /** 必须显示且不可编辑隐藏列 */
-  const lockedTableFields = computed(() =>
-    alarmStore.alarmService.allTableColumns.filter(item => item.is_locked).map(item => item.colKey)
-  );
+  const lockedTableFields = computed(() => {
+    const locked = alarmStore.alarmService.allTableColumns.filter(item => item.is_locked).map(item => item.colKey);
+    if (alarmStore.alarmType === AlarmType.ALERT) {
+      return ['row-select', ...locked];
+    }
+    return locked;
+  });
   const tableColumns = computed<TableColumnItem[]>(() => {
     return allTableFields.value
       .map(({ field }) => {
