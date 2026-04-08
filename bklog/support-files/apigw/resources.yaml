@@ -3109,6 +3109,28 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
+  /clustering_config/list_configs/:
+    get:
+      operationId: list_clustering_configs
+      description: 日志平台-获取聚类配置
+      tags:
+      - 聚类
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/clustering_config/list_configs/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
   /query/ts/:
     post:
       operationId: query_ts
