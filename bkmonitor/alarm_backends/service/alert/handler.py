@@ -310,6 +310,8 @@ class AlertHandler(base.BaseHandler):
                         group_id=f"{settings.APP_CODE}.alert.builder",
                         # 每个分区单次获取大小最大值为5M
                         max_partition_fetch_bytes=1024 * 1024 * 5,
+                        # 请求级超时，限制 broker 不可用时初始化 poll() 的最长阻塞时间
+                        request_timeout_ms=30000,
                     )
                     new_consumers[bootstrap_server].poll()
                     new_consumers[bootstrap_server].assign(partitions=list(bootstrap_servers_topics[bootstrap_server]))
@@ -361,11 +363,21 @@ class AlertHandler(base.BaseHandler):
         if self.consumers_lock.locked():
             self.consumers_lock.release()
         while True:
-            self.consumers_lock.acquire()
+            # 仅在持锁期间对 self.consumers 取快照，立即释放锁。
+            # 避免 consumer.poll() 在持锁状态下因 broker 过载而永久阻塞，
+            # 导致 run_consumer_manager 无法获取锁完成 consumer 的增删更新。
+            with self.consumers_lock:
+                current_consumers = dict(self.consumers)
+
             has_record = False
-            for bootstrap_server, consumer in self.consumers.items():
-                # 设置timeout时间500ms
-                data = consumer.poll(500, max_records=self.MAX_RETRIEVE_NUMBER)
+            for bootstrap_server, consumer in current_consumers.items():
+                try:
+                    # 设置timeout时间500ms
+                    data = consumer.poll(500, max_records=self.MAX_RETRIEVE_NUMBER)
+                except Exception as e:
+                    # consumer 可能已被 run_consumer_manager 关闭（发布/配置变更时）
+                    logger.warning("[run_poller] poll error for %s, skip: %s", bootstrap_server, e)
+                    continue
                 if not data:
                     continue
 
@@ -380,7 +392,6 @@ class AlertHandler(base.BaseHandler):
                     consumer.config["bootstrap_servers"],
                     len(events),
                 )
-            self.consumers_lock.release()
 
             if self.run_once or self._stop_signal:
                 logger.info("[run_poller] alert event poller got stop signal")
@@ -389,12 +400,12 @@ class AlertHandler(base.BaseHandler):
             # gpt说：如果消费者启用了自动提交消费位移，那么Kafka会在消费者poll消息时自动提交消费位移在这种情况下，
             # 如果消费者在第一次poll消息时没有消费完所有的消息，那么这些消息的消费位移就会被自动提交，导致第二次poll返回数据为空。
             # 所以没有数据不代表真实的没有数据
-            if not has_record and self.consumers:
+            if not has_record and current_consumers:
                 logger.info(
-                    "[run_poller]  alert event poller get no data from  %s", ",".join(list(self.consumers.keys()))
+                    "[run_poller]  alert event poller get no data from  %s", ",".join(list(current_consumers.keys()))
                 )
 
-            if not self.consumers:
+            if not current_consumers:
                 # 没有consumer的情况下，沉睡10秒钟，减少调度
                 time.sleep(5)
                 logger.info("[run_poller] sleep(5 seconds) because of no consumer")

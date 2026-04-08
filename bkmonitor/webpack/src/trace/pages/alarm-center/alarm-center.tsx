@@ -34,7 +34,7 @@ import {
   watch,
 } from 'vue';
 
-import { commonPageSizeSet, convertDurationArray, tryURLDecodeParse } from 'monitor-common/utils';
+import { commonPageSizeSet, convertDurationArray, copyText, tryURLDecodeParse } from 'monitor-common/utils';
 import FavoriteBox, {
   type IFavorite,
   type IFavoriteGroup,
@@ -80,6 +80,7 @@ const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
 import { Message } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { traceGenerateQueryString } from 'monitor-api/modules/apm_trace';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
@@ -175,7 +176,10 @@ export default defineComponent({
     const showResidentBtn = shallowRef(false);
 
     const isCollapsed = shallowRef(false);
+    /* 当前选中的告警id */
     const alarmId = shallowRef<string>('');
+    /** 当前选中的告警bizId */
+    const alarmBizId = shallowRef<number>(undefined);
     const alarmDetailShow = shallowRef(false);
     /** table 选中的 rowKey 数组 */
     const selectedRowKeys = shallowRef<string[]>([]);
@@ -320,6 +324,7 @@ export default defineComponent({
         filterMode: alarmStore.filterMode,
         alarmType: alarmStore.alarmType,
         alarmId: alarmId.value,
+        alarmBizId: alarmBizId.value,
         bizIds: JSON.stringify(alarmStore.bizIds),
         currentPage: page.value,
         sortOrder: ordering.value,
@@ -369,6 +374,7 @@ export default defineComponent({
         currentPage,
         showDetail,
         alarmId: alarmIdParams,
+        alarmBizId: alarmBizIdParams,
         favorite_id: favoriteId,
         showResidentBtn: queryShowResidentBtn,
         /** 最后一次操作的快速过滤条件分类数据 */
@@ -421,6 +427,7 @@ export default defineComponent({
         isShowFavorite.value = JSON.parse(localStorage.getItem(ALARM_CENTER_SHOW_FAVORITE) || 'false');
         alarmDetailShow.value = JSON.parse((showDetail as string) || 'false');
         alarmId.value = (alarmIdParams as string) || '';
+        alarmBizId.value = alarmBizIdParams ? Number(alarmBizIdParams) : undefined;
         alarmStore.initAlarmService();
       } catch (error) {
         console.log('route query:', error);
@@ -435,6 +442,7 @@ export default defineComponent({
     function handleShowAlertDetail(row: AlertTableItem, defaultTab?: string) {
       alarmDetailDefaultTab.value = defaultTab || '';
       alarmId.value = row.id;
+      alarmBizId.value = row.bk_biz_id;
       handleDetailShowChange(true);
     }
 
@@ -444,6 +452,7 @@ export default defineComponent({
      */
     function handleShowActionDetail(row: ActionTableItem) {
       alarmId.value = row.id;
+      alarmBizId.value = row.bk_biz_id as number;
       handleDetailShowChange(true);
     }
 
@@ -646,6 +655,49 @@ export default defineComponent({
       showResidentBtn.value = val;
     };
 
+    const handleCopyWhereQueryString = async (whereParams: CommonCondition[]) => {
+      const filters = whereParams.map(item => {
+        if (item.key === '*') {
+          return {
+            ...item,
+            operator: 'equal',
+            options: {},
+          };
+        }
+        const type = retrievalFilterFields.value.find(v => v.name === item.key)?.type || 'keyword';
+        return {
+          ...item,
+          value: [EFieldType.integer, EFieldType.long].includes(type as EFieldType)
+            ? item.value.map(v => {
+                const numberV = Number(v);
+                return numberV === 0 ? 0 : numberV || v;
+              })
+            : item.value,
+          operator: item.method,
+        };
+      });
+      if (filters.length) {
+        const copyStr = await traceGenerateQueryString({
+          filters,
+        }).catch(() => {
+          return '';
+        });
+        if (copyStr) {
+          copyText(copyStr, msg => {
+            Message({
+              message: msg,
+              theme: 'error',
+            });
+            return;
+          });
+          Message({
+            message: t('复制成功'),
+            theme: 'success',
+          });
+        }
+      }
+    };
+
     watch(
       () => data.value,
       () => {
@@ -683,6 +735,7 @@ export default defineComponent({
       retrievalFilterFields,
       residentSettingOnlyId,
       alarmId,
+      alarmBizId,
       alarmDetailShow,
       alertDialogShow,
       alertDialogType,
@@ -731,6 +784,7 @@ export default defineComponent({
       handleSaveAlertContentName,
       handleShowResidentBtnChange,
       handleQuickFilteringOperation,
+      handleCopyWhereQueryString,
     };
   },
   render() {
@@ -775,6 +829,7 @@ export default defineComponent({
             selectFavorite={this.retrievalSelectFavorite}
             onBizIdsChange={this.handleBizIdsChange}
             onConditionChange={this.handleConditionChange}
+            onCopyWhere={this.handleCopyWhereQueryString}
             onFavoriteSave={this.handleFavoriteSave}
             onFilterModeChange={this.handleFilterModeChange}
             onQuery={this.handleQuery}
@@ -867,6 +922,7 @@ export default defineComponent({
           </div>
 
           <AlarmCenterDetail
+            alarmBizId={this.alarmBizId}
             alarmId={this.alarmId}
             alarmType={this.alarmStore.alarmType}
             defaultTab={this.alarmDetailDefaultTab}

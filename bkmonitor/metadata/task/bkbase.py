@@ -330,9 +330,9 @@ def sync_bkbase_cluster_info(
         "default_settings": default_settings,
         "sasl_mechanisms": sasl_mechanisms,
         "is_auth": is_auth,
-        "gse_stream_to_id": stream_to_id,
         "security_protocol": security_protocol,
-        "version": version,
+        # "version": version,
+        # "gse_stream_to_id": stream_to_id,
     }
 
     with transaction.atomic():

@@ -30,6 +30,7 @@ from core.drf_resource import api
 
 
 logger = logging.getLogger("access.event")
+KAFKA_REQUEST_TIMEOUT_BUFFER_MS = 1000
 
 
 def always_retry(wait):
@@ -63,6 +64,12 @@ class EventPoller:
 
     def create_consumer(self, **consumer_kwargs):
         group_name = f"{settings.APP_CODE}.access.event"
+        session_timeout_ms = consumer_kwargs.get("session_timeout_ms", 30000)
+        request_timeout_ms = consumer_kwargs.get("request_timeout_ms")
+        if request_timeout_ms is not None:
+            consumer_kwargs["request_timeout_ms"] = max(
+                request_timeout_ms, session_timeout_ms + KAFKA_REQUEST_TIMEOUT_BUFFER_MS
+            )
         consumer = kafka.KafkaConsumer(
             bootstrap_servers=[f"{host}:{settings.KAFKA_PORT}" for host in settings.KAFKA_HOST],
             group_id=group_name,

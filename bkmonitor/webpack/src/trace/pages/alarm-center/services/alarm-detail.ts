@@ -53,19 +53,21 @@ import type { IAlarmDetail } from '../typings/detail';
 import type { RequestOptions } from './base';
 import type { SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 
-export const fetchAlarmDetail = (id: string): Promise<AlarmDetail | null> => {
+export const fetchAlarmDetail = (id: string, bk_biz_id: number): Promise<AlarmDetail | null> => {
   if (!id) return Promise.resolve(null);
-  return alertDetail<{ id: string }, IAlarmDetail>({
+  return alertDetail<{ bk_biz_id: number; id: string }, IAlarmDetail>({
     id,
+    bk_biz_id,
   })
     .then(res => new AlarmDetail(res))
     .catch(() => null);
 };
 
-export const fetchActionDetail = (id: string): Promise<ActionDetail | null> => {
+export const fetchActionDetail = (id: string, bk_biz_id: number): Promise<ActionDetail | null> => {
   if (!id) return Promise.resolve(null);
-  return actionDetail<{ id: string }, IActionDetail>({
+  return actionDetail<{ bk_biz_id: number; id: string }, IActionDetail>({
     id,
+    bk_biz_id,
   })
     .then(res => new ActionDetail(res))
     .catch(() => null);

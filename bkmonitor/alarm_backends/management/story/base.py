@@ -16,10 +16,19 @@ from alarm_backends.management.story.color import ConsoleColor
 
 logger = logging.getLogger("self_monitor")
 HEALTHZ_KAFKA_TIMEOUT_MS = 3000
+HEALTHZ_KAFKA_SESSION_TIMEOUT_MS = 10000
+KAFKA_REQUEST_TIMEOUT_BUFFER_MS = 1000
+
+
+def normalize_kafka_request_timeout(request_timeout_ms, session_timeout_ms):
+    return max(request_timeout_ms, session_timeout_ms + KAFKA_REQUEST_TIMEOUT_BUFFER_MS)
 
 
 def create_healthz_kafka_consumer(*topics, **kwargs):
-    kwargs.setdefault("request_timeout_ms", HEALTHZ_KAFKA_TIMEOUT_MS)
+    kwargs.setdefault("session_timeout_ms", HEALTHZ_KAFKA_SESSION_TIMEOUT_MS)
+    kwargs["request_timeout_ms"] = normalize_kafka_request_timeout(
+        kwargs.pop("request_timeout_ms", HEALTHZ_KAFKA_TIMEOUT_MS), kwargs["session_timeout_ms"]
+    )
     kwargs.setdefault("api_version_auto_timeout_ms", HEALTHZ_KAFKA_TIMEOUT_MS)
     return KafkaConsumer(*topics, **kwargs)
 
